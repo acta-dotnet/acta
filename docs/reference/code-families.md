@@ -117,8 +117,8 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 |---|---:|---|---|---|
 | `None` | 0 | `none` | No automatic failure alerts. An alert a handler raises is still created. | Active |
 | `OnFailure` | 10 | `on-failure` | The default. Alerts on every failed or orphaned attempt; repeats collapse onto the job's one open incident, and the final failure raises a separate alert. Every enabled profile records the attempts its alerts read, whatever the event recording level. Resolves on recovery, the job's next success. | Active |
-| `Info` | 20 | `info` | Informational alerts on a final failure only, at low severity. A permanent slot rarely reaches one; see on-terminal. Resolves on recovery, the job's next success. | Active |
-| `OnTerminal` | 30 | `on-terminal` | Alerts on a final failure only: the retry budget is spent, the handler failed the job, an exception is not retryable, a step that runs at most once was interrupted, or a lost lease spent the budget. Resolves on recovery, the job's next success. A deadline cancels the job and so alerts under no profile. A permanent slot never spends a budget, so use on-failure to hear about its failures. | Active |
+| `Info` | 20 | `info` | Informational alerts on a final failure only, at low severity. A permanent job rarely reaches one; see on-terminal. Resolves on recovery, the job's next success. | Active |
+| `OnTerminal` | 30 | `on-terminal` | Alerts on a final failure only: the retry budget is spent, the handler failed the job, an exception is not retryable, a step that runs at most once was interrupted, or a lost lease spent the budget. Resolves on recovery, the job's next success. A deadline cancels the job and so alerts under no profile. A permanent job never spends a budget, so use on-failure to hear about its failures. | Active |
 | `SysCritical` | 40 | `sys-critical` | Reserved for Acta's own system jobs. Alerts at critical severity to the job's channel, or to the channel named default when the job declares none. | Active |
 
 ### `AlertSeverityCode` · `alert-severity` <a id="code-family-alertseveritycode"></a>
@@ -159,7 +159,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `Timer` | 30 | `timer` | A durable sleep timer; pending until due, consumed when the handler runs again past the due time. | Active |
 | `Progress` | 40 | `progress` | The job's progress, one per job; the last write wins. | Active |
 | `ChildLatch` | 50 | `child-latch` | The latch a parent job holds for one child's outcome; pending while awaited, set when the child ends. | Active |
-| `Firing` | 60 | `firing` | The record of one scheduled firing of a permanent slot or of a per-occurrence job; pending while outstanding, then settled with the outcome. It survives a handler's state reset. | Active |
+| `Firing` | 60 | `firing` | The record of one scheduled firing of a permanent job or of a per-occurrence job; pending while outstanding, then settled with the outcome. It survives a handler's state reset. | Active |
 
 ### `CheckpointStatusCode` · `job-checkpoint-status` <a id="code-family-checkpointstatuscode"></a>
 
@@ -170,9 +170,9 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `Set` | 20 | `set` | Raised; the payload is stored and a waiting job proceeds. | Active |
 | `Expired` | 30 | `expired` | The wait ran past its timeout and was settled as timed out; a raise after that skips it. | Active |
 | `Consumed` | 100 | `consumed` | The due time was reached; the handler ran again, consumed the timer, and proceeded. | Active |
-| `Succeeded` | 110 | `succeeded` | The firing settled successfully; it stays the slot's last outcome until the next firing replaces it. | Active |
-| `Failed` | 120 | `failed` | The firing settled as a final failure; it stays the slot's last outcome until the next firing replaces it. | Active |
-| `Cancelled` | 130 | `cancelled` | The firing settled by cancellation; it stays the slot's last outcome until the next firing replaces it. | Active |
+| `Succeeded` | 110 | `succeeded` | The firing settled successfully; it stays the job's last outcome until the next firing replaces it. | Active |
+| `Failed` | 120 | `failed` | The firing settled as a final failure; it stays the job's last outcome until the next firing replaces it. | Active |
+| `Cancelled` | 130 | `cancelled` | The firing settled by cancellation; it stays the job's last outcome until the next firing replaces it. | Active |
 
 ### `DeadlineBehaviorCode` · `deadline-behavior` <a id="code-family-deadlinebehaviorcode"></a>
 
@@ -188,7 +188,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 |---|---:|---|---|---|
 | `Unspecified` | 0 | `unspecified` | Definition status not recognized by this build; the row was written by a newer Acta. | Active |
 | `Active` | 10 | `active` | Enqueues are accepted and workers claim the definition's jobs. | Active |
-| `Retired` | 240 | `retired` | Enqueues are rejected. Only an operator retires a definition; one that a deploy stops declaring stays active. Retiring cancels the definition's ready, blocked, paused, and suspended jobs with the event reason definition-retired, and a permanent slot goes idle unless it is paused; an executing job finishes its attempt, and one that would run again is cancelled with the same reason. | Active |
+| `Retired` | 240 | `retired` | Enqueues are rejected. Only an operator retires a definition; one that a deploy stops declaring stays active. Retiring cancels the definition's ready, blocked, paused, and suspended jobs with the event reason definition-retired, and a permanent job goes idle unless it is paused; an executing job finishes its attempt, and one that would run again is cancelled with the same reason. | Active |
 
 ### `DefinitionTenantRequirementCode` · `job-tenant-requirement` <a id="code-family-definitiontenantrequirementcode"></a>
 
@@ -212,7 +212,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `Lane` | 60 | `lane` | One lane. | Active |
 | `Lock` | 70 | `lock` | One lock. | Active |
 | `Namespace` | 80 | `namespace` | One namespace. | Active |
-| `Schedule` | 90 | `schedule` | One schedule of a recurring job. | Active |
+| `Schedule` | 90 | `schedule` | One schedule of a scheduled job. | Active |
 | `Step` | 100 | `step` | One step of a job. | Active |
 | `Tag` | 110 | `tag` | One tag on its entity. | Active |
 | `Tenant` | 120 | `tenant` | One tenant. | Active |
@@ -233,7 +233,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `JobDefinitionOverridesUpdated` | 30 | `definition.overrides-updated` | An operator changed a job definition's policy overrides; the message summarizes the change. | Active |
 | `JobDefinitionRetired` | 31 | `definition.retired` | An operator retired a job definition; enqueues are rejected and its waiting jobs were cancelled. | Active |
 | `JobExecutionSucceeded` | 40 | `job.execution-succeeded` | The attempt's handler returned successfully; durationMs is set. Recorded for every success under audit, under failures only for a success after counted failures, and under an enabled alert profile also for a one-shot job's success past its first attempt. | Active |
-| `JobExecutionFailed` | 41 | `job.execution-failed` | The attempt failed and the job lives on: a retry within budget, or a permanent slot's firing that spent its budget and returned the slot to idle. durationMs and the failure's message are set; the details carry the keys reason and to. | Active |
+| `JobExecutionFailed` | 41 | `job.execution-failed` | The attempt failed and the job lives on: a retry within budget, or a permanent job's firing that spent its budget and returned the job to idle. durationMs and the failure's message are set; the details carry the keys reason and to. | Active |
 | `JobExecutionOrphaned` | 42 | `job.execution-orphaned` | The lease of the attempt's worker expired and crash recovery reclaimed the job without ending it. workerRef names the worker that held it; the details carry the keys reason and to. | Active |
 | `JobExecutionYielded` | 43 | `job.execution-yielded` | The attempt ended without succeeding or failing: rescheduled, suspended, paused, or cancelled by its handler or the engine. Recorded under audit only; the details carry the keys outcome and reason. | Active |
 | `JobFailed` | 44 | `job.failed` | The job failed for good: its retry budget is spent, its handler failed it, or its failure is not retryable. durationMs is set when an attempt ran; the details carry the key reason. | Active |
@@ -241,8 +241,8 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `JobRescheduled` | 61 | `job.rescheduled` | The job became ready with a new nextRunAtUtc: its handler rescheduled it, a failed attempt retries within budget, or an operator rescheduled it. The details carry the key actor or reason. | Active |
 | `JobCancelled` | 70 | `job.cancelled` | The job was cancelled, which is final. | Active |
 | `JobPaused` | 71 | `job.paused` | The job was paused. | Active |
-| `JobResumed` | 72 | `job.resumed` | The job was resumed: it is ready again, idle for a permanent slot with no firing outstanding, or blocked behind its lane. Crash recovery records the same event, with the reason lane-repaired in its details, when it releases the next job of a stranded lane. | Active |
-| `JobRestarted` | 73 | `job.restarted` | The job was restarted: it is ready again, idle for a permanent slot, or blocked behind its lane. Its failure count is reset and its retention cleared, and its execution number carries on. | Active |
+| `JobResumed` | 72 | `job.resumed` | The job was resumed: it is ready again, idle for a permanent job with no firing outstanding, or blocked behind its lane. Crash recovery records the same event, with the reason lane-repaired in its details, when it releases the next job of a stranded lane. | Active |
+| `JobRestarted` | 73 | `job.restarted` | The job was restarted: it is ready again, idle for a permanent job, or blocked behind its lane. Its failure count is reset and its retention cleared, and its execution number carries on. | Active |
 | `JobReprioritized` | 74 | `job.reprioritized` | An operator changed the job's priority; the message carries the operator's reason, if any. | Active |
 | `JobPurged` | 75 | `job.purged` | An operator deleted a finished job's record; the event is about the deleted job's id, and its details keep the job's jobRef, correlationKey, and actor. Recorded whatever the event recording level. | Active |
 | `JobInputAmended` | 76 | `job.input-amended` | An operator replaced a job's stored input; the details carry the actor and the format name and byte count of the previous input, and the message carries the reason. | Active |
@@ -295,7 +295,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 |---|---:|---|---|---|
 | `Unspecified` | 0 | `unspecified` | Job kind not recognized by this build; the row was written by a newer Acta. | Active |
 | `Ordinary` | 10 | `ordinary` | A job enqueued by an application, an operator, or a parent job's handler, or created by a schedule for one occurrence; it ends in a final status. | Active |
-| `Permanent` | 20 | `permanent` | The one reusable job of a scheduled definition: registering the definition creates it, every firing of the definition's schedules runs through it, and it never ends by itself. | Active |
+| `Permanent` | 20 | `permanent` | The one reusable job of a scheduled definition: the deploy that writes the definition creates it, every firing of the definition's schedules runs through it, and it never ends by itself. | Active |
 
 ### `JobPayloadFormat` · `payload-format` <a id="code-family-jobpayloadformat"></a>
 
@@ -324,7 +324,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `Blocked` | 15 | `blocked` | Waiting behind an earlier unfinished job of its lane; no worker is offered it, and it becomes ready when the job ahead ends. | Active |
 | `Suspended` | 20 | `suspended` | Stopped until something outside the attempt happens: a signal its handler waits for, or the end of child jobs it waits on. | Active |
 | `Paused` | 30 | `paused` | Not running until it is resumed. | Active |
-| `Idle` | 40 | `idle` | A permanent slot between firings, with nothing outstanding and no lease. A firing makes it ready; it never ends by itself. | Active |
+| `Idle` | 40 | `idle` | A permanent job between firings, with nothing outstanding and no lease. A firing makes it ready; it never ends by itself. | Active |
 | `Executing` | 50 | `executing` | Claimed by a worker under a live lease; its handler is running or about to start. | Active |
 | `Succeeded` | 100 | `succeeded` | Ended successfully. | Active |
 | `Failed` | 200 | `failed` | Ended in failure: its attempts are spent, an exception is not retryable, a step that runs at most once was interrupted, or its handler failed it. | Active |
@@ -371,7 +371,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 |---|---:|---|---|---|
 | `Unspecified` | 0 | `unspecified` | Evaluation status not recognized by this build; the row was written by a newer Acta. | Active |
 | `Scheduled` | 10 | `scheduled` | The next evaluation is the next nominal occurrence, or the end of a timed pause. | Active |
-| `WaitingForCapacity` | 20 | `waiting-for-capacity` | An occurrence is due but the permanent slot is busy or the schedule is at its limit of outstanding occurrences; it fires when one of them ends. | Active |
+| `WaitingForCapacity` | 20 | `waiting-for-capacity` | An occurrence is due but the permanent job is busy or the schedule is at its limit of outstanding occurrences; it fires when one of them ends. | Active |
 | `Exhausted` | 30 | `exhausted` | The schedule has no further occurrence; a change to its declaration or to its calendar reactivates it. | Active |
 | `EvaluationError` | 40 | `evaluation-error` | The schedule's expression or calendar could not be evaluated; the schedule keeps its place and the evaluation retries after a bounded delay. | Active |
 | `JobUnavailable` | 50 | `job-unavailable` | An occurrence is due but the permanent job is held, cancelled, or failed terminally; a job resume or restart wakes it. | Active |
@@ -408,7 +408,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 |---|---:|---|---|---|
 | `Unspecified` | 0 | `unspecified` | Schedule origin not recognized by this build; the row was written by a newer Acta. | Active |
 | `Operator` | 20 | `operator` | Added by an operator. Nothing creates a schedule of this origin today. | Active |
-| `Definition` | 40 | `definition` | Declared in the application's code, and refreshed when the application registers its definitions. | Active |
+| `Definition` | 40 | `definition` | Declared in the application's code, and written again by each deploy. | Active |
 
 ### `ScheduleStatusCode` · `schedule-status` <a id="code-family-schedulestatuscode"></a>
 
@@ -424,7 +424,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
 | `Unspecified` | 0 | `unspecified` | Scheduled delivery not recognized by this build; the row was written by a newer Acta. | Active |
-| `Permanent` | 10 | `permanent` | Default. The definition's schedules fire one permanent slot job again and again. | Active |
+| `Permanent` | 10 | `permanent` | Default. The definition's schedules fire one permanent job again and again. | Active |
 | `PerOccurrence` | 20 | `per-occurrence` | Each admitted occurrence enqueues a fresh ordinary root job with its own state, retries, and retention. | Active |
 
 ### `StepFailureCode` · `step-failure` <a id="code-family-stepfailurecode"></a>

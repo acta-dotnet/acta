@@ -13,6 +13,6 @@ public enum ScheduleOriginCode : byte
     [Code("operator", "Added by an operator. Nothing creates a schedule of this origin today.")]
     Operator = 20,
 
-    [Code("definition", "Declared in the application's code, and refreshed when the application registers its definitions.")]
+    [Code("definition", "Declared in the application's code, and written again by each deploy.")]
     Definition = 40,
 }

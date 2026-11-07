@@ -48,8 +48,8 @@ The web shop is a simulator: an append-only table of order changes in the lab's 
 beside the local orders and Acta's tables, seeded the same way on every machine. The handler reads
 it through `ShopFeed` as it would read a remote API, never through Acta.
 
-The schedule admits a firing onto the job's permanent slot every five seconds; the firing applies one
-batch of forty changes and returns; the slot then sits `Idle` until the next admission, holding no
+The schedule admits a firing onto the permanent job every five seconds; the firing applies one
+batch of forty changes and returns; the job then sits `Idle` until the next admission, holding no
 thread. The watermark, the id of the last shop change applied, is a variable on the job. Acta keeps
 it the way it keeps the job itself: a row in `checkpoints_view`, carried across firings, retries,
 and workers, and the handler reads it at the top of every execution. Nothing else remembers how far
@@ -60,7 +60,7 @@ same one restarted, reclaims the firing through the lease, re-enters the handler
 reads the watermark the dead attempt wrote, and applies the next batch. The same job identity, the
 same firing id, one more execution number.
 
-Acta's own progress is separate. The schedule cursor says when the slot is next due, and the firing
+Acta's own progress is separate. The schedule cursor says when the job is next due, and the firing
 envelope says which schedule admitted the firing and how it settled. A firing that finds nothing to
 sync still moves the cursor and leaves the watermark alone; a manual trigger moves the watermark
 and leaves the cursor alone.
@@ -119,7 +119,7 @@ dotnet run --project concepts/100-scheduling/109-continuous-synchronization -- r
 `outage` switches the shop feed off and on again: a firing that cannot read the feed fails its
 attempt, the ledger records `job.execution-failed`, and Acta retries it under the job's budget
 (`MaxAttempts = 3`, two seconds apart); a spent budget settles the firing as failed and returns the
-slot to `Idle`, and the next scheduled firing syncs as soon as the feed is back. The watermark is
+job to `Idle`, and the next scheduled firing syncs as soon as the feed is back. The watermark is
 untouched by a failed attempt, so nothing is lost and nothing is applied twice.
 
 The lab shortens the heartbeat to one second, so the lease is four seconds and the restarted worker
@@ -131,9 +131,9 @@ Run with `--all-columns` to execute the visible `SELECT *` Explore query first. 
 queries select the fields that prove the lesson, and the text below explains their meaning. The rows
 below are from a run on 2026-10-30.
 
-**After the tour (step 1).** Three firings synced 120 changes in three batches of forty, and the slot
+**After the tour (step 1).** Three firings synced 120 changes in three batches of forty, and the job
 is back to `Idle` with no lease; the cursor already names the next occurrence, the envelope records
-how the last firing settled, and the watermark sits on the slot as a variable.
+how the last firing settled, and the watermark sits on the job as a variable.
 
 ```text
 job_ref                              | job_status | execution_number | failure_count | leased_by_worker_host_name | lease_expires_at_utc
@@ -164,7 +164,7 @@ feed head: change 120; local orders: 40 (newest change 120)
 holds both the firing envelope under `sys.firing`, the schedule that admitted the firing, its
 occurrence, and the firing's settlement, and the handler's watermark under its own name, kind
 `variable`, written by `SetVariableAsync` and nowhere else. The ledger alternates an admission and a
-settlement per firing; an admission row carries the execution number the slot had when it was
+settlement per firing; an admission row carries the execution number the job had when it was
 admitted, so the one that opened execution 1 reads 0. The last line is the destination, the one
 table that is the application's.
 
@@ -178,7 +178,7 @@ completed. The worker's last lines:
 Process terminated.
 ```
 
-The rows the dead process left behind: the slot still `executing` under a lease nobody will renew,
+The rows the dead process left behind: the job still `executing` under a lease nobody will renew,
 the envelope still `pending`, the watermark at the batch the dead worker applied, and the feed
 twenty changes ahead of it.
 
@@ -220,7 +220,7 @@ job_ref                              | job_status | execution_number | failure_c
 feed head: change 180; local orders: 40 (newest change 180)
 ```
 
-`job.execution-orphaned` is the reclaim: attempt 7 lost its lease and the slot went back to `Ready`
+`job.execution-orphaned` is the reclaim: attempt 7 lost its lease and the job went back to `Ready`
 (`"to":"ready"`). No admission sits between the reclaim and execution 8, so execution 8 ran the
 firing execution 7 lost, not a new one; the envelope that was `pending` under execution 7 settled
 under execution 8. `schedule.skipped` is the misfire policy at work: the occurrences that fell due
@@ -247,7 +247,7 @@ batch: an older change overwrites a newer order, which is what the clause is for
   durable feed of your own first.
 - Work where each occurrence is its own business event with its own retries, result, and retention:
   a nightly statement run, an hourly import whose files must each be tracked. That is a
-  `PerOccurrence` definition, one ordinary root job per occurrence, not a permanent slot.
+  `PerOccurrence` definition, one ordinary root job per occurrence, not a permanent job.
 - A sync that must write back to the external system: still a permanent job, but every write needs
   the external system's idempotency key, as in the agent guide's webhook sample.
 
@@ -256,6 +256,6 @@ batch: an older change overwrites a newer order, which is what the clause is for
 - [The related Engineering Lab](../../../docs/engineering-labs.md)
 - [`continuous-synchronization.cs`](./continuous-synchronization.cs), [`SyncOrdersJob.cs`](./SyncOrdersJob.cs), [`OrderStore.cs`](./OrderStore.cs), [`ShopFeed.cs`](./ShopFeed.cs)
 - The tests that prove each claim without sleeping: [`804-continuous-synchronization-tests`](../../800-testing/804-continuous-synchronization-tests/)
-- [`ScheduleAdmitter.cs`](../../../src/Acta/Engine/Scheduling/ScheduleAdmitter.cs), the admission pass that moves the slot from `Idle` to `Ready`
+- [`ScheduleAdmitter.cs`](../../../src/Acta/Engine/Scheduling/ScheduleAdmitter.cs), the admission pass that moves the permanent job from `Idle` to `Ready`
 - [`ReclaimStuckJobs.routine.pg.sql`](../../../src/Acta/Operations/Execution/ReclaimStuckJobs/ReclaimStuckJobs.routine.pg.sql), the recovery that reclaims a lost firing
 - [Scheduling and calendars](../../../docs/scheduling.md), the page on schedules

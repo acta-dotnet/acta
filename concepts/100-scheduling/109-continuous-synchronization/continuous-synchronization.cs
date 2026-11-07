@@ -1,5 +1,5 @@
 // Concept: one permanent job keeps an external system synchronized. The schedule admits a firing every
-// five seconds onto one permanent slot; each firing syncs one bounded batch and returns; the watermark is
+// five seconds onto one permanent job; each firing syncs one bounded batch and returns; the watermark is
 // the job's own durable variable, read at the top of every execution, so a recovered firing continues
 // where the lost one stopped.
 using Acta;
@@ -155,7 +155,7 @@ static async Task ShowStateAsync(ConceptLab lab, IJobs jobs, ISchedules schedule
 {
     var slotId = await SlotIdAsync(jobs, schedules);
     await lab.ShowAllAsync(
-        "Explore the complete permanent slot record",
+        "Explore the complete permanent job record",
         """
         SELECT *
         FROM jobs_view
@@ -191,7 +191,7 @@ static async Task ShowStateAsync(ConceptLab lab, IJobs jobs, ISchedules schedule
         new { slotId }
     );
     await lab.ShowAsync(
-        "The job's own progress: the watermark, a durable variable on the slot that every execution reads first",
+        "The job's own progress: the watermark, a durable variable on the job that every execution reads first",
         """
         SELECT checkpoint_name, checkpoint_kind, value_text, modified_at_utc
         FROM checkpoints_view
@@ -237,6 +237,6 @@ static void PrintCommands()
     Console.WriteLine("  more [n] publish n more shop changes (default 60)");
     Console.WriteLine("  crash    arm a process crash after the next committed batch");
     Console.WriteLine("  outage   switch the shop feed off, or back on");
-    Console.WriteLine("  inspect  print the slot, the cursor, the envelope, the watermark, and the ledger");
+    Console.WriteLine("  inspect  print the job, the cursor, the envelope, the watermark, and the ledger");
     Console.WriteLine("  reset    delete the lab's database and markers");
 }

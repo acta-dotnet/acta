@@ -5,7 +5,7 @@ namespace Acta;
 /// <c>JobNamespace</c> is required with <c>JobName</c>; the names (<c>JobNamespace</c>, <c>JobName</c>, <c>TenantName</c>,
 /// <c>Lane</c>) fold lowercase, <c>CorrelationKey</c> is trimmed like a key and matches case-sensitively; <c>TerminalOnly</c> true
 /// restricts to Succeeded, Failed, and Cancelled (null or false skips it); <c>Kind</c> restricts to jobs of that kind, a
-/// permanent slot whether or not a schedule is bound to it; <c>PageSize</c> null defaults to 50 and clamps at 100; <c>Cursor</c>
+/// permanent job whether or not a schedule is bound to it; <c>PageSize</c> null defaults to 50 and clamps at 100; <c>Cursor</c>
 /// is the previous page's <see cref="IPagedResponse{T}.NextCursor"/>; <c>Tags</c> restricts to jobs carrying every supplied tag filter.
 /// </summary>
 public sealed record ListJobsQuery(

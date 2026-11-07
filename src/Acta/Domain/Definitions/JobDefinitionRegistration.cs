@@ -160,7 +160,7 @@ internal static class JobDefinitionRegistration
             {
                 throw new ArgumentException(
                     $"Job definition \"{descriptor.JobName}\" (namespace {namespaceLabel}) declares the lane \"{lane}\" and a schedule. "
-                        + "A recurring slot never finishes, so it would hold its lane forever; drop the lane, or enqueue laned work "
+                        + "A permanent job never finishes, so it would hold its lane forever; drop the lane, or enqueue laned work "
                         + "from the scheduled job."
                 );
             }

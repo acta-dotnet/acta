@@ -16,7 +16,7 @@ namespace Acta;
 /// <param name="LeasedByWorkerId">The internal id of the worker holding the lease; the JSON omits it and carries
 /// leasedByWorkerRef.</param>
 /// <param name="JobRef">The job's ref, job_ followed by 32 hex digits.</param>
-/// <param name="Kind">Whether the job is an ordinary job or a scheduled definition's permanent slot.</param>
+/// <param name="Kind">Whether the job is an ordinary job or a scheduled definition's permanent job.</param>
 /// <param name="JobNamespace">The namespace of the job's definition.</param>
 /// <param name="JobName">The name of the job's definition.</param>
 /// <param name="LineageRootJobRef">The ref of the job at the root of the lineage this job belongs to; null for a root job.</param>

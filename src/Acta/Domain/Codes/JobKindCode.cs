@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 namespace Acta;
 
 /// <summary>
-/// What a job is: an ordinary job, or the one permanent slot a scheduled definition fires through. The kind is set when the job is
+/// What a job is: an ordinary job, or the one permanent job a scheduled definition fires through. The kind is set when the job is
 /// created and never changes.
 /// </summary>
 /// <remarks>Code reads the kind instead of inferring it from a deduplication key or from the schedules a row owns.</remarks>
@@ -22,7 +22,7 @@ public enum JobKindCode : byte
 
     [Code(
         "permanent",
-        "The one reusable job of a scheduled definition: registering the definition creates it, every firing of the definition's schedules runs through it, and it never ends by itself."
+        "The one reusable job of a scheduled definition: the deploy that writes the definition creates it, every firing of the definition's schedules runs through it, and it never ends by itself."
     )]
     Permanent = 20,
 }

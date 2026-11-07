@@ -15,7 +15,7 @@ public enum DefinitionStatusCode : byte
 
     [Code(
         "retired",
-        "Enqueues are rejected. Only an operator retires a definition; one that a deploy stops declaring stays active. Retiring cancels the definition's ready, blocked, paused, and suspended jobs with the event reason definition-retired, and a permanent slot goes idle unless it is paused; an executing job finishes its attempt, and one that would run again is cancelled with the same reason."
+        "Enqueues are rejected. Only an operator retires a definition; one that a deploy stops declaring stays active. Retiring cancels the definition's ready, blocked, paused, and suspended jobs with the event reason definition-retired, and a permanent job goes idle unless it is paused; an executing job finishes its attempt, and one that would run again is cancelled with the same reason."
     )]
     Retired = 240,
 }

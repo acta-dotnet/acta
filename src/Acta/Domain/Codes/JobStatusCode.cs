@@ -30,7 +30,7 @@ public enum JobStatusCode : byte
 
     [Code(
         "idle",
-        "A permanent slot between firings, with nothing outstanding and no lease. A firing makes it ready; it never ends by itself."
+        "A permanent job between firings, with nothing outstanding and no lease. A firing makes it ready; it never ends by itself."
     )]
     Idle = 40,
 

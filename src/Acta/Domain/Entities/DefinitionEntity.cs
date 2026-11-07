@@ -148,7 +148,7 @@ internal sealed class DefinitionEntity : IEntity<int>
 
     /// <summary>
     /// Cap on consecutive failures before terminal <c>Status = Failed</c> for one-off jobs; resets on
-    /// success. Recurring slots never terminalize on the count (MaxAttempts is the one-off budget only).
+    /// success. Permanent jobs never terminalize on the count (MaxAttempts is the one-off budget only).
     /// </summary>
     [DbColumn("max_attempts", DbKind.Int32)]
     public int MaxAttempts { get; internal set; }
@@ -326,7 +326,7 @@ internal sealed class DefinitionEntity : IEntity<int>
     public FiringFailurePolicyCode FiringFailurePolicy { get; internal set; }
 
     /// <summary>
-    /// How the definition's schedules deliver its work (<c>Permanent</c> slot / <c>PerOccurrence</c> roots).
+    /// How the definition's schedules deliver its work (one <c>Permanent</c> job / <c>PerOccurrence</c> roots).
     /// Code-owned, without an override triple, and immutable once registered: a deploy refuses a changed mode.
     /// </summary>
     [DbColumn("scheduled_delivery_code")]

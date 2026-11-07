@@ -46,7 +46,7 @@ await Task.Delay(5000);
 Console.WriteLine("Cancelling job to stay in the FirstFailure stage...");
 await jobs.CancelAsync(outcome, "demo cancelled after two failures");
 
-// Automatic alerts are NOT raised at failure time. The sys.alerts recurring job on a
+// Automatic alerts are NOT raised at failure time. The sys.alerts permanent job on a
 // Cron.EveryMinute sweep generates them. Wait up to ~75s for the row to appear.
 Console.WriteLine("waiting for the sys.alerts sweep...");
 var deadline = DateTime.UtcNow.AddSeconds(75);

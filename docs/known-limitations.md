@@ -37,13 +37,13 @@ Execution is at-least-once, and a handler re-enters from the top with its comple
 - **A provider error at admission bounces the attempt** with `job.unclassified`, spending no budget and raising no alert; a concurrency slot it took without an answer stays taken for up to one lease.
 - **A wait deadline added in a code upgrade arms at the job's next claim**, so a job already suspended under the old code needs a reschedule.
 - **A descendant walk that stops early leaves the rest of the tree running.** It stops when the process walking it dies, or when an operator's cancel hits a database error after its caller stopped waiting. Cancelling the job again walks them.
-- **A permanent slot keeps what it adds on each fire.** Its slots and the children it started stay as long as the job, which lives as long as its schedule, so a child or a step named per period is never purged. Declare the definition `ScheduledDelivery = ScheduledDeliveryCode.PerOccurrence` for work that should drain with retention ([delivery and capacity](./scheduling.md#delivery-and-capacity)).
-- **A `PerOccurrence` definition declares no lane and no deadline**; the generator refuses both, as it does for a permanent slot.
-- **An orphaned per-occurrence schedule's row stays** until its definition is retired: there is no slot whose purge removes it, and no schedule delete verb yet.
+- **A permanent job keeps what it adds on each fire.** Its steps and the children it started stay as long as the job, which lives as long as its schedule, so a child or a step named per period is never purged. Declare the definition `ScheduledDelivery = ScheduledDeliveryCode.PerOccurrence` for work that should drain with retention ([delivery and capacity](./scheduling.md#delivery-and-capacity)).
+- **A `PerOccurrence` definition declares no lane and no deadline**; the generator refuses both, as it does for a permanent job.
+- **An orphaned per-occurrence schedule's row stays** until its definition is retired: there is no permanent job whose purge removes it, and no schedule delete verb yet.
 - **On SQL Server, a child enqueued in a transaction still open when its parent is cancelled escapes the cancel.** The cancel does not wait for the uncommitted child, which runs once the transaction commits. Cancelling the parent again walks it.
 - **A worker that crashes on every replay of a timed-out wait loops without spending budget.** The job re-alerts on every reminder, and an operator cancel ends it.
-- **`OnTerminal` and `Info` never alert on a recurring job's ordinary failures**, which return the slot to `Idle` instead of landing Failed. Use `OnFailure` for recurring work.
-- **The alert projector assumes the database clock never steps backwards.** After a step, failures stamped below the cursor are missed. Repair by setting the `alerts-cursor` variable of the namespace's `sys.alerts` slot in `checkpoints` to `{"Ticks":<UTC ticks of an instant before the step>,"EventId":0}`, no further back than `AlertRetention`.
+- **`OnTerminal` and `Info` never alert on a permanent job's ordinary failures**, which return it to `Idle` instead of landing Failed. Use `OnFailure` for recurring work.
+- **The alert projector assumes the database clock never steps backwards.** After a step, failures stamped below the cursor are missed. Repair by setting the `alerts-cursor` variable of the namespace's `sys.alerts` job in `checkpoints` to `{"Ticks":<UTC ticks of an instant before the step>,"EventId":0}`, no further back than `AlertRetention`.
 - **A writer that freezes past twice the command timeout** can commit an event the projector already passed, which is then missed (never wrong). Keep command timeouts the same across the fleet.
 - **A requeue command can requeue a row a second time.** A relay pass that stalls between planning the command and requeueing its rows, while another pass finishes it and the row is quarantined again, requeues that row once more and records no event for it. The row retries as the operator asked; nothing else changes.
 
@@ -69,7 +69,7 @@ Execution is at-least-once, and a handler re-enters from the top with its comple
 - **The drift guard checks type names and payload formats, not JSON compatibility.** Wire compatibility is the application's.
 - **A worker excludes a definition it has no handler for only for its own lifetime.** A long run of such jobs slows its claims until the definition is retired or its build returns.
 - **Retiring a definition cancels its parked jobs but not their descendants.**
-- **A recurring firing still running when its definition is retired is cancelled** unless it succeeds or spends its failure budget, which return the slot to `Idle` as usual. A cancelled slot stays cancelled after a deploy reactivates the definition, so restart it; once its retention runs out, purge removes it and the next deploy that declares the definition writes a fresh slot.
+- **A recurring firing still running when its definition is retired is cancelled** unless it succeeds or spends its failure budget, which return the permanent job to `Idle` as usual. A cancelled permanent job stays cancelled after a deploy reactivates the definition, so restart it; once its retention runs out, purge removes it and the next deploy that declares the definition writes a fresh permanent job.
 - **A worker learns of a retire on its next heartbeat**, so an attempt that starts in that gap still runs once. A job its handler paused stays Paused until it is resumed or cancelled.
 
 ## Dashboard and API exposure
@@ -144,7 +144,7 @@ configuration is exercised by the conformance suites.
 SQL provider behavior should be tested under your workload, including claim pressure, long-running
 handlers, retries, schedule load, alert delivery, retention sweeps, and backup/restore drills.
 
-A recurring job that an operator restarts after a terminal failure does not auto-resolve its open
+A permanent job that an operator restarts after a terminal failure does not auto-resolve its open
 alert at the `Failures` or `Off` recording levels: the restart zeroes the failure count, so the next
 successful fire is not captured as a recovery. Resolve the incident manually, or run the definition
 at `Audit`, where every success is recorded and resolves it. One-shot jobs auto-resolve after a

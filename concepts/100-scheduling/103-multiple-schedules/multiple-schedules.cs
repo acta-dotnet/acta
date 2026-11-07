@@ -15,7 +15,7 @@ builder.Services.UseActa(j =>
 using var host = builder.Build();
 await host.StartAsync();
 
-Console.WriteLine("Watching two schedule cursors drive one reusable job slot for 12 seconds...");
+Console.WriteLine("Watching two schedule cursors drive one permanent job for 12 seconds...");
 await Task.Delay(TimeSpan.FromSeconds(12));
 
 await lab.ShowAllAsync(
@@ -28,7 +28,7 @@ await lab.ShowAllAsync(
     new { jobNamespace = "multiple-schedules", jobName = "report" }
 );
 await lab.ShowAsync(
-    "One recurring job identity, several executions",
+    "One permanent job identity, several executions",
     """
     SELECT job_id, job_ref, definition_name, job_status, execution_number
     FROM jobs_view
@@ -65,7 +65,7 @@ namespace Acta.Concepts.MultipleSchedules
 
     public sealed class ReportJob
     {
-        // Several [Schedule]s share one recurring slot; schedules due at the same instant coalesce
+        // Several [Schedule]s share one permanent job; schedules due at the same instant coalesce
         // into ONE execution, and context.TriggeringSchedules reports which fired.
         [Job("report")]
         [Schedule("fast", "PT10S")]

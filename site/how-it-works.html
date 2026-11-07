@@ -69,16 +69,16 @@
     <section class="wrap" id="lifecycle">
       <p class="record">The model in one figure</p>
       <h2>A permanent job, through one firing.</h2>
-      <p class="lede">A scheduled definition owns one permanent slot by default, and the figure follows it. Admission makes the slot claimable when a schedule is due, a worker runs the handler for a bounded amount of work, and the slot returns to <code>Idle</code> holding no thread. Acta's progress and the job's are two different rows, and they never touch.</p>
+      <p class="lede">A scheduled definition owns one permanent job by default, and the figure follows it. Admission makes the job claimable when a schedule is due, a worker runs the handler for a bounded amount of work, and the job returns to <code>Idle</code> holding no thread. Acta's progress and the job's are two different rows, and they never touch.</p>
       <figure class="pipe">
         <div class="pipe-scroll">
-          <svg class="pipe-wide" viewBox="0 0 1000 356" role="img" aria-label="A permanent job's slot moves from Idle through Admission, where a due schedule moves the cursor and writes the firing envelope, to Ready, to Executing under a lease for one batch, and back to Idle; beneath it the job's watermark, a durable variable, advances from 120 to 160 only while the handler executes, written after the batch; an empty firing moves the cursor and not the watermark, a manual trigger moves the watermark and not the cursor.">
+          <svg class="pipe-wide" viewBox="0 0 1000 356" role="img" aria-label="A permanent job moves from Idle through Admission, where a due schedule moves the cursor and writes the firing envelope, to Ready, to Executing under a lease for one batch, and back to Idle; beneath it the job's watermark, a durable variable, advances from 120 to 160 only while the handler executes, written after the batch; an empty firing moves the cursor and not the watermark, a manual trigger moves the watermark and not the cursor.">
             <defs>
               <marker id="lc-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="fill-fg"/></marker>
             </defs>
             <rect class="band" x="30" y="14" width="950" height="54" rx="4"/>
             <text class="tt" x="48" y="38">Your database</text>
-            <text class="tm" x="48" y="57">the slot, its schedule cursor, its firing envelope, and its watermark are rows here</text>
+            <text class="tm" x="48" y="57">the job, its schedule cursor, its firing envelope, and its watermark are rows here</text>
 
             <text class="tm" x="30" y="112">Acta's progress: the schedule cursor and the firing envelope, moved by admission and settlement</text>
             <rect class="box" x="30" y="124" width="130" height="84" rx="4"/>
@@ -118,13 +118,13 @@
             <text class="tm" x="30" y="318">moves only while the handler executes</text>
             <text class="t" x="505" y="348" text-anchor="middle">the two never touch: an empty firing moves the cursor and not the watermark; a manual trigger moves the watermark and not the cursor</text>
           </svg>
-          <svg class="pipe-tall" viewBox="0 0 360 638" role="img" aria-label="A permanent job's slot moves from Idle through Admission, where a due schedule moves the cursor and writes the firing envelope, to Ready, to Executing under a lease for one batch, and back to Idle; the job's watermark, a durable variable, advances from 120 to 160 only while the handler executes, written after the batch, and the cursor and the watermark never touch.">
+          <svg class="pipe-tall" viewBox="0 0 360 638" role="img" aria-label="A permanent job moves from Idle through Admission, where a due schedule moves the cursor and writes the firing envelope, to Ready, to Executing under a lease for one batch, and back to Idle; the job's watermark, a durable variable, advances from 120 to 160 only while the handler executes, written after the batch, and the cursor and the watermark never touch.">
             <defs>
               <marker id="lc-m-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="fill-fg"/></marker>
             </defs>
             <rect class="band" x="10" y="10" width="340" height="50" rx="4"/>
             <text class="tt" x="24" y="32">Your database</text>
-            <text class="tm" x="24" y="50">the slot, the cursor, the envelope, the watermark</text>
+            <text class="tm" x="24" y="50">the job, the cursor, the envelope, the watermark</text>
 
             <rect class="box" x="40" y="84" width="280" height="66" rx="4"/>
             <text class="tt" x="56" y="110">Idle</text>
@@ -160,7 +160,7 @@
       <div class="facts">
         <div>
           <b>Acta's progress</b>
-          <p>The schedule cursor says when the slot is next due; the firing envelope says which schedules admitted this firing and how it settled. Admission writes both in one apply, so an occurrence is admitted once across every worker.</p>
+          <p>The schedule cursor says when the job is next due; the firing envelope says which schedules admitted this firing and how it settled. Admission writes both in one apply, so an occurrence is admitted once across every worker.</p>
         </div>
         <div>
           <b>The job's progress</b>
@@ -207,9 +207,9 @@
           </div>
         </div>
         <div class="vs-row" id="permanent">
-          <div class="who"><b>What is a permanent job?</b><span>one slot, fired again and again</span></div>
+          <div class="who"><b>What is a permanent job?</b><span>one job, fired again and again</span></div>
           <div class="why">
-            <p>The default for a definition with a <code>[Schedule]</code>: one permanent slot the schedule fires again and again. The slot is <code>Idle</code> between firings and holds no thread; admission makes it <code>Ready</code> when a schedule is due, a worker claims it, and the handler does a bounded amount of work and returns. Its steps and progress persist across firings, and the handler may reset them as its final action. This is how a synchronization controller runs without a loop that must never die.</p>
+            <p>The default for a definition with a <code>[Schedule]</code>: one permanent job the schedule fires again and again. It is <code>Idle</code> between firings and holds no thread; admission makes it <code>Ready</code> when a schedule is due, a worker claims it, and the handler does a bounded amount of work and returns. Its steps and progress persist across firings, and the handler may reset them as its final action. This is how a synchronization controller runs without a loop that must never die.</p>
             <div class="links"><a class="golink" href="https://github.com/acta-dotnet/acta/blob/main/docs/scheduling.md#delivery-and-capacity">Delivery and capacity</a><a class="golink" href="https://github.com/acta-dotnet/acta/tree/main/concepts/100-scheduling/109-continuous-synchronization">The synchronization lab</a></div>
           </div>
         </div>
@@ -257,7 +257,7 @@
       <p class="lede">The synchronization lab arms a crash after the next batch, kills its own process, and is restarted. What the rows said before and after, on embedded SQLite, from a fresh clone.</p>
       <figure class="pipe">
         <div class="pipe-scroll">
-          <svg class="pipe-wide" viewBox="0 0 1000 300" role="img" aria-label="Execution 7 applies a batch and writes watermark 160; the worker is killed before the attempt completes; the durable state is kept, the slot executing under a lease nobody renews, the envelope pending, the watermark at 160; the lease lapses and a heartbeat reclaims the row as job.execution-orphaned, back to Ready; execution 8 of the same firing re-enters from the top, reads watermark 160, and applies the next batch, nothing applied twice.">
+          <svg class="pipe-wide" viewBox="0 0 1000 300" role="img" aria-label="Execution 7 applies a batch and writes watermark 160; the worker is killed before the attempt completes; the durable state is kept, the job executing under a lease nobody renews, the envelope pending, the watermark at 160; the lease lapses and a heartbeat reclaims the row as job.execution-orphaned, back to Ready; execution 8 of the same firing re-enters from the top, reads watermark 160, and applies the next batch, nothing applied twice.">
             <defs>
               <marker id="cr-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="fill-fg"/></marker>
               <marker id="cr-ah-acc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="fill-acc"/></marker>
@@ -277,7 +277,7 @@
 
             <rect class="band" x="480" y="40" width="260" height="84" rx="4"/>
             <text class="tt" x="498" y="70">Durable state kept</text>
-            <text class="tm" x="498" y="92">slot executing, lease unrenewed,</text>
+            <text class="tm" x="498" y="92">job executing, lease unrenewed,</text>
             <text class="tm" x="498" y="110">envelope pending, watermark 160</text>
             <line class="ln" x1="740" y1="82" x2="766" y2="82" marker-end="url(#cr-ah)"/>
 
@@ -293,7 +293,7 @@
             <text class="tm" x="48" y="232">re-enters from the top, reads watermark 160, applies the next batch:</text>
             <text class="tm" x="48" y="250">same job_ref, same firing id, one more execution_number, nothing applied twice</text>
           </svg>
-          <svg class="pipe-tall" viewBox="0 0 360 540" role="img" aria-label="Execution 7 applies a batch and writes watermark 160; the worker is killed before the attempt completes; the durable state is kept, the slot executing under a lease nobody renews, the envelope pending, the watermark at 160; the lease lapses and a heartbeat reclaims the row as job.execution-orphaned, back to Ready; execution 8 of the same firing re-enters from the top, reads watermark 160, and applies the next batch, nothing applied twice.">
+          <svg class="pipe-tall" viewBox="0 0 360 540" role="img" aria-label="Execution 7 applies a batch and writes watermark 160; the worker is killed before the attempt completes; the durable state is kept, the job executing under a lease nobody renews, the envelope pending, the watermark at 160; the lease lapses and a heartbeat reclaims the row as job.execution-orphaned, back to Ready; execution 8 of the same firing re-enters from the top, reads watermark 160, and applies the next batch, nothing applied twice.">
             <defs>
               <marker id="cr-m-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="fill-fg"/></marker>
               <marker id="cr-m-ah-acc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="fill-acc"/></marker>
@@ -311,7 +311,7 @@
 
             <rect class="band" x="40" y="202" width="280" height="84" rx="4"/>
             <text class="tt" x="56" y="228">Durable state kept</text>
-            <text class="tm" x="56" y="250">slot executing, lease unrenewed,</text>
+            <text class="tm" x="56" y="250">job executing, lease unrenewed,</text>
             <text class="tm" x="56" y="268">envelope pending, watermark 160</text>
             <line class="ln" x1="180" y1="286" x2="180" y2="312" marker-end="url(#cr-m-ah)"/>
 
@@ -330,7 +330,7 @@
       </figure>
       <div class="panel rows">
         <div class="panel-tab output">SQL · what the rows said, on 2026-10-30</div>
-        <pre><code><span class="c">-- after the kill: the slot the dead worker left behind, and the watermark it wrote</span>
+        <pre><code><span class="c">-- after the kill: the job the dead worker left behind, and the watermark it wrote</span>
 job_ref                               job_status  execution_number  leased_by_worker_host_name  lease_expires_at_utc
 01a18cba-b966-7a5a-aaf2-83061ba0af99  executing   7                 DESKTOP-MVKQH5M             2026-10-30 12:14:08.857Z
 sys.firing  pending   {"firingId":"01a18cbb-422e-7ac2-9e3…

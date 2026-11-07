@@ -79,13 +79,13 @@ public sealed record JobDescriptor(
     public ImmutableArray<ScheduleDescriptor> Schedules { get; init; } = [];
 
     /// <summary>
-    /// Factory for a default input instance, used to seed the recurring slot's stored payload.
+    /// Factory for a default input instance, used to seed the permanent job's stored payload.
     /// Emitted only for scheduled jobs whose input is default-constructible; null otherwise.
     /// </summary>
     public Func<object>? CreateDefaultInput { get; init; }
 
     /// <summary>
-    /// Serializes a slot input instance to its wire payload using the same conventions as the
+    /// Serializes a permanent job's input instance to its wire payload using the same conventions as the
     /// normal enqueue flow. Emitted alongside <see cref="CreateDefaultInput"/>; null otherwise.
     /// </summary>
     public Func<IJobPayloadSerializer, object, JobPayload>? SerializeInput { get; init; }

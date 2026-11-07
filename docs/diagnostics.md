@@ -102,7 +102,7 @@ Rename the job so the derived member is unique.
 
 **Invalid `[Schedule]` declaration.** The variants: a `[Schedule]` on a method without `[Job]`; a
 schedule name that is not dotted kebab-case or uses the reserved `sys.` prefix; the same schedule
-name twice on one job; a blank expression; a `Lane` on a scheduled job, since a recurring slot
+name twice on one job; a blank expression; a `Lane` on a scheduled job, since a permanent job
 never finishes and would hold the lane forever; a blank `Environments` entry.
 
 ```csharp
@@ -120,7 +120,7 @@ strings; an interval is `"5m"`, `"PT5M"`, or `"PT1.5S"`.
 
 ## ACTA0123 <a id="acta0123"></a>
 
-**A scheduled handler's input cannot be constructed.** A recurring slot seeds its input from
+**A scheduled handler's input cannot be constructed.** A permanent job seeds its input from
 `new TIn()`, so a `[Schedule]` handler's input needs an accessible parameterless constructor, and a
 handler taking several input parameters cannot carry a schedule, since its generated argument
 record has none.
@@ -136,7 +136,7 @@ Use a parameterless record for the input: `public sealed record NightlyClose;`.
 ## ACTA0125 <a id="acta0125"></a>
 
 **`MaxOutstanding` on a permanent definition.** A definition with the default `Permanent` delivery
-fires through one slot job that holds one occurrence at a time, so its schedules allow exactly 1.
+fires through one permanent job that holds one occurrence at a time, so its schedules allow exactly 1.
 Drop the argument, or declare `[Job(ScheduledDelivery = ScheduledDeliveryCode.PerOccurrence)]` under a
 new job name, since delivery is immutable once deployed.
 

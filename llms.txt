@@ -114,7 +114,7 @@ public static class ShippingHandlers
 - Give each build its own version: `JobsOptions.DeploymentVersion`, by default the entry assembly's informational version. An app that is `1.0.0` on every build is one version to Acta.
 - An external outbox table comes from the producer's own migrations (`CreateOutboxScript()`) or `ApplyOutboxAsync`; Acta never creates it on its own.
 - Rolling deploys are routine: run `<app> jobs migrate`, start the new build, stop the old one, with any overlap. Acta's migrations are forward-only and keep an old and a new build working on one schema; a worker hands back a job whose handler it lacks and stops claiming that definition; a deploy never retires a definition the new build omits, so a rollback keeps the queue. What the application keeps is its own, as in any rolling deploy: a queued input the new build still reads, and a step name a running job still finds. Retiring a dropped definition and cancelling its queue is an operator action on the definition.
-- Definitions and schedules are the current deployment's. An older build's workers write nothing, and its `jobs deploy` changes nothing unless run with `--force`, which is how a rollback restores the earlier definitions. A schedule a deploy drops is orphaned and loses its pause, so to hold a recurring job across a rollback, pause the job, not the schedule.
+- Definitions and schedules are the current deployment's. An older build's workers write nothing, and its `jobs deploy` changes nothing unless run with `--force`, which is how a rollback restores the earlier definitions. A schedule a deploy drops is orphaned and loses its pause, so to hold a permanent job across a rollback, pause the job, not the schedule.
 
 ## Steps
 
@@ -129,7 +129,7 @@ returns its recorded result instead of running the body. That promise has two co
 A failing step retries on its own backoff without charging the job's retry budget. A step that
 exhausts its budget stays exhausted: every later attempt throws `StepExhaustedException` for it without
 running the body, so left uncaught it fails the job at once without spending its retry budget, and in a
-recurring job it fails every later fire the same way.
+permanent job it fails every later fire the same way.
 Catch it where the job can go on without the step; an operator restart gives the step a fresh budget. For side effects where a duplicate is worse than an ambiguous
 interruption (a payment capture), `AtMostOnce()` runs the body zero-or-one times and hands the
 handler an explicit interrupted state to reconcile.
@@ -206,8 +206,8 @@ downtime never lengthen it, and a raise that lands before the parked job re-ente
 
 ## Recurring work
 
-`[Schedule("every-5s", "PT5S")]` on a `[Job]` makes a permanent slot: one durable job the schedule
-fires again and again. The slot sits `Idle` between firings and holds no thread; the admission
+`[Schedule("every-5s", "PT5S")]` on a `[Job]` makes a permanent job: one durable job the schedule
+fires again and again. The job sits `Idle` between firings and holds no thread; the admission
 engine makes it `Ready` when a schedule is due, a worker claims it like any job, and the handler
 returns when its bounded work is done. Never loop forever inside the handler and never poll from it:
 a firing that finds nothing to do returns, and the next firing comes on schedule. Acta's progress is
@@ -287,12 +287,12 @@ HTTP enqueue in the json format sends strict JSON (one value, no comments or tra
   stays at-least-once either way.
 - Tags are for finding jobs, not for carrying data: input is typed and versioned, tags are
   searchable labels.
-- A recurring job keeps its step results and variables from one fire to the next: a step that
+- A permanent job keeps its step results and variables from one fire to the next: a step that
   succeeded on Monday returns Monday's result on Tuesday. Put the period in the step name
   (`$"invoice-{period}"`), or call `ctx.ResetStateAsync` as the handler's last action so the next fire
   starts clean. Never at the top: a reset there also runs on every retry and replay of the same fire,
   erasing its own progress, so a failing step never exhausts and an `AtMostOnce` body can run twice.
-- Children a recurring job starts are never purged while its schedule lives, since retention keeps a
+- Children a permanent job starts are never purged while its schedule lives, since retention keeps a
   child as long as its parent is unfinished. For per-occurrence fan-out, declare the definition
   `ScheduledDelivery = ScheduledDeliveryCode.PerOccurrence`: each occurrence is then a root job of its
   own, and the children it starts drain with it.

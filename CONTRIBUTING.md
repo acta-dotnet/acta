@@ -430,10 +430,11 @@ Server scopes constraint names and PostgreSQL index names to the schema, not the
 - **`pause` stops a runnable thing's progress; `suspend` closes admission of new work.** This is
   why a job or schedule pauses while a namespace or tenant suspends, and why the outbox relay would
   pause rather than suspend.
-- **`slot` is a scheduled definition's permanent slot.** The one reusable job row its schedules fire
-  (`JobKindCode.Permanent`). A counted lock's holds are lock slots, or concurrency slots where a
-  `ConcurrencyLimit` sizes them, never a bare "slot"; a `checkpoints` row is a checkpoint, a `steps` row is a step,
-  and executor capacity is counted in executors.
+- **A scheduled definition's one reusable job row is a permanent job** (`JobKindCode.Permanent`), by that name
+  in everything a user reads: docs, the site, code descriptions, the dashboard, public XML docs, and messages.
+  "slot" never names it there; SQL, internal identifiers, and body comments may keep the word. A counted lock's
+  holds are lock slots, or concurrency slots where a `ConcurrencyLimit` sizes them, never a bare "slot"; a
+  `checkpoints` row is a checkpoint, a `steps` row is a step, and executor capacity is counted in executors.
 - **`resolve` closes an alert.** `ResolveAlert` ends an incident, and no operation outside Alerts starts with
   `Resolve`; finding a row by its handle is a `Get`.
 - **An execution completes; the finalizer writes the completion.** `CompleteExecutions` is the
@@ -808,7 +809,7 @@ push the packages to nuget.org through Trusted Publishing (the `publish-nuget` j
 - Run the sequence in [Before opening a PR](#before-opening-a-pr) in Release. Write MSBuild properties as `-p:`, never `/p:`: Git Bash rewrites a leading slash into a path, and the build then compiles nothing and still exits 0.
 - The release diff holds no edit to a shipped migration and no destructive statement, renumbered code, reused retired id, or closed-family `255`.
 - A completion write that keeps failing while the heartbeat renews the lease settles on the same worker once the database returns: `CompleteAndClockChaosSpec`, `WorkerCrashRecoveryChaosSpec`, and `WorkerFinalizerTests`.
-- A completion that commits and loses its response is reconciled, not rerun, and never advances a recurring slot twice: `CompleteAndClockChaosSpec`.
+- A completion that commits and loses its response is reconciled, not rerun, and never advances a permanent job twice: `CompleteAndClockChaosSpec`.
 - Recovery runs while every executor is busy, and one heartbeat takes each due pass: `RecoveryPassSpec`.
 - Incidents at the failures-only recording level close on the success that answers the failure, and only that one: `FailuresAuditFailureEventSpec`.
 - A build refuses a database it cannot run on, and a script-provisioned database runs and re-runs: `MigrationHistoryPreflightTests`, `MigrationHistoryPreflightSpec`, and the `*ProvisionScriptSpec` classes.

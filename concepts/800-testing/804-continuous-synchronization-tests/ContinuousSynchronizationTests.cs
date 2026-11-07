@@ -154,7 +154,7 @@ public sealed class ContinuousSynchronizationTests : IAsyncLifetime
         Assert.Equal(40, await WatermarkAsync());
         var firing = await FiringIdAsync();
 
-        // The lease lapses and recovery reclaims the firing: the slot is Ready again, the attempt charged.
+        // The lease lapses and recovery reclaims the firing: the job is Ready again, the attempt charged.
         await _host.ExpireExecutionLeaseAsync(_slotId, Ct);
         Assert.Equal(1, (await _host.RunRecoveryOnceAsync(Namespace, Ct)).ReclaimedJobs);
         Assert.Equal(JobStatusCode.Ready, (await JobAsync()).Status);
@@ -249,7 +249,7 @@ public sealed class ContinuousSynchronizationTests : IAsyncLifetime
 
     private async Task<GetJobResponse> JobAsync() => (await _host.Jobs.GetAsync(JobLookup.ById(_slotId), Ct))!;
 
-    /// <summary>The watermark as the operator sees it, 0 before the first batch: the slot's one variable.</summary>
+    /// <summary>The watermark as the operator sees it, 0 before the first batch: the job's one variable.</summary>
     private async Task<long> WatermarkAsync()
     {
         var checkpoints = (await _host.Jobs.ListCheckpointsAsync(new ListJobCheckpointsQuery(JobLookup.ById(_slotId)), Ct)).Items;

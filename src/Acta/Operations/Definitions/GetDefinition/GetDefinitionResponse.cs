@@ -53,7 +53,7 @@ namespace Acta;
 /// <param name="AlertProfileEffective">The alert profile in force: the override when there is one, else the declared one.</param>
 /// <param name="FiringFailurePolicy">What a firing that fails for good does to the definition's schedules: they continue, or scheduling
 /// pauses.</param>
-/// <param name="ScheduledDelivery">How schedules deliver the definition's work: by firing its one permanent slot job again and again, or
+/// <param name="ScheduledDelivery">How schedules deliver the definition's work: by firing its one permanent job again and again, or
 /// by enqueueing a new job for each occurrence.</param>
 /// <param name="AlertChannelName">The alert channel the code declares for the definition's automatic alerts.</param>
 /// <param name="AlertChannelNameEffective">The alert channel in force: the override when there is one, else the declared one.</param>

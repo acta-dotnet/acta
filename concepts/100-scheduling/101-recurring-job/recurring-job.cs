@@ -10,7 +10,7 @@ builder.Services.UseActa(j =>
     j.Run<RecurringJobs>("recurring-job");
 });
 
-// No enqueue: the [Schedule] below creates a recurring slot that fires on its cron cadence.
+// No enqueue: the deploy creates one permanent job for the [Schedule] below, and it fires on its cron cadence.
 await builder.Build().RunAsync();
 
 namespace Acta.Concepts.Recurring
@@ -19,7 +19,7 @@ namespace Acta.Concepts.Recurring
 
     public sealed class PurgeStaleSessionsJob
     {
-        // One stable recurring slot fires on the cadence, and each successful fire's count replaces the last one stored;
+        // One permanent job fires on the cadence, and each successful fire's count replaces the last one stored;
         // EventRecordingCode.Off skips the events per fire.
         [Job("purge-stale-sessions", EventRecording = EventRecordingCode.Off)]
         [Schedule("every-15-seconds", Cron.Every15Seconds)]

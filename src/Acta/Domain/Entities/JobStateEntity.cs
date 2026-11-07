@@ -120,7 +120,7 @@ internal sealed class JobStateEntity : IEntity<long>
 
     /// <summary>
     /// Durable lifecycle of the Job (Ready / Blocked / Suspended / Paused / Idle / Executing / Succeeded / Failed /
-    /// Cancelled); only a recurring job's permanent slot is ever Idle, between firings.
+    /// Cancelled); only a permanent job is ever Idle, between firings.
     /// </summary>
     [DbColumn("job_status_code")]
     public JobStatusCode Status { get; set; }
@@ -143,7 +143,7 @@ internal sealed class JobStateEntity : IEntity<long>
     /// <summary>
     /// Monotonic-lifetime claim counter; incremented atomically on each claim. It follows claims, not
     /// scheduled occurrences, so retries and reclaims advance it too. Int32 is a deliberate width: a
-    /// recurring slot claimed once a second for its whole life would take about sixty-eight years to
+    /// permanent job claimed once a second for its whole life would take about sixty-eight years to
     /// exhaust it, and exhaustion lies outside the supported lifetime of one job row. The
     /// providers raise on overflow rather than wrap (SQLite stores a wider integer, and the Int32
     /// mapper rejects it on read), so the failure mode is an error, never a negative attempt number.
@@ -152,8 +152,8 @@ internal sealed class JobStateEntity : IEntity<long>
     public int ExecutionNumber { get; set; }
 
     /// <summary>
-    /// Failure counter for the current cycle, compared against <c>MaxAttempts</c>. A recurring job's slot counts its
-    /// current firing: admission zeroes it, and a spent budget returns the slot to Idle instead of failing it.
+    /// Failure counter for the current cycle, compared against <c>MaxAttempts</c>. A permanent job counts its
+    /// current firing: admission zeroes it, and a spent budget returns the job to Idle instead of failing it.
     /// </summary>
     [DbColumn("failure_count", DbKind.Int32)]
     public int FailureCount { get; set; }
@@ -187,7 +187,7 @@ internal sealed class JobStateEntity : IEntity<long>
 
     /// <summary>
     /// Format-id selector for <see cref="Result"/>; <c>0</c> means no result. A success stores the job's result, a
-    /// recurring slot's successful occurrence overwriting the last one, and every claim and restart clears it.
+    /// permanent job's successful occurrence overwriting the last one, and every claim and restart clears it.
     /// </summary>
     [DbColumn("result_format_id", DbKind.Byte, Default = DbDefault.Zero)]
     public byte ResultFormatId { get; set; }
@@ -199,7 +199,7 @@ internal sealed class JobStateEntity : IEntity<long>
     /// <summary>
     /// Optimistic-concurrency token for state transitions, bumped by every update except the heartbeat and a replayed
     /// start. Int32 on purpose, the width of the public <c>expectedVersion</c>: a
-    /// recurring slot firing every second (three bumps each) lasts about twenty-two years, and the providers raise on
+    /// permanent job firing every second (three bumps each) lasts about twenty-two years, and the providers raise on
     /// overflow rather than wrap, so a token never comes back negative.
     /// </summary>
     [DbColumn("version", DbKind.Int32, Default = DbDefault.Zero)]

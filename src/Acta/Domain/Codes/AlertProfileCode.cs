@@ -18,13 +18,13 @@ public enum AlertProfileCode : byte
 
     [Code(
         "info",
-        "Informational alerts on a final failure only, at low severity. A permanent slot rarely reaches one; see on-terminal. Resolves on recovery, the job's next success."
+        "Informational alerts on a final failure only, at low severity. A permanent job rarely reaches one; see on-terminal. Resolves on recovery, the job's next success."
     )]
     Info = 20,
 
     [Code(
         "on-terminal",
-        "Alerts on a final failure only: the retry budget is spent, the handler failed the job, an exception is not retryable, a step that runs at most once was interrupted, or a lost lease spent the budget. Resolves on recovery, the job's next success. A deadline cancels the job and so alerts under no profile. A permanent slot never spends a budget, so use on-failure to hear about its failures."
+        "Alerts on a final failure only: the retry budget is spent, the handler failed the job, an exception is not retryable, a step that runs at most once was interrupted, or a lost lease spent the budget. Resolves on recovery, the job's next success. A deadline cancels the job and so alerts under no profile. A permanent job never spends a budget, so use on-failure to hear about its failures."
     )]
     OnTerminal = 30,
 

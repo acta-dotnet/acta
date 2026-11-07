@@ -4,7 +4,7 @@ views: jobs_view, schedules_view, events_view
 alternatives: row-per-occurrence, reusable-slot, external-scheduler, one-shot-jobs
 -->
 
-# Engineering Lab: one recurring slot, moving cursors
+# Engineering Lab: one permanent job, moving cursors
 
 ## The problem
 
@@ -14,19 +14,19 @@ history, but it also creates unbounded job rows and more duplicate-fire edges.
 ## Common approaches
 
 - Insert one job for every occurrence.
-- Keep a reusable slot and advance schedule cursors.
+- Keep one permanent job and advance schedule cursors.
 - Let an external scheduler enqueue one-shot work.
 - Use an in-process timer and accept process-local availability.
 
 ## Why this design
 
 Acta stores one reusable job identity and one cursor per schedule. A due schedule admits a firing onto the
-same slot; schedules due together coalesce into one firing, whose `TriggeringSchedules` names what fired.
+same permanent job; schedules due together coalesce into one firing, whose `TriggeringSchedules` names what fired.
 
 ## Trade-offs
 
 Occurrence history lives in the event ledger rather than in a new job identity, as far as `EventRecording`
-keeps it; the slot itself stores only its latest successful occurrence's result. Each schedule
+keeps it; the job itself stores only its latest successful occurrence's result. Each schedule
 still needs its own cursor, and coalescing is intentionally not a record of every missed business event.
 
 ## Run the experiment

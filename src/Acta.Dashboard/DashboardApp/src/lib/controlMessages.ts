@@ -43,7 +43,7 @@ export function outboxControlMessage(verb: string, action: string): string {
     case 'rejected':
       return `Outbox ${verb} rejected: a pending ${verb} command is already parked for this source.`;
     default:
-      return 'No outbox relay slot exists for that namespace.';
+      return 'No outbox relay job exists for that namespace.';
   }
 }
 

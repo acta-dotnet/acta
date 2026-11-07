@@ -9,7 +9,7 @@ namespace Acta;
 /// <param name="ScheduleName">The schedule's name within its definition.</param>
 /// <param name="Binding">The role in which the schedule names the family.</param>
 /// <param name="Status">The schedule's status.</param>
-/// <param name="ScheduledDelivery">How the schedule delivers work: by firing the definition's permanent slot job, or by enqueueing a new
+/// <param name="ScheduledDelivery">How the schedule delivers work: by firing the definition's permanent job, or by enqueueing a new
 /// job for each occurrence.</param>
 public sealed record ListCalendarDependentsItem(
     string JobNamespace,

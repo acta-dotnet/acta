@@ -4,7 +4,7 @@ namespace Acta;
 /// One row in <c>acta.jobs</c>, Acta's only work unit: the append-mostly identity/input record.
 /// Hot mutable state (status, next run, counters, retention, the one stored result) lives on the 1:1
 /// <c>jobs_state</c> row, which also carries execution ownership/TTL (<c>locks</c> holds named locks only).
-/// A recurring job's permanent slot is one reusable row that sits Idle between firings; its schedules' cursors live
+/// A scheduled definition's permanent job is one reusable row that sits Idle between firings; its schedules' cursors live
 /// on <c>schedules_state</c>, so a firing adds no job row (a per-occurrence definition's root is the exception).
 /// </summary>
 [DbTable("jobs", DisableLockEscalation = true, DisablePageLocks = true)]
@@ -55,7 +55,7 @@ internal sealed class JobEntity : IEntity<long>
     public Guid JobRef { get; init; }
 
     /// <summary>
-    /// Ordinary, or the permanent slot of a scheduled definition (<c>ux_jobs_slot</c> allows one per definition).
+    /// Ordinary, or the permanent job of a scheduled definition (<c>ux_jobs_slot</c> allows one per definition).
     /// Written at insert, never mutated: what the row is does not depend on the schedules it owns or on its key.
     /// </summary>
     [DbColumn("job_kind_code")]
@@ -101,7 +101,7 @@ internal sealed class JobEntity : IEntity<long>
 
     /// <summary>
     /// The schedule that admitted this root: provenance, never ownership, so no foreign key ties the two. NULL for an
-    /// ordinary enqueue and for a permanent slot. Set at INSERT, never mutated.
+    /// ordinary enqueue and for a permanent job. Set at INSERT, never mutated.
     /// </summary>
     [DbColumn("schedule_id", DbKind.Int32)]
     public int? ScheduleId { get; init; }
@@ -111,7 +111,7 @@ internal sealed class JobEntity : IEntity<long>
     /// <summary>
     /// Deduplication key on enqueue and a stable address for <c>IJobs.GetIdAsync</c>, compared exactly; user keys
     /// cannot start with <c>"sys."</c> in any case. Root jobs are unique per namespace (<c>ux_jobs_deduplication_key_root</c>) and children per direct
-    /// parent (<c>ux_jobs_deduplication_key_child</c>). A recurring job's permanent slot carries no key, so an
+    /// parent (<c>ux_jobs_deduplication_key_child</c>). A permanent job carries no key, so an
     /// ordinary job keyed by the job's name is unrelated to it; a per-occurrence root carries
     /// <c>sys.occurrence.{schedule_id}.{ticks}</c>.
     /// </summary>

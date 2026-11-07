@@ -2,7 +2,7 @@ namespace Acta.Concepts.ContinuousSynchronization;
 
 /// <summary>
 /// One permanent job keeps the local orders current. The schedule fires it every five seconds; a firing applies at
-/// most one batch of <see cref="BatchSize"/> changes and returns, so the slot sits Idle between firings and no thread
+/// most one batch of <see cref="BatchSize"/> changes and returns, so the job sits Idle between firings and no thread
 /// loops. The watermark, the id of the last shop change applied, is the job's own durable variable: Acta carries it
 /// across firings, retries, and workers, and the handler reads it at the top of every execution, so an attempt that
 /// dies after a batch is continued at the next batch by whichever worker runs the job next.

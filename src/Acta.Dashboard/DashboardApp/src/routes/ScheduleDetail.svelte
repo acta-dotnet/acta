@@ -222,7 +222,7 @@
             Misfire strategy governs occurrences missed while no host admitted them: skip to the next one, catch up once,
             catch up the latest, or catch up all. An availability calendar omits occurrences outside its windows, never
             shifts them. Per-occurrence delivery starts a fresh root per occurrence up to its capacity; permanent delivery
-            fires one slot job.
+            fires one permanent job.
           </p>
 
           <ScheduleControls

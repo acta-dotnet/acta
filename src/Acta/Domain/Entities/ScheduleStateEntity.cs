@@ -60,7 +60,7 @@ internal sealed class ScheduleStateEntity : IEntity<int>
     public ScheduleEvaluationStatusCode EvaluationStatus { get; set; }
 
     /// <summary>
-    /// Unsettled roots charged to a PerOccurrence schedule; a Permanent slot's capacity is the slot, so its schedules
+    /// Unsettled roots charged to a PerOccurrence schedule; a permanent job's capacity is the job itself, so its schedules
     /// keep 0.
     /// </summary>
     [DbColumn("outstanding_count", DbKind.Int32, Default = DbDefault.Zero)]

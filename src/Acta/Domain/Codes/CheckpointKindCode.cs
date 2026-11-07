@@ -35,13 +35,13 @@ public enum CheckpointKindCode : byte
     ChildLatch = 50,
 
     /// <summary>
-    /// The engine's firing envelope, one <c>sys.firing</c> slot per scheduled job: the contributing schedules and
+    /// The engine's firing envelope, one <c>sys.firing</c> checkpoint per scheduled job: the contributing schedules and
     /// occurrences an admission froze, Pending while the firing is outstanding and settled with its outcome. Owned by
     /// the scheduler, never by the handler: <c>ResetJobState</c> leaves it alone and the checkpoint read omits it.
     /// </summary>
     [Code(
         "firing",
-        "The record of one scheduled firing of a permanent slot or of a per-occurrence job; pending while outstanding, then settled with the outcome. It survives a handler's state reset."
+        "The record of one scheduled firing of a permanent job or of a per-occurrence job; pending while outstanding, then settled with the outcome. It survives a handler's state reset."
     )]
     Firing = 60,
 }

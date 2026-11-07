@@ -45,7 +45,7 @@ internal sealed class ScheduleEntity : IEntity<int>
     public int NamespaceId { get; init; }
 
     /// <summary>
-    /// The permanent slot this schedule fires, NULL for a PerOccurrence definition. The slot owns its schedules, and
+    /// The permanent job this schedule fires, NULL for a PerOccurrence definition. The job owns its schedules, and
     /// purge and retention delete them with it.
     /// </summary>
     [DbColumn("job_id", DbKind.Int64)]
@@ -53,7 +53,7 @@ internal sealed class ScheduleEntity : IEntity<int>
 
     /// <summary>
     /// The definition the schedule belongs to, written at INSERT and never mutated. With the name it is the key
-    /// registration and the schedule verbs find the row by, slot or no slot.
+    /// registration and the schedule verbs find the row by, with a permanent job or without.
     /// </summary>
     [DbColumn("definition_id", DbKind.Int32)]
     public int DefinitionId { get; init; }
@@ -126,7 +126,7 @@ internal sealed class ScheduleEntity : IEntity<int>
 
     /// <summary>
     /// How many admitted occurrences may be unsettled at once, from <c>[Schedule(MaxOutstanding)]</c>; a Permanent
-    /// definition's schedules hold 1, the slot.
+    /// definition's schedules hold 1, the permanent job.
     /// </summary>
     [DbColumn("max_outstanding", DbKind.Int32)]
     public int MaxOutstanding { get; init; }

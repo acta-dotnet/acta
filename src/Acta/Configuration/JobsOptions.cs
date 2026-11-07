@@ -142,7 +142,7 @@ public sealed class JobsOptions
 
     /// <summary>
     /// When <c>true</c> (default), each worker namespace auto-registers <c>sys.alerts</c> and <c>sys.retention</c>
-    /// with their recurring slots (idempotent, and may differ per process), and the worker runs crash recovery.
+    /// with their permanent jobs (idempotent, and may differ per process), and the worker runs crash recovery.
     /// <strong>Turning it off disables crash recovery:</strong> crash recovery alone marks dead workers and reclaims
     /// their in-flight jobs, so without it a dead worker's jobs stay <c>Executing</c> forever; the runtime warns at
     /// startup, and "driven externally" means you wrote the reclaim sweep yourself. <c>sys.outbox</c> registers only

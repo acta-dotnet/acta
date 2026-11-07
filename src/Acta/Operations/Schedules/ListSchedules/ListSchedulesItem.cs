@@ -7,7 +7,7 @@ namespace Acta;
 /// it.
 /// </summary>
 /// <param name="ScheduleId">The schedule's internal id; the JSON omits it.</param>
-/// <param name="JobId">The internal id of the permanent slot job the schedule fires; the JSON omits it and carries jobRef.</param>
+/// <param name="JobId">The internal id of the permanent job the schedule fires; the JSON omits it and carries jobRef.</param>
 /// <param name="DefinitionId">The internal id of the schedule's definition; the JSON omits it.</param>
 /// <param name="JobNamespace">The namespace of the schedule's definition.</param>
 /// <param name="JobName">The name of the schedule's definition.</param>
@@ -25,14 +25,14 @@ namespace Acta;
 /// <param name="CreatedAtUtc">When the row was created, in UTC.</param>
 /// <param name="ModifiedAtUtc">When the row last changed, in UTC.</param>
 /// <param name="Version">The schedule's version, which every change to it increments.</param>
-/// <param name="JobRef">The ref of the permanent slot job the schedule fires; null for a schedule that enqueues a new job for each
-/// occurrence. A permanent schedule's events are its slot job's, read at GET /jobs/{jobRef}/events with this ref;
+/// <param name="JobRef">The ref of the permanent job the schedule fires; null for a schedule that enqueues a new job for each
+/// occurrence. A permanent schedule's events are its permanent job's, read at GET /jobs/{jobRef}/events with this ref;
 /// GET /definitions/{jobNamespace}/{jobName}/events lists every schedule's events, a per-occurrence schedule's included. Each names its
 /// schedule in detailsText.</param>
 /// <param name="MaxOutstanding">How many admitted occurrences may be unsettled at once.</param>
 /// <param name="OutstandingCount">How many admitted occurrences are unsettled now.</param>
 /// <param name="FullBehavior">What a due occurrence does while the schedule is at maxOutstanding: wait or drop.</param>
-/// <param name="ScheduledDelivery">How the schedule delivers work: by firing the definition's permanent slot job, or by enqueueing a new
+/// <param name="ScheduledDelivery">How the schedule delivers work: by firing the definition's permanent job, or by enqueueing a new
 /// job for each occurrence.</param>
 /// <param name="ExpireAfterSeconds">How old an occurrence may get before it expires unadmitted, in seconds; null means it never
 /// expires.</param>

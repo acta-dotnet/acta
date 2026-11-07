@@ -56,7 +56,7 @@ public sealed class JobAttribute(string name) : Attribute
     /// order, the equivalent of an SQS FIFO message group. An enqueue's <see cref="JobEnqueueOptions.Lane"/> overrides
     /// it but cannot clear it. Code-owned, with no operator override; a name, trimmed and lowercased to dotted kebab,
     /// and checked at compile time. A laned definition cannot declare a <see cref="ScheduleAttribute"/>,
-    /// because a recurring slot never finishes and would hold its lane forever.
+    /// because a permanent job never finishes and would hold its lane forever.
     /// </summary>
     public string? Lane { get; init; }
 
@@ -80,7 +80,7 @@ public sealed class JobAttribute(string name) : Attribute
     /// Whole-job wall-clock deadline measured from job creation. Use Acta duration syntax, e.g. <c>"2h"</c>.
     /// Unlike <see cref="ExecutionTimeout"/> it spans retries. Null = no deadline. See
     /// <see cref="DeadlineBehavior"/> for what the engine does when it is exceeded. Cannot be combined
-    /// with <c>[Schedule]</c>: a recurring slot is created once and lives forever, so a deadline
+    /// with <c>[Schedule]</c>: a permanent job is created once and lives forever, so a deadline
     /// anchored to its creation could never bound an occurrence, and worker startup rejects the pair.
     /// </summary>
     public string? Deadline { get; init; }
@@ -152,7 +152,7 @@ public sealed class JobAttribute(string name) : Attribute
     public FiringFailurePolicyCode FiringFailurePolicy { get; init; } = FiringFailurePolicyCode.Continue;
 
     /// <summary>
-    /// How a schedule delivers this definition's work: <c>Permanent</c>, one permanent slot job the schedules fire
+    /// How a schedule delivers this definition's work: <c>Permanent</c>, one permanent job the schedules fire
     /// again and again; <c>PerOccurrence</c>, a fresh ordinary root per admitted occurrence, with its own state,
     /// retries, and retention. Immutable once registered: change it under a new job name.
     /// </summary>

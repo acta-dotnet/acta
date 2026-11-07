@@ -190,7 +190,7 @@ numeric `JobId` is for joins and SQL debugging only.
 
 `jobs.GetAsync(jobRef)` answers the row: `Status`, `FailureCount`, `NextRunAtUtc`, timestamps, and
 the deduplication, correlation, and concurrency keys you set. `jobs.GetResultAsync<ShipmentLabel>(jobRef)` answers the stored result, null until a
-successful completion wrote one. A job stores one result; a recurring job's next success replaces it.
+successful completion wrote one. A job stores one result; a permanent job's next success replaces it.
 
 ### A failure that is final, and the normal kind
 

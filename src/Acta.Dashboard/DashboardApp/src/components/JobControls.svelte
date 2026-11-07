@@ -119,7 +119,7 @@
       body: 'Returns this permanent job to Idle for its next due schedule, or, if it was paused mid-firing, lets that firing run.'
     },
     purge: {
-      body: "Permanently deletes this permanent job's slot with its steps, variables, and history. The server allows it only once nothing pins the slot: every schedule orphaned, or the definition retired."
+      body: "Permanently deletes this permanent job with its steps, variables, and history. The server allows it only once nothing pins it: every schedule orphaned, or the definition retired."
     }
   };
   let copy = $derived(confirming ? { ...text[confirming], ...(slot ? slotText[confirming] : undefined) } : null);

@@ -69,14 +69,14 @@ public interface IActaTestHost : IAsyncDisposable
     /// Move the schedule's next occurrence and its next evaluation to moments ago, inside the misfire grace,
     /// so the next <see cref="AdmitOnceAsync"/> admits it under its own policy. A paused schedule stays paused;
     /// throws when the schedule does not exist, and for a schedule bound to a calendar, which admits only the
-    /// instants the calendar produces: advance the host's clock to one, or fire the slot with
+    /// instants the calendar produces: advance the host's clock to one, or fire the permanent job with
     /// <see cref="ISchedules.TriggerAsync"/>.
     /// </summary>
     Task ForceScheduleDueAsync(ScheduleLookup schedule, CancellationToken ct = default);
 
     /// <summary>
     /// Run one admission pass over <paramref name="jobNamespace"/>: every schedule that is due is evaluated, and
-    /// what the policies select is admitted, a permanent slot from <c>Idle</c> to <c>Ready</c> or a fresh root per
+    /// what the policies select is admitted, a permanent job from <c>Idle</c> to <c>Ready</c> or a fresh root per
     /// occurrence, for <see cref="RunOnceAsync(long, CancellationToken)"/> to run. The host runs no admitter
     /// loop, so a scheduled job fires only through this.
     /// </summary>
@@ -93,14 +93,14 @@ public enum ActaRunStatus : byte
     NothingClaimed = 1,
 
     /// <summary>
-    /// A job ran to terminal <c>Succeeded</c>, or the run was cancelled; a permanent slot's success settles its
-    /// firing and returns the slot to <c>Idle</c> for its next admission.
+    /// A job ran to terminal <c>Succeeded</c>, or the run was cancelled; a permanent job's success settles its
+    /// firing and returns the job to <c>Idle</c> for its next admission.
     /// </summary>
     Completed = 2,
 
     /// <summary>
-    /// A job ran and settled terminal <c>Failed</c>: its budget spent, or a non-retryable exception. A recurring job's
-    /// firing that spends its budget reports this too, while the slot returns to <c>Idle</c> for its next admission.
+    /// A job ran and settled terminal <c>Failed</c>: its budget spent, or a non-retryable exception. A permanent job's
+    /// firing that spends its budget reports this too, while the job returns to <c>Idle</c> for its next admission.
     /// </summary>
     Failed = 3,
 
@@ -116,5 +116,5 @@ public enum ActaRunStatus : byte
 /// </summary>
 public sealed record ActaRecoveryReport(int DeadWorkersMarked, int ReclaimedJobs, int ReleasedChildLatches);
 
-/// <summary>What one test-driven admission pass for a namespace admitted: slot firings and per-occurrence roots together.</summary>
+/// <summary>What one test-driven admission pass for a namespace admitted: permanent-job firings and per-occurrence roots together.</summary>
 public sealed record ActaAdmissionReport(int Admitted);

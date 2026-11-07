@@ -256,7 +256,7 @@ public static class ActaTestHost
             {
                 // The admitter skips a cursor the calendar does not produce, so an arbitrary instant can never be due.
                 throw new InvalidOperationException(
-                    $"Schedule '{path}' is bound to a calendar, which admits only the instants the calendar produces; advance the host's clock to one of them, or fire the slot with TriggerAsync."
+                    $"Schedule '{path}' is bound to a calendar, which admits only the instants the calendar produces; advance the host's clock to one of them, or fire the permanent job with TriggerAsync."
                 );
             }
 

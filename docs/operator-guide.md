@@ -26,7 +26,7 @@ Reference docs: [`data-model.md`](./reference/data-model.md) (every table and co
 ## Status quick reference
 
 Live statuses: `Ready = 10`, `Blocked = 15` (a laned job waiting behind its lane's head), `Suspended = 20`,
-`Paused = 30`, `Idle = 40` (a recurring job's slot between firings), `Executing = 50`.
+`Paused = 30`, `Idle = 40` (a permanent job between firings), `Executing = 50`.
 Terminal statuses follow the band rule: `100` is success (`Succeeded`), `200+` is unsuccessful
 (`Failed = 200`, `Cancelled = 220`). The reason for a transition lives on `events`, not on the
 `jobs_state` row.
@@ -170,11 +170,11 @@ JobLookup job = JobRef.Parse("job_01a14f4e954e7bf68ac609f3fcad8e3d");
 
 await jobs.CancelAsync(job, "superseded by order-9");  // cascades to non-terminal descendants
 await jobs.PauseAsync(job);                             // hold a not-yet-running job
-await jobs.ResumeAsync(job);                            // Paused -> Ready, or Idle for a slot with no firing outstanding
+await jobs.ResumeAsync(job);                            // Paused -> Ready, or Idle for a permanent job with no firing outstanding
 await jobs.RestartAsync(job);                           // resets failure budget + retention and Exhausted steps, runs now
 await jobs.RaiseSignalAsync(job, "approval", payload);  // releases a Suspended WaitSignalAsync
 await jobs.RescheduleAsync(job, inTwoHours);             // move a waiting job's next run (re-arms Ready)
-await jobs.RescheduleAsync(job);                         // run now: an idle scheduled slot takes a manual firing
+await jobs.RescheduleAsync(job);                         // run now: an idle permanent job takes a manual firing
 await jobs.ReprioritizeAsync(job, JobPriorityCode.High); // change claim priority in place
 await jobs.PurgeAsync(job);                              // hard-delete a terminal job (audited as job.purged)
 ```
@@ -182,7 +182,7 @@ await jobs.PurgeAsync(job);                              // hard-delete a termin
 Cancel of a parent cancels the whole non-terminal subtree (descendants carry reason
 `job.parent-cancelled`). Restart leaves a terminal row's history intact and re-arms the same id; there
 is never a replacement row. Reschedule applies to Paused/Suspended/Ready/Blocked rows and re-arms them
-Ready, or Blocked behind their lane, and gives an Idle slot a manual firing; purge refuses a non-terminal job, a job that has child jobs, and a child whose parent is not
+Ready, or Blocked behind their lane, and gives an Idle permanent job a manual firing; purge refuses a non-terminal job, a job that has child jobs, and a child whose parent is not
 terminal (finish or cancel the tree, then purge the leaves first).
 Every verb returns Applied / Rejected / NotFound rather than throwing on an illegal transition.
 
@@ -210,11 +210,11 @@ client reads `action`, the resulting `status`, and the row's `version` without s
 | Verb | R | B | S | P | I | X | ✓ | F | C | Result on applied |
 |---|---|---|---|---|---|---|---|---|---|---|
 | `pause` | A | A | A | A | A | 409 | 409 | 409 | 409 | Paused |
-| `resume` | 409 | 409 | 409 | A | 409 | 409 | 409 | 409 | 409 | Ready, or Blocked behind its lane; a slot with no firing outstanding returns to Idle |
-| `restart` | A | A | A | A | A | 409 | A | A | A | Ready, or Blocked behind its lane, or Idle for a slot; failure budget, retention, and Exhausted steps reset |
+| `resume` | 409 | 409 | 409 | A | 409 | 409 | 409 | 409 | 409 | Ready, or Blocked behind its lane; a permanent job with no firing outstanding returns to Idle |
+| `restart` | A | A | A | A | A | 409 | A | A | A | Ready, or Blocked behind its lane, or Idle for a permanent job; failure budget, retention, and Exhausted steps reset |
 | `cancel` | A | A | A | A | A | A | 409 | 409 | 409 | Cancelled, cascading to non-terminal descendants |
 | `purge` | 409 | 409 | 409 | 409 | A | 409 | A | A | A | Row hard-deleted, `job.purged` event kept |
-| `reschedule` | A | A | A | A | A | 409 | 409 | 409 | 409 | Ready at the new instant, or Blocked behind its lane; an Idle slot takes a manual firing |
+| `reschedule` | A | A | A | A | A | 409 | 409 | 409 | 409 | Ready at the new instant, or Blocked behind its lane; an Idle permanent job takes a manual firing |
 | `reprioritize` | A | A | A | A | A | A | 409 | 409 | 409 | Priority changed, status untouched |
 | `input` (amend) | A | A | A | A | A | 409 | A | A | A | Input replaced, format round-tripped |
 | `signal` | A | A | A | A | A | A | 409 | 409 | 409 | Signal set; a Suspended job goes Ready, and its replay re-suspends any wait the raise did not satisfy |
@@ -230,7 +230,7 @@ Five rules the table cannot show:
   database cascade, so purging a parent would leave a child pointing at a row that no longer exists.
   It also rejects a completed child whose parent is not terminal: the parent's replay dedupes onto
   that child and reads its result, so purging it would run the child again. Once the tree is
-  terminal, purge the leaves first. A recurring job's slot is purged only to decommission it: Idle,
+  terminal, purge the leaves first. A permanent job is purged only to decommission it: Idle,
   Failed, or Cancelled, with no firing outstanding and no live schedule pinning it. A job is also
   rejected while `sys.alerts` has not processed its latest events; purge it again after the next pass.
 - **`cancel` on an Executing job** marks the row Cancelled and cancels the running attempt's token;
@@ -242,9 +242,9 @@ Five rules the table cannot show:
   may already have read the payload. A job that stored no input has nothing to
   amend and answers `409` from the endpoint before the routine is reached.
 - **`restart` and `resume` have three more refusals.** A finished laned job is not restarted while an
-  unfinished ancestor or descendant sits in its lane, a permanent slot whose firing is still
+  unfinished ancestor or descendant sits in its lane, a permanent job whose firing is still
   outstanding is not restarted around it, and a finished per-occurrence root is not restarted into a
-  schedule that is full or gone. A restarted or resumed slot with no firing outstanding
+  schedule that is full or gone. A restarted or resumed permanent job with no firing outstanding
   returns to `Idle`, where the next due schedule admits it; it does not run now.
 
 ## Tenant and namespace administration
@@ -254,7 +254,7 @@ withdraws admission. Tenant suspension is admission control, not work closure: n
 tenant name are rejected once the suspend has committed, while jobs already admitted keep running and a
 running workflow may still create children that inherit the suspended tenant (an inherited tenant id
 carries no key to re-check). Namespace suspension also holds the namespace's schedules: nothing is admitted
-into it, by the admitter, a manual trigger, or a recurring job's Run now, and on resume the misfire policy decides the missed window
+into it, by the admitter, a manual trigger, or a permanent job's Run now, and on resume the misfire policy decides the missed window
 as it does after downtime. Suspension is reversible and status-only.
 
 ```csharp
@@ -389,14 +389,14 @@ app.MapActa("/acta", options =>
 
 A job landing terminal gets `retention_until_utc` from its definition's `JobRetention` (default 90 days). The hourly `sys.retention` job deletes terminal jobs past it, with their checkpoints and steps, and deletes events and alerts past `JobEventsRetention` and `AlertRetention`, and stopped or dead workers once both `WorkerRetention` and `JobEventsRetention` have passed, so every event keeps its worker. Each tick walks `jobs_state` from where the last one stopped, up to two million rows, so a job goes within one walk of its deadline. A pass deletes at most 50,000 rows a section; one that reaches that with rows still expiring runs again at once instead of waiting for the next hour, so a busy namespace is swept back to back until it has caught up.
 
-A permanent slot is purged only by deliberate decommission: `Idle`, `Failed`, or `Cancelled`, no firing outstanding, and no live schedule pinning it (every schedule orphaned, or the definition retired); the retention sweep never deletes a slot whose definition is live. Like every job it holds at most one result: its latest successful firing's, cleared when the next firing is claimed.
+A permanent job is purged only by deliberate decommission: `Idle`, `Failed`, or `Cancelled`, no firing outstanding, and no live schedule pinning it (every schedule orphaned, or the definition retired); the retention sweep never deletes a permanent job whose definition is live. Like every job it holds at most one result: its latest successful firing's, cleared when the next firing is claimed.
 
 `AlertRetention` is a hard cap: an alert past it is deleted even if it was never delivered or is still open, and a pass that deleted undelivered alerts logs one warning (`reason=alert-retention-cap`). If that line appears, find out why delivery is not settling.
 
 | | Retention sweep | Manual purge |
 | --- | --- | --- |
 | Trigger | `sys.retention` finds terminal jobs past `retention_until_utc` | `IJobs.PurgeAsync`, `POST /jobs/{jobRef}/purge`, or the dashboard |
-| Eligible job | Terminal and past its deadline, unless it is a stopped permanent slot whose definition is live | Terminal now; a permanent slot only when nothing pins it |
+| Eligible job | Terminal and past its deadline, unless it is a stopped permanent job whose definition is live | Terminal now; a permanent job only when nothing pins it |
 | Child jobs | Keeps a completed child while its parent is live; a finished tree drains leaves first | Refuses a parent with children and a child whose parent is live |
 | Job event | None | `job.purged`, carrying the job's ref and name |
 | The job's events and alerts | Age out on their own windows | Deleted at once |
@@ -797,13 +797,13 @@ included, is one durable system.
 - `SysCritical` is for Acta's own jobs. `None` turns off automatic alerts only; `ctx.AlertAsync` still raises manual ones.
 - A `Cancelled` job never alerts, whether an operator, `ctx.CancelAsync`, or a deadline cancelled it. Budget-neutral re-arms (a held concurrency key, a rate limit, a step retry) do not alert either.
 - Automatic alerts are independent of the recording level: an enabled alert profile captures the failed, orphaned, terminal, and recovery transitions durably even at `EventRecording = Off`, so every profile fires and resolves the same at every level.
-- For recurring work use `OnFailure`: a permanent slot's failures never land `Failed` (a spent budget returns it to `Idle`), so `OnTerminal` and `Info` stay silent for them.
+- For recurring work use `OnFailure`: a permanent job's failures never land `Failed` (a spent budget returns it to `Idle`), so `OnTerminal` and `Info` stay silent for them.
 
 ### Incidents
 
 An automatic alert is an incident: one open row per job, kind (`FirstFailure`, `ThresholdReached`, `FinalFailure`), and reason. A repeat folds into it and raises `occurrence_count`; the job's next success resolves it, and a later failure opens a new incident. `ThresholdReached` fires once, when the incident's count reaches `AlertFailureThreshold` (default 3).
 
-A one-shot job raises at most three alerts, and its incidents end with it. A recurring job's incident stays open until a fire succeeds or an operator steps in, and is delivered again every `AlertReminderInterval` (default 24 hours): an alert still open is the sign that nobody fixed it.
+A one-shot job raises at most three alerts, and its incidents end with it. A permanent job's incident stays open until a fire succeeds or an operator steps in, and is delivered again every `AlertReminderInterval` (default 24 hours): an alert still open is the sign that nobody fixed it.
 
 ### Channels and delivery
 
@@ -832,7 +832,7 @@ expected transition and the application responsibility behind it.
 
 The claim already moved the job to `Executing` under the worker lease. After the lease expires,
 the next recovery pass returns it to `Ready` while retry budget remains, or marks it `Failed` when the budget
-is exhausted (a permanent slot returns to `Ready` for another attempt of its firing while budget remains,
+is exhausted (a permanent job returns to `Ready` for another attempt of its firing while budget remains,
 and to `Idle` with the firing settled `failed` once it is spent). No handler side
 effect occurred, but the lost attempt counts against the budget like any other crashed attempt.
 
@@ -921,18 +921,18 @@ handler, or to retire the definition from the dashboard, which cancels its parke
 handler from a deploy never cancels anything by itself; see
 [Production § rolling deploys](#rolling-deploys).
 
-A recurring job follows the same rule. A deploy that drops every schedule of one leaves its slot `Idle`
+A permanent job follows the same rule. A deploy that drops every schedule of one leaves it `Idle`
 with nothing due, and a deploy that brings a schedule back puts the schedule in front of the admitter
-again. A deploy that adds a `[Schedule]` registers the slot beside any ordinary job of that name: the
-slot carries no deduplication key, so an ordinary job keyed by the job name is unrelated to it. See
+again. A deploy that adds a `[Schedule]` registers the permanent job beside any ordinary job of that name: the
+permanent job carries no deduplication key, so an ordinary job keyed by the job name is unrelated to it. See
 [Scheduling and calendars](./scheduling.md).
 
-Retiring a recurring job's definition leaves its slot inert instead of cancelling it: a firing admitted and
-not yet claimed settles cancelled and the slot returns to `Idle`, a paused slot stays paused, and a cancelled one
-stays cancelled. An attempt already running returns the slot to `Idle` when it succeeds or spends its failure
-budget; any other landing (a retry, a wait, a handler's pause or failure) lands cancelled. The slot refuses a
+Retiring a permanent job's definition leaves the job inert instead of cancelling it: a firing admitted and
+not yet claimed settles cancelled and the job returns to `Idle`, a paused one stays paused, and a cancelled one
+stays cancelled. An attempt already running returns the job to `Idle` when it succeeds or spends its failure
+budget; any other landing (a retry, a wait, a handler's pause or failure) lands cancelled. The job refuses a
 manual firing while the definition is retired. A deploy by a build that declares the definition again retimes its
-schedules from now, so the slot fires at the first occurrence after the comeback and the retired interval is not
+schedules from now, so the job fires at the first occurrence after the comeback and the retired interval is not
 caught up.
 
 ### …a checkpoint name changes during a deployment?
@@ -946,7 +946,7 @@ migration, not a refactor.
 
 The schedule's misfire policy decides the missed occurrences when the admitter next evaluates it:
 `Skip` moves past them, `CatchUpOnce` runs one coalesced catch-up firing, `CatchUpLatest` runs the
-latest, and `CatchUpAll` admits every one in order: one per settlement on a permanent slot, and under
+latest, and `CatchUpAll` admits every one in order: one per settlement on a permanent job, and under
 `PerOccurrence` delivery as many root jobs at once as `MaxOutstanding` allows. An occurrence less than a minute overdue counts as due
 rather than missed, and neither a deploy nor a worker start decides anything: a deploy writes the declaration and leaves every
 occurrence to the running fleet's admitter. See [catch-up, misfire, and expiration](./scheduling.md#catch-up-misfire-and-expiration).
@@ -1017,7 +1017,7 @@ Start with `acta.jobs_view` so names and status values are decoded:
 
 - `job_status`: only `ready` jobs are claimable. A `blocked` job waits behind the earlier unfinished job in
   its `lane_name` and goes `ready` when that one settles.
-- `next_run_at_utc`: delayed, slept, rescheduled, and recurring jobs may be ready but not due yet.
+- `next_run_at_utc`: delayed, slept, rescheduled, and permanent jobs may be ready but not due yet.
 - `namespace_name`: workers only claim inside their own namespace.
 - `definition_name`: a deploy must have written the matching definition in that namespace (`jobs deploy`).
 
@@ -1067,9 +1067,9 @@ control endpoint.
 Schedules have their own control surface through `operations.Schedules`; pausing a schedule is distinct
 from pausing the job itself.
 
-A permanent slot whose schedules are all paused, exhausted, or removed by a deploy sits `Idle` with
+A permanent job whose schedules are all paused, exhausted, or removed by a deploy sits `Idle` with
 nothing due, and fires again by itself once a schedule offers a run. A per-occurrence schedule has no
-slot: its roots are ordinary jobs with the schedule as provenance, and `schedules_view` shows how many
+permanent job: its roots are ordinary jobs with the schedule as provenance, and `schedules_view` shows how many
 are outstanding against `max_outstanding`. See
 [Scheduling and calendars](./scheduling.md).
 
@@ -1383,7 +1383,7 @@ and `evaluation_status` reads `resumed` between an operator's resume and the adm
 Each schedule's cursor lives in `schedules_state`, beside its `schedules` row, and the view joins the
 two. `next_occurrence_at_utc` is the next instant the schedule is due; an orphaned schedule, and every
 schedule of a retired definition, has none. `next_evaluation_at_utc` and `evaluation_status` say when
-and why the admitter next looks; the slot job carries no cursor of its own and sits `idle` between firings.
+and why the admitter next looks; the permanent job carries no cursor of its own and sits `idle` between firings.
 `outstanding_count` is a per-occurrence schedule's roots not yet settled, bounded by `max_outstanding`,
 and `full_behavior` says whether a due occurrence waits or is dropped at that bound. Each such root names
 its schedule in `jobs_view.schedule_id`.
@@ -1457,7 +1457,7 @@ SELECT namespace_name, job_status, COUNT(*) AS jobs_to_purge, MIN(retention_unti
 ```
 
 `sys.retention` deletes expired terminal jobs and cascading substrate rows. Three kinds stay and still
-count here: a stopped recurring job whose definition is live (until the definition is retired), a job
+count here: a stopped permanent job whose definition is live (until the definition is retired), a job
 that still has children (the tree drains from the leaves), and a completed child whose parent is not
 terminal. Event and alert
 retention have their own windows in `JobsOptions`.

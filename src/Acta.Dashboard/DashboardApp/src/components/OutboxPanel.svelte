@@ -130,7 +130,7 @@
   {:else}
     <ConfirmAction
       title="Discard quarantined outbox rows?"
-      body={'All ' + displayFormatter.number(target.quarantined) + ' quarantined row(s) of ' + target.jobNamespace + ' are deleted from the producer\'s staging table. The applied ids stay on the slot job\'s audit trail, but the payloads are gone.'}
+      body={'All ' + displayFormatter.number(target.quarantined) + ' quarantined row(s) of ' + target.jobNamespace + ' are deleted from the producer\'s staging table. The applied ids stay on the relay job\'s audit trail, but the payloads are gone.'}
       confirmLabel="Discard all"
       danger={true}
       confirmPhrase={target.jobNamespace}

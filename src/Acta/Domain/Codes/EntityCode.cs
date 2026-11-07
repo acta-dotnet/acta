@@ -38,7 +38,7 @@ public enum EntityCode : byte
     [Code("namespace", "One namespace.")]
     Namespace = 80,
 
-    [Code("schedule", "One schedule of a recurring job.")]
+    [Code("schedule", "One schedule of a scheduled job.")]
     Schedule = 90,
 
     [Code("step", "One step of a job.")]

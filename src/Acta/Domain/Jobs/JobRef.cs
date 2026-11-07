@@ -13,7 +13,7 @@ public readonly record struct JobRef(Guid Value)
     public const string Prefix = "job_";
 
     /// <summary>
-    /// Allocate a fresh ref as a UUIDv7. The enqueue and recurring-slot operations call this to mint
+    /// Allocate a fresh ref as a UUIDv7. The enqueue and permanent-job operations call this to mint
     /// each job's ref in C# and pass it into the inserting routine; the database never defaults it.
     /// </summary>
     public static JobRef New() => new(Guid.CreateVersion7());

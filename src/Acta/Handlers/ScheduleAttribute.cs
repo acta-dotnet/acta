@@ -3,7 +3,7 @@ namespace Acta;
 /// <summary>
 /// Declares a named recurring schedule on a <c>[Job]</c> handler. Several may decorate one handler; each becomes a
 /// <c>schedules</c> row with its own cursor. Under the default <see cref="ScheduledDeliveryCode.Permanent"/> delivery
-/// the admission engine admits one firing of the definition's single permanent slot at a time, and schedules due
+/// the admission engine admits one firing of the definition's single permanent job at a time, and schedules due
 /// together contribute to the same firing, which the handler reads via <see cref="JobContext.TriggeringSchedules"/>;
 /// under <see cref="ScheduledDeliveryCode.PerOccurrence"/> each admitted occurrence is a fresh root job instead.
 /// </summary>
@@ -95,7 +95,7 @@ public sealed class ScheduleAttribute : Attribute
 
     /// <summary>
     /// How many admitted occurrences of this schedule may be unsettled at once; a Permanent definition's schedules
-    /// allow exactly 1, the slot.
+    /// allow exactly 1, the permanent job.
     /// </summary>
     public int MaxOutstanding { get; init; } = 1;
 

@@ -276,8 +276,8 @@ internal sealed class CatalogRegistrar(
             {
                 throw new InvalidOperationException(
                     $"Job '{descriptor.JobName}' declares Deadline together with [Schedule]. "
-                        + "A deadline anchors to job creation, and a recurring slot is created once and lives "
-                        + "forever, so the combination would cancel the slot instead of bounding an occurrence."
+                        + "A deadline anchors to job creation, and a permanent job is created once and lives "
+                        + "forever, so the combination would cancel the job instead of bounding an occurrence."
                 );
             }
         }
@@ -372,7 +372,7 @@ internal sealed class CatalogRegistrar(
             {
                 throw new InvalidOperationException(
                     $"Job '{descriptor.JobName}' declares TenantRequirement = Required together with [Schedule]. "
-                        + "Recurring slots are enqueued without a tenant, so a scheduled definition cannot require one."
+                        + "A permanent job is created without a tenant, so a scheduled definition cannot require one."
                 );
             }
         }

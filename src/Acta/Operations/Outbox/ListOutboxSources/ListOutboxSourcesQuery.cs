@@ -3,7 +3,7 @@ namespace Acta;
 /// <summary>
 /// Filters and paging for <see cref="IOutbox.ListSourcesAsync"/>. Sources are discovered through the
 /// namespace catalog (name ascending), so the cursor pages namespaces; a page may carry fewer items
-/// than namespaces when some have no relay slot.
+/// than namespaces when some have no relay job.
 /// </summary>
 /// <param name="JobNamespace">Restrict to one namespace; the cursor is ignored when set.</param>
 /// <param name="PageSize">Namespaces scanned per page; null defaults to 50, values above 100 clamp to 100.</param>

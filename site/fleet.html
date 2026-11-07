@@ -108,7 +108,7 @@
       <div class="facts">
         <div>
           <b>The claim is the election</b>
-          <p>sys.retention, sys.alerts and sys.outbox are recurring slots like any schedule: each fires once per cadence, run by whichever worker claims it. Crash recovery rides the heartbeat instead, so it cannot get stuck behind the crash it repairs. No worker is special, so there is nothing to fail over.</p>
+          <p>sys.retention, sys.alerts and sys.outbox are permanent jobs, scheduled like any other: each fires once per cadence, run by whichever worker claims it. Crash recovery rides the heartbeat instead, so it cannot get stuck behind the crash it repairs. No worker is special, so there is nothing to fail over.</p>
         </div>
         <div>
           <b>One setting, three windows</b>

@@ -34,15 +34,15 @@ public enum CheckpointStatusCode : byte
     [Code("consumed", "The due time was reached; the handler ran again, consumed the timer, and proceeded.")]
     Consumed = 100,
 
-    /// <summary>A firing envelope settled by a successful firing; the slot's last outcome until the next admission.</summary>
-    [Code("succeeded", "The firing settled successfully; it stays the slot's last outcome until the next firing replaces it.")]
+    /// <summary>A firing envelope settled by a successful firing; the job's last outcome until the next admission.</summary>
+    [Code("succeeded", "The firing settled successfully; it stays the job's last outcome until the next firing replaces it.")]
     Succeeded = 110,
 
     /// <summary>A firing envelope settled by a final failure.</summary>
-    [Code("failed", "The firing settled as a final failure; it stays the slot's last outcome until the next firing replaces it.")]
+    [Code("failed", "The firing settled as a final failure; it stays the job's last outcome until the next firing replaces it.")]
     Failed = 120,
 
     /// <summary>A firing envelope settled by a cancellation.</summary>
-    [Code("cancelled", "The firing settled by cancellation; it stays the slot's last outcome until the next firing replaces it.")]
+    [Code("cancelled", "The firing settled by cancellation; it stays the job's last outcome until the next firing replaces it.")]
     Cancelled = 130,
 }

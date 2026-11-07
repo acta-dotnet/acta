@@ -23,11 +23,11 @@ see [architecture decisions](./architecture-decisions.md).
 
 | Term | Meaning |
 | --- | --- |
-| **Job** | The only independently claimable work unit. One identity/input row in the `jobs` table plus its 1:1 live-state row in `jobs_state`. One-shot work, delayed work, recurring slots, coordinating parents, child jobs, and system maintenance all use the same tables. |
+| **Job** | The only independently claimable work unit. One identity/input row in the `jobs` table plus its 1:1 live-state row in `jobs_state`. One-shot work, delayed work, permanent jobs, coordinating parents, child jobs, and system maintenance all use the same tables. |
 | **Execution** | One recorded run of a handler. At the default recording level every run is recorded as one outcome event on `(JobId, ExecutionNumber)` (succeeded, failed, orphaned, yielded, or terminally failed), carrying the worker and the handler's duration; the `Failures` and `Off` levels record less. A run in progress is its `jobs_state` row. |
 | **Attempt** | One try at the work that counts against retry policy when it fails. `MaxAttempts` is the unified retry budget for both jobs and steps. Successful executions are recorded but do not consume the budget. |
 | **Status** | The lifecycle-or-outcome code on every entity that has one, named for its table (`jobs_state.job_status_code`, `workers.worker_status_code`, `steps.step_status_code`, `checkpoints.checkpoint_status_code`, ...). The job's `jobs_state` row stores current status; events explain transitions. |
-| **Firing** | One admitted occurrence of a `[Schedule]`, or the occurrences of several schedules due at once coalesced into one, with an envelope naming the contributors: on a permanent slot the `sys.firing` checkpoint, on a per-occurrence definition a fresh root. 1:1 with an execution in steady state; the misfire policy decides what happens to occurrences nobody admitted in time. |
+| **Firing** | One admitted occurrence of a `[Schedule]`, or the occurrences of several schedules due at once coalesced into one, with an envelope naming the contributors: on a permanent job the `sys.firing` checkpoint, on a per-occurrence definition a fresh root. 1:1 with an execution in steady state; the misfire policy decides what happens to occurrences nobody admitted in time. |
 | **Namespace** | The service-owned execution boundary. A worker claims only jobs in its own namespace. One `Run(...)` owns one namespace; a process can host several. |
 | **Lane** | An ordered sequence of jobs within a namespace, named at enqueue or on the definition. A lane runs one job at a time, in enqueue order, and the jobs behind its head wait as `Blocked`. See [Lanes](#lanes). |
 | **Tenant** | Optional, validated scope naming the customer / business entity a job is *about*. Registered in the Acta-owned `tenants` catalog by a `TenantName`, a kebab-case name such as `acme-corp` (fold or prefix an external id that is not one) and resolved to `jobs.tenant_id` at enqueue. Audit / query / runtime scope only, not an ownership, claim, or scheduling boundary. |
@@ -37,11 +37,11 @@ see [architecture decisions](./architecture-decisions.md).
 
 A **Job** is the only independently claimable work unit: what a worker claims under a lease, retries
 under a budget, and the ledger audits. Its stored kind says only whether it is an ordinary job or a
-scheduled definition's permanent slot; everything else about its shape comes from the descriptor and
+scheduled definition's permanent job; everything else about its shape comes from the descriptor and
 the row.
 
 Everything is a job. A background task is a job. A recurring synchronization controller is a job: one
-permanent slot the schedule fires again and again, `Idle` between firings, keeping its durable state
+permanent job the schedule fires again and again, `Idle` between firings, keeping its durable state
 across them. A parent coordinating work is a job, and its children are ordinary jobs that carry their
 lineage. A job waiting days for a signal or a timer is still one job, holding a row and no worker.
 Steps, variables, timers, signals, and checkpoints are not jobs: they are durable state that belongs
@@ -131,7 +131,7 @@ A signal or child wait can take a timeout (`WaitSignalAsync(name, timeout)`, `Tr
 
 ### Schedules, workers, and providers
 
-A **Schedule** is catalog metadata plus the work it delivers: by default one permanent slot job per definition, which sits `Idle` between firings, or with `[Job(ScheduledDelivery = ScheduledDeliveryCode.PerOccurrence)]` a fresh ordinary root job per admitted occurrence. [Scheduling and calendars](./scheduling.md) is its home.
+A **Schedule** is catalog metadata plus the work it delivers: by default one permanent job per definition, which sits `Idle` between firings, or with `[Job(ScheduledDelivery = ScheduledDeliveryCode.PerOccurrence)]` a fresh ordinary root job per admitted occurrence. [Scheduling and calendars](./scheduling.md) is its home.
 
 A **Worker** is a peer process loop: it starts in a namespace its build has deployed in, heartbeats, claims ready rows,
 executes handlers, and refreshes leases. There is no leader or control-plane service.
@@ -161,9 +161,9 @@ The generator emits descriptors from the declared signature. The runtime uses th
 
 Execution is at-least-once: a crash, a lease expiry, a failed completion write, or a shutdown re-runs the attempt, and an operator restart or a database restore can re-run work whose external effects already happened, so a handler must tolerate the same input more than once. Acta makes state transitions durable, not external effects single; use deduplication keys, durable steps, `AtMostOnce()`, and reconciliation. A step is replay-safe only once its result is recorded, so a crash between an external effect and the recording re-runs the effect.
 
-Names given to steps, signals, timers, variables, children, and child groups are persisted keys: renaming one makes a new one (see [renaming a step, variable, signal or timer](#renaming-a-step-variable-signal-or-timer)). Durable state belongs to the job, not to one fire, so a recurring job's succeeded step replays its stored result on the next fire; a handler that must start clean calls `ctx.ResetStateAsync`.
+Names given to steps, signals, timers, variables, children, and child groups are persisted keys: renaming one makes a new one (see [renaming a step, variable, signal or timer](#renaming-a-step-variable-signal-or-timer)). Durable state belongs to the job, not to one fire, so a permanent job's succeeded step replays its stored result on the next fire; a handler that must start clean calls `ctx.ResetStateAsync`.
 
-Retention follows the same rule. A permanent slot keeps its slots and the children it started for as long as it exists, and it exists for as long as its schedule, so a child or a slot it names per period is never purged. Give per-occurrence work a job of its own by declaring the definition `PerOccurrence`: each admitted occurrence is then a fresh root job with the definition's default input, its own steps, children, retries, and retention, and `MaxOutstanding` bounds how many of one schedule's roots may be unsettled at once ([delivery and capacity](./scheduling.md#delivery-and-capacity)).
+Retention follows the same rule. A permanent job keeps its steps and the children it started for as long as it exists, and it exists for as long as its schedule, so a child or a step it names per period is never purged. Give per-occurrence work a job of its own by declaring the definition `PerOccurrence`: each admitted occurrence is then a fresh root job with the definition's default input, its own steps, children, retries, and retention, and `MaxOutstanding` bounds how many of one schedule's roots may be unsettled at once ([delivery and capacity](./scheduling.md#delivery-and-capacity)).
 
 ```csharp
 [Job("import-files", ScheduledDelivery = ScheduledDeliveryCode.PerOccurrence)]
@@ -196,7 +196,7 @@ catch (StepInterruptedException)
 
 If the worker dies after the step's start is recorded but before its outcome, the step becomes `Interrupted` and `RunStepAsync` throws `StepInterruptedException`: the body ran zero or one times, and Acta cannot tell which. Reconcile against the external system; never assume the effect happened. Uncaught, the exception fails the job terminally (`job.step-interrupted`).
 
-`AtMostOnce()` allows no retries, so pairing it with a retry override other than `MaxAttempts(1)` throws. In a recurring job, catch the exception and prefer a per-period step name (`$"charge-{period}"`): an uncaught interruption stops the whole schedule. Each period's step row stays as long as the job, so at a high cadence run the charge in a job per occurrence, as above.
+`AtMostOnce()` allows no retries, so pairing it with a retry override other than `MaxAttempts(1)` throws. In a permanent job, catch the exception and prefer a per-period step name (`$"charge-{period}"`): an uncaught interruption stops the whole schedule. Each period's step row stays as long as the job, so at a high cadence run the charge in a job per occurrence, as above.
 
 ### Job attribute placement
 
@@ -442,7 +442,7 @@ JobHandle<Receipt> job = await jobs.EnqueueAsync(BillingJobs.SendInvoice(invoice
 - The record is the job's `TIn`, stored as JSON: `{"invoiceId":"…","recipient":"billing@example.com"}`. The parameter names are its contract fields, so renaming one is a contract change; see [contract evolution](#contract-evolution).
 - Under Native AOT, declare the input record yourself and give the handler that one parameter. System.Text.Json's source generator never sees a type another generator emits, so it writes no metadata for the generated record (warning SYSLIB1030), and its first enqueue throws.
 - An interface parameter other than a collection such as `IReadOnlyList<T>` is rejected (ACTA0103): it reads as a dependency, and dependencies come from the constructor.
-- Such a handler cannot carry `[Schedule]` (ACTA0123), since a recurring slot seeds its input from a parameterless constructor the record lacks.
+- Such a handler cannot carry `[Schedule]` (ACTA0123), since a permanent job seeds its input from a parameterless constructor the record lacks.
 
 ### Input payload format inference
 
@@ -497,7 +497,7 @@ Task<TResult>
 ValueTask<TResult>
 ```
 
-A job stores at most one result, on its `jobs_state` row, written by a successful completion: a one-shot job's terminal success, or a recurring job's successful occurrence, which replaces the previous one. Every claim and every restart clears it, so while an attempt runs the job has no result, and a failed occurrence of a recurring job leaves none. A handler that wants more history keeps it itself, in a variable, its own table, or object storage.
+A job stores at most one result, on its `jobs_state` row, written by a successful completion: a one-shot job's terminal success, or a permanent job's successful occurrence, which replaces the previous one. Every claim and every restart clears it, so while an attempt runs the job has no result, and a failed occurrence of a permanent job leaves none. A handler that wants more history keeps it itself, in a variable, its own table, or object storage.
 
 The result value is non-null by contract: a handler that returns `null` from a declared result type fails the attempt, and `null` is never persisted as a result. A succeeded job has no result when it declares none, or when its result was larger than `MaxInlinePayloadBytes` and was dropped (reason `job.result-oversized`).
 
@@ -520,7 +520,7 @@ For large files, exports, media, archives, reports, or model inputs, store the b
 
 Unhandled exceptions escape the handler and are captured as attempt failures. The framework records the exception's `Message`, truncated to 512 characters, as the attempt's failure message, at the job's event recording level; retry policy decides whether the job retries or becomes terminal. Nothing redacts that message: it is shown on the read surface and sent to alert channels, so keep secrets and personal data out of exception messages.
 
-`NotImplementedException`, `NotSupportedException`, and an uncaught `StepExhaustedException` are non-retryable: the job lands terminal `Failed` immediately (reason `non-retryable-exception`) without consuming retry budget, since retrying cannot change the outcome. A recurring job's slot instead settles that firing as failed and returns to `Idle` for its next one, as a spent budget does. For custom non-retryable types, call `ctx.FailAsync` in the handler or register a pipeline behavior that translates them.
+`NotImplementedException`, `NotSupportedException`, and an uncaught `StepExhaustedException` are non-retryable: the job lands terminal `Failed` immediately (reason `non-retryable-exception`) without consuming retry budget, since retrying cannot change the outcome. A permanent job instead settles that firing as failed and returns to `Idle` for its next one, as a spent budget does. For custom non-retryable types, call `ctx.FailAsync` in the handler or register a pipeline behavior that translates them.
 
 Handlers should not return failure-as-result unless the domain considers that a successful outcome.
 
@@ -590,7 +590,7 @@ The generator reports these at build time. All are errors unless noted, and an e
 | `ACTA0122` | Invalid schedule expression; cron (Cronos dialect, 5 or 6 fields) or an interval of whole milliseconds and at least one second such as `5m` or `PT1.5S`.                                                       |
 | `ACTA0123` | `[Schedule]` handler whose input has no accessible parameterless constructor, or that takes several input parameters.                                                                                            |
 | `ACTA0124` | Invalid `[Schedule]` policy value: `MaxOutstanding` below 1, or an undefined `FullBehavior` or `MisfireStrategy`. |
-| `ACTA0125` | `MaxOutstanding` other than 1 on a schedule of a `Permanent` definition, whose one slot holds one occurrence at a time. |
+| `ACTA0125` | `MaxOutstanding` other than 1 on a schedule of a `Permanent` definition, whose one permanent job holds one occurrence at a time. |
 | `ACTA0126` | Incomplete `[Schedule]` expiration: `ExpireAfter` without `ExpireAction` or the reverse, an `ExpireAfter` of zero, or an undefined `ExpireAction`. |
 | `ACTA0127` | Incomplete `[Schedule]` source: an expression and `Calendar` together or neither, or a blank or invalid `Calendar` or `Availability` name. Whether the catalog publishes the name is checked at a deploy. |
 | `ACTA0129` | Incomplete `[Schedule]` bounds: a `StartAtUtc` or `EndBeforeUtc` that is not a UTC instant written `yyyy-MM-ddTHH:mm:ssZ`, or a start not earlier than the end. |
@@ -706,7 +706,7 @@ Sizing workers and executors against the database is in the operator guide: [Wor
 
 ### Handler Policy Lives Elsewhere
 
-Retries, backoff, execution timeout, deadline, retention, alert profile, event recording, priority, concurrency limit, and rate limit are declared on `[Job(...)]`, and schedule policy on `[Schedule(...)]`, not on `JobsOptions`. An operator overrides the job policy without a deploy through `IActaOperations.Definitions.UpdateOverridesAsync`, `PUT /definitions/{jobNamespace}/{jobName}/overrides`, or the dashboard: the call replaces the whole override set, a null field clears an override, and the definition's `version` guards a concurrent edit. Over HTTP the body's `overrides` carries every field, and one it leaves out answers 400; `GET /definitions/{jobNamespace}/{jobName}` answers `overrides` in the same shape, so a client changes fields of it and sends it back whole. Workers pick the change up on their next heartbeat; two edits of one namespace committed within the same instant can leave one unseen until the next edit. Priority and event recording are copied onto each job when it is enqueued, so an override of either reaches the jobs enqueued after it, and `IJobs.ReprioritizeAsync` moves a queued one. A recurring job's slot, one job that lives on, takes a new event recording at once, and a new priority at once when it is Idle; a slot with a firing outstanding takes the priority at the next deploy that finds it Idle.
+Retries, backoff, execution timeout, deadline, retention, alert profile, event recording, priority, concurrency limit, and rate limit are declared on `[Job(...)]`, and schedule policy on `[Schedule(...)]`, not on `JobsOptions`. An operator overrides the job policy without a deploy through `IActaOperations.Definitions.UpdateOverridesAsync`, `PUT /definitions/{jobNamespace}/{jobName}/overrides`, or the dashboard: the call replaces the whole override set, a null field clears an override, and the definition's `version` guards a concurrent edit. Over HTTP the body's `overrides` carries every field, and one it leaves out answers 400; `GET /definitions/{jobNamespace}/{jobName}` answers `overrides` in the same shape, so a client changes fields of it and sends it back whole. Workers pick the change up on their next heartbeat; two edits of one namespace committed within the same instant can leave one unseen until the next edit. Priority and event recording are copied onto each job when it is enqueued, so an override of either reaches the jobs enqueued after it, and `IJobs.ReprioritizeAsync` moves a queued one. A permanent job, one job that lives on, takes a new event recording at once, and a new priority at once when it is Idle; one with a firing outstanding takes the priority at the next deploy that finds it Idle.
 
 The default retry policy (`MaxAttempts = 15`, backoff `"1m..1d x2 ~10%"`) keeps a failing job retrying for about 4.4 days before it lands Failed.
 
@@ -988,9 +988,9 @@ public sealed class SendWelcomeEmailTests : IAsyncLifetime
 
 | Outcome | Meaning | Row status afterwards |
 |---------|---------|----------------------|
-| `Completed` | The handler finished (or the run was cancelled) | `Succeeded` / `Cancelled`; a permanent slot returns to `Idle` until its next firing |
+| `Completed` | The handler finished (or the run was cancelled) | `Succeeded` / `Cancelled`; a permanent job returns to `Idle` until its next firing |
 | `Rearmed` | The job re-armed for a later claim: the handler rescheduled, slept, paused, suspended on a signal, or threw with retry attempts remaining, or a concurrency or rate limit bounced it | `Ready` (forward-dated `NextRunAtUtc`), `Suspended`, or `Paused` |
-| `Failed` | The handler threw and the row settled terminally (attempts exhausted, or a [non-retryable exception](#exception-semantics)) | `Failed`; a permanent slot returns to `Idle` with its firing settled `failed` |
+| `Failed` | The handler threw and the row settled terminally (attempts exhausted, or a [non-retryable exception](#exception-semantics)) | `Failed`; a permanent job returns to `Idle` with its firing settled `failed` |
 | `NothingClaimed` | No claimable row this tick (not enqueued, not yet due, or already claimed) | unchanged |
 
 A first failure of a job with default policy (`MaxAttempts = 15`) returns `Rearmed`, not `Failed`:
@@ -1038,26 +1038,26 @@ With `MaxAttempts = 2`, making both attempts throw turns the second tick into
 
 ### Testing a scheduled job
 
-A `[Schedule]` declares a permanent slot that sits `Idle` until the admission engine finds a schedule
+A `[Schedule]` declares a permanent job that sits `Idle` until the admission engine finds a schedule
 due, and the test host runs no admitter loop, so a scheduled job fires through two helpers:
 `ForceScheduleDueAsync(lookup)` moves the schedule's next occurrence and evaluation instant to moments
 ago, inside the misfire grace, and `AdmitOnceAsync(namespace)` runs one admission pass, which admits
-the firing onto the slot and reports how many it admitted. The slot is then `Ready`, `RunOnceAsync`
-runs the firing like any job, and a success returns the slot to `Idle`.
+the firing onto the permanent job and reports how many it admitted. The job is then `Ready`, `RunOnceAsync`
+runs the firing like any job, and a success returns it to `Idle`.
 
 ```csharp
 var lookup = new ScheduleLookup("shipping", "sync-orders", "every-5s");
 var listed = await host.Operations.Schedules.ListAsync(new ListSchedulesQuery(JobNamespace: "shipping", JobName: "sync-orders"));
-var slotId = (await host.Jobs.GetIdAsync(JobLookup.ByRef(listed.Items[0].JobRef!.Value)))!.JobId;
+var jobId = (await host.Jobs.GetIdAsync(JobLookup.ByRef(listed.Items[0].JobRef!.Value)))!.JobId;
 await host.ForceScheduleDueAsync(lookup);
 Assert.Equal(1, (await host.AdmitOnceAsync("shipping")).Admitted);
-Assert.Equal(ActaRunStatus.Completed, await host.RunOnceAsync(slotId));
+Assert.Equal(ActaRunStatus.Completed, await host.RunOnceAsync(jobId));
 ```
 
 A forced occurrence is admitted under the schedule's own misfire policy, a paused schedule stays
-paused, and a per-occurrence schedule admits a fresh root rather than a slot. A schedule bound to a
+paused, and a per-occurrence schedule admits a fresh root rather than a permanent job. A schedule bound to a
 calendar cannot be forced, since the admitter admits only the instants the calendar produces: give
-the host a clock and advance it to one of them, or fire the slot with `TriggerAsync`.
+the host a clock and advance it to one of them, or fire the permanent job with `TriggerAsync`.
 
 ### Testing orchestration: signals
 

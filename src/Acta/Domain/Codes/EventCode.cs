@@ -66,7 +66,7 @@ public enum EventCode : byte
 
     [Code(
         "job.execution-failed",
-        "The attempt failed and the job lives on: a retry within budget, or a permanent slot's firing that spent its budget and returned the slot to idle. durationMs and the failure's message are set; the details carry the keys reason and to."
+        "The attempt failed and the job lives on: a retry within budget, or a permanent job's firing that spent its budget and returned the job to idle. durationMs and the failure's message are set; the details carry the keys reason and to."
     )]
     JobExecutionFailed = 41,
 
@@ -108,13 +108,13 @@ public enum EventCode : byte
 
     [Code(
         "job.resumed",
-        "The job was resumed: it is ready again, idle for a permanent slot with no firing outstanding, or blocked behind its lane. Crash recovery records the same event, with the reason lane-repaired in its details, when it releases the next job of a stranded lane."
+        "The job was resumed: it is ready again, idle for a permanent job with no firing outstanding, or blocked behind its lane. Crash recovery records the same event, with the reason lane-repaired in its details, when it releases the next job of a stranded lane."
     )]
     JobResumed = 72,
 
     [Code(
         "job.restarted",
-        "The job was restarted: it is ready again, idle for a permanent slot, or blocked behind its lane. Its failure count is reset and its retention cleared, and its execution number carries on."
+        "The job was restarted: it is ready again, idle for a permanent job, or blocked behind its lane. Its failure count is reset and its retention cleared, and its execution number carries on."
     )]
     JobRestarted = 73,
 
@@ -152,7 +152,7 @@ public enum EventCode : byte
     JobNoteRecorded = 90,
 
     /// <summary>
-    /// A schedule.* event's subject is the schedule's slot job, since a schedule has no single numeric identity; a
+    /// A schedule.* event's subject is the schedule's permanent job, since a schedule has no single numeric identity; a
     /// per-occurrence schedule has none, so its admissions and manual firings sit on the job each one enqueued and its
     /// other events on its definition. Every one carries the definition, and the schedule name rides details.schedule.
     /// </summary>
@@ -232,7 +232,7 @@ public enum EventCode : byte
     AlertResolved = 141,
 
     /// <summary>
-    /// Both outbox.* events are written against the namespace's sys.outbox slot job by the tick
+    /// Both outbox.* events are written against the namespace's sys.outbox permanent job by the tick
     /// that applies a parked operator command. Always emitted regardless of event recording: this is
     /// the evidence trail for actions whose subject rows live (or lived) in the producer's
     /// database, outside the ledger's reach.

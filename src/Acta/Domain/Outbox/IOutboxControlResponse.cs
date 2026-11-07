@@ -3,8 +3,8 @@ namespace Acta;
 /// <summary>
 /// What an outbox control verb did. The verbs park a durable command that the next relay pass applies, so
 /// success is Accepted; once applied, the evidence lands as an audit event on the namespace's
-/// <c>sys.outbox</c> slot job. Rejected means an unapplied command of the same verb is pending; NotFound
-/// means the namespace has no relay slot. The version is always null, because a parked command carries none.
+/// <c>sys.outbox</c> permanent job. Rejected means an unapplied command of the same verb is pending; NotFound
+/// means the namespace has no relay job. The version is always null, because a parked command carries none.
 /// </summary>
 public interface IOutboxControlResponse : IControlResponse
 {

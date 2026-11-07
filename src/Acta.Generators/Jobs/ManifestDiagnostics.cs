@@ -135,7 +135,7 @@ internal static class ManifestDiagnostics
 
     internal static readonly DiagnosticDescriptor PermanentCapacity = new(
         id: "ACTA0125",
-        title: "A permanent slot's schedules allow one outstanding occurrence",
+        title: "A permanent job's schedules allow one outstanding occurrence",
         messageFormat: "{0}",
         category: "Acta",
         defaultSeverity: DiagnosticSeverity.Error,
@@ -408,7 +408,7 @@ internal static class ManifestDiagnostics
     public static DiagnosticRecord LanedSchedule(DiscoveredJob job) =>
         new(
             "ACTA0121",
-            $"`[Job(\"{job.JobName}\")]` declares a `Lane` and a `[Schedule]`. A recurring slot never finishes, so it would hold its lane forever; drop the lane, or enqueue laned work from the scheduled job.",
+            $"`[Job(\"{job.JobName}\")]` declares a `Lane` and a `[Schedule]`. A permanent job never finishes, so it would hold its lane forever; drop the lane, or enqueue laned work from the scheduled job.",
             job.Location
         );
 
@@ -435,14 +435,14 @@ internal static class ManifestDiagnostics
     public static DiagnosticRecord ScheduledInputNotConstructible(IMethodSymbol method, ITypeSymbol inputType, Location location) =>
         new(
             "ACTA0123",
-            $"`[Job]` method `{method.Name}` declares one or more `[Schedule]` but its input `{inputType.ToDisplayString()}` has no accessible parameterless constructor. The recurring slot seeds its payload from `new {inputType.Name}()`; give the input a parameterless constructor or use a parameterless record (e.g. `record Reconcile;`).",
+            $"`[Job]` method `{method.Name}` declares one or more `[Schedule]` but its input `{inputType.ToDisplayString()}` has no accessible parameterless constructor. The permanent job seeds its payload from `new {inputType.Name}()`; give the input a parameterless constructor or use a parameterless record (e.g. `record Reconcile;`).",
             location
         );
 
     public static DiagnosticRecord ScheduledArguments(IMethodSymbol method, Location location) =>
         new(
             "ACTA0123",
-            $"`[Job]` method `{method.Name}` declares one or more `[Schedule]` but takes several input parameters. The recurring slot seeds its payload from a parameterless constructor, which the generated argument record has none of; take one input record with a parameterless constructor.",
+            $"`[Job]` method `{method.Name}` declares one or more `[Schedule]` but takes several input parameters. The permanent job seeds its payload from a parameterless constructor, which the generated argument record has none of; take one input record with a parameterless constructor.",
             location
         );
 
@@ -476,7 +476,7 @@ internal static class ManifestDiagnostics
     public static DiagnosticRecord PermanentScheduleCapacity(DiscoveredJob job, string scheduleName, int maxOutstanding) =>
         new(
             "ACTA0125",
-            $"`[Schedule(\"{scheduleName}\")]` on `[Job(\"{job.JobName}\")]` sets `MaxOutstanding = {maxOutstanding}`, but the definition delivers through one permanent slot, which holds one occurrence at a time. Drop `MaxOutstanding`, or declare `ScheduledDelivery = ScheduledDeliveryCode.PerOccurrence` under a new job name.",
+            $"`[Schedule(\"{scheduleName}\")]` on `[Job(\"{job.JobName}\")]` sets `MaxOutstanding = {maxOutstanding}`, but the definition delivers through one permanent job, which holds one occurrence at a time. Drop `MaxOutstanding`, or declare `ScheduledDelivery = ScheduledDeliveryCode.PerOccurrence` under a new job name.",
             job.Location
         );
 

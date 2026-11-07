@@ -1,5 +1,5 @@
 // Concept: what a firing that fails for good does to its schedules. A firing retries under the job's budget like any
-// attempt; when the budget is spent the slot returns to Idle. Under the default Continue the next occurrence fires as
+// attempt; when the budget is spent the permanent job returns to Idle. Under the default Continue the next occurrence fires as
 // usual; under PauseScheduling the definition's schedules pause, with the reason, until an operator resumes them.
 using System.Collections.Concurrent;
 using Acta;
@@ -27,7 +27,7 @@ using var host = builder.Build();
 await host.StartAsync();
 var schedules = host.Services.GetRequiredService<IActaOperations>().Schedules;
 
-Console.WriteLine("Two recurring jobs read the same price feed, which is down; each firing fails twice and spends its budget...");
+Console.WriteLine("Two permanent jobs read the same price feed, which is down; each firing fails twice and spends its budget...");
 using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
 while (true)
 {
@@ -56,7 +56,7 @@ await lab.ShowAsync(
     new { jobNamespace }
 );
 await lab.ShowAsync(
-    "The slots: both Idle between firings, whatever the policy did to the schedules",
+    "The permanent jobs: both Idle between firings, whatever the policy did to the schedules",
     """
     SELECT definition_name, job_status, failure_count
     FROM jobs_view
@@ -66,7 +66,7 @@ await lab.ShowAsync(
     new { jobNamespace }
 );
 await lab.ShowAsync(
-    "The ledger: two failed attempts, the second returning the slot to Idle, and the pause the policy wrote with it",
+    "The ledger: two failed attempts, the second returning the job to Idle, and the pause the policy wrote with it",
     """
     SELECT definition_name, event, event_message, details_text
     FROM events_view
