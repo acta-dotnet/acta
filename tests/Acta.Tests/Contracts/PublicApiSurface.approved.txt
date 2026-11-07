@@ -1022,7 +1022,7 @@ sealed record Acta.GetOverviewResponse
     System.Nullable<System.Int64> OldestReadyAgeSeconds { get;init; }
     System.Nullable<System.Int64> ScheduleLagSeconds { get;init; }
 sealed record Acta.GetScheduleResponse
-    .ctor(System.Int32 ScheduleId, System.Nullable<System.Int64> JobId, System.Int32 DefinitionId, System.String JobNamespace, System.String JobName, System.String ScheduleName, Acta.ScheduleOriginCode Origin, Acta.ScheduleExpressionKindCode ExpressionKind, System.String Expression, System.String TimeZoneId, Acta.MisfireStrategyCode MisfireStrategy, System.Nullable<System.DateTime> NextOccurrenceAtUtc, System.Nullable<System.DateTime> NextEvaluationAtUtc, Acta.ScheduleEvaluationStatusCode EvaluationStatus, Acta.ScheduleStatusCode Status, System.Nullable<System.DateTime> PausedUntilUtc, System.DateTime CreatedAtUtc, System.DateTime ModifiedAtUtc, System.Int32 Version, System.Nullable<Acta.JobRef> JobRef, System.Int32 MaxOutstanding, System.Int32 OutstandingCount, Acta.ScheduleFullBehaviorCode FullBehavior, Acta.ScheduledDeliveryCode ScheduledDelivery, System.Nullable<System.Int32> ExpireAfterSeconds, System.Nullable<Acta.ScheduleExpireActionCode> ExpireAction, System.String AvailabilityCalendarName)
+    .ctor(System.Int32 ScheduleId, System.Nullable<System.Int64> JobId, System.Int32 DefinitionId, System.String JobNamespace, System.String JobName, System.String ScheduleName, Acta.ScheduleOriginCode Origin, Acta.ScheduleExpressionKindCode ExpressionKind, System.String Expression, System.String TimeZoneId, Acta.MisfireStrategyCode MisfireStrategy, System.Nullable<System.DateTime> NextOccurrenceAtUtc, System.Nullable<System.DateTime> NextEvaluationAtUtc, Acta.ScheduleEvaluationStatusCode EvaluationStatus, Acta.ScheduleStatusCode Status, System.Nullable<System.DateTime> PausedUntilUtc, System.DateTime CreatedAtUtc, System.DateTime ModifiedAtUtc, System.Int32 Version, System.Nullable<Acta.JobRef> JobRef, System.Int32 MaxOutstanding, System.Int32 OutstandingCount, Acta.ScheduleFullBehaviorCode FullBehavior, Acta.ScheduledDeliveryCode ScheduledDelivery, System.Nullable<System.Int32> ExpireAfterSeconds, System.Nullable<Acta.ScheduleExpireActionCode> ExpireAction, System.String AvailabilityCalendarName, System.Nullable<System.DateTime> StartAtUtc, System.Nullable<System.DateTime> EndBeforeUtc)
     Acta.MisfireStrategyCode MisfireStrategy { get;init; }
     Acta.ScheduleEvaluationStatusCode EvaluationStatus { get;init; }
     Acta.ScheduleExpressionKindCode ExpressionKind { get;init; }
@@ -1039,9 +1039,11 @@ sealed record Acta.GetScheduleResponse
     System.Int32 Version { get;init; }
     System.Nullable<Acta.JobRef> JobRef { get;init; }
     System.Nullable<Acta.ScheduleExpireActionCode> ExpireAction { get;init; }
+    System.Nullable<System.DateTime> EndBeforeUtc { get;init; }
     System.Nullable<System.DateTime> NextEvaluationAtUtc { get;init; }
     System.Nullable<System.DateTime> NextOccurrenceAtUtc { get;init; }
     System.Nullable<System.DateTime> PausedUntilUtc { get;init; }
+    System.Nullable<System.DateTime> StartAtUtc { get;init; }
     System.Nullable<System.Int32> ExpireAfterSeconds { get;init; }
     System.Nullable<System.Int64> JobId { get;init; }
     System.String AvailabilityCalendarName { get;init; }
@@ -2036,7 +2038,7 @@ sealed record Acta.ListQuarantinedOutboxResponse : Acta.IPagedResponse<Acta.List
     System.Nullable<System.Int64> TotalCount { get;init; }
     System.String NextCursor { get;init; }
 sealed record Acta.ListSchedulesItem
-    .ctor(System.Int32 ScheduleId, System.Nullable<System.Int64> JobId, System.Int32 DefinitionId, System.String JobNamespace, System.String JobName, System.String ScheduleName, Acta.ScheduleOriginCode Origin, Acta.ScheduleExpressionKindCode ExpressionKind, System.String Expression, System.String TimeZoneId, Acta.MisfireStrategyCode MisfireStrategy, System.Nullable<System.DateTime> NextOccurrenceAtUtc, System.Nullable<System.DateTime> NextEvaluationAtUtc, Acta.ScheduleEvaluationStatusCode EvaluationStatus, Acta.ScheduleStatusCode Status, System.Nullable<System.DateTime> PausedUntilUtc, System.DateTime CreatedAtUtc, System.DateTime ModifiedAtUtc, System.Int32 Version, System.Nullable<Acta.JobRef> JobRef, System.Int32 MaxOutstanding, System.Int32 OutstandingCount, Acta.ScheduleFullBehaviorCode FullBehavior, Acta.ScheduledDeliveryCode ScheduledDelivery, System.Nullable<System.Int32> ExpireAfterSeconds, System.Nullable<Acta.ScheduleExpireActionCode> ExpireAction, System.String AvailabilityCalendarName)
+    .ctor(System.Int32 ScheduleId, System.Nullable<System.Int64> JobId, System.Int32 DefinitionId, System.String JobNamespace, System.String JobName, System.String ScheduleName, Acta.ScheduleOriginCode Origin, Acta.ScheduleExpressionKindCode ExpressionKind, System.String Expression, System.String TimeZoneId, Acta.MisfireStrategyCode MisfireStrategy, System.Nullable<System.DateTime> NextOccurrenceAtUtc, System.Nullable<System.DateTime> NextEvaluationAtUtc, Acta.ScheduleEvaluationStatusCode EvaluationStatus, Acta.ScheduleStatusCode Status, System.Nullable<System.DateTime> PausedUntilUtc, System.DateTime CreatedAtUtc, System.DateTime ModifiedAtUtc, System.Int32 Version, System.Nullable<Acta.JobRef> JobRef, System.Int32 MaxOutstanding, System.Int32 OutstandingCount, Acta.ScheduleFullBehaviorCode FullBehavior, Acta.ScheduledDeliveryCode ScheduledDelivery, System.Nullable<System.Int32> ExpireAfterSeconds, System.Nullable<Acta.ScheduleExpireActionCode> ExpireAction, System.String AvailabilityCalendarName, System.Nullable<System.DateTime> StartAtUtc, System.Nullable<System.DateTime> EndBeforeUtc)
     Acta.MisfireStrategyCode MisfireStrategy { get;init; }
     Acta.ScheduleEvaluationStatusCode EvaluationStatus { get;init; }
     Acta.ScheduleExpressionKindCode ExpressionKind { get;init; }
@@ -2053,9 +2055,11 @@ sealed record Acta.ListSchedulesItem
     System.Int32 Version { get;init; }
     System.Nullable<Acta.JobRef> JobRef { get;init; }
     System.Nullable<Acta.ScheduleExpireActionCode> ExpireAction { get;init; }
+    System.Nullable<System.DateTime> EndBeforeUtc { get;init; }
     System.Nullable<System.DateTime> NextEvaluationAtUtc { get;init; }
     System.Nullable<System.DateTime> NextOccurrenceAtUtc { get;init; }
     System.Nullable<System.DateTime> PausedUntilUtc { get;init; }
+    System.Nullable<System.DateTime> StartAtUtc { get;init; }
     System.Nullable<System.Int32> ExpireAfterSeconds { get;init; }
     System.Nullable<System.Int64> JobId { get;init; }
     System.String AvailabilityCalendarName { get;init; }

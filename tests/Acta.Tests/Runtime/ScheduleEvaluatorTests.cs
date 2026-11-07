@@ -237,7 +237,7 @@ public class ScheduleEvaluatorTests
     }
 
     [Fact]
-    public void The_fingerprint_follows_the_expression_the_zone_and_the_anchor_and_nothing_else()
+    public void The_fingerprint_follows_the_expression_the_zone_the_anchor_and_the_bounds_and_nothing_else()
     {
         var a = TimingFingerprint.Compute(new ScheduleTiming("0 9 * * *", ScheduleExpressionKindCode.Cron, "Europe/Ljubljana", null));
 
@@ -256,6 +256,21 @@ public class ScheduleEvaluatorTests
             TimingFingerprint.Compute(new ScheduleTiming("PT5M", ScheduleExpressionKindCode.Interval, null, Utc(9, 5)))
         );
         Assert.Equal(64, a.Length);
+
+        var start = new DateTime(2027, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        var end = new DateTime(2028, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        var cron = new ScheduleTiming("0 9 * * *", ScheduleExpressionKindCode.Cron, "Europe/Ljubljana", null);
+        Assert.NotEqual(a, TimingFingerprint.Compute(cron with { StartAtUtc = start }));
+        Assert.NotEqual(a, TimingFingerprint.Compute(cron with { EndBeforeUtc = end }));
+        Assert.NotEqual(
+            TimingFingerprint.Compute(cron with { StartAtUtc = start }),
+            TimingFingerprint.Compute(cron with { EndBeforeUtc = start })
+        );
+        // Pinned: a bound enters the text only when set, so an unbounded timing's fingerprint, and every stored one, holds.
+        Assert.Equal(
+            "C7F4A72B75D7F76C9FB9371607DD6346A5282F3D5AEBB274FBA11797E1B338BB",
+            TimingFingerprint.Compute(new ScheduleTiming("PT5M", ScheduleExpressionKindCode.Interval, null, Utc(9, 0)))
+        );
     }
 
     [Fact]

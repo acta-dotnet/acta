@@ -17,7 +17,9 @@ SELECT
     st.outstanding_count,
     st.version AS state_version,
     t.interval_anchor_at_utc,
-    t.availability_calendar_name
+    t.availability_calendar_name,
+    t.start_at_utc,
+    t.end_before_utc
 FROM {{schema}}.namespaces n
 INNER JOIN {{schema}}.definitions d ON d.namespace_id = n.namespace_id AND d.definition_name = @p_job_name
 INNER JOIN {{schema}}.schedules t ON t.definition_id = d.definition_id AND t.schedule_name = @p_schedule_name

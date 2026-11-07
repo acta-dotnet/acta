@@ -1112,6 +1112,14 @@
           "Signature": "AsciiString|128|0|0|True|None||coded=False|codeKind=|caseExact=False"
         },
         {
+          "Name": "start_at_utc",
+          "Signature": "UtcInstant|0|0|0|True|None||coded=False|codeKind=|caseExact=False"
+        },
+        {
+          "Name": "end_before_utc",
+          "Signature": "UtcInstant|0|0|0|True|None||coded=False|codeKind=|caseExact=False"
+        },
+        {
           "Name": "schedule_status_code",
           "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=schedule-status|caseExact=False"
         },
@@ -1151,6 +1159,10 @@
         }
       ],
       "Checks": [
+        {
+          "Name": "ck_schedules_bounds",
+          "Sql": "start_at_utc IS NULL OR end_before_utc IS NULL OR start_at_utc \u003C end_before_utc"
+        },
         {
           "Name": "ck_schedules_expire_after",
           "Sql": "expire_after_seconds IS NULL OR expire_after_seconds \u003E 0"
@@ -1509,7 +1521,7 @@
       "raise_job_signal": "1117c43132d6537d7147b7c2600053541c82f58d71ac72cb64de6f3fc7ca03d2",
       "reclaim_stuck_jobs": "9ec280bc02d69d6f6ad0dd53ffde58f62f6d0e4e8d01c1a1b857b90e89155ac4",
       "reserve_rate": "6c670647c61105bf54f710e21222010bc21c5fb74db62825cce3495dd902fa22",
-      "schedules_view": "055b304719f1b5a3817c1aa40727504caf1fd5f5082f2fc6591f637c74902634",
+      "schedules_view": "464b1eb325223386335d111fc3374e1f2cf04782393d00a3f55bb69db15c3757",
       "start_job_step": "e0f07a3155d36d8402cfb021c1534810804042daed1b4b43a631bea34e33fa21",
       "steps_view": "abc994b0c7c41937156a8884e8dfb29873ac123c2d17827127f77dd4e55e26a5",
       "tags_view": "55d18a02036ad23fbf32bbcbeef0bac99a881b9adf9e80e61711b33ca46717bb",
@@ -1535,7 +1547,7 @@
       "raise_job_signal": "38e0d3eb2925747cdf40c812cbde88d7c7e43aa4db587fc26b11a3bc6dbb73b0",
       "reclaim_stuck_jobs": "cb060ee41e9bf60626e68239b2419583e9da6b87ccc28584aab782ed01231157",
       "reserve_rate": "147eb58a9780d3a3a0f0660d4d0301c93a2a310dfbff598c2996b88d71eb6543",
-      "schedules_view": "5f53b86bff2a545908c44af54c2b844519fa8ec5a9019b2c9031e05554f8e9ed",
+      "schedules_view": "f9d1cee63a6754945f2c9c683badfa8e3d1d201e96b7f3ef92e3bc6e5a60261f",
       "start_job_step": "76314c21facab9efe84ad5055cc15621e33a9396df2f3e2b7799f8827c5aa48b",
       "steps_view": "c7af23d2a558b9cbb0b66fc3de14ce3c259e76fa5abb6efad3ed6a77f8e3d870",
       "tags_view": "7c53250b8389ffff268b2c675dd929aa2bc434b34921753d649a49487c6b4d2f",
@@ -1549,7 +1561,7 @@
       "definitions_view": "6a003ffd980bb3c9615ae4be9a893b2e578839a6d553d794ed1a15e8f508527d",
       "events_view": "a39b43535142dff9255be612e82ab1ddcf3068a6e232fbd390deaad459ca2ca6",
       "jobs_view": "633426721e6fdbb0e00dd973df96dd8680a67f2817b1dbc4dfb798102eaf7848",
-      "schedules_view": "dbbd35c5872343831135122c9ffe808ceacd6d1089c907750670d7ccb7f260d7",
+      "schedules_view": "985b7eae8b08e87472ffe0bc11128ce938eba05cad2982f07df87c42aec282ff",
       "steps_view": "8d274489630abf7eb7f9f16ca4b56abd517be24fc91b4e2cd5e55dcb91db958f",
       "tags_view": "84970713035f1acde44c1f17c583898d95edc633e25f162dee142655daffd9cd",
       "workers_view": "5abc761eabb35f6035fba444fd08d547578e8140faf6e258d07775fa489ac7f5"

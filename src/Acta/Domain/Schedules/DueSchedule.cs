@@ -21,6 +21,8 @@ internal sealed record DueSchedule(
     DateTime? IntervalAnchorAtUtc,
     string TimingFingerprint,
     string? AvailabilityCalendarName,
+    DateTime? StartAtUtc,
+    DateTime? EndBeforeUtc,
     int MaxOutstanding,
     ScheduleFullBehaviorCode FullBehavior,
     int? ExpireAfterSeconds,
@@ -39,5 +41,6 @@ internal sealed record DueSchedule(
 )
 {
     /// <summary>The schedule's timing as stored.</summary>
-    public ScheduleTiming Timing() => new(Expression, ExpressionKind, TimeZoneId, IntervalAnchorAtUtc, AvailabilityCalendarName);
+    public ScheduleTiming Timing() =>
+        new(Expression, ExpressionKind, TimeZoneId, IntervalAnchorAtUtc, AvailabilityCalendarName, StartAtUtc, EndBeforeUtc);
 }

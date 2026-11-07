@@ -315,6 +315,8 @@ CREATE TABLE IF NOT EXISTS {{schema}}.schedules (
     expire_after_seconds integer NULL,
     expire_action_code smallint NULL,
     availability_calendar_name varchar(128) NULL,
+    start_at_utc timestamptz NULL,
+    end_before_utc timestamptz NULL,
     schedule_status_code smallint NOT NULL,
     paused_until_utc timestamptz NULL,
     description varchar(512) NULL,
@@ -328,6 +330,7 @@ CREATE TABLE IF NOT EXISTS {{schema}}.schedules (
     , CONSTRAINT ck_schedules_max_outstanding CHECK (max_outstanding >= 1)
     , CONSTRAINT ck_schedules_expire_pair CHECK ((expire_after_seconds IS NULL AND expire_action_code IS NULL) OR (expire_after_seconds IS NOT NULL AND expire_action_code IS NOT NULL))
     , CONSTRAINT ck_schedules_expire_after CHECK (expire_after_seconds IS NULL OR expire_after_seconds > 0)
+    , CONSTRAINT ck_schedules_bounds CHECK (start_at_utc IS NULL OR end_before_utc IS NULL OR start_at_utc < end_before_utc)
     , CONSTRAINT fk_schedules_definitions FOREIGN KEY (definition_id) REFERENCES {{schema}}.definitions (definition_id)
 );
 CREATE INDEX IF NOT EXISTS ix_schedules_job ON {{schema}}.schedules (job_id, schedule_id) WHERE job_id IS NOT NULL;
@@ -4285,6 +4288,8 @@ SELECT
     CASE s.expire_action_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'discard' WHEN 20 THEN 'pause' END AS expire_action,
     s.expire_action_code,
     s.availability_calendar_name,
+    s.start_at_utc,
+    s.end_before_utc,
     st.outstanding_count,
     s.paused_until_utc,
     s.description,
@@ -4359,5 +4364,5 @@ JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261106111104_init')
+VALUES ('M20261106144133_init')
 ON CONFLICT (name) DO NOTHING;

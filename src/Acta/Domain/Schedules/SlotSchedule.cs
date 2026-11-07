@@ -19,11 +19,21 @@ internal sealed record SlotSchedule(
     ScheduleFullBehaviorCode FullBehavior = ScheduleFullBehaviorCode.Wait,
     int? ExpireAfterSeconds = null,
     ScheduleExpireActionCode? ExpireAction = null,
-    string? AvailabilityCalendarName = null
+    string? AvailabilityCalendarName = null,
+    DateTime? StartAtUtc = null,
+    DateTime? EndBeforeUtc = null
 )
 {
     public string TimingFingerprint =>
         Acta.TimingFingerprint.Compute(
-            new ScheduleTiming(Expression, ExpressionKind, TimeZoneId, IntervalAnchorAtUtc, AvailabilityCalendarName)
+            new ScheduleTiming(
+                Expression,
+                ExpressionKind,
+                TimeZoneId,
+                IntervalAnchorAtUtc,
+                AvailabilityCalendarName,
+                StartAtUtc,
+                EndBeforeUtc
+            )
         );
 }

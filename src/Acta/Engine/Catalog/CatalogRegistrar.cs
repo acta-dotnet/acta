@@ -546,6 +546,8 @@ internal sealed class CatalogRegistrar(
                     s.ExpireAfterSeconds?.ToString(c),
                     s.ExpireAction is { } expireAction ? ((byte)expireAction).ToString(c) : null,
                     s.AvailabilityCalendarName,
+                    s.StartAtUtc?.Ticks.ToString(c),
+                    s.EndBeforeUtc?.Ticks.ToString(c),
                 ]);
             }
         }

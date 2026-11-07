@@ -6526,7 +6526,9 @@
                           "scheduledDelivery": "permanent",
                           "expireAfterSeconds": 3600,
                           "expireAction": "discard",
-                          "availabilityCalendarName": "office-hours"
+                          "availabilityCalendarName": "office-hours",
+                          "startAtUtc": "2027-01-01T00:00:00Z",
+                          "endBeforeUtc": "2028-01-01T00:00:00Z"
                         }
                       ],
                       "schedulesTotal": 1,
@@ -8732,7 +8734,9 @@
                           "scheduledDelivery": "permanent",
                           "expireAfterSeconds": 3600,
                           "expireAction": "discard",
-                          "availabilityCalendarName": "office-hours"
+                          "availabilityCalendarName": "office-hours",
+                          "startAtUtc": "2027-01-01T00:00:00Z",
+                          "endBeforeUtc": "2028-01-01T00:00:00Z"
                         }
                       ],
                       "nextCursor": null,
@@ -8863,7 +8867,9 @@
                       "scheduledDelivery": "permanent",
                       "expireAfterSeconds": 3600,
                       "expireAction": "discard",
-                      "availabilityCalendarName": "office-hours"
+                      "availabilityCalendarName": "office-hours",
+                      "startAtUtc": "2027-01-01T00:00:00Z",
+                      "endBeforeUtc": "2028-01-01T00:00:00Z"
                     }
                   }
                 }
@@ -13169,7 +13175,9 @@
           "scheduledDelivery",
           "expireAfterSeconds",
           "expireAction",
-          "availabilityCalendarName"
+          "availabilityCalendarName",
+          "startAtUtc",
+          "endBeforeUtc"
         ],
         "type": "object",
         "properties": {
@@ -13306,6 +13314,22 @@
               "string"
             ],
             "description": "The availability calendar the schedule observes; null when it observes none."
+          },
+          "startAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The first instant an occurrence may fall on, in UTC; null for no lower bound.",
+            "format": "date-time"
+          },
+          "endBeforeUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The instant from which no occurrence falls, in UTC; null for no upper bound. The bound is on the occurrence's own time, not on when it runs.",
+            "format": "date-time"
           }
         },
         "description": "One schedule: what it fires and when, how it behaves when occurrences pile up or go stale, and where the engine stands with it. A schedule is addressed by its namespace, job name, and schedule name."
@@ -14994,7 +15018,9 @@
           "scheduledDelivery",
           "expireAfterSeconds",
           "expireAction",
-          "availabilityCalendarName"
+          "availabilityCalendarName",
+          "startAtUtc",
+          "endBeforeUtc"
         ],
         "type": "object",
         "properties": {
@@ -15131,6 +15157,22 @@
               "string"
             ],
             "description": "The availability calendar the schedule observes; null when it observes none."
+          },
+          "startAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The first instant an occurrence may fall on, in UTC; null for no lower bound.",
+            "format": "date-time"
+          },
+          "endBeforeUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The instant from which no occurrence falls, in UTC; null for no upper bound. The bound is on the occurrence's own time, not on when it runs.",
+            "format": "date-time"
           }
         },
         "description": "One schedule in a page: what it fires and when, how it behaves when occurrences pile up or go stale, and where the engine stands with it."

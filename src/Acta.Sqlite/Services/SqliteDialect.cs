@@ -481,6 +481,8 @@ internal sealed partial class SqliteDialect : ISqlDialect
                 WriteNumberOrNull(writer, "expire_after_seconds", item.Schedule.ExpireAfterSeconds);
                 WriteNumberOrNull(writer, "expire_action_code", (short?)item.Schedule.ExpireAction);
                 WriteStringOrNull(writer, "availability_calendar_name", item.Schedule.AvailabilityCalendarName);
+                WriteUtcOrNull(writer, "start_at_utc", item.Schedule.StartAtUtc);
+                WriteUtcOrNull(writer, "end_before_utc", item.Schedule.EndBeforeUtc);
             }
         );
 

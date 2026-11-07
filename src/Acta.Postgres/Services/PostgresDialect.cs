@@ -385,6 +385,8 @@ internal sealed class PostgresDialect : ISqlDialect
         var expireAfters = new int?[scheduleCount];
         var expireActions = new short?[scheduleCount];
         var availabilityNames = new string?[scheduleCount];
+        var startAts = new DateTime?[scheduleCount];
+        var endBefores = new DateTime?[scheduleCount];
         var scheduleIndex = 0;
         foreach (var definition in definitions)
         {
@@ -405,6 +407,8 @@ internal sealed class PostgresDialect : ISqlDialect
                 expireAfters[scheduleIndex] = schedule.ExpireAfterSeconds;
                 expireActions[scheduleIndex] = (short?)schedule.ExpireAction;
                 availabilityNames[scheduleIndex] = schedule.AvailabilityCalendarName;
+                startAts[scheduleIndex] = schedule.StartAtUtc;
+                endBefores[scheduleIndex] = schedule.EndBeforeUtc;
                 scheduleIndex++;
             }
         }
@@ -429,6 +433,8 @@ internal sealed class PostgresDialect : ISqlDialect
         AddArray(postgres, "@p_s_expire_after_seconds", NpgsqlDbType.Integer, expireAfters);
         AddArray(postgres, "@p_s_expire_action_code", NpgsqlDbType.Smallint, expireActions);
         AddArray(postgres, "@p_s_availability_calendar_name", NpgsqlDbType.Varchar, availabilityNames);
+        AddArray(postgres, "@p_s_start_at_utc", NpgsqlDbType.TimestampTz, startAts);
+        AddArray(postgres, "@p_s_end_before_utc", NpgsqlDbType.TimestampTz, endBefores);
     }
 
     public void BindPublishCalendar(DbCommand command, IReadOnlyList<PublishCalendarValues> rows) =>

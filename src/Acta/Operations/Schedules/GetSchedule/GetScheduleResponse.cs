@@ -39,6 +39,9 @@ namespace Acta;
 /// <param name="ExpireAction">What an expired occurrence does: it is discarded, or the schedule pauses. Null when occurrences never
 /// expire.</param>
 /// <param name="AvailabilityCalendarName">The availability calendar the schedule observes; null when it observes none.</param>
+/// <param name="StartAtUtc">The first instant an occurrence may fall on, in UTC; null for no lower bound.</param>
+/// <param name="EndBeforeUtc">The instant from which no occurrence falls, in UTC; null for no upper bound. The bound is on the
+/// occurrence's own time, not on when it runs.</param>
 public sealed record GetScheduleResponse(
     [property: JsonIgnore] int ScheduleId,
     [property: JsonIgnore] long? JobId,
@@ -66,5 +69,7 @@ public sealed record GetScheduleResponse(
     ScheduledDeliveryCode ScheduledDelivery,
     int? ExpireAfterSeconds,
     ScheduleExpireActionCode? ExpireAction,
-    string? AvailabilityCalendarName
+    string? AvailabilityCalendarName,
+    DateTime? StartAtUtc,
+    DateTime? EndBeforeUtc
 );

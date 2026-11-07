@@ -2144,6 +2144,11 @@
   - A schedule's availability calendar registers and reads back, a changed name re-registers in place, and a plain restart writes nothing
   - A slot-less schedule resolves by path, pauses and resumes with the audit on its definition, and triggers a manual root
 
+### Registration stores a schedule's bounds as part of its timing
+- **Contract:** Registering a schedule stores its StartAtUtc and EndBeforeUtc, GetSchedule reads them back, and a change to them changes the stored timing fingerprint.
+- **Guarantees:**
+  - A schedule's bounds are stored and read back, and dropping them is a timing change
+
 ### Schedule insert seeds a new cursor, keeps a stored one, and upserts one row
 - **Contract:** The startup schedule insert seeds a new schedule after now, keeps a stored cursor whether due or not, and upserts the single schedule row.
 - **Guarantees:**

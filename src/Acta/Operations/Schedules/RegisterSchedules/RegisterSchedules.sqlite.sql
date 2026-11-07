@@ -102,7 +102,9 @@ SELECT
     json_extract(s.value, '$.full_behavior_code') AS full_behavior_code,
     json_extract(s.value, '$.expire_after_seconds') AS expire_after_seconds,
     json_extract(s.value, '$.expire_action_code') AS expire_action_code,
-    json_extract(s.value, '$.availability_calendar_name') AS availability_calendar_name
+    json_extract(s.value, '$.availability_calendar_name') AS availability_calendar_name,
+    json_extract(s.value, '$.start_at_utc') AS start_at_utc,
+    json_extract(s.value, '$.end_before_utc') AS end_before_utc
 FROM json_each(@p_schedules) s
 -- A PerOccurrence definition's schedules have no slot, so their job_id is NULL.
 LEFT JOIN temp._reg_slots sl ON sl.definition_id = json_extract(s.value, '$.definition_id');
@@ -186,6 +188,8 @@ SET
     expire_after_seconds = src.expire_after_seconds,
     expire_action_code = src.expire_action_code,
     availability_calendar_name = src.availability_calendar_name,
+    start_at_utc = src.start_at_utc,
+    end_before_utc = src.end_before_utc,
     schedule_status_code = CASE WHEN tgt.schedule_status_code = 230 /* ScheduleStatusCode.Orphaned */
         THEN 10 /* ScheduleStatusCode.Active */
         ELSE tgt.schedule_status_code END,
@@ -208,6 +212,8 @@ WHERE
         OR tgt.expire_after_seconds IS NOT src.expire_after_seconds
         OR tgt.expire_action_code IS NOT src.expire_action_code
         OR tgt.availability_calendar_name IS NOT src.availability_calendar_name
+        OR tgt.start_at_utc IS NOT src.start_at_utc
+        OR tgt.end_before_utc IS NOT src.end_before_utc
         OR tgt.description IS NOT src.description
     );
 
@@ -229,6 +235,8 @@ INSERT INTO {{schema}}.schedules (
     expire_after_seconds,
     expire_action_code,
     availability_calendar_name,
+    start_at_utc,
+    end_before_utc,
     schedule_status_code,
     paused_until_utc,
     description)
@@ -250,6 +258,8 @@ SELECT
     src.expire_after_seconds,
     src.expire_action_code,
     src.availability_calendar_name,
+    src.start_at_utc,
+    src.end_before_utc,
     10 /* ScheduleStatusCode.Active */,
     NULL,
     src.description

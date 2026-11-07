@@ -38,6 +38,8 @@ public sealed class GetScheduleSpec : ActaRuntimeTestBase<ConformanceFixture, Te
         Assert.Equal(TestNamespace, read.JobNamespace);
         Assert.Equal(JobName, read.JobName);
         Assert.Equal(ScheduleName, read.ScheduleName);
+        Assert.Null(read.StartAtUtc);
+        Assert.Null(read.EndBeforeUtc);
         Assert.Equal(AsRead(listed), read);
     }
 
@@ -103,6 +105,8 @@ public sealed class GetScheduleSpec : ActaRuntimeTestBase<ConformanceFixture, Te
             s.ScheduledDelivery,
             s.ExpireAfterSeconds,
             s.ExpireAction,
-            s.AvailabilityCalendarName
+            s.AvailabilityCalendarName,
+            s.StartAtUtc,
+            s.EndBeforeUtc
         );
 }

@@ -57,7 +57,7 @@ GO
 -- ===== refuse a database a newer release already upgraded =====
 IF EXISTS (
     SELECT 1 FROM acta.migrations
-    WHERE name NOT IN ('M20261106111104_init')
+    WHERE name NOT IN ('M20261106144133_init')
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -65,7 +65,7 @@ BEGIN
     SET NOEXEC ON;
 END
 GO
--- ===== BEGIN M20261106111104_init =====
+-- ===== BEGIN M20261106144133_init =====
 SET QUOTED_IDENTIFIER ON;
 SET ANSI_NULLS ON;
 GO
@@ -427,6 +427,8 @@ CREATE TABLE acta.schedules (
     expire_after_seconds int NULL,
     expire_action_code tinyint NULL,
     availability_calendar_name varchar(128) NULL,
+    start_at_utc datetime2(3) NULL,
+    end_before_utc datetime2(3) NULL,
     schedule_status_code tinyint NOT NULL,
     paused_until_utc datetime2(3) NULL,
     description nvarchar(512) NULL,
@@ -440,6 +442,7 @@ CREATE TABLE acta.schedules (
     , CONSTRAINT ck_schedules_max_outstanding CHECK (max_outstanding >= 1)
     , CONSTRAINT ck_schedules_expire_pair CHECK ((expire_after_seconds IS NULL AND expire_action_code IS NULL) OR (expire_after_seconds IS NOT NULL AND expire_action_code IS NOT NULL))
     , CONSTRAINT ck_schedules_expire_after CHECK (expire_after_seconds IS NULL OR expire_after_seconds > 0)
+    , CONSTRAINT ck_schedules_bounds CHECK (start_at_utc IS NULL OR end_before_utc IS NULL OR start_at_utc < end_before_utc)
     , CONSTRAINT fk_schedules_definitions FOREIGN KEY (definition_id) REFERENCES acta.definitions (definition_id)
 );
 CREATE INDEX ix_schedules_job ON acta.schedules (job_id, schedule_id) WHERE job_id IS NOT NULL;
@@ -691,6 +694,8 @@ EXEC(N'CREATE TYPE acta.register_schedules AS TABLE (
     expire_after_seconds          INT          NULL,
     expire_action_code            TINYINT      NULL,
     availability_calendar_name    VARCHAR(128) NULL,
+    start_at_utc                  DATETIME2(3) NULL,
+    end_before_utc                DATETIME2(3) NULL,
     PRIMARY KEY (definition_id, schedule_name)
 );');
 GO
@@ -5008,6 +5013,8 @@ SELECT
     CASE s.expire_action_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'discard' WHEN 20 THEN 'pause' END AS expire_action,
     s.expire_action_code,
     s.availability_calendar_name,
+    s.start_at_utc,
+    s.end_before_utc,
     st.outstanding_count,
     s.paused_until_utc,
     s.description,
@@ -5089,11 +5096,11 @@ JOIN acta.namespaces AS ns ON ns.namespace_id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261106111104_init')
+IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261106144133_init')
 INSERT INTO acta.migrations (name)
-VALUES ('M20261106111104_init');
+VALUES ('M20261106144133_init');
 GO
--- ===== END M20261106111104_init =====
+-- ===== END M20261106144133_init =====
 GO
 COMMIT TRANSACTION;
 GO

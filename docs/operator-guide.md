@@ -494,7 +494,7 @@ In production a deploy step applies Acta's migrations, never application startup
 
 ```
 $ ConnectionStrings__acta="<DDL login>" dotnet MyApp.dll jobs migrate
-applied M20261106111104_init to schema acta
+applied M20261106144133_init to schema acta
 ```
 
 - A second run prints `schema acta is up to date`. It exits 0, or 1 with the database's error; `--json` prints `{"schema":"acta","applied":[...]}`.
@@ -1349,12 +1349,14 @@ job's attempt budget until its own step budget is exhausted.
 ### Recurring Schedules
 
 ```sql
-SELECT namespace_name, definition_name, schedule_name, schedule_status, schedule_origin, expression, expression_kind, time_zone_id, misfire_strategy, next_occurrence_at_utc, next_evaluation_at_utc, evaluation_status, max_outstanding, outstanding_count, full_behavior, expire_after_seconds, expire_action, availability_calendar_name, paused_until_utc, description, pause_message
+SELECT namespace_name, definition_name, schedule_name, schedule_status, schedule_origin, expression, expression_kind, time_zone_id, misfire_strategy, next_occurrence_at_utc, next_evaluation_at_utc, evaluation_status, max_outstanding, outstanding_count, full_behavior, expire_after_seconds, expire_action, availability_calendar_name, start_at_utc, end_before_utc, paused_until_utc, description, pause_message
   FROM acta.schedules_view
  ORDER BY namespace_name, next_occurrence_at_utc NULLS LAST, schedule_name;
 ```
 
 A schedule whose `expression_kind` is `calendar` names its calendar in `expression`, and one that fires only inside an availability calendar's windows names it in `availability_calendar_name`. The row keeps the name only: each evaluation resolves it afresh, to the published version of the family in the namespace's catalog, else the shared one in `sys`. An `evaluation_status` of `evaluation-error` on such a schedule usually means the name has no published version, its published version is one this worker's build cannot read, or the calendar threw while it was evaluated; the worker log names the reason, and the other schedules of the namespace go on. The catalog itself is `calendars_view`: one row per version with its role, status, and hash.
+
+`start_at_utc` and `end_before_utc` are the schedule's bounds, [start, end) on the occurrences' own instants; null is no bound.
 
 `expire_after_seconds` and `expire_action` are null together when occurrences never expire; a schedule paused
 by its expiry carries the pause message `Paused by the expiration policy: an occurrence expired unadmitted.`

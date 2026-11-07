@@ -29,6 +29,8 @@ SELECT
     {{decode:schedule-expire-action:s.expire_action_code}} AS expire_action,
     s.expire_action_code,
     s.availability_calendar_name,
+    s.start_at_utc,
+    s.end_before_utc,
     st.outstanding_count,
     s.paused_until_utc,
     s.description,

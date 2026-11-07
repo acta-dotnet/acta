@@ -32,6 +32,8 @@ SELECT
     s.interval_anchor_at_utc,
     s.timing_fingerprint,
     s.availability_calendar_name,
+    s.start_at_utc,
+    s.end_before_utc,
     s.max_outstanding,
     s.full_behavior_code AS full_behavior,
     s.expire_after_seconds,

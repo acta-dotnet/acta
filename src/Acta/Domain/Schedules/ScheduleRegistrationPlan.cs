@@ -28,7 +28,15 @@ internal static class ScheduleRegistrationPlan
                 d.ExpressionKind != ScheduleExpressionKindCode.Interval ? null
                 : stored?.ExpressionKind == ScheduleExpressionKindCode.Interval ? stored.IntervalAnchorAtUtc ?? nowUtc
                 : nowUtc;
-            var timing = new ScheduleTiming(d.Expression, d.ExpressionKind, timeZone, anchor, d.AvailabilityCalendarName);
+            var timing = new ScheduleTiming(
+                d.Expression,
+                d.ExpressionKind,
+                timeZone,
+                anchor,
+                d.AvailabilityCalendarName,
+                d.StartAtUtc,
+                d.EndBeforeUtc
+            );
             ScheduleSource source;
             try
             {
@@ -58,7 +66,9 @@ internal static class ScheduleRegistrationPlan
                     d.FullBehavior,
                     d.ExpireAfterSeconds,
                     d.ExpireAction == ScheduleExpireActionCode.Unspecified ? null : d.ExpireAction,
-                    d.AvailabilityCalendarName
+                    d.AvailabilityCalendarName,
+                    d.StartAtUtc,
+                    d.EndBeforeUtc
                 )
             );
         }

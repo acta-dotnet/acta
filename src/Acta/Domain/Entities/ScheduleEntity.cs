@@ -28,6 +28,7 @@ namespace Acta;
     Sql = "(expire_after_seconds IS NULL AND expire_action_code IS NULL) OR (expire_after_seconds IS NOT NULL AND expire_action_code IS NOT NULL)"
 )]
 [DbCheck(Name = "ck_schedules_expire_after", Sql = "expire_after_seconds IS NULL OR expire_after_seconds > 0")]
+[DbCheck(Name = "ck_schedules_bounds", Sql = "start_at_utc IS NULL OR end_before_utc IS NULL OR start_at_utc < end_before_utc")]
 internal sealed class ScheduleEntity : IEntity<int>
 {
     /// <summary>
@@ -117,7 +118,7 @@ internal sealed class ScheduleEntity : IEntity<int>
 
     /// <summary>
     /// <see cref="TimingFingerprint"/> of the declaration as registered: the expression, its kind, the zone and its
-    /// rules, the anchor, and the availability calendar's name. A registration whose fingerprint matches leaves the cursor alone; one that differs is a
+    /// rules, the anchor, the availability calendar's name, and the bounds. A registration whose fingerprint matches leaves the cursor alone; one that differs is a
     /// timing change. A retire writes <c>retired</c>, so a newer build that registers the definition again retimes the schedule from now.
     /// </summary>
     [DbColumn("timing_fingerprint", DbKind.AsciiString, Size = 64)]
@@ -152,6 +153,21 @@ internal sealed class ScheduleEntity : IEntity<int>
     /// </summary>
     [DbColumn("availability_calendar_name", DbKind.AsciiString, Size = 128)]
     public string? AvailabilityCalendarName { get; init; }
+
+    /// <summary>
+    /// The first instant an occurrence may fall on, from <c>[Schedule(StartAtUtc)]</c>; NULL means no lower bound. Part of
+    /// the timing fingerprint.
+    /// </summary>
+    [DbColumn("start_at_utc", DbKind.UtcInstant)]
+    public DateTime? StartAtUtc { get; init; }
+
+    /// <summary>
+    /// The instant from which no occurrence falls, exclusive, from <c>[Schedule(EndBeforeUtc)]</c>; NULL means no upper
+    /// bound. The bound is on the occurrence's nominal time: an occurrence before it stays eligible for catch-up after
+    /// it. Part of the timing fingerprint.
+    /// </summary>
+    [DbColumn("end_before_utc", DbKind.UtcInstant)]
+    public DateTime? EndBeforeUtc { get; init; }
 
     // ---------- Operator lifecycle ----------
 

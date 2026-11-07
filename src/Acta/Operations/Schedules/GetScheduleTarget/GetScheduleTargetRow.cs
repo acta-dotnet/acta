@@ -23,5 +23,7 @@ internal sealed record GetScheduleTargetRow(
     int OutstandingCount,
     int StateVersion,
     DateTime? IntervalAnchorAtUtc,
-    string? AvailabilityCalendarName
+    string? AvailabilityCalendarName,
+    DateTime? StartAtUtc,
+    DateTime? EndBeforeUtc
 );

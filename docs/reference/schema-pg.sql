@@ -41,14 +41,14 @@ DO $$
 BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
-        WHERE name NOT IN ('M20261106111104_init')
+        WHERE name NOT IN ('M20261106144133_init')
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
 END
 $$;
 
--- ===== BEGIN M20261106111104_init =====
+-- ===== BEGIN M20261106144133_init =====
 CREATE SCHEMA IF NOT EXISTS acta;
 
 -- alerts
@@ -366,6 +366,8 @@ CREATE TABLE IF NOT EXISTS acta.schedules (
     expire_after_seconds integer NULL,
     expire_action_code smallint NULL,
     availability_calendar_name varchar(128) NULL,
+    start_at_utc timestamptz NULL,
+    end_before_utc timestamptz NULL,
     schedule_status_code smallint NOT NULL,
     paused_until_utc timestamptz NULL,
     description varchar(512) NULL,
@@ -379,6 +381,7 @@ CREATE TABLE IF NOT EXISTS acta.schedules (
     , CONSTRAINT ck_schedules_max_outstanding CHECK (max_outstanding >= 1)
     , CONSTRAINT ck_schedules_expire_pair CHECK ((expire_after_seconds IS NULL AND expire_action_code IS NULL) OR (expire_after_seconds IS NOT NULL AND expire_action_code IS NOT NULL))
     , CONSTRAINT ck_schedules_expire_after CHECK (expire_after_seconds IS NULL OR expire_after_seconds > 0)
+    , CONSTRAINT ck_schedules_bounds CHECK (start_at_utc IS NULL OR end_before_utc IS NULL OR start_at_utc < end_before_utc)
     , CONSTRAINT fk_schedules_definitions FOREIGN KEY (definition_id) REFERENCES acta.definitions (definition_id)
 );
 CREATE INDEX IF NOT EXISTS ix_schedules_job ON acta.schedules (job_id, schedule_id) WHERE job_id IS NOT NULL;
@@ -4336,6 +4339,8 @@ SELECT
     CASE s.expire_action_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'discard' WHEN 20 THEN 'pause' END AS expire_action,
     s.expire_action_code,
     s.availability_calendar_name,
+    s.start_at_utc,
+    s.end_before_utc,
     st.outstanding_count,
     s.paused_until_utc,
     s.description,
@@ -4410,10 +4415,10 @@ JOIN acta.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO acta.migrations (name)
-VALUES ('M20261106111104_init')
+VALUES ('M20261106144133_init')
 ON CONFLICT (name) DO NOTHING;
 
--- ===== END M20261106111104_init =====
+-- ===== END M20261106144133_init =====
 
 COMMIT;
 

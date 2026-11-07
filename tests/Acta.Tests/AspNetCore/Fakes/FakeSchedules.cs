@@ -108,7 +108,9 @@ internal sealed class FakeSchedules : ISchedules
             ScheduledDelivery: ScheduledDeliveryCode.Permanent,
             ExpireAfterSeconds: null,
             ExpireAction: null,
-            AvailabilityCalendarName: null
+            AvailabilityCalendarName: null,
+            StartAtUtc: null,
+            EndBeforeUtc: null
         );
 
     /// <summary>The two staged outcomes every schedule verb shares; null means the verb applies, so each verb keeps its

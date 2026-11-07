@@ -50,7 +50,15 @@ internal sealed class GetScheduleTargetHandler(IDbSession session, ISqlDialect d
             row.MaxOutstanding,
             row.OutstandingCount,
             row.StateVersion,
-            new ScheduleTiming(row.Expression, row.ExpressionKind, row.TimeZoneId, row.IntervalAnchorAtUtc, row.AvailabilityCalendarName)
+            new ScheduleTiming(
+                row.Expression,
+                row.ExpressionKind,
+                row.TimeZoneId,
+                row.IntervalAnchorAtUtc,
+                row.AvailabilityCalendarName,
+                row.StartAtUtc,
+                row.EndBeforeUtc
+            )
         );
     }
 }

@@ -333,7 +333,9 @@ internal static class StagedFakes
         ScheduledDelivery: ScheduledDeliveryCode.Permanent,
         ExpireAfterSeconds: 3600,
         ExpireAction: ScheduleExpireActionCode.Discard,
-        AvailabilityCalendarName: "office-hours"
+        AvailabilityCalendarName: "office-hours",
+        StartAtUtc: new DateTime(2027, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+        EndBeforeUtc: new DateTime(2028, 1, 1, 0, 0, 0, DateTimeKind.Utc)
     );
 
     /// <summary>The listed schedule as its point read answers it, member for member.</summary>
@@ -364,6 +366,8 @@ internal static class StagedFakes
         Schedule.ScheduledDelivery,
         Schedule.ExpireAfterSeconds,
         Schedule.ExpireAction,
-        Schedule.AvailabilityCalendarName
+        Schedule.AvailabilityCalendarName,
+        Schedule.StartAtUtc,
+        Schedule.EndBeforeUtc
     );
 }

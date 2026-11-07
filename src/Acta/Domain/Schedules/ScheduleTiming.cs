@@ -4,15 +4,18 @@ namespace Acta;
 /// What decides a schedule's nominal occurrences: the expression, its kind, the zone a cron or a calendar resolves in,
 /// for an interval the anchor its ticks step from, so a late evaluation never shifts the sequence, and the name of the
 /// availability calendar it observes (the expression is the calendar's name when the kind is Calendar). A calendar is
-/// bound by name only; the name resolves afresh at every evaluation. Everything the <see cref="TimingFingerprint"/>
-/// covers, and nothing the operator can edit.
+/// bound by name only; the name resolves afresh at every evaluation. The bounds are the [start, end) the occurrences
+/// fall in, each null when unbounded. Everything the <see cref="TimingFingerprint"/> covers, and nothing the operator
+/// can edit.
 /// </summary>
 internal sealed record ScheduleTiming(
     string Expression,
     ScheduleExpressionKindCode ExpressionKind,
     string? TimeZoneId,
     DateTime? IntervalAnchorAtUtc,
-    string? AvailabilityCalendarName = null
+    string? AvailabilityCalendarName = null,
+    DateTime? StartAtUtc = null,
+    DateTime? EndBeforeUtc = null
 )
 {
     /// <summary>The calendar names this timing binds: what must be resolved before the source is built.</summary>

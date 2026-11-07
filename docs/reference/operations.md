@@ -184,7 +184,7 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 | `ListSchedules` | `ISchedules.ListAsync` | `GET /schedules` (`listSchedules`) | · | inline | · | `ListSchedulesFilterMatrixSpec`, `ListSchedulesSpec` |
 | `PauseSchedule` | `ISchedules.PauseAsync` | `POST /schedules/{jobNamespace}/{jobName}/{scheduleName}/pause` (`pauseSchedule`) | · | inline | `events`, `schedules`, `schedules_state` | `PauseScheduleSpec` |
 | `PreviewSchedule` | `ISchedules.PreviewAsync` | `GET /schedules/{jobNamespace}/{jobName}/{scheduleName}/preview` (`previewSchedule`) | · | · | · | `PreviewScheduleSysNameSpec` |
-| `RegisterSchedules` | · | · | · | inline | `events`, `jobs`, `jobs_state`, `namespaces`, `schedules`, `schedules_state` | `RegisterSchedulesCursorSpec`, `RegisterSchedulesNoteSpec`, `RegisterSchedulesPerOccurrenceSpec`, `RegisterSchedulesSpec` |
+| `RegisterSchedules` | · | · | · | inline | `events`, `jobs`, `jobs_state`, `namespaces`, `schedules`, `schedules_state` | `RegisterSchedulesBoundsSpec`, `RegisterSchedulesCursorSpec`, `RegisterSchedulesNoteSpec`, `RegisterSchedulesPerOccurrenceSpec`, `RegisterSchedulesSpec` |
 | `ResumeSchedule` | `ISchedules.ResumeAsync` | `POST /schedules/{jobNamespace}/{jobName}/{scheduleName}/resume` (`resumeSchedule`) | · | inline | `events`, `schedules`, `schedules_state` | `ResumeScheduleSpec` |
 | `TriggerSchedule` | `ISchedules.TriggerAsync` | `POST /schedules/{jobNamespace}/{jobName}/{scheduleName}/trigger` (`triggerSchedule`) | · | inline | `checkpoints`, `events`, `jobs_state` | `TriggerScheduleSpec` |
 

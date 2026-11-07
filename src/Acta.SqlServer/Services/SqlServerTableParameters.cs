@@ -287,6 +287,8 @@ internal static class SqlServerTableParameters
         new("expire_after_seconds", SqlDbType.Int),
         new("expire_action_code", SqlDbType.TinyInt),
         new("availability_calendar_name", SqlDbType.VarChar, 128),
+        new("start_at_utc", SqlDbType.DateTime2),
+        new("end_before_utc", SqlDbType.DateTime2),
     ];
 
     internal static IEnumerable<SqlDataRecord>? BuildScheduleUpsertRecords(IReadOnlyList<DefinitionSchedules> definitions)
@@ -315,6 +317,8 @@ internal static class SqlServerTableParameters
                     SetNullableInt32(record, 12, schedule.ExpireAfterSeconds);
                     SetNullableByte(record, 13, (byte?)schedule.ExpireAction);
                     SetNullableString(record, 14, schedule.AvailabilityCalendarName);
+                    SetNullableDateTime(record, 15, schedule.StartAtUtc);
+                    SetNullableDateTime(record, 16, schedule.EndBeforeUtc);
                     yield return record;
                 }
             }

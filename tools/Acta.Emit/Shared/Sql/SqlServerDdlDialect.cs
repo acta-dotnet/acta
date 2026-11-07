@@ -249,6 +249,8 @@ internal sealed class SqlServerDdlDialect : SqlDdlDialect
                 expire_after_seconds          INT          NULL,
                 expire_action_code            TINYINT      NULL,
                 availability_calendar_name    VARCHAR(128) NULL,
+                start_at_utc                  DATETIME2(3) NULL,
+                end_before_utc                DATETIME2(3) NULL,
                 PRIMARY KEY (definition_id, schedule_name)
             );');
             GO

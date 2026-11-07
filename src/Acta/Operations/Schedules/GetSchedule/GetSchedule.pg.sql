@@ -26,7 +26,9 @@ SELECT
     jd.scheduled_delivery_code AS scheduled_delivery,
     s.expire_after_seconds,
     s.expire_action_code AS expire_action,
-    s.availability_calendar_name
+    s.availability_calendar_name,
+    s.start_at_utc,
+    s.end_before_utc
 FROM {{schema}}.namespaces ns
 JOIN {{schema}}.definitions jd ON jd.namespace_id = ns.namespace_id AND jd.definition_name = @p_job_name
 JOIN {{schema}}.schedules s ON s.definition_id = jd.definition_id AND s.schedule_name = @p_schedule_name
