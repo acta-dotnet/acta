@@ -77,7 +77,11 @@ internal sealed class RegisterDefinitionsHandler(IDbSession session, ISqlDialect
             )
             : new RegisterDefinitionsResponse(result, added, changed);
 
-        void Bind(DbCommand cmd) => dialect.BindRegisterDefinitions(cmd, command.NamespaceId, rows, session.Schema);
+        void Bind(DbCommand cmd)
+        {
+            dialect.BindRegisterDefinitions(cmd, command.NamespaceId, rows, session.Schema);
+            cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Definition.CreatedDeploymentVersion, command.DeploymentVersion));
+        }
     }
 
     /// <summary>

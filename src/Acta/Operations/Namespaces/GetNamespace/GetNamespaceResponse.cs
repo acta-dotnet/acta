@@ -8,6 +8,7 @@ namespace Acta;
 /// <param name="Status">The namespace's status.</param>
 /// <param name="OwnerTeam">The team that owns the namespace, when one is recorded.</param>
 /// <param name="Description">The namespace's description, when one is recorded.</param>
+/// <param name="DeploymentVersion">The app version currently deployed in the namespace; null when no deploy has recorded one.</param>
 /// <param name="Version">The namespace's version, which every change to it increments; the namespace update takes it as
 /// expectedVersion.</param>
 public sealed record GetNamespaceResponse(
@@ -16,5 +17,6 @@ public sealed record GetNamespaceResponse(
     NamespaceStatusCode Status,
     string? OwnerTeam,
     string? Description,
+    string? DeploymentVersion,
     int Version
 );

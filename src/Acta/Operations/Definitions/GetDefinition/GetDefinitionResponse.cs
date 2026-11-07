@@ -11,6 +11,7 @@ namespace Acta;
 /// <param name="JobName">The definition's name within its namespace.</param>
 /// <param name="Status">The definition's status.</param>
 /// <param name="DefinitionHash">A hash of everything the code declares for the definition; operator overrides are not part of it.</param>
+/// <param name="CreatedDeploymentVersion">The app version whose deploy introduced the definition; no other deploy changes it.</param>
 /// <param name="InputTypeName">The full name of the type the handler takes as input, as its code spells it.</param>
 /// <param name="InputFormatId">The id of the payload format the input is stored in.</param>
 /// <param name="InputFormatName">The name of the payload format the input is stored in.</param>
@@ -74,6 +75,7 @@ public sealed record GetDefinitionResponse(
     string JobName,
     DefinitionStatusCode Status,
     string DefinitionHash,
+    string CreatedDeploymentVersion,
     string InputTypeName,
     byte InputFormatId,
     string InputFormatName,

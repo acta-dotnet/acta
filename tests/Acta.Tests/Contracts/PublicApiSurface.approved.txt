@@ -856,7 +856,7 @@ sealed record Acta.GetDefinitionInputTemplateResponse
     System.String JobNamespace { get;init; }
     System.String TemplateJson { get;init; }
 sealed record Acta.GetDefinitionResponse
-    .ctor(System.Int32 DefinitionId, System.String JobNamespace, System.String JobName, Acta.DefinitionStatusCode Status, System.String DefinitionHash, System.String InputTypeName, System.Byte InputFormatId, System.String InputFormatName, System.String ResultTypeName, System.Byte ResultFormatId, System.String ResultFormatName, Acta.JobPriorityCode Priority, Acta.JobPriorityCode PriorityEffective, System.Int32 MaxAttempts, System.Int32 MaxAttemptsEffective, System.Nullable<System.Int32> ConcurrencyLimit, System.Nullable<System.Int32> ConcurrencyLimitEffective, System.String RateLimit, System.String RateLimitEffective, System.String RateName, System.String Lane, System.String Backoff, System.String BackoffEffective, System.Int32 ExecutionTimeoutSeconds, System.Int32 ExecutionTimeoutSecondsEffective, System.Int32 DeadlineSeconds, System.Int32 DeadlineSecondsEffective, Acta.DeadlineBehaviorCode DeadlineBehavior, Acta.DeadlineBehaviorCode DeadlineBehaviorEffective, System.Int32 JobRetentionSeconds, System.Int32 JobRetentionSecondsEffective, Acta.EventRecordingCode EventRecording, Acta.EventRecordingCode EventRecordingEffective, Acta.AlertProfileCode AlertProfile, Acta.AlertProfileCode AlertProfileEffective, Acta.FiringFailurePolicyCode FiringFailurePolicy, Acta.ScheduledDeliveryCode ScheduledDelivery, System.String AlertChannelName, System.String AlertChannelNameEffective, System.String RunbookUrl, System.String RunbookUrlEffective, System.String DisplayName, System.String DisplayNameEffective, System.String Description, System.String DescriptionEffective, Acta.DefinitionPolicyOverrides Overrides, System.DateTime CreatedAtUtc, System.DateTime ModifiedAtUtc, System.Int32 Version)
+    .ctor(System.Int32 DefinitionId, System.String JobNamespace, System.String JobName, Acta.DefinitionStatusCode Status, System.String DefinitionHash, System.String CreatedDeploymentVersion, System.String InputTypeName, System.Byte InputFormatId, System.String InputFormatName, System.String ResultTypeName, System.Byte ResultFormatId, System.String ResultFormatName, Acta.JobPriorityCode Priority, Acta.JobPriorityCode PriorityEffective, System.Int32 MaxAttempts, System.Int32 MaxAttemptsEffective, System.Nullable<System.Int32> ConcurrencyLimit, System.Nullable<System.Int32> ConcurrencyLimitEffective, System.String RateLimit, System.String RateLimitEffective, System.String RateName, System.String Lane, System.String Backoff, System.String BackoffEffective, System.Int32 ExecutionTimeoutSeconds, System.Int32 ExecutionTimeoutSecondsEffective, System.Int32 DeadlineSeconds, System.Int32 DeadlineSecondsEffective, Acta.DeadlineBehaviorCode DeadlineBehavior, Acta.DeadlineBehaviorCode DeadlineBehaviorEffective, System.Int32 JobRetentionSeconds, System.Int32 JobRetentionSecondsEffective, Acta.EventRecordingCode EventRecording, Acta.EventRecordingCode EventRecordingEffective, Acta.AlertProfileCode AlertProfile, Acta.AlertProfileCode AlertProfileEffective, Acta.FiringFailurePolicyCode FiringFailurePolicy, Acta.ScheduledDeliveryCode ScheduledDelivery, System.String AlertChannelName, System.String AlertChannelNameEffective, System.String RunbookUrl, System.String RunbookUrlEffective, System.String DisplayName, System.String DisplayNameEffective, System.String Description, System.String DescriptionEffective, Acta.DefinitionPolicyOverrides Overrides, System.DateTime CreatedAtUtc, System.DateTime ModifiedAtUtc, System.Int32 Version)
     Acta.AlertProfileCode AlertProfile { get;init; }
     Acta.AlertProfileCode AlertProfileEffective { get;init; }
     Acta.DeadlineBehaviorCode DeadlineBehavior { get;init; }
@@ -889,6 +889,7 @@ sealed record Acta.GetDefinitionResponse
     System.String AlertChannelNameEffective { get;init; }
     System.String Backoff { get;init; }
     System.String BackoffEffective { get;init; }
+    System.String CreatedDeploymentVersion { get;init; }
     System.String DefinitionHash { get;init; }
     System.String Description { get;init; }
     System.String DescriptionEffective { get;init; }
@@ -996,10 +997,11 @@ sealed record Acta.GetJobStatusResponse
     .ctor(Acta.JobStatusCode Status)
     Acta.JobStatusCode Status { get;init; }
 sealed record Acta.GetNamespaceResponse
-    .ctor(System.Int32 NamespaceId, System.String JobNamespace, Acta.NamespaceStatusCode Status, System.String OwnerTeam, System.String Description, System.Int32 Version)
+    .ctor(System.Int32 NamespaceId, System.String JobNamespace, Acta.NamespaceStatusCode Status, System.String OwnerTeam, System.String Description, System.String DeploymentVersion, System.Int32 Version)
     Acta.NamespaceStatusCode Status { get;init; }
     System.Int32 NamespaceId { get;init; }
     System.Int32 Version { get;init; }
+    System.String DeploymentVersion { get;init; }
     System.String Description { get;init; }
     System.String JobNamespace { get;init; }
     System.String OwnerTeam { get;init; }
@@ -1969,10 +1971,11 @@ sealed record Acta.ListJobsResponse : Acta.IPagedResponse<Acta.ListJobsItem>
     System.Nullable<System.Int64> TotalCount { get;init; }
     System.String NextCursor { get;init; }
 sealed record Acta.ListNamespacesItem
-    .ctor(System.Int32 NamespaceId, System.String JobNamespace, Acta.NamespaceStatusCode Status, System.String OwnerTeam, System.String Description, System.Int32 Version)
+    .ctor(System.Int32 NamespaceId, System.String JobNamespace, Acta.NamespaceStatusCode Status, System.String OwnerTeam, System.String Description, System.String DeploymentVersion, System.Int32 Version)
     Acta.NamespaceStatusCode Status { get;init; }
     System.Int32 NamespaceId { get;init; }
     System.Int32 Version { get;init; }
+    System.String DeploymentVersion { get;init; }
     System.String Description { get;init; }
     System.String JobNamespace { get;init; }
     System.String OwnerTeam { get;init; }

@@ -8,6 +8,7 @@ internal sealed record GetDefinitionRow(
     string JobName,
     DefinitionStatusCode Status,
     string DefinitionHash,
+    string CreatedDeploymentVersion,
     string InputTypeName,
     byte InputFormatId,
     string InputFormatName,

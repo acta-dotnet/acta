@@ -37,7 +37,7 @@ internal static class DefinitionTestOps
                 return (
                     await services
                         .GetRequiredService<RegisterDefinitionsHandler>()
-                        .HandleAsync(new RegisterDefinitionsCommand(namespaceId, descriptors, stored), ct)
+                        .HandleAsync(new RegisterDefinitionsCommand(namespaceId, descriptors, stored, "test"), ct)
                 ).DefinitionIds;
             }
             catch (Exception ex) when (ex is System.Data.Common.DbException or InvalidOperationException && attempt < RegistrationPasses)

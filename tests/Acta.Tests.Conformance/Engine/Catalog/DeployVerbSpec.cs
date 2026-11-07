@@ -220,6 +220,11 @@ public sealed class DeployVerbSpec : ActaStorageTestBase<ConformanceFixture>
         Assert.Equal(FirstAttempts + 1, definitions[DeployFirstManifest.ChangedJob].MaxAttempts);
         Assert.Equal(DefinitionStatusCode.Active, definitions[DeployFirstManifest.DroppedJob].Status);
         Assert.Contains(DeploySecondManifest.AddedJob, definitions.Keys);
+
+        // Each definition names the version that introduced it; the one this deploy changed keeps the first.
+        Assert.Equal(First, definitions[DeployFirstManifest.ChangedJob].CreatedDeploymentVersion);
+        Assert.Equal(First, definitions[DeployFirstManifest.DroppedJob].CreatedDeploymentVersion);
+        Assert.Equal(Second, definitions[DeploySecondManifest.AddedJob].CreatedDeploymentVersion);
     }
 
     [Fact(DisplayName = "A release that changes only a job's schedule reports that job as changed, in the output and in the event")]

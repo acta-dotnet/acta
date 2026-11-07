@@ -15,15 +15,15 @@ internal sealed class FakeNamespaces : INamespaces
                 ? throw new ArgumentException("Identifier 'bad key' is not kebab-case or dotted-kebab.", nameof(namespaceName))
                 : ValueTask.FromResult<GetNamespaceResponse?>(
                     namespaceName == "billing"
-                        ? new GetNamespaceResponse(2, "billing", NamespaceStatusCode.Active, "payments", "billing jobs", 3)
+                        ? new GetNamespaceResponse(2, "billing", NamespaceStatusCode.Active, "payments", "billing jobs", "1.6.2+5c0ffee", 3)
                         : null
                 );
         List = static (_, _) =>
             ValueTask.FromResult(
                 new ListNamespacesResponse(
                     [
-                        new ListNamespacesItem(1, "sys", NamespaceStatusCode.Active, null, "system", 0),
-                        new ListNamespacesItem(2, "billing", NamespaceStatusCode.Active, "payments", "billing jobs", 3),
+                        new ListNamespacesItem(1, "sys", NamespaceStatusCode.Active, null, "system", null, 0),
+                        new ListNamespacesItem(2, "billing", NamespaceStatusCode.Active, "payments", "billing jobs", "1.6.2+5c0ffee", 3),
                     ],
                     null,
                     false,

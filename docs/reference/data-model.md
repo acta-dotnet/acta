@@ -2,7 +2,7 @@
 
 # Data model reference
 
-Structural reference for the Acta persistence model: **17 entities**, **251 columns**, **39 indexes**, **39 check constraints**, **4 foreign keys**. Names render with the default `acta` schema prefix; substitute the configured schema if different. Code families resolve into [`code-families.md`](./code-families.md). The foreign-key enforcement policy (which references are CASCADE, RESTRICT, or deliberately unenforced) is in [SQL recipes](../operator-guide.md#foreign-key-policy).
+Structural reference for the Acta persistence model: **17 entities**, **252 columns**, **39 indexes**, **39 check constraints**, **4 foreign keys**. Names render with the default `acta` schema prefix; substitute the configured schema if different. Code families resolve into [`code-families.md`](./code-families.md). The foreign-key enforcement policy (which references are CASCADE, RESTRICT, or deliberately unenforced) is in [SQL recipes](../operator-guide.md#foreign-key-policy).
 
 ## Schema inventory
 
@@ -177,6 +177,7 @@ The live job policy: one row per definition, the single source of truth for ever
 | `definition_name`<a id="column-acta-definitions--definition-name"></a> | `AsciiString` | 128 | no | · | · | Operator-facing kebab-case identifier; the natural key together with the namespace. |
 | `definition_status_code`<a id="column-acta-definitions--definition-status-code"></a> | `Byte` | · | no | · | [`DefinitionStatusCode`](./code-families.md#code-family-definitionstatuscode) (`job-definition-status`) | Lifecycle of this definition (`Active` / `Retired`); enqueue is rejected at the DB boundary by `enqueue_jobs` when not `Active`. No override. Registration writes `Active` and nothing else: `Retired` is written only by the operator retire verb, never by registration, so a definition absent from a manifest keeps running. |
 | `definition_hash`<a id="column-acta-definitions--definition-hash"></a> | `AsciiString` | 128 | no | · | · | SHA-256 hex over everything the code declares for the job: all code-owned columns (policy defaults + contract + formats) and the schedules it declares for the deploying environment, computed C#-side at registration. Drives the write short-circuit: the C# gate compares this against the stored value and only sends rows whose hash differs (or that are new / not Active) into the upsert. Operator override columns are NOT part of this hash, so overrides survive re-sync. Identity-adjacent control field: which code-version wrote this row. |
+| `created_deployment_version`<a id="column-acta-definitions--created-deployment-version"></a> | `AsciiString` | 128 | no | · | · | The app version whose deploy first wrote the definition (`JobsOptions.DeploymentVersion`). Set on insert and never updated, so it names the release that introduced the job. |
 | `input_type_name`<a id="column-acta-definitions--input-type-name"></a> | `AsciiString` | 512 | no | · | · | CLR full type name of the `[Job]` handler's input contract, generic arguments without assembly versions; the type-driven dispatch key for `IJobs.EnqueueAsync<TIn>`. |
 | `input_format_id`<a id="column-acta-definitions--input-format-id"></a> | `Byte` | · | no | · | [`JobPayloadFormat`](./code-families.md#code-family-jobpayloadformat) | Default payload format id for input payloads enqueued against this definition; stamped into `Job.InputFormatId` at enqueue. |
 | `input_format_name`<a id="column-acta-definitions--input-format-name"></a> | `AsciiString` | 128 | no | · | · | Default input payload format name, from the handler's `[Job(Format = "...")]` or `[Job(InputFormat = "...")]` declaration; resolved against registered serializers at startup. |
@@ -472,7 +473,7 @@ One named lock: the handler's `RunWithLockAsync` rows, the runner's concurrency 
 
 ### `acta.namespaces` <a id="entity-acta-namespaces"></a>
 
-Service-owned execution boundary. One deployable service owns one `NamespaceEntity`; replicas of that service share it (on a catalog-hash match the upsert is a no-op).
+Service-owned execution boundary. One deployable service owns one `NamespaceEntity`; replicas of that service share it. A deploy writes the row, and a worker start reads it.
 
 **CLR type** `Acta.NamespaceEntity` · **Primary key** `pk_namespaces` (`namespace_id`)
 

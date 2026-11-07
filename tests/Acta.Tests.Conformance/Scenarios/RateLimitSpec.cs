@@ -344,7 +344,8 @@ public sealed class RateLimitSpec : ActaRuntimeTestBase<ConformanceFixture, Test
                 new RegisterDefinitionsCommand(
                     NamespaceId,
                     [Descriptor("rl-mismatch-left", "10/s"), Descriptor("rl-mismatch-right", "5/s")],
-                    []
+                    [],
+                    "test"
                 ),
                 ct
             )

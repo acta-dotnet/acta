@@ -2713,6 +2713,7 @@
                       "status": "active",
                       "ownerTeam": "payments",
                       "description": "billing jobs",
+                      "deploymentVersion": "1.6.2+5c0ffee",
                       "version": 3
                     }
                   }
@@ -7209,6 +7210,7 @@
                           "status": "active",
                           "ownerTeam": "payments",
                           "description": "billing jobs",
+                          "deploymentVersion": "1.6.2+5c0ffee",
                           "version": 3
                         }
                       ],
@@ -8279,6 +8281,7 @@
                       "jobName": "send-invoice",
                       "status": "active",
                       "definitionHash": "hash-5",
+                      "createdDeploymentVersion": "1.4.0+b81d04e",
                       "inputTypeName": "Billing.SendInvoice",
                       "inputFormatId": 1,
                       "inputFormatName": "json",
@@ -12252,6 +12255,7 @@
           "jobName",
           "status",
           "definitionHash",
+          "createdDeploymentVersion",
           "inputTypeName",
           "inputFormatId",
           "inputFormatName",
@@ -12314,6 +12318,10 @@
           "definitionHash": {
             "type": "string",
             "description": "A hash of everything the code declares for the definition; operator overrides are not part of it."
+          },
+          "createdDeploymentVersion": {
+            "type": "string",
+            "description": "The app version whose deploy introduced the definition; no other deploy changes it."
           },
           "inputTypeName": {
             "type": "string",
@@ -13030,6 +13038,7 @@
           "status",
           "ownerTeam",
           "description",
+          "deploymentVersion",
           "version"
         ],
         "type": "object",
@@ -13055,6 +13064,13 @@
               "string"
             ],
             "description": "The namespace's description, when one is recorded."
+          },
+          "deploymentVersion": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The app version currently deployed in the namespace; null when no deploy has recorded one."
           },
           "version": {
             "type": "integer",
@@ -14707,6 +14723,7 @@
           "status",
           "ownerTeam",
           "description",
+          "deploymentVersion",
           "version"
         ],
         "type": "object",
@@ -14732,6 +14749,13 @@
               "string"
             ],
             "description": "The namespace's description, when one is recorded."
+          },
+          "deploymentVersion": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The app version currently deployed in the namespace; null when no deploy has recorded one."
           },
           "version": {
             "type": "integer",

@@ -4,6 +4,7 @@ SELECT
     jd.definition_name AS job_name,
     jd.definition_status_code AS status,
     jd.definition_hash,
+    jd.created_deployment_version,
     jd.input_type_name,
     jd.input_format_id,
     jd.input_format_name,

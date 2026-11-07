@@ -143,6 +143,7 @@ internal sealed class FakeDefinitions : IDefinitions
         JobName: "send-invoice",
         Status: DefinitionStatusCode.Active,
         DefinitionHash: "hash-5",
+        CreatedDeploymentVersion: "1.4.0+b81d04e",
         InputTypeName: "Billing.SendInvoice",
         InputFormatId: 1,
         InputFormatName: "json",

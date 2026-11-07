@@ -30,12 +30,13 @@ internal sealed class CatalogRegistrar(
     /// Registers <paramref name="allDescriptors"/> into the namespace through the deploy's <paramref name="transaction"/>,
     /// every statement on its connection, and answers what the definitions write added and changed with the stored
     /// Active definitions this build does not declare. <paramref name="nowUtc"/> is the instant new schedule cursors
-    /// are planned from.
+    /// are planned from, and <paramref name="deploymentVersion"/> the app version kept on each definition it inserts.
     /// </summary>
     public async Task<(RegisterDefinitionsResponse Definitions, IReadOnlyList<string> Undeclared)> RegisterAsync(
         WorkerRegistration registration,
         int namespaceId,
         ImmutableArray<JobDescriptor> allDescriptors,
+        string deploymentVersion,
         DateTime nowUtc,
         DbTransaction transaction,
         CancellationToken ct
@@ -50,7 +51,10 @@ internal sealed class CatalogRegistrar(
         ContractDriftPolicy.Apply(_options.Value.PayloadContractDriftMode, contractDrifts, ns, _log);
         await ValidateCalendarsAsync(ns, namespaceId, allDescriptors, storedContracts, transaction, ct);
 
-        var registered = await _definitions.RegisterDefinitionsAsync(new(namespaceId, allDescriptors, storedContracts, transaction), ct);
+        var registered = await _definitions.RegisterDefinitionsAsync(
+            new(namespaceId, allDescriptors, storedContracts, deploymentVersion, transaction),
+            ct
+        );
         var defIds = registered.DefinitionIds;
 
         // A slot is planned from its definition's effective (override-or-default) policy, read after the upsert from the

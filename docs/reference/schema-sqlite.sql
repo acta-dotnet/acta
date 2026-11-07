@@ -53,11 +53,11 @@ CREATE TEMP TABLE release_guard (
 INSERT INTO release_guard
 SELECT EXISTS (
     SELECT 1 FROM main.migrations
-    WHERE name NOT IN ('M20261106202352_init')
+    WHERE name NOT IN ('M20261106203504_init')
 );
 DROP TABLE release_guard;
 
--- ===== BEGIN M20261106202352_init =====
+-- ===== BEGIN M20261106203504_init =====
 CREATE TABLE IF NOT EXISTS main.alerts (
     alert_id integer PRIMARY KEY AUTOINCREMENT,
     alert_ref text NOT NULL,
@@ -118,6 +118,7 @@ CREATE TABLE IF NOT EXISTS main.definitions (
     definition_name text NOT NULL,
     definition_status_code integer NOT NULL,
     definition_hash text NOT NULL,
+    created_deployment_version text NOT NULL,
     input_type_name text NOT NULL,
     input_format_id integer NOT NULL,
     input_format_name text NOT NULL,
@@ -568,6 +569,7 @@ SELECT
     CASE d.definition_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'active' WHEN 240 THEN 'retired' END AS definition_status,
     d.definition_status_code,
     d.definition_hash,
+    d.created_deployment_version,
     d.input_type_name,
     d.input_format_name,
     d.result_type_name,
@@ -841,10 +843,10 @@ JOIN main.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO main.migrations (name)
-VALUES ('M20261106202352_init')
+VALUES ('M20261106203504_init')
 ON CONFLICT (name) DO NOTHING;
 
--- ===== END M20261106202352_init =====
+-- ===== END M20261106203504_init =====
 
 COMMIT;
 

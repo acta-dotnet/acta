@@ -43,7 +43,7 @@ public sealed class DefinitionRegistrationValidationTests
 
     private static Task RegisterAsync(JobDescriptor[] descriptors, StoredDefinitionContract[] stored) =>
         new RegisterDefinitionsHandler(new DbSessionStub(), null!, null!).HandleAsync(
-            new RegisterDefinitionsCommand(1, [.. descriptors], stored),
+            new RegisterDefinitionsCommand(1, [.. descriptors], stored, "test"),
             TestContext.Current.CancellationToken
         );
 

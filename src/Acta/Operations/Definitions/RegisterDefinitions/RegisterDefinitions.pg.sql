@@ -57,6 +57,7 @@ upserted AS (
         display_name,
         description,
         definition_hash,
+        created_deployment_version,
         created_at_utc,
         modified_at_utc,
         version)
@@ -93,6 +94,7 @@ upserted AS (
         b.display_name,
         b.description,
         b.definition_hash,
+        @p_created_deployment_version,
         statement_timestamp(),
         statement_timestamp(),
         0

@@ -75,7 +75,7 @@ BEGIN TRY
         tenant_requirement_code,
         alert_channel_name, runbook_url,
         display_name, description,
-        definition_hash,
+        definition_hash, created_deployment_version,
         created_at_utc, modified_at_utc, version
     )
     SELECT
@@ -111,6 +111,7 @@ BEGIN TRY
         src.display_name,
         src.description,
         src.definition_hash,
+        @p_created_deployment_version,
         @now,
         @now,
         0

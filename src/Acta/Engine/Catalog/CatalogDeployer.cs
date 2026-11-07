@@ -102,6 +102,7 @@ internal sealed class CatalogDeployer(
                 registration,
                 start.NamespaceId,
                 descriptors,
+                version,
                 nowUtc,
                 transaction,
                 ct

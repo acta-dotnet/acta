@@ -66,6 +66,13 @@ internal sealed class DefinitionEntity : IEntity<int>
     [DbColumn("definition_hash", DbKind.AsciiString, Size = 128)]
     public string DefinitionHash { get; internal set; } = default!;
 
+    /// <summary>
+    /// The app version whose deploy first wrote the definition (<c>JobsOptions.DeploymentVersion</c>). Set on insert and
+    /// never updated, so it names the release that introduced the job.
+    /// </summary>
+    [DbColumn("created_deployment_version", DbKind.AsciiString, Size = 128)]
+    public string CreatedDeploymentVersion { get; init; } = default!;
+
     // ---------- Code-fixed type contract + formats (synced from [Job]; NO override) ----------
 
     /// <summary>

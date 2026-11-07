@@ -40,7 +40,7 @@ public class RegisterDefinitionsTests
 
         var ex = await Assert.ThrowsAsync<ArgumentException>(() =>
             new RegisterDefinitionsHandler(null!, null!, null!).HandleAsync(
-                new RegisterDefinitionsCommand(1, descriptors, []),
+                new RegisterDefinitionsCommand(1, descriptors, [], "test"),
                 TestContext.Current.CancellationToken
             )
         );
@@ -57,7 +57,7 @@ public class RegisterDefinitionsTests
 
         var ex = await Assert.ThrowsAsync<ArgumentException>(() =>
             new RegisterDefinitionsHandler(null!, null!, null!).HandleAsync(
-                new RegisterDefinitionsCommand(1, descriptors, []),
+                new RegisterDefinitionsCommand(1, descriptors, [], "test"),
                 TestContext.Current.CancellationToken
             )
         );

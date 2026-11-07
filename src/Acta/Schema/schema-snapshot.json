@@ -299,6 +299,10 @@
           "Signature": "AsciiString|128|0|0|False|None||coded=False|codeKind=|caseExact=False"
         },
         {
+          "Name": "created_deployment_version",
+          "Signature": "AsciiString|128|0|0|False|None||coded=False|codeKind=|caseExact=False"
+        },
+        {
           "Name": "input_type_name",
           "Signature": "AsciiString|512|0|0|False|None||coded=False|codeKind=|caseExact=False"
         },
@@ -1528,7 +1532,7 @@
       "claim_jobs": "670371693bb001c45b007d7bcd1e0c7572d02a42043baa01e3581ac9b7f3787f",
       "complete_executions": "0391a7f9b61bac7d29ca6cbbb09dea530bbcfe7140f68eb3754f38b32b205ce3",
       "complete_job_step": "cd54edc26b4c0e1322947e40f6890fb257e30bea3e703f3aab1977c39af9694a",
-      "definitions_view": "d0cf5035216a476f506da935da209f2916438ced77d94c70a5d0d4c42245cc09",
+      "definitions_view": "650fb4d442797cb7cf1b0204382dfa86ee76fbabb5bb2ac0664a55651e5dcb28",
       "deployments_view": "96fc0284fb1f47ce344419e633b8f89ade24ded7c4a118d0a514015548affa63",
       "enqueue_job": "6e668b4ba9ced7627f986a1e48cd126f3310fc4b94320c640ad7168c7c68bc42",
       "enqueue_jobs": "c5980b65489808f9fa0895abba127baf37f23cfaff8a607724806cc908828d76",
@@ -1555,7 +1559,7 @@
       "claim_jobs": "f2dfda1339c2f8c5f9c97df45594691a746c29c224bba5c343d39a3bda077237",
       "complete_executions": "50a4748c4bfb8261216926de4e430df7a7a0f97ce2483c8f22d3a29bcdd594f2",
       "complete_job_step": "7cd9b30d151aac80961345e356a22fc62c01307ea3d5c9e9a958298981badb86",
-      "definitions_view": "ee864349f8c78815915a6231eed9f9801e64622620f84926e837907082482e1f",
+      "definitions_view": "76bdc078d0eaf023cffb884c9cc03eb5942b335941f9e99a742aecaa7e953b7f",
       "deployments_view": "6c8ab23e15969f1ec2d9116019d27f88d713c0b218d13ddd68390e04d74c513a",
       "enqueue_job": "d87205c85e65e58cf45968bc4a04c8922a71131398518d9d55fdf523a6a1fa20",
       "enqueue_jobs": "d12ce189a1b193d3d9095e64d8584eb7352a902d450c400c30ec365cb6341a22",
@@ -1577,7 +1581,7 @@
       "alerts_view": "e6ebf901acce421fcb08608b9b6e4d2fbbf47295181812faa79bfe087d5dcb30",
       "calendars_view": "e8557bd4614ccb5ec5522428f4779401ddd825a297ae4ff63a5a8a33fb92766c",
       "checkpoints_view": "bd083c7d07b3a2afdaad6a5eb8b17d5479b20b9e075a125d1911229efdce09ed",
-      "definitions_view": "4ba02c5c13de415d21c21e22220b4096c87b8c1303b63010afb5e97b3d68cafa",
+      "definitions_view": "c3d1548ee6a6b664fbf98f51f135084b1d0fbaff6d64ec9bccef9db773def308",
       "deployments_view": "6d26bda38b8d092ab298db1e44e9e330ba4077d64ba7963db05169941c2708f6",
       "events_view": "839bf2b1cf44e948a48cf5a4cdc32db26c1532540cb86f43221223665ac768fb",
       "jobs_view": "633426721e6fdbb0e00dd973df96dd8680a67f2817b1dbc4dfb798102eaf7848",

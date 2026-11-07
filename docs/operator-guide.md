@@ -494,7 +494,7 @@ In production a deploy step applies Acta's migrations, never application startup
 
 ```
 $ ConnectionStrings__acta="<DDL login>" dotnet MyApp.dll jobs migrate
-applied M20261106202352_init to schema acta
+applied M20261106203504_init to schema acta
 namespace billing: 1.6.1+b81d04e (Production)
   added    sys.alerts
   added    sys.retention
@@ -552,6 +552,7 @@ namespace billing: 1.6.2+5c0ffee (Production)
 ```
 
 - The version is `JobsOptions.DeploymentVersion`, by default the entry assembly's informational version. A version's first deploy in a namespace adds a row to `deployments` (read it through `deployments_view`), and the version becomes the namespace's current one, `namespaces.deployment_version`.
+- Each definition keeps the version whose deploy introduced it in `definitions.created_deployment_version` (in `definitions_view` and the definition read); no other deploy changes it.
 - A version that deployed in the namespace earlier and is not its current one is an older build: its deploy changes nothing, says so, and exits 0. `--force` deploys it and makes it current, which is how a rollback restores the earlier definitions.
 - Every run that deploys leaves a `namespace.deployed` event on the namespace, also a run that changed nothing: its message names the version and the one it replaced, and its details carry `deploymentVersion`, `previousDeploymentVersion`, `forced`, and the `added` and `changed` job names. An older build's skipped run leaves none.
 - A job is `changed` when its policy, its contract, or a schedule it declares for this environment differs from what is stored: a new cron, an added or dropped `[Schedule]`, a changed bound. The line names the job; a retimed schedule also leaves its own `schedule.retimed` event.

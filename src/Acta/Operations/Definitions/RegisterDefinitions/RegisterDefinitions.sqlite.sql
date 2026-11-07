@@ -30,7 +30,8 @@ INSERT INTO {{schema}}.definitions (
     runbook_url,
     display_name,
     description,
-    definition_hash)
+    definition_hash,
+    created_deployment_version)
 SELECT
     @p_namespace_id,
     json_extract(d.value, '$.definition_name'),
@@ -66,7 +67,8 @@ SELECT
     json_extract(d.value, '$.runbook_url'),
     json_extract(d.value, '$.display_name'),
     json_extract(d.value, '$.description'),
-    json_extract(d.value, '$.definition_hash')
+    json_extract(d.value, '$.definition_hash'),
+    @p_created_deployment_version
 FROM json_each(@p_definitions) d
 WHERE true
 ON CONFLICT (namespace_id, definition_name) DO UPDATE SET
