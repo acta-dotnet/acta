@@ -1,10 +1,16 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Acta.Tests.AspNetCore;
 using Acta.Tests.AspNetCore.Fakes;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Xunit;
 
 namespace Acta.Tests.Contracts;
@@ -24,7 +30,99 @@ public sealed partial class OpenApiContractTests
         ["calendarName"] = "office-hours",
         ["deduplicationKey"] = "ck-1",
         ["version"] = "1",
+        ["signalName"] = "approval",
+        ["tagName"] = "env",
     };
+
+    /// <summary>
+    /// Every operation lists 401 and 403, because every route can be refused before it runs: a host that requires
+    /// authentication answers 401, and the local-only guard answers a remote caller 403. Each operation is asked both.
+    /// </summary>
+    [Fact]
+    public async Task Every_operation_declares_401_and_403_and_answers_them()
+    {
+        var operations = Operations(await ActaOpenApiDocument.GenerateAsync());
+        var wrong = operations
+            .Where(operation => operation.Value["responses"]?["401"] is null || operation.Value["responses"]?["403"] is null)
+            .Select(operation => $"{operation.Key}: does not declare both 401 and 403.")
+            .ToList();
+
+        var (remote, remoteClient) = await TestDashboardHost.StartAsync(
+            options => options.EnableControls = true,
+            configureApp: app =>
+                app.Use(
+                    (context, next) =>
+                    {
+                        context.Connection.RemoteIpAddress = IPAddress.Parse("203.0.113.10");
+                        return next(context);
+                    }
+                )
+        );
+        await using (remote)
+        {
+            await AssertAnswerAsync(remoteClient, operations, HttpStatusCode.Forbidden, wrong);
+        }
+
+        var (guarded, guardedClient) = await TestDashboardHost.StartAsync(
+            options =>
+            {
+                options.EnableControls = true;
+                options.ConfigureEndpoints = group => group.RequireAuthorization();
+            },
+            configureBuilder: builder =>
+            {
+                builder.Services.AddAuthentication("Anonymous").AddScheme<AuthenticationSchemeOptions, AnonymousHandler>("Anonymous", null);
+                builder.Services.AddAuthorization();
+            }
+        );
+        await using (guarded)
+        {
+            await AssertAnswerAsync(guardedClient, operations, HttpStatusCode.Unauthorized, wrong);
+        }
+
+        Assert.True(operations.Count > 60, $"only {operations.Count} operations; the walk is broken.");
+        Assert.True(wrong.Count == 0, string.Join("\n", wrong));
+    }
+
+    // Sends every operation, its route values filled and its confirmation header set, and adds to wrong each that
+    // answers another status; a 403 carries the problem document the operation declares for it.
+    private static async Task AssertAnswerAsync(
+        HttpClient client,
+        Dictionary<string, JsonNode> operations,
+        HttpStatusCode expected,
+        List<string> wrong
+    )
+    {
+        var ct = TestContext.Current.CancellationToken;
+        foreach (var (key, operation) in operations)
+        {
+            var (method, path) = (
+                key[..key.IndexOf(' ', StringComparison.Ordinal)],
+                key[(key.IndexOf(' ', StringComparison.Ordinal) + 1)..]
+            );
+            using var request = new HttpRequestMessage(new HttpMethod(method), "/acta/api" + ReadUrl(path, operation));
+            request.Headers.Add("X-Acta-Control", "true");
+            var response = await client.SendAsync(request, ct);
+            if (response.StatusCode != expected)
+            {
+                wrong.Add($"{key}: answered {(int)response.StatusCode}, expected {(int)expected}.");
+            }
+            else if (
+                expected == HttpStatusCode.Forbidden
+                && JsonNode.Parse(await response.Content.ReadAsStringAsync(ct))?["status"]?.GetValue<int>() != (int)expected
+            )
+            {
+                wrong.Add($"{key}: the 403 is not a problem document naming its status.");
+            }
+        }
+    }
+
+    /// <summary>An authentication scheme that never finds a user, so every request the host guards is challenged.</summary>
+    private sealed class AnonymousHandler(IOptionsMonitor<AuthenticationSchemeOptions> options, ILoggerFactory logger, UrlEncoder encoder)
+        : AuthenticationHandler<AuthenticationSchemeOptions>(options, logger, encoder)
+    {
+        protected override Task<AuthenticateResult> HandleAuthenticateAsync() => Task.FromResult(AuthenticateResult.NoResult());
+    }
 
     /// <summary>Reads the fake host cannot serve, keyed <c>GET /path</c>, with the reason; one listed here that serves fails.</summary>
     private static readonly Dictionary<string, string> UnservedReads = new(StringComparer.Ordinal);

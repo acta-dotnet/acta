@@ -111,10 +111,13 @@ public static class ActaEndpointRouteBuilderExtensions
         // it reaches the nested controls group too.
         ActaEndpointIdentity.Apply(api);
 
-        // The error model, declared once: 400 from the routes' input guards, 413 from the body ceiling, 500 and 503
-        // from the error backstop. 415 is not here: only a route that reads a body can answer it, so each such route
-        // declares it where its body is read, rather than promising it on every read.
+        // The error model, declared once: 401 from the host's authentication, which writes its own body, 403 from the
+        // local-only guard, a control authorizer, or the host's authorization, 400 from the routes' input guards, 413 from
+        // the body ceiling, 500 and 503 from the error backstop. 415 is not here: only a route that reads a body can answer
+        // it, so each such route declares it where its body is read, rather than promising it on every read.
         api.ProducesProblem(StatusCodes.Status400BadRequest);
+        api.WithMetadata(new ProducesResponseTypeMetadata(StatusCodes.Status401Unauthorized, typeof(void)));
+        api.ProducesProblem(StatusCodes.Status403Forbidden);
         api.ProducesProblem(StatusCodes.Status413PayloadTooLarge);
         api.ProducesProblem(StatusCodes.Status500InternalServerError);
         api.ProducesProblem(StatusCodes.Status503ServiceUnavailable);
@@ -123,14 +126,12 @@ public static class ActaEndpointRouteBuilderExtensions
         api.AddEndpointFilter(ApiFilters.BodyCeiling);
 
         // Null when controls are off; a group's route table maps its writes only when it is there. The empty-prefix
-        // group gives the authorization filter every control route and no read, and adds the one code reads cannot
-        // answer: 403, when the host's own authorizer denies the request.
+        // group gives the authorization filter every control route and no read.
         RouteGroupBuilder? controls = null;
         if (options.EnableControls)
         {
             controls = api.MapGroup("");
             ControlAuthorizationFilter.Attach(controls);
-            controls.ProducesProblem(StatusCodes.Status403Forbidden);
             // What a control call needs, said once for the group so the contract generator can render it on every control.
             controls.WithMetadata(
                 new ControlEndpointDoc(options.RequireControlConfirmationHeader ? options.ControlConfirmationHeaderName : null)

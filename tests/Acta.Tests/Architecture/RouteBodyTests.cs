@@ -109,10 +109,12 @@ public sealed class RouteBodyTests
                             Body: endpoint.Metadata.GetMetadata<RequestBodyDoc>()?.BodyType,
                             Responses: (IReadOnlyList<Type>)
                                 [
+                                    // A status declared without a body, the host's 401, answers no type.
                                     .. endpoint
                                         .Metadata.OfType<IProducesResponseTypeMetadata>()
                                         .Select(produces => produces.Type)
                                         .OfType<Type>()
+                                        .Where(type => type != typeof(void))
                                         .Distinct(),
                                 ]
                         )

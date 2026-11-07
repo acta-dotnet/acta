@@ -469,6 +469,14 @@ internal static partial class ActaOpenApiDocument
         {
             foreach (var (method, operation) in item.Operations ?? [])
             {
+                // In status order, whichever of the group's or the route's declarations made each one.
+                var byStatus = new OpenApiResponses();
+                foreach (var (code, response) in (operation.Responses ?? []).OrderBy(r => r.Key, StringComparer.Ordinal))
+                {
+                    byStatus[code] = response;
+                }
+                operation.Responses = byStatus;
+
                 if (string.IsNullOrEmpty(operation.OperationId) || !ids.Add(operation.OperationId))
                 {
                     throw new InvalidOperationException(
