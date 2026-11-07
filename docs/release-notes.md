@@ -155,6 +155,7 @@ Not tagged yet.
 - A deploy planned its schedules from a clock read before it took the schedule locks, so an admission that ran in between could admit an occurrence a retimed cursor then landed on again. Each deploy attempt reads the clock once it holds the locks.
 - A per-occurrence schedule whose cursor landed on an occurrence it had already admitted failed every admission pass in its namespace on the root's deduplication key, so no other schedule there was admitted either. Such an occurrence is now passed over: no second root, no charge, and the cursor moves on.
 - On SQL Server, an alert raise range-locked the deduplication key after its own, so raises of neighbouring keys waited for each other's commit, and with `READ_COMMITTED_SNAPSHOT` off its reads of the key's earlier incidents could reach other alerts and deadlock with another raise or a job purge. A raise now takes its own key's application lock and reads only that key's rows.
+- On SQL Server with `READ_COMMITTED_SNAPSHOT` off, deploys of different namespaces deadlocked in storms: a deploy read its schedules' states by scanning every namespace's schedules, so two hosts that each deployed several namespaces waited on the schedules the other had just written, and every deploy whose scan reached those rows was chosen victim in turn. The read now seeks its own namespace's rows. The overview's schedule counts read without locks, as its job counts do, so they no longer deadlock with a deploy.
 
 ## 1.0.0-rc.8
 

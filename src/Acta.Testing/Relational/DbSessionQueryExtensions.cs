@@ -331,6 +331,9 @@ internal sealed class WhereVisitor(
     private readonly StringBuilder _sb = sb;
     private readonly DbCommand _command = command;
 
+    /// <summary>The entity column the predicate compares a value with while that value binds.</summary>
+    private DbColumnSpec? _comparedColumn;
+
     public int ParamCounter { get; private set; } = startCounter;
 
     public void Render(Expression body) => Visit(body);
@@ -380,6 +383,7 @@ internal sealed class WhereVisitor(
             return;
         }
 
+        _comparedColumn = ColumnOf(node.Left) ?? ColumnOf(node.Right);
         _sb.Append('(');
         Visit(node.Left);
         _sb.Append(
@@ -396,7 +400,11 @@ internal sealed class WhereVisitor(
         );
         Visit(node.Right);
         _sb.Append(')');
+        _comparedColumn = null;
     }
+
+    private DbColumnSpec? ColumnOf(Expression e) =>
+        e is MemberExpression me && me.Expression == _entityParam ? _entity.FindByClrProperty(me.Member.Name) : null;
 
     protected override Expression VisitMember(MemberExpression node)
     {
@@ -463,10 +471,12 @@ internal sealed class WhereVisitor(
                     ?? throw new InvalidOperationException($"Predicate references '{me.Member.Name}' which is not a [DbColumn] property.");
                 var values = (System.Collections.IEnumerable)Evaluate(source)!;
                 var paramNames = new List<string>();
+                _comparedColumn = col;
                 foreach (var v in values)
                 {
                     paramNames.Add(EmitParameterReturningName(v, v?.GetType() ?? typeof(object)));
                 }
+                _comparedColumn = null;
                 _sb.Append(QuoteCol(col.Name)).Append(" IN (").Append(string.Join(", ", paramNames)).Append(')');
                 return node;
             }
@@ -494,6 +504,13 @@ internal sealed class WhereVisitor(
         p.ParameterName = name;
         p.Value = DbValueCoercion.Coerce(value, clrType, _provider);
         DbValueCoercion.ApplyType(p, clrType, _provider);
+        // SQL Server binds a string as nvarchar, and comparing a varchar column to it converts the column, so the
+        // read scans the table; with read-committed snapshot off that scan share-locks every page it passes.
+        if (_provider == DbProvider.SqlServer && value is string && _comparedColumn is { Kind: DbKind.AsciiString } column)
+        {
+            p.DbType = System.Data.DbType.AnsiString;
+            p.Size = column.Size ?? -1;
+        }
         _command.Parameters.Add(p);
         return name;
     }

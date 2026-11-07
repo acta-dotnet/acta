@@ -212,7 +212,9 @@ filter so the hint always compiles:
   share its schedule lock and registrations in different namespaces run at once, so an update that scanned would wait
   on rows another holds, and two such scans deadlock on each other.
 - A deploy reads and writes `definitions` through `ux_definitions_namespace_name`: `register_definitions` in its update
-  and its reads, and the contracts read after it. A deploy holds the rows it writes until it commits and serializes only
+  and its reads, the contracts read after it, and the schedule-state read, which seeks each definition's schedules,
+  their states, and their permanent jobs' `jobs_state` rows by key from there, since `schedules` has no namespace index.
+  A deploy holds the rows it writes until it commits and serializes only
   with deploys of its own namespace, so a statement that scanned would lock, or with `READ_COMMITTED_SNAPSHOT` off wait
   on, every namespace's rows; concurrent deploys of different namespaces deadlocked that way.
 
@@ -245,7 +247,7 @@ so three rules decide every read on SQL Server:
    the recovery walks and stale-latch read, the retention walks, the heartbeat, retire's two reads, the
    outbox lane check and backlog count ("Outbox lock"), and the dashboard's job lists and their
    totals and lane probes.
-3. The overview's job counts and the lineage map read dirty with `NOLOCK`: they are for display, so
+3. The overview's job and schedule counts and the lineage map read dirty with `NOLOCK`: they are for display, so
    they take no lock and never wait, and they can include a row a transaction has not committed yet.
 
 A skipped row is one an application has not committed, which read-committed snapshot hides too, or one

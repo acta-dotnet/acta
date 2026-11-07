@@ -17,8 +17,8 @@ IF @p_namespace_name IS NOT NULL
    a queue of long approval waits would read as backlog that no worker is behind on. */
 /* Not shared text - claim_jobs is an installed routine and this is an inline command - so the two
    are must-stay-in-sync twins; change one, change the other. */
--- The job counts read dirty: an operator's overview takes no lock and never waits on an open enqueue, and it may count a
--- row another transaction has not committed yet.
+-- The job and schedule counts read dirty: an operator's overview takes no lock and never waits on an open enqueue or
+-- deploy, and it may count a row another transaction has not committed yet.
 SELECT
     (
         SELECT COUNT_BIG(*)
@@ -88,9 +88,9 @@ SELECT
     ) AS stale_worker_count,
     (
         SELECT COUNT_BIG(*)
-        FROM {{schema}}.schedules_state st
-        INNER JOIN {{schema}}.schedules s ON s.schedule_id = st.schedule_id
-        INNER JOIN {{schema}}.definitions d ON d.definition_id = s.definition_id
+        FROM {{schema}}.schedules_state st WITH (NOLOCK)
+        INNER JOIN {{schema}}.schedules s WITH (NOLOCK) ON s.schedule_id = st.schedule_id
+        INNER JOIN {{schema}}.definitions d WITH (NOLOCK) ON d.definition_id = s.definition_id
         WHERE
             st.next_occurrence_at_utc IS NOT NULL
             AND s.schedule_status_code = 10 /* ScheduleStatusCode.Active */
@@ -108,9 +108,9 @@ SELECT
     ) AS executor_capacity,
     (
         SELECT CAST(DATEDIFF(SECOND, MIN(st.next_occurrence_at_utc), @now) AS BIGINT)
-        FROM {{schema}}.schedules_state st
-        INNER JOIN {{schema}}.schedules s ON s.schedule_id = st.schedule_id
-        INNER JOIN {{schema}}.definitions d ON d.definition_id = s.definition_id
+        FROM {{schema}}.schedules_state st WITH (NOLOCK)
+        INNER JOIN {{schema}}.schedules s WITH (NOLOCK) ON s.schedule_id = st.schedule_id
+        INNER JOIN {{schema}}.definitions d WITH (NOLOCK) ON d.definition_id = s.definition_id
         WHERE
             st.next_occurrence_at_utc IS NOT NULL
             AND s.schedule_status_code = 10 /* ScheduleStatusCode.Active */
