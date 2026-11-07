@@ -1,0 +1,46 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
+
+namespace Acta.AspNetCore;
+
+/// <summary>
+/// One calendar family: its role, its published and newest version numbers, and the version this answer shows, with its status and
+/// definition.
+/// </summary>
+/// <remarks>
+/// <see cref="ICalendars.GetAsync"/>'s answer for the wire: the definition is written as its stored text, byte for byte, where the
+/// SDK carries that text as a string.
+/// </remarks>
+/// <param name="JobNamespace">The namespace that holds the calendar family.</param>
+/// <param name="CalendarName">The calendar family's name within its namespace.</param>
+/// <param name="Role">The calendar family's role, which says how schedules use it.</param>
+/// <param name="CurrentVersion">The number of the published version in force; null when none is published. The publish and the
+/// archive take it as expectedCurrentVersion, and a publish sends 0 when none is published.</param>
+/// <param name="LatestVersion">The number of the family's newest version; the draft save takes it as expectedLatestVersion.</param>
+/// <param name="ShownVersion">The number of the version this answer shows.</param>
+/// <param name="ShownStatus">The status of the version this answer shows.</param>
+/// <param name="Definition">The shown version's definition: a JSON object whose kind names its shape, as the draft save takes it.</param>
+internal sealed record GetCalendarResponse(
+    string JobNamespace,
+    string CalendarName,
+    CalendarRoleCode Role,
+    int? CurrentVersion,
+    int LatestVersion,
+    int ShownVersion,
+    CalendarStatusCode ShownStatus,
+    // Never null: the converter that writes the stored text is one over a nullable element.
+    [property: JsonConverter(typeof(EmbeddedJsonConverter))] JsonElement? Definition
+)
+{
+    public static GetCalendarResponse From(Acta.GetCalendarResponse calendar) =>
+        new(
+            calendar.JobNamespace,
+            calendar.CalendarName,
+            calendar.Role,
+            calendar.CurrentVersion,
+            calendar.LatestVersion,
+            calendar.ShownVersion,
+            calendar.ShownStatus,
+            JsonElement.Parse(calendar.Definition)
+        );
+}

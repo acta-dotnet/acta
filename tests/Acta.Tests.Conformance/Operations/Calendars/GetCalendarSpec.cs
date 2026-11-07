@@ -71,9 +71,13 @@ public sealed class GetCalendarSpec : ActaStorageTestBase<ConformanceFixture>
 
         Assert.Equal(
             """{"timeZone":"UTC","kind":"daily-local-time","description":"Caf\u00E9 \u003Cclosed\u003E","times":["09:00"]}""",
-            read!.Definition.GetRawText()
+            read!.Definition
         );
     }
 
-    private static string? Kind(JsonElement definition) => definition.GetProperty("kind").GetString();
+    private static string? Kind(string definition)
+    {
+        using var document = JsonDocument.Parse(definition);
+        return document.RootElement.GetProperty("kind").GetString();
+    }
 }

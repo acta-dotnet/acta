@@ -260,10 +260,10 @@ and restart of a finished laned job runs that job again, right after the lane's 
 
 `[Job("send-invoice", RateLimit = "10/s")]` paces how OFTEN attempts are admitted, which is a
 different gate from how many run at once, and a job passes both. It paces admissions, not starts,
-and is no hard burst cap: a turn admitted late can land beside an on-time one. `RateName` names the meter when several
-definitions should share one; omitted, the meter is the definition name. A meter belongs to one
-namespace: definitions in different namespaces never share it, so a partner quota shared by two
-services needs its rate split between them. Definitions on one meter must
+and is no hard burst cap: a turn admitted late can land beside an on-time one. `RateName` names
+the meter when several definitions should share one; omitted, the meter is the definition name.
+A meter belongs to one namespace: definitions in different namespaces never share it, so a partner
+quota shared by two services needs its rate split between them. Definitions on one meter must
 declare the same rate. A job that arrives early is BOOKED the next free instant: under a quarter second away
 the executor sleeps it out and takes it, farther away the job re-arms Ready at exactly that instant
 without spending retry budget (reason `rate-limited`, never a failure and never an alert), and a

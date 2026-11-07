@@ -1,5 +1,3 @@
-using System.Text.Json;
-
 namespace Acta.Tests.AspNetCore.Fakes;
 
 /// <summary>
@@ -245,7 +243,7 @@ internal sealed class FakeCalendars : ICalendars
             2,
             shownVersion,
             shownVersion == 1 ? CalendarStatusCode.Published : CalendarStatusCode.Draft,
-            JsonElement.Parse(shownVersion == 1 ? OfficeHoursDefinition : MorningsDefinition)
+            shownVersion == 1 ? OfficeHoursDefinition : MorningsDefinition
         );
 
     private const string OfficeHoursDefinition = """

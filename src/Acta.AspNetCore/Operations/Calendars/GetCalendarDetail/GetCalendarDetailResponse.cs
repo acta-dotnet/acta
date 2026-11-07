@@ -22,7 +22,7 @@ internal sealed record GetCalendarDetailResponse(
     ) =>
         await calendars.GetAsync(calendar, version, ct) is { } head
             ? new GetCalendarDetailResponse(
-                head,
+                GetCalendarResponse.From(head),
                 await calendars.ListVersionsAsync(new ListCalendarVersionsQuery(calendar, IncludeTotal: true), ct),
                 await calendars.ListDependentsAsync(new ListCalendarDependentsQuery(calendar, IncludeTotal: true), ct)
             )

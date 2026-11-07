@@ -15076,7 +15076,7 @@
           },
           "overdue": {
             "type": "boolean",
-            "description": "Whether the schedule's next occurrence, as the version in force placed it, is already due, which publishing the previewed version must decide as its overdue decision says."
+            "description": "Whether the schedule's next occurrence, as the version in force placed it, is already due. A publication refuses while one is, or discards it, as its overdueDecision says."
           }
         },
         "description": "A schedule that names the family, as a publication would meet it: its path, binding, status, and overdue flag."

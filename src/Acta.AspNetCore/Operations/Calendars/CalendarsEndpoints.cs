@@ -50,12 +50,15 @@ internal static class CalendarsEndpoints
                 "Read a calendar family's head: its current and latest versions and one definition.",
                 "Calendar",
                 DashboardJsonContext.Default.GetCalendarResponse,
-                static (http, call) =>
-                    call.Operations.Calendars.GetAsync(
+                static async (http, call) =>
+                    await call.Operations.Calendars.GetAsync(
                         Key(http),
                         QueryReader.Bind(http.Request, static query => query.Int("version")),
                         call.Ct
                     )
+                        is { } calendar
+                        ? GetCalendarResponse.From(calendar)
+                        : null
             )
             .WithQueryParameters([
                 new QueryParameterDoc(

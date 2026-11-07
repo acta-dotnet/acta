@@ -1,5 +1,3 @@
-using System.Text.Json;
-
 namespace Acta;
 
 /// <summary>
@@ -14,7 +12,8 @@ namespace Acta;
 /// <param name="LatestVersion">The number of the family's newest version; the draft save takes it as expectedLatestVersion.</param>
 /// <param name="ShownVersion">The number of the version this answer shows.</param>
 /// <param name="ShownStatus">The status of the version this answer shows.</param>
-/// <param name="Definition">The shown version's definition: a JSON object whose kind names its shape, as the draft save takes it.</param>
+/// <param name="Definition">The shown version's definition as stored: the text of a JSON object whose kind names its shape, which the
+/// draft save takes as it is.</param>
 public sealed record GetCalendarResponse(
     string JobNamespace,
     string CalendarName,
@@ -23,5 +22,5 @@ public sealed record GetCalendarResponse(
     int LatestVersion,
     int ShownVersion,
     CalendarStatusCode ShownStatus,
-    JsonElement Definition
+    string Definition
 );
