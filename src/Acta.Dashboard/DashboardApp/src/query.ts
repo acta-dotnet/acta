@@ -30,22 +30,36 @@ export const keys = {
   capabilities: ['capabilities'] as const
 };
 
-// App-wide capabilities gate: whether controls are enabled on this host, the confirmation header
-// name, and provider/version info. staleTime: Infinity - fixed for the process lifetime of the
-// dashboard host, so this fetches once (via createQuery in App.svelte) and is reused (same cache
-// key) by every later feature's control UI instead of each one re-fetching it.
+// App-wide capabilities gate: whether controls are enabled on this host, the permissions this caller
+// holds, the confirmation header name, and provider/version info. One cache entry every control
+// surface shares; the caller's grants can change while the page is open, so it is read again on focus
+// and, through App.svelte, after a 403.
 export function capabilitiesQuery() {
   return {
     queryKey: keys.capabilities,
     queryFn: ({ signal }: { signal: AbortSignal }) => fetchCapabilities({ signal }),
-    staleTime: Infinity
+    staleTime: 60_000,
+    refetchOnWindowFocus: 'always' as const
   };
 }
 
-// Read-only gate. Fails closed (false) while capabilities hasn't loaded yet or the fetch is still
-// pending, so control UI never renders as enabled before the host's real answer is known.
-export function canControl(capabilities: Capabilities | undefined): boolean {
-  return capabilities?.controlsEnabled === true;
+export const Permission = {
+  read: 'acta.read',
+  enqueue: 'acta.enqueue',
+  control: 'acta.control',
+  admin: 'acta.admin'
+} as const;
+export type PermissionName = (typeof Permission)[keyof typeof Permission];
+
+// A control renders when the host maps the controls and this caller holds the permission its route
+// needs. Fails closed (false) until capabilities has loaded, so no control renders before the answer.
+export function can(capabilities: Capabilities | undefined, permission: PermissionName): boolean {
+  return capabilities?.controlsEnabled === true && (capabilities.permissions ?? []).includes(permission);
+}
+
+// Whether any control this dashboard offers is open to this caller: the read-only chip shows when none is.
+export function canWriteAny(capabilities: Capabilities | undefined): boolean {
+  return [Permission.enqueue, Permission.control, Permission.admin].some((p) => can(capabilities, p));
 }
 
 function compact(filters: Record<string, unknown>): Record<string, unknown> {

@@ -10,7 +10,7 @@
     type CalendarDetailView,
     type Paged
   } from '../api.ts';
-  import { capabilitiesQuery, canControl, keys } from '../query.ts';
+  import { capabilitiesQuery, can, Permission, keys } from '../query.ts';
   import Page from '../components/Page.svelte';
   import Icon from '../components/Icon.svelte';
   import StateView from '../components/StateView.svelte';
@@ -73,7 +73,7 @@
   let missing = $derived(detail.isSuccess && detail.data === null);
 
   const capabilities = createQuery(() => capabilitiesQuery());
-  let canControlNow = $derived(canControl(capabilities.data));
+  let canControlNow = $derived(can(capabilities.data, Permission.admin));
   let shownState = $derived(family ? familyState(family, canControlNow) : null);
 
   let previewLimit = $state(10);

@@ -12,6 +12,12 @@
   import { createUrlFilters } from '../urlFilters.ts';
   import { parseTagTokens } from '../lib/tagTokens.ts';
   import { routes } from '../routes.ts';
+  import { createQuery } from '@tanstack/svelte-query';
+  import { capabilitiesQuery, can, Permission } from '../query.ts';
+
+  // Registering a tenant is admin, so the link to its form shows only to a caller who can.
+  const capabilities = createQuery(() => capabilitiesQuery());
+  let canAdminNow = $derived(can(capabilities.data, Permission.admin));
 
 
   // `search` is a case-insensitive server-side contains over tenant name, display name, or description.
@@ -43,7 +49,9 @@
 
 <Page title="Tenants">
   {#snippet actions()}
-    <a class="add-action" href={routes.newTenant({ namespace: $scope })} title="Register tenant" aria-label="Register tenant"><Icon name="plus" /></a>
+    {#if canAdminNow}
+      <a class="add-action" href={routes.newTenant({ namespace: $scope })} title="Register tenant" aria-label="Register tenant"><Icon name="plus" /></a>
+    {/if}
   {/snippet}
 
   <div class="panel fill">

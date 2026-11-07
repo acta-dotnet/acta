@@ -1,7 +1,7 @@
 <script lang="ts">
   import { createQuery } from '@tanstack/svelte-query';
   import { useControlMutation } from '../lib/useControlMutation.ts';
-  import { capabilitiesQuery, canControl } from '../query.ts';
+  import { capabilitiesQuery, can, Permission } from '../query.ts';
   import type { JobControlResponse } from '../api.ts';
   import { jobControlMessage } from '../lib/controlMessages.ts';
   import { RawJson } from '../lib/rawJson.ts';
@@ -20,7 +20,7 @@
   let messageKind = $state('');
 
   const capabilities = createQuery(() => capabilitiesQuery());
-  let canControlNow = $derived(canControl(capabilities.data));
+  let canControlNow = $derived(can(capabilities.data, Permission.control));
 
   let nameError = $derived(name ? validateSignalName(name) : null);
   let payloadResult = $derived(validateSignalPayload(payloadText));

@@ -4,7 +4,7 @@
   import { get } from 'svelte/store';
   import { createQuery } from '@tanstack/svelte-query';
   import { api } from '../api';
-  import { capabilitiesQuery, canControl } from '../query.ts';
+  import { capabilitiesQuery, can, Permission } from '../query.ts';
   import { hashParams, updateHashParams } from '../router';
   import { scope, setScope } from '../scope';
   import Page from '../components/Page.svelte';
@@ -49,7 +49,7 @@
     filters.patch({ view: '' });
   }
   const capabilities = createQuery(() => capabilitiesQuery());
-  let canControlNow = $derived(canControl(capabilities.data));
+  let canControlNow = $derived(can(capabilities.data, Permission.enqueue));
   let jump = $state('');
   let jumpError = $state('');
   let showMore = $state(!!(initial.get('correlationKey') || initial.get('tags')));

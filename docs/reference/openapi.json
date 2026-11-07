@@ -10635,7 +10635,13 @@
                       "engineVersion": "1.0.0",
                       "provider": "sqlite",
                       "schema": "main",
-                      "confirmationHeader": "X-Acta-Control"
+                      "confirmationHeader": "X-Acta-Control",
+                      "permissions": [
+                        "acta.read",
+                        "acta.enqueue",
+                        "acta.control",
+                        "acta.admin"
+                      ]
                     }
                   }
                 }
@@ -12186,7 +12192,8 @@
           "engineVersion",
           "provider",
           "schema",
-          "confirmationHeader"
+          "confirmationHeader",
+          "permissions"
         ],
         "type": "object",
         "properties": {
@@ -12209,6 +12216,13 @@
           "confirmationHeader": {
             "type": "string",
             "description": "The name of the confirmation header, which a control sends with the value true unless it sends a JSON content type or a bearer token."
+          },
+          "permissions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The permissions this caller holds, of acta.read, acta.enqueue, acta.control, and acta.admin: under RequirePermissions the ones whose policy the caller satisfies, otherwise all four. A control also needs controlsEnabled."
           }
         },
         "description": "What this host's API offers: whether the control routes are mapped, the Acta version, the provider and schema behind it, and the name of the header that confirms a control request. A mapped control still needs its permission."

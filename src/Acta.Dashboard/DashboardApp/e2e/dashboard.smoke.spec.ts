@@ -113,6 +113,8 @@ async function mockDashboard(
     onDiscard?: (body: unknown) => void;
     // The rows the Workers list reads; none unless a test names them.
     workers?: unknown[];
+    // The permissions capabilities say the caller holds; all four unless a test names them.
+    permissions?: string[];
     // While it answers true, every call answers 401 with no body, as an API route does for a lapsed sign-in.
     sessionEnded?: () => boolean;
     // Sees the path of every call, so a test can count what the page sent.
@@ -130,7 +132,13 @@ async function mockDashboard(
     }
 
     if (path === 'capabilities') {
-      return json({ controlsEnabled: options.controls, engineVersion: 'test', provider: 'mock', confirmationHeader: 'X-Acta-Control' });
+      return json({
+        controlsEnabled: options.controls,
+        engineVersion: 'test',
+        provider: 'mock',
+        confirmationHeader: 'X-Acta-Control',
+        permissions: options.permissions ?? ['acta.read', 'acta.enqueue', 'acta.control', 'acta.admin']
+      });
     }
     if (path === 'namespaces') {
       return json(paged([{ jobNamespace: 'billing', status: 'active', ownerTeam: null, description: null, deploymentVersion: '1.6.2+5c0ffee', version: 1 }]));
@@ -517,6 +525,42 @@ test('an ended session shows one banner and sends nothing more until reload', as
   await page.waitForTimeout(2_500);
   await expect(page.getByRole('button', { name: 'Refresh now' }).first()).toBeDisabled();
   expect(sentAfter).toBe(first);
+});
+
+test('a caller holding read and control acts on jobs, but cannot delete, clone, or enqueue', async ({ page }) => {
+  await mockDashboard(page, { controls: true, permissions: ['acta.read', 'acta.control'] });
+  await page.goto(`/#/jobs/${jobRef}`);
+
+  await expect(page.getByRole('button', { name: 'Run again' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Delete record' })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'Clone' })).toHaveCount(0);
+  await expect(page.locator('.mode-chip')).toHaveCount(0);
+});
+
+test('a caller holding read and enqueue clones a job, and acts on none', async ({ page }) => {
+  await mockDashboard(page, { controls: true, permissions: ['acta.read', 'acta.enqueue'] });
+  await page.goto(`/#/jobs/${jobRef}`);
+
+  await expect(page.getByRole('link', { name: 'Clone' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Run again' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Delete record' })).toHaveCount(0);
+});
+
+test('a caller holding read and admin deletes a record, and runs nothing again', async ({ page }) => {
+  await mockDashboard(page, { controls: true, permissions: ['acta.read', 'acta.admin'] });
+  await page.goto(`/#/jobs/${jobRef}`);
+
+  await expect(page.getByRole('button', { name: 'Delete record' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Run again' })).toHaveCount(0);
+});
+
+test('a reader on a host with controls on sees no control and the read-only chip', async ({ page }) => {
+  await mockDashboard(page, { controls: true, permissions: ['acta.read'] });
+  await page.goto(`/#/jobs/${jobRef}`);
+
+  await expect(page.locator('.mode-chip')).toBeVisible();
+  await expect(page.getByText('Your sign-in holds no permission to act on jobs.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Run again' })).toHaveCount(0);
 });
 
 test('read-only deployment hides controls and rejects a direct request', async ({ page }) => {

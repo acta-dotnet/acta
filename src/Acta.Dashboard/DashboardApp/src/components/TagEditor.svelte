@@ -1,7 +1,7 @@
 <script lang="ts">
   import { createQuery, useQueryClient } from '@tanstack/svelte-query';
   import { api, controlRequest, type Paged, type TagMutationResponse } from '../api.ts';
-  import { capabilitiesQuery, canControl } from '../query.ts';
+  import { capabilitiesQuery, can, type PermissionName } from '../query.ts';
   import Icon from './Icon.svelte';
 
   interface Tag {
@@ -10,8 +10,9 @@
   }
 
   // `path` is the entity's tag subresource, e.g. `jobs/${jobRef}/tags`. The editor GETs its page, and
-  // PUT/DELETE against `${path}/${name}` add and remove individual tags.
-  let { path }: { path: string } = $props();
+  // PUT/DELETE against `${path}/${name}` add and remove individual tags. `permission` is what the owner's
+  // tag writes need: a job's tags are a control, a definition's, namespace's, or tenant's are admin.
+  let { path, permission }: { path: string; permission: PermissionName } = $props();
 
   // The largest page a list serves. A target carries at most 32 tags (TagLimits.MaxTagsPerTarget), so one
   // page holds them all.
@@ -24,7 +25,7 @@
       (await api<Paged<Tag>>(path, { pageSize: TAG_PAGE_SIZE }, { signal })).items
   }));
   const capabilities = createQuery(() => capabilitiesQuery());
-  let canEdit = $derived(canControl(capabilities.data));
+  let canEdit = $derived(can(capabilities.data, permission));
   let collapsed = $derived(!canEdit && !tags.isPending && !tags.error && (tags.data ?? []).length === 0);
 
   let input = $state('');

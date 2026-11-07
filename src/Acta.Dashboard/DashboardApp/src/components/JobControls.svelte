@@ -1,7 +1,7 @@
 <script lang="ts">
   import { createQuery } from '@tanstack/svelte-query';
   import { useControlMutation } from '../lib/useControlMutation.ts';
-  import { capabilitiesQuery, canControl } from '../query.ts';
+  import { capabilitiesQuery, can, Permission } from '../query.ts';
   import type { JobControlResponse } from '../api.ts';
   import { jobControlMessage } from '../lib/controlMessages.ts';
   import { displayFormatter, parseUtcDateTimeInput } from '../format.ts';
@@ -27,7 +27,8 @@
   let newPriority = $state('normal');
 
   const capabilities = createQuery(() => capabilitiesQuery());
-  let canControlNow = $derived(canControl(capabilities.data));
+  let canControlNow = $derived(can(capabilities.data, Permission.control));
+  let canAdminNow = $derived(can(capabilities.data, Permission.admin));
 
   const priorities = ['bulk', 'normal', 'high', 'critical', 'realtime'];
 
@@ -220,15 +221,19 @@
 <section class="detail-panel">
   <h2>Actions</h2>
   <div class="control-row">
-    {#if canControlNow}
-      {#if canPause}<button disabled={busy} onclick={() => openAction('pause')}><Icon name="pause" />Pause</button>{/if}
-      {#if canResume}<button disabled={busy} onclick={() => openAction('resume')}><Icon name="play" />Resume</button>{/if}
-      {#if canRestart}<button disabled={busy} onclick={() => openAction('restart')}><Icon name="reload" />{slot ? 'Reset' : 'Run again'}</button>{/if}
-      {#if canReschedule}<button disabled={busy} onclick={() => openAction('runNow')}><Icon name="lightning-bolt" />Run now</button>{/if}
-      {#if canReschedule}<button disabled={busy} onclick={() => openAction('reschedule')}><Icon name="clock" />Change run time</button>{/if}
-      {#if canReprioritize}<button disabled={busy} onclick={() => openAction('reprioritize')}><Icon name="chevron-right" />Change priority</button>{/if}
-      {#if canCancel}<button class="danger-outline" disabled={busy} onclick={() => openAction('cancel')}><Icon name="x" />Cancel job</button>{/if}
-      {#if canPurge}<button class="danger-outline" disabled={busy} onclick={() => openAction('purge')}><Icon name="x-circle" />Delete record</button>{/if}
+    {#if canControlNow || canAdminNow}
+      {#if canControlNow}
+        {#if canPause}<button disabled={busy} onclick={() => openAction('pause')}><Icon name="pause" />Pause</button>{/if}
+        {#if canResume}<button disabled={busy} onclick={() => openAction('resume')}><Icon name="play" />Resume</button>{/if}
+        {#if canRestart}<button disabled={busy} onclick={() => openAction('restart')}><Icon name="reload" />{slot ? 'Reset' : 'Run again'}</button>{/if}
+        {#if canReschedule}<button disabled={busy} onclick={() => openAction('runNow')}><Icon name="lightning-bolt" />Run now</button>{/if}
+        {#if canReschedule}<button disabled={busy} onclick={() => openAction('reschedule')}><Icon name="clock" />Change run time</button>{/if}
+        {#if canReprioritize}<button disabled={busy} onclick={() => openAction('reprioritize')}><Icon name="chevron-right" />Change priority</button>{/if}
+        {#if canCancel}<button class="danger-outline" disabled={busy} onclick={() => openAction('cancel')}><Icon name="x" />Cancel job</button>{/if}
+      {/if}
+      {#if canAdminNow && canPurge}<button class="danger-outline" disabled={busy} onclick={() => openAction('purge')}><Icon name="x-circle" />Delete record</button>{/if}
+    {:else if capabilities.data?.controlsEnabled === true}
+      <span class="dim">Your sign-in holds no permission to act on jobs.</span>
     {:else}
       <span class="dim">Job controls are disabled on this host.</span>
     {/if}

@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { get } from 'svelte/store';
-import { api, ApiError, controlRequest, getJobInputJson, getNamespace, online, resetSessionForTests, sessionExpired } from './api.ts';
+import { api, ApiError, controlRequest, getJobInputJson, getNamespace, online, permissionRefused, resetSessionForTests, sessionExpired } from './api.ts';
 
 (globalThis as unknown as { document: { baseURI: string } }).document = {
   baseURI: 'http://localhost/acta/'
@@ -207,6 +207,19 @@ test('getJobInputJson reads the stored json input as text and answers null for e
     (error: unknown) => error instanceof ApiError && error.status === 400 && error.detail === 'jobRef is not a valid job ref.'
   );
   assert.equal(requested[0], '/acta/api/v1/jobs/job_1/input');
+});
+
+test("a 403 asks for the caller's permissions again, but the capabilities read's own 403 does not", async () => {
+  globalThis.fetch = (async () =>
+    new Response('{"title":"Permission denied.","detail":"This operation needs the acta.control permission."}', {
+      status: 403
+    })) as typeof fetch;
+  const before = get(permissionRefused);
+
+  await assert.rejects(() => controlRequest('jobs/J1/pause', {}, { action: 'not-found' }));
+  assert.equal(get(permissionRefused), before + 1);
+  await assert.rejects(() => api('capabilities'));
+  assert.equal(get(permissionRefused), before + 1);
 });
 
 // Last in the file: the session gate is module state, so this test resets it on the way out.

@@ -3,7 +3,7 @@
   import { useControlMutation } from '../lib/useControlMutation.ts';
   import { previewSchedule, type ScheduleControlResponse, type SchedulePreview } from '../api.ts';
   import { scheduleControlMessage } from '../lib/controlMessages.ts';
-  import { capabilitiesQuery, canControl } from '../query.ts';
+  import { capabilitiesQuery, can, Permission } from '../query.ts';
   import { scheduleControlState } from './scheduleControlState.ts';
   import { displayFormatter, parseUtcDateTimeInput } from '../format.ts';
   import ConfirmAction from './ConfirmAction.svelte';
@@ -27,7 +27,7 @@
   } = $props();
 
   const capabilities = createQuery(() => capabilitiesQuery());
-  let canControlNow = $derived(canControl(capabilities.data));
+  let canControlNow = $derived(can(capabilities.data, Permission.control));
 
   let message = $state('');
   let messageKind = $state('');

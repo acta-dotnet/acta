@@ -410,6 +410,63 @@ public sealed class PermissionTests
         Assert.Equal(HttpStatusCode.Forbidden, enqueuer.StatusCode);
     }
 
+    [Theory]
+    [InlineData("acta.read")]
+    [InlineData("acta.read,acta.control")]
+    [InlineData("acta.read,acta.enqueue")]
+    [InlineData("acta.read,acta.admin")]
+    [InlineData("acta.read,acta.enqueue,acta.control,acta.admin")]
+    public async Task Capabilities_list_exactly_the_permissions_the_caller_holds(string held)
+    {
+        var (app, client) = await StartAsync();
+        await using var _ = app;
+
+        var response = await client.SendAsync(
+            Holding(HttpMethod.Get, "/acta/api/v1/capabilities", held),
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(held.Split(','), await CapabilityPermissionsAsync(response));
+    }
+
+    // Read names the header scheme while Control evaluates the default principal, the cookie, which this caller lacks: the
+    // header's control claim must not leak from the Read check into the Control probe.
+    [Fact]
+    public async Task Capabilities_probe_each_permission_from_the_callers_own_principal()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var (app, client) = await StartAsync(
+            defaultScheme: CookieAuthenticationDefaults.AuthenticationScheme,
+            configureBuilder: builder =>
+                builder.Services.PostConfigure<AuthorizationOptions>(options =>
+                    options.AddPolicy(
+                        ActaPermissions.Read,
+                        rule => rule.AddAuthenticationSchemes(HeaderScheme).RequireClaim(PermissionClaim, ActaPermissions.Read)
+                    )
+                )
+        );
+        await using var _ = app;
+
+        var capabilities = await client.SendAsync(Holding(HttpMethod.Get, "/acta/api/v1/capabilities", "acta.read,acta.control"), ct);
+        var cancel = Holding(HttpMethod.Post, $"/acta/api/v1/jobs/{Found}/cancel", "acta.read,acta.control");
+        cancel.Headers.Add("X-Acta-Control", "true");
+        var control = await client.SendAsync(cancel, ct);
+        var rejected = await client.SendAsync(Holding(HttpMethod.Get, "/acta/api/v1/capabilities", Rejected), ct);
+
+        Assert.Equal(HttpStatusCode.OK, capabilities.StatusCode);
+        Assert.Equal([ActaPermissions.Read], await CapabilityPermissionsAsync(capabilities));
+        Assert.Equal(HttpStatusCode.Unauthorized, control.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, rejected.StatusCode);
+    }
+
+    private static async Task<string[]> CapabilityPermissionsAsync(HttpResponseMessage response) =>
+        [
+            .. JsonNode.Parse(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken))!["permissions"]!
+                .AsArray()
+                .Select(p => p!.GetValue<string>()),
+        ];
+
     // The default scheme is the cookie, so only the policy's own scheme can name the caller the control records.
     [Fact]
     public async Task A_policy_scheme_authenticates_the_caller_and_names_the_actor()

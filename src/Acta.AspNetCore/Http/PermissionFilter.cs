@@ -15,13 +15,16 @@ namespace Acta.AspNetCore;
 /// </summary>
 internal static class PermissionFilter
 {
-    private static readonly string[] Permissions =
+    internal static readonly string[] Permissions =
     [
         ActaPermissions.Read,
         ActaPermissions.Enqueue,
         ActaPermissions.Control,
         ActaPermissions.Admin,
     ];
+
+    // The principal the request carried before the check authenticated it for its route, kept for the capabilities read.
+    private static readonly object CallerKey = new();
 
     /// <summary>Attaches the check to the mount; throws unless the host defines a policy for every permission.</summary>
     public static void Attach(RouteGroupBuilder group, IServiceProvider services)
@@ -61,13 +64,8 @@ internal static class PermissionFilter
         // A route of the API names its permission; what else the mount serves is the dashboard's pages, which read.
         var operation = http.GetEndpoint()?.Metadata.GetMetadata<ActaOperationAttribute>();
         var permission = operation?.Permission ?? ActaPermissions.Read;
-        var policy =
-            await http.RequestServices.GetRequiredService<IAuthorizationPolicyProvider>().GetPolicyAsync(permission)
-            ?? throw new InvalidOperationException($"The authorization policy '{permission}' is not defined.");
-
-        var evaluator = http.RequestServices.GetRequiredService<IPolicyEvaluator>();
-        var authentication = await evaluator.AuthenticateAsync(policy, http);
-        var authorization = await evaluator.AuthorizeAsync(policy, authentication, http, http);
+        http.Items[CallerKey] = http.User;
+        var (policy, authorization) = await EvaluateAsync(http, permission);
         if (authorization.Succeeded)
         {
             return await next(context);
@@ -115,5 +113,48 @@ internal static class PermissionFilter
         }
 
         return Results.Empty;
+    }
+
+    /// <summary>
+    /// The permissions whose policy this request's caller satisfies, in declared order, each probed from the principal
+    /// the request carried before its route's check: a policy that names its own schemes replaces the principal, so a
+    /// probe that started from another probe's would answer for a different caller. <c>HttpContext.User</c> is put back
+    /// after each probe.
+    /// </summary>
+    public static async Task<IReadOnlyList<string>> HeldAsync(HttpContext http)
+    {
+        var current = http.User;
+        var caller = http.Items[CallerKey] as System.Security.Claims.ClaimsPrincipal ?? current;
+        var held = new List<string>();
+        foreach (var permission in Permissions)
+        {
+            http.User = caller;
+            try
+            {
+                if ((await EvaluateAsync(http, permission)).Authorization.Succeeded)
+                {
+                    held.Add(permission);
+                }
+            }
+            finally
+            {
+                http.User = current;
+            }
+        }
+
+        return held;
+    }
+
+    private static async Task<(AuthorizationPolicy Policy, PolicyAuthorizationResult Authorization)> EvaluateAsync(
+        HttpContext http,
+        string permission
+    )
+    {
+        var policy =
+            await http.RequestServices.GetRequiredService<IAuthorizationPolicyProvider>().GetPolicyAsync(permission)
+            ?? throw new InvalidOperationException($"The authorization policy '{permission}' is not defined.");
+        var evaluator = http.RequestServices.GetRequiredService<IPolicyEvaluator>();
+        var authentication = await evaluator.AuthenticateAsync(policy, http);
+        return (policy, await evaluator.AuthorizeAsync(policy, authentication, http, http));
     }
 }

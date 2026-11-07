@@ -1,7 +1,7 @@
 <script lang="ts">
   import { createQuery } from '@tanstack/svelte-query';
   import { useControlMutation } from '../lib/useControlMutation.ts';
-  import { capabilitiesQuery, canControl } from '../query.ts';
+  import { capabilitiesQuery, can, Permission } from '../query.ts';
   import { displayFormatter } from '../format.ts';
   import { outboxControlMessage } from '../lib/controlMessages.ts';
   import ConfirmAction from './ConfirmAction.svelte';
@@ -32,7 +32,10 @@
   } = $props();
 
   const capabilities = createQuery(() => capabilitiesQuery());
-  let canControlNow = $derived(canControl(capabilities.data));
+  let canControlNow = $derived(can(capabilities.data, Permission.control));
+  let canAdminNow = $derived(can(capabilities.data, Permission.admin));
+  // Requeue needs control and discard admin; the column shows for either.
+  let canActNow = $derived(canControlNow || canAdminNow);
 
   let message = $state('');
   let messageKind = $state('');
@@ -73,7 +76,7 @@
 <div class="panel">
   <h2>Outbox relays</h2>
   <!-- The shared four-column grid has no width for a fifth column, so with the Actions column the table sizes itself. -->
-  <DataTable ledger={!canControlNow}>
+  <DataTable ledger={!canActNow}>
     <caption class="sr-only">Outbox relay sources</caption>
     <thead>
       <tr>
@@ -81,7 +84,7 @@
         <th>Backlog</th>
         <th>Quarantined</th>
         <th>Last tick</th>
-        {#if canControlNow}<th class="actions-col">Actions</th>{/if}
+        {#if canActNow}<th class="actions-col">Actions</th>{/if}
       </tr>
     </thead>
     <tbody>
@@ -91,22 +94,26 @@
           <td>{source.backlog === null ? '-' : displayFormatter.number(source.backlog)}</td>
           <td>{source.quarantineTotal === null ? '-' : displayFormatter.number(source.quarantineTotal)}</td>
           <td class="mono tick" title={source.lastTickSummary ?? undefined}>{source.lastTickSummary ?? 'no successful tick yet'}</td>
-          {#if canControlNow}
+          {#if canActNow}
             <td class="actions-col">
               <!-- Both verbs target every quarantined row of the source (the API also takes explicit
                    ids; the card keeps the bulk form). Buttons stay enabled only when there is
                    something quarantined to act on. -->
-              <button
-                disabled={busy || (source.quarantineTotal ?? 0) === 0}
-                onclick={() => (confirming = { verb: 'requeue', jobNamespace: source.jobNamespace, quarantined: source.quarantineTotal ?? 0 })}>
-                Requeue
-              </button>
-              <button
-                class="danger-outline"
-                disabled={busy || (source.quarantineTotal ?? 0) === 0}
-                onclick={() => (confirming = { verb: 'discard', jobNamespace: source.jobNamespace, quarantined: source.quarantineTotal ?? 0 })}>
-                Discard
-              </button>
+              {#if canControlNow}
+                <button
+                  disabled={busy || (source.quarantineTotal ?? 0) === 0}
+                  onclick={() => (confirming = { verb: 'requeue', jobNamespace: source.jobNamespace, quarantined: source.quarantineTotal ?? 0 })}>
+                  Requeue
+                </button>
+              {/if}
+              {#if canAdminNow}
+                <button
+                  class="danger-outline"
+                  disabled={busy || (source.quarantineTotal ?? 0) === 0}
+                  onclick={() => (confirming = { verb: 'discard', jobNamespace: source.jobNamespace, quarantined: source.quarantineTotal ?? 0 })}>
+                  Discard
+                </button>
+              {/if}
             </td>
           {/if}
         </tr>

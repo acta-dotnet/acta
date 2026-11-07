@@ -2,7 +2,7 @@
   import { createQuery } from '@tanstack/svelte-query';
   import type { AdminControlResult, NamespaceListItem, Paged } from '../api.ts';
   import { api, getNamespace } from '../api.ts';
-  import { capabilitiesQuery, canControl, keys } from '../query.ts';
+  import { capabilitiesQuery, can, Permission, keys } from '../query.ts';
   import { useControlMutation } from '../lib/useControlMutation.ts';
   import Page from '../components/Page.svelte';
   import Icon from '../components/Icon.svelte';
@@ -64,7 +64,7 @@
 
   let loading = $derived(detail.isPending);
   let error = $derived(detail.error instanceof Error ? detail.error.message : detail.error ? String(detail.error) : '');
-  let canControlNow = $derived(canControl(capabilities.data));
+  let canControlNow = $derived(can(capabilities.data, Permission.admin));
   let systemNamespace = $derived(namespace ? isSysNamespace(namespace.jobNamespace) : false);
 
   const detailsMutation = useControlMutation<
@@ -268,7 +268,7 @@
           </nav>
         </section>
 
-        <TagEditor path={`namespaces/${encodeURIComponent(namespace.jobNamespace)}/tags`} />
+        <TagEditor path={`namespaces/${encodeURIComponent(namespace.jobNamespace)}/tags`} permission={Permission.admin} />
       </aside>
     </div>
   {/if}

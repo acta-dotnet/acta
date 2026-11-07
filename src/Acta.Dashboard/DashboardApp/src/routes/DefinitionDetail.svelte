@@ -1,7 +1,7 @@
 <script>
   import { createQuery } from '@tanstack/svelte-query';
   import { api, retireDefinition, updateDefinitionOverrides } from '../api';
-  import { keys } from '../query';
+  import { capabilitiesQuery, can, keys, Permission } from '../query';
   import Page from '../components/Page.svelte';
   import Icon from '../components/Icon.svelte';
   import DataTable from '../components/DataTable.svelte';
@@ -85,6 +85,9 @@
   let note = $state('');
   let retiring = $state(false);
   let confirmingRetire = $state(false);
+  // Overrides and retire are admin; without it the page reads the policy and changes nothing.
+  const capabilities = createQuery(() => capabilitiesQuery());
+  let canAdminNow = $derived(can(capabilities.data, Permission.admin));
   // The editable override inputs, keyed by field key. '' = inherit (clear the override).
   let inputs = $state({});
 
@@ -213,25 +216,33 @@
                 <tr>
                   <td>{f.label}</td>
                   <td class="mono dim">{displayPolicyValue(f, def[f.key])}</td>
-                  <td><input class="ovr-in" bind:value={inputs[f.key]} placeholder="inherit" /></td>
+                  <td><input class="ovr-in" bind:value={inputs[f.key]} placeholder="inherit" disabled={!canAdminNow} /></td>
                   <td class="mono">{displayPolicyValue(f, def[f.key + 'Effective'])}</td>
                 </tr>
               {/each}
             </tbody>
           </DataTable>
 
-          <label class="detail-field">
-            <span>Audit note</span>
-            <input bind:value={note} placeholder="Why are you changing this?" disabled={saving} />
-          </label>
-          <div class="detail-form-actions">
-            <button class="primary" onclick={save} disabled={saving || retiring}>{saving ? 'Saving...' : 'Save overrides'}</button>
-            <button onclick={clearAll} disabled={saving || retiring}>Clear all</button>
-            <button
-              class="danger-outline"
-              onclick={() => (confirmingRetire = true)}
-              disabled={saving || retiring || def.status === 'retired'}>Retire definition</button>
-          </div>
+          {#if canAdminNow}
+            <label class="detail-field">
+              <span>Audit note</span>
+              <input bind:value={note} placeholder="Why are you changing this?" disabled={saving} />
+            </label>
+            <div class="detail-form-actions">
+              <button class="primary" onclick={save} disabled={saving || retiring}>{saving ? 'Saving...' : 'Save overrides'}</button>
+              <button onclick={clearAll} disabled={saving || retiring}>Clear all</button>
+              <button
+                class="danger-outline"
+                onclick={() => (confirmingRetire = true)}
+                disabled={saving || retiring || def.status === 'retired'}>Retire definition</button>
+            </div>
+          {:else if capabilities.isSuccess}
+            <p class="dim">
+              {capabilities.data?.controlsEnabled
+                ? 'Changing overrides or retiring a definition needs the acta.admin permission.'
+                : 'Definition controls are disabled on this host.'}
+            </p>
+          {/if}
           {#if message}<div class="control-message {messageKind}" role="status">{message}</div>{/if}
         </section>
 
@@ -252,7 +263,7 @@
           </nav>
         </section>
 
-        <TagEditor path={definitionPath + '/tags'} />
+        <TagEditor path={definitionPath + '/tags'} permission={Permission.admin} />
 
         <section class="detail-panel">
           <h2>Contract</h2>

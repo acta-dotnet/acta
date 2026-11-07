@@ -1,7 +1,7 @@
 // Run with Node's built-in test runner + native type-stripping (see "npm test").
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { canControl, capabilitiesQuery, keys, listPage, retryOnce } from './query.ts';
+import { can, canWriteAny, capabilitiesQuery, keys, listPage, Permission, retryOnce } from './query.ts';
 import { ApiError } from './api.ts';
 import { DETAIL_REFETCH_MS, detailRefetchInterval } from './polling.ts';
 
@@ -29,19 +29,33 @@ test('listPage keys include includeTotal only when set, cursor only when paged',
   assert.deepEqual(deep.queryKey, ['workers', { pageSize: 50, cursor: 'c9', includeTotal: true }]);
 });
 
-test('capabilitiesQuery is keyed and cached for the process lifetime', () => {
+test('capabilitiesQuery is keyed and read again on focus, since grants change while a page is open', () => {
   const opts = capabilitiesQuery();
   assert.deepEqual(opts.queryKey, ['capabilities']);
-  assert.equal(opts.staleTime, Infinity);
+  assert.notEqual(opts.staleTime, Infinity);
+  assert.equal(opts.refetchOnWindowFocus, 'always');
 });
 
-test('canControl fails closed when capabilities is undefined or controls are off', () => {
-  assert.equal(canControl(undefined), false);
-  assert.equal(canControl({ controlsEnabled: false, provider: 'pg', schema: 'acta', confirmationHeader: 'X-Acta-Control' }), false);
+const caps = (controlsEnabled: boolean, permissions: string[]) => ({
+  controlsEnabled,
+  provider: 'pg',
+  schema: 'acta',
+  confirmationHeader: 'X-Acta-Control',
+  permissions
 });
 
-test('canControl is true only when the server says controls are enabled', () => {
-  assert.equal(canControl({ controlsEnabled: true, provider: 'pg', schema: 'acta', confirmationHeader: 'X-Acta-Control' }), true);
+test('can fails closed until capabilities load, when controls are off, or when the caller lacks the permission', () => {
+  assert.equal(can(undefined, Permission.control), false);
+  assert.equal(can(caps(false, ['acta.read', 'acta.control']), Permission.control), false);
+  assert.equal(can(caps(true, ['acta.read']), Permission.control), false);
+  assert.equal(can(caps(true, ['acta.read', 'acta.control']), Permission.control), true);
+  assert.equal(can(caps(true, ['acta.read', 'acta.control']), Permission.admin), false);
+});
+
+test('canWriteAny is false for a reader and true for any write permission', () => {
+  assert.equal(canWriteAny(caps(true, ['acta.read'])), false);
+  assert.equal(canWriteAny(caps(true, ['acta.read', 'acta.enqueue'])), true);
+  assert.equal(canWriteAny(caps(false, ['acta.read', 'acta.admin'])), false);
 });
 
 test('detail polling stops when live updates are paused or the entity is inactive', () => {

@@ -16,7 +16,7 @@ internal static class GetCapabilitiesEndpoint
         reads
             .MapGet(
                 "/capabilities",
-                (HttpContext http, IActaOperations operations) =>
+                async (HttpContext http, IActaOperations operations) =>
                 {
                     var version =
                         typeof(IJobs).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
@@ -31,7 +31,9 @@ internal static class GetCapabilitiesEndpoint
                         EngineVersion: version,
                         Provider: ProviderCode(operations.Provider),
                         Schema: schema,
-                        ConfirmationHeader: options.ControlConfirmationHeaderName
+                        ConfirmationHeader: options.ControlConfirmationHeaderName,
+                        // Without RequirePermissions no policy exists to ask, and every route serves whoever reaches it.
+                        Permissions: options.RequirePermissions ? await PermissionFilter.HeldAsync(http) : PermissionFilter.Permissions
                     );
                     return Results.Json(body, ActaApiJsonContext.Default.GetCapabilitiesResponse);
                 }

@@ -28,7 +28,7 @@
   import { buildIncidentSummary, latestMeaningfulEvent } from './job-detail/jobDetailState.ts';
   import { statusTonePresentation } from '../components/jobTimelineState.ts';
   import { routes } from '../routes.ts';
-  import { capabilitiesQuery, canControl } from '../query.ts';
+  import { capabilitiesQuery, can, Permission } from '../query.ts';
   import { detailRefetchInterval, livePaused } from '../polling.ts';
 
   let { jobRef }: { jobRef: string } = $props();
@@ -62,10 +62,11 @@
   let detail = $derived(detailQuery.data ?? null);
   let job = $derived(detail?.job ?? null);
 
-  // canControl gates only the mutating affordances (Clone/enqueue and the input amend edit); the
-  // payload panels themselves render for everyone, since the detail read is on the open read surface.
+  // The permissions gate only the mutating affordances: Clone enqueues, and the input amend edit is a
+  // control. The payload panels render for everyone, since the detail read is on the read surface.
   const capabilities = createQuery(() => capabilitiesQuery());
-  let canControlNow = $derived(canControl(capabilities.data));
+  let canControlNow = $derived(can(capabilities.data, Permission.control));
+  let canEnqueueNow = $derived(can(capabilities.data, Permission.enqueue));
 
   let missing = $derived(!detailQuery.isPending && !detailQuery.error && detailQuery.data === null);
   let explanation = $derived(detail?.explain ?? null);
@@ -159,7 +160,7 @@
     <h1 class="crumb-current mono">{jobRef}</h1>
   {/snippet}
   {#snippet actions()}
-    {#if canControlNow && job}
+    {#if canEnqueueNow && job}
       <a class="clone-action" href={routes.enqueue({ namespace: job.jobNamespace, jobName: job.jobName, from: job.jobRef })}><Icon name="copy" />Clone</a>
     {/if}
     <CopyButton value={jobRef} label="Copy ref" />
@@ -248,7 +249,7 @@
             <a href={routes.events({ namespace: job.jobNamespace, jobRef: job.jobRef })}>Events</a>
           </nav>
         </section>
-        <TagEditor path={`jobs/${jobRef}/tags`} />
+        <TagEditor path={`jobs/${jobRef}/tags`} permission={Permission.control} />
       </aside>
     </div>
   {:else}

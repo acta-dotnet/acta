@@ -1,7 +1,7 @@
 <script lang="ts">
   import { createQuery } from '@tanstack/svelte-query';
   import type { CalendarListItem } from '../api.ts';
-  import { capabilitiesQuery, canControl } from '../query.ts';
+  import { capabilitiesQuery, can, Permission } from '../query.ts';
   import Icon from '../components/Icon.svelte';
   import { hashParams, updateHashParams } from '../router';
   import { scope, setScope } from '../scope';
@@ -34,7 +34,7 @@
   }
 
   const capabilities = createQuery(() => capabilitiesQuery());
-  let canControlNow = $derived(canControl(capabilities.data));
+  let canControlNow = $derived(can(capabilities.data, Permission.admin));
 
   let copySql = $derived(
     calendarsListSql(

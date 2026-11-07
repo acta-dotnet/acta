@@ -114,6 +114,19 @@ const executionEvent = definitionEvent({
   detailsText: null
 });
 
+// The page's overrides and retire are admin, so the tests that use them answer as an admin caller.
+const adminCapabilities = () =>
+  new Response(
+    JSON.stringify({
+      controlsEnabled: true,
+      engineVersion: 'v',
+      provider: 'sqlite',
+      confirmationHeader: 'X-Acta-Control',
+      permissions: ['acta.read', 'acta.admin']
+    }),
+    { status: 200 }
+  );
+
 function stubFetch(handler: (url: URL) => Response) {
   vi.stubGlobal(
     'fetch',
@@ -179,6 +192,7 @@ describe('DefinitionDetail retire', () => {
       vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
         const url = new URL(input as string | URL);
         calls.push({ url, init });
+        if (url.pathname.endsWith('/capabilities')) return adminCapabilities();
         if (url.pathname.endsWith('/retire')) {
           return new Response(
             JSON.stringify({ action: 'applied' }),
@@ -198,6 +212,24 @@ describe('DefinitionDetail retire', () => {
 
     expect(await screen.findByText('per-occurrence')).toBeTruthy();
     expect(screen.getByText('pause-scheduling')).toBeTruthy();
+  });
+
+  it('offers no override or retire action to a caller without admin', async () => {
+    stubFetch((url) =>
+      url.pathname.endsWith('/capabilities')
+        ? new Response(
+            JSON.stringify({ controlsEnabled: true, engineVersion: 'v', provider: 'sqlite', confirmationHeader: 'X-Acta-Control', permissions: ['acta.read', 'acta.control'] }),
+            { status: 200 }
+          )
+        : url.pathname.endsWith('/events')
+          ? pagedResponse([])
+          : new Response(JSON.stringify(definition), { status: 200 })
+    );
+    render(DefinitionDetailHarness, { jobNamespace, jobName });
+
+    expect(await screen.findByText('Changing overrides or retiring a definition needs the acta.admin permission.')).toBeTruthy();
+    expect(screen.queryByText('Retire definition')).toBeNull();
+    expect(screen.queryByText('Save overrides')).toBeNull();
   });
 
   it('offers the retire action on an active definition', async () => {
@@ -241,6 +273,7 @@ describe('DefinitionDetail overrides', () => {
       vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
         const url = new URL(input as string | URL);
         calls.push({ url, init });
+        if (url.pathname.endsWith('/capabilities')) return adminCapabilities();
         if (url.pathname.endsWith('/overrides')) return new Response(JSON.stringify({ action: 'applied', version: 4 }), { status: 200 });
         if (url.pathname.endsWith('/events')) return pagedResponse([]);
         return new Response(JSON.stringify({ ...definition, maxAttemptsEffective: 7, overrides }), { status: 200 });

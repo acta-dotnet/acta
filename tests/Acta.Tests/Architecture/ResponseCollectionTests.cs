@@ -20,6 +20,8 @@ public sealed class ResponseCollectionTests
         // Each branch of the explanation adds at most three moves.
         ["ExplainJobResponse.NextActions"] = "the explanation's branches",
         ["ExplainJobResponse.Steps"] = nameof(ExplainJobHandler.StepLimit),
+        // At most the four permissions there are.
+        ["GetCapabilitiesResponse.Permissions"] = "the ActaPermissions values",
         ["GetJobDetailResponse.Schedules"] = nameof(GetJobDetailResponse.SchedulePageSize),
         ["GetJobDetailResponse.Workers"] = nameof(GetJobDetailResponse.WorkerPageSize),
         ["GetJobLineageMapResponse.Ancestors"] = nameof(GetJobLineageMapHandler.AncestorLimit),

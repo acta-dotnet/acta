@@ -75,7 +75,6 @@ Execution is at-least-once, and a handler re-enters from the top with its comple
 
 Authentication is the host's: Acta ships none. The surface is local-only by default with controls off, and behind a reverse proxy on the same host `LocalOnly` protects nothing.
 
-- **Under `RequirePermissions` the dashboard shows every control, whatever the caller holds.** A control the caller lacks the permission for answers a 403, which the dashboard shows as an error.
 - **Behind a host that authorizes the dashboard's mount with its own cookie scheme, a lapsed session shows errors until the page is reloaded.** Such a host answers the dashboard's calls with a redirect to its sign-in page, not the 401 that `RequirePermissions` answers and the dashboard stops on, and only a reloaded page follows the redirect.
 - **The calendar definition schema is for generators, not for a strict validator.** `CalendarDefinition` is a `oneOf` of one schema per kind, chosen by `kind`, which is a plain string in each: holding it to its value with an enum or a pattern breaks the generated C# client, and `anyOf` breaks the TypeScript one. Union and intersection have one shape, so a validator that applies `oneOf` to the letter refuses a valid union or intersection; a generated client reads the discriminator and is unaffected, and the server compiles what it is sent.
 

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { createQuery } from '@tanstack/svelte-query';
   import { api, enqueueJob, getDefinitionInputTemplate, getJobInputJson, type JobPayloadView, type NamespaceListItem, type Paged } from '../api.ts';
-  import { capabilitiesQuery, canControl, keys } from '../query.ts';
+  import { capabilitiesQuery, can, Permission, keys } from '../query.ts';
   import { hashParams } from '../router.ts';
   import { cloneInputState, enqueueInputFields, inputContractLabel, templateSeed } from './enqueueTemplate.ts';
   import { checkKey, keyHint } from './enqueueKeys.ts';
@@ -40,7 +40,7 @@
   let createdRef = $state('');
 
   const capabilities = createQuery(() => capabilitiesQuery());
-  let canControlNow = $derived(canControl(capabilities.data));
+  let canControlNow = $derived(can(capabilities.data, Permission.enqueue));
 
   // Both identifiers are picked, never typed: enqueue resolves namespace and job name against the
   // registered catalog and rejects anything else, so free text could only produce a failed request.

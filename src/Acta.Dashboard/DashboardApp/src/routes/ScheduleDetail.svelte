@@ -2,7 +2,7 @@
   import { createQuery } from '@tanstack/svelte-query';
   import type { Paged } from '../api.ts';
   import { api } from '../api.ts';
-  import { capabilitiesQuery, canControl, keys } from '../query.ts';
+  import { capabilitiesQuery, can, Permission, keys } from '../query.ts';
   import Page from '../components/Page.svelte';
   import Icon from '../components/Icon.svelte';
   import StateView from '../components/StateView.svelte';
@@ -84,7 +84,7 @@
   });
 
   const capabilities = createQuery(() => capabilitiesQuery());
-  let canControlNow = $derived(canControl(capabilities.data));
+  let canControlNow = $derived(can(capabilities.data, Permission.control));
 
   // Schedule lifecycle events carry the definition's id whichever row they are recorded against: the
   // slot job of a permanent definition, or the definition itself for a per-occurrence one, which has no

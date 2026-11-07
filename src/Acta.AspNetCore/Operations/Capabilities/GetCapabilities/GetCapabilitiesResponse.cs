@@ -12,10 +12,15 @@ namespace Acta.AspNetCore;
 /// The name of the confirmation header, which a control sends with the value true unless it sends a JSON content type or a
 /// bearer token.
 /// </param>
+/// <param name="Permissions">
+/// The permissions this caller holds, of acta.read, acta.enqueue, acta.control, and acta.admin: under RequirePermissions
+/// the ones whose policy the caller satisfies, otherwise all four. A control also needs controlsEnabled.
+/// </param>
 internal sealed record GetCapabilitiesResponse(
     bool ControlsEnabled,
     string EngineVersion,
     string Provider,
     string Schema,
-    string ConfirmationHeader
+    string ConfirmationHeader,
+    IReadOnlyList<string> Permissions
 );

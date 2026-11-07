@@ -3,7 +3,7 @@
   import Icon from '../components/Icon.svelte';
   import { hashParams, updateHashParams } from '../router';
   import { scope, setScope } from '../scope';
-  import { capabilitiesQuery, canControl } from '../query.ts';
+  import { capabilitiesQuery, can, Permission } from '../query.ts';
   import { useControlMutation } from '../lib/useControlMutation.ts';
   import type { AlertControlResponse } from '../api.ts';
   import { alertStateBucket, alertStateMatches, alertStateQuery, type AlertStateBucket } from './alertStateFilter.ts';
@@ -48,7 +48,7 @@
   let stateFilter = $derived($filters.state as AlertStateBucket);
 
   const capabilities = createQuery(() => capabilitiesQuery());
-  let canControlNow = $derived(canControl(capabilities.data));
+  let canControlNow = $derived(can(capabilities.data, Permission.control));
 
   const columns: ColumnDef<AlertRow>[] = [
     { key: 'severity', header: 'Severity' },

@@ -5,6 +5,7 @@ import TagEditorHarness from '../test/TagEditorHarness.svelte';
 
 interface StubOptions {
   controlsEnabled?: boolean;
+  permissions?: string[];
   tags?: { name: string; value: string | null }[];
 }
 
@@ -22,7 +23,7 @@ function stubFetch(options: StubOptions = {}) {
     });
     if (url.includes('/capabilities')) {
       return new Response(
-        JSON.stringify({ controlsEnabled: options.controlsEnabled ?? true, engineVersion: 'v', provider: 'sqlite', confirmationHeader: 'X-Acta-Control' }),
+        JSON.stringify({ controlsEnabled: options.controlsEnabled ?? true, engineVersion: 'v', provider: 'sqlite', confirmationHeader: 'X-Acta-Control', permissions: options.permissions ?? ['acta.read', 'acta.control'] }),
         { status: 200 }
       );
     }
@@ -82,6 +83,23 @@ describe('TagEditor', () => {
     await screen.findByText('env: prod');
     expect(screen.queryByLabelText('New tag')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Remove env' })).toBeNull();
+  });
+
+  it('hides add and remove controls from a caller without the owner\'s permission', async () => {
+    stubFetch({ permissions: ['acta.read', 'acta.control'] });
+    render(TagEditorHarness, { path: 'namespaces/billing/tags', permission: 'acta.admin' });
+
+    await screen.findByText('env: prod');
+    expect(screen.queryByLabelText('New tag')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Remove env' })).toBeNull();
+  });
+
+  it('shows add and remove controls to a caller with the owner\'s permission', async () => {
+    stubFetch({ permissions: ['acta.read', 'acta.admin'] });
+    render(TagEditorHarness, { path: 'namespaces/billing/tags', permission: 'acta.admin' });
+
+    await screen.findByText('env: prod');
+    expect(await screen.findByLabelText('New tag')).toBeTruthy();
   });
 
   it('renders nothing when read-only and empty', async () => {

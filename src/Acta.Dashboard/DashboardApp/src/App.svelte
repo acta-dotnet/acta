@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { hashParams, route } from './router';
   import { scope } from './scope';
-  import { api, online, sessionExpired } from './api';
+  import { api, online, permissionRefused, sessionExpired } from './api';
   import ScopeSelector from './components/ScopeSelector.svelte';
   import AppearanceMenu from './components/AppearanceMenu.svelte';
   import QuickSearch from './components/QuickSearch.svelte';
@@ -31,7 +31,7 @@
   import NotFound from './routes/NotFound.svelte';
   import { navigationGroups, navigationHref, routeMetadata, routes } from './routes.ts';
   import { QueryClientProvider, createQuery } from '@tanstack/svelte-query';
-  import { createAppQueryClient, capabilitiesQuery, canControl } from './query';
+  import { createAppQueryClient, capabilitiesQuery, canWriteAny, keys } from './query';
 
   const queryClient = createAppQueryClient();
   // App renders the QueryClientProvider in its own markup, so it is not itself inside that context.
@@ -49,13 +49,16 @@
     return view === 'permanent' ? 'jobs-permanent' : view === 'history' ? 'jobs-history' : 'jobs';
   });
 
-  // Read-only gate every control surface reads (directly, via canControl(capabilities.data) on its
-  // own createQuery(() => capabilitiesQuery()) - same cache key, one fetch). Fails closed (false)
-  // until capabilities has loaded.
-  let canControlNow = $derived(canControl(capabilities.data));
-  // "Unknown while loading" is still read-only for controls, but it is not evidence that the host
-  // has disabled them. Wait for the successful response before showing the mode chip.
-  let readOnlyHost = $derived(capabilities.isSuccess && !canControlNow);
+  // Every control surface gates on can(capabilities.data, permission) over its own createQuery of the
+  // same cache key. The chip shows when no control is open to this caller: the host maps none, or the
+  // caller holds no permission that changes anything. "Unknown while loading" is not evidence either
+  // way, so the chip waits for the successful response.
+  let readOnlyHost = $derived(capabilities.isSuccess && !canWriteAny(capabilities.data));
+  let controlsOff = $derived(capabilities.data?.controlsEnabled !== true);
+  // A 403 from any other call may mean a grant was revoked, so read the caller's permissions again.
+  onMount(() => permissionRefused.subscribe((count) => {
+    if (count > 0) queryClient.invalidateQueries({ queryKey: keys.capabilities });
+  }));
   let mobileNavOpen = $state(false);
   let quickSearch = $state();
 
@@ -123,8 +126,12 @@
           <div
             class="mode-chip"
             role="status"
-            aria-label="Read-only host: controls are disabled. Reads work everywhere; enable controls with EnableControls."
-            title="Controls are disabled on this host. Reads work everywhere; enable controls with EnableControls."
+            aria-label={controlsOff
+              ? 'Read-only host: controls are disabled. Reads work everywhere; enable controls with EnableControls.'
+              : 'Read-only: your sign-in holds no permission that changes anything. Reads work everywhere.'}
+            title={controlsOff
+              ? 'Controls are disabled on this host. Reads work everywhere; enable controls with EnableControls.'
+              : 'Your sign-in holds no permission that changes anything. Reads work everywhere.'}
           >
             <svg viewBox="0 0 12 12" aria-hidden="true"><rect x="2" y="5" width="8" height="5.5" rx="1" /><path d="M4 5V3.6a2 2 0 0 1 4 0V5" fill="none" /></svg>
             read-only

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { createQuery } from '@tanstack/svelte-query';
   import { api, ApiError, type AlertControlResponse, type AlertDetailView } from '../api.ts';
-  import { keys, capabilitiesQuery, canControl } from '../query.ts';
+  import { keys, capabilitiesQuery, can, Permission } from '../query.ts';
   import { scope } from '../scope.ts';
   import { routes } from '../routes.ts';
   import { useControlMutation } from '../lib/useControlMutation.ts';
@@ -33,7 +33,7 @@
   }));
 
   const capabilities = createQuery(() => capabilitiesQuery());
-  let canControlNow = $derived(canControl(capabilities.data));
+  let canControlNow = $derived(can(capabilities.data, Permission.control));
 
   let alert = $derived(detail.data ?? null);
   let missing = $derived(!detail.isPending && !detail.error && detail.data === null);

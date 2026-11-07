@@ -5,6 +5,10 @@ import type { JobDetail, JobExplanation, JobLineage, JobWorker } from './routes/
 
 export const online = writable(true);
 
+// Counts the 403s of calls other than the capabilities read, so the caller's permissions are read again after one; the
+// capabilities read's own 403 never counts, so a revoked read cannot loop.
+export const permissionRefused = writable(0);
+
 // Set by the first 401: the host's sign-in no longer covers this page. From then every call fails here, without a
 // request, until the page reloads and the host's scheme challenges it.
 export const sessionExpired = writable(false);
@@ -132,6 +136,7 @@ async function request<T>(options: RequestOptions): Promise<{ response: Response
   const parsed = await parseJson(response);
   const accepted = response.ok || options.acceptedStatuses?.includes(response.status) === true;
   if (response.status === 401) throw sessionError();
+  if (response.status === 403 && options.path !== 'capabilities') permissionRefused.update((n) => n + 1);
   if (!accepted) {
     throw new ApiError(
       response.status,
@@ -204,6 +209,8 @@ export interface Capabilities {
   provider: string;
   schema: string;
   confirmationHeader: string;
+  // The permissions this caller holds: acta.read, acta.enqueue, acta.control, acta.admin.
+  permissions: string[];
 }
 
 export async function fetchCapabilities(options: { signal?: AbortSignal } = {}): Promise<Capabilities> {

@@ -2,7 +2,7 @@
   import { createQuery } from '@tanstack/svelte-query';
   import type { AdminControlResult, Paged, TenantListItem } from '../api.ts';
   import { api, ApiError, registerTenant } from '../api.ts';
-  import { capabilitiesQuery, canControl, keys } from '../query.ts';
+  import { capabilitiesQuery, can, Permission, keys } from '../query.ts';
   import { useControlMutation } from '../lib/useControlMutation.ts';
   import Page from '../components/Page.svelte';
   import Icon from '../components/Icon.svelte';
@@ -46,7 +46,7 @@
     refetchInterval: false
   }));
   const capabilities = createQuery(() => capabilitiesQuery());
-  let canControlNow = $derived(canControl(capabilities.data));
+  let canControlNow = $derived(can(capabilities.data, Permission.admin));
 
   let tenant = $state<TenantListItem | null>(null);
 
@@ -330,7 +330,7 @@
           </nav>
         </section>
 
-        <TagEditor path={`tenants/${encodeURIComponent(tenant.tenantName)}/tags`} />
+        <TagEditor path={`tenants/${encodeURIComponent(tenant.tenantName)}/tags`} permission={Permission.admin} />
       </aside>
     </div>
   {/if}

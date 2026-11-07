@@ -28,6 +28,8 @@ public sealed class CapabilitiesEndpointTests
         Assert.Equal("acta", body.Schema);
         Assert.Equal("X-Test-Confirm", body.ConfirmationHeader);
         Assert.False(string.IsNullOrWhiteSpace(body.EngineVersion));
+        // Without RequirePermissions every route serves whoever reaches it, so the caller holds all four.
+        Assert.Equal(["acta.read", "acta.enqueue", "acta.control", "acta.admin"], body.Permissions);
     }
 
     [Fact]
@@ -66,6 +68,7 @@ public sealed class CapabilitiesEndpointTests
         string EngineVersion,
         string Provider,
         string Schema,
-        string ConfirmationHeader
+        string ConfirmationHeader,
+        string[] Permissions
     );
 }
