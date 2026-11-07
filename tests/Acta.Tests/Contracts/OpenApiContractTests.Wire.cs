@@ -681,8 +681,9 @@ public sealed partial class OpenApiContractTests
     }
 
     /// <summary>
-    /// The introduction's empty-body rule holds: a control whose request object is optional answers 400 when it declares
-    /// application/json and sends no bytes, while a signal raise reads the same request as a presence-only signal.
+    /// The introduction's empty-body rule holds: a control whose request object is optional acts with its defaults when
+    /// it declares application/json and sends no bytes, as a generated client does, and a signal raise reads the same
+    /// request as a presence-only signal.
     /// </summary>
     [Fact]
     public async Task An_empty_json_body_answers_as_the_introduction_says()
@@ -695,9 +696,9 @@ public sealed partial class OpenApiContractTests
         var pause = await SendEmptyJsonAsync(client, $"jobs/{FakeJobs.FoundJobRef}/pause");
         var signal = await SendEmptyJsonAsync(client, $"jobs/{FakeJobs.FoundJobRef}/signals/approval");
 
-        Assert.Contains("one that declares application/json and sends no bytes answers 400", description, StringComparison.Ordinal);
-        Assert.Contains("no bytes, with or without the content type, raise a presence-only signal", description, StringComparison.Ordinal);
-        Assert.Equal(HttpStatusCode.BadRequest, pause);
+        Assert.Contains("has no body, with or without a JSON content type", description, StringComparison.Ordinal);
+        Assert.Contains("no bytes raise a presence-only signal", description, StringComparison.Ordinal);
+        Assert.Equal(HttpStatusCode.OK, pause);
         Assert.Equal(HttpStatusCode.OK, signal);
         Assert.Null(Assert.Single(fakes.Jobs.SignalCalls).Value);
     }

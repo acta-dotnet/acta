@@ -505,18 +505,18 @@ public sealed class ControlEndpointTests
     }
 
     [Fact]
-    public async Task A_declared_json_body_with_no_bytes_is_400_and_never_reaches_jobs()
+    public async Task A_declared_json_body_with_no_bytes_acts_as_no_body()
     {
         var fakes = new FakeOperations();
         var (app, client) = await StartWithControlsAsync(fakes);
         await using var _ = app;
 
-        // A declared content type says a body follows, so an empty one is malformed JSON, not an absent body; the
-        // OpenAPI document tells a client to send {} or no content type.
+        // A generated client declares application/json on every call of an operation that takes a body, also when it
+        // sends none; the bytes decide, so the control acts with its defaults.
         var response = await client.SendAsync(Post($"/acta/api/v1/jobs/{Found}/pause", rawBody: ""), TestContext.Current.CancellationToken);
 
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        Assert.Empty(fakes.Jobs.ControlCalls);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Null(Assert.Single(fakes.Jobs.ControlCalls).Reason);
     }
 
     private static HttpRequestMessage PostReschedule(

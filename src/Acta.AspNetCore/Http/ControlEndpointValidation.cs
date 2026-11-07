@@ -231,32 +231,24 @@ internal static class ControlEndpointValidation
     }
 
     /// <summary>
-    /// Whether the request carries a body, for the optional-body readers. Headers answer it whenever
-    /// the caller declared either one; otherwise the stream itself is asked.
+    /// Whether the request carries a body, for the optional-body readers: its bytes decide, never its headers alone. A
+    /// declared length answers it; without one the stream itself is asked. So a client that declares application/json
+    /// on a call it sends no body with, as generated clients do, acts with the defaults like any bodyless call, and a
+    /// body sent with no length and no content type (a chunked or HTTP/2 stream) is still seen and answers its 415
+    /// instead of being read as absent, which would turn a scoped outbox discard into one over every quarantined row.
     /// </summary>
-    /// <remarks>
-    /// Presence has to be proved rather than assumed. Content-Length is absent from a chunked HTTP/1.1
-    /// request and from any HTTP/2 or HTTP/3 request whose sender declares no length, and the clients
-    /// that send those (a .NET StreamContent over a non-seekable stream, Go's http.NewRequest, Python's
-    /// requests with a generator) set no Content-Type either. Reading that as "no body" is what makes a
-    /// scoped outbox discard silently target every quarantined row and a bounded schedule pause become
-    /// an indefinite one, on a request that still answers 202.
-    ///
-    /// <para>Buffering first keeps the peeked byte available to a later reader. Nothing reads it today -
-    /// an undeclared body has no content type, so every caller of this answers the 415 those routes
-    /// already declare - but the helper must not be the reason a future reader finds a byte missing.</para>
-    /// </remarks>
     private static async ValueTask<bool> HasBodyAsync(HttpRequest request, CancellationToken ct)
     {
-        if (request.ContentLength is > 0 || !string.IsNullOrEmpty(request.ContentType))
+        if (request.ContentLength is { } length)
         {
-            return true;
+            return length > 0;
         }
 
         // This awaits a network read, so a caller that opens a chunked body and then sends nothing holds
         // the endpoint until Kestrel's minimum-data-rate limit aborts it or the client disconnects. That
         // is the same exposure every body-reading endpoint on this API already carries, bounded by the
-        // same server limit, and it is accepted rather than overlooked.
+        // same server limit, and it is accepted rather than overlooked. Buffering first keeps the peeked
+        // byte for the reader that follows.
         request.EnableBuffering();
         var probe = new byte[1];
         var read = await request.Body.ReadAsync(probe, ct);
