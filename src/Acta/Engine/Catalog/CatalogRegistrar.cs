@@ -297,18 +297,21 @@ internal sealed class CatalogRegistrar(
     )
     {
         var env = _options.Value.EnvironmentName;
-        // A retired definition keeps its schedules as the retire left them, so its calendars are not this start's concern.
+        // A retired definition keeps its schedules as the retire left them, so this start does not judge its calendars.
+        // They are loaded all the same: registration reactivates a retired definition a newer build declares again, and
+        // the plan then resolves its schedules.
         var retired = stored
             .Where(s => s.Status == DefinitionStatusCode.Retired)
             .Select(s => s.DefinitionName)
             .ToHashSet(StringComparer.Ordinal);
         var schedules = descriptors
-            .Where(d => !d.Schedules.IsDefaultOrEmpty && !retired.Contains(d.JobName))
+            .Where(d => !d.Schedules.IsDefaultOrEmpty)
             .SelectMany(d =>
                 d.Schedules.Where(s => ScheduleEnvironment.IsActiveIn(s.Environments, env))
                     .Select(s =>
                         (
                             Path: $"{ns}/{d.JobName}/{s.ScheduleName}",
+                            Retired: retired.Contains(d.JobName),
                             Timing: new ScheduleTiming(s.Expression, s.ExpressionKind, null, null, s.AvailabilityCalendarName)
                         )
                     )
@@ -317,6 +320,7 @@ internal sealed class CatalogRegistrar(
         await calendars.PreloadAsync(namespaceId, schedules.SelectMany(s => s.Timing.CalendarNames()), ct);
 
         var problems = schedules
+            .Where(s => !s.Retired)
             .SelectMany(s => calendars.Source(namespaceId, s.Timing).Problems().Select(problem => $"Schedule '{s.Path}': {problem}"))
             .ToList();
         if (problems.Count > 0)

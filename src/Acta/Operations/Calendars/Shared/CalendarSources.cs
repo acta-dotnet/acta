@@ -15,10 +15,6 @@ internal sealed class CalendarSources(ListCurrentCalendarsHandler families, GetC
     private readonly ConcurrentDictionary<(int NamespaceId, string Name, int Version), CompiledCalendar> _compiled = new();
     private readonly ConcurrentDictionary<int, ConcurrentDictionary<string, int>> _current = new();
 
-    // In place of a version, for a name published in the namespace's catalog and in the shared one at once; versions
-    // number from 1.
-    private const int HeldTwice = 0;
-
     // A published version this build cannot compile, with the compiler's problems: kept so the schedule that names it
     // says so, and no other schedule of the pass is held up.
     private readonly ConcurrentDictionary<(int NamespaceId, string Name, int Version), string> _unreadable = new();
@@ -63,13 +59,11 @@ internal sealed class CalendarSources(ListCurrentCalendarsHandler families, GetC
             return;
         }
 
-        // A draft save refuses a name the other scope holds, but two first saves of one name at the same moment, one in
-        // each scope, both land. Such a name resolves to neither family, and its schedules say so.
-        var current = new Dictionary<string, int>(StringComparer.Ordinal);
-        foreach (var family in (await families.HandleAsync(new ListCurrentCalendarsQuery(namespaceId), ct)).Calendars)
-        {
-            current[family.CalendarName] = current.ContainsKey(family.CalendarName) ? HeldTwice : family.Version;
-        }
+        var current = (await families.HandleAsync(new ListCurrentCalendarsQuery(namespaceId), ct)).Calendars.ToDictionary(
+            c => c.CalendarName,
+            c => c.Version,
+            StringComparer.Ordinal
+        );
         var known = _current.GetOrAdd(namespaceId, _ => new ConcurrentDictionary<string, int>(StringComparer.Ordinal));
         foreach (var name in needed)
         {
@@ -79,11 +73,7 @@ internal sealed class CalendarSources(ListCurrentCalendarsHandler families, GetC
                 continue;
             }
 
-            if (
-                version != HeldTwice
-                && !_compiled.ContainsKey((namespaceId, name, version))
-                && !_unreadable.ContainsKey((namespaceId, name, version))
-            )
+            if (!_compiled.ContainsKey((namespaceId, name, version)) && !_unreadable.ContainsKey((namespaceId, name, version)))
             {
                 await CompileAsync(namespaceId, name, version, ct);
             }
@@ -98,15 +88,6 @@ internal sealed class CalendarSources(ListCurrentCalendarsHandler families, GetC
         if (!_current.TryGetValue(namespaceId, out var current) || !current.TryGetValue(name, out var version))
         {
             return default;
-        }
-
-        if (version == HeldTwice)
-        {
-            return (
-                null,
-                $"The calendar '{name}' is published in both the namespace's catalog and the shared one, so the name resolves two "
-                    + "ways; archive one of the two families."
-            );
         }
 
         if (_unreadable.TryGetValue((namespaceId, name, version), out var problems))
