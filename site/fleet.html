@@ -116,7 +116,7 @@
         </div>
         <div>
           <b>Measured, under chaos</b>
-          <p>The project's rc.8 release run used <em>24 worker processes of 64 executors each</em>, 1,536 executors on one database, with a worker killed every five seconds. <em>Every one of a million jobs finished</em> and no finished step ran again, checked afterwards from the database's own ledger, on PostgreSQL and on SQL Server. What one run showed, not a capacity claim. <a class="golink" href="https://github.com/acta-dotnet/acta/blob/v1.0.0-rc.8/docs/release-notes.md#evidence">Release validation records</a></p>
+          <p>The project's rc.8 release run used <em>24 worker processes of 64 executors each</em>, 1,536 executors on one database, with a worker killed every five seconds. <em>Every one of a million jobs finished</em>, and no step body ran in an attempt the engine did not count, checked afterwards from the database's own ledger, on PostgreSQL and on SQL Server. That a succeeded step is never run again is proven by the conformance suite, not by this run. What one run showed, not a capacity claim. <a class="golink" href="https://github.com/acta-dotnet/acta/blob/v1.0.0-rc.8/docs/release-notes.md#evidence">Release validation records</a></p>
         </div>
       </div>
       <p class="also">Also: <a href="/engine">how one worker runs a job</a><span class="sep">·</span><a href="/gates">order, concurrency, and rate</a></p>
