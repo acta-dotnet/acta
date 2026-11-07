@@ -4,13 +4,13 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Run jobs in order, limit how many run at once, and pace how often they start · Acta, durable jobs and workflows for .NET</title>
-  <meta name="description" content="Lanes for order, concurrency keys and limits for how many run at once, rate limits for how often they start. Step the same five jobs through each gate and see what the ledger records." />
+  <meta name="description" content="Lanes for order, concurrency keys and limits for how many run at once, rate limits for how often they start. Step the same five jobs through each gate, then follow an order from your own transaction through the outbox." />
   <link rel="canonical" href="https://useacta.net/gates" />
   <meta name="theme-color" content="#0B0E15" />
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="Acta for .NET" />
   <meta property="og:title" content="Run jobs in order, limit how many run at once, and pace how often they start · Acta, durable jobs and workflows for .NET" />
-  <meta property="og:description" content="Lanes for order, concurrency keys and limits for how many run at once, rate limits for how often they start. Step the same five jobs through each gate and see what the ledger records." />
+  <meta property="og:description" content="Lanes for order, concurrency keys and limits for how many run at once, rate limits for how often they start. Step the same five jobs through each gate, then follow an order from your own transaction through the outbox." />
   <meta property="og:url" content="https://useacta.net/gates" />
   <meta property="og:image" content="https://useacta.net/assets/social-card.png" />
   <meta property="og:image:width" content="1200" />
@@ -117,7 +117,46 @@
           <p>The project's release run kills a worker every five seconds while laned jobs run, then checks from the database's own ledger that no lane ever ran two members at once or out of order, and that every lane drained. The same run checks three rate meters, at 10, 50 and 100 a second, never admitted past their published budget. <a class="golink" href="https://github.com/acta-dotnet/acta/blob/v1.0.0-rc.5/docs/release-notes.md#evidence">Release validation records</a></p>
         </div>
       </div>
-      <p class="also">Also: <a href="/engine">how one worker runs a job</a><span class="sep">·</span><a href="/claiming">which job runs next</a><span class="sep">·</span><a href="/fleet">many workers, no coordinator</a></p>
+    </section>
+
+    <section class="wrap" id="outbox">
+      <p class="record">From your own transaction</p>
+      <h2>A job saved in your own transaction keeps its place in line.</h2>
+      <p class="lede">The same order holds upstream. A job request can be saved in the shop's own transaction, travel through the outbox relay, and reach the workers in the sequence it was staged.</p>
+      <figure class="walk claiming" id="claiming" aria-labelledby="claiming-title">
+        <div class="walk-header">
+          <div><h3 id="claiming-title">Two orders, one relay, two peer workers.</h3><p>Follow two orders from the shop's database into the ledger: save, deliver, run, a delivery retry, and quarantine.</p></div>
+        </div>
+        <nav class="claiming-controls walk-steps" id="claiming-steps" aria-label="Walkthrough steps" hidden></nav>
+        <div class="claiming-source" id="claiming-source">
+          <div class="claiming-journey" aria-label="Outbox journey"><span class="active">1 · Shop saves an order</span><span>2 · Relay delivers requests</span><span>3 · Workers run jobs</span></div>
+          <div class="walk-label">Shop database · owned by your application</div>
+          <div class="claiming-transaction"><div class="claiming-order"><span class="claiming-table-name">orders table</span><strong>Order #1042</strong><span>Customer checked out · status: placed</span><span>Order #1073 · another checkout</span></div><div class="claiming-commit"><strong>One shop transaction</strong><span>Save the orders + insert the requests below.</span><span>Both commit, or neither does.</span></div></div>
+          <p class="claiming-source-intro"><code>acta_outbox</code> table <span>Rows saying “please run this job.” The shop has saved them; a handler has not run yet.</span></p>
+          <div id="claiming-outbox"></div>
+          <div class="claiming-relay"><div><strong>↓ sys.outbox relay</strong><span>Runs on the Acta worker fleet</span></div><div class="claiming-transfer" id="claiming-transfer">Waiting for the relay to pick up the saved requests</div><span id="claiming-relay-note">The outbox is this ordinary SQL table inside the shop database.</span></div>
+        </div>
+        <div class="claiming-model">
+          <div class="claiming-ledger">
+            <div class="walk-label">Acta database · jobs ledger · namespace orders</div>
+            <div id="claiming-lanes">
+              <div class="claiming-lane"><div class="claiming-lane-name">order-1042 <small>Ordered lane</small></div><div class="claiming-jobs"><span class="walk-rule">No jobs admitted yet</span></div></div>
+              <div class="claiming-lane"><div class="claiming-lane-name">order-1073 <small>Ordered lane</small></div><div class="claiming-jobs"><span class="walk-rule">No jobs admitted yet</span></div></div>
+              <div class="claiming-lane"><div class="claiming-lane-name">No lane <small>Independent jobs</small></div><div class="claiming-jobs"><span class="walk-rule">No jobs admitted yet</span></div></div>
+            </div>
+            <p class="walk-rule">Only eligible lane heads and unlaned jobs enter the claim scan. Blocked jobs stay outside it.</p>
+          </div>
+          <div class="walk-bridge" aria-hidden="true">claim <br />+ lease <br /><span>→</span></div>
+          <div class="claiming-workers"><div class="walk-label">Peer workers</div><div id="claiming-workers"><div class="walk-worker"><strong>Worker 1</strong><span>Available</span></div><div class="walk-worker"><strong>Worker 2</strong><span>Available</span></div></div><p>Any peer can take the next eligible job. A lane belongs to the ledger, not a worker.</p></div>
+        </div>
+        <figcaption class="walk-caption" aria-live="polite" aria-atomic="true"><span id="claiming-step">1 / 7 · Save the order</span><strong id="claiming-heading">Checkout saves the order and a list of work to deliver.</strong><p id="claiming-description">The shop saves order #1042 and inserts four requests into its own acta_outbox table in one transaction. Each carries lane order-1042 and an order ID as input. Order #1073 has its own lane. These are saved requests, not jobs in the Acta database yet.</p></figcaption>
+        <div class="claiming-controls walk-navigation" hidden><button type="button" class="button" id="claiming-back" disabled>Previous</button><button type="button" class="button primary" id="claiming-next">Next →</button><button type="button" class="button" id="claiming-replay">Replay</button><span>Step at your own pace</span></div>
+        <p class="walk-footnote">Execution is at-least-once; external effects still need idempotency. <a href="#claiming-outbox-ordering">Outbox ordering</a> · setup: <a href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#the-external-outbox">The external outbox</a></p>
+        <div class="walk-help">
+          <details id="claiming-outbox-ordering"><summary>Outbox ordering</summary><p>The outbox is a table in your application’s database. Your transaction saves business data and job requests together. The relay claims those requests, commits jobs to the Acta ledger, then deletes the delivered source rows. Repeating a delivery uses the same deduplication key.</p><p>When source rows explicitly name a lane, a later row waits while an older Pending or Claimed row in that namespace and lane remains. A delivery retry holds that source line; quarantine releases it. Once delivered, the ledger lane independently controls execution order. Delivery does not wait for the handler to finish.</p><p>Sequentially staged rows preserve staging order. Concurrent producer transactions have no guaranteed order between them. A lane set only on the target job definition starts ordering at ledger admission, not in the source outbox.</p></details>
+        </div>
+      </figure>
+      <p class="also">Also: <a href="/engine">how one worker runs a job</a><span class="sep">·</span><a href="/fleet">many workers, no coordinator</a></p>
     </section>
 
         <footer>
@@ -132,5 +171,6 @@
     </footer>
   </main>
   <script src="assets/admission.js"></script>
+  <script src="assets/claiming.js"></script>
 </body>
 </html>

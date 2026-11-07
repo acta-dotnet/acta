@@ -224,7 +224,7 @@
           <div class="who"><b>Scheduler, or executor?</b><span>two passes, no coordinator</span></div>
           <div class="why">
             <p>Two passes over the same rows, on every worker. Admission turns a due schedule into a firing: it moves the cursor and writes the firing envelope in one apply, so an occurrence is admitted once however many workers run. Claiming takes <code>Ready</code> rows under a lease and runs them. A schedule never runs code; it only makes a row claimable.</p>
-            <div class="links"><a class="golink" href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#schedule-operations">Schedule operations</a><a class="golink" href="/engine">Inside one worker</a><a class="golink" href="/claiming">Which job runs next</a></div>
+            <div class="links"><a class="golink" href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#schedule-operations">Schedule operations</a><a class="golink" href="/engine">Inside one worker</a></div>
           </div>
         </div>
         <div class="vs-row" id="crash">
@@ -351,7 +351,7 @@ feed head: change 180; local orders: 40 (newest change 180)</code></pre>
         <a class="button" href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md">The developer guide</a>
         <a class="button" href="/start">Run your first durable job</a>
       </div>
-      <p class="also">Also: <a href="/engine">how one worker runs a job</a><span class="sep">·</span><a href="/claiming">which job runs next</a><span class="sep">·</span><a href="/gates">order, concurrency, and rate</a><span class="sep">·</span><a href="/fleet">many workers, no coordinator</a></p>
+      <p class="also">Also: <a href="/engine">how one worker runs a job</a><span class="sep">·</span><a href="/gates">order, concurrency, and rate</a><span class="sep">·</span><a href="/fleet">many workers, no coordinator</a></p>
     </section>
 
     <footer>
