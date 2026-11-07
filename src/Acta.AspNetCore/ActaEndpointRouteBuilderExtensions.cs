@@ -46,18 +46,10 @@ public static class ActaEndpointRouteBuilderExtensions
     )
     {
         ArgumentNullException.ThrowIfNull(endpoints);
-        EnsureActaApiJsonContext(endpoints);
         var options = new ActaEndpointOptions();
         configure?.Invoke(options);
-        ValidateOptions(options);
 
-        var group = endpoints.MapGroup(pattern);
-        GuardLocalOnly(group, options);
-        if (options.RequirePermissions)
-        {
-            PermissionFilter.Attach(group, endpoints.ServiceProvider);
-        }
-        MapApi(group.MapGroup(ApiVersionSegment), options);
+        var group = MapMount(endpoints, pattern, apiPrefix: "", options);
         options.ConfigureEndpoints?.Invoke(group);
         return group;
     }
@@ -74,22 +66,10 @@ public static class ActaEndpointRouteBuilderExtensions
     )
     {
         ArgumentNullException.ThrowIfNull(endpoints);
-        // Guarded here rather than left to MapGroup below: that throw names the framework's own 'prefix'
-        // parameter, and it lands only after EnsureActaApiJsonContext has already mutated the app's
-        // serializer resolver chain. Rejecting first keeps a failed call free of side effects.
-        ArgumentNullException.ThrowIfNull(pattern);
-        EnsureActaApiJsonContext(endpoints);
         var options = new ActaDashboardOptions();
         configure?.Invoke(options);
-        ValidateOptions(options);
 
-        var group = endpoints.MapGroup(pattern);
-        GuardLocalOnly(group, options);
-        if (options.RequirePermissions)
-        {
-            PermissionFilter.Attach(group, endpoints.ServiceProvider);
-        }
-        MapApi(group.MapGroup("/api" + ApiVersionSegment), options);
+        var group = MapMount(endpoints, pattern, DashboardApiPrefix, options);
 
         // Rooted, so it composes with the request's path base; a pattern written without the
         // leading slash is a valid route but not a valid path segment.
@@ -97,9 +77,9 @@ public static class ActaEndpointRouteBuilderExtensions
         group.MapGet("", (HttpContext http) => ServeIndex(http, options, basePath));
         group.MapGet("/assets/{**assetPath}", (string assetPath) => ServeAsset("assets/" + assetPath, options));
         group.Map(
-            "/{**spaPath}",
-            (string spaPath, HttpContext http) =>
-                IsUnknownEndpoint(http.Request, spaPath)
+            "/{**" + CatchAllRouteValue + "}",
+            ([Microsoft.AspNetCore.Mvc.FromRoute(Name = CatchAllRouteValue)] string path, HttpContext http) =>
+                IsUnknownEndpoint(http.Request, path)
                     ? Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Unknown endpoint.")
                     : ServeIndex(http, options, basePath)
         );
@@ -108,14 +88,51 @@ public static class ActaEndpointRouteBuilderExtensions
         return group;
     }
 
+    // The path segment a dashboard mount puts between itself and the API, so its pages and the API never share a path.
+    private const string ApiSegment = "api";
+
+    /// <summary>The prefix a dashboard mount gives the API: <c>{mount}/api/v1/...</c>.</summary>
+    internal const string DashboardApiPrefix = "/" + ApiSegment;
+
+    /// <summary>The route value the dashboard's catch-all route binds the rest of the path to.</summary>
+    internal const string CatchAllRouteValue = "spaPath";
+
     /// <summary>
     /// Whether a request the dashboard's catch-all route matched is no page of the dashboard: any method but GET, or a
     /// path under the API's own prefix that no route maps.
     /// </summary>
-    internal static bool IsUnknownEndpoint(HttpRequest request, string spaPath) =>
+    internal static bool IsUnknownEndpoint(HttpRequest request, string path) =>
         !HttpMethods.IsGet(request.Method)
-        || spaPath.StartsWith("api/", StringComparison.OrdinalIgnoreCase)
-        || spaPath.Equals("api", StringComparison.OrdinalIgnoreCase);
+        || path.StartsWith(ApiSegment + "/", StringComparison.OrdinalIgnoreCase)
+        || path.Equals(ApiSegment, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Maps one mount: the group at <paramref name="pattern"/> with the loopback guard and, where the options ask for it,
+    /// the permission check, and under it the API at <paramref name="apiPrefix"/> plus <see cref="ApiVersionSegment"/>.
+    /// Both cover what the caller adds to the group afterwards; the caller runs the options' ConfigureEndpoints last.
+    /// </summary>
+    internal static RouteGroupBuilder MapMount(
+        IEndpointRouteBuilder endpoints,
+        string pattern,
+        string apiPrefix,
+        ActaEndpointOptions options
+    )
+    {
+        // Refused before anything is registered, and by the caller's parameter name: MapGroup would name its own, and
+        // only after the JSON context had joined the host's resolver chain.
+        ArgumentNullException.ThrowIfNull(pattern);
+        ValidateOptions(options);
+        EnsureActaApiJsonContext(endpoints);
+
+        var group = endpoints.MapGroup(pattern);
+        GuardLocalOnly(group, options);
+        if (options.RequirePermissions)
+        {
+            PermissionFilter.Attach(group, endpoints.ServiceProvider);
+        }
+        MapApi(group.MapGroup(apiPrefix + ApiVersionSegment), options);
+        return group;
+    }
 
     // The versioned API under either mount: the conventions and filters every route shares, then each group's routes.
     private static void MapApi(RouteGroupBuilder api, ActaEndpointOptions options)

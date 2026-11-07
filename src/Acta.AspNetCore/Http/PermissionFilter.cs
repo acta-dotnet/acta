@@ -105,8 +105,8 @@ internal static class PermissionFilter
         // is to answer.
         var api =
             operation is not null
-            || http.GetRouteValue("spaPath") is string spaPath
-                && ActaEndpointRouteBuilderExtensions.IsUnknownEndpoint(http.Request, spaPath);
+            || http.GetRouteValue(ActaEndpointRouteBuilderExtensions.CatchAllRouteValue) is string path
+                && ActaEndpointRouteBuilderExtensions.IsUnknownEndpoint(http.Request, path);
         var response = http.Response;
         if ((api || schemes.Count == 0) && !response.HasStarted)
         {
