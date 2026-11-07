@@ -89,6 +89,7 @@
     <Project Path="400-observability-and-alerts/410-http-api-controls/410-http-api-controls.csproj" />
     <Project Path="400-observability-and-alerts/411-alert-escalation/411-alert-escalation.csproj" />
     <Project Path="400-observability-and-alerts/412-tenant-scope/412-tenant-scope.csproj" />
+    <Project Path="400-observability-and-alerts/413-http-api-authorization/413-http-api-authorization.csproj" />
   </Folder>
   <Folder Name="/500-payloads/">
     <Project Path="500-payloads/501-payload-formats/501-payload-formats.csproj" />

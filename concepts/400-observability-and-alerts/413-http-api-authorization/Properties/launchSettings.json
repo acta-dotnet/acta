@@ -1,0 +1,12 @@
+{
+  "profiles": {
+    "413-http-api-authorization": {
+      "commandName": "Project",
+      "launchBrowser": false,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "applicationUrl": "https://localhost:53584;http://localhost:53585"
+    }
+  }
+}

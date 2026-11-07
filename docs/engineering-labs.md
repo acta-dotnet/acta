@@ -173,6 +173,7 @@ curated-view rows.
 | 410 | [http-api-controls](../concepts/400-observability-and-alerts/410-http-api-controls/) | HTTP control API: `MapActaApi` + `EnableControls`, the `X-Acta-Control` header, `LocalOnly` |
 | 411 | [alert-escalation](../concepts/400-observability-and-alerts/411-alert-escalation/) | Alert escalation stages: FirstFailure -> ThresholdReached -> FinalFailure |
 | 412 | [tenant-scope](../concepts/400-observability-and-alerts/412-tenant-scope/) | **Engineering Lab.** Tenant catalog resolution, child inheritance, filtering, and unknown/suspended rejection |
+| 413 | [http-api-authorization](../concepts/400-observability-and-alerts/413-http-api-authorization/) | HTTP API permissions: `RequirePermissions` + four host policies; 401 with no credential, 403 naming the permission a caller lacks |
 | 501 | [payload-formats](../concepts/500-payloads/501-payload-formats/) | **Engineering Lab.** Custom formats compared by serialization time, enqueue time, readability, and stored bytes |
 | 601 | [fan-out](../concepts/600-job-composition/601-fan-out/) | A handler injects `IJobs` and enqueues many independent jobs: no lineage and no join (compare 212's `MapAsync`) |
 | 602 | [chained-jobs](../concepts/600-job-composition/602-chained-jobs/) | A linear pipeline: each stage enqueues the next |
