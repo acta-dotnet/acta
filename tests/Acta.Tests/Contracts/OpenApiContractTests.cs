@@ -464,24 +464,58 @@ public sealed partial class OpenApiContractTests
 
     /// <summary>
     /// A schema with no type says "any value"; only the members that really take any JSON value may say it: a job's
-    /// input, the signal body, and the generator's component for them. A code or a ref rendered empty would type as
-    /// <c>any</c> in every generated client.
+    /// input, and the signal body, which sits in its operation. A code or a ref rendered empty would type as <c>any</c> in
+    /// every generated client.
     /// </summary>
     [Fact]
     public async Task No_empty_schema_outside_the_any_json_members()
     {
-        string[] anyJson =
-        [
-            "components.schemas.JsonElement",
-            "components.schemas.EnqueueJobRequest.input",
-            "components.schemas.UpdateJobInputRequest.input",
-        ];
+        string[] anyJson = ["components.schemas.EnqueueJobRequest.input", "components.schemas.UpdateJobInputRequest.input"];
         var schemas = AllSchemas(JsonNode.Parse(await ActaOpenApiDocument.GenerateAsync())!);
         var empty = schemas.Where(entry => entry.Schema.AsObject().All(p => p.Key is "description")).Select(entry => entry.Where).ToList();
 
         Assert.True(schemas.Count > 500, $"only {schemas.Count} schemas; the walk is broken.");
         Assert.Equal(anyJson.Order(StringComparer.Ordinal), empty.Where(anyJson.Contains).Order(StringComparer.Ordinal));
         Assert.True(empty.All(anyJson.Contains), "Empty schemas:\n" + string.Join("\n", empty.Where(where => !anyJson.Contains(where))));
+    }
+
+    /// <summary>
+    /// Raw JSON is no type: the signal value and a job's input are an inline schema that says any JSON value, with no
+    /// component a client would generate a type for, and the server takes an object, an array, a string, a number, and a
+    /// boolean in each.
+    /// </summary>
+    [Fact]
+    public async Task Raw_json_is_an_inline_any_json_schema()
+    {
+        var generated = await ActaOpenApiDocument.GenerateAsync();
+        var schemas = JsonNode.Parse(generated)!["components"]!["schemas"]!;
+        JsonNode[] anyJson =
+        [
+            Operations(generated)["POST /v1/jobs/{jobRef}/signals/{signalName}"]["requestBody"]!["content"]!["application/json"]![
+                "schema"
+            ]!,
+            schemas["EnqueueJobRequest"]!["properties"]!["input"]!,
+            schemas["UpdateJobInputRequest"]!["properties"]!["input"]!,
+        ];
+
+        var fakes = new FakeOperations();
+        fakes.Jobs.StoredInput = JobPayload.FromBytes(JobPayloadFormat.Json, Encoding.UTF8.GetBytes("{}"));
+        var (app, client) = await TestDashboardHost.StartAsync(options => options.EnableControls = true, fakes: fakes);
+        await using var _ = app;
+        var answers = new List<string>();
+        foreach (var value in new[] { """{"invoiceId":1}""", "[1,2]", "\"text\"", "42", "true" })
+        {
+            var job = FakeJobs.FoundJobRef;
+            var enqueue = $$"""{"jobNamespace":"billing","jobName":"send-invoice","input":{{value}}}""";
+            var amend = $$"""{"input":{{value}}}""";
+            answers.Add($"signal {value}: {await SendControlAsync(client, HttpMethod.Post, $"jobs/{job}/signals/approval", value)}");
+            answers.Add($"enqueue {value}: {await SendControlAsync(client, HttpMethod.Post, "jobs", enqueue)}");
+            answers.Add($"input {value}: {await SendControlAsync(client, HttpMethod.Post, $"jobs/{job}/input", amend)}");
+        }
+
+        Assert.Null(schemas["JsonElement"]);
+        Assert.All(anyJson, schema => Assert.Equal(["description"], schema.AsObject().Select(member => member.Key)));
+        Assert.All(answers, answer => Assert.Matches(": (OK|Created)$", answer));
     }
 
     /// <summary>

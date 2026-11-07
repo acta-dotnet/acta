@@ -307,6 +307,10 @@ internal static partial class ActaOpenApiDocument
         {
             schema.Type = context.JsonTypeInfo.Type == type ? JsonSchemaType.String : JsonSchemaType.String | JsonSchemaType.Null;
         }
+        else if (type == typeof(JsonElement))
+        {
+            schema.Description = AnyJson().Description;
+        }
         else if (context.JsonPropertyInfo is null && context.JsonTypeInfo.Kind == JsonTypeInfoKind.Object)
         {
             var omitted = context.JsonTypeInfo.Properties.Where(Omitted).Select(p => (JsonNode)p.Name).ToArray();
@@ -328,6 +332,7 @@ internal static partial class ActaOpenApiDocument
     {
         var schemas = document.Components?.Schemas ?? new Dictionary<string, IOpenApiSchema>();
         UseEnumComponents(schemas);
+        InlineAnyJson(document, schemas);
         // A ref is one non-null string component, as a code is; a nullable member says so beside its reference.
         foreach (var name in new[] { nameof(JobRef), nameof(AlertRef), nameof(WorkerRef) })
         {
@@ -526,6 +531,35 @@ internal static partial class ActaOpenApiDocument
             }
         }
     }
+
+    // Raw JSON is any JSON value, written where it is used rather than as a component a client would generate a type for.
+    private static void InlineAnyJson(OpenApiDocument document, IDictionary<string, IOpenApiSchema> schemas)
+    {
+        if (!schemas.Remove(nameof(JsonElement)))
+        {
+            return;
+        }
+
+        static bool IsAnyJson(IOpenApiSchema? schema) => schema is OpenApiSchemaReference { Reference.Id: nameof(JsonElement) };
+        foreach (
+            var media in document
+                .Paths.Values.SelectMany(item => item.Operations?.Values ?? Enumerable.Empty<OpenApiOperation>())
+                .SelectMany(operation => operation.RequestBody?.Content?.Values ?? Enumerable.Empty<OpenApiMediaType>())
+                .Where(media => IsAnyJson(media.Schema))
+        )
+        {
+            media.Schema = AnyJson();
+        }
+        foreach (var schema in schemas.Values.OfType<OpenApiSchema>())
+        {
+            foreach (var (member, _) in schema.Properties?.Where(property => IsAnyJson(property.Value)).ToList() ?? [])
+            {
+                schema.Properties![member] = AnyJson();
+            }
+        }
+    }
+
+    private static OpenApiSchema AnyJson() => new() { Description = "Any JSON value, kept as sent." };
 
     private static string? EnumName(OpenApiSchema schema) =>
         schema.Extensions?.TryGetValue(EnumMarker, out var value) == true && value is JsonNodeExtension { Node: JsonValue name }

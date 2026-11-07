@@ -1792,7 +1792,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/JsonElement"
+                "description": "Any JSON value, kept as sent."
               }
             }
           }
@@ -9203,7 +9203,9 @@
           "jobName": {
             "type": "string"
           },
-          "input": { },
+          "input": {
+            "description": "Any JSON value, kept as sent."
+          },
           "base64": {
             "type": [
               "null",
@@ -11223,7 +11225,6 @@
           }
         ]
       },
-      "JsonElement": { },
       "ListAlertsItem": {
         "required": [
           "alertRef",
@@ -14330,7 +14331,9 @@
       "UpdateJobInputRequest": {
         "type": "object",
         "properties": {
-          "input": { },
+          "input": {
+            "description": "Any JSON value, kept as sent."
+          },
           "base64": {
             "type": [
               "null",
