@@ -316,17 +316,17 @@ public sealed partial class OpenApiContractTests
     }
 
     /// <summary>
-    /// A code filter takes its kebab code, and its number exactly where its description says so: most filters bind the
-    /// member leniently, while an event code and an entity kind take only the code.
+    /// A code filter takes exactly the kebab code the server writes. The member name, an upper-case spelling, and the
+    /// number each answer a 400 that names the parameter, on every route a code filter sits on.
     /// </summary>
     [Fact]
-    public async Task A_code_filter_takes_its_number_exactly_where_its_description_says()
+    public async Task A_code_filter_takes_only_its_code()
     {
         var generated = await ActaOpenApiDocument.GenerateAsync();
         var (app, client) = await TestDashboardHost.StartAsync();
         await using var _ = app;
         var ct = TestContext.Current.CancellationToken;
-        var filters = 0;
+        var filters = new List<string>();
         var wrong = new List<string>();
         foreach (
             var (key, operation) in Operations(generated).Where(operation => operation.Key.StartsWith("GET ", StringComparison.Ordinal))
@@ -342,27 +342,46 @@ public sealed partial class OpenApiContractTests
                     continue;
                 }
 
-                filters++;
-                var number = Enum.GetValues(family)
-                    .Cast<object>()
-                    .Select(v => Convert.ToInt64(v, CultureInfo.InvariantCulture))
-                    .First(v => v != 0);
+                var name = parameter["name"]!.GetValue<string>();
+                filters.Add(name);
+                var member = Enum.GetValues(family).Cast<Enum>().First(v => Convert.ToInt64(v, CultureInfo.InvariantCulture) != 0);
+                var code = ActaOpenApiDocument.WireName(family, member.ToString());
                 var path = key[4..]
                     .Replace("{jobRef}", FakeJobs.FoundJobRef.ToString(), StringComparison.Ordinal)
                     .Replace("{jobNamespace}", "billing", StringComparison.Ordinal)
                     .Replace("{jobName}", "send-invoice", StringComparison.Ordinal);
-                var response = await client.GetAsync($"/acta/api{path}?{parameter["name"]}={number}", ct);
-                var expected = parameter["description"]!.GetValue<string>().Contains(" or its number", StringComparison.Ordinal)
-                    ? HttpStatusCode.OK
-                    : HttpStatusCode.BadRequest;
-                if (response.StatusCode != expected)
+                (string Value, HttpStatusCode Expected)[] spellings =
+                [
+                    (code, HttpStatusCode.OK),
+                    (member.ToString(), HttpStatusCode.BadRequest),
+                    (code.ToUpperInvariant(), HttpStatusCode.BadRequest),
+                    (
+                        Convert.ToInt64(member, CultureInfo.InvariantCulture).ToString(CultureInfo.InvariantCulture),
+                        HttpStatusCode.BadRequest
+                    ),
+                ];
+                foreach (var (value, expected) in spellings)
                 {
-                    wrong.Add($"{key} {parameter["name"]}={number}: answered {response.StatusCode}, the description says {expected}.");
+                    var response = await client.GetAsync($"/acta/api{path}?{name}={Uri.EscapeDataString(value)}", ct);
+                    var named =
+                        response.StatusCode != HttpStatusCode.BadRequest
+                        || (JsonNode.Parse(await response.Content.ReadAsStringAsync(ct))?["detail"]?.GetValue<string>() ?? "").Contains(
+                            $"'{name}'",
+                            StringComparison.Ordinal
+                        );
+                    if (response.StatusCode != expected || !named)
+                    {
+                        wrong.Add(
+                            $"{key} {name}={value}: answered {(int)response.StatusCode}, expected {(int)expected} naming the parameter."
+                        );
+                    }
                 }
             }
         }
 
-        Assert.True(filters > 10, $"only {filters} code filters; the walk is broken.");
+        Assert.Contains("eventCode", filters);
+        Assert.Contains("entityKind", filters);
+        Assert.True(filters.Count > 10, $"only {filters.Count} code filters; the walk is broken.");
         Assert.True(wrong.Count == 0, string.Join("\n", wrong));
     }
 

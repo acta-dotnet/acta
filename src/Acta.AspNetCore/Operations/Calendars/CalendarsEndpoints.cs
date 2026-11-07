@@ -19,7 +19,7 @@ internal static class CalendarsEndpoints
             DashboardJsonContext.Default.ListCalendarsResponse,
             static query => new ListCalendarsQuery(
                 JobNamespace: query.Text("jobNamespace"),
-                Role: query.Enum<CalendarRoleCode>("role"),
+                Role: query.Code("role", CalendarRoleCodeExtensions.FromCode),
                 NameContains: query.Text("nameContains"),
                 PageSize: query.Int("pageSize"),
                 Cursor: query.Text("cursor"),
@@ -32,12 +32,7 @@ internal static class CalendarsEndpoints
                     QueryParameterKind.String,
                     "Only this namespace's families and the shared ones in sys; omit for every namespace."
                 ),
-                new QueryParameterDoc(
-                    "role",
-                    QueryParameterKind.String,
-                    "Exact calendar role as a kebab code or its number.",
-                    CodeKind: "calendar-role"
-                ),
+                new QueryParameterDoc("role", QueryParameterKind.String, "Exact calendar role as a kebab code.", CodeKind: "calendar-role"),
                 new QueryParameterDoc(
                     "nameContains",
                     QueryParameterKind.String,

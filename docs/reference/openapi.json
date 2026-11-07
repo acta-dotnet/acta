@@ -1579,7 +1579,7 @@
           {
             "name": "status",
             "in": "query",
-            "description": "Exact job status as a kebab code or its number.",
+            "description": "Exact job status as a kebab code.",
             "schema": {
               "$ref": "#/components/schemas/JobStatusCode"
             }
@@ -3046,7 +3046,7 @@
           {
             "name": "status",
             "in": "query",
-            "description": "Exact tenant status as a kebab code or its number.",
+            "description": "Exact tenant status as a kebab code.",
             "schema": {
               "$ref": "#/components/schemas/TenantStatusCode"
             }
@@ -6047,7 +6047,7 @@
           {
             "name": "status",
             "in": "query",
-            "description": "Exact worker status as a kebab code or its number.",
+            "description": "Exact worker status as a kebab code.",
             "schema": {
               "$ref": "#/components/schemas/WorkerStatusCode"
             }
@@ -6224,7 +6224,7 @@
           {
             "name": "status",
             "in": "query",
-            "description": "Exact namespace status as a kebab code or its number.",
+            "description": "Exact namespace status as a kebab code.",
             "schema": {
               "$ref": "#/components/schemas/NamespaceStatusCode"
             }
@@ -6355,7 +6355,7 @@
           {
             "name": "severityAtLeast",
             "in": "query",
-            "description": "Severity floor as a kebab code or its number; lower severities are excluded.",
+            "description": "Severity floor as a kebab code; lower severities are excluded.",
             "schema": {
               "$ref": "#/components/schemas/AlertSeverityCode"
             }
@@ -6379,7 +6379,7 @@
           {
             "name": "deliveryStatus",
             "in": "query",
-            "description": "Exact delivery status as a kebab code or its number.",
+            "description": "Exact delivery status as a kebab code.",
             "schema": {
               "$ref": "#/components/schemas/AlertDeliveryStatusCode"
             }
@@ -6776,7 +6776,7 @@
           {
             "name": "status",
             "in": "query",
-            "description": "Exact definition status as a kebab code or its number.",
+            "description": "Exact definition status as a kebab code.",
             "schema": {
               "$ref": "#/components/schemas/DefinitionStatusCode"
             }
@@ -6988,7 +6988,7 @@
           {
             "name": "origin",
             "in": "query",
-            "description": "Exact schedule origin as a kebab code or its number.",
+            "description": "Exact schedule origin as a kebab code.",
             "schema": {
               "$ref": "#/components/schemas/ScheduleOriginCode"
             }
@@ -7216,7 +7216,7 @@
           {
             "name": "role",
             "in": "query",
-            "description": "Exact calendar role as a kebab code or its number.",
+            "description": "Exact calendar role as a kebab code.",
             "schema": {
               "$ref": "#/components/schemas/CalendarRoleCode"
             }

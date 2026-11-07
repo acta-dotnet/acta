@@ -75,8 +75,7 @@ export interface JobsSqlFilters {
 export function jobsListSql(filters: JobsSqlFilters, dialect: SqlDialect = {}): string {
   const predicates: Predicate[] = [];
   if (text(filters.namespace)) predicates.push({ column: 'namespace_name', op: '=', value: name(filters.namespace) });
-  // The view's job_status column is the decoded kebab code (lowercase); a bookmarked filter may carry another casing.
-  if (text(filters.status)) predicates.push({ column: 'job_status', op: '=', value: text(filters.status).toLowerCase() });
+  if (text(filters.status)) predicates.push({ column: 'job_status', op: '=', value: text(filters.status) });
   if (text(filters.jobName)) predicates.push({ column: 'definition_name', op: '=', value: name(filters.jobName) });
   if (text(filters.correlationKey))
     predicates.push({ column: 'correlation_key', op: '=', value: text(filters.correlationKey) });
@@ -134,7 +133,7 @@ export interface CalendarsSqlFilters {
 export function calendarsListSql(filters: CalendarsSqlFilters, dialect: SqlDialect = {}): string {
   const predicates: Predicate[] = [];
   if (text(filters.namespace)) predicates.push({ raw: `namespace_name IN (${sqlLiteral(name(filters.namespace))}, 'sys')` });
-  if (text(filters.role)) predicates.push({ column: 'calendar_role', op: '=', value: name(filters.role) });
+  if (text(filters.role)) predicates.push({ column: 'calendar_role', op: '=', value: text(filters.role) });
   if (text(filters.nameContains)) predicates.push({ raw: `calendar_name LIKE ${sqlLiteral('%' + name(filters.nameContains) + '%')}` });
   return select(dialect, 'calendars_view', predicates, 'namespace_name, calendar_name, version DESC');
 }

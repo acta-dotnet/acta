@@ -13,7 +13,7 @@ internal static class WorkersEndpoints
             DashboardJsonContext.Default.ListWorkersResponse,
             static query => new ListWorkersQuery(
                 JobNamespace: query.Text("jobNamespace"),
-                Status: query.Enum<WorkerStatusCode>("status"),
+                Status: query.Code("status", WorkerStatusCodeExtensions.FromCode),
                 PageSize: query.Int("pageSize"),
                 Cursor: query.Text("cursor"),
                 IncludeTotal: query.Bool("includeTotal") ?? false
@@ -24,7 +24,7 @@ internal static class WorkersEndpoints
                 new QueryParameterDoc(
                     "status",
                     QueryParameterKind.String,
-                    "Exact worker status as a kebab code or its number.",
+                    "Exact worker status as a kebab code.",
                     CodeKind: "worker-status"
                 ),
                 .. QueryParameterDocExtensions.PagingCore,

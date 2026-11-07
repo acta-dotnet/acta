@@ -28,7 +28,7 @@
         const [overview, failedJobs, criticalAlerts, workers, schedules, outbox] = await Promise.all([
           api('overview', { jobNamespace: ns }, { signal }),
           api('jobs', { status: 'failed', pageSize: 10, jobNamespace: ns }, { signal }),
-          api('alerts', { unresolvedOnly: true, severityAtLeast: 'Critical', pageSize: 10, jobNamespace: ns }, { signal }),
+          api('alerts', { unresolvedOnly: true, severityAtLeast: 'critical', pageSize: 10, jobNamespace: ns }, { signal }),
           api('workers', { pageSize: 10, jobNamespace: ns }, { signal }),
           api('schedules', { pageSize: 10, jobNamespace: ns }, { signal }),
           api('outbox/sources', { jobNamespace: ns }, { signal })
@@ -191,7 +191,7 @@
         value={overview.deadWorkerCount}
         tone={overview.deadWorkerCount > 0 ? 'warn' : 'ok'}
         hint={displayFormatter.number(overview.staleWorkerCount) + ' stale'}
-        href={routes.workers({ namespace: $scope, status: 'Dead' })} />
+        href={routes.workers({ namespace: $scope, status: 'dead' })} />
       <MetricCard
         label="Due soon" icon="calendar"
         value={overview.dueSoonScheduleCount}

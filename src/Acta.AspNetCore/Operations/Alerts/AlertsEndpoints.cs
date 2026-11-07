@@ -21,8 +21,8 @@ internal static class AlertsEndpoints
                         Query: new ListAlertsQuery(
                             JobNamespace: query.Text("jobNamespace"),
                             UnresolvedOnly: query.Bool("unresolvedOnly"),
-                            SeverityAtLeast: query.Enum<AlertSeverityCode>("severityAtLeast"),
-                            DeliveryStatus: query.Enum<AlertDeliveryStatusCode>("deliveryStatus"),
+                            SeverityAtLeast: query.Code("severityAtLeast", AlertSeverityCodeExtensions.FromCode),
+                            DeliveryStatus: query.Code("deliveryStatus", AlertDeliveryStatusCodeExtensions.FromCode),
                             AcknowledgedOnly: query.Bool("acknowledgedOnly"),
                             PageSize: query.Int("pageSize"),
                             Cursor: query.Text("cursor"),
@@ -38,7 +38,7 @@ internal static class AlertsEndpoints
                     new QueryParameterDoc(
                         "severityAtLeast",
                         QueryParameterKind.String,
-                        "Severity floor as a kebab code or its number; lower severities are excluded.",
+                        "Severity floor as a kebab code; lower severities are excluded.",
                         CodeKind: "alert-severity"
                     ),
                     new QueryParameterDoc("unresolvedOnly", QueryParameterKind.Bool, "True restricts to alerts with no resolved instant."),
@@ -50,7 +50,7 @@ internal static class AlertsEndpoints
                     new QueryParameterDoc(
                         "deliveryStatus",
                         QueryParameterKind.String,
-                        "Exact delivery status as a kebab code or its number.",
+                        "Exact delivery status as a kebab code.",
                         CodeKind: "alert-delivery-status"
                     ),
                     .. QueryParameterDocExtensions.PagingCore,

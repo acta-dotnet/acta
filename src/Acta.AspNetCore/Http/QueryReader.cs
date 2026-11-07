@@ -94,15 +94,6 @@ internal sealed class QueryReader(HttpRequest request)
         return value;
     }
 
-    public TEnum? Enum<TEnum>(string name)
-        where TEnum : struct, System.Enum
-    {
-        string? error = null;
-        QueryBinding.TryEnum<TEnum>(request.Query, name, out var value, ref error);
-        _error ??= error;
-        return value;
-    }
-
     public TEnum? Code<TEnum>(string name, Func<string, TEnum> fromCode)
         where TEnum : struct, System.Enum
     {

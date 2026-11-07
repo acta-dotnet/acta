@@ -28,7 +28,7 @@
     startedAtUtc: string;
   }
 
-  const statuses = ['', 'Active', 'Draining', 'Stopped', 'Dead'];
+  const statuses = ['', 'active', 'draining', 'stopped', 'dead'];
   const initial = hashParams();
   const filters = createUrlFilters({ status: 'status' }, { status: '' });
 

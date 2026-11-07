@@ -18,7 +18,7 @@ internal static class DefinitionsEndpoints
             static query => new ListDefinitionsQuery(
                 JobNamespace: query.Text("jobNamespace"),
                 NameContains: query.Text("nameContains"),
-                Status: query.Enum<DefinitionStatusCode>("status"),
+                Status: query.Code("status", DefinitionStatusCodeExtensions.FromCode),
                 PageSize: query.Int("pageSize"),
                 Cursor: query.Text("cursor"),
                 IncludeTotal: query.Bool("includeTotal") ?? false,
@@ -31,7 +31,7 @@ internal static class DefinitionsEndpoints
                 new QueryParameterDoc(
                     "status",
                     QueryParameterKind.String,
-                    "Exact definition status as a kebab code or its number.",
+                    "Exact definition status as a kebab code.",
                     CodeKind: "job-definition-status"
                 ),
                 .. QueryParameterDocExtensions.PagingCore,

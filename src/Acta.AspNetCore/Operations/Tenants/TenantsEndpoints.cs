@@ -14,7 +14,7 @@ internal static class TenantsEndpoints
             DashboardJsonContext.Default.ListTenantsResponse,
             static query => new ListTenantsQuery(
                 NameContains: query.Text("nameContains"),
-                Status: query.Enum<TenantStatusCode>("status"),
+                Status: query.Code("status", TenantStatusCodeExtensions.FromCode),
                 PageSize: query.Int("pageSize"),
                 Cursor: query.Text("cursor"),
                 IncludeTotal: query.Bool("includeTotal") ?? false,
@@ -25,7 +25,7 @@ internal static class TenantsEndpoints
                 new QueryParameterDoc(
                     "status",
                     QueryParameterKind.String,
-                    "Exact tenant status as a kebab code or its number.",
+                    "Exact tenant status as a kebab code.",
                     CodeKind: "tenant-status"
                 ),
                 new QueryParameterDoc(

@@ -14,7 +14,7 @@ internal static class NamespacesEndpoints
             DashboardJsonContext.Default.ListNamespacesResponse,
             static query => new ListNamespacesQuery(
                 NameContains: query.Text("nameContains"),
-                Status: query.Enum<NamespaceStatusCode>("status"),
+                Status: query.Code("status", NamespaceStatusCodeExtensions.FromCode),
                 PageSize: query.Int("pageSize"),
                 Cursor: query.Text("cursor"),
                 IncludeTotal: query.Bool("includeTotal") ?? false,
@@ -25,7 +25,7 @@ internal static class NamespacesEndpoints
                 new QueryParameterDoc(
                     "status",
                     QueryParameterKind.String,
-                    "Exact namespace status as a kebab code or its number.",
+                    "Exact namespace status as a kebab code.",
                     CodeKind: "namespace-status"
                 ),
                 new QueryParameterDoc("nameContains", QueryParameterKind.String, "Case-insensitive substring match on the namespace name."),

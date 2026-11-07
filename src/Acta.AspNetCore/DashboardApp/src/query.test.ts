@@ -6,7 +6,7 @@ import { DETAIL_REFETCH_MS, detailRefetchInterval } from './polling.ts';
 
 test('list keys drop blank filter values so blank and missing agree', () => {
   assert.deepEqual(keys.list('jobs', { status: '', tenantName: null, jobName: undefined }), ['jobs', {}]);
-  assert.deepEqual(keys.list('jobs', { status: 'Failed' }), ['jobs', { status: 'Failed' }]);
+  assert.deepEqual(keys.list('jobs', { status: 'failed' }), ['jobs', { status: 'failed' }]);
 });
 
 test('detail keys are [entity, detail, ref] with a string ref', () => {
@@ -18,8 +18,8 @@ test('feed keys are namespaced apart from list keys', () => {
 });
 
 test('listPage folds paging into the list key; first page carries no cursor', () => {
-  const page1 = listPage('workers', { status: 'Active' }, { pageSize: 50, cursor: null });
-  assert.deepEqual(page1.queryKey, ['workers', { status: 'Active', pageSize: 50 }]);
+  const page1 = listPage('workers', { status: 'active' }, { pageSize: 50, cursor: null });
+  assert.deepEqual(page1.queryKey, ['workers', { status: 'active', pageSize: 50 }]);
   assert.equal(page1.refetchInterval, 10_000);
 });
 

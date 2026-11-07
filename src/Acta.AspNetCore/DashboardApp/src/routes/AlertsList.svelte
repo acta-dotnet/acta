@@ -37,7 +37,7 @@
     resolvedAtUtc: string | null;
   }
 
-  const severities = ['', 'Info', 'Warning', 'Error', 'Critical'];
+  const severities = ['', 'info', 'warning', 'error', 'critical'];
   const states: { value: AlertStateBucket; label: string }[] = [
     { value: 'unacknowledged', label: 'Unacknowledged (open)' },
     { value: 'acknowledged', label: 'Acknowledged (open)' },

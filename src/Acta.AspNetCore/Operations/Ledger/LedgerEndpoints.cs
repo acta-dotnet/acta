@@ -28,7 +28,7 @@ internal static class LedgerEndpoints
                     (
                         Query: new ListJobsQuery(
                             JobNamespace: query.Text("jobNamespace"),
-                            Status: query.Enum<JobStatusCode>("status"),
+                            Status: query.Code("status", JobStatusCodeExtensions.FromCode),
                             JobName: query.Text("jobName"),
                             TenantName: query.Text("tenantName"),
                             CorrelationKey: query.Text("correlationKey"),
@@ -53,12 +53,7 @@ internal static class LedgerEndpoints
                 [
                     new QueryParameterDoc("jobNamespace", QueryParameterKind.String, "Only jobs in this namespace."),
                     new QueryParameterDoc("jobName", QueryParameterKind.String, "Exact job name."),
-                    new QueryParameterDoc(
-                        "status",
-                        QueryParameterKind.String,
-                        "Exact job status as a kebab code or its number.",
-                        CodeKind: "job-status"
-                    ),
+                    new QueryParameterDoc("status", QueryParameterKind.String, "Exact job status as a kebab code.", CodeKind: "job-status"),
                     new QueryParameterDoc("terminalOnly", QueryParameterKind.Bool, "True restricts to terminal statuses."),
                     new QueryParameterDoc("recurringOnly", QueryParameterKind.Bool, "True restricts to recurring slots."),
                     new QueryParameterDoc("parentJobRef", QueryParameterKind.String, "Only direct children of this parent job ref."),

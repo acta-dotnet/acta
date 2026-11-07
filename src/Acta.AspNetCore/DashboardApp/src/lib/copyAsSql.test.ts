@@ -15,9 +15,9 @@ test('jobsListSql with no filters selects the whole view, no WHERE clause', () =
   assert.equal(jobsListSql({}), 'SELECT * FROM acta.jobs_view ORDER BY created_at_utc DESC LIMIT 100;');
 });
 
-test('jobsListSql composes filters with AND and lowercases the display status', () => {
+test('jobsListSql composes filters with AND', () => {
   assert.equal(
-    jobsListSql({ namespace: 'billing', status: 'Failed', jobName: 'send-invoice' }),
+    jobsListSql({ namespace: 'billing', status: 'failed', jobName: 'send-invoice' }),
     "SELECT * FROM acta.jobs_view WHERE namespace_name = 'billing' AND job_status = 'failed' AND definition_name = 'send-invoice' ORDER BY created_at_utc DESC LIMIT 100;"
   );
 });
@@ -105,7 +105,7 @@ test('eventsListSql keeps anything that is not a job ref as an escaped literal',
 
 test('jobsListSql emits the SQL Server TOP form with no LIMIT', () => {
   assert.equal(
-    jobsListSql({ status: 'Failed' }, { provider: 'mssql', schema: 'acta' }),
+    jobsListSql({ status: 'failed' }, { provider: 'mssql', schema: 'acta' }),
     "SELECT TOP 100 * FROM acta.jobs_view WHERE job_status = 'failed' ORDER BY created_at_utc DESC;"
   );
 });
