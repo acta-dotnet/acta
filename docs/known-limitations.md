@@ -101,15 +101,15 @@ On SQLite, a `JobId` returned by a transactional enqueue that then rolls back is
 the transaction that advanced it and the next insert receives the same id. PostgreSQL and SQL Server
 allocate from non-transactional sequences, which burn the value instead. Acta's own contract is the same
 on all three: a transactional enqueue that rolls back leaves no durable row. What differs is what the
-returned identity means afterwards — an application that holds `EnqueueJobResponse.JobId` across a
+returned identity means afterwards: an application that holds `EnqueueJobResponse.JobId` across a
 rollback and looks it up later can, on SQLite, read a *different* job that has since been given that id.
 Hold `JobRef` instead. It is a UUIDv7 minted in your process before the row is written, so you have it
 in advance and nothing else will ever carry it, whereas a `JobId` is only meaningful for an enqueue that
 committed.
 
 A namespace id is 32 bits, so one database can allocate around 2.1 billion namespaces over its
-whole lifetime. Ids are never reclaimed — deleting a namespace does not return its id, so the
-ceiling counts every namespace ever created rather than the number that currently exist — but at
+whole lifetime. Ids are never reclaimed (deleting a namespace does not return its id, so the
+ceiling counts every namespace ever created rather than the number that currently exist), but at
 this width that is an accounting note, not a budget: a deploy allocates an id only for a
 genuinely new namespace name (a repeated deploy of an existing namespace allocates
 nothing), and namespaces are created deliberately, one per bounded context, not per request.
@@ -117,15 +117,15 @@ SQLite's `namespaces.namespace_id` is a 64-bit `AUTOINCREMENT`; 2,147,483,647 is
 
 Microsoft.Data.Sqlite (verified in 10.0.11 and on its `main`) carries an unsynchronized enumeration
 in `SqliteConnection.Deactivate`: returning a pooled connection walks the custom-function dictionary
-with no lock, so a concurrent reclaim can fault inside the driver. A plain user never sees it — the
-dictionary is empty unless `CreateFunction` was called — but Acta registers its `acta_blob` and
+with no lock, so a concurrent reclaim can fault inside the driver. A plain user never sees it (the
+dictionary is empty unless `CreateFunction` was called), but Acta registers its `acta_blob` and
 `acta_error` functions on every open, which makes the upstream race reachable. Acta makes it
 reachable; it does not cause it. Observed only as a rare test-suite fault under heavy cross-process
 parallelism, never reproduced in isolation, and 1.0 deliberately changes nothing for it: the
 fault sits in the driver's pool, and `Pooling=false` would trade it for a fresh native open per
 connection, a real cost that would need benchmarking first.
 
-Acta requires no ambient isolation level — every mutation is guarded by explicit lock hints or a
+Acta requires no ambient isolation level: every mutation is guarded by explicit lock hints or a
 compare-and-swap predicate, so job correctness does not depend on snapshot isolation. On SQL Server it
 runs and is tested with READ_COMMITTED_SNAPSHOT on and off: no Acta statement waits on an
 application's open transaction, except the write-write waits RCSI has too (the same lane, parent
@@ -138,7 +138,7 @@ unfinished under the retired definition. Acta turns READ_COMMITTED_SNAPSHOT on o
 development flag has just created, and leaves the setting as it is everywhere else.
 PostgreSQL runs plain Read Committed and SQLite WAL journal
 mode; reverting SQLite to a rollback journal reintroduces a global write lock. An application-imposed Serializable level makes the signal-wait arming race surface as a
-serialization retry rather than resolving in place — safe, but untested. Only the preferred
+serialization retry rather than resolving in place: safe, but untested. Only the preferred
 configuration is exercised by the conformance suites.
 
 SQL provider behavior should be tested under your workload, including claim pressure, long-running

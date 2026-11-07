@@ -65,11 +65,11 @@ The same rows are readable through `IActaOperations.Workers.ListAsync`, filtered
 
 ## Common queries
 
-Read freely — the views exist for it. Repair through the control verbs, not through UPDATE. The
+Read freely: the views exist for it. Repair through the control verbs, not through UPDATE. The
 schema's own checks guard row *shape* (lease all-or-nothing, paired payload formats, non-negative
 counters), but they cannot guard *history*: the runtime fences every mutation
 on version counters and lease ownership, so a hand-edited `version`, `execution_number`, or lease
-column produces a row the engine either refuses to touch or mistakes for another worker's — with no
+column produces a row the engine either refuses to touch or mistakes for another worker's, with no
 constraint to stop you. Every control verb (restart, cancel, reschedule, purge) makes its change
 under those fences and leaves an audited event; a manual UPDATE does neither.
 
@@ -588,16 +588,16 @@ Jobs of a definition only the withdrawn build carried stay `Ready` until a build
 ### Coexisting with your application's packages
 
 Acta declares only minimum versions for its database drivers (`Npgsql`, `Microsoft.Data.SqlClient`,
-`Microsoft.Data.Sqlite`) — floors, never upper bounds. Your application stays free to pin the driver
+`Microsoft.Data.Sqlite`): floors, never upper bounds. Your application stays free to pin the driver
 version it needs, including through Central Package Management; NuGet resolves one driver for the
 process and Acta uses whatever it resolves.
 
-An upper bound in package metadata would not actually protect you — NuGet demotes a version-range
+An upper bound in package metadata would not actually protect you: NuGet demotes a version-range
 conflict to a warning that most builds never read. So the check runs at startup instead: the
 provider compares the major version of the driver actually loaded against the major Acta was
-certified with, and on a mismatch logs one warning naming both. The host keeps running, because a
+tested with, and on a mismatch logs one warning naming both. The host keeps running, because a
 driver often moves when another library pulls in its next major; the warning tells an operator which
-version is running uncertified, and the conformance suite is what certifies a new one.
+version is running untested, and the conformance suite is what clears a new one.
 
 ### Worker count and executor count
 
@@ -896,11 +896,11 @@ until the job itself is resumed.
 ### …a signal never arrives?
 
 An unbounded `WaitSignalAsync` suspends the job indefinitely, and retention never touches a
-suspended job — only terminal ones. When "never" is a real possibility, bound the wait:
+suspended job, only terminal ones. When "never" is a real possibility, bound the wait:
 `WaitSignalAsync(name, timeout)` cancels the job on expiry, budget-neutral, with reason
 `job.wait-timed-out`, so the row lands terminal and ages out normally; `TryWaitSignalAsync`
 resumes the handler with a `TimedOut` result instead, for workflows that expire or compensate
-explicitly. The deadline is stamped on the checkpoint when the wait first arms and is never extended —
+explicitly. The deadline is stamped on the checkpoint when the wait first arms and is never extended:
 worker downtime, restarts, and replays all count against it.
 
 ### …a child never finishes and the parent is waiting on it?
@@ -908,12 +908,12 @@ worker downtime, restarts, and replays all count against it.
 `TryWaitChildAsync(childJobId, timeout)` resumes the parent with `TimedOut` and cancels the
 unfinished child and its descendant subtree; the parent stays active and decides what happens
 next. A group is the same story under one clock: `TryWaitChildrenAsync` (and the bounded
-`Join`/`Parallel`/`Map` overloads) spends a single persisted deadline across all members —
+`Join`/`Parallel`/`Map` overloads) spends a single persisted deadline across all members:
 completed children keep their outcomes, only the unfinished ones are cancelled, and the
 at-least-once shape below covers each of those cancellations the same way. Two limits remain. The subtree cancellation is initiated by the parent's resumed attempt, so
 it is at-least-once like everything else: a crash between the durable expiry and the cancellation
 re-runs it on replay, and a parent that goes terminal without ever replaying leaves its children
-running — which is what parent death has always meant in Acta. And an expired wait is
+running, which is what parent death has always meant in Acta. And an expired wait is
 terminal for its name: a replay that reaches an unbounded `WaitChildAsync` over an already-expired
 latch cancels the job rather than parking it forever on a wait that can no longer complete.
 
@@ -1075,7 +1075,7 @@ Sleep and reschedule waits are timer-based. Check timer `checkpoints` (kind `tim
 instant.
 
 A bounded wait tells you when it gives up: `Explain` prints "times out at" with the deadline, the
-checkpoint's `due_at_utc` carries it, and the suspended row's `next_run_at_utc` is non-null — the job
+checkpoint's `due_at_utc` carries it, and the suspended row's `next_run_at_utc` is non-null: the job
 will wake itself. A suspended row with `next_run_at_utc` NULL is an unbounded wait and wakes only
 on a raise. To put a bound on a job stranded under code that has since gained one, reschedule it
 once: the re-entered wait arms the new deadline on a checkpoint that never had one.

@@ -89,7 +89,7 @@ first command runs the whole story through three firings and exits; the rest rep
 hand, in two terminals, with a real process kill (`Environment.FailFast`). The tests in
 [`804-continuous-synchronization-tests`](../../800-testing/804-continuous-synchronization-tests/)
 prove the same recovery inside one process instead, by expiring the lease and fencing the late
-attempt, and Acta's chaos certification kills worker processes at scale.
+attempt, and Acta's release validation kills worker processes at scale.
 
 ```bash
 # 1. Seed 120 order changes, watch three firings sync them in batches of forty, print the rows, exit.

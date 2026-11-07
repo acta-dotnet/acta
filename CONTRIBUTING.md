@@ -111,7 +111,7 @@ delete `acta-local*.db` including the `-wal` and `-shm` sidecar files from your 
 `ResetActaTestSchema` fact in `tests/Acta.Tests.Conformance.Postgres/DatabaseSetup.cs` and
 `tests/Acta.Tests.Conformance.SqlServer/DatabaseSetup.cs` (marked `[Fact(Explicit = true)]`; run it
 from your IDE's test runner, or with the xunit v3 in-process runner:
-`dotnet run --project tests/Acta.Tests.Conformance.Postgres -c Release -- -explicit only -method "*DatabaseSetup.ResetActaTestSchema*"` —
+`dotnet run --project tests/Acta.Tests.Conformance.Postgres -c Release -- -explicit only -method "*DatabaseSetup.ResetActaTestSchema*"`;
 `dotnet test --filter` cannot flip the explicit option and discovers nothing to run). It refuses any database name not on its
 whitelist (`acta-test`), so `acta-dev` can never be reset by it. Run it when accumulated
 append-only rows get unwieldy or after a destructive schema change.
@@ -311,11 +311,11 @@ Commit messages use imperative mood with no prefixes.
 
 **Warnings are errors, and which trees that covers.** The root `Directory.Build.props` sets
 `TreatWarningsAsErrors` together with a curated analyzer tier, and `src/`, `tests/`, `anvil/`, `tools/`,
-`support/` and both `demos/` build under it — the demos chain to the root explicitly, because MSBuild
+`support/` and both `demos/` build under it: the demos chain to the root explicitly, because MSBuild
 stops at the first `Directory.Build.props` it finds walking up and would otherwise never read it. A rule
 that does not apply to a particular tree is switched off in `.editorconfig`, path-scoped, with the reason
 written beside it; see the `[concepts/**/*.cs]` and `[demos/**/*.cs]` blocks for the shape. Do not add a
-`[SuppressMessage]` attribute to production code — the ruling belongs where the next reader will look for
+`[SuppressMessage]` attribute to production code: the ruling belongs where the next reader will look for
 it, not at the site.
 
 Two trees are exempt on purpose. `concepts/` and `tests/PackageSmoke/` carry their own
