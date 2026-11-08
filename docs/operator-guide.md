@@ -80,9 +80,14 @@ job, with a `job.resumed` event whose details carry the reason `lane-repaired`. 
 large namespace can take several passes. Restart a laned job with the restart verb, which reactivates it
 under the lane lock and runs it right after the current head.
 
+In SQL a ref is the UUID after `job_`: `job_01a14f4e954e7bf68ac609f3fcad8e3d` is `01a14f4e-954e-7bf6-8ac6-09f3fcad8e3d`, and that lowercase dashed form matches on every provider.
+
+- PostgreSQL stores a `uuid` and also parses the digits without dashes: `WHERE job_ref = '01a14f4e954e7bf68ac609f3fcad8e3d'`.
+- SQL Server stores a `uniqueidentifier`, shows it in uppercase, and fails to convert a literal without dashes: `WHERE job_ref = '01A14F4E-954E-7BF6-8AC6-09F3FCAD8E3D'`.
+- SQLite stores the lowercase dashed text and compares it exactly, so any other spelling matches nothing: `WHERE job_ref = '01a14f4e-954e-7bf6-8ac6-09f3fcad8e3d'`.
+
 ```sql
--- One job, by public ref: job_ref holds the uuid whose 32 hex digits follow "job_" in the value
--- dashboards and clients use.
+-- One job, by public ref, written as above.
 SELECT * FROM acta.jobs_view WHERE job_ref = :job_ref;
 
 -- One job, by internal id (engine identity; logs and SQL joins use it).
