@@ -2,6 +2,8 @@ using System.Collections;
 using System.Data;
 using System.Data.Common;
 using System.Diagnostics.CodeAnalysis;
+using Acta.Tests.Runtime;
+using Microsoft.Extensions.Logging;
 using Xunit;
 
 namespace Acta.Tests.Storage;
@@ -20,7 +22,7 @@ public class DbSessionRetryRegionTests
     private static readonly StoreCommand Command = new("CompleteJobStep");
     private static readonly StoreCommand InlineCommand = new("ClaimOutbox");
 
-    private static DbSession NewSession(FakeDialect dialect, int retryAttempts = 5) =>
+    private static DbSession NewSession(FakeDialect dialect, int retryAttempts = 5, ILogger<DbSession>? log = null) =>
         new(
             new SqlProviderOptions
             {
@@ -29,7 +31,8 @@ public class DbSessionRetryRegionTests
                 DeadlockRetryAttempts = retryAttempts,
             },
             dialect,
-            new SqlResourceCatalog("pg", "acta")
+            new SqlResourceCatalog("pg", "acta"),
+            log
         );
 
     [Fact]
@@ -273,6 +276,26 @@ public class DbSessionRetryRegionTests
             },
             log
         );
+        Assert.Equal(2, dialect.Executions);
+        Assert.Equal(1, dialect.Commits);
+    }
+
+    // The teardown's warning is a log line like any other: a sink that throws on it must not take the original
+    // transient's place, or DeadlockRetry abandons a retry that would have succeeded.
+    [Fact]
+    public async Task Teardown_that_fails_still_retries_when_the_log_sink_throws()
+    {
+        var log = new List<string>();
+        var dialect = new FakeDialect(log)
+        {
+            FailExecuteWhile = static attempt => attempt == 1,
+            FailTransactionDisposeWhile = static ordinal => ordinal == 1,
+        };
+        using var logging = new LoggerFactory([new ThrowingLoggerProvider()]);
+
+        await NewSession(dialect, log: logging.CreateLogger<DbSession>())
+            .ExecuteAsync(Command, static _ => { }, TestContext.Current.CancellationToken);
+
         Assert.Equal(2, dialect.Executions);
         Assert.Equal(1, dialect.Commits);
     }

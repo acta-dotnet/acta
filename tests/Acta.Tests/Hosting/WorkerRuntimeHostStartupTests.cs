@@ -1,8 +1,10 @@
 using System.Globalization;
 using Acta.Sqlite;
+using Acta.Tests.Runtime;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Xunit;
 
 namespace Acta.Tests.Hosting;
@@ -100,6 +102,59 @@ public sealed class WorkerRuntimeHostStartupTests
         }
         finally
         {
+            SqliteConnection.ClearAllPools();
+            File.Delete(dbPath);
+        }
+    }
+
+    // A stop whose Draining stamp outlives the shutdown deadline logs that it went over budget. A sink that throws on
+    // that line must not end the stop before the hard stop cancels the worker's loops.
+    [Fact]
+    public async Task A_stop_past_its_deadline_cancels_the_workers_when_the_log_sink_throws()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var dbPath = Path.Combine(Path.GetTempPath(), $"acta-host-{Guid.NewGuid():N}.db");
+        var connectionString = new SqliteConnectionStringBuilder { DataSource = dbPath }.ConnectionString;
+        var writes = new SqliteDialect().OwnedWriteQueue(connectionString);
+        var holdingWrites = false;
+
+        try
+        {
+            using var logging = new LoggerFactory([new ThrowingLoggerProvider()]);
+            var services = new ServiceCollection();
+            services.UseActa(j =>
+            {
+                j.UseSqlite(o =>
+                {
+                    o.ConnectionString = connectionString;
+                    o.MigrateOnStartup = true;
+                });
+                j.Run<TestJobs.TestJobsManifest>(WorkerNamespace, ownerTeam: "test");
+            });
+            services.Configure<JobsOptions>(o => o.RunSystemJobs = false);
+            services.AddSingleton(logging.CreateLogger<WorkerRuntimeHost>());
+            await using var provider = services.BuildServiceProvider(validateScopes: true);
+            var host = Assert.IsType<WorkerRuntimeHost>(Assert.Single(provider.GetServices<IHostedService>()));
+            await host.StartAsync(ct);
+
+            // Every owned write waits behind the held queue, so the Draining stamp is still waiting when the deadline passes.
+            await writes.WaitAsync(ct);
+            holdingWrites = true;
+            using var shutdown = new CancellationTokenSource();
+            var stop = host.StopAsync(shutdown.Token);
+            await shutdown.CancelAsync();
+            await stop;
+
+            var loops = host.ExecuteTask!;
+            await Task.WhenAny(loops, Task.Delay(TimeSpan.FromSeconds(30), ct));
+            Assert.True(loops.IsCompleted, "the stop never cancelled the worker's loops.");
+        }
+        finally
+        {
+            if (holdingWrites)
+            {
+                writes.Release();
+            }
             SqliteConnection.ClearAllPools();
             File.Delete(dbPath);
         }

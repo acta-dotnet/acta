@@ -140,7 +140,7 @@ public sealed class WorkerFinalizerTests
                 calls++;
                 return calls < 2 ? throw new ProviderDown() : Task.FromResult("landed");
             },
-            new ActaLog.NonThrowingLogger(new ThrowingLogger()),
+            new ActaLog.NonThrowingLogger(new ThrowingLoggerProvider.ThrowingLogger()),
             jobId: 7,
             TestContext.Current.CancellationToken,
             firstDelay: TimeSpan.Zero
@@ -962,30 +962,6 @@ public sealed class WorkerFinalizerTests
 
         public ValueTask<WorkerWakeupWaitStatus> WaitAsync(WorkerWakeupChannel channel, TimeSpan timeout, CancellationToken ct) =>
             throw new NotSupportedException();
-    }
-
-    // Stands in for any diagnostic sink that fails: the repeat's job is the row, not the log line.
-    private sealed class ThrowingLogger : ILogger
-    {
-        public IDisposable? BeginScope<TState>(TState state)
-            where TState : notnull => throw new InvalidOperationException("the log sink is down");
-
-        public bool IsEnabled(LogLevel logLevel) => true;
-
-        public void Log<TState>(
-            LogLevel logLevel,
-            EventId eventId,
-            TState state,
-            Exception? exception,
-            Func<TState, Exception?, string> formatter
-        ) => throw new InvalidOperationException("the log sink is down");
-    }
-
-    private sealed class ThrowingLoggerProvider : ILoggerProvider
-    {
-        public ILogger CreateLogger(string categoryName) => new ThrowingLogger();
-
-        public void Dispose() { }
     }
 
     private sealed class RecordingLogger : ILogger

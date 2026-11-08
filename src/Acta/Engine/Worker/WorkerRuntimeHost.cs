@@ -24,7 +24,7 @@ internal sealed class WorkerRuntimeHost(
 
     private readonly WorkerRuntime[] _runtimes = runtimes.ToArray();
     private readonly IReadOnlyList<IProviderBootstrap> _bootstraps = bootstraps.ToArray();
-    private readonly ILogger _log = log ?? NullLogger<WorkerRuntimeHost>.Instance;
+    private readonly ActaLog.NonThrowingLogger _log = new(log ?? NullLogger<WorkerRuntimeHost>.Instance);
 
     /// <summary>
     /// Runs <see cref="WorkerRuntimeStartup"/> to completion before host startup finishes, so anything
@@ -140,14 +140,7 @@ internal sealed class WorkerRuntimeHost(
             }
             catch (Exception ex)
             {
-                try
-                {
-                    onFailure(item, ex);
-                }
-                catch
-                {
-                    // Logging cannot be allowed to fault a best-effort shutdown phase.
-                }
+                onFailure(item, ex);
             }
         }
     }

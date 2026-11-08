@@ -2,6 +2,7 @@ using System.Diagnostics;
 using Acta.Redis;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using StackExchange.Redis;
 using Xunit;
@@ -178,6 +179,28 @@ public sealed class RedisWakeupTests
 
         // The wake must not throw despite Redis being down, and must reach the LOCAL waiter -
         // local-first delivery is what makes a Redis outage a latency event, not a correctness one.
+        await wakeup.WakeAsync(
+            WorkerWakeupChannel.WorkerNamespace("billing"),
+            WorkerWakeupReason.WorkAvailable,
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.Equal(WorkerWakeupWaitStatus.Signaled, await wait.WaitAsync(HangGuard, None));
+    }
+
+    // The claim loop waits here, so a sink that throws on the failed subscribe or publish line must not fault the wait
+    // or the wake that answers it.
+    [Fact]
+    public async Task Redis_down_with_a_log_sink_that_throws_still_degrades_to_local_wakes()
+    {
+        var config = ConfigurationOptions.Parse(UnreachableConfiguration);
+        config.AbortOnConnectFail = false;
+        config.BacklogPolicy = BacklogPolicy.FailFast;
+        using var redis = await ConnectionMultiplexer.ConnectAsync(config);
+        using var logging = new LoggerFactory([new ThrowingLoggerProvider()]);
+        await using var wakeup = new RedisWakeup(redis, Options.Create(UniquePrefix()), logging.CreateLogger<RedisWakeup>());
+
+        var wait = wakeup.WaitAsync(WorkerWakeupChannel.WorkerNamespace("billing"), WaitGenerously, None).AsTask();
         await wakeup.WakeAsync(
             WorkerWakeupChannel.WorkerNamespace("billing"),
             WorkerWakeupReason.WorkAvailable,

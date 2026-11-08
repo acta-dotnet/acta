@@ -53,7 +53,7 @@ internal sealed class RedisWakeup : IWorkerWakeup, IDisposable, IAsyncDisposable
 
     /// <summary>One publish window per namespace channel this process has woken; the keyspace is the namespaces.</summary>
     private readonly ConcurrentDictionary<string, PublishThrottle> _throttles = new(StringComparer.Ordinal);
-    private readonly ILogger _log;
+    private readonly ActaLog.NonThrowingLogger _log;
 
     private long _jitteredWakesScheduled;
     private long _published;
@@ -85,7 +85,7 @@ internal sealed class RedisWakeup : IWorkerWakeup, IDisposable, IAsyncDisposable
         _wakes = new(RedisChannel.Pattern(_wakePrefix + "*"));
         _completions = new(RedisChannel.Pattern(_donePrefix + "*"));
         _remoteJitterMax = options.Value.RemoteWakeJitter;
-        _log = (ILogger?)log ?? NullLogger.Instance;
+        _log = new ActaLog.NonThrowingLogger((ILogger?)log ?? NullLogger.Instance);
     }
 
     public async ValueTask WakeAsync(WorkerWakeupChannel channel, WorkerWakeupReason reason, CancellationToken ct = default)

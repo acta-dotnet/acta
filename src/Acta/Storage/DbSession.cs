@@ -16,7 +16,7 @@ internal sealed class DbSession : IDbSession
     private readonly SqlResourceCatalog _sql;
     private readonly int _commandTimeoutSeconds;
     private readonly int _retryAttempts;
-    private readonly ILogger _log;
+    private readonly ActaLog.NonThrowingLogger _log;
 
     /// <summary>The queue this session's owned writes wait their turn on (<see cref="ISqlDialect.OwnedWriteQueue"/>), or null.</summary>
     private readonly SemaphoreSlim? _writeQueue;
@@ -36,7 +36,7 @@ internal sealed class DbSession : IDbSession
         _sql = sql;
         _commandTimeoutSeconds = (int)Math.Ceiling(options.CommandTimeout.TotalSeconds);
         _retryAttempts = Math.Max(1, options.DeadlockRetryAttempts);
-        _log = log ?? NullLogger<DbSession>.Instance;
+        _log = new ActaLog.NonThrowingLogger(log ?? NullLogger<DbSession>.Instance);
         _writeQueue = dialect.OwnedWriteQueue(options.ConnectionString);
     }
 
