@@ -36,4 +36,20 @@ describe('JobDiagnosis', () => {
     expect(link?.textContent).toBe(workerRef);
     expect(getByText(/version 1\.0\.0/)).toBeTruthy();
   });
+
+  it('spaces the lease holder apart from its version and its heartbeat', () => {
+    const lease = {
+      workerRef,
+      workerName: '1.0.0',
+      expiresAtUtc: '2026-07-14T08:00:00Z',
+      expired: true,
+      workerLastSeenAtUtc: '2026-07-14T07:58:00Z',
+      workerStale: true,
+      recoveryExpectation: 'Recovery reclaims the job on its next pass.'
+    };
+    const { container } = render(JobDiagnosis, { jobNamespace: 'billing', explanation: explanation({ lease }) });
+    expect(container.querySelector('#job-worker-evidence')?.textContent).toMatch(
+      new RegExp(`^${workerRef} · version 1\\.0\\.0 · lease expired .+ · last heartbeat `)
+    );
+  });
 });

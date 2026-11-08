@@ -216,7 +216,7 @@
               </dd>
             </div>
             <div><dt>Next occurrence</dt><dd><RelativeTime value={schedule.nextOccurrenceAtUtc} /></dd></div>
-            <div><dt>Next evaluation</dt><dd>{#if schedule.nextEvaluationAtUtc}<RelativeTime value={schedule.nextEvaluationAtUtc} /> · {/if}{schedule.evaluationStatus}</dd></div>
+            <div><dt>Next evaluation</dt><dd>{#if schedule.nextEvaluationAtUtc}<RelativeTime value={schedule.nextEvaluationAtUtc} />{' · '}{/if}{schedule.evaluationStatus}</dd></div>
           </dl>
           <p class="detail-help">
             Misfire strategy governs occurrences missed while no host admitted them: skip to the next one, catch up once,

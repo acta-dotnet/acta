@@ -53,7 +53,7 @@
         {#if job.status !== 'idle' || job.nextRunAtUtc}<RelativeTime value={job.nextRunAtUtc} />
         {:else if firing}
           {@const { fires, resumes } = firing}
-          {#if fires}<RelativeTime value={fires.atUtc} /> <span class="dim">when schedule {@render scheduleLink(fires.schedule)} fires{#if resumes?.overdue}; schedule {@render scheduleLink(resumes.schedule)} is overdue and may fire first{:else if resumes}; schedule {@render scheduleLink(resumes.schedule)} may fire first once it resumes{/if}</span>{#if resumes && !resumes.overdue} <RelativeTime value={resumes.atUtc} />{/if}
+          {#if fires}<RelativeTime value={fires.atUtc} /> <span class="dim">when schedule {@render scheduleLink(fires.schedule)} fires{#if resumes?.overdue}; schedule {@render scheduleLink(resumes.schedule)} is overdue and may fire first{:else if resumes}; schedule {@render scheduleLink(resumes.schedule)} may fire first once it resumes{/if}</span>{#if resumes && !resumes.overdue}{' '}<RelativeTime value={resumes.atUtc} />{/if}
           {:else if resumes?.overdue}<span class="dim">Schedule {@render scheduleLink(resumes.schedule)} is overdue; its misfire policy decides what it fires next.</span>
           {:else if resumes}<span class="dim">Schedule {@render scheduleLink(resumes.schedule)} resumes</span> <RelativeTime value={resumes.atUtc} />{/if}
         {:else if firing === null}<span class="dim">No schedule is set to fire it.</span>
@@ -62,14 +62,14 @@
     {/if}
     <!-- On a permanent job MaxAttempts is each firing's own budget: a spent one returns the job to idle. -->
     {#if job.kind === 'permanent'}
-      <dt>Attempts</dt><dd>{displayFormatter.number(job.executionNumber)} started across all firings, {failureCountText(job.failureCount)} consecutive failures in the latest firing{#if maxAttempts != null && !TERMINAL_STATUSES.includes(job.status)} <span class="dim">(each firing gets {displayFormatter.number(maxAttempts)} attempts)</span>{/if}</dd>
+      <dt>Attempts</dt><dd>{displayFormatter.number(job.executionNumber)} started across all firings, {failureCountText(job.failureCount)} consecutive failures in the latest firing{#if maxAttempts != null && !TERMINAL_STATUSES.includes(job.status)}{' '}<span class="dim">(each firing gets {displayFormatter.number(maxAttempts)} attempts)</span>{/if}</dd>
     {:else}
-      <dt>Attempts</dt><dd>{displayFormatter.number(job.executionNumber)} started, {failureCountText(job.failureCount)} consecutive failures{#if maxAttempts != null && !TERMINAL_STATUSES.includes(job.status)} <span class="dim">(fails permanently at {displayFormatter.number(maxAttempts)})</span>{/if}</dd>
+      <dt>Attempts</dt><dd>{displayFormatter.number(job.executionNumber)} started, {failureCountText(job.failureCount)} consecutive failures{#if maxAttempts != null && !TERMINAL_STATUSES.includes(job.status)}{' '}<span class="dim">(fails permanently at {displayFormatter.number(maxAttempts)})</span>{/if}</dd>
     {/if}
     <dt>Last event</dt><dd>
       {#if lastEvent}
         {@const reason = eventFacts(lastEvent.detailsText).reason}
-        {lastEvent.eventCode}{#if reason} <span class="dim">· {reason}</span>{/if}{#if lastEvent.message} · “{lastEvent.message}”{/if}
+        {lastEvent.eventCode}{#if reason}{' '}<span class="dim">· {reason}</span>{/if}{#if lastEvent.message}{' · '}“{lastEvent.message}”{/if}
         <RelativeTime value={lastEvent.createdAtUtc} />
       {:else}-{/if}
     </dd>

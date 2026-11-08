@@ -461,7 +461,7 @@
                     <tr class:overdue={overdueKeys.has(key)}>
                       <td><a href={routes.schedule(dependent.jobNamespace, dependent.jobName, dependent.scheduleName)}>{key}</a></td>
                       <td>{dependent.binding}</td>
-                      <td><ScheduleStatus status={dependent.status} />{#if overdueKeys.has(key)} <span class="badge bad">overdue</span>{/if}</td>
+                      <td><ScheduleStatus status={dependent.status} />{#if overdueKeys.has(key)}{' '}<span class="badge bad">overdue</span>{/if}</td>
                       <td class="mobile-hide">{dependent.scheduledDelivery}</td>
                     </tr>
                   {/each}

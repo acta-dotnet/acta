@@ -192,4 +192,35 @@ describe('JobSummary', () => {
     expect(getByText('· unhandled-exception')).toBeTruthy();
     expect(getByText(/“Invoice provider timed out\.”/)).toBeTruthy();
   });
+
+  // Svelte drops the whitespace at the edges of a block, so a space written there never reached the page.
+  it('spaces the last event\'s parts apart', () => {
+    const lastEvent = {
+      eventId: 9,
+      eventCode: 'job.failed',
+      createdAtUtc: '2026-07-14T08:00:00Z',
+      jobNamespace: 'billing',
+      entityKind: 'job',
+      entityId: 3,
+      jobName: 'send-invoice',
+      jobRef: 'job_019f71ce69e07b85bf41fc7bf0562502',
+      lineageRootJobRef: null,
+      tenantName: null,
+      workerRef: null,
+      executionNumber: 3,
+      durationMs: 12,
+      message: 'Carrier refused the label.',
+      detailsText: '{"reason":"unhandled-exception"}'
+    };
+    const { getByText } = render(JobSummary, { job: job({}), lastEvent });
+    expect(getByText('Last event').nextElementSibling?.textContent).toMatch(/^\s*job\.failed · unhandled-exception · “Carrier refused the label\.” /);
+  });
+
+  it('spaces the attempt budget apart from the counts', () => {
+    const permanent = render(JobSummary, { job: job({ kind: 'permanent', status: 'idle', executionNumber: 3 }), maxAttempts: 15 });
+    expect(permanent.getByText('Attempts').nextElementSibling?.textContent).toMatch(/in the latest firing \(each firing gets 15 attempts\)$/);
+    permanent.unmount();
+    const oneShot = render(JobSummary, { job: job({ executionNumber: 3 }), maxAttempts: 5 });
+    expect(oneShot.getByText('Attempts').nextElementSibling?.textContent).toMatch(/consecutive failures \(fails permanently at 5\)$/);
+  });
 });
