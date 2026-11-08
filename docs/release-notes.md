@@ -2,7 +2,7 @@
 
 ## 1.0.0-rc.9
 
-Not tagged yet.
+Tagged 2026-11-09. rc.9 makes deploys explicit with `jobs deploy`, moves the dashboard into its own package, gives operations and the HTTP contract one naming convention, and runs on SQL Server with READ_COMMITTED_SNAPSHOT off as well as on. The schema changes: reprovision, as every pre-1.0 release asks.
 
 ### What a consumer must change
 
@@ -211,6 +211,20 @@ Not tagged yet.
 - A job that failed for good kept its `FirstFailure` alert, and its `ThresholdReached` one, open beside the `FinalFailure`, each saying the job was retrying and each reminded every `AlertReminderInterval`. The `sys.alerts` pass that raises a job's `FinalFailure` now resolves the job's open `FirstFailure` and `ThresholdReached` alerts, so the `FinalFailure` is its one open alert, and one of them not yet sent is suppressed, not sent.
 - A log sink that throws no longer faults the Redis wakeup, a database call's retry, or a worker host's stop. The Redis wakeup's line for a failed subscribe or publish escaped the wait and faulted the claim loop; the warning a database call writes while tearing down a failed attempt took that failure's place, so a deadlock it would have retried failed instead; and the worker host's warning for a stamp past its shutdown budget, or a loop that faulted while draining, ended the stop before it cancelled the worker's loops. Each now writes through a logger that ignores a sink's failure, as the worker's loops do.
 - Once a deploy step had deployed a namespace, every `MigrateOnStartup` start logged that it writes no definition or schedule there and to run the app with `jobs deploy`, even when this build was the version deployed there. The line now appears only when another version is deployed there. A start that declares a job with no definition there is still refused, naming it.
+
+### Evidence
+
+The engine was certified on `096ea16e5` with the Acta Verify release suite on PostgreSQL, SQL Server, and SQLite, reported in [`docs/reference/benchmark.md`](./reference/benchmark.md) and on [useacta.net/benchmark](https://useacta.net/benchmark), with four reruns of the one cell the run missed. The commits after it change the site and how Acta Verify frames the site's benchmark page, so the certified commit is `7c4dae04c` and the evidence stands for it.
+- **Result.** Every correctness, fault, and chaos scenario passed on every database, every trial's ledger passed the certification checks, and every performance floor held but one. Sixteen SQL Server workers over two namespaces at 4,000/s offered missed in the run (p99 2.2 s against a 2.0 s target) and in the first rerun (the backlog grew 62.8 jobs/s, 40 allowed), then held in the three reruns after it. Every pass completed about 4,000 jobs a second; the misses come from short enqueue stalls, under Known limitations.
+- **Chaos certification.** On the shipped lease timings, 1,000,000 jobs on PostgreSQL and on SQL Server with a worker killed every 5 s: 84 busy kills reclaimed on PostgreSQL and 81 on SQL Server. SQLite passed at 10,000 jobs, with 32 busy kills reclaimed.
+- **Throughput.** Four PostgreSQL workers polling held 15,000/s offered in each of three 30 s passes; its 120 s confirmation missed on p99 (2.2 s), and the step down to 12,500/s held, completing 12,527 fully executed, durably completed jobs per second with p99 1.0 s. One worker, woken in process, completed 7,500 a second with p99 49 ms. SQL Server held 5,000 a second on four workers (4,999, p99 972 ms) and on one (5,007); SQLite held 250 on one, with p99 108 ms.
+- **Drain.** Eight workers drained a backlog of 1,000,000 jobs at 73,864 a second on PostgreSQL and 42,768 on SQL Server (the steady rate on the database clock, median of three passes); one SQLite worker drained 100,000 at 8,267.
+- **Compared with rc.8.** `acta-verify compare` sets no scenario beside rc.8's run, because the .NET runtime differs; the headline rates moved within a few percent.
+- **useacta.net.** The homepage states 12,527 fully executed, durably completed jobs per second on four PostgreSQL workers. The benchmark report is a page of the site.
+
+### Known limitations
+
+- On SQL Server, sixteen worker processes at about 4,000 jobs a second see short enqueue stalls, up to about 0.4 s, mostly on SQL Server's throttle for inserts into the newest page of `jobs` and `jobs_state`. Throughput holds; an enqueue's p99 rises to between 0.5 s and 1.8 s in a run. [Known limitations](./known-limitations.md#storage-and-providers) name it.
 
 ## 1.0.0-rc.8
 
