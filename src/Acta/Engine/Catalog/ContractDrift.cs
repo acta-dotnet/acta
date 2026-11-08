@@ -77,14 +77,31 @@ internal static class ContractDriftPolicy
         {
             if (log.IsEnabled(LogLevel.Warning))
             {
-                ActaLog.PayloadContractDrift(
-                    log,
-                    drift.JobName,
-                    ns,
-                    $"input type {drift.Stored.InputTypeName} -> {drift.Incoming.InputTypeName}, "
-                        + $"input format {drift.Stored.InputFormatName} -> {drift.Incoming.InputFormatName}"
-                );
+                ActaLog.PayloadContractDrift(log, drift.JobName, ns, Changes(drift.Stored, drift.Incoming));
             }
         }
+    }
+
+    /// <summary>Each contract part that differs, with its stored and its new value, such as <c>input type A -> B</c>.</summary>
+    private static string Changes(DefinitionContract stored, DefinitionContract incoming)
+    {
+        var changes = new List<string>(4);
+        if (stored.InputTypeName != incoming.InputTypeName)
+        {
+            changes.Add($"input type {stored.InputTypeName} -> {incoming.InputTypeName}");
+        }
+        if (stored.InputFormatId != incoming.InputFormatId || stored.InputFormatName != incoming.InputFormatName)
+        {
+            changes.Add($"input format {stored.InputFormatName} -> {incoming.InputFormatName}");
+        }
+        if (stored.ResultTypeName != incoming.ResultTypeName)
+        {
+            changes.Add($"result type {stored.ResultTypeName ?? "none"} -> {incoming.ResultTypeName ?? "none"}");
+        }
+        if (stored.ResultFormatId != incoming.ResultFormatId || stored.ResultFormatName != incoming.ResultFormatName)
+        {
+            changes.Add($"result format {stored.ResultFormatName} -> {incoming.ResultFormatName}");
+        }
+        return string.Join(", ", changes);
     }
 }
