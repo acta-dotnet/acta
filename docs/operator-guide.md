@@ -7,7 +7,8 @@ Day-2 operations. The operator surface is the `IJobs` facade for per-job control
 read-only list APIs (optionally surfaced by the embedded dashboard package), and plain SQL against
 the ledger for everything else diagnostic. Queries below are
 Postgres-flavored against the `acta` schema; on SQL Server bracket the identifiers and swap the
-interval arithmetic (`DATEADD`).
+interval arithmetic (`DATEADD`), and on SQLite drop the `acta.` prefix, since the views live in the
+database file itself, and compare `_utc` columns as Unix epoch milliseconds.
 
 The job's `jobs_state` row stores current state. Job events explain transitions. Use the CLI, API,
 dashboard, or a SQL query over the events timeline to find why.
@@ -1189,7 +1190,8 @@ error then means the attribute is missing, not the `using`.
 ## SQL recipes
 
 These recipes are Postgres-flavored against the default `acta` schema; on SQL Server, bracket
-identifiers as needed and replace interval arithmetic with `DATEADD`. The first recipe enqueues a job
+identifiers as needed and replace interval arithmetic with `DATEADD`; on SQLite, drop the `acta.`
+prefix and compare `_utc` columns as Unix epoch milliseconds. The first recipe enqueues a job
 (a write, through the installed routine) and the outbox recipes repair the producer's table; the rest
 are operator/debugging reads.
 
