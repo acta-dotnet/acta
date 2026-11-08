@@ -9,6 +9,7 @@ using Xunit;
 
 public sealed class ShippingTests : IAsyncLifetime
 {
+    private readonly Carrier _carrier = new();
     private readonly LabelPrinter _printer = new();
     private readonly string _database = $"shipping-{Guid.NewGuid():N}.db";
     private IActaTestHost _host = null!;
@@ -29,7 +30,7 @@ public sealed class ShippingTests : IAsyncLifetime
                 });
                 j.Run<ShippingJobs>("shipping");
             },
-            new ActaTestHostOptions { ConfigureServices = services => services.AddSingleton(_printer) },
+            new ActaTestHostOptions { ConfigureServices = services => services.AddSingleton(_carrier).AddSingleton(_printer) },
             Ct
         );
     }
@@ -51,6 +52,20 @@ public sealed class ShippingTests : IAsyncLifetime
 
         var label = await job.GetResultAsync(Ct);
         Assert.Equal("AP00001042", label!.TrackingNumber);
+    }
+
+    [Fact]
+    public async Task A_carrier_timeout_costs_an_attempt_and_the_retry_ships()
+    {
+        _carrier.TimeoutsLeft = 1;
+        var job = await _host.Jobs.EnqueueAsync(ShippingJobs.ShipOrder(new ShipOrder(1044)), ct: Ct);
+
+        Assert.Equal(ActaRunStatus.Rearmed, await _host.RunOnceAsync(job, Ct));
+
+        // The retry is due about a minute out under the default backoff; the test makes it due now.
+        await _host.ForceJobDueAsync(job.JobId, Ct);
+        Assert.Equal(ActaRunStatus.Completed, await _host.RunOnceAsync(job, Ct));
+        Assert.Equal("AP00001044", (await job.GetResultAsync(Ct))!.TrackingNumber);
     }
 
     [Fact]

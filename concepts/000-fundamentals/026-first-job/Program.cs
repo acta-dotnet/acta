@@ -5,6 +5,7 @@ using Acta.Sqlite;
 using Shipping; // the generated manifest lands in your project's root namespace
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddSingleton<Carrier>();
 builder.Services.AddSingleton<LabelPrinter>();
 
 builder.Services.UseActa(j =>
@@ -43,6 +44,15 @@ app.MapPost(
         if (outcome.IsTimedOut)
             return Results.Accepted($"/jobs/{job.JobRef}", new { job.JobRef });
         return outcome.TryGetValue(out var label) ? Results.Ok(label) : Results.Problem($"Shipping failed; see /jobs/{job.JobRef}/explain");
+    }
+);
+
+app.MapPost(
+    "/labels/{trackingNumber}",
+    async (string trackingNumber, IJobs jobs) =>
+    {
+        var job = await jobs.EnqueueAsync(new PrintLabel(trackingNumber));
+        return Results.Accepted($"/jobs/{job.JobRef}", new { job.JobRef });
     }
 );
 
@@ -86,4 +96,10 @@ app.MapPost(
         return Results.Ok(new { cancelled.Action, cancelled.Status });
     }
 );
+
+// Switches that provoke the two failures: an offline printer fails print-label for good, and a flaky carrier times
+// out the next booking once, which ship-order retries about a minute later.
+app.MapPost("/printer/offline", (LabelPrinter printer) => printer.Online = false);
+app.MapPost("/printer/online", (LabelPrinter printer) => printer.Online = true);
+app.MapPost("/carrier/flaky", (Carrier carrier) => carrier.TimeoutsLeft = 1);
 app.Run();

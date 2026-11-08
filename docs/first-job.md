@@ -2,7 +2,7 @@
 
 One web app, two jobs, and a job's whole life: install, run, a typed result, the ref you keep, status and result reads, a failure that is final and one that is not, the explanation, cancellation, a wait that times out, the row in SQL, and the first test. Everything runs on the consumer packages with the .NET 10 SDK and embedded SQLite: no clone, no Node, no database server. The [README](../README.md) has the shortest program that runs one job; this page is the full first job.
 
-The three files below are the app. They are also concept
+The four files below are the app. They are also concept
 [`026-first-job`](../concepts/000-fundamentals/026-first-job/) in the repository, verbatim, so what
 you read here is what compiles.
 
@@ -20,7 +20,7 @@ The provider package brings the runtime, the `[Job]` source generator, and the a
 
 ## The app
 
-Replace `Program.cs` and add the two files beside it.
+Replace `Program.cs` and add the three files beside it.
 
 ```csharp
 // File: Jobs.cs
@@ -34,17 +34,40 @@ public sealed record ShipmentLabel(int OrderId, string Carrier, string TrackingN
 
 public sealed record PrintLabel(string TrackingNumber);
 
-public sealed class OrderHandlers(LabelPrinter printer)
+public sealed class OrderHandlers(Carrier carrier, LabelPrinter printer)
 {
-    // A result-bearing job: its handler returns the shipment label.
+    // A result-bearing job: its handler books the shipment and returns the label. The default policy, 15 attempts
+    // with backoff from one minute, suits a flaky carrier: a timeout costs an attempt, not the order.
     [Job("ship-order")]
-    public Task<ShipmentLabel> Ship(ShipOrder input, CancellationToken ct) =>
-        Task.FromResult(new ShipmentLabel(input.OrderId, "acme-post", $"AP{input.OrderId:D8}"));
+    public async Task<ShipmentLabel> Ship(ShipOrder input, CancellationToken ct) =>
+        new(input.OrderId, "acme-post", await carrier.BookAsync(input.OrderId, ct));
 
     // One attempt: a printer that is off is not retried for a day; the job fails for good and the
-    // explanation says why. The default is 15 attempts with backoff, which suits a flaky dependency.
+    // explanation says why.
     [Job("print-label", MaxAttempts = 1)]
     public Task Print(PrintLabel input, CancellationToken ct) => printer.PrintAsync(input.TrackingNumber, ct);
+}
+```
+
+```csharp
+// File: Carrier.cs
+namespace Shipping;
+
+public class Carrier
+{
+    // How many bookings in a row time out before the carrier answers again.
+    public int TimeoutsLeft { get; set; }
+
+    // Virtual so a test can stand in for it; the real carrier client goes here.
+    public virtual Task<string> BookAsync(int orderId, CancellationToken ct)
+    {
+        if (TimeoutsLeft > 0)
+        {
+            TimeoutsLeft--;
+            throw new TimeoutException($"Carrier did not answer; order {orderId} not booked.");
+        }
+        return Task.FromResult($"AP{orderId:D8}");
+    }
 }
 ```
 
@@ -70,6 +93,7 @@ using Acta.Sqlite;
 using Shipping; // the generated manifest lands in your project's root namespace
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddSingleton<Carrier>();
 builder.Services.AddSingleton<LabelPrinter>();
 
 builder.Services.UseActa(j =>
@@ -108,6 +132,15 @@ app.MapPost(
         if (outcome.IsTimedOut)
             return Results.Accepted($"/jobs/{job.JobRef}", new { job.JobRef });
         return outcome.TryGetValue(out var label) ? Results.Ok(label) : Results.Problem($"Shipping failed; see /jobs/{job.JobRef}/explain");
+    }
+);
+
+app.MapPost(
+    "/labels/{trackingNumber}",
+    async (string trackingNumber, IJobs jobs) =>
+    {
+        var job = await jobs.EnqueueAsync(new PrintLabel(trackingNumber));
+        return Results.Accepted($"/jobs/{job.JobRef}", new { job.JobRef });
     }
 );
 
@@ -151,6 +184,12 @@ app.MapPost(
         return Results.Ok(new { cancelled.Action, cancelled.Status });
     }
 );
+
+// Switches that provoke the two failures: an offline printer fails print-label for good, and a flaky carrier times
+// out the next booking once, which ship-order retries about a minute later.
+app.MapPost("/printer/offline", (LabelPrinter printer) => printer.Online = false);
+app.MapPost("/printer/online", (LabelPrinter printer) => printer.Online = true);
+app.MapPost("/carrier/flaky", (Carrier carrier) => carrier.TimeoutsLeft = 1);
 app.Run();
 ```
 
@@ -166,6 +205,42 @@ curl -X POST http://localhost:5090/orders/1043/ship-now  # 200 with the label: e
 `acta-local.db` holds the rows. Open `/acta` on the same port: the Jobs screen lists both orders as succeeded.
 
 `using Shipping;` is needed: the manifest `ShippingJobs` is generated into the project's root namespace, and top-level statements live in the global one. The naming rule is in [Troubleshooting](./operator-guide.md#the-generated-manifest-type-does-not-resolve).
+
+## Two failures: one final, one retried
+
+The last three routes take the printer offline and back, and time out the carrier's next booking, so each job meets the outage it is built for. Each `curl` comment below is what the app answers, trimmed; the `job_...` ref is the one the enqueue printed.
+
+### A failure that is final
+
+`print-label` declares `MaxAttempts = 1`: the first throw settles the job `failed`, and nothing retries it. That is the right shape for "a human has to fix something first". Take the printer offline, print a label, and ask why it failed:
+
+```bash
+curl -X POST http://localhost:5090/printer/offline       # false: the printer is offline
+curl -X POST http://localhost:5090/labels/AP00001042     # 202, {"jobRef":"job_..."}
+curl http://localhost:5090/jobs/job_...                  # {"status":"failed","failureCount":1, ...}
+curl http://localhost:5090/jobs/job_.../explain          # "headline":"Failed after 1 attempt.", "reason":"Printer offline; label AP00001042 not printed."
+curl -X POST http://localhost:5090/printer/online        # true: back online
+```
+
+The app's console warns that the handler `threw, and the job does not retry (attempt 1 of 1 spent the budget, so the job failed for good)`. In `/acta` the Jobs screen lists the `print-label` job as failed, and its page leads with the same headline and reason; its timeline ends at `job.failed`. Turning the printer back on does not revive the job: an operator restarts it once the cause is fixed, as `nextActions` says, or the app enqueues a new one.
+
+### A failure that retries
+
+`ship-order` keeps the default policy, `MaxAttempts = 15` with exponential backoff from one minute, so a job whose dependency is merely flaky throws, re-arms, and reads `ready` with a `NextRunAtUtc` in the future: it is waiting for its next attempt, not stuck. Make the carrier time out once, ship an order, and wait about a minute:
+
+```bash
+curl -X POST http://localhost:5090/carrier/flaky         # 1: the next booking times out
+curl -X POST http://localhost:5090/orders/1044           # 202, {"jobRef":"job_..."}
+curl http://localhost:5090/jobs/job_...                  # {"status":"ready","failureCount":1,"nextRunAtUtc":"<a minute from now>"}
+curl http://localhost:5090/jobs/job_.../explain          # "status":"ready", "reason":"Carrier did not answer; order 1044 not booked."
+# about a minute later
+curl http://localhost:5090/jobs/job_...                  # {"status":"succeeded","failureCount":0, ...}
+curl http://localhost:5090/jobs/job_.../label            # {"orderId":1044,"carrier":"acme-post","trackingNumber":"AP00001044"}
+```
+
+The console warns that the handler `threw on attempt (1 of 15); the job retries in 56000ms.`, and the explanation's headline counts down to it, `Ready, scheduled to run in 54s.`: the first retry waits one minute, give or take 10% jitter, so the numbers vary. Until then the Jobs screen shows the order ready, with `1 (1 consecutive failure)` under Attempts; after it, succeeded with `2`. The job's timeline holds Execution 1 with `job.execution-failed` and the carrier's message, and Execution 2 with `job.execution-succeeded`. `FailureCount` counts the attempts in a row that failed, so the success reset it to 0.
+
+Make the carrier flaky again and `curl -X POST http://localhost:5090/orders/1045/ship-now` answers 202 with the ref after five seconds, not the label: the wait timed out, and the job still ships at its retry.
 
 ## What each piece does
 
@@ -193,14 +268,6 @@ numeric `JobId` is for joins and SQL debugging only.
 `jobs.GetAsync(jobRef)` answers the row: `Status`, `FailureCount`, `NextRunAtUtc`, timestamps, and
 the deduplication, correlation, and concurrency keys you set. `jobs.GetResultAsync<ShipmentLabel>(jobRef)` answers the stored result, null until a
 successful completion wrote one. A job stores one result; a permanent job's next success replaces it.
-
-### A failure that is final, and the normal kind
-
-`print-label` declares `MaxAttempts = 1`: the first throw settles the job `failed`, and nothing retries
-it. That is the right shape for "a human has to fix something first". The default is `MaxAttempts = 15`
-with exponential backoff, so a job whose dependency is merely flaky throws, re-arms, and reads `ready`
-with a `NextRunAtUtc` in the future: it is waiting for its next attempt, not stuck. `FailureCount` says
-how many attempts in a row have failed; a success resets it.
 
 ### Ask why
 
@@ -274,6 +341,7 @@ using Xunit;
 
 public sealed class ShippingTests : IAsyncLifetime
 {
+    private readonly Carrier _carrier = new();
     private readonly LabelPrinter _printer = new();
     private readonly string _database = $"shipping-{Guid.NewGuid():N}.db";
     private IActaTestHost _host = null!;
@@ -294,7 +362,7 @@ public sealed class ShippingTests : IAsyncLifetime
                 });
                 j.Run<ShippingJobs>("shipping");
             },
-            new ActaTestHostOptions { ConfigureServices = services => services.AddSingleton(_printer) },
+            new ActaTestHostOptions { ConfigureServices = services => services.AddSingleton(_carrier).AddSingleton(_printer) },
             Ct
         );
     }
@@ -316,6 +384,20 @@ public sealed class ShippingTests : IAsyncLifetime
 
         var label = await job.GetResultAsync(Ct);
         Assert.Equal("AP00001042", label!.TrackingNumber);
+    }
+
+    [Fact]
+    public async Task A_carrier_timeout_costs_an_attempt_and_the_retry_ships()
+    {
+        _carrier.TimeoutsLeft = 1;
+        var job = await _host.Jobs.EnqueueAsync(ShippingJobs.ShipOrder(new ShipOrder(1044)), ct: Ct);
+
+        Assert.Equal(ActaRunStatus.Rearmed, await _host.RunOnceAsync(job, Ct));
+
+        // The retry is due about a minute out under the default backoff; the test makes it due now.
+        await _host.ForceJobDueAsync(job.JobId, Ct);
+        Assert.Equal(ActaRunStatus.Completed, await _host.RunOnceAsync(job, Ct));
+        Assert.Equal("AP00001044", (await job.GetResultAsync(Ct))!.TrackingNumber);
     }
 
     [Fact]
@@ -365,20 +447,58 @@ dotnet test
 `ActaTestHost.StartAsync` builds the same container production uses, migrates a fresh database, and
 deploys the manifest's jobs, but starts no claim loop. `RunOnceAsync(job)` claims and runs exactly that job
 and answers what the tick did: `Completed`, `Failed`, `Rearmed` (re-armed for a later attempt), or
-`NothingClaimed`. The printer is the app's own class, swapped in through `ConfigureServices` as the
-singleton the handler resolves. The same facts run on PostgreSQL or SQL Server: reference that
+`NothingClaimed`. The carrier and the printer are the app's own classes, registered through
+`ConfigureServices` as the singletons the handler resolves, so each fact sets the outage it tests. A
+retry is due when the backoff says, and `ForceJobDueAsync(job.JobId)` makes it due now, so the retry
+fact waits for nothing. The same facts run on PostgreSQL or SQL Server: reference that
 provider in place of `Acta.Sqlite`, register it on the host's throwaway schema, and drop the file
 cleanup; [Testing custom jobs](./developer-guide.md#testing-custom-jobs) shows that setup, with
 retries, signals, timers, and crash recovery.
 
 ## Without a web host
 
-The same jobs run on the generic host, without the dashboard and the endpoints:
+The same jobs run on the generic host, without the dashboard and the endpoints. Create a console project and reference `Microsoft.Extensions.Hosting` in place of `Acta.Dashboard`; Acta itself needs only the hosting abstractions, not ASP.NET Core:
 
-- Create the project with `dotnet new console` and reference `Microsoft.Extensions.Hosting` in place of `Acta.Dashboard`. Acta itself needs only the hosting abstractions, not ASP.NET Core.
-- In `Program.cs`, build with `Host.CreateApplicationBuilder(args)`, drop `MapActa` and the endpoints, and enqueue at startup: `await host.StartAsync();`, then `await host.Services.GetRequiredService<IJobs>().EnqueueAsync(new ShipOrder(1042));`, then `await host.WaitForShutdownAsync();`.
-- Add `using Microsoft.Extensions.DependencyInjection;` and `using Microsoft.Extensions.Hosting;`: a console project's implicit usings cover neither.
-- Everything durable is the same: the rows, the retries, the CLI. Only the dashboard needs a web host.
+```bash
+dotnet new console -n Shipping && cd Shipping
+dotnet add package Acta.Sqlite --prerelease
+dotnet add package Microsoft.Extensions.Hosting
+```
+
+Add `Jobs.cs`, `Carrier.cs`, and `LabelPrinter.cs` as they are, and replace `Program.cs`. It enqueues one order at startup and prints its outcome; the two `Microsoft.Extensions` usings are there because a console project's implicit usings cover neither.
+
+```csharp
+using Acta;
+using Acta.Sqlite;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Shipping;
+
+var builder = Host.CreateApplicationBuilder(args);
+builder.Services.AddSingleton<Carrier>();
+builder.Services.AddSingleton<LabelPrinter>();
+
+builder.Services.UseActa(j =>
+{
+    j.UseSqlite(sqlite =>
+    {
+        sqlite.ConnectionString = "Data Source=acta-local.db";
+        sqlite.MigrateOnStartup = true;
+    });
+    j.Run<ShippingJobs>("shipping");
+});
+
+using var host = builder.Build();
+await host.StartAsync();
+
+var job = await host.Services.GetRequiredService<IJobs>().EnqueueAsync(ShippingJobs.ShipOrder(new ShipOrder(1042)));
+var outcome = await job.WaitAsync(TimeSpan.FromSeconds(5));
+Console.WriteLine(outcome.TryGetValue(out var label) ? $"Shipped: {label}" : $"Not shipped yet: {job.JobRef} is {outcome.Status}");
+
+await host.WaitForShutdownAsync();
+```
+
+`dotnet run` prints `Shipped: ShipmentLabel { OrderId = 1042, Carrier = acme-post, TrackingNumber = AP00001042 }` among the host's log lines, and the worker keeps running until Ctrl+C. Everything durable is the same: the rows, the retries, the CLI. Only the dashboard needs a web host.
 
 ## Where to go next
 

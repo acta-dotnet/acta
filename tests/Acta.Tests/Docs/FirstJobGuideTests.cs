@@ -13,6 +13,7 @@ public sealed class FirstJobGuideTests
 
     private static readonly IReadOnlyDictionary<string, string> RungFiles = new Dictionary<string, string>(StringComparer.Ordinal)
     {
+        ["Carrier.cs"] = "concepts/000-fundamentals/026-first-job/Carrier.cs",
         ["Jobs.cs"] = "concepts/000-fundamentals/026-first-job/Jobs.cs",
         ["LabelPrinter.cs"] = "concepts/000-fundamentals/026-first-job/LabelPrinter.cs",
         ["Program.cs"] = "concepts/000-fundamentals/026-first-job/Program.cs",

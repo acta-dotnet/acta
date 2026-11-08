@@ -195,6 +195,7 @@ Not tagged yet.
 - The payload-contract drift warning always listed the input type and the input format, changed or not, and never the result's: a renamed input type read `(input type ShipOrder -> Shipping.ShipOrder, input format json -> json)`, and a changed result type read as an input that had not changed. It now lists only the parts that changed, the result type and format included.
 - `jobs deploy` and `jobs migrate` ended each namespace with a bare count, `6 unchanged`. The line now names what it counts: `6 jobs unchanged`, or `1 job unchanged`.
 - A worker start's refusal said `Run '<app> jobs deploy' from this build`, and a schema refusal `run '<app> jobs migrate'`, with a placeholder the reader had to fill in. Each now says it in words: run this app with the arguments `jobs deploy`, or `jobs migrate`, which from its project is `dotnet run -- jobs deploy`.
+- The first-job guide promised a failure that is final and one that retries, but nothing in its app could fail: no route enqueued `print-label`, the printer was never offline, and the carrier always answered. Its generic-host variant printed nothing. The app now has `POST /labels/{trackingNumber}`, `POST /printer/offline` and `/printer/online`, and `POST /carrier/flaky`, which times out the carrier's next booking so `ship-order` retries about a minute later. The guide walks both failures through status, explain, and the dashboard, its test gains a retry fact, and the generic-host `Program.cs` prints the shipment's outcome.
 
 ## 1.0.0-rc.8
 
