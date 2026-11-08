@@ -38,6 +38,7 @@ internal sealed class WorkerExecutorHarness(
     bool scopeDisposalThrows = false,
     TimeSpan scopeDisposalTime = default,
     string? backoff = null,
+    bool inputDeserializationThrows = false,
     string jobName = "harness-job"
 )
 {
@@ -104,6 +105,12 @@ internal sealed class WorkerExecutorHarness(
     public void TimeOutAttempt() => _entry!.ArmTimeout(TimeSpan.Zero);
 
     /// <summary>
+    /// Cancels the attempt token now, with no timeout and the worker still running, as a lost lease or a lost lock
+    /// does. Call from inside a handler that then observes its token.
+    /// </summary>
+    public void AbortAttempt() => _entry!.Cancel();
+
+    /// <summary>
     /// Records the claim's definition as retired, as the heartbeat does on reading the catalog. Call before a run, or
     /// from inside a handler to retire it while the attempt is in flight.
     /// </summary>
@@ -123,7 +130,19 @@ internal sealed class WorkerExecutorHarness(
             : cancelWorkerDuringRateWait ? _workerCts.Cancel
             : null;
 
-        return await Executor(Descriptor(jobName, handler, maxAttempts, backoff, concurrencyLimit, rateLimit, rateName, deadlineAtUtc))
+        return await Executor(
+                Descriptor(
+                    jobName,
+                    handler,
+                    maxAttempts,
+                    backoff,
+                    concurrencyLimit,
+                    rateLimit,
+                    rateName,
+                    deadlineAtUtc,
+                    inputDeserializationThrows
+                )
+            )
             .RunInlineAsync(_entry, _workerCts.Token);
 
         void CancelAttempt()
@@ -213,7 +232,8 @@ internal sealed class WorkerExecutorHarness(
         int? concurrencyLimit,
         string? rateLimit,
         string? rateName,
-        DateTime? deadlineAtUtc
+        DateTime? deadlineAtUtc,
+        bool inputDeserializationThrows
     ) =>
         new(
             JobName: jobName,
@@ -234,7 +254,8 @@ internal sealed class WorkerExecutorHarness(
                 await handler(ctx, token);
                 return new JobHandlerOutput(false, null);
             },
-            DeserializeInput: static (_, _) => new NoInput(),
+            DeserializeInput: (_, _) =>
+                inputDeserializationThrows ? throw new FormatException("The input is not a NoInput.") : new NoInput(),
             SerializeResult: null
         )
         {

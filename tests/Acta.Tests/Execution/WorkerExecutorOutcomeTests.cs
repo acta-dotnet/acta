@@ -114,6 +114,35 @@ public sealed class WorkerExecutorOutcomeTests
         Assert.Same(thrown, line.Exception);
     }
 
+    [Theory]
+    [InlineData("timeout", "Handler for job (harness-job) ({ref}) exceeded its execution timeout.")]
+    [InlineData("abort", "WorkerRuntime: job ({ref}) attempt aborted mid-flight; handler stopped cooperatively.")]
+    [InlineData("input", "Input deserialization for job (harness-job) ({ref}) failed; transitioning the attempt to Failed.")]
+    public async Task A_timed_out_aborted_or_unreadable_attempt_logs_the_job_by_its_ref(string failure, string expected)
+    {
+        var harness = new WorkerExecutorHarness(inputDeserializationThrows: failure == "input");
+
+        await harness.RunAsync(
+            async (_, ct) =>
+            {
+                if (failure == "timeout")
+                {
+                    harness.TimeOutAttempt();
+                }
+                else
+                {
+                    harness.AbortAttempt();
+                }
+                await Task.Delay(Timeout.Infinite, ct);
+            }
+        );
+
+        Assert.Contains(
+            harness.Log,
+            entry => entry.Message == expected.Replace("{ref}", harness.JobRef.ToString(), StringComparison.Ordinal)
+        );
+    }
+
     [Fact]
     public async Task A_service_that_throws_on_disposal_leaves_the_decided_outcome_standing()
     {

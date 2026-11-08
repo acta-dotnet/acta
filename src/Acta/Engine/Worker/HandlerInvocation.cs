@@ -286,7 +286,10 @@ internal sealed class HandlerInvocation(
         {
             // The per-attempt execution timeout fired. Record it distinctly and let the retry budget
             // decide re-arm vs terminal; a timeout is a retryable failure like an exception.
-            ActaLog.ExecutionTimedOut(log, descriptor.JobName, job.JobId);
+            if (log.IsEnabled(LogLevel.Warning))
+            {
+                ActaLog.ExecutionTimedOut(log, descriptor.JobName, new JobRef(job.JobRef).ToString());
+            }
             return new ExecutionCompletion(CompletionKind.Failed)
             {
                 Reason = EventReason.ExecutionTimeout,
@@ -302,7 +305,10 @@ internal sealed class HandlerInvocation(
         // a retryable failure instead: owned rows re-arm under the failure budget, unowned
         // rows still no-op. Writing (not skipping) matters because a skipped write leaves the
         // row Executing until its lease lapses.
-        ActaLog.AttemptAborted(log, job.JobId);
+        if (log.IsEnabled(LogLevel.Warning))
+        {
+            ActaLog.AttemptAborted(log, new JobRef(job.JobRef).ToString());
+        }
         return new ExecutionCompletion(CompletionKind.Failed)
         {
             Reason = EventReason.AttemptAborted,
@@ -316,9 +322,9 @@ internal sealed class HandlerInvocation(
         // every replay, lands terminal Failed through the same completion branch as ctx.FailAsync, leaving the retry
         // budget untouched.
         var nonRetryable = ex is NotImplementedException or NotSupportedException or StepExhaustedException;
-        if (!inputDeserialized)
+        if (!inputDeserialized && log.IsEnabled(LogLevel.Warning))
         {
-            ActaLog.InputDeserializationFailed(log, ex, descriptor.JobName, job.JobId);
+            ActaLog.InputDeserializationFailed(log, ex, descriptor.JobName, new JobRef(job.JobRef).ToString());
         }
 
         return new ExecutionCompletion(CompletionKind.Failed)

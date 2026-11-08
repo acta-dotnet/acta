@@ -168,14 +168,14 @@ internal static partial class ActaLog
     )]
     public static partial void UnrecognizedControlSignal(ILogger log, Exception exception, string actaJobName, long actaJobId);
 
-    [LoggerMessage(Level = LogLevel.Warning, Message = "Handler for job ({ActaJobName}) id {ActaJobId} exceeded its execution timeout.")]
-    public static partial void ExecutionTimedOut(ILogger log, string actaJobName, long actaJobId);
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Handler for job ({ActaJobName}) ({ActaJobRef}) exceeded its execution timeout.")]
+    public static partial void ExecutionTimedOut(ILogger log, string actaJobName, string actaJobRef);
 
     [LoggerMessage(
         Level = LogLevel.Warning,
-        Message = "WorkerRuntime: job {ActaJobId} attempt aborted mid-flight; handler stopped cooperatively."
+        Message = "WorkerRuntime: job ({ActaJobRef}) attempt aborted mid-flight; handler stopped cooperatively."
     )]
-    public static partial void AttemptAborted(ILogger log, long actaJobId);
+    public static partial void AttemptAborted(ILogger log, string actaJobRef);
 
     [LoggerMessage(
         Level = LogLevel.Warning,
@@ -204,9 +204,9 @@ internal static partial class ActaLog
 
     [LoggerMessage(
         Level = LogLevel.Warning,
-        Message = "Input deserialization for job ({ActaJobName}) id {ActaJobId} failed; transitioning the attempt to Failed."
+        Message = "Input deserialization for job ({ActaJobName}) ({ActaJobRef}) failed; transitioning the attempt to Failed."
     )]
-    public static partial void InputDeserializationFailed(ILogger log, Exception exception, string actaJobName, long actaJobId);
+    public static partial void InputDeserializationFailed(ILogger log, Exception exception, string actaJobName, string actaJobRef);
 
     [LoggerMessage(Level = LogLevel.Error, Message = "WorkerRuntime: executor faulted on job {ActaJobId}.")]
     public static partial void ExecutorFaulted(ILogger log, Exception exception, long actaJobId);

@@ -647,7 +647,7 @@ Every field Acta logs is a mapped field in an operator's index for as long as th
 | `ActaCorrelationKey` | string | the caller's business key, joining handler lines to the request that enqueued the job |
 | `ActaAlertRef` | string | one alert's delivery story |
 | `ActaAlertKind` | string | what fired, on the `Acta alert` log-transport line, so log-based alert rules can route |
-| `ActaJobRef` | string | the job a line is about, as the dashboard shows it: an alert's job, or the job whose handler threw |
+| `ActaJobRef` | string | the job a line is about, as the dashboard shows it: an alert's job, or the job whose attempt failed |
 | `ActaDurationMs` | long | a span in milliseconds (clock skew, a drain) |
 | `ActaDetail` | string | the line's human-read value; one shared name, so a one-off value never becomes a new index field |
 
