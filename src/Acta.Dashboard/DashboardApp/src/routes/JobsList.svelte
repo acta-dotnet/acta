@@ -20,7 +20,7 @@
   import CopyButton from '../components/CopyButton.svelte';
   import { routes } from '../routes.ts';
   import type { ColumnDef } from '../components/grid/types.ts';
-  import { displayFormatter, failureCountText, JOB_STATUSES, TERMINAL_STATUSES } from '../format.ts';
+  import { consecutiveFailuresText, displayFormatter, JOB_STATUSES, TERMINAL_STATUSES } from '../format.ts';
 
   interface JobRow {
     jobRef: string;
@@ -70,7 +70,7 @@
     { key: 'tenant', header: 'Tenant', class: 'mobile-hide' },
     { key: 'createdAtUtc', header: 'Age' },
     { key: 'nextRunAtUtc', header: 'Next run', class: 'mobile-hide' },
-    { key: 'attempts', header: 'Attempts', align: 'right' }
+    { key: 'attempts', header: 'Attempts', align: 'right', class: 'mobile-wide' }
   ];
 
   function clearTenant() {
@@ -228,7 +228,7 @@
     {/snippet}
     {#snippet ageCell(job: JobRow)}<RelativeTime value={job.createdAtUtc} />{/snippet}
     {#snippet nextRunCell(job: JobRow)}<RelativeTime value={TERMINAL_STATUSES.includes(job.status) ? null : job.nextRunAtUtc} />{/snippet}
-    {#snippet attemptsCell(job: JobRow)}{displayFormatter.number(job.executionNumber)}{job.failureCount > 0 ? ' (' + failureCountText(job.failureCount) + ' failed)' : ''}{/snippet}
+    {#snippet attemptsCell(job: JobRow)}{displayFormatter.number(job.executionNumber)}{job.failureCount > 0 ? ' (' + consecutiveFailuresText(job.failureCount) + ')' : ''}{/snippet}
 
     {#if jobNameWaits}
       <StateView

@@ -7,6 +7,38 @@ const json = (body: unknown) => new Response(JSON.stringify(body), { status: 200
 const paged = (items: unknown[]) => ({ items, nextCursor: null, hasMore: false, pageSize: 100, totalCount: items.length });
 
 describe('JobsList', () => {
+  // Six attempts, all failed, with a restart after the third: the restart reset the count, which counts failures in a row.
+  it('words a job\'s failure count as its consecutive failures', async () => {
+    setScope('');
+    location.hash = '#/jobs';
+    const job = {
+      jobRef: 'job_019f71ce69e07b85bf41fc7bf0562503',
+      jobName: 'print-label',
+      jobNamespace: 'billing',
+      status: 'failed',
+      tenantName: null,
+      createdAtUtc: '2026-07-14T08:00:00Z',
+      nextRunAtUtc: null,
+      executionNumber: 6,
+      failureCount: 3
+    };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = new URL(input as string | URL);
+        if (url.pathname.endsWith('/capabilities')) {
+          return json({ controlsEnabled: false, engineVersion: 'v', provider: 'sqlite', confirmationHeader: 'X-Acta-Control', permissions: ['acta.read'] });
+        }
+        if (url.pathname.endsWith('/jobs')) return json(paged([job]));
+        return json(paged([]));
+      })
+    );
+
+    const { container } = render(JobsListHarness);
+
+    await vi.waitFor(() => expect(container.querySelector('td[data-label="Attempts"]')?.textContent?.trim()).toBe('6 (3 consecutive failures)'));
+  });
+
   it('looks a deduplication key up in the scope picked while the namespaces load', async () => {
     location.hash = '#/jobs';
     let answerNamespaces = () => {};

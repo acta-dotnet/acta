@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { EventItem, JobScheduleView } from '../../api.ts';
-  import { displayFormatter, failureCountText, TERMINAL_STATUSES } from '../../format.ts';
+  import { consecutiveFailuresText, displayFormatter, TERMINAL_STATUSES } from '../../format.ts';
   import { eventFacts } from '../../lib/eventFacts.ts';
   import CopyButton from '../../components/CopyButton.svelte';
   import RelativeTime from '../../components/RelativeTime.svelte';
@@ -62,9 +62,9 @@
     {/if}
     <!-- On a permanent job MaxAttempts is each firing's own budget: a spent one returns the job to idle. -->
     {#if job.kind === 'permanent'}
-      <dt>Attempts</dt><dd>{displayFormatter.number(job.executionNumber)} started across all firings, {failureCountText(job.failureCount)} consecutive failures in the latest firing{#if maxAttempts != null && !TERMINAL_STATUSES.includes(job.status)}{' '}<span class="dim">(each firing gets {displayFormatter.number(maxAttempts)} attempts)</span>{/if}</dd>
+      <dt>Attempts</dt><dd>{displayFormatter.number(job.executionNumber)} started across all firings, {consecutiveFailuresText(job.failureCount)} in the latest firing{#if maxAttempts != null && !TERMINAL_STATUSES.includes(job.status)}{' '}<span class="dim">(each firing gets {displayFormatter.number(maxAttempts)} attempts)</span>{/if}</dd>
     {:else}
-      <dt>Attempts</dt><dd>{displayFormatter.number(job.executionNumber)} started, {failureCountText(job.failureCount)} consecutive failures{#if maxAttempts != null && !TERMINAL_STATUSES.includes(job.status)}{' '}<span class="dim">(fails permanently at {displayFormatter.number(maxAttempts)})</span>{/if}</dd>
+      <dt>Attempts</dt><dd>{displayFormatter.number(job.executionNumber)} started, {consecutiveFailuresText(job.failureCount)}{#if maxAttempts != null && !TERMINAL_STATUSES.includes(job.status)}{' '}<span class="dim">(fails permanently at {displayFormatter.number(maxAttempts)})</span>{/if}</dd>
     {/if}
     <dt>Last event</dt><dd>
       {#if lastEvent}

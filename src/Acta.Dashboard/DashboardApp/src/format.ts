@@ -339,3 +339,8 @@ export const TERMINAL_STATUSES = ['succeeded', 'failed', 'cancelled'];
 export function failureCountText(count: number): string {
   return count >= 32767 ? '32,767+' : formatNumber(count);
 }
+
+// The count is of attempts in a row, which a success or a restart resets, so it is never worded as a total.
+export function consecutiveFailuresText(count: number): string {
+  return failureCountText(count) + (count === 1 ? ' consecutive failure' : ' consecutive failures');
+}

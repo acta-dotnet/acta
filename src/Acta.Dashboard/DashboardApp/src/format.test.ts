@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
-import { JOB_STATUSES, displayFormatter, failureCountText, parseUtcDateTimeInput } from './format.ts';
+import { JOB_STATUSES, consecutiveFailuresText, displayFormatter, failureCountText, parseUtcDateTimeInput } from './format.ts';
 
 test("the jobs filter offers every status the server's jobs list accepts", () => {
   const openApi = JSON.parse(readFileSync(new URL('../../../../docs/reference/openapi.json', import.meta.url), 'utf8'));
@@ -110,6 +110,12 @@ test('a failure count at the saturation ceiling reads as a floor', () => {
   assert.equal(failureCountText(0), '0');
   assert.equal(failureCountText(32766), '32766');
   assert.equal(failureCountText(32767), '32,767+');
+});
+
+test('a failure count reads as consecutive failures', () => {
+  assert.equal(consecutiveFailuresText(1), '1 consecutive failure');
+  assert.equal(consecutiveFailuresText(3), '3 consecutive failures');
+  assert.equal(consecutiveFailuresText(32767), '32,767+ consecutive failures');
 });
 
 test('the zone note names the local zone and its offset at the given instant', () => {
