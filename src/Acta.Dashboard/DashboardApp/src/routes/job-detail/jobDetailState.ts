@@ -13,19 +13,22 @@ export function executionLabel(job: Pick<JobDetail, 'kind' | 'executionNumber'>)
 interface ScheduleInstant {
   schedule: JobScheduleView;
   atUtc: string;
+  /** The schedule's occurrence or pause end is already past, so its misfire policy decides what it fires next. */
+  overdue?: boolean;
 }
 
 /**
  * When an idle permanent job's schedules next fire it. `fires` is the soonest firing the page knows: an active
- * schedule's next occurrence, or a paused one's when its timed pause ends by then. A pause that ends after its
- * occurrence leaves the missed ones to the misfire policy, which the view does not carry, so what that schedule fires
- * is unknown; `resumes` is the soonest such pause's end when it comes before `fires`, as that schedule may fire
- * first. Null when no schedule will fire the job, and undefined when the schedules are a first page, which could miss
- * a sooner one.
+ * schedule's next occurrence still ahead, or a paused one's when its timed pause ends by then. A pause that ends after
+ * its occurrence, or an occurrence already past, leaves the missed ones to the misfire policy, which the view does not
+ * carry, so what that schedule fires is unknown; `resumes` is the soonest such schedule, at its pause's end or, overdue,
+ * at its occurrence, when it comes before `fires`, as it may fire first. Null when no schedule will fire the job, and
+ * undefined when the schedules are a first page, which could miss a sooner one.
  */
 export function nextFiring(
   schedules: readonly JobScheduleView[],
-  total: number | null
+  total: number | null,
+  nowMs: number = Date.now()
 ): { fires: ScheduleInstant | null; resumes: ScheduleInstant | null } | null | undefined {
   if (total !== null && total > schedules.length) return undefined;
   const sooner = (atUtc: string, than: ScheduleInstant | null) => !than || Date.parse(atUtc) < Date.parse(than.atUtc);
@@ -35,9 +38,13 @@ export function nextFiring(
     const next = schedule.nextOccurrenceAtUtc;
     const until = schedule.status === 'paused' ? schedule.pausedUntilUtc : null;
     if (!next || (schedule.status !== 'active' && !until)) continue;
-    if (until && Date.parse(until) > Date.parse(next)) {
-      if (sooner(until, resumes)) resumes = { schedule, atUtc: until };
-    } else if (sooner(next, fires)) fires = { schedule, atUtc: next };
+    // The instant the scheduler next looks at it: the pause's end when that comes after the occurrence.
+    const evaluated = until && Date.parse(until) > Date.parse(next) ? until : next;
+    if (evaluated === next && Date.parse(next) > nowMs) {
+      if (sooner(next, fires)) fires = { schedule, atUtc: next };
+    } else if (sooner(evaluated, resumes)) {
+      resumes = { schedule, atUtc: evaluated, overdue: Date.parse(evaluated) <= nowMs };
+    }
   }
   if (resumes && fires && !sooner(resumes.atUtc, fires)) resumes = null;
   return fires || resumes ? { fires, resumes } : null;

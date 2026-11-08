@@ -135,6 +135,21 @@ describe('JobSummary', () => {
     expect(queryByText('No schedule is set to fire it.')).toBeNull();
   });
 
+  // An occurrence already past is one the scheduler has not admitted yet: under Skip it drops it for the next one, so
+  // the page cannot rank it as a firing.
+  it('names an overdue schedule as one that may fire first, not as the next firing', () => {
+    const schedules = [schedule('daily', 'active', '2000-01-01T09:00:00Z'), schedule('noon', 'active', '2099-01-01T12:00:00Z')];
+    const { getByText } = render(JobSummary, { job: job({ kind: 'permanent', status: 'idle' }), schedules, schedulesTotal: 2 });
+    expect(getByText(/when schedule/).textContent).toBe('when schedule noon fires; schedule daily is overdue and may fire first');
+  });
+
+  it('says an overdue schedule leaves its next firing to its misfire policy when no firing is known', () => {
+    const schedules = [schedule('daily', 'active', '2000-01-01T09:00:00Z')];
+    const { getByText, queryByText } = render(JobSummary, { job: job({ kind: 'permanent', status: 'idle' }), schedules, schedulesTotal: 1 });
+    expect(getByText(/^Schedule/).textContent).toBe('Schedule daily is overdue; its misfire policy decides what it fires next.');
+    expect(queryByText('No schedule is set to fire it.')).toBeNull();
+  });
+
   it('says no schedule is set to fire an idle permanent job without one', () => {
     const { getByText } = render(JobSummary, { job: job({ kind: 'permanent', status: 'idle' }), schedules: [], schedulesTotal: 0 });
     expect(getByText('No schedule is set to fire it.')).toBeTruthy();

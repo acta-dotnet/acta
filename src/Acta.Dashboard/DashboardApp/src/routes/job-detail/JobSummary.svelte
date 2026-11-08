@@ -53,7 +53,8 @@
         {#if job.status !== 'idle' || job.nextRunAtUtc}<RelativeTime value={job.nextRunAtUtc} />
         {:else if firing}
           {@const { fires, resumes } = firing}
-          {#if fires}<RelativeTime value={fires.atUtc} /> <span class="dim">when schedule {@render scheduleLink(fires.schedule)} fires{#if resumes}; schedule {@render scheduleLink(resumes.schedule)} may fire first once it resumes{/if}</span>{#if resumes} <RelativeTime value={resumes.atUtc} />{/if}
+          {#if fires}<RelativeTime value={fires.atUtc} /> <span class="dim">when schedule {@render scheduleLink(fires.schedule)} fires{#if resumes?.overdue}; schedule {@render scheduleLink(resumes.schedule)} is overdue and may fire first{:else if resumes}; schedule {@render scheduleLink(resumes.schedule)} may fire first once it resumes{/if}</span>{#if resumes && !resumes.overdue} <RelativeTime value={resumes.atUtc} />{/if}
+          {:else if resumes?.overdue}<span class="dim">Schedule {@render scheduleLink(resumes.schedule)} is overdue; its misfire policy decides what it fires next.</span>
           {:else if resumes}<span class="dim">Schedule {@render scheduleLink(resumes.schedule)} resumes</span> <RelativeTime value={resumes.atUtc} />{/if}
         {:else if firing === null}<span class="dim">No schedule is set to fire it.</span>
         {:else}<span class="dim">When one of its schedules fires.</span>{/if}
