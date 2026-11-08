@@ -129,7 +129,7 @@
     <!-- Outside src only, and for the same reason it is kept in src: a catch-all belongs at a boundary
          whose job is not to die. Out here those are Acta Verify's run loops and Anvil's chaos injectors,
          where the alternative to a broad catch is a crashed harness
-         and no diagnostic. In src the 32 sites are ruled on per file in .editorconfig, each naming the
+         and no diagnostic. In src the sites are ruled on per file in .editorconfig, each naming the
          boundary and what would happen if the exception escaped. -->
     <NoWarn
       Condition="'$(_ActaTree.Contains(`/tests/`))' == 'true' or '$(_ActaTree.Contains(`/anvil/`))' == 'true' or '$(_ActaTree.Contains(`/tools/`))' == 'true'"

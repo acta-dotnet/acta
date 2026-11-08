@@ -339,7 +339,7 @@ internal sealed partial class WorkerFinalizer(
         }
 
         // Logged here, not where the handler threw: the deadline guard and the retirement can change what lands.
-        if (entry.Completion!.HandlerException is { } thrown && log.IsEnabled(LogLevel.Warning))
+        if (entry.Completion!.HandlerException is { } thrown)
         {
             LogHandlerThrew(planned, thrown);
         }
@@ -353,35 +353,49 @@ internal sealed partial class WorkerFinalizer(
     /// </summary>
     private void LogHandlerThrew(PlannedWrite write, Exception thrown)
     {
-        var job = write.Entry.Claim;
-        var descriptor = write.Entry.Descriptor!;
-        using var scope = ActaLog.BeginJobScope(
-            log,
-            job.JobId,
-            descriptor.JobName,
-            context.WorkerRegistration!.NamespaceName,
-            job.ExecutionNumber,
-            WorkerId,
-            job.CorrelationKey
-        );
-        var jobRef = new JobRef(job.JobRef).ToString();
-        var attempt = $"{NextFailureCount(job.FailureCount)} of {descriptor.MaxAttempts}";
-        if (write.Row.RescheduleDelaySeconds is { } delaySeconds)
+        // A logger that throws is ignored, as in RepeatAsync: the line is written while its batch is planned, so a
+        // throw would drop every completion in the batch, and recovery would run their jobs again.
+        try
         {
-            ActaLog.HandlerThrewRetrying(log, thrown, descriptor.JobName, jobRef, attempt, delaySeconds * 1000L);
-            return;
-        }
+            if (!log.IsEnabled(LogLevel.Warning))
+            {
+                return;
+            }
 
-        var why = write.Completion.Reason switch
+            var job = write.Entry.Claim;
+            var descriptor = write.Entry.Descriptor!;
+            using var scope = ActaLog.BeginJobScope(
+                log,
+                job.JobId,
+                descriptor.JobName,
+                context.WorkerRegistration!.NamespaceName,
+                job.ExecutionNumber,
+                WorkerId,
+                job.CorrelationKey
+            );
+            var jobRef = new JobRef(job.JobRef).ToString();
+            var attempt = $"{NextFailureCount(job.FailureCount)} of {descriptor.MaxAttempts}";
+            if (write.Row.RescheduleDelaySeconds is { } delaySeconds)
+            {
+                ActaLog.HandlerThrewRetrying(log, thrown, descriptor.JobName, jobRef, attempt, delaySeconds * 1000L);
+                return;
+            }
+
+            var why = write.Completion.Reason switch
+            {
+                EventReason.DefinitionRetired => "the job's definition is retired, so the job is cancelled",
+                EventReason.DeadlineExceeded => "a retry would pass the job's deadline, so the job is cancelled",
+                EventReason.NonRetryableException => $"{thrown.GetType().Name} is never retried, so the job failed for good",
+                _ when write.Row.FinalStatus == JobStatusCode.Idle =>
+                    $"attempt {attempt} spent the firing's budget, so the job is idle until its next firing",
+                _ => $"attempt {attempt} spent the budget, so the job failed for good",
+            };
+            ActaLog.HandlerThrewFinal(log, thrown, descriptor.JobName, jobRef, why);
+        }
+        catch (Exception)
         {
-            EventReason.DefinitionRetired => "the job's definition is retired, so the job is cancelled",
-            EventReason.DeadlineExceeded => "a retry would pass the job's deadline, so the job is cancelled",
-            EventReason.NonRetryableException => $"{thrown.GetType().Name} is never retried, so the job failed for good",
-            _ when write.Row.FinalStatus == JobStatusCode.Idle =>
-                $"attempt {attempt} spent the firing's budget, so the job is idle until its next firing",
-            _ => $"attempt {attempt} spent the budget, so the job failed for good",
-        };
-        ActaLog.HandlerThrewFinal(log, thrown, descriptor.JobName, jobRef, why);
+            // Swallowed on purpose; the completion's write is what the worker cannot lose.
+        }
     }
 
     /// <summary>Plans <paramref name="entry"/>'s write as its completion stands.</summary>

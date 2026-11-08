@@ -273,6 +273,64 @@ public sealed class WorkerFinalizerTests
         Assert.Equal(0, registry.Count());
     }
 
+    [Fact(DisplayName = "A logger that throws on a handler's failure line does not stop that completion's batch landing")]
+    public async Task A_throwing_logger_does_not_stop_a_failed_attempts_batch_landing()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var session = new ScriptedSession(call =>
+            call.Stem switch
+            {
+                "CompleteExecutions" => new List<CompleteExecutionsRow>
+                {
+                    new(1, 0, CompleteExecutionsAction.Completed, (byte)JobStatusCode.Succeeded, null, DateTime.UtcNow, false, false),
+                    new(2, 0, CompleteExecutionsAction.Completed, (byte)JobStatusCode.Failed, null, DateTime.UtcNow, false, false),
+                    new(3, 0, CompleteExecutionsAction.Completed, (byte)JobStatusCode.Succeeded, null, DateTime.UtcNow, false, false),
+                },
+                _ => throw new NotSupportedException(call.Stem),
+            }
+        );
+        // A real factory hands the sink's failure back as an AggregateException, as a host's does.
+        using var logging = new LoggerFactory([new ThrowingLoggerProvider()]);
+        var options = new JobsOptions();
+        var context = new WorkerContext(new WorkerRegistration("orders", null, null, [], []));
+        context.NamespaceIds["orders"] = 1;
+        context.WorkerIdByNamespace["orders"] = 1;
+        var registry = new InFlightJobRegistry(options);
+        var finalizer = new WorkerFinalizer(
+            session.Services().GetRequiredService<ExecutionOperations>(),
+            null!,
+            new WorkerWakeupPublisher(new InProcessWakeup()),
+            options,
+            context,
+            registry,
+            logging.CreateLogger("Acta"),
+            metrics: null
+        );
+        foreach (var jobId in new long[] { 1, 2, 3 })
+        {
+            var entry = WorkerHeartbeatLeaseRunwayTests.Entry(jobId, state: InFlightJobState.Finalizing);
+            entry.Descriptor = Descriptor;
+            entry.Completion =
+                jobId == 2
+                    ? new ExecutionCompletion(CompletionKind.Failed)
+                    {
+                        Reason = EventReason.UnhandledException,
+                        HandlerException = new InvalidOperationException("503 from the carrier"),
+                    }
+                    : new ExecutionCompletion(CompletionKind.Succeeded);
+            registry.TryAdd(entry);
+            await registry.Completed.Writer.WriteAsync(entry, ct);
+        }
+        registry.Completed.Writer.Complete();
+
+        await finalizer.RunLoopAsync(ct);
+
+        Assert.Equal(["CompleteExecutions"], session.Calls.Select(call => call.Stem));
+        using var batch = JsonDocument.Parse((string)session.Calls[0].Parameters["p_completions"]!);
+        Assert.Equal([1L, 2L, 3L], batch.RootElement.EnumerateArray().Select(row => row.GetProperty("job_id").GetInt64()));
+        Assert.Equal(0, registry.Count());
+    }
+
     private const int Cap = WorkerFinalizer.MaxBatchBytes;
 
     // Each case's results, in bytes, in the order the executors hand them over, and the batches written, "|" between calls.
@@ -759,5 +817,12 @@ public sealed class WorkerFinalizerTests
             Exception? exception,
             Func<TState, Exception?, string> formatter
         ) => throw new InvalidOperationException("the log sink is down");
+    }
+
+    private sealed class ThrowingLoggerProvider : ILoggerProvider
+    {
+        public ILogger CreateLogger(string categoryName) => new ThrowingLogger();
+
+        public void Dispose() { }
     }
 }

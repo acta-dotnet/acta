@@ -614,9 +614,11 @@ dotnet_diagnostic.CA1508.severity = none
 [src/Acta.Redis/RedisWakeup.cs]
 dotnet_diagnostic.CA1031.severity = none
 
-# CA1031: one catch around the repeat's own log line. The repeat exists so a completion write is never
-# abandoned while the worker lives; a logger that throws must not be the thing that abandons it, so the
-# call is swallowed and the write's own failure stays the one being handled.
+# CA1031: the catches around a log line on a completion's way to its write, the repeat's own line in
+# RepeatAsync and the handler's failure line in LogHandlerThrew. The repeat exists so a completion write
+# is never abandoned while the worker lives, and the failure line is written while its batch is planned;
+# a logger that throws must not be the thing that abandons a write or drops a batch, so each call is
+# swallowed and the completion goes on to its write.
 [src/Acta/Engine/Worker/WorkerFinalizer.cs]
 dotnet_diagnostic.CA1031.severity = none
 
