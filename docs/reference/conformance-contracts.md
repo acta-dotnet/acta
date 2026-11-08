@@ -747,10 +747,12 @@
   - Restart clears the stored result, and the next success stores its own
   - Restart from Executing is Rejected and leaves the status unchanged
 
-### Resume keeps the job's due time and runs a past one now
-- **Contract:** Resume keeps a paused job's future next_run_at_utc and takes the database clock for one already past.
+### Resume keeps the job's due time unless it has passed or is a wait's timeout
+- **Contract:** Resume keeps a paused job's future next_run_at_utc, a sleep's included, and runs now one already past or paused while suspended on a signal or child wait.
 - **Guarantees:**
   - Resume keeps a delayed job's future next run, and a job already due runs now
+  - Resume keeps a paused durable sleep's due time
+  - Resume runs a paused signal wait now, to see a signal raised while paused or suspend again until its timeout
 
 ## Enqueue
 

@@ -539,7 +539,9 @@ internal static class CliOutput
         writer.WriteLine("  result   <job-ref|deduplication-key|id:n>        print the latest result payload");
         writer.WriteLine("  cancel   <job-ref|deduplication-key>             cancel the job (cascades to children)");
         writer.WriteLine("  pause    <job-ref|deduplication-key>             pause a job before it runs");
-        writer.WriteLine("  resume   <job-ref|deduplication-key>             resume a paused job at its next run time, or now if past");
+        writer.WriteLine(
+            "  resume   <job-ref|deduplication-key>             resume a paused job at its next run time, or now if past or suspended"
+        );
         writer.WriteLine("  restart  <job-ref|deduplication-key>             reset any non-executing job to ready");
         writer.WriteLine("  signal   <job-ref|deduplication-key> <name>      raise a signal (add --value for a payload)");
         writer.WriteLine(

@@ -73,8 +73,21 @@ WHERE
 UPDATE {{schema}}.jobs_state AS r
 SET
     job_status_code = s.to_status,
-    -- A resumed job keeps the time it was due at; one already past, or none, runs now.
-    next_run_at_utc = CASE WHEN s.to_status = 40 /* JobStatusCode.Idle */ THEN NULL ELSE GREATEST(r.next_run_at_utc, now()) END,
+    -- A resumed job keeps the time it was due at; one already past, or none, runs now. So does a next run that is a
+    -- signal or child wait's timeout, which the suspend copied there: the handler sees a raise or a child's landing
+    -- that came while the job was paused, or suspends again until that timeout.
+    next_run_at_utc = CASE
+        WHEN s.to_status = 40 /* JobStatusCode.Idle */ THEN NULL
+        WHEN EXISTS (
+            SELECT 1
+            FROM {{schema}}.checkpoints cp
+            WHERE
+                cp.job_id = r.job_id
+                AND cp.checkpoint_kind_code IN (20 /* CheckpointKindCode.Signal */, 50 /* CheckpointKindCode.ChildLatch */)
+                AND cp.due_at_utc = r.next_run_at_utc
+        ) THEN now()
+        ELSE GREATEST(r.next_run_at_utc, now())
+    END,
     modified_at_utc = now(),
     version = r.version + 1
 FROM _resume_job s
