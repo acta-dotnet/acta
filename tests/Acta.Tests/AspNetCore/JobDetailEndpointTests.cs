@@ -83,6 +83,27 @@ public sealed class JobDetailEndpointTests
         Assert.Equal(JsonValueKind.Array, root.GetProperty("workers").ValueKind);
     }
 
+    // The detail names the type the definition declares the job returns, null for none, so the page can tell a job that
+    // returns nothing from one whose result has not come yet.
+    [Theory]
+    [InlineData("Billing.InvoiceReceipt")]
+    [InlineData(null)]
+    public async Task Detail_carries_the_result_type_its_definition_declares(string? resultTypeName)
+    {
+        var fakes = new FakeOperations();
+        var get = fakes.Definitions.Get;
+        fakes.Definitions.Get = async (jobNamespace, jobName, ct) =>
+            await get(jobNamespace, jobName, ct) is { } definition ? definition with { ResultTypeName = resultTypeName } : null;
+        var (app, client) = await TestDashboardHost.StartAsync(fakes: fakes);
+        await using var host = app;
+        var ct = TestContext.Current.CancellationToken;
+
+        using var doc = JsonDocument.Parse(await client.GetStringAsync($"/acta/api/v1/jobs/{Found}/detail", ct));
+        var member = doc.RootElement.GetProperty("resultTypeName");
+
+        Assert.Equal(resultTypeName, member.ValueKind == JsonValueKind.Null ? null : member.GetString());
+    }
+
     [Fact]
     public async Task Detail_for_a_missing_job_is_404_and_for_a_malformed_ref_is_400()
     {

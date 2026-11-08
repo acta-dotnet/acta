@@ -9723,6 +9723,7 @@
                       ],
                       "schedulesTotal": 1,
                       "maxAttemptsEffective": 3,
+                      "resultTypeName": null,
                       "workers": [
                         {
                           "workerRef": "wrk_019826f00000700080000000000002a0",
@@ -17201,7 +17202,8 @@
           "job",
           "checkpoints",
           "schedules",
-          "schedulesTotal"
+          "schedulesTotal",
+          "resultTypeName"
         ],
         "type": "object",
         "properties": {
@@ -17248,6 +17250,13 @@
             "type": "integer",
             "description": "The retry budget in force for the job's definition; absent when the definition is gone.",
             "format": "int32"
+          },
+          "resultTypeName": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The full name of the type the job's definition declares it returns, as its code spells it; null when it declares none, or the definition is gone."
           },
           "workers": {
             "type": "array",

@@ -208,7 +208,7 @@
           <JobSummary {job} {lastEvent} maxAttempts={detail.maxAttemptsEffective ?? null} schedules={detail.schedules} schedulesTotal={detail.schedulesTotal} />
           <div class="payload-row">
             <JobInputPanel input={detail.input} jobRef={job.jobRef} status={job.status} canControl={canControlNow} onAmended={reload} />
-            <JobResultPanel result={detail.result} />
+            <JobResultPanel result={detail.result} resultTypeName={detail.resultTypeName} />
           </div>
           <JobDiagnosis jobNamespace={job.jobNamespace} {explanation} />
           <JobWorkerEvidence {job} {workers} workersTotal={detail.workersTotal ?? null} />

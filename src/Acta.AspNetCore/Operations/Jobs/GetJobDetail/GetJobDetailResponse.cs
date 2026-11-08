@@ -16,6 +16,8 @@ namespace Acta.AspNetCore;
 /// <param name="Schedules">The first page of the schedules of the job's definition; empty when it has none.</param>
 /// <param name="SchedulesTotal">How many schedules the definition has, so a caller can tell a complete list from a first page.</param>
 /// <param name="MaxAttemptsEffective">The retry budget in force for the job's definition; absent when the definition is gone.</param>
+/// <param name="ResultTypeName">The full name of the type the job's definition declares it returns, as its code spells it; null when it
+/// declares none, or the definition is gone.</param>
 /// <param name="Workers">The first page of the namespace's workers while the job is claimable; absent otherwise.</param>
 /// <param name="WorkersTotal">How many such workers there are; absent with workers.</param>
 internal sealed record GetJobDetailResponse(
@@ -28,6 +30,7 @@ internal sealed record GetJobDetailResponse(
     IReadOnlyList<ListSchedulesItem> Schedules,
     long? SchedulesTotal,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? MaxAttemptsEffective,
+    string? ResultTypeName,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<ListWorkersItem>? Workers,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] long? WorkersTotal
 )
@@ -95,6 +98,7 @@ internal sealed record GetJobDetailResponse(
             schedules.Items,
             schedules.TotalCount,
             definition?.MaxAttemptsEffective,
+            definition?.ResultTypeName,
             workers?.Items,
             workers?.TotalCount
         );

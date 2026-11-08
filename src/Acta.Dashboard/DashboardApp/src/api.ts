@@ -684,6 +684,8 @@ export interface JobDetailView {
   schedulesTotal: number | null;
   // Effective retry budget from the definition; absent when the definition row is gone.
   maxAttemptsEffective?: number;
+  // The type the definition declares the job returns; null when it declares none.
+  resultTypeName: string | null;
   workers: JobWorker[] | null;
   workersTotal?: number;
 }

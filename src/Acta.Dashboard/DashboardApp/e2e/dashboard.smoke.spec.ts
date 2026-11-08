@@ -277,6 +277,7 @@ async function mockDashboard(
         lineage: { ancestors: [], ancestorsHasMore: false, job, steps: [], stepsHasMore: false, activeWait: null, children: [], childrenHasMore: false },
         schedules: [],
         schedulesTotal: 0,
+        resultTypeName: 'Billing.InvoiceReceipt',
         workers: [],
         workersTotal: 0
       });

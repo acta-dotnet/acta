@@ -123,6 +123,7 @@ Not tagged yet.
 - A `PerOccurrence` definition may declare a `Deadline`: each root's deadline counts from its admission, and a Strict one cancels an overdue root without running it and releases its charge. A permanent job's definition still may not, and the deploy refuses it.
 - A purge records the operator's reason, as every other control does: `POST /jobs/{jobRef}/purge` takes `reasonMessage`, which answered 400 before, and the `job.purged` event carries it as its message. The dashboard's delete asks for a reason.
 - `ListWorkersItem.Stale`, `stale` on each worker of `GET /workers` and of the job detail, says whether a live worker has sent no heartbeat within this deployment's lease window, `JobsOptions.LeaseTtlSeconds`, judged on the database clock: the window the HTTP overview counts `staleWorkerCount` by. The dashboard's workers list and the overview's workers table mark such a worker stale from it, where the list judged it in the browser against a fixed 180 seconds and the overview did not mark it.
+- `resultTypeName` on `GET /jobs/{jobRef}/detail` is the type the job's definition declares it returns, as its code spells it, and null when it declares none. The job page reads it: a job whose definition returns nothing says it returns no result, where it said "No result yet" forever.
 
 ### Fixes
 
