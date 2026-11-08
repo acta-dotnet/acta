@@ -39,7 +39,7 @@
     <dt>Namespace</dt><dd><a href={routes.namespace(job.jobNamespace, { namespace: job.jobNamespace })}>{job.jobNamespace}</a></dd>
     <dt>Tenant</dt><dd>{#if tenant}<a href={routes.tenant(tenant, { namespace: job.jobNamespace })} class="mono">{tenant}</a>{:else}-{/if}</dd>
     <dt>Priority</dt><dd>{job.priority}</dd>
-    <dt>Input</dt><dd>{payloadFormatLabel(job.inputFormatId)}</dd>
+    <dt>Input format</dt><dd>{payloadFormatLabel(job.inputFormatId)}</dd>
   </dl>
   <p class="detail-kicker">Execution</p>
   <dl class="kv">
