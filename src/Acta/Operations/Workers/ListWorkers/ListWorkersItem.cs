@@ -4,7 +4,8 @@ namespace Acta;
 
 /// <summary>
 /// One worker in a page: its ref, namespace, and status, what it reported at start (host machine, deployment version, engine version,
-/// runtime version, process id, executor capacity), and when it started, last sent a heartbeat, and last changed.
+/// runtime version, process id, executor capacity), and when it started, last sent a heartbeat, and last changed, with
+/// whether that heartbeat is stale.
 /// </summary>
 /// <param name="WorkerId">The worker's internal id; the JSON omits it and carries workerRef.</param>
 /// <param name="WorkerRef">The worker's ref, wrk_ followed by 32 hex digits.</param>
@@ -17,6 +18,8 @@ namespace Acta;
 /// <param name="ProcessId">The worker's operating-system process id, when it reported one.</param>
 /// <param name="MaxConcurrentExecutors">How many jobs the worker runs at once.</param>
 /// <param name="LastSeenAtUtc">When the worker last sent a heartbeat, in UTC.</param>
+/// <param name="Stale">Whether the worker is active or draining and has sent no heartbeat within this deployment's lease window, judged on the
+/// database clock: past it the worker's jobs are reclaimable, and the overview counts it among the stale workers.</param>
 /// <param name="StartedAtUtc">When the worker started, in UTC.</param>
 /// <param name="ModifiedAtUtc">When the row last changed, in UTC.</param>
 public sealed record ListWorkersItem(
@@ -31,6 +34,7 @@ public sealed record ListWorkersItem(
     int? ProcessId,
     int MaxConcurrentExecutors,
     DateTime LastSeenAtUtc,
+    bool Stale,
     DateTime StartedAtUtc,
     DateTime ModifiedAtUtc
 );

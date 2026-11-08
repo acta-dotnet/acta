@@ -240,7 +240,7 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 | --- | --- | --- | --- | --- | --- | --- |
 | `ExtendWorkerLeases` | · | · | · | routine | `jobs_state`, `locks`, `namespaces`, `workers` | `ExtendWorkerLeasesRaceSpec`, `ExtendWorkerLeasesReviveSpec`, `ExtendWorkerLeasesSpec` |
 | `GetWorker` | `IWorkers.GetAsync` | `GET /workers/{workerRef}` (`getWorker`, `acta.read`) | · | inline | · | `GetWorkerSpec` |
-| `ListWorkers` | `IWorkers.ListAsync` | `GET /workers` (`listWorkers`, `acta.read`) | · | inline | · | `ListWorkersFilterMatrixSpec`, `ListWorkersSpec` |
+| `ListWorkers` | `IWorkers.ListAsync` | `GET /workers` (`listWorkers`, `acta.read`) | · | inline | · | `ListWorkersFilterMatrixSpec`, `ListWorkersSpec`, `ListWorkersStaleSpec` |
 | `MarkDeadWorkers` | · | · | · | inline | `events`, `workers` | `MarkDeadWorkersSpec` |
 | `StartWorker` | · | · | · | inline | `events`, `workers` | `StartWorkerIdAllocationSpec`, `StartWorkerSpec` |
 | `StopWorker` | · | · | · | inline | `events`, `workers` | `StopWorkerSpec` |

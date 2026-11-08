@@ -8,12 +8,11 @@
   import { scope, setScope } from '../scope';
   import Page from '../components/Page.svelte';
   import ActaGrid from '../components/grid/ActaGrid.svelte';
-  import StatusBadge from '../components/StatusBadge.svelte';
+  import WorkerStatus from '../components/WorkerStatus.svelte';
   import RelativeTime from '../components/RelativeTime.svelte';
   import JobRef from '../components/JobRef.svelte';
   import FilterBar from '../components/FilterBar.svelte';
   import ActiveFilters from '../components/ActiveFilters.svelte';
-  import { now } from '../time';
   import { createUrlFilters } from '../urlFilters.ts';
   import { routes } from '../routes.ts';
   import type { ColumnDef } from '../components/grid/types.ts';
@@ -30,6 +29,7 @@
     processId: number | null;
     maxConcurrentExecutors: number;
     lastSeenAtUtc: string;
+    stale: boolean;
     startedAtUtc: string;
   }
 
@@ -82,13 +82,6 @@
     const current = currentVersionOf(worker);
     return current !== null && (worker.status === 'active' || worker.status === 'draining') && worker.deploymentVersion !== current;
   }
-
-  function isStale(worker: WorkerRow, nowMs: number): boolean {
-    return (
-      (worker.status === 'active' || worker.status === 'draining') &&
-      nowMs - new Date(worker.lastSeenAtUtc).getTime() > 180000
-    );
-  }
 </script>
 
 <Page title="Workers">
@@ -110,7 +103,7 @@
     {#snippet workerCell(w: WorkerRow)}
       <JobRef value={w.workerRef} href={routes.worker(w.workerRef, { namespace: $scope })} copy />
     {/snippet}
-    {#snippet statusCell(w: WorkerRow)}<StatusBadge status={w.status} />{/snippet}
+    {#snippet statusCell(w: WorkerRow)}<WorkerStatus status={w.status} stale={w.stale} />{/snippet}
     {#snippet versionCell(w: WorkerRow)}{w.deploymentVersion}{#if isNotCurrent(w)}<span class="not-current" title={'This namespace is deployed at ' + currentVersionOf(w)}>not current</span>{/if}{/snippet}
     {#snippet lastSeenCell(w: WorkerRow)}<RelativeTime value={w.lastSeenAtUtc} />{/snippet}
     {#snippet startedCell(w: WorkerRow)}<RelativeTime value={w.startedAtUtc} />{/snippet}
@@ -130,7 +123,7 @@
         ? 'No workers match these ' + displayFormatter.number(activeChips.length) + ' filters.'
         : 'No workers registered here. Confirm a worker process is running and configured for this namespace.'}
       cells={{ workerRef: workerCell, status: statusCell, deploymentVersion: versionCell, maxConcurrentExecutors: executorsCell, lastSeenAtUtc: lastSeenCell, startedAtUtc: startedCell }}
-      rowClass={(w: WorkerRow) => (w.status === 'dead' ? 'trouble' : isStale(w, $now) ? 'stale' : '')} />
+      rowClass={(w: WorkerRow) => (w.status === 'dead' ? 'trouble' : w.stale ? 'stale' : '')} />
   </div>
 </Page>
 

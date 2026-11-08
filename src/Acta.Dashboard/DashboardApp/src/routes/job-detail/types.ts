@@ -94,6 +94,7 @@ export interface JobWorker {
   processId: number | null;
   maxConcurrentExecutors: number;
   lastSeenAtUtc: string;
+  stale: boolean;
   startedAtUtc: string;
   modifiedAtUtc: string;
 }

@@ -121,6 +121,7 @@ Not tagged yet.
 - `GET /capabilities` answers `permissions`, the permissions this caller holds: under `RequirePermissions` the ones whose policy the caller satisfies, otherwise all four. The dashboard shows a control only to a caller who holds the permission its route needs, gates the definition page's overrides and retire and the tenant register link that it showed to everyone, and shows the read-only mark to a caller who holds no write permission.
 - A `PerOccurrence` definition may declare a `Deadline`: each root's deadline counts from its admission, and a Strict one cancels an overdue root without running it and releases its charge. A permanent job's definition still may not, and the deploy refuses it.
 - A purge records the operator's reason, as every other control does: `POST /jobs/{jobRef}/purge` takes `reasonMessage`, which answered 400 before, and the `job.purged` event carries it as its message. The dashboard's delete asks for a reason.
+- `ListWorkersItem.Stale`, `stale` on each worker of `GET /workers` and of the job detail, says whether a live worker has sent no heartbeat within this deployment's lease window, `JobsOptions.LeaseTtlSeconds`, judged on the database clock: the window the HTTP overview counts `staleWorkerCount` by. The dashboard's workers list and the overview's workers table mark such a worker stale from it, where the list judged it in the browser against a fixed 180 seconds and the overview did not mark it.
 
 ### Fixes
 

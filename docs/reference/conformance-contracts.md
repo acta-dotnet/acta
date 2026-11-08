@@ -1774,6 +1774,11 @@
   - Walking NextCursor visits every worker once in descending last-seen order with a TotalCount matching the walk
   - ListWorkers returns the keyset page and the filter-wide total from one command
 
+### ListWorkers marks a live worker silent past the lease window stale
+- **Contract:** ListWorkers marks a live worker stale once its last heartbeat is older than LeaseTtlSeconds on the database clock, and never a Dead one.
+- **Guarantees:**
+  - A live worker silent past the lease window lists as stale, and a fresh or dead one does not
+
 ### An event or alert code from a newer Acta reads back as unspecified
 - **Contract:** An unassigned event code or alert kind id reads back as Unspecified on every API read path and serializes as "unspecified".
 - **Guarantees:**

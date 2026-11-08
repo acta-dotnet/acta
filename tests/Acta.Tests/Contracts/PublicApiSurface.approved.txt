@@ -2126,9 +2126,10 @@ sealed record Acta.ListTenantsResponse : Acta.IPagedResponse<Acta.ListTenantsIte
     System.Nullable<System.Int64> TotalCount { get;init; }
     System.String NextCursor { get;init; }
 sealed record Acta.ListWorkersItem
-    .ctor(Acta.WorkerRef WorkerRef, System.Int32 WorkerId, System.String JobNamespace, Acta.WorkerStatusCode Status, System.String HostName, System.String DeploymentVersion, System.String EngineVersion, System.String DotnetVersion, System.Nullable<System.Int32> ProcessId, System.Int32 MaxConcurrentExecutors, System.DateTime LastSeenAtUtc, System.DateTime StartedAtUtc, System.DateTime ModifiedAtUtc)
+    .ctor(Acta.WorkerRef WorkerRef, System.Int32 WorkerId, System.String JobNamespace, Acta.WorkerStatusCode Status, System.String HostName, System.String DeploymentVersion, System.String EngineVersion, System.String DotnetVersion, System.Nullable<System.Int32> ProcessId, System.Int32 MaxConcurrentExecutors, System.DateTime LastSeenAtUtc, System.Boolean Stale, System.DateTime StartedAtUtc, System.DateTime ModifiedAtUtc)
     Acta.WorkerRef WorkerRef { get;init; }
     Acta.WorkerStatusCode Status { get;init; }
+    System.Boolean Stale { get;init; }
     System.DateTime LastSeenAtUtc { get;init; }
     System.DateTime ModifiedAtUtc { get;init; }
     System.DateTime StartedAtUtc { get;init; }

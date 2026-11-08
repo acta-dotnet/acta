@@ -9735,6 +9735,7 @@
                           "processId": 4242,
                           "maxConcurrentExecutors": 8,
                           "lastSeenAtUtc": "2026-06-12T06:00:00Z",
+                          "stale": false,
                           "startedAtUtc": "2026-06-12T04:00:00Z",
                           "modifiedAtUtc": "2026-06-12T06:00:00Z"
                         }
@@ -10302,6 +10303,7 @@
                           "processId": 4242,
                           "maxConcurrentExecutors": 8,
                           "lastSeenAtUtc": "2026-06-12T06:00:00Z",
+                          "stale": false,
                           "startedAtUtc": "2026-06-12T04:00:00Z",
                           "modifiedAtUtc": "2026-06-12T06:00:00Z"
                         }
@@ -20001,6 +20003,7 @@
           "processId",
           "maxConcurrentExecutors",
           "lastSeenAtUtc",
+          "stale",
           "startedAtUtc",
           "modifiedAtUtc"
         ],
@@ -20058,6 +20061,10 @@
             "description": "When the worker last sent a heartbeat, in UTC.",
             "format": "date-time"
           },
+          "stale": {
+            "type": "boolean",
+            "description": "Whether the worker is active or draining and has sent no heartbeat within this deployment's lease window, judged on the database clock: past it the worker's jobs are reclaimable, and the overview counts it among the stale workers."
+          },
           "startedAtUtc": {
             "type": "string",
             "description": "When the worker started, in UTC.",
@@ -20069,7 +20076,7 @@
             "format": "date-time"
           }
         },
-        "description": "One worker in a page: its ref, namespace, and status, what it reported at start (host machine, deployment version, engine version, runtime version, process id, executor capacity), and when it started, last sent a heartbeat, and last changed."
+        "description": "One worker in a page: its ref, namespace, and status, what it reported at start (host machine, deployment version, engine version, runtime version, process id, executor capacity), and when it started, last sent a heartbeat, and last changed, with whether that heartbeat is stale."
       },
       "ListWorkersResponse": {
         "required": [

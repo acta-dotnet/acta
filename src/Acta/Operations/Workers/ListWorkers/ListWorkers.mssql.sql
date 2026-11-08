@@ -9,6 +9,12 @@ SELECT TOP (@p_take)
     w.process_id,
     w.max_concurrent_executors,
     w.last_seen_at_utc,
+    CAST(CASE
+        WHEN w.worker_status_code IN (10 /* WorkerStatusCode.Active */, 80 /* WorkerStatusCode.Draining */)
+            AND w.last_seen_at_utc < DATEADD(SECOND, -@p_stale_after_seconds, SYSUTCDATETIME())
+            THEN 1
+        ELSE 0
+    END AS BIT) AS stale,
     w.created_at_utc AS started_at_utc,
     w.modified_at_utc,
     w.worker_ref

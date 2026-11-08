@@ -9,7 +9,7 @@
   import FreshnessIndicator from '../components/FreshnessIndicator.svelte';
   import DataTable from '../components/DataTable.svelte';
   import StateView from '../components/StateView.svelte';
-  import StatusBadge from '../components/StatusBadge.svelte';
+  import WorkerStatus from '../components/WorkerStatus.svelte';
   import SeverityBadge from '../components/SeverityBadge.svelte';
   import Icon from '../components/Icon.svelte';
   import MetricCard from '../components/MetricCard.svelte';
@@ -269,9 +269,9 @@
           <thead><tr><th>Worker</th><th>Status</th><th>Namespace</th><th>Last heartbeat</th></tr></thead>
           <tbody>
             {#each workers.items as worker}
-              <tr class:trouble={worker.status === 'dead'}>
+              <tr class:trouble={worker.status === 'dead'} class:stale={worker.stale}>
                 <td><JobRef value={worker.workerRef} href={routes.worker(worker.workerRef, { namespace: worker.jobNamespace })} /></td>
-                <td><StatusBadge status={worker.status} /></td>
+                <td><WorkerStatus status={worker.status} stale={worker.stale} /></td>
                 <td>{worker.jobNamespace}</td>
                 <td><RelativeTime value={worker.lastSeenAtUtc} /></td>
               </tr>

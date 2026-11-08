@@ -1,9 +1,13 @@
 using System.Globalization;
+using Microsoft.Extensions.Options;
 
 namespace Acta;
 
-/// <summary><see cref="IWorkers.ListAsync"/>: workers most recently seen first, one keyset page at a time.</summary>
-internal sealed class ListWorkersHandler(IDbSession session, ISqlDialect dialect)
+/// <summary>
+/// <see cref="IWorkers.ListAsync"/>: workers most recently seen first, one keyset page at a time, each judged stale against
+/// this deployment's lease window, the one the HTTP overview counts stale workers by.
+/// </summary>
+internal sealed class ListWorkersHandler(IDbSession session, ISqlDialect dialect, IOptions<JobsOptions> options)
 {
     public async ValueTask<ListWorkersResponse> HandleAsync(ListWorkersQuery query, CancellationToken ct)
     {
@@ -26,6 +30,7 @@ internal sealed class ListWorkersHandler(IDbSession session, ISqlDialect dialect
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.NamespaceFilter, jobNamespace));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Worker.WorkerStatusCode, query.Status));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.StaleAfterSeconds, options.Value.LeaseTtlSeconds));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.CursorLastSeenAtUtc, (DateTime?)paging.After?[0]));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.CursorIntId, (int?)paging.After?[1]));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.PageTake, paging.Fetch));

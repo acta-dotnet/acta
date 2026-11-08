@@ -9,6 +9,12 @@ SELECT
     w.process_id,
     w.max_concurrent_executors,
     w.last_seen_at_utc,
+    CASE
+        WHEN w.worker_status_code IN (10 /* WorkerStatusCode.Active */, 80 /* WorkerStatusCode.Draining */)
+            AND w.last_seen_at_utc < {{now}} - (@p_stale_after_seconds) * 1000
+            THEN 1
+        ELSE 0
+    END AS stale,
     w.created_at_utc AS started_at_utc,
     w.modified_at_utc,
     w.worker_ref
