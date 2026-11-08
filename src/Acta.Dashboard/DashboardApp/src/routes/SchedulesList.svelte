@@ -1,11 +1,12 @@
 <script lang="ts">
   import { createQuery } from '@tanstack/svelte-query';
-  import { capabilitiesQuery } from '../query.ts';
+  import { capabilitiesQuery, namespaceNamesQuery, onlyNamespace } from '../query.ts';
   import Icon from '../components/Icon.svelte';
   import { hashParams, updateHashParams } from '../router';
   import { scope, setScope } from '../scope';
   import Page from '../components/Page.svelte';
   import ActaGrid from '../components/grid/ActaGrid.svelte';
+  import StateView from '../components/StateView.svelte';
   import ScheduleStatus from '../components/ScheduleStatus.svelte';
   import RelativeTime from '../components/RelativeTime.svelte';
   import FilterBar from '../components/FilterBar.svelte';
@@ -35,12 +36,18 @@
 
   const initial = hashParams();
   const filters = createUrlFilters({ jobName: 'jobName', live: 'live' }, { jobName: '', live: '1' });
+  // A job name is looked up within one namespace: the scope, or the only one there is.
+  const namespaceNames = createQuery(() => namespaceNamesQuery());
+  let lookupNamespace = $derived($scope || onlyNamespace(namespaceNames.data));
+  let jobName = $derived($filters.jobName.trim());
+  // Until the namespace is known, a job name filter lists nothing rather than every schedule.
+  let jobNameWaits = $derived(jobName !== '' && !lookupNamespace);
 
   // liveOnly is a view toggle rather than a removable filter, so it stays out of the chip bar.
   let activeChips = $derived(
     [
       $scope ? { label: 'Namespace', value: $scope, onRemove: () => setScope('') } : null,
-      $scope && $filters.jobName.trim() ? { label: 'Job name', value: $filters.jobName.trim(), onRemove: () => filters.patch({ jobName: '' }) } : null
+      jobName ? { label: 'Job name', value: jobName, onRemove: () => filters.patch({ jobName: '' }) } : null
     ].filter((chip): chip is { label: string; value: string; onRemove: () => void } => chip !== null)
   );
   function clearAllFilters() {
@@ -50,10 +57,11 @@
 
   const capabilities = createQuery(() => capabilitiesQuery());
 
-  // The applied filters as ad-hoc SQL against the schedules operator view (mirrors the grid filters below).
+  // The applied filters as ad-hoc SQL against the schedules operator view (mirrors the grid filters below; a job
+  // name with no namespace yet matches in every one).
   let copySql = $derived(
     schedulesListSql(
-      { namespace: $scope, jobName: $scope ? $filters.jobName.trim() : '', liveOnly: $filters.live !== '0' },
+      { namespace: jobName ? lookupNamespace : $scope, jobName, liveOnly: $filters.live !== '0' },
       { provider: capabilities.data?.provider, schema: capabilities.data?.schema }
     )
   );
@@ -100,8 +108,8 @@
       <label>
         Job name
         <input
-          placeholder={$scope ? 'job name' : 'needs a namespace scope'}
-          disabled={!$scope}
+          placeholder={lookupNamespace ? 'job name' : 'needs a namespace scope'}
+          disabled={!lookupNamespace}
           value={$filters.jobName}
           onchange={(event) => filters.patch({ jobName: event.currentTarget.value.trim() })} />
       </label>
@@ -147,26 +155,35 @@
         aria-label={'Open schedule ' + schedule.scheduleName}><Icon name="chevron-right" /></a>
     {/snippet}
 
-    <ActaGrid
-      rowKey={(schedule: ScheduleRow) => `${schedule.jobNamespace}/${schedule.jobName}/${schedule.scheduleName}`}
-      endpoint="schedules"
-      mobileCards={true}
-      {columns}
-      filters={() => ({ jobName: $scope ? $filters.jobName.trim() : '', liveOnly: $filters.live !== '0', jobNamespace: $scope })}
-      includeTotal={true}
-      initialPageSize={Number(initial.get('pageSize') ?? '50') || 50}
-      onPageSizeChange={(size) => updateHashParams({ pageSize: String(size) })}
-      loadingText="Loading schedules..."
-      emptyText="No schedules yet. Declare one with a [Schedule] attribute on a [Job] handler; it appears here after the next deploy: jobs deploy, jobs migrate, or a MigrateOnStartup start in a namespace neither has deployed."
-      cells={{ scheduleName: scheduleCell, status: statusCell, job: jobCell, expression: sourceCell, nextOccurrenceAtUtc: nextOccurrenceCell, actions: actionsCell }}
-      rowClass={(schedule: ScheduleRow) =>
-        schedule.status === 'paused'
-          ? 'held'
-          : isOverdue(schedule, $now)
-            ? 'overdue'
-            : isDueSoon(schedule, $now)
-              ? 'due'
-              : ''} />
+    {#if jobNameWaits}
+      <StateView
+        loading={namespaceNames.isPending}
+        error={namespaceNames.error?.message ?? null}
+        loadingText="Loading schedules..."
+        emptyText="Select a namespace scope to filter by job name, or remove the job name filter."
+        onRetry={() => namespaceNames.refetch()} />
+    {:else}
+      <ActaGrid
+        rowKey={(schedule: ScheduleRow) => `${schedule.jobNamespace}/${schedule.jobName}/${schedule.scheduleName}`}
+        endpoint="schedules"
+        mobileCards={true}
+        {columns}
+        filters={() => ({ jobName, liveOnly: $filters.live !== '0', jobNamespace: jobName ? lookupNamespace : $scope })}
+        includeTotal={true}
+        initialPageSize={Number(initial.get('pageSize') ?? '50') || 50}
+        onPageSizeChange={(size) => updateHashParams({ pageSize: String(size) })}
+        loadingText="Loading schedules..."
+        emptyText="No schedules yet. Declare one with a [Schedule] attribute on a [Job] handler; it appears here after the next deploy: jobs deploy, jobs migrate, or a MigrateOnStartup start in a namespace neither has deployed."
+        cells={{ scheduleName: scheduleCell, status: statusCell, job: jobCell, expression: sourceCell, nextOccurrenceAtUtc: nextOccurrenceCell, actions: actionsCell }}
+        rowClass={(schedule: ScheduleRow) =>
+          schedule.status === 'paused'
+            ? 'held'
+            : isOverdue(schedule, $now)
+              ? 'overdue'
+              : isDueSoon(schedule, $now)
+                ? 'due'
+                : ''} />
+    {/if}
   </div>
 </Page>
 

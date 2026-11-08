@@ -377,12 +377,12 @@ test('on a host with one namespace, the job name filter needs no scope', async (
   await expect(page.getByText('1 filter active')).toBeVisible();
 });
 
-// The job name of every jobs list read the page sends; null for a read that filters on none.
-function jobNameReads(page: Page): (string | null)[] {
+// The job name of every jobs (or schedules) list read the page sends; null for a read that filters on none.
+function jobNameReads(page: Page, list = 'jobs'): (string | null)[] {
   const names: (string | null)[] = [];
   page.on('request', (request) => {
     const url = new URL(request.url());
-    if (url.pathname.endsWith('/api/v1/jobs') && request.method() === 'GET') names.push(url.searchParams.get('jobName'));
+    if (url.pathname.endsWith('/api/v1/' + list) && request.method() === 'GET') names.push(url.searchParams.get('jobName'));
   });
   return names;
 }
@@ -418,6 +418,48 @@ test('a reloaded job name filter with several namespaces and no scope asks for o
   await page.getByLabel('Jump to').fill('invoice-42');
   await page.getByLabel('Jump to').press('Enter');
   await expect(page.getByText('Select a namespace scope to look up a deduplication key.')).toBeVisible();
+});
+
+test('on a host with one namespace, the schedules job name filter needs no scope', async ({ page }) => {
+  await mockDashboard(page, { controls: false });
+  await page.goto('/#/schedules');
+
+  const nameFilter = page.getByLabel('Job name');
+  await expect(nameFilter).toBeEnabled();
+  const filtered = page.waitForRequest((request) => {
+    const url = new URL(request.url());
+    return url.pathname.endsWith('/api/v1/schedules') && url.searchParams.get('jobName') === 'send-invoice';
+  });
+  await nameFilter.fill('send-invoice');
+  await nameFilter.press('Enter');
+
+  expect(new URL((await filtered).url()).searchParams.get('jobNamespace')).toBe('billing');
+  await expect(page.getByText('1 filter active')).toBeVisible();
+});
+
+test('a reloaded schedules job name filter on a one-namespace host never lists every schedule', async ({ page }) => {
+  await mockDashboard(page, { controls: false });
+  const reads = jobNameReads(page, 'schedules');
+  const filtered = page.waitForRequest((request) => {
+    const url = new URL(request.url());
+    return url.pathname.endsWith('/api/v1/schedules') && url.searchParams.get('jobName') === 'send-invoice';
+  });
+  await page.goto('/#/schedules?jobName=send-invoice');
+
+  expect(new URL((await filtered).url()).searchParams.get('jobNamespace')).toBe('billing');
+  await expect(page.getByText('1 filter active')).toBeVisible();
+  expect(reads).not.toContain(null);
+});
+
+test('a reloaded schedules job name filter with several namespaces and no scope asks for one', async ({ page }) => {
+  await mockDashboard(page, { controls: false, namespaces: ['billing', 'shipping'] });
+  const reads = jobNameReads(page, 'schedules');
+  await page.goto('/#/schedules?jobName=send-invoice');
+
+  await expect(page.getByText('Select a namespace scope to filter by job name')).toBeVisible();
+  await expect(page.getByText('1 filter active')).toBeVisible();
+  await expect(page.getByLabel('Job name')).toBeDisabled();
+  expect(reads).toEqual([]);
 });
 
 test('quick search finds definitions by fragment and jumps to a pasted job ref', async ({ page }) => {

@@ -57,6 +57,11 @@ export function namespaceNamesQuery() {
   };
 }
 
+// The namespace a name lookup falls back on when no scope is picked: the only one there is, or none.
+export function onlyNamespace(names: string[] | undefined): string {
+  return names?.length === 1 ? names[0] : '';
+}
+
 export const Permission = {
   read: 'acta.read',
   enqueue: 'acta.enqueue',

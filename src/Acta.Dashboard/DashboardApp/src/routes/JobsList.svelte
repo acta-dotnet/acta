@@ -4,7 +4,7 @@
   import { get } from 'svelte/store';
   import { createQuery, useQueryClient } from '@tanstack/svelte-query';
   import { api } from '../api';
-  import { capabilitiesQuery, can, namespaceNamesQuery, Permission } from '../query.ts';
+  import { capabilitiesQuery, can, namespaceNamesQuery, onlyNamespace, Permission } from '../query.ts';
   import { hashParams, updateHashParams } from '../router';
   import { scope, setScope } from '../scope';
   import Page from '../components/Page.svelte';
@@ -54,7 +54,6 @@
   // A job name or a deduplication key is looked up within one namespace: the scope, or the only one there is.
   const queryClient = useQueryClient();
   const namespaceNames = createQuery(() => namespaceNamesQuery());
-  const onlyNamespace = (names: string[] | undefined) => (names?.length === 1 ? names[0] : '');
   let lookupNamespace = $derived($scope || onlyNamespace(namespaceNames.data));
   let jobName = $derived($filters.jobName.trim());
   // Until the namespace is known, a job name filter lists nothing rather than every job.
