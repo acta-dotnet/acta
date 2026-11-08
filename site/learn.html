@@ -464,10 +464,10 @@ Total:  5,426.50
           <figcaption><span class="note">Output from our test run (trimmed)</span></figcaption>
           <pre><code>Events for job job_01a0de39d88773688d0471583be99b40 (newest first)
 
-2026-09-26T14:59:28.3810000Z  job.rescheduled  worker wrk_01a0de39d64c7c59833aad068bd93bdc  exec 5
+2026-09-26T14:59:28.381Z  job.rescheduled  worker wrk_01a0de39d64c7c59833aad068bd93bdc  exec 5
   message: Could not find file 'D:\tmp\acta-learn\walk\Reports\data\sales-2026-09.csv'.
   details: {"reason":"unhandled-exception"}
-2026-09-26T14:59:28.3810000Z  job.execution-failed  worker wrk_01a0de39d64c7c59833aad068bd93bdc  exec 5
+2026-09-26T14:59:28.381Z  job.execution-failed  worker wrk_01a0de39d64c7c59833aad068bd93bdc  exec 5
   message: Could not find file 'D:\tmp\acta-learn\walk\Reports\data\sales-2026-09.csv'.
   details: {"to":"ready","reason":"unhandled-exception"}</code></pre>
         </figure>
@@ -636,8 +636,8 @@ info: Reports.SalesReportJobs[0]
 Executing, but its lease expired 1s ago.
 
 Worker:
-- Worker 1.0.0 (wrk_01a0de3ba5f575c19dfbde149086c442), lease expired at 2026-09-26T15:00:58.2790000Z.
-- Last heartbeat at 2026-09-26T15:00:50.2790000Z.
+- Worker 1.0.0 (wrk_01a0de3ba5f575c19dfbde149086c442), lease expired at 2026-09-26T15:00:58.279Z.
+- Last heartbeat at 2026-09-26T15:00:50.279Z.
 - Recovery should return it to Ready on its next pass.
 
 Durable work:

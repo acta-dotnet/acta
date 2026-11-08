@@ -1,4 +1,6 @@
 using System.Reflection;
+using System.Text.Json;
+using Acta.AspNetCore;
 using Xunit;
 
 namespace Acta.Tests.Cli;
@@ -116,7 +118,7 @@ public class CliOutputTests
         var text = w.ToString();
         Assert.Contains("\"jobNamespace\":\"shop\"", text);
         Assert.Contains("\"jobName\":\"send-email\"", text);
-        Assert.Contains("\"createdAtUtc\":\"2026-06-11T08:00:00.0000000Z\"", text);
+        Assert.Contains("\"createdAtUtc\":\"2026-06-11T08:00:00Z\"", text);
     }
 
     [Fact]
@@ -176,6 +178,44 @@ public class CliOutputTests
             LeasedByWorkerRef: null,
             Version: 3
         );
+
+    // One spelling for an instant on every surface: each CLI line and --json field writes it as the API does.
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1_720_000)]
+    [InlineData(1_720_005)]
+    public void Every_instant_the_cli_prints_reads_as_the_api_writes_it(long fractionTicks)
+    {
+        var instant = new DateTime(2026, 11, 8, 4, 47, 22, DateTimeKind.Utc).AddTicks(fractionTicks);
+        var api = JsonSerializer.Serialize(instant, typeof(DateTime), ActaApiJsonContext.Default).Trim('"');
+        var page = new ListEventsResponse(
+            [Event(EventCode.JobFailed) with { CreatedAtUtc = instant }],
+            NextCursor: null,
+            HasMore: false,
+            PageSize: 50,
+            TotalCount: null
+        );
+        var snapshot = Snapshot(JobStatusCode.Ready, tenantId: null) with { CreatedAtUtc = instant };
+        var explanation = SentinelExplanation() with
+        {
+            Lease = SentinelExplanation().Lease! with { ExpiresAtUtc = instant, WorkerLastSeenAtUtc = instant },
+        };
+
+        var plain = new StringWriter();
+        CliOutput.WriteEvents(plain, SampleJobRef, page, json: false);
+        CliOutput.WriteSnapshot(plain, snapshot, json: false);
+        CliOutput.WriteExplanation(plain, explanation, json: false);
+        var json = new StringWriter();
+        CliOutput.WriteEvents(json, SampleJobRef, page, json: true);
+        CliOutput.WriteSnapshot(json, snapshot, json: true);
+        CliOutput.WriteExplanation(json, explanation, json: true);
+
+        Assert.Contains($"{api}  job.failed", plain.ToString());
+        Assert.Contains($"created-utc: {api}{Environment.NewLine}", plain.ToString());
+        Assert.Contains($"lease expired at {api}.", plain.ToString());
+        Assert.Contains($"- Last heartbeat at {api}.", plain.ToString());
+        Assert.Equal(5, json.ToString().Split($"\":\"{api}\"").Length);
+    }
 
     [Fact]
     public void Control_null_status_prints_none_and_json_null()
@@ -259,7 +299,7 @@ public class CliOutputTests
         var text = w.ToString();
 
         Assert.Contains($"\"jobRef\":\"{SampleJobRef}\"", text);
-        Assert.Contains("\"createdAtUtc\":\"2026-06-21T12:30:01.0000000Z\"", text);
+        Assert.Contains("\"createdAtUtc\":\"2026-06-21T12:30:01Z\"", text);
         Assert.Contains("\"event\":\"job.failed\"", text);
         Assert.Contains("\"message\":\"boom\"", text);
         Assert.Contains("\"detailsText\":", text);
@@ -389,8 +429,8 @@ public class CliOutputTests
         Assert.Contains("Reason:", text);
         Assert.Contains("- Worker shutdown.", text);
         Assert.Contains("Worker:", text);
-        Assert.Contains($"- Worker {ExplainWorkerRef} (version payments-v42), lease expired at 2026-07-04T11:58:00.0000000Z.", text);
-        Assert.Contains("- Last heartbeat at 2026-07-04T11:56:00.0000000Z.", text);
+        Assert.Contains($"- Worker {ExplainWorkerRef} (version payments-v42), lease expired at 2026-07-04T11:58:00Z.", text);
+        Assert.Contains("- Last heartbeat at 2026-07-04T11:56:00Z.", text);
         Assert.Contains("- Worker is marked Dead.", text);
         Assert.Contains("Next actions:", text);
         Assert.Contains("- Wait for crash recovery to reclaim the job on its next pass.", text);

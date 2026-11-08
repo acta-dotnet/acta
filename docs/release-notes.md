@@ -187,6 +187,7 @@ Not tagged yet.
 - The dashboard's jobs list read a job's failure count as a total, so a job restarted after three failed attempts that then failed three more showed `6 (3 failed)` with all six failed. The count is of failures in a row, which a success or a restart resets, so the cell now reads `6 (3 consecutive failures)`, as the job page's summary does, which now says `1 consecutive failure` where it said `1 consecutive failures`.
 - The dashboard's timeline labelled a permanent job's executions `Attempt 21`, as if each were a retry against one budget. The number counts the executions of every firing, so the timeline, its filter, and the raw events table now say `Execution 21`, as the Executions tab and the page's header do.
 - The dashboard's alert page showed a delivered alert's "Next attempt" a day out, as if its delivery were not done. Once a send is delivered or has failed for good, that instant is when an automatic alert still unresolved is sent again, every `AlertReminderInterval`, until it is resolved; the page now names it "Next reminder".
+- The CLI wrote an instant with seven fraction digits, `2026-11-08T04:47:22.1720000Z`, in `jobs events`, `info`, and `explain` and in their `--json` output, where the API writes `2026-11-08T04:47:22.172Z`. Every CLI line and `--json` field now writes an instant as the API does, with no trailing zero digits.
 
 ## 1.0.0-rc.8
 

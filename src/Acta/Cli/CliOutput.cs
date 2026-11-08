@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 using System.Text.Json;
 
@@ -6,12 +7,15 @@ namespace Acta;
 /// <summary>
 /// CLI result writers: plain key-value lines for humans, hand-written JSON for scripting. JSON is
 /// emitted via Utf8JsonWriter so the core stays reflection-free for native AOT. Both spell a code in
-/// its lowercase wire form, as the API does.
+/// its lowercase wire form and an instant in its round-trip form with no trailing zero digits, as the API does.
 /// </summary>
 internal static class CliOutput
 {
     /// <summary>A control's action in its wire form, such as <c>already-in-state</c>.</summary>
     internal static string Code(ControlAction action) => JsonNamingPolicy.KebabCaseLower.ConvertName(action.ToString());
+
+    /// <summary>An instant as the API's serializer writes it, such as <c>2026-11-08T04:47:22.164Z</c>.</summary>
+    private static string Instant(DateTime value) => value.ToString("yyyy-MM-dd'T'HH:mm:ss.FFFFFFFK", CultureInfo.InvariantCulture);
 
     public static void WriteControl(TextWriter writer, string verb, JobRef jobRef, IJobControlResponse result, bool json)
     {
@@ -63,7 +67,7 @@ internal static class CliOutput
                         w.WriteNull("deduplicationKey");
                     }
                     w.WriteString("status", snapshot.Status.Code);
-                    w.WriteString("createdAtUtc", snapshot.CreatedAtUtc.ToString("O"));
+                    w.WriteString("createdAtUtc", snapshot.CreatedAtUtc);
                     w.WriteNumber("failureCount", snapshot.FailureCount);
                 }
             );
@@ -76,7 +80,7 @@ internal static class CliOutput
         writer.WriteLine($"tenant: {snapshot.TenantName ?? "(none)"}");
         writer.WriteLine($"deduplication-key: {snapshot.DeduplicationKey ?? "(none)"}");
         writer.WriteLine($"status: {snapshot.Status.Code}");
-        writer.WriteLine($"created-utc: {snapshot.CreatedAtUtc:O}");
+        writer.WriteLine($"created-utc: {Instant(snapshot.CreatedAtUtc)}");
         writer.WriteLine($"failure-count: {snapshot.FailureCount}");
 
         // The snapshot reports state, not why. On a failed or cancelled job, point the operator at
@@ -185,7 +189,7 @@ internal static class CliOutput
             writer.WriteLine($"- {LeaseWorkerLabel(expiredLease)}.");
             if (expiredLease.WorkerLastSeenAtUtc is { } seen)
             {
-                writer.WriteLine($"- Last heartbeat at {seen:O}.");
+                writer.WriteLine($"- Last heartbeat at {Instant(seen)}.");
             }
             if (expiredLease.WorkerStale)
             {
@@ -242,7 +246,7 @@ internal static class CliOutput
             { } workerRef => $"Worker {workerRef}",
             null => "Worker is no longer registered",
         };
-        return lease.ExpiresAtUtc is { } expires ? $"{worker}, lease expired at {expires:O}" : worker;
+        return lease.ExpiresAtUtc is { } expires ? $"{worker}, lease expired at {Instant(expires)}" : worker;
     }
 
     private static string Sentence(string value)
@@ -260,7 +264,7 @@ internal static class CliOutput
     {
         if (value is { } v)
         {
-            w.WriteString(name, v.ToString("O"));
+            w.WriteString(name, v);
         }
         else
         {
@@ -286,7 +290,7 @@ internal static class CliOutput
                     foreach (var e in page.Items)
                     {
                         w.WriteStartObject();
-                        w.WriteString("createdAtUtc", e.CreatedAtUtc.ToString("O"));
+                        w.WriteString("createdAtUtc", e.CreatedAtUtc);
                         w.WriteString("event", e.EventCode.Code);
                         WriteJsonStringOrNull(w, "message", e.Message);
                         WriteJsonStringOrNull(w, "detailsText", e.DetailsText);
@@ -319,7 +323,7 @@ internal static class CliOutput
         {
             var attempt = e.WorkerRef is { } worker ? $"  worker {worker}" : "";
             attempt += e.ExecutionNumber is { } en ? $"  exec {en}" : "";
-            writer.WriteLine($"{e.CreatedAtUtc:O}  {e.EventCode.Code}{attempt}");
+            writer.WriteLine($"{Instant(e.CreatedAtUtc)}  {e.EventCode.Code}{attempt}");
             if (e.Message is { } message)
             {
                 writer.WriteLine($"  message: {message}");
