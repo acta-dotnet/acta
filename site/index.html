@@ -7,7 +7,7 @@
   <meta name="description" content="Acta is a SQL-native durable job and workflow engine for .NET. Steps and variables that survive a crash, child jobs with fan-out and joins, signals and long waits, lanes for strict per-entity order, and concurrency and rate limits across every worker, all as rows in the Postgres, SQL Server, or SQLite you already run." />
   <link rel="canonical" href="https://useacta.net/" />
   <link rel="alternate" type="text/plain" href="/llms.txt" title="Acta for coding agents" />
-  <meta name="theme-color" content="#0B0E15" />
+  <meta name="theme-color" content="#0E1625" />
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="Acta for .NET" />
   <meta property="og:title" content="Acta · Durable jobs and workflows for .NET, in your own database" />
@@ -37,167 +37,16 @@
     @font-face { font-family: "IBM Plex Mono"; font-style: normal; font-weight: 400; font-display: swap; src: url(assets/fonts/ibm-plex-mono-400-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
     @font-face { font-family: "IBM Plex Mono"; font-style: normal; font-weight: 500; font-display: swap; src: url(assets/fonts/ibm-plex-mono-500-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
   </style>
-  <style>
-    /* ---- masthead hero ---- */
-    .hero { padding-top: clamp(1.6rem, 4vh, 3.2rem); }
-    /* the hero's record line drops the databases on a phone, where it would wrap */
-    @media (max-width: 640px) { .hero .record .dbs { display: none; } }
-    .masthead {
-      font-family: var(--serif); font-weight: 600; font-optical-sizing: auto;
-      font-size: clamp(7rem, 18.5vw, 21rem);
-      line-height: 0.82; letter-spacing: -0.015em;
-      margin: 0 0 0 -0.05em;
-    }
-    .masthead .dot { color: var(--verdi); }
-    .mast-row { display: flex; align-items: flex-end; gap: clamp(2rem, 5vw, 6rem); justify-content: space-between; flex-wrap: wrap; }
-    .dict {
-      font-family: var(--serif); font-style: italic; font-size: clamp(1rem, 1.5vw, 1.3rem);
-      color: var(--muted); margin: 0 0 0.9em; max-width: 36ch; line-height: 1.55;
-    }
-    .dict b { font-style: normal; font-weight: 600; color: var(--text); }
-    @media (max-width: 980px) { .dict { margin-top: 1.1rem; } }
-    .hero-rule { border: 0; border-top: 1px solid var(--hair); margin: clamp(1.4rem, 3vh, 2.2rem) 0 0; }
-
-    .hero-grid {
-      display: grid; grid-template-columns: 1.1fr 1fr; gap: clamp(2rem, 5vw, 6rem);
-      padding: clamp(1.6rem, 3.5vh, 2.6rem) 0 clamp(1.4rem, 3vh, 2.4rem);
-      align-items: start;
-    }
-    .tagline {
-      font-family: var(--serif); font-weight: 500;
-      font-size: clamp(2rem, 3.4vw, 3.1rem); line-height: 1.08; margin: 0;
-      text-wrap: balance;
-    }
-    .subhead { font-family: var(--serif); font-style: italic; font-size: clamp(1.15rem, 1.8vw, 1.5rem); color: var(--muted); margin: 0.7rem 0 0; }
-    .hero .lede { margin-top: 1.3rem; max-width: 54ch; }
-    /* the hero's two buttons read as words, not stamps: sans, sentence case, the arrow at the text's own size */
-    .hero .actions { gap: 0.75rem; margin-top: 1.75rem; }
-    .hero .actions .button {
-      gap: 1.6rem; justify-content: center; min-height: 46px; padding: 10px 21px;
-      font-family: var(--sans); font-size: 15px; font-weight: 500; letter-spacing: 0; text-transform: none;
-    }
-    @media (max-width: 600px) { .hero .actions .button { gap: 0.75rem; padding-inline: 15px; font-size: 14px; } }
-    @media (max-width: 980px) { .hero-grid { grid-template-columns: 1fr; } }
-
-    /* release status beside the first install action: version, platforms, upgrade path */
-    .status { display: grid; grid-template-columns: auto 1fr; gap: 0.45rem 1.2rem; margin: 1.8rem 0 0; padding-top: 1rem; border-top: 1px solid var(--hair-soft); max-width: 60ch; font-size: 0.92rem; line-height: 1.5; }
-    .status dt { font-family: var(--mono); font-size: var(--label); letter-spacing: 0.15em; text-transform: uppercase; color: var(--faint); padding-top: 0.25em; }
-    .status dd { margin: 0; color: var(--muted); }
-    .status a { color: var(--verdi); text-underline-offset: 3px; }
-
-    /* what you get: five ruled links into the deep pages */
-    .toc { border-top: 1px solid var(--hair); }
-    .toc-head {
-      font-family: var(--mono); font-size: var(--label); letter-spacing: 0.2em; text-transform: uppercase; color: var(--faint);
-      padding: 0.8rem 0 0.2rem;
-    }
-    .toc a { display: block; padding: 0.85rem 0; border-bottom: 1px solid var(--hair-soft); text-decoration: none; }
-    .toc a:hover .t { color: var(--verdi); }
-    .toc .t { font-family: var(--serif); font-weight: 500; font-size: clamp(1.05rem, 1.35vw, 1.3rem); line-height: 1.25; display: block; transition: color 0.15s ease; }
-    .toc .s { display: block; color: var(--faint); font-size: 0.85rem; margin-top: 0.15rem; }
-
-    /* the flagship: one handler beside the rows its lines leave */
-    .flow { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(16rem, 1fr); gap: clamp(1.6rem, 3vw, 3rem); align-items: start; margin-top: 1.8rem; }
-    .flow > .panel.solo { margin: 0; min-width: 0; }
-    .flow > .panel pre { overflow-x: auto; }
-    /* two examples behind two words; without the script both show, one after the other */
-    .tabs { display: flex; gap: 1.8rem; margin-top: 1.6rem; border-bottom: 1px solid var(--hair); }
-    .tabs button {
-      font: inherit; font-family: var(--serif); font-weight: 500; font-size: clamp(1.05rem, 1.4vw, 1.3rem);
-      background: none; border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px; padding: 0.4rem 0 0.6rem;
-      color: var(--faint); cursor: pointer; transition: color 0.15s ease;
-    }
-    .tabs button:hover { color: var(--verdi); }
-    .tabs button[aria-selected="true"] { color: var(--text); border-bottom-color: var(--verdi); }
-    .tabs button:focus-visible { outline: 2px solid var(--verdi); outline-offset: 4px; }
-    .example + .example { margin-top: 3rem; }
-    .tabs:not([hidden]) ~ .example { margin-top: 0; }
-    .example > .lede:first-child { margin-top: 1.4rem; }
-    .flow-rows { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--hair); }
-    .flow-rows li { display: grid; grid-template-columns: auto 1fr; gap: 0.2rem 0.8rem; padding: 0.9rem 0; border-bottom: 1px solid var(--hair-soft); }
-    .flow-rows b { font-family: var(--mono); font-weight: 500; font-size: 0.92rem; color: var(--verdi); }
-    .flow-rows .v { font-family: var(--mono); font-size: 0.82rem; color: var(--faint); justify-self: end; align-self: baseline; }
-    .flow-rows .d { grid-column: 1 / -1; color: var(--muted); font-size: 0.95rem; line-height: 1.5; }
-    @media (max-width: 1100px) { .flow { grid-template-columns: 1fr; } }
-
-    /* capabilities at a glance: seven groups of short links into the capabilities page */
-    .fgrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2.2rem 2.4rem; margin-top: 2.4rem; }
-    .fcol h3 { margin: 0 0 0.8rem; font-family: var(--serif); font-weight: 500; font-size: 1.25rem; }
-    .fcol h3::after { content: ""; display: block; width: 2.4rem; border-top: 2px solid var(--verdi); margin-top: 0.5rem; }
-    .fcol ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 0.5rem; }
-    .fcol li { color: var(--muted); font-size: 0.95rem; line-height: 1.45; padding-left: 1.1em; position: relative; }
-    .fcol li::before { content: "·"; position: absolute; left: 0; color: var(--verdi); }
-    .fcol a { text-decoration: none; }
-    .fcol a:hover { color: var(--verdi); }
-    @media (max-width: 1100px) { .fgrid { grid-template-columns: repeat(3, 1fr); } }
-    @media (max-width: 760px) { .fgrid { grid-template-columns: repeat(2, 1fr); } }
-    @media (max-width: 520px) { .fgrid { grid-template-columns: 1fr; } }
-
-    /* dashboard figure */
-    .shot { margin: 2.6rem auto 0; border: 1px solid var(--hair); border-radius: var(--r-panel); overflow: hidden; background: var(--panel-2); max-width: 1460px; }
-    .shot-media { overflow-x: hidden; scrollbar-color: var(--faint) var(--panel); }
-    .shot-media img { display: block; width: 100%; max-width: 100%; height: auto; }
-    @media (max-width: 700px) {
-      .shot-media { overflow-x: auto; }
-      .shot-media img { width: 1200px; max-width: none; }
-    }
-
-    /* text and figure side by side, so a short section fills the width */
-    .split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 2rem clamp(2rem, 5vw, 6rem); align-items: end; }
-    .split .bench-line { margin-top: 0; }
-    @media (max-width: 900px) { .split { grid-template-columns: 1fr; } }
-
-    /* numbers: two figures, each linked to its evidence */
-    .bench-line { display: flex; flex-wrap: wrap; gap: 1.4rem 4rem; margin-top: 2.2rem; }
-    .bench-line a { text-decoration: none; }
-    .bench-line b { display: block; font-family: var(--serif); font-weight: 500; font-size: clamp(2rem, 3.4vw, 3rem); line-height: 1.05; color: var(--verdi); }
-    .bench-line span { display: block; font-family: var(--mono); font-size: var(--label); letter-spacing: 0.06em; text-transform: uppercase; color: var(--faint); margin-top: 0.4rem; max-width: 28ch; }
-
-    /* the rest of the site: ruled rows, a title and one clause each */
-    .more { margin-top: 2.2rem; border-top: 1px solid var(--hair); }
-    .more a {
-      display: grid; grid-template-columns: minmax(12rem, 18rem) 1fr; gap: 0.3rem 3rem; align-items: baseline;
-      padding: 1.1rem 0; border-bottom: 1px solid var(--hair-soft); text-decoration: none;
-    }
-    .more .t { font-family: var(--serif); font-weight: 500; font-size: clamp(1.1rem, 1.5vw, 1.4rem); line-height: 1.25; transition: color 0.15s ease; }
-    .more a:hover .t { color: var(--verdi); }
-    .more .s { color: var(--muted); font-size: 0.97rem; max-width: 72ch; }
-    @media (max-width: 760px) { .more a { grid-template-columns: 1fr; gap: 0.2rem; } }
-
-    /* prompts and the install block: one ruled container each */
-    .lede a { color: var(--verdi); text-underline-offset: 3px; }
-    .install { margin: 2.2rem 0 0; border: 1px solid var(--hair); border-radius: var(--r-panel); background: var(--panel); overflow: hidden; max-width: 62rem; }
-    .prompt-row { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 1.2rem; padding: 1.1rem 1.2rem; border-bottom: 1px solid var(--hair-soft); }
-    .prompt-row:last-child { border-bottom: 0; }
-    .prompt-row.primary { background: var(--verdi-tint); }
-    .prompt-row p { margin: 0; color: var(--text); font-size: 1rem; line-height: 1.55; max-width: 70ch; }
-    .install-row { display: grid; grid-template-columns: minmax(11rem, 0.5fr) 1fr auto; align-items: center; gap: 1.2rem; padding: 1rem 1.2rem; border-bottom: 1px solid var(--hair-soft); }
-    .install-row:last-child { border-bottom: 0; }
-    .install-row.primary { background: var(--verdi-tint); }
-    .install-meta b { display: block; font-family: var(--mono); font-size: var(--label); letter-spacing: 0.15em; text-transform: uppercase; color: var(--verdi); }
-    .install-meta span { font-size: 0.86rem; color: var(--faint); }
-    .install-row code { font-size: 0.95rem; color: var(--text); overflow-x: auto; }
-    /* prompts beside the install commands; in the narrower column a command sits under its label */
-    .build-pair { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 1.8rem; align-items: start; margin-top: 2.2rem; }
-    .build-pair .install { margin: 0; max-width: none; }
-    .build-pair .install-row { grid-template-columns: minmax(0, 1fr) auto; gap: 0.5rem 1rem; }
-    .build-pair .install-meta { grid-column: 1 / -1; }
-    @media (max-width: 1100px) { .build-pair { grid-template-columns: 1fr; } }
-    @media (max-width: 760px) {
-      .install-row { grid-template-columns: 1fr auto; gap: 0.5rem 1rem; }
-      .install-meta { grid-column: 1 / -1; }
-    }
-    @media (prefers-reduced-motion: reduce) { .toc .t, .more .t, .tabs button { transition: none; } }
-  </style>
+  <link rel="stylesheet" href="assets/home.css" />
   <script type="application/ld+json">
     {"@context":"https://schema.org","@type":"SoftwareSourceCode","name":"Acta","description":"SQL-native durable jobs and workflows for .NET: steps, variables, child jobs, signals, lanes, and fleet-wide limits as rows in your own database.","url":"https://useacta.net/","codeRepository":"https://github.com/acta-dotnet/acta","license":"https://www.apache.org/licenses/LICENSE-2.0","programmingLanguage":"C#","runtimePlatform":".NET 10","author":{"@type":"Person","name":"Marko Vončina","url":"https://www.linkedin.com/in/marko-voncina"}}
   </script>
 </head>
-<body>
+<body class="homepage">
   <a class="skip-link" href="#content">Skip to content</a>
   <div class="chrome">
-    <a class="brand" href="/" aria-label="Acta home"><svg viewBox="0 0 40 40" aria-hidden="true" focusable="false"><path d="M6 33 19 7 32 33" /><circle cx="19" cy="27" r="3" /></svg></a>
-    <span class="meta">apache-2.0 · .net 10 · pg / mssql / sqlite</span>
+    <a class="brand" href="/" aria-label="Acta home"><svg viewBox="0 0 40 40" aria-hidden="true" focusable="false"><path d="M6 33 19 7 32 33" /><circle cx="19" cy="27" r="3" /></svg><span class="brand-word">Acta<span>.</span></span></a>
+    <span class="meta">Durable execution for .NET</span>
     <nav aria-label="Primary links">
       <a href="/start">Start</a>
       <a href="/capabilities">Capabilities</a>
@@ -205,43 +54,55 @@
       <a href="/learn">Learn</a>
       <a href="https://github.com/acta-dotnet/acta" class="gh" aria-label="Acta on GitHub" title="Acta on GitHub"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><path fill="currentColor" d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"></path></svg></a>
     </nav>
+    <span class="header-appearance" data-theme-controls></span>
   </div>
 
   <main id="content">
     <header class="wrap hero">
-      <p class="record"><span>Durable execution for .NET<span class="dbs"> · Postgres · SQL Server · SQLite</span></span></p>
-      <div class="mast-row">
-        <h1 class="masthead"><span aria-hidden="true">Acta<span class="dot">.</span></span><span class="sr-only">Acta: durable jobs and workflows for .NET</span></h1>
-        <p class="dict"><b>acta</b>, n. pl. · Latin: <i>the things that have been done; the official record of proceedings.</i></p>
-      </div>
-      <hr class="hero-rule" />
       <div class="hero-grid">
-        <div>
-          <p class="tagline">Background jobs and workflows that survive restarts.</p>
+        <div class="hero-copy">
+          <p class="hero-eyebrow"><span aria-hidden="true"></span> Your code. Your database. Durable by design.</p>
+          <h1 class="hero-title">Background jobs<br class="desktop-break" /> and workflows that <span>survive restarts.</span></h1>
           <p class="subhead">Everything is a job, and every job is a row.</p>
           <p class="lede">Write background jobs and workflows as plain C# handlers, and Acta keeps them as rows in the Postgres, SQL Server, or SQLite database you already run.</p>
           <div class="actions">
-            <a class="button primary" href="/start">Get started <span aria-hidden="true">↗</span></a>
-            <a class="button" href="/how-it-works">How Acta works <span aria-hidden="true">→</span></a>
+            <a class="button primary" href="/start">Get started <span aria-hidden="true">→</span></a>
+            <a class="button" href="/how-it-works">How Acta works <span aria-hidden="true">↗</span></a>
           </div>
-          <dl class="status" aria-label="Release status">
+          <p class="hero-footnote">Apache-2.0 <span>·</span> .NET 10 <span>·</span> In your own database</p>
+        </div>
+        <figure class="workflow-preview" aria-labelledby="workflow-caption">
+          <div class="preview-heading"><span class="preview-symbol" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4v16m0-8h6m0 0V5h8m-8 7v7h8"/><circle cx="19" cy="5" r="2"/><circle cx="19" cy="19" r="2"/></svg></span><div><span class="preview-kicker">An ordinary C# handler</span><strong>One workflow. A durable record.</strong></div><span class="code-tag">C#</span></div>
+          <div class="preview-code"><div><span class="code-line">01</span><code><span class="a">[Job</span>(<span class="s">"process-order"</span>)]</code></div><div><span class="code-line">02</span><code><span class="k">public async</span> Task Process(…)</code></div></div>
+          <div class="workflow-ledger">
+            <div class="ledger-label"><span>Execution record</span><span>Illustrative workflow</span></div>
+            <ol>
+              <li><span class="step-mark done" aria-hidden="true">✓</span><div><code>charge-card</code><span>Step result saved</span></div><span class="step-badge saved">Recorded</span></li>
+              <li><span class="step-mark done" aria-hidden="true">✓</span><div><code>prepare</code><span>Stock, shipment, invoice</span></div><span class="step-badge saved">3 child jobs</span></li>
+              <li><span class="step-mark waiting" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="7"/><path d="M12 8v4l3 2"/></svg></span><div><code>picked-up</code><span>Wait for the courier</span></div><span class="step-badge">Signal wait</span></li>
+            </ol>
+          </div>
+          <figcaption id="workflow-caption"><span class="record-symbol" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="12" cy="5" rx="7" ry="3"/><path d="M5 5v14c0 4 14 4 14 0V5M5 12c0 4 14 4 14 0"/></svg></span><div><strong>The worker can stop. The record stays.</strong><span>Finished steps return their saved results on replay.</span></div><a href="#flagship" aria-label="Explore the example workflow">↗</a></figcaption>
+        </figure>
+      </div>
+      <div class="database-strip" aria-label="Supported databases"><span>Runs on the database you already trust</span><div><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="12" cy="5" rx="7" ry="3"/><path d="M5 5v14c0 4 14 4 14 0V5M5 12c0 4 14 4 14 0"/></svg>PostgreSQL</span><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="3"/><path d="M8 8h8M8 12h8M8 16h4"/></svg>SQL Server</span><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 19 4-12 11-3-3 11-12 4Zm0 0 9-9"/></svg>SQLite</span></div></div>
+              <nav class="toc" aria-label="What you get">
+          <a href="/how-it-works#steps"><span class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m8 8-4 4 4 4m8-8 4 4-4 4m-3-11-2 14"/></svg></span><span><span class="t">Durable workflows in ordinary C#</span><span class="s">Steps, variables, child jobs, signals, and schedules in plain handlers. After a crash, a finished step returns its result instead of running again.</span></span><span class="feature-arrow" aria-hidden="true">↗</span></a>
+          <a href="/gates"><span class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M4 17h16M8 4v6m8 4v6"/></svg></span><span><span class="t">Order and limits shared by every worker</span><span class="s">Lanes keep one customer's jobs in order, and concurrency and rate limits are counted in the database, not per process.</span></span><span class="feature-arrow" aria-hidden="true">↗</span></a>
+          <a href="/fleet"><span class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="7" rx="2"/><rect x="3" y="14" width="18" height="7" rx="2"/><path d="M7 6.5h.01M7 17.5h.01"/></svg></span><span><span class="t">No workflow service to operate</span><span class="s">Your app is the worker and your database holds the state. Add a worker and it starts claiming; a dead worker's jobs go to the others.</span></span><span class="feature-arrow" aria-hidden="true">↗</span></a>
+        </nav>
+      <details class="release-details"><summary><span class="release-dot" aria-hidden="true"></span> 1.0.0-rc.9 <span class="release-summary">Release & compatibility</span><span class="release-chevron" aria-hidden="true">⌄</span></summary>          <dl class="status" aria-label="Release status">
             <dt>Release</dt><dd>1.0.0-rc.9, a release candidate</dd>
             <dt>Runs on</dt><dd>.NET&nbsp;10 with PostgreSQL&nbsp;18, SQL&nbsp;Server&nbsp;2019+, or SQLite&nbsp;3.51+</dd>
             <dt>Upgrades</dt><dd>Until 1.0.0, each release candidate needs a fresh database. From 1.0.0, every upgrade is a migration on the database you have. <a href="https://github.com/acta-dotnet/acta/blob/main/docs/known-limitations.md#stability-status">Stability status</a></dd>
-          </dl>
-        </div>
-        <nav class="toc" aria-label="What you get">
-          <p class="toc-head">What you get</p>
-          <a href="/how-it-works#steps"><span><span class="t">Durable workflows in ordinary C#</span><span class="s">Steps, variables, child jobs, signals, and schedules in plain handlers. After a crash, a finished step returns its result instead of running again.</span></span></a>
-          <a href="/gates"><span><span class="t">Order and limits shared by every worker</span><span class="s">Lanes keep one customer's jobs in order, and concurrency and rate limits are counted in the database, not per process.</span></span></a>
-          <a href="/fleet"><span><span class="t">No workflow service to operate</span><span class="s">Your app is the worker and your database holds the state. Add a worker and it starts claiming; a dead worker's jobs go to the others.</span></span></a>
-        </nav>
-      </div>
+          </dl></details>
+      <p class="word-origin"><b>acta</b>, n. pl. · Latin: <i>the things that have been done; the official record of proceedings.</i></p>
     </header>
 
     <section class="wrap" id="flagship">
-      <p class="record">The flagship</p>
-      <h2>One handler runs a whole workflow, or keeps recurring work going, and survives losing its worker.</h2>
+      <p class="record">Code that keeps its progress</p>
+      <h2>Ordinary code.<br />Extraordinary staying power.</h2>
+      <p class="lede flagship-intro">One handler runs a whole workflow, or keeps recurring work going, and survives losing its worker.</p>
       <div class="tabs" role="tablist" aria-label="Two example handlers" hidden>
         <button type="button" role="tab" id="tab-workflow" aria-controls="ex-workflow" aria-selected="true">Order workflow</button>
         <button type="button" role="tab" id="tab-sync" aria-controls="ex-sync" aria-selected="false" tabindex="-1">Recurring sync</button>
@@ -314,7 +175,7 @@
 
     <section class="wrap" id="capabilities">
       <p class="record">Capabilities</p>
-      <h2>What Acta includes, by group.</h2>
+      <h2>Everything your background work needs.</h2>
       <p class="lede">Every item links to its explanation on <a href="/capabilities">the capabilities page</a>.</p>
       <div class="fgrid">
         <div class="fcol">
@@ -447,8 +308,8 @@
     </section>
 
     <section class="wrap" id="more">
-      <p class="record">The rest of the site</p>
-      <h2>Where the details are, one line each.</h2>
+      <p class="record">Explore Acta</p>
+      <h2>A closer look, at your own pace.</h2>
       <nav class="more" aria-label="The rest of the site">
         <a href="/choosing"><span class="t">Choosing Acta</span><span class="s">When Hangfire, Quartz, or a workflow platform is the better choice, and when Acta is.</span></a>
         <a href="/how-it-works"><span class="t">How Acta works</span><span class="s">One job model for everything that outlives the request, in ten questions.</span></a>
@@ -460,7 +321,7 @@
     </section>
 
     <section class="wrap" id="build">
-      <p class="record">Build it</p>
+      <p class="record">Start building</p>
       <h2>Build it with your coding agent.</h2>
       <p class="lede">Paste one of these into Claude Code or Codex. The agent reads <a href="/llms.txt">useacta.net/llms.txt</a> and builds the app.</p>
       <div class="build-pair">

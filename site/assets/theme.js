@@ -1,59 +1,68 @@
-// Day and night. The visitor's stored choice wins, then the system's preference; the "day · night" words the script
-// adds to the footer's [data-theme-controls] each set their own theme and remember it. Loaded in <head>, so the first
-// paint is already the right theme.
+// Apply appearance before the first paint, then enhance each theme control group.
 (() => {
   const key = "acta-theme";
   const root = document.documentElement;
-  const system = () => (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");
+  const allowed = ["light", "dark", "paper"];
+  const systemPreference = matchMedia("(prefers-color-scheme: light)");
+  const system = () => systemPreference.matches ? "light" : "dark";
   let stored = null;
   try {
-    stored = localStorage.getItem(key);
+    const value = localStorage.getItem(key);
+    stored = allowed.includes(value) ? value : null;
   } catch {
-    stored = null;
+    // Appearance still works when browser storage is unavailable.
   }
-  let buttons = [];
+  const buttons = [];
+  const colors = { dark: "#0E1625", light: "#F7F9FC", paper: "#FAF7F1" };
   const apply = (theme) => {
     root.dataset.theme = theme;
+    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", colors[theme]);
     for (const button of buttons) {
       button.setAttribute("aria-pressed", String(button.dataset.theme === theme));
     }
   };
-  apply(stored === "light" || stored === "dark" ? stored : system());
-  matchMedia("(prefers-color-scheme: light)").addEventListener("change", () => {
+  apply(stored ?? system());
+  systemPreference.addEventListener("change", () => {
     if (stored === null) apply(system());
   });
 
   addEventListener("DOMContentLoaded", () => {
-    const host = document.querySelector("[data-theme-controls]");
-    if (!host) return;
-    const group = document.createElement("span");
-    group.className = "theme";
-    group.setAttribute("role", "group");
-    group.setAttribute("aria-label", "Theme");
-    const word = (theme, label) => {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.dataset.theme = theme;
-      button.textContent = label;
-      button.title = `Switch to ${label}`;
-      button.addEventListener("click", () => {
-        stored = theme;
-        apply(theme);
-        try {
-          localStorage.setItem(key, theme);
-        } catch {
-          // A private window keeps the choice for this page only.
-        }
-      });
-      return button;
+    const icons = {
+      light: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/>',
+      dark: '<path d="M20.5 13A8.5 8.5 0 0 1 11 3.5 8.5 8.5 0 1 0 20.5 13Z"/>',
+      paper: '<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6m-6 4h6m-6 4h4"/>'
     };
-    const dot = document.createElement("span");
-    dot.className = "dot";
-    dot.setAttribute("aria-hidden", "true");
-    dot.textContent = "·";
-    buttons = [word("light", "day"), word("dark", "night")];
-    group.append(buttons[0], dot, buttons[1]);
-    host.append(group);
+    for (const host of document.querySelectorAll("[data-theme-controls]")) {
+      const group = document.createElement("span");
+      group.className = "theme";
+      group.setAttribute("role", "group");
+      group.setAttribute("aria-label", "Theme");
+      for (const theme of allowed) {
+        const label = theme[0].toUpperCase() + theme.slice(1);
+        const button = document.createElement("button");
+        button.type = "button";
+        button.dataset.theme = theme;
+        button.title = `${label} theme`;
+        button.setAttribute("aria-label", `${label} theme`);
+        if (document.body.classList.contains("homepage")) {
+          button.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icons[theme]}</svg>`;
+        } else {
+          button.textContent = label;
+        }
+        button.addEventListener("click", () => {
+          stored = theme;
+          apply(theme);
+          try {
+            localStorage.setItem(key, theme);
+          } catch {
+            // Keep the selection for this page when storage is unavailable.
+          }
+        });
+        buttons.push(button);
+        group.append(button);
+      }
+      host.append(group);
+    }
     apply(root.dataset.theme);
   });
 })();

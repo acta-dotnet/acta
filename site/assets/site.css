@@ -63,12 +63,39 @@
   --wash-top: rgba(11, 127, 98, 0.15);
   --wash-bottom: rgba(42, 102, 174, 0.13);
 }
+:root[data-theme="paper"] {
+  --bg: #FAF7F1;
+  --panel: #FFFDF9;
+  --panel-2: #F3EFE7;
+  --text: #302E2A;
+  --muted: #686459;
+  --faint: #777165;
+  --verdi: #496F57;
+  --verdi-deep: #FFFFFF;
+  --verdi-hover: #3A6048;
+  --oxide: #916327;
+  --bad: #AB463C;
+  --sky: #75658D;
+  --leaf: #57724E;
+  --code: #47443F;
+  --code-inline: #47443F;
+  --hair: #E4DED3;
+  --hair-soft: #EEE8DF;
+  --verdi-wash: #EAF0E5;
+  --verdi-tint: #F1F4EB;
+  --sky-wash: #EEEBF2;
+  --oxide-wash: #F6EDE0;
+  --bad-wash: #F7E9E4;
+  --chrome: #FAF7F1;
+  --wash-top: rgba(203, 218, 188, 0.12);
+  --wash-bottom: rgba(224, 211, 234, 0.12);
+}
 * { box-sizing: border-box; }
 html { background: var(--bg); color-scheme: dark; scroll-behavior: smooth; scroll-padding-top: 4rem; }
-:root[data-theme="light"] { color-scheme: light; }
+:root[data-theme="light"], :root[data-theme="paper"] { color-scheme: light; }
 /* a picture made in both themes ships as two lazy <img data-theme>: the one for the other theme hides, so it is never
    fetched */
-:root[data-theme="light"] img[data-theme="dark"], :root:not([data-theme="light"]) img[data-theme="light"] { display: none; }
+:root:is([data-theme="light"], [data-theme="paper"]) img[data-theme="dark"], :root:not([data-theme="light"]):not([data-theme="paper"]) img[data-theme="light"] { display: none; }
 body {
   margin: 0; background: var(--bg); color: var(--text);
   font-family: var(--sans); font-size: 16px; line-height: 1.65;
