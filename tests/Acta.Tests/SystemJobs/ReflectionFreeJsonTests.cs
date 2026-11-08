@@ -141,6 +141,7 @@ public sealed class ReflectionFreeJsonTests
                     "ListPoisonAlertEvents" => Events.Where(e => _variables.ContainsKey(Skip(e).VariableName)).ToArray(),
                     "ListAlertableEvents" => Events.Where(e => e.EventId > call.Get(ActaSchema.Sql.CursorEventId)).ToArray(),
                     "RaiseAlert" => Raise(call.Get(ActaSchema.Alert.JobId), call.Get(ActaSchema.Sql.SourceEventId)),
+                    "ResolveAlerts" => null,
                     "ListDeliverableAlerts" => Array.Empty<DeliverableAlert>(),
                     _ => throw new NotSupportedException(call.Stem),
                 }

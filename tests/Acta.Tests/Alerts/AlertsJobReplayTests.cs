@@ -93,6 +93,8 @@ public sealed class AlertsJobReplayTests
                     var id = call.Get(ActaSchema.Sql.SourceEventId);
                     attempts.Add(id!.Value);
                     return new RaiseAlertResponse(1, id);
+                case "ResolveAlerts":
+                    return null;
                 default:
                     throw new NotSupportedException(call.Stem);
             }

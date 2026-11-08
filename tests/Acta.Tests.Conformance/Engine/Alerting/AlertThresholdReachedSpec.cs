@@ -55,6 +55,11 @@ public sealed class AlertThresholdReachedSpec : ActaRuntimeTestBase<ConformanceF
         // confirming the single ThresholdReached (not missing events, not over-counting).
         var first = Assert.Single(alerts, a => a.Kind == AlertKindCode.FirstFailure);
         Assert.Equal(2, first.OccurrenceCount);
+
+        // The final failure supersedes both retrying incidents and stays the job's one open alert.
+        Assert.NotNull(threshold.ResolvedAtUtc);
+        Assert.NotNull(first.ResolvedAtUtc);
+        Assert.Null(Assert.Single(alerts, a => a.Kind == AlertKindCode.FinalFailure).ResolvedAtUtc);
     }
 
     [Fact(DisplayName = "A further failure in the same incident does not re-emit ThresholdReached")]

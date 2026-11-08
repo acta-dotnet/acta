@@ -11,7 +11,8 @@ namespace Acta.Tests.Conformance.Engine.Alerting;
 /// (<c>retry-probe</c>, <c>OnFailure</c> profile, <c>MaxAttempts = 3</c>) to terminal Failed, runs the
 /// projector, and asserts it classifies the finished <c>events</c> rows into the right automatic alerts
 /// - first-failure for the non-terminal re-arms (collapsed onto one row), final-failure for the terminal
-/// transition - keying off the event triple, never the mutable <c>job.failure_count</c>. A success only
+/// transition, which resolves the first-failure it supersedes - keying off the event triple, never the mutable
+/// <c>job.failure_count</c>. A success only
 /// resolves the job's open failure alerts and writes none of its own. A second pass emits nothing because
 /// the cursor advanced. Runs on SqlServer and Postgres.
 /// </summary>
@@ -46,10 +47,16 @@ public sealed class AlertsProjectionSpec : ActaRuntimeTestBase<ConformanceFixtur
         var final = Assert.Single(alerts, a => a.Kind == AlertKindCode.FinalFailure);
         Assert.Equal(AlertSeverityCode.Error, final.SeverityCode);
         Assert.Equal(1, final.OccurrenceCount);
+        Assert.Null(final.ResolvedAtUtc);
 
         var first = Assert.Single(alerts, a => a.Kind == AlertKindCode.FirstFailure);
         Assert.Equal(AlertSeverityCode.Warning, first.SeverityCode);
         Assert.Equal(2, first.OccurrenceCount); // two non-terminal failures collapsed onto one row
+
+        // The final failure supersedes the first-failure incident in the same pass, before its send: it is resolved and
+        // its notification never goes out, so a job that failed for good leaves one open alert.
+        Assert.NotNull(first.ResolvedAtUtc);
+        Assert.Equal(AlertDeliveryStatusCode.Suppressed, first.DeliveryStatusCode);
     }
 
     [Fact(DisplayName = "Cursor advance stops re-emission on a second pass")]

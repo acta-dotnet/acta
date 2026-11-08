@@ -91,6 +91,7 @@ public sealed class AlertsJobPoisonEventTests
                         .Take(call.Get(ActaSchema.Sql.AlertBatchSize))
                         .ToArray(),
                     "RaiseAlert" => Raise(call.Get(ActaSchema.Alert.JobId), call.Get(ActaSchema.Sql.SourceEventId)),
+                    "ResolveAlerts" => null,
                     "ListDeliverableAlerts" => Array.Empty<DeliverableAlert>(),
                     _ => throw new NotSupportedException(call.Stem),
                 }

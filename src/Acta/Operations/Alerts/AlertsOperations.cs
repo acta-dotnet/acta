@@ -105,7 +105,7 @@ internal sealed class AlertsOperations(
 
     /// <summary>
     /// Resolves one job's open automatic failure alerts whose projection mark precedes
-    /// <paramref name="sourceEventId"/>, the success event driving it; a replay behind a newer failure, or a
+    /// <paramref name="sourceEventId"/>, the success or final failure driving it; a replay behind a newer failure, or a
     /// second success, closes nothing. Closing settles delivery: Pending and RetryAfter become Suppressed and
     /// <c>retry_after_utc</c> is cleared, while a Delivered, Failed, or Suppressed row keeps the status that
     /// records what happened.

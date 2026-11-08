@@ -199,6 +199,7 @@ public sealed class AlertsJobDrainTests
                         call.Get(ActaSchema.Sql.AlertHorizonUtc)
                     ),
                     "RaiseAlert" => new RaiseAlertResponse(++Raises, call.Get(ActaSchema.Sql.SourceEventId)),
+                    "ResolveAlerts" => null,
                     "ListDeliverableAlerts" => Array.Empty<DeliverableAlert>(),
                     _ => throw new NotSupportedException(call.Stem),
                 }

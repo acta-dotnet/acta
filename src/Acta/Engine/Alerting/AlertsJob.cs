@@ -302,9 +302,9 @@ internal sealed class AlertsJob(
 
     /// <summary>
     /// Classify one event and emit the alerts selected by its definition profile. Failure events
-    /// can fire first-failure, final-failure, or threshold-reached alerts. A success emits nothing:
-    /// it only closes this job's open automatic failure alerts, keeping the resolved timestamp as
-    /// the single source of truth for open state.
+    /// can fire first-failure, final-failure, or threshold-reached alerts, and a final failure closes
+    /// the job's older open ones. A success emits nothing: it only closes this job's open automatic
+    /// failure alerts, keeping the resolved timestamp as the single source of truth for open state.
     /// </summary>
     private async Task ProjectAsync(JobContext ctx, AlertableEvent e, CancellationToken ct)
     {
@@ -339,6 +339,9 @@ internal sealed class AlertsJob(
                 ? AlertSeverityCode.Critical
                 : (profile == AlertProfileCode.Info ? AlertSeverityCode.Info : AlertSeverityCode.Error);
             await EmitAsync(ctx, e, channel, AlertKindCode.FinalFailure, severity, ct);
+            // The job failed for good, so the incidents that say it is still retrying are superseded. The resolve
+            // closes only alerts an older event moved, so the final-failure alert this event just raised stays open.
+            await _alerts.ResolveAlertsAsync(ctx.NamespaceId, e.JobId, e.EventId, ct);
             return;
         }
 

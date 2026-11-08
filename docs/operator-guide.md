@@ -810,7 +810,7 @@ included, is one durable system.
 
 ### Incidents
 
-An automatic alert is an incident: one open row per job, kind (`FirstFailure`, `ThresholdReached`, `FinalFailure`), and reason. A repeat folds into it and raises `occurrence_count`; the job's next success resolves it, and a later failure opens a new incident. `ThresholdReached` fires once, when the incident's count reaches `AlertFailureThreshold` (default 3).
+An automatic alert is an incident: one open row per job, kind (`FirstFailure`, `ThresholdReached`, `FinalFailure`), and reason. A repeat folds into it and raises `occurrence_count`; the job's next success resolves it, and a later failure opens a new incident. `ThresholdReached` fires once, when the incident's count reaches `AlertFailureThreshold` (default 3). The pass that raises a job's `FinalFailure` resolves the job's open `FirstFailure` and `ThresholdReached` alerts, which said it was retrying, so a job that failed for good has one open alert; one not yet sent is not sent.
 
 A one-shot job raises at most three alerts, and its incidents end with it. A permanent job's incident stays open until a retry of the failing firing succeeds, a later fire succeeds at `Audit`, or an operator resolves it, and is delivered again every `AlertReminderInterval` (default 24 hours): an alert still open is the sign that nobody fixed it.
 
