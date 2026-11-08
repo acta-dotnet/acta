@@ -1310,11 +1310,14 @@ within one more lease.
 ### Event Timeline
 
 ```sql
-SELECT event_id, created_at_utc, event, execution_number, duration_ms, event_message, details_format, details_text
-  FROM acta.events_view
- WHERE entity = 'job' AND entity_id = :job_id
- ORDER BY created_at_utc, event_id;
+SELECT e.event_id, e.created_at_utc, e.event, e.execution_number, e.duration_ms, e.event_message, e.details_format, e.details_text
+  FROM acta.events_view e
+  JOIN acta.jobs_view j ON j.job_id = e.entity_id
+ WHERE e.entity = 'job' AND j.job_ref = :job_ref
+ ORDER BY e.created_at_utc, e.event_id;
 ```
+
+`:job_ref` takes the form [Common queries](#common-queries) gives for each provider.
 
 `events_view` is a readable ledger, not a rollup. The `jobs_view` row tells you where work is now;
 events tell you why it moved. `details_text` decodes `json` event details; binary
@@ -1330,7 +1333,7 @@ SELECT job_id, job_ref, namespace_name, definition_name, failure_count, modified
  ORDER BY modified_at_utc DESC;
 ```
 
-Follow with the event timeline for the specific `job_id`.
+Follow with the event timeline for the specific `job_ref`.
 
 ### Suspended Jobs Waiting On Signals
 
