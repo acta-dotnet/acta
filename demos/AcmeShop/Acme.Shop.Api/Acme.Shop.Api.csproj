@@ -5,6 +5,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Acme.Shop.Payments.Contracts\Acme.Shop.Payments.Contracts.csproj" />
     <PackageReference Include="Acta.AspNetCore" />
+    <PackageReference Include="Acta.Dashboard" />
   </ItemGroup>
   <ItemGroup>
     <!-- The SDK this app codes against, plus every provider LocalDatabase.cs can select at runtime. -->

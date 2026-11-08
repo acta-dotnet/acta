@@ -4,6 +4,7 @@ using Acme.Shop.Api.Domain;
 using Acme.Shop.Payments.Contracts;
 using Acta;
 using Acta.AspNetCore;
+using Acta.Dashboard;
 
 var builder = WebApplication.CreateBuilder(args);
 

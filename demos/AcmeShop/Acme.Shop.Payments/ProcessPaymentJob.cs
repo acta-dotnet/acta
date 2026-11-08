@@ -7,7 +7,8 @@ namespace Acme.Shop.Payments;
 // Built fresh per attempt with DI-injected ctor. IJobs hands shipping off into the other namespace.
 public sealed class ProcessPaymentJob(IJobs jobs)
 {
-    [Job("process-payment")]
+    // A step retries through its job: a failed charge spends one of five attempts and waits out the backoff.
+    [Job("process-payment", MaxAttempts = 5, Backoff = "2s..1m x2")]
     public async Task Handle(OrderV1 order, JobContext ctx, CancellationToken ct)
     {
         // Fraud review runs before any charge; a rejected order is cancelled with nothing to refund.
@@ -41,7 +42,6 @@ public sealed class ProcessPaymentJob(IJobs jobs)
                 Console.WriteLine($"[{order.OrderId}] card charged {order.Amount:0.00}");
                 return new ChargeResult($"ch_{Guid.CreateVersion7():N}");
             },
-            retry => retry.MaxAttempts(5).BackoffInitialDelay(TimeSpan.FromSeconds(2)),
             ct
         );
 
