@@ -15,7 +15,7 @@ internal static class RegisterTenantEndpoint
                 {
                     var (request, bodyError) = await ControlEndpointValidation.ReadJsonBodyAsync(
                         http,
-                        ActaApiJsonContext.Default.RegisterTenantRequest,
+                        ActaApiJsonContext.Relaxed.RegisterTenantRequest,
                         ct
                     );
                     if (bodyError is not null)
@@ -62,7 +62,7 @@ internal static class RegisterTenantEndpoint
                             request.Description,
                             ct
                         );
-                        return Results.Json(response, ActaApiJsonContext.Default.RegisterTenantResponse);
+                        return Results.Json(response, ActaApiJsonContext.Relaxed.RegisterTenantResponse);
                     }
                     catch (ArgumentException ex)
                     {

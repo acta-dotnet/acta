@@ -1,3 +1,5 @@
+using System.Text.Encodings.Web;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -107,4 +109,18 @@ namespace Acta.AspNetCore;
 [JsonSerializable(typeof(EnqueueJobResponse))]
 [JsonSerializable(typeof(GetDefinitionInputTemplateResponse))]
 [JsonSerializable(typeof(ProblemDetails))]
-internal sealed partial class ActaApiJsonContext : JsonSerializerContext;
+internal sealed partial class ActaApiJsonContext : JsonSerializerContext
+{
+    // Built on first use, since the generated Default it copies is initialized in another part of this class.
+    private static readonly Lazy<ActaApiJsonContext> RelaxedContext = new(CreateRelaxed);
+
+    /// <summary>
+    /// The context the API reads and writes through: the generated options with the encoder that escapes only what JSON
+    /// requires, as the CLI and the event details write. The generated Default keeps the default encoder, which writes an
+    /// apostrophe and a plus sign as unicode escapes, and the attribute above cannot name an encoder.
+    /// </summary>
+    internal static ActaApiJsonContext Relaxed => RelaxedContext.Value;
+
+    private static ActaApiJsonContext CreateRelaxed() =>
+        new(new JsonSerializerOptions(Default.Options) { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping });
+}

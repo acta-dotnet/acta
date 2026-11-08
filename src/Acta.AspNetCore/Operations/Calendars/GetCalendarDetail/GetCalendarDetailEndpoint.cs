@@ -16,7 +16,7 @@ internal static class GetCalendarDetailEndpoint
                 new("getCalendarDetail", ActaPermissions.Read),
                 "Read a calendar family with the first page of its versions and of the schedules that name it.",
                 "Calendar",
-                ActaApiJsonContext.Default.GetCalendarDetailResponse,
+                ActaApiJsonContext.Relaxed.GetCalendarDetailResponse,
                 (http, call) =>
                     GetCalendarDetailResponse.ComposeAsync(
                         call.Operations.Calendars,

@@ -38,7 +38,7 @@ internal static class GetJobDetailEndpoint
                         jobsOptions.Value.MaxInlinePayloadBytes,
                         ct
                     );
-                    return Results.Json(detail, ActaApiJsonContext.Default.GetJobDetailResponse);
+                    return Results.Json(detail, ActaApiJsonContext.Relaxed.GetJobDetailResponse);
                 }
             )
             .WithMetadata(new ActaOperationAttribute("getJobDetail", ActaPermissions.Read))

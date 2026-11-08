@@ -23,7 +23,7 @@ internal static class UpdateJobInputEndpoint
 
                     var (body, error) = await ControlEndpointValidation.ReadJsonBodyAsync(
                         http,
-                        ActaApiJsonContext.Default.UpdateJobInputRequest,
+                        ActaApiJsonContext.Relaxed.UpdateJobInputRequest,
                         ct
                     );
                     if (error is not null)

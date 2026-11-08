@@ -24,7 +24,7 @@ internal static class LedgerEndpoints
                 "/jobs",
                 new("listJobs", ActaPermissions.Read),
                 "List jobs, newest first.",
-                ActaApiJsonContext.Default.ListJobsResponse,
+                ActaApiJsonContext.Relaxed.ListJobsResponse,
                 query =>
                     (
                         Query: new ListJobsQuery(
@@ -74,7 +74,7 @@ internal static class LedgerEndpoints
                 "/events",
                 new("listEvents", ActaPermissions.Read),
                 "List events, newest first.",
-                ActaApiJsonContext.Default.ListEventsResponse,
+                ActaApiJsonContext.Relaxed.ListEventsResponse,
                 query =>
                     (
                         Query: new ListEventsQuery(
@@ -150,7 +150,7 @@ internal static class LedgerEndpoints
                 "/jobs/{jobRef}/events",
                 new("listJobEvents", ActaPermissions.Read),
                 "List one job's event timeline.",
-                ActaApiJsonContext.Default.ListEventsResponse,
+                ActaApiJsonContext.Relaxed.ListEventsResponse,
                 query =>
                     (
                         Job: RouteKeys.Job(query.Http, options),
@@ -183,7 +183,7 @@ internal static class LedgerEndpoints
                 "/definitions/{jobNamespace}/{jobName}/events",
                 new("listDefinitionEvents", ActaPermissions.Read),
                 "List a definition's ledger events (its jobs' lineage, not just changes).",
-                ActaApiJsonContext.Default.ListEventsResponse,
+                ActaApiJsonContext.Relaxed.ListEventsResponse,
                 static query =>
                     (
                         Namespace: query.Route("jobNamespace"),

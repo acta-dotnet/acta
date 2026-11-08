@@ -14,7 +14,7 @@ internal static class SchedulesEndpoints
             "/schedules",
             new("listSchedules", ActaPermissions.Read),
             "List recurring schedules; the live ones come next run first.",
-            ActaApiJsonContext.Default.ListSchedulesResponse,
+            ActaApiJsonContext.Relaxed.ListSchedulesResponse,
             static query => new ListSchedulesQuery(
                 JobNamespace: query.Text("jobNamespace"),
                 JobName: query.Text("jobName"),
@@ -48,7 +48,7 @@ internal static class SchedulesEndpoints
             new("getSchedule", ActaPermissions.Read),
             "Read one schedule.",
             "Schedule",
-            ActaApiJsonContext.Default.GetScheduleResponse,
+            ActaApiJsonContext.Relaxed.GetScheduleResponse,
             static (http, call) => call.Operations.Schedules.GetAsync(Key(http), call.Ct)
         );
         reads
@@ -57,7 +57,7 @@ internal static class SchedulesEndpoints
                 new("previewSchedule", ActaPermissions.Read),
                 "Preview a schedule's upcoming fire instants.",
                 "Schedule",
-                ActaApiJsonContext.Default.PreviewScheduleResponse,
+                ActaApiJsonContext.Relaxed.PreviewScheduleResponse,
                 static (http, call) =>
                     call.Operations.Schedules.PreviewAsync(
                         Key(http),
@@ -82,7 +82,7 @@ internal static class SchedulesEndpoints
             new("pauseSchedule", ActaPermissions.Control),
             "Pause a recurring schedule, indefinitely or until an instant.",
             options,
-            ActaApiJsonContext.Default.PauseScheduleRequest,
+            ActaApiJsonContext.Relaxed.PauseScheduleRequest,
             "Invalid schedule request.",
             ControlStatus.Schedule<PauseScheduleResponse>(
                 StatusCodes.Status200OK,
@@ -98,7 +98,7 @@ internal static class SchedulesEndpoints
             new("resumeSchedule", ActaPermissions.Control),
             "Resume a paused schedule, reconciled by its misfire policy.",
             options,
-            ActaApiJsonContext.Default.ResumeScheduleRequest,
+            ActaApiJsonContext.Relaxed.ResumeScheduleRequest,
             "Invalid schedule request.",
             ControlStatus.Schedule<ResumeScheduleResponse>(StatusCodes.Status200OK, StatusCodes.Status404NotFound),
             Key,
@@ -109,7 +109,7 @@ internal static class SchedulesEndpoints
             new("triggerSchedule", ActaPermissions.Control),
             "Fire the schedule now, without moving its cadence.",
             options,
-            ActaApiJsonContext.Default.TriggerScheduleRequest,
+            ActaApiJsonContext.Relaxed.TriggerScheduleRequest,
             "Invalid schedule request.",
             ControlStatus.Schedule<TriggerScheduleResponse>(
                 StatusCodes.Status200OK,

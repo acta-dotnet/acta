@@ -40,7 +40,7 @@ internal static class ListJobCheckpointsEndpoint
                         );
                         return Results.Json(
                             ListJobCheckpointsResponse.From(page, jobsOptions.Value.MaxInlinePayloadBytes),
-                            ActaApiJsonContext.Default.ListJobCheckpointsResponse
+                            ActaApiJsonContext.Relaxed.ListJobCheckpointsResponse
                         );
                     })
             )

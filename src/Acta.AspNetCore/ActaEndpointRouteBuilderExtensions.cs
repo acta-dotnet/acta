@@ -161,9 +161,9 @@ public static class ActaEndpointRouteBuilderExtensions
     {
         var serializerOptions = endpoints.ServiceProvider.GetRequiredService<IOptions<JsonOptions>>().Value.SerializerOptions;
 
-        if (!serializerOptions.TypeInfoResolverChain.Contains(ActaApiJsonContext.Default))
+        if (!serializerOptions.TypeInfoResolverChain.Contains(ActaApiJsonContext.Relaxed))
         {
-            serializerOptions.TypeInfoResolverChain.Insert(0, ActaApiJsonContext.Default);
+            serializerOptions.TypeInfoResolverChain.Insert(0, ActaApiJsonContext.Relaxed);
         }
     }
 

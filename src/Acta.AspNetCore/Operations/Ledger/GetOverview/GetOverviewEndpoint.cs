@@ -22,7 +22,7 @@ internal static class GetOverviewEndpoint
                         StaleWorkerAfterSeconds: jobs.Value.LeaseTtlSeconds
                     );
                     return RouteTable.Run(async () =>
-                        Results.Json(await operations.Ledger.GetOverviewAsync(query, ct), ActaApiJsonContext.Default.GetOverviewResponse)
+                        Results.Json(await operations.Ledger.GetOverviewAsync(query, ct), ActaApiJsonContext.Relaxed.GetOverviewResponse)
                     );
                 }
             )

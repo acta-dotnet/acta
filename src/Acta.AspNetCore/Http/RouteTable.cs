@@ -303,7 +303,7 @@ internal static class RouteTable
     /// <summary>A control response, serialized as its own type, at the status its family maps it to.</summary>
     public static IResult Control<TResponse>(TResponse response, ControlStatus<TResponse> status)
         where TResponse : notnull =>
-        Results.Json(response, response.GetType(), ActaApiJsonContext.Default, statusCode: status.Map(response));
+        Results.Json(response, response.GetType(), ActaApiJsonContext.Relaxed, statusCode: status.Map(response));
 
     /// <summary>
     /// Only the typed validation exceptions are caller errors; anything else, a plain ArgumentException from a
@@ -422,7 +422,7 @@ internal static class TagRoutes
                 new ListTagsQuery(target, paging.PageSize, paging.Cursor, paging.IncludeTotal ?? false),
                 call.Ct
             );
-            return Results.Json(page, ActaApiJsonContext.Default.ListTagsResponse);
+            return Results.Json(page, ActaApiJsonContext.Relaxed.ListTagsResponse);
         });
 
     /// <summary>The upsert of the tag the route names, normalized as every tag name is, to the body's value.</summary>
@@ -434,17 +434,17 @@ internal static class TagRoutes
         CancellationToken ct
     )
     {
-        var (body, bodyError) = await ControlEndpointValidation.ReadJsonBodyAsync(http, ActaApiJsonContext.Default.UpsertTagRequest, ct);
+        var (body, bodyError) = await ControlEndpointValidation.ReadJsonBodyAsync(http, ActaApiJsonContext.Relaxed.UpsertTagRequest, ct);
         return bodyError
             ?? await MutateAsync(
                 resolve,
                 target => operations.Tags.UpsertAsync(target, new TagInput(tagName, body!.Value), ct: ct),
-                ActaApiJsonContext.Default.UpsertTagResponse
+                ActaApiJsonContext.Relaxed.UpsertTagResponse
             );
     }
 
     public static Task<IResult> RemoveAsync(IActaOperations operations, Func<TagTarget> resolve, string tagName, CancellationToken ct) =>
-        MutateAsync(resolve, target => operations.Tags.RemoveAsync(target, tagName, ct: ct), ActaApiJsonContext.Default.RemoveTagResponse);
+        MutateAsync(resolve, target => operations.Tags.RemoveAsync(target, tagName, ct: ct), ActaApiJsonContext.Relaxed.RemoveTagResponse);
 
     // A tag write is a control verb: it answers with its response on 404 exactly as on 200.
     private static async Task<IResult> MutateAsync<T>(Func<TagTarget> resolve, Func<TagTarget, ValueTask<T>> apply, JsonTypeInfo<T> info)

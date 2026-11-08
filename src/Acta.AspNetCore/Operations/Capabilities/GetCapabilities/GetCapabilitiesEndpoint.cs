@@ -35,7 +35,7 @@ internal static class GetCapabilitiesEndpoint
                         // Without RequirePermissions no policy exists to ask, and every route serves whoever reaches it.
                         Permissions: options.RequirePermissions ? await PermissionFilter.HeldAsync(http) : PermissionFilter.Permissions
                     );
-                    return Results.Json(body, ActaApiJsonContext.Default.GetCapabilitiesResponse);
+                    return Results.Json(body, ActaApiJsonContext.Relaxed.GetCapabilitiesResponse);
                 }
             )
             .WithMetadata(new ActaOperationAttribute("getCapabilities", ActaPermissions.Read))

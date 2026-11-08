@@ -12,7 +12,7 @@ internal static class TenantsEndpoints
             "/tenants",
             new("listTenants", ActaPermissions.Read),
             "List tenants.",
-            ActaApiJsonContext.Default.ListTenantsResponse,
+            ActaApiJsonContext.Relaxed.ListTenantsResponse,
             static query => new ListTenantsQuery(
                 NameContains: query.Text("nameContains"),
                 Status: query.Code("status", TenantStatusCodeExtensions.FromCode),
@@ -45,7 +45,7 @@ internal static class TenantsEndpoints
             new("getTenant", ActaPermissions.Read),
             "Read one tenant.",
             "Tenant",
-            ActaApiJsonContext.Default.GetTenantResponse,
+            ActaApiJsonContext.Relaxed.GetTenantResponse,
             static async (http, call) =>
             {
                 try
@@ -73,7 +73,7 @@ internal static class TenantsEndpoints
             new("suspendTenant", ActaPermissions.Admin),
             "Suspend the tenant: new work is rejected at enqueue.",
             options,
-            ActaApiJsonContext.Default.SuspendTenantRequest,
+            ActaApiJsonContext.Relaxed.SuspendTenantRequest,
             "Invalid tenant name.",
             ControlStatus.Admin<SuspendTenantResponse>(StatusCodes.Status200OK, StatusCodes.Status404NotFound),
             Name,
@@ -84,7 +84,7 @@ internal static class TenantsEndpoints
             new("resumeTenant", ActaPermissions.Admin),
             "Resume a suspended tenant.",
             options,
-            ActaApiJsonContext.Default.ResumeTenantRequest,
+            ActaApiJsonContext.Relaxed.ResumeTenantRequest,
             "Invalid tenant name.",
             ControlStatus.Admin<ResumeTenantResponse>(StatusCodes.Status200OK, StatusCodes.Status404NotFound),
             Name,
@@ -96,7 +96,7 @@ internal static class TenantsEndpoints
             new("updateTenant", ActaPermissions.Admin),
             "Update the tenant's display name and description.",
             options,
-            ActaApiJsonContext.Default.UpdateTenantRequest,
+            ActaApiJsonContext.Relaxed.UpdateTenantRequest,
             "Invalid tenant update.",
             ControlStatus.Admin<UpdateTenantResponse>(
                 StatusCodes.Status200OK,

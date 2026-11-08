@@ -20,7 +20,7 @@ internal static class GetDefinitionInputTemplateEndpoint
                     RouteTable.Run(() =>
                         Task.FromResult(
                             operations.Definitions.GetInputTemplate(jobNamespace, jobName) is { } template
-                                ? Results.Json(template, ActaApiJsonContext.Default.GetDefinitionInputTemplateResponse)
+                                ? Results.Json(template, ActaApiJsonContext.Relaxed.GetDefinitionInputTemplateResponse)
                                 : RouteTable.NotFound("Input template")
                         )
                     )
