@@ -58,9 +58,24 @@ public sealed class LogAlertTransportTests
 
         Assert.Equal(
             "Acta alert ns=orders alert=alr_019826f0000070008000000000000001 job=job_019826f000007000800000000000002a "
-                + "kind=FinalFailure: (x2 [Error] ch=default Job failed - boom)",
+                + "kind=final-failure: (x2 [Error] ch=default Job failed - boom)",
             Assert.Single(logger.Entries).Message
         );
+    }
+
+    // A log rule routes on the kind as the API, the events, and the views spell it.
+    [Theory]
+    [InlineData(AlertKindCode.FirstFailure, "first-failure")]
+    [InlineData(AlertKindCode.ThresholdReached, "threshold-reached")]
+    [InlineData(AlertKindCode.FinalFailure, "final-failure")]
+    [InlineData(AlertKindCode.Manual, "manual")]
+    public async Task SendAsync_logs_the_kind_in_its_wire_spelling(AlertKindCode kind, string wire)
+    {
+        var logger = new RecordingLogger();
+
+        await new LogAlertTransport(logger).SendAsync(Notification with { Kind = kind }, Target, CancellationToken.None);
+
+        Assert.Contains(Assert.Single(logger.Entries).Properties, p => p.Key == "ActaAlertKind" && (string?)p.Value == wire);
     }
 
     private sealed class RecordingLogger : ILogger<LogAlertTransport>

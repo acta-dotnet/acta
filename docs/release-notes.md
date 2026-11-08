@@ -191,6 +191,7 @@ Not tagged yet.
 - `jobs explain` capitalized a failure's reason and ended it with a period, so a handler that threw `carrier acme-post answered 503` read `Carrier acme-post answered 503.` under "Reason:". The reason is now printed as the handler wrote it.
 - An explanation of a one-shot job that failed once its retries ran out read only "Failed.", in `jobs explain`, the API's `headline`, and the dashboard. It now says how: `Failed after 3 attempts.`
 - The CLI's `--json` output escaped characters that matter only inside a web page, so `explain` wrote `\u0027jobs events\u0027` and `deploy` wrote a version as `1.6.1\u002Bb81d04e`. It now escapes only what JSON requires and writes `'jobs events'` and `1.6.1+b81d04e`; a JSON parser reads the same values as before.
+- The log transport's `Acta alert` line wrote the alert kind as the C# member name, `kind=FirstFailure` and `ActaAlertKind` `FirstFailure`, where the API, the events, and the views write `first-failure`. It now writes the wire code. Log alert rules that matched `FirstFailure`, `ThresholdReached`, `FinalFailure`, or `Manual` must follow.
 
 ## 1.0.0-rc.8
 

@@ -32,12 +32,13 @@ internal sealed class LogAlertTransport(ILogger<LogAlertTransport>? log = null) 
         // This line is the notification, so log-based alert rules route on its fields: the alert, the job it
         // concerns, and the kind that fired. Refs and the kind are rendered here rather than passed as their own
         // types, because a sink that serializes the property object would store the wrapped uuid or the enum's
-        // number, a form an operator can neither read nor address. The delivered body is the free-text tail.
+        // number, a form an operator can neither read nor address. The kind is its wire code, as the API and the
+        // views spell it. The delivered body is the free-text tail.
         if (_log.IsEnabled(level))
         {
             var alertRef = n.AlertRef.ToString();
             var jobRef = n.JobRef?.ToString();
-            var kind = n.Kind.ToString();
+            var kind = n.Kind.Code;
             var runbook = string.IsNullOrEmpty(n.RunbookUrl) ? "" : $" runbook={n.RunbookUrl}";
             var body = $"x{n.OccurrenceCount} [{n.Severity}] ch={target.ChannelName}{runbook} {n.Title} - {n.Message}";
             ActaLog.AlertNotified(_log, level, n.JobNamespace, alertRef, jobRef, kind, body);
