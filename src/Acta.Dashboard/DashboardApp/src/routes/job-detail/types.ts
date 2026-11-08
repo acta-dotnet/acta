@@ -45,10 +45,10 @@ export interface JobExplanation {
   headline: string;
   activeWait: JobWait | null;
   lease: {
-    // Both go null together once retention purged the holding worker's row. workerName is the worker's
-    // deployment version, which every worker of a deploy shares, so the ref is what names the worker.
+    // Both go null together once retention purged the holding worker's row. Every worker of a deploy shares
+    // its version, so the ref is what names the worker and the version stands beside it.
     workerRef: string | null;
-    workerName: string | null;
+    workerVersion: string | null;
     expiresAtUtc: string | null;
     expired: boolean;
     workerLastSeenAtUtc: string | null;

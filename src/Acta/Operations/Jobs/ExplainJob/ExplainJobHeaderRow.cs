@@ -25,7 +25,7 @@ internal sealed record ExplainJobHeaderRow(
     string? LatestFailureMessage,
     byte? LatestFailureDetailsFormatId,
     byte[]? LatestFailureDetails,
-    string? LastExecutedByWorkerName,
+    string? LastExecutedByWorkerVersion,
     Guid? LeasedByWorkerRef,
     Guid? LastExecutedByWorkerRef,
     DefinitionStatusCode DefinitionStatus

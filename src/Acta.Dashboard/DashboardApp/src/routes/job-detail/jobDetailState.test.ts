@@ -123,7 +123,7 @@ test('incident summary names the lease holder by its ref, with its deployment ve
   const snapshot = { jobRef: 'job_1', jobNamespace: 'billing', jobName: 'invoice', status: 'executing' } as JobDetail;
   const lease = {
     workerRef: 'wrk_9',
-    workerName: '1.0.0',
+    workerVersion: '1.0.0',
     expiresAtUtc: '2026-01-02T00:00:00Z',
     expired: false,
     workerLastSeenAtUtc: null,

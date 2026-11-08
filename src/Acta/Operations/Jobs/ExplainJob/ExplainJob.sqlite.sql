@@ -5,7 +5,7 @@ SELECT
     x.row_kind, x.job_id, x.job_ref, x.job_namespace, x.job_name, x.kind, x.status, x.failure_count,
     x.max_attempts_effective, x.next_run_at_utc, x.leased_by_worker_id, x.lease_expires_at_utc,
     x.worker_deployment_version, x.worker_status, x.worker_last_seen_at_utc, x.latest_failure_message,
-    x.latest_failure_details_format_id, x.latest_failure_details, x.last_executed_by_worker_name, x.leased_by_worker_ref,
+    x.latest_failure_details_format_id, x.latest_failure_details, x.last_executed_by_worker_version, x.leased_by_worker_ref,
     x.last_executed_by_worker_ref, x.definition_status, x.step_name, x.step_status, x.failure_message,
     x.checkpoint_kind, x.checkpoint_name, x.checkpoint_status, x.due_at_utc
 FROM (
@@ -34,7 +34,7 @@ FROM (
         le.event_message AS latest_failure_message,
         le.details_format_id AS latest_failure_details_format_id,
         le.details AS latest_failure_details,
-        lxw.deployment_version AS last_executed_by_worker_name,
+        lxw.deployment_version AS last_executed_by_worker_version,
         w.worker_ref AS leased_by_worker_ref,
         lxw.worker_ref AS last_executed_by_worker_ref,
         jd.definition_status_code AS definition_status,

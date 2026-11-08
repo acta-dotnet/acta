@@ -131,8 +131,8 @@ export function buildIncidentSummary(
   if (explanation?.reason) lines.push(`Reason: ${explanation.reason}`);
   if (explanation?.activeWait) lines.push(`Active wait: ${explanation.activeWait.kind} ${explanation.activeWait.name}`);
   if (explanation?.lease) {
-    const { workerRef, workerName } = explanation.lease;
-    const worker = workerRef ? (workerName ? `${workerRef} (version ${workerName})` : workerRef) : '(purged)';
+    const { workerRef, workerVersion } = explanation.lease;
+    const worker = workerRef ? (workerVersion ? `${workerRef} (version ${workerVersion})` : workerRef) : '(purged)';
     lines.push(`Lease: worker ${worker}, expires ${explanation.lease.expiresAtUtc ?? 'unknown'}, expired=${explanation.lease.expired}`);
   }
 

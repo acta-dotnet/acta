@@ -253,7 +253,7 @@ internal sealed class ExplainJobHandler(GetJobIdHandler getJobId, IDbSession ses
     /// operator sees who last touched it; null once that worker's row is gone.
     /// </summary>
     private static string? LastExecutedByLabel(ExplainJobHeaderRow h) =>
-        WorkerIdentity(h.LastExecutedByWorkerRef, h.LastExecutedByWorkerName);
+        WorkerIdentity(h.LastExecutedByWorkerRef, h.LastExecutedByWorkerVersion);
 
     /// <summary>
     /// A Suspended job is blocked on a pending signal, a pending child latch, or a pending timer
@@ -328,7 +328,7 @@ internal sealed class ExplainJobHandler(GetJobIdHandler getJobId, IDbSession ses
         }
 
         // The lease is reported whenever jobs_state still names a holder, because its timings describe the
-        // Job. The ref and the name both come from the LEFT JOIN on that holder, so both go null together
+        // Job. The ref and the version both come from the LEFT JOIN on that holder, so both go null together
         // once retention purges the workers row - the lease stands, its holder is simply unidentifiable.
         return new ExplainJobLease(
             workerId,

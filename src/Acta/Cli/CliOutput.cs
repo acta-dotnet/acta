@@ -131,7 +131,7 @@ internal static class CliOutput
                     {
                         w.WriteStartObject("lease");
                         WriteJsonStringOrNull(w, "workerRef", lease.WorkerRef?.ToString());
-                        WriteJsonStringOrNull(w, "workerName", lease.WorkerName);
+                        WriteJsonStringOrNull(w, "workerVersion", lease.WorkerVersion);
                         WriteJsonInstantOrNull(w, "expiresAtUtc", lease.ExpiresAtUtc);
                         w.WriteBoolean("expired", lease.Expired);
                         WriteJsonInstantOrNull(w, "workerLastSeenAtUtc", lease.WorkerLastSeenAtUtc);
@@ -243,7 +243,7 @@ internal static class CliOutput
     {
         var worker = lease.WorkerRef switch
         {
-            { } workerRef when lease.WorkerName is { Length: > 0 } version => $"Worker {workerRef} (version {version})",
+            { } workerRef when lease.WorkerVersion is { Length: > 0 } version => $"Worker {workerRef} (version {version})",
             { } workerRef => $"Worker {workerRef}",
             null => "Worker is no longer registered",
         };

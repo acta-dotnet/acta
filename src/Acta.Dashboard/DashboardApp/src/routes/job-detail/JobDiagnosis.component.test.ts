@@ -24,7 +24,7 @@ describe('JobDiagnosis', () => {
   it('names the lease holder by its ref, with its deployment version beside it', () => {
     const lease = {
       workerRef,
-      workerName: '1.0.0',
+      workerVersion: '1.0.0',
       expiresAtUtc: null,
       expired: false,
       workerLastSeenAtUtc: null,
@@ -40,7 +40,7 @@ describe('JobDiagnosis', () => {
   it('spaces the lease holder apart from its version and its heartbeat', () => {
     const lease = {
       workerRef,
-      workerName: '1.0.0',
+      workerVersion: '1.0.0',
       expiresAtUtc: '2026-07-14T08:00:00Z',
       expired: true,
       workerLastSeenAtUtc: '2026-07-14T07:58:00Z',

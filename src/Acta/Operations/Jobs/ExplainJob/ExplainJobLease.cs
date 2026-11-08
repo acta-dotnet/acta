@@ -7,7 +7,7 @@ namespace Acta;
 /// its next pass. The worker's ref and deployment version are null once retention has removed the worker.
 /// </summary>
 /// <param name="WorkerId">The internal id of the worker holding the lease; the JSON omits it and carries workerRef.</param>
-/// <param name="WorkerName">The deployment version of the worker that holds the lease, when it is known; workerRef names the worker.</param>
+/// <param name="WorkerVersion">The deployment version of the worker that holds the lease, when it is known; workerRef names the worker.</param>
 /// <param name="ExpiresAtUtc">When the lease expires, in UTC.</param>
 /// <param name="Expired">Whether the lease has expired.</param>
 /// <param name="WorkerLastSeenAtUtc">When the worker last sent a heartbeat, in UTC.</param>
@@ -16,7 +16,7 @@ namespace Acta;
 /// <param name="WorkerRef">The ref of the worker that holds the lease.</param>
 public sealed record ExplainJobLease(
     [property: JsonIgnore] int WorkerId,
-    string? WorkerName,
+    string? WorkerVersion,
     DateTime? ExpiresAtUtc,
     bool Expired,
     DateTime? WorkerLastSeenAtUtc,

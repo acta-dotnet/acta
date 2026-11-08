@@ -20,7 +20,7 @@ public class JobExplainerTests
         DateTime? workerLastSeenAtUtc = null,
         string? latestReason = null,
         string? latestFailureMessage = null,
-        string? lastExecutedByWorkerName = null,
+        string? lastExecutedByWorkerVersion = null,
         Guid? leasedByWorkerRef = null,
         Guid? lastExecutedByWorkerRef = null,
         // Retention deletes workers rows, so a jobs_state/events worker id can outlive its row. The LEFT
@@ -46,7 +46,7 @@ public class JobExplainerTests
             LatestFailureMessage: latestFailureMessage,
             LatestFailureDetailsFormatId: latestReason is null ? null : JobPayloadFormat.Json.Id,
             LatestFailureDetails: EventDetails.Write(("reason", latestReason)),
-            LastExecutedByWorkerName: workerRowPurged ? null : lastExecutedByWorkerName,
+            LastExecutedByWorkerVersion: workerRowPurged ? null : lastExecutedByWorkerVersion,
             // The SQL LEFT JOINs produce a ref exactly when the id is present and its row still exists,
             // so the fixture mirrors that.
             LeasedByWorkerRef: workerRowPurged ? null : leasedByWorkerRef ?? (leasedByWorkerId is null ? null : LeaseWorkerRef.Value),
@@ -211,7 +211,7 @@ public class JobExplainerTests
         Assert.NotNull(x.Lease);
         Assert.False(x.Lease!.Expired);
         Assert.Equal(17, x.Lease.WorkerId);
-        Assert.Equal("payments-v42", x.Lease.WorkerName);
+        Assert.Equal("payments-v42", x.Lease.WorkerVersion);
         // The version is the build the worker runs, not its name: every worker of a deploy shares it.
         Assert.Contains($"Executing on worker {LeaseWorkerRef} (version payments-v42).", x.Headline);
         Assert.Contains("Lease expires in 2m", x.Headline);
@@ -231,7 +231,7 @@ public class JobExplainerTests
                 leasedByWorkerId: 17,
                 leaseExpiresAtUtc: Now.AddMinutes(2),
                 workerDeploymentVersion: "payments-v42",
-                lastExecutedByWorkerName: "payments-v42",
+                lastExecutedByWorkerVersion: "payments-v42",
                 workerRowPurged: true
             )
         );
@@ -240,7 +240,7 @@ public class JobExplainerTests
 
         Assert.NotNull(x.Lease);
         Assert.Null(x.Lease!.WorkerRef);
-        Assert.Null(x.Lease.WorkerName);
+        Assert.Null(x.Lease.WorkerVersion);
         Assert.Equal(17, x.Lease.WorkerId);
         Assert.False(x.Lease.Expired);
         Assert.Contains("Executing on an unknown worker", x.Headline);
@@ -367,7 +367,7 @@ public class JobExplainerTests
 
         var versioned = ExplainJobHandler.Explain(
             Data(
-                Header(JobStatusCode.Suspended, lastExecutedByWorkerName: "payments-v42", lastExecutedByWorkerRef: lastRef.Value),
+                Header(JobStatusCode.Suspended, lastExecutedByWorkerVersion: "payments-v42", lastExecutedByWorkerRef: lastRef.Value),
                 checkpoints: [signal]
             ),
             Now

@@ -404,7 +404,7 @@ public class CliOutputTests
             ActiveWait: null,
             Lease: new ExplainJobLease(
                 WorkerId: 17,
-                WorkerName: "payments-v42",
+                WorkerVersion: "payments-v42",
                 ExpiresAtUtc: new DateTime(2026, 7, 4, 11, 58, 0, DateTimeKind.Utc),
                 Expired: true,
                 WorkerLastSeenAtUtc: new DateTime(2026, 7, 4, 11, 56, 0, DateTimeKind.Utc),
@@ -498,6 +498,21 @@ public class CliOutputTests
         Assert.Contains("\"stepsHasMore\":true", text);
         Assert.Contains("\"nextActions\":", text);
         Assert.Contains("\"kind\":\"raise-signal\"", text);
+    }
+
+    // The lease carries the holder's deployment version alone; a reader composes it with the ref.
+    [Fact]
+    public void Explanation_json_writes_the_lease_holders_version()
+    {
+        var w = new StringWriter();
+        var lease = new ExplainJobLease(SentinelWorkerId, "1.0.0", null, false, null, false, "The lease is valid.", SentinelWorkerRef);
+
+        CliOutput.WriteExplanation(w, SentinelExplanation() with { Lease = lease }, json: true);
+
+        using var parsed = JsonDocument.Parse(w.ToString());
+        var written = parsed.RootElement.GetProperty("lease");
+        Assert.Equal("1.0.0", written.GetProperty("workerVersion").GetString());
+        Assert.False(written.TryGetProperty("workerName", out _));
     }
 
     // --json is read by scripts and terminals, never embedded in a page, so it escapes only what JSON itself requires.
@@ -914,7 +929,7 @@ public class CliOutputTests
             ActiveWait: null,
             Lease: new ExplainJobLease(
                 WorkerId: SentinelWorkerId,
-                WorkerName: null,
+                WorkerVersion: null,
                 ExpiresAtUtc: new DateTime(2026, 7, 4, 11, 58, 0, DateTimeKind.Utc),
                 Expired: true,
                 WorkerLastSeenAtUtc: new DateTime(2026, 7, 4, 11, 56, 0, DateTimeKind.Utc),

@@ -764,7 +764,7 @@ sealed record Acta.ExplainJobAction
     System.String Description { get;init; }
     System.String Kind { get;init; }
 sealed record Acta.ExplainJobLease
-    .ctor(System.Int32 WorkerId, System.String WorkerName, System.Nullable<System.DateTime> ExpiresAtUtc, System.Boolean Expired, System.Nullable<System.DateTime> WorkerLastSeenAtUtc, System.Boolean WorkerStale, System.String RecoveryExpectation, System.Nullable<Acta.WorkerRef> WorkerRef)
+    .ctor(System.Int32 WorkerId, System.String WorkerVersion, System.Nullable<System.DateTime> ExpiresAtUtc, System.Boolean Expired, System.Nullable<System.DateTime> WorkerLastSeenAtUtc, System.Boolean WorkerStale, System.String RecoveryExpectation, System.Nullable<Acta.WorkerRef> WorkerRef)
     System.Boolean Expired { get;init; }
     System.Boolean WorkerStale { get;init; }
     System.Int32 WorkerId { get;init; }
@@ -772,7 +772,7 @@ sealed record Acta.ExplainJobLease
     System.Nullable<System.DateTime> ExpiresAtUtc { get;init; }
     System.Nullable<System.DateTime> WorkerLastSeenAtUtc { get;init; }
     System.String RecoveryExpectation { get;init; }
-    System.String WorkerName { get;init; }
+    System.String WorkerVersion { get;init; }
 sealed record Acta.ExplainJobResponse
     .ctor(System.Int64 JobId, Acta.JobRef JobRef, System.String JobNamespace, System.String JobName, Acta.JobStatusCode Status, System.String StatusMeaning, System.String Headline, Acta.ExplainJobWait ActiveWait, Acta.ExplainJobLease Lease, System.String LastExecutedBy, System.Collections.Generic.IReadOnlyList<Acta.ExplainJobStep> Steps, System.Boolean StepsHasMore, System.String Reason, System.Collections.Generic.IReadOnlyList<Acta.ExplainJobAction> NextActions)
     Acta.ExplainJobLease Lease { get;init; }

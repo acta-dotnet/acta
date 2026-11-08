@@ -16393,7 +16393,7 @@
       },
       "ExplainJobLease": {
         "required": [
-          "workerName",
+          "workerVersion",
           "expiresAtUtc",
           "expired",
           "workerLastSeenAtUtc",
@@ -16403,7 +16403,7 @@
         ],
         "type": "object",
         "properties": {
-          "workerName": {
+          "workerVersion": {
             "type": [
               "null",
               "string"
