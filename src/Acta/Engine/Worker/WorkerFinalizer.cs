@@ -74,6 +74,8 @@ internal sealed partial class WorkerFinalizer(
     // Descendant cancels the loop started and did not wait for; a drain waits for them.
     private readonly List<Task> _cancels = [];
 
+    private readonly ActaLog.NonThrowingLogger _log = new(log);
+
     private int WorkerId => context.ResolveWorker(context.WorkerRegistration!.NamespaceName).WorkerId;
 
     /// <summary>
@@ -102,9 +104,9 @@ internal sealed partial class WorkerFinalizer(
                         // On a hard stop the rows fall to recovery, and the write's own failure is not a fault.
                         if (!hostCt.IsCancellationRequested)
                         {
-                            if (log.IsEnabled(LogLevel.Error))
+                            if (_log.IsEnabled(LogLevel.Error))
                             {
-                                ActaLog.FinalizerFaulted(log, ex, $"{entries.Count} completions");
+                                ActaLog.FinalizerFaulted(_log, ex, $"{entries.Count} completions");
                             }
                         }
                     }
@@ -196,7 +198,7 @@ internal sealed partial class WorkerFinalizer(
                 {
                     answer = await RepeatAsync(
                         token => CompleteAsync(writes, token),
-                        log,
+                        _log,
                         writes[0].Row.JobId,
                         hostCt,
                         metrics,
@@ -206,9 +208,9 @@ internal sealed partial class WorkerFinalizer(
                 }
                 catch (Exception ex) when (!hostCt.IsCancellationRequested)
                 {
-                    if (log.IsEnabled(LogLevel.Error))
+                    if (_log.IsEnabled(LogLevel.Error))
                     {
-                        ActaLog.CompletionBatchFailing(log, ex, $"{writes.Count} completions");
+                        ActaLog.CompletionBatchFailing(_log, ex, $"{writes.Count} completions");
                     }
                 }
             }
@@ -268,7 +270,7 @@ internal sealed partial class WorkerFinalizer(
             }
             _apart[write.Entry] = RepeatApartAsync(write, hostCt);
         }
-        ActaLog.CompletionFailingAlone(log, ex, write.Row.JobId);
+        ActaLog.CompletionFailingAlone(_log, ex, write.Row.JobId);
         return true;
     }
 
@@ -299,7 +301,7 @@ internal sealed partial class WorkerFinalizer(
     {
         var answer = await RepeatAsync(
             token => CompleteAsync([write], token),
-            log,
+            _log,
             write.Row.JobId,
             hostCt,
             metrics,
@@ -356,55 +358,46 @@ internal sealed partial class WorkerFinalizer(
     /// </summary>
     private void LogHandlerThrew(InFlightJob entry, PlannedWrite? write)
     {
-        // A logger that throws is ignored, as in RepeatAsync: the line is written while its batch is planned, so a
-        // throw would drop every completion in the batch, and recovery would run their jobs again.
-        try
+        if (entry.Completion?.HandlerException is not { } thrown || !_log.IsEnabled(LogLevel.Warning))
         {
-            if (entry.Completion?.HandlerException is not { } thrown || !log.IsEnabled(LogLevel.Warning))
-            {
-                return;
-            }
-
-            var job = entry.Claim;
-            var descriptor = entry.Descriptor!;
-            using var scope = ActaLog.BeginJobScope(
-                log,
-                job.JobId,
-                descriptor.JobName,
-                context.WorkerRegistration!.NamespaceName,
-                job.ExecutionNumber,
-                WorkerId,
-                job.CorrelationKey
-            );
-            var jobRef = new JobRef(job.JobRef).ToString();
-            var attempt = $"{NextFailureCount(job.FailureCount)} of {descriptor.MaxAttempts}";
-            if (write is not { } planned)
-            {
-                ActaLog.HandlerThrewUnwritten(log, thrown, descriptor.JobName, jobRef, attempt);
-                return;
-            }
-
-            if (planned.Row.RescheduleDelaySeconds is { } delaySeconds)
-            {
-                ActaLog.HandlerThrewRetrying(log, thrown, descriptor.JobName, jobRef, attempt, delaySeconds * 1000L);
-                return;
-            }
-
-            var why = planned.Completion.Reason switch
-            {
-                EventReason.DefinitionRetired => "the job's definition is retired, so the job is cancelled",
-                EventReason.DeadlineExceeded => "a retry would pass the job's deadline, so the job is cancelled",
-                EventReason.NonRetryableException => $"{thrown.GetType().Name} is never retried, so the job failed for good",
-                _ when planned.Row.FinalStatus == JobStatusCode.Idle =>
-                    $"attempt {attempt} spent the firing's budget, so the job is idle until its next firing",
-                _ => $"attempt {attempt} spent the budget, so the job failed for good",
-            };
-            ActaLog.HandlerThrewFinal(log, thrown, descriptor.JobName, jobRef, why);
+            return;
         }
-        catch (Exception)
+
+        var job = entry.Claim;
+        var descriptor = entry.Descriptor!;
+        using var scope = ActaLog.BeginJobScope(
+            _log,
+            job.JobId,
+            descriptor.JobName,
+            context.WorkerRegistration!.NamespaceName,
+            job.ExecutionNumber,
+            WorkerId,
+            job.CorrelationKey
+        );
+        var jobRef = new JobRef(job.JobRef).ToString();
+        var attempt = $"{NextFailureCount(job.FailureCount)} of {descriptor.MaxAttempts}";
+        if (write is not { } planned)
         {
-            // Swallowed on purpose; the completion's write is what the worker cannot lose.
+            ActaLog.HandlerThrewUnwritten(_log, thrown, descriptor.JobName, jobRef, attempt);
+            return;
         }
+
+        if (planned.Row.RescheduleDelaySeconds is { } delaySeconds)
+        {
+            ActaLog.HandlerThrewRetrying(_log, thrown, descriptor.JobName, jobRef, attempt, delaySeconds * 1000L);
+            return;
+        }
+
+        var why = planned.Completion.Reason switch
+        {
+            EventReason.DefinitionRetired => "the job's definition is retired, so the job is cancelled",
+            EventReason.DeadlineExceeded => "a retry would pass the job's deadline, so the job is cancelled",
+            EventReason.NonRetryableException => $"{thrown.GetType().Name} is never retried, so the job failed for good",
+            _ when planned.Row.FinalStatus == JobStatusCode.Idle =>
+                $"attempt {attempt} spent the firing's budget, so the job is idle until its next firing",
+            _ => $"attempt {attempt} spent the budget, so the job failed for good",
+        };
+        ActaLog.HandlerThrewFinal(_log, thrown, descriptor.JobName, jobRef, why);
     }
 
     /// <summary>Plans <paramref name="entry"/>'s write as its completion stands.</summary>
@@ -463,10 +456,10 @@ internal sealed partial class WorkerFinalizer(
             // An external cancel, cascade, or stolen lease moved the row out of execution, or a first try
             // committed and lost its answer, so the compare-and-swap completed no work. The answer still carries
             // the row's state, so its wakes go out: a lost answer sent none, and one for a moved row costs a poll.
-            if (log.IsEnabled(LogLevel.Information))
+            if (_log.IsEnabled(LogLevel.Information))
             {
                 var action = complete.Action.ToString();
-                ActaLog.CompletionSkipped(log, ns, job.JobId, action);
+                ActaLog.CompletionSkipped(_log, ns, job.JobId, action);
             }
         }
 
@@ -510,7 +503,7 @@ internal sealed partial class WorkerFinalizer(
             }
             catch (Exception ex) when (ex is not OperationCanceledException || !hostCt.IsCancellationRequested)
             {
-                ActaLog.FollowUpsFailed(log, ex, job.JobId);
+                ActaLog.FollowUpsFailed(_log, ex, job.JobId);
             }
         }
 
@@ -555,7 +548,7 @@ internal sealed partial class WorkerFinalizer(
                 await jobs.CancelDescendantsAsync(jobId, token);
                 return true;
             },
-            log,
+            _log,
             jobId,
             hostCt,
             firstDelay: RepeatFirstDelay
@@ -566,7 +559,8 @@ internal sealed partial class WorkerFinalizer(
     /// leaves the row Executing until its lease lapses, and recovery then charges a failure and runs the job again.
     /// The write is a compare-and-swap, so repeating is safe, and every failure is repeated, since a defect that loops
     /// loudly costs less than a finished execution charged and run twice. The token bounds only the waits between tries;
-    /// <paramref name="tries"/> bounds the tries for a caller with a fallback, and the last failure is rethrown.
+    /// <paramref name="tries"/> bounds the tries for a caller with a fallback, and the last failure is rethrown. Callers
+    /// pass their <see cref="ActaLog.NonThrowingLogger"/>, so a log sink that throws never ends the repeat.
     /// </summary>
     internal static async Task<T> RepeatAsync<T>(
         Func<CancellationToken, Task<T>> write,
@@ -601,25 +595,16 @@ internal sealed partial class WorkerFinalizer(
                     }
 
                     var delay = TimeSpan.FromSeconds(BackoffSchedule.ComputeDelaySeconds(attempt, backoff));
-                    // Diagnostics cannot be allowed to end the repeat: a logger that throws would abandon the
-                    // row the repeat exists to keep.
-                    try
+                    if (!counted)
                     {
-                        if (!counted)
-                        {
-                            counted = true;
-                            metrics?.RecordUnsettledCompletion(1);
-                        }
-                        var level = attempt <= WarningTries ? LogLevel.Warning : LogLevel.Error;
-                        if (log.IsEnabled(level))
-                        {
-                            var detail = $"try {attempt}";
-                            ActaLog.DatabaseCallRetrying(log, level, ex, jobId, detail, (long)delay.TotalMilliseconds);
-                        }
+                        counted = true;
+                        metrics?.RecordUnsettledCompletion(1);
                     }
-                    catch (Exception)
+                    var level = attempt <= WarningTries ? LogLevel.Warning : LogLevel.Error;
+                    if (log.IsEnabled(level))
                     {
-                        // Swallowed on purpose; the write's own failure is the one being handled.
+                        var detail = $"try {attempt}";
+                        ActaLog.DatabaseCallRetrying(log, level, ex, jobId, detail, (long)delay.TotalMilliseconds);
                     }
 
                     try

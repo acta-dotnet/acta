@@ -133,13 +133,14 @@ public sealed class WorkerFinalizerTests
     public async Task A_throwing_logger_does_not_end_the_repeat()
     {
         var calls = 0;
+        // The repeat logs through the guard its callers hand it.
         var result = await WorkerFinalizer.RepeatAsync<string>(
             _ =>
             {
                 calls++;
                 return calls < 2 ? throw new ProviderDown() : Task.FromResult("landed");
             },
-            new ThrowingLogger(),
+            new ActaLog.NonThrowingLogger(new ThrowingLogger()),
             jobId: 7,
             TestContext.Current.CancellationToken,
             firstDelay: TimeSpan.Zero
@@ -328,6 +329,81 @@ public sealed class WorkerFinalizerTests
         Assert.Equal(["CompleteExecutions"], session.Calls.Select(call => call.Stem));
         using var batch = JsonDocument.Parse((string)session.Calls[0].Parameters["p_completions"]!);
         Assert.Equal([1L, 2L, 3L], batch.RootElement.EnumerateArray().Select(row => row.GetProperty("job_id").GetInt64()));
+        Assert.Equal(0, registry.Count());
+    }
+
+    [Fact(DisplayName = "A log sink that throws while a batch keeps failing does not stop its rows landing one by one")]
+    public async Task A_throwing_log_sink_does_not_stop_a_failing_batch_landing_row_by_row()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var session = new ScriptedSession(call => JobIds(call) is { Length: > 1 } ? throw new ProviderDown() : Landed(JobIds(call)));
+        using var logging = new LoggerFactory([new ThrowingLoggerProvider()]);
+        var (finalizer, registry) = Finalizer(session, logging.CreateLogger("Acta"));
+        Complete(registry, 1);
+        Complete(registry, 2, failed: true);
+        Complete(registry, 3);
+        registry.Completed.Writer.Complete();
+
+        await finalizer.RunLoopAsync(ct).WaitAsync(TimeSpan.FromSeconds(30), ct);
+
+        var written = session.Calls.Select(JobIds).ToList();
+        Assert.Equal(WorkerFinalizer.BatchTries, written.Count(jobs => jobs.Length == 3));
+        Assert.Equal([1L, 2L, 3L], written.Where(jobs => jobs.Length == 1).Select(jobs => jobs[0]).Order());
+        Assert.Equal(0, registry.Count());
+    }
+
+    [Fact(DisplayName = "A log sink that throws on a skipped completion does not stop the rest of its batch landing")]
+    public async Task A_throwing_log_sink_does_not_stop_a_batch_landing_past_a_skipped_completion()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        // Another worker holds job 1's row now, so its completion is skipped; job 2's lands and wakes its waiters.
+        var session = new ScriptedSession(_ => new List<CompleteExecutionsRow>
+        {
+            new(1, 0, CompleteExecutionsAction.NotOwner, (byte)JobStatusCode.Executing, null, DateTime.UtcNow, false, false),
+            new(2, 0, CompleteExecutionsAction.Completed, (byte)JobStatusCode.Succeeded, null, DateTime.UtcNow, false, false),
+        });
+        using var logging = new LoggerFactory([new ThrowingLoggerProvider()]);
+        var wakeup = new RecordingWakeup();
+        var (finalizer, registry) = Finalizer(session, logging.CreateLogger("Acta"), wakeup);
+        Complete(registry, 1);
+        Complete(registry, 2);
+        registry.Completed.Writer.Complete();
+
+        await finalizer.RunLoopAsync(ct).WaitAsync(TimeSpan.FromSeconds(30), ct);
+
+        Assert.Equal([1L, 2L], Assert.Single(session.Calls.Select(JobIds)));
+        Assert.Equal([WorkerWakeupChannel.JobCompletion(2)], wakeup.Woken);
+        Assert.Equal(0, registry.Count());
+    }
+
+    [Fact(DisplayName = "A log sink that throws on a finalizer fault does not end the loop: the completions behind the fault land")]
+    public async Task A_throwing_log_sink_does_not_end_the_finalizer_loop_on_a_fault()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        // An answer that leaves out job 2's row is a defect the batch cannot land, so the loop faults on it.
+        var session = new ScriptedSession(call => Landed(JobIds(call).Where(jobId => jobId != 2)));
+        using var logging = new LoggerFactory([new ThrowingLoggerProvider()]);
+        var (finalizer, registry) = Finalizer(session, logging.CreateLogger("Acta"));
+        Complete(registry, 1);
+        Complete(registry, 2);
+
+        var loop = finalizer.RunLoopAsync(ct);
+        var deadline = DateTime.UtcNow.AddSeconds(30);
+        while (registry.Count() > 0 && DateTime.UtcNow < deadline)
+        {
+            await Task.Delay(10, ct);
+        }
+        Complete(registry, 3);
+        registry.Completed.Writer.Complete();
+        await loop.WaitAsync(TimeSpan.FromSeconds(30), ct);
+
+        Assert.Equal(
+            [
+                [1L, 2L],
+                [3L],
+            ],
+            session.Calls.Select(JobIds)
+        );
         Assert.Equal(0, registry.Count());
     }
 
@@ -771,6 +847,70 @@ public sealed class WorkerFinalizerTests
         SerializeResult: null
     );
 
+    // The finalizer the loop tests drive, for one namespace, with no delay between repeated writes.
+    private static (WorkerFinalizer Finalizer, InFlightJobRegistry Registry) Finalizer(
+        ScriptedSession session,
+        ILogger log,
+        IWorkerWakeup? wakeup = null
+    )
+    {
+        var options = new JobsOptions();
+        var context = new WorkerContext(new WorkerRegistration("orders", null, null, [], []));
+        context.NamespaceIds["orders"] = 1;
+        context.WorkerIdByNamespace["orders"] = 1;
+        var registry = new InFlightJobRegistry(options);
+        var finalizer = new WorkerFinalizer(
+            session.Services().GetRequiredService<ExecutionOperations>(),
+            null!,
+            new WorkerWakeupPublisher(wakeup ?? new InProcessWakeup()),
+            options,
+            context,
+            registry,
+            log,
+            metrics: null
+        )
+        {
+            RepeatFirstDelay = TimeSpan.Zero,
+        };
+        return (finalizer, registry);
+    }
+
+    // Hands the finalizer job's completion, as its executor does once the attempt ends.
+    private static void Complete(InFlightJobRegistry registry, long jobId, bool failed = false)
+    {
+        var entry = WorkerHeartbeatLeaseRunwayTests.Entry(jobId, state: InFlightJobState.Finalizing);
+        entry.Descriptor = Descriptor;
+        entry.Completion = failed
+            ? new ExecutionCompletion(CompletionKind.Failed)
+            {
+                Reason = EventReason.UnhandledException,
+                HandlerException = new InvalidOperationException("503 from the carrier"),
+            }
+            : new ExecutionCompletion(CompletionKind.Succeeded);
+        registry.TryAdd(entry);
+        Assert.True(registry.Completed.Writer.TryWrite(entry));
+    }
+
+    private static long[] JobIds(BoundCall call)
+    {
+        using var batch = JsonDocument.Parse((string)call.Parameters["p_completions"]!);
+        return [.. batch.RootElement.EnumerateArray().Select(row => row.GetProperty("job_id").GetInt64())];
+    }
+
+    private static List<CompleteExecutionsRow> Landed(IEnumerable<long> jobIds) =>
+        [
+            .. jobIds.Select(jobId => new CompleteExecutionsRow(
+                jobId,
+                0,
+                CompleteExecutionsAction.Completed,
+                (byte)JobStatusCode.Succeeded,
+                null,
+                DateTime.UtcNow,
+                false,
+                false
+            )),
+        ];
+
     private static object FailOnce(TaskCompletionSource failed)
     {
         failed.SetResult();
@@ -806,7 +946,7 @@ public sealed class WorkerFinalizerTests
     private sealed class ThrowingLogger : ILogger
     {
         public IDisposable? BeginScope<TState>(TState state)
-            where TState : notnull => null;
+            where TState : notnull => throw new InvalidOperationException("the log sink is down");
 
         public bool IsEnabled(LogLevel logLevel) => true;
 

@@ -21,6 +21,7 @@ internal sealed class WorkerClaimer(
 )
 {
     private readonly TimeSpan _leaseRunway = InFlightJob.LeaseRunway(options);
+    private readonly ActaLog.NonThrowingLogger _log = new(log);
 
     // A claim takes a row for every free executor.
     private readonly int _maxClaim = options.MaxConcurrentExecutors;
@@ -45,12 +46,12 @@ internal sealed class WorkerClaimer(
             var handedOff = false;
             DateTime? claimFrom = null;
             var headClaimedAt = Stopwatch.GetTimestamp();
-            if (log.IsEnabled(LogLevel.Information))
+            if (_log.IsEnabled(LogLevel.Information))
             {
                 var detail =
                     $"{options.MaxConcurrentExecutors} executors, safety poll {(long)options.SafetyPollInterval.TotalMilliseconds}ms, "
                     + $"claim up to {_maxClaim}, poll floor {(long)options.MinPollFloor.TotalMilliseconds}ms";
-                ActaLog.WorkerStarted(log, ns, detail);
+                ActaLog.WorkerStarted(_log, ns, detail);
             }
             while (!stop.IsCancellationRequested)
             {
@@ -98,7 +99,7 @@ internal sealed class WorkerClaimer(
                 {
                     // A failed claim backs off a full safety interval, not the anti-spin floor, which is for deadline
                     // races: hammering a down database at the floor would log errors many times a second.
-                    ActaLog.ClaimIterationFailed(log, ex, (long)options.SafetyPollInterval.TotalMilliseconds);
+                    ActaLog.ClaimIterationFailed(_log, ex, (long)options.SafetyPollInterval.TotalMilliseconds);
                     await Task.Delay(options.SafetyPollInterval, stop.Token);
                     continue;
                 }

@@ -614,12 +614,19 @@ dotnet_diagnostic.CA1508.severity = none
 [src/Acta.Redis/RedisWakeup.cs]
 dotnet_diagnostic.CA1031.severity = none
 
-# CA1031: the catches around a log line on a completion's way to its write, the repeat's own line in
-# RepeatAsync and the handler's failure line in LogHandlerThrew. The repeat exists so a completion write
-# is never abandoned while the worker lives, and the failure line is written while its batch is planned;
-# a logger that throws must not be the thing that abandons a write or drops a batch, so each call is
-# swallowed and the completion goes on to its write.
+# CA1031: three catches in the finalizer's loop and the tasks it starts apart. RunLoopAsync's ends the batch
+# that faulted and goes on to the next one; escaping would end the worker's one finalizer, and the runtime
+# then stops the worker. RepeatApartAsync's and CancelDescendantsAsync's take whatever a hard stop ends
+# them with, of any type, since the repeat rethrows the write's own failure rather than the stop: the row
+# falls to recovery, and the rest of the tree to an operator's cancel.
 [src/Acta/Engine/Worker/WorkerFinalizer.cs]
+dotnet_diagnostic.CA1031.severity = none
+
+# CA1031: four catches in ActaLog.NonThrowingLogger, around the inner logger's IsEnabled, Log, and
+# BeginScope, and around a scope's disposal. A log sink is application code and may throw anything, which
+# a host's logger rethrows as an AggregateException; escaping would drop a completion on its way to its
+# write or end a worker loop. A lost line or scope is the whole cost.
+[src/Acta/Engine/Telemetry/ActaLog.cs]
 dotnet_diagnostic.CA1031.severity = none
 
 # CA1031: three catches, one per instrument kind, around every metric write. A MeterListener is

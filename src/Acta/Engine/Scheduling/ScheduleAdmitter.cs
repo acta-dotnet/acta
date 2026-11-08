@@ -28,6 +28,8 @@ internal sealed class ScheduleAdmitter(
     /// <summary>Replans of one pass before it gives up; a lost race is cheap, a loop of them is a sign to back off.</summary>
     private const int MaxReplans = 3;
 
+    private readonly ActaLog.NonThrowingLogger _log = new(log);
+
     public async Task RunAsync(string namespaceName, CancellationToken ct)
     {
         if (context.WorkerRegistration is null)
@@ -68,7 +70,7 @@ internal sealed class ScheduleAdmitter(
             catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
             {
                 // A failed pass backs off a full safety interval: hammering a down database would log errors many times a second.
-                ActaLog.AdmissionPassFailed(log, ex, namespaceName);
+                ActaLog.AdmissionPassFailed(_log, ex, namespaceName);
                 sleep = options.SafetyPollInterval;
             }
             catch (OperationCanceledException)
@@ -116,7 +118,7 @@ internal sealed class ScheduleAdmitter(
 
             var resolve = await calendars.PreloadAsync(namespaceId, due.SelectMany(s => s.Timing().CalendarNames()), ct);
             var decisions = metrics is null ? null : new List<PlannedMeasurement>();
-            var plan = Plan(namespaceId, due, now, resolve, log, decisions);
+            var plan = Plan(namespaceId, due, now, resolve, _log, decisions);
             if (plan.Groups.Count == 0)
             {
                 break;

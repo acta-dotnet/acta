@@ -482,4 +482,65 @@ internal static partial class ActaLog
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Acta: disposing a failed command or reader failed.")]
     public static partial void CommandDisposeFailed(ILogger log, Exception exception);
+
+    /// <summary>
+    /// The logger a worker's agents write through, which never lets a sink's failure out: a host's logger rethrows a
+    /// provider's exception as an <see cref="AggregateException"/>, and a line on a completion's way to its write must not
+    /// drop the completion or end a loop. A line that throws is lost, a scope that throws opening is none, and a level
+    /// that throws reads as off; only the inner logger's own calls are guarded.
+    /// </summary>
+    internal sealed class NonThrowingLogger(ILogger inner) : ILogger
+    {
+        public bool IsEnabled(LogLevel logLevel)
+        {
+            try
+            {
+                return inner.IsEnabled(logLevel);
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
+
+        public void Log<TState>(
+            LogLevel logLevel,
+            EventId eventId,
+            TState state,
+            Exception? exception,
+            Func<TState, Exception?, string> formatter
+        )
+        {
+            try
+            {
+                inner.Log(logLevel, eventId, state, exception, formatter);
+            }
+            catch (Exception) { }
+        }
+
+        public IDisposable? BeginScope<TState>(TState state)
+            where TState : notnull
+        {
+            try
+            {
+                return inner.BeginScope(state) is { } scope ? new Scope(scope) : null;
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
+
+        private sealed class Scope(IDisposable inner) : IDisposable
+        {
+            public void Dispose()
+            {
+                try
+                {
+                    inner.Dispose();
+                }
+                catch (Exception) { }
+            }
+        }
+    }
 }

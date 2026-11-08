@@ -30,13 +30,16 @@ internal sealed class WorkerExecutor(
     private readonly IJobPayloadSerializerRegistry _serializers = serializers;
     private readonly IServiceProvider _rootServices = rootServices;
     private readonly ExecutionOperations _execution = rootServices.GetRequiredService<ExecutionOperations>();
-    private readonly ILogger _log = log ?? NullLogger.Instance;
-    private readonly ExecutionAdmission _admission = new(log ?? NullLogger.Instance, options.ConcurrencyKeyBounceDelaySeconds);
+    private readonly ActaLog.NonThrowingLogger _log = new(log ?? NullLogger.Instance);
+    private readonly ExecutionAdmission _admission = new(
+        new ActaLog.NonThrowingLogger(log ?? NullLogger.Instance),
+        options.ConcurrencyKeyBounceDelaySeconds
+    );
     private readonly HandlerInvocation _invocation = new(
         serializers,
         pipeline,
         options.MaxInlinePayloadBytes,
-        log ?? NullLogger.Instance,
+        new ActaLog.NonThrowingLogger(log ?? NullLogger.Instance),
         metrics
     );
 

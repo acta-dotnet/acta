@@ -38,7 +38,7 @@ internal sealed class WorkerHeartbeat(
 
     // The namespace's newest definitions.modified_at_utc at the last overlay. Touched only under the tick gate.
     private DateTime? _definitionsModifiedAtUtc;
-    private readonly ILogger _log = log;
+    private readonly ActaLog.NonThrowingLogger _log = new(log);
 
     /// <summary>
     /// Set once when the runtime begins a graceful drain. Every subsequent lease refresh then flips
