@@ -181,7 +181,14 @@ internal sealed class ExplainJobHandler(GetJobIdHandler getJobId, IDbSession ses
                 break;
 
             case JobStatusCode.Failed:
-                headline = "Failed.";
+                // The count reaches the budget only when the retries ran out: a handler's own fail or an exception
+                // that is never retried leaves it short, and it then says nothing about how many attempts ran. The
+                // budget is the definition's current one, which an override may have changed since, so the line
+                // states the count the job ran alone.
+                headline =
+                    h.Kind == JobKindCode.Ordinary && h.FailureCount > 0 && h.FailureCount >= h.MaxAttemptsEffective
+                        ? $"Failed after {h.FailureCount} {(h.FailureCount == 1 ? "attempt" : "attempts")}."
+                        : "Failed.";
                 actions.Add(Move("inspect-timeline", "inspect the timeline with 'jobs events'"));
                 actions.Add(Move("restart", "restart the job only after the underlying cause is fixed"));
                 break;

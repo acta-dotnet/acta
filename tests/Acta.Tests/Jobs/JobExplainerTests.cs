@@ -330,6 +330,23 @@ public class JobExplainerTests
         Assert.Contains(x.NextActions, a => a.Kind == "restart" && a.Description.Contains("underlying cause"));
     }
 
+    // The failure count is what MaxAttempts is compared with, and it reaches the budget only when the retries ran out. A
+    // handler's own fail or an exception that is never retried leaves it short, so it does not say how many attempts ran.
+    [Fact]
+    public void A_one_shot_job_that_spent_its_budget_says_so_in_its_headline()
+    {
+        var spent = ExplainJobHandler.Explain(Data(Header(JobStatusCode.Failed, failureCount: 3, maxAttempts: 3)), Now);
+        var single = ExplainJobHandler.Explain(Data(Header(JobStatusCode.Failed, failureCount: 1, maxAttempts: 1)), Now);
+        var notRetried = ExplainJobHandler.Explain(Data(Header(JobStatusCode.Failed, failureCount: 1, maxAttempts: 3)), Now);
+        // An override lowered the budget after the job failed under one of 3: the line names what ran, not the new budget.
+        var lowered = ExplainJobHandler.Explain(Data(Header(JobStatusCode.Failed, failureCount: 3, maxAttempts: 1)), Now);
+
+        Assert.Equal("Failed after 3 attempts.", spent.Headline);
+        Assert.Equal("Failed after 1 attempt.", single.Headline);
+        Assert.Equal("Failed.", notRetried.Headline);
+        Assert.Equal("Failed after 3 attempts.", lowered.Headline);
+    }
+
     [Fact]
     public void Ready_in_the_future_is_scheduled_and_ready_now_waits_for_a_worker()
     {
