@@ -245,8 +245,8 @@ internal static partial class SchemaMigrations
 
     /// <summary>The three ways to apply, as every refusal names them.</summary>
     internal static string HowToApply(string dialectToken) =>
-        $"run '<app> jobs migrate', call {MigrationsClass(dialectToken)}.ApplyAsync, or run the published script "
-        + $"docs/reference/schema-{dialectToken}.sql";
+        "run this app with the arguments 'jobs migrate' ('dotnet run -- jobs migrate' from its project), "
+        + $"call {MigrationsClass(dialectToken)}.ApplyAsync, or run the published script docs/reference/schema-{dialectToken}.sql";
 
     private static string MigrationsClass(string dialectToken) =>
         dialectToken switch

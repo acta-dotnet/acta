@@ -115,7 +115,8 @@ internal sealed class WorkerRuntimeInitializer(
         {
             throw new InvalidOperationException(
                 $"Worker namespace '{ns}' cannot start: this build declares jobs that are not deployed there ({string.Join(", ", undeployed)}). "
-                    + "Run '<app> jobs deploy' from this build, with the workers' configuration (the same RunSystemJobs and outbox relay)."
+                    + "Run this app with the arguments 'jobs deploy' ('dotnet run -- jobs deploy' from its project), with the workers' "
+                    + "configuration (the same RunSystemJobs and outbox relay)."
             );
         }
 
@@ -175,14 +176,16 @@ internal sealed class WorkerRuntimeInitializer(
                 ct
             )
             ?? throw new InvalidOperationException(
-                $"Worker namespace '{ns}' cannot start: nothing has been deployed there. Run '<app> jobs deploy' "
-                    + "(or 'jobs migrate', which also applies the schema) before the workers start, or set MigrateOnStartup in development."
+                $"Worker namespace '{ns}' cannot start: nothing has been deployed there. Run this app with the arguments 'jobs deploy' "
+                    + "('dotnet run -- jobs deploy' from its project), or 'jobs migrate', which also applies the schema, before the workers "
+                    + "start, or set MigrateOnStartup in development."
             );
         if (started.WorkerId is not { } workerId)
         {
             throw new InvalidOperationException(
                 $"Worker namespace '{ns}' cannot start: it is deployed at version '{started.CurrentDeploymentVersion}', and this "
-                    + $"build ('{deploymentVersion}') has not deployed there. Run '<app> jobs deploy' from this build first."
+                    + $"build ('{deploymentVersion}') has not deployed there. Run this app with the arguments 'jobs deploy' from this "
+                    + "build first ('dotnet run -- jobs deploy' from its project)."
             );
         }
 

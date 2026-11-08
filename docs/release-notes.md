@@ -194,6 +194,7 @@ Not tagged yet.
 - The log transport's `Acta alert` line wrote the alert kind as the C# member name, `kind=FirstFailure` and `ActaAlertKind` `FirstFailure`, where the API, the events, and the views write `first-failure`. It now writes the wire code. Log alert rules that matched `FirstFailure`, `ThresholdReached`, `FinalFailure`, or `Manual` must follow.
 - The payload-contract drift warning always listed the input type and the input format, changed or not, and never the result's: a renamed input type read `(input type ShipOrder -> Shipping.ShipOrder, input format json -> json)`, and a changed result type read as an input that had not changed. It now lists only the parts that changed, the result type and format included.
 - `jobs deploy` and `jobs migrate` ended each namespace with a bare count, `6 unchanged`. The line now names what it counts: `6 jobs unchanged`, or `1 job unchanged`.
+- A worker start's refusal said `Run '<app> jobs deploy' from this build`, and a schema refusal `run '<app> jobs migrate'`, with a placeholder the reader had to fill in. Each now says it in words: run this app with the arguments `jobs deploy`, or `jobs migrate`, which from its project is `dotnet run -- jobs deploy`.
 
 ## 1.0.0-rc.8
 

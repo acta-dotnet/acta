@@ -79,7 +79,8 @@ public sealed class WorkerStartGateSpec : ActaStorageTestBase<ConformanceFixture
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => Runtime(build).InitializeAsync(ct));
 
         Assert.Contains($"Worker namespace '{ns}' cannot start: nothing has been deployed there", ex.Message, StringComparison.Ordinal);
-        Assert.Contains("jobs deploy", ex.Message, StringComparison.Ordinal);
+        Assert.Contains("run this app with the arguments 'jobs deploy'", ex.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("<app>", ex.Message, StringComparison.Ordinal);
         Assert.Null(await ReadNamespaceAsync(ns, ct));
     }
 
@@ -98,7 +99,8 @@ public sealed class WorkerStartGateSpec : ActaStorageTestBase<ConformanceFixture
 
         Assert.Contains($"it is deployed at version '{First}'", ex.Message, StringComparison.Ordinal);
         Assert.Contains($"this build ('{Second}') has not deployed there", ex.Message, StringComparison.Ordinal);
-        Assert.Contains("jobs deploy", ex.Message, StringComparison.Ordinal);
+        Assert.Contains("run this app with the arguments 'jobs deploy'", ex.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("<app>", ex.Message, StringComparison.Ordinal);
         Assert.Empty(await ReadWorkersAsync(ns, ct));
 
         await DeployRecordedAsync(local, ct);
@@ -159,7 +161,8 @@ public sealed class WorkerStartGateSpec : ActaStorageTestBase<ConformanceFixture
             ex.Message,
             StringComparison.Ordinal
         );
-        Assert.Contains("jobs deploy", ex.Message, StringComparison.Ordinal);
+        Assert.Contains("run this app with the arguments 'jobs deploy'", ex.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("<app>", ex.Message, StringComparison.Ordinal);
 
         // The row written before the catalog was read is left Stopped, with both events: no crash for the sweep to find.
         var worker = Assert.Single(await ReadWorkersAsync(ns, ct));

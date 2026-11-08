@@ -71,7 +71,8 @@ public sealed class MigrationHistoryPreflightTests
 
         foreach (var message in new[] { missing.Message, foreign.Message, SchemaMigrations.NotProvisioned("acta", dialectToken).Message })
         {
-            Assert.Contains("<app> jobs migrate", message, StringComparison.Ordinal);
+            Assert.Contains("run this app with the arguments 'jobs migrate'", message, StringComparison.Ordinal);
+            Assert.DoesNotContain("<app>", message, StringComparison.Ordinal);
             Assert.Contains(applyCall, message, StringComparison.Ordinal);
             Assert.Contains($"docs/reference/schema-{dialectToken}.sql", message, StringComparison.Ordinal);
         }
