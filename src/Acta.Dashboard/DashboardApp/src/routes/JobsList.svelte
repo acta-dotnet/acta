@@ -132,9 +132,18 @@
       location.hash = routes.job(value, { namespace: get(scope) });
       return;
     }
-    // Anything else is a deduplication key, resolved within the lookup namespace once the namespaces are read.
+    // Anything else is a deduplication key, resolved within the lookup namespace. Without a scope it waits for the
+    // namespaces, then reads the scope again: one picked meanwhile is where to look, even when that read failed.
     try {
-      const jobNamespace = get(scope) || onlyNamespace(await queryClient.fetchQuery(namespaceNamesQuery()));
+      let names: string[] = [];
+      if (!get(scope)) {
+        try {
+          names = await queryClient.fetchQuery(namespaceNamesQuery());
+        } catch (e) {
+          if (!get(scope)) throw e;
+        }
+      }
+      const jobNamespace = get(scope) || onlyNamespace(names);
       if (!jobNamespace) {
         jumpError = 'Select a namespace scope to look up a deduplication key.';
         return;
