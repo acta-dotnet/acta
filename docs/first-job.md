@@ -252,6 +252,7 @@ the same public surface the app uses. The file is concept
 ```bash
 cd ..
 dotnet new xunit -n Shipping.Tests && cd Shipping.Tests
+rm UnitTest1.cs
 dotnet remove package xunit
 dotnet add package xunit.v3 --version 3.2.2
 dotnet add reference ../Shipping/Shipping.csproj
