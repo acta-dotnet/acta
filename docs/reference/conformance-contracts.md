@@ -746,10 +746,10 @@
   - Restart clears the stored result, and the next success stores its own
   - Restart from Executing is Rejected and leaves the status unchanged
 
-### Resume pins an explicit next run and otherwise takes the database clock
-- **Contract:** Resume pins an explicit next_run_at_utc and otherwise coalesces the next run to the database clock.
+### Resume keeps the job's due time and runs a past one now
+- **Contract:** Resume keeps a paused job's future next_run_at_utc and takes the database clock for one already past.
 - **Guarantees:**
-  - Resume with explicit next_run_at_utc pins the instant; null coalesces to DB-now
+  - Resume keeps a delayed job's future next run, and a job already due runs now
 
 ## Enqueue
 

@@ -299,8 +299,9 @@ public interface IJobs
     );
 
     /// <summary>
-    /// Resume the job identified by <paramref name="job"/>: a <c>Paused</c> job moves to <c>Ready</c>
-    /// to run now, and a paused permanent job with no firing outstanding returns to <c>Idle</c>.
+    /// Resume the job identified by <paramref name="job"/>: a <c>Paused</c> job moves to <c>Ready</c> and keeps the
+    /// next run time it was due at, running now when that time has passed, and a paused permanent job with no firing
+    /// outstanding returns to <c>Idle</c>. <see cref="RescheduleAsync"/> with no instant runs a job now.
     /// <paramref name="reasonMessage"/> is the audit event's message and <paramref name="actor"/> is recorded on it as the
     /// operator identity (e.g. the authenticated principal name); null when unknown. A non-paused job is
     /// <see cref="ControlAction.Rejected"/>.

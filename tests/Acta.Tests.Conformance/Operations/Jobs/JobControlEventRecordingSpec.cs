@@ -55,8 +55,8 @@ public sealed class JobControlEventRecordingSpec : ActaRuntimeTestBase<Conforman
         await SetEventRecordingAsync(Db, jobL, EventRecordingCode.Failures, ct);
         await SetEventRecordingAsync(Db, jobF, EventRecordingCode.Audit, ct);
 
-        var outcomeL = await Services.GetRequiredService<ResumeJobHandler>().ResumeAsync(jobL, input, null, ct);
-        var outcomeF = await Services.GetRequiredService<ResumeJobHandler>().ResumeAsync(jobF, input, null, ct);
+        var outcomeL = await Services.GetRequiredService<ResumeJobHandler>().ResumeAsync(jobL, input, ct);
+        var outcomeF = await Services.GetRequiredService<ResumeJobHandler>().ResumeAsync(jobF, input, ct);
 
         Assert.Equal(ControlAction.Applied, outcomeL.Action);
         Assert.Equal(JobStatusCode.Ready, outcomeL.Status);

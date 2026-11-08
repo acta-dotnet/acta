@@ -105,7 +105,12 @@ BEGIN TRY
     UPDATE {{schema}}.jobs_state
     SET
         job_status_code = @to_status,
-        next_run_at_utc = CASE WHEN @to_status = 40 /* JobStatusCode.Idle */ THEN NULL ELSE COALESCE(@p_next_run_at_utc, @now) END,
+        -- A resumed job keeps the time it was due at; one already past, or none, runs now.
+        next_run_at_utc = CASE
+            WHEN @to_status = 40 /* JobStatusCode.Idle */ THEN NULL
+            WHEN next_run_at_utc > @now THEN next_run_at_utc
+            ELSE @now
+        END,
         modified_at_utc = @now,
         version = version + 1
     WHERE job_id = @p_job_id;

@@ -80,9 +80,11 @@ WHERE
 UPDATE {{schema}}.jobs_state
 SET
     job_status_code = (SELECT s.to_status FROM temp._resume_job s),
+    -- A resumed job keeps the time it was due at; one already past, or none, runs now.
     next_run_at_utc = CASE
         WHEN (SELECT s.to_status FROM temp._resume_job s) = 40 /* JobStatusCode.Idle */ THEN NULL
-        ELSE COALESCE(@p_next_run_at_utc, {{now}})
+        WHEN next_run_at_utc > {{now}} THEN next_run_at_utc
+        ELSE {{now}}
     END,
     modified_at_utc = {{now}},
     version = version + 1

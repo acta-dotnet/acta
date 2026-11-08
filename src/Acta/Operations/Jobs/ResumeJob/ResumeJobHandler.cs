@@ -11,20 +11,19 @@ internal sealed class ResumeJobHandler(GetJobIdHandler getJobId, IDbSession sess
         }
 
         var input = JobControl.Operator(command.ReasonMessage, command.Actor, command.ExpectedVersion);
-        var row = await ResumeAsync(jobId, input, null, ct);
+        var row = await ResumeAsync(jobId, input, ct);
         await JobControl.WakeIfReadyAsync(wakeup, row.Action, row.Status, ct);
         return new ResumeJobResponse(jobId, row.Action, row.Status, row.Version);
     }
 
-    /// <summary>One <c>resume_job</c> call by id at <paramref name="nextRunAtUtc"/>, or now when null: no lookup, no wake.</summary>
-    internal Task<ResumeJobRow> ResumeAsync(long jobId, JobControlInput input, DateTime? nextRunAtUtc, CancellationToken ct) =>
+    /// <summary>One <c>resume_job</c> call by id: no lookup, no wake.</summary>
+    internal Task<ResumeJobRow> ResumeAsync(long jobId, JobControlInput input, CancellationToken ct) =>
         session.ExecuteOneAsync(
             new StoreCommand("ResumeJob"),
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.JobId, jobId));
                 JobControl.BindEvent(cmd, dialect, input);
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobState.NextRunAtUtc, nextRunAtUtc));
                 JobControl.BindExpectedVersion(cmd, dialect, input);
             },
             DbProjectionResolver.Resolve<ResumeJobRow>(),

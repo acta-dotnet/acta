@@ -28,7 +28,8 @@ Console.WriteLine($"Enqueued job {handle.JobRef} with a 5-second delay.");
 var pauseResult = await jobs.PauseAsync(handle, "review window");
 Console.WriteLine($"PauseAsync -> action={pauseResult.Action} status={pauseResult.Status}");
 
-// Step 2: resume - moves the Paused job back to Ready so the worker can claim it now.
+// Step 2: resume - moves the Paused job back to Ready at the due time it kept, so the worker claims it once the
+// 5-second delay is up.
 var resumeResult = await jobs.ResumeAsync(handle, "review complete");
 Console.WriteLine($"ResumeAsync -> action={resumeResult.Action} status={resumeResult.Status}");
 

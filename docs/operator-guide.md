@@ -176,7 +176,7 @@ JobLookup job = JobRef.Parse("job_01a14f4e954e7bf68ac609f3fcad8e3d");
 
 await jobs.CancelAsync(job, "superseded by order-9");  // cascades to non-terminal descendants
 await jobs.PauseAsync(job);                             // hold a not-yet-running job
-await jobs.ResumeAsync(job);                            // Paused -> Ready, or Idle for a permanent job with no firing outstanding
+await jobs.ResumeAsync(job);                            // Paused -> Ready at its kept next run, or Idle for a permanent job with no firing outstanding
 await jobs.RestartAsync(job);                           // resets failure budget + retention and Exhausted steps, runs now
 await jobs.RaiseSignalAsync(job, "approval", payload);  // releases a Suspended WaitSignalAsync
 await jobs.RescheduleAsync(job, inTwoHours);             // move a waiting job's next run (re-arms Ready)
@@ -216,7 +216,7 @@ client reads `action`, the resulting `status`, and the row's `version` without s
 | Verb | R | B | S | P | I | X | ✓ | F | C | Result on applied |
 |---|---|---|---|---|---|---|---|---|---|---|
 | `pause` | A | A | A | A | A | 409 | 409 | 409 | 409 | Paused |
-| `resume` | 409 | 409 | 409 | A | 409 | 409 | 409 | 409 | 409 | Ready, or Blocked behind its lane; a permanent job with no firing outstanding returns to Idle |
+| `resume` | 409 | 409 | 409 | A | 409 | 409 | 409 | 409 | 409 | Ready at the next run time it kept, or now when that has passed, or Blocked behind its lane; a permanent job with no firing outstanding returns to Idle |
 | `restart` | A | A | A | A | A | 409 | A | A | A | Ready, or Blocked behind its lane, or Idle for a permanent job; failure budget, retention, and Exhausted steps reset |
 | `cancel` | A | A | A | A | A | A | 409 | 409 | 409 | Cancelled, cascading to non-terminal descendants |
 | `purge` | 409 | 409 | 409 | 409 | A | 409 | A | A | A | Row hard-deleted, `job.purged` event kept |
