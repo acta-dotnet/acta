@@ -10,30 +10,37 @@ export function executionLabel(job: Pick<JobDetail, 'kind' | 'executionNumber'>)
   return count + (job.executionNumber === 1 ? ' execution' : ' executions');
 }
 
-/** When a schedule next fires an idle permanent job, or, when resumes is set, when its timed pause ends. */
-interface ScheduleFiring {
+interface ScheduleInstant {
   schedule: JobScheduleView;
   atUtc: string;
-  resumes: boolean;
 }
 
 /**
- * The schedule that fires an idle permanent job soonest, and when. An active schedule fires at its next occurrence. A
- * paused one keeps that occurrence, so a timed pause that ends by then fires there too, and one that ends after it
- * resumes at its end, where the misfire policy decides what the missed occurrences fire. Null when no schedule will
- * fire the job, and undefined when the schedules are a first page, which could miss a sooner one.
+ * When an idle permanent job's schedules next fire it. `fires` is the soonest firing the page knows: an active
+ * schedule's next occurrence, or a paused one's when its timed pause ends by then. A pause that ends after its
+ * occurrence leaves the missed ones to the misfire policy, which the view does not carry, so what that schedule fires
+ * is unknown; `resumes` is the soonest such pause's end when it comes before `fires`, as that schedule may fire
+ * first. Null when no schedule will fire the job, and undefined when the schedules are a first page, which could miss
+ * a sooner one.
  */
-export function nextFiring(schedules: readonly JobScheduleView[], total: number | null): ScheduleFiring | null | undefined {
+export function nextFiring(
+  schedules: readonly JobScheduleView[],
+  total: number | null
+): { fires: ScheduleInstant | null; resumes: ScheduleInstant | null } | null | undefined {
   if (total !== null && total > schedules.length) return undefined;
-  let soonest: ScheduleFiring | null = null;
+  const sooner = (atUtc: string, than: ScheduleInstant | null) => !than || Date.parse(atUtc) < Date.parse(than.atUtc);
+  let fires: ScheduleInstant | null = null;
+  let resumes: ScheduleInstant | null = null;
   for (const schedule of schedules) {
     const next = schedule.nextOccurrenceAtUtc;
     const until = schedule.status === 'paused' ? schedule.pausedUntilUtc : null;
     if (!next || (schedule.status !== 'active' && !until)) continue;
-    const firing = until && Date.parse(until) > Date.parse(next) ? { schedule, atUtc: until, resumes: true } : { schedule, atUtc: next, resumes: false };
-    if (!soonest || Date.parse(firing.atUtc) < Date.parse(soonest.atUtc)) soonest = firing;
+    if (until && Date.parse(until) > Date.parse(next)) {
+      if (sooner(until, resumes)) resumes = { schedule, atUtc: until };
+    } else if (sooner(next, fires)) fires = { schedule, atUtc: next };
   }
-  return soonest;
+  if (resumes && fires && !sooner(resumes.atUtc, fires)) resumes = null;
+  return fires || resumes ? { fires, resumes } : null;
 }
 
 function newestFirst(events: readonly EventItem[]): EventItem[] {

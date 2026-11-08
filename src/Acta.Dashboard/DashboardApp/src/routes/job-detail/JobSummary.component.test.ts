@@ -97,11 +97,41 @@ describe('JobSummary', () => {
     expect(container.querySelector(`span[title="${displayFormatter.timestamp('2099-01-01T10:05:00Z')}"]`)).not.toBeNull();
   });
 
-  it('says when a timed pause ends for an idle permanent job whose next occurrence falls inside it', () => {
-    const schedules = [schedule('hourly', 'paused', '2099-01-01T09:05:00Z', '2099-01-01T10:00:00Z')];
-    const { container, getByText, queryByText } = render(JobSummary, { job: job({ kind: 'permanent', status: 'idle' }), schedules, schedulesTotal: 1 });
+  // Under Skip the hourly schedule drops 09:05 and fires at 10:05; under a catch-up policy it fires at 10:00. The
+  // detail carries no misfire policy, so the page names the known 10:02 firing and that hourly may come first.
+  it('names the known firing and a timed pause that may fire first once it resumes before it', () => {
+    const schedules = [
+      schedule('hourly', 'paused', '2099-01-01T09:05:00Z', '2099-01-01T10:00:00Z'),
+      schedule('ten-past', 'active', '2099-01-01T10:02:00Z')
+    ];
+    const { container, getByText } = render(JobSummary, { job: job({ kind: 'permanent', status: 'idle' }), schedules, schedulesTotal: 2 });
+    expect(getByText(/when schedule/).textContent).toBe('when schedule ten-past fires; schedule hourly may fire first once it resumes');
+    expect(container.querySelector(`span[title="${displayFormatter.timestamp('2099-01-01T10:02:00Z')}"]`)).not.toBeNull();
+    expect(container.querySelector(`span[title="${displayFormatter.timestamp('2099-01-01T10:00:00Z')}"]`)).not.toBeNull();
+  });
+
+  it('leaves out a timed pause that resumes at or after the known firing', () => {
+    const schedules = [
+      schedule('hourly', 'paused', '2099-01-01T09:05:00Z', '2099-01-01T10:02:00Z'),
+      schedule('nightly', 'paused', '2099-01-01T08:00:00Z', '2099-01-01T11:00:00Z'),
+      schedule('ten-past', 'active', '2099-01-01T10:02:00Z')
+    ];
+    const { container, getByText, queryByText } = render(JobSummary, { job: job({ kind: 'permanent', status: 'idle' }), schedules, schedulesTotal: 3 });
+    expect(getByText(/when schedule/).textContent).toBe('when schedule ten-past fires');
+    expect(container.querySelector(`span[title="${displayFormatter.timestamp('2099-01-01T10:02:00Z')}"]`)).not.toBeNull();
+    expect(queryByText(/resumes/)).toBeNull();
+  });
+
+  it('says when the soonest timed pause ends for an idle permanent job with no known firing', () => {
+    const schedules = [
+      schedule('nightly', 'paused', '2099-01-01T08:00:00Z', '2099-01-01T11:00:00Z'),
+      schedule('hourly', 'paused', '2099-01-01T09:05:00Z', '2099-01-01T10:00:00Z'),
+      schedule('held', 'paused', '2099-01-01T07:00:00Z')
+    ];
+    const { container, getByText, queryByText } = render(JobSummary, { job: job({ kind: 'permanent', status: 'idle' }), schedules, schedulesTotal: 3 });
     expect(getByText(/^Schedule/).textContent).toBe('Schedule hourly resumes');
     expect(container.querySelector(`span[title="${displayFormatter.timestamp('2099-01-01T10:00:00Z')}"]`)).not.toBeNull();
+    expect(queryByText(/when schedule/)).toBeNull();
     expect(queryByText('No schedule is set to fire it.')).toBeNull();
   });
 

@@ -29,6 +29,8 @@
   let firing = $derived(job.status === 'idle' && !job.nextRunAtUtc ? nextFiring(schedules, schedulesTotal) : null);
 </script>
 
+{#snippet scheduleLink(schedule: JobScheduleView)}<a href={routes.schedule(schedule.jobNamespace, schedule.jobName, schedule.scheduleName)} class="mono">{schedule.scheduleName}</a>{/snippet}
+
 <section class="panel" aria-labelledby="job-summary-heading">
   <h2 id="job-summary-heading">Summary</h2>
   <p class="detail-kicker">Identity</p>
@@ -50,10 +52,9 @@
       <dt>Next run</dt><dd>
         {#if job.status !== 'idle' || job.nextRunAtUtc}<RelativeTime value={job.nextRunAtUtc} />
         {:else if firing}
-          {@const { schedule } = firing}
-          {@const link = routes.schedule(schedule.jobNamespace, schedule.jobName, schedule.scheduleName)}
-          {#if firing.resumes}<span class="dim">Schedule <a href={link} class="mono">{schedule.scheduleName}</a> resumes</span> <RelativeTime value={firing.atUtc} />
-          {:else}<RelativeTime value={firing.atUtc} /> <span class="dim">when schedule <a href={link} class="mono">{schedule.scheduleName}</a> fires</span>{/if}
+          {@const { fires, resumes } = firing}
+          {#if fires}<RelativeTime value={fires.atUtc} /> <span class="dim">when schedule {@render scheduleLink(fires.schedule)} fires{#if resumes}; schedule {@render scheduleLink(resumes.schedule)} may fire first once it resumes{/if}</span>{#if resumes} <RelativeTime value={resumes.atUtc} />{/if}
+          {:else if resumes}<span class="dim">Schedule {@render scheduleLink(resumes.schedule)} resumes</span> <RelativeTime value={resumes.atUtc} />{/if}
         {:else if firing === null}<span class="dim">No schedule is set to fire it.</span>
         {:else}<span class="dim">When one of its schedules fires.</span>{/if}
       </dd>
