@@ -1,6 +1,6 @@
 // Day and night. The visitor's stored choice wins, then the system's preference; the "day · night" words the script
-// adds to the end of the footer each set their own theme and remember it. Loaded in <head>, so the first paint is
-// already the right theme.
+// adds to the footer's [data-theme-controls] each set their own theme and remember it. Loaded in <head>, so the first
+// paint is already the right theme.
 (() => {
   const key = "acta-theme";
   const root = document.documentElement;
@@ -24,8 +24,8 @@
   });
 
   addEventListener("DOMContentLoaded", () => {
-    const footer = document.querySelector("footer");
-    if (!footer) return;
+    const host = document.querySelector("[data-theme-controls]");
+    if (!host) return;
     const group = document.createElement("span");
     group.className = "theme";
     group.setAttribute("role", "group");
@@ -53,11 +53,7 @@
     dot.textContent = "·";
     buttons = [word("light", "day"), word("dark", "night")];
     group.append(buttons[0], dot, buttons[1]);
-    const sep = document.createElement("span");
-    sep.className = "sep";
-    sep.setAttribute("aria-hidden", "true");
-    sep.textContent = "·";
-    footer.append(sep, group);
+    host.append(group);
     apply(root.dataset.theme);
   });
 })();

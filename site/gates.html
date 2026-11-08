@@ -38,7 +38,7 @@
 <body>
   <a class="skip-link" href="#content">Skip to content</a>
   <div class="chrome">
-    <a class="brand" href="/">Acta<span class="dot">.</span></a>
+    <a class="brand" href="/" aria-label="Acta home"><svg viewBox="0 0 40 40" aria-hidden="true" focusable="false"><path d="M6 33 19 7 32 33" /><circle cx="19" cy="27" r="3" /></svg></a>
     <span class="meta">apache-2.0 · .net 10 · pg / mssql / sqlite</span>
     <nav aria-label="Primary links">
       <a href="/start">Start</a>
@@ -159,15 +159,47 @@
       <p class="also">Also: <a href="/engine">how one worker runs a job</a><span class="sep">·</span><a href="/fleet">many workers, no coordinator</a></p>
     </section>
 
-        <footer>
-      Apache-2.0 · built in the open
-      <span class="sep">·</span><a href="https://github.com/acta-dotnet/acta">GitHub</a>
-      <span class="sep">·</span><a href="https://github.com/acta-dotnet/acta/tree/main/docs">Docs</a>
-      <span class="sep">·</span><a href="https://github.com/acta-dotnet/acta/tree/main/concepts">Concepts</a>
-      <span class="sep">·</span><a href="https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md">Labs</a>
-      <span class="sep">·</span><a href="/llms.txt">llms.txt</a>
-      <span class="sep">·</span><a href="https://github.com/acta-dotnet/acta/blob/main/docs/compatibility-and-support.md">Compatibility</a>
-      <span class="sep">·</span>Created by <a href="https://www.linkedin.com/in/marko-voncina">Marko Vončina</a>
+    <footer class="site-footer">
+      <div class="wrap">
+        <div class="footer-grid">
+          <div class="footer-about">
+            <p class="footer-brand">Acta<span class="dot">.</span></p>
+            <p>Durable execution for .NET.</p>
+            <p>A library inside your application.<br />Durable state in your SQL database.</p>
+            <p class="footer-license">Apache-2.0 · built in the open</p>
+          </div>
+          <nav aria-label="Explore">
+            <p class="footer-head">Explore</p>
+            <a href="/how-it-works">How Acta works</a>
+            <a href="/capabilities">Capabilities</a>
+            <a href="/engine">Inside one worker</a>
+            <a href="/fleet">Workers and recovery</a>
+            <a href="/gates">Order and limits</a>
+            <a href="/benchmark">Benchmark and evidence</a>
+            <a href="/choosing">Choosing Acta</a>
+          </nav>
+          <nav aria-label="Build">
+            <p class="footer-head">Build</p>
+            <a href="/start">Get started</a>
+            <a href="/learn">Learn Acta</a>
+            <a href="https://github.com/acta-dotnet/acta/tree/main/docs">Documentation</a>
+            <a href="https://github.com/acta-dotnet/acta/tree/main/concepts">Runnable concepts</a>
+            <a href="https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md">Engineering labs</a>
+            <a href="/llms.txt">llms.txt for coding agents</a>
+          </nav>
+          <div class="footer-release">
+            <p class="footer-head">Release</p>
+            <p class="footer-version"><span class="release-dot" aria-hidden="true"></span><a href="https://github.com/acta-dotnet/acta/releases">1.0.0-rc.8 <span aria-hidden="true">↗</span></a><span>a release candidate</span></p>
+            <a href="https://github.com/acta-dotnet/acta/blob/main/docs/compatibility-and-support.md">Compatibility and support</a>
+            <a href="https://github.com/acta-dotnet/acta/blob/main/docs/known-limitations.md#stability-status">Stability status</a>
+            <a href="https://github.com/acta-dotnet/acta">Source on GitHub <span aria-hidden="true">↗</span></a>
+          </div>
+        </div>
+        <div class="footer-bottom">
+          <p>Created by <a href="https://www.linkedin.com/in/marko-voncina">Marko Vončina</a></p>
+          <span data-theme-controls></span>
+        </div>
+      </div>
     </footer>
   </main>
   <script src="assets/admission.js"></script>

@@ -40,6 +40,8 @@
   <style>
     /* ---- masthead hero ---- */
     .hero { padding-top: clamp(1.6rem, 4vh, 3.2rem); }
+    /* the hero's record line drops the databases on a phone, where it would wrap */
+    @media (max-width: 640px) { .hero .record .dbs { display: none; } }
     .masthead {
       font-family: var(--serif); font-weight: 600; font-optical-sizing: auto;
       font-size: clamp(7rem, 18.5vw, 21rem);
@@ -66,9 +68,15 @@
       font-size: clamp(2rem, 3.4vw, 3.1rem); line-height: 1.08; margin: 0;
       text-wrap: balance;
     }
-    .tagline em { font-style: normal; color: var(--verdi); }
     .subhead { font-family: var(--serif); font-style: italic; font-size: clamp(1.15rem, 1.8vw, 1.5rem); color: var(--muted); margin: 0.7rem 0 0; }
     .hero .lede { margin-top: 1.3rem; max-width: 54ch; }
+    /* the hero's two buttons read as words, not stamps: sans, sentence case, the arrow at the text's own size */
+    .hero .actions { gap: 0.75rem; margin-top: 1.75rem; }
+    .hero .actions .button {
+      gap: 1.6rem; justify-content: center; min-height: 46px; padding: 10px 21px;
+      font-family: var(--sans); font-size: 15px; font-weight: 500; letter-spacing: 0; text-transform: none;
+    }
+    @media (max-width: 600px) { .hero .actions .button { gap: 0.75rem; padding-inline: 15px; font-size: 14px; } }
     @media (max-width: 980px) { .hero-grid { grid-template-columns: 1fr; } }
 
     /* release status beside the first install action: version, platforms, upgrade path */
@@ -134,6 +142,11 @@
       .shot-media img { width: 1200px; max-width: none; }
     }
 
+    /* text and figure side by side, so a short section fills the width */
+    .split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 2rem clamp(2rem, 5vw, 6rem); align-items: end; }
+    .split .bench-line { margin-top: 0; }
+    @media (max-width: 900px) { .split { grid-template-columns: 1fr; } }
+
     /* numbers: two figures, each linked to its evidence */
     .bench-line { display: flex; flex-wrap: wrap; gap: 1.4rem 4rem; margin-top: 2.2rem; }
     .bench-line a { text-decoration: none; }
@@ -164,6 +177,12 @@
     .install-meta b { display: block; font-family: var(--mono); font-size: var(--label); letter-spacing: 0.15em; text-transform: uppercase; color: var(--verdi); }
     .install-meta span { font-size: 0.86rem; color: var(--faint); }
     .install-row code { font-size: 0.95rem; color: var(--text); overflow-x: auto; }
+    /* prompts beside the install commands; in the narrower column a command sits under its label */
+    .build-pair { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 1.8rem; align-items: start; margin-top: 2.2rem; }
+    .build-pair .install { margin: 0; max-width: none; }
+    .build-pair .install-row { grid-template-columns: minmax(0, 1fr) auto; gap: 0.5rem 1rem; }
+    .build-pair .install-meta { grid-column: 1 / -1; }
+    @media (max-width: 1100px) { .build-pair { grid-template-columns: 1fr; } }
     @media (max-width: 760px) {
       .install-row { grid-template-columns: 1fr auto; gap: 0.5rem 1rem; }
       .install-meta { grid-column: 1 / -1; }
@@ -177,7 +196,7 @@
 <body>
   <a class="skip-link" href="#content">Skip to content</a>
   <div class="chrome">
-    <a class="brand" href="/">Acta<span class="dot">.</span></a>
+    <a class="brand" href="/" aria-label="Acta home"><svg viewBox="0 0 40 40" aria-hidden="true" focusable="false"><path d="M6 33 19 7 32 33" /><circle cx="19" cy="27" r="3" /></svg></a>
     <span class="meta">apache-2.0 · .net 10 · pg / mssql / sqlite</span>
     <nav aria-label="Primary links">
       <a href="/start">Start</a>
@@ -190,7 +209,7 @@
 
   <main id="content">
     <header class="wrap hero">
-      <p class="record">open source · plain sql views · a live dashboard</p>
+      <p class="record"><span>Durable execution for .NET<span class="dbs"> · Postgres · SQL Server · SQLite</span></span></p>
       <div class="mast-row">
         <h1 class="masthead"><span aria-hidden="true">Acta<span class="dot">.</span></span><span class="sr-only">Acta: durable jobs and workflows for .NET</span></h1>
         <p class="dict"><b>acta</b>, n. pl. · Latin: <i>the things that have been done; the official record of proceedings.</i></p>
@@ -198,12 +217,12 @@
       <hr class="hero-rule" />
       <div class="hero-grid">
         <div>
-          <p class="tagline">Durable jobs and workflows for <em>.NET</em>.</p>
+          <p class="tagline">Background jobs and workflows that survive restarts.</p>
           <p class="subhead">Everything is a job, and every job is a row.</p>
           <p class="lede">Write background jobs and workflows as plain C# handlers, and Acta keeps them as rows in the Postgres, SQL Server, or SQLite database you already run.</p>
           <div class="actions">
-            <a class="button primary" href="/start">Get started</a>
-            <a class="button" href="/how-it-works">How Acta works</a>
+            <a class="button primary" href="/start">Get started <span aria-hidden="true">↗</span></a>
+            <a class="button" href="/how-it-works">How Acta works <span aria-hidden="true">→</span></a>
           </div>
           <dl class="status" aria-label="Release status">
             <dt>Release</dt><dd>1.0.0-rc.8, a release candidate</dd>
@@ -415,11 +434,15 @@
 
     <section class="wrap" id="numbers">
       <p class="record">Numbers</p>
-      <h2>What one PostgreSQL rig measured.</h2>
-      <p class="lede">One rig, 32 logical cores and NVMe, under Acta Verify: a measurement for rough sizing, not a promise for yours.</p>
-      <div class="bench-line">
-        <a href="/benchmark"><b>12,438</b><span>fully executed, durably completed jobs per second · four workers</span></a>
-        <a href="/benchmark"><b>1,000,000</b><span>jobs, none lost, a worker killed every 5 s</span></a>
+      <div class="split">
+        <div>
+          <h2>What one PostgreSQL rig measured.</h2>
+          <p class="lede">One rig, 32 logical cores and NVMe, under Acta Verify: a measurement for rough sizing, not a promise for yours.</p>
+        </div>
+        <div class="bench-line">
+          <a href="/benchmark"><b>12,438</b><span>fully executed, durably completed jobs per second · four workers</span></a>
+          <a href="/benchmark"><b>1,000,000</b><span>jobs, none lost, a worker killed every 5 s</span></a>
+        </div>
       </div>
     </section>
 
@@ -440,49 +463,83 @@
       <p class="record">Build it</p>
       <h2>Build it with your coding agent.</h2>
       <p class="lede">Paste one of these into Claude Code or Codex. The agent reads <a href="/llms.txt">useacta.net/llms.txt</a> and builds the app.</p>
-      <div class="install">
-        <div class="prompt-row primary">
-          <p>Read https://useacta.net/llms.txt, then build an Acta pizza shop on SQLite: POST /orders bakes each pizza in a 30-second durable sleep that survives restarting the app mid-bake. Enqueue one order and keep its job ref, restart the app during the bake, and show me that same ref finishing: its jobs explain output, its events, and the dashboard URL.</p>
-          <button type="button" class="copy" data-copy="Read https://useacta.net/llms.txt, then build an Acta pizza shop on SQLite: POST /orders bakes each pizza in a 30-second durable sleep that survives restarting the app mid-bake. Enqueue one order and keep its job ref, restart the app during the bake, and show me that same ref finishing: its jobs explain output, its events, and the dashboard URL." aria-label="Copy the pizza shop prompt">Copy</button>
+      <div class="build-pair">
+        <div class="install">
+          <div class="prompt-row primary">
+            <p>Read https://useacta.net/llms.txt, then build an Acta pizza shop on SQLite: POST /orders bakes each pizza in a 30-second durable sleep that survives restarting the app mid-bake. Enqueue one order and keep its job ref, restart the app during the bake, and show me that same ref finishing: its jobs explain output, its events, and the dashboard URL.</p>
+            <button type="button" class="copy" data-copy="Read https://useacta.net/llms.txt, then build an Acta pizza shop on SQLite: POST /orders bakes each pizza in a 30-second durable sleep that survives restarting the app mid-bake. Enqueue one order and keep its job ref, restart the app during the bake, and show me that same ref finishing: its jobs explain output, its events, and the dashboard URL." aria-label="Copy the pizza shop prompt">Copy</button>
+          </div>
+          <div class="prompt-row">
+            <p>Read https://useacta.net/llms.txt, then build an Acta app on SQLite that shows a new joke every 10 seconds, fails every fifth time and retries after a second so I can watch the retries. Show me one job's ref and its jobs explain output after a retry, and the dashboard URL.</p>
+            <button type="button" class="copy" data-copy="Read https://useacta.net/llms.txt, then build an Acta app on SQLite that shows a new joke every 10 seconds, fails every fifth time and retries after a second so I can watch the retries. Show me one job's ref and its jobs explain output after a retry, and the dashboard URL." aria-label="Copy the joke app prompt">Copy</button>
+          </div>
+          <div class="prompt-row">
+            <p>Read https://useacta.net/llms.txt, then add Acta to this app on the database it already uses, move one slow endpoint into a durable job with retries, and tell me which one you picked. Run it once and show me its job ref, its jobs explain output, and its rows.</p>
+            <button type="button" class="copy" data-copy="Read https://useacta.net/llms.txt, then add Acta to this app on the database it already uses, move one slow endpoint into a durable job with retries, and tell me which one you picked. Run it once and show me its job ref, its jobs explain output, and its rows." aria-label="Copy the existing app prompt">Copy</button>
+          </div>
         </div>
-        <div class="prompt-row">
-          <p>Read https://useacta.net/llms.txt, then build an Acta app on SQLite that shows a new joke every 10 seconds, fails every fifth time and retries after a second so I can watch the retries. Show me one job's ref and its jobs explain output after a retry, and the dashboard URL.</p>
-          <button type="button" class="copy" data-copy="Read https://useacta.net/llms.txt, then build an Acta app on SQLite that shows a new joke every 10 seconds, fails every fifth time and retries after a second so I can watch the retries. Show me one job's ref and its jobs explain output after a retry, and the dashboard URL." aria-label="Copy the joke app prompt">Copy</button>
-        </div>
-        <div class="prompt-row">
-          <p>Read https://useacta.net/llms.txt, then add Acta to this app on the database it already uses, move one slow endpoint into a durable job with retries, and tell me which one you picked. Run it once and show me its job ref, its jobs explain output, and its rows.</p>
-          <button type="button" class="copy" data-copy="Read https://useacta.net/llms.txt, then add Acta to this app on the database it already uses, move one slow endpoint into a durable job with retries, and tell me which one you picked. Run it once and show me its job ref, its jobs explain output, and its rows." aria-label="Copy the existing app prompt">Copy</button>
+        <div class="install">
+          <div class="install-row primary">
+            <div class="install-meta"><b>Zero setup</b><span>embedded SQLite, single node</span></div>
+            <code>dotnet add package Acta.Sqlite --prerelease</code>
+            <button type="button" class="copy" data-copy="dotnet add package Acta.Sqlite --prerelease" aria-label="Copy the SQLite install command">Copy</button>
+          </div>
+          <div class="install-row">
+            <div class="install-meta"><b>Postgres</b><span>production</span></div>
+            <code>dotnet add package Acta.Postgres --prerelease</code>
+            <button type="button" class="copy" data-copy="dotnet add package Acta.Postgres --prerelease" aria-label="Copy the Postgres install command">Copy</button>
+          </div>
+          <div class="install-row">
+            <div class="install-meta"><b>SQL Server</b><span>production</span></div>
+            <code>dotnet add package Acta.SqlServer --prerelease</code>
+            <button type="button" class="copy" data-copy="dotnet add package Acta.SqlServer --prerelease" aria-label="Copy the SQL Server install command">Copy</button>
+          </div>
         </div>
       </div>
-      <div class="install">
-        <div class="install-row primary">
-          <div class="install-meta"><b>Zero setup</b><span>embedded SQLite, single node</span></div>
-          <code>dotnet add package Acta.Sqlite --prerelease</code>
-          <button type="button" class="copy" data-copy="dotnet add package Acta.Sqlite --prerelease" aria-label="Copy the SQLite install command">Copy</button>
-        </div>
-        <div class="install-row">
-          <div class="install-meta"><b>Postgres</b><span>production</span></div>
-          <code>dotnet add package Acta.Postgres --prerelease</code>
-          <button type="button" class="copy" data-copy="dotnet add package Acta.Postgres --prerelease" aria-label="Copy the Postgres install command">Copy</button>
-        </div>
-        <div class="install-row">
-          <div class="install-meta"><b>SQL Server</b><span>production</span></div>
-          <code>dotnet add package Acta.SqlServer --prerelease</code>
-          <button type="button" class="copy" data-copy="dotnet add package Acta.SqlServer --prerelease" aria-label="Copy the SQL Server install command">Copy</button>
-        </div>
-      </div>
-      <p class="hiw-note">1.0.0-rc.8, a release candidate: until 1.0.0, each one needs a fresh database. Requires .NET 10. Add <code>Acta.Dashboard</code> for the dashboard.</p>
+      <p class="hiw-note">Add <code>Acta.Dashboard</code> for the dashboard.</p>
     </section>
 
-    <footer>
-      Apache-2.0 · built in the open
-      <span class="sep">·</span><a href="https://github.com/acta-dotnet/acta">GitHub</a>
-      <span class="sep">·</span><a href="https://github.com/acta-dotnet/acta/tree/main/docs">Docs</a>
-      <span class="sep">·</span><a href="https://github.com/acta-dotnet/acta/tree/main/concepts">Concepts</a>
-      <span class="sep">·</span><a href="https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md">Labs</a>
-      <span class="sep">·</span><a href="/llms.txt">llms.txt</a>
-      <span class="sep">·</span><a href="https://github.com/acta-dotnet/acta/blob/main/docs/compatibility-and-support.md">Compatibility</a>
-      <span class="sep">·</span>Created by <a href="https://www.linkedin.com/in/marko-voncina">Marko Vončina</a>
+    <footer class="site-footer">
+      <div class="wrap">
+        <div class="footer-grid">
+          <div class="footer-about">
+            <p class="footer-brand">Acta<span class="dot">.</span></p>
+            <p>Durable execution for .NET.</p>
+            <p>A library inside your application.<br />Durable state in your SQL database.</p>
+            <p class="footer-license">Apache-2.0 · built in the open</p>
+          </div>
+          <nav aria-label="Explore">
+            <p class="footer-head">Explore</p>
+            <a href="/how-it-works">How Acta works</a>
+            <a href="/capabilities">Capabilities</a>
+            <a href="/engine">Inside one worker</a>
+            <a href="/fleet">Workers and recovery</a>
+            <a href="/gates">Order and limits</a>
+            <a href="/benchmark">Benchmark and evidence</a>
+            <a href="/choosing">Choosing Acta</a>
+          </nav>
+          <nav aria-label="Build">
+            <p class="footer-head">Build</p>
+            <a href="/start">Get started</a>
+            <a href="/learn">Learn Acta</a>
+            <a href="https://github.com/acta-dotnet/acta/tree/main/docs">Documentation</a>
+            <a href="https://github.com/acta-dotnet/acta/tree/main/concepts">Runnable concepts</a>
+            <a href="https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md">Engineering labs</a>
+            <a href="/llms.txt">llms.txt for coding agents</a>
+          </nav>
+          <div class="footer-release">
+            <p class="footer-head">Release</p>
+            <p class="footer-version"><span class="release-dot" aria-hidden="true"></span><a href="https://github.com/acta-dotnet/acta/releases">1.0.0-rc.8 <span aria-hidden="true">↗</span></a><span>a release candidate</span></p>
+            <a href="https://github.com/acta-dotnet/acta/blob/main/docs/compatibility-and-support.md">Compatibility and support</a>
+            <a href="https://github.com/acta-dotnet/acta/blob/main/docs/known-limitations.md#stability-status">Stability status</a>
+            <a href="https://github.com/acta-dotnet/acta">Source on GitHub <span aria-hidden="true">↗</span></a>
+          </div>
+        </div>
+        <div class="footer-bottom">
+          <p>Created by <a href="https://www.linkedin.com/in/marko-voncina">Marko Vončina</a></p>
+          <span data-theme-controls></span>
+        </div>
+      </div>
     </footer>
   </main>
   <script>
