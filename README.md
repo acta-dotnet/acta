@@ -76,17 +76,17 @@ The endpoint answers `202 Accepted` with the job's ref once the row is stored, a
 The job was a row in `acta-local.db` before the handler ran, and it is still one afterwards:
 
 ```sql
-SELECT job_ref, definition_name, job_status, execution_number, failure_count
+SELECT job_ref, definition_name, job_status, failure_count
 FROM   jobs_view
 WHERE  namespace_name = 'shipping'
 ORDER  BY created_at_utc DESC;
 ```
 
 ```text
-job_ref                               definition_name  job_status  execution_number  failure_count
-01a1b2dc-c57a-7f0e-9e94-d65c1a009f58  ship-order       succeeded   1                 0
-01a1b2dc-c4c4-7c88-8c55-0683945415fc  sys.retention    idle        0                 0
-01a1b2dc-c4c3-7ba6-9225-fd934de999c0  sys.alerts       idle        0                 0
+job_ref                               definition_name  job_status  failure_count
+01a1b2dc-c57a-7f0e-9e94-d65c1a009f58  ship-order       succeeded   0
+01a1b2dc-c4c4-7c88-8c55-0683945415fc  sys.retention    idle        0
+01a1b2dc-c4c3-7ba6-9225-fd934de999c0  sys.alerts       idle        0
 ```
 
 In SQL a ref is the UUID itself; the API, the CLI, and the dashboard write the same value as `job_` and its 32 hex digits. The other two rows are Acta's own retention and alert jobs, which run the same way yours do. Stop the app and start it again: the rows are there, and so is every event of each job in `events_view`.
