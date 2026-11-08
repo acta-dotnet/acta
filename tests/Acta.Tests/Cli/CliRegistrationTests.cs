@@ -42,13 +42,19 @@ public sealed class CliRegistrationTests
             var (first, firstOutput) = await MigrateAsync(path);
             Assert.Equal(0, first);
             Assert.Equal(
-                [.. shipped, "namespace payments: 1.4.0 (Staging)", "  added    sys.alerts", "  added    sys.retention", "  0 unchanged"],
+                [
+                    .. shipped,
+                    "namespace payments: 1.4.0 (Staging)",
+                    "  added    sys.alerts",
+                    "  added    sys.retention",
+                    "  0 jobs unchanged",
+                ],
                 Lines(firstOutput)
             );
 
             var (second, secondOutput) = await MigrateAsync(path);
             Assert.Equal(0, second);
-            Assert.Equal(["schema main is up to date", "namespace payments: 1.4.0 (Staging)", "  2 unchanged"], Lines(secondOutput));
+            Assert.Equal(["schema main is up to date", "namespace payments: 1.4.0 (Staging)", "  2 jobs unchanged"], Lines(secondOutput));
         }
         finally
         {

@@ -470,7 +470,7 @@ internal static class CliOutput
             {
                 writer.WriteLine($"  changed  {job}");
             }
-            writer.WriteLine($"  {d.Unchanged} unchanged");
+            writer.WriteLine($"  {d.Unchanged} {(d.Unchanged == 1 ? "job" : "jobs")} unchanged");
             if (d.Undeclared.Count > 0)
             {
                 writer.WriteLine($"  not declared by this build: {string.Join(", ", d.Undeclared)}");

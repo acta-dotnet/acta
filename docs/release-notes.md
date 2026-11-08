@@ -193,6 +193,7 @@ Not tagged yet.
 - The CLI's `--json` output escaped characters that matter only inside a web page, so `explain` wrote `\u0027jobs events\u0027` and `deploy` wrote a version as `1.6.1\u002Bb81d04e`. It now escapes only what JSON requires and writes `'jobs events'` and `1.6.1+b81d04e`; a JSON parser reads the same values as before.
 - The log transport's `Acta alert` line wrote the alert kind as the C# member name, `kind=FirstFailure` and `ActaAlertKind` `FirstFailure`, where the API, the events, and the views write `first-failure`. It now writes the wire code. Log alert rules that matched `FirstFailure`, `ThresholdReached`, `FinalFailure`, or `Manual` must follow.
 - The payload-contract drift warning always listed the input type and the input format, changed or not, and never the result's: a renamed input type read `(input type ShipOrder -> Shipping.ShipOrder, input format json -> json)`, and a changed result type read as an input that had not changed. It now lists only the parts that changed, the result type and format included.
+- `jobs deploy` and `jobs migrate` ended each namespace with a bare count, `6 unchanged`. The line now names what it counts: `6 jobs unchanged`, or `1 job unchanged`.
 
 ## 1.0.0-rc.8
 

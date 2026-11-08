@@ -483,7 +483,7 @@ namespace billing: 1.6.1+b81d04e (Production)
   added    sys.alerts
   added    sys.retention
   added    send-invoice
-  0 unchanged
+  0 jobs unchanged
 ```
 
 - A second run prints `schema acta is up to date` and each namespace with its jobs unchanged. It exits 0, or 1 with the database's error; `--json` prints `{"schema":"acta","applied":[...],"namespaces":[...]}`.
@@ -531,7 +531,7 @@ $ dotnet MyApp.dll jobs deploy
 namespace billing: 1.6.2+5c0ffee (Production)
   added    refund-invoice
   changed  send-invoice
-  11 unchanged
+  11 jobs unchanged
   not declared by this build: old-report
 ```
 

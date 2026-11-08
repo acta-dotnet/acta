@@ -183,7 +183,7 @@ public sealed class DeployVerbSpec : ActaStorageTestBase<ConformanceFixture>
         var (againExitCode, againOutput, againError) = await RunAsync<DeployFirstManifest>(ns, First, ct, verb);
 
         Assert.True(againExitCode == 0, againError);
-        Assert.Contains("  3 unchanged", Lines(againOutput));
+        Assert.Contains("  3 jobs unchanged", Lines(againOutput));
         Assert.DoesNotContain(Lines(againOutput), l => l.StartsWith("  added", StringComparison.Ordinal));
         var again = await ReadNamespaceAsync(ns, ct);
         Assert.Equal((deployed.Version, deployed.ModifiedAtUtc), (again!.Version, again.ModifiedAtUtc));
@@ -209,7 +209,7 @@ public sealed class DeployVerbSpec : ActaStorageTestBase<ConformanceFixture>
                 $"namespace {ns}: {Second} (Staging)",
                 $"  added    {DeploySecondManifest.AddedJob}",
                 $"  changed  {DeployFirstManifest.ChangedJob}",
-                "  1 unchanged",
+                "  1 job unchanged",
                 $"  not declared by this build: {DeployFirstManifest.DroppedJob}",
             ],
             Lines(output)
@@ -239,7 +239,7 @@ public sealed class DeployVerbSpec : ActaStorageTestBase<ConformanceFixture>
 
         Assert.True(exitCode == 0, error);
         Assert.Equal(
-            [$"namespace {ns}: {Second} (Staging)", $"  changed  {DeployFirstManifest.ScheduledJob}", "  2 unchanged"],
+            [$"namespace {ns}: {Second} (Staging)", $"  changed  {DeployFirstManifest.ScheduledJob}", "  2 jobs unchanged"],
             Lines(output)
         );
         var after = await ReadDefinitionsAsync(ns, ct);

@@ -571,7 +571,7 @@ public class CliOutputTests
                 "namespace billing: 1.6.1+b81d04e (Production)",
                 "  added    send-receipt",
                 "  changed  send-invoice",
-                "  12 unchanged",
+                "  12 jobs unchanged",
                 "  not declared by this build: old-report",
             ],
             w.ToString().Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries)
@@ -635,9 +635,20 @@ public class CliOutputTests
             json: false
         );
         Assert.Equal(
-            ["namespace billing: 1.6.1+b81d04e", "  12 unchanged"],
+            ["namespace billing: 1.6.1+b81d04e", "  12 jobs unchanged"],
             w.ToString().Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries)
         );
+    }
+
+    [Theory]
+    [InlineData(0, "  0 jobs unchanged")]
+    [InlineData(1, "  1 job unchanged")]
+    [InlineData(2, "  2 jobs unchanged")]
+    public void Deploy_plain_names_what_it_counts_as_unchanged(int unchanged, string line)
+    {
+        var w = new StringWriter();
+        CliOutput.WriteDeploy(w, [DeployedNamespace with { Unchanged = unchanged }], json: false);
+        Assert.Contains(line, w.ToString().Split(Environment.NewLine));
     }
 
     [Fact]
