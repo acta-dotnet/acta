@@ -78,9 +78,8 @@ internal sealed class ExplainJobHandler(GetJobIdHandler getJobId, IDbSession ses
         // Steps arrive in creation order, the newest StepLimit + 1 of them; the oldest drops when there is one too many.
         var stepsHasMore = data.Steps.Count > StepLimit;
         var steps = BuildSteps(stepsHasMore ? [.. data.Steps.Skip(data.Steps.Count - StepLimit)] : data.Steps);
-        var reason = FailureExplains(h)
-            ? h.LatestFailureMessage ?? EventDetails.Read(h.LatestFailureDetailsFormatId ?? 0, h.LatestFailureDetails, "reason")
-            : null;
+        // A Cancelled job's reason event is its cancel, the only one the read takes for that status.
+        var reason = h.Status == JobStatusCode.Cancelled || FailureExplains(h) ? Reason(h) : null;
 
         ExplainJobWait? wait = null;
         ExplainJobLease? lease = null;
@@ -246,6 +245,18 @@ internal sealed class ExplainJobHandler(GetJobIdHandler getJobId, IDbSession ses
     /// </summary>
     private static bool FailureExplains(ExplainJobHeaderRow h) =>
         h.Status == JobStatusCode.Failed || (h.Status is JobStatusCode.Ready or JobStatusCode.Idle && h.FailureCount > 0);
+
+    /// <summary>
+    /// The reason event's message, else its reason code, followed by the operator its details name, which only a cancel's
+    /// do: "duplicate order (by alice)", or "Cancelled by alice." for a cancel with no message.
+    /// </summary>
+    private static string? Reason(ExplainJobHeaderRow h)
+    {
+        var text = h.LatestReasonMessage ?? EventDetails.Read(h.LatestReasonDetailsFormatId ?? 0, h.LatestReasonDetails, "reason");
+        return EventDetails.Read(h.LatestReasonDetailsFormatId ?? 0, h.LatestReasonDetails, "actor") is not { } actor ? text
+            : text is null ? $"Cancelled by {actor}."
+            : $"{text} (by {actor})";
+    }
 
     /// <summary>
     /// The worker that last ran the job, under the same identity rule as the lease label. Distinct

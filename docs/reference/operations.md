@@ -95,7 +95,7 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 | `CancelJob` | `IJobs.CancelAsync` | `POST /jobs/{jobRef}/cancel` (`cancelJob`, `acta.control`) | `cancel` | inline | `checkpoints`, `events`, `jobs_state`, `schedules_state` | `CancelJobSpec` |
 | `EnqueueJob` | `IJobs.EnqueueAsync` | `POST /jobs` (`enqueueJob`, `acta.enqueue`) | · | routine | `jobs`, `jobs_state`, `lanes`, `tags` | `EnqueueJobNamespaceSpec`, `EnqueueJobRejectionTaxonomySpec`, `EnqueueJobTenantRequirementSpec`, `EnqueueJobTenantSpec`, `EnqueueJobTenantSuspensionSpec`, `EnqueueJobTransactionalSmokeSpec`, `EnqueueJobTransactionalSpec` |
 | `EnqueueJobs` | `IJobs.EnqueueJobsAsync` | · | · | routine | `jobs`, `jobs_state`, `lanes`, `tags` | `EnqueueJobsConcurrencySpec`, `EnqueueJobsRejectionSpec`, `EnqueueJobsSpec` |
-| `ExplainJob` | `IJobs.ExplainAsync` | · | `explain` | inline | · | `ExplainJobSpec` |
+| `ExplainJob` | `IJobs.ExplainAsync` | · | `explain` | inline | · | `ExplainJobCancelReasonSpec`, `ExplainJobSpec` |
 | `GetJob` | `IJobs.GetAsync` | `GET /jobs/{jobRef}` (`getJob`, `acta.read`)<br>`GET /jobs/by-deduplication-key` (`getJobByDeduplicationKey`, `acta.read`) | · | inline | · | `GetJobSpec` |
 | `GetJobDetail` | · | `GET /jobs/{jobRef}/detail` (`getJobDetail`, `acta.read`) | · | · | · | · |
 | `GetJobId` | `IJobs.GetIdAsync` | · | · | · | · | `GetJobIdSpec` |

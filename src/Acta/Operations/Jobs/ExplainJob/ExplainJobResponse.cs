@@ -18,7 +18,7 @@ namespace Acta;
 /// <param name="LastExecutedBy">The worker that last ran the job: its ref, with its deployment version when one is recorded, such as wrk_... (version 1.4.0); null once retention removed the worker.</param>
 /// <param name="Steps">The job's newest steps, at most 50, oldest first; stepsHasMore says when older ones were left out.</param>
 /// <param name="StepsHasMore">Whether the job has older steps than the ones listed.</param>
-/// <param name="Reason">Why the job is in its state, from its newest failure: set for a Failed job and for a Ready or Idle job that still counts that failure, and null otherwise.</param>
+/// <param name="Reason">Why the job is in its state: for a Failed job, and a Ready or Idle job that still counts it, its newest failure; for a Cancelled job, its cancel's message followed by the operator who cancelled it, such as duplicate order (by alice), and null where the job's recording level writes no cancel event; null otherwise.</param>
 /// <param name="NextActions">The moves an operator can make from here.</param>
 public sealed record ExplainJobResponse(
     [property: JsonIgnore] long JobId,

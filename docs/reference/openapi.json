@@ -16540,7 +16540,7 @@
               "null",
               "string"
             ],
-            "description": "Why the job is in its state, from its newest failure: set for a Failed job and for a Ready or Idle job that still counts that failure, and null otherwise."
+            "description": "Why the job is in its state: for a Failed job, and a Ready or Idle job that still counts it, its newest failure; for a Cancelled job, its cancel's message followed by the operator who cancelled it, such as duplicate order (by alice), and null where the job's recording level writes no cancel event; null otherwise."
           },
           "nextActions": {
             "type": "array",

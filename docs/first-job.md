@@ -272,9 +272,9 @@ successful completion wrote one. A job stores one result; a permanent job's next
 ### Ask why
 
 `jobs.ExplainAsync(lookup)` answers the status in words (`StatusMeaning`), a `Headline`, the `Reason`
-the last attempt failed, the active wait or lease if any, the recorded steps, and `NextActions`, the
-operator verbs that apply right now. It is the same explanation the dashboard shows and the CLI's
-`jobs explain` prints.
+the last attempt failed or the job was cancelled, the active wait or lease if any, the recorded steps,
+and `NextActions`, the operator verbs that apply right now. It is the same explanation the dashboard
+shows and the CLI's `jobs explain` prints.
 
 ### Cancel
 

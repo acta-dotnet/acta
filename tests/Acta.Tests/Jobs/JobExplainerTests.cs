@@ -19,7 +19,8 @@ public class JobExplainerTests
         WorkerStatusCode? workerStatus = null,
         DateTime? workerLastSeenAtUtc = null,
         string? latestReason = null,
-        string? latestFailureMessage = null,
+        string? latestReasonMessage = null,
+        string? latestReasonActor = null,
         string? lastExecutedByWorkerVersion = null,
         Guid? leasedByWorkerRef = null,
         Guid? lastExecutedByWorkerRef = null,
@@ -43,9 +44,9 @@ public class JobExplainerTests
             WorkerDeploymentVersion: workerRowPurged ? null : workerDeploymentVersion,
             WorkerStatus: workerStatus,
             WorkerLastSeenAtUtc: workerLastSeenAtUtc,
-            LatestFailureMessage: latestFailureMessage,
-            LatestFailureDetailsFormatId: latestReason is null ? null : JobPayloadFormat.Json.Id,
-            LatestFailureDetails: EventDetails.Write(("reason", latestReason)),
+            LatestReasonMessage: latestReasonMessage,
+            LatestReasonDetailsFormatId: latestReason is null && latestReasonActor is null ? null : JobPayloadFormat.Json.Id,
+            LatestReasonDetails: EventDetails.Write(("actor", latestReasonActor), ("reason", latestReason)),
             LastExecutedByWorkerVersion: workerRowPurged ? null : lastExecutedByWorkerVersion,
             // The SQL LEFT JOINs produce a ref exactly when the id is present and its row still exists,
             // so the fixture mirrors that.
@@ -320,7 +321,7 @@ public class JobExplainerTests
     [Fact]
     public void Failed_surfaces_the_latest_reason_and_offers_timeline_and_restart()
     {
-        var data = Data(Header(JobStatusCode.Failed, latestFailureMessage: "boom in handler"));
+        var data = Data(Header(JobStatusCode.Failed, latestReasonMessage: "boom in handler"));
 
         var x = ExplainJobHandler.Explain(data, Now);
 
@@ -478,7 +479,7 @@ public class JobExplainerTests
     {
         var ready = ExplainJobHandler.Explain(
             Data(
-                Header(JobStatusCode.Ready, failureCount: 1, nextRunAtUtc: Now.AddMinutes(1), latestFailureMessage: "503 from the carrier")
+                Header(JobStatusCode.Ready, failureCount: 1, nextRunAtUtc: Now.AddMinutes(1), latestReasonMessage: "503 from the carrier")
             ),
             Now
         );
@@ -492,11 +493,27 @@ public class JobExplainerTests
         Assert.Equal("unhandled-exception", idle.Reason);
     }
 
-    // A failure the job has moved past says nothing about where it is now: a success, a cancel, a wait, a
-    // pause, a running attempt, or a restart that zeroed the count all came after it.
+    // A Cancelled job's reason event is its cancel: the message, then the operator its details name.
+    [Theory]
+    [InlineData("duplicate order", "alice", null, "duplicate order (by alice)")]
+    [InlineData(null, "alice", null, "Cancelled by alice.")]
+    [InlineData("Ancestor job cancelled.", null, "parent-cancelled", "Ancestor job cancelled.")]
+    [InlineData(null, null, "deadline-exceeded", "deadline-exceeded")]
+    [InlineData(null, null, null, null)]
+    public void A_cancelled_job_gives_its_cancel_as_its_reason(string? message, string? actor, string? code, string? expected)
+    {
+        var x = ExplainJobHandler.Explain(
+            Data(Header(JobStatusCode.Cancelled, latestReasonMessage: message, latestReasonActor: actor, latestReason: code)),
+            Now
+        );
+
+        Assert.Equal(expected, x.Reason);
+    }
+
+    // A failure the job has moved past says nothing about where it is now: a success, a wait, a pause, a running
+    // attempt, or a restart that zeroed the count all came after it. A cancel has its own reason event.
     [Theory]
     [InlineData(JobStatusCode.Succeeded, 0)]
-    [InlineData(JobStatusCode.Cancelled, 2)]
     [InlineData(JobStatusCode.Suspended, 1)]
     [InlineData(JobStatusCode.Paused, 1)]
     [InlineData(JobStatusCode.Executing, 1)]
@@ -507,12 +524,7 @@ public class JobExplainerTests
     {
         var x = ExplainJobHandler.Explain(
             Data(
-                Header(
-                    status,
-                    failureCount: failureCount,
-                    latestReason: "unhandled-exception",
-                    latestFailureMessage: "503 from the carrier"
-                )
+                Header(status, failureCount: failureCount, latestReason: "unhandled-exception", latestReasonMessage: "503 from the carrier")
             ),
             Now
         );

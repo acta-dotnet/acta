@@ -1550,6 +1550,12 @@
 
 ## Reads
 
+### ExplainJob gives a cancelled job its cancel's reason
+- **Contract:** ExplainJob's reason for a Cancelled job is the job.cancelled event's message and actor, and null where no such event was recorded.
+- **Guarantees:**
+  - A cancelled job's reason is the cancel's message, followed by the operator who cancelled it
+  - At the failures-only recording level a cancelled job has no reason, not the failure before the cancel
+
 ### ExplainJob returns explain sets for a known id and null otherwise
 - **Contract:** ExplainJob returns the header, the newest steps up to its fetch limit, and the checkpoints of a matching job id from one snapshot, or null when none matches.
 - **Guarantees:**
