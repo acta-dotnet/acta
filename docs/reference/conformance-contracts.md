@@ -1052,6 +1052,14 @@
   - The heartbeat leaves a claimed job's runtime version alone, and the job stays Executing
   - A leased row the process does not hold is neither renewed nor answered, and recovery reclaims it once its lease lapses
 
+### A finished job has no next run time
+- **Contract:** Every landing in Succeeded, Failed, or Cancelled writes next_run_at_utc NULL: a completion, a cancel and its cascade, a retire, and a reclaim.
+- **Guarantees:**
+  - A completion clears the next run: a success, a laned success, and a spent retry budget
+  - A cancel clears the next run of a delayed job and of its delayed descendants
+  - A retire clears the next run of the delayed jobs it cancels
+  - Crash recovery that spends the last attempt leaves the failed job no next run
+
 ### A job registers, enqueues, claims, executes, persists and reads back
 - **Contract:** A registered job enqueued through IJobs is claimed, executed and lands Succeeded with the canonical claim/start/finish timeline and a deserializable result.
 - **Guarantees:**

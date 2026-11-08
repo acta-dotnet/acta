@@ -72,6 +72,7 @@ BEGIN
             UPDATE {{schema}}.jobs_state r
             SET
                 job_status_code = CASE WHEN c.succeeded THEN 100 /* JobStatusCode.Succeeded */ ELSE 200 /* JobStatusCode.Failed */ END,
+                next_run_at_utc = NULL,
                 failure_count = COALESCE(c.failure_count, r.failure_count),
                 leased_by_worker_id = NULL,
                 lease_expires_at_utc = NULL,
@@ -85,7 +86,7 @@ BEGIN
             INNER JOIN {{schema}}.jobs j ON j.job_id = e.job_id
             WHERE r.job_id = e.job_id
             RETURNING
-                r.job_id, r.execution_number, r.job_status_code, r.next_run_at_utc, e.prior_failure_count,
+                r.job_id, r.execution_number, r.job_status_code, e.prior_failure_count,
                 c.event_code, c.reason, c.event_message, c.duration_ms, j.namespace_id, j.lineage_root_job_id, j.definition_id,
                 j.tenant_id, j.event_recording_code
         ),
@@ -135,7 +136,7 @@ BEGIN
                 ELSE 3 /* CompleteExecutionsAction.AlreadyTerminal */
             END AS SMALLINT),
             COALESCE(d.job_status_code, r.job_status_code),
-            CASE WHEN d.job_id IS NULL THEN r.next_run_at_utc ELSE d.next_run_at_utc END,
+            CASE WHEN d.job_id IS NULL THEN r.next_run_at_utc END,
             now(),
             CAST(0 AS SMALLINT),
             CAST(0 AS SMALLINT)
@@ -220,15 +221,14 @@ BEGIN
         SET
             job_status_code = t.to_status,
             next_run_at_utc = CASE
+                WHEN t.to_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) THEN NULL
                 WHEN c.wait_signal_name IS NOT NULL AND e.sig_state = 20 /* CheckpointStatusCode.Set */ THEN now()
                 WHEN c.wait_signal_name IS NOT NULL THEN e.sig_due
                 WHEN c.reschedule_event_code IS NOT NULL
                     THEN COALESCE(c.reschedule_resume_at_utc, now() + make_interval(secs => c.reschedule_delay_seconds))
                 -- A handler's pause keeps a next run, which marks it held with its firing outstanding.
                 WHEN c.handler_job_status_code = 30 /* JobStatusCode.Paused */ THEN now()
-                WHEN c.handler_job_status_code IS NOT NULL THEN NULL
-                WHEN c.final_job_status_code IS NOT NULL THEN c.job_next_run_at_utc
-                ELSE r.next_run_at_utc
+                ELSE c.job_next_run_at_utc
             END,
             failure_count = COALESCE(c.failure_count, r.failure_count),
             leased_by_worker_id = NULL,

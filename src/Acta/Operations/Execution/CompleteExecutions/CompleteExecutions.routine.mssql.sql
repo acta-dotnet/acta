@@ -153,10 +153,14 @@ BEGIN
 
         /* Locks each row by its clustered key in job_id order. A row that re-arms, waits, is held, or fires stays Executing and
            leased here and takes its status, and a fire its result (ck_jobs_state_result_idle), with its next run below: it enters
-           ix_jobs_state_claim_ready once, a consumed timer never meets ck_jobs_state_ready_due, and landings never write next_run_at_utc. */
+           ix_jobs_state_claim_ready once, and a consumed timer never meets ck_jobs_state_ready_due. A terminal landing clears its next run here. */
         UPDATE r
         SET
             job_status_code = CASE WHEN s.shaped = 1 THEN r.job_status_code ELSE s.to_status END,
+            next_run_at_utc = CASE
+                WHEN s.to_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) THEN NULL
+                ELSE r.next_run_at_utc
+            END,
             failure_count = COALESCE(c.failure_count, r.failure_count),
             leased_by_worker_id = CASE WHEN s.shaped = 1 THEN r.leased_by_worker_id END,
             lease_expires_at_utc = CASE WHEN s.shaped = 1 THEN r.lease_expires_at_utc END,

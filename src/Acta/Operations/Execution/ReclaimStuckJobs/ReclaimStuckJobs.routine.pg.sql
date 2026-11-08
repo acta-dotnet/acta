@@ -256,7 +256,7 @@ BEGIN
                 ELSE s.new_failure_count END,
             next_run_at_utc = CASE
                 WHEN s.wait_resolved THEN r.next_run_at_utc
-                WHEN s.new_failure_count >= s.max_attempts THEN CASE WHEN s.is_slot THEN NULL ELSE r.next_run_at_utc END
+                WHEN s.new_failure_count >= s.max_attempts THEN NULL
                 ELSE now() END,
             leased_by_worker_id = NULL,
             lease_expires_at_utc = NULL,

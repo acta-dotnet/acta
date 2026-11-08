@@ -271,7 +271,7 @@ BEGIN
                 WHEN s.wait_resolved = 1
                     THEN r.next_run_at_utc
                 WHEN s.new_failure_count >= s.max_attempts
-                    THEN CASE WHEN s.is_slot = 1 THEN NULL ELSE r.next_run_at_utc END
+                    THEN NULL
                 ELSE @now
             END,
             leased_by_worker_id = NULL,

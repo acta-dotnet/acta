@@ -212,7 +212,7 @@ SET
         ELSE rj.new_failure_count END,
     next_run_at_utc = CASE
         WHEN rj.to_status = 10 /* JobStatusCode.Ready */ THEN {{now}}
-        WHEN rj.to_status = 40 /* JobStatusCode.Idle */ THEN NULL
+        WHEN rj.to_status IN (40 /* JobStatusCode.Idle */, 200 /* JobStatusCode.Failed */) THEN NULL
         ELSE jobs_state.next_run_at_utc END,
     leased_by_worker_id = NULL,
     lease_expires_at_utc = NULL,

@@ -95,7 +95,6 @@ SET next_run_at_utc = CASE
     WHEN d.reschedule_event_code IS NOT NULL THEN COALESCE(d.reschedule_resume_at_utc, (SELECT now_utc FROM temp._ces_done LIMIT 1) + d.reschedule_delay_seconds * 1000)
     -- A handler's pause keeps a next run, which marks it held with its firing outstanding.
     WHEN d.handler_job_status_code = 30 /* JobStatusCode.Paused */ THEN (SELECT now_utc FROM temp._ces_done LIMIT 1)
-    WHEN d.handler_job_status_code IS NOT NULL THEN NULL
     ELSE d.job_next_run_at_utc
 END
 FROM temp._ces_done d
@@ -107,6 +106,10 @@ WHERE
 UPDATE {{schema}}.jobs_state AS r
 SET
     job_status_code = d.to_status,
+    next_run_at_utc = CASE
+        WHEN d.to_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) THEN NULL
+        ELSE r.next_run_at_utc
+    END,
     failure_count = COALESCE(d.failure_count, r.failure_count),
     leased_by_worker_id = NULL,
     lease_expires_at_utc = NULL,

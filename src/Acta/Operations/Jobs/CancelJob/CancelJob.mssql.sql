@@ -105,6 +105,7 @@ BEGIN TRY
     UPDATE {{schema}}.jobs_state
     SET
         job_status_code = 220 /* JobStatusCode.Cancelled */,
+        next_run_at_utc = NULL,
         leased_by_worker_id = NULL,
         lease_expires_at_utc = NULL,
         retention_until_utc = DATEADD(SECOND, @retention_seconds, @now),
