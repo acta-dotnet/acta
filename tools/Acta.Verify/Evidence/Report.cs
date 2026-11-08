@@ -692,13 +692,15 @@ public static partial class Report
         + "</html>";
 
     /// <summary>
-    /// The published report as a page of the site: the front page's stylesheet, theme switch and chrome around the same
-    /// body as report.html, opened like every other page by a record line, the title, and the paragraph under it as
-    /// the lede. A test keeps site/benchmark.html equal to this page of docs/reference/benchmark.md.
+    /// The published report as a page of the site: the front page's stylesheet and theme switch, and the header bar and
+    /// footer of <paramref name="frontPage"/> (site/index.html), around the same body as report.html, opened like every
+    /// other page by a record line, the title, and the paragraph under it as the lede. A test keeps site/benchmark.html
+    /// equal to this page of docs/reference/benchmark.md.
     /// </summary>
-    public static string SitePage(string markdown)
+    public static string SitePage(string markdown, string frontPage)
     {
         ArgumentNullException.ThrowIfNull(markdown);
+        var (chrome, footer) = SiteFrame(frontPage);
         var lines = markdown.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n');
         var status = lines[0].StartsWith("# Acta Verify: ", StringComparison.Ordinal) ? lines[0]["# Acta Verify: ".Length..].Trim() : "";
         var lede = lines.Length > 1 ? Array.FindIndex(lines, 1, line => line.Length > 0) : -1;
@@ -720,28 +722,47 @@ public static partial class Report
         }
 
         return SiteHead.Replace("\r\n", "\n", StringComparison.Ordinal)
-            + "<main id=\"content\">\n"
+            + chrome
+            + "\n<main id=\"content\">\n"
             + head
             + "<div class=\"wrap benchmark\">\n"
             + Body(string.Join('\n', lines), status)
             + "</div>\n"
-            + SiteFooter.Replace("\r\n", "\n", StringComparison.Ordinal)
+            + footer
             + "</main>\n</body>\n</html>\n";
     }
 
-    private const string SiteFooter = """
-          <footer>
-            Apache-2.0 · built in the open
-            <span class="sep">·</span><a href="https://github.com/acta-dotnet/acta">GitHub</a>
-            <span class="sep">·</span><a href="https://github.com/acta-dotnet/acta/tree/main/docs">Docs</a>
-            <span class="sep">·</span><a href="https://github.com/acta-dotnet/acta/tree/main/concepts">Concepts</a>
-            <span class="sep">·</span><a href="https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md">Labs</a>
-            <span class="sep">·</span><a href="/llms.txt">llms.txt</a>
-            <span class="sep">·</span><a href="https://github.com/acta-dotnet/acta/blob/main/docs/compatibility-and-support.md">Compatibility</a>
-            <span class="sep">·</span>Created by <a href="https://www.linkedin.com/in/marko-voncina">Marko Vončina</a>
-          </footer>
+    /// <summary>
+    /// The header bar and the footer of a site page, so the benchmark page carries the same ones as the rest of the site;
+    /// the footer moves to the benchmark page's indentation, directly inside its main.
+    /// </summary>
+    private static (string Chrome, string Footer) SiteFrame(string page)
+    {
+        ArgumentNullException.ThrowIfNull(page);
+        var text = page.Replace("\r\n", "\n", StringComparison.Ordinal);
+        const string chromeOpen = "  <div class=\"chrome\">";
+        const string chromeClose = "\n  </div>\n";
+        const string footerOpen = "<footer class=\"site-footer\">";
+        const string footerClose = "</footer>";
+        var chromeStart = text.IndexOf(chromeOpen, StringComparison.Ordinal);
+        var chromeEnd = chromeStart < 0 ? -1 : text.IndexOf(chromeClose, chromeStart, StringComparison.Ordinal);
+        var footerStart = text.IndexOf(footerOpen, StringComparison.Ordinal);
+        var footerEnd = footerStart < 0 ? -1 : text.IndexOf(footerClose, footerStart, StringComparison.Ordinal);
+        if (chromeEnd < 0 || footerEnd < 0)
+        {
+            throw new InvalidOperationException("The site page has no header bar or no footer to frame the benchmark page with.");
+        }
 
-        """;
+        var lineStart = text.LastIndexOf('\n', footerStart) + 1;
+        var cut = new string(' ', Math.Max(0, footerStart - lineStart - 2));
+        var footer = string.Join(
+            '\n',
+            text[lineStart..(footerEnd + footerClose.Length)]
+                .Split('\n')
+                .Select(line => line.StartsWith(cut, StringComparison.Ordinal) ? line[cut.Length..] : line)
+        );
+        return (text[chromeStart..(chromeEnd + chromeClose.Length - 1)], footer + "\n");
+    }
 
     private const string SiteHead = """
         <!doctype html>
@@ -779,17 +800,6 @@ public static partial class Report
         </head>
         <body>
           <a class="skip-link" href="#content">Skip to content</a>
-          <div class="chrome">
-            <a class="brand" href="/">Acta<span class="dot">.</span></a>
-            <span class="meta">apache-2.0 · .net 10 · pg / mssql / sqlite</span>
-            <nav aria-label="Primary links">
-              <a href="/start">Start</a>
-              <a href="/capabilities">Capabilities</a>
-              <a href="/benchmark">Benchmark</a>
-              <a href="/learn">Learn</a>
-              <a href="https://github.com/acta-dotnet/acta" class="gh" aria-label="Acta on GitHub" title="Acta on GitHub"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><path fill="currentColor" d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"></path></svg></a>
-            </nav>
-          </div>
 
         """;
 

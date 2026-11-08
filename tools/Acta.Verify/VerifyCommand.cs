@@ -186,7 +186,10 @@ public static class VerifyCommand
                 .FirstOrDefault(Directory.Exists);
             if (site is not null)
             {
-                File.WriteAllText(Path.Combine(site, "benchmark.html"), Report.SitePage(markdown));
+                File.WriteAllText(
+                    Path.Combine(site, "benchmark.html"),
+                    Report.SitePage(markdown, File.ReadAllText(Path.Combine(site, "index.html")))
+                );
             }
             Console.WriteLine($"Published {record}{(site is not null ? $" and {Path.Combine(site, "benchmark.html")}" : "")}.");
             return 0;
