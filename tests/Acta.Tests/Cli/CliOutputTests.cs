@@ -426,8 +426,7 @@ public class CliOutputTests
         CliOutput.WriteExplanation(w, explanation, json: false);
         var text = w.ToString();
 
-        Assert.Contains("Reason:", text);
-        Assert.Contains("- Worker shutdown.", text);
+        Assert.Contains($"Reason:{Environment.NewLine}- worker shutdown{Environment.NewLine}", text);
         Assert.Contains("Worker:", text);
         Assert.Contains($"- Worker {ExplainWorkerRef} (version payments-v42), lease expired at 2026-07-04T11:58:00Z.", text);
         Assert.Contains("- Last heartbeat at 2026-07-04T11:56:00Z.", text);
@@ -435,6 +434,18 @@ public class CliOutputTests
         Assert.Contains("Next actions:", text);
         Assert.Contains("- Wait for crash recovery to reclaim the job on its next pass.", text);
         Assert.Contains("- Cancel the job if it should not continue.", text);
+    }
+
+    // The reason is the handler's exception message or a reason code; the CLI prints it as it was written.
+    [Fact]
+    public void Explanation_plain_prints_the_reason_as_the_handler_wrote_it()
+    {
+        var w = new StringWriter();
+        var failed = Explanation() with { Status = JobStatusCode.Failed, Headline = "Failed.", Reason = "carrier acme-post answered 503" };
+
+        CliOutput.WriteExplanation(w, failed, json: false);
+
+        Assert.Contains($"Reason:{Environment.NewLine}- carrier acme-post answered 503{Environment.NewLine}", w.ToString());
     }
 
     [Fact]

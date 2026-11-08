@@ -179,7 +179,7 @@ internal static class CliOutput
         {
             writer.WriteLine();
             writer.WriteLine("Reason:");
-            writer.WriteLine($"- {Sentence(reason)}");
+            writer.WriteLine($"- {reason}");
         }
 
         if (x.Lease is { Expired: true } expiredLease)
