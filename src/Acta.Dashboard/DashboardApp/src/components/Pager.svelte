@@ -1,6 +1,7 @@
 <script>
   import Icon from './Icon.svelte';
   import { displayFormatter } from '../format';
+  import { PAGE_SIZES } from './grid/paging';
   let {
     canPrev = false,
     hasMore = false,
@@ -23,11 +24,9 @@
   <label>
     Page size
     <select value={String(pageSize)} onchange={(e) => onPageSize(Number(e.currentTarget.value))}>
-      <option value="25">{displayFormatter.number(25)}</option>
-      <option value="50">{displayFormatter.number(50)}</option>
-      <option value="100">{displayFormatter.number(100)}</option>
-      <option value="200">{displayFormatter.number(200)}</option>
-      <option value="500">{displayFormatter.number(500)}</option>
+      {#each PAGE_SIZES as size}
+        <option value={String(size)}>{displayFormatter.number(size)}</option>
+      {/each}
     </select>
   </label>
   {#if totalCount !== null}

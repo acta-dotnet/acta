@@ -11,8 +11,15 @@ import {
   createPagingState,
   pagingFor,
   nextPaging,
-  exactCountPaging
+  exactCountPaging,
+  servedPageSize
 } from './paging.ts';
+
+test('a page size past the API cap, as an old link carries, comes down to the largest one offered', () => {
+  assert.equal(servedPageSize(500), 100);
+  assert.equal(servedPageSize(100), 100);
+  assert.equal(servedPageSize(25), 25);
+});
 
 test('exact counts stay off for large grids until explicitly requested', () => {
   assert.equal(shouldIncludeTotal('none', true), false);

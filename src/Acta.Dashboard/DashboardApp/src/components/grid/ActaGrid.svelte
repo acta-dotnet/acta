@@ -14,6 +14,7 @@
     nextPaging,
     previousPaging,
     exactCountPaging,
+    servedPageSize,
     type CountMode,
     type PagingState
   } from './paging';
@@ -82,7 +83,7 @@
   // svelte-ignore state_referenced_locally
   const isFeed = mode === 'feed';
   // svelte-ignore state_referenced_locally
-  let pageSize = $state(initialPageSize);
+  let pageSize = $state(servedPageSize(initialPageSize));
 
   const queryClient = useQueryClient();
   let ROW_HEIGHT = $derived(textSizeRowHeight($appearance.textSize));

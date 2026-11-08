@@ -7,6 +7,13 @@ export const first: CursorStack = [null];
 
 export type CountMode = 'none' | 'on-demand';
 
+// The page sizes the pager offers. The API serves at most 100 rows a page and answers a larger ask with 100.
+export const PAGE_SIZES: readonly number[] = [25, 50, 100];
+
+export function servedPageSize(size: number): number {
+  return Math.min(size, PAGE_SIZES[PAGE_SIZES.length - 1]);
+}
+
 export interface PagingState {
   filterKey: string;
   stack: CursorStack;
