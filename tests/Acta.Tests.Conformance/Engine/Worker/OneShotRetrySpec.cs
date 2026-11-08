@@ -82,6 +82,26 @@ public sealed class OneShotRetrySpec : ActaRuntimeTestBase<ConformanceFixture, T
         Assert.Equal(expected, attempts);
     }
 
+    [Fact(DisplayName = "A retry within budget records the failed attempt and the re-arm at Audit, with one message, worker, and instant")]
+    public async Task A_retry_records_the_failed_attempt_and_the_rearm()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        RetryProbe.Reset(TestNamespace);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "retry-probe", JobPayload.None), ct);
+
+        await Runtime.RunOnceAsync(enqueued, ct);
+
+        // The re-arm is the same shape a handler's reschedule takes, so the retry writes its event too.
+        var failed = await ReadSingleEventAsync(enqueued.JobId, EventCode.JobExecutionFailed, ct);
+        var rearmed = await ReadSingleEventAsync(enqueued.JobId, EventCode.JobRescheduled, ct);
+        Assert.Equal(JobStatusCode.Ready.Code, EventDetail(failed, "to"));
+        Assert.Equal(EventReason.UnhandledException, EventDetail(rearmed, "reason"));
+        Assert.Equal(
+            (failed.EventMessage, failed.WorkerId, failed.ExecutionNumber, failed.CreatedAtUtc),
+            (rearmed.EventMessage, rearmed.WorkerId, rearmed.ExecutionNumber, rearmed.CreatedAtUtc)
+        );
+    }
+
     [Fact(DisplayName = "A one-shot that throws twice and then succeeds reads no failures, and its success still counts as a recovery")]
     public async Task Success_resets_the_failure_count_and_still_records_the_recovery()
     {

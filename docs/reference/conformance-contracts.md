@@ -1114,6 +1114,7 @@
 - **Guarantees:**
   - In-budget failures re-arm to Ready bumping failure_count and an exhausted budget lands Failed with the failure reason preserved
   - A one-shot that throws twice and then succeeds records both retried attempts as failed at Audit recording
+  - A retry within budget records the failed attempt and the re-arm at Audit, with one message, worker, and instant
   - A one-shot that throws twice and then succeeds reads no failures, and its success still counts as a recovery
 
 ### Reset clears one job's substrate and emits an audit-gated state-reset event
