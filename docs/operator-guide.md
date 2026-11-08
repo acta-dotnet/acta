@@ -1319,7 +1319,17 @@ SELECT e.event_id, e.created_at_utc, e.event, e.execution_number, e.duration_ms,
  ORDER BY e.created_at_utc, e.event_id;
 ```
 
-`:job_ref` takes the form [Common queries](#common-queries) gives for each provider.
+`:job_ref` takes the form [Common queries](#common-queries) gives for each provider. The join needs the
+job's row, and events outlive it: once job retention or a purge has removed the row, read the job's
+remaining events by its internal id, which its event rows (`entity_id`) and its attempts' log scope
+(`ActaJobId`) carry.
+
+```sql
+SELECT e.event_id, e.created_at_utc, e.event, e.execution_number, e.duration_ms, e.event_message, e.details_format, e.details_text
+  FROM acta.events_view e
+ WHERE e.entity = 'job' AND e.entity_id = :job_id
+ ORDER BY e.created_at_utc, e.event_id;
+```
 
 `events_view` is a readable ledger, not a rollup. The `jobs_view` row tells you where work is now;
 events tell you why it moved. `details_text` decodes `json` event details; binary
