@@ -2,6 +2,7 @@ using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Engine.Catalog;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Xunit;
 
 namespace Acta.Tests.Conformance.Engine.Worker;
@@ -27,7 +28,7 @@ public sealed class WorkerStartGateSpec : ActaStorageTestBase<ConformanceFixture
         DeployFirstManifest.Descriptors.Descriptors.Single(d => d.JobName == DeployFirstManifest.ChangedJob).MaxAttempts;
 
     /// <summary>One build as its own process would be: its manifest in <paramref name="ns"/>, running as <paramref name="version"/>.</summary>
-    private ServiceProvider Build<TManifest>(string ns, string version)
+    private ServiceProvider Build<TManifest>(string ns, string version, ILogger<CatalogDeployer>? deployLog = null)
         where TManifest : class, IJobManifest
     {
         var services = new ServiceCollection();
@@ -41,6 +42,10 @@ public sealed class WorkerStartGateSpec : ActaStorageTestBase<ConformanceFixture
             o.DeploymentVersion = version;
             o.RunSystemJobs = false;
         });
+        if (deployLog is not null)
+        {
+            services.AddSingleton(deployLog);
+        }
         return services.BuildServiceProvider(validateScopes: true);
     }
 
@@ -206,6 +211,30 @@ public sealed class WorkerStartGateSpec : ActaStorageTestBase<ConformanceFixture
     }
 
     [Fact(
+        DisplayName = "A start under MigrateOnStartup in a recorded namespace names jobs deploy only when another version is deployed there"
+    )]
+    public async Task A_startup_deploy_names_jobs_deploy_only_when_another_version_is_deployed()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var ns = Unique("gate-hint");
+        await using var deployed = Build<DeployFirstManifest>(ns, First);
+        await DeployRecordedAsync(deployed, ct);
+
+        var sameLog = new DeployLog();
+        await using var same = Build<DeployFirstManifest>(ns, First, sameLog);
+        await DeployUnrecordedAsync(same, ct);
+        var otherLog = new DeployLog();
+        await using var other = Build<DeployFirstManifest>(ns, Second, otherLog);
+        await DeployUnrecordedAsync(other, ct);
+
+        Assert.Empty(sameLog.Lines);
+        Assert.Equal(
+            $"Namespace ({ns}): a deploy step has deployed it (version {First}), so this start under MigrateOnStartup writes no definition or schedule there. Run the app with 'jobs deploy' to deploy this build.",
+            Assert.Single(otherLog.Lines)
+        );
+    }
+
+    [Fact(
         DisplayName = "A debug start runs on what is stored: from a build that has not deployed, declaring a job with no definition, writing none"
     )]
     public async Task A_debug_start_runs_on_what_is_stored_and_writes_no_definition()
@@ -229,5 +258,24 @@ public sealed class WorkerStartGateSpec : ActaStorageTestBase<ConformanceFixture
 
         await using var nowhere = Build<DeployFirstManifest>(Unique("gate-debug-absent"), First);
         await Assert.ThrowsAsync<InvalidOperationException>(() => Runtime(nowhere).InitializeAsync(ct, debug: true));
+    }
+
+    /// <summary>Every line a deploy writes, as it would read in the log.</summary>
+    private sealed class DeployLog : ILogger<CatalogDeployer>
+    {
+        public List<string> Lines { get; } = [];
+
+        public IDisposable? BeginScope<TState>(TState state)
+            where TState : notnull => null;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(
+            LogLevel logLevel,
+            EventId eventId,
+            TState state,
+            Exception? exception,
+            Func<TState, Exception?, string> formatter
+        ) => Lines.Add(formatter(state, exception));
     }
 }

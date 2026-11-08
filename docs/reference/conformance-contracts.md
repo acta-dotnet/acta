@@ -2661,6 +2661,7 @@
   - An earlier deployed build starts beside the current one and runs a job that differs under the stored policy
   - A worker refuses to start when its build declares a job with no definition, and names the job
   - A start under MigrateOnStartup deploys a namespace no verb has recorded, records nothing, and leaves a recorded one as it is
+  - A start under MigrateOnStartup in a recorded namespace names jobs deploy only when another version is deployed there
   - A debug start runs on what is stored: from a build that has not deployed, declaring a job with no definition, writing none
 
 ### A worker start writes nothing in the catalog and takes no schedule lock

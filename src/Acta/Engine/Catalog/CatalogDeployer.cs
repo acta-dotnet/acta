@@ -86,7 +86,7 @@ internal sealed class CatalogDeployer(
             var start = started[ns];
             if (!recorded && start.CurrentDeploymentVersion is { } deployedVersion)
             {
-                if (log.IsEnabled(LogLevel.Information))
+                if (!string.Equals(deployedVersion, version, StringComparison.Ordinal) && log.IsEnabled(LogLevel.Information))
                 {
                     var detail = $"version {deployedVersion}";
                     ActaLog.StartupDeploySkipped(log, ns, detail);
