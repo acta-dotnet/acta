@@ -48,7 +48,7 @@
   );
 
   const columns: ColumnDef<DefinitionRow>[] = [
-    { key: 'jobName', header: 'Name' },
+    { key: 'jobName', header: 'Name', class: 'grow' },
     { key: 'jobNamespace', header: 'Namespace', dimRepeats: true },
     { key: 'status', header: 'Status' },
     { key: 'inputTypeName', header: 'Input', class: 'mono mobile-hide' },
@@ -84,9 +84,9 @@
     </FilterBar>
     <ActiveFilters chips={activeChips} onClearAll={() => { filters.clear(); setScope(''); }} />
     {#snippet statusCell(def: DefinitionRow)}<StatusBadge status={def.status} />{/snippet}
-    {#snippet nameCell(def: DefinitionRow)}<a href={detailHref(def)}>{def.jobName}</a> <a class="jobs-drill" href={jobsHref(def)} title="View this definition's jobs" aria-label="View this definition's jobs"><Icon name="chevron-right" /></a>{/snippet}
-    {#snippet inputCell(def: DefinitionRow)}<span title={def.inputTypeName}>{displayFormatter.typeName(def.inputTypeName)}</span>{/snippet}
-    {#snippet resultCell(def: DefinitionRow)}<span title={def.resultTypeName ?? ''}>{displayFormatter.typeName(def.resultTypeName)}</span>{/snippet}
+    {#snippet nameCell(def: DefinitionRow)}<span class="def-cell"><a class="def-name" href={detailHref(def)} title={def.jobName}>{def.jobName}</a><a class="jobs-drill" href={jobsHref(def)} title="View this definition's jobs" aria-label="View this definition's jobs"><Icon name="chevron-right" /></a></span>{/snippet}
+    {#snippet inputCell(def: DefinitionRow)}<span class="type-name" title={def.inputTypeName}>{displayFormatter.typeName(def.inputTypeName)}</span>{/snippet}
+    {#snippet resultCell(def: DefinitionRow)}<span class="type-name" title={def.resultTypeName ?? ''}>{displayFormatter.typeName(def.resultTypeName)}</span>{/snippet}
     {#snippet priorityCell(def: DefinitionRow)}{def.priorityEffective}{#if def.priorityOverride != null}<span class="ovr" title="operator override">*</span>{/if}{/snippet}
     {#snippet attemptsCell(def: DefinitionRow)}{displayFormatter.number(def.maxAttemptsEffective)}{#if def.maxAttemptsOverride != null}<span class="ovr" title="operator override">*</span>{/if}{/snippet}
     {#snippet concurrencyCell(def: DefinitionRow)}{#if def.concurrencyLimitEffective == null}<span title="No limit set: a job enqueued with a concurrency key still runs one at a time per key">none</span>{:else}{displayFormatter.number(def.concurrencyLimitEffective)}{/if}{#if def.concurrencyLimitOverride != null}<span class="ovr" title="operator override">*</span>{/if}{/snippet}
@@ -119,6 +119,19 @@
 </Page>
 
 <style>
+  /* The name takes the row's slack and gives it back first when the panel is narrow, ending in an
+     ellipsis before the chevron rather than hiding it. */
+  .def-cell { display: flex; align-items: center; }
+  .def-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .jobs-drill { flex: none; }
+  /* A long type name ends in an ellipsis; its tooltip and the definition page show it whole. */
+  .type-name {
+    display: inline-block;
+    max-width: 16ch;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    vertical-align: bottom;
+  }
   /* Row drill-through to the definition's jobs: quiet chevron that takes the accent on hover. */
   .jobs-drill { color: var(--muted); margin-left: 4px; }
   .jobs-drill:hover { color: var(--accent); }

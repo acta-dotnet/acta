@@ -837,6 +837,7 @@ table.data th {
   box-shadow: 0 1px 0 var(--line);
   padding: 8px 10px;
   white-space: nowrap;
+  vertical-align: bottom;
 }
 /* Single-line, vertically centred, fixed-height rows so every table reads at the same rhythm across
    panels. Tables sit in .table-wrap (overflow:auto), so wide content scrolls horizontally rather than
@@ -858,6 +859,8 @@ table.data td.shrink { width: 1%; white-space: nowrap; }
    narrow, ending its text in an ellipsis, so the last columns stay in view. */
 table.data th.grow,
 table.data td.grow { width: 100%; max-width: 0; overflow: hidden; text-overflow: ellipsis; }
+/* A number column's header may wrap, so a long label over short values never sets the column's width. */
+table.data th.col-num { white-space: normal; }
 table.data tr:last-child td { border-bottom: none; }
 /* Opt a cell out of the single-line row rhythm, for prose columns like a change reason. */
 table.data td.wrap { white-space: normal; }

@@ -209,8 +209,9 @@ function formatMilliseconds(milliseconds: number): string {
   return `${formatNumber(milliseconds)} ms`;
 }
 
+// Acta.NoInput stands in for the input of a handler that takes none, so it reads none, as the job page does.
 function formatTypeName(typeName: string | null | undefined): string {
-  if (!typeName) return 'none';
+  if (!typeName || typeName === 'Acta.NoInput') return 'none';
 
   const noAssembly = typeName.split(',')[0];
   const lastDot = noAssembly.lastIndexOf('.');

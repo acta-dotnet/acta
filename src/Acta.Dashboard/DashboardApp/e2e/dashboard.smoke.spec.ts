@@ -115,6 +115,8 @@ async function mockDashboard(
     workers?: unknown[];
     // The rows the Jobs list reads; the one failed job unless a test names them.
     jobs?: unknown[];
+    // The rows the Definitions list reads; send-invoice alone unless a test names them.
+    definitions?: unknown[];
     // The namespaces the host has; billing alone unless a test names them.
     namespaces?: string[];
     // The permissions capabilities say the caller holds; all four unless a test names them.
@@ -212,7 +214,7 @@ async function mockDashboard(
         const next = start + 100 < all.length ? (start === 0 ? 'page-2' : 'page-3') : null;
         return json({ items, nextCursor: next, hasMore: next !== null, pageSize: 100, totalCount: all.length });
       }
-      return json(paged([definition('send-invoice')]));
+      return json(paged(options.definitions ?? [definition('send-invoice')]));
     }
     if (path === 'tenants') return json(paged([]));
     if (path === 'calendars') {
@@ -841,6 +843,63 @@ test('the Jobs table shows every column at a 1440 px viewport', async ({ page })
   const wrapBox = (await wrap.boundingBox())!;
   const attemptsBox = (await wrap.getByRole('columnheader', { name: 'Attempts' }).boundingBox())!;
   expect(attemptsBox.x + attemptsBox.width).toBeLessThanOrEqual(wrapBox.x + wrapBox.width);
+});
+
+// A first look at the catalog: the first-job sample's two jobs, the system jobs, which take no input, and two app jobs
+// with longer names and limits.
+const firstLookDefinition = (jobName: string, inputTypeName: string, resultTypeName: string | null, limits: object = {}) => ({
+  jobNamespace: 'quickstart',
+  jobName,
+  status: 'active',
+  inputTypeName,
+  resultTypeName,
+  priorityEffective: 'normal',
+  priorityOverride: null,
+  maxAttemptsEffective: 15,
+  maxAttemptsOverride: null,
+  concurrencyLimitEffective: null,
+  concurrencyLimitOverride: null,
+  rateLimitEffective: null,
+  rateLimitOverride: null,
+  rateName: null,
+  modifiedAtUtc: timestamp,
+  ...limits
+});
+const firstLookDefinitions = [
+  firstLookDefinition('print-label', 'Shipping.PrintLabel', null, { maxAttemptsEffective: 1 }),
+  firstLookDefinition('ship-order', 'Shipping.ShipOrder', 'Shipping.ShipmentLabel'),
+  firstLookDefinition('sys.alerts', 'Acta.NoInput', null, { priorityEffective: 'high', concurrencyLimitEffective: 1 }),
+  firstLookDefinition('sys.retention', 'Acta.NoInput', null, { concurrencyLimitEffective: 1 }),
+  firstLookDefinition('reports.nightly-revenue-summary', 'Quickstart.Reports.RevenueSummaryRequest', 'Quickstart.Reports.RevenueSummary', {
+    concurrencyLimitEffective: 1
+  }),
+  firstLookDefinition('send-invoice', 'Quickstart.Billing.SendInvoice', 'Quickstart.Billing.InvoiceReceipt', {
+    maxAttemptsEffective: 5,
+    maxAttemptsOverride: 5,
+    concurrencyLimitEffective: 4,
+    rateLimitEffective: '100/1m',
+    rateName: 'stripe'
+  })
+];
+
+test('the Definitions table shows every column at a 1440 px viewport, and a job with no input reads none', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await mockDashboard(page, { controls: true, definitions: firstLookDefinitions });
+  await page.goto('/#/definitions');
+
+  const wrap = page.locator('.table-wrap');
+  await expect(wrap.getByRole('link', { name: 'ship-order', exact: true })).toBeVisible();
+  expect(await wrap.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+  const wrapBox = (await wrap.boundingBox())!;
+  const modifiedBox = (await wrap.getByRole('columnheader', { name: 'Modified' }).boundingBox())!;
+  expect(modifiedBox.x + modifiedBox.width).toBeLessThanOrEqual(wrapBox.x + wrapBox.width);
+  // A name too long for its share ends in an ellipsis and keeps its link to the definition's jobs.
+  const reportsRow = wrap.getByRole('row').filter({ has: page.getByRole('link', { name: 'reports.nightly-revenue-summary', exact: true }) });
+  const nameBox = (await reportsRow.locator('td').first().boundingBox())!;
+  const drillBox = (await reportsRow.getByRole('link', { name: "View this definition's jobs" }).boundingBox())!;
+  expect(drillBox.x + drillBox.width).toBeLessThanOrEqual(nameBox.x + nameBox.width);
+  const alertsRow = wrap.getByRole('row').filter({ has: page.getByRole('link', { name: 'sys.alerts', exact: true }) });
+  await expect(alertsRow.locator('td[data-label="Input"]')).toHaveText('none');
 });
 
 test('appearance defaults, themes, accents, text sizing, persistence, and reset stay coherent', async ({ page }) => {
