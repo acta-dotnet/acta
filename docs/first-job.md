@@ -214,7 +214,8 @@ operator verbs that apply right now. It is the same explanation the dashboard sh
 `jobs.CancelAsync(lookup, reasonMessage: ...)` is applied while the job has not finished: a queued or
 delayed job never runs, a running handler sees its `CancellationToken` cancelled. A finished job answers
 `Rejected` and keeps its outcome. The reason is the message of the job's `job.cancelled` event, and
-an `actor:` argument, when given, goes into that event's details.
+an `actor:` argument, when given, goes into that event's details; the event is written at the default
+`Audit` recording level.
 
 ### A wait timeout is not a cancellation
 
@@ -236,9 +237,10 @@ ORDER  BY created_at_utc DESC;
 
 On SQLite the views' `_utc` columns hold Unix epoch milliseconds: `datetime(created_at_utc / 1000, 'unixepoch')` renders one as UTC text.
 
-`events_view` holds each job's append-only timeline: an event for each attempt's outcome and each
-control, such as a cancel. `event_message` carries a control's reason and `details_text` its JSON
-details, the actor among them when the call named one. The enqueue writes no event.
+`events_view` holds each job's append-only timeline: at the default `Audit` recording level, an event
+for each attempt's outcome and each control, such as a cancel; a definition at `Failures` keeps its
+failures alone. `event_message` carries a control's reason and `details_text` its JSON details, the
+actor among them when the call named one. The enqueue writes no event.
 
 ## The first test
 
