@@ -318,10 +318,10 @@ internal sealed class HandlerInvocation(
 
     private ExecutionCompletion Faulted(Exception ex, bool inputDeserialized, JobDescriptor descriptor, ClaimedJob job)
     {
-        // A failure retrying cannot change, a programming error or an exhausted at-most-once step that throws again on
-        // every replay, lands terminal Failed through the same completion branch as ctx.FailAsync, leaving the retry
-        // budget untouched.
-        var nonRetryable = ex is NotImplementedException or NotSupportedException or StepExhaustedException;
+        // A failure retrying cannot change, a programming error, an exhausted at-most-once step that throws again on
+        // every replay, or a handler DI cannot build from the same registrations, lands terminal Failed through the
+        // same completion branch as ctx.FailAsync, leaving the retry budget untouched.
+        var nonRetryable = ex is NotImplementedException or NotSupportedException or StepExhaustedException or HandlerActivationException;
         if (!inputDeserialized && log.IsEnabled(LogLevel.Warning))
         {
             ActaLog.InputDeserializationFailed(log, ex, descriptor.JobName, new JobRef(job.JobRef).ToString());

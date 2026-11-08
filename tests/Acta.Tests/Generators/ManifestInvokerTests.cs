@@ -34,6 +34,40 @@ public sealed class ManifestInvokerTests
         Assert.Equal(["Run", "Dispose", "Run", "DisposeAsync"], log.Calls);
     }
 
+    // A handler DI cannot build fails as HandlerActivationException, which the worker never retries, whether the
+    // invoker constructs it or a registration of the handler itself cannot be resolved.
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task A_handler_whose_dependency_is_not_registered_throws_HandlerActivationException(bool handlerRegistered)
+    {
+        var services = new ServiceCollection();
+        if (handlerRegistered)
+        {
+            services.AddScoped<MissingServiceProbe>();
+        }
+
+        var ex = await Assert.ThrowsAsync<HandlerActivationException>(() => InvokeAsync(services, "missing-service-probe"));
+
+        var inner = Assert.IsType<InvalidOperationException>(ex.InnerException);
+        Assert.Equal($"Handler 'TestJobs.MissingServiceProbe' cannot be activated: {inner.Message}", ex.Message);
+        Assert.Contains("'TestJobs.UnregisteredDependency'", inner.Message, StringComparison.Ordinal);
+    }
+
+    // A scope that shutdown already tore down is no fault of the handler's registrations, so the attempt keeps its retry.
+    [Fact]
+    public async Task A_disposed_scope_is_not_an_activation_failure()
+    {
+        await using var provider = new ServiceCollection().BuildServiceProvider();
+        var scope = provider.CreateAsyncScope();
+        await scope.DisposeAsync();
+        var descriptor = TestJobsManifest.Descriptors.Descriptors.Single(d => d.JobName == "missing-service-probe");
+
+        await Assert.ThrowsAsync<ObjectDisposedException>(async () =>
+            await descriptor.Invoker(scope.ServiceProvider, new NoInput(), null!, TestContext.Current.CancellationToken)
+        );
+    }
+
     private static async Task<JobHandlerOutput> InvokeAsync(IServiceCollection services, string jobName)
     {
         await using var provider = services.BuildServiceProvider();

@@ -16,6 +16,16 @@ public sealed class TypedClientProbe(HttpClient http)
     public string Run() => http.BaseAddress?.ToString() ?? "no base address";
 }
 
+/// <summary>A service no test registers, so a handler that takes it cannot be built.</summary>
+public sealed class UnregisteredDependency;
+
+/// <summary>Probe for a handler DI cannot build: its constructor takes <see cref="UnregisteredDependency"/>.</summary>
+public sealed class MissingServiceProbe(UnregisteredDependency dependency)
+{
+    [Job("missing-service-probe")]
+    public string Run() => dependency.GetType().Name;
+}
+
 /// <summary>Probe for handler disposal on a throwing attempt.</summary>
 public sealed class DisposableProbe(DisposalLog log) : IDisposable
 {

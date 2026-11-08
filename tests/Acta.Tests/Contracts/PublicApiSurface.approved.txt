@@ -1080,6 +1080,8 @@ sealed record Acta.GetWorkerResponse
     System.String EngineVersion { get;init; }
     System.String HostName { get;init; }
     System.String JobNamespace { get;init; }
+sealed class Acta.HandlerActivationException : System.InvalidOperationException
+    .ctor(System.Type handlerType, System.Exception innerException)
 sealed class Acta.HandlerCancelException : Acta.HandlerControlException
     .ctor(System.String reasonMessage = null)
 abstract class Acta.HandlerControlException : Acta.JobControlException

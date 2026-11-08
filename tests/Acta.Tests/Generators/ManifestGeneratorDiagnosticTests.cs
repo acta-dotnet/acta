@@ -2055,6 +2055,9 @@ public class ManifestGeneratorDiagnosticTests
             public sealed class CancellationToken { }
             public sealed class ValueTask { }
             public sealed class ActivatorUtilities { }
+            public sealed class InvalidOperationException { }
+            public sealed class ObjectDisposedException { }
+            public sealed class HandlerActivationException { }
 
             public sealed record Greeting(string Name);
 

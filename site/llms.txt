@@ -102,7 +102,7 @@ public static class ShippingHandlers
   included: `jobs.EnqueueAsync(new ShipOrder(orderId), o => o.DeduplicationKey(key))`. A handler may take several input parameters before `JobContext` and
   `CancellationToken`; they travel as one generated record, `ShippingJobs.{Job}Args`, whose parameter names
   are stored JSON keys. Under Native AOT, declare the input record yourself and take it as the one parameter.
-- Handlers resolve through DI: an instance class's constructor dependencies must be registered.
+- Handlers resolve through DI: an instance class's constructor dependencies must be registered. One DI cannot build fails its job on the first attempt with `HandlerActivationException`, never retried, and the message names the missing service.
 
 ## Wiring rules by situation
 

@@ -545,7 +545,7 @@ For large files, exports, media, archives, reports, or model inputs, store the b
 
 Unhandled exceptions escape the handler and are captured as attempt failures. The framework records the exception's `Message`, truncated to 512 characters, as the attempt's failure message, at the job's event recording level; retry policy decides whether the job retries or becomes terminal. Nothing redacts that message: it is shown on the read surface and sent to alert channels, so keep secrets and personal data out of exception messages.
 
-`NotImplementedException`, `NotSupportedException`, and an uncaught `StepExhaustedException` are non-retryable: the job lands terminal `Failed` immediately (reason `non-retryable-exception`) without consuming retry budget, since retrying cannot change the outcome. A permanent job instead settles that firing as failed and returns to `Idle` for its next one, as a spent budget does. For custom non-retryable types, call `ctx.FailAsync` in the handler or register a pipeline behavior that translates them.
+`NotImplementedException`, `NotSupportedException`, an uncaught `StepExhaustedException`, and a `HandlerActivationException` for a handler DI cannot build ([Lifecycle and visibility](#lifecycle-and-visibility)) are non-retryable: the job lands terminal `Failed` immediately (reason `non-retryable-exception`) without consuming retry budget, since retrying cannot change the outcome. A permanent job instead settles that firing as failed and returns to `Idle` for its next one, as a spent budget does. For custom non-retryable types, call `ctx.FailAsync` in the handler or register a pipeline behavior that translates them.
 
 Handlers should not return failure-as-result unless the domain considers that a successful outcome.
 
@@ -598,6 +598,8 @@ The handler honors the token; the framework records the cause and chooses the fi
 Instance handlers resolve from a DI scope created for each attempt, so no registration is required; handler methods and their types must not be private, and a handler method cannot be generic.
 
 A handler type registered in DI, such as a typed client from `AddHttpClient<WebhookJobs>()`, is resolved as registered and DI owns its lifetime. A Singleton registration is one instance shared by every concurrent attempt, so it must be thread-safe. An unregistered handler type is constructed from the attempt scope and disposed when the attempt ends, through `DisposeAsync` when it has one; a dispose that throws fails the attempt like a handler exception.
+
+A handler DI cannot build, such as one whose constructor takes a service nobody registered, fails its job on the first attempt with `HandlerActivationException` (reason `non-retryable-exception`) and is never retried, since every retry would build it from the same registrations. Its message names the handler type and the missing service, and the job's failure, `jobs explain`, and the final-failure alert carry it. Register the service, deploy, and restart the job.
 
 ### Diagnostics
 

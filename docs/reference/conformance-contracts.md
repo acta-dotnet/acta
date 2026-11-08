@@ -685,6 +685,7 @@
 - **Guarantees:**
   - Handler fail lands terminal Failed with budget untouched, no result, the matching reason, and no post-control user code
   - A non-retryable exception lands terminal Failed without retries
+  - A handler DI cannot build lands terminal Failed on its first attempt, names the missing service, and raises its final-failure alert
   - Handler cancel lands terminal Cancelled with the matching reason, no result, and a JobCancelled lifecycle event
   - Handler pause holds Paused with a next run, the matching reason, no result, and a JobPaused lifecycle event
   - A handler-paused job resumes to Ready via external control

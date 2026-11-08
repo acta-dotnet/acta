@@ -75,6 +75,33 @@ public sealed class HandlerControlSpec : ActaRuntimeTestBase<ConformanceFixture,
         Assert.Equal(RunOnceStatus.NothingClaimed, await Runtime.RunOnceAsync(TestNamespace, enqueued.JobId, ct));
     }
 
+    [Fact(
+        DisplayName = "A handler DI cannot build lands terminal Failed on its first attempt, names the missing service, and raises its final-failure alert"
+    )]
+    public async Task Handler_di_cannot_build_lands_terminal_failed_on_its_first_attempt()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "missing-service-probe", JobPayload.None), ct);
+
+        Assert.Equal(RunOnceStatus.Failed, await Runtime.RunOnceAsync(enqueued, ct));
+
+        var job = await ReadJobAsync(enqueued.JobId, ct);
+        Assert.Equal(JobStatusCode.Failed, job.Status);
+        Assert.Equal(0, job.FailureCount);
+        var finishedEvent = await ReadLatestEventAsync(enqueued.JobId, EventCode.JobFailed, ct);
+        Assert.Equal(EventReason.NonRetryableException, EventDetail(finishedEvent, "reason"));
+        Assert.Equal(0, await CountEventsAsync(enqueued.JobId, EventCode.JobExecutionFailed, ct));
+
+        var explained = await Jobs.ExplainAsync(enqueued, ct);
+        Assert.Contains("'TestJobs.UnregisteredDependency'", explained!.Reason, StringComparison.Ordinal);
+
+        var namespaceId = Runtime.RegisteredNamespaceIds[TestNamespace];
+        await AlertTestOps.RunAlertsJobAsync(Services, TestNamespace, namespaceId, enqueued.JobId, options: null, drain: null, ct);
+        var alert = Assert.Single(await ReadAlertsAsync(namespaceId, ct), a => a.JobId == enqueued.JobId);
+        Assert.Equal(AlertKindCode.FinalFailure, alert.Kind);
+        Assert.Contains("'TestJobs.UnregisteredDependency'", alert.AlertMessage, StringComparison.Ordinal);
+    }
+
     [Fact(DisplayName = "Handler cancel lands terminal Cancelled with the matching reason, no result, and a JobCancelled lifecycle event")]
     public async Task Cancel_ends_terminal_cancelled_and_emits_job_cancelled()
     {

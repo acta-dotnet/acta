@@ -43,6 +43,24 @@ public sealed class WorkerExecutorOutcomeTests
         Assert.Null(harness.Completion.RescheduleEventCode);
     }
 
+    // Every retry would build the handler from the same registrations, while the handler's own
+    // InvalidOperationException, its base type, still retries.
+    [Theory]
+    [InlineData(true, EventReason.NonRetryableException)]
+    [InlineData(false, EventReason.UnhandledException)]
+    public async Task A_handler_DI_cannot_build_fails_the_job_at_once(bool activation, string reason)
+    {
+        var harness = new WorkerExecutorHarness(maxAttempts: 10);
+        var missing = new InvalidOperationException("Unable to resolve service for type 'Clock' while attempting to activate 'Biller'.");
+        Exception thrown = activation ? new HandlerActivationException(typeof(WorkerExecutorOutcomeTests), missing) : missing;
+
+        var outcome = await harness.RunAsync((_, _) => throw thrown);
+
+        Assert.Equal(activation ? RunOnceStatus.Failed : RunOnceStatus.Rearmed, outcome);
+        Assert.Equal(reason, harness.Completion.Reason);
+        Assert.Equal(thrown.Message, harness.Completion.EventMessage);
+    }
+
     [Fact]
     public async Task A_handler_that_throws_with_budget_left_logs_its_ref_attempt_and_retry()
     {

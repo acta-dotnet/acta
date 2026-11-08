@@ -413,7 +413,9 @@ internal static class ManifestSourceWriter
         // Static handlers call the type directly. An instance handler registered in the per-attempt
         // scope is used as resolved and left to DI; otherwise the invoker constructs it from that scope
         // and owns it like an `await using` local: disposed on every exit, DisposeAsync first, and a
-        // throwing dispose fails the attempt as any handler exception does.
+        // throwing dispose fails the attempt as any handler exception does. DI reports a handler it
+        // cannot build as an InvalidOperationException, which becomes HandlerActivationException; an
+        // ObjectDisposedException, also one, is a scope torn down by shutdown and stays retryable.
         var method = GeneratorText.EscapeIdentifier(j.MethodName);
         string target;
         if (j.IsStaticMethod)
@@ -422,17 +424,29 @@ internal static class ManifestSourceWriter
         }
         else
         {
-            var construct =
-                $"global::Microsoft.Extensions.DependencyInjection.ActivatorUtilities.CreateInstance<{handlerType}>(attemptServices)";
-            sb.AppendLine($"        var registered = ({handlerType}?)attemptServices.GetService(typeof({handlerType}));");
+            sb.AppendLine($"        {handlerType}? registered;");
+            sb.AppendLine($"        {handlerType}? constructed;");
+            sb.AppendLine("        try");
+            sb.AppendLine("        {");
+            sb.AppendLine($"            registered = ({handlerType}?)attemptServices.GetService(typeof({handlerType}));");
+            sb.AppendLine(
+                $"            constructed = registered is null ? global::Microsoft.Extensions.DependencyInjection.ActivatorUtilities.CreateInstance<{handlerType}>(attemptServices) : null;"
+            );
+            sb.AppendLine("        }");
+            sb.AppendLine(
+                "        catch (global::System.InvalidOperationException activation) when (activation is not global::System.ObjectDisposedException)"
+            );
+            sb.AppendLine("        {");
+            sb.AppendLine($"            throw new global::Acta.HandlerActivationException(typeof({handlerType}), activation);");
+            sb.AppendLine("        }");
             if (DisposeStatement(j.HandlerType!) is { } dispose)
             {
-                sb.AppendLine($"        {dispose} var owned = registered is null ? {construct} : null;");
+                sb.AppendLine($"        {dispose} var owned = constructed;");
                 sb.AppendLine("        var handler = registered ?? owned!;");
             }
             else
             {
-                sb.AppendLine($"        var handler = registered ?? {construct};");
+                sb.AppendLine("        var handler = registered ?? constructed!;");
             }
             target = $"handler.{method}({argList})";
         }
