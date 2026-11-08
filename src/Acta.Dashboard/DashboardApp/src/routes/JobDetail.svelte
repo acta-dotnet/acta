@@ -218,6 +218,7 @@
             polling={!TERMINAL_STATUSES.includes(job.status)}
             nextRunAtUtc={TERMINAL_STATUSES.includes(job.status) ? null : job.nextRunAtUtc}
             initialAttempt={focusExecution}
+            permanent={job.kind === 'permanent'}
             onEventsChange={(loaded) => (events = loaded)} />
           <div class="support-row">
             <CopyButton value={JSON.stringify(job, null, 2)} label="Copy raw snapshot" showLabel={true} />

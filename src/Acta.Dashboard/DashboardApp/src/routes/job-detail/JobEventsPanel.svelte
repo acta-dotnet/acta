@@ -16,12 +16,14 @@
     polling = true,
     nextRunAtUtc = null,
     initialAttempt = null,
+    permanent = false,
     onEventsChange = () => {}
   }: {
     jobRef: string;
     polling?: boolean;
     nextRunAtUtc?: string | null;
     initialAttempt?: number | null;
+    permanent?: boolean;
     onEventsChange?: (events: EventItem[]) => void;
   } = $props();
 
@@ -65,6 +67,7 @@
       {events}
       {nextRunAtUtc}
       {initialAttempt}
+      {permanent}
       hasMore={history.hasNextPage}
       loadingMore={history.isFetchingNextPage}
       onLoadMore={() => history.fetchNextPage()} />
@@ -77,7 +80,7 @@
       <summary>Raw events ({displayFormatter.number(events.length)} loaded) <span class="dim">· {displayFormatter.zoneNote($now)}</span></summary>
       <DataTable>
         <caption class="sr-only">Loaded raw job events</caption>
-        <thead><tr><th>Time</th><th>Event</th><th class="col-num">Attempt</th><th class="col-num">Duration</th><th>Message</th><th>Details</th></tr></thead>
+        <thead><tr><th>Time</th><th>Event</th><th class="col-num">{permanent ? 'Execution' : 'Attempt'}</th><th class="col-num">Duration</th><th>Message</th><th>Details</th></tr></thead>
         <tbody>
           {#each events as event (event.eventId)}
             <tr>

@@ -16,8 +16,12 @@
     hasMore = false,
     loadingMore = false,
     onLoadMore = () => {},
-    initialAttempt = null
+    initialAttempt = null,
+    permanent = false
   } = $props();
+
+  // A permanent job's execution number counts every firing's executions, so it is no attempt within a budget.
+  let unit = $derived(permanent ? 'Execution' : 'Attempt');
 
   // Deliberate initial capture: the panel remounts per tab switch, re-reading the handoff.
   // svelte-ignore state_referenced_locally
@@ -74,11 +78,11 @@
 
 <div class="timeline-tools" aria-label="Timeline filters">
   <label>
-    Attempt
+    {unit}
     <select bind:value={attemptFilter}>
-      <option value="all">All loaded attempts</option>
+      <option value="all">All loaded {unit.toLowerCase()}s</option>
       {#each attemptNumbers as attempt}
-        <option value={String(attempt)}>{attempt === 0 ? 'Lifecycle' : 'Attempt ' + displayFormatter.number(attempt)}</option>
+        <option value={String(attempt)}>{attempt === 0 ? 'Lifecycle' : unit + ' ' + displayFormatter.number(attempt)}</option>
       {/each}
     </select>
   </label>
@@ -97,7 +101,7 @@
     <input bind:value={eventFilter} placeholder="e.g. job.execution" />
   </label>
   {#if failedAttempts.length > 0}
-    <button onclick={jumpToFailedAttempt}>Jump to latest failed attempt</button>
+    <button onclick={jumpToFailedAttempt}>Jump to latest failed {unit.toLowerCase()}</button>
   {/if}
 </div>
 
@@ -108,7 +112,7 @@
     {#each attempts as [attempt, steps]}
       <div class="timeline-attempt" id={'attempt-' + attempt}>
         <div class="timeline-eyebrow">
-          <span class:flag={failedAttempts.includes(attempt)}>{attempt === 0 ? 'Lifecycle' : 'Attempt ' + displayFormatter.number(attempt)}</span>
+          <span class:flag={failedAttempts.includes(attempt)}>{attempt === 0 ? 'Lifecycle' : unit + ' ' + displayFormatter.number(attempt)}</span>
         </div>
         <ol class="rail">
           {#each steps as evt (evt.eventId)}
