@@ -19,12 +19,12 @@ SELECT
     a.channel_name,
     a.deduplication_key,
     a.occurrence_count,
-    a.resolved_at_utc,
-    a.acknowledged_at_utc,
+    strftime('%Y-%m-%dT%H:%M:%fZ', a.resolved_at_utc / 1000.0, 'unixepoch') AS resolved_at_utc,
+    strftime('%Y-%m-%dT%H:%M:%fZ', a.acknowledged_at_utc / 1000.0, 'unixepoch') AS acknowledged_at_utc,
     a.retry_count,
-    a.retry_after_utc,
-    a.created_at_utc,
-    a.modified_at_utc,
+    strftime('%Y-%m-%dT%H:%M:%fZ', a.retry_after_utc / 1000.0, 'unixepoch') AS retry_after_utc,
+    strftime('%Y-%m-%dT%H:%M:%fZ', a.created_at_utc / 1000.0, 'unixepoch') AS created_at_utc,
+    strftime('%Y-%m-%dT%H:%M:%fZ', a.modified_at_utc / 1000.0, 'unixepoch') AS modified_at_utc,
     a.version
 FROM {{schema}}.alerts AS a
 JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = a.namespace_id

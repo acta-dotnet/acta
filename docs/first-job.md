@@ -302,7 +302,7 @@ WHERE  namespace_name = 'shipping'
 ORDER  BY created_at_utc DESC;
 ```
 
-On SQLite the views' `_utc` columns hold Unix epoch milliseconds: `datetime(created_at_utc / 1000, 'unixepoch')` renders one as UTC text.
+On SQLite the views show their `_utc` columns as ISO 8601 UTC text, such as `2026-11-08T09:30:00.123Z`, which sorts in time order; the tables underneath keep Unix epoch milliseconds.
 
 `events_view` holds each job's append-only timeline: at the default `Audit` recording level, an event
 for each attempt's outcome and each control, such as a cancel; a definition at `Failures` keeps its

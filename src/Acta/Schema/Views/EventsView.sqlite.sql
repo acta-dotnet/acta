@@ -1,6 +1,6 @@
 SELECT
     e.event_id,
-    e.created_at_utc,
+    strftime('%Y-%m-%dT%H:%M:%fZ', e.created_at_utc / 1000.0, 'unixepoch') AS created_at_utc,
     ns.namespace_name,
     e.namespace_id,
     {{decode:entity:e.entity_code}} AS entity,

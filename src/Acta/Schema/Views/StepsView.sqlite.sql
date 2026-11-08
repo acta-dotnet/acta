@@ -16,8 +16,8 @@ SELECT
         ELSE 'custom-' || CAST(s.result_format_id AS TEXT)
     END AS result_format,
     CASE WHEN s.result_format_id = 1 /* JobPayloadFormat.Json */ THEN CAST(s.result AS TEXT) END AS result_text,
-    s.created_at_utc,
-    s.modified_at_utc,
+    strftime('%Y-%m-%dT%H:%M:%fZ', s.created_at_utc / 1000.0, 'unixepoch') AS created_at_utc,
+    strftime('%Y-%m-%dT%H:%M:%fZ', s.modified_at_utc / 1000.0, 'unixepoch') AS modified_at_utc,
     s.version
 FROM {{schema}}.steps AS s
 JOIN {{schema}}.jobs AS j ON j.job_id = s.job_id

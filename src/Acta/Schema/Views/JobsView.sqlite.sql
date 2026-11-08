@@ -32,15 +32,15 @@ SELECT
         ELSE 'custom-' || CAST(r.result_format_id AS TEXT)
     END AS result_format,
     CASE WHEN r.result_format_id = 1 /* JobPayloadFormat.Json */ THEN CAST(r.result AS TEXT) END AS result_text,
-    r.next_run_at_utc,
+    strftime('%Y-%m-%dT%H:%M:%fZ', r.next_run_at_utc / 1000.0, 'unixepoch') AS next_run_at_utc,
     r.execution_number,
     r.failure_count,
     r.leased_by_worker_id,
     w.host_name AS leased_by_worker_host_name,
-    r.lease_expires_at_utc,
-    r.retention_until_utc,
-    j.created_at_utc,
-    r.modified_at_utc,
+    strftime('%Y-%m-%dT%H:%M:%fZ', r.lease_expires_at_utc / 1000.0, 'unixepoch') AS lease_expires_at_utc,
+    strftime('%Y-%m-%dT%H:%M:%fZ', r.retention_until_utc / 1000.0, 'unixepoch') AS retention_until_utc,
+    strftime('%Y-%m-%dT%H:%M:%fZ', j.created_at_utc / 1000.0, 'unixepoch') AS created_at_utc,
+    strftime('%Y-%m-%dT%H:%M:%fZ', r.modified_at_utc / 1000.0, 'unixepoch') AS modified_at_utc,
     r.version,
     lane.lane_name
 FROM {{schema}}.jobs AS j

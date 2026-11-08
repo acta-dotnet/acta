@@ -8,7 +8,7 @@ SELECT
     c.checkpoint_kind_code,
     {{decode:job-checkpoint-status:c.checkpoint_status_code}} AS checkpoint_status,
     c.checkpoint_status_code,
-    c.due_at_utc,
+    strftime('%Y-%m-%dT%H:%M:%fZ', c.due_at_utc / 1000.0, 'unixepoch') AS due_at_utc,
     CASE c.value_format_id
         WHEN 0 /* JobPayloadFormat.None */ THEN 'none'
         WHEN 1 /* JobPayloadFormat.Json */ THEN 'json'
@@ -16,8 +16,8 @@ SELECT
         ELSE 'custom-' || CAST(c.value_format_id AS TEXT)
     END AS value_format,
     CASE WHEN c.value_format_id = 1 /* JobPayloadFormat.Json */ THEN CAST(c.value AS TEXT) END AS value_text,
-    c.created_at_utc,
-    c.modified_at_utc,
+    strftime('%Y-%m-%dT%H:%M:%fZ', c.created_at_utc / 1000.0, 'unixepoch') AS created_at_utc,
+    strftime('%Y-%m-%dT%H:%M:%fZ', c.modified_at_utc / 1000.0, 'unixepoch') AS modified_at_utc,
     c.version
 FROM {{schema}}.checkpoints AS c
 JOIN {{schema}}.jobs AS j ON j.job_id = c.job_id

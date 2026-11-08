@@ -8,7 +8,9 @@ read-only list APIs (optionally surfaced by the embedded dashboard package), and
 the ledger for everything else diagnostic. Queries below are
 Postgres-flavored against the `acta` schema; on SQL Server bracket the identifiers and swap the
 interval arithmetic (`DATEADD`), and on SQLite drop the `acta.` prefix, since the views live in the
-database file itself, and compare `_utc` columns as Unix epoch milliseconds.
+database file itself. A SQLite view shows its `_utc` columns as ISO 8601 UTC text (`2026-11-08T09:30:00.123Z`),
+which sorts in time order and compares against `strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '-1 hour')`; the ledger
+tables keep Unix epoch milliseconds.
 
 The job's `jobs_state` row stores current state. Job events explain transitions. Use the CLI, API,
 dashboard, or a SQL query over the events timeline to find why.
@@ -478,7 +480,7 @@ In production a deploy step applies Acta's migrations, never application startup
 
 ```
 $ ConnectionStrings__acta="<DDL login>" dotnet MyApp.dll jobs migrate
-applied M20261108073944_init to schema acta
+applied M20261108075926_init to schema acta
 namespace billing: 1.6.1+b81d04e (Production)
   added    sys.alerts
   added    sys.retention
@@ -1191,7 +1193,9 @@ error then means the attribute is missing, not the `using`.
 
 These recipes are Postgres-flavored against the default `acta` schema; on SQL Server, bracket
 identifiers as needed and replace interval arithmetic with `DATEADD`; on SQLite, drop the `acta.`
-prefix and compare `_utc` columns as Unix epoch milliseconds. The first recipe enqueues a job
+prefix and write `now()` as `strftime('%Y-%m-%dT%H:%M:%fZ', 'now')`, with an interval as its modifier
+(`strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '-1 hour')`): a SQLite view shows its `_utc` columns as ISO 8601 UTC text,
+which compares in time order, while the ledger tables keep Unix epoch milliseconds. The first recipe enqueues a job
 (a write, through the installed routine) and the outbox recipes repair the producer's table; the rest
 are operator/debugging reads.
 

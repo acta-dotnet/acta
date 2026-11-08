@@ -441,12 +441,12 @@ SELECT
     a.channel_name,
     a.deduplication_key,
     a.occurrence_count,
-    a.resolved_at_utc,
-    a.acknowledged_at_utc,
+    strftime('%Y-%m-%dT%H:%M:%fZ', a.resolved_at_utc / 1000.0, 'unixepoch') AS resolved_at_utc,
+    strftime('%Y-%m-%dT%H:%M:%fZ', a.acknowledged_at_utc / 1000.0, 'unixepoch') AS acknowledged_at_utc,
     a.retry_count,
-    a.retry_after_utc,
-    a.created_at_utc,
-    a.modified_at_utc,
+    strftime('%Y-%m-%dT%H:%M:%fZ', a.retry_after_utc / 1000.0, 'unixepoch') AS retry_after_utc,
+    strftime('%Y-%m-%dT%H:%M:%fZ', a.created_at_utc / 1000.0, 'unixepoch') AS created_at_utc,
+    strftime('%Y-%m-%dT%H:%M:%fZ', a.modified_at_utc / 1000.0, 'unixepoch') AS modified_at_utc,
     a.version
 FROM {{schema}}.alerts AS a
 JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = a.namespace_id
@@ -465,9 +465,9 @@ SELECT
     CASE c.calendar_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'draft' WHEN 20 THEN 'published' WHEN 30 THEN 'superseded' WHEN 240 THEN 'archived' END AS calendar_status,
     c.calendar_status_code,
     c.content_hash,
-    c.created_at_utc,
-    c.published_at_utc,
-    c.modified_at_utc
+    strftime('%Y-%m-%dT%H:%M:%fZ', c.created_at_utc / 1000.0, 'unixepoch') AS created_at_utc,
+    strftime('%Y-%m-%dT%H:%M:%fZ', c.published_at_utc / 1000.0, 'unixepoch') AS published_at_utc,
+    strftime('%Y-%m-%dT%H:%M:%fZ', c.modified_at_utc / 1000.0, 'unixepoch') AS modified_at_utc
 FROM {{schema}}.calendars AS c
 JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = c.namespace_id;
 
@@ -483,7 +483,7 @@ SELECT
     c.checkpoint_kind_code,
     CASE c.checkpoint_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'pending' WHEN 20 THEN 'set' WHEN 30 THEN 'expired' WHEN 100 THEN 'consumed' WHEN 110 THEN 'succeeded' WHEN 120 THEN 'failed' WHEN 130 THEN 'cancelled' END AS checkpoint_status,
     c.checkpoint_status_code,
-    c.due_at_utc,
+    strftime('%Y-%m-%dT%H:%M:%fZ', c.due_at_utc / 1000.0, 'unixepoch') AS due_at_utc,
     CASE c.value_format_id
         WHEN 0 /* JobPayloadFormat.None */ THEN 'none'
         WHEN 1 /* JobPayloadFormat.Json */ THEN 'json'
@@ -491,8 +491,8 @@ SELECT
         ELSE 'custom-' || CAST(c.value_format_id AS TEXT)
     END AS value_format,
     CASE WHEN c.value_format_id = 1 /* JobPayloadFormat.Json */ THEN CAST(c.value AS TEXT) END AS value_text,
-    c.created_at_utc,
-    c.modified_at_utc,
+    strftime('%Y-%m-%dT%H:%M:%fZ', c.created_at_utc / 1000.0, 'unixepoch') AS created_at_utc,
+    strftime('%Y-%m-%dT%H:%M:%fZ', c.modified_at_utc / 1000.0, 'unixepoch') AS modified_at_utc,
     c.version
 FROM {{schema}}.checkpoints AS c
 JOIN {{schema}}.jobs AS j ON j.job_id = c.job_id
@@ -561,8 +561,8 @@ SELECT
     d.runbook_url,
     d.runbook_url_override,
     d.runbook_url_effective,
-    d.created_at_utc,
-    d.modified_at_utc,
+    strftime('%Y-%m-%dT%H:%M:%fZ', d.created_at_utc / 1000.0, 'unixepoch') AS created_at_utc,
+    strftime('%Y-%m-%dT%H:%M:%fZ', d.modified_at_utc / 1000.0, 'unixepoch') AS modified_at_utc,
     d.version
 FROM {{schema}}.definitions AS d
 JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = d.namespace_id;
@@ -572,7 +572,7 @@ CREATE VIEW {{schema}}.deployments_view AS
 SELECT
     ns.namespace_name,
     d.deployment_version,
-    d.created_at_utc
+    strftime('%Y-%m-%dT%H:%M:%fZ', d.created_at_utc / 1000.0, 'unixepoch') AS created_at_utc
 FROM {{schema}}.deployments AS d
 JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = d.namespace_id;
 
@@ -580,7 +580,7 @@ DROP VIEW IF EXISTS {{schema}}.events_view;
 CREATE VIEW {{schema}}.events_view AS
 SELECT
     e.event_id,
-    e.created_at_utc,
+    strftime('%Y-%m-%dT%H:%M:%fZ', e.created_at_utc / 1000.0, 'unixepoch') AS created_at_utc,
     ns.namespace_name,
     e.namespace_id,
     CASE e.entity_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'alert' WHEN 15 THEN 'calendar' WHEN 20 THEN 'checkpoint' WHEN 30 THEN 'definition' WHEN 40 THEN 'event' WHEN 50 THEN 'job' WHEN 60 THEN 'lane' WHEN 70 THEN 'lock' WHEN 80 THEN 'namespace' WHEN 90 THEN 'schedule' WHEN 100 THEN 'step' WHEN 110 THEN 'tag' WHEN 120 THEN 'tenant' WHEN 130 THEN 'worker' END AS entity,
@@ -650,15 +650,15 @@ SELECT
         ELSE 'custom-' || CAST(r.result_format_id AS TEXT)
     END AS result_format,
     CASE WHEN r.result_format_id = 1 /* JobPayloadFormat.Json */ THEN CAST(r.result AS TEXT) END AS result_text,
-    r.next_run_at_utc,
+    strftime('%Y-%m-%dT%H:%M:%fZ', r.next_run_at_utc / 1000.0, 'unixepoch') AS next_run_at_utc,
     r.execution_number,
     r.failure_count,
     r.leased_by_worker_id,
     w.host_name AS leased_by_worker_host_name,
-    r.lease_expires_at_utc,
-    r.retention_until_utc,
-    j.created_at_utc,
-    r.modified_at_utc,
+    strftime('%Y-%m-%dT%H:%M:%fZ', r.lease_expires_at_utc / 1000.0, 'unixepoch') AS lease_expires_at_utc,
+    strftime('%Y-%m-%dT%H:%M:%fZ', r.retention_until_utc / 1000.0, 'unixepoch') AS retention_until_utc,
+    strftime('%Y-%m-%dT%H:%M:%fZ', j.created_at_utc / 1000.0, 'unixepoch') AS created_at_utc,
+    strftime('%Y-%m-%dT%H:%M:%fZ', r.modified_at_utc / 1000.0, 'unixepoch') AS modified_at_utc,
     r.version,
     lane.lane_name
 FROM {{schema}}.jobs AS j
@@ -690,8 +690,8 @@ SELECT
     s.expression_kind_code,
     CASE s.misfire_strategy_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'catch-up-once' WHEN 20 THEN 'skip' WHEN 30 THEN 'catch-up-latest' WHEN 40 THEN 'catch-up-all' END AS misfire_strategy,
     s.misfire_strategy_code,
-    st.next_occurrence_at_utc,
-    st.next_evaluation_at_utc,
+    strftime('%Y-%m-%dT%H:%M:%fZ', st.next_occurrence_at_utc / 1000.0, 'unixepoch') AS next_occurrence_at_utc,
+    strftime('%Y-%m-%dT%H:%M:%fZ', st.next_evaluation_at_utc / 1000.0, 'unixepoch') AS next_evaluation_at_utc,
     CASE st.evaluation_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'scheduled' WHEN 20 THEN 'waiting-for-capacity' WHEN 30 THEN 'exhausted' WHEN 40 THEN 'evaluation-error' WHEN 50 THEN 'job-unavailable' WHEN 60 THEN 'resumed' END AS evaluation_status,
     st.evaluation_status_code,
     CASE d.scheduled_delivery_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'permanent' WHEN 20 THEN 'per-occurrence' END AS scheduled_delivery,
@@ -703,14 +703,14 @@ SELECT
     CASE s.expire_action_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'discard' WHEN 20 THEN 'pause' END AS expire_action,
     s.expire_action_code,
     s.availability_calendar_name,
-    s.start_at_utc,
-    s.end_before_utc,
+    strftime('%Y-%m-%dT%H:%M:%fZ', s.start_at_utc / 1000.0, 'unixepoch') AS start_at_utc,
+    strftime('%Y-%m-%dT%H:%M:%fZ', s.end_before_utc / 1000.0, 'unixepoch') AS end_before_utc,
     st.outstanding_count,
-    s.paused_until_utc,
+    strftime('%Y-%m-%dT%H:%M:%fZ', s.paused_until_utc / 1000.0, 'unixepoch') AS paused_until_utc,
     s.description,
     s.pause_message,
-    s.created_at_utc,
-    s.modified_at_utc,
+    strftime('%Y-%m-%dT%H:%M:%fZ', s.created_at_utc / 1000.0, 'unixepoch') AS created_at_utc,
+    strftime('%Y-%m-%dT%H:%M:%fZ', s.modified_at_utc / 1000.0, 'unixepoch') AS modified_at_utc,
     s.version
 FROM {{schema}}.schedules AS s
 JOIN {{schema}}.schedules_state AS st ON st.schedule_id = s.schedule_id
@@ -738,8 +738,8 @@ SELECT
         ELSE 'custom-' || CAST(s.result_format_id AS TEXT)
     END AS result_format,
     CASE WHEN s.result_format_id = 1 /* JobPayloadFormat.Json */ THEN CAST(s.result AS TEXT) END AS result_text,
-    s.created_at_utc,
-    s.modified_at_utc,
+    strftime('%Y-%m-%dT%H:%M:%fZ', s.created_at_utc / 1000.0, 'unixepoch') AS created_at_utc,
+    strftime('%Y-%m-%dT%H:%M:%fZ', s.modified_at_utc / 1000.0, 'unixepoch') AS modified_at_utc,
     s.version
 FROM {{schema}}.steps AS s
 JOIN {{schema}}.jobs AS j ON j.job_id = s.job_id
@@ -771,14 +771,14 @@ SELECT
     w.dotnet_version,
     w.process_id,
     w.max_concurrent_executors,
-    w.last_seen_at_utc,
-    w.created_at_utc,
-    w.modified_at_utc,
+    strftime('%Y-%m-%dT%H:%M:%fZ', w.last_seen_at_utc / 1000.0, 'unixepoch') AS last_seen_at_utc,
+    strftime('%Y-%m-%dT%H:%M:%fZ', w.created_at_utc / 1000.0, 'unixepoch') AS created_at_utc,
+    strftime('%Y-%m-%dT%H:%M:%fZ', w.modified_at_utc / 1000.0, 'unixepoch') AS modified_at_utc,
     w.version
 FROM {{schema}}.workers AS w
 JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261108073944_init')
+VALUES ('M20261108075926_init')
 ON CONFLICT (name) DO NOTHING;
