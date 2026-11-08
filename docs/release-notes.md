@@ -190,6 +190,7 @@ Not tagged yet.
 - The CLI wrote an instant with seven fraction digits, `2026-11-08T04:47:22.1720000Z`, in `jobs events`, `info`, and `explain` and in their `--json` output, where the API writes `2026-11-08T04:47:22.172Z`. Every CLI line and `--json` field now writes an instant as the API does, with no trailing zero digits.
 - `jobs explain` capitalized a failure's reason and ended it with a period, so a handler that threw `carrier acme-post answered 503` read `Carrier acme-post answered 503.` under "Reason:". The reason is now printed as the handler wrote it.
 - An explanation of a one-shot job that failed once its retries ran out read only "Failed.", in `jobs explain`, the API's `headline`, and the dashboard. It now says how: `Failed after 3 attempts.`
+- The CLI's `--json` output escaped characters that matter only inside a web page, so `explain` wrote `\u0027jobs events\u0027` and `deploy` wrote a version as `1.6.1\u002Bb81d04e`. It now escapes only what JSON requires and writes `'jobs events'` and `1.6.1+b81d04e`; a JSON parser reads the same values as before.
 
 ## 1.0.0-rc.8
 

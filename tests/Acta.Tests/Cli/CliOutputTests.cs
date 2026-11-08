@@ -500,6 +500,28 @@ public class CliOutputTests
         Assert.Contains("\"kind\":\"raise-signal\"", text);
     }
 
+    // --json is read by scripts and terminals, never embedded in a page, so it escapes only what JSON itself requires.
+    [Fact]
+    public void Json_output_writes_apostrophes_and_plus_signs_as_they_are()
+    {
+        var w = new StringWriter();
+        var explanation = Explanation() with
+        {
+            Reason = "carrier's gateway answered 503 for order 7+8",
+            NextActions = [new ExplainJobAction("inspect-timeline", "inspect the timeline with 'jobs events'")],
+        };
+
+        CliOutput.WriteExplanation(w, explanation, json: true);
+
+        Assert.Contains("\"reason\":\"carrier's gateway answered 503 for order 7+8\"", w.ToString());
+        Assert.Contains("\"description\":\"inspect the timeline with 'jobs events'\"", w.ToString());
+        using var parsed = JsonDocument.Parse(w.ToString());
+        Assert.Equal(
+            "inspect the timeline with 'jobs events'",
+            parsed.RootElement.GetProperty("nextActions")[0].GetProperty("description").GetString()
+        );
+    }
+
     [Fact]
     public void Usage_lists_verbs_and_namespaces()
     {
@@ -633,11 +655,11 @@ public class CliOutputTests
         CliOutput.WriteDeploy(w, [DeployedNamespace, OlderNamespace], json: true);
         Assert.Equal(
             "{\"namespaces\":["
-                + "{\"namespace\":\"billing\",\"deploymentVersion\":\"1.6.1\\u002Bb81d04e\",\"environment\":\"Production\","
-                + "\"currentDeploymentVersion\":\"1.6.1\\u002Bb81d04e\",\"older\":false,\"added\":[\"send-receipt\"],"
+                + "{\"namespace\":\"billing\",\"deploymentVersion\":\"1.6.1+b81d04e\",\"environment\":\"Production\","
+                + "\"currentDeploymentVersion\":\"1.6.1+b81d04e\",\"older\":false,\"added\":[\"send-receipt\"],"
                 + "\"changed\":[\"send-invoice\"],\"unchanged\":12,\"undeclared\":[\"old-report\"]},"
-                + "{\"namespace\":\"billing\",\"deploymentVersion\":\"1.6.0\\u002B77c0a12\",\"environment\":\"Production\","
-                + "\"currentDeploymentVersion\":\"1.6.1\\u002Bb81d04e\",\"older\":true,\"added\":[],\"changed\":[],\"unchanged\":0,"
+                + "{\"namespace\":\"billing\",\"deploymentVersion\":\"1.6.0+77c0a12\",\"environment\":\"Production\","
+                + "\"currentDeploymentVersion\":\"1.6.1+b81d04e\",\"older\":true,\"added\":[],\"changed\":[],\"unchanged\":0,"
                 + "\"undeclared\":[]}]}",
             w.ToString().Trim()
         );

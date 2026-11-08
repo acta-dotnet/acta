@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 
 namespace Acta;
@@ -569,12 +570,13 @@ internal static class CliOutput
 
     /// <summary>
     /// The UTF-8 JSON bytes are decoded to a string and re-encoded by the TextWriter; the CLI host
-    /// sets Console.OutputEncoding to UTF-8 so non-ASCII reason messages survive the round trip.
+    /// sets Console.OutputEncoding to UTF-8 so non-ASCII reason messages survive the round trip. The
+    /// output goes to a terminal or a script, never into a page, so it escapes only what JSON requires.
     /// </summary>
     private static void WriteJson(TextWriter writer, Action<Utf8JsonWriter> body)
     {
         using var buffer = new MemoryStream();
-        using (var json = new Utf8JsonWriter(buffer))
+        using (var json = new Utf8JsonWriter(buffer, new JsonWriterOptions { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping }))
         {
             json.WriteStartObject();
             body(json);
