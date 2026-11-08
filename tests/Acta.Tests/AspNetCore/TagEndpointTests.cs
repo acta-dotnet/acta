@@ -368,7 +368,7 @@ public sealed class TagEndpointTests
     }
 
     [Fact]
-    public async Task Tag_mutation_routes_are_absent_when_controls_are_disabled()
+    public async Task Tag_mutation_routes_answer_403_when_controls_are_disabled()
     {
         var fakes = new FakeOperations();
         var (app, client) = await TestDashboardHost.StartAsync(fakes: fakes);
@@ -381,7 +381,7 @@ public sealed class TagEndpointTests
         request.Headers.Add(Confirm, "true");
         var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
 
-        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
         Assert.Empty(fakes.Tags.UpsertCalls);
     }
 

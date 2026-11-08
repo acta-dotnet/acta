@@ -317,31 +317,15 @@ public sealed class ControlEndpointTests
         var (app, client) = await StartWithControlsAsync();
         await using var _ = app;
         var ct = TestContext.Current.CancellationToken;
-        var controls = ((IEndpointRouteBuilder)app)
-            .DataSources.SelectMany(source => source.Endpoints)
-            .OfType<RouteEndpoint>()
-            .Where(endpoint =>
-                endpoint.Metadata.GetMetadata<ActaOperationAttribute>() is { } operation && operation.Permission != ActaPermissions.Read
-            )
-            .SelectMany(endpoint =>
-                (endpoint.Metadata.GetMetadata<IHttpMethodMetadata>()?.HttpMethods ?? []).Select(method =>
-                    (Method: method, Endpoint: endpoint)
-                )
-            )
-            .ToList();
+        var controls = ControlRoutes(app);
 
         var wrong = new List<string>();
-        foreach (var (method, endpoint) in controls)
+        foreach (var (method, path) in controls)
         {
-            var path = endpoint.RoutePattern.RawText!;
-            foreach (var parameter in endpoint.RoutePattern.Parameters)
-            {
-                path = path.Replace($"{{{parameter.Name}}}", OpenApiExamples.RouteValues[parameter.Name], StringComparison.Ordinal);
-            }
             using var response = await client.SendAsync(new HttpRequestMessage(new HttpMethod(method), path), ct);
             if (response.StatusCode != HttpStatusCode.BadRequest || await TitleAsync(response) != NotConfirmed)
             {
-                wrong.Add($"{method} {endpoint.RoutePattern.RawText}: answered {(int)response.StatusCode}.");
+                wrong.Add($"{method} {path}: answered {(int)response.StatusCode}.");
             }
         }
 
@@ -350,6 +334,76 @@ public sealed class ControlEndpointTests
         Assert.Contains(controls, control => control.Method == "DELETE");
         Assert.True(wrong.Count == 0, string.Join("\n", wrong));
     }
+
+    /// <summary>
+    /// With controls off, every control a mount with controls maps is mapped too, and answers 403 before it reads anything,
+    /// confirmation included, with a problem that names the option turning controls on. No call reaches a facade.
+    /// </summary>
+    [Fact]
+    public async Task Every_control_route_answers_403_naming_EnableControls_while_controls_are_off()
+    {
+        var (withControls, _) = await StartWithControlsAsync();
+        await using var __ = withControls;
+        var fakes = new FakeOperations();
+        var (app, client) = await TestDashboardHost.StartAsync(fakes: fakes);
+        await using var _ = app;
+        var ct = TestContext.Current.CancellationToken;
+        var controls = ControlRoutes(withControls);
+
+        var wrong = new List<string>();
+        foreach (var (method, path) in controls)
+        {
+            using var response = await client.SendAsync(new HttpRequestMessage(new HttpMethod(method), path), ct);
+            var problem = JsonNode.Parse(await response.Content.ReadAsStringAsync(ct));
+            if (
+                response.StatusCode != HttpStatusCode.Forbidden
+                || problem?["title"]?.GetValue<string>() != ControlsDisabled
+                || problem["detail"]?.GetValue<string>() != ControlsDisabledDetail("MapActa")
+            )
+            {
+                wrong.Add($"{method} {path}: answered {(int)response.StatusCode} {problem?["title"]}.");
+            }
+        }
+
+        Assert.True(controls.Count > 30, $"only {controls.Count} control routes; the walk is broken.");
+        Assert.True(wrong.Count == 0, string.Join("\n", wrong));
+        Assert.Empty(fakes.Jobs.ControlCalls);
+        Assert.Empty(fakes.Jobs.SignalCalls);
+        Assert.Empty(fakes.Tenants.RegisterCalls);
+        Assert.Empty(fakes.Tags.UpsertCalls);
+    }
+
+    // Every control route the app maps, whatever its method, with its route values filled in.
+    private static List<(string Method, string Path)> ControlRoutes(WebApplication app) =>
+        [
+            .. ((IEndpointRouteBuilder)app)
+                .DataSources.SelectMany(source => source.Endpoints)
+                .OfType<RouteEndpoint>()
+                .Where(endpoint =>
+                    endpoint.Metadata.GetMetadata<ActaOperationAttribute>() is { } operation && operation.Permission != ActaPermissions.Read
+                )
+                .SelectMany(endpoint =>
+                    (endpoint.Metadata.GetMetadata<IHttpMethodMetadata>()?.HttpMethods ?? []).Select(method =>
+                        (
+                            method,
+                            endpoint.RoutePattern.Parameters.Aggregate(
+                                endpoint.RoutePattern.RawText!,
+                                (path, parameter) =>
+                                    path.Replace(
+                                        $"{{{parameter.Name}}}",
+                                        OpenApiExamples.RouteValues[parameter.Name],
+                                        StringComparison.Ordinal
+                                    )
+                            )
+                        )
+                    )
+                ),
+        ];
+
+    private const string ControlsDisabled = "Controls disabled.";
+
+    private static string ControlsDisabledDetail(string mapping) =>
+        $"Controls are disabled on this host. Set EnableControls = true in the {mapping} options to enable controls.";
 
     private static async Task<string?> TitleAsync(HttpResponseMessage response) =>
         JsonNode.Parse(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken))?["title"]?.GetValue<string>();
@@ -363,7 +417,8 @@ public sealed class ControlEndpointTests
 
         var response = await client.SendAsync(Post($"/acta/api/v1/jobs/{Found}/pause"), TestContext.Current.CancellationToken);
 
-        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Equal(ControlsDisabled, await TitleAsync(response));
         Assert.Empty(fakes.Jobs.ControlCalls);
     }
 
@@ -1219,7 +1274,8 @@ public sealed class ControlEndpointTests
 
         var response = await client.SendAsync(PostTenant(new { tenantName = "cust-001" }), TestContext.Current.CancellationToken);
 
-        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Equal(ControlsDisabled, await TitleAsync(response));
         Assert.Empty(fakes.Tenants.RegisterCalls);
     }
 
@@ -1244,7 +1300,11 @@ public sealed class ControlEndpointTests
         var disabled = await client.SendAsync(Post($"/ops/readonly/v1/jobs/{Found}/pause"), ct);
 
         Assert.Equal(HttpStatusCode.OK, enabled.StatusCode);
-        Assert.Equal(HttpStatusCode.NotFound, disabled.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, disabled.StatusCode);
+        Assert.Equal(
+            ControlsDisabledDetail("MapActaApi"),
+            JsonNode.Parse(await disabled.Content.ReadAsStringAsync(ct))?["detail"]?.GetValue<string>()
+        );
     }
 
     [Fact]

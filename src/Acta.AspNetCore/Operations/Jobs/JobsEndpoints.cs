@@ -10,7 +10,7 @@ namespace Acta.AspNetCore;
 /// </summary>
 internal static class JobsEndpoints
 {
-    public static void Map(RouteGroupBuilder reads, RouteGroupBuilder? controls, ActaEndpointOptions options)
+    public static void Map(RouteGroupBuilder reads, RouteGroupBuilder controls, ActaEndpointOptions options)
     {
         reads.MapDetail(
             "/jobs/{jobRef}",
@@ -95,13 +95,10 @@ internal static class JobsEndpoints
                 [.. QueryParameterDocExtensions.PagingCore, .. QueryParameterDocExtensions.IncludeTotal]
             )
             .ProducesProblem(StatusCodes.Status404NotFound);
-        if (controls is not null)
-        {
-            MapVerbs(controls, options);
-            UpdateJobInputEndpoint.Map(controls, options);
-            EnqueueJobEndpoint.Map(controls);
-            RaiseJobSignalEndpoint.Map(controls);
-        }
+        MapVerbs(controls, options);
+        UpdateJobInputEndpoint.Map(controls, options);
+        EnqueueJobEndpoint.Map(controls);
+        RaiseJobSignalEndpoint.Map(controls);
     }
 
     // A verb addresses its job by ref only; the id:<n> debug lookup is for reads.

@@ -9,7 +9,7 @@ namespace Acta.AspNetCore;
 /// </summary>
 internal static class AlertsEndpoints
 {
-    public static void Map(RouteGroupBuilder reads, RouteGroupBuilder? controls, ActaEndpointOptions options)
+    public static void Map(RouteGroupBuilder reads, RouteGroupBuilder controls, ActaEndpointOptions options)
     {
         reads
             .MapList(
@@ -67,10 +67,6 @@ internal static class AlertsEndpoints
             ActaApiJsonContext.Default.GetAlertResponse,
             static (http, call) => call.Operations.Alerts.GetAsync(RouteKeys.Alert(http), call.Ct)
         );
-        if (controls is null)
-        {
-            return;
-        }
 
         controls.MapCommand(
             "/alerts/{alertRef}/acknowledge",

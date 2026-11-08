@@ -72,7 +72,7 @@ internal static class RouteTable
             .ProducesProblem(StatusCodes.Status503ServiceUnavailable);
 
     /// <summary>
-    /// A target's tags: the paged list, and when controls are mapped the upsert and the remove of one tag by its name. A
+    /// A target's tags: the paged list, and the controls that upsert and remove one tag by its name. A
     /// target the resolver cannot build is caller input and answers 400; an addressable one that is not there answers 404,
     /// on the list when <paramref name="exists"/> finds no target through its facade, and on a mutation with the control
     /// envelope. A mutation resolves through <paramref name="writeTarget"/> where one is given, as a control verb reads
@@ -80,7 +80,7 @@ internal static class RouteTable
     /// </summary>
     public static void MapTags(
         this RouteGroupBuilder reads,
-        RouteGroupBuilder? controls,
+        RouteGroupBuilder controls,
         string pattern,
         string entity,
         string writePermission,
@@ -105,11 +105,6 @@ internal static class RouteTable
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status503ServiceUnavailable)
             .WithQueryParameters([.. QueryParameterDocExtensions.PagingCore, .. QueryParameterDocExtensions.IncludeTotal]);
-
-        if (controls is null)
-        {
-            return;
-        }
 
         controls
             .MapPut(

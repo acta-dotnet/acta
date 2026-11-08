@@ -939,8 +939,8 @@ internal static partial class ActaOpenApiDocument
 
     private const string DocumentDescription =
         "Acta's operator API, the one the dashboard uses. Lists page by cursor: pass a page's nextCursor back as cursor "
-        + "until hasMore is false; a cursor is tied to its query. Every POST, PUT, and DELETE is a control, mapped only "
-        + "where the host enables controls. A control whose request object is optional acts with its defaults when the "
+        + "until hasMore is false; a cursor is tied to its query. Every POST, PUT, and DELETE is a control, and answers 403 "
+        + "where the host has not enabled controls. A control whose request object is optional acts with its defaults when the "
         + "request has no body, with or without a JSON content type. A signal raise takes any JSON value instead, and no "
         + "bytes raise a presence-only signal. POST /jobs answers 201 when it inserted the job and 200 when a deduplication key matched an "
         + "existing one, with the job's URL in Location either way. A string carrying x-acta-known-values is an open set: "

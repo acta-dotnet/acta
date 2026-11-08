@@ -30,7 +30,7 @@ internal static partial class ActaOpenApiDocument
         ["Workers"] = "List and read the workers that run jobs.",
         ["Events"] = "List the ledger's events, filtered and paged by cursor.",
         ["Overview"] = "Read the ledger's health counters in one call.",
-        ["Capabilities"] = "Read what this host's API allows, such as whether controls are mapped.",
+        ["Capabilities"] = "Read what this host's API allows, such as whether controls are enabled.",
     };
 
     // What a status means on a read (a GET) and on a control (any other method), written once per status and route
@@ -61,8 +61,11 @@ internal static partial class ActaOpenApiDocument
                 "The call is not confirmed, a path parameter cannot name a target, or the body breaks a rule; the problem's detail "
                     + "says which.",
             ("401", _, _) => "The call carries no credential the host accepts.",
-            ("403", _, _) =>
+            ("403", true, _) =>
                 "The call was refused before it ran: by the local-only guard, or because the caller lacks the operation's permission.",
+            ("403", false, _) =>
+                "The call was refused before it ran: by the local-only guard, because the caller lacks the operation's permission, "
+                    + "or because this host has not enabled controls.",
             ("404", false, false) => "The target does not exist; the body's action is not-found and nothing was written.",
             ("404", _, _) => "The target the path names, or one a filter names, does not exist.",
             ("409", true, _) => "This host cannot serve the read as asked; the problem's detail says why.",

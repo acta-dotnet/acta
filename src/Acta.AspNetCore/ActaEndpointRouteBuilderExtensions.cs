@@ -29,8 +29,8 @@ public static class ActaEndpointRouteBuilderExtensions
     public const string ApiVersionSegment = "/v1";
 
     /// <summary>
-    /// Maps the operator API endpoints (query reads always; the POST job controls only when opted in
-    /// via <see cref="ActaEndpointOptions.EnableControls"/>, which is off by default) under
+    /// Maps the operator API endpoints (the reads, and the controls, which act only when opted in via
+    /// <see cref="ActaEndpointOptions.EnableControls"/>, off by default, and answer 403 otherwise) under
     /// <paramref name="pattern"/> plus <see cref="ApiVersionSegment"/>. The default mount therefore serves
     /// <c>/acta/api/v1/jobs</c>. <c>MapActa</c> of Acta.Dashboard maps the same API beside the dashboard; a
     /// mount is mapped by one of the two, never both.
@@ -96,20 +96,21 @@ public static class ActaEndpointRouteBuilderExtensions
         {
             PermissionFilter.Attach(group, endpoints.ServiceProvider);
         }
-        MapApi(group.MapGroup(apiPrefix + ApiVersionSegment), options);
+        // The dashboard's mount is the one that puts a prefix before the API; a refused control names the call that mapped it.
+        MapApi(group.MapGroup(apiPrefix + ApiVersionSegment), options, apiPrefix.Length == 0 ? nameof(MapActaApi) : "MapActa");
         return group;
     }
 
     // The versioned API under either mount: the conventions and filters every route shares, then each group's routes.
-    private static void MapApi(RouteGroupBuilder api, ActaEndpointOptions options)
+    private static void MapApi(RouteGroupBuilder api, ActaEndpointOptions options, string mapping)
     {
         // Tags for every endpoint below and the check that each declares its operation, applied at the group so both
         // reach the nested controls group too.
         ActaEndpointIdentity.Apply(api);
 
         // What any route can answer, declared once: 401 from the permission check or the host's authentication, with no
-        // body of Acta's, 403 from the local-only guard, the permission check, or the host's authorization, and 500 from
-        // the error backstop.
+        // body of Acta's, 403 from the local-only guard, the permission check, the host's authorization, or a control while
+        // controls are off, and 500 from the error backstop.
         // The rest a route declares where it is answered: RouteTable's shapes, the body a route reads (AcceptsJson), and
         // the routes of their own shape.
         api.WithMetadata(new ProducesResponseTypeMetadata(StatusCodes.Status401Unauthorized, typeof(void)));
@@ -118,12 +119,11 @@ public static class ActaEndpointRouteBuilderExtensions
         api.AddEndpointFilter(ApiFilters.ErrorBackstop);
         api.AddEndpointFilter(ApiFilters.NoStore);
 
-        // Null when controls are off; a group's route table maps its writes only when it is there. The empty-prefix
-        // group gives the confirmation every control route and no read.
-        RouteGroupBuilder? controls = null;
+        // The empty-prefix group holds every control route and no read. Its routes are mapped whether or not controls are
+        // on, so a client calling one on a read-only host learns why it was refused rather than reading a 404.
+        var controls = api.MapGroup("");
         if (options.EnableControls)
         {
-            controls = api.MapGroup("");
             // Every control, whatever its method, is confirmed before its route reads anything.
             controls.AddEndpointFilter(
                 async (context, next) => ControlEndpointValidation.CheckConfirmation(context.HttpContext, options) ?? await next(context)
@@ -131,6 +131,16 @@ public static class ActaEndpointRouteBuilderExtensions
             // The mount's confirmation header, said once for the group so the contract generator can state the rule with it.
             controls.WithMetadata(
                 new ControlEndpointDoc(options.RequireControlConfirmation ? options.ControlConfirmationHeaderName : null)
+            );
+        }
+        else
+        {
+            var detail = $"Controls are disabled on this host. Set EnableControls = true in the {mapping} options to enable controls.";
+            controls.AddEndpointFilter(
+                (_, _) =>
+                    ValueTask.FromResult<object?>(
+                        ControlEndpointValidation.Problem(StatusCodes.Status403Forbidden, "Controls disabled.", detail)
+                    )
             );
         }
 

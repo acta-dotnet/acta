@@ -10,7 +10,7 @@ namespace Acta.AspNetCore;
 /// </summary>
 internal static class OutboxEndpoints
 {
-    public static void Map(RouteGroupBuilder reads, RouteGroupBuilder? controls, ActaEndpointOptions options)
+    public static void Map(RouteGroupBuilder reads, RouteGroupBuilder controls, ActaEndpointOptions options)
     {
         reads.MapList(
             "/outbox/sources",
@@ -55,10 +55,6 @@ internal static class OutboxEndpoints
                 [.. QueryParameterDocExtensions.PagingCore, .. QueryParameterDocExtensions.IncludeTotal]
             )
             .ProducesProblem(StatusCodes.Status409Conflict);
-        if (controls is null)
-        {
-            return;
-        }
 
         controls.MapCommand(
             "/outbox/{jobNamespace}/requeue",

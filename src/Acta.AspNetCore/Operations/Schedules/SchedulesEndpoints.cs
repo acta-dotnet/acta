@@ -8,7 +8,7 @@ namespace Acta.AspNetCore;
 /// </summary>
 internal static class SchedulesEndpoints
 {
-    public static void Map(RouteGroupBuilder reads, RouteGroupBuilder? controls, ActaEndpointOptions options)
+    public static void Map(RouteGroupBuilder reads, RouteGroupBuilder controls, ActaEndpointOptions options)
     {
         reads.MapList(
             "/schedules",
@@ -76,10 +76,6 @@ internal static class SchedulesEndpoints
             ])
             // A calendar this host cannot resolve answers a problem (RouteTable.Run).
             .ProducesProblem(StatusCodes.Status409Conflict);
-        if (controls is null)
-        {
-            return;
-        }
 
         controls.MapCommand(
             "/schedules/{jobNamespace}/{jobName}/{scheduleName}/pause",

@@ -9,7 +9,7 @@ namespace Acta.AspNetCore;
 /// </summary>
 internal static class DefinitionsEndpoints
 {
-    public static void Map(RouteGroupBuilder reads, RouteGroupBuilder? controls, ActaEndpointOptions options)
+    public static void Map(RouteGroupBuilder reads, RouteGroupBuilder controls, ActaEndpointOptions options)
     {
         reads.MapList(
             "/definitions",
@@ -58,10 +58,6 @@ internal static class DefinitionsEndpoints
             static async (http, call) =>
                 await call.Operations.Definitions.GetAsync(Key(http).Namespace, Key(http).Name, call.Ct) is not null
         );
-        if (controls is null)
-        {
-            return;
-        }
 
         controls.MapUpdate(
             "/definitions/{jobNamespace}/{jobName}/overrides",

@@ -201,11 +201,11 @@ internal static partial class ActaOpenApiDocument
     // Writes each member rule into its schema, and the enqueue's one-timing rule as a not over both timing members.
     private static void ApplyRequestRules(IDictionary<string, IOpenApiSchema> schemas)
     {
-        // A mount without controls documents no request bodies, so it has no schema a rule names.
-        foreach (var rule in RequestMemberRules.Where(rule => schemas.ContainsKey(rule.Schema)))
+        foreach (var rule in RequestMemberRules)
         {
             if (
-                schemas[rule.Schema] is not OpenApiSchema { Properties: { } properties }
+                !schemas.TryGetValue(rule.Schema, out var entry)
+                || entry is not OpenApiSchema { Properties: { } properties }
                 || !properties.TryGetValue(rule.Member, out var member)
                 || member is not OpenApiSchema schema
             )

@@ -11,7 +11,7 @@ namespace Acta.AspNetCore;
 /// </summary>
 internal static class CalendarsEndpoints
 {
-    public static void Map(RouteGroupBuilder reads, RouteGroupBuilder? controls, ActaEndpointOptions options)
+    public static void Map(RouteGroupBuilder reads, RouteGroupBuilder controls, ActaEndpointOptions options)
     {
         reads.MapList(
             "/calendars",
@@ -158,10 +158,6 @@ internal static class CalendarsEndpoints
                     "The zone a schedule would evaluate the calendar in; omit for UTC."
                 ),
             ]);
-        if (controls is null)
-        {
-            return;
-        }
 
         controls.MapCommand(
             "/calendars/{jobNamespace}/{calendarName}/drafts",

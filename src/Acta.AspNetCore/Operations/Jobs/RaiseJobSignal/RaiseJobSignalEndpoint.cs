@@ -6,7 +6,7 @@ using Microsoft.Extensions.Options;
 namespace Acta.AspNetCore;
 
 /// <summary>
-/// POST /jobs/{jobRef}/signals/{signalName}: raise a named signal, behind EnableControls like the other verbs. The name
+/// POST /jobs/{jobRef}/signals/{signalName}: raise a named signal, a control like the other verbs. The name
 /// is folded to lowercase and must be a name outside the reserved <c>sys</c> names, which keeps out the child latches
 /// (<c>sys.child.{id}</c>). An empty body raises a presence-only signal; a JSON body is stored verbatim for the handler's
 /// WaitSignalAsync&lt;T&gt; to deserialize.

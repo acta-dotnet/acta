@@ -351,13 +351,13 @@ public sealed class PermissionTests
 
     /// <summary>
     /// What the catch-all answers as an unknown endpoint is no page: a path under the API's prefix that no route maps, or
-    /// any method but GET. With no credential it answers the bare 401 as well, so a client that calls a control this mount
+    /// any method but GET. With no credential it answers the bare 401 as well, so a client that calls a route this mount
     /// does not map is never sent to a login page; a page path under the same catch-all is still challenged.
     /// </summary>
     [Theory]
     [InlineData("GET", "/acta/api/v1/nothing", HttpStatusCode.Unauthorized)]
     [InlineData("GET", "/acta/api", HttpStatusCode.Unauthorized)]
-    [InlineData("POST", "/acta/api/v1/jobs/job_00000000000000000000000000000001/pause", HttpStatusCode.Unauthorized)]
+    [InlineData("POST", "/acta/api/v1/nothing", HttpStatusCode.Unauthorized)]
     [InlineData("POST", "/acta/jobs", HttpStatusCode.Unauthorized)]
     [InlineData("GET", "/acta/jobs", HttpStatusCode.Redirect)]
     public async Task An_unknown_endpoint_with_no_credential_answers_a_bare_401(string method, string path, HttpStatusCode expected)
@@ -375,6 +375,27 @@ public sealed class PermissionTests
 
         Assert.Equal(expected, response.StatusCode);
         Assert.Equal(expected == HttpStatusCode.Redirect ? LoginPath : null, response.Headers.Location?.AbsolutePath);
+    }
+
+    /// <summary>
+    /// With controls off the permission check still runs first: a caller without the control's permission is denied for
+    /// that, and only one who holds it is told the host has not enabled controls.
+    /// </summary>
+    [Theory]
+    [InlineData(null, HttpStatusCode.Unauthorized, null)]
+    [InlineData(ActaPermissions.Read, HttpStatusCode.Forbidden, "Permission denied.")]
+    [InlineData(ActaPermissions.Control, HttpStatusCode.Forbidden, "Controls disabled.")]
+    public async Task A_control_with_controls_off_checks_its_permission_first(string? held, HttpStatusCode expected, string? title)
+    {
+        var (app, client) = await StartAsync(options => options.EnableControls = false);
+        await using var _ = app;
+        var ct = TestContext.Current.CancellationToken;
+
+        using var response = await client.SendAsync(Holding(HttpMethod.Post, $"/acta/api/v1/jobs/{Found}/pause", held), ct);
+        var body = await response.Content.ReadAsStringAsync(ct);
+
+        Assert.Equal(expected, response.StatusCode);
+        Assert.Equal(title, title is null ? null : JsonNode.Parse(body)?["title"]?.GetValue<string>());
     }
 
     // The dev server's index is served whether or not the build embedded the dashboard's assets.

@@ -6,7 +6,7 @@ namespace Acta.AspNetCore;
 /// <summary>The Namespaces routes: the list, one namespace, its tags, suspend, resume, and the update.</summary>
 internal static class NamespacesEndpoints
 {
-    public static void Map(RouteGroupBuilder reads, RouteGroupBuilder? controls, ActaEndpointOptions options)
+    public static void Map(RouteGroupBuilder reads, RouteGroupBuilder controls, ActaEndpointOptions options)
     {
         reads.MapList(
             "/namespaces",
@@ -62,10 +62,6 @@ internal static class NamespacesEndpoints
             static http => TagTarget.ForNamespace(Name(http)),
             static async (http, call) => await call.Operations.Namespaces.GetAsync(Name(http), call.Ct) is not null
         );
-        if (controls is null)
-        {
-            return;
-        }
 
         controls.MapCommand(
             "/namespaces/{jobNamespace}/suspend",

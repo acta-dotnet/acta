@@ -208,7 +208,7 @@ public sealed class SignalEndpointTests
     }
 
     [Fact]
-    public async Task Signal_route_is_absent_when_controls_disabled()
+    public async Task Signal_route_answers_403_when_controls_disabled()
     {
         var fakes = new FakeOperations();
         var (app, client) = await TestDashboardHost.StartAsync(fakes: fakes);
@@ -216,7 +216,7 @@ public sealed class SignalEndpointTests
 
         var response = await client.SendAsync(Post(Found, "go"), TestContext.Current.CancellationToken);
 
-        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
         Assert.Empty(fakes.Jobs.SignalCalls);
     }
 }

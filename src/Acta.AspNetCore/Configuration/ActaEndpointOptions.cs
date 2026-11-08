@@ -29,9 +29,10 @@ public class ActaEndpointOptions
     public bool UnsafeAllowAnonymousRemoteAccess { get; set; }
 
     /// <summary>
-    /// Whether every mutating route is mapped: the job controls, enqueue, the input update, signals, and the
-    /// schedule, definition, tenant, namespace, alert, outbox, calendar, and tag controls. Off by default: controls
-    /// mutate jobs, so the host opts in alongside its authorization.
+    /// Whether the mutating routes act: the job controls, enqueue, the input update, signals, and the schedule,
+    /// definition, tenant, namespace, alert, outbox, calendar, and tag controls. Off by default: controls mutate jobs, so
+    /// the host opts in alongside its authorization. While it is off, each of those routes answers 403 with a problem
+    /// that names this option, after the loopback guard and the permission check.
     /// </summary>
     public bool EnableControls { get; set; }
 

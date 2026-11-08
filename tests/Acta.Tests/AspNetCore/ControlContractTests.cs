@@ -707,17 +707,16 @@ public sealed class ControlContractTests
     [Fact]
     public async Task Every_control_route_is_in_the_table()
     {
-        var (controls, reads) = await BothHostsAsync();
-        await using var _ = controls;
-        await using var __ = reads;
+        var (controls, _) = await TestDashboardHost.StartAsync(options => options.EnableControls = true);
+        await using var __ = controls;
 
-        var readSurface = Signatures(reads);
+        var readSurface = ReadSignatures(controls);
         var covered = new HashSet<string>(Table.Select(row => $"{row.Method} {row.Route}"), StringComparer.Ordinal);
         var control = Signatures(controls).Where(signature => !readSurface.Contains(signature)).ToList();
         var uncovered = control.Where(signature => !covered.Contains(signature)).OrderBy(s => s, StringComparer.Ordinal).ToList();
 
-        // Two hosts that mapped the same surface would leave nothing to cover and pass vacuously.
-        Assert.True(control.Count > 30, $"only {control.Count} routes appear under EnableControls; the host difference is broken.");
+        // A walk that read no permission would leave nothing to cover and pass vacuously.
+        Assert.True(control.Count > 30, $"only {control.Count} routes need more than read; the permission read is broken.");
         Assert.True(
             uncovered.Count == 0,
             "A control route with no row in the contract table. Every control route answers something; "
@@ -729,11 +728,10 @@ public sealed class ControlContractTests
     [Fact]
     public async Task Every_declared_control_response_is_exercised()
     {
-        var (controls, reads) = await BothHostsAsync();
-        await using var _ = controls;
-        await using var __ = reads;
+        var (controls, _) = await TestDashboardHost.StartAsync(options => options.EnableControls = true);
+        await using var __ = controls;
 
-        var readSurface = Signatures(reads);
+        var readSurface = ReadSignatures(controls);
         var exercised = new HashSet<Declaration>(Table.Select(row => new Declaration(row.Route, row.Method, row.Status, row.Declared)));
         var control = Declarations(controls)
             .Where(d => !readSurface.Contains($"{d.Method} {d.Route}"))
@@ -800,17 +798,13 @@ public sealed class ControlContractTests
     /// <summary>One declared response: the route, verb, status, and body type the graph promises.</summary>
     private sealed record Declaration(string Route, string Method, int Status, Type Type);
 
-    /// <summary>
-    /// Two hosts, because a control route is exactly a route the read-only host does not serve. Taking
-    /// the difference rather than matching a name or a prefix means a family mapped somewhere new is
-    /// still seen as control.
-    /// </summary>
-    private static async Task<(WebApplication Controls, WebApplication Reads)> BothHostsAsync()
-    {
-        var (controls, _) = await TestDashboardHost.StartAsync(options => options.EnableControls = true);
-        var (reads, _) = await TestDashboardHost.StartAsync();
-        return (controls, reads);
-    }
+    /// <summary>Every "VERB /route" the host serves under the API prefix whose operation needs the read permission alone.</summary>
+    private static HashSet<string> ReadSignatures(WebApplication app) =>
+        [
+            .. Mapped(app)
+                .Where(e => e.Endpoint.Metadata.GetMetadata<ActaOperationAttribute>()?.Permission == ActaPermissions.Read)
+                .SelectMany(e => e.Methods.Select(method => $"{method} {e.Route}")),
+        ];
 
     /// <summary>Every "VERB /route" the host serves under the API prefix.</summary>
     private static HashSet<string> Signatures(WebApplication app) =>

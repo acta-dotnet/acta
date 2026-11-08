@@ -6,7 +6,7 @@ namespace Acta.AspNetCore;
 /// <summary>The Tenants routes: the list, one tenant, its tags, registration, suspend, resume, and the update.</summary>
 internal static class TenantsEndpoints
 {
-    public static void Map(RouteGroupBuilder reads, RouteGroupBuilder? controls, ActaEndpointOptions options)
+    public static void Map(RouteGroupBuilder reads, RouteGroupBuilder controls, ActaEndpointOptions options)
     {
         reads.MapList(
             "/tenants",
@@ -66,10 +66,6 @@ internal static class TenantsEndpoints
             static http => TagTarget.ForTenant(Name(http)),
             static async (http, call) => await call.Operations.Tenants.GetAsync(Name(http), call.Ct) is not null
         );
-        if (controls is null)
-        {
-            return;
-        }
 
         RegisterTenantEndpoint.Map(controls);
         controls.MapCommand(

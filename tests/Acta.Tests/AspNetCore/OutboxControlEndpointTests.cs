@@ -212,14 +212,14 @@ public sealed class OutboxControlEndpointTests
     }
 
     [Fact]
-    public async Task Controls_off_leaves_the_outbox_verbs_unmapped()
+    public async Task Controls_off_answers_the_outbox_verbs_403()
     {
         var (app, client) = await TestDashboardHost.StartAsync();
         await using var _ = app;
 
         var response = await client.SendAsync(Post("requeue"), TestContext.Current.CancellationToken);
 
-        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
     [Fact]

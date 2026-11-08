@@ -1330,11 +1330,11 @@ public sealed partial class OpenApiContractTests
     }
 
     /// <summary>
-    /// A host that mounts the API twice gets a document per mount: the read-only one lists its reads alone, with the ids
-    /// the control mount's document gives the same operations. No operation lists the confirmation as a parameter: a mount
-    /// whose controls require it adds the rule to its introduction, with its own header name, and a mount without controls
-    /// or with confirmation off does not. A mount named like the version segment documents the same operations under the
-    /// same ids.
+    /// A host that mounts the API twice gets a document per mount: the read-only one lists every operation, its controls
+    /// included since they answer 403 there, with the ids the control mount's document gives them. No operation lists the
+    /// confirmation as a parameter: a mount whose controls require it adds the rule to its introduction, with its own header
+    /// name, and a mount without controls or with confirmation off does not. A mount named like the version segment
+    /// documents the same operations under the same ids.
     /// </summary>
     [Fact]
     public async Task Each_mount_documents_its_own_operations_with_shared_ids_and_its_own_confirmation()
@@ -1355,12 +1355,10 @@ public sealed partial class OpenApiContractTests
             control.Select(operation => $"{operation.Key} {operation.Value["operationId"]}").Order(StringComparer.Ordinal),
             versionNamed.Select(operation => $"{operation.Key} {operation.Value["operationId"]}").Order(StringComparer.Ordinal)
         );
-        Assert.All(readOnly.Keys, key => Assert.StartsWith("GET /v1/", key, StringComparison.Ordinal));
-        Assert.True(readOnly.Count > 30 && readOnly.Count < control.Count, $"{readOnly.Count} reads against {control.Count} operations.");
-        foreach (var (key, operation) in readOnly)
-        {
-            Assert.Equal(control[key]["operationId"]!.GetValue<string>(), operation["operationId"]!.GetValue<string>());
-        }
+        Assert.Equal(
+            control.Select(operation => $"{operation.Key} {operation.Value["operationId"]}").Order(StringComparer.Ordinal),
+            readOnly.Select(operation => $"{operation.Key} {operation.Value["operationId"]}").Order(StringComparer.Ordinal)
+        );
 
         foreach (var document in documents.Values)
         {
