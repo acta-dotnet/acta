@@ -6,7 +6,8 @@ namespace Acta.Tests.Execution;
 /// <summary>
 /// Pins which outcome an attempt lands when something other than the handler's return decides it: a control verb
 /// called inside a step body, a step exhausted before this attempt, and a service that throws while the attempt's
-/// scope is disposed after the outcome is decided; and that the handler's failure line says what lands.
+/// scope is disposed after the outcome is decided; and that the handler's failure line says what lands, or that recovery
+/// reclaims the job when the worker stops before the write.
 /// </summary>
 public sealed class WorkerExecutorOutcomeTests
 {
@@ -109,6 +110,24 @@ public sealed class WorkerExecutorOutcomeTests
         var line = Assert.Single(harness.Log, entry => entry.Message.StartsWith("Handler for job", StringComparison.Ordinal));
         Assert.Equal(
             $"Handler for job (harness-job) ({harness.JobRef}) threw, and the job does not retry (a retry would pass the job's deadline, so the job is cancelled).",
+            line.Message
+        );
+        Assert.Same(thrown, line.Exception);
+    }
+
+    [Fact]
+    public async Task A_failure_the_worker_stops_before_handing_over_logs_once_that_the_job_is_reclaimed()
+    {
+        // The finalizer never plans this completion, so the stop writes the line the plan would have written.
+        var harness = new WorkerExecutorHarness(maxAttempts: 3, failureCount: 1);
+        var thrown = new InvalidOperationException("503 from the carrier");
+
+        await harness.RunAndStopAtHandOffAsync((_, _) => throw thrown);
+
+        Assert.Empty(harness.Submitted);
+        var line = Assert.Single(harness.Log, entry => entry.Message.StartsWith("Handler for job", StringComparison.Ordinal));
+        Assert.Equal(
+            $"Handler for job (harness-job) ({harness.JobRef}) threw on attempt (2 of 3), and the worker stopped before writing the failure; the job is reclaimed after its lease expires.",
             line.Message
         );
         Assert.Same(thrown, line.Exception);

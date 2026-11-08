@@ -104,7 +104,17 @@ internal sealed class WorkerExecutor(
                 {
                     if (await ExecuteAsync(entry, hostCt))
                     {
-                        await registry.Completed.Writer.WriteAsync(entry, hostCt);
+                        try
+                        {
+                            await registry.Completed.Writer.WriteAsync(entry, hostCt);
+                        }
+                        catch (OperationCanceledException) when (hostCt.IsCancellationRequested)
+                        {
+                            // A stop gives up the hand-off, so the finalizer never plans this completion's write nor
+                            // writes its failure line; the line is written here, and the row lapses to recovery.
+                            finalizer.LogUnwritten(entry);
+                            throw;
+                        }
                         registry.ReleasePermit(entry);
                     }
                 }

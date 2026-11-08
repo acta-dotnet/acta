@@ -204,6 +204,18 @@ internal static partial class ActaLog
 
     [LoggerMessage(
         Level = LogLevel.Warning,
+        Message = "Handler for job ({ActaJobName}) ({ActaJobRef}) threw on attempt ({ActaDetail}), and the worker stopped before writing the failure; the job is reclaimed after its lease expires."
+    )]
+    public static partial void HandlerThrewUnwritten(
+        ILogger log,
+        Exception exception,
+        string actaJobName,
+        string actaJobRef,
+        string actaDetail
+    );
+
+    [LoggerMessage(
+        Level = LogLevel.Warning,
         Message = "Input deserialization for job ({ActaJobName}) ({ActaJobRef}) failed; transitioning the attempt to Failed."
     )]
     public static partial void InputDeserializationFailed(ILogger log, Exception exception, string actaJobName, string actaJobRef);

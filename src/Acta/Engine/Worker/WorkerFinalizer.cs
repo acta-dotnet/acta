@@ -339,31 +339,34 @@ internal sealed partial class WorkerFinalizer(
         }
 
         // Logged here, not where the handler threw: the deadline guard and the retirement can change what lands.
-        if (entry.Completion!.HandlerException is { } thrown)
-        {
-            LogHandlerThrew(planned, thrown);
-        }
+        LogHandlerThrew(entry, planned);
         return planned;
     }
 
     /// <summary>
-    /// The handler's failure line, one per failed attempt: the job by its ref, the exception, and what
-    /// <paramref name="write"/> does with the failure. The finalizer runs outside the attempt's log scope, so the line
-    /// opens it again.
+    /// Logs the failure line of <paramref name="entry"/>'s completion, which the worker stopped before handing over: no
+    /// write is planned, so the row stays Executing and recovery reclaims the job after its lease expires.
     /// </summary>
-    private void LogHandlerThrew(PlannedWrite write, Exception thrown)
+    public void LogUnwritten(InFlightJob entry) => LogHandlerThrew(entry, write: null);
+
+    /// <summary>
+    /// The handler's failure line, one per failed attempt: the job by its ref, the exception, and what
+    /// <paramref name="write"/> does with the failure, or, with no write planned, that recovery reclaims the job. The
+    /// finalizer runs outside the attempt's log scope, so the line opens it again.
+    /// </summary>
+    private void LogHandlerThrew(InFlightJob entry, PlannedWrite? write)
     {
         // A logger that throws is ignored, as in RepeatAsync: the line is written while its batch is planned, so a
         // throw would drop every completion in the batch, and recovery would run their jobs again.
         try
         {
-            if (!log.IsEnabled(LogLevel.Warning))
+            if (entry.Completion?.HandlerException is not { } thrown || !log.IsEnabled(LogLevel.Warning))
             {
                 return;
             }
 
-            var job = write.Entry.Claim;
-            var descriptor = write.Entry.Descriptor!;
+            var job = entry.Claim;
+            var descriptor = entry.Descriptor!;
             using var scope = ActaLog.BeginJobScope(
                 log,
                 job.JobId,
@@ -375,18 +378,24 @@ internal sealed partial class WorkerFinalizer(
             );
             var jobRef = new JobRef(job.JobRef).ToString();
             var attempt = $"{NextFailureCount(job.FailureCount)} of {descriptor.MaxAttempts}";
-            if (write.Row.RescheduleDelaySeconds is { } delaySeconds)
+            if (write is not { } planned)
+            {
+                ActaLog.HandlerThrewUnwritten(log, thrown, descriptor.JobName, jobRef, attempt);
+                return;
+            }
+
+            if (planned.Row.RescheduleDelaySeconds is { } delaySeconds)
             {
                 ActaLog.HandlerThrewRetrying(log, thrown, descriptor.JobName, jobRef, attempt, delaySeconds * 1000L);
                 return;
             }
 
-            var why = write.Completion.Reason switch
+            var why = planned.Completion.Reason switch
             {
                 EventReason.DefinitionRetired => "the job's definition is retired, so the job is cancelled",
                 EventReason.DeadlineExceeded => "a retry would pass the job's deadline, so the job is cancelled",
                 EventReason.NonRetryableException => $"{thrown.GetType().Name} is never retried, so the job failed for good",
-                _ when write.Row.FinalStatus == JobStatusCode.Idle =>
+                _ when planned.Row.FinalStatus == JobStatusCode.Idle =>
                     $"attempt {attempt} spent the firing's budget, so the job is idle until its next firing",
                 _ => $"attempt {attempt} spent the budget, so the job failed for good",
             };

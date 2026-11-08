@@ -141,7 +141,8 @@ internal sealed class WorkerExecutorHarness(
                     rateName,
                     deadlineAtUtc,
                     inputDeserializationThrows
-                )
+                ),
+                out _
             )
             .RunInlineAsync(_entry, _workerCts.Token);
 
@@ -153,17 +154,62 @@ internal sealed class WorkerExecutorHarness(
     }
 
     /// <summary>
+    /// Runs one attempt on an executor loop whose hand-off to the finalizer is full, as it is while an earlier write
+    /// repeats, and stops the worker once the handler has ended, so the loop gives up the completion it holds.
+    /// </summary>
+    public async Task RunAndStopAtHandOffAsync(Func<JobContext, CancellationToken, Task> handler)
+    {
+        var handlerEnded = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _entry = new InFlightJob(Job(), leaseRunway: null, _workerCts.Token);
+        var executor = Executor(
+            Descriptor(
+                jobName,
+                async (ctx, token) =>
+                {
+                    try
+                    {
+                        await handler(ctx, token);
+                    }
+                    finally
+                    {
+                        handlerEnded.SetResult();
+                    }
+                },
+                maxAttempts,
+                backoff,
+                concurrencyLimit,
+                rateLimit,
+                rateName,
+                deadlineAtUtc,
+                inputDeserializationThrows
+            ),
+            out var registry
+        );
+
+        // No finalizer reads the hand-off, so one stand-in entry queued to capacity holds it full.
+        var queued = new InFlightJob(Job(), leaseRunway: null, CancellationToken.None);
+        while (registry.Completed.Writer.TryWrite(queued)) { }
+        registry.TryAdd(_entry);
+        await registry.Claimed.Writer.WriteAsync(_entry);
+
+        var loop = executor.RunLoopAsync(_workerCts.Token);
+        await handlerEnded.Task.WaitAsync(TimeSpan.FromSeconds(30));
+        await _workerCts.CancelAsync();
+        await loop.WaitAsync(TimeSpan.FromSeconds(30));
+    }
+
+    /// <summary>
     /// Drives one claimed job through the real <see cref="WorkerExecutor"/> with an EMPTY descriptor
     /// index: the state a deployment that dropped the definition leaves a worker in. The scripted
     /// store is the same one, so a test reads the released claim off <see cref="Submitted"/> and the
     /// bounce off <see cref="Log"/>.
     /// </summary>
     public Task<RunOnceStatus> RunWithNoDescriptorAsync() =>
-        Executor(descriptor: null)
+        Executor(descriptor: null, out _)
             .RunInlineAsync(new InFlightJob(Job(), leaseRunway: null, CancellationToken.None), CancellationToken.None);
 
     // The worker this runtime would be: registered for one namespace, with the descriptor the claim names, if any.
-    private WorkerExecutor Executor(JobDescriptor? descriptor)
+    private WorkerExecutor Executor(JobDescriptor? descriptor, out InFlightJobRegistry registry)
     {
         var context = _context;
         context.NamespaceIds["harness"] = 1;
@@ -181,7 +227,7 @@ internal sealed class WorkerExecutorHarness(
             options.MaxInlinePayloadBytes = configuredCap;
         }
 
-        var registry = new InFlightJobRegistry(options);
+        registry = new InFlightJobRegistry(options);
         var finalizer = new WorkerFinalizer(
             _store.Execution,
             _store.Jobs,
