@@ -117,16 +117,19 @@ internal static class AlertTestOps
     {
         var aged = await HorizonOfThisMomentAsync(services, ct);
         var db = services.GetRequiredService<IDbSession>();
-        // The update moves each row by key: one that searched by stamp could scan events, and with read-committed snapshot
-        // off share-lock every page it passed.
-        var ids = (await db.From<EventEntity>().Where(e => e.NamespaceId == namespaceId && e.CreatedAtUtc > aged).ToListAsync(ct))
-            .Select(e => e.Id)
-            .ToList();
-        foreach (var chunk in ids.Chunk(500).Select(c => c.ToList()))
+        // The update moves each row by its whole key, worker id then event id: one that searched by stamp, or by event id
+        // alone, scans the clustered index under update locks, and on SQL Server those page locks deadlock with other facts'
+        // event inserts.
+        var rows = await db.From<EventEntity>().Where(e => e.NamespaceId == namespaceId && e.CreatedAtUtc > aged).ToListAsync(ct);
+        foreach (var worker in rows.GroupBy(e => e.WorkerId))
         {
-            await db.From<EventEntity>()
-                .Where(e => chunk.Contains(e.Id))
-                .UpdateOnlyAsync(() => new EventEntity { CreatedAtUtc = aged }, ct);
+            var workerId = worker.Key;
+            foreach (var chunk in worker.Select(e => e.Id).Chunk(500).Select(c => c.ToList()))
+            {
+                await db.From<EventEntity>()
+                    .Where(e => e.WorkerId == workerId && chunk.Contains(e.Id))
+                    .UpdateOnlyAsync(() => new EventEntity { CreatedAtUtc = aged }, ct);
+            }
         }
     }
 
