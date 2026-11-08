@@ -49,7 +49,11 @@
     {#if !TERMINAL_STATUSES.includes(job.status)}
       <dt>Next run</dt><dd>
         {#if job.status !== 'idle' || job.nextRunAtUtc}<RelativeTime value={job.nextRunAtUtc} />
-        {:else if firing}<RelativeTime value={firing.nextOccurrenceAtUtc} /> <span class="dim">when schedule <a href={routes.schedule(firing.jobNamespace, firing.jobName, firing.scheduleName)} class="mono">{firing.scheduleName}</a> fires</span>
+        {:else if firing}
+          {@const { schedule } = firing}
+          {@const link = routes.schedule(schedule.jobNamespace, schedule.jobName, schedule.scheduleName)}
+          {#if firing.resumes}<span class="dim">Schedule <a href={link} class="mono">{schedule.scheduleName}</a> resumes</span> <RelativeTime value={firing.atUtc} />
+          {:else}<RelativeTime value={firing.atUtc} /> <span class="dim">when schedule <a href={link} class="mono">{schedule.scheduleName}</a> fires</span>{/if}
         {:else if firing === null}<span class="dim">No schedule is set to fire it.</span>
         {:else}<span class="dim">When one of its schedules fires.</span>{/if}
       </dd>

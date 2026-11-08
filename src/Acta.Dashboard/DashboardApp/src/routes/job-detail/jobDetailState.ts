@@ -10,16 +10,28 @@ export function executionLabel(job: Pick<JobDetail, 'kind' | 'executionNumber'>)
   return count + (job.executionNumber === 1 ? ' execution' : ' executions');
 }
 
+/** When a schedule next fires an idle permanent job, or, when resumes is set, when its timed pause ends. */
+interface ScheduleFiring {
+  schedule: JobScheduleView;
+  atUtc: string;
+  resumes: boolean;
+}
+
 /**
- * The active schedule that fires an idle permanent job soonest: null when none has a next occurrence, and
- * undefined when the schedules are a first page, which could miss a sooner one.
+ * The schedule that fires an idle permanent job soonest, and when. An active schedule fires at its next occurrence. A
+ * paused one keeps that occurrence, so a timed pause that ends by then fires there too, and one that ends after it
+ * resumes at its end, where the misfire policy decides what the missed occurrences fire. Null when no schedule will
+ * fire the job, and undefined when the schedules are a first page, which could miss a sooner one.
  */
-export function nextFiring(schedules: readonly JobScheduleView[], total: number | null): JobScheduleView | null | undefined {
+export function nextFiring(schedules: readonly JobScheduleView[], total: number | null): ScheduleFiring | null | undefined {
   if (total !== null && total > schedules.length) return undefined;
-  let soonest: JobScheduleView | null = null;
+  let soonest: ScheduleFiring | null = null;
   for (const schedule of schedules) {
-    if (schedule.status !== 'active' || !schedule.nextOccurrenceAtUtc) continue;
-    if (!soonest || Date.parse(schedule.nextOccurrenceAtUtc) < Date.parse(soonest.nextOccurrenceAtUtc!)) soonest = schedule;
+    const next = schedule.nextOccurrenceAtUtc;
+    const until = schedule.status === 'paused' ? schedule.pausedUntilUtc : null;
+    if (!next || (schedule.status !== 'active' && !until)) continue;
+    const firing = until && Date.parse(until) > Date.parse(next) ? { schedule, atUtc: until, resumes: true } : { schedule, atUtc: next, resumes: false };
+    if (!soonest || Date.parse(firing.atUtc) < Date.parse(soonest.atUtc)) soonest = firing;
   }
   return soonest;
 }
