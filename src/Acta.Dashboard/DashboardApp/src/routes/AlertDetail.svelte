@@ -39,6 +39,9 @@
   let missing = $derived(!detail.isPending && !detail.error && detail.data === null);
   let error = $derived(detail.error instanceof Error ? detail.error.message : detail.error ? String(detail.error) : null);
   let bucket = $derived(alert ? alertStateBucket(alert) : 'unacknowledged');
+  // Once a send settles, delivered or failed, retryAfterUtc holds no retry: it is when an automatic alert still
+  // unresolved is sent again as a reminder.
+  let settled = $derived(alert?.deliveryStatus === 'delivered' || alert?.deliveryStatus === 'failed');
 
   // Same two verbs the list drives, at the same alerts/{alertRef}/{action} path; invalidating the
   // 'alerts' key prefix refreshes this screen and every cached list page together.
@@ -126,7 +129,7 @@
             <div><dt>Channel</dt><dd class="mono">{alert.channelName}</dd></div>
             <div><dt>Retries</dt><dd>{displayFormatter.number(alert.retryCount)}</dd></div>
             <div>
-              <dt>Next attempt</dt>
+              <dt>{settled ? 'Next reminder' : 'Next attempt'}</dt>
               <dd>{alert.retryAfterUtc ? displayFormatter.timestamp(alert.retryAfterUtc) : '·'}</dd>
             </div>
           </dl>
