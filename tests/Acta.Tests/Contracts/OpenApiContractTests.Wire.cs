@@ -557,7 +557,7 @@ public sealed partial class OpenApiContractTests
 
     // Adds to wrong what a served value breaks of its schema: a type the schema does not allow, a bound or pattern it
     // breaks, a schema its not refuses that it matches, an absent required member, or, when strict, a member it does not
-    // declare. A reference is followed, and a oneOf holds when one of its branches does.
+    // declare. A reference is followed, and a oneOf holds when exactly one of its branches does, as JSON Schema reads it.
     private static void Describe(JsonNode? value, JsonNode schema, JsonObject schemas, string where, List<string> wrong, bool strict = true)
     {
         if (schema["$ref"]?.GetValue<string>() is { } reference)
@@ -574,9 +574,19 @@ public sealed partial class OpenApiContractTests
 
         if (schema["oneOf"] is JsonArray branches)
         {
-            if (!branches.Any(branch => Breaks(value, branch!, schemas, where, strict).Count == 0))
+            var held = branches
+                .Where(branch => Breaks(value, branch!, schemas, where, strict).Count == 0)
+                .Select(branch => branch!["$ref"]?.GetValue<string>().Split('/')[^1] ?? branch.ToJsonString())
+                .ToList();
+            if (held.Count == 0)
             {
                 wrong.Add($"{where}: {Kind(value)} matches no branch of its oneOf.");
+            }
+            else if (held.Count > 1)
+            {
+                wrong.Add(
+                    $"{where}: {Kind(value)} matches {held.Count} branches of its oneOf, {string.Join(" and ", held)}, not exactly one."
+                );
             }
             return;
         }
@@ -636,11 +646,33 @@ public sealed partial class OpenApiContractTests
         }
     }
 
-    private static List<string> Breaks(JsonNode? value, JsonNode schema, JsonObject schemas, string where, bool strict = true)
+    internal static List<string> Breaks(JsonNode? value, JsonNode schema, JsonObject schemas, string where, bool strict = true)
     {
         var wrong = new List<string>();
         Describe(value, schema, schemas, where, wrong, strict);
         return wrong;
+    }
+
+    /// <summary>
+    /// The validator's oneOf holds only when exactly one branch does: a nullable member's null and its value each match one
+    /// branch, and a value two overlapping branches take is reported, as a strict validator refuses it.
+    /// </summary>
+    [Fact]
+    public void A_oneOf_holds_only_when_exactly_one_branch_does()
+    {
+        var schemas = new JsonObject();
+        var nullable = JsonNode.Parse("""{"oneOf":[{"type":"null"},{"type":"string"}]}""")!;
+        var overlapping = JsonNode.Parse("""{"oneOf":[{"type":"string"},{"type":"string","maxLength":2}]}""")!;
+
+        Assert.Empty(Breaks(null, nullable, schemas, "value"));
+        Assert.Empty(Breaks(JsonValue.Create("x"), nullable, schemas, "value"));
+        Assert.Equal(["value: number matches no branch of its oneOf."], Breaks(JsonValue.Create(1), nullable, schemas, "value"));
+        Assert.Empty(Breaks(JsonValue.Create("abc"), overlapping, schemas, "value"));
+        Assert.Contains(
+            "matches 2 branches",
+            Assert.Single(Breaks(JsonValue.Create("ab"), overlapping, schemas, "value")),
+            StringComparison.Ordinal
+        );
     }
 
     // The bound or pattern a value breaks: a number's minimum and maximum, a string's length in code points and its

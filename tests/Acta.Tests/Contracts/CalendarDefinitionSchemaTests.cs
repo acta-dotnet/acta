@@ -6,15 +6,21 @@ using Xunit;
 namespace Acta.Tests.Contracts;
 
 /// <summary>
-/// The calendar definition's schemas in the document are written by hand, since the compiler reads JSON and no record.
-/// These facts hold them to <see cref="CalendarDefinition"/>: the same kinds, the same members on each kind, the same
-/// required ones, so a client that builds a definition from the document builds one the server takes.
+/// The calendar definition's schema in the document is written by hand, since the compiler reads JSON and no record.
+/// These facts hold it to <see cref="CalendarDefinition"/>: the same kinds, every member some kind takes, and each member
+/// naming the kinds that take it and saying when they require it, so a client that builds a definition from the document
+/// builds one the server takes.
 /// </summary>
 public sealed partial class CalendarDefinitionSchemaTests
 {
     private static readonly Lazy<Task<JsonObject>> Schemas = new(async () =>
         JsonNode.Parse(await ActaOpenApiDocument.GenerateAsync())!["components"]!["schemas"]!.AsObject()
     );
+
+    private static readonly string[] Kinds =
+    [
+        .. CalendarDefinition.AvailabilityKinds.Concat(CalendarDefinition.OccurrenceKinds).Distinct().Order(StringComparer.Ordinal),
+    ];
 
     private const string Weekly = """
         {"kind":"weekly-availability","description":"Office hours.","timeZone":"Europe/Ljubljana",
@@ -23,7 +29,7 @@ public sealed partial class CalendarDefinitionSchemaTests
          "excludedRanges":[{"from":"2027-08-01","to":"2027-08-15"},{"fromUtc":"2027-01-05T10:00:00Z","toUtc":"2027-01-05T11:00:00Z"}]}
         """;
 
-    /// <summary>One definition per kind that uses every member of its schema, with the role it compiles in.</summary>
+    /// <summary>One definition per kind that uses every member the kind takes, with the role it compiles in.</summary>
     private static readonly (string Kind, CalendarRoleCode Role, string Json)[] Cases =
     [
         ("weekly-availability", CalendarRoleCode.Availability, Weekly),
@@ -80,34 +86,26 @@ public sealed partial class CalendarDefinitionSchemaTests
         return examples;
     }
 
+    /// <summary>
+    /// The definition is one object with no oneOf to choose by, so a generated client reads and writes every kind through
+    /// one type. Its kind is required and a plain string, since a one-value enum or a pattern on it breaks a generated C#
+    /// client, and its description names every kind the compiler knows.
+    /// </summary>
     [Fact]
-    public async Task Every_kind_the_compiler_knows_has_a_schema_and_no_other()
+    public async Task The_definition_is_one_object_whose_kind_names_every_kind()
     {
-        var schemas = await Schemas.Value;
-        var kinds = CalendarDefinition
-            .AvailabilityKinds.Concat(CalendarDefinition.OccurrenceKinds)
-            .Distinct()
-            .Order(StringComparer.Ordinal);
-        var definition = schemas[ActaOpenApiDocument.CalendarDefinitionSchema]!;
+        var definition = (await Schemas.Value)[ActaOpenApiDocument.CalendarDefinitionSchema]!;
+        var kind = definition["properties"]!["kind"]!;
 
-        Assert.Equal(kinds, ActaOpenApiDocument.CalendarKindSchemas.Keys.Order(StringComparer.Ordinal));
-        Assert.Equal(
-            ActaOpenApiDocument
-                .CalendarKindSchemas.Select(kind => $"{kind.Key} #/components/schemas/{kind.Value}")
-                .Order(StringComparer.Ordinal),
-            definition["discriminator"]!["mapping"]!
-                .AsObject()
-                .Select(kind => $"{kind.Key} {kind.Value!.GetValue<string>()}")
-                .Order(StringComparer.Ordinal)
-        );
-        Assert.Equal(
-            ActaOpenApiDocument.CalendarKindSchemas.Values.Order(StringComparer.Ordinal),
-            definition["oneOf"]!
-                .AsArray()
-                .Select(variant => variant!["$ref"]!.GetValue<string>().Split('/')[^1])
-                .Order(StringComparer.Ordinal)
-        );
-        Assert.Equal(kinds, Cases.Select(example => example.Kind).Distinct().Order(StringComparer.Ordinal));
+        Assert.Equal("object", definition["type"]!.GetValue<string>());
+        Assert.False(definition["additionalProperties"]!.GetValue<bool>());
+        Assert.Equal(["kind"], definition["required"]!.AsArray().Select(member => member!.GetValue<string>()));
+        Assert.Null(definition["oneOf"]);
+        Assert.Null(definition["discriminator"]);
+        Assert.Equal(["description", "type"], kind.AsObject().Select(keyword => keyword.Key).Order(StringComparer.Ordinal));
+        Assert.Equal("string", kind["type"]!.GetValue<string>());
+        Assert.Equal(Kinds, KindsNamed(kind["description"]!.GetValue<string>()));
+        Assert.Equal(Kinds, Cases.Select(example => example.Kind).Distinct().Order(StringComparer.Ordinal));
     }
 
     /// <summary>
@@ -125,8 +123,7 @@ public sealed partial class CalendarDefinitionSchemaTests
             .Matches(source)
             .SelectMany(check => Quoted().Matches(check.Value).Select(name => name.Groups[1].Value))
             .ToHashSet(StringComparer.Ordinal);
-        var declared = ActaOpenApiDocument
-            .CalendarKindSchemas.Values.Concat(["CalendarWeeklyRule", "CalendarExcludedRange"])
+        var declared = new[] { ActaOpenApiDocument.CalendarDefinitionSchema, "CalendarWeeklyRule", "CalendarExcludedRange" }
             .SelectMany(name => schemas[name]!["properties"]!.AsObject().Select(member => member.Key))
             .ToHashSet(StringComparer.Ordinal);
 
@@ -134,40 +131,89 @@ public sealed partial class CalendarDefinitionSchemaTests
         Assert.Equal(read.Order(StringComparer.Ordinal), declared.Order(StringComparer.Ordinal));
     }
 
+    /// <summary>
+    /// A kind takes a member exactly when the member's description names the kind, and requires it exactly when the
+    /// description ends in Required. Which members a kind takes is read from the compiler: a member is the kind's unless
+    /// the compiler refuses it as not a property of this kind. Across every kind, each description names exactly the kinds
+    /// that take its member.
+    /// </summary>
     [Theory]
     [MemberData(nameof(Examples))]
-    public async Task A_kinds_schema_holds_what_the_compiler_takes(string kind, CalendarRoleCode role, string example)
+    public async Task A_member_names_the_kinds_the_compiler_takes_it_on(string kind, CalendarRoleCode role, string example)
+    {
+        var properties = (await Schemas.Value)[ActaOpenApiDocument.CalendarDefinitionSchema]!["properties"]!.AsObject();
+        var definition = JsonNode.Parse(example)!.AsObject();
+        var taken = properties
+            .Select(member => member.Key)
+            .Where(member =>
+                member != "kind" && !Problems(role, With(definition, member, "x")).Contains($"$.{member}: not a property of this kind.")
+            )
+            .ToHashSet(StringComparer.Ordinal);
+
+        // The example is one the server takes, and it uses every member the kind takes.
+        Assert.Empty(Problems(role, definition));
+        Assert.Equal(
+            taken.Order(StringComparer.Ordinal),
+            definition.Select(member => member.Key).Where(member => member != "kind").Order(StringComparer.Ordinal)
+        );
+
+        foreach (var (member, schema) in properties.Where(member => member.Key != "kind"))
+        {
+            var description = schema!["description"]!.GetValue<string>();
+            Assert.True(
+                KindsNamed(description).Contains(kind) == taken.Contains(member),
+                $"{member}: its description {(taken.Contains(member) ? "does not name" : "names")} {kind}, which "
+                    + $"{(taken.Contains(member) ? "takes" : "refuses")} it."
+            );
+            if (taken.Contains(member))
+            {
+                var without = definition.DeepClone().AsObject();
+                without.Remove(member);
+                var required = Problems(role, without).Contains($"$.{member}: required.");
+                Assert.True(
+                    required == description.EndsWith("Required.", StringComparison.Ordinal),
+                    $"{kind}.{member}: the compiler {(required ? "requires" : "does not require")} it, and its description disagrees."
+                );
+            }
+        }
+    }
+
+    /// <summary>
+    /// A definition of every kind, and unions and intersections nested in each other, in a subtraction, and in an
+    /// at-opening, is a value the definition's schema allows under the contract tests' validator, which applies oneOf
+    /// strictly.
+    /// </summary>
+    [Fact]
+    public async Task A_definition_of_every_kind_is_a_value_its_schema_allows()
     {
         var schemas = await Schemas.Value;
-        var schema = schemas[ActaOpenApiDocument.CalendarKindSchemas[kind]]!;
-        var members = schema["properties"]!.AsObject().Select(member => member.Key).ToHashSet(StringComparer.Ordinal);
-        var required = schema["required"]!.AsArray().Select(member => member!.GetValue<string>()).ToHashSet(StringComparer.Ordinal);
-        var others = ActaOpenApiDocument
-            .CalendarKindSchemas.Values.SelectMany(name => schemas[name]!["properties"]!.AsObject().Select(member => member.Key))
-            .Where(member => !members.Contains(member))
-            .ToHashSet(StringComparer.Ordinal);
-        var definition = JsonNode.Parse(example)!.AsObject();
-
-        // The example is one the server takes, and it uses every member the schema declares.
-        Assert.Empty(Problems(role, definition));
-        Assert.Equal(members.Order(StringComparer.Ordinal), definition.Select(member => member.Key).Order(StringComparer.Ordinal));
-        Assert.False(schema["additionalProperties"]!.GetValue<bool>());
-
-        foreach (var member in members.Where(member => member != "kind"))
+        const string Closed = """{"kind":"weekly-availability","dateOverrides":{"2027-01-01":[]}}""";
+        (string Kind, CalendarRoleCode Role, string Json)[] nested =
+        [
+            (
+                "nested union",
+                CalendarRoleCode.Availability,
+                $$"""{"kind":"union","of":[{"kind":"intersection","of":[{{Closed}},{{Closed}}]},{{Closed}}]}"""
+            ),
+            (
+                "nested at-opening",
+                CalendarRoleCode.Occurrence,
+                $$"""
+                {"kind":"at-opening","availability":{"kind":"subtraction",
+                 "from":{"kind":"intersection","of":[{{Closed}},{{Closed}}]},"minus":{"kind":"union","of":[{{Closed}}]} } }
+                """
+            ),
+        ];
+        var wrong = new List<string>();
+        foreach (var (kind, role, json) in Cases.Concat(nested))
         {
-            var without = definition.DeepClone().AsObject();
-            without.Remove(member);
-            var missing = Problems(role, without).Contains($"$.{member}: required.");
-            Assert.True(missing == required.Contains(member), $"{kind}.{member}: the schema's required and the compiler disagree.");
+            Assert.Empty(Problems(role, JsonNode.Parse(json)!.AsObject()));
+            wrong.AddRange(
+                OpenApiContractTests.Breaks(JsonNode.Parse(json), schemas[ActaOpenApiDocument.CalendarDefinitionSchema]!, schemas, kind)
+            );
         }
 
-        // A member of another kind is refused on this one, so the schema's additionalProperties: false is the server's rule.
-        foreach (var member in others)
-        {
-            var with = definition.DeepClone().AsObject();
-            with[member] = "x";
-            Assert.Contains($"$.{member}: not a property of this kind.", Problems(role, with));
-        }
+        Assert.True(wrong.Count == 0, string.Join("\n", wrong));
     }
 
     /// <summary>
@@ -220,6 +266,19 @@ public sealed partial class CalendarDefinitionSchemaTests
             without["weekly"]![0]!.AsObject().Remove(member);
             Assert.Contains($"$.weekly[0].{member}: required.", Problems(CalendarRoleCode.Availability, without));
         }
+    }
+
+    // The kinds a description names: each kind written as a whole word, or all of them where it says every kind.
+    private static string[] KindsNamed(string description) =>
+        description.Contains("every kind", StringComparison.Ordinal)
+            ? Kinds
+            : [.. Kinds.Where(kind => Regex.IsMatch(description, $"(?<![\\w-]){Regex.Escape(kind)}(?![\\w-])"))];
+
+    private static JsonObject With(JsonObject definition, string member, string value)
+    {
+        var with = definition.DeepClone().AsObject();
+        with[member] = value;
+        return with;
     }
 
     private static IReadOnlyList<string> Problems(CalendarRoleCode role, JsonObject definition)

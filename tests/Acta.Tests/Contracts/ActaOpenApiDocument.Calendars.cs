@@ -1,29 +1,15 @@
 using System.Globalization;
-using System.Text.Json.Nodes;
 using Microsoft.OpenApi;
 
 namespace Acta.Tests.Contracts;
 
 // The calendar definition language. The engine reads a definition as JSON, not through a record, so the generator sees
-// no type to describe: these schemas are written by hand, one per kind, and CalendarDefinitionSchemaTests holds them to
-// what the compiler accepts.
+// no type to describe: this schema is written by hand, and CalendarDefinitionSchemaTests holds it to what the compiler
+// accepts.
 internal static partial class ActaOpenApiDocument
 {
-    /// <summary>The schema of a calendar definition: its kinds' schemas, the one that applies chosen by kind.</summary>
+    /// <summary>The schema of a calendar definition: one object that takes every kind's members.</summary>
     public const string CalendarDefinitionSchema = "CalendarDefinition";
-
-    /// <summary>Each kind's schema name; <c>kind</c> is a plain string in each, since a one-value enum or a pattern on it breaks a generated C# union.</summary>
-    public static readonly IReadOnlyDictionary<string, string> CalendarKindSchemas = new Dictionary<string, string>(StringComparer.Ordinal)
-    {
-        ["weekly-availability"] = "WeeklyAvailabilityCalendar",
-        ["union"] = "UnionCalendar",
-        ["intersection"] = "IntersectionCalendar",
-        ["subtraction"] = "SubtractionCalendar",
-        ["explicit-instants"] = "ExplicitInstantsCalendar",
-        ["daily-local-time"] = "DailyLocalTimeCalendar",
-        ["business-day"] = "BusinessDayCalendar",
-        ["at-opening"] = "AtOpeningCalendar",
-    };
 
     private const string WeeklyRuleSchema = "CalendarWeeklyRule";
     private const string LocalWindowSchema = "CalendarLocalWindow";
@@ -51,47 +37,130 @@ internal static partial class ActaOpenApiDocument
             return;
         }
 
-        schemas[CalendarDefinitionSchema] = new OpenApiSchema
-        {
-            Description =
-                "A calendar's definition: a JSON object whose kind names its shape. An availability family takes weekly-availability, "
+        var note = Text("A note for operators, which every kind takes; it changes nothing the calendar computes.");
+        note.MaxLength = 512;
+        // One object with every kind's members rather than a oneOf of one schema per kind: generated clients fail on a
+        // per-kind oneOf whose kind is a plain string, and holding kind to its value breaks the generated C# client.
+        schemas[CalendarDefinitionSchema] = Object(
+            "A calendar's definition: a JSON object whose kind names its shape. An availability family takes weekly-availability, "
                 + "union, intersection, or subtraction; an occurrence family takes explicit-instants, daily-local-time, business-day, "
-                + "at-opening, or union. A definition holds at most 64 KB, 8 levels of JSON, and 5000 list items in all. A later "
-                + "version of Acta may add kinds.",
-            // oneOf with kind a plain string, which the generators read through the discriminator. A validator that applies
-            // oneOf to the letter refuses a union or an intersection, since the two have one shape; holding kind to its
-            // value with an enum or a pattern breaks the generated C# client, and anyOf breaks the TypeScript one
-            // (docs/known-limitations.md).
-            OneOf = [.. CalendarKindSchemas.Values.Select(IOpenApiSchema (name) => new OpenApiSchemaReference(name))],
-            Discriminator = new OpenApiDiscriminator
-            {
-                PropertyName = "kind",
-                Mapping = CalendarKindSchemas.ToDictionary(
-                    kind => kind.Key,
-                    kind => new OpenApiSchemaReference(kind.Value),
-                    StringComparer.Ordinal
-                ),
-            },
-        };
-
-        schemas["WeeklyAvailabilityCalendar"] = Kind(
-            "weekly-availability",
-            "An availability calendar of weekly windows in local time, with single dates overridden and ranges cut out. It needs at "
-                + "least one weekly rule or date override.",
-            [],
-            ("timeZone", Text("The zone the local times are in: " + Zone)),
-            ("weekly", List("The weekly rules; the windows of every rule that names a weekday apply on it.", Ref(WeeklyRuleSchema))),
+                + "at-opening, or union. Each member names the kinds that take it, and the server refuses it on any other kind. At "
+                + "most 64 KB, 8 levels of JSON, and 5000 list items.",
+            ["kind"],
+            (
+                "kind",
+                Text(
+                    "The definition's kind: weekly-availability, union, intersection, subtraction, explicit-instants, daily-local-time, "
+                        + "business-day, or at-opening. A union is open while any operand is, or fires whenever one does, and an "
+                        + "intersection is open only while every operand is; the other kinds' members say what each computes. A later "
+                        + "version of Acta may add kinds."
+                )
+            ),
+            ("description", note),
+            (
+                "timeZone",
+                Text(
+                    "The zone a weekly-availability, explicit-instants, daily-local-time, or business-day calendar reads its local "
+                        + "dates and times in: "
+                        + Zone
+                )
+            ),
+            (
+                "weekly",
+                List(
+                    "The weekly rules of a weekly-availability calendar, which needs at least one weekly rule or date override; the "
+                        + "windows of every rule that names a weekday apply on it.",
+                    Ref(WeeklyRuleSchema)
+                )
+            ),
             (
                 "dateOverrides",
                 new OpenApiSchema
                 {
                     Type = JsonSchemaType.Object,
                     Description =
-                        "Dates whose windows replace the weekly ones, keyed by the date as yyyy-MM-dd; an empty list closes the date.",
+                        "The dates of a weekly-availability calendar whose windows replace the weekly ones, keyed by the date as "
+                        + "yyyy-MM-dd; an empty list closes the date.",
                     AdditionalProperties = List("The date's windows.", Ref(LocalWindowSchema)),
                 }
             ),
-            ("excludedRanges", List("Ranges cut out of the windows after everything else is applied.", Ref(ExcludedRangeSchema)))
+            (
+                "excludedRanges",
+                List(
+                    "The ranges a weekly-availability calendar cuts out of its windows after everything else is applied.",
+                    Ref(ExcludedRangeSchema)
+                )
+            ),
+            (
+                "of",
+                new OpenApiSchema
+                {
+                    Description =
+                        "In a union or an intersection, the operands: a list of at least one definition written inline, each of the "
+                        + "family's role in a union and each an availability definition in an intersection. In a business-day calendar, "
+                        + "the period to count in: week, month, quarter, or year. Required.",
+                }
+            ),
+            (
+                "from",
+                Ref(
+                    CalendarDefinitionSchema,
+                    "The calendar a subtraction requires to be open: an availability definition, written inline. Required."
+                )
+            ),
+            (
+                "minus",
+                Ref(
+                    CalendarDefinitionSchema,
+                    "The calendar a subtraction requires not to be open: an availability definition, written inline. Required."
+                )
+            ),
+            (
+                "instants",
+                List(
+                    "The instants an explicit-instants calendar fires at. Required.",
+                    Text(
+                        "An instant with its offset, such as 2027-01-15T16:00:00Z, or a local date-time in the calendar's zone, such as "
+                            + "2027-01-15T16:00."
+                    ),
+                    1
+                )
+            ),
+            ("times", List("The local times a daily-local-time calendar fires at. Required.", Text("A local time, HH:mm or HH:mm:ss."), 1)),
+            (
+                "days",
+                Weekdays(
+                    "The weekdays a daily-local-time calendar fires on, each Monday to Sunday, case ignored; every weekday when left out."
+                )
+            ),
+            ("excludedDates", List("The dates a daily-local-time calendar skips.", Text("A date, yyyy-MM-dd."))),
+            ("select", Text("Which end of the period a business-day calendar counts from: first or last. Required.")),
+            (
+                "nth",
+                new OpenApiSchema
+                {
+                    Type = JsonSchemaType.Integer,
+                    Format = "int32",
+                    Minimum = 1.ToString(CultureInfo.InvariantCulture),
+                    Maximum = 31.ToString(CultureInfo.InvariantCulture),
+                    Description =
+                        "Which business day a business-day calendar fires on, counted from the end of the period that select names, 1 to "
+                        + "31; 1 when left out.",
+                }
+            ),
+            (
+                "businessDays",
+                Weekdays("The weekdays a business-day calendar counts as business days, case ignored; Monday to Friday when left out.")
+            ),
+            ("holidays", List("The dates a business-day calendar counts as no business days.", Text("A date, yyyy-MM-dd."))),
+            ("time", Text("The local time a business-day calendar fires at, HH:mm or HH:mm:ss. Required.")),
+            (
+                "availability",
+                Ref(
+                    CalendarDefinitionSchema,
+                    "The availability calendar whose openings an at-opening calendar fires at, written inline. Required."
+                )
+            )
         );
         schemas[WeeklyRuleSchema] = Object(
             "The windows that are open on some weekdays.",
@@ -117,99 +186,6 @@ internal static partial class ActaOpenApiDocument
             ("to", Text("The last excluded date, yyyy-MM-dd; it is excluded too, and is not before from.")),
             ("fromUtc", Text("The instant the exclusion starts, in UTC with a Z, such as 2027-01-15T16:00:00Z.")),
             ("toUtc", Text("The instant the exclusion ends, in UTC with a Z, after fromUtc; the calendar is open again from that instant."))
-        );
-        schemas["UnionCalendar"] = Kind(
-            "union",
-            "The union of calendars of the family's role: an availability union is open whenever one of its operands is, and an "
-                + "occurrence union fires at every instant one of its operands does.",
-            ["of"],
-            ("of", List("The operands, each a definition of the family's role, written inline.", Ref(CalendarDefinitionSchema), 1))
-        );
-        schemas["IntersectionCalendar"] = Kind(
-            "intersection",
-            "An availability calendar that is open only while every operand is.",
-            ["of"],
-            ("of", List("The operands, each an availability definition, written inline.", Ref(CalendarDefinitionSchema), 1))
-        );
-        schemas["SubtractionCalendar"] = Kind(
-            "subtraction",
-            "An availability calendar that is open while one calendar is and another is not.",
-            ["from", "minus"],
-            ("from", Ref(CalendarDefinitionSchema, "The calendar that must be open: an availability definition, written inline.")),
-            ("minus", Ref(CalendarDefinitionSchema, "The calendar that must not be open: an availability definition, written inline."))
-        );
-        schemas["ExplicitInstantsCalendar"] = Kind(
-            "explicit-instants",
-            "An occurrence calendar that fires at the instants it lists.",
-            ["instants"],
-            ("timeZone", Text("The zone the local date-times are in: " + Zone)),
-            (
-                "instants",
-                List(
-                    "The instants to fire at.",
-                    Text(
-                        "An instant with its offset, such as 2027-01-15T16:00:00Z, or a local date-time in the calendar's zone, such as "
-                            + "2027-01-15T16:00."
-                    ),
-                    1
-                )
-            )
-        );
-        schemas["DailyLocalTimeCalendar"] = Kind(
-            "daily-local-time",
-            "An occurrence calendar that fires at local times on chosen weekdays, leaving out listed dates.",
-            ["times"],
-            ("timeZone", Text("The zone the local times are in: " + Zone)),
-            ("times", List("The local times to fire at.", Text("A local time, HH:mm or HH:mm:ss."), 1)),
-            ("days", Weekdays("The weekdays to fire on, each Monday to Sunday, case ignored; every weekday when left out.")),
-            ("excludedDates", List("Dates to skip.", Text("A date, yyyy-MM-dd.")))
-        );
-        schemas["BusinessDayCalendar"] = Kind(
-            "business-day",
-            "An occurrence calendar that fires at a local time on the nth business day from the start or the end of each week, month, "
-                + "quarter, or year.",
-            ["select", "of", "time"],
-            ("timeZone", Text("The zone the dates and the time are in: " + Zone)),
-            ("select", Text("Which end of the period to count from: first or last.")),
-            ("of", Text("The period: week, month, quarter, or year.")),
-            (
-                "nth",
-                new OpenApiSchema
-                {
-                    Type = JsonSchemaType.Integer,
-                    Format = "int32",
-                    Minimum = 1.ToString(CultureInfo.InvariantCulture),
-                    Maximum = 31.ToString(CultureInfo.InvariantCulture),
-                    Default = JsonValue.Create(1),
-                    Description = "Which business day counted from that end, 1 to 31; 1 when left out.",
-                }
-            ),
-            ("businessDays", Weekdays("The weekdays that are business days, case ignored; Monday to Friday when left out.")),
-            ("holidays", List("Dates that are no business days.", Text("A date, yyyy-MM-dd."))),
-            ("time", Text("The local time to fire at, HH:mm or HH:mm:ss."))
-        );
-        schemas["AtOpeningCalendar"] = Kind(
-            "at-opening",
-            "An occurrence calendar that fires each time an availability calendar opens.",
-            ["availability"],
-            ("availability", Ref(CalendarDefinitionSchema, "The availability calendar whose openings fire, written inline."))
-        );
-    }
-
-    // One kind's schema: its kind and note, then its own members; the server refuses any other member.
-    private static OpenApiSchema Kind(
-        string kind,
-        string description,
-        string[] required,
-        params (string Name, IOpenApiSchema Schema)[] members
-    )
-    {
-        var note = Text("A note for operators; it changes nothing the calendar computes.");
-        note.MaxLength = 512;
-        return Object(
-            description,
-            ["kind", .. required],
-            [("kind", Text($"The definition's kind: {kind}.")), ("description", note), .. members]
         );
     }
 
