@@ -281,6 +281,8 @@ async function mockDashboard(
         workersTotal: 0
       });
     }
+    // A ref that does not parse is the 400 every ref-addressed route answers.
+    if (path === 'jobs/not-a-ref/detail') return json({ title: 'Invalid request.', detail: 'jobRef is not a valid job ref.' }, 400);
     if (path === `jobs/${jobRef}/restart` && request.method() === 'POST') {
       if (!options.controls) return json({ title: 'Controls disabled.' }, 404);
       if (options.refuseControls) {
@@ -316,6 +318,15 @@ test('details shows the request and the result under the status, and an old resu
   await expect(page.getByRole('heading', { name: 'Timeline' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Result', exact: true })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Input', exact: true })).toHaveCount(0);
+});
+
+test('a malformed job ref reads as a job not found, with nothing to retry', async ({ page }) => {
+  await mockDashboard(page, { controls: false });
+  await page.goto('/#/jobs/not-a-ref');
+
+  await expect(page.getByText('Job not found.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Retry' })).toHaveCount(0);
+  await expect(page.getByText('Update failed')).toHaveCount(0);
 });
 
 test('executions tab summarizes the attempt and deep-links expanded', async ({ page }) => {

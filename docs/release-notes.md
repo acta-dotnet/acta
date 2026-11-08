@@ -183,6 +183,7 @@ Not tagged yet.
 - The dashboard's pager offered 200 and 500 rows a page, where the API serves at most 100 and answered either with 100. It offers 25, 50, and 100, and a link that asks for more opens at 100.
 - On a host with one namespace, the dashboard's Schedules page kept its Job name filter disabled until a namespace scope was picked, and a link with a job name and no scope listed every schedule. It now looks in that namespace, as the jobs list does; with several, it asks for a scope, and such a link waits for the namespaces rather than listing every schedule.
 - In a 1440 px window the dashboard's definitions table ran past its panel and cut off the Modified column, even for the first-job sample's two jobs. The name now takes the spare width and ends in an ellipsis before its jobs link when the panel is narrow, a long input or result type ends in one with the whole name in its tooltip, and the headers over the number columns wrap. A job that takes no input reads `none` there, as it does on the job page, where it read `NoInput`.
+- The dashboard's job page, opened at a malformed ref such as `#/jobs/not-a-ref`, showed "jobRef is not a valid job ref." with a Retry button and "Update failed", though no retry could find it. It now says the job is not found, as it does for a ref that names no job, and so does an `id:<n>` on a host without `EnableNumericIdLookup`.
 
 ## 1.0.0-rc.8
 

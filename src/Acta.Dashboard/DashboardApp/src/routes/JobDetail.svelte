@@ -50,7 +50,8 @@
         try {
           return await api<JobDetailView>(`jobs/${jobRef}/detail`, {}, { signal });
         } catch (error) {
-          if (error instanceof ApiError && error.status === 404) return null;
+          // The route answers 400 only for a target that does not parse, which names no job either, and a retry cannot fix.
+          if (error instanceof ApiError && (error.status === 404 || error.status === 400)) return null;
           throw error;
         }
       },
