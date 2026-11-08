@@ -2578,6 +2578,7 @@
 - **Contract:** IActaTestHost makes a parked timer, bounded wait, or schedule due at once, admits a due schedule in one pass, and refuses a wait with no deadline.
 - **Guarantees:**
   - The timer helper makes the parked job due
+  - A helper given a ref no job carries throws instead of driving nothing
   - The wait-timeout helper expires a bounded wait and rejects an unbounded one
   - The wait-timeout helper expires a bounded child wait by its latch name
   - The group wait-timeout helper expires a whole group and rejects a job without one

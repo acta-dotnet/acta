@@ -591,8 +591,7 @@ The boundary has three sides, and only two of them are inside it:
     to turn a lookup into the internal id an advanced caller then uses.
   - **Write outcomes, failures, and their ids**: `EnqueueJobResponse`, `IJobControlResponse.JobId`, the other
     `Job*Outcome` records, `JobFailedException.JobId`,
-    `DuplicateDeduplicationKeyInBatchException.ParentJobId` / its `ForChild` factory, and the
-    `Acta.Testing` host helpers that take a job id (`IActaTestHost.RunOnceAsync(long)` and the `Force*` helpers).
+    `DuplicateDeduplicationKeyInBatchException.ParentJobId` / its `ForChild` factory.
   - **The child-job APIs**, which take or return a child's id: `WaitChildAsync`, `WaitChildrenAsync`,
     `GetChildResultAsync`, `ChildJobOutcome.ChildJobId`, `MapItemOutcome<TKey>.ChildJobId`, and
     `JobEnqueueOptionsBuilder.ParentJobId(long)`.

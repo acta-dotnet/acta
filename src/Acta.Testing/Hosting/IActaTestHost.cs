@@ -23,22 +23,21 @@ public interface IActaTestHost : IAsyncDisposable
     Task<ActaRunStatus> RunOnceAsync(string jobNamespace, CancellationToken ct = default);
 
     /// <summary>
-    /// Claim + execute the specific job <paramref name="jobId"/> (by id), retrying a transient claim
-    /// miss under parallel load. Multi-worker hosts route by the job's own namespace.
+    /// Claim + execute the specific <paramref name="job"/>, retrying a transient claim miss under parallel load.
+    /// The enqueue's <see cref="JobHandle"/> or <see cref="EnqueueJobResponse"/> and a <see cref="JobRef"/> convert
+    /// to the lookup, as for every <see cref="IJobs"/> call. Multi-worker hosts route by the job's own namespace.
+    /// A ref or deduplication key that matches no job throws, here and in every helper that takes a lookup.
     /// </summary>
-    Task<ActaRunStatus> RunOnceAsync(long jobId, CancellationToken ct = default);
-
-    /// <summary>Convenience overload taking the enqueue result directly: <c>RunOnceAsync(enqueued, ct)</c>.</summary>
-    Task<ActaRunStatus> RunOnceAsync(EnqueueJobResponse enqueued, CancellationToken ct = default);
+    Task<ActaRunStatus> RunOnceAsync(JobLookup job, CancellationToken ct = default);
 
     /// <summary>Run one framework recovery pass for <paramref name="jobNamespace"/>.</summary>
     Task<ActaRecoveryReport> RunRecoveryOnceAsync(string jobNamespace, CancellationToken ct = default);
 
     /// <summary>Move the job's next-run instant into the past without otherwise changing its state.</summary>
-    Task ForceJobDueAsync(long jobId, CancellationToken ct = default);
+    Task ForceJobDueAsync(JobLookup job, CancellationToken ct = default);
 
     /// <summary>Move the next pending timer checkpoint, or the named pending timer, into the past.</summary>
-    Task ForceTimerDueAsync(long jobId, string? name = null, CancellationToken ct = default);
+    Task ForceTimerDueAsync(JobLookup job, string? name = null, CancellationToken ct = default);
 
     /// <summary>
     /// Move a bounded signal or child wait's stored expiration, and the job's next-run instant, into
@@ -46,7 +45,7 @@ public interface IActaTestHost : IAsyncDisposable
     /// when the named wait (or any pending wait) carries no expiration, because an unbounded wait can
     /// never time out and a silent no-op would look like a passing test.
     /// </summary>
-    Task ForceWaitTimeoutDueAsync(long jobId, string? name = null, CancellationToken ct = default);
+    Task ForceWaitTimeoutDueAsync(JobLookup job, string? name = null, CancellationToken ct = default);
 
     /// <summary>
     /// The group twin of <see cref="ForceWaitTimeoutDueAsync"/>: move the job's stored group wait
@@ -57,10 +56,10 @@ public interface IActaTestHost : IAsyncDisposable
     /// the group's, not any one child's. Throws when the job stores no group deadline, because an
     /// unbounded group wait can never time out and a silent no-op would look like a passing test.
     /// </summary>
-    Task ForceGroupWaitTimeoutDueAsync(long jobId, CancellationToken ct = default);
+    Task ForceGroupWaitTimeoutDueAsync(JobLookup job, CancellationToken ct = default);
 
     /// <summary>Expire the current execution lease for a claimed job.</summary>
-    Task ExpireExecutionLeaseAsync(long jobId, CancellationToken ct = default);
+    Task ExpireExecutionLeaseAsync(JobLookup job, CancellationToken ct = default);
 
     /// <summary>
     /// Move the schedule's next occurrence and its next evaluation to moments ago, inside the misfire grace,
@@ -74,7 +73,7 @@ public interface IActaTestHost : IAsyncDisposable
     /// <summary>
     /// Run one admission pass over <paramref name="jobNamespace"/>: every schedule that is due is evaluated, and
     /// what the policies select is admitted, a permanent job from <c>Idle</c> to <c>Ready</c> or a fresh root per
-    /// occurrence, for <see cref="RunOnceAsync(long, CancellationToken)"/> to run. The host runs no admitter
+    /// occurrence, for <see cref="RunOnceAsync(JobLookup, CancellationToken)"/> to run. The host runs no admitter
     /// loop, so a scheduled job fires only through this.
     /// </summary>
     Task<ActaAdmissionReport> AdmitOnceAsync(string jobNamespace, CancellationToken ct = default);

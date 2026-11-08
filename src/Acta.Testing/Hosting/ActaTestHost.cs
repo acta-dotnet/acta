@@ -83,7 +83,7 @@ public static class ActaTestHost
             return (ActaRunStatus)(byte)outcome;
         }
 
-        public async Task<ActaRunStatus> RunOnceAsync(long jobId, CancellationToken ct = default)
+        public async Task<ActaRunStatus> RunOnceAsync(JobLookup job, CancellationToken ct = default)
         {
             if (runtimes.Length == 0)
             {
@@ -94,21 +94,23 @@ public static class ActaTestHost
 
             // Multi-worker hosts route by the job's own namespace, so Scenario drive helpers work
             // regardless of how many Run(...) namespaces the host registered.
-            var runtime =
-                runtimes.Length == 1
-                    ? runtimes[0]
-                    : ResolveRuntime(
-                        (
-                            await Jobs.GetAsync(JobLookup.ById(jobId), ct)
-                            ?? throw new InvalidOperationException($"Job {jobId} does not exist; enqueue it before driving it.")
-                        ).JobNamespace
-                    );
+            WorkerRuntime runtime;
+            long jobId;
+            if (runtimes.Length == 1)
+            {
+                runtime = runtimes[0];
+                jobId = await JobIdAsync(job, ct);
+            }
+            else
+            {
+                var row = await Jobs.GetAsync(job, ct) ?? throw NoSuchJob(job);
+                runtime = ResolveRuntime(row.JobNamespace);
+                jobId = row.JobId;
+            }
+
             var outcome = await runtime.RunOnceAsync(jobId, ct);
             return (ActaRunStatus)(byte)outcome;
         }
-
-        public Task<ActaRunStatus> RunOnceAsync(EnqueueJobResponse enqueued, CancellationToken ct = default) =>
-            RunOnceAsync(enqueued.JobId, ct);
 
         public async Task<ActaRecoveryReport> RunRecoveryOnceAsync(string jobNamespace, CancellationToken ct = default)
         {
@@ -123,13 +125,11 @@ public static class ActaTestHost
             return new ActaRecoveryReport(outcome.DeadWorkersMarked, outcome.ReclaimedJobs, outcome.ReleasedChildLatches);
         }
 
-        public async Task ForceJobDueAsync(long jobId, CancellationToken ct = default)
-        {
-            if (jobId <= 0)
-            {
-                throw new ArgumentOutOfRangeException(nameof(jobId), jobId, "Job id must be positive.");
-            }
+        public async Task ForceJobDueAsync(JobLookup job, CancellationToken ct = default) =>
+            await MakeDueAsync(await JobIdAsync(job, ct), ct);
 
+        private async Task MakeDueAsync(long jobId, CancellationToken ct)
+        {
             var affected = await Db.From<JobStateEntity>()
                 .Where(r => r.Id == jobId)
                 .UpdateOnlyAsync(
@@ -142,8 +142,9 @@ public static class ActaTestHost
             }
         }
 
-        public async Task ForceTimerDueAsync(long jobId, string? name = null, CancellationToken ct = default)
+        public async Task ForceTimerDueAsync(JobLookup job, string? name = null, CancellationToken ct = default)
         {
+            var jobId = await JobIdAsync(job, ct);
             var timer = await FindPendingTimerAsync(jobId, name, ct);
             var due = DateTime.UtcNow.AddMinutes(-1);
             var affected = await Db.From<CheckpointEntity>()
@@ -156,11 +157,12 @@ public static class ActaTestHost
                 );
             }
 
-            await ForceJobDueAsync(jobId, ct);
+            await MakeDueAsync(jobId, ct);
         }
 
-        public async Task ForceWaitTimeoutDueAsync(long jobId, string? name = null, CancellationToken ct = default)
+        public async Task ForceWaitTimeoutDueAsync(JobLookup job, string? name = null, CancellationToken ct = default)
         {
+            var jobId = await JobIdAsync(job, ct);
             var wait = await FindPendingWaitAsync(jobId, name, ct);
             var due = DateTime.UtcNow.AddMinutes(-1);
             var affected = await Db.From<CheckpointEntity>()
@@ -175,16 +177,12 @@ public static class ActaTestHost
 
             // The deadline lives on the checkpoint, but claimability lives on the jobs_state row: both must move
             // or the job stays parked past its own expiration.
-            await ForceJobDueAsync(jobId, ct);
+            await MakeDueAsync(jobId, ct);
         }
 
-        public async Task ForceGroupWaitTimeoutDueAsync(long jobId, CancellationToken ct = default)
+        public async Task ForceGroupWaitTimeoutDueAsync(JobLookup job, CancellationToken ct = default)
         {
-            if (jobId <= 0)
-            {
-                throw new ArgumentOutOfRangeException(nameof(jobId), jobId, "Job id must be positive.");
-            }
-
+            var jobId = await JobIdAsync(job, ct);
             var moved = await WaitTimeoutStaging.ForceGroupWaitDueAsync(Db, jobId, DateTime.UtcNow.AddMinutes(-1), ct);
             if (moved == 0)
             {
@@ -193,16 +191,12 @@ public static class ActaTestHost
                 );
             }
 
-            await ForceJobDueAsync(jobId, ct);
+            await MakeDueAsync(jobId, ct);
         }
 
-        public async Task ExpireExecutionLeaseAsync(long jobId, CancellationToken ct = default)
+        public async Task ExpireExecutionLeaseAsync(JobLookup job, CancellationToken ct = default)
         {
-            if (jobId <= 0)
-            {
-                throw new ArgumentOutOfRangeException(nameof(jobId), jobId, "Job id must be positive.");
-            }
-
+            var jobId = await JobIdAsync(job, ct);
             var affected = await Db.From<JobStateEntity>()
                 .Where(r => r.Id == jobId && r.LeasedByWorkerId != null)
                 .UpdateOnlyAsync(
@@ -272,13 +266,22 @@ public static class ActaTestHost
                 : runtimes.Single(r => r.RegisteredNamespaceIds.ContainsKey(jobNamespace));
         }
 
+        private async Task<long> JobIdAsync(JobLookup job, CancellationToken ct) =>
+            (await Jobs.GetIdAsync(job, ct))?.JobId ?? throw NoSuchJob(job);
+
+        private static InvalidOperationException NoSuchJob(JobLookup job)
+        {
+            var named = job.Kind switch
+            {
+                JobLookupKind.JobRef => $"Job {job.JobRef}",
+                JobLookupKind.DeduplicationKey => $"No job with deduplication key '{job.DeduplicationKey}' in '{job.JobNamespace}'",
+                _ => $"Job {job.JobId}",
+            };
+            return new InvalidOperationException($"{named} does not exist; enqueue it before driving it.");
+        }
+
         private async Task<CheckpointEntity> FindPendingTimerAsync(long jobId, string? name, CancellationToken ct)
         {
-            if (jobId <= 0)
-            {
-                throw new ArgumentOutOfRangeException(nameof(jobId), jobId, "Job id must be positive.");
-            }
-
             var checkpoints = await Db.From<CheckpointEntity>()
                 .Where(c => c.JobId == jobId && c.Kind == CheckpointKindCode.Timer && c.Status == CheckpointStatusCode.Pending)
                 .ToListAsync(ct);
@@ -300,11 +303,6 @@ public static class ActaTestHost
 
         private async Task<CheckpointEntity> FindPendingWaitAsync(long jobId, string? name, CancellationToken ct)
         {
-            if (jobId <= 0)
-            {
-                throw new ArgumentOutOfRangeException(nameof(jobId), jobId, "Job id must be positive.");
-            }
-
             var waits = await Db.From<CheckpointEntity>()
                 .Where(c =>
                     c.JobId == jobId

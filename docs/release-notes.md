@@ -26,6 +26,8 @@ Not tagged yet.
 - The step's attempt number and retry instant are gone from every surface: the `steps.attempt_number` and `steps.next_retry_at_utc` columns with the checks `ck_steps_attempt_number` and `ck_steps_terminal_no_retry`, the `attempt_number` and `next_retry_at_utc` columns of `steps_view`, `ListJobStepsItem.AttemptNumber` and `NextRetryAtUtc`, and `attemptNumber` and `nextRetryAtUtc` on `GET /jobs/{jobRef}/steps`. Removing a view column is a pre-1.0 change; from 1.0 only a major release removes one.
 - `IActaTestHost.ForceStepRetryDueAsync` is gone, and no event carries the reason `step-retry-scheduled`.
 
+**The test host's job helpers take a `JobLookup`, as `IJobs` does.** `IActaTestHost.RunOnceAsync`, `ForceJobDueAsync`, `ForceTimerDueAsync`, `ForceWaitTimeoutDueAsync`, `ForceGroupWaitTimeoutDueAsync`, and `ExpireExecutionLeaseAsync` take the job as a `JobLookup` where they took a `long` job id, and `RunOnceAsync(EnqueueJobResponse)` is that same one method. The enqueue's `JobHandle` or `EnqueueJobResponse` and a `JobRef` pass as they are, so a test drives a scheduled job by the ref `ISchedules.GetAsync` answers rather than resolving its id first; a call that passed an id passes `JobLookup.ById(id)`. A ref or deduplication key that matches no job throws `InvalidOperationException`.
+
 **Operations follow one naming convention, and their public types follow them.** An operation is a verb and its subject, a facade method is that name without the facade's noun, and a part of an aggregate names the aggregate. The renames:
 
 - `SetDefinitionOverridesResponse` is `UpdateDefinitionOverridesResponse`, as `IDefinitions.UpdateOverridesAsync` already said.

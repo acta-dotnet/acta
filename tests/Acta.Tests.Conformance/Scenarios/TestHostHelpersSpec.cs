@@ -27,12 +27,26 @@ public sealed class TestHostHelpersSpec : ActaTestBase<ConformanceFixture>
         var timer = Assert.Single(await CheckpointsAsync(host, sleep.JobId, CheckpointKindCode.Timer, ct));
         Assert.Equal(("nap", CheckpointStatusCode.Pending), (timer.CheckpointName, timer.Status));
 
-        await host.ForceTimerDueAsync(sleep.JobId, ct: ct);
+        // Every helper takes the job as IJobs does: the enqueue's handle, its ref, or a lookup.
+        await host.ForceTimerDueAsync(sleep.JobRef, ct: ct);
         await RunUntilAsync(host, sleep, JobStatusCode.Succeeded, ct);
         Assert.Equal(
             CheckpointStatusCode.Consumed,
             Assert.Single(await CheckpointsAsync(host, sleep.JobId, CheckpointKindCode.Timer, ct)).Status
         );
+    }
+
+    [Fact(DisplayName = "A helper given a ref no job carries throws instead of driving nothing")]
+    public async Task A_ref_no_job_carries_throws()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await using var host = await StartHostAsync(ct);
+        var missing = JobRef.New();
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => host.RunOnceAsync(missing, ct));
+
+        Assert.Equal($"Job {missing} does not exist; enqueue it before driving it.", ex.Message);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => host.ForceJobDueAsync(missing, ct));
     }
 
     [Fact(DisplayName = "The wait-timeout helper expires a bounded wait and rejects an unbounded one")]
@@ -44,7 +58,7 @@ public sealed class TestHostHelpersSpec : ActaTestBase<ConformanceFixture>
         var bounded = await host.Jobs.EnqueueAsync(TestJobsManifest.JobTryWaitSignalTimeout(), ct: ct);
         Assert.NotNull((await RunUntilWaitingAsync(host, bounded, "go", ct)).DueAtUtc);
 
-        await host.ForceWaitTimeoutDueAsync(bounded.JobId, "go", ct);
+        await host.ForceWaitTimeoutDueAsync(bounded, "go", ct);
         await RunUntilAsync(host, bounded, JobStatusCode.Succeeded, ct);
         Assert.Equal(
             CheckpointStatusCode.Expired,
@@ -55,7 +69,7 @@ public sealed class TestHostHelpersSpec : ActaTestBase<ConformanceFixture>
         // a test that reads as passing.
         var unbounded = await host.Jobs.EnqueueAsync(TestJobsManifest.JobWaitSignal(), ct: ct);
         await RunUntilWaitingAsync(host, unbounded, "go", ct);
-        await Assert.ThrowsAsync<InvalidOperationException>(() => host.ForceWaitTimeoutDueAsync(unbounded.JobId, ct: ct));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => host.ForceWaitTimeoutDueAsync(unbounded, ct: ct));
     }
 
     [Fact(DisplayName = "The wait-timeout helper expires a bounded child wait by its latch name")]
@@ -72,7 +86,7 @@ public sealed class TestHostHelpersSpec : ActaTestBase<ConformanceFixture>
         var latch = Assert.Single(await CheckpointsAsync(host, parent.JobId, CheckpointKindCode.ChildLatch, ct));
         Assert.NotNull(latch.DueAtUtc);
 
-        await host.ForceWaitTimeoutDueAsync(parent.JobId, latch.CheckpointName, ct);
+        await host.ForceWaitTimeoutDueAsync(parent, latch.CheckpointName, ct);
         await RunUntilAsync(host, parent, JobStatusCode.Succeeded, ct);
 
         Assert.True((await host.Jobs.GetResultAsync<ChildWaitReport>(JobLookup.ById(parent.JobId), ct))!.TimedOut);
@@ -96,7 +110,7 @@ public sealed class TestHostHelpersSpec : ActaTestBase<ConformanceFixture>
 
         // A group spends one stored deadline, so the helper takes no wait name; rewinding one latch by
         // hand would leave the deadline in the future and let the second member start over.
-        await host.ForceGroupWaitTimeoutDueAsync(parent.JobId, ct);
+        await host.ForceGroupWaitTimeoutDueAsync(parent, ct);
         await RunUntilAsync(host, parent, JobStatusCode.Succeeded, ct);
 
         var report = (await host.Jobs.GetResultAsync<ChildGroupReport>(JobLookup.ById(parent.JobId), ct))!;
@@ -107,7 +121,7 @@ public sealed class TestHostHelpersSpec : ActaTestBase<ConformanceFixture>
         // no-op into a test that reads as passing.
         var single = await host.Jobs.EnqueueAsync(TestJobsManifest.JobWaitSignal(), ct: ct);
         await RunUntilWaitingAsync(host, single, "go", ct);
-        await Assert.ThrowsAsync<InvalidOperationException>(() => host.ForceGroupWaitTimeoutDueAsync(single.JobId, ct));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => host.ForceGroupWaitTimeoutDueAsync(single, ct));
     }
 
     /// <summary>
@@ -123,21 +137,17 @@ public sealed class TestHostHelpersSpec : ActaTestBase<ConformanceFixture>
         await using var host = await StartHostAsync(ct, FakeClock.AtRealMinute());
         // The lookup canonicalizes like every schedule verb, so the name's casing does not matter.
         var lookup = new ScheduleLookup(TestNamespace, "recurring-ping", "Every-5-Minutes");
-        var schedules = await host.Operations.Schedules.ListAsync(
-            new ListSchedulesQuery(JobNamespace: TestNamespace, JobName: "recurring-ping"),
-            ct
-        );
-        var slotId = (await host.Jobs.GetIdAsync(JobLookup.ByRef(Assert.Single(schedules.Items).JobRef!.Value), ct))!.JobId;
+        var slot = (await host.Operations.Schedules.GetAsync(lookup, ct))!.JobRef!.Value;
 
-        Assert.Equal(JobStatusCode.Idle, (await host.Jobs.GetStatusAsync(JobLookup.ById(slotId), ct))?.Status);
+        Assert.Equal(JobStatusCode.Idle, (await host.Jobs.GetStatusAsync(slot, ct))?.Status);
         Assert.Equal(0, (await host.AdmitOnceAsync(TestNamespace, ct)).Admitted);
 
         await host.ForceScheduleDueAsync(lookup, ct);
         Assert.Equal(1, (await host.AdmitOnceAsync(TestNamespace, ct)).Admitted);
-        Assert.Equal(JobStatusCode.Ready, (await host.Jobs.GetStatusAsync(JobLookup.ById(slotId), ct))?.Status);
+        Assert.Equal(JobStatusCode.Ready, (await host.Jobs.GetStatusAsync(slot, ct))?.Status);
 
-        Assert.Equal(ActaRunStatus.Completed, await host.RunOnceAsync(slotId, ct));
-        var settled = (await host.Jobs.GetAsync(JobLookup.ById(slotId), ct))!;
+        Assert.Equal(ActaRunStatus.Completed, await host.RunOnceAsync(slot, ct));
+        var settled = (await host.Jobs.GetAsync(slot, ct))!;
         Assert.Equal((JobStatusCode.Idle, 1), (settled.Status, settled.ExecutionNumber));
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>

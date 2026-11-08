@@ -1005,9 +1005,11 @@ public sealed class SendWelcomeEmailTests : IAsyncLifetime
 - `enqueued` is a `JobHandle`, so its reads address the job directly, and it converts implicitly to `JobLookup` for every
   `host.Jobs` verb; `JobLookup.ByRef(...)` and `JobLookup.ByDeduplicationKey(...)` address a job something else enqueued,
   and `JobLookup.ById(...)` is the debug path.
-- `RunOnceAsync(enqueued)` is sugar for `RunOnceAsync(enqueued.JobId)`. The by-id drive routes to
-  the worker that owns the job's namespace, and retries a transiently missed claim for up to five
-  seconds (the claim uses skip-locked reads), stopping as soon as the row can no longer be claimed.
+- `RunOnceAsync(enqueued)`, `ExpireExecutionLeaseAsync`, and every `Force...DueAsync` helper but the
+  schedule's take the job as a `JobLookup`, as `host.Jobs` does, so the handle, a `JobRef`, or
+  `JobLookup.ById(...)` passes. The drive routes to the worker that owns the job's namespace, and retries a
+  transiently missed claim for up to five seconds (the claim uses skip-locked reads), stopping as soon as
+  the row can no longer be claimed.
 
 ### Reading the outcome
 
@@ -1027,7 +1029,7 @@ the row is back at `Ready` with backoff applied.
 
 After a failed attempt, `NextRunAtUtc` is pushed forward by the backoff policy (default initial
 delay `1m`), so an immediate second `RunOnceAsync` spends its five-second retry budget and returns
-`NothingClaimed` (the row is not due). `host.ForceJobDueAsync(jobId)` makes the row due without
+`NothingClaimed` (the row is not due). `host.ForceJobDueAsync(enqueued)` makes the row due without
 touching the policy; to walk the retry path with no forcing at all, give the test job a zero backoff:
 
 ```csharp
@@ -1074,11 +1076,10 @@ runs the firing like any job, and a success returns it to `Idle`.
 
 ```csharp
 var lookup = new ScheduleLookup("shipping", "sync-orders", "every-5s");
-var listed = await host.Operations.Schedules.ListAsync(new ListSchedulesQuery(JobNamespace: "shipping", JobName: "sync-orders"));
-var jobId = (await host.Jobs.GetIdAsync(JobLookup.ByRef(listed.Items[0].JobRef!.Value)))!.JobId;
+var job = (await host.Operations.Schedules.GetAsync(lookup))!.JobRef!.Value;
 await host.ForceScheduleDueAsync(lookup);
 Assert.Equal(1, (await host.AdmitOnceAsync("shipping")).Admitted);
-Assert.Equal(ActaRunStatus.Completed, await host.RunOnceAsync(jobId));
+Assert.Equal(ActaRunStatus.Completed, await host.RunOnceAsync(job));
 ```
 
 A forced occurrence is admitted under the schedule's own misfire policy, a paused schedule stays

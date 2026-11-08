@@ -105,16 +105,15 @@ interface Acta.Testing.IActaTestHost : System.IAsyncDisposable
     Acta.IJobs Jobs { get; }
     System.IServiceProvider Services { get; }
     System.String Schema { get; }
-    System.Threading.Tasks.Task ExpireExecutionLeaseAsync(System.Int64 jobId, System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.Task ForceGroupWaitTimeoutDueAsync(System.Int64 jobId, System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.Task ForceJobDueAsync(System.Int64 jobId, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.Task ExpireExecutionLeaseAsync(Acta.JobLookup job, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.Task ForceGroupWaitTimeoutDueAsync(Acta.JobLookup job, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.Task ForceJobDueAsync(Acta.JobLookup job, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task ForceScheduleDueAsync(Acta.ScheduleLookup schedule, System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.Task ForceTimerDueAsync(System.Int64 jobId, System.String name = null, System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.Task ForceWaitTimeoutDueAsync(System.Int64 jobId, System.String name = null, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.Task ForceTimerDueAsync(Acta.JobLookup job, System.String name = null, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.Task ForceWaitTimeoutDueAsync(Acta.JobLookup job, System.String name = null, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task<Acta.Testing.ActaAdmissionReport> AdmitOnceAsync(System.String jobNamespace, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task<Acta.Testing.ActaRecoveryReport> RunRecoveryOnceAsync(System.String jobNamespace, System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.Task<Acta.Testing.ActaRunStatus> RunOnceAsync(Acta.EnqueueJobResponse enqueued, System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.Task<Acta.Testing.ActaRunStatus> RunOnceAsync(System.Int64 jobId, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.Task<Acta.Testing.ActaRunStatus> RunOnceAsync(Acta.JobLookup job, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task<Acta.Testing.ActaRunStatus> RunOnceAsync(System.String jobNamespace, System.Threading.CancellationToken ct = default)
 
 ## Acta

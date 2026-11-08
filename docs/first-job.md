@@ -395,7 +395,7 @@ public sealed class ShippingTests : IAsyncLifetime
         Assert.Equal(ActaRunStatus.Rearmed, await _host.RunOnceAsync(job, Ct));
 
         // The retry is due about a minute out under the default backoff; the test makes it due now.
-        await _host.ForceJobDueAsync(job.JobId, Ct);
+        await _host.ForceJobDueAsync(job, Ct);
         Assert.Equal(ActaRunStatus.Completed, await _host.RunOnceAsync(job, Ct));
         Assert.Equal("AP00001044", (await job.GetResultAsync(Ct))!.TrackingNumber);
     }
@@ -449,7 +449,7 @@ deploys the manifest's jobs, but starts no claim loop. `RunOnceAsync(job)` claim
 and answers what the tick did: `Completed`, `Failed`, `Rearmed` (re-armed for a later attempt), or
 `NothingClaimed`. The carrier and the printer are the app's own classes, registered through
 `ConfigureServices` as the singletons the handler resolves, so each fact sets the outage it tests. A
-retry is due when the backoff says, and `ForceJobDueAsync(job.JobId)` makes it due now, so the retry
+retry is due when the backoff says, and `ForceJobDueAsync(job)` makes it due now, so the retry
 fact waits for nothing. The same facts run on PostgreSQL or SQL Server: reference that
 provider in place of `Acta.Sqlite`, register it on the host's throwaway schema, and drop the file
 cleanup; [Testing custom jobs](./developer-guide.md#testing-custom-jobs) shows that setup, with

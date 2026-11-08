@@ -24,7 +24,7 @@ public sealed class ContinuousSynchronizationTests : IAsyncLifetime
     private ShopFeed _shop = null!;
     private OrderStore _store = null!;
     private string _connectionString = null!;
-    private long _slotId;
+    private JobRef _slot;
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
@@ -60,11 +60,7 @@ public sealed class ContinuousSynchronizationTests : IAsyncLifetime
         );
         await _shop.EnsureCreatedAsync(Ct);
         await _store.EnsureCreatedAsync(Ct);
-        var listed = await _host.Operations.Schedules.ListAsync(
-            new ListSchedulesQuery(JobNamespace: Namespace, JobName: "sync-orders"),
-            Ct
-        );
-        _slotId = (await _host.Jobs.GetIdAsync(JobLookup.ByRef(Assert.Single(listed.Items).JobRef!.Value), Ct))!.JobId;
+        _slot = (await _host.Operations.Schedules.GetAsync(Schedule, Ct))!.JobRef!.Value;
     }
 
     public async ValueTask DisposeAsync()
@@ -96,7 +92,7 @@ public sealed class ContinuousSynchronizationTests : IAsyncLifetime
 
         // Idle, no attempt running, and the watermark is still there: a row of the job's, not of the attempt's.
         Assert.Equal(JobStatusCode.Idle, (await JobAsync()).Status);
-        var checkpoints = (await _host.Jobs.ListCheckpointsAsync(new ListJobCheckpointsQuery(JobLookup.ById(_slotId)), Ct)).Items;
+        var checkpoints = (await _host.Jobs.ListCheckpointsAsync(new ListJobCheckpointsQuery(_slot), Ct)).Items;
         var watermark = Assert.Single(checkpoints, c => c.Kind == CheckpointKindCode.Variable);
         Assert.Equal("watermark", watermark.Name);
         Assert.Equal(20, JsonSerializer.Deserialize<long>(watermark.Value!.Value.Data.Span));
@@ -136,7 +132,7 @@ public sealed class ContinuousSynchronizationTests : IAsyncLifetime
         // A manual trigger syncs the backlog and moves the watermark; the cursor stays where the firing left it.
         await _shop.AppendAsync(10, Ct);
         Assert.Equal(ControlAction.Applied, (await _host.Operations.Schedules.TriggerAsync(Schedule, ct: Ct)).Action);
-        Assert.Equal(ActaRunStatus.Completed, await _host.RunOnceAsync(_slotId, Ct));
+        Assert.Equal(ActaRunStatus.Completed, await _host.RunOnceAsync(_slot, Ct));
         Assert.Equal(10, await WatermarkAsync());
         Assert.Equal(afterFiring, await NextOccurrenceAsync());
     }
@@ -149,13 +145,13 @@ public sealed class ContinuousSynchronizationTests : IAsyncLifetime
 
         // The attempt applies its batch, writes the watermark, and then stalls at the crash point, holding its lease.
         await AdmitAsync();
-        var lost = _host.RunOnceAsync(_slotId, Ct);
+        var lost = _host.RunOnceAsync(_slot, Ct);
         await _crash.Reached.Task.WaitAsync(TimeSpan.FromSeconds(30), Ct);
         Assert.Equal(40, await WatermarkAsync());
         var firing = await FiringIdAsync();
 
         // The lease lapses and recovery reclaims the firing: the job is Ready again, the attempt charged.
-        await _host.ExpireExecutionLeaseAsync(_slotId, Ct);
+        await _host.ExpireExecutionLeaseAsync(_slot, Ct);
         Assert.Equal(1, (await _host.RunRecoveryOnceAsync(Namespace, Ct)).ReclaimedJobs);
         Assert.Equal(JobStatusCode.Ready, (await JobAsync()).Status);
 
@@ -166,7 +162,7 @@ public sealed class ContinuousSynchronizationTests : IAsyncLifetime
         var outcome = await lost;
         if (outcome != ActaRunStatus.Completed)
         {
-            Assert.Equal(ActaRunStatus.Completed, await _host.RunOnceAsync(_slotId, Ct));
+            Assert.Equal(ActaRunStatus.Completed, await _host.RunOnceAsync(_slot, Ct));
         }
         var job = await JobAsync();
         Assert.Equal((JobStatusCode.Idle, 2), (job.Status, job.ExecutionNumber));
@@ -190,8 +186,8 @@ public sealed class ContinuousSynchronizationTests : IAsyncLifetime
         Assert.Equal(40, await WatermarkAsync());
 
         // The retry is the same firing, one execution later; it reads 40 and applies the twenty changes after it.
-        await _host.ForceJobDueAsync(_slotId, Ct);
-        Assert.Equal(ActaRunStatus.Completed, await _host.RunOnceAsync(_slotId, Ct));
+        await _host.ForceJobDueAsync(_slot, Ct);
+        Assert.Equal(ActaRunStatus.Completed, await _host.RunOnceAsync(_slot, Ct));
         var job = await JobAsync();
         Assert.Equal((JobStatusCode.Idle, 2), (job.Status, job.ExecutionNumber));
         Assert.Equal(60, await WatermarkAsync());
@@ -244,15 +240,15 @@ public sealed class ContinuousSynchronizationTests : IAsyncLifetime
     private async Task<ActaRunStatus> FireAsync()
     {
         await AdmitAsync();
-        return await _host.RunOnceAsync(_slotId, Ct);
+        return await _host.RunOnceAsync(_slot, Ct);
     }
 
-    private async Task<GetJobResponse> JobAsync() => (await _host.Jobs.GetAsync(JobLookup.ById(_slotId), Ct))!;
+    private async Task<GetJobResponse> JobAsync() => (await _host.Jobs.GetAsync(_slot, Ct))!;
 
     /// <summary>The watermark as the operator sees it, 0 before the first batch: the job's one variable.</summary>
     private async Task<long> WatermarkAsync()
     {
-        var checkpoints = (await _host.Jobs.ListCheckpointsAsync(new ListJobCheckpointsQuery(JobLookup.ById(_slotId)), Ct)).Items;
+        var checkpoints = (await _host.Jobs.ListCheckpointsAsync(new ListJobCheckpointsQuery(_slot), Ct)).Items;
         var watermark = checkpoints.SingleOrDefault(c => c.Kind == CheckpointKindCode.Variable && c.Name == "watermark");
         return watermark is null ? 0 : JsonSerializer.Deserialize<long>(watermark.Value!.Value.Data.Span);
     }
@@ -267,7 +263,7 @@ public sealed class ContinuousSynchronizationTests : IAsyncLifetime
         await connection.OpenAsync(Ct);
         await using var command = connection.CreateCommand();
         command.CommandText = "SELECT value_text FROM checkpoints_view WHERE job_id = @job AND checkpoint_kind = 'firing'";
-        command.Parameters.AddWithValue("@job", _slotId);
+        command.Parameters.AddWithValue("@job", (await JobAsync()).JobId);
         var envelope = JsonDocument.Parse((string)(await command.ExecuteScalarAsync(Ct))!);
         return envelope.RootElement.GetProperty("firingId").GetGuid();
     }
@@ -281,8 +277,11 @@ public sealed class ContinuousSynchronizationTests : IAsyncLifetime
             )
             .NextOccurrenceAtUtc;
 
-    private async Task<IReadOnlyList<ListEventsItem>> EventsAsync(EventCode code) =>
-        (await _host.Operations.Ledger.ListEventsAsync(new ListEventsQuery(JobId: _slotId, EventCode: code, PageSize: 100), Ct)).Items;
+    private async Task<IReadOnlyList<ListEventsItem>> EventsAsync(EventCode code)
+    {
+        var jobId = (await JobAsync()).JobId;
+        return (await _host.Operations.Ledger.ListEventsAsync(new ListEventsQuery(JobId: jobId, EventCode: code, PageSize: 100), Ct)).Items;
+    }
 
     /// <summary>
     /// The lab's crash point, as a test can hold it: the attempt that wrote the watermark at CrashAfter stalls there
