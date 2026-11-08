@@ -123,28 +123,30 @@ WHERE  r.job_status_code IN (100, 200, 220)
   AND  r.leased_by_worker_id IS NOT NULL;
 
 -- ---------------------------------------------------------------------------------------------
--- 7. no attempt ran a step body twice                    [QUIESCED ONLY]
+-- 7. no step body ran twice in an attempt or after its success   [QUIESCED ONLY]
 -- ---------------------------------------------------------------------------------------------
 -- The witness for the differentiating claim, and the reason the note API exists: "kill the worker,
 -- completed steps do not re-run."
 --
 -- `steps` keeps only current state - one row per (job, name), UPDATE-in-place, no per-attempt
 -- history - so a body that ran twice leaves no trace there. The witness is the note each body writes
--- before doing its work, which records the execution that wrote it. One attempt runs the handler
--- once from the top, so it runs a step's body at most once.
+-- before doing its work, which records the execution that wrote it. Two rules read it, and a row from
+-- either is a violation.
 --
--- Counting, not timestamps. Comparing a note's time against the step's `modified_at_utc` reads "note
--- after success" as a replay, and that is wrong under load: every routine captures its clock at
--- entry, so a write blocked on locks lands with a stale stamp, and a step's `modified_at_utc` can even
--- precede its own `created_at_utc`.
+-- No attempt writes two `step-body` notes for one succeeded step. One attempt runs the handler once
+-- from the top, so it runs a step's body at most once. A second note from a later attempt is legal on
+-- its own: at-least-once means a body interrupted before its outcome committed runs again.
 --
--- A second note is NOT a violation by itself: at-least-once means a body interrupted before its
--- outcome committed legitimately re-runs on the next attempt. The violation is a second note from
--- one attempt. This check cannot see a body that ran once in an attempt after an earlier attempt had
--- already recorded its success: nothing in the ledger but a clock orders a note against that success,
--- since a step counts no attempts and records no execution. StepSpec's "a succeeded step replays its
--- stored result without re-running the body" and StartJobStepSpec's replay fact carry that claim.
-SELECT 'step-replay' AS check_name, s.job_id, s.step_name, n.execution_number, n.notes
+-- No body writes a `step-body-after-success` note. Each body reads its own step row before its note
+-- and writes this one when the row already holds a recorded success. Only a body the engine ran after
+-- its step completed, in any attempt, can find one; ChaosJobs says why a legitimate re-run always
+-- reads Pending.
+--
+-- Counting and the body's own read, not timestamps. Comparing a note's time against the step's
+-- `modified_at_utc` reads "note after success" as a replay, and that is wrong under load: every
+-- routine captures its clock at entry, so a write blocked on locks lands with a stale stamp, and a
+-- step's `modified_at_utc` can even precede its own `created_at_utc`.
+SELECT 'step-replay' AS check_name, s.job_id, n.execution_number, n.event_message AS note, n.notes
 FROM   {s}steps s
 JOIN   (SELECT entity_id, event_message, execution_number, COUNT(*) AS notes
         FROM   {s}events
@@ -153,7 +155,12 @@ JOIN   (SELECT entity_id, event_message, execution_number, COUNT(*) AS notes
   ON   n.entity_id = s.job_id
  AND   n.event_message = CONCAT('step-body ', s.step_name)   -- CONCAT: || is not SQL Server
 WHERE  s.step_status_code = 100
-  AND  n.notes > 1;
+  AND  n.notes > 1
+UNION  ALL
+SELECT 'step-replay', entity_id, execution_number, event_message, COUNT(*)
+FROM   {s}events
+WHERE  entity_code = 50 AND event_code = 90 AND event_message LIKE 'step-body-after-success %'
+GROUP  BY entity_id, execution_number, event_message;
 
 -- ---------------------------------------------------------------------------------------------
 -- 8. the chaos was real                                  [INVERTED: must return exactly one row]

@@ -8,11 +8,11 @@ namespace Acta.Verify;
 /// The crash-recovery shapes the chaos scenario seeds. Each body writes the witness notes certify.sql reads, and each returns what
 /// <see cref="WorkloadModel"/> computes for its input, so the identity effects stays the one home of the expectation.
 /// </summary>
-public static class ChaosJobs
+public sealed class ChaosJobs(IJobs jobs)
 {
     /// <summary>The crash victims: durable steps, so a reclaimed attempt shows that recorded steps do not run twice.</summary>
     [Job("slow-success")]
-    public static async Task<string> SlowSuccess(WorkInput input, JobContext ctx, CancellationToken ct)
+    public async Task<string> SlowSuccess(WorkInput input, JobContext ctx, CancellationToken ct)
     {
         // The tenant the handler saw after enqueue, claim, dispatch and decode; certify.sql check 13 compares it.
         await ctx.NoteAsync($"tenant {ctx.TenantName ?? "-"}", ct);
@@ -21,7 +21,7 @@ public static class ChaosJobs
 
     /// <summary>A lane member; the begin and end notes witness that members of one lane never overlap.</summary>
     [Job("laned")]
-    public static async Task<string> Laned(WorkInput input, JobContext ctx, CancellationToken ct)
+    public async Task<string> Laned(WorkInput input, JobContext ctx, CancellationToken ct)
     {
         await ctx.NoteAsync("begin " + input.Key, ct);
         var result = await StepsAsync(input, ctx, ct);
@@ -60,18 +60,18 @@ public static class ChaosJobs
         return Hash(input.Key);
     }
 
-    private static async Task<string> StepsAsync(WorkInput input, JobContext ctx, CancellationToken ct)
+    private async Task<string> StepsAsync(WorkInput input, JobContext ctx, CancellationToken ct)
     {
         long sum = 0;
         for (var i = 1; i <= input.Steps; i++)
         {
             var step = i;
+            var name = $"step-{step}";
             sum += await ctx.RunStepAsync(
-                $"step-{step}",
+                name,
                 async token =>
                 {
-                    // One note per admitted body: certify.sql check 7 counts them per attempt.
-                    await ctx.NoteAsync($"step-body step-{step}", token);
+                    await NoteStepBodyAsync(ctx, name, token);
                     await Task.Delay(input.WorkMs, token);
                     return step * 7L;
                 },
@@ -79,6 +79,32 @@ public static class ChaosJobs
             );
         }
         return sum.ToString(CultureInfo.InvariantCulture);
+    }
+
+    /// <summary>The witness note a step body writes before its work, one per admitted body, which certify.sql check 7 reads.</summary>
+    private async Task NoteStepBodyAsync(JobContext ctx, string name, CancellationToken ct)
+    {
+        // A body that finds its step already succeeded says so, and the read is exact. A body the engine legitimately
+        // re-runs, whose success never committed, always reads Pending: start_job_step hands over a body only for a
+        // Pending row, and a stale attempt cannot flip that row while this attempt holds the job, because the execution
+        // fence refuses its writes. A stale attempt that reads Succeeded is refused this note by the same fence.
+        var succeeded = await HasSucceededAsync(ctx.JobId, name, ct);
+        await ctx.NoteAsync(succeeded ? $"step-body-after-success {name}" : $"step-body {name}", ct);
+    }
+
+    private async Task<bool> HasSucceededAsync(long jobId, string name, CancellationToken ct)
+    {
+        string? cursor = null;
+        do
+        {
+            var page = await jobs.ListStepsAsync(new ListJobStepsQuery(JobLookup.ById(jobId), Cursor: cursor), ct);
+            if (page.Items.FirstOrDefault(s => s.Name == name) is { } found)
+            {
+                return found.Status == StepStatusCode.Succeeded;
+            }
+            cursor = page.NextCursor;
+        } while (cursor is not null);
+        return false;
     }
 
     private static async Task<string> AdmitAsync(WorkInput input, JobContext ctx, CancellationToken ct)

@@ -73,7 +73,7 @@ public static class SteadySuccessJob
     }
 }
 
-public static class SlowSuccessJob
+public sealed class SlowSuccessJob(IJobs jobs)
 {
     // Default MaxAttempts (15) so a crash-reclaim-rerun never exhausts the budget: a stolen lease
     // re-arms the job, and we want it to keep trying until a surviving worker carries it home.
@@ -85,9 +85,9 @@ public static class SlowSuccessJob
     // (tools/Acta.Verify/Certification/certify.sql check 7): `steps` keeps only current state (one row per
     // (job, name), UPDATE-in-place), so without it a body that ran again leaves no trace at all. A second
     // note is legal on its own - at-least-once means an interrupted body re-runs - but two notes from one
-    // attempt are not.
+    // attempt are not, and neither is a body that finds its step already succeeded.
     [Job("slow-success")]
-    public static async Task<string> Handle(SlowSuccess input, JobContext ctx, CancellationToken ct)
+    public async Task<string> Handle(SlowSuccess input, JobContext ctx, CancellationToken ct)
     {
         // Tenant witness, one per attempt. Comparing events.tenant_id to jobs.tenant_id would be
         // tautological - two projections of one stored value - so the only non-circular question is
@@ -101,7 +101,7 @@ public static class SlowSuccessJob
                 name,
                 async token =>
                 {
-                    await ctx.NoteAsync($"step-body {name}", token);
+                    await StepBodyNote.WriteAsync(jobs, ctx, name, token);
                     await Task.Delay(input.StepDelayMs, token);
                 },
                 ct: ct
@@ -255,14 +255,14 @@ public static class MeteredJob
     private const int MeteredDwellMs = 300;
 }
 
-public static class LanedJob
+public sealed class LanedJob(IJobs jobs)
 {
     // Seeded ten to a lane, so the lane runs them one at a time in enqueue order while workers die under
     // them. Durable steps with a body long enough that a kill lands inside one, and each step writes the
     // same step-body note slow-success does, so check 7 covers a replayed lane head too. The same notes
     // stand as each member's start for the lane order (Acta Verify's certify.sql check 15), because the claim writes no event.
     [Job("laned")]
-    public static async Task<string> Handle(Laned input, JobContext ctx, CancellationToken ct)
+    public async Task<string> Handle(Laned input, JobContext ctx, CancellationToken ct)
     {
         for (var step = 1; step <= input.StepCount; step++)
         {
@@ -271,7 +271,7 @@ public static class LanedJob
                 name,
                 async token =>
                 {
-                    await ctx.NoteAsync($"step-body {name}", token);
+                    await StepBodyNote.WriteAsync(jobs, ctx, name, token);
                     await Task.Delay(input.StepDelayMs, token);
                 },
                 ct: ct
@@ -279,6 +279,33 @@ public static class LanedJob
         }
 
         return $"laned: {input.Label}";
+    }
+}
+
+/// <summary>The witness note a step body writes before its work, one per admitted body, for Acta Verify's certify.sql check 7.</summary>
+internal static class StepBodyNote
+{
+    public static async Task WriteAsync(IJobs jobs, JobContext ctx, string name, CancellationToken ct)
+    {
+        // A body that finds its step already succeeded says so; why that read is exact is stated once, at Acta Verify's
+        // ChaosJobs.NoteStepBodyAsync.
+        var succeeded = await HasSucceededAsync(jobs, ctx.JobId, name, ct);
+        await ctx.NoteAsync(succeeded ? $"step-body-after-success {name}" : $"step-body {name}", ct);
+    }
+
+    private static async Task<bool> HasSucceededAsync(IJobs jobs, long jobId, string name, CancellationToken ct)
+    {
+        string? cursor = null;
+        do
+        {
+            var page = await jobs.ListStepsAsync(new ListJobStepsQuery(JobLookup.ById(jobId), Cursor: cursor), ct);
+            if (page.Items.FirstOrDefault(s => s.Name == name) is { } found)
+            {
+                return found.Status == StepStatusCode.Succeeded;
+            }
+            cursor = page.NextCursor;
+        } while (cursor is not null);
+        return false;
     }
 }
 
