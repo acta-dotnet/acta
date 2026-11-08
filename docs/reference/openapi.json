@@ -42,7 +42,7 @@
             "description": "The tag's name, trimmed and lowercased as every tag name is.",
             "required": true,
             "schema": {
-              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
+              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,128}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             },
             "example": "env"
@@ -251,7 +251,7 @@
             "description": "The tag's name, trimmed and lowercased as every tag name is.",
             "required": true,
             "schema": {
-              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
+              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,128}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             },
             "example": "env"
@@ -2564,6 +2564,7 @@
             "in": "query",
             "description": "Only jobs in this namespace.",
             "schema": {
+              "pattern": "^$|^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,64}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             }
           },
@@ -2572,6 +2573,7 @@
             "in": "query",
             "description": "Exact job name.",
             "schema": {
+              "pattern": "^$|^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,128}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             }
           },
@@ -2620,6 +2622,7 @@
             "in": "query",
             "description": "Only jobs admitted under this tenant name.",
             "schema": {
+              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$|^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,128}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             }
           },
@@ -2628,6 +2631,7 @@
             "in": "query",
             "description": "Only jobs in this lane.",
             "schema": {
+              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$|^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,128}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             }
           },
@@ -2843,7 +2847,7 @@
             "description": "The signal's name, trimmed and lowercased; sys and the names under it are reserved.",
             "required": true,
             "schema": {
-              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
+              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,128}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             },
             "example": "approval"
@@ -3062,7 +3066,7 @@
             "description": "The namespace's name: the namespace itself, or the one that holds the route's definition, schedule, calendar, or outbox.",
             "required": true,
             "schema": {
-              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
+              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,64}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             },
             "example": "billing"
@@ -3073,7 +3077,7 @@
             "description": "The tag's name, trimmed and lowercased as every tag name is.",
             "required": true,
             "schema": {
-              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
+              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,128}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             },
             "example": "env"
@@ -3271,7 +3275,7 @@
             "description": "The namespace's name: the namespace itself, or the one that holds the route's definition, schedule, calendar, or outbox.",
             "required": true,
             "schema": {
-              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
+              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,64}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             },
             "example": "billing"
@@ -3282,7 +3286,7 @@
             "description": "The tag's name, trimmed and lowercased as every tag name is.",
             "required": true,
             "schema": {
-              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
+              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,128}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             },
             "example": "env"
@@ -3425,7 +3429,7 @@
             "description": "The namespace's name: the namespace itself, or the one that holds the route's definition, schedule, calendar, or outbox.",
             "required": true,
             "schema": {
-              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
+              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,64}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             },
             "example": "billing"
@@ -3626,7 +3630,7 @@
             "description": "The namespace's name: the namespace itself, or the one that holds the route's definition, schedule, calendar, or outbox.",
             "required": true,
             "schema": {
-              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
+              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,64}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             },
             "example": "billing"
@@ -3827,7 +3831,7 @@
             "description": "The namespace's name: the namespace itself, or the one that holds the route's definition, schedule, calendar, or outbox.",
             "required": true,
             "schema": {
-              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
+              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,64}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             },
             "example": "billing"
@@ -4047,7 +4051,7 @@
             "description": "The namespace's name: the namespace itself, or the one that holds the route's definition, schedule, calendar, or outbox.",
             "required": true,
             "schema": {
-              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
+              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,64}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             },
             "example": "billing"
@@ -4197,7 +4201,7 @@
             "description": "The tenant's name.",
             "required": true,
             "schema": {
-              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
+              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,128}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             },
             "example": "cust-001"
@@ -4208,7 +4212,7 @@
             "description": "The tag's name, trimmed and lowercased as every tag name is.",
             "required": true,
             "schema": {
-              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
+              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,128}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             },
             "example": "env"
@@ -4406,7 +4410,7 @@
             "description": "The tenant's name.",
             "required": true,
             "schema": {
-              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
+              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,128}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             },
             "example": "cust-001"
@@ -4417,7 +4421,7 @@
             "description": "The tag's name, trimmed and lowercased as every tag name is.",
             "required": true,
             "schema": {
-              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
+              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,128}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             },
             "example": "env"
@@ -4913,7 +4917,7 @@
             "description": "The tenant's name.",
             "required": true,
             "schema": {
-              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
+              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,128}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             },
             "example": "cust-001"
@@ -5114,7 +5118,7 @@
             "description": "The tenant's name.",
             "required": true,
             "schema": {
-              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
+              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,128}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             },
             "example": "cust-001"
@@ -5315,7 +5319,7 @@
             "description": "The tenant's name.",
             "required": true,
             "schema": {
-              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
+              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,128}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             },
             "example": "cust-001"
@@ -5535,7 +5539,7 @@
             "description": "The tenant's name.",
             "required": true,
             "schema": {
-              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
+              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,128}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             },
             "example": "cust-001"
@@ -6096,7 +6100,7 @@
             "description": "The namespace's name: the namespace itself, or the one that holds the route's definition, schedule, calendar, or outbox.",
             "required": true,
             "schema": {
-              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
+              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,64}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             },
             "example": "billing"
@@ -6318,7 +6322,7 @@
             "description": "The namespace's name: the namespace itself, or the one that holds the route's definition, schedule, calendar, or outbox.",
             "required": true,
             "schema": {
-              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
+              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,64}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             },
             "example": "billing"
@@ -6541,7 +6545,7 @@
             "description": "The namespace's name: the namespace itself, or the one that holds the route's definition, schedule, calendar, or outbox.",
             "required": true,
             "schema": {
-              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
+              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,64}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             },
             "example": "billing"
@@ -6552,7 +6556,7 @@
             "description": "The job's name, which with jobNamespace names a definition.",
             "required": true,
             "schema": {
-              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
+              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,128}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             },
             "example": "send-invoice"
@@ -6563,7 +6567,7 @@
             "description": "The tag's name, trimmed and lowercased as every tag name is.",
             "required": true,
             "schema": {
-              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
+              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,128}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             },
             "example": "env"
@@ -6761,7 +6765,7 @@
             "description": "The namespace's name: the namespace itself, or the one that holds the route's definition, schedule, calendar, or outbox.",
             "required": true,
             "schema": {
-              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
+              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,64}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             },
             "example": "billing"
@@ -6772,7 +6776,7 @@
             "description": "The job's name, which with jobNamespace names a definition.",
             "required": true,
             "schema": {
-              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
+              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,128}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             },
             "example": "send-invoice"
@@ -6783,7 +6787,7 @@
             "description": "The tag's name, trimmed and lowercased as every tag name is.",
             "required": true,
             "schema": {
-              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
+              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,128}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             },
             "example": "env"
@@ -6926,7 +6930,7 @@
             "description": "The namespace's name: the namespace itself, or the one that holds the route's definition, schedule, calendar, or outbox.",
             "required": true,
             "schema": {
-              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
+              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,64}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             },
             "example": "billing"
@@ -6937,7 +6941,7 @@
             "description": "The job's name, which with jobNamespace names a definition.",
             "required": true,
             "schema": {
-              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
+              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,128}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             },
             "example": "send-invoice"
@@ -7174,7 +7178,7 @@
             "description": "The namespace's name: the namespace itself, or the one that holds the route's definition, schedule, calendar, or outbox.",
             "required": true,
             "schema": {
-              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
+              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,64}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             },
             "example": "billing"
@@ -7185,7 +7189,7 @@
             "description": "The job's name, which with jobNamespace names a definition.",
             "required": true,
             "schema": {
-              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
+              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,128}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             },
             "example": "send-invoice"
@@ -7406,7 +7410,7 @@
             "description": "The namespace's name: the namespace itself, or the one that holds the route's definition, schedule, calendar, or outbox.",
             "required": true,
             "schema": {
-              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
+              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,64}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             },
             "example": "billing"
@@ -7417,7 +7421,7 @@
             "description": "The job's name, which with jobNamespace names a definition.",
             "required": true,
             "schema": {
-              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
+              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,128}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             },
             "example": "send-invoice"
@@ -7428,7 +7432,7 @@
             "description": "The schedule's name within the definition that jobNamespace and jobName name.",
             "required": true,
             "schema": {
-              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
+              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,128}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             },
             "example": "morning-run"
@@ -7657,7 +7661,7 @@
             "description": "The namespace's name: the namespace itself, or the one that holds the route's definition, schedule, calendar, or outbox.",
             "required": true,
             "schema": {
-              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
+              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,64}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             },
             "example": "billing"
@@ -7668,7 +7672,7 @@
             "description": "The job's name, which with jobNamespace names a definition.",
             "required": true,
             "schema": {
-              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
+              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,128}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             },
             "example": "send-invoice"
@@ -7679,7 +7683,7 @@
             "description": "The schedule's name within the definition that jobNamespace and jobName name.",
             "required": true,
             "schema": {
-              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
+              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,128}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             },
             "example": "morning-run"
@@ -7886,7 +7890,7 @@
             "description": "The namespace's name: the namespace itself, or the one that holds the route's definition, schedule, calendar, or outbox.",
             "required": true,
             "schema": {
-              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
+              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,64}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             },
             "example": "billing"
@@ -7897,7 +7901,7 @@
             "description": "The job's name, which with jobNamespace names a definition.",
             "required": true,
             "schema": {
-              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
+              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,128}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             },
             "example": "send-invoice"
@@ -7908,7 +7912,7 @@
             "description": "The schedule's name within the definition that jobNamespace and jobName name.",
             "required": true,
             "schema": {
-              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
+              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,128}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             },
             "example": "morning-run"
@@ -8139,7 +8143,7 @@
             "description": "The namespace's name: the namespace itself, or the one that holds the route's definition, schedule, calendar, or outbox.",
             "required": true,
             "schema": {
-              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
+              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,64}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             },
             "example": "billing"
@@ -8150,7 +8154,7 @@
             "description": "The calendar family's name within jobNamespace; the sys namespace holds the shared families.",
             "required": true,
             "schema": {
-              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
+              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,128}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             },
             "example": "office-hours"
@@ -8380,7 +8384,7 @@
             "description": "The namespace's name: the namespace itself, or the one that holds the route's definition, schedule, calendar, or outbox.",
             "required": true,
             "schema": {
-              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
+              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,64}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             },
             "example": "billing"
@@ -8391,7 +8395,7 @@
             "description": "The calendar family's name within jobNamespace; the sys namespace holds the shared families.",
             "required": true,
             "schema": {
-              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
+              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,128}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             },
             "example": "office-hours"
@@ -8624,7 +8628,7 @@
             "description": "The namespace's name: the namespace itself, or the one that holds the route's definition, schedule, calendar, or outbox.",
             "required": true,
             "schema": {
-              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
+              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,64}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             },
             "example": "billing"
@@ -8635,7 +8639,7 @@
             "description": "The calendar family's name within jobNamespace; the sys namespace holds the shared families.",
             "required": true,
             "schema": {
-              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
+              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,128}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             },
             "example": "office-hours"
@@ -9026,6 +9030,7 @@
             "description": "The deduplication key's namespace scope.",
             "required": true,
             "schema": {
+              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,64}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             }
           },
@@ -10234,6 +10239,7 @@
             "in": "query",
             "description": "Only workers registered for this namespace.",
             "schema": {
+              "pattern": "^$|^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,64}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             }
           },
@@ -10575,6 +10581,7 @@
             "in": "query",
             "description": "Case-insensitive substring match on the namespace name.",
             "schema": {
+              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*[-.0-9A-Za-z\\u212A]{0,64}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             }
           },
@@ -10750,7 +10757,7 @@
             "description": "The namespace's name: the namespace itself, or the one that holds the route's definition, schedule, calendar, or outbox.",
             "required": true,
             "schema": {
-              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
+              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,64}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             },
             "example": "billing"
@@ -10931,7 +10938,7 @@
             "description": "The tenant's name.",
             "required": true,
             "schema": {
-              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
+              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,128}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             },
             "example": "cust-001"
@@ -11111,6 +11118,7 @@
             "in": "query",
             "description": "Only alerts raised in this namespace.",
             "schema": {
+              "pattern": "^$|^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,64}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             }
           },
@@ -11505,6 +11513,7 @@
             "in": "query",
             "description": "Scope to one relay source's namespace; omit for all.",
             "schema": {
+              "pattern": "^$|^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,64}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             }
           },
@@ -11661,7 +11670,7 @@
             "description": "The namespace's name: the namespace itself, or the one that holds the route's definition, schedule, calendar, or outbox.",
             "required": true,
             "schema": {
-              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
+              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,64}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             },
             "example": "billing"
@@ -11849,6 +11858,7 @@
             "in": "query",
             "description": "Only definitions registered in this namespace.",
             "schema": {
+              "pattern": "^$|^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,64}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             }
           },
@@ -11857,6 +11867,7 @@
             "in": "query",
             "description": "Case-insensitive substring match on the job name.",
             "schema": {
+              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*[-.0-9A-Za-z\\u212A]{0,128}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             }
           },
@@ -12051,7 +12062,7 @@
             "description": "The namespace's name: the namespace itself, or the one that holds the route's definition, schedule, calendar, or outbox.",
             "required": true,
             "schema": {
-              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
+              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,64}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             },
             "example": "billing"
@@ -12062,7 +12073,7 @@
             "description": "The job's name, which with jobNamespace names a definition.",
             "required": true,
             "schema": {
-              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
+              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,128}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             },
             "example": "send-invoice"
@@ -12271,7 +12282,7 @@
             "description": "The namespace's name: the namespace itself, or the one that holds the route's definition, schedule, calendar, or outbox.",
             "required": true,
             "schema": {
-              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
+              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,64}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             },
             "example": "billing"
@@ -12282,7 +12293,7 @@
             "description": "The job's name, which with jobNamespace names a definition.",
             "required": true,
             "schema": {
-              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
+              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,128}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             },
             "example": "send-invoice"
@@ -12411,7 +12422,7 @@
             "description": "The namespace's name: the namespace itself, or the one that holds the route's definition, schedule, calendar, or outbox.",
             "required": true,
             "schema": {
-              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
+              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,64}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             },
             "example": "billing"
@@ -12422,7 +12433,7 @@
             "description": "The job's name, which with jobNamespace names a definition.",
             "required": true,
             "schema": {
-              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
+              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,128}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             },
             "example": "send-invoice"
@@ -12602,6 +12613,7 @@
             "in": "query",
             "description": "Only schedules in this namespace.",
             "schema": {
+              "pattern": "^$|^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,64}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             }
           },
@@ -12610,6 +12622,7 @@
             "in": "query",
             "description": "Only schedules on this job name.",
             "schema": {
+              "pattern": "^$|^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,128}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             }
           },
@@ -12810,7 +12823,7 @@
             "description": "The namespace's name: the namespace itself, or the one that holds the route's definition, schedule, calendar, or outbox.",
             "required": true,
             "schema": {
-              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
+              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,64}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             },
             "example": "billing"
@@ -12821,7 +12834,7 @@
             "description": "The job's name, which with jobNamespace names a definition.",
             "required": true,
             "schema": {
-              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
+              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,128}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             },
             "example": "send-invoice"
@@ -12832,7 +12845,7 @@
             "description": "The schedule's name within the definition that jobNamespace and jobName name.",
             "required": true,
             "schema": {
-              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
+              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,128}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             },
             "example": "morning-run"
@@ -13002,7 +13015,7 @@
             "description": "The namespace's name: the namespace itself, or the one that holds the route's definition, schedule, calendar, or outbox.",
             "required": true,
             "schema": {
-              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
+              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,64}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             },
             "example": "billing"
@@ -13013,7 +13026,7 @@
             "description": "The job's name, which with jobNamespace names a definition.",
             "required": true,
             "schema": {
-              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
+              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,128}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             },
             "example": "send-invoice"
@@ -13024,7 +13037,7 @@
             "description": "The schedule's name within the definition that jobNamespace and jobName name.",
             "required": true,
             "schema": {
-              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
+              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,128}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             },
             "example": "morning-run"
@@ -13204,6 +13217,7 @@
             "in": "query",
             "description": "Only this namespace's families and the shared ones in sys; omit for every namespace.",
             "schema": {
+              "pattern": "^$|^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,64}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             }
           },
@@ -13220,6 +13234,7 @@
             "in": "query",
             "description": "A dotted kebab fragment matched anywhere in the calendar name.",
             "schema": {
+              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*[-.0-9A-Za-z\\u212A]{0,128}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             }
           },
@@ -13395,7 +13410,7 @@
             "description": "The namespace's name: the namespace itself, or the one that holds the route's definition, schedule, calendar, or outbox.",
             "required": true,
             "schema": {
-              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
+              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,64}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             },
             "example": "billing"
@@ -13406,7 +13421,7 @@
             "description": "The calendar family's name within jobNamespace; the sys namespace holds the shared families.",
             "required": true,
             "schema": {
-              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
+              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,128}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             },
             "example": "office-hours"
@@ -13587,7 +13602,7 @@
             "description": "The namespace's name: the namespace itself, or the one that holds the route's definition, schedule, calendar, or outbox.",
             "required": true,
             "schema": {
-              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
+              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,64}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             },
             "example": "billing"
@@ -13598,7 +13613,7 @@
             "description": "The calendar family's name within jobNamespace; the sys namespace holds the shared families.",
             "required": true,
             "schema": {
-              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
+              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,128}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             },
             "example": "office-hours"
@@ -13821,7 +13836,7 @@
             "description": "The namespace's name: the namespace itself, or the one that holds the route's definition, schedule, calendar, or outbox.",
             "required": true,
             "schema": {
-              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
+              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,64}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             },
             "example": "billing"
@@ -13832,7 +13847,7 @@
             "description": "The calendar family's name within jobNamespace; the sys namespace holds the shared families.",
             "required": true,
             "schema": {
-              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
+              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,128}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             },
             "example": "office-hours"
@@ -14025,7 +14040,7 @@
             "description": "The namespace's name: the namespace itself, or the one that holds the route's definition, schedule, calendar, or outbox.",
             "required": true,
             "schema": {
-              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
+              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,64}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             },
             "example": "billing"
@@ -14036,7 +14051,7 @@
             "description": "The calendar family's name within jobNamespace; the sys namespace holds the shared families.",
             "required": true,
             "schema": {
-              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
+              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,128}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             },
             "example": "office-hours"
@@ -14221,7 +14236,7 @@
             "description": "The namespace's name: the namespace itself, or the one that holds the route's definition, schedule, calendar, or outbox.",
             "required": true,
             "schema": {
-              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
+              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,64}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             },
             "example": "billing"
@@ -14232,7 +14247,7 @@
             "description": "The calendar family's name within jobNamespace; the sys namespace holds the shared families.",
             "required": true,
             "schema": {
-              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
+              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,128}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             },
             "example": "office-hours"
@@ -14442,6 +14457,7 @@
             "in": "query",
             "description": "Only events recorded in this namespace.",
             "schema": {
+              "pattern": "^$|^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,64}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             }
           },
@@ -14492,6 +14508,7 @@
             "in": "query",
             "description": "Only events stamped with this tenant name.",
             "schema": {
+              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$|^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,128}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             }
           },
@@ -14912,7 +14929,7 @@
             "description": "The namespace's name: the namespace itself, or the one that holds the route's definition, schedule, calendar, or outbox.",
             "required": true,
             "schema": {
-              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
+              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,64}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             },
             "example": "billing"
@@ -14923,7 +14940,7 @@
             "description": "The job's name, which with jobNamespace names a definition.",
             "required": true,
             "schema": {
-              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
+              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,128}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             },
             "example": "send-invoice"
@@ -15116,6 +15133,7 @@
             "in": "query",
             "description": "Scope the overview to one namespace; omit for all.",
             "schema": {
+              "pattern": "^$|^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,64}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
               "type": "string"
             }
           }

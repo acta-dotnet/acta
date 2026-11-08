@@ -4,6 +4,8 @@ using System.Text.Json.Nodes;
 using Acta.AspNetCore;
 using Acta.Tests.AspNetCore;
 using Acta.Tests.AspNetCore.Fakes;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Primitives;
 using Xunit;
 
 namespace Acta.Tests.Contracts;
@@ -19,8 +21,9 @@ public sealed partial class OpenApiContractTests
 
     /// <summary>
     /// Each pattern accepts what its server parser accepts and nothing else: the job, alert, and worker refs, the debug
-    /// lookup beside the job ref, the name every path key is, and each request member's rule run against the validator
-    /// its route calls. Each is tried on its seeds and on every seed with a probe character inserted or substituted at its
+    /// lookup beside the job ref, the name every path key is, each query name filter run through the query binding and
+    /// the validator its list calls, and each request member's rule run against the validator its route calls. Each is
+    /// tried on its seeds and on every seed with a probe character inserted or substituted at its
     /// start, middle, and end: all of ASCII, all white space and control characters, every character whose case maps into
     /// ASCII, and a few lookalikes. A schema may take more than the server only where JSON Schema cannot say the rule: a
     /// length the server counts in UTF-16 units, or a number past 64 bits.
@@ -73,6 +76,7 @@ public sealed partial class OpenApiContractTests
                 value => Takes(() => NameSyntax.Canonicalize(value, "name", int.MaxValue)),
                 ["billing", "billing.send-invoice", "a1-b", "sys", new string('a', 200)]
             ),
+            .. QueryCases(),
             .. ActaOpenApiDocument.RequestMemberRules.Where(rule => rule.Pattern is not null).Select(rule => MemberCase(rule, astral)),
         ];
 
@@ -101,6 +105,61 @@ public sealed partial class OpenApiContractTests
         Assert.True(tried > 50_000, $"only {tried} values tried; the spread is broken.");
         Assert.True(stricter.Count == 0, string.Join("\n", stricter.Take(40)));
         Assert.True(looser.Count == 0, string.Join("\n", looser.Take(40)));
+    }
+
+    // Each query name filter's case: the binding, which reads an empty value as an omitted one, then the validator its list
+    // calls, on blank values and values around each cap.
+    private static IEnumerable<PatternCase> QueryCases()
+    {
+        string[] seeds =
+        [
+            "",
+            " ",
+            "billing",
+            "Billing.Send-Invoice",
+            "sys.retention",
+            new string('a', NameSyntax.DefaultMaxLength),
+            new string('a', NameSyntax.DefaultMaxLength + 1),
+            new string('a', NameSyntax.ExtendedMaxLength),
+            new string('a', NameSyntax.ExtendedMaxLength + 1),
+        ];
+        (string Route, string Parameter, bool Required, Action<string?> Validate)[] filters =
+        [
+            ("v1/jobs", "jobNamespace", false, value => QueryValidation.ValidateNamespace(value, "jobNamespace")),
+            (
+                "v1/jobs/by-deduplication-key",
+                "jobNamespace",
+                true,
+                value => JobLookup.ByDeduplicationKey(value ?? throw new InvalidQueryException("jobNamespace is required."), "ck-1")
+            ),
+            ("v1/jobs", "jobName", false, value => QueryValidation.ValidateJobName(value, "billing", "jobName")),
+            ("v1/jobs", "tenantName", false, value => QueryValidation.ValidateExtendedName(value, "tenantName")),
+            ("v1/jobs", "lane", false, value => QueryValidation.ValidateExtendedName(value, "lane")),
+            (
+                "v1/namespaces",
+                "nameContains",
+                false,
+                value => QueryValidation.ValidateNameFragment(value, "nameContains", NameSyntax.DefaultMaxLength)
+            ),
+            (
+                "v1/definitions",
+                "nameContains",
+                false,
+                value => QueryValidation.ValidateNameFragment(value, "nameContains", NameSyntax.ExtendedMaxLength)
+            ),
+        ];
+        return filters.Select(filter => new PatternCase(
+            $"{filter.Route}?{filter.Parameter}",
+            ActaOpenApiDocument.QueryPattern(filter.Parameter, filter.Route, filter.Required)!,
+            null,
+            value =>
+                Takes(() =>
+                    filter.Validate(
+                        QueryBinding.Text(new QueryCollection(new Dictionary<string, StringValues> { ["filter"] = value }), "filter")
+                    )
+                ),
+            seeds
+        ));
     }
 
     // A request member's pattern case: its rule against the validator its route calls, on values around its length cap.
@@ -405,6 +464,116 @@ public sealed partial class OpenApiContractTests
 
         Assert.True(compared > 60, $"only {compared} spellings compared; the walk is broken.");
         Assert.True(wrong.Count == 0, string.Join("\n", wrong));
+    }
+
+    /// <summary>
+    /// A name a route reads from its path, or a list reads as a filter, is held to the cap its pattern states: given a name
+    /// of 64 or 128 characters, or one past either, the server answers the 400 exactly when the pattern refuses the name.
+    /// A filter is also sent empty and as white space alone, and the server answers the 400 exactly when its pattern
+    /// refuses the value.
+    /// </summary>
+    [Fact]
+    public async Task Every_name_is_held_to_the_cap_its_pattern_states()
+    {
+        var operations = Operations(await ActaOpenApiDocument.GenerateAsync());
+        var wrong = new List<string>();
+        var compared = new Dictionary<string, int>(StringComparer.Ordinal) { ["path"] = 0, ["query"] = 0 };
+        int[] lengths =
+        [
+            NameSyntax.DefaultMaxLength,
+            NameSyntax.DefaultMaxLength + 1,
+            NameSyntax.ExtendedMaxLength,
+            NameSyntax.ExtendedMaxLength + 1,
+        ];
+        string[] names = [.. lengths.Select(length => new string('a', length))];
+        string[] filters = [.. names, "", " ", "\t" + (char)0x00A0 + (char)0x3000];
+        await WithSqliteHostAsync(async client =>
+        {
+            var values = new Dictionary<string, string>(OpenApiExamples.RouteValues, StringComparer.Ordinal)
+            {
+                ["jobNamespace"] = SqliteNamespace,
+            };
+            foreach (var (key, operation) in operations)
+            {
+                var gap = key.IndexOf(' ', StringComparison.Ordinal);
+                var (method, path) = (key[..gap], key[(gap + 1)..]);
+                if (operation["responses"]?["400"] is null)
+                {
+                    continue;
+                }
+
+                foreach (var parameter in Elements(operation["parameters"]))
+                {
+                    var name = parameter!["name"]!.GetValue<string>();
+                    var location = parameter["in"]!.GetValue<string>();
+                    if (
+                        parameter["schema"]?["pattern"]?.GetValue<string>() is not { } pattern
+                        || name.EndsWith("Ref", StringComparison.Ordinal)
+                    )
+                    {
+                        continue;
+                    }
+
+                    // A query filter is sent on a read alone, so a long name never reaches a write it would act on.
+                    if (location == "query" && method != "GET")
+                    {
+                        continue;
+                    }
+
+                    foreach (var value in location == "path" ? names : filters)
+                    {
+                        var answered =
+                            location == "path"
+                                ? await StatusAsync(client, method, path, operation, values, name, value)
+                                : await QueryStatusAsync(client, path, operation, values, name, value);
+                        compared[location]++;
+                        if ((answered == HttpStatusCode.BadRequest) == PatternMatches(pattern, value))
+                        {
+                            var sent = value.Length >= NameSyntax.DefaultMaxLength ? $"{value.Length} characters" : Escaped(value);
+                            wrong.Add(
+                                $"{key} {location} {name}: {sent} answered {(int)answered}, and the pattern {(PatternMatches(pattern, value) ? "takes" : "refuses")} it."
+                            );
+                        }
+                    }
+                }
+            }
+        });
+
+        Assert.True(compared["path"] > 250, $"only {compared["path"]} path names compared; the walk is broken.");
+        Assert.True(compared["query"] > 90, $"only {compared["query"]} query filters compared; the walk is broken.");
+        Assert.True(wrong.Count == 0, string.Join("\n", wrong));
+    }
+
+    // A read with the route's keys from values, its required query parameters, and one name filter set to the value given;
+    // a job name filter also names the namespace it needs.
+    private static async Task<HttpStatusCode> QueryStatusAsync(
+        HttpClient client,
+        string path,
+        JsonNode operation,
+        Dictionary<string, string> values,
+        string name,
+        string value
+    )
+    {
+        var url = PathPlaceholders(path)
+            .Aggregate(path, (filled, key) => filled.Replace($"{{{key}}}", Uri.EscapeDataString(values[key]), StringComparison.Ordinal));
+        var query = Elements(operation["parameters"])
+            .Where(parameter => parameter?["in"]?.GetValue<string>() == "query" && parameter["required"]?.GetValue<bool>() == true)
+            .Select(parameter => parameter!["name"]!.GetValue<string>())
+            .Where(key => key != name)
+            .Select(key => $"{key}={Uri.EscapeDataString(values[key])}")
+            .Append($"{name}={Uri.EscapeDataString(value)}")
+            .ToList();
+        if (name == "jobName" && !query.Any(pair => pair.StartsWith("jobNamespace=", StringComparison.Ordinal)))
+        {
+            query.Add($"jobNamespace={Uri.EscapeDataString(values["jobNamespace"])}");
+        }
+
+        using var response = await client.GetAsync(
+            "/acta/api" + url + "?" + string.Join('&', query),
+            TestContext.Current.CancellationToken
+        );
+        return response.StatusCode;
     }
 
     // One call with the route's keys from values and one key in the spelling given, confirmed, with its example body.

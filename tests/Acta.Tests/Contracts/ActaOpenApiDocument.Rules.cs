@@ -134,7 +134,8 @@ internal static partial class ActaOpenApiDocument
 
     /// <summary>
     /// The pattern of a path parameter: a ref's for a ref, the debug lookup beside the job ref on a route that takes it, and
-    /// the name syntax for every name, whose length cap each route sets for itself.
+    /// the name syntax for every name under its kind's cap, which every route holds it to: a namespace's 64 characters, and
+    /// 128 for every other name. A key with no cap here fails the generation, so a new name states its own.
     /// </summary>
     public static string PathPattern(string parameter, bool takesNumericJobId) =>
         parameter switch
@@ -142,8 +143,40 @@ internal static partial class ActaOpenApiDocument
             "jobRef" => takesNumericJobId ? JobTargetPattern : JobRefPattern,
             "alertRef" => AlertRefPattern,
             "workerRef" => WorkerRefPattern,
-            _ => NamePattern(),
+            "jobNamespace" => NamePattern(NameSyntax.DefaultMaxLength),
+            "jobName" or "scheduleName" or "calendarName" or "tenantName" or "tagName" or "signalName" => NamePattern(
+                NameSyntax.ExtendedMaxLength
+            ),
+            _ => throw new InvalidOperationException($"The path parameter {parameter} states no pattern."),
         };
+
+    /// <summary>
+    /// The pattern of a query parameter that filters by a name, null for every other: a namespace under its 64 characters,
+    /// a job name, tenant, or lane under 128, and the name fragment the namespaces, definitions, and calendars lists match,
+    /// a name's characters around which white space is trimmed, under the cap of the name it finds. The query binding reads
+    /// an empty value as an omitted one, which an optional filter takes and a required one refuses, and the tenant, lane,
+    /// and fragment filters read white space alone as no filter.
+    /// </summary>
+    public static string? QueryPattern(string parameter, string? route, bool required)
+    {
+        var empty = required ? "" : "^$|";
+        return parameter switch
+        {
+            "jobNamespace" => empty + NamePattern(NameSyntax.DefaultMaxLength),
+            "jobName" => empty + NamePattern(NameSyntax.ExtendedMaxLength),
+            "tenantName" or "lane" => "^" + TrimmedSpace + "*$|" + NamePattern(NameSyntax.ExtendedMaxLength),
+            "nameContains" => route?.TrimEnd('/').Split('/')[^1] switch
+            {
+                "namespaces" => FragmentPattern(NameSyntax.DefaultMaxLength),
+                "definitions" or "calendars" => FragmentPattern(NameSyntax.ExtendedMaxLength),
+                _ => null,
+            },
+            _ => null,
+        };
+    }
+
+    private static string FragmentPattern(int maxLength) =>
+        "^" + TrimmedSpace + "*" + NameCharacter + "{0," + maxLength.ToString(CultureInfo.InvariantCulture) + "}" + TrimmedSpace + "*$";
 
     /// <summary>The job ref's description on a route that also takes the debug lookup.</summary>
     private static string NumericJobRefDescription =>

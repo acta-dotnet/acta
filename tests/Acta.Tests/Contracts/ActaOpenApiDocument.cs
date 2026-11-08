@@ -313,7 +313,11 @@ internal static partial class ActaOpenApiDocument
                         },
                         QueryParameterKind.Bool => new OpenApiSchema { Type = JsonSchemaType.Boolean },
                         QueryParameterKind.Instant => new OpenApiSchema { Type = JsonSchemaType.String, Format = "date-time" },
-                        _ => new OpenApiSchema { Type = JsonSchemaType.String },
+                        _ => new OpenApiSchema
+                        {
+                            Type = JsonSchemaType.String,
+                            Pattern = QueryPattern(doc.Name, context.Description.RelativePath, doc.Required),
+                        },
                     };
                     operation.Parameters ??= [];
                     operation.Parameters.Add(
