@@ -407,6 +407,28 @@ public sealed class WorkerFinalizerTests
         Assert.Equal(0, registry.Count());
     }
 
+    [Fact(DisplayName = "A failed completion still queued when the worker stops is logged once, as reclaimed after its lease")]
+    public async Task A_failure_queued_at_a_stop_is_logged_once_as_reclaimed()
+    {
+        var log = new RecordingLogger();
+        var (finalizer, registry) = Finalizer(new ScriptedSession(_ => throw new NotSupportedException()), log);
+        Complete(registry, 1, failed: true);
+        Complete(registry, 2);
+
+        // Handed over after the loop's last read and before the stop, so the loop's next wait sees the stop first.
+        using var stop = new CancellationTokenSource();
+        await stop.CancelAsync();
+        await finalizer.RunLoopAsync(stop.Token).WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
+
+        var line = Assert.Single(log.Lines);
+        Assert.StartsWith("Handler for job (receipt) (job_", line, StringComparison.Ordinal);
+        Assert.EndsWith(
+            "threw on attempt (1 of 1), and the worker stopped before writing the failure; the job is reclaimed after its lease expires.",
+            line,
+            StringComparison.Ordinal
+        );
+    }
+
     private const int Cap = WorkerFinalizer.MaxBatchBytes;
 
     // Each case's results, in bytes, in the order the executors hand them over, and the batches written, "|" between calls.
@@ -964,5 +986,23 @@ public sealed class WorkerFinalizerTests
         public ILogger CreateLogger(string categoryName) => new ThrowingLogger();
 
         public void Dispose() { }
+    }
+
+    private sealed class RecordingLogger : ILogger
+    {
+        public List<string> Lines { get; } = [];
+
+        public IDisposable? BeginScope<TState>(TState state)
+            where TState : notnull => null;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(
+            LogLevel logLevel,
+            EventId eventId,
+            TState state,
+            Exception? exception,
+            Func<TState, Exception?, string> formatter
+        ) => Lines.Add(formatter(state, exception));
     }
 }

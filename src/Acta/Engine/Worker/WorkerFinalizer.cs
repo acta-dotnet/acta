@@ -115,7 +115,12 @@ internal sealed partial class WorkerFinalizer(
         }
         catch (OperationCanceledException) when (hostCt.IsCancellationRequested)
         {
-            // A hard stop: completions still queued re-run after recovery, as an interrupted write does.
+            // A hard stop: completions still queued re-run after recovery, as an interrupted write does. A wait that sees
+            // the stop ends without reading what was queued behind the last read, so their failure lines are written here.
+            while (reader.TryRead(out var unwritten))
+            {
+                LogUnwritten(unwritten);
+            }
         }
 
         // A drain ends once the rows repeating apart land and the descendant cancels finish; a hard stop ends them. The
@@ -346,8 +351,8 @@ internal sealed partial class WorkerFinalizer(
     }
 
     /// <summary>
-    /// Logs the failure line of <paramref name="entry"/>'s completion, which the worker stopped before handing over: no
-    /// write is planned, so the row stays Executing and recovery reclaims the job after its lease expires.
+    /// Logs the failure line of <paramref name="entry"/>'s completion, which the worker stopped before planning its
+    /// write: the row stays Executing, and recovery reclaims the job after its lease expires.
     /// </summary>
     public void LogUnwritten(InFlightJob entry) => LogHandlerThrew(entry, write: null);
 
