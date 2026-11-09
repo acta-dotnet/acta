@@ -74,7 +74,7 @@ acta-verify run throughput drain --db pg --suite release
 acta-verify replay ./artifacts/verify/<run-id>/resolved-plan.json
 acta-verify report ./artifacts/verify/<run-id>
 acta-verify compare ./artifacts/verify/<before> ./artifacts/verify/<after>
-acta-verify publish ./artifacts/verify/<run-id> --to docs/reference/benchmark.md
+acta-verify publish ./artifacts/verify/<run-id> [--rerun ./artifacts/verify/<rerun-id>]... --to docs/reference/benchmark.md
 acta-verify cleanup [--yes]
 acta-verify list
 ```
@@ -85,7 +85,7 @@ acta-verify list
   - Correctness: the scenarios that no longer pass, those that pass now, and how many passed both times.
   - Performance: a ladder's highest rate held in every pass, a confirmation's or a drain's completed jobs per second, and p99 at the highest rate both held. A change beyond 10% is faster or slower, and a rate held only before is slower.
   - It exits 1 when a scenario no longer passes or is slower, 0 when none is, and 2 when nothing compared.
-- `publish` renders a bundle's report into the file named and, beside a `docs/` folder, the site's `site/benchmark.html` in the front page's style; a test keeps the two equal. Normal runs never touch tracked documentation, and no command uploads results.
+- `publish` renders a bundle's report into the file named and, beside a `docs/` folder, the site's `site/benchmark.html` with the front page's header and footer; a test keeps the two equal. Each `--rerun` adds a bundle that reran a missed floor on the same commit under the same protocol: the missed cell's section lists every rerun trial, and the verdict reads PASS after reruns when every failure was a missed performance floor that its latest rerun held. Normal runs never touch tracked documentation, and no command uploads results.
 - `cleanup` lists the containers labelled `acta.verify.owner` and the `b_` databases carrying the ownership marker. With `--yes` it removes them, but refuses while another Acta Verify process runs.
 
 ## Databases and resources

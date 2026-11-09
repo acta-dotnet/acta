@@ -14,12 +14,20 @@ namespace Acta.Verify;
 /// </summary>
 public static partial class Report
 {
-    public static string Markdown(string directory, RunResult result) => Write(directory, result, full: true);
+    public static string Markdown(string directory, RunResult result) => Write(directory, result, full: true, []);
+
+    /// <summary>
+    /// The report of a run published with reruns of its missed floors on the same commit: each missed cell's section
+    /// lists every rerun trial, and the verdict reads PASS after reruns when every failure was a missed performance floor
+    /// that its latest rerun held.
+    /// </summary>
+    public static string Markdown(string directory, RunResult result, IReadOnlyList<RunResult> reruns) =>
+        Write(directory, result, full: true, reruns);
 
     /// <summary>The verdict, the verdict table and the claim lines; the console prints it at the end of a run.</summary>
-    public static string Lead(string directory, RunResult result) => Write(directory, result, full: false);
+    public static string Lead(string directory, RunResult result) => Write(directory, result, full: false, []);
 
-    private static string Write(string directory, RunResult result, bool full)
+    private static string Write(string directory, RunResult result, bool full, IReadOnlyList<RunResult> reruns)
     {
         ArgumentNullException.ThrowIfNull(result);
         var plan =
@@ -28,10 +36,14 @@ public static partial class Report
         var environment = Read(directory, "environment.json", VerifyJson.Default.DictionaryStringString) ?? [];
         var providers = Protocol.AllProviders.Where(plan.Providers.Contains).ToArray();
         var cases = result.Cases.Where(c => c.Provider != "harness").ToArray();
+        var held = HeldOnRerun(result, reruns);
         var text = new StringBuilder();
-        text.Append(CultureInfo.InvariantCulture, $"# Acta Verify: {Word(result.Status)}\n\n");
+        text.Append(
+            CultureInfo.InvariantCulture,
+            $"# Acta Verify: {(PassedAfterReruns(plan, result, held) ? "PASS after reruns" : Word(result.Status))}\n\n"
+        );
         text.Append(CultureInfo.InvariantCulture, $"{Opening(plan, result, environment, providers)}\n\n");
-        VerdictTable(text, plan, cases, providers);
+        VerdictTable(text, plan, cases, providers, held);
         foreach (var claim in Claims(plan, cases, providers, environment))
         {
             text.Append(CultureInfo.InvariantCulture, $"> {claim}\n\n");
@@ -52,14 +64,48 @@ public static partial class Report
             );
             foreach (var scenario in measured)
             {
-                Performance(text, plan, scenario, cases, providers);
+                Performance(text, plan, scenario, cases, providers, reruns);
             }
         }
         Correctness(text, plan, cases, providers);
-        NotPassing(text, plan, result);
+        NotPassing(text, plan, result, reruns);
         Made(text, directory, plan, result, environment, providers);
+        if (reruns.Count > 0)
+        {
+            text.Append(
+                CultureInfo.InvariantCulture,
+                $"\n- Reruns of the missed floors, on the same commit, in order: {string.Join(", ", reruns.Select(r => $"`{r.RunId}`"))}.\n\n"
+            );
+        }
         return text.ToString();
     }
+
+    /// <summary>A run's failed cells, each a scenario on one database.</summary>
+    private static IEnumerable<(string Id, string Provider)> Failing(RunResult result) =>
+        result
+            .Cases.Where(c => c.Provider != "harness" && c.Status is not ("PASS" or "NOT_APPLICABLE"))
+            .Select(c => (c.Id, c.Provider))
+            .Distinct();
+
+    /// <summary>Whether a rerun ran the cell, and then whether it passed there: a case that passed, and none that did not.</summary>
+    private static bool? HeldIn(RunResult rerun, (string Id, string Provider) cell)
+    {
+        var ran = rerun.Cases.Where(c => c.Id == cell.Id && c.Provider == cell.Provider).ToArray();
+        return ran.Length == 0 ? null : ran.Any(c => c.Status == "PASS") && ran.All(c => c.Status is "PASS" or "NOT_APPLICABLE");
+    }
+
+    /// <summary>The run's failed cells that the latest rerun to run them held.</summary>
+    private static HashSet<(string Id, string Provider)> HeldOnRerun(RunResult result, IReadOnlyList<RunResult> reruns) =>
+        Failing(result).Where(cell => reruns.Select(r => HeldIn(r, cell)).LastOrDefault(h => h is not null) == true).ToHashSet();
+
+    /// <summary>A failed run whose every failure is a missed performance floor that the latest rerun of it held.</summary>
+    private static bool PassedAfterReruns(RunPlan plan, RunResult result, HashSet<(string Id, string Provider)> held) =>
+        result.Status == "FAIL"
+        && !result.HarnessError
+        && held.Count > 0
+        && result.Cases.All(c => c.Provider != "harness" || c.Status is "PASS" or "NOT_APPLICABLE")
+        && Failing(result)
+            .All(cell => held.Contains(cell) && plan.Scenarios.Any(s => s.Id == cell.Id && ScenarioRunner.PhaseOf(s) == "performance"));
 
     private static string Opening(RunPlan plan, RunResult result, Dictionary<string, string> environment, string[] providers)
     {
@@ -81,7 +127,13 @@ public static partial class Report
             + $", started {started}{wall}, on {environment.GetValueOrDefault("cpu_model", "an unrecorded machine")}.";
     }
 
-    private static void VerdictTable(StringBuilder text, RunPlan plan, CaseResult[] cases, string[] providers)
+    private static void VerdictTable(
+        StringBuilder text,
+        RunPlan plan,
+        CaseResult[] cases,
+        string[] providers,
+        HashSet<(string Id, string Provider)> held
+    )
     {
         text.Append(
             CultureInfo.InvariantCulture,
@@ -132,10 +184,9 @@ public static partial class Report
             Row(
                 "Performance floors",
                 p =>
-                    cases.Count(c => c.Provider == p && c.Phase == "reconcile" && c.Status == "FAIL" && c.Measurement == "MISSED")
-                        is > 0
-                            and var missed
-                        ? $"missed {missed}"
+                    cases.Where(c => c.Provider == p && c.Phase == "reconcile" && c.Status == "FAIL" && c.Measurement == "MISSED").ToArray()
+                        is { Length: > 0 } missed
+                        ? $"missed {missed.Length}" + (missed.All(c => held.Contains((c.Id, c.Provider))) ? ", held on rerun" : "")
                         : "held"
             );
         }
@@ -219,7 +270,48 @@ public static partial class Report
         }
     }
 
-    private static void Performance(StringBuilder text, RunPlan plan, Scenario scenario, CaseResult[] cases, string[] providers)
+    private static void Performance(
+        StringBuilder text,
+        RunPlan plan,
+        Scenario scenario,
+        CaseResult[] cases,
+        string[] providers,
+        IReadOnlyList<RunResult> reruns
+    )
+    {
+        Ladder(text, plan, scenario, cases, providers);
+        var rerun = reruns
+            .SelectMany(
+                (r, i) =>
+                    r
+                        .Cases.Where(c => c.Id == scenario.Id && c.Phase is "measure" or "confirm" && providers.Contains(c.Provider))
+                        .Select(c => (Number: i + 1, Trial: c))
+            )
+            .ToArray();
+        if (rerun.Length == 0)
+        {
+            return;
+        }
+        text.Append(
+            "Reruns of this scenario on the same commit, in order:\n\n| Database | Rerun | Offered/s | Completed/s | p99 | Disk write, mean / p95 | Result |\n|---|---:|---:|---:|---:|---:|---|\n"
+        );
+        foreach (var (number, trial) in rerun)
+        {
+            // A rerun's verdict for the cell is its own: a floor its reconcile called missed reads missed here too.
+            var missed = reruns[number - 1]
+                .Cases.FirstOrDefault(c =>
+                    c.Id == scenario.Id && c.Provider == trial.Provider && c.Phase == "reconcile" && c.Measurement == "MISSED"
+                );
+            var outcome = missed is null ? Outcome(plan, scenario, trial) : $"missed: {Why(plan, scenario, trial)}";
+            text.Append(
+                CultureInfo.InvariantCulture,
+                $"| {Name(trial.Provider)} | {number}{(trial.Phase == "confirm" ? ", confirm" : "")} | {Number(Value(trial, "offered_rate"))} | {Number(Value(trial, "window_completed_rate"))} | {Milliseconds(Value(trial, "primary_latency_p99"))} | {Disk(trial)} | {Cell(outcome)} |\n"
+            );
+        }
+        text.Append('\n');
+    }
+
+    private static void Ladder(StringBuilder text, RunPlan plan, Scenario scenario, CaseResult[] cases, string[] providers)
     {
         text.Append(CultureInfo.InvariantCulture, $"### {scenario.Title}\n\n{scenario.Question}\n\n{Setup(plan, scenario, providers)}\n\n");
         if (scenario.Runner == "drain")
@@ -461,7 +553,7 @@ public static partial class Report
         }
     }
 
-    private static void NotPassing(StringBuilder text, RunPlan plan, RunResult result)
+    private static void NotPassing(StringBuilder text, RunPlan plan, RunResult result, IReadOnlyList<RunResult> reruns)
     {
         var failing = result.Cases.Where(c => c.Status is not ("PASS" or "NOT_APPLICABLE")).ToArray();
         if (failing.Length == 0)
@@ -493,9 +585,14 @@ public static partial class Report
                 reason = $"{reason.TrimEnd('.')}: {why}.";
             }
             var file = c.Evidence.FirstOrDefault(e => e.StartsWith("histories/", StringComparison.Ordinal));
+            var ran = reruns.Select(r => HeldIn(r, (c.Id, c.Provider))).OfType<bool>().ToArray();
+            var rerun =
+                ran.Length == 0
+                    ? ""
+                    : $" Reruns on the same commit: held in {ran.Count(h => h)} of {ran.Length}{(ran[^1] ? ", the last one included" : ", not the last one")}.";
             text.Append(
                 CultureInfo.InvariantCulture,
-                $"- **{scenario?.Title ?? c.Id}** on {where}, {Word(c.Status).ToLowerInvariant()}: {reason}{(file is null ? "" : $" (`{file}`)")}\n"
+                $"- **{scenario?.Title ?? c.Id}** on {where}, {Word(c.Status).ToLowerInvariant()}: {reason}{(file is null ? "" : $" (`{file}`)")}{rerun}\n"
             );
         }
         text.Append('\n');

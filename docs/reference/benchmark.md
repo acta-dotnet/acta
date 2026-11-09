@@ -2,11 +2,11 @@
 
 The 1.0.0-rc.9 release evidence, measured by the project on its own machine: one Acta Verify release run on `096ea16e5` on PostgreSQL, SQL Server, and SQLite, and four reruns of the one cell it missed. Every correctness, fault, and chaos scenario passed, every trial's ledger passed the ledger checks, and every performance floor held but one: sixteen SQL Server workers over two namespaces at 4,000/s offered.
 
-- That cell missed in the run below (p99 2.2 s against a 2.0 s target) and in the first rerun (the backlog grew 62.8 jobs/s, 40 allowed), then held in the three reruns after it: 4,062/s with p99 1.9 s, 4,127/s with p99 1.0 s, and 4,001/s with p99 999 ms. Every pass completed about 4,000 jobs a second; what differs between them is short stalls, up to about 0.4 s, in which enqueues wait, sampled mostly on SQL Server's throttle for inserts into the newest page of `jobs` and `jobs_state`. The known limitations name it.
+- That cell missed in the run (p99 2.2 s against a 2.0 s target) and in the first rerun (the backlog grew 62.8 jobs/s, 40 allowed), then held in the three reruns after it, so the verdict below reads PASS after reruns and the cell's section lists every rerun: 4,062/s with p99 1.9 s, 4,127/s with p99 1.0 s, and 4,001/s with p99 999 ms. Every pass completed about 4,000 jobs a second; what differs between them is short stalls, up to about 0.4 s, in which enqueues wait, sampled mostly on SQL Server's throttle for inserts into the newest page of `jobs` and `jobs_state`. The known limitations name it.
 - The reruns ran `acta-verify run throughput-16-workers --suite release --db mssql` from the same clean worktree of `096ea16e5`. The commits after it change the site and how Acta Verify frames the site's benchmark page, not the engine, so this evidence stands for the certified commit `7c4dae04c`.
 - This is measurement version 3, as in rc.8. `acta-verify compare` sets no scenario beside rc.8's run, because the .NET runtime differs; the headline rates moved within a few percent: PostgreSQL 12,527 jobs/s against 12,438, its drain 73,864 against 73,211, SQL Server 4,999 against 4,972.
 
-# Acta Verify: FAIL
+# Acta Verify: PASS after reruns
 
 The release suite on PostgreSQL, SQL Server, SQLite, commit `096ea16e5`, started 2026-11-08 09:38 UTC, 7 h 1 min, on Intel(R) Core(TM) i9-14900K.
 
@@ -15,7 +15,7 @@ The release suite on PostgreSQL, SQL Server, SQLite, commit `096ea16e5`, started
 | Correctness | pass | pass | pass |
 | Crash-recovery chaos | pass, 1,000,000 jobs, 84 busy kills reclaimed | pass, 1,000,000 jobs, 81 busy kills reclaimed | pass, 10,000 jobs, 32 busy kills reclaimed |
 | Ledger checks | pass, 163 trials checked | pass, 147 trials checked | pass, 125 trials checked |
-| Performance floors | held | missed 1 | held |
+| Performance floors | held | missed 1, held on rerun | held |
 | Drain | 73,864 jobs/s | 42,768 jobs/s | 8,267 jobs/s |
 | Throughput | 12,527 jobs/s | 4,999 jobs/s | 250 jobs/s |
 | Throughput, one worker | 7,500 jobs/s | 5,007 jobs/s | not written |
@@ -271,6 +271,15 @@ Setup: workers: 16; namespaces: 2; executors per worker: the product default; en
 | SQLite | | | | | | The scenario writes no rate for sqlite. |
 
 Highest rate held in every pass: PostgreSQL 15,000/s, every written rate, so the ceiling is above the ladder; SQL Server none, the floor missed.
+
+Reruns of this scenario on the same commit, in order:
+
+| Database | Rerun | Offered/s | Completed/s | p99 | Disk write, mean / p95 | Result |
+|---|---:|---:|---:|---:|---:|---|
+| SQL Server | 1 | 4,000 | 4,004 | 1.8 s | 0.0282 / 0.19 ms | missed: backlog grew 62.8 jobs/s, 40 allowed |
+| SQL Server | 2 | 4,000 | 4,062 | 1.9 s | 0.0442 / 0.201 ms | held |
+| SQL Server | 3 | 4,000 | 4,127 | 1.0 s | 0.032 / 0.229 ms | held |
+| SQL Server | 4 | 4,000 | 4,001 | 999 ms | 0.0291 / 0.134 ms | held |
 
 ### Throughput, sixteen workers, woken through Redis
 
@@ -640,7 +649,7 @@ Setup: workers: 1; namespaces: 1; executors per worker: the product default; enq
 
 ## What did not pass
 
-- **Throughput, sixteen workers** on SQL Server, fail: Pass 1 missed the floor of 4000/s: p99 2.2 s against a 2.0 s target.
+- **Throughput, sixteen workers** on SQL Server, fail: Pass 1 missed the floor of 4000/s: p99 2.2 s against a 2.0 s target. Reruns on the same commit: held in 3 of 4, the last one included.
 
 ## How this run was made
 
@@ -676,3 +685,6 @@ Setup: workers: 1; namespaces: 1; executors per worker: the product default; enq
 | sqlite \| 1 d: | write 0.66 ms mean, 6.32 ms p95, 748 writes/s, 73% idle, 2377 samples |
 | after \| 0 c: | write 1.05 ms mean, 1.96 ms p95, 16 writes/s, 99% idle, 15 samples |
 | after \| 1 d: | write 3.79 ms mean, 7.27 ms p95, 4 writes/s, 100% idle, 15 samples |
+
+- Reruns of the missed floors, on the same commit, in order: `20261108T181007686Z-92fdf024de0f44a0abb4cd8c4594c953`, `20261108T181600618Z-bc1109322ef048449c297d1ffac98770`, `20261108T224235927Z-db3dfb32d34848f49f0548dbc567efc9`, `20261108T224925330Z-a770de51e04a479f8302764ead5e548b`.
+

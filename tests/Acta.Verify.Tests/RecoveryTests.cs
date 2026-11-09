@@ -337,6 +337,66 @@ public sealed class RecoveryTests : IDisposable
         Assert.DoesNotContain("busy kills", report);
     }
 
+    [Fact]
+    public void A_missed_floor_that_its_last_rerun_held_reads_pass_after_reruns_with_every_rerun_listed()
+    {
+        var plan = Protocol.Plan("release", ["pg"], 1729, ["three-steps"]);
+        var bundle = new EvidenceBundle(_root, plan.RunId);
+        bundle.Write("resolved-plan.json", plan, VerifyJson.Default.RunPlan);
+        bundle.Write("histories/trial-checks.json", new[] { new Check("trial", "root", true, "") }, VerifyJson.Default.CheckArray);
+        static CaseResult Trial(string phase, string status, string measurement, string? reason, double p99 = 0) =>
+            new(
+                "three-steps",
+                "pg",
+                phase,
+                1,
+                status,
+                reason,
+                "PASS",
+                "PASS",
+                "COMPLETE",
+                measurement,
+                phase == "measure"
+                    ? new()
+                    {
+                        ["offered_rate"] = new(1000, "roots/second"),
+                        ["window_completed_rate"] = new(1000, "roots/second"),
+                        ["primary_latency_p99"] = new(p99, "milliseconds"),
+                    }
+                    : [],
+                ["histories/trial-checks.json"]
+            );
+        static CaseResult[] Missed(double p99) =>
+            [Trial("measure", "PASS", "UNSTABLE", null, p99), Trial("reconcile", "FAIL", "MISSED", "Pass 1 missed the floor of 1000/s.")];
+        Finish(bundle, "FAIL", Missed(6000));
+        var round = BundleVerifier.Load(bundle.DirectoryPath);
+        RunResult Rerun(int number, bool held, double p99) =>
+            round with
+            {
+                RunId = $"rerun-{number}",
+                Status = held ? "PASS" : "FAIL",
+                Cases = held ? [Trial("measure", "PASS", "VALID", null, p99)] : Missed(p99),
+            };
+
+        var settled = Report.Markdown(bundle.DirectoryPath, round, [Rerun(1, held: false, 7000), Rerun(2, held: true, 900)]);
+        var unsettled = Report.Markdown(bundle.DirectoryPath, round, [Rerun(1, held: true, 900), Rerun(2, held: false, 8000)]);
+
+        Assert.StartsWith("# Acta Verify: PASS after reruns", settled);
+        Assert.Contains("| Performance floors | missed 1, held on rerun |", settled);
+        Assert.Contains("| PostgreSQL | 1 | 1,000 | 1,000 | 7.0 s |", settled);
+        Assert.Contains("| PostgreSQL | 2 | 1,000 | 1,000 | 900 ms |", settled);
+        Assert.Contains("Reruns on the same commit: held in 1 of 2, the last one included.", settled);
+        Assert.Contains("`rerun-1`, `rerun-2`", settled);
+        Assert.StartsWith("# Acta Verify: FAIL", unsettled);
+        Assert.Contains("held in 1 of 2, not the last one.", unsettled);
+        // A rerun whose only case of the cell is not applicable, as a suite that does not gate on floors reports, holds nothing.
+        var skipped = Rerun(1, held: false, 0) with
+        {
+            Cases = [Trial("reconcile", "NOT_APPLICABLE", "NOT_MEASURED", "Not gated.")],
+        };
+        Assert.StartsWith("# Acta Verify: FAIL", Report.Markdown(bundle.DirectoryPath, round, [skipped]));
+    }
+
     private string Measured(params (double Rate, string Measurement, double P99)[] trials) => Measured(1729, trials);
 
     private string Measured(int seed, params (double Rate, string Measurement, double P99)[] trials) =>

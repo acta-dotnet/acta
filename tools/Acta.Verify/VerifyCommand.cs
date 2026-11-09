@@ -137,7 +137,7 @@ public static class VerifyCommand
                   acta-verify replay PLAN [--output DIR]: run a bundle's resolved-plan.json again
                   acta-verify report RUN_DIRECTORY
                   acta-verify compare BEFORE_DIRECTORY AFTER_DIRECTORY
-                  acta-verify publish RUN_DIRECTORY --to FILE
+                  acta-verify publish RUN_DIRECTORY [--rerun RUN_DIRECTORY]... --to FILE
                   acta-verify cleanup [--yes]: list Verify's leftover containers, processes and databases; --yes removes them
                 """
             );
@@ -171,10 +171,14 @@ public static class VerifyCommand
         {
             return BundleComparison.Write(baseline, candidate);
         }
-        if (args is ["publish", var source, "--to", var target])
+        if (args is ["publish", var source, .. var publishArgs] && PublishTarget(publishArgs) is var (target, rerunDirectories))
         {
             // A bundle is rendered afresh by this build; a Markdown record already published renders its site page only.
-            var markdown = Directory.Exists(source) ? Report.Markdown(source, Load(source)) : File.ReadAllText(source);
+            var markdown =
+                Directory.Exists(source) ? PublishedReport(source, rerunDirectories)
+                : rerunDirectories.Length > 0
+                    ? throw new ArgumentException("--rerun needs a run directory to publish, not a Markdown record.")
+                : File.ReadAllText(source);
             var record = Path.GetFullPath(target);
             Directory.CreateDirectory(Path.GetDirectoryName(record)!);
             File.WriteAllText(record, markdown.Replace("\r\n", "\n", StringComparison.Ordinal));
@@ -300,4 +304,59 @@ public static class VerifyCommand
             : throw new ArgumentException("Missing option value.");
 
     private static RunResult Load(string directory) => BundleVerifier.Load(directory);
+
+    /// <summary>
+    /// The target of a publish and the reruns it carries: <c>--rerun DIR</c> any number of times, <c>--to FILE</c> once.
+    /// Null when the arguments say anything else, so the usage prints.
+    /// </summary>
+    private static (string Target, string[] Reruns)? PublishTarget(string[] args)
+    {
+        string? target = null;
+        List<string> reruns = [];
+        if (args.Length % 2 != 0)
+        {
+            return null;
+        }
+        for (var i = 0; i < args.Length; i += 2)
+        {
+            switch (args[i])
+            {
+                case "--to" when target is null:
+                    target = args[i + 1];
+                    break;
+                case "--rerun":
+                    reruns.Add(args[i + 1]);
+                    break;
+                default:
+                    return null;
+            }
+        }
+        return target is null ? null : (target, reruns.ToArray());
+    }
+
+    /// <summary>A bundle's report with its reruns, each refused unless it ran the same commit, protocol, and suite.</summary>
+    private static string PublishedReport(string source, string[] rerunDirectories)
+    {
+        var result = Load(source);
+        var suite = SuiteOf(source);
+        var reruns = rerunDirectories.Select(Load).ToArray();
+        for (var i = 0; i < reruns.Length; i++)
+        {
+            if (
+                reruns[i].Provenance.SourceCommit != result.Provenance.SourceCommit
+                || reruns[i].Provenance.ProtocolSha256 != result.Provenance.ProtocolSha256
+                || SuiteOf(rerunDirectories[i]) != suite
+            )
+            {
+                throw new ArgumentException(
+                    $"The rerun {reruns[i].RunId} ran another commit, protocol, or suite; a rerun must run the published run's commit and protocol under its suite."
+                );
+            }
+        }
+        return reruns.Length == 0 ? Report.Markdown(source, result) : Report.Markdown(source, result, reruns);
+    }
+
+    private static string SuiteOf(string directory) =>
+        JsonSerializer.Deserialize(File.ReadAllText(Path.Combine(directory, "resolved-plan.json")), VerifyJson.Default.RunPlan)?.SuiteName
+        ?? throw new InvalidDataException($"The bundle {directory} has no readable plan.");
 }
