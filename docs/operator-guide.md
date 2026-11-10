@@ -834,7 +834,7 @@ w.AddAlertChannel("ops-slack", AlertTransportKinds.SlackWebhook,
 ## What happens if…
 
 Failure-mode answers for operators and handler authors. Start a single-job investigation with
-`<app> jobs explain <job-ref>` or the dashboard Explain panel; use this page to understand the
+`<app> jobs explain <job-ref>` or the job's page in the dashboard; use this page to understand the
 expected transition and the application responsibility behind it.
 
 ### …a worker crashes before starting the handler?
@@ -1010,7 +1010,7 @@ the same `jobs_state` / lease / worker / checkpoint / step / event rows the chec
 one consistent snapshot, and states in plain English where the work is, why it moved there, and the
 next action (raise a signal, wait for crash recovery, resume, restart, or inspect the timeline). The
 manual checks below are for triaging many jobs at once, confirming what `explain` reports, or when
-you only have SQL access. The dashboard's per-job Explain panel renders the same account.
+you only have SQL access. A job's page in the dashboard opens with the same account.
 
 `jobs explain` diagnoses Acta's durable state. It can tell you which steps completed, which
 wait is active, what the latest recorded reason was, and what operator actions are available. It
