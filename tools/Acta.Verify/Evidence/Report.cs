@@ -789,15 +789,15 @@ public static partial class Report
         + "</html>";
 
     /// <summary>
-    /// The published report as a page of the site: the front page's stylesheet and theme switch, and the header bar and
-    /// footer of <paramref name="frontPage"/> (site/index.html), around the same body as report.html, opened like every
-    /// other page by a record line, the title, and the paragraph under it as the lede. A test keeps site/benchmark.html
-    /// equal to this page of docs/reference/benchmark.md.
+    /// The published report as a page of the site: the site's stylesheet and theme switch, and the header bar and footer
+    /// of <paramref name="framePage"/> (site/start.html; every page but the homepage shares them), around the same body
+    /// as report.html, opened like every other page by a record line, the title, and the paragraph under it as the lede.
+    /// A test keeps site/benchmark.html equal to this page of docs/reference/benchmark.md.
     /// </summary>
-    public static string SitePage(string markdown, string frontPage)
+    public static string SitePage(string markdown, string framePage)
     {
         ArgumentNullException.ThrowIfNull(markdown);
-        var (chrome, footer) = SiteFrame(frontPage);
+        var (chrome, footer) = SiteFrame(framePage);
         var lines = markdown.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n');
         var status = lines[0].StartsWith("# Acta Verify: ", StringComparison.Ordinal) ? lines[0]["# Acta Verify: ".Length..].Trim() : "";
         var lede = lines.Length > 1 ? Array.FindIndex(lines, 1, line => line.Length > 0) : -1;

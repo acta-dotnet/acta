@@ -209,9 +209,9 @@ public sealed class RecoveryTests : IDisposable
         }
         var record = File.ReadAllText(Path.Combine(root, "docs", "reference", "benchmark.md"));
         var page = File.ReadAllText(Path.Combine(root, "site", "benchmark.html")).Replace("\r\n", "\n", StringComparison.Ordinal);
-        var front = File.ReadAllText(Path.Combine(root, "site", "index.html"));
-        // `acta-verify publish <run> --to docs/reference/benchmark.md` writes both, framed by the front page's header and footer.
-        Assert.Equal(Report.SitePage(record, front), page);
+        var frame = File.ReadAllText(Path.Combine(root, "site", "start.html"));
+        // `acta-verify publish` writes both, framed by the header and footer the site's pages share.
+        Assert.Equal(Report.SitePage(record, frame), page);
     }
 
     [Fact]
