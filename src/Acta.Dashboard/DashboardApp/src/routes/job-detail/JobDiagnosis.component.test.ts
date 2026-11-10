@@ -48,7 +48,7 @@ describe('JobDiagnosis', () => {
       recoveryExpectation: 'Recovery reclaims the job on its next pass.'
     };
     const { container } = render(JobDiagnosis, { jobNamespace: 'billing', explanation: explanation({ lease }) });
-    expect(container.querySelector('#job-worker-evidence')?.textContent).toMatch(
+    expect(container.querySelector('#job-worker-evidence')?.textContent?.replace(/\s+/g, ' ').trim()).toMatch(
       new RegExp(`^${workerRef} · version 1\\.0\\.0 · lease expired .+ · last heartbeat `)
     );
   });

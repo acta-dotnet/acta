@@ -36,7 +36,7 @@
   } = $props();
 
   // Same endpoint, page size, and query keys as JobEventsPanel: the tanstack cache is shared, so
-  // flipping between Details and Executions costs no extra requests.
+  // opening execution history reuses the already loaded event pages.
   // svelte-ignore state_referenced_locally
   const endpoint = `jobs/${jobRef}/events`;
   const history = createInfiniteQuery(() => ({
@@ -141,7 +141,7 @@
             <td class="col-num">{execution.durationMs != null ? (execution.durationMs === 0 ? '<1 ms' : displayFormatter.milliseconds(execution.durationMs)) : '·'}</td>
             <td>
               {#if execution.workerRef != null}
-                <JobRef value={execution.workerRef} href={routes.worker(execution.workerRef, { namespace: job.jobNamespace })} />
+                <JobRef value={execution.workerRef} href={routes.worker(execution.workerRef, { namespace: job.jobNamespace })} compact />
               {:else}<span class="dim">·</span>{/if}
             </td>
             <td class="wrap" class:cell-repeat={repeatReason}>

@@ -66,6 +66,7 @@
     type="button"
     class="trigger"
     bind:this={triggerElement}
+    aria-label="Appearance"
     aria-haspopup="dialog"
     aria-controls="appearance-popover"
     aria-expanded={open}

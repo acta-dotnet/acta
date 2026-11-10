@@ -5,6 +5,10 @@
   import { capabilitiesQuery, can, Permission, keys } from '../query.ts';
   import { useControlMutation } from '../lib/useControlMutation.ts';
   import Page from '../components/Page.svelte';
+  import DetailActions from '../components/DetailActions.svelte';
+  import DetailLayout from '../components/DetailLayout.svelte';
+  import RelativeTime from '../components/RelativeTime.svelte';
+  import FocusDisclosure from '../components/FocusDisclosure.svelte';
   import Icon from '../components/Icon.svelte';
   import StateView from '../components/StateView.svelte';
   import StatusBadge from '../components/StatusBadge.svelte';
@@ -224,97 +228,16 @@
         isError={!!detail.error}
         onRefresh={() => detail.refetch()} />
     {/if}
-  {/snippet}
 
-  {#if creating}
-    <div class="detail-workspace">
-      <div class="detail-main">
+    {#if tenant && !creating && canControlNow}{@const currentTenant = tenant}
+      <DetailActions>
         <section class="detail-panel">
-          <h2>Registration</h2>
-          <p class="detail-help">Create the stable tenant identity used by enqueue requests. Display details can be added afterward.</p>
-          <form onsubmit={(event) => { event.preventDefault(); submitRegister(); }}>
-            <label class="detail-field">
-              <span>Tenant name</span>
-              <input bind:this={newNameEl} bind:value={newName} maxlength="128" placeholder="Kebab-case name, such as acme-corp" disabled={!canControlNow || registerBusy} />
-            </label>
-            <label class="detail-field">
-              <span>Display name</span>
-              <input bind:value={newDisplayName} maxlength="128" placeholder="Human display label (optional)" disabled={!canControlNow || registerBusy} />
-            </label>
-            <label class="detail-field">
-              <span>Description</span>
-              <textarea bind:value={newDescription} rows="4" maxlength="512" placeholder="Human-readable context (optional)" disabled={!canControlNow || registerBusy}></textarea>
-            </label>
-            <div class="detail-form-actions">
-              <button class="primary" type="submit" disabled={!canControlNow || registerBusy || !newName.trim()}>
-                {registerBusy ? 'Registering...' : 'Register tenant'}
-              </button>
-            </div>
-          </form>
-          {#if registerMessage}
-            <div class="control-message {registerMessageKind}" role="status">
-              {registerMessage}
-              {#if createdName}<a href={createdHref}>Open tenant <span aria-hidden="true">→</span></a>{/if}
-            </div>
-          {/if}
-        </section>
-      </div>
-      <aside class="detail-rail">
-        <section class="detail-panel">
-          <h2>What happens next</h2>
-          <p class="detail-help">The tenant is registered as active. Open its detail view to edit details or suspend enqueue access.</p>
-        </section>
-      </aside>
-    </div>
-  {:else if loading || error || !tenant}
-    <div class="panel">
-      <StateView {loading} {error} loadingText="Loading tenant..." emptyText="Tenant not found." onRetry={() => detail.refetch()} />
-    </div>
-  {:else}
-    <section class="entity-summary" aria-label="Tenant identity">
-      <div class="entity-meta mono">{tenant.tenantName} · version {tenant.version}</div>
-      <StatusBadge status={tenant.status} />
-    </section>
-
-    <div class="detail-workspace">
-      <div class="detail-main">
-        <section class="detail-panel">
-          <h2>Details</h2>
-          <p class="detail-help">Operator-owned context for this tenant. The tenant name is stable and cannot be edited.</p>
-          <form onsubmit={(event) => { event.preventDefault(); saveDetails(); }}>
-            <label class="detail-field">
-              <span>Display name</span>
-              <input bind:value={displayNameInput} maxlength="128" placeholder="Human display label" disabled={!canControlNow || detailsMutation.isPending} />
-            </label>
-            <label class="detail-field">
-              <span>Description</span>
-              <textarea bind:value={descriptionInput} rows="4" maxlength="512" placeholder="Operator-readable description" disabled={!canControlNow || detailsMutation.isPending}></textarea>
-            </label>
-            <label class="detail-field">
-              <span>Audit note</span>
-              <input bind:value={detailsNote} maxlength="512" placeholder="Why are you changing this?" disabled={!canControlNow || detailsMutation.isPending} />
-            </label>
-            <div class="detail-form-actions">
-              {#if detailsNeedsReload}<button type="button" onclick={reloadDetails}>Reload current values</button>{/if}
-              <button class="primary" type="submit" disabled={!canControlNow || detailsMutation.isPending}>
-                {detailsMutation.isPending ? 'Saving...' : 'Save details'}
-              </button>
-            </div>
-          </form>
-          {#if detailsMessage}<div class="control-message {detailsMessageKind}" role="status">{detailsMessage}</div>{/if}
-        </section>
-
-        <ChangeHistory history={history.data ?? []} loading={history.isPending} emptyText="No recorded tenant changes." />
-      </div>
-
-      <aside class="detail-rail">
-        <section class="detail-panel">
-          <h2>Lifecycle</h2>
-          <p>{tenant.status === 'suspended' ? 'Suspended; new enqueues naming this tenant are rejected.' : 'Active and accepting enqueue requests.'}</p>
+          <h2>Actions</h2>
+          <p>{currentTenant.status === 'suspended' ? 'Suspended; new enqueues naming this tenant are rejected.' : 'Active and accepting enqueue requests.'}</p>
           {#if canControlNow}
             <p class="detail-help">Suspending rejects new enqueues that name this tenant name. Jobs already admitted keep running and may still create inherited child jobs.</p>
-            {#if tenant.status === 'suspended'}
-              <button disabled={statusMutation.isPending} onclick={() => (confirming = 'resume')}>Resume tenant</button>
+            {#if currentTenant.status === 'suspended'}
+<p class="detail-help">Resume is available beside the current state.</p>
             {:else}
               <button class="danger-outline" disabled={statusMutation.isPending} onclick={() => (confirming = 'suspend')}>Suspend tenant</button>
             {/if}
@@ -322,17 +245,114 @@
           {#if statusMessage}<div class="control-message {statusMessageKind}" role="status">{statusMessage}</div>{/if}
         </section>
 
-        <section class="detail-panel go-to" aria-label="Go to">
-          <p class="detail-kicker">Go to</p>
-          <nav>
-            <a href={jobsHref}>Jobs</a>
-            <a href={eventsHref}>Events</a>
-          </nav>
-        </section>
+      </DetailActions>
+    {/if}
+  {/snippet}
 
-        <TagEditor path={`tenants/${encodeURIComponent(tenant.tenantName)}/tags`} permission={Permission.admin} />
-      </aside>
+  {#if creating}
+    <DetailLayout>
+      {#snippet supporting()}
+        <section class="detail-panel">
+          <h2>What happens next</h2>
+          <p class="detail-help">The tenant is registered as active. Open its detail view to edit details or suspend enqueue access.</p>
+        </section>
+      {/snippet}
+
+      <section class="detail-panel">
+        <h2>Registration</h2>
+        <p class="detail-help">Create the stable tenant identity used by enqueue requests. Display details can be added afterward.</p>
+        <form onsubmit={(event) => { event.preventDefault(); submitRegister(); }}>
+          <label class="detail-field">
+            <span>Tenant name</span>
+            <input bind:this={newNameEl} bind:value={newName} maxlength="128" placeholder="Kebab-case name, such as acme-corp" disabled={!canControlNow || registerBusy} />
+          </label>
+          <label class="detail-field">
+            <span>Display name</span>
+            <input bind:value={newDisplayName} maxlength="128" placeholder="Human display label (optional)" disabled={!canControlNow || registerBusy} />
+          </label>
+          <label class="detail-field">
+            <span>Description</span>
+            <textarea bind:value={newDescription} rows="4" maxlength="512" placeholder="Human-readable context (optional)" disabled={!canControlNow || registerBusy}></textarea>
+          </label>
+          <div class="detail-form-actions">
+            <button class="primary" type="submit" disabled={!canControlNow || registerBusy || !newName.trim()}>
+              {registerBusy ? 'Registering...' : 'Register tenant'}
+            </button>
+          </div>
+        </form>
+        {#if registerMessage}
+          <div class="control-message {registerMessageKind}" role="status">
+            {registerMessage}
+            {#if createdName}<a href={createdHref}>Open tenant <span aria-hidden="true">→</span></a>{/if}
+          </div>
+        {/if}
+      </section>
+    </DetailLayout>
+  {:else if loading || error || !tenant}
+    <div class="panel">
+      <StateView {loading} {error} loadingText="Loading tenant..." emptyText="Tenant not found." onRetry={() => detail.refetch()} />
     </div>
+  {:else}
+    <section class="entity-summary" aria-label="Tenant identity">
+      {#if tenant.tenantName !== tenant.displayName}<span class="entity-meta mono">{tenant.tenantName}</span>{/if}
+      <StatusBadge status={tenant.status} />
+    </section>
+
+    {@const currentTenant = tenant}
+    <DetailLayout>
+
+
+      {#snippet related()}
+        <a href={jobsHref}>Jobs</a>
+        <a href={eventsHref}>Events</a>
+      {/snippet}
+
+      {#snippet supporting()}
+        <TagEditor path={`tenants/${encodeURIComponent(currentTenant.tenantName)}/tags`} permission={Permission.admin} />
+      {/snippet}
+
+      <section class="focus-state" style={'--tone:var(--' + (currentTenant.status === 'active' ? 'ok' : 'warn') + ')'} aria-label="Current availability">
+        <div class="focus-state-content">
+          <h2><Icon name={currentTenant.status === 'active' ? 'check' : 'pause'} />{currentTenant.status === 'active' ? 'Active and accepting enqueue requests' : 'Suspended for new enqueue requests'}</h2>
+          {#if currentTenant.description}<p>{currentTenant.description}</p>{/if}
+
+        </div>
+        {#if canControlNow && currentTenant.status === 'suspended'}<button class="primary" disabled={statusMutation.isPending} onclick={() => (confirming = 'resume')}>Resume tenant</button>{/if}
+      </section>
+
+      <FocusDisclosure hideHeading={true} title="Edit details" hint="Human context and audit note">
+      <section class="detail-panel">
+        <h2>Details</h2>
+        <p class="detail-help">Operator-owned context for this tenant. The tenant name is stable and cannot be edited.</p>
+        <form onsubmit={(event) => { event.preventDefault(); saveDetails(); }}>
+          <label class="detail-field">
+            <span>Display name</span>
+            <input bind:value={displayNameInput} maxlength="128" placeholder="Human display label" disabled={!canControlNow || detailsMutation.isPending} />
+          </label>
+          <label class="detail-field">
+            <span>Description</span>
+            <textarea bind:value={descriptionInput} rows="4" maxlength="512" placeholder="Operator-readable description" disabled={!canControlNow || detailsMutation.isPending}></textarea>
+          </label>
+          <label class="detail-field">
+            <span>Audit note</span>
+            <input bind:value={detailsNote} maxlength="512" placeholder="Why are you changing this?" disabled={!canControlNow || detailsMutation.isPending} />
+          </label>
+          <div class="detail-form-actions">
+            {#if detailsNeedsReload}<button type="button" onclick={reloadDetails}>Reload current values</button>{/if}
+            <button class="primary" type="submit" disabled={!canControlNow || detailsMutation.isPending}>
+              {detailsMutation.isPending ? 'Saving...' : 'Save details'}
+            </button>
+          </div>
+        </form>
+        {#if detailsMessage}<div class="control-message {detailsMessageKind}" role="status">{detailsMessage}</div>{/if}
+      </section>
+      </FocusDisclosure>
+
+      <FocusDisclosure title="Technical details" hint="Version and dates">
+        <dl class="detail-readonly detail-readonly-grid"><div><dt>Version</dt><dd>{currentTenant.version}</dd></div><div><dt>Created</dt><dd><RelativeTime value={currentTenant.createdAtUtc} /></dd></div><div><dt>Modified</dt><dd><RelativeTime value={currentTenant.modifiedAtUtc} /></dd></div></dl>
+      </FocusDisclosure>
+      <ChangeHistory history={history.data ?? []} loading={history.isPending} emptyText="No recorded tenant changes." />
+    </DetailLayout>
   {/if}
 </Page>
 

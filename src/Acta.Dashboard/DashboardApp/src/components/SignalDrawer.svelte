@@ -10,8 +10,9 @@
   let {
     jobRef,
     suggestedName = '',
+    inline = false,
     onSent = () => {}
-  }: { jobRef: string; suggestedName?: string; onSent?: () => void } = $props();
+  }: { jobRef: string; suggestedName?: string; inline?: boolean; onSent?: () => void } = $props();
 
   let open = $state(false);
   let name = $state('');
@@ -70,11 +71,11 @@
 </script>
 
 <section class="detail-panel">
-  <h2>Signals</h2>
+  {#if !inline}<h2>Signals</h2>{/if}
   {#if !open}
     <div class="control-row">
       {#if canControlNow}
-        <button disabled={busy} onclick={() => openForm()}>Raise signal</button>
+        <button class:primary={inline} disabled={busy} onclick={() => openForm()}>Raise signal</button>
       {:else if capabilities.data?.controlsEnabled === true}
         <span class="dim">Raising a signal needs the acta.control permission.</span>
       {:else}

@@ -93,6 +93,11 @@ describe('CalendarDetail saved version', () => {
     await fireEvent.click(within(definition).getByRole('button', { name: 'Edit as a new draft' }));
     expect(within(definition).getByLabelText('Monday window 1 from')).toBeTruthy();
     expect(within(definition).getByRole('button', { name: 'Save as version 3' })).toBeTruthy();
+    expect((screen.getByRole('button', { name: 'Publish version 2' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByText('This forecast shows saved version 2. Save the new draft to forecast its changes.')).toBeTruthy();
+
+    await fireEvent.click(within(definition).getByRole('button', { name: /^Cancel$/ }));
+    expect((screen.getByRole('button', { name: 'Publish version 2' }) as HTMLButtonElement).disabled).toBe(false);
   });
 });
 

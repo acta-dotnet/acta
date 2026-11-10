@@ -4,6 +4,10 @@
   import { api } from '../api.ts';
   import { capabilitiesQuery, can, Permission, keys } from '../query.ts';
   import Page from '../components/Page.svelte';
+  import DetailActions from '../components/DetailActions.svelte';
+  import DetailLayout from '../components/DetailLayout.svelte';
+  import DetailFacts from '../components/DetailFacts.svelte';
+  import FocusDisclosure from '../components/FocusDisclosure.svelte';
   import Icon from '../components/Icon.svelte';
   import StateView from '../components/StateView.svelte';
   import ScheduleStatus from '../components/ScheduleStatus.svelte';
@@ -133,134 +137,66 @@
 </script>
 
 <Page title={schedule?.scheduleName ?? 'Schedule'}>
-  {#snippet breadcrumb()}
-    <a href={backHref}><Icon name="chevron-left" />Schedules</a>
-  {/snippet}
-  {#snippet actions()}
-    <PageFreshness
-      dataUpdatedAt={detail.dataUpdatedAt}
-      isFetching={detail.isFetching}
-      isError={!!detail.error}
-      onRefresh={() => detail.refetch()} />
-  {/snippet}
+  {#snippet breadcrumb()}<a href={backHref}><Icon name="chevron-left" />Schedules</a>{/snippet}
+  {#snippet actions()}<PageFreshness dataUpdatedAt={detail.dataUpdatedAt} isFetching={detail.isFetching} isError={!!detail.error} onRefresh={() => detail.refetch()} />
+    {#if schedule && canControlNow}{@const currentSchedule = schedule}
+      <DetailActions>
+        <section class="detail-panel"><h2>Schedule actions</h2><p class="detail-help">Triggering fires once. Pausing holds future fires until the schedule resumes.</p>
+          <ScheduleControls mode="secondary" jobNamespace={currentSchedule.jobNamespace} jobName={currentSchedule.jobName} scheduleName={currentSchedule.scheduleName} status={currentSchedule.status} onChanged={() => { void detail.refetch(); void history.refetch(); }} />
+        </section>
 
+      </DetailActions>
+    {/if}
+  {/snippet}
   {#if loading || error || !schedule}
-    <div class="panel">
-      <StateView {loading} {error} loadingText="Loading schedule..." emptyText="Schedule not found." onRetry={() => detail.refetch()} />
-    </div>
+    <div class="panel"><StateView {loading} {error} loadingText="Loading schedule..." emptyText="Schedule not found." onRetry={() => detail.refetch()} /></div>
   {:else}
-    <section class="entity-summary" aria-label="Schedule identity">
-      <div class="entity-meta mono">{schedule.jobNamespace} / {schedule.jobName} / {schedule.scheduleName} · version {schedule.version}</div>
-      <ScheduleStatus status={schedule.status} pausedUntilUtc={schedule.pausedUntilUtc} />
-    </section>
-
-    <div class="detail-workspace">
-      <div class="detail-main">
-        <section class="detail-panel">
-          <h2>Timing</h2>
-
-          <!-- A name resolves afresh at every evaluation, so the page shows the name and where the catalog holds it,
-               not a stored resolution. -->
-          {#snippet calendarBinding(name: string)}
-            <span class="mono">{name}</span>
-            <a class="dim" href={routes.calendars({ namespace: schedule?.jobNamespace, nameContains: name })} title="The catalog's current version of this name applies">in the catalog</a>
-          {/snippet}
-          <dl class="detail-readonly detail-readonly-grid">
-            {#if schedule.expressionKind === 'calendar'}
-              <div><dt>Calendar</dt><dd>{@render calendarBinding(schedule.expression)}</dd></div>
-            {:else}
-              <div><dt>Expression</dt><dd><span class="mono">{schedule.expression}</span> <CopyButton value={schedule.expression} label="Copy expression" /></dd></div>
-            {/if}
-            <div><dt>Time zone</dt><dd>{schedule.timeZoneId} <CopyButton value={schedule.timeZoneId} label="Copy time zone" /></dd></div>
-            <div><dt>Source kind</dt><dd>{schedule.expressionKind}</dd></div>
-            <div>
-              <dt>Availability</dt>
-              <dd>
-                {#if schedule.availabilityCalendarName}
-                  {@render calendarBinding(schedule.availabilityCalendarName)}
-                {:else}
-                  <span class="dim">any time</span>
-                {/if}
-              </dd>
-            </div>
-            <div><dt>Misfire strategy</dt><dd>{schedule.misfireStrategy}</dd></div>
-            <div><dt>Origin</dt><dd>{schedule.origin}</dd></div>
-            <div>
-              <dt>Delivery</dt>
-              <dd>
-                {schedule.scheduledDelivery}
-                {#if schedule.scheduledDelivery === 'per-occurrence'}
-                  <span class="dim">· {schedule.outstandingCount} of {schedule.maxOutstanding} outstanding, {schedule.fullBehavior} when full</span>
-                {/if}
-              </dd>
-            </div>
-            <div>
-              <dt>Expiry</dt>
-              <dd>
-                {#if schedule.expireAfterSeconds !== null}
-                  {displayFormatter.duration(schedule.expireAfterSeconds)} unadmitted, then {schedule.expireAction}
-                {:else}
-                  <span class="dim">never</span>
-                {/if}
-              </dd>
-            </div>
-            <div>
-              <dt>Bounds</dt>
-              <dd>
-                {#if schedule.startAtUtc === null && schedule.endBeforeUtc === null}
-                  <span class="dim">none</span>
-                {:else}
-                  {#if schedule.startAtUtc !== null}<div>from {displayFormatter.timestamp(schedule.startAtUtc)}</div>{/if}
-                  {#if schedule.endBeforeUtc !== null}<div>until {displayFormatter.timestamp(schedule.endBeforeUtc)}</div>{/if}
-                {/if}
-              </dd>
-            </div>
-            <div><dt>Next occurrence</dt><dd><RelativeTime value={schedule.nextOccurrenceAtUtc} /></dd></div>
-            <div><dt>Next evaluation</dt><dd>{#if schedule.nextEvaluationAtUtc}<RelativeTime value={schedule.nextEvaluationAtUtc} />{' · '}{/if}{schedule.evaluationStatus}</dd></div>
-          </dl>
-          <p class="detail-help">
-            Misfire strategy governs occurrences missed while no host admitted them: skip to the next one, catch up once,
-            catch up the latest, or catch up all. An availability calendar omits occurrences outside its windows, never
-            shifts them. Per-occurrence delivery starts a fresh root per occurrence up to its capacity; permanent delivery
-            fires one permanent job.
-          </p>
-
-          <ScheduleControls
-            mode="editor"
-            jobNamespace={schedule.jobNamespace}
-            jobName={schedule.jobName}
-            scheduleName={schedule.scheduleName}
-            status={schedule.status}
-            onChanged={() => { void detail.refetch(); void history.refetch(); }} />
-        </section>
-
-        <ChangeHistory history={history.data ?? []} loading={history.isPending} emptyText="No recorded schedule changes." />
+    <section class="entity-summary" aria-label="Schedule identity"><ScheduleStatus status={schedule.status} pausedUntilUtc={schedule.pausedUntilUtc} /><a href={definitionHref}>{schedule.jobNamespace} / {schedule.jobName}</a></section>
+    {@const currentSchedule = schedule}
+    <section class="focus-state" style={'--tone:var(--' + (currentSchedule.status === 'active' ? 'ok' : 'warn') + ')'} aria-label="Schedule status">
+      <div class="focus-state-content">
+        <h2><Icon name="calendar" />{currentSchedule.status === 'paused' ? 'Schedule paused' : currentSchedule.status === 'orphaned' ? 'Origin declaration removed' : 'Active and eligible to fire'}</h2>
+        <div class="focus-facts"><span>Next occurrence <strong><RelativeTime value={currentSchedule.nextOccurrenceAtUtc} /></strong></span>{#if currentSchedule.pausedUntilUtc}<span>Resumes <RelativeTime value={currentSchedule.pausedUntilUtc} /></span>{/if}</div>
       </div>
+      <ScheduleControls mode="primary" jobNamespace={currentSchedule.jobNamespace} jobName={currentSchedule.jobName} scheduleName={currentSchedule.scheduleName} status={currentSchedule.status} onChanged={() => { void detail.refetch(); void history.refetch(); }} />
+    </section>
+    {#snippet calendarBinding(name: string)}<span class="mono">{name}</span> <a href={routes.calendars({ namespace: currentSchedule.jobNamespace, nameContains: name })} title="The catalog's current version of this name applies">in the catalog</a>{/snippet}
+    <DetailLayout>
 
-      <aside class="detail-rail">
-        <section class="detail-panel">
-          <h2>Lifecycle</h2>
-          <p>{schedule.status === 'paused' ? 'Paused; recurring fires are held.' : schedule.status === 'orphaned' ? 'Orphaned; its origin declaration is gone.' : 'Active and eligible to fire.'}</p>
-          {#if canControlNow}
-            <p class="detail-help">Trigger now fires once without moving the recurring cursor. Pausing holds future fires until the schedule is resumed.</p>
-          {/if}
-          <ScheduleControls
-            mode="actions"
-            jobNamespace={schedule.jobNamespace}
-            jobName={schedule.jobName}
-            scheduleName={schedule.scheduleName}
-            status={schedule.status}
-            onChanged={() => { void detail.refetch(); void history.refetch(); }} />
-        </section>
-
-        <section class="detail-panel go-to" aria-label="Go to">
-          <p class="detail-kicker">Go to</p>
-          <nav>
-            <a href={jobsHref}>Jobs</a>
-            <a href={definitionHref}>Definition</a>
-          </nav>
-        </section>
-      </aside>
-    </div>
+      {#snippet related()}<a href={jobsHref}>Jobs</a><a href={definitionHref}>Definition</a>{/snippet}
+      <section class="detail-panel" aria-label="Timing">
+        <h2>Timing</h2>
+        <dl class="detail-readonly detail-readonly-grid">
+          {#if currentSchedule.expressionKind === 'calendar'}<div><dt>Calendar</dt><dd>{@render calendarBinding(currentSchedule.expression)}</dd></div>
+          {:else}<div><dt>Expression</dt><dd><span class="mono">{currentSchedule.expression}</span> <CopyButton value={currentSchedule.expression} label="Copy expression" /></dd></div>{/if}
+          <div><dt>Time zone</dt><dd>{currentSchedule.timeZoneId} <CopyButton value={currentSchedule.timeZoneId} label="Copy time zone" /></dd></div>
+          {#if currentSchedule.availabilityCalendarName}<div><dt>Availability</dt><dd>{@render calendarBinding(currentSchedule.availabilityCalendarName)}</dd></div>{/if}
+          <div><dt>Next evaluation</dt><dd>{#if currentSchedule.nextEvaluationAtUtc}<RelativeTime value={currentSchedule.nextEvaluationAtUtc} /> · {/if}{currentSchedule.evaluationStatus}</dd></div>
+        </dl>
+        <ScheduleControls mode="editor" jobNamespace={currentSchedule.jobNamespace} jobName={currentSchedule.jobName} scheduleName={currentSchedule.scheduleName} status={currentSchedule.status} onChanged={() => { void detail.refetch(); void history.refetch(); }} />
+      </section>
+      <FocusDisclosure title="Delivery policy" hint="Misfires, capacity and bounds">
+        <DetailFacts facts={[
+          { label: 'Misfire strategy', value: currentSchedule.misfireStrategy },
+          { label: 'Delivery', value: currentSchedule.scheduledDelivery },
+          { label: 'Outstanding', value: currentSchedule.scheduledDelivery === 'per-occurrence' ? currentSchedule.outstandingCount + ' of ' + currentSchedule.maxOutstanding : null },
+          { label: 'When full', value: currentSchedule.scheduledDelivery === 'per-occurrence' ? currentSchedule.fullBehavior : null },
+          { label: 'Expiry', value: currentSchedule.expireAfterSeconds !== null ? displayFormatter.duration(currentSchedule.expireAfterSeconds) + ' unadmitted, then ' + currentSchedule.expireAction : 'Never' },
+          { label: 'Starts', value: currentSchedule.startAtUtc, kind: 'time' },
+          { label: 'Ends before', value: currentSchedule.endBeforeUtc, kind: 'time' },
+        ]} />
+        <p class="detail-help">Misfire strategy governs occurrences missed while no host admitted them. Availability omits occurrences outside its windows. Per-occurrence delivery creates a fresh root for each admitted occurrence. Permanent delivery fires its permanent job.</p>
+      </FocusDisclosure>
+      <FocusDisclosure title="Technical details" hint="Source, version and dates">
+        <DetailFacts facts={[
+          { label: 'Source kind', value: currentSchedule.expressionKind },
+          { label: 'Origin', value: currentSchedule.origin },
+          { label: 'Version', value: currentSchedule.version },
+          { label: 'Created', value: currentSchedule.createdAtUtc, kind: 'time' },
+          { label: 'Modified', value: currentSchedule.modifiedAtUtc, kind: 'time' },
+        ]} />
+      </FocusDisclosure>
+      <ChangeHistory history={history.data ?? []} loading={history.isPending} emptyText="No recorded schedule changes." />
+    </DetailLayout>
   {/if}
 </Page>

@@ -43,13 +43,13 @@ test('theme metadata stays aligned with the complete CSS theme definitions', () 
 
 test('the root CSS contains the golden Acta accent fallback contract', () => {
   for (const declaration of [
-    '--accent: #64d8c7;',
-    '--accent-solid: #077a70;',
-    '--on-accent: #ffffff;',
-    '--nav-active-bg: #16302b;',
-    '--badge-run-bg: #13302b;',
-    '--grid: rgba(100, 216, 199, 0.05);',
-    '--glow: rgba(100, 216, 199, 0.1);',
+    '--accent: #63e6be;',
+    '--accent-solid: #63e6be;',
+    '--on-accent: #10251e;',
+    '--nav-active-bg: #1c3737;',
+    '--badge-run-bg: #183b35;',
+    '--grid: rgba(99, 230, 190, 0.05);',
+    '--glow: rgba(99, 230, 190, 0.1);',
   ]) {
     assert.ok(css.includes(declaration), declaration);
   }

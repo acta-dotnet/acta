@@ -37,190 +37,36 @@ function job(overrides: Partial<JobDetail>): JobDetail {
   };
 }
 
-// A schedule of the job's definition as the detail carries it; a paused one keeps the cursor it had when paused.
-function schedule(scheduleName: string, status: string, nextOccurrenceAtUtc: string | null, pausedUntilUtc: string | null = null) {
-  return {
-    jobNamespace: 'billing',
-    jobName: 'send-invoice',
-    scheduleName,
-    expressionKind: 'cron',
-    expression: '5 * * * *',
-    timeZoneId: 'UTC',
-    nextOccurrenceAtUtc,
-    status,
-    pausedUntilUtc,
-    version: 1
-  };
-}
+describe('JobSummary technical details', () => {
+  it('keeps the job name and status out of technical metadata', () => {
+    const { queryByText } = render(JobSummary, { job: job({}) });
+    expect(queryByText('send-invoice')).toBeNull();
+    expect(queryByText('Status')).toBeNull();
+  });
 
-describe('JobSummary', () => {
-  it('links the lane to the jobs list filtered to it', () => {
+  it('links the lane to the filtered jobs list', () => {
     const { container } = render(JobSummary, { job: job({ lane: 'customer-42' }) });
     const href = routes.jobs({ lane: 'customer-42', namespace: 'billing' });
-    const link = Array.from(container.querySelectorAll('a')).find((a) => a.getAttribute('href') === href);
-    expect(link?.textContent).toBe('customer-42');
+    expect([...container.querySelectorAll('a')].find((link) => link.getAttribute('href') === href)?.textContent).toBe('customer-42');
   });
 
-  it('names and links the job a Blocked member waits behind', () => {
-    const { container, getByText } = render(JobSummary, { job: job({ status: 'blocked', lane: 'customer-42', blockedBehindJobRef: head }) });
-    expect(getByText('Blocked behind')).toBeTruthy();
-    expect(container.querySelector(`a[href="${routes.job(head, { namespace: 'billing' })}"]`)).not.toBeNull();
+  it('shows the complete reference and dates in technical details', () => {
+    const current = job({});
+    const { getByText } = render(JobSummary, { job: current });
+    expect(getByText(current.jobRef)).toBeTruthy();
+    expect(getByText('Created')).toBeTruthy();
+    expect(getByText('Modified')).toBeTruthy();
   });
 
-  it('shows no blocked-behind row for a job that is not Blocked', () => {
-    const { queryByText } = render(JobSummary, { job: job({ lane: 'customer-42' }) });
-    expect(queryByText('Blocked behind')).toBeNull();
+  it('keeps a permanent job budget scoped to each firing', () => {
+    const { getByText } = render(JobSummary, { job: job({ kind: 'permanent' }), maxAttempts: 15 });
+    expect(getByText('Attempt budget').nextElementSibling?.textContent?.trim()).toBe('15 per firing');
   });
 
-  it('says an idle permanent job runs when its soonest active schedule fires', () => {
-    const schedules = [
-      schedule('hourly', 'active', '2099-01-01T10:00:00Z'),
-      schedule('paused-sooner', 'paused', '2099-01-01T08:00:00Z'),
-      schedule('morning', 'active', '2099-01-01T09:00:00Z')
-    ];
-    const { container, getByText } = render(JobSummary, {
-      job: job({ kind: 'permanent', status: 'idle' }),
-      schedules,
-      schedulesTotal: 3
-    });
-    expect(getByText(/when schedule/).textContent).toBe('when schedule morning fires');
-    expect(container.querySelector(`a[href="${routes.schedule('billing', 'send-invoice', 'morning')}"]`)).not.toBeNull();
-  });
-
-  it('fires an idle permanent job at a timed pause\'s next occurrence when that falls after the pause', () => {
-    const schedules = [
-      schedule('noon', 'active', '2099-01-01T12:00:00Z'),
-      schedule('hourly', 'paused', '2099-01-01T10:05:00Z', '2099-01-01T10:00:00Z')
-    ];
-    const { container, getByText } = render(JobSummary, { job: job({ kind: 'permanent', status: 'idle' }), schedules, schedulesTotal: 2 });
-    expect(getByText(/when schedule/).textContent).toBe('when schedule hourly fires');
-    expect(container.querySelector(`span[title="${displayFormatter.timestamp('2099-01-01T10:05:00Z')}"]`)).not.toBeNull();
-  });
-
-  // Under Skip the hourly schedule drops 09:05 and fires at 10:05; under a catch-up policy it fires at 10:00. The
-  // detail carries no misfire policy, so the page names the known 10:02 firing and that hourly may come first.
-  it('names the known firing and a timed pause that may fire first once it resumes before it', () => {
-    const schedules = [
-      schedule('hourly', 'paused', '2099-01-01T09:05:00Z', '2099-01-01T10:00:00Z'),
-      schedule('ten-past', 'active', '2099-01-01T10:02:00Z')
-    ];
-    const { container, getByText } = render(JobSummary, { job: job({ kind: 'permanent', status: 'idle' }), schedules, schedulesTotal: 2 });
-    expect(getByText(/when schedule/).textContent).toBe('when schedule ten-past fires; schedule hourly may fire first once it resumes');
-    expect(container.querySelector(`span[title="${displayFormatter.timestamp('2099-01-01T10:02:00Z')}"]`)).not.toBeNull();
-    expect(container.querySelector(`span[title="${displayFormatter.timestamp('2099-01-01T10:00:00Z')}"]`)).not.toBeNull();
-  });
-
-  it('leaves out a timed pause that resumes at or after the known firing', () => {
-    const schedules = [
-      schedule('hourly', 'paused', '2099-01-01T09:05:00Z', '2099-01-01T10:02:00Z'),
-      schedule('nightly', 'paused', '2099-01-01T08:00:00Z', '2099-01-01T11:00:00Z'),
-      schedule('ten-past', 'active', '2099-01-01T10:02:00Z')
-    ];
-    const { container, getByText, queryByText } = render(JobSummary, { job: job({ kind: 'permanent', status: 'idle' }), schedules, schedulesTotal: 3 });
-    expect(getByText(/when schedule/).textContent).toBe('when schedule ten-past fires');
-    expect(container.querySelector(`span[title="${displayFormatter.timestamp('2099-01-01T10:02:00Z')}"]`)).not.toBeNull();
-    expect(queryByText(/resumes/)).toBeNull();
-  });
-
-  it('says when the soonest timed pause ends for an idle permanent job with no known firing', () => {
-    const schedules = [
-      schedule('nightly', 'paused', '2099-01-01T08:00:00Z', '2099-01-01T11:00:00Z'),
-      schedule('hourly', 'paused', '2099-01-01T09:05:00Z', '2099-01-01T10:00:00Z'),
-      schedule('held', 'paused', '2099-01-01T07:00:00Z')
-    ];
-    const { container, getByText, queryByText } = render(JobSummary, { job: job({ kind: 'permanent', status: 'idle' }), schedules, schedulesTotal: 3 });
-    expect(getByText(/^Schedule/).textContent).toBe('Schedule hourly resumes');
-    expect(container.querySelector(`span[title="${displayFormatter.timestamp('2099-01-01T10:00:00Z')}"]`)).not.toBeNull();
-    expect(queryByText(/when schedule/)).toBeNull();
-    expect(queryByText('No schedule is set to fire it.')).toBeNull();
-  });
-
-  // An occurrence already past is one the scheduler has not admitted yet: under Skip it drops it for the next one, so
-  // the page cannot rank it as a firing.
-  it('names an overdue schedule as one that may fire first, not as the next firing', () => {
-    const schedules = [schedule('daily', 'active', '2000-01-01T09:00:00Z'), schedule('noon', 'active', '2099-01-01T12:00:00Z')];
-    const { getByText } = render(JobSummary, { job: job({ kind: 'permanent', status: 'idle' }), schedules, schedulesTotal: 2 });
-    expect(getByText(/when schedule/).textContent).toBe('when schedule noon fires; schedule daily is overdue and may fire first');
-  });
-
-  it('says an overdue schedule leaves its next firing to its misfire policy when no firing is known', () => {
-    const schedules = [schedule('daily', 'active', '2000-01-01T09:00:00Z')];
-    const { getByText, queryByText } = render(JobSummary, { job: job({ kind: 'permanent', status: 'idle' }), schedules, schedulesTotal: 1 });
-    expect(getByText(/^Schedule/).textContent).toBe('Schedule daily is overdue; its misfire policy decides what it fires next.');
-    expect(queryByText('No schedule is set to fire it.')).toBeNull();
-  });
-
-  it('says no schedule is set to fire an idle permanent job without one', () => {
-    const { getByText } = render(JobSummary, { job: job({ kind: 'permanent', status: 'idle' }), schedules: [], schedulesTotal: 0 });
-    expect(getByText('No schedule is set to fire it.')).toBeTruthy();
-  });
-
-  it('counts a permanent job\'s attempts across its firings and gives each firing the budget', () => {
-    const { getByText, queryByText } = render(JobSummary, {
-      job: job({ kind: 'permanent', status: 'idle', executionNumber: 28 }),
-      maxAttempts: 15
-    });
-    expect(getByText(/28 started across all firings, 0 consecutive failures in the latest firing/)).toBeTruthy();
-    expect(getByText('(each firing gets 15 attempts)')).toBeTruthy();
-    expect(queryByText(/fails permanently/)).toBeNull();
-  });
-
-  it('reads a saturated failure count as a floor', () => {
-    const { getByText } = render(JobSummary, { job: job({ executionNumber: 40000, failureCount: 32767 }) });
-    expect(getByText(/40000 started, 32,767\+ consecutive failures/)).toBeTruthy();
-  });
-
-  it('quotes the last event\'s reason from its details and its message', () => {
-    const lastEvent = {
-      eventId: 9,
-      eventCode: 'job.execution-failed',
-      createdAtUtc: '2026-07-14T08:00:00Z',
-      jobNamespace: 'billing',
-      entityKind: 'job',
-      entityId: 3,
-      jobName: 'send-invoice',
-      jobRef: 'job_019f71ce69e07b85bf41fc7bf0562502',
-      lineageRootJobRef: null,
-      tenantName: null,
-      workerRef: null,
-      executionNumber: 1,
-      durationMs: 12,
-      message: 'Invoice provider timed out.',
-      detailsText: '{"reason":"unhandled-exception","to":"ready"}'
-    };
-    const { getByText } = render(JobSummary, { job: job({}), lastEvent });
-    expect(getByText('· unhandled-exception')).toBeTruthy();
-    expect(getByText(/“Invoice provider timed out\.”/)).toBeTruthy();
-  });
-
-  // Svelte drops the whitespace at the edges of a block, so a space written there never reached the page.
-  it('spaces the last event\'s parts apart', () => {
-    const lastEvent = {
-      eventId: 9,
-      eventCode: 'job.failed',
-      createdAtUtc: '2026-07-14T08:00:00Z',
-      jobNamespace: 'billing',
-      entityKind: 'job',
-      entityId: 3,
-      jobName: 'send-invoice',
-      jobRef: 'job_019f71ce69e07b85bf41fc7bf0562502',
-      lineageRootJobRef: null,
-      tenantName: null,
-      workerRef: null,
-      executionNumber: 3,
-      durationMs: 12,
-      message: 'Carrier refused the label.',
-      detailsText: '{"reason":"unhandled-exception"}'
-    };
-    const { getByText } = render(JobSummary, { job: job({}), lastEvent });
-    expect(getByText('Last event').nextElementSibling?.textContent).toMatch(/^\s*job\.failed · unhandled-exception · “Carrier refused the label\.” /);
-  });
-
-  it('spaces the attempt budget apart from the counts', () => {
-    const permanent = render(JobSummary, { job: job({ kind: 'permanent', status: 'idle', executionNumber: 3 }), maxAttempts: 15 });
-    expect(permanent.getByText('Attempts').nextElementSibling?.textContent).toMatch(/in the latest firing \(each firing gets 15 attempts\)$/);
-    permanent.unmount();
-    const oneShot = render(JobSummary, { job: job({ executionNumber: 3 }), maxAttempts: 5 });
-    expect(oneShot.getByText('Attempts').nextElementSibling?.textContent).toMatch(/consecutive failures \(fails permanently at 5\)$/);
+  it('omits absent optional identifiers', () => {
+    const { queryByText } = render(JobSummary, { job: job({}) });
+    expect(queryByText('Tenant')).toBeNull();
+    expect(queryByText('Correlation id')).toBeNull();
+    expect(queryByText('Parent')).toBeNull();
   });
 });

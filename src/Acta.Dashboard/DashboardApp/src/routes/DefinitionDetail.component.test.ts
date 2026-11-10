@@ -240,12 +240,12 @@ describe('DefinitionDetail retire', () => {
     expect(button.disabled).toBe(false);
   });
 
-  it('disables the retire action once the definition is retired', async () => {
+  it('hides the retire action once the definition is retired', async () => {
     stubDetail({ ...definition, status: 'retired' });
     render(DefinitionDetailHarness, { jobNamespace, jobName });
 
-    const button = (await screen.findByText('Retire definition')) as HTMLButtonElement;
-    expect(button.disabled).toBe(true);
+    await screen.findByText('retired');
+    expect(screen.queryByText('Retire definition')).toBeNull();
   });
 
   it('posts the retire with the version it read and the typed reason', async () => {

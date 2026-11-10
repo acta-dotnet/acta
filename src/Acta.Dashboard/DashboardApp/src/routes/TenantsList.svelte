@@ -50,7 +50,7 @@
 <Page title="Tenants">
   {#snippet actions()}
     {#if canAdminNow}
-      <a class="add-action" href={routes.newTenant({ namespace: $scope })} title="Register tenant" aria-label="Register tenant"><Icon name="plus" /></a>
+      <a class="primary-action" href={routes.newTenant({ namespace: $scope })}><Icon name="plus" />Register tenant</a>
     {/if}
   {/snippet}
 

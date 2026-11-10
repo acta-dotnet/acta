@@ -22,13 +22,13 @@ const statusTokens = [
 
 test('Acta Teal returns the exact golden values', () => {
   assert.deepEqual(buildAccentTokens('teal', 'acta'), {
-    '--accent': '#64d8c7',
-    '--accent-solid': '#077a70',
-    '--on-accent': '#ffffff',
-    '--nav-active-bg': '#16302b',
-    '--badge-run-bg': '#13302b',
-    '--grid': 'rgba(100, 216, 199, 0.05)',
-    '--glow': 'rgba(100, 216, 199, 0.1)',
+    '--accent': '#63e6be',
+    '--accent-solid': '#63e6be',
+    '--on-accent': '#10251e',
+    '--nav-active-bg': '#1c3737',
+    '--badge-run-bg': '#183b35',
+    '--grid': 'rgba(99, 230, 190, 0.05)',
+    '--glow': 'rgba(99, 230, 190, 0.1)',
   });
 });
 
@@ -78,6 +78,12 @@ test('accent text and focus colors meet WCAG AA on every theme surface', () => {
         contrastRatio(accentText, surfaces.panel) >= 4.5,
         `${theme.id}/${accent.id} on panel`,
       );
+      if (theme.id === 'light') {
+        // The mint and lavender corners, including the overlapping lavender arc.
+        for (const corner of ['#e9f6f5', '#f1f1fa', '#eeeef9']) {
+          assert.ok(contrastRatio(accentText, corner) >= 4.5, `${accent.id} on ambient ${corner}`);
+        }
+      }
     }
   }
 });

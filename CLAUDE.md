@@ -10,6 +10,7 @@ Acta is a durable job engine for .NET: jobs, schedules, steps, waits, and alerts
 
 ## Style
 
+- Dashboard UI and UX follow [src/Acta.Dashboard/DESIGN.md](./src/Acta.Dashboard/DESIGN.md). Read it before changing dashboard screens or shared components, and update the specification alongside adopted design changes.
 - Comments: one-home-per-fact convention in CONTRIBUTING.md, "C# comment style". Enforced by `CommentStyleTests`.
 - SQL: CONTRIBUTING.md, "SQL style". Naming: CONTRIBUTING.md, "Naming conventions".
 - Layout: CONTRIBUTING.md, "Source layout". Architecture tests allow no known violations; fix the code, never loosen the test.

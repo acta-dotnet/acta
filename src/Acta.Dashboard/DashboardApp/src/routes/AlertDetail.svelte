@@ -12,6 +12,9 @@
   import Icon from '../components/Icon.svelte';
   import JobRef from '../components/JobRef.svelte';
   import Page from '../components/Page.svelte';
+  import DetailLayout from '../components/DetailLayout.svelte';
+  import DetailFacts from '../components/DetailFacts.svelte';
+  import FocusDisclosure from '../components/FocusDisclosure.svelte';
   import PageFreshness from '../components/PageFreshness.svelte';
   import RelativeTime from '../components/RelativeTime.svelte';
   import SeverityBadge from '../components/SeverityBadge.svelte';
@@ -73,113 +76,59 @@
   let backHref = $derived(routes.alerts({ namespace: $scope }));
 </script>
 
-<Page title={alert ? alert.title : 'Alert'}>
+<Page title={alert?.title ?? 'Alert'}>
   {#snippet breadcrumb()}<a href={backHref}><Icon name="chevron-left" />Alerts</a>{/snippet}
   {#snippet actions()}
-    <PageFreshness
-      dataUpdatedAt={detail.dataUpdatedAt}
-      isFetching={detail.isFetching}
-      isError={!!detail.error}
-      onRefresh={() => detail.refetch()} />
+    {#if alert}<CopyButton value={alert.alertRef + '\n' + alert.title + '\n' + alert.message} label="Copy alert summary" />{/if}
+    <PageFreshness dataUpdatedAt={detail.dataUpdatedAt} isFetching={detail.isFetching} isError={!!detail.error} onRefresh={() => detail.refetch()} />
   {/snippet}
-
-  {#if missing}
-    <div class="panel"><StateView emptyText="Alert not found." /></div>
-  {:else if error}
-    <div class="panel"><StateView {error} onRetry={() => detail.refetch()} /></div>
+  {#if missing}<div class="panel"><StateView emptyText="Alert not found." /></div>
+  {:else if error}<div class="panel"><StateView {error} onRetry={() => detail.refetch()} /></div>
   {:else if alert}
     <section class="entity-summary" aria-label="Alert identity">
-      <div class="entity-meta mono">
-        <JobRef value={alert.alertRef} copy /> · {alert.jobNamespace} · {alert.kind} · {alert.origin}
-      </div>
-      <SeverityBadge severity={alert.severity} />
-      <span class="badge {bucket === 'resolved' ? 'ok' : bucket === 'acknowledged' ? 'held' : 'warn'}">
-        {bucket === 'resolved' ? 'Resolved' : bucket === 'acknowledged' ? 'Acknowledged' : 'Open'}
-      </span>
+      <SeverityBadge severity={alert.severity} /><span class="badge {bucket === 'resolved' ? 'ok' : bucket === 'acknowledged' ? 'held' : 'warn'}">{bucket === 'resolved' ? 'Resolved' : bucket === 'acknowledged' ? 'Acknowledged' : 'Open'}</span>
+      <a href={routes.namespace(alert.jobNamespace, { namespace: alert.jobNamespace })}>{alert.jobNamespace}</a><JobRef value={alert.alertRef} copy />
     </section>
-
-    <div class="detail-workspace">
-      <div class="detail-main">
-        <section class="detail-panel" aria-labelledby="alert-what-heading">
-          <h2 id="alert-what-heading">What happened</h2>
+    <DetailLayout>
+      {#snippet related()}
+        {#if alert.jobRef}<a href={routes.job(alert.jobRef, { namespace: alert.jobNamespace })}>Subject job</a>{/if}
+        <a href={routes.namespace(alert.jobNamespace, { namespace: alert.jobNamespace })}>Namespace</a><a href={routes.alerts({ namespace: alert.jobNamespace })}>Namespace alerts</a>
+      {/snippet}
+      <section class="focus-state" style={'--tone:var(--' + (bucket === 'resolved' ? 'ok' : 'bad') + ')'} aria-label="What happened">
+        <div class="focus-state-content">
+          <h2><Icon name={bucket === 'resolved' ? 'check' : 'warn'} />{bucket === 'resolved' ? 'Incident resolved' : bucket === 'acknowledged' ? 'Acknowledged and awaiting resolution' : 'Needs attention'}</h2>
           <p>{alert.message}</p>
-          <dl class="detail-readonly detail-readonly-grid">
-            <div><dt>Raised</dt><dd><RelativeTime value={alert.createdAtUtc} /></dd></div>
-            <div><dt>Exact instant</dt><dd>{displayFormatter.timestamp(alert.createdAtUtc)}</dd></div>
-            <div>
-              <dt>Occurrences</dt>
-              <dd>{displayFormatter.number(alert.occurrenceCount)}</dd>
-            </div>
-            <div><dt>Last row change</dt><dd>{displayFormatter.timestamp(alert.modifiedAtUtc)}</dd></div>
-            <div>
-              <dt>Acknowledged</dt>
-              <dd>{alert.acknowledgedAtUtc ? displayFormatter.timestamp(alert.acknowledgedAtUtc) : '·'}</dd>
-            </div>
-            <div>
-              <dt>Resolved</dt>
-              <dd>{alert.resolvedAtUtc ? displayFormatter.timestamp(alert.resolvedAtUtc) : '·'}</dd>
-            </div>
-          </dl>
-        </section>
-
-        <section class="detail-panel" aria-labelledby="alert-delivery-heading">
-          <h2 id="alert-delivery-heading">Delivery</h2>
-          <dl class="detail-readonly detail-readonly-grid">
-            <div><dt>Status</dt><dd><StatusBadge status={alert.deliveryStatus} /></dd></div>
-            <div><dt>Channel</dt><dd class="mono">{alert.channelName}</dd></div>
-            <div><dt>Retries</dt><dd>{displayFormatter.number(alert.retryCount)}</dd></div>
-            <div>
-              <dt>{settled ? 'Next reminder' : 'Next attempt'}</dt>
-              <dd>{alert.retryAfterUtc ? displayFormatter.timestamp(alert.retryAfterUtc) : '·'}</dd>
-            </div>
-          </dl>
-        </section>
-      </div>
-
-      <aside class="detail-rail">
-        {#if canControlNow}
-          <section class="detail-panel" aria-labelledby="alert-actions-heading">
-            <h2 id="alert-actions-heading">Actions</h2>
-            <div class="detail-form-actions">
-              {#if !alert.acknowledgedAtUtc}
-                <button disabled={busy} onclick={() => (confirming = 'acknowledge')}>
-                  <Icon name="check-circle" />Acknowledge
-                </button>
-              {/if}
-              {#if !alert.resolvedAtUtc}
-                <button disabled={busy} onclick={() => (confirming = 'resolve')}><Icon name="check-circle" />Resolve</button>
-              {/if}
-            </div>
-            {#if alert.acknowledgedAtUtc && alert.resolvedAtUtc}
-              <p class="detail-help">This alert is acknowledged and resolved; both verbs are idempotent and already applied.</p>
-            {/if}
-            {#if message}<div class="control-message {messageKind}" role="status">{message}</div>{/if}
-          </section>
+          <div class="focus-facts"><span>Raised <RelativeTime value={alert.createdAtUtc} /></span><span><strong>{displayFormatter.number(alert.occurrenceCount)}</strong> {alert.occurrenceCount === 1 ? 'occurrence' : 'occurrences'}</span></div>
+        </div>
+        {#if canControlNow && (!alert.acknowledgedAtUtc || !alert.resolvedAtUtc)}
+          <div class="focus-inline-actions">
+            {#if !alert.acknowledgedAtUtc}<button disabled={busy} onclick={() => (confirming = 'acknowledge')}><Icon name="check" />Acknowledge</button>{/if}
+            {#if !alert.resolvedAtUtc}<button class="primary" disabled={busy} onclick={() => (confirming = 'resolve')}><Icon name="check" />Resolve</button>{/if}
+          </div>
         {/if}
-
-        <section class="detail-panel go-to" aria-label="Go to">
-          <p class="detail-kicker">Go to</p>
-          <nav>
-            {#if alert.jobRef}
-              <a href={routes.job(alert.jobRef, { namespace: alert.jobNamespace })}>Subject job</a>
-            {/if}
-            <a href={routes.namespace(alert.jobNamespace, { namespace: alert.jobNamespace })}>Namespace</a>
-            <a href={routes.alerts({ namespace: alert.jobNamespace })}>Namespace alerts</a>
-          </nav>
-          {#if !alert.jobRef}
-            <p class="detail-help">No subject job: this alert is namespace-scoped, or the job row was purged.</p>
-          {/if}
-        </section>
-
-        <section class="detail-panel" aria-labelledby="alert-copy-heading">
-          <h2 id="alert-copy-heading">Share</h2>
-          <CopyButton value={`${alert.alertRef}\n${alert.title}\n${alert.message}`} label="Copy alert summary" />
-        </section>
-      </aside>
-    </div>
-  {:else}
-    <div class="panel"><StateView loading={true} loadingText="Loading alert..." /></div>
-  {/if}
+        {#if message}<div class="control-message {messageKind}" role="status">{message}</div>{/if}
+      </section>
+      <FocusDisclosure title="Delivery" hint={alert.deliveryStatus + ' · ' + alert.channelName} open={alert.deliveryStatus !== 'delivered'}>
+        <dl class="detail-readonly detail-readonly-grid">
+          <div><dt>Status</dt><dd><StatusBadge status={alert.deliveryStatus} /></dd></div>
+          <div><dt>Channel</dt><dd class="mono">{alert.channelName}</dd></div>
+          <div><dt>Retries</dt><dd>{displayFormatter.number(alert.retryCount)}</dd></div>
+          <div><dt>{settled ? 'Next reminder' : 'Next attempt'}</dt><dd><RelativeTime value={alert.retryAfterUtc} /></dd></div>
+        </dl>
+      </FocusDisclosure>
+      <FocusDisclosure title="Technical details" hint="Origin, identifiers and dates">
+        <DetailFacts facts={[
+          { label: 'Full reference', value: alert.alertRef, kind: 'mono', copy: true, wide: true },
+          { label: 'Kind', value: alert.kind },
+          { label: 'Origin', value: alert.origin },
+          { label: 'Modified', value: alert.modifiedAtUtc, kind: 'time' },
+          { label: 'Acknowledged', value: alert.acknowledgedAtUtc, kind: 'time' },
+          { label: 'Resolved', value: alert.resolvedAtUtc, kind: 'time' },
+          { label: 'Subject', value: alert.jobRef ? null : 'Namespace-scoped, or the subject job has been purged.', wide: true },
+        ]} />
+      </FocusDisclosure>
+    </DetailLayout>
+  {:else}<div class="panel"><StateView loading={true} loadingText="Loading alert..." /></div>{/if}
 </Page>
 
 {#if confirming && alert}

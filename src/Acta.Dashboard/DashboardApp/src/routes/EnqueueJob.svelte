@@ -10,6 +10,7 @@
   import { scope } from '../scope.ts';
   import { routes } from '../routes.ts';
   import Page from '../components/Page.svelte';
+  import DetailLayout from '../components/DetailLayout.svelte';
   import Icon from '../components/Icon.svelte';
   import PayloadView from '../components/PayloadView.svelte';
   import Dropdown from '../components/Dropdown.svelte';
@@ -214,160 +215,158 @@
       </p>
     </div>
   {:else}
-    <div class="detail-workspace">
-      <div class="detail-main">
-        <section class="detail-panel">
-          <h2>Job</h2>
-          <p class="detail-help">Enqueue a new job. The namespace and job name identify a registered definition; the input is stored as raw JSON and handed to the job on its first attempt.</p>
-          <form onsubmit={(event) => { event.preventDefault(); submit(); }}>
-            <div class="detail-field">
-              <span>Namespace</span>
-              <Dropdown
-                label="Namespace"
-                options={namespaceOptions}
-                value={namespace}
-                disabled={busy}
-                onchange={onNamespaceChange} />
-            </div>
-            <div class="detail-field">
-              <span>Job name</span>
-              <Dropdown
-                label="Job name"
-                options={jobNameOptions}
-                bind:value={jobName}
-                disabled={busy || namespace.trim().length === 0} />
-              {#if definitionsError}
-                <span class="field-error" role="alert">The job catalog did not load: {definitionsError}</span>
-              {:else if inputContract}
-                <span class="field-hint">{inputContract}</span>
-              {/if}
-            </div>
-
-            <label class="detail-field checkbox">
-              <input type="checkbox" bind:checked={includeInput} disabled={busy} />
-              <span>Provide input (JSON)</span>
-            </label>
-            {#if includeInput}
-              <div class="enqueue-input"><PayloadView payload={inputPayload} editable={!busy} onSave={applyInput} /></div>
-            {/if}
-
-            <label class="detail-field">
-              <span>Deduplication key</span>
-              <input
-                bind:value={deduplicationKey}
-                placeholder="Optional; a matching key returns the existing job"
-                disabled={busy}
-                aria-invalid={dedupCheck.error !== null} />
-              {#if dedupCheck.error}
-                <span class="field-error" role="alert">{dedupCheck.error}</span>
-              {:else}
-                <span class="field-hint">{keyHint('deduplication')} Never starts with sys.</span>
-              {/if}
-            </label>
-            <label class="detail-field">
-              <span>Correlation key</span>
-              <input
-                bind:value={correlationKey}
-                placeholder="Optional trace / request / order id"
-                disabled={busy}
-                aria-invalid={correlationCheck.error !== null} />
-              {#if correlationCheck.error}
-                <span class="field-error" role="alert">{correlationCheck.error}</span>
-              {:else}
-                <span class="field-hint">{keyHint('correlation')}</span>
-              {/if}
-            </label>
-            <label class="detail-field">
-              <span>Lane</span>
-              <input
-                bind:value={lane}
-                placeholder="Optional; the definition's lane applies when empty"
-                disabled={busy}
-                aria-invalid={laneCheck.error !== null} />
-              {#if laneCheck.error}
-                <span class="field-error" role="alert">{laneCheck.error}</span>
-              {:else}
-                <span class="field-hint">Dotted kebab-case, up to 128 characters, folded to lowercase; never sys.</span>
-              {/if}
-            </label>
-            <label class="detail-field">
-              <span>Concurrency key</span>
-              <input
-                bind:value={concurrencyKey}
-                placeholder="Optional; one job per key runs at a time"
-                disabled={busy}
-                aria-invalid={concurrencyCheck.error !== null} />
-              {#if concurrencyCheck.error}
-                <span class="field-error" role="alert">{concurrencyCheck.error}</span>
-              {:else}
-                <span class="field-hint">{keyHint('concurrency')}</span>
-              {/if}
-            </label>
-            <div class="detail-field">
-              <span>Tags</span>
-              {#each tagRows as row, index (index)}
-                {@const check = tagsCheck.rows[index]}
-                <div class="tag-row">
-                  <input
-                    bind:value={row.name}
-                    placeholder="name"
-                    aria-label={`Tag ${index + 1} name`}
-                    disabled={busy}
-                    aria-invalid={check.nameError !== null} />
-                  <input
-                    bind:value={row.value}
-                    placeholder="value (optional)"
-                    aria-label={`Tag ${index + 1} value`}
-                    disabled={busy}
-                    aria-invalid={check.valueError !== null} />
-                  <button type="button" class="tag-remove" aria-label={`Remove tag ${index + 1}`} disabled={busy} onclick={() => tagRows.splice(index, 1)}>
-                    <Icon name="x" />
-                  </button>
-                  {#if check.nameError ?? check.valueError}
-                    <span class="field-error tag-row-error" role="alert">{check.nameError ?? check.valueError}</span>
-                  {/if}
-                </div>
-              {/each}
-              <div class="tag-actions">
-                <button type="button" disabled={busy || tagRows.length >= TAG_LIMITS.count} onclick={() => tagRows.push({ name: '', value: '' })}>Add tag</button>
-                <span class="field-hint">Up to {TAG_LIMITS.count} tags; a name is dotted kebab-case, a value is optional text up to {TAG_LIMITS.value} characters.</span>
-              </div>
-            </div>
-            <label class="detail-field">
-              <span>Tenant name</span>
-              <input bind:value={tenantName} maxlength="128" placeholder="Optional tenant name" disabled={busy} />
-            </label>
-            <label class="detail-field">
-              <span>Priority</span>
-              <select bind:value={priority} disabled={busy}>
-                {#each priorities as p}<option value={p}>{p === '' ? 'Definition default' : p}</option>{/each}
-              </select>
-            </label>
-            <label class="detail-field">
-              <span>Delay (seconds)</span>
-              <input bind:value={delaySeconds} type="number" min="0" placeholder="Optional; hold before the first run" disabled={busy} />
-            </label>
-
-            <div class="detail-form-actions">
-              <button class="primary" type="submit" disabled={!canSubmit}>{busy ? 'Enqueuing...' : 'Enqueue job'}</button>
-            </div>
-          </form>
-          {#if message}
-            <div class="control-message {messageKind}" role="status">
-              {message}
-              {#if createdRef}<a href={createdHref}>Open job <span aria-hidden="true">-&gt;</span></a>{/if}
-            </div>
-          {/if}
-        </section>
-      </div>
-
-      <aside class="detail-rail">
+    <DetailLayout>
+      {#snippet supporting()}
         <section class="detail-panel">
           <h2>Notes</h2>
           <p class="detail-help">A deduplication key makes the enqueue idempotent: a repeat with the same key returns the existing job instead of inserting a new one, and never rewrites its lane, key, or tags. Priority, delay, and lane default to the definition policy when left unset; a concurrency key lets one job per key run at a time; tags are stored with the job and filter the Jobs page.</p>
         </section>
-      </aside>
-    </div>
+      {/snippet}
+
+      <section class="detail-panel">
+        <h2>Job</h2>
+        <p class="detail-help">Enqueue a new job. The namespace and job name identify a registered definition; the input is stored as raw JSON and handed to the job on its first attempt.</p>
+        <form onsubmit={(event) => { event.preventDefault(); submit(); }}>
+          <div class="detail-field">
+            <span>Namespace</span>
+            <Dropdown
+              label="Namespace"
+              options={namespaceOptions}
+              value={namespace}
+              disabled={busy}
+              onchange={onNamespaceChange} />
+          </div>
+          <div class="detail-field">
+            <span>Job name</span>
+            <Dropdown
+              label="Job name"
+              options={jobNameOptions}
+              bind:value={jobName}
+              disabled={busy || namespace.trim().length === 0} />
+            {#if definitionsError}
+              <span class="field-error" role="alert">The job catalog did not load: {definitionsError}</span>
+            {:else if inputContract}
+              <span class="field-hint">{inputContract}</span>
+            {/if}
+          </div>
+
+          <label class="detail-field checkbox">
+            <input type="checkbox" bind:checked={includeInput} disabled={busy} />
+            <span>Provide input (JSON)</span>
+          </label>
+          {#if includeInput}
+            <div class="enqueue-input"><PayloadView payload={inputPayload} editable={!busy} onSave={applyInput} /></div>
+          {/if}
+
+          <label class="detail-field">
+            <span>Deduplication key</span>
+            <input
+              bind:value={deduplicationKey}
+              placeholder="Optional; a matching key returns the existing job"
+              disabled={busy}
+              aria-invalid={dedupCheck.error !== null} />
+            {#if dedupCheck.error}
+              <span class="field-error" role="alert">{dedupCheck.error}</span>
+            {:else}
+              <span class="field-hint">{keyHint('deduplication')} Never starts with sys.</span>
+            {/if}
+          </label>
+          <label class="detail-field">
+            <span>Correlation key</span>
+            <input
+              bind:value={correlationKey}
+              placeholder="Optional trace / request / order id"
+              disabled={busy}
+              aria-invalid={correlationCheck.error !== null} />
+            {#if correlationCheck.error}
+              <span class="field-error" role="alert">{correlationCheck.error}</span>
+            {:else}
+              <span class="field-hint">{keyHint('correlation')}</span>
+            {/if}
+          </label>
+          <label class="detail-field">
+            <span>Lane</span>
+            <input
+              bind:value={lane}
+              placeholder="Optional; the definition's lane applies when empty"
+              disabled={busy}
+              aria-invalid={laneCheck.error !== null} />
+            {#if laneCheck.error}
+              <span class="field-error" role="alert">{laneCheck.error}</span>
+            {:else}
+              <span class="field-hint">Dotted kebab-case, up to 128 characters, folded to lowercase; never sys.</span>
+            {/if}
+          </label>
+          <label class="detail-field">
+            <span>Concurrency key</span>
+            <input
+              bind:value={concurrencyKey}
+              placeholder="Optional; one job per key runs at a time"
+              disabled={busy}
+              aria-invalid={concurrencyCheck.error !== null} />
+            {#if concurrencyCheck.error}
+              <span class="field-error" role="alert">{concurrencyCheck.error}</span>
+            {:else}
+              <span class="field-hint">{keyHint('concurrency')}</span>
+            {/if}
+          </label>
+          <div class="detail-field">
+            <span>Tags</span>
+            {#each tagRows as row, index (index)}
+              {@const check = tagsCheck.rows[index]}
+              <div class="tag-row">
+                <input
+                  bind:value={row.name}
+                  placeholder="name"
+                  aria-label={`Tag ${index + 1} name`}
+                  disabled={busy}
+                  aria-invalid={check.nameError !== null} />
+                <input
+                  bind:value={row.value}
+                  placeholder="value (optional)"
+                  aria-label={`Tag ${index + 1} value`}
+                  disabled={busy}
+                  aria-invalid={check.valueError !== null} />
+                <button type="button" class="tag-remove" aria-label={`Remove tag ${index + 1}`} disabled={busy} onclick={() => tagRows.splice(index, 1)}>
+                  <Icon name="x" />
+                </button>
+                {#if check.nameError ?? check.valueError}
+                  <span class="field-error tag-row-error" role="alert">{check.nameError ?? check.valueError}</span>
+                {/if}
+              </div>
+            {/each}
+            <div class="tag-actions">
+              <button type="button" disabled={busy || tagRows.length >= TAG_LIMITS.count} onclick={() => tagRows.push({ name: '', value: '' })}>Add tag</button>
+              <span class="field-hint">Up to {TAG_LIMITS.count} tags; a name is dotted kebab-case, a value is optional text up to {TAG_LIMITS.value} characters.</span>
+            </div>
+          </div>
+          <label class="detail-field">
+            <span>Tenant name</span>
+            <input bind:value={tenantName} maxlength="128" placeholder="Optional tenant name" disabled={busy} />
+          </label>
+          <label class="detail-field">
+            <span>Priority</span>
+            <select bind:value={priority} disabled={busy}>
+              {#each priorities as p}<option value={p}>{p === '' ? 'Definition default' : p}</option>{/each}
+            </select>
+          </label>
+          <label class="detail-field">
+            <span>Delay (seconds)</span>
+            <input bind:value={delaySeconds} type="number" min="0" placeholder="Optional; hold before the first run" disabled={busy} />
+          </label>
+
+          <div class="detail-form-actions">
+            <button class="primary" type="submit" disabled={!canSubmit}>{busy ? 'Enqueuing...' : 'Enqueue job'}</button>
+          </div>
+        </form>
+        {#if message}
+          <div class="control-message {messageKind}" role="status">
+            {message}
+            {#if createdRef}<a href={createdHref}>Open job <span aria-hidden="true">-&gt;</span></a>{/if}
+          </div>
+        {/if}
+      </section>
+    </DetailLayout>
   {/if}
 </Page>
 

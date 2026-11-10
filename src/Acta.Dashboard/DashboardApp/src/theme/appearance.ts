@@ -17,7 +17,7 @@ export const THEME_CHOICES: ReadonlyArray<{
     id: 'system',
     label: 'System',
     description: 'Follow the OS light/dark setting',
-    preview: { background: '#0b0f17', border: '#232c40', sidebar: '#11161f', content: '#f3f6fa' },
+    preview: { background: '#0e1625', border: '#2b3a50', sidebar: '#111c2e', content: '#f7f9fc' },
   },
   ...THEMES,
 ];

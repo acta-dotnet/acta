@@ -9,11 +9,12 @@
   import ConfirmAction from './ConfirmAction.svelte';
   import Icon from './Icon.svelte';
 
-  let { jobRef, status, kind = 'ordinary', priority = null, onChanged = () => {} }: {
+  let { jobRef, status, kind = 'ordinary', priority = null, mode = 'all', onChanged = () => {} }: {
     jobRef: string;
     status: string;
     kind?: string;
     priority?: string | null;
+    mode?: 'all' | 'primary' | 'secondary';
     onChanged?: () => void;
   } = $props();
 
@@ -37,6 +38,7 @@
     jobControlState(status, kind)
   );
   let slot = $derived(kind === 'permanent');
+  let primaryAction = $derived(canResume ? 'resume' : status === 'failed' ? 'restart' : slot && canReschedule ? 'runNow' : null);
 
   const text: Record<
     string,
@@ -218,20 +220,28 @@
   }
 </script>
 
-<section class="detail-panel">
-  <h2>Actions</h2>
+<section class="detail-panel" class:primary-controls={mode === 'primary'}>
+  {#if mode !== 'primary'}<h2>Job actions</h2>{/if}
   <div class="control-row">
-    {#if canControlNow || (canAdminNow && canPurge)}
+    {#if mode === 'primary'}
+      {#if canControlNow && primaryAction}
+        <button class="primary" disabled={busy} onclick={() => openAction(primaryAction!)}><Icon name={primaryAction === 'restart' ? 'reload' : 'play'} />{primaryAction === 'resume' ? 'Resume' : primaryAction === 'runNow' ? 'Run now' : slot ? 'Reset' : 'Run again'}</button>
+      {/if}
+    {:else if canControlNow || (canAdminNow && canPurge)}
       {#if canControlNow}
         {#if canPause}<button disabled={busy} onclick={() => openAction('pause')}><Icon name="pause" />Pause</button>{/if}
-        {#if canResume}<button disabled={busy} onclick={() => openAction('resume')}><Icon name="play" />Resume</button>{/if}
-        {#if canRestart}<button disabled={busy} onclick={() => openAction('restart')}><Icon name="reload" />{slot ? 'Reset' : 'Run again'}</button>{/if}
-        {#if canReschedule}<button disabled={busy} onclick={() => openAction('runNow')}><Icon name="lightning-bolt" />Run now</button>{/if}
+        {#if canResume && (mode === 'all' || primaryAction !== 'resume')}<button disabled={busy} onclick={() => openAction('resume')}><Icon name="play" />Resume</button>{/if}
+        {#if canRestart && (mode === 'all' || primaryAction !== 'restart')}<button disabled={busy} onclick={() => openAction('restart')}><Icon name="reload" />{slot ? 'Reset' : 'Run again'}</button>{/if}
+        {#if canReschedule && (mode === 'all' || primaryAction !== 'runNow')}<button disabled={busy} onclick={() => openAction('runNow')}><Icon name="lightning-bolt" />Run now</button>{/if}
         {#if canReschedule}<button disabled={busy} onclick={() => openAction('reschedule')}><Icon name="clock" />Change run time</button>{/if}
         {#if canReprioritize}<button disabled={busy} onclick={() => openAction('reprioritize')}><Icon name="chevron-right" />Change priority</button>{/if}
-        {#if canCancel}<button class="danger-outline" disabled={busy} onclick={() => openAction('cancel')}><Icon name="x" />Cancel job</button>{/if}
       {/if}
-      {#if canAdminNow && canPurge}<button class="danger-outline" disabled={busy} onclick={() => openAction('purge')}><Icon name="x-circle" />Delete record</button>{/if}
+      {#if (canControlNow && canCancel) || (canAdminNow && canPurge)}
+        <div class="detail-danger-actions">
+          {#if canControlNow && canCancel}<button class="danger-outline" disabled={busy} onclick={() => openAction('cancel')}><Icon name="x" />Cancel job</button>{/if}
+          {#if canAdminNow && canPurge}<button class="danger-outline" disabled={busy} onclick={() => openAction('purge')}><Icon name="x-circle" />Delete record</button>{/if}
+        </div>
+      {/if}
     {:else if capabilities.data?.controlsEnabled === true}
       <span class="dim">No action on this job is open to your sign-in.</span>
     {:else}

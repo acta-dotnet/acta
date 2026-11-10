@@ -304,18 +304,20 @@ test('job investigation: overview to failed job explanation and events', async (
 
   await expect(page.getByRole('heading', { name: 'Recent failed jobs' })).toBeVisible();
   await page.getByRole('link', { name: jobRef }).click();
-  await expect(page.getByRole('heading', { name: 'Evidence' })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Job status' })).toBeVisible();
   await expect(page.getByText('The latest attempt failed in the invoice provider.').first()).toBeVisible();
+  await page.locator('#job-activity > summary').click();
   await expect(page.getByRole('heading', { name: 'Timeline' })).toBeVisible();
   await expect(page.getByText('Invoice provider timed out.').first()).toBeVisible();
 });
 
-test('details shows the request and the result under the status, and an old result link lands there', async ({ page }) => {
+test('stored data opens for an old result link and absent results stay hidden', async ({ page }) => {
   await mockDashboard(page, { controls: false });
   await page.goto(`/#/jobs/${jobRef}?ns=billing&tab=result`);
 
   await expect(page.getByRole('region', { name: 'Job input' })).toContainText('invoiceId');
-  await expect(page.getByRole('region', { name: 'Job result' })).toContainText('No result yet');
+  await expect(page.getByRole('region', { name: 'Job result' })).toHaveCount(0);
+  await page.locator('#job-activity > summary').click();
   await expect(page.getByRole('heading', { name: 'Timeline' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Result', exact: true })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Input', exact: true })).toHaveCount(0);
@@ -330,13 +332,13 @@ test('a malformed job ref reads as a job not found, with nothing to retry', asyn
   await expect(page.getByText('Update failed')).toHaveCount(0);
 });
 
-test('executions tab summarizes the attempt and deep-links expanded', async ({ page }) => {
+test('executions disclosure summarizes the attempt and deep-links expanded', async ({ page }) => {
   await mockDashboard(page, { controls: false });
   await page.goto(`/#/jobs/${jobRef}?ns=billing`);
 
-  await page.getByRole('button', { name: 'Executions' }).click();
+  await page.locator('.hero-attempt').click();
   await expect(page.getByText('Showing 1 of 1 executions')).toBeVisible();
-  await expect(page.getByText('125 ms')).toBeVisible();
+  await expect(page.locator('#job-executions-section').getByText('125 ms')).toBeVisible();
   await expect(page.getByRole('link', { name: 'wrk_019f9b3508007e4dbfd13d9d20bc81f4' })).toBeVisible();
 
   await page.goto(`/#/jobs/${jobRef}?ns=billing&tab=executions&execution=1`);
@@ -345,6 +347,87 @@ test('executions tab summarizes the attempt and deep-links expanded', async ({ p
   await walk.click();
   await expect(page.getByRole('heading', { name: 'Timeline' })).toBeVisible();
   await expect(page.getByLabel('Attempt')).toHaveValue('1');
+});
+
+test('Focus actions and related links stay accessible across resizing', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  await page.setViewportSize({ width: 390, height: 844 });
+  await mockDashboard(page, { controls: true });
+  await page.goto('/#/jobs/' + jobRef + '?ns=billing');
+  await expect(page.getByRole('heading', { name: 'send-invoice', exact: true })).toBeVisible();
+  const menu = page.locator('.detail-actions');
+  await expect(menu).not.toHaveAttribute('open');
+  await expect(page.getByRole('button', { name: 'Run again', exact: true })).toBeVisible();
+  await expect(page.getByText('Created', { exact: true })).not.toBeVisible();
+  await menu.locator('summary').click();
+  await expect(page.getByRole('button', { name: 'Delete record', exact: true })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(menu).not.toHaveAttribute('open');
+  await expect(menu.locator('summary')).toBeFocused();
+  await expect(page.getByRole('navigation', { name: 'Related links' }).getByRole('link', { name: 'Definition', exact: true })).toBeVisible();
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await menu.locator('summary').click();
+  await expect(page.getByRole('button', { name: 'Delete record', exact: true })).toBeVisible();
+  const box = await page.locator('.detail-action-content').boundingBox();
+  expect(box!.x).toBeGreaterThanOrEqual(0);
+  expect(box!.x + box!.width).toBeLessThanOrEqual(1440);
+  expect(errors).toEqual([]);
+});
+
+test('a job without schedules omits the schedules section even for an old link', async ({ page }) => {
+  await mockDashboard(page, { controls: false });
+  await page.goto('/#/jobs/' + jobRef + '?ns=billing&tab=schedules');
+  await expect(page.getByRole('region', { name: 'Job status' })).toBeVisible();
+  await expect(page.locator('#job-schedules')).toHaveCount(0);
+});
+
+test('page creation actions share their label, size, and primary styling', async ({ page }) => {
+  await mockDashboard(page, { controls: true });
+  const styles = [];
+  for (const [path, role, name] of [
+    ['jobs', 'link', 'Enqueue job'],
+    ['calendars', 'button', 'New calendar'],
+    ['tenants', 'link', 'Register tenant'],
+  ] as const) {
+    await page.goto(`/#/${path}?ns=billing`);
+    const action = page.getByRole(role, { name, exact: true });
+    await expect(action).toBeVisible();
+    styles.push(await action.evaluate((element) => {
+      const style = getComputedStyle(element);
+      return [style.backgroundColor, style.color, style.fontSize, style.fontWeight, style.borderRadius, style.padding];
+    }));
+  }
+  expect(styles[1]).toEqual(styles[0]);
+  expect(styles[2]).toEqual(styles[0]);
+});
+
+test('the collapsed sidebar keeps appearance accessible by name', async ({ page }) => {
+  await mockDashboard(page, { controls: false });
+  await page.goto('/#/jobs');
+  await page.getByRole('button', { name: 'Collapse sidebar' }).click();
+  await expect(page.getByRole('button', { name: 'Expand sidebar' })).toBeVisible();
+  await page.getByRole('button', { name: 'Appearance', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Appearance' })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('button', { name: 'Appearance', exact: true })).toBeFocused();
+});
+
+test('large-text mobile confirmation stays above navigation and inside the viewport', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 568 });
+  await page.addInitScript(() => localStorage.setItem('acta-appearance-v1', JSON.stringify({ version: 1, theme: 'light', accent: 'teal', textSize: 'large' })));
+  await mockDashboard(page, { controls: true });
+  await page.goto(`/#/jobs/${jobRef}?ns=billing`);
+  await page.getByRole('button', { name: 'Run again', exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  const box = await dialog.boundingBox();
+  expect(box!.x).toBeGreaterThanOrEqual(16);
+  expect(box!.y).toBeGreaterThanOrEqual(16);
+  expect(box!.x + box!.width).toBeLessThanOrEqual(304);
+  expect(box!.y + box!.height).toBeLessThanOrEqual(552);
+  expect(await page.evaluate(() => !!document.elementFromPoint(26, 26)?.closest('.confirm-overlay'))).toBe(true);
+  await expect(dialog.getByRole('heading', { name: 'Run this job again?' })).toBeVisible();
+  await expect(dialog.getByRole('button', { name: 'Keep as is' })).toBeVisible();
 });
 
 test('events feed reads a linked job\'s events and shows their subject, message, and details', async ({ page }) => {
@@ -489,7 +572,7 @@ test('quick search finds definitions by fragment and jumps to a pasted job ref',
 
   await input.fill(jobRef);
   await page.keyboard.press('Enter');
-  await expect(page.getByRole('heading', { name: 'Evidence' })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Job status' })).toBeVisible();
 });
 
 test('the workers list says which live worker is not on the namespace\'s deployed version', async ({ page }) => {
@@ -552,7 +635,8 @@ test('a job opened by its numeric id sends every later call to its ref', async (
   await expect(page.getByText('Restart applied.')).toBeVisible();
   expect(restartRequests).toBe(1);
 
-  await page.getByRole('button', { name: 'Executions' }).click();
+  await page.locator('.hero-attempt').click();
+  await page.locator('.detail-actions > summary').click();
   await page.getByRole('button', { name: 'Raise signal' }).click();
   await page.getByLabel('Signal name').fill('approval');
   const signal = page.waitForRequest((request) => request.url().endsWith(`/jobs/${jobRef}/signals/approval`));
@@ -631,6 +715,7 @@ test('calendar catalog: list to a draft version, the week bars and the forecast 
   await expect(page.getByLabel('Saturday: 3h')).toBeVisible();
   await expect(page.getByText('Version 3 beside current version 2')).toBeVisible();
   await expect(page.getByText('1 added')).toBeVisible();
+  await page.locator('.focus-disclosure').filter({ has: page.locator('summary', { hasText: 'Bound schedules' }) }).locator('summary').first().click();
   await expect(page.getByRole('link', { name: 'billing/send-invoice/nightly' })).toBeVisible();
 });
 
@@ -667,6 +752,7 @@ test('publishing a draft calendar sends one publish request carrying the candida
   await expect(impact.getByText('Retimes up to 1 bound schedule to this version.')).toBeVisible();
   await expect(impact.getByText('1 added, 0 removed over the next 3 windows.')).toBeVisible();
   // A live schedule binds the calendar, so archiving is refused before it is asked for.
+  await page.locator('.detail-actions > summary').click();
   await expect(page.getByRole('button', { name: 'Archive calendar' })).toBeDisabled();
   await expect(page.getByText('1 schedule binds this calendar.', { exact: false })).toBeVisible();
 
@@ -780,7 +866,8 @@ test('a caller holding read and enqueue clones a job, and acts on none', async (
   await mockDashboard(page, { controls: true, permissions: ['acta.read', 'acta.enqueue'] });
   await page.goto(`/#/jobs/${jobRef}`);
 
-  await expect(page.getByRole('link', { name: 'Clone' })).toBeVisible();
+  await page.locator('.detail-actions > summary').click();
+  await expect(page.getByRole('link', { name: 'Clone job', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Run again' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Delete record' })).toHaveCount(0);
 });
@@ -789,6 +876,7 @@ test('a caller holding read and admin deletes a record, and runs nothing again',
   await mockDashboard(page, { controls: true, permissions: ['acta.read', 'acta.admin'] });
   await page.goto(`/#/jobs/${jobRef}`);
 
+  await page.locator('.detail-actions > summary').click();
   await expect(page.getByRole('button', { name: 'Delete record' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Run again' })).toHaveCount(0);
 });
@@ -798,7 +886,7 @@ test('a reader on a host with controls on sees no control and the read-only chip
   await page.goto(`/#/jobs/${jobRef}`);
 
   await expect(page.locator('.mode-chip')).toBeVisible();
-  await expect(page.getByText('No action on this job is open to your sign-in.')).toBeVisible();
+  await expect(page.locator('.detail-actions')).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Run again' })).toHaveCount(0);
 });
 
@@ -830,8 +918,7 @@ test('Jobs and Job Detail fit a mobile viewport without page overflow', async ({
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 
   await page.getByRole('link', { name: /send-invoice/ }).click();
-  // The detail crumb titles the page with the durable ref; the name lives in the hero meta.
-  await expect(page.getByRole('heading', { name: jobRef })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'send-invoice', exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 
@@ -945,7 +1032,7 @@ test('appearance defaults, themes, accents, text sizing, persistence, and reset 
       textSize: root.dataset.textSize,
       colorScheme: root.style.colorScheme,
       tokens: Object.fromEntries(tokens.map((token) => [token, styles.getPropertyValue(token).trim()])),
-      gridSize: before.backgroundSize,
+      overlayContent: before.content,
       bodyBackground: getComputedStyle(document.body).backgroundImage,
     };
   });
@@ -956,18 +1043,18 @@ test('appearance defaults, themes, accents, text sizing, persistence, and reset 
     textSize: 'default',
     colorScheme: 'dark',
     tokens: {
-      '--bg': '#0b0f17',
-      '--panel': '#11161f',
-      '--ink': '#eef2f7',
-      '--muted': '#9aa6b6',
-      '--line': '#232c40',
-      '--accent': '#64d8c7',
-      '--accent-solid': '#077a70',
-      '--nav-active-bg': '#16302b',
-      '--grid': 'rgba(100, 216, 199, 0.05)',
-      '--glow': 'rgba(100, 216, 199, 0.1)',
+      '--bg': '#0e1625',
+      '--panel': '#19263a',
+      '--ink': '#f2f5fc',
+      '--muted': '#b4bfd1',
+      '--line': '#2b3a50',
+      '--accent': '#63e6be',
+      '--accent-solid': '#63e6be',
+      '--nav-active-bg': '#1c3737',
+      '--grid': 'rgba(99, 230, 190, 0.05)',
+      '--glow': 'rgba(99, 230, 190, 0.1)',
     },
-    gridSize: '46px 46px, 46px 46px',
+    overlayContent: 'none',
     bodyBackground: expect.stringContaining('radial-gradient'),
   });
 
@@ -1021,7 +1108,7 @@ test('appearance defaults, themes, accents, text sizing, persistence, and reset 
     accent: 'violet',
     textSize: 'large',
     colorScheme: 'light',
-    background: '#f3f6fa',
+    background: '#f7f9fc',
     panel: '#ffffff',
     accentToken: '#6550b9',
     rowHeight: '48px',
@@ -1033,7 +1120,7 @@ test('appearance defaults, themes, accents, text sizing, persistence, and reset 
     const styles = getComputedStyle(document.documentElement);
     return [styles.getPropertyValue('--bg').trim(), styles.getPropertyValue('--panel').trim()];
   });
-  expect(neutralsAfterAccentSwitch).toEqual(['#f3f6fa', '#ffffff']);
+  expect(neutralsAfterAccentSwitch).toEqual(['#f7f9fc', '#ffffff']);
 
   await page.getByText('Paper', { exact: true }).click();
   await page.getByText('Crimson', { exact: true }).click();
@@ -1053,15 +1140,11 @@ test('appearance defaults, themes, accents, text sizing, persistence, and reset 
   });
   expect(paper).toEqual({
     colorScheme: 'light',
-    // Chrome is the deeper tone and the sheet is the lighter one, the inverse of the other
-    // themes; nothing near-white appears anywhere.
-    background: '#f4ecd9',
-    panel: '#ebe0c8',
-    radius: '0px',
+    background: '#faf7f1',
+    panel: '#fffdfa',
+    radius: '12px',
     rowHeight: '38px',
-    // Paper is the only theme with its own display face (a system serif stack, no bundled font).
-    headingFont: expect.stringContaining('serif'),
-    // The ruled-paper overlay is gone: it was invisible in practice and it fought the row rules.
+    headingFont: expect.stringContaining('Inter'),
     ruledBackground: 'none',
   });
 
@@ -1086,6 +1169,7 @@ test('appearance dialog stays usable at 320px by 500px with Large text', async (
   await expect(dialog).toBeVisible();
   await dialog.getByText('Large', { exact: true }).click();
   const box = await dialog.boundingBox();
+  expect(box!.width).toBeGreaterThanOrEqual(292);
   expect(box).not.toBeNull();
   expect(box!.x).toBeGreaterThanOrEqual(0);
   expect(box!.y).toBeGreaterThanOrEqual(0);
@@ -1095,4 +1179,66 @@ test('appearance dialog stays usable at 320px by 500px with Large text', async (
   await dialog.getByRole('button', { name: 'Restore defaults' }).scrollIntoViewIfNeeded();
   await dialog.getByRole('button', { name: 'Restore defaults' }).click();
   await expect(dialog.getByRole('radio', { name: 'Default' })).toBeChecked();
+});
+
+test('Focus lineage loads selected children on demand and explores descendants in place', async ({ page }) => {
+  const failedRef = 'job_019f9b3509487d1b911f202072c9e1a4';
+  const branchRef = 'job_019f9b3509487d1b911f202072c9e1a5';
+  const leafRef = 'job_019f9b3509487d1b911f202072c9e1a6';
+  const parent = { ...job, kind: 'ordinary', version: 1, jobName: 'publish-manuscript', status: 'suspended', failureCount: 0 };
+  const failed = { ...parent, jobRef: failedRef, jobName: 'validate-assets', status: 'failed', parentJobRef: jobRef };
+  const branch = { ...parent, jobRef: branchRef, jobName: 'typeset-pdf', parentJobRef: jobRef };
+  const leaf = { ...parent, jobRef: leafRef, jobName: 'render-chapter', status: 'executing', parentJobRef: branchRef };
+  const detail = (row: typeof parent, children: typeof parent[], ancestors: typeof parent[] = []) => ({
+    job: row, input: null, result: null, resultTypeName: null, maxAttemptsEffective: 3,
+    checkpoints: paged([]), schedules: [], schedulesTotal: 0, workers: [], workersTotal: 0,
+    explain: { headline: 'Waiting for child jobs.', reason: row.status === 'failed' ? 'Source asset is 96 DPI. This job requires 300 DPI.' : null, activeWait: null, lease: null, lastExecutedBy: null, steps: [], stepsHasMore: false, nextActions: [] },
+    lineage: { job: row, ancestors, ancestorsHasMore: false, children, childrenHasMore: false, steps: [], stepsHasMore: false, activeWait: null }
+  });
+  const reads: string[] = [];
+  await mockDashboard(page, { controls: false });
+  const fixtures = new Map([[jobRef, detail(parent, [branch, failed])], [failedRef, detail(failed, [], [parent])], [branchRef, detail(branch, [leaf], [parent])]]);
+  await page.route('**/api/v1/jobs/*/detail', async (route) => {
+    const ref = new URL(route.request().url()).pathname.split('/').at(-2)!;
+    reads.push(ref);
+    const body = fixtures.get(ref);
+    if (!body) return route.fallback();
+    return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
+  });
+  await page.goto('/#/jobs/' + jobRef + '?ns=billing');
+  await expect(page.getByRole('heading', { name: 'publish-manuscript' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Inspect validate-assets' })).toBeVisible();
+  expect(reads).toEqual([jobRef]);
+  await expect(page.locator('#job-data')).toHaveCount(0);
+  await expect(page.locator('#job-schedules')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Inspect failed child' }).click();
+  const inspector = page.getByRole('region', { name: 'Selected child' });
+  await expect(inspector).toContainText('96 DPI');
+  expect(reads).toContain(failedRef);
+  await page.getByRole('button', { name: 'Inspect typeset-pdf' }).click();
+  await inspector.getByRole('button', { name: '1 children' }).click();
+  await expect(page.getByRole('navigation', { name: 'Lineage path' })).toContainText('typeset-pdf');
+  await expect(page.getByRole('button', { name: 'Inspect render-chapter' })).toBeVisible();
+  await page.getByRole('navigation', { name: 'Lineage path' }).getByRole('button', { name: 'This job' }).click();
+  await expect(page.getByRole('button', { name: 'Inspect validate-assets' })).toBeVisible();
+  expect(page.url()).toContain('/jobs/' + jobRef);
+});
+
+test('compact references and relative dates expose complete values through keyboard inspection', async ({ page }) => {
+  await mockDashboard(page, { controls: false });
+  await page.goto('/#/jobs/' + jobRef);
+  const reference = page.locator('.entity-summary .jobref');
+  await expect(reference.locator('.ref-head')).toHaveText('job');
+  await expect(reference.locator('.ref-tail')).toHaveText('158384a3');
+  await reference.focus();
+  await page.keyboard.press('Enter');
+  const fullValue = page.locator('.technical-popover:popover-open');
+  await expect(fullValue).toContainText(jobRef);
+  await expect(fullValue.getByRole('button', { name: 'Copy full reference' })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await page.locator('.focus-disclosure').filter({ has: page.locator('summary .disclosure-title', { hasText: 'Technical details' }) }).locator('summary').first().click();
+  const created = page.locator('dl > div').filter({ has: page.locator('dt', { hasText: /^Created$/ }) });
+  await created.getByRole('button', { name: /Show exact date and time/ }).click();
+  await expect(page.locator('.technical-popover:popover-open')).toContainText(job.createdAtUtc);
+  expect(await reference.getAttribute('title')).toBe(jobRef);
 });

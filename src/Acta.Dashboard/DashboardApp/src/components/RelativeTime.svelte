@@ -2,6 +2,7 @@
   import { now, secondNow } from '../time';
   import { displayFormatter } from '../format';
   let { value, title = null } = $props();
+  const detailId = $props.id();
 
   // Sub-minute values are the ones worth animating: the next run of a 5-second cron, a job that
   // just failed. Those follow the second clock; anything further out only changes on the minute
@@ -15,7 +16,8 @@
 </script>
 
 {#if value}
-  <span title={title ?? displayFormatter.timestamp(value)}>{displayFormatter.relativeTime(value, tick)}</span>
+  <span class="relative-time" title={title ?? displayFormatter.timestamp(value)}><button class="value-detail" type="button" popovertarget={detailId} aria-label={`${displayFormatter.relativeTime(value, tick)}. Show exact date and time.`}>{displayFormatter.relativeTime(value, tick)}</button></span>
+  <span id={detailId} popover="auto" class="technical-popover" role="note"><strong>Date and time</strong><br />{title ?? displayFormatter.timestamp(value)}<br /><span class="mono dim">{value}</span></span>
 {:else}
   <span class="dim">·</span>
 {/if}

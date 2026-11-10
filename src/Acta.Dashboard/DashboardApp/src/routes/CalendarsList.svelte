@@ -111,7 +111,7 @@
           <option value="occurrence">Occurrence (when work is due)</option>
         </select>
       </label>
-      <div class="create-actions">
+      <div class="detail-form-actions">
         <button type="submit" class="primary" disabled={!newNameOk}>Open the editor</button>
         <button type="button" onclick={() => (creating = false)}>Cancel</button>
       </div>
@@ -202,11 +202,6 @@
   }
   .create-form .detail-field { margin-top: 4px; }
   .field-help { font-weight: 400; color: var(--muted); font-size: var(--text-xs); }
-  .create-actions {
-    grid-column: 1 / -1;
-    display: flex;
-    gap: 10px;
-    margin-top: 14px;
-  }
+  .create-form .detail-form-actions { grid-column: 1 / -1; }
   .field-error { color: var(--bad); font-size: var(--text-xs); font-weight: 400; }
 </style>

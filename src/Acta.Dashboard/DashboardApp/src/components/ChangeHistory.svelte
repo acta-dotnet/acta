@@ -1,4 +1,5 @@
 <script lang="ts">
+  import FocusDisclosure from './FocusDisclosure.svelte';
   import DataTable from './DataTable.svelte';
   import RelativeTime from './RelativeTime.svelte';
   import StateView from './StateView.svelte';
@@ -17,8 +18,7 @@
   let showWho = $derived(actors.some((actor) => actor !== null));
 </script>
 
-<section class="detail-panel">
-  <h2>Change history</h2>
+<FocusDisclosure title="Change history" hint={loading ? 'Loading' : history.length ? `${history.length} recorded changes` : 'No recorded changes'}>
   {#if loading || history.length === 0}
     <StateView {loading} loadingText="Loading history..." {emptyText} />
   {:else}
@@ -36,4 +36,4 @@
       </tbody>
     </DataTable>
   {/if}
-</section>
+</FocusDisclosure>

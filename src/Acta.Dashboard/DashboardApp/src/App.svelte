@@ -145,8 +145,7 @@
         title={$sidebarRail ? 'Search (Ctrl+K)' : undefined}>
         <Icon name="magnifying-glass" /><span class="nav-label">Search</span><kbd class="nav-kbd">Ctrl K</kbd>
       </button>
-      <!-- One each over every group; the first group takes the slack in CSS, so Configure and
-           Admin settle at the bottom by the appearance trigger without duplicating markup. -->
+      <!-- Keep the navigation groups together in one independently scrollable column. -->
       <div class="side-scroll">
         {#each navigationGroups as group}
           <section class="nav-group" aria-labelledby={'nav-' + group.label.toLowerCase()}>

@@ -169,13 +169,13 @@ function contrastSafeSolid(accentScale: Scale): { solid: string; foreground: str
 function readableAccentText(accentScale: Scale, theme: ThemeId): string {
   const { background, panel } = THEME_METADATA[theme];
 
-  // Prefer the Radix text step, then its stronger text step. The remaining candidates are a
-  // defensive fallback for future scales whose text steps do not clear both theme surfaces.
+  // Reserve contrast above AA for the ambient page tints. Prefer the Radix text step,
+  // then its stronger text step, before checking the remaining fallback candidates.
   for (const index of [10, 11, 9, 8]) {
     const candidate = accentScale[index];
     if (
-      contrastRatio(candidate, background) >= 4.5
-      && contrastRatio(candidate, panel) >= 4.5
+      contrastRatio(candidate, background) >= 5
+      && contrastRatio(candidate, panel) >= 5
     ) {
       return candidate;
     }
@@ -187,13 +187,25 @@ function readableAccentText(accentScale: Scale, theme: ThemeId): string {
 export function buildAccentTokens(accent: AccentId, theme: ThemeId): AccentTokens {
   if (theme === 'acta' && accent === 'teal') {
     return {
-      '--accent': '#64d8c7',
-      '--accent-solid': '#077a70',
+      '--accent': '#63e6be',
+      '--accent-solid': '#63e6be',
+      '--on-accent': '#10251e',
+      '--nav-active-bg': '#1c3737',
+      '--badge-run-bg': '#183b35',
+      '--grid': 'rgba(99, 230, 190, 0.05)',
+      '--glow': 'rgba(99, 230, 190, 0.1)',
+    };
+  }
+
+  if (theme === 'light' && accent === 'teal') {
+    return {
+      '--accent': '#086c62',
+      '--accent-solid': '#086c62',
       '--on-accent': '#ffffff',
-      '--nav-active-bg': '#16302b',
-      '--badge-run-bg': '#13302b',
-      '--grid': 'rgba(100, 216, 199, 0.05)',
-      '--glow': 'rgba(100, 216, 199, 0.1)',
+      '--nav-active-bg': '#e8f6f1',
+      '--badge-run-bg': '#e0f5ef',
+      '--grid': 'rgba(8, 108, 98, 0.05)',
+      '--glow': 'rgba(8, 108, 98, 0.1)',
     };
   }
 

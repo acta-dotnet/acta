@@ -152,6 +152,7 @@
   </div>
 {/if}
 
+{#if !readOnly || model.dateOverrides.length > 0}
 <section class="weekly-section" aria-label="Date overrides">
   <h3>Date overrides</h3>
   <p class="detail-help">A date listed here uses these windows instead of its weekday's; a date with no windows is closed.</p>
@@ -185,6 +186,9 @@
   {/if}
 </section>
 
+{/if}
+
+{#if !readOnly || model.excludedRanges.length > 0}
 <section class="weekly-section" aria-label="Excluded ranges">
   <h3>Excluded ranges</h3>
   <p class="detail-help">Subtracted last, whatever the weekday or override says: a closure, a freeze, a migration window.</p>
@@ -214,6 +218,8 @@
     <button type="button" onclick={() => emit({ excludedRanges: [...model.excludedRanges, { from: '', to: '' }] })}><Icon name="plus" />Date range</button>
   {/if}
 </section>
+
+{/if}
 
 <style>
   .week {

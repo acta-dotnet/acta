@@ -23,7 +23,7 @@
   // A permanent job's execution number counts every firing's executions, so it is no attempt within a budget.
   let unit = $derived(permanent ? 'Execution' : 'Attempt');
 
-  // Deliberate initial capture: the panel remounts per tab switch, re-reading the handoff.
+  // Job detail remounts the timeline when an execution deep link changes.
   // svelte-ignore state_referenced_locally
   let attemptFilter = $state(initialAttempt != null ? String(initialAttempt) : 'all');
   let categoryFilter = $state('all');

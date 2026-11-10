@@ -3,10 +3,11 @@ import { describe, expect, it } from 'vitest';
 import JobRef from './JobRef.svelte';
 
 describe('JobRef', () => {
-  it('splits a UUIDv7-backed ref into a muted head and full-ink tail', () => {
+  it('uses a compact reference by default and preserves its full value', () => {
     const { container } = render(JobRef, { value: 'job_019f71ce69e07b85bf41fc7bf0562501' });
-    expect(container.querySelector('.ref-head')?.textContent).toBe('job_019f71ce69e0');
-    expect(container.querySelector('.ref-tail')?.textContent).toBe('7b85bf41fc7bf0562501');
+    expect(container.querySelector('.ref-head')?.textContent).toBe('job');
+    expect(container.querySelector('.ref-tail')?.textContent).toBe('f0562501');
+    expect(container.querySelector('button.jobref')?.getAttribute('popovertarget')).toBeTruthy();
     expect(container.textContent).toContain('job_019f71ce69e07b85bf41fc7bf0562501');
   });
 
@@ -18,7 +19,7 @@ describe('JobRef', () => {
   it('shows the tag and the last 8 digits when compact, and keeps the whole ref in the text and the name', () => {
     const value = 'job_019f71ce69e07b85bf41fc7bf0562501';
     const { container } = render(JobRef, { value, href: '#/jobs/x', compact: true });
-    expect(container.querySelector('.ref-head')?.textContent).toBe('job_');
+    expect(container.querySelector('.ref-head')?.textContent).toBe('job');
     expect(container.querySelector('.ref-tail')?.textContent).toBe('f0562501');
     const link = container.querySelector('a.jobref');
     expect(link?.textContent).toBe(value);

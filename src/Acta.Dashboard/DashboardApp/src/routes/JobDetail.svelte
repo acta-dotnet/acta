@@ -2,7 +2,7 @@
   import { tick } from 'svelte';
   import { createQuery } from '@tanstack/svelte-query';
   import { api, ApiError, type EventItem, type JobDetailView } from '../api.ts';
-  import { TERMINAL_STATUSES, statusClass } from '../format.ts';
+  import { consecutiveFailuresText, TERMINAL_STATUSES, statusClass } from '../format.ts';
   import { keys } from '../query.ts';
   import { scope } from '../scope.ts';
   import CopyButton from '../components/CopyButton.svelte';
@@ -10,6 +10,11 @@
   import Icon from '../components/Icon.svelte';
   import JobControls from '../components/JobControls.svelte';
   import Page from '../components/Page.svelte';
+  import DetailActions from '../components/DetailActions.svelte';
+  import DetailLayout from '../components/DetailLayout.svelte';
+  import FocusDisclosure from '../components/FocusDisclosure.svelte';
+  import StatusBadge from '../components/StatusBadge.svelte';
+  import RelativeTime from '../components/RelativeTime.svelte';
   import SignalDrawer from '../components/SignalDrawer.svelte';
   import StateView from '../components/StateView.svelte';
   import TagEditor from '../components/TagEditor.svelte';
@@ -17,6 +22,7 @@
   import JobDiagnosis from './job-detail/JobDiagnosis.svelte';
   import JobEventsPanel from './job-detail/JobEventsPanel.svelte';
   import JobLineage from './job-detail/JobLineage.svelte';
+  import JobNextRun from './job-detail/JobNextRun.svelte';
   import JobSummary from './job-detail/JobSummary.svelte';
   import JobWorkerEvidence from './job-detail/JobWorkerEvidence.svelte';
   import JobInputPanel from './job-detail/JobInputPanel.svelte';
@@ -25,11 +31,12 @@
   import JobExecutionsPanel from './job-detail/JobExecutionsPanel.svelte';
   import JobSchedulesPanel from './job-detail/JobSchedulesPanel.svelte';
   import { createUrlFilters } from '../urlFilters.ts';
-  import { buildIncidentSummary, executionLabel, latestMeaningfulEvent } from './job-detail/jobDetailState.ts';
+  import { activeWaitLabel, buildIncidentSummary, executionLabel } from './job-detail/jobDetailState.ts';
   import { statusTonePresentation } from '../components/jobTimelineState.ts';
   import { routes } from '../routes.ts';
   import { capabilitiesQuery, can, Permission } from '../query.ts';
   import { detailRefetchInterval, livePaused } from '../polling.ts';
+  import { jobControlState } from '../components/jobControlState.ts';
 
   // The route's target: a ref, or id:<n> where the host allows numeric lookup. Only the detail read uses it; once the
   // job loads, every call names it by its ref, since a control or a tag write takes a ref alone.
@@ -75,7 +82,11 @@
   let explanation = $derived(detail?.explain ?? null);
   let lineage = $derived(detail?.lineage ?? null);
   let workers = $derived(detail?.workers ?? null);
-  let lastEvent = $derived(latestMeaningfulEvent(events));
+  let lineagePanel: { inspect(ref: string): void } | undefined = $state();
+  let activityOpen = $state(false);
+  let executionsOpen = $state(false);
+  let dataOpen = $state(false);
+  let schedulesOpen = $state(false);
   let backHref = $derived(routes.jobs({ namespace: $scope }));
   let incidentSummary = $derived(
     job ? buildIncidentSummary(job, explanation, events, typeof location === 'undefined' ? '' : location.href) : ''
@@ -92,88 +103,56 @@
   }
 
   function scrollTo(id: string): void {
-    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    document.getElementById(id)?.scrollIntoView({ behavior: 'instant', block: 'start' });
   }
 
-  // Hero: the timeline's node language scaled up onto the shared t-* tone classes.
-  let hero = $derived(job ? statusTonePresentation(statusClass(job.status)) : statusTonePresentation(''));
+  let hero = $derived(statusTonePresentation(job ? statusClass(job.status) : ''));
   let heroAttempt = $derived(job ? executionLabel(job) : '');
-
-  // Real tabs: only the active tab's panels are mounted, so per-tab data (the unbounded event
-  // history lives on Details) is only fetched while its tab is open.
-  type DetailTab = 'details' | 'executions' | 'checkpoints' | 'schedules' | 'lineage';
-  const tabs: { id: DetailTab; label: string }[] = [
-    { id: 'details', label: 'Details' },
-    { id: 'executions', label: 'Executions' },
-    { id: 'checkpoints', label: 'Checkpoints' },
-    { id: 'schedules', label: 'Schedules' },
-    { id: 'lineage', label: 'Lineage' }
-  ];
-  // Hash-backed so the tab and a specific execution deep-link and survive back/forward. Switching
-  // tabs by hand clears the drilled execution: only the walk action carries it, so a user-cleared
-  // timeline filter cannot snap back on the next remount.
+  let hasExecutions = $derived(!!job && job.executionNumber > 0);
+  let hasLineage = $derived(!!lineage && (lineage.ancestors.length > 0 || lineage.children.length > 0));
+  let failedChild = $derived(lineage?.children.find((child) => child.status === 'failed'));
+  let hasData = $derived(!!detail && (!!detail.input || detail.checkpoints.items.length > 0));
+  let hasSchedules = $derived(!!detail && (detail.schedules.length > 0 || (detail.schedulesTotal ?? 0) > 0));
   const tabFilters = createUrlFilters({ tab: 'tab', execution: 'execution' }, { tab: '', execution: '' });
-  const TAB_IDS: readonly string[] = tabs.map((tab) => tab.id);
-  function setTab(id: DetailTab): void {
-    tabFilters.patch({ tab: id === 'details' ? '' : id, execution: '' });
-  }
   let focusExecution = $derived(/^\d+$/.test($tabFilters.execution) ? Number($tabFilters.execution) : null);
-  // Executions → timeline handoff: the drilled execution rides in the URL (shareable, reload-safe)
-  // and presets the timeline's attempt filter. The scroll must wait for the Details tab to actually
-  // mount: hashchange lands asynchronously, so scrolling in the click handler races an empty DOM.
-  let pendingScroll: string | null = $state(null);
+
+  // Existing section and attempt URLs open the matching disclosure, including back/forward navigation.
+  $effect(() => {
+    const requested = $tabFilters.tab;
+    if (requested === 'executions') { activityOpen = true; executionsOpen = true; }
+    if (requested === 'checkpoints' || requested === 'input' || requested === 'result') dataOpen = true;
+    if (requested === 'schedules') schedulesOpen = true;
+    if ($tabFilters.execution) activityOpen = true;
+  });
+
   function viewInTimeline(executionNumber: number): void {
     tabFilters.patch({ tab: '', execution: String(executionNumber) });
-    pendingScroll = 'job-timeline';
+    activityOpen = true;
+    executionsOpen = false;
+    void tick().then(() => scrollTo('job-timeline'));
   }
-  $effect(() => {
-    if (!pendingScroll || activeTab !== 'details') return;
-    const target = pendingScroll;
-    pendingScroll = null;
-    void tick().then(() => scrollTo(target));
-  });
-  // Mobile: the floating nav toggle overlaps the pinned tab bar, so the bar only takes its
-  // toggle-clearing padding while actually stuck. A sentinel above the bar detects pinning.
-  let secnavStuck = $state(false);
-  let secnavSentinel: HTMLElement | undefined = $state();
-  $effect(() => {
-    if (!secnavSentinel) return;
-    const observer = new IntersectionObserver(([entry]) => (secnavStuck = !entry.isIntersecting));
-    observer.observe(secnavSentinel);
-    return () => observer.disconnect();
-  });
-  let hasLineage = $derived(
-    !!lineage && (lineage.ancestors.length > 0 || lineage.children.length > 0 || lineage.steps.length > 0 || !!lineage.activeWait)
-  );
-  let hasExecutions = $derived(!!job && job.executionNumber > 0);
-  // The active tab must always be a rendered tab button: a deep link to a gated tab falls to Details.
-  let activeTab: DetailTab = $derived.by(() => {
-    const requested = TAB_IDS.includes($tabFilters.tab) ? ($tabFilters.tab as DetailTab) : 'details';
-    if (requested === 'executions' && !hasExecutions) return 'details';
-    if (requested === 'lineage' && !hasLineage) return 'details';
-    return requested;
-  });
 
+  function showExecutions(): void {
+    activityOpen = true;
+    executionsOpen = true;
+    tabFilters.patch({ tab: 'executions', execution: '' });
+    void tick().then(() => scrollTo('job-executions-section'));
+  }
 </script>
 
-<Page title={job?.jobName ?? 'Job'} crumbBar={true}>
-  {#snippet breadcrumb()}
-    <a href={backHref} class="crumb-back" aria-label="Back to jobs"><Icon name="chevron-left" /></a>
-    <a href={backHref}>Jobs</a>
-    <span class="crumb-sep" aria-hidden="true">/</span>
-    <h1 class="crumb-current mono">{jobRef}</h1>
-  {/snippet}
+<Page title={job?.jobName ?? 'Job'}>
+  {#snippet breadcrumb()}<a href={backHref}><Icon name="chevron-left" />Jobs</a>{/snippet}
   {#snippet actions()}
-    {#if canEnqueueNow && job}
-      <a class="clone-action" href={routes.enqueue({ namespace: job.jobNamespace, jobName: job.jobName, from: job.jobRef })}><Icon name="copy" />Clone</a>
+    <PageFreshness dataUpdatedAt={detailQuery.dataUpdatedAt} isFetching={detailQuery.isFetching} isError={!!detailQuery.error} polling={!!job && !TERMINAL_STATUSES.includes(job.status)} onRefresh={reload} />
+
+    {#if job && detail && (canControlNow || canEnqueueNow || (can(capabilities.data, Permission.admin) && jobControlState(job.status, job.kind).canPurge))}
+      <DetailActions>
+        {#if canControlNow || (can(capabilities.data, Permission.admin) && jobControlState(job.status, job.kind).canPurge)}<div id="job-actions"><JobControls jobRef={job.jobRef} status={job.status} kind={job.kind} priority={job.priority} mode={failedChild ? 'all' : 'secondary'} onChanged={reload} /></div>{/if}
+        {#if canControlNow && (failedChild || explanation?.activeWait?.kind.toLowerCase() !== 'signal')}<div id="job-signals"><SignalDrawer jobRef={job.jobRef} suggestedName={explanation?.activeWait?.name ?? ''} onSent={reload} /></div>{/if}
+        {#if canEnqueueNow}<a class="clone-action" href={routes.enqueue({ namespace: job.jobNamespace, jobName: job.jobName, from: job.jobRef })}><Icon name="copy" />Clone job</a>{/if}
+
+      </DetailActions>
     {/if}
-    <CopyButton value={job?.jobRef ?? jobRef} label="Copy ref" />
-    <PageFreshness
-      dataUpdatedAt={detailQuery.dataUpdatedAt}
-      isFetching={detailQuery.isFetching}
-      isError={!!detailQuery.error}
-      polling={!!job && !TERMINAL_STATUSES.includes(job.status)}
-      onRefresh={reload} />
   {/snippet}
 
   {#if missing}
@@ -181,107 +160,94 @@
   {:else if detailQuery.error}
     <div class="panel"><StateView error={errorMessage(detailQuery.error)} onRetry={() => detailQuery.refetch()} /></div>
   {:else if job && detail}
-    <section class="job-hero t-{hero.tone}" aria-label="Job status">
-      <span class="hero-node"><Icon name={hero.icon} /></span>
-      <div class="hero-body">
-        <div class="hero-status">{explanation?.headline ?? job.status}</div>
-        {#if explanation?.reason}<div class="hero-reason">{explanation.reason}</div>{/if}
-        <div class="hero-meta">
-          <JobRef value={job.jobRef} /> · {job.jobNamespace} / {job.jobName} ·
-          {#if hasExecutions}<button class="hero-attempt" onclick={() => setTab('executions')}>{heroAttempt}</button>{:else}{heroAttempt}{/if}
+    <section class="entity-summary" aria-label="Job identity">
+      <StatusBadge status={job.status} />
+      <a href={routes.namespace(job.jobNamespace, { namespace: job.jobNamespace })}>{job.jobNamespace}</a>
+      <JobRef value={job.jobRef} copy />
+      {#if job.kind === 'permanent'}<span class="dim">Permanent job</span>{/if}
+    </section>
+
+    <section class="focus-state t-{hero.tone}" aria-label="Job status">
+      <div class="focus-state-content">
+        <h2><Icon name={hero.icon} />{explanation?.headline ?? job.status}</h2>
+        {#if explanation?.reason}<p>{explanation.reason}</p>{/if}
+        {#if explanation?.lease?.expired}<p>{explanation.lease.recoveryExpectation}</p>{/if}
+        <div class="focus-facts">
+          {#if explanation?.activeWait}
+            {@const wait = activeWaitLabel(explanation.activeWait.kind, explanation.activeWait.name)}
+            <span>Waiting on <strong class="mono">{wait.name}</strong>{#if explanation.activeWait.dueAtUtc} · due <RelativeTime value={explanation.activeWait.dueAtUtc} />{/if}</span>
+          {/if}
+          {#if job.status === 'blocked' && job.blockedBehindJobRef}<span>Blocked behind <JobRef value={job.blockedBehindJobRef} href={routes.job(job.blockedBehindJobRef, { namespace: job.jobNamespace })} /></span>{/if}
+          {#if !TERMINAL_STATUSES.includes(job.status) && (job.nextRunAtUtc || job.status === 'idle')}<span>Next run <JobNextRun {job} schedules={detail.schedules} total={detail.schedulesTotal} /></span>{/if}
+          {#if hasExecutions}<button class="hero-attempt" onclick={showExecutions}>{heroAttempt}</button>{/if}
+          {#if job.failureCount > 0 && job.status !== 'succeeded'}<span>{consecutiveFailuresText(job.failureCount)}{#if job.kind === 'permanent'} in the latest firing{/if}</span>{/if}
         </div>
+      </div>
+      <div class="focus-inline-actions">
+        {#if failedChild}
+          <button class="primary" onclick={() => lineagePanel?.inspect(failedChild!.jobRef)}>Inspect failed child<Icon name="chevron-right" /></button>
+        {:else if canControlNow && explanation?.activeWait?.kind.toLowerCase() === 'signal'}
+          <SignalDrawer jobRef={job.jobRef} suggestedName={explanation.activeWait.name} inline={true} onSent={reload} />
+        {:else if canControlNow}
+          <JobControls jobRef={job.jobRef} status={job.status} kind={job.kind} priority={job.priority} mode="primary" onChanged={reload} />
+        {/if}
       </div>
     </section>
 
-    <div class="secnav-sentinel" bind:this={secnavSentinel} aria-hidden="true"></div>
-    <nav class="secnav" class:stuck={secnavStuck} aria-label="Job detail sections">
-      {#each tabs as tab (tab.id)}
-        {#if (tab.id !== 'lineage' || hasLineage) && (tab.id !== 'executions' || hasExecutions)}
-          <button class:active={activeTab === tab.id} onclick={() => setTab(tab.id)}>{tab.label}</button>
-        {/if}
-      {/each}
-    </nav>
+    <DetailLayout>
 
-    <div class="detail-workspace">
-      <div class="detail-main">
-        {#if activeTab === 'details'}
-          <JobSummary {job} {lastEvent} maxAttempts={detail.maxAttemptsEffective ?? null} schedules={detail.schedules} schedulesTotal={detail.schedulesTotal} />
-          <div class="payload-row">
-            <JobInputPanel input={detail.input} jobRef={job.jobRef} status={job.status} canControl={canControlNow} onAmended={reload} />
-            <JobResultPanel result={detail.result} resultTypeName={detail.resultTypeName} />
-          </div>
-          <JobDiagnosis jobNamespace={job.jobNamespace} {explanation} />
-          <JobWorkerEvidence {job} {workers} workersTotal={detail.workersTotal ?? null} />
-          <JobEventsPanel
-            bind:this={eventsPanel}
-            jobRef={job.jobRef}
-            polling={!TERMINAL_STATUSES.includes(job.status)}
-            nextRunAtUtc={TERMINAL_STATUSES.includes(job.status) ? null : job.nextRunAtUtc}
-            initialAttempt={focusExecution}
-            permanent={job.kind === 'permanent'}
-            onEventsChange={(loaded) => (events = loaded)} />
-          <div class="support-row">
-            <CopyButton value={JSON.stringify(job, null, 2)} label="Copy raw snapshot" showLabel={true} />
-            {#if incidentSummary}<CopyButton value={incidentSummary} label="Copy incident summary" showLabel={true} />{/if}
-          </div>
-        {:else if activeTab === 'executions'}
-          <JobExecutionsPanel
-            bind:this={executionsPanel}
-            jobRef={job.jobRef}
-            {job}
-            polling={!TERMINAL_STATUSES.includes(job.status)}
-            {focusExecution}
-            onViewInTimeline={viewInTimeline} />
-        {:else if activeTab === 'checkpoints'}
-          <JobCheckpointsPanel checkpoints={detail.checkpoints.items} total={detail.checkpoints.totalCount} />
-        {:else if activeTab === 'schedules'}
+      {#snippet related()}
+        <a href={routes.definition(job.jobNamespace, job.jobName, { namespace: job.jobNamespace })}>Definition</a>
+        <a href={routes.jobs({ jobName: job.jobName, namespace: job.jobNamespace })}>Similar jobs</a>
+        <a href={routes.namespace(job.jobNamespace, { namespace: job.jobNamespace })}>Namespace</a>
+        <a href={routes.workers({ namespace: job.jobNamespace })}>Workers</a>
+        <a href={routes.events({ namespace: job.jobNamespace, jobRef: job.jobRef })}>Events</a>
+      {/snippet}
+
+      {#if hasLineage}<JobLineage bind:this={lineagePanel} {job} {lineage} />{/if}
+      <JobWorkerEvidence {job} {workers} workersTotal={detail.workersTotal ?? null} />
+      {#if detail.result}<JobResultPanel result={detail.result} resultTypeName={detail.resultTypeName} />{/if}
+
+      <FocusDisclosure title="Activity" hint={hasExecutions ? heroAttempt : 'Events and history'} bind:open={activityOpen} id="job-activity">
+        <div hidden={executionsOpen}>
+        {#key focusExecution}
+          <JobEventsPanel bind:this={eventsPanel} jobRef={job.jobRef} polling={!TERMINAL_STATUSES.includes(job.status)} nextRunAtUtc={TERMINAL_STATUSES.includes(job.status) ? null : job.nextRunAtUtc} initialAttempt={focusExecution} permanent={job.kind === 'permanent'} onEventsChange={(loaded) => (events = loaded)} />
+        {/key}
+        </div>
+        {#if hasExecutions}
+          <FocusDisclosure title="Executions" hint="Attempts, durations and outcomes" bind:open={executionsOpen} lazy={true} hideHeading={true} id="job-executions-section">
+            <JobExecutionsPanel bind:this={executionsPanel} jobRef={job.jobRef} {job} polling={!TERMINAL_STATUSES.includes(job.status)} {focusExecution} onViewInTimeline={viewInTimeline} />
+          </FocusDisclosure>
+        {/if}
+      </FocusDisclosure>
+
+      {#if hasData}
+        <FocusDisclosure title={detail.checkpoints.items.length ? 'Data and checkpoints' : 'Stored data'} hint={(detail.input ? 'Input' : '') + (detail.checkpoints.items.length ? (detail.input ? ' · ' : '') + detail.checkpoints.items.length + (detail.checkpoints.items.length === 1 ? ' checkpoint' : ' checkpoints') : '')} bind:open={dataOpen} id="job-data">
+          {#if detail.input}<JobInputPanel input={detail.input} jobRef={job.jobRef} status={job.status} canControl={canControlNow} onAmended={reload} />{/if}
+          {#if detail.checkpoints.items.length}<JobCheckpointsPanel checkpoints={detail.checkpoints.items} total={detail.checkpoints.totalCount} />{/if}
+        </FocusDisclosure>
+      {/if}
+      {#if hasSchedules}
+        <FocusDisclosure title="Schedules" hint={String(detail.schedulesTotal ?? detail.schedules.length) + ' attached'} bind:open={schedulesOpen} hideHeading={true} id="job-schedules">
           <JobSchedulesPanel schedules={detail.schedules} total={detail.schedulesTotal} onChanged={reload} />
-        {:else if activeTab === 'lineage'}
-          <JobLineage {job} {lineage} />
-        {/if}
-      </div>
-
-      <aside class="detail-rail">
-        <div id="job-actions"><JobControls jobRef={job.jobRef} status={job.status} kind={job.kind} priority={job.priority} onChanged={reload} /></div>
-        <div id="job-signals"><SignalDrawer jobRef={job.jobRef} suggestedName={explanation?.activeWait?.name ?? ''} onSent={reload} /></div>
-        <section class="detail-panel go-to" aria-label="Go to">
-          <p class="detail-kicker">Go to</p>
-          <nav>
-            <a href={routes.definition(job.jobNamespace, job.jobName, { namespace: job.jobNamespace })}>Definition</a>
-            <a href={routes.jobs({ jobName: job.jobName, namespace: job.jobNamespace })}>Similar jobs</a>
-            <a href={routes.namespace(job.jobNamespace, { namespace: job.jobNamespace })}>Namespace</a>
-            <a href={routes.workers({ namespace: job.jobNamespace })}>Workers</a>
-            <a href={routes.events({ namespace: job.jobNamespace, jobRef: job.jobRef })}>Events</a>
-          </nav>
-        </section>
-        <TagEditor path={`jobs/${job.jobRef}/tags`} permission={Permission.control} />
-      </aside>
-    </div>
+        </FocusDisclosure>
+      {/if}
+      <FocusDisclosure title="Technical details" hint="Identifiers, dates and policy">
+        <JobSummary {job} maxAttempts={detail.maxAttemptsEffective ?? null} />
+        <JobDiagnosis jobNamespace={job.jobNamespace} {explanation} />
+        <TagEditor path={'jobs/' + job.jobRef + '/tags'} permission={Permission.control} />
+        <div class="support-row"><CopyButton value={JSON.stringify(job, null, 2)} label="Copy raw snapshot" showLabel={true} />{#if incidentSummary}<CopyButton value={incidentSummary} label="Copy incident summary" showLabel={true} />{/if}</div>
+      </FocusDisclosure>
+    </DetailLayout>
   {:else}
     <div class="panel"><StateView loading={true} loadingText="Loading job..." /></div>
   {/if}
 </Page>
 
 <style>
-  .support-row { display: flex; justify-content: flex-end; gap: 10px; margin-bottom: 8px; }
-  /* Request and result side by side when there is room, stacked when there is not. */
-  .payload-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 16px; align-items: start; }
-  .clone-action {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 5px 12px;
-    border: 1px solid var(--line);
-    border-radius: var(--radius-control);
-    color: var(--ink);
-  }
-  .clone-action:hover { border-color: var(--accent); color: var(--accent); }
-  .hero-attempt {
-    padding: 0; border: 0; background: none; cursor: pointer;
-    color: inherit; font: inherit; text-decoration: underline; text-underline-offset: 2px;
-  }
-  .hero-attempt:hover:not(:disabled) { color: var(--accent); border-color: transparent; }
-  @container (max-width: 700px) {
-    .detail-rail :global(#job-actions) { position: sticky; top: 8px; z-index: 3; }
-  }
+  .support-row { display: flex; flex-wrap: wrap; gap: 10px; }
+  .clone-action { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border: 1px solid var(--line); border-radius: var(--radius-control); color: var(--ink); justify-self: start; }
+  .hero-attempt { border: 0; background: none; padding: 0; color: var(--muted); font: inherit; text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 4px; }
+  .hero-attempt:hover:not(:disabled) { color: var(--accent); }
+  :global(.detail-main > .focus-disclosure-body) { min-width: 0; }
 </style>

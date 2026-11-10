@@ -1,9 +1,5 @@
-<!-- The Acta mark: a crossbar-less A with the ledger dot inside. currentColor, so it takes the
-     accent (or any text color) wherever it sits. -->
-
-<svg class="logo-mark" width="30" height="30" viewBox="0 0 24 24" aria-hidden="true">
-  <path
-    fill="currentColor"
-    d="M10.62 2.6 1.9 20.55a.6.6 0 0 0 .54.86h2.4a.9.9 0 0 0 .81-.5L12 7.06l6.35 13.85a.9.9 0 0 0 .81.5h2.4a.6.6 0 0 0 .54-.86L13.38 2.6a1.53 1.53 0 0 0-2.76 0Z" />
-  <circle fill="currentColor" cx="12" cy="16.4" r="2.5" />
+<!-- The shared Acta mark, cropped to its visible bounds for capital-height alignment. -->
+<svg class="logo-mark" width="30" height="30" viewBox="3.95 4.95 30.1 30.1" aria-hidden="true">
+  <path d="M6 33 19 7 32 33" fill="none" stroke="currentColor" stroke-width="4.1" stroke-linecap="round" stroke-linejoin="round" />
+  <circle fill="currentColor" cx="19" cy="27" r="3" />
 </svg>

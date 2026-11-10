@@ -3,14 +3,14 @@
   import ScheduleStatus from '../../components/ScheduleStatus.svelte';
   import ScheduleControls from '../../components/ScheduleControls.svelte';
   import RelativeTime from '../../components/RelativeTime.svelte';
+  import StateView from '../../components/StateView.svelte';
   import { routes } from '../../routes.ts';
   import { displayFormatter } from '../../format.ts';
 
   // The schedules attached to this job's recurring slot, fed from the aggregate detail read (the
   // /schedules list filters by jobNamespace + jobName, and the detail read carries that set with
-  // liveOnly: false so an orphaned schedule still shows). Rendered only when the job actually has
-  // schedules: most jobs are one-shot, so an empty panel would be pure noise. A control action asks
-  // JobDetail to refetch the detail query (onChanged).
+  // liveOnly: false so an orphaned schedule still shows). A control action asks
+  // JobDetail to refetch the detail query (onChanged). The job page shows this section when schedules exist.
   // `total` is the filter-wide count: the detail read caps this list, so a total above the array
   // length means this is a preview.
   let {
@@ -22,9 +22,9 @@
   let truncated = $derived(total !== null && total > schedules.length);
 </script>
 
-{#if schedules.length > 0}
-  <section class="detail-panel" aria-label="Job schedules">
-    <h2>Schedules</h2>
+<section class="detail-panel" aria-label="Job schedules">
+  <h2>Schedules</h2>
+  {#if schedules.length > 0}
     <p class="detail-help">
       Recurring schedules bound to this permanent job. Pause, resume, or trigger each one; open a schedule for
       its full timing detail and change history.
@@ -56,8 +56,10 @@
         <a href={routes.schedules({ namespace: schedules[0].jobNamespace })}>Open the schedules list</a> for the rest.
       </p>
     {/if}
-  </section>
-{/if}
+  {:else}
+    <StateView emptyText="No schedules are bound to this job." />
+  {/if}
+</section>
 
 <style>
   .schedule-list { display: flex; flex-direction: column; gap: 14px; }

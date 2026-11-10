@@ -12,6 +12,9 @@
   } from '../api.ts';
   import { capabilitiesQuery, can, Permission, keys } from '../query.ts';
   import Page from '../components/Page.svelte';
+  import DetailActions from '../components/DetailActions.svelte';
+  import DetailLayout from '../components/DetailLayout.svelte';
+  import FocusDisclosure from '../components/FocusDisclosure.svelte';
   import Icon from '../components/Icon.svelte';
   import StateView from '../components/StateView.svelte';
   import ScheduleStatus from '../components/ScheduleStatus.svelte';
@@ -307,6 +310,26 @@
   {/snippet}
   {#snippet actions()}
     <PageFreshness dataUpdatedAt={detail.dataUpdatedAt} isFetching={detail.isFetching} isError={!!detail.error} onRefresh={refresh} />
+
+    {#if family && shownState?.canArchive}
+      <DetailActions>
+        {#if family && shownState}
+          <section class="detail-panel"><h2>Calendar actions</h2>
+                          {#if shownState.canArchive}
+                <div class="control-row">
+                  <button
+                    class="danger-outline"
+                    disabled={busy || archiveHold !== null}
+                    aria-describedby={archiveHold !== null ? 'archive-hold' : undefined}
+                    onclick={() => (confirming = 'archive')}><Icon name="minus-circle" />Archive calendar</button>
+                </div>
+              {/if}
+            {#if shownState.canArchive && archiveHold !== null}<p class="detail-help archive-hold" id="archive-hold">{archiveHold}</p>{/if}
+          </section>
+        {/if}
+
+      </DetailActions>
+    {/if}
   {/snippet}
 
   {#if loading || error}
@@ -332,7 +355,7 @@
     </div>
   {:else}
     <section class="entity-summary calendar-summary" aria-label="Calendar identity">
-      <div class="entity-meta mono">{scopeLabel} / {calendarName} · {family?.role ?? draftRole}</div>
+      <div class="entity-meta mono">{scopeLabel} · {family?.role ?? draftRole}</div>
       {#if family && shownState}
         {#if family.currentVersion !== null}<VersionStatus status="published" version={family.currentVersion} />{:else}<span class="badge no-current">No current version</span>{/if}
         {#if !shownState.shownIsCurrent}
@@ -343,146 +366,10 @@
       {/if}
     </section>
 
-    <div class="detail-workspace">
-      <div class="detail-main">
-        {#if family}
-          <section class="detail-panel" aria-label="Versions">
-            <ol class="versions">
-              {#each versionsOldestFirst as version (version.version)}
-                <li>
-                  <VersionChip
-                    version={version.version}
-                    status={version.status}
-                    at={version.publishedAtUtc ?? version.createdAtUtc}
-                    shown={version.version === family.shownVersion}
-                    href={routes.calendar(jobNamespace, calendarName, { namespace: $scope, version: version.version })} />
-                </li>
-              {/each}
-            </ol>
-            {#if family.versionsTotal !== null && family.versionsTotal > family.versions.length}
-              <p class="detail-help">Showing the newest {displayFormatter.number(family.versions.length)} of {displayFormatter.number(family.versionsTotal)} versions.</p>
-            {/if}
-          </section>
-        {/if}
+    <DetailLayout>
 
-        <section class="detail-panel" aria-label="Definition">
-          <div class="definition-head">
-            <h2>
-              {#if editing}
-                {creating ? `New ${draftRole} calendar` : `Draft from version ${family?.shownVersion}`}
-              {:else}
-                Version {family?.shownVersion} definition
-              {/if}
-            </h2>
-            <!-- A saved version never changes, so the page shows it as text and edits only a new draft. -->
-            {#if !editing && family && canControlNow && shownState}
-              <button onclick={() => startDraft(shownText, family!.role)}>
-                <Icon name="plus" />{shownState.shownIsDraft ? 'Edit as a new draft' : 'Start a draft from this version'}
-              </button>
-            {/if}
-          </div>
-
-          {#if editing}
-            {#if weekly !== null || editorMode === 'visual'}
-              <div class="editor-modes" role="tablist" aria-label="Editor">
-                <button type="button" role="tab" aria-selected={editorMode === 'visual'} class:active={editorMode === 'visual'} onclick={() => (editorMode = 'visual')}>Week</button>
-                <button type="button" role="tab" aria-selected={editorMode === 'json'} class:active={editorMode === 'json'} onclick={() => (editorMode = 'json')}>JSON</button>
-              </div>
-            {:else}
-              <p class="detail-help">
-                {draftRole === 'availability'
-                  ? 'The week editor holds a weekly-availability; a union, intersection, or subtraction is edited as JSON.'
-                  : 'Occurrence calendars are edited as JSON: explicit-instants, daily-local-time, business-day, at-opening, or a union of them.'}
-              </p>
-            {/if}
-            {#if editorMode === 'visual' && weekly}
-              <WeeklyEditor model={weekly} onChange={(model) => (draftText = weeklyToJson(model))} />
-            {:else}
-              <textarea class="json-editor mono" bind:value={draftText} rows="18" spellcheck="false" aria-label="Definition JSON"></textarea>
-            {/if}
-            {#if localProblems.length > 0 || serverProblems.length > 0}
-              <ul class="problems" role="alert" aria-label="Definition problems">
-                {#each localProblems as problem}<li>{problem}</li>{/each}
-                {#each serverProblems as problem}<li>{problem}</li>{/each}
-              </ul>
-            {/if}
-            <label class="control-reason">
-              Note (optional, recorded with the draft)
-              <textarea bind:value={draftNote} rows="2" maxlength="512"></textarea>
-            </label>
-            <div class="detail-form-actions">
-              <button class="primary" disabled={busy || localProblems.length > 0 || !canControlNow} onclick={saveDraft}>Save as version {expectedLatest + 1}</button>
-              <button disabled={busy} onclick={cancelDraft}>Cancel</button>
-            </div>
-          {:else if family}
-            {#if shownWeekly}
-              <WeeklyEditor model={shownWeekly} readOnly={true} />
-              <button type="button" class="link-button" onclick={() => (showJson = !showJson)}>{showJson ? 'Hide JSON' : 'Show JSON'}</button>
-            {/if}
-            {#if !shownWeekly || showJson}
-              <pre class="definition mono">{prettyJson(shownText)}</pre>
-            {/if}
-            <div class="control-row definition-actions">
-              <CopyButton value={shownText} label="Copy definition" showLabel={true} />
-            </div>
-          {/if}
-          {#if message}
-            <div class="control-message {messageKind}" role="status">{message}</div>
-          {/if}
-        </section>
-
-        {#if family}
-          <section class="detail-panel" aria-label="Forecast">
-            <h2>Forecast</h2>
-            <CalendarPreview
-              preview={preview.data ?? null}
-              loading={preview.isFetching}
-              error={preview.error instanceof Error ? preview.error.message : ''}
-              limit={previewLimit}
-              onLimit={(limit) => (previewLimit = limit)}
-              onRefresh={() => preview.refetch()} />
-          </section>
-
-          <section class="detail-panel" aria-label="Bound schedules">
-            <h2>Bound schedules</h2>
-            {#if family.dependents.length === 0}
-              <StateView emptyText="No schedule binds this calendar through the catalog." />
-            {:else}
-              <p class="detail-help">
-                Each follows the current version; a publication retimes every one here to the new one in one transaction.
-                {#if impact.overdue > 0}{impact.overdue} of them hold an overdue occurrence, which a publication must decide.{/if}
-              </p>
-              <DataTable>
-                <caption class="sr-only">Bound schedules</caption>
-                <thead><tr><th>Schedule</th><th>Binding</th><th>Status</th><th class="mobile-hide">Delivery</th></tr></thead>
-                <tbody>
-                  {#each family.dependents as dependent (`${dependent.jobNamespace}/${dependent.jobName}/${dependent.scheduleName}/${dependent.binding}`)}
-                    {@const key = `${dependent.jobNamespace}/${dependent.jobName}/${dependent.scheduleName}`}
-                    <tr class:overdue={overdueKeys.has(key)}>
-                      <td><a href={routes.schedule(dependent.jobNamespace, dependent.jobName, dependent.scheduleName)}>{key}</a></td>
-                      <td>{dependent.binding}</td>
-                      <td><ScheduleStatus status={dependent.status} />{#if overdueKeys.has(key)}{' '}<span class="badge bad">overdue</span>{/if}</td>
-                      <td class="mobile-hide">{dependent.scheduledDelivery}</td>
-                    </tr>
-                  {/each}
-                </tbody>
-              </DataTable>
-              {#if impact.overdue > overdueListed}
-                <p class="detail-help">Overdue marks cover the first {displayFormatter.number(overdueListed)} of {displayFormatter.number(impact.overdue)} overdue schedules.</p>
-              {/if}
-              {#if family.dependentsTotal !== null && family.dependentsTotal > family.dependents.length}
-                <p class="detail-help">Showing {displayFormatter.number(family.dependents.length)} of {displayFormatter.number(family.dependentsTotal)} schedules.</p>
-              {/if}
-            {/if}
-          </section>
-
-          <ChangeHistory history={history.data ?? []} loading={history.isPending} emptyText="No recorded calendar changes." />
-        {/if}
-      </div>
-
-      <aside class="detail-rail">
-        <section class="detail-panel">
-          <h2>Lifecycle</h2>
+        <section class="detail-panel focus-calendar-state" aria-label="Calendar status">
+          <h2>Current state</h2>
           {#if family && shownState}
             <p>{lifecycleText}</p>
             {#if shownState.shownIsDraft}
@@ -501,35 +388,167 @@
                 </fieldset>
               {/if}
             {/if}
+            {#if editing}
+              <p class="detail-help" id="calendar-editing-note">Editing a new draft for version {expectedLatest + 1}. Save or cancel this draft before publishing a saved version.</p>
+            {/if}
             <div class="control-row">
               {#if shownState.canPublish}
-                <button class="primary" disabled={busy} onclick={() => (confirming = 'publish')}><Icon name="check" />Publish version {family.shownVersion}</button>
+                <button class="primary" disabled={busy || editing} aria-describedby={editing ? 'calendar-editing-note' : undefined} onclick={() => (confirming = 'publish')}><Icon name="check" />Publish version {family.shownVersion}</button>
               {/if}
-              {#if shownState.canArchive}
-                <button
-                  class="danger-outline"
-                  disabled={busy || archiveHold !== null}
-                  aria-describedby={archiveHold !== null ? 'archive-hold' : undefined}
-                  onclick={() => (confirming = 'archive')}><Icon name="minus-circle" />Archive calendar</button>
-              {/if}
+
             </div>
-            {#if shownState.canArchive && archiveHold !== null}
-              <p class="detail-help archive-hold" id="archive-hold">{archiveHold}</p>
-            {/if}
+
           {:else}
             <p>A new family: its first saved version is a draft, published from here once it reads right.</p>
           {/if}
         </section>
 
-        <section class="detail-panel go-to" aria-label="Go to">
-          <p class="detail-kicker">Go to</p>
-          <nav>
-            <a href={routes.schedules({ namespace: $scope })}>Schedules</a>
-            <a href={routes.events({ namespace: jobNamespace })}>Events</a>
-          </nav>
+
+
+      {#snippet related()}
+        <a href={routes.schedules({ namespace: $scope })}>Schedules</a>
+        <a href={routes.events({ namespace: jobNamespace })}>Events</a>
+      {/snippet}
+
+      {#if family}
+        <section class="detail-panel" aria-label="Versions">
+          <ol class="versions">
+            {#each versionsOldestFirst as version (version.version)}
+              <li>
+                <VersionChip
+                  version={version.version}
+                  status={version.status}
+                  at={version.publishedAtUtc ?? version.createdAtUtc}
+                  shown={version.version === family.shownVersion}
+                  href={routes.calendar(jobNamespace, calendarName, { namespace: $scope, version: version.version })} />
+              </li>
+            {/each}
+          </ol>
+          {#if family.versionsTotal !== null && family.versionsTotal > family.versions.length}
+            <p class="detail-help">Showing the newest {displayFormatter.number(family.versions.length)} of {displayFormatter.number(family.versionsTotal)} versions.</p>
+          {/if}
         </section>
-      </aside>
-    </div>
+      {/if}
+
+      <section class="detail-panel" aria-label="Definition">
+        <div class="definition-head">
+          <h2>
+            {#if editing}
+              {creating ? `New ${draftRole} calendar` : `Draft from version ${family?.shownVersion}`}
+            {:else}
+              Version {family?.shownVersion} definition
+            {/if}
+          </h2>
+          <!-- A saved version never changes, so the page shows it as text and edits only a new draft. -->
+          {#if !editing && family && canControlNow && shownState}
+            <button onclick={() => startDraft(shownText, family!.role)}>
+              <Icon name="plus" />{shownState.shownIsDraft ? 'Edit as a new draft' : 'Start a draft from this version'}
+            </button>
+          {/if}
+        </div>
+
+        {#if editing}
+          {#if weekly !== null || editorMode === 'visual'}
+            <div class="editor-modes" role="tablist" aria-label="Editor">
+              <button type="button" role="tab" aria-selected={editorMode === 'visual'} class:active={editorMode === 'visual'} onclick={() => (editorMode = 'visual')}>Week</button>
+              <button type="button" role="tab" aria-selected={editorMode === 'json'} class:active={editorMode === 'json'} onclick={() => (editorMode = 'json')}>JSON</button>
+            </div>
+          {:else}
+            <p class="detail-help">
+              {draftRole === 'availability'
+                ? 'The week editor holds a weekly-availability; a union, intersection, or subtraction is edited as JSON.'
+                : 'Occurrence calendars are edited as JSON: explicit-instants, daily-local-time, business-day, at-opening, or a union of them.'}
+            </p>
+          {/if}
+          {#if editorMode === 'visual' && weekly}
+            <WeeklyEditor model={weekly} onChange={(model) => (draftText = weeklyToJson(model))} />
+          {:else}
+            <textarea class="json-editor mono" bind:value={draftText} rows="18" spellcheck="false" aria-label="Definition JSON"></textarea>
+          {/if}
+          {#if localProblems.length > 0 || serverProblems.length > 0}
+            <ul class="problems" role="alert" aria-label="Definition problems">
+              {#each localProblems as problem}<li>{problem}</li>{/each}
+              {#each serverProblems as problem}<li>{problem}</li>{/each}
+            </ul>
+          {/if}
+          <label class="control-reason">
+            Note (optional, recorded with the draft)
+            <textarea bind:value={draftNote} rows="2" maxlength="512"></textarea>
+          </label>
+          <div class="detail-form-actions">
+            <button class="primary" disabled={busy || localProblems.length > 0 || !canControlNow} onclick={saveDraft}>Save as version {expectedLatest + 1}</button>
+            <button disabled={busy} onclick={cancelDraft}>Cancel</button>
+          </div>
+        {:else if family}
+          {#if shownWeekly}
+            <WeeklyEditor model={shownWeekly} readOnly={true} />
+            <button type="button" class="link-button" onclick={() => (showJson = !showJson)}>{showJson ? 'Hide JSON' : 'Show JSON'}</button>
+          {/if}
+          {#if !shownWeekly || showJson}
+            <pre class="definition mono">{prettyJson(shownText)}</pre>
+          {/if}
+          <div class="control-row definition-actions">
+            <CopyButton value={shownText} label="Copy definition" showLabel={true} />
+          </div>
+        {/if}
+        {#if message}
+          <div class="control-message {messageKind}" role="status">{message}</div>
+        {/if}
+      </section>
+
+      {#if family}
+        <section class="detail-panel" aria-label="Forecast">
+          <h2>Forecast</h2>
+          {#if editing}<p class="detail-help">This forecast shows saved version {family.shownVersion}. Save the new draft to forecast its changes.</p>{/if}
+          <CalendarPreview
+            preview={preview.data ?? null}
+            loading={preview.isFetching}
+            error={preview.error instanceof Error ? preview.error.message : ''}
+            limit={previewLimit}
+            onLimit={(limit) => (previewLimit = limit)}
+            onRefresh={() => preview.refetch()} />
+        </section>
+
+        {#if family.dependents.length > 0 || (family.dependentsTotal ?? 0) > 0}
+        <FocusDisclosure hideHeading={true} title="Bound schedules" hint={String(family.dependentsTotal ?? family.dependents.length) + ' bindings'}>
+        <section class="detail-panel" aria-label="Bound schedules">
+          <h2>Bound schedules</h2>
+          {#if family.dependents.length === 0}
+            <StateView emptyText="No schedule binds this calendar through the catalog." />
+          {:else}
+            <p class="detail-help">
+              Each follows the current version; a publication retimes every one here to the new one in one transaction.
+              {#if impact.overdue > 0}{impact.overdue} of them hold an overdue occurrence, which a publication must decide.{/if}
+            </p>
+            <DataTable>
+              <caption class="sr-only">Bound schedules</caption>
+              <thead><tr><th>Schedule</th><th>Binding</th><th>Status</th><th class="mobile-hide">Delivery</th></tr></thead>
+              <tbody>
+                {#each family.dependents as dependent (`${dependent.jobNamespace}/${dependent.jobName}/${dependent.scheduleName}/${dependent.binding}`)}
+                  {@const key = `${dependent.jobNamespace}/${dependent.jobName}/${dependent.scheduleName}`}
+                  <tr class:overdue={overdueKeys.has(key)}>
+                    <td><a href={routes.schedule(dependent.jobNamespace, dependent.jobName, dependent.scheduleName)}>{key}</a></td>
+                    <td>{dependent.binding}</td>
+                    <td><ScheduleStatus status={dependent.status} />{#if overdueKeys.has(key)}{' '}<span class="badge bad">overdue</span>{/if}</td>
+                    <td class="mobile-hide">{dependent.scheduledDelivery}</td>
+                  </tr>
+                {/each}
+              </tbody>
+            </DataTable>
+            {#if impact.overdue > overdueListed}
+              <p class="detail-help">Overdue marks cover the first {displayFormatter.number(overdueListed)} of {displayFormatter.number(impact.overdue)} overdue schedules.</p>
+            {/if}
+            {#if family.dependentsTotal !== null && family.dependentsTotal > family.dependents.length}
+              <p class="detail-help">Showing {displayFormatter.number(family.dependents.length)} of {displayFormatter.number(family.dependentsTotal)} schedules.</p>
+            {/if}
+          {/if}
+        </section>
+        </FocusDisclosure>
+        {/if}
+
+        <ChangeHistory history={history.data ?? []} loading={history.isPending} emptyText="No recorded calendar changes." />
+      {/if}
+    </DetailLayout>
   {/if}
 </Page>
 

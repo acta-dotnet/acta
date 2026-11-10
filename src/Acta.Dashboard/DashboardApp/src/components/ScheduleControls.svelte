@@ -22,7 +22,7 @@
     jobName: string;
     scheduleName: string;
     status: string;
-    mode?: 'all' | 'editor' | 'actions';
+    mode?: 'all' | 'editor' | 'actions' | 'primary' | 'secondary';
     onChanged?: () => void;
   } = $props();
 
@@ -37,7 +37,7 @@
 
   // The server stays authoritative on legality; this only hides obviously inapplicable buttons.
   let { paused, canTrigger } = $derived(scheduleControlState(status));
-  let showEditor = $derived(mode !== 'actions');
+  let showEditor = $derived(mode === 'all' || mode === 'editor');
   let showActions = $derived(mode !== 'editor');
 
   // pause/resume/trigger all live at schedules/{ns}/{job}/{schedule}/{action}, share the note-only body
@@ -120,14 +120,14 @@
 
 <div class="control-row">
   {#if showActions && canControlNow}
-    {#if paused}
-      <button disabled={busy} onclick={() => (confirming = 'resume')}><Icon name="play" />Resume</button>
-    {:else}
+    {#if paused && mode !== 'secondary'}
+      <button class:primary={mode === 'primary'} disabled={busy} onclick={() => (confirming = 'resume')}><Icon name="play" />Resume</button>
+    {:else if !paused && mode !== 'primary'}
       <button disabled={busy} onclick={() => (confirming = 'pause')}><Icon name="pause" />Pause</button>
       <button disabled={busy} onclick={() => (pausingUntil = !pausingUntil)}><Icon name="clock" />Pause until...</button>
     {/if}
-    {#if canTrigger}
-      <button disabled={busy} onclick={() => (confirming = 'trigger')}><Icon name="play" />Trigger now</button>
+    {#if canTrigger && (mode !== 'primary' || !paused) && (mode !== 'secondary' || paused)}
+      <button class:primary={mode === 'primary'} disabled={busy} onclick={() => (confirming = 'trigger')}><Icon name="play" />Trigger now</button>
     {/if}
   {/if}
   {#if showEditor}

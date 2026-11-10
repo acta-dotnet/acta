@@ -3,6 +3,9 @@
   import { api, retireDefinition, updateDefinitionOverrides } from '../api';
   import { capabilitiesQuery, can, ENABLE_CONTROLS_HINT, keys, Permission } from '../query';
   import Page from '../components/Page.svelte';
+  import DetailActions from '../components/DetailActions.svelte';
+  import DetailLayout from '../components/DetailLayout.svelte';
+  import FocusDisclosure from '../components/FocusDisclosure.svelte';
   import Icon from '../components/Icon.svelte';
   import DataTable from '../components/DataTable.svelte';
   import StateView from '../components/StateView.svelte';
@@ -14,6 +17,7 @@
   import PageFreshness from '../components/PageFreshness.svelte';
   import TagEditor from '../components/TagEditor.svelte';
   import { routes } from '../routes';
+  import { scope } from '../scope.ts';
   import { displayFormatter } from '../format';
 
   let { jobNamespace, jobName } = $props();
@@ -177,7 +181,7 @@
 
 <Page title={def ? def.jobName : 'Definition'}>
   {#snippet breadcrumb()}
-    <a href={routes.definitions()}><Icon name="chevron-left" />Definitions</a>
+    <a href={routes.definitions({ namespace: $scope })}><Icon name="chevron-left" />Definitions</a>
   {/snippet}
   {#snippet actions()}
     <PageFreshness
@@ -185,6 +189,24 @@
       isFetching={detail.isFetching}
       isError={!!detail.error}
       onRefresh={() => detail.refetch()} />
+
+    {#if def && canAdminNow && def.status !== 'retired'}
+      <DetailActions>
+        <section class="detail-panel">
+          <h2>Actions</h2>
+          <p class="detail-help">Registration state and contract identity are owned by the deployed job manifest. Edit operator policy overrides in the form.</p>
+          {#if canAdminNow}
+            <div class="detail-danger-actions">
+              <button
+                class="danger-outline"
+                onclick={() => (confirmingRetire = true)}
+                disabled={saving || retiring || def.status === 'retired'}>Retire definition</button>
+            </div>
+          {/if}
+        </section>
+
+      </DetailActions>
+    {/if}
   {/snippet}
 
   {#if loading || error || !def}
@@ -193,78 +215,18 @@
     </div>
   {:else}
     <section class="entity-summary" aria-label="Definition identity">
-      <div class="entity-meta mono">{def.jobNamespace} / {def.jobName} · version {def.version}</div>
+      <div class="entity-meta mono">{def.jobNamespace}</div>
       <StatusBadge status={def.status} />
     </section>
 
-    <div class="detail-workspace">
-      <div class="detail-main">
-        <section class="detail-panel">
-          <h2>Policy overrides</h2>
-          <p class="detail-help">
-            Each policy field shows the code default, operator override, and effective value. Blank overrides inherit the default;
-            identity, contract, and formats remain code-owned.
-          </p>
+    <DetailLayout>
 
-          <DataTable>
-            <caption class="sr-only">Definition policy defaults, overrides, and effective values</caption>
-            <thead>
-              <tr><th>Policy field</th><th>Default</th><th>Override</th><th>Effective</th></tr>
-            </thead>
-            <tbody>
-              {#each FIELDS as f}
-                <tr>
-                  <td>{f.label}</td>
-                  <td class="mono dim">{displayPolicyValue(f, def[f.key])}</td>
-                  <td><input class="ovr-in" bind:value={inputs[f.key]} placeholder="inherit" disabled={!canAdminNow} /></td>
-                  <td class="mono">{displayPolicyValue(f, def[f.key + 'Effective'])}</td>
-                </tr>
-              {/each}
-            </tbody>
-          </DataTable>
 
-          {#if canAdminNow}
-            <label class="detail-field">
-              <span>Audit note</span>
-              <input bind:value={note} placeholder="Why are you changing this?" disabled={saving} />
-            </label>
-            <div class="detail-form-actions">
-              <button class="primary" onclick={save} disabled={saving || retiring}>{saving ? 'Saving...' : 'Save overrides'}</button>
-              <button onclick={clearAll} disabled={saving || retiring}>Clear all</button>
-              <button
-                class="danger-outline"
-                onclick={() => (confirmingRetire = true)}
-                disabled={saving || retiring || def.status === 'retired'}>Retire definition</button>
-            </div>
-          {:else if capabilities.isSuccess}
-            <p class="dim">
-              {capabilities.data?.controlsEnabled
-                ? 'Changing overrides or retiring a definition needs the acta.admin permission.'
-                : 'Definition controls are disabled on this host. ' + ENABLE_CONTROLS_HINT}
-            </p>
-          {/if}
-          {#if message}<div class="control-message {messageKind}" role="status">{message}</div>{/if}
-        </section>
+      {#snippet related()}
+        <a href={jobsHref(def)}>Jobs</a>
+      {/snippet}
 
-        <ChangeHistory {history} emptyText="No recorded policy changes." />
-      </div>
-
-      <aside class="detail-rail">
-        <section class="detail-panel">
-          <h2>Definition state</h2>
-          <p>{def.status}</p>
-          <p class="detail-help">Registration state and contract identity are owned by the deployed job manifest. Operator policy overrides remain editable on the left.</p>
-        </section>
-
-        <section class="detail-panel go-to" aria-label="Go to">
-          <p class="detail-kicker">Go to</p>
-          <nav>
-            <a href={jobsHref(def)}>Jobs</a>
-          </nav>
-        </section>
-
-        <TagEditor path={definitionPath + '/tags'} permission={Permission.admin} />
-
+      {#snippet supporting()}
         <section class="detail-panel">
           <h2>Contract</h2>
           <dl class="detail-readonly">
@@ -277,8 +239,67 @@
             <div><dt>Failed firing</dt><dd>{def.firingFailurePolicy}</dd></div>
           </dl>
         </section>
-      </aside>
-    </div>
+
+        <TagEditor path={definitionPath + '/tags'} permission={Permission.admin} />
+      {/snippet}
+
+      <section class="detail-panel" aria-label="Effective policy">
+        <h2>Effective policy</h2>
+        {#if def.descriptionEffective}<p class="focus-context">{def.descriptionEffective}</p>{/if}
+        <dl class="detail-readonly detail-readonly-grid">
+          {#each FIELDS.filter((field) => ['priority', 'maxAttempts', 'backoff', 'executionTimeoutSeconds'].includes(field.key)) as field}
+            <div><dt>{field.label}</dt><dd>{displayPolicyValue(field, def[field.key + 'Effective'])}</dd></div>
+          {/each}
+        </dl>
+      </section>
+
+      <FocusDisclosure hideHeading={true} title="Policy overrides" hint="Defaults, overrides and effective values">
+      <section class="detail-panel">
+        <h2>Policy overrides</h2>
+        <p class="detail-help">
+          Each policy field shows the code default, operator override, and effective value. Blank overrides inherit the default;
+          identity, contract, and formats remain code-owned.
+        </p>
+
+        <DataTable>
+          <caption class="sr-only">Definition policy defaults, overrides, and effective values</caption>
+          <thead>
+            <tr><th>Policy field</th><th>Default</th><th>Override</th><th>Effective</th></tr>
+          </thead>
+          <tbody>
+            {#each FIELDS as f}
+              <tr>
+                <td>{f.label}</td>
+                <td class="mono dim">{displayPolicyValue(f, def[f.key])}</td>
+                <td><input class="ovr-in" bind:value={inputs[f.key]} placeholder="inherit" disabled={!canAdminNow} /></td>
+                <td class="mono">{displayPolicyValue(f, def[f.key + 'Effective'])}</td>
+              </tr>
+            {/each}
+          </tbody>
+        </DataTable>
+
+        {#if canAdminNow}
+          <label class="detail-field">
+            <span>Audit note</span>
+            <input bind:value={note} placeholder="Why are you changing this?" disabled={saving} />
+          </label>
+          <div class="detail-form-actions">
+            <button class="primary" onclick={save} disabled={saving || retiring}>{saving ? 'Saving...' : 'Save overrides'}</button>
+            <button onclick={clearAll} disabled={saving || retiring}>Clear all</button>
+          </div>
+        {:else if capabilities.isSuccess}
+          <p class="dim">
+            {capabilities.data?.controlsEnabled
+              ? 'Changing overrides or retiring a definition needs the acta.admin permission.'
+              : 'Definition controls are disabled on this host. ' + ENABLE_CONTROLS_HINT}
+          </p>
+        {/if}
+        {#if message}<div class="control-message {messageKind}" role="status">{message}</div>{/if}
+      </section>
+      </FocusDisclosure>
+
+      <ChangeHistory {history} emptyText="No recorded policy changes." />
+    </DetailLayout>
   {/if}
 </Page>
 

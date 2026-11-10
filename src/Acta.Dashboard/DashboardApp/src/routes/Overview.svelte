@@ -205,53 +205,61 @@
         href={routes.schedules({ namespace: $scope })} />
     </div>
 
-    <div class="panel">
-      <h2>Recent failed jobs</h2>
-      {#if failedJobs.items.length === 0}
-        <StateView emptyText="No failed jobs." />
-      {:else}
-        <DataTable ledger>
-          <caption class="sr-only">Recent failed jobs</caption>
-          <thead><tr><th>Job</th><th>Name</th><th>Namespace</th><th>Failed</th></tr></thead>
-          <tbody>
-            {#each failedJobs.items as job}
-              <tr class="trouble">
-                <td><JobRef value={job.jobRef} href={routes.job(job.jobRef, { namespace: job.jobNamespace })} /></td>
-                <td>{job.jobName}</td>
-                <td class="dim">{job.jobNamespace}</td>
-                <td><RelativeTime value={job.modifiedAtUtc} /></td>
-              </tr>
-            {/each}
-          </tbody>
-        </DataTable>
-      {/if}
-    </div>
+    <div class="overview-attention">
+      <div class="panel overview-status" class:empty={failedJobs.items.length === 0}>
+        {#if failedJobs.items.length === 0}
+          <span class="overview-status-icon" aria-hidden="true"><Icon name="check-circle" /></span>
+        {/if}
+        <h2>Recent failed jobs</h2>
+        {#if failedJobs.items.length === 0}
+          <StateView emptyText="No failed jobs." />
+        {:else}
+          <DataTable ledger>
+            <caption class="sr-only">Recent failed jobs</caption>
+            <thead><tr><th>Job</th><th>Name</th><th>Namespace</th><th>Failed</th></tr></thead>
+            <tbody>
+              {#each failedJobs.items as job}
+                <tr class="trouble">
+                  <td><JobRef value={job.jobRef} href={routes.job(job.jobRef, { namespace: job.jobNamespace })} /></td>
+                  <td>{job.jobName}</td>
+                  <td class="dim">{job.jobNamespace}</td>
+                  <td><RelativeTime value={job.modifiedAtUtc} /></td>
+                </tr>
+              {/each}
+            </tbody>
+          </DataTable>
+        {/if}
+      </div>
 
-    <div class="panel">
-      <h2>Unresolved critical alerts</h2>
-      {#if criticalAlerts.items.length === 0}
-        <StateView emptyText="No unresolved critical alerts." />
-      {:else}
-        <DataTable ledger>
-          <caption class="sr-only">Unresolved critical alerts</caption>
-          <thead><tr><th>Alert</th><th>Severity</th><th>Namespace</th><th>Created</th></tr></thead>
-          <tbody>
-            {#each criticalAlerts.items as alert}
-              <tr class="trouble">
-                <!-- The job ref rides with the title rather than taking its own column, so this
-                     panel keeps the same four columns as the others without losing the link. -->
-                <td>
-                  <a href={routes.alert(alert.alertRef, { namespace: alert.jobNamespace ?? $scope })}>{alert.title}</a>
-                  {#if alert.jobRef}<JobRef value={alert.jobRef} href={routes.job(alert.jobRef, { namespace: alert.jobNamespace ?? $scope })} />{/if}
-                </td>
-                <td><SeverityBadge severity={alert.severity} /></td>
-                <td class="dim">{alert.jobNamespace ?? $scope}</td>
-                <td><RelativeTime value={alert.createdAtUtc} /></td>
-              </tr>
-            {/each}
-          </tbody>
-        </DataTable>
-      {/if}
+      <div class="panel overview-status" class:empty={criticalAlerts.items.length === 0}>
+        {#if criticalAlerts.items.length === 0}
+          <span class="overview-status-icon" aria-hidden="true"><Icon name="check-circle" /></span>
+        {/if}
+        <h2>Unresolved critical alerts</h2>
+        {#if criticalAlerts.items.length === 0}
+          <StateView emptyText="No unresolved critical alerts." />
+        {:else}
+          <DataTable ledger>
+            <caption class="sr-only">Unresolved critical alerts</caption>
+            <thead><tr><th>Alert</th><th>Severity</th><th>Namespace</th><th>Created</th></tr></thead>
+            <tbody>
+              {#each criticalAlerts.items as alert}
+                <tr class="trouble">
+                  <!-- The job ref rides with the title rather than taking its own column, so this
+                       panel keeps the same four columns as the others without losing the link. -->
+                  <td>
+                    <a href={routes.alert(alert.alertRef, { namespace: alert.jobNamespace ?? $scope })}>{alert.title}</a>
+                    {#if alert.jobRef}<JobRef value={alert.jobRef} href={routes.job(alert.jobRef, { namespace: alert.jobNamespace ?? $scope })} />{/if}
+                  </td>
+                  <td><SeverityBadge severity={alert.severity} /></td>
+                  <td class="dim">{alert.jobNamespace ?? $scope}</td>
+                  <td><RelativeTime value={alert.createdAtUtc} /></td>
+                </tr>
+              {/each}
+            </tbody>
+          </DataTable>
+        {/if}
+      </div>
     </div>
 
     <!-- Only deployments that declared a relay have sources; everyone else never sees the panel. -->

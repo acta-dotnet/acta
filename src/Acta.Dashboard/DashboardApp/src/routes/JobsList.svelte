@@ -158,7 +158,7 @@
 <Page title={pageTitle}>
   {#snippet actions()}
     {#if canControlNow}
-      <a class="enqueue-action" href={routes.enqueue({ namespace: $scope })}><Icon name="plus" />Enqueue job</a>
+      <a class="primary-action" href={routes.enqueue({ namespace: $scope })}><Icon name="plus" />Enqueue job</a>
     {/if}
   {/snippet}
   <div class="panel fill">
@@ -266,16 +266,3 @@
     {/if}
   </div>
 </Page>
-
-<style>
-  .enqueue-action {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 5px 12px;
-    border: 1px solid var(--line);
-    border-radius: var(--radius-control);
-    color: var(--ink);
-  }
-  .enqueue-action:hover { border-color: var(--accent); color: var(--accent); }
-</style>

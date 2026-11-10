@@ -112,26 +112,28 @@
     aria-describedby={body ? bodyId : undefined}
     bind:this={boxEl}>
     <h3 id={titleId}>{title}</h3>
-    {#if body}
-      <p id={bodyId}>{body}</p>
-    {/if}
-    {#if warning}
-      <p class="confirm-warning" role="note">{warning}</p>
-    {/if}
+    <div class="confirm-content">
+      {#if body}
+        <p id={bodyId}>{body}</p>
+      {/if}
+      {#if warning}
+        <p class="confirm-warning" role="note">{warning}</p>
+      {/if}
 
-    {#if showReason}
-      <label class="control-reason">
-        {requireReason ? 'Reason (required, recorded in job events)' : 'Reason (optional, recorded in job events)'}
-        <textarea bind:this={reasonEl} rows="2" maxlength="512" bind:value={reason} disabled={submitting}></textarea>
-      </label>
-    {/if}
+      {#if showReason}
+        <label class="control-reason">
+          {requireReason ? 'Reason (required, recorded in job events)' : 'Reason (optional, recorded in job events)'}
+          <textarea bind:this={reasonEl} rows="2" maxlength="512" bind:value={reason} disabled={submitting}></textarea>
+        </label>
+      {/if}
 
-    {#if confirmPhrase}
-      <label class="control-reason">
-        Type <span class="mono">{confirmPhrase}</span> to confirm
-        <input class="confirm-phrase" bind:value={typed} disabled={submitting} autocomplete="off" spellcheck="false" />
-      </label>
-    {/if}
+      {#if confirmPhrase}
+        <label class="control-reason">
+          Type <span class="mono">{confirmPhrase}</span> to confirm
+          <input class="confirm-phrase" bind:value={typed} disabled={submitting} autocomplete="off" spellcheck="false" />
+        </label>
+      {/if}
+    </div>
 
     <div class="confirm-actions">
       <button bind:this={cancelEl} disabled={submitting} onclick={() => onCancel()}>Keep as is</button>

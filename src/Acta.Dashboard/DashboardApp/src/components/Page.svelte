@@ -16,14 +16,14 @@
   <div class="page-head crumb-bar">
     <nav class="page-breadcrumb" aria-label="Breadcrumb">{@render breadcrumb()}</nav>
     <div class="spacer"></div>
-    {@render actions?.()}
+    {#if actions}<div class="page-actions">{@render actions()}</div>{/if}
   </div>
 {:else}
   {#if breadcrumb}<nav class="page-breadcrumb" aria-label="Breadcrumb">{@render breadcrumb()}</nav>{/if}
   <div class="page-head">
     <h1>{title}</h1>
     <div class="spacer"></div>
-    {@render actions?.()}
+    {#if actions}<div class="page-actions">{@render actions()}</div>{/if}
   </div>
 {/if}
 {@render children?.()}
