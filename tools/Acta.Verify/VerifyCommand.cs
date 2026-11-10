@@ -192,7 +192,7 @@ public static class VerifyCommand
             {
                 File.WriteAllText(
                     Path.Combine(site, "benchmark.html"),
-                    Report.SitePage(markdown, File.ReadAllText(Path.Combine(site, "index.html")))
+                    Report.SitePage(markdown, File.ReadAllText(Path.Combine(site, "start.html")))
                 );
             }
             Console.WriteLine($"Published {record}{(site is not null ? $" and {Path.Combine(site, "benchmark.html")}" : "")}.");
