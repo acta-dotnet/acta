@@ -16,3 +16,8 @@ export function scheduleControlState(status: string): ScheduleControlState {
     canTrigger: status !== 'orphaned'
   };
 }
+
+// A live schedule sits briefly past due between its due instant and the slot firing, so overdue is only
+// worth reporting once it is longer than any normal fire delay. Same envelope as the oldest ready job
+// rather than a second invented number.
+export const SCHEDULE_LAG_ENVELOPE_SECONDS = 300;

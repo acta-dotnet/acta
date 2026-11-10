@@ -132,10 +132,10 @@
     text-overflow: ellipsis;
     vertical-align: bottom;
   }
-  /* Row drill-through to the definition's jobs: quiet chevron that takes the accent on hover. */
-  .jobs-drill { color: var(--muted); margin-left: 4px; }
+  /* Row drill-through to the definition's jobs: a quiet chevron in a 24px box, the WCAG 2.2 target floor, that takes the accent on hover. */
+  .jobs-drill { display: inline-flex; align-items: center; justify-content: center; min-width: 24px; min-height: 24px; color: var(--muted); }
   .jobs-drill:hover { color: var(--accent); }
-  .jobs-drill :global(.ic) { top: 2px; }
+  .jobs-drill :global(.ic) { top: 0; }
 
   .ovr {
     color: var(--accent);

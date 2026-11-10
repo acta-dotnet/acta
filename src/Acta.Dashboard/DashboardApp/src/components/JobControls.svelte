@@ -1,3 +1,10 @@
+<script module lang="ts">
+  import { SvelteSet } from 'svelte/reactivity';
+  // A job page renders its controls twice, the primary action beside the state and the rest in the Actions
+  // menu; a request in flight from either instance holds every button of that job.
+  const inflight = new SvelteSet<string>();
+</script>
+
 <script lang="ts">
   import { createQuery } from '@tanstack/svelte-query';
   import { useControlMutation } from '../lib/useControlMutation.ts';
@@ -177,7 +184,7 @@
     notFound: () => ({ action: 'not-found', status: null }),
     invalidateKeys: () => [['jobs']] as const
   });
-  let busy = $derived(mutation.isPending);
+  let busy = $derived(mutation.isPending || inflight.has(jobRef));
 
   async function run(action: string, reason: string, extra?: Record<string, unknown>) {
     confirming = null;
@@ -185,6 +192,7 @@
     reschedulingOpen = false;
     reprioritizingOpen = false;
     message = '';
+    inflight.add(jobRef);
     try {
       const result = await mutation.mutateAsync({ jobRef, action, reason, extra });
       message = jobControlMessage(action, result.action);
@@ -193,6 +201,8 @@
     } catch (e) {
       message = (e as Error).message;
       messageKind = 'bad';
+    } finally {
+      inflight.delete(jobRef);
     }
   }
 

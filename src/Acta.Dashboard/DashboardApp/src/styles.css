@@ -94,8 +94,8 @@
 :root[data-theme='paper'] {
   color-scheme: light;
 
-  --accent: #3f6147;
-  --accent-solid: #3f6147;
+  --accent: #315d43;
+  --accent-solid: #315d43;
   --on-accent: #ffffff;
 
   --bg: #faf7f1;
@@ -471,22 +471,6 @@ main { flex: 1; padding: 28px 32px; min-width: 0; overflow-y: auto; container-ty
 .page-breadcrumb { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; font-size: var(--text-sm); color: var(--muted); }
 .page-breadcrumb a { display: inline-flex; align-items: center; gap: 2px; color: var(--muted); }
 .page-breadcrumb a:hover { color: var(--accent); text-decoration: none; }
-
-/* Detail crumb bar: circled back chevron, trail, and the entity name as the title - one row. */
-.crumb-bar { margin-bottom: 16px; }
-.crumb-bar .page-breadcrumb { margin-bottom: 0; gap: 10px; font-size: var(--text-md); min-width: 0; }
-.page-breadcrumb a.crumb-back {
-  display: grid; place-items: center; flex: none; gap: 0;
-  width: 30px; height: 30px; border: 1px solid var(--line); border-radius: 50%;
-}
-.crumb-back .ic { width: 16px; height: 16px; top: 0; }
-.page-breadcrumb a.crumb-back:hover { color: var(--accent); border-color: var(--accent); }
-.crumb-sep { color: color-mix(in srgb, var(--muted) 55%, transparent); }
-h1.crumb-current {
-  margin: 0; font-size: var(--text-md); font-weight: 600; color: var(--accent);
-  font-family: var(--font-display); overflow-wrap: anywhere; min-width: 0;
-}
-h1.crumb-current.mono { font-family: var(--font-mono); font-weight: 500; }
 
 .panel {
   background: var(--panel);
@@ -901,6 +885,8 @@ main.fill-page { display: flex; flex-direction: column; }
   padding: 6px 8px;
   border: 1px solid var(--line);
   border-radius: var(--radius-control);
+  /* Left to the browser, a dark theme's reason box paints flat grey beside the app's own fields. */
+  background: var(--panel);
   font: inherit;
   color: var(--ink);
   resize: vertical;
@@ -1024,6 +1010,8 @@ main.fill-page { display: flex; flex-direction: column; }
 .verdict.warn .verdict-label { color: var(--warn); }
 .verdict.bad { border-color: color-mix(in srgb, var(--bad) 50%, var(--line)); background: var(--badge-bad-bg); }
 .verdict.bad .verdict-label { color: var(--bad); }
+/* A problem's links keep the text colour: the accent reads as healthy on a warning or failure banner. */
+.verdict:not(.ok) .verdict-reason a { color: var(--ink); text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--ink) 35%, transparent); text-underline-offset: 3px; }
 
 .metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 24px; }
 .metric {
@@ -1224,8 +1212,6 @@ button.copy:hover { color: var(--accent); }
   .side-collapse { display: none; }
   .rail li { grid-template-columns: 26px minmax(0, 1fr); }
   .rail .rail-when { grid-column: 2; padding-top: 2px; }
-  /* Mobile main pads 52px for the floating nav toggle: pin the tab bar flush to the top edge,
-     full-bleed; the toggle-clearing left padding applies only while actually pinned. */
   /* With no top bar the toggle floats over the content; the drawer and its scrim now run the
      full height rather than starting below a 55px strip. */
   .mobile-nav-toggle {
@@ -1321,7 +1307,8 @@ button.copy:hover { color: var(--accent); }
 }
 
 /* Exact values stay available on hover, keyboard focus and click. */
-button.value-detail { display: inline; min-height: 0; padding: 0; border: 0; border-radius: 3px; background: none; color: inherit; font: inherit; text-align: inherit; cursor: pointer; }
+/* Inline padding grows the target to the 24px floor without moving the line it sits on. */
+button.value-detail { display: inline; min-height: 0; padding: 4px 0; border: 0; border-radius: 3px; background: none; color: inherit; font: inherit; text-align: inherit; cursor: pointer; }
 button.value-detail:hover:not(:disabled) { color: var(--accent); background: none; border-color: transparent; }
 .technical-popover { margin: auto; width: max-content; max-width: min(560px, calc(100vw - 40px)); padding: 20px; border: 1px solid var(--line); border-radius: var(--radius-panel); background: var(--panel); color: var(--ink); overflow-wrap: anywhere; white-space: normal; line-height: 1.7; box-shadow: 0 8px 24px var(--shadow); font-size: var(--text-sm); }
 .technical-popover::backdrop { background: color-mix(in srgb, var(--overlay) 30%, transparent); }

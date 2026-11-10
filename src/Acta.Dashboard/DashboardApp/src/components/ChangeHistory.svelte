@@ -18,7 +18,7 @@
   let showWho = $derived(actors.some((actor) => actor !== null));
 </script>
 
-<FocusDisclosure title="Change history" hint={loading ? 'Loading' : history.length ? `${history.length} recorded changes` : 'No recorded changes'}>
+<FocusDisclosure title="Change history" hint={loading ? 'Loading' : history.length === 1 ? 'Latest change' : history.length ? `Latest ${history.length} changes` : 'No recorded changes'}>
   {#if loading || history.length === 0}
     <StateView {loading} loadingText="Loading history..." {emptyText} />
   {:else}

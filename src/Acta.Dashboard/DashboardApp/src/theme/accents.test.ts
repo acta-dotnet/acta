@@ -151,9 +151,11 @@ test('Acta uses dark scales, Light uses light scales, Paper uses its own warm fa
   assert.equal(buildAccentTokens('blue', 'paper')['--accent'], '#3c5a6b');
   assert.equal(buildAccentTokens('pink', 'paper')['--accent'], '#8c4a52');
   assert.equal(buildAccentTokens('blue', 'paper')['--nav-active-bg'], 'rgba(60, 90, 107, 0.13)');
-  // Four ids land on paper's own status colours, which is what makes the family cohere.
-  assert.equal(buildAccentTokens('teal', 'paper')['--accent'], '#3f6147');
-  assert.equal(buildAccentTokens('amber', 'paper')['--accent'], '#7d5310');
-  assert.equal(buildAccentTokens('crimson', 'paper')['--accent'], '#a03a2f');
-  assert.equal(buildAccentTokens('violet', 'paper')['--accent'], '#655279');
+  // Four ids land on paper's own status colours, which is what makes the family cohere; read from the theme so
+  // a status colour change cannot leave its accent behind.
+  const paperStatus = THEME_METADATA.paper.status;
+  assert.equal(buildAccentTokens('teal', 'paper')['--accent'], paperStatus.ok.foreground);
+  assert.equal(buildAccentTokens('amber', 'paper')['--accent'], paperStatus.warn.foreground);
+  assert.equal(buildAccentTokens('crimson', 'paper')['--accent'], paperStatus.bad.foreground);
+  assert.equal(buildAccentTokens('violet', 'paper')['--accent'], paperStatus.held.foreground);
 });

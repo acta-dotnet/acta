@@ -17,6 +17,7 @@
   import { routes } from '../routes';
   import JobRef from '../components/JobRef.svelte';
   import OutboxPanel from '../components/OutboxPanel.svelte';
+  import { SCHEDULE_LAG_ENVELOPE_SECONDS } from '../components/scheduleControlState';
 
   // One composite snapshot query: the six reads land together so the verdict, metric cards, and
   // panels always describe the same instant. Scope changes swap the key, so caching is per-scope.
@@ -58,11 +59,6 @@
   // next tick, which is what "lagging outbox" means here. Below it, backlog is between-tick drift.
   const OUTBOX_TICK_ENVELOPE = 5120;
 
-  // A live schedule sits briefly past due between its due instant and the slot firing, so overdue is
-  // only worth reporting once it is longer than any normal fire delay. Same envelope as the oldest
-  // ready job rather than a second invented number.
-  const SCHEDULE_LAG_ENVELOPE = 300;
-
   function buildVerdict(o, outboxLines, ns) {
     if (!o) {
       return null;
@@ -101,7 +97,7 @@
     }
     // A schedule that stops firing moves nothing else on this snapshot: no job is enqueued, so ready,
     // failed and the workers all stay quiet while the verdict would otherwise read clean.
-    if (o.scheduleLagSeconds > SCHEDULE_LAG_ENVELOPE) {
+    if (o.scheduleLagSeconds > SCHEDULE_LAG_ENVELOPE_SECONDS) {
       soft.push({ text: 'schedule overdue by ' + displayFormatter.duration(o.scheduleLagSeconds), href: routes.schedules({ namespace: ns }) });
     }
     if (o.failedCount > 0) soft.push({ text: plural(o.failedCount, 'failed job'), href: routes.jobs({ namespace: ns, status: 'failed' }) });
@@ -200,7 +196,7 @@
       <MetricCard
         label="Schedule lag" icon="calendar"
         value={displayFormatter.duration(overview.scheduleLagSeconds)}
-        tone={overview.scheduleLagSeconds > SCHEDULE_LAG_ENVELOPE ? 'warn' : ''}
+        tone={overview.scheduleLagSeconds > SCHEDULE_LAG_ENVELOPE_SECONDS ? 'warn' : ''}
         hint="How far past due the most overdue live schedule is; a schedule that stops firing moves no other number here"
         href={routes.schedules({ namespace: $scope })} />
     </div>

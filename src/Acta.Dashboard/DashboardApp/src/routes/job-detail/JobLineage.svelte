@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { tick } from 'svelte';
+  import { tick, untrack } from 'svelte';
   import { createQuery } from '@tanstack/svelte-query';
   import { api, ApiError, type JobDetailView } from '../../api.ts';
   import { keys } from '../../query.ts';
@@ -19,6 +19,13 @@
   let selectedRef = $state<string | null>(null);
   let filter = $state('all');
   let showAll = $state(false);
+
+  // Siblings often share a job name (a fan-out starts many of one kind), so each node also carries the compact
+  // reference JobRef shows; JobRef itself is interactive and cannot sit inside the node's button.
+  const compactRef = (ref: string) => {
+    const match = /^([a-z0-9]+)_[0-9a-f]{24}([0-9a-f]{8})$/i.exec(ref);
+    return match ? match[1] + '…' + match[2] : ref;
+  };
 
   async function load(ref: string, signal: AbortSignal): Promise<JobDetailView | null> {
     try { return await api<JobDetailView>('jobs/' + ref + '/detail', {}, { signal }); }
@@ -49,8 +56,28 @@
   let rollup = $derived(childRollup(children));
   let selected = $derived(current?.children.find((child) => child.jobRef === selectedRef) ?? null);
   let selectedDetail = $derived(selectedQuery.data);
+  // Ancestors run farthest first, so the branch's path below this job is everything after it. Past the
+  // read's ancestor cap this job drops out of the list and the path starts at the nearest ones listed.
+  let branchPath = $derived.by(() => {
+    const ancestors = current?.ancestors ?? [];
+    return ancestors.slice(ancestors.findIndex((node) => node.jobRef === job.jobRef) + 1);
+  });
+  let branchPathCut = $derived(!!current?.ancestors.length && !current.ancestors.some((node) => node.jobRef === job.jobRef));
+
+  // A changed parent read, from a poll or a refresh, means its children may have moved on, so the inspected
+  // child and the explored branch are read again with it. Structural sharing keeps an unchanged lineage the same
+  // object, so a quiet poll costs nothing here.
+  $effect(() => {
+    void lineage;
+    untrack(() => {
+      if (selectedRef) void selectedQuery.refetch();
+      if (branchRef) void branchQuery.refetch();
+    });
+  });
 
   export function inspect(ref: string): void {
+    // The status panel names a child of this page's job; an explored branch that lacks it returns to this job.
+    if (branchRef && !current?.children.some((child) => child.jobRef === ref)) explore(job.jobRef);
     selectedRef = ref;
     void tick().then(() => document.getElementById(inspectorId)?.scrollIntoView({ block: 'nearest', behavior: 'instant' }));
   }
@@ -71,7 +98,8 @@
   {#if branchRef}
     <nav class="lineage-path" aria-label="Lineage path">
       <button class="link-button" onclick={() => explore(job.jobRef)}>This job</button>
-      {#each current?.ancestors.filter((node) => node.jobRef !== job.jobRef) ?? [] as ancestor (ancestor.jobRef)}
+      {#if branchPathCut}<Icon name="chevron-right" /><span class="dim">…</span>{/if}
+      {#each branchPath as ancestor (ancestor.jobRef)}
         <Icon name="chevron-right" /><button class="link-button" onclick={() => explore(ancestor.jobRef)}>{ancestor.jobName}</button>
       {/each}
       <Icon name="chevron-right" /><span>{currentJob?.jobName ?? 'Loading branch'}</span>
@@ -99,14 +127,14 @@
     {#if children.length}
       <div class="lineage-children" class:unconnected={shown.length > 4} style={'--children:' + Math.max(shown.length, 1)} aria-label="Child jobs">
         {#each shown as child (child.jobRef)}
-          <button class="lineage-child" class:failed={child.status === 'failed'} class:selected={selectedRef === child.jobRef} aria-pressed={selectedRef === child.jobRef} aria-label={'Inspect ' + child.jobName} title={child.jobRef} onclick={() => inspect(child.jobRef)}>
-            <span class="child-name">{child.jobName}</span><StatusBadge status={child.status} />
+          <button class="lineage-child" class:failed={child.status === 'failed'} class:selected={selectedRef === child.jobRef} aria-pressed={selectedRef === child.jobRef} aria-label={'Inspect ' + child.jobName + ' ending ' + child.jobRef.slice(-8)} title={child.jobRef} onclick={() => inspect(child.jobRef)}>
+            <span class="child-name">{child.jobName}</span><span class="child-ref mono">{compactRef(child.jobRef)}</span><StatusBadge status={child.status} />
           </button>
         {/each}
       </div>
       {#if matching.length === 0}<p class="dim">No children match this filter.</p>{/if}
       {#if matching.length > 4}<button class="link-button" onclick={() => (showAll = !showAll)}>{showAll ? 'Show fewer children' : 'Show all ' + matching.length + ' children'}</button>{/if}
-      {#if current?.childrenHasMore}<p class="dim">This read contains the first {children.length} children. <a href={routes.job(currentJob.jobRef, { namespace: job.jobNamespace })}>Open this job</a> for its latest snapshot.</p>{/if}
+      {#if current?.childrenHasMore}<p class="dim">Showing the first {children.length} children.{#if branchRef}{' '}<a href={routes.job(currentJob.jobRef, { namespace: job.jobNamespace })}>Open {currentJob.jobName}</a> for its own detail.{/if}</p>{/if}
       <p class="lineage-help dim">Select a child to inspect it. Explore its children without leaving this page.</p>
     {/if}
   {/if}
@@ -119,10 +147,10 @@
       {:else if selectedQuery.error}<StateView error={selectedQuery.error.message} onRetry={() => selectedQuery.refetch()} />
       {:else if selectedDetail}
         <p>{selectedDetail.explain?.reason ?? selectedDetail.explain?.headline ?? 'Open this job for its complete execution details.'}</p>
-        {#if selectedDetail.explain?.activeWait}<p class="dim">Waiting on <span class="mono">{selectedDetail.explain.activeWait.name}</span>{#if selectedDetail.explain.activeWait.dueAtUtc} · due <RelativeTime value={selectedDetail.explain.activeWait.dueAtUtc} />{/if}</p>{/if}
+        {#if selectedDetail.explain?.activeWait}<p class="dim">Waiting on <span class="mono">{selectedDetail.explain.activeWait.name}</span>{#if selectedDetail.explain.activeWait.dueAtUtc}{' · due '}<RelativeTime value={selectedDetail.explain.activeWait.dueAtUtc} />{/if}</p>{/if}
       {:else}<p class="dim">This job is no longer available. Its recorded lineage is shown above.</p>{/if}
       <div class="control-row">
-        {#if selectedDetail?.lineage?.children.length}<button onclick={() => explore(selected!.jobRef)}>{selectedDetail.lineage.children.length}{selectedDetail.lineage.childrenHasMore ? '+' : ''} children<Icon name="chevron-right" /></button>{/if}
+        {#if selectedDetail?.lineage?.children.length}<button onclick={() => explore(selected!.jobRef)}>{selectedDetail.lineage.children.length}{selectedDetail.lineage.childrenHasMore ? '+' : ''} {selectedDetail.lineage.children.length === 1 && !selectedDetail.lineage.childrenHasMore ? 'child' : 'children'}<Icon name="chevron-right" /></button>{/if}
         <a class="lineage-open" href={routes.job(selected.jobRef, { namespace: job.jobNamespace })}>Open job detail<Icon name="chevron-right" /></a>
       </div>
     </section>
@@ -146,12 +174,13 @@
   .lineage-root:last-child::after { display: none; }
   .lineage-children { position: relative; display: grid; grid-template-columns: repeat(min(var(--children), 4), minmax(0, 1fr)); gap: 14px; width: 100%; max-width: calc(var(--children) * 260px); margin: 0 auto 20px; }
   .lineage-children::before { content: ''; position: absolute; top: -12px; left: calc(50% / var(--children)); right: calc(50% / var(--children)); border-top: 1px solid var(--line); }
-  .lineage-child { position: relative; display: grid; justify-items: start; align-content: start; gap: 10px; padding: 14px; min-height: 112px; background: var(--panel); border-radius: 10px; text-align: left; min-width: 0; }
+  .lineage-child { position: relative; display: grid; justify-items: start; align-content: start; gap: 10px; padding: 14px; min-height: 112px; background: var(--panel); border-radius: 10px; text-align: left; min-width: 0; font-size: var(--text-sm); }
   .lineage-child::before { content: ''; position: absolute; height: 12px; bottom: 100%; left: 50%; border-left: 1px solid var(--line); }
   .lineage-child.failed { border-color: color-mix(in srgb, var(--bad) 65%, var(--line)); }
   .lineage-child.failed::before { border-color: var(--bad); }
   .lineage-child.selected { outline: 2px solid var(--accent); outline-offset: 2px; }
   .child-name { font-weight: 500; overflow-wrap: anywhere; font-size: var(--text-sm); }
+  .child-ref { margin-top: -6px; color: var(--muted); font-size: var(--text-micro); }
   .lineage-children.unconnected { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .unconnected::before, .unconnected .lineage-child::before { display: none; }
   .lineage-inspector { margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--line); font-size: var(--text-sm); }
