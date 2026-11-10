@@ -45,7 +45,8 @@
 <body class="homepage">
   <a class="skip-link" href="#content">Skip to content</a>
   <div class="chrome">
-    <a class="brand" href="/" aria-label="Acta home"><svg viewBox="0 0 40 40" aria-hidden="true" focusable="false"><path d="M6 33 19 7 32 33" /><circle cx="19" cy="27" r="3" /></svg><span class="brand-word">Acta<span>.</span></span></a>
+    <div class="wrap chrome-inner">
+    <a class="brand site-brand" href="/" aria-label="Acta home"><svg viewBox="3.95 4.95 30.1 30.1" fill="none" stroke="currentColor" stroke-width="4.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 33 19 7 32 33" /><circle cx="19" cy="27" r="3" fill="currentColor" stroke="none" /></svg><span class="brand-word">Acta<span>.</span></span></a>
     <span class="meta">Durable execution for .NET</span>
     <nav aria-label="Primary links">
       <a href="/start">Start</a>
@@ -55,6 +56,7 @@
       <a href="https://github.com/acta-dotnet/acta" class="gh" aria-label="Acta on GitHub" title="Acta on GitHub"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><path fill="currentColor" d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"></path></svg></a>
     </nav>
     <span class="header-appearance" data-theme-controls></span>
+    </div>
   </div>
 
   <main id="content">
@@ -75,11 +77,11 @@
           <div class="preview-heading"><span class="preview-symbol" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4v16m0-8h6m0 0V5h8m-8 7v7h8"/><circle cx="19" cy="5" r="2"/><circle cx="19" cy="19" r="2"/></svg></span><div><span class="preview-kicker">An ordinary C# handler</span><strong>One workflow. A durable record.</strong></div><span class="code-tag">C#</span></div>
           <div class="preview-code"><div><span class="code-line">01</span><code><span class="a">[Job</span>(<span class="s">"process-order"</span>)]</code></div><div><span class="code-line">02</span><code><span class="k">public async</span> Task Process(…)</code></div></div>
           <div class="workflow-ledger">
-            <div class="ledger-label"><span>Execution record</span><span>Illustrative workflow</span></div>
+            <div class="ledger-label"><span>Execution record</span><span>Illustrative order workflow</span></div>
             <ol>
-              <li><span class="step-mark done" aria-hidden="true">✓</span><div><code>charge-card</code><span>Step result saved</span></div><span class="step-badge saved">Recorded</span></li>
-              <li><span class="step-mark done" aria-hidden="true">✓</span><div><code>prepare</code><span>Stock, shipment, invoice</span></div><span class="step-badge saved">3 child jobs</span></li>
-              <li><span class="step-mark waiting" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="7"/><path d="M12 8v4l3 2"/></svg></span><div><code>picked-up</code><span>Wait for the courier</span></div><span class="step-badge">Signal wait</span></li>
+              <li><span class="step-mark done" aria-hidden="true">✓</span><div><code>book-shipment</code><span>Confirmed booking saved</span></div><span class="step-badge saved">Recorded</span></li>
+              <li><span class="step-mark done" aria-hidden="true">✓</span><div><code>issue-invoice</code><span>After booking and payment</span></div><span class="step-badge saved">Recorded</span></li>
+              <li><span class="step-mark waiting" aria-hidden="true">↻</span><div><code>send-receipt</code><span>Same invoice, same delivery key</span></div><span class="step-badge">Retrying</span></li>
             </ol>
           </div>
           <figcaption id="workflow-caption"><span class="record-symbol" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="12" cy="5" rx="7" ry="3"/><path d="M5 5v14c0 4 14 4 14 0V5M5 12c0 4 14 4 14 0"/></svg></span><div><strong>The worker can stop. The record stays.</strong><span>Finished steps return their saved results on replay.</span></div><a href="#flagship" aria-label="Explore the example workflow">↗</a></figcaption>
@@ -102,45 +104,53 @@
     <section class="wrap" id="flagship">
       <p class="record">Code that keeps its progress</p>
       <h2>Ordinary code.<br />Extraordinary staying power.</h2>
-      <p class="lede flagship-intro">One handler runs a whole workflow, or keeps recurring work going, and survives losing its worker.</p>
-      <div class="tabs" role="tablist" aria-label="Two example handlers" hidden>
-        <button type="button" role="tab" id="tab-workflow" aria-controls="ex-workflow" aria-selected="true">Order workflow</button>
-        <button type="button" role="tab" id="tab-sync" aria-controls="ex-sync" aria-selected="false" tabindex="-1">Recurring sync</button>
+      <p class="lede flagship-intro">Four examples: order completion, recurring synchronization, PDF approvals, and a video pipeline with parallel child jobs.</p>
+      <div class="tabs" role="tablist" aria-label="Example handlers" hidden>
+        <button type="button" role="tab" id="tab-workflow" aria-controls="ex-workflow" aria-selected="true">A · Order &amp; receipt</button>
+        <button type="button" role="tab" id="tab-sync" aria-controls="ex-sync" aria-selected="false" tabindex="-1">B · Recurring sync</button>
+        <button type="button" role="tab" id="tab-proof" aria-controls="ex-proof" aria-selected="false" tabindex="-1">C · PDF approvals</button>
+        <button type="button" role="tab" id="tab-video" aria-controls="ex-video" aria-selected="false" tabindex="-1">D · Video pipeline</button>
       </div>
 
       <div class="example" id="ex-workflow" role="tabpanel" aria-labelledby="tab-workflow">
-        <p class="lede">A workflow is a job too, with the same retries, recovery, and dashboard. This one charges the card, prepares the order in three child jobs, and waits for the courier.</p>
+        <p class="lede">Book a shipment, confirm payment, issue the invoice, then send its receipt. Each operation waits for the one it depends on. An unconfirmed booking stops the job before charging or invoicing.</p>
         <div class="flow">
           <div class="panel solo">
-            <div class="panel-tab">C# · an example order workflow</div>
-            <pre><code><span class="a">[Job(<span class="s">"process-order"</span>)]</span>
-<span class="k">public async</span> Task Process(Order order, JobContext ctx, CancellationToken ct)
+            <div class="panel-tab">C# · order completion with explicit dependencies</div>
+            <pre><code><span class="a">[Job</span>(<span class="s">"process-order"</span>)]
+<span class="k">public</span> <span class="k">async</span> Task Process(Order order, JobContext ctx, CancellationToken ct)
 {
+    <span class="k">var</span> booking = <span class="k">await</span> ctx.RunStepAsync(<span class="s">"book-shipment"</span>,
+        c =&gt; shipping.BookAsync(order.Id, $<span class="s">"booking:{order.Id}"</span>, c), ct);
+
+    <span class="k">if</span> (!booking.Confirmed)
+    {
+        <span class="k">await</span> ctx.FailAsync(<span class="s">"Shipment booking was rejected"</span>, ct);
+        <span class="k">return</span>;
+    }
+
     <span class="k">var</span> charge = <span class="k">await</span> ctx.RunStepAsync(<span class="s">"charge-card"</span>,
-        c =&gt; payments.ChargeAsync(order, c), ct);
-    <span class="k">await</span> ctx.SetVariableAsync(<span class="s">"charge-id"</span>, charge.Id, ct);
+        c =&gt; payments.ChargeConfirmedAsync(order, $<span class="s">"payment:{order.Id}"</span>, c), ct);
 
-    <span class="k">var</span> prepared = <span class="k">await</span> ctx.ParallelAsync(<span class="s">"prepare"</span>, p =&gt; p
-        .Child(<span class="s">"stock"</span>, <span class="k">new</span> ReserveStock(order.Id))
-        .Child(<span class="s">"shipment"</span>, <span class="k">new</span> BookShipment(order.Id))
-        .Child(<span class="s">"invoice"</span>, <span class="k">new</span> IssueInvoice(order.Id, charge.Id)), ct);
-    prepared.ThrowIfAnyFailed();
+    <span class="k">var</span> invoice = <span class="k">await</span> ctx.RunStepAsync(<span class="s">"issue-invoice"</span>,
+        c =&gt; invoices.IssueAsync(order.Id, booking.Id, charge.Id,
+            $<span class="s">"invoice:{order.Id}"</span>, c), ct);
 
-    <span class="k">await</span> ctx.WaitSignalAsync(<span class="s">"picked-up"</span>, ct);
-    <span class="k">await</span> ctx.RunStepAsync(<span class="s">"send-receipt"</span>, c =&gt; mail.ReceiptAsync(order, c), ct);
+    <span class="k">await</span> ctx.RunStepAsync(<span class="s">"send-receipt"</span>,
+        c =&gt; mail.ReceiptAsync(invoice.Id, $<span class="s">"receipt:{invoice.Id}"</span>, c), ct);
 }</code></pre>
           </div>
-          <ol class="flow-rows" aria-label="The rows these calls record">
-            <li><b>charge-card</b><span class="v">steps_view</span><span class="d">Once the step succeeds, its result is stored, and a replay returns it instead of charging the card again.</span></li>
-            <li><b>charge-id</b><span class="v">checkpoints_view</span><span class="d">A variable keeps the job's own state, for the next execution and for your SQL.</span></li>
-            <li><b>prepare</b><span class="v">jobs_view</span><span class="d">Three child jobs, each with its own retries, on any worker. The order parks until they finish and holds no worker.</span></li>
-            <li><b>picked-up</b><span class="v">checkpoints_view</span><span class="d">The signal wait is a row, and the order shows Suspended until the courier signals, minutes or days later.</span></li>
+          <ol class="flow-rows" aria-label="Order steps and their dependencies">
+            <li><b>book-shipment</b><span class="v">steps_view</span><span class="d">Records the booking outcome. A rejected booking ends the job; charging, invoicing, and receipt delivery cannot run.</span></li>
+            <li><b>charge-card</b><span class="v">steps_view</span><span class="d">Runs after booking is confirmed. The payment adapter returns only a confirmed charge; a decline or transient error throws, so no invoice is issued.</span></li>
+            <li><b>issue-invoice</b><span class="v">steps_view</span><span class="d">Receives both the confirmed booking ID and charge ID. On replay, completed steps return their saved results.</span></li>
+            <li><b>send-receipt</b><span class="v">steps_view</span><span class="d">Starts only after the invoice exists. The stable invoice ID gives receipt delivery the same deduplication key on every retry.</span></li>
           </ol>
         </div>
-        <p class="hint">Kill the worker at any line. The next one re-enters the handler from the top: a step that succeeded returns its result, and the child starts find the children already there. Plain code between them runs again, and so does a step cut off before it recorded success, so give the payment call an idempotency key.</p>
+        <p class="hint"><b>Application contract.</b> This example starts with a validated order whose stock is already reserved. Each external adapter must honor its operation key. The payment adapter must throw unless a charge is confirmed. Booking cancellation, stock release, and refunds need explicit business recovery paths when an order cannot finish; Acta does not roll back external operations.</p>
         <div class="actions">
-          <a class="button primary" href="https://github.com/acta-dotnet/acta/tree/main/concepts/200-durable-execution/201-durable-checkout">Run the checkout lab</a>
-          <a class="button" href="https://github.com/acta-dotnet/acta/tree/main/concepts/200-durable-execution/215-map-parallel-join">Run the fan-out lab</a>
+          <a class="button primary" href="https://github.com/acta-dotnet/acta/tree/main/concepts/200-durable-execution/201-durable-checkout">Explore the checkout lab</a>
+          <a class="button" href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#compensating-on-the-last-attempt">Read about compensation</a>
         </div>
       </div>
 
@@ -169,6 +179,108 @@
         <p class="hint">Stop the worker mid-batch, with a deploy or a kill, and the next one picks the job up at the same watermark; a replayed batch is an upsert, so it lands once.</p>
         <div class="actions">
           <a class="button primary" href="https://github.com/acta-dotnet/acta/tree/main/concepts/100-scheduling/109-continuous-synchronization">Run the sync lab</a>
+        </div>
+      </div>
+      <div class="example" id="ex-proof" role="tabpanel" aria-labelledby="tab-proof">
+        <p class="lede">Build a manuscript's proof PDF and check its references in parallel child jobs. Request review, wait for author and editor approvals of that exact proof, then publish it.</p>
+        <div class="flow">
+          <div class="panel solo">
+            <div class="panel-tab">C# · PDF production and human approvals</div>
+            <pre><code><span class="a">[Job</span>(<span class="s">"publish-manuscript"</span>)]
+<span class="k">public</span> <span class="k">async</span> Task Publish(
+    Manuscript manuscript, JobContext ctx, CancellationToken ct)
+{
+    <span class="k">var</span> proofId = <span class="k">await</span> ctx.GetOrSetVariableAsync(
+        <span class="s">"proof-id"</span>, Guid.NewGuid, ct);
+
+    <span class="k">var</span> prepared = <span class="k">await</span> ctx.ParallelAsync(<span class="s">"prepare"</span>, p =&gt; p
+        .Child(<span class="s">"pdf"</span>, <span class="k">new</span> BuildProofPdf(manuscript.RevisionKey, proofId))
+        .Child(<span class="s">"references"</span>, <span class="k">new</span> CheckReferences(manuscript.RevisionKey)),
+        ct);
+
+    prepared.ThrowIfAnyFailed();
+
+    <span class="k">await</span> ctx.RunStepAsync(<span class="s">"request-review"</span>,
+        c =&gt; proofs.RequestReviewAsync(proofId, c), ct);
+
+    <span class="k">foreach</span> (<span class="k">var</span> role <span class="k">in</span> <span class="k">new</span>[] { <span class="s">"author"</span>, <span class="s">"editor"</span> })
+    {
+        <span class="k">var</span> approval = <span class="k">await</span> ctx.WaitSignalAsync&lt;ProofApproval&gt;(
+            $<span class="s">"{role}-approval"</span>, TimeSpan.FromDays(14), ct);
+
+        <span class="k">if</span> (approval <span class="k">is</span> <span class="k">not</span> { Approved: <span class="k">true</span> } || approval.ProofId != proofId)
+        {
+            <span class="k">await</span> ctx.CancelAsync(<span class="s">"This proof was not approved"</span>, ct);
+            <span class="k">return</span>;
+        }
+    }
+
+    <span class="k">await</span> ctx.RunStepAsync(<span class="s">"publish"</span>,
+        c =&gt; proofs.PublishAsync(proofId, c), ct);
+}</code></pre>
+          </div>
+          <ol class="flow-rows" aria-label="Manuscript workflow and durable records">
+            <li><b>proof-id</b><span class="v">variable</span><span class="d">Created once and stored for this job. Every retry, child job, approval request, and publication uses the same proof identity.</span></li>
+            <li><b>prepare</b><span class="v">parallel children</span><span class="d">Both children read the same immutable manuscript revision independently. PDF creation and reference validation must both succeed before review is requested.</span></li>
+            <li><b>request-review</b><span class="v">step</span><span class="d">Creates the review request after preparation completes. Its operation key is the proof ID, so replay cannot create a second request.</span></li>
+            <li><b>author / editor</b><span class="v">signal waits</span><span class="d">Each reviewer has 14 days from when their wait first begins. The stored deadline survives retries and restarts. The job releases its worker while waiting; a timed-out wait cancels the job and prevents publication. Both approvals must name this proof ID.</span></li>
+            <li><b>publish</b><span class="v">step</span><span class="d">Publishes the exact stored PDF that was approved. The publishing adapter must be idempotent by proof ID.</span></li>
+          </ol>
+        </div>
+        <p class="hint"><b>Application contract.</b> One job handles one immutable manuscript revision. <code>ProofApproval</code> carries <code>ProofId</code> and <code>Approved</code>. The PDF child stores a complete, immutable artifact before succeeding; the reference checker fails its child job if validation does not pass. Corrections start a new proof workflow. Review and publication adapters must deduplicate by proof ID. The 14-day timeout is an illustrative policy for each reviewer separately, not one deadline for the whole approval process.</p>
+        <div class="actions">
+          <a class="button primary" href="/how-it-works#steps">Explore durable workflows</a>
+          <a class="button" href="https://github.com/acta-dotnet/acta/tree/main/concepts/200-durable-execution/215-map-parallel-join">Run the fan-out lab</a>
+        </div>
+      </div>
+      <div class="example" id="ex-video" role="tabpanel" aria-labelledby="tab-video">
+        <p class="lede">Encode HD and Full HD renditions and create a thumbnail in parallel. Once all three child jobs succeed, start a separate packaging child, wait durably for its result, and publish the finished release.</p>
+        <div class="flow">
+          <div class="panel solo">
+            <div class="panel-tab">C# · parallel video processing and an explicit child wait</div>
+            <pre><code><span class="a">[Job</span>(<span class="s">"publish-video"</span>)]
+<span class="k">public</span> <span class="k">async</span> Task Publish(
+    VideoUpload video, JobContext ctx, CancellationToken ct)
+{
+    <span class="k">var</span> releaseId = <span class="k">await</span> ctx.GetOrSetVariableAsync(
+        <span class="s">"release-id"</span>, Guid.NewGuid, ct);
+
+    <span class="k">var</span> prepared = <span class="k">await</span> ctx.ParallelAsync(<span class="s">"prepare-video"</span>, p =&gt; p
+        .Child(<span class="s">"hd"</span>, <span class="k">new</span> EncodeVideo(video.SourceKey, releaseId, 720))
+        .Child(<span class="s">"full-hd"</span>, <span class="k">new</span> EncodeVideo(video.SourceKey, releaseId, 1080))
+        .Child(<span class="s">"thumbnail"</span>, <span class="k">new</span> CreateThumbnail(video.SourceKey, releaseId)),
+        TimeSpan.FromHours(2), ct);
+
+    prepared.ThrowIfAnyFailed();
+
+    <span class="k">var</span> package = <span class="k">await</span> ctx.StartChildAsync(
+        <span class="s">"package"</span>, <span class="k">new</span> PackageVideo(releaseId), ct);
+    <span class="k">var</span> ready = <span class="k">await</span> ctx.TryWaitChildAsync(
+        package.JobId, TimeSpan.FromMinutes(30), ct);
+
+    <span class="k">if</span> (ready.Outcome <span class="k">is</span> <span class="k">not</span> { Succeeded: <span class="k">true</span> })
+    {
+        <span class="k">await</span> ctx.FailAsync(ready.TimedOut
+            ? <span class="s">"Packaging timed out"</span> : <span class="s">"Packaging did not succeed"</span>, ct);
+        <span class="k">return</span>;
+    }
+
+    <span class="k">await</span> ctx.RunStepAsync(<span class="s">"publish"</span>,
+        c =&gt; catalog.PublishAsync(releaseId, c), ct);
+}</code></pre>
+          </div>
+          <ol class="flow-rows" aria-label="Video pipeline and child job dependencies">
+            <li><b>release-id</b><span class="v">variable</span><span class="d">One stored release identity ties every rendition, thumbnail, package, and publication to this job across replays.</span></li>
+            <li><b>prepare-video</b><span class="v">parallel children</span><span class="d">Three independent child jobs read the original upload. The group waits for all three; a failure or timeout prevents packaging from starting.</span></li>
+            <li><b>package</b><span class="v">StartChildAsync</span><span class="d">A dependent child starts only when all assets are ready. Its stable name resolves to the same child when the parent replays.</span></li>
+            <li><b>ready</b><span class="v">TryWaitChildAsync</span><span class="d">The parent releases its worker while packaging runs. A 30-minute timeout cancels the unfinished child and returns an outcome; this handler then fails without publishing.</span></li>
+            <li><b>publish</b><span class="v">step</span><span class="d">Publishes only a successfully packaged release. The catalog adapter must deduplicate publication by release ID, including after an ambiguous crash.</span></li>
+          </ol>
+        </div>
+        <p class="hint"><b>Application contract.</b> The source key identifies an immutable, already uploaded video. Each child stores complete outputs in shared durable storage before succeeding, under stable paths derived from the release ID. Packaging reads those stored assets; publication uses the finished package. Repeated child work and catalog writes must be idempotent. The two-hour preparation and 30-minute packaging budgets are illustrative policies; retries and restarts do not extend the stored wait deadlines.</p>
+        <div class="actions">
+          <a class="button primary" href="https://github.com/acta-dotnet/acta/tree/main/concepts/200-durable-execution/215-map-parallel-join">Run the fan-out lab</a>
+          <a class="button" href="/capabilities#children">Explore child jobs</a>
         </div>
       </div>
     </section>
@@ -364,7 +476,7 @@
       <div class="wrap">
         <div class="footer-grid">
           <div class="footer-about">
-            <p class="footer-brand">Acta<span class="dot">.</span></p>
+            <a class="site-brand" href="/" aria-label="Acta home"><svg viewBox="3.95 4.95 30.1 30.1" fill="none" stroke="currentColor" stroke-width="4.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 33 19 7 32 33" /><circle cx="19" cy="27" r="3" fill="currentColor" stroke="none" /></svg><span class="brand-word">Acta<span>.</span></span></a>
             <p>Durable execution for .NET.</p>
             <p>A library inside your application.<br />Durable state in your SQL database.</p>
             <p class="footer-license">Apache-2.0 · built in the open</p>
@@ -414,7 +526,7 @@
     handOffConcepts();
     addEventListener('hashchange', handOffConcepts);
 
-    // The flagship's two examples: with the script, two tabs show one at a time, arrow keys moving between them.
+    // Example handlers: one panel at a time, with arrow-key navigation between tabs.
     const tablist = document.querySelector('.tabs');
     const tabs = [...tablist.querySelectorAll('[role="tab"]')];
     const select = (tab) => {

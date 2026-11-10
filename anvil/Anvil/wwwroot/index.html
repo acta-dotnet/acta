@@ -3,6 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light" />
     <title>Acta Anvil: load &amp; failure lab</title>
     <link rel="icon" href="anvil.svg" />
     <link rel="stylesheet" href="anvil.css" />
@@ -19,7 +20,11 @@
       <header class="appbar">
         <div class="brand-q">
           <div class="brand-mark" aria-label="Acta Anvil">
-            <span class="wm-acta">Acta</span><span class="wm-dot">.</span> <span class="wm-anvil">Anvil</span>
+            <svg class="acta-mark" viewBox="3.95 4.95 30.1 30.1" aria-hidden="true">
+              <path d="M6 33 19 7 32 33" fill="none" stroke="currentColor" stroke-width="4.1" stroke-linecap="round" stroke-linejoin="round" />
+              <circle cx="19" cy="27" r="3" fill="currentColor" />
+            </svg>
+            <span class="wm-acta">Acta<span class="wm-dot">.</span></span><span class="wm-anvil">Anvil</span>
           </div>
           <div class="brand-sub">load &amp; failure lab</div>
         </div>
@@ -62,7 +67,7 @@
             </label>
             <div class="readout" id="run-readout"></div>
             <div class="setup-actions"><button id="btn-run" class="go">Start run</button></div>
-            <div class="flashline"><span id="flash"></span></div>
+            <div class="flashline"><span id="flash" role="status"></span></div>
 
             <section class="seeding" id="seeding" hidden>
               <div class="seeding-head"><span class="group-k">Seeding</span><span id="seeding-v">0 / 0</span></div>
@@ -107,7 +112,8 @@
         </aside>
 
         <main>
-          <section class="lab-view big-q panel big">
+          <section class="lab-view big-q panel big" aria-labelledby="run-overview-heading">
+            <div class="page-head"><h1 id="run-overview-heading">Run overview</h1></div>
             <p class="center-seeding" id="center-seeding" hidden></p>
             <section class="scopes">
               <div class="scope">

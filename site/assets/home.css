@@ -1,4 +1,4 @@
-/* Homepage design tokens. The content and controls share one structure in all three themes. */
+/* Homepage design tokens. The content and controls share one structure in both themes. */
 :root {
   --bg: #0e1625;
   --panel: #19263a;
@@ -29,6 +29,9 @@
   --r-panel: 12px;
   --r-card: 10px;
   --section: clamp(64px, 7vw, 104px);
+  --page-gutter: 48px;
+  --brand-size: 27px;
+  --brand-gap: 9px;
 }
 :root[data-theme="light"] {
   --bg: #f7f9fc;
@@ -62,49 +65,25 @@
   --status-text: #32705a;
   --warm-wash: rgba(243, 218, 205, 0.06);
 }
-:root[data-theme="paper"] {
-  --bg: #faf7f1;
-  --panel: #fffdf9;
-  --panel-2: #f7f3ec;
-  --text: #211e19;
-  --muted: #302b24;
-  --faint: #423c32;
-  --verdi: #496f57;
-  --verdi-hover: #3a6048;
-  --verdi-deep: #ffffff;
-  --hair: #e4ded3;
-  --hair-soft: #eee8df;
-  --verdi-wash: #eaf0e5;
-  --verdi-tint: #f1f4eb;
-  --chrome: #faf7f1;
-  --code: #171410;
-  --code-inline: #171410;
-  --code-surface: #fffdf9;
-  --code-keyword: #0000c0;
-  --code-string: #921414;
-  --code-attribute: #185563;
-  --code-comment: #005e00;
-  --sky: #75658d;
-  --leaf: #57724e;
-  --lavender: #7c6e92;
-  --pastel-mint: rgba(203, 218, 188, 0.22);
-  --pastel-lilac: rgba(224, 211, 234, 0.23);
-  --pastel-blue: rgba(210, 223, 228, 0.20);
-  --status-bg: #edf1e7;
-  --status-text: #4b694e;
-  --warm-wash: rgba(242, 213, 192, 0.24);
-}
 html { scroll-padding-top: 96px; }
 body { font-size: 16px; line-height: 1.65; }
 body::before { height: 920px; background: radial-gradient(ellipse at 85% 22%, var(--pastel-lilac), transparent 54%), radial-gradient(ellipse at 32% 5%, var(--pastel-mint), transparent 50%), radial-gradient(ellipse at 0% 65%, var(--warm-wash), transparent 50%); }
 body::after { background: radial-gradient(ellipse at 50% 100%, var(--pastel-blue), transparent 70%); }
-.wrap { max-width: 1328px; padding-inline: 48px; }
-.chrome { padding: 22px max(48px, calc((100vw - 1232px) / 2)); gap: 24px; background: var(--chrome); backdrop-filter: none; min-height: 88px; font-family: var(--sans); text-transform: none; letter-spacing: 0; font-size: 14px; }
-.chrome .brand { gap: 9px; color: var(--text); text-decoration: none; }
-.chrome .brand svg { width: 24px; height: 27px; color: var(--verdi); }
-.brand-word { font-size: 27px; font-weight: 600; letter-spacing: -1.2px; line-height: 1; }
+.wrap { max-width: 1328px; padding-inline: var(--page-gutter); }
+.chrome { display: flex; align-items: center; padding: 22px 0; background: var(--chrome); backdrop-filter: none; min-height: 88px; font-family: var(--sans); text-transform: none; letter-spacing: 0; font-size: 14px; }
+.chrome-inner { width: 100%; display: flex; align-items: center; gap: 24px; }
+/* Both lockups use the font's actual capital height, with the SVG's empty margins cropped out. */
+.chrome .site-brand, .site-footer .site-brand { display: inline-flex; align-items: baseline; gap: var(--brand-gap); color: var(--text); text-decoration: none; font-family: var(--sans); font-size: var(--brand-size); font-weight: 600; letter-spacing: -1.2px; line-height: 1; }
+.chrome .site-brand svg, .site-footer .site-brand svg { display: block; flex: none; width: 1cap; height: 1cap; color: var(--verdi); }
+.site-footer .site-brand { display: flex; width: fit-content; }
+.brand-word { display: block; font: inherit; letter-spacing: inherit; }
 .brand-word > span { color: var(--verdi); }
-.chrome .meta { font-size: 12px; color: var(--faint); padding-left: 24px; border-left: 1px solid var(--hair); }
+.chrome .meta { font-size: 12px; color: var(--faint); line-height: 1; padding: 3px 0 0 24px; border-left: 1px solid var(--hair); }
+@supports (text-box-trim: trim-both) {
+  .chrome .site-brand, .site-footer .site-brand { align-items: center; }
+  .brand-word, .chrome .meta { text-box-trim: trim-both; text-box-edge: cap alphabetic; }
+  .chrome .meta { padding-top: 0; }
+}
 .chrome nav { gap: 24px; color: var(--muted); }
 .chrome nav .gh svg { width: 18px; height: 18px; }
 .header-appearance { display: inline-flex; padding-left: 20px; border-left: 1px solid var(--hair); }
@@ -194,7 +173,7 @@ h2 { font-family: var(--sans); font-weight: 500; font-size: clamp(30px, 3.4vw, 4
 .lede { font-size: 16px; line-height: 1.75; }
 #flagship { padding-top: 80px; }
 .flagship-intro { max-width: 65ch; }
-.tabs { display: flex; width: fit-content; gap: 4px; margin-top: 30px; padding: 4px; background: var(--panel-2); border: 1px solid var(--hair); border-radius: 9px; }
+.tabs { display: flex; flex-wrap: wrap; width: fit-content; max-width: 100%; gap: 4px; margin-top: 30px; padding: 4px; background: var(--panel-2); border: 1px solid var(--hair); border-radius: 9px; }
 .tabs button { padding: 8px 17px; border: 1px solid transparent; border-radius: 6px; background: transparent; color: var(--faint); font: 500 13px var(--sans); cursor: pointer; }
 .tabs button[aria-selected="true"] { color: var(--text); background: var(--panel); border-color: var(--hair); }
 .tabs[hidden], [hidden] { display: none !important; }
@@ -257,7 +236,6 @@ pre { font-size: 11px; padding: 23px; line-height: 1.85; }
 .install-row code { min-width: 0; font-size: 11px; overflow-x: auto; white-space: nowrap; padding-block: 4px; }
 .hiw-note { font-family: var(--sans); letter-spacing: 0; font-size: 12px; margin-top: 16px; }
 .site-footer { padding: 64px 0 28px; font-size: 13px; }
-.footer-about .footer-brand { font-size: 32px; letter-spacing: -1.5px; }
 .footer-grid { gap: 40px; }
 .footer-head { font-family: var(--sans); letter-spacing: 0; text-transform: none; font-size: 12px; font-weight: 500; color: var(--text); margin-bottom: 20px; }
 .footer-about .footer-license { font-family: var(--sans); font-size: 11px; letter-spacing: 0; text-transform: none; }
@@ -278,9 +256,9 @@ footer .theme button[aria-pressed="true"] { color: var(--verdi); background: var
   .split { gap: 32px; }
 }
 @media (max-width: 900px) {
-  .chrome { padding-inline: 28px; gap: 18px; }
+  :root { --page-gutter: 28px; }
+  .chrome-inner { gap: 18px; }
   .chrome nav { gap: 18px; }
-  .wrap { padding-inline: 28px; }
   .hero { padding-top: 48px; }
   .hero-grid { grid-template-columns: 1fr; gap: 40px; }
   .hero-copy { max-width: 650px; }
@@ -300,16 +278,14 @@ footer .theme button[aria-pressed="true"] { color: var(--verdi); background: var
   #numbers::before, #capabilities::before { left: 28px; right: 28px; }
 }
 @media (max-width: 640px) {
-  .chrome { padding: 14px 20px; min-height: 72px; gap: 16px; }
+  :root { --page-gutter: 20px; --brand-size: 24px; --brand-gap: 6px; }
+  .chrome { padding: 14px 0; min-height: 72px; }
+  .chrome-inner { gap: 16px; }
   .chrome nav { gap: 16px; font-size: 12px; }
   .chrome nav a:not([href="/start"]):not(.gh) { display: none; }
   .chrome nav a[href="/start"] { display: inline; }
   .header-appearance { padding-left: 12px; }
-  .brand-word { font-size: 24px; }
-  .chrome .brand { gap: 6px; }
-  .chrome .brand svg { width: 21px; }
   .theme button, footer .theme button { width: 27px; height: 27px; }
-  .wrap { padding-inline: 20px; }
   .hero { padding-top: 40px; }
   .hero-eyebrow { font-size: 10px; margin-bottom: 20px; }
   .hero-title { font-size: clamp(38px, 9.4vw, 54px); max-width: 15ch; letter-spacing: -.05em; }
@@ -373,35 +349,36 @@ footer .theme button[aria-pressed="true"] { color: var(--verdi); background: var
   .site-footer { padding-top: 40px; font-size: 12px; }
 }
 @media (max-width: 370px) {
-  .chrome { padding-inline: 14px; gap: 10px; }
+  :root { --page-gutter: 14px; }
+  .chrome-inner { gap: 10px; }
   .chrome nav { gap: 10px; }
   .header-appearance { padding-left: 8px; }
   .chrome nav .gh { display: none; }
   .preview-heading { gap: 8px; }
   .preview-heading strong { font-size: 12px; }
 }
-/* Long descriptions stay comfortably readable on the brighter surfaces, including on phones. */
-:root:is([data-theme="light"], [data-theme="paper"]) :is(.toc .s, .fcol li, .hint, .prompt-row p, .flow-rows .d, .more .s, .bench-line span) {
+/* Shared type metrics keep the page height stable when switching themes, including at the footer. */
+:is(.toc .s, .fcol li, .hint, .prompt-row p, .flow-rows .d, .more .s, .bench-line span) {
   font-size: 14px;
   line-height: 1.8;
 }
-:root:is([data-theme="light"], [data-theme="paper"]) :is(.example > .lede, .split .lede) {
+:is(.example > .lede, .split .lede) {
   font-size: 15px;
 }
 /* Visual Studio Light-inspired syntax: blue keywords, red strings, teal attributes, green comments.
    Source: https://github.com/microsoft/vscode/blob/main/extensions/theme-defaults/themes/light_vs.json
-   Comments and type colors use deeper shades to retain strong contrast on the paper surface. */
-:root:is([data-theme="light"], [data-theme="paper"]) :is(pre, .preview-code code) {
+   Comments and type colors use deeper shades to retain strong contrast. */
+:is(pre, .preview-code code) {
   font-size: 13px;
   font-weight: 500;
   line-height: 1.85;
 }
-:root:is([data-theme="light"], [data-theme="paper"]) :is(pre, .preview-code) { background: var(--code-surface); }
-:root:is([data-theme="light"], [data-theme="paper"]) :is(pre, .preview-code) ::selection { background: #add6ff; }
-:root:is([data-theme="light"], [data-theme="paper"]) .preview-code { overflow-x: auto; }
-:root:is([data-theme="light"], [data-theme="paper"]) .install-row code { font-size: 12px; font-weight: 500; }
-:root:is([data-theme="light"], [data-theme="paper"]) :is(pre, .preview-code) .k { color: var(--code-keyword); }
-:root:is([data-theme="light"], [data-theme="paper"]) :is(pre, .preview-code) .s { color: var(--code-string); }
-:root:is([data-theme="light"], [data-theme="paper"]) :is(pre, .preview-code) .a { color: var(--code-attribute); }
-:root:is([data-theme="light"], [data-theme="paper"]) :is(pre, .preview-code) .c { color: var(--code-comment); }
+:root[data-theme="light"] :is(pre, .preview-code) { background: var(--code-surface); }
+:root[data-theme="light"] :is(pre, .preview-code) ::selection { background: #add6ff; }
+.preview-code { overflow-x: auto; }
+.install-row code { font-size: 12px; font-weight: 500; }
+:root[data-theme="light"] :is(pre, .preview-code) .k { color: var(--code-keyword); }
+:root[data-theme="light"] :is(pre, .preview-code) .s { color: var(--code-string); }
+:root[data-theme="light"] :is(pre, .preview-code) .a { color: var(--code-attribute); }
+:root[data-theme="light"] :is(pre, .preview-code) .c { color: var(--code-comment); }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; animation: none !important; } }

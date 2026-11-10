@@ -56,7 +56,11 @@ const number = (value) => Number(value || 0).toLocaleString();
 const time = (iso) => new Date(iso).toLocaleTimeString([], { hour12: false });
 const dateTime = (iso) => iso ? new Date(iso).toLocaleString() : "·";
 const capitalize = (value) => value ? value[0].toUpperCase() + value.slice(1) : "·";
-const flash = (text) => { el("flash").textContent = text || ""; };
+const flash = (text, tone = "") => {
+  const target = el("flash");
+  target.textContent = text || "";
+  target.className = tone;
+};
 
 function ago(iso) {
   if (!iso) return "·";
@@ -127,13 +131,13 @@ async function call(key, method, path, label, body) {
     const response = await fetch(api + path, options);
     const data = await response.json().catch(() => null);
     if (!response.ok) {
-      flash((data && (data.message || data.title)) || "Request failed.");
+      flash((data && (data.message || data.title)) || "Request failed.", "bad");
       return null;
     }
-    flash((data && data.message) || `${label} accepted.`);
+    flash((data && data.message) || `${label} accepted.`, "ok");
     return data;
   } catch (error) {
-    flash(`Network error: ${error.message}`);
+    flash(`Network error: ${error.message}`, "bad");
     return null;
   } finally {
     pending.delete(key);
@@ -161,7 +165,7 @@ function drawScope(canvas, values, color) {
   const width = canvas.width;
   const height = canvas.height;
   context.clearRect(0, 0, width, height);
-  context.strokeStyle = cssVar("--grid", "rgba(36,86,214,0.1)");
+  context.strokeStyle = cssVar("--grid", "rgba(69,83,107,0.07)");
   context.lineWidth = 1;
   for (let x = 0; x <= width; x += width / 8) {
     context.beginPath(); context.moveTo(x, 0); context.lineTo(x, height); context.stroke();
@@ -192,10 +196,10 @@ function renderScopes(telemetry) {
     const elapsed = (new Date(series[i].timeUtc) - new Date(series[i - 1].timeUtc)) / 1000;
     rates.push(elapsed > 0 ? Math.max(0, (series[i].done - series[i - 1].done) / elapsed) : 0);
   }
-  const accent = cssVar("--accent", "#2456d6");
+  const accent = cssVar("--accent", "#21745e");
   drawScope(el("scope-throughput"), rates, accent);
-  drawScope(el("scope-queue"), series.map((point) => point.ready), cssVar("--muted", "#67718a"));
-  drawScope(el("scope-exec"), series.map((point) => point.executing), accent);
+  drawScope(el("scope-queue"), series.map((point) => point.ready), cssVar("--chart-queue", "#64748b"));
+  drawScope(el("scope-exec"), series.map((point) => point.executing), cssVar("--chart-executing", "#685aa6"));
   el("rd-throughput").textContent = number(Math.round((telemetry && telemetry.donePerSecond) || 0));
   el("rd-queue").textContent = number(series.length ? series[series.length - 1].ready : 0);
   el("rd-exec").textContent = number(series.length ? series[series.length - 1].executing : 0);
@@ -245,6 +249,8 @@ function renderLeds(state) {
   const activeWorkers = (summary.healthy || 0) + (summary.starting || 0) + (summary.draining || 0);
   const readyState = state.dbError ? "bad" : state.seeding.active || summary.starting > 0 ? "warn" : state.ready ? "on" : "";
   setLed("led-ready", readyState);
+  el("led-ready").querySelector(".led-k").textContent =
+    ({ on: "Ready", warn: "Preparing", bad: "Database unavailable" })[readyState] || "Not ready";
   setLed("led-workers", activeWorkers > 0 ? "on" : "bad");
   el("led-workers-v").textContent = number(activeWorkers);
 }
@@ -271,20 +277,20 @@ function renderSeeding(seed) {
 
 function renderFaults(faults) {
   const crashes = el("btn-fault-crashes");
-  crashes.textContent = faults.continuousCrashesActive ? "STOP" : "START";
+  crashes.textContent = faults.continuousCrashesActive ? "Stop" : "Start";
   el("fault-crashes-status").textContent = faults.continuousCrashesActive
     ? `Running · ${number(faults.workersCrashed)} workers crashed`
     : faults.workersCrashed ? `${number(faults.workersCrashed)} workers crashed` : "Stopped";
 
   const pressure = el("btn-fault-pressure");
-  pressure.textContent = faults.queuePressureActive ? "STOP" : "START";
+  pressure.textContent = faults.queuePressureActive ? "Stop" : "Start";
   el("fault-pressure-status").textContent = faults.queuePressureActive
     ? `Running · ${number(faults.pressureJobsAdded)} jobs added`
     : faults.pressureJobsAdded ? `${number(faults.pressureJobsAdded)} jobs added` : "Stopped";
   el("sel-pressure-rate").disabled = faults.queuePressureActive || pending.has("fault:pressure");
 
   const outbox = el("btn-fault-outbox");
-  outbox.textContent = faults.outboxPressureActive ? "STOP" : "START";
+  outbox.textContent = faults.outboxPressureActive ? "Stop" : "Start";
   el("fault-outbox-status").textContent = faults.outboxPressureActive
     ? `Running · ${number(faults.outboxRowsStaged)} rows staged`
     : faults.outboxRowsStaged ? `${number(faults.outboxRowsStaged)} rows staged` : "Stopped";
@@ -546,6 +552,7 @@ function render(state) {
   }
   renderProvider(state.provider);
   el("namespace-name").textContent = state.namespaceName;
+  el("namespace-name").title = state.namespaceName;
   el("acta-link").href = `acta/#/?ns=${encodeURIComponent(state.namespaceName)}`;
 
   if (state.dbError && !databaseUnavailable) {
