@@ -424,7 +424,7 @@ Server scopes constraint names and PostgreSQL index names to the schema, not the
   worker holds; that layering is the rule.
 - **`run` is the verb, `execution` is the noun.** You run a step (`RunStepAsync`,
   `RunWithLockAsync`, `builder.Run`, `RunAndWaitAsync`); the ledger records an execution
-  (`ExecutionNumber`, `ExecutionStatusCode`, the Executions tab), with `attempt` as the retry-ledger
+  (`ExecutionNumber`, `ExecutionStatusCode`, the dashboard's Executions list), with `attempt` as the retry-ledger
   synonym. "Run" never appears as a product noun. `NextRunAtUtc` stays: it is the verb phrase "next
   runs at". Anvil's certification "run" is internal-tool jargon, out of band.
 - **`pause` stops a runnable thing's progress; `suspend` closes admission of new work.** This is
