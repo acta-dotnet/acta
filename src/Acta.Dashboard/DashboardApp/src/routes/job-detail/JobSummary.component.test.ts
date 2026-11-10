@@ -3,9 +3,6 @@ import { describe, expect, it } from 'vitest';
 import JobSummary from './JobSummary.svelte';
 import type { JobDetail } from './types.ts';
 import { routes } from '../../routes.ts';
-import { displayFormatter } from '../../format.ts';
-
-const head = 'job_019f71ce69e07b85bf41fc7bf0562501';
 
 function job(overrides: Partial<JobDetail>): JobDetail {
   return {

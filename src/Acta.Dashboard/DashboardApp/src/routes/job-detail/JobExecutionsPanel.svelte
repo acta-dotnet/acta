@@ -141,7 +141,7 @@
             <td class="col-num">{execution.durationMs != null ? (execution.durationMs === 0 ? '<1 ms' : displayFormatter.milliseconds(execution.durationMs)) : '·'}</td>
             <td>
               {#if execution.workerRef != null}
-                <JobRef value={execution.workerRef} href={routes.worker(execution.workerRef, { namespace: job.jobNamespace })} compact />
+                <JobRef value={execution.workerRef} href={routes.worker(execution.workerRef, { namespace: job.jobNamespace })} />
               {:else}<span class="dim">·</span>{/if}
             </td>
             <td class="wrap" class:cell-repeat={repeatReason}>

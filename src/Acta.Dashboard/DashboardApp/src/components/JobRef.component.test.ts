@@ -3,27 +3,26 @@ import { describe, expect, it } from 'vitest';
 import JobRef from './JobRef.svelte';
 
 describe('JobRef', () => {
-  it('uses a compact reference by default and preserves its full value', () => {
-    const { container } = render(JobRef, { value: 'job_019f71ce69e07b85bf41fc7bf0562501' });
-    expect(container.querySelector('.ref-head')?.textContent).toBe('job');
-    expect(container.querySelector('.ref-tail')?.textContent).toBe('f0562501');
-    expect(container.querySelector('button.jobref')?.getAttribute('popovertarget')).toBeTruthy();
-    expect(container.textContent).toContain('job_019f71ce69e07b85bf41fc7bf0562501');
-  });
-
-  it('renders as a link when href is given', () => {
-    const { container } = render(JobRef, { value: 'job_019f71ce69e07b85bf41fc7bf0562501', href: '#/jobs/x' });
-    expect(container.querySelector('a.jobref')?.getAttribute('href')).toBe('#/jobs/x');
-  });
-
-  it('shows the tag and the last 8 digits when compact, and keeps the whole ref in the text and the name', () => {
+  it('shows the tag and the last 8 digits, and inspects the complete reference', () => {
     const value = 'job_019f71ce69e07b85bf41fc7bf0562501';
-    const { container } = render(JobRef, { value, href: '#/jobs/x', compact: true });
+    const { container } = render(JobRef, { value });
     expect(container.querySelector('.ref-head')?.textContent).toBe('job');
     expect(container.querySelector('.ref-tail')?.textContent).toBe('f0562501');
+    const button = container.querySelector('button.jobref');
+    expect(button?.textContent).toBe(value);
+    const popover = container.querySelector(`[id="${button?.getAttribute('popovertarget')}"]`);
+    expect(popover?.getAttribute('popover')).toBe('auto');
+    expect(popover?.textContent).toContain(value);
+  });
+
+  it('renders as a link that keeps the whole ref in its text and name', () => {
+    const value = 'job_019f71ce69e07b85bf41fc7bf0562501';
+    const { container } = render(JobRef, { value, href: '#/jobs/x' });
     const link = container.querySelector('a.jobref');
+    expect(link?.getAttribute('href')).toBe('#/jobs/x');
     expect(link?.textContent).toBe(value);
     expect(link?.getAttribute('aria-label')).toBe(value);
+    expect(container.querySelector('.ref-tail')?.textContent).toBe('f0562501');
   });
 
   it('renders non-ref values unsplit', () => {

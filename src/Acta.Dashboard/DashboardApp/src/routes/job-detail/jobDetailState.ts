@@ -61,12 +61,6 @@ function eventReasonText(event: EventItem): string | null {
   return event.message ?? eventFacts(event.detailsText).reason ?? null;
 }
 
-export function latestMeaningfulEvent(events: readonly EventItem[]): EventItem | null {
-  if (events.length === 0) return null;
-  const newest = newestFirst(events);
-  return newest.find((event) => eventReasonText(event) !== null) ?? newest[0];
-}
-
 /** Merge the independently polled newest page with immutable pages accumulated by the history feed. */
 export function mergeJobEvents(head: readonly EventItem[], historyPages: readonly (readonly EventItem[])[]): EventItem[] {
   const seen = new Set<number>();

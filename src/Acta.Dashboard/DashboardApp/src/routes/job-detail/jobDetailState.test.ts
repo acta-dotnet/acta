@@ -5,7 +5,6 @@ import {
   buildIncidentSummary,
   childRollup,
   executionLabel,
-  latestMeaningfulEvent,
   mergeJobEvents,
   payloadFormatLabel
 } from './jobDetailState.ts';
@@ -28,24 +27,6 @@ const event = (eventId: number, createdAtUtc: string, message: string | null = n
   workerRef: null,
   executionNumber: 1,
   durationMs: null
-});
-
-test('latest meaningful event prefers the newest reason-bearing event', () => {
-  const events = [
-    event(1, '2026-01-01T00:00:00Z', 'root cause'),
-    event(2, '2026-01-02T00:00:00Z'),
-    event(3, '2026-01-03T00:00:00Z')
-  ];
-  assert.equal(latestMeaningfulEvent(events)?.eventId, 1);
-});
-
-test('a reason in the details makes an event meaningful; an unreadable payload does not', () => {
-  const events = [
-    event(1, '2026-01-01T00:00:00Z', 'root cause'),
-    event(2, '2026-01-02T00:00:00Z', null, '{"reason":"lease-expired","to":"ready"}'),
-    event(3, '2026-01-03T00:00:00Z', null, 'not json')
-  ];
-  assert.equal(latestMeaningfulEvent(events)?.eventId, 2);
 });
 
 test('event head replaces overlapping history without duplicating immutable pages', () => {
