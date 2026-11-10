@@ -21,6 +21,7 @@
   import { scope } from '../scope.ts';
   import { routes } from '../routes.ts';
   import { displayFormatter } from '../format.ts';
+  import { SCHEDULE_LAG_ENVELOPE_SECONDS } from '../components/scheduleControlState.ts';
 
   interface ScheduleItem {
     jobNamespace: string;
@@ -89,6 +90,13 @@
 
   const capabilities = createQuery(() => capabilitiesQuery());
   let canControlNow = $derived(can(capabilities.data, Permission.control));
+  // The status panel calls an evaluation overdue past the Overview's envelope, so a normal fire delay never reads as a problem.
+  // It is measured at the read the page shows, which does not poll: against the clock, a page left open would turn every
+  // healthy schedule overdue.
+  let overdue = $derived(
+    schedule?.status === 'active' && !!schedule.nextEvaluationAtUtc &&
+      detail.dataUpdatedAt - new Date(schedule.nextEvaluationAtUtc).getTime() > SCHEDULE_LAG_ENVELOPE_SECONDS * 1000
+  );
 
   // Schedule lifecycle events carry the definition's id whichever row they are recorded against: the
   // slot job of a permanent definition, or the definition itself for a per-occurrence one, which has no
@@ -141,7 +149,7 @@
   {#snippet actions()}<PageFreshness dataUpdatedAt={detail.dataUpdatedAt} isFetching={detail.isFetching} isError={!!detail.error} onRefresh={() => detail.refetch()} />
     {#if schedule && canControlNow}{@const currentSchedule = schedule}
       <DetailActions>
-        <section class="detail-panel"><h2>Schedule actions</h2><p class="detail-help">Triggering fires once. Pausing holds future fires until the schedule resumes.</p>
+        <section class="detail-panel"><h2>Schedule actions</h2><p class="detail-help">Trigger now fires once without moving the recurring cursor. Pausing holds future fires until the schedule resumes.</p>
           <ScheduleControls mode="secondary" jobNamespace={currentSchedule.jobNamespace} jobName={currentSchedule.jobName} scheduleName={currentSchedule.scheduleName} status={currentSchedule.status} onChanged={() => { void detail.refetch(); void history.refetch(); }} />
         </section>
 
@@ -153,9 +161,10 @@
   {:else}
     <section class="entity-summary" aria-label="Schedule identity"><ScheduleStatus status={schedule.status} pausedUntilUtc={schedule.pausedUntilUtc} /><a href={definitionHref}>{schedule.jobNamespace} / {schedule.jobName}</a></section>
     {@const currentSchedule = schedule}
-    <section class="focus-state" style={'--tone:var(--' + (currentSchedule.status === 'active' ? 'ok' : 'warn') + ')'} aria-label="Schedule status">
+    <section class="focus-state" style={'--tone:var(--' + (currentSchedule.status === 'active' && !overdue ? 'ok' : 'warn') + ')'} aria-label="Schedule status">
       <div class="focus-state-content">
-        <h2><Icon name="calendar" />{currentSchedule.status === 'paused' ? 'Schedule paused' : currentSchedule.status === 'orphaned' ? 'Origin declaration removed' : 'Active and eligible to fire'}</h2>
+        <h2><Icon name="calendar" />{currentSchedule.status === 'paused' ? 'Schedule paused' : currentSchedule.status === 'orphaned' ? 'Origin declaration removed' : overdue ? 'Overdue for evaluation' : 'Active and eligible to fire'}</h2>
+        {#if overdue}<p>No live worker in this namespace has evaluated it since it fell due. When one does, its misfire strategy decides what fires.</p>{/if}
         <div class="focus-facts"><span>Next occurrence <strong><RelativeTime value={currentSchedule.nextOccurrenceAtUtc} /></strong></span>{#if currentSchedule.pausedUntilUtc}<span>Resumes <RelativeTime value={currentSchedule.pausedUntilUtc} /></span>{/if}</div>
       </div>
       <ScheduleControls mode="primary" jobNamespace={currentSchedule.jobNamespace} jobName={currentSchedule.jobName} scheduleName={currentSchedule.scheduleName} status={currentSchedule.status} onChanged={() => { void detail.refetch(); void history.refetch(); }} />
@@ -171,7 +180,7 @@
           {:else}<div><dt>Expression</dt><dd><span class="mono">{currentSchedule.expression}</span> <CopyButton value={currentSchedule.expression} label="Copy expression" /></dd></div>{/if}
           <div><dt>Time zone</dt><dd>{currentSchedule.timeZoneId} <CopyButton value={currentSchedule.timeZoneId} label="Copy time zone" /></dd></div>
           {#if currentSchedule.availabilityCalendarName}<div><dt>Availability</dt><dd>{@render calendarBinding(currentSchedule.availabilityCalendarName)}</dd></div>{/if}
-          <div><dt>Next evaluation</dt><dd>{#if currentSchedule.nextEvaluationAtUtc}<RelativeTime value={currentSchedule.nextEvaluationAtUtc} /> · {/if}{currentSchedule.evaluationStatus}</dd></div>
+          <div><dt>Next evaluation</dt><dd>{#if currentSchedule.nextEvaluationAtUtc}<RelativeTime value={currentSchedule.nextEvaluationAtUtc} />{' · '}{/if}{currentSchedule.evaluationStatus}</dd></div>
         </dl>
         <ScheduleControls mode="editor" jobNamespace={currentSchedule.jobNamespace} jobName={currentSchedule.jobName} scheduleName={currentSchedule.scheduleName} status={currentSchedule.status} onChanged={() => { void detail.refetch(); void history.refetch(); }} />
       </section>
@@ -185,7 +194,7 @@
           { label: 'Starts', value: currentSchedule.startAtUtc, kind: 'time' },
           { label: 'Ends before', value: currentSchedule.endBeforeUtc, kind: 'time' },
         ]} />
-        <p class="detail-help">Misfire strategy governs occurrences missed while no host admitted them. Availability omits occurrences outside its windows. Per-occurrence delivery creates a fresh root for each admitted occurrence. Permanent delivery fires its permanent job.</p>
+        <p class="detail-help">Misfire strategy governs occurrences missed while no host admitted them: skip to the next one, catch up once, catch up the latest, or catch up all. An availability calendar omits occurrences outside its windows and never shifts them. Per-occurrence delivery starts a fresh root per occurrence up to its capacity; permanent delivery fires one permanent job.</p>
       </FocusDisclosure>
       <FocusDisclosure title="Technical details" hint="Source, version and dates">
         <DetailFacts facts={[

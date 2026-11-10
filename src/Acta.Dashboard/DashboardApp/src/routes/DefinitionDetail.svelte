@@ -88,6 +88,9 @@
   let messageKind = $state('');
   let note = $state('');
   let retiring = $state(false);
+  // Retire starts from the Actions menu, so its outcome shows beside the definition's state, not in the overrides form.
+  let retireMessage = $state('');
+  let retireMessageKind = $state('');
   let confirmingRetire = $state(false);
   // Overrides and retire are admin; without it the page reads the policy and changes nothing.
   const capabilities = createQuery(() => capabilitiesQuery());
@@ -159,18 +162,18 @@
     confirmingRetire = false;
     if (!def) return;
     retiring = true;
-    message = '';
+    retireMessage = '';
     try {
       const res = await retireDefinition(def.jobNamespace, def.jobName, def.version, reason);
-      message = definitionControlMessage('retire', res.action);
-      messageKind = res.action === 'applied' ? 'ok' : 'warn';
+      retireMessage = definitionControlMessage('retire', res.action);
+      retireMessageKind = res.action === 'applied' ? 'ok' : 'warn';
       if (res.action === 'applied') {
         note = '';
         await detail.refetch(); // refresh status + version + the change history
       }
     } catch (e) {
-      message = e instanceof Error ? e.message : String(e);
-      messageKind = 'warn';
+      retireMessage = e instanceof Error ? e.message : String(e);
+      retireMessageKind = 'warn';
     } finally {
       retiring = false;
     }
@@ -195,14 +198,9 @@
         <section class="detail-panel">
           <h2>Actions</h2>
           <p class="detail-help">Registration state and contract identity are owned by the deployed job manifest. Edit operator policy overrides in the form.</p>
-          {#if canAdminNow}
-            <div class="detail-danger-actions">
-              <button
-                class="danger-outline"
-                onclick={() => (confirmingRetire = true)}
-                disabled={saving || retiring || def.status === 'retired'}>Retire definition</button>
-            </div>
-          {/if}
+          <div class="detail-danger-actions">
+            <button class="danger-outline" onclick={() => (confirmingRetire = true)} disabled={saving || retiring}>Retire definition</button>
+          </div>
         </section>
 
       </DetailActions>
@@ -218,6 +216,7 @@
       <div class="entity-meta mono">{def.jobNamespace}</div>
       <StatusBadge status={def.status} />
     </section>
+    {#if retireMessage}<div class="control-message {retireMessageKind}" role="status">{retireMessage}</div>{/if}
 
     <DetailLayout>
 
@@ -233,6 +232,7 @@
             <div><dt>Input</dt><dd class="mono">{def.inputTypeName ?? '·'}</dd></div>
             <div><dt>Result</dt><dd class="mono">{def.resultTypeName ?? '·'}</dd></div>
             <div><dt>Introduced in</dt><dd class="mono">{def.createdDeploymentVersion ?? '·'}</dd></div>
+            <div><dt>Version</dt><dd class="mono">{def.version}</dd></div>
             <!-- Code-owned like the contract: what a [Schedule] on this definition delivers, and what a firing that
                  fails for good does to its schedules. -->
             <div><dt>Scheduled delivery</dt><dd>{def.scheduledDelivery}</dd></div>

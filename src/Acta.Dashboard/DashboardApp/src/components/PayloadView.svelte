@@ -113,7 +113,7 @@
 
 <style>
   .payload-block { min-width: 0; }
-  .payload-tools { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+  .payload-tools { display: flex; align-items: center; justify-content: flex-end; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
   .payload-actions { display: flex; gap: 8px; margin-top: 10px; }
   pre {
     margin: 0;

@@ -15,9 +15,10 @@
   );
 </script>
 
+<!-- The popover sits inside the time's own span: a sibling on its own line would leave a space before
+     whatever punctuation follows the time. -->
 {#if value}
-  <span class="relative-time" title={title ?? displayFormatter.timestamp(value)}><button class="value-detail" type="button" popovertarget={detailId} aria-label={`${displayFormatter.relativeTime(value, tick)}. Show exact date and time.`}>{displayFormatter.relativeTime(value, tick)}</button></span>
-  <span id={detailId} popover="auto" class="technical-popover" role="note"><strong>Date and time</strong><br />{title ?? displayFormatter.timestamp(value)}<br /><span class="mono dim">{value}</span></span>
+  <span class="relative-time" title={title ?? displayFormatter.timestamp(value)}><button class="value-detail" type="button" popovertarget={detailId} aria-label={`${displayFormatter.relativeTime(value, tick)}. Show exact date and time.`}>{displayFormatter.relativeTime(value, tick)}</button><span id={detailId} popover="auto" class="technical-popover" role="note"><strong>Date and time</strong><br />{title ?? displayFormatter.timestamp(value)}<br /><span class="mono dim">{value}</span></span></span>
 {:else}
   <span class="dim">·</span>
 {/if}

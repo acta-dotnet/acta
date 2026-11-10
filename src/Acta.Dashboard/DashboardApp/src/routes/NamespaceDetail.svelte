@@ -179,19 +179,12 @@
       <DetailActions>
         <section class="detail-panel">
           <h2>Actions</h2>
-          {#if systemNamespace}
-            <p class="detail-help">The system namespace is always available and has no operator lifecycle controls.</p>
+          <p>{currentNamespace.status === 'suspended' ? 'Suspended; new enqueue requests are rejected.' : 'Active and accepting enqueue requests.'}</p>
+          <p class="detail-help">Suspending blocks new enqueue requests. Existing in-flight and queued jobs are unaffected.</p>
+          {#if currentNamespace.status === 'suspended'}
+            <p class="detail-help">Resume is available beside the current state.</p>
           {:else}
-            <p>{currentNamespace.status === 'suspended' ? 'Suspended; new enqueue requests are rejected.' : 'Active and accepting enqueue requests.'}</p>
-            {#if canControlNow}
-              <p class="detail-help">Suspending blocks new enqueue requests. Existing in-flight and queued jobs are unaffected.</p>
-              {#if currentNamespace.status === 'suspended'}
-  <p class="detail-help">Resume is available beside the current state.</p>
-              {:else}
-                <button class="danger-outline" disabled={statusMutation.isPending} onclick={() => (confirming = 'suspend')}>Suspend namespace</button>
-              {/if}
-            {/if}
-            {#if statusMessage}<div class="control-message {statusMessageKind}" role="status">{statusMessage}</div>{/if}
+            <button class="danger-outline" disabled={statusMutation.isPending} onclick={() => (confirming = 'suspend')}>Suspend namespace</button>
           {/if}
         </section>
 
@@ -246,6 +239,8 @@
           <h2><Icon name={currentNamespace.status === 'active' ? 'check' : 'pause'} />{currentNamespace.status === 'active' ? 'Active and accepting enqueue requests' : 'Suspended for new enqueue requests'}</h2>
           {#if currentNamespace.description}<p>{currentNamespace.description}</p>{/if}
           {#if currentNamespace.ownerTeam}<div class="focus-facts"><span>Owner <strong>{currentNamespace.ownerTeam}</strong></span></div>{/if}
+          {#if systemNamespace}<p class="detail-help">The system namespace is always available and has no operator lifecycle controls.</p>{/if}
+          {#if statusMessage}<div class="control-message {statusMessageKind}" role="status">{statusMessage}</div>{/if}
         </div>
         {#if canControlNow && currentNamespace.status === 'suspended'}<button class="primary" disabled={statusMutation.isPending} onclick={() => (confirming = 'resume')}>Resume namespace</button>{/if}
       </section>

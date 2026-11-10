@@ -58,7 +58,11 @@ Acta should feel calm, technically precise, modern, and readable. Focus is the d
 - Present the current state or problem before secondary facts.
 - Keep a relevant primary action beside the state when one applies.
 - Put secondary and destructive actions in a compact Actions menu in the page header. Preserve confirmations and audit-reason requirements.
-- Hide action controls that do not apply or that the operator cannot use.
+- Hide action controls that do not apply or that the operator cannot use. Once an operator could act on a page, keep its controls mounted, so a request refused by a revoked permission still shows its message.
+- Show the outcome of an action started from the Actions menu beside the state, never only inside the menu, which may be closed.
+- A control rendered in two places, beside the state and in the menu, shares one in-flight guard: a pending request disables both.
+- The menu leaves out only the action the state panel actually shows. When the panel holds something else, such as a failed child or a signal sender, the menu keeps every control.
+- Keep a confirmation's own clicks and Escape inside it, so the menu that opened it stays open and focus returns to the opener.
 - Use named disclosures for activity, stored data, policy editing, metadata, and technical details.
 - Render schedules, checkpoints, lineage, and bindings only when relevant data exists.
 - Keep related links as a compact footer row.
@@ -77,6 +81,7 @@ Acta should feel calm, technically precise, modern, and readable. Focus is the d
 - Put Created, Modified, row versions, correlation keys, and other audit metadata in technical details.
 - Show operationally relevant times such as deadlines, heartbeats, and next runs near their context.
 - Show relative times by default. Make the exact timestamp available on hover and through keyboard-accessible inspection.
+- Inspectable references and times grow their hit area to the 24px target floor without changing the line they sit on, and add no space before the punctuation that follows them.
 
 ## Job detail
 
@@ -88,22 +93,25 @@ Acta should feel calm, technically precise, modern, and readable. Focus is the d
 - Showing execution history puts the attempt summaries in focus. Walking an execution returns to its filtered event timeline.
 - Preserve existing section and execution deep links by opening their matching disclosures.
 - Keep input amendment, signals, clone, tags, incident copying, and all existing job controls available under their permissions.
-- Preserve permanent-job firing and attempt-budget semantics.
+- Preserve permanent-job firing and attempt-budget semantics. A retrying job states its budget beside its failures: "fails permanently at N", or "each firing gets N attempts" on a permanent job.
+- When a job turns terminal, the timeline reads its newest events once more, since the last poll can precede them.
+- A not-found page names the reference that was requested.
 
 ## Job lineage
 
 - Show the current job as “This job” and direct children as connected, selectable nodes.
 - Make failed children easy to spot and inspect.
 - Show a compact status rollup and filters when a family is large.
-- Show ancestors as a navigable path.
-- Inspect a child's real state within the page and load its details on demand.
-- Allow drilling into descendants and returning through the lineage path.
+- Show ancestors as a navigable path. An explored branch's path starts below this job: the API lists ancestors farthest first.
+- Give every child node its compact reference, since siblings often share a job name.
+- Inspect a child's real state within the page and load its details on demand. A changed parent read refreshes the inspected child and the explored branch.
+- Allow drilling into descendants and returning through the lineage path. Inspecting this job's failed child leaves an explored branch.
 - Use a readable vertical hierarchy on narrow screens.
 - State when an API read is capped. Derive descendant information from actual reads.
 
 ## Other detail screens
 
-- Schedules emphasize their expression, time zone, current state, and next occurrence. Advanced delivery policy and editing use disclosures.
+- Schedules emphasize their expression, time zone, current state, and next occurrence. Advanced delivery policy and editing use disclosures. An active schedule whose evaluation is past due by more than the Overview's schedule-lag envelope leads with "Overdue for evaluation".
 - Calendars emphasize the shown definition and forecast. Keep version navigation compact and show bound schedules when present.
 - Definitions emphasize effective policy. Place the full override editor, contract, and supporting metadata behind disclosures.
 - Workers emphasize health, heartbeat, and execution capacity. Keep process identity, exact audit times, and runtime versions in technical details.
@@ -118,6 +126,7 @@ Acta should feel calm, technically precise, modern, and readable. Focus is the d
 - Use compact empty-state rows with an icon, heading, and short message.
 - Use small section icons for Workers and Outbox relays.
 - Give operational problems prominence while keeping healthy and empty states compact.
+- Links inside a warning or failure banner use the text colour with an underline. The accent reads as healthy there.
 
 ## Verification
 
@@ -125,4 +134,7 @@ Acta should feel calm, technically precise, modern, and readable. Focus is the d
 - Exercise light, dark, and paper dashboard themes, narrow screens, larger text, and keyboard navigation.
 - Verify authorized mutations through their existing endpoints and confirmation flows.
 - Keep browser and component tests aligned with the chosen navigation and disclosure structure.
+- Run an accessibility scan (WCAG 2.2 AA) over every screen in each theme with all disclosures open, and walk menus, dialogs, and popovers by keyboard.
+- Exercise controls, lineage, and catalog workflows against a real backend as well as the fixture-backed browser tests.
+- Website screenshots of the dashboard come from the final build, with fixture text taken from what the server actually returns.
 - Verify that loading, missing, empty, error, permission-limited, and partial-data states remain understandable.

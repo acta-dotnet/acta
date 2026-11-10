@@ -74,10 +74,10 @@ const ACCENT_SCALES: Record<AccentId, ScalePair> = {
  * them are simply paper's own status colours, which is what keeps the family coherent: teal is
  * the moss of --ok, amber the ochre of --warn, crimson the seal red of --bad, violet the plum of
  * --held. Every value sits at or below 0.12 relative luminance so it clears 4.5:1 against both
- * paper surfaces (#f4ecd9 and the deeper #ebe0c8), which accents.test.ts verifies.
+ * paper surfaces (#faf7f1 and the #fffdfa panel), which accents.test.ts verifies.
  */
 const PAPER_ACCENTS: Record<AccentId, string> = {
-  teal: '#3f6147',     // moss
+  teal: '#315d43',     // moss
   green: '#4a6b2f',    // olive
   amber: '#7d5310',    // ochre
   crimson: '#a03a2f',  // seal red

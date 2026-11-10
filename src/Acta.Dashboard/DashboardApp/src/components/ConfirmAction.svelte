@@ -122,7 +122,7 @@
 
       {#if showReason}
         <label class="control-reason">
-          {requireReason ? 'Reason (required, recorded in job events)' : 'Reason (optional, recorded in job events)'}
+          {requireReason ? 'Reason (required, recorded in the event history)' : 'Reason (optional, recorded in the event history)'}
           <textarea bind:this={reasonEl} rows="2" maxlength="512" bind:value={reason} disabled={submitting}></textarea>
         </label>
       {/if}

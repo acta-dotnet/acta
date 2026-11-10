@@ -75,7 +75,7 @@
     <PageFreshness dataUpdatedAt={detail.dataUpdatedAt} isFetching={detail.isFetching} isError={!!detail.error} {polling} onRefresh={() => detail.refetch()} />
   {/snippet}
   {#if missing}
-    <div class="panel"><StateView emptyText="Worker not found." /></div>
+    <div class="panel"><StateView emptyText={`Worker ${workerRef} not found.`} /></div>
   {:else if error}
     <div class="panel"><StateView {error} onRetry={() => detail.refetch()} /></div>
   {:else if worker}

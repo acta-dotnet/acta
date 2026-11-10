@@ -1,3 +1,10 @@
+<script module lang="ts">
+  import { SvelteSet } from 'svelte/reactivity';
+  // A schedule page renders its controls in more than one place; a request in flight from any instance holds
+  // every button of that schedule.
+  const inflight = new SvelteSet<string>();
+</script>
+
 <script lang="ts">
   import { createQuery } from '@tanstack/svelte-query';
   import { useControlMutation } from '../lib/useControlMutation.ts';
@@ -54,12 +61,15 @@
     notFound: () => ({ action: 'not-found' }),
     invalidateKeys: () => [['schedules']] as const
   });
-  let busy = $derived(mutation.isPending);
+  let scheduleKey = $derived(jobNamespace + '/' + jobName + '/' + scheduleName);
+  let busy = $derived(mutation.isPending || inflight.has(scheduleKey));
 
   async function run(action: 'pause' | 'resume' | 'trigger', reason: string, extra?: Record<string, unknown>) {
     confirming = null;
     pausingUntil = false;
     message = '';
+    const key = scheduleKey;
+    inflight.add(key);
     try {
       const result = await mutation.mutateAsync({ action, reason, extra });
       // Rejected (e.g. the backend cleanly rejects a terminal-slot trigger) is a warning, never a
@@ -70,6 +80,8 @@
     } catch (e) {
       message = (e as Error).message;
       messageKind = 'bad';
+    } finally {
+      inflight.delete(key);
     }
   }
 

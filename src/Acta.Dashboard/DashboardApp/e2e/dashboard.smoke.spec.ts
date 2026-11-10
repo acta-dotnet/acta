@@ -327,7 +327,7 @@ test('a malformed job ref reads as a job not found, with nothing to retry', asyn
   await mockDashboard(page, { controls: false });
   await page.goto('/#/jobs/not-a-ref');
 
-  await expect(page.getByText('Job not found.')).toBeVisible();
+  await expect(page.getByText('Job not-a-ref not found.')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Retry' })).toHaveCount(0);
   await expect(page.getByText('Update failed')).toHaveCount(0);
 });
@@ -1186,7 +1186,10 @@ test('Focus lineage loads selected children on demand and explores descendants i
   const branchRef = 'job_019f9b3509487d1b911f202072c9e1a5';
   const leafRef = 'job_019f9b3509487d1b911f202072c9e1a6';
   const parent = { ...job, kind: 'ordinary', version: 1, jobName: 'publish-manuscript', status: 'suspended', failureCount: 0 };
-  const failed = { ...parent, jobRef: failedRef, jobName: 'validate-assets', status: 'failed', parentJobRef: jobRef };
+  // The page job has an ancestor of its own: the API lists a branch's ancestors farthest first, so the
+  // explored child's path must start below this job, not repeat the ancestors above it.
+  const root = { ...parent, jobRef: 'job_019f9b3509487d1b911f202072c9e1a3', jobName: 'publish-catalog' };
+  const failed ={ ...parent, jobRef: failedRef, jobName: 'validate-assets', status: 'failed', parentJobRef: jobRef };
   const branch = { ...parent, jobRef: branchRef, jobName: 'typeset-pdf', parentJobRef: jobRef };
   const leaf = { ...parent, jobRef: leafRef, jobName: 'render-chapter', status: 'executing', parentJobRef: branchRef };
   const detail = (row: typeof parent, children: typeof parent[], ancestors: typeof parent[] = []) => ({
@@ -1197,7 +1200,7 @@ test('Focus lineage loads selected children on demand and explores descendants i
   });
   const reads: string[] = [];
   await mockDashboard(page, { controls: false });
-  const fixtures = new Map([[jobRef, detail(parent, [branch, failed])], [failedRef, detail(failed, [], [parent])], [branchRef, detail(branch, [leaf], [parent])]]);
+  const fixtures = new Map([[jobRef, detail(parent, [branch, failed], [root])], [failedRef, detail(failed, [], [root, parent])], [branchRef, detail(branch, [leaf], [root, parent])]]);
   await page.route('**/api/v1/jobs/*/detail', async (route) => {
     const ref = new URL(route.request().url()).pathname.split('/').at(-2)!;
     reads.push(ref);
@@ -1216,12 +1219,20 @@ test('Focus lineage loads selected children on demand and explores descendants i
   await expect(inspector).toContainText('96 DPI');
   expect(reads).toContain(failedRef);
   await page.getByRole('button', { name: 'Inspect typeset-pdf' }).click();
-  await inspector.getByRole('button', { name: '1 children' }).click();
-  await expect(page.getByRole('navigation', { name: 'Lineage path' })).toContainText('typeset-pdf');
+  await inspector.getByRole('button', { name: '1 child' }).click();
+  await expect(page.getByRole('navigation', { name: 'Lineage path' })).toHaveText(/^\s*This job\s*typeset-pdf\s*$/);
   await expect(page.getByRole('button', { name: 'Inspect render-chapter' })).toBeVisible();
   await page.getByRole('navigation', { name: 'Lineage path' }).getByRole('button', { name: 'This job' }).click();
   await expect(page.getByRole('button', { name: 'Inspect validate-assets' })).toBeVisible();
   expect(page.url()).toContain('/jobs/' + jobRef);
+
+  // The status panel's failed child belongs to this job, so inspecting it leaves an explored branch.
+  await page.getByRole('button', { name: 'Inspect typeset-pdf' }).click();
+  await inspector.getByRole('button', { name: '1 child' }).click();
+  await expect(page.getByRole('button', { name: 'Inspect render-chapter' })).toBeVisible();
+  await page.getByRole('button', { name: 'Inspect failed child' }).click();
+  await expect(page.getByRole('navigation', { name: 'Lineage path' })).toHaveCount(0);
+  await expect(inspector).toContainText('96 DPI');
 });
 
 test('compact references and relative dates expose complete values through keyboard inspection', async ({ page }) => {
@@ -1241,4 +1252,115 @@ test('compact references and relative dates expose complete values through keybo
   await created.getByRole('button', { name: /Show exact date and time/ }).click();
   await expect(page.locator('.technical-popover:popover-open')).toContainText(job.createdAtUtc);
   expect(await reference.getAttribute('title')).toBe(jobRef);
+});
+
+test('a paused job waiting on a signal keeps Resume in the Actions menu', async ({ page }) => {
+  await mockDashboard(page, { controls: true });
+  const paused = { ...job, status: 'paused', failureCount: 0 };
+  await page.route(`**/api/v1/jobs/${jobRef}/detail`, (route) => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({
+      job: paused, input: null, result: null, resultTypeName: null, maxAttemptsEffective: 3,
+      checkpoints: { items: [], nextCursor: null, hasMore: false, totalCount: 0 }, schedules: [], schedulesTotal: 0, workers: [], workersTotal: 0,
+      explain: { headline: 'Paused while waiting for approval.', reason: null, activeWait: { kind: 'Signal', name: 'approval', dueAtUtc: null }, lease: null, lastExecutedBy: null, steps: [], stepsHasMore: false, nextActions: [] },
+      lineage: { job: paused, ancestors: [], ancestorsHasMore: false, children: [], childrenHasMore: false, steps: [], stepsHasMore: false, activeWait: null }
+    })
+  }));
+  await page.goto(`/#/jobs/${jobRef}?ns=billing`);
+
+  const status = page.getByRole('region', { name: 'Job status' });
+  await expect(status.getByRole('button', { name: 'Resume' })).toHaveCount(0);
+  await page.locator('.detail-actions > summary').click();
+  await expect(page.locator('.detail-action-content').getByRole('button', { name: 'Resume' })).toBeVisible();
+});
+
+// The detail read for one job state, with everything else as the default fixture has it.
+async function routeJobDetail(page: Page, row: Record<string, unknown>, extra: Record<string, unknown> = {}): Promise<void> {
+  await page.route(`**/api/v1/jobs/${jobRef}/detail`, (route) => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({
+      job: row, input: null, result: null, resultTypeName: null, maxAttemptsEffective: 5,
+      checkpoints: { items: [], nextCursor: null, hasMore: false, totalCount: 0 }, schedules: [], schedulesTotal: 0, workers: [], workersTotal: 0,
+      explain: { headline: 'Waiting.', reason: null, activeWait: null, lease: null, lastExecutedBy: null, steps: [], stepsHasMore: false, nextActions: [] },
+      lineage: { job: row, ancestors: [], ancestorsHasMore: false, children: [], childrenHasMore: false, steps: [], stepsHasMore: false, activeWait: null },
+      ...extra
+    })
+  }));
+}
+
+test('the status panel names the blocking job and the attempt budget left to a retrying job', async ({ page }) => {
+  const blocker = 'job_019f9b3509487d1b911f202072c9e1b0';
+  await mockDashboard(page, { controls: false });
+  await routeJobDetail(page, { ...job, kind: 'ordinary', version: 1, status: 'blocked', blockedBehindJobRef: blocker, failureCount: 2 });
+  await page.goto(`/#/jobs/${jobRef}?ns=billing`);
+
+  const status = page.getByRole('region', { name: 'Job status' });
+  await expect(status.getByRole('link', { name: blocker })).toHaveAttribute('href', new RegExp(blocker));
+  await expect(status).toContainText('2 consecutive failures, fails permanently at 5');
+});
+
+test('a permanent job states its failures and budget per firing', async ({ page }) => {
+  await mockDashboard(page, { controls: false });
+  await routeJobDetail(page, { ...job, kind: 'permanent', version: 1, status: 'ready', failureCount: 1 });
+  await page.goto(`/#/jobs/${jobRef}?ns=billing`);
+
+  const status = page.getByRole('region', { name: 'Job status' });
+  await expect(status).toContainText('1 consecutive failure in the latest firing, each firing gets 5 attempts');
+  await expect(status).not.toContainText('Blocked behind');
+});
+
+test('a control in flight from the status panel holds the Actions menu too', async ({ page }) => {
+  await mockDashboard(page, { controls: true });
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => (release = resolve));
+  await page.route(`**/api/v1/jobs/${jobRef}/restart`, async (route) => {
+    await held;
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ action: 'applied', status: 'ready' }) });
+  });
+  await page.goto(`/#/jobs/${jobRef}?ns=billing`);
+
+  await page.getByRole('region', { name: 'Job status' }).getByRole('button', { name: 'Run again' }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByLabel(/Reason \(required/).fill('Provider recovered; operator retry.');
+  await dialog.getByRole('button', { name: 'Run again' }).click();
+  await page.locator('.detail-actions > summary').click();
+  await expect(page.locator('.detail-action-content').getByRole('button', { name: 'Delete record' })).toBeDisabled();
+  release();
+  await expect(page.locator('.detail-action-content').getByRole('button', { name: 'Delete record' })).toBeEnabled();
+});
+
+test('going back to an execution link shows its timeline again', async ({ page }) => {
+  await mockDashboard(page, { controls: false });
+  await page.goto(`/#/jobs/${jobRef}?ns=billing&execution=1`);
+  await expect(page.locator('#job-timeline')).toBeVisible();
+
+  await page.locator('.hero-attempt').click();
+  await expect(page).toHaveURL(/tab=executions/);
+  await expect(page.locator('#job-timeline')).toBeHidden();
+  await page.goBack();
+  await expect(page.locator('#job-timeline')).toBeVisible();
+});
+
+test('a schedule past its evaluation envelope reads as overdue, a just-due one as active', async ({ page }) => {
+  const row = (evaluatedAgoMs: number) => ({
+    jobNamespace: 'billing', jobName: 'send-invoice', jobRef: null, scheduleName: 'nightly', origin: 'code', expressionKind: 'cron',
+    expression: '0 2 * * *', timeZoneId: 'UTC', misfireStrategy: 'catch-up-once', nextOccurrenceAtUtc: new Date(Date.now() - evaluatedAgoMs).toISOString(),
+    nextEvaluationAtUtc: new Date(Date.now() - evaluatedAgoMs).toISOString(), evaluationStatus: 'scheduled', status: 'active', pausedUntilUtc: null,
+    createdAtUtc: '2026-07-01T00:00:00Z', modifiedAtUtc: '2026-07-01T00:00:00Z', version: 1, maxOutstanding: 1, outstandingCount: 0, fullBehavior: 'skip',
+    scheduledDelivery: 'per-occurrence', expireAfterSeconds: null, expireAction: null, availabilityCalendarName: null, startAtUtc: null, endBeforeUtc: null
+  });
+  let agoMs = 10 * 60_000;
+  await mockDashboard(page, { controls: false });
+  await page.route('**/api/v1/schedules?*', (route) => route.fulfill({
+    status: 200, contentType: 'application/json', body: JSON.stringify({ items: [row(agoMs)], nextCursor: null, hasMore: false, pageSize: 100, totalCount: 1 })
+  }));
+  await page.goto('/#/schedules/billing/send-invoice/nightly?ns=billing');
+  const status = page.getByRole('region', { name: 'Schedule status' });
+  await expect(status.getByRole('heading')).toHaveText('Overdue for evaluation');
+
+  agoMs = 30_000;
+  await page.reload();
+  await expect(status.getByRole('heading')).toHaveText('Active and eligible to fire');
 });

@@ -46,6 +46,13 @@
     refetchInterval: polling && !$livePaused ? listRefetchInterval : false
   }));
 
+  // A job that turns terminal wrote its last events after the previous poll, so stopping the poll reads once more.
+  let wasPolling = false;
+  $effect(() => {
+    if (wasPolling && !polling) void head.refetch();
+    wasPolling = polling;
+  });
+
   let historyPages = $derived(history.data?.pages.map((page) => page.items) ?? []);
   let events: EventItem[] = $derived(mergeJobEvents(head.data?.items ?? [], historyPages));
   $effect(() => onEventsChange(events));

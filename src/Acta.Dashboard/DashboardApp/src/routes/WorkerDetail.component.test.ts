@@ -44,6 +44,6 @@ describe('WorkerDetail', () => {
     render(WorkerDetailHarness, { workerRef: worker.workerRef });
 
     expect(await screen.findByText('Try again later.')).toBeTruthy();
-    expect(screen.queryByText('Worker not found.')).toBeNull();
+    expect(screen.queryByText(/not found/)).toBeNull();
   });
 });

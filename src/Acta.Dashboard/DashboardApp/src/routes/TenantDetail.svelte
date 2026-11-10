@@ -237,12 +237,11 @@
           {#if canControlNow}
             <p class="detail-help">Suspending rejects new enqueues that name this tenant name. Jobs already admitted keep running and may still create inherited child jobs.</p>
             {#if currentTenant.status === 'suspended'}
-<p class="detail-help">Resume is available beside the current state.</p>
+              <p class="detail-help">Resume is available beside the current state.</p>
             {:else}
               <button class="danger-outline" disabled={statusMutation.isPending} onclick={() => (confirming = 'suspend')}>Suspend tenant</button>
             {/if}
           {/if}
-          {#if statusMessage}<div class="control-message {statusMessageKind}" role="status">{statusMessage}</div>{/if}
         </section>
 
       </DetailActions>
@@ -315,6 +314,7 @@
         <div class="focus-state-content">
           <h2><Icon name={currentTenant.status === 'active' ? 'check' : 'pause'} />{currentTenant.status === 'active' ? 'Active and accepting enqueue requests' : 'Suspended for new enqueue requests'}</h2>
           {#if currentTenant.description}<p>{currentTenant.description}</p>{/if}
+          {#if statusMessage}<div class="control-message {statusMessageKind}" role="status">{statusMessage}</div>{/if}
 
         </div>
         {#if canControlNow && currentTenant.status === 'suspended'}<button class="primary" disabled={statusMutation.isPending} onclick={() => (confirming = 'resume')}>Resume tenant</button>{/if}
