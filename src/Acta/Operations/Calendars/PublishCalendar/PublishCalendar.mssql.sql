@@ -61,8 +61,8 @@ BEGIN TRY
         AND NOT EXISTS (
             SELECT 1
             FROM @rows r
-            LEFT JOIN {{schema}}.schedules s ON s.schedule_id = r.schedule_id
-            LEFT JOIN {{schema}}.schedules_state st WITH (UPDLOCK, HOLDLOCK) ON st.schedule_id = r.schedule_id
+            LEFT JOIN {{schema}}.schedules s WITH (FORCESEEK) ON s.schedule_id = r.schedule_id
+            LEFT JOIN {{schema}}.schedules_state st WITH (UPDLOCK, HOLDLOCK, FORCESEEK) ON st.schedule_id = r.schedule_id
             WHERE s.version IS NULL OR s.version <> r.expected_version OR st.version IS NULL OR st.version <> r.expected_state_version)
         -- A schedule naming the family that the plan never read, as a deploy adds one, rejects it too. A namespace's
         -- family binds its own schedules, sought from its definitions; a shared family's span every namespace, whose
@@ -106,6 +106,7 @@ BEGIN TRY
         WHERE calendar_id = @candidate_id;
 
         -- The retime events are written before the cursor moves, as registration does, from the rows the plan carries.
+        -- Every join from here on seeks the plan's rows by key (docs/sql-internals.md, "Locking reads seek").
         INSERT INTO {{schema}}.events (
             event_code, created_at_utc, namespace_id,
             entity_code, entity_id,
@@ -121,10 +122,10 @@ BEGIN TRY
             jr.execution_number,
             1 /* JobPayloadFormat.Json */, CAST(CAST(e.details AS VARCHAR(MAX)) AS VARBINARY(MAX))
         FROM @rows r
-        INNER JOIN {{schema}}.schedules s ON s.schedule_id = r.schedule_id
-        INNER JOIN {{schema}}.definitions d ON d.definition_id = s.definition_id
-        LEFT JOIN {{schema}}.jobs j ON j.job_id = s.job_id
-        LEFT JOIN {{schema}}.jobs_state jr ON jr.job_id = s.job_id
+        INNER JOIN {{schema}}.schedules s WITH (FORCESEEK) ON s.schedule_id = r.schedule_id
+        INNER JOIN {{schema}}.definitions d WITH (FORCESEEK) ON d.definition_id = s.definition_id
+        LEFT JOIN {{schema}}.jobs j WITH (FORCESEEK) ON j.job_id = s.job_id
+        LEFT JOIN {{schema}}.jobs_state jr WITH (FORCESEEK) ON jr.job_id = s.job_id
         CROSS APPLY (
             SELECT 106 /* EventCode.ScheduleSkipped */ AS event_code, r.skipped_details AS details, 1 AS ord
             UNION ALL
@@ -139,7 +140,7 @@ BEGIN TRY
         SET
             modified_at_utc = @now,
             version = s.version + 1
-        FROM {{schema}}.schedules s
+        FROM {{schema}}.schedules s WITH (FORCESEEK)
         INNER JOIN @rows r ON r.schedule_id = s.schedule_id
         WHERE r.retimed_details IS NOT NULL;
 
@@ -153,9 +154,9 @@ BEGIN TRY
             evaluation_status_code = CASE WHEN r.next_occurrence_at_utc IS NULL THEN 30 /* ScheduleEvaluationStatusCode.Exhausted */ ELSE 10 /* ScheduleEvaluationStatusCode.Scheduled */ END,
             version = st.version + 1,
             modified_at_utc = @now
-        FROM {{schema}}.schedules_state st
+        FROM {{schema}}.schedules_state st WITH (FORCESEEK)
         INNER JOIN @rows r ON r.schedule_id = st.schedule_id
-        INNER JOIN {{schema}}.schedules s ON s.schedule_id = r.schedule_id
+        INNER JOIN {{schema}}.schedules s WITH (FORCESEEK) ON s.schedule_id = r.schedule_id
         WHERE r.retimed_details IS NOT NULL;
 
         INSERT INTO {{schema}}.events (

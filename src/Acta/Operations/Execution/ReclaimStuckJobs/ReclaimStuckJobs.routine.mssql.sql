@@ -214,8 +214,8 @@ BEGIN
             1 /* JobPayloadFormat.Json */,
             CAST('{"reason":"lane-repaired"}' AS VARBINARY(MAX))
         FROM @repaired x
-        INNER JOIN {{schema}}.jobs j ON j.job_id = x.job_id
-        INNER JOIN {{schema}}.jobs_state r ON r.job_id = x.job_id;
+        INNER JOIN {{schema}}.jobs j WITH (FORCESEEK) ON j.job_id = x.job_id
+        INNER JOIN {{schema}}.jobs_state r WITH (FORCESEEK) ON r.job_id = x.job_id;
 
         WITH stuck AS (
             SELECT
@@ -229,7 +229,7 @@ BEGIN
                    unbounded wait (NULL due) matches nothing. Expired means the timeout had resolved. */
                 CASE WHEN EXISTS (
                     SELECT 1
-                    FROM {{schema}}.checkpoints c
+                    FROM {{schema}}.checkpoints c WITH (FORCESEEK)
                     WHERE
                         c.job_id = r.job_id
                         AND c.checkpoint_kind_code IN (20 /* CheckpointKindCode.Signal */, 50 /* CheckpointKindCode.ChildLatch */)
@@ -240,8 +240,8 @@ BEGIN
                 CASE WHEN j.job_kind_code = 20 /* JobKindCode.Permanent */ THEN 1 ELSE 0 END AS is_slot
             FROM @stuck k
             INNER JOIN {{schema}}.jobs_state r WITH (READPAST, UPDLOCK, ROWLOCK, FORCESEEK) ON r.job_id = k.job_id
-            INNER JOIN {{schema}}.jobs j ON j.job_id = r.job_id
-            INNER JOIN {{schema}}.definitions jd ON jd.definition_id = j.definition_id
+            INNER JOIN {{schema}}.jobs j WITH (FORCESEEK) ON j.job_id = r.job_id
+            INNER JOIN {{schema}}.definitions jd WITH (FORCESEEK) ON jd.definition_id = j.definition_id
             WHERE
                 r.job_status_code = 50 /* JobStatusCode.Executing */
                 AND r.leased_by_worker_id IS NOT NULL
@@ -298,7 +298,7 @@ BEGIN
         -- see docs/sql-internals.md.
         FROM {{schema}}.jobs_state r WITH (FORCESEEK)
         INNER JOIN stuck s ON s.job_id = r.job_id
-        INNER JOIN {{schema}}.jobs j ON j.job_id = r.job_id;
+        INNER JOIN {{schema}}.jobs j WITH (FORCESEEK) ON j.job_id = r.job_id;
 
         /* An orphaned attempt that spent the budget is the job failing for good; any other lands Ready or back on its
            wait. Every recording level records it in this transaction, so the projector meets every lease-loss
@@ -371,7 +371,7 @@ BEGIN
             modified_at_utc = @now,
             version = st.version + 1
         FROM {{schema}}.schedules_state st WITH (FORCESEEK)
-        INNER JOIN {{schema}}.schedules js ON js.schedule_id = st.schedule_id
+        INNER JOIN {{schema}}.schedules js WITH (FORCESEEK) ON js.schedule_id = st.schedule_id
         INNER JOIN @reclaimed r ON r.job_id = js.job_id
         WHERE
             r.to_status_code = 40 /* JobStatusCode.Idle */

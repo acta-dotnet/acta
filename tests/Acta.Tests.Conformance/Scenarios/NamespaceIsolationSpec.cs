@@ -280,8 +280,22 @@ public sealed class NamespaceIsolationSpec : ActaRuntimeTestBase<ConformanceFixt
         var retireVersion = (await definitions.GetAsync(TestNamespace, "job-note", ct))!.Version;
         var alert = await RaiseAlertAsync(Services, TestNamespace, completed.JobId, ct);
         var schedule = new ScheduleLookup(TestNamespace, "recurring-ping", "every-5-minutes");
+        // A publication retimes the schedules that follow its family. The test jobs declare no calendar schedule, so
+        // this one is bound by hand.
+        var followed = new CalendarLookup(TestNamespace, Unique("followed"));
+        await PublishCalendarAsync(Services, followed, ct);
+        await Db.ExecuteRawAsync(
+            $"UPDATE {{schema}}.schedules SET expression_kind_code = {(int)ScheduleExpressionKindCode.Calendar}, expression = @p_name WHERE job_id = @p_id",
+            ct,
+            ("@p_name", followed.CalendarName),
+            ("@p_id", await ScheduleTestOps.SlotIdAsync(Db, TestNamespace, "recurring-ping", ct))
+        );
 
         await other.HoldAsync(ct);
+        await other.Check(
+            "publish a calendar a schedule follows",
+            async t => Assert.NotEmpty((await PublishCalendarAsync(Services, followed, t, latestVersion: 1)).RetimedSchedules)
+        );
         await other.Check(
             "update a definition's overrides",
             async t =>
@@ -534,19 +548,27 @@ public sealed class NamespaceIsolationSpec : ActaRuntimeTestBase<ConformanceFixt
     }
 
     /// <summary>Saves a one-instant occurrence calendar and publishes it.</summary>
-    private static async Task PublishCalendarAsync(IServiceProvider services, CalendarLookup calendar, CancellationToken ct)
+    /// <summary>Publishes the version after <paramref name="latestVersion"/>, whose one instant is a day past the last version's.</summary>
+    private static async Task<PublishCalendarResponse> PublishCalendarAsync(
+        IServiceProvider services,
+        CalendarLookup calendar,
+        CancellationToken ct,
+        int latestVersion = 0
+    )
     {
         var calendars = services.GetRequiredService<ICalendars>();
-        var at = DateTime.UtcNow.Date.AddDays(30).ToString("yyyy-MM-dd'T'HH:mm:ss", CultureInfo.InvariantCulture);
+        var at = DateTime.UtcNow.Date.AddDays(30 + latestVersion).ToString("yyyy-MM-dd'T'HH:mm:ss", CultureInfo.InvariantCulture);
         var draft = await calendars.SaveDraftAsync(
             calendar,
             CalendarRoleCode.Occurrence,
             "{\"kind\":\"explicit-instants\",\"instants\":[\"" + at + "Z\"]}",
-            0,
+            latestVersion,
             ct: ct
         );
         Applied(draft.Action, "calendar draft");
-        Applied((await calendars.PublishAsync(calendar, draft.Version!.Value, ct: ct)).Action, "calendar publish");
+        var published = await calendars.PublishAsync(calendar, draft.Version!.Value, ct: ct);
+        Applied(published.Action, "calendar publish");
+        return published;
     }
 
     /// <summary>Another namespace in this spec's schema, served by its own worker and filled with work of every kind.</summary>
