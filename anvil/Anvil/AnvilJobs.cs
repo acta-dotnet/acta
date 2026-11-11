@@ -106,6 +106,7 @@ public sealed class SlowSuccessJob(IJobs jobs)
                 },
                 ct: ct
             );
+            await StepBodyNote.WriteDoneAsync(ctx, name, ct);
             await ctx.SetProgressAsync(step * 100 / input.StepCount, ct);
         }
 
@@ -276,13 +277,17 @@ public sealed class LanedJob(IJobs jobs)
                 },
                 ct: ct
             );
+            await StepBodyNote.WriteDoneAsync(ctx, name, ct);
         }
 
         return $"laned: {input.Label}";
     }
 }
 
-/// <summary>The witness note a step body writes before its work, one per admitted body, for Acta Verify's certify.sql check 7.</summary>
+/// <summary>
+/// The witness notes for Acta Verify's certify.sql check 7: the one a step body writes before its work, one per admitted
+/// body, and the one the handler writes once the step returns.
+/// </summary>
 internal static class StepBodyNote
 {
     public static async Task WriteAsync(IJobs jobs, JobContext ctx, string name, CancellationToken ct)
@@ -292,6 +297,8 @@ internal static class StepBodyNote
         var succeeded = await HasSucceededAsync(jobs, ctx.JobId, name, ct);
         await ctx.NoteAsync(succeeded ? $"step-body-after-success {name}" : $"step-body {name}", ct);
     }
+
+    public static Task WriteDoneAsync(JobContext ctx, string name, CancellationToken ct) => ctx.NoteAsync($"step-done {name}", ct);
 
     private static async Task<bool> HasSucceededAsync(IJobs jobs, long jobId, string name, CancellationToken ct)
     {

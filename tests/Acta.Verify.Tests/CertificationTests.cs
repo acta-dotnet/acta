@@ -42,6 +42,40 @@ public sealed class CertificationTests
     }
 
     [Fact]
+    public void Step_replay_names_a_body_run_again_after_its_step_returned()
+    {
+        using var db = new SqliteConnection("Data Source=:memory:");
+        db.Open();
+        // Job 7's step-1 returned in execution 1, then its body ran again in execution 2: a success erased before the
+        // body read its row, so the body noted an ordinary step-body. Job 8's first body was cut short before its
+        // success committed, and execution 2 ran it again, which at-least-once allows.
+        Execute(
+            db,
+            """
+            CREATE TABLE steps (job_id INTEGER, step_name TEXT, step_status_code INTEGER);
+            CREATE TABLE events (entity_code INTEGER, entity_id INTEGER, event_code INTEGER, event_message TEXT, execution_number INTEGER);
+            INSERT INTO steps VALUES (7, 'step-1', 100), (8, 'step-1', 100);
+            INSERT INTO events VALUES
+                (50, 7, 90, 'step-body step-1', 1), (50, 7, 90, 'step-done step-1', 1),
+                (50, 7, 90, 'step-body step-1', 2), (50, 7, 90, 'step-done step-1', 2),
+                (50, 8, 90, 'step-body step-1', 1),
+                (50, 8, 90, 'step-body step-1', 2), (50, 8, 90, 'step-done step-1', 2);
+            """
+        );
+
+        using var command = db.CreateCommand();
+        command.CommandText = Check("step-replay");
+        using var reader = command.ExecuteReader();
+        List<(long Job, long Execution)> replays = [];
+        while (reader.Read())
+        {
+            replays.Add((reader.GetInt64(reader.GetOrdinal("job_id")), reader.GetInt64(reader.GetOrdinal("execution_number"))));
+        }
+
+        Assert.Equal([(7L, 2L)], replays);
+    }
+
+    [Fact]
     public void The_runner_parses_every_check()
     {
         // The runner reads certify.sql once, in its type initializer, and a statement it cannot place throws there.

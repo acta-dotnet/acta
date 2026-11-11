@@ -128,8 +128,8 @@ WHERE  r.job_status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatus
 --
 -- `steps` keeps only current state - one row per (job, name), UPDATE-in-place, no per-attempt
 -- history - so a body that ran twice leaves no trace there. The witness is the note each body writes
--- before doing its work, which records the execution that wrote it. Two rules read it, and a row from
--- either is a violation.
+-- before doing its work, which records the execution that wrote it, and the note the handler writes
+-- once the step returns. Three rules read them, and a row from any is a violation.
 --
 -- No attempt writes two `step-body` notes for one succeeded step. One attempt runs the handler once
 -- from the top, so it runs a step's body at most once. A second note from a later attempt is legal on
@@ -139,6 +139,13 @@ WHERE  r.job_status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatus
 -- and writes this one when the row already holds a recorded success. Only a body the engine ran after
 -- its step completed, in any attempt, can find one; ChaosJobs says why a legitimate re-run always
 -- reads Pending.
+--
+-- No body runs in a later attempt than a `step-done` note for its step. The handler writes that note
+-- once RunStepAsync returns, which it does only for a success already committed, so a body note from a
+-- later execution is a body the engine ran after its success, even one a regression erased before the
+-- body read its row. The workloads never restart or reset a job, the one legitimate way to run it again.
+-- A kill between the success's commit and the note leaves no witness of that success, so a regression
+-- that erases exactly that one goes unseen here; the engine's own step specs cover the guard itself.
 --
 -- Counting and the body's own read, not timestamps. Comparing a note's time against the step's
 -- `modified_at_utc` reads "note after success" as a replay, and that is wrong under load: every
@@ -158,7 +165,17 @@ UNION  ALL
 SELECT 'step-replay', entity_id, execution_number, event_message, COUNT(*)
 FROM   {s}events
 WHERE  entity_code = 50 /* EntityCode.Job */ AND event_code = 90 /* EventCode.JobNoteRecorded */ AND event_message LIKE 'step-body-after-success %'
-GROUP  BY entity_id, execution_number, event_message;
+GROUP  BY entity_id, execution_number, event_message
+UNION  ALL
+SELECT 'step-replay', b.entity_id, b.execution_number, b.event_message, COUNT(*)
+FROM   {s}events b
+JOIN   {s}events d
+  ON   d.entity_id = b.entity_id
+ AND   d.entity_code = 50 /* EntityCode.Job */ AND d.event_code = 90 /* EventCode.JobNoteRecorded */
+ AND   d.event_message = REPLACE(b.event_message, 'step-body ', 'step-done ')
+ AND   d.execution_number < b.execution_number
+WHERE  b.entity_code = 50 /* EntityCode.Job */ AND b.event_code = 90 /* EventCode.JobNoteRecorded */ AND b.event_message LIKE 'step-body %'
+GROUP  BY b.entity_id, b.execution_number, b.event_message;
 
 -- ---------------------------------------------------------------------------------------------
 -- 8. the chaos was real                                  [INVERTED: must return exactly one row]

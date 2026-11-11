@@ -77,6 +77,10 @@ public sealed class ChaosJobs(IJobs jobs)
                 },
                 ct: ct
             );
+
+            // The step returned, so its success committed: certify.sql check 7 reads a body run in a later attempt than
+            // this note as a replay.
+            await ctx.NoteAsync($"step-done {name}", ct);
         }
         return sum.ToString(CultureInfo.InvariantCulture);
     }
