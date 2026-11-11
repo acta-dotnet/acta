@@ -514,6 +514,7 @@ namespace billing: 1.6.1+b81d04e (Production)
 - A second run prints `schema acta is up to date` and each namespace with its jobs unchanged. It exits 0, or 1 with the database's error; `--json` prints `{"schema":"acta","applied":[...],"namespaces":[...]}`.
 - It never creates a PostgreSQL or SQL Server database, never opens `master` or `postgres`, and never touches an outbox table.
 - Locally it is `dotnet run -- jobs migrate`; on a container platform, run the same image with the arguments `jobs migrate` as a pre-deploy job.
+- A verb runs while your host starts, and the process exits when it is done. A hosted service registered before `UseActa` has started by then and is ended without a stop, and one registered after it never starts, so register Acta before any service that should not run for a verb.
 - A separate tool calls `await PostgresMigrations.ApplyAsync(connectionString, schema: "acta")`, or `SqlServerMigrations` or `SqliteMigrations`, which returns the names it applied.
 - From 1.0.0 a rollback is safe: an older build runs against the newer schema, and its `jobs migrate` changes nothing.
 - The provider's schema script re-creates every routine and view on each run, so re-running it is safe; run it with a client that stops at the first error (`psql -v ON_ERROR_STOP=1`, `sqlcmd -b`, `sqlite3 -bail`). An older release's script stops before it changes a database a newer release upgraded.
@@ -758,7 +759,8 @@ startup.
 Acta publishes on one .NET meter, `Acta`: add it to an OpenTelemetry pipeline with `AddMeter("Acta")`.
 Every instrument but `acta.completions.unsettled` carries a `namespace` tag; the wakeup counters carry
 it when the wake names one. A listener that throws loses that measurement and nothing else: the worker
-keeps claiming, admitting, and settling.
+keeps claiming, admitting, and settling. Each instrument declares its own unit: milliseconds for the timings, and
+seconds for the two lags that can run to hours, `acta.alerts.lag` and `acta.schedule.due.age`.
 
 | Instrument | Unit | What it measures |
 | --- | --- | --- |
