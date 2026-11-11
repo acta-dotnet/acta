@@ -8,6 +8,8 @@ Not tagged yet.
 
 **Drop and reprovision every database an rc.9 build provisioned**: the baseline is re-cut, and nothing translates it.
 
+**Hold an execution number or a version in a `long`**: `JobContext.ExecutionNumber`, every execution number and version a response answers, and every version a control verb takes, `expectedVersion` among them, are 64-bit, and the OpenAPI document declares them `int64`. A job row's execution number and version are `bigint` on PostgreSQL and SQL Server, so a long-lived job no longer wears them out.
+
 **Write an interval schedule in days or less**: `"P1M"` and `"P1Y"` were read as 30 and 365 days, and are now a build error (ACTA0122). Write `"P30D"` for thirty days, or a cron for a calendar month or year.
 
 **Call `ResetStateAsync` as a handler's last action, not in a `finally` or `catch` around a wait or sleep**: there it deleted the checkpoint the job was suspending on, and it now throws once a wait or sleep has suspended the attempt.

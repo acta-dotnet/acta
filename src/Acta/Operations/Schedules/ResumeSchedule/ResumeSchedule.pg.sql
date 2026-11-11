@@ -5,7 +5,7 @@ DROP TABLE IF EXISTS pg_temp._resume_schedule_lock;
 DROP TABLE IF EXISTS pg_temp._resume_schedule_slot;
 DROP TABLE IF EXISTS pg_temp._resume_schedule_target;
 CREATE TEMP TABLE _resume_schedule_lock (granted INT NOT NULL) ON COMMIT DROP;
-CREATE TEMP TABLE _resume_schedule_slot (job_id BIGINT NOT NULL, execution_number INT NOT NULL) ON COMMIT DROP;
+CREATE TEMP TABLE _resume_schedule_slot (job_id BIGINT NOT NULL, execution_number BIGINT NOT NULL) ON COMMIT DROP;
 CREATE TEMP TABLE _resume_schedule_target (schedule_id INT NOT NULL) ON COMMIT DROP;
 
 INSERT INTO _resume_schedule_lock (granted)

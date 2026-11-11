@@ -6,5 +6,5 @@ internal sealed record ReprioritizeJobCommand(
     JobPriorityCode Priority,
     string? ReasonMessage,
     string? Actor,
-    int? ExpectedVersion
+    long? ExpectedVersion
 );

@@ -41,7 +41,7 @@ internal sealed class SaveCalendarDraftHandler(IDbSession session, ISqlDialect d
         string jobNamespace,
         string calendarName,
         CompiledCalendar compiled,
-        int expected,
+        long expected,
         CancellationToken ct
     ) =>
         session.ExecuteOneAsync(
@@ -51,7 +51,7 @@ internal sealed class SaveCalendarDraftHandler(IDbSession session, ISqlDialect d
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.NamespaceName, jobNamespace));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Calendar.CalendarName, calendarName));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Calendar.CalendarRoleCode, command.Role));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.ExpectedLatestVersion, expected));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.ExpectedLatestVersion, DbParams.Int32Version(expected)));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Calendar.DefinitionFormatId, JobPayloadFormat.Json.Id));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Calendar.Definition, compiled.CanonicalJson.ToArray()));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Calendar.ContentHash, compiled.ContentHash));
@@ -73,7 +73,7 @@ internal sealed class SaveCalendarDraftHandler(IDbSession session, ISqlDialect d
     private static IReadOnlyList<string> Problems(
         SaveCalendarDraftRow row,
         SaveCalendarDraftCommand command,
-        int expected,
+        long expected,
         string calendarName
     ) =>
         row.Action switch

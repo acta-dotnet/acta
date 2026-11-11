@@ -3,14 +3,14 @@ CREATE OR REPLACE FUNCTION {{schema}}.extend_worker_leases(
     p_lease_ttl_seconds INT,
     p_draining BOOLEAN,
     p_job_ids BIGINT[],
-    p_execution_numbers INT[],
+    p_execution_numbers BIGINT[],
     p_lock_keys VARCHAR[],
     p_hold_tokens UUID[],
     p_recovery_interval_seconds INT
 )
 RETURNS TABLE (
     job_id BIGINT,
-    execution_number INT,
+    execution_number BIGINT,
     hold_token UUID,
     renewed BOOLEAN,
     definitions_modified_at_utc TIMESTAMPTZ,
@@ -63,7 +63,7 @@ BEGIN
     SET expires_at_utc = v_new_expiry
     FROM unnest(p_lock_keys, p_hold_tokens) AS h (lock_key, hold_token)
     WHERE k.lock_key = h.lock_key AND k.hold_token = h.hold_token
-    RETURNING NULL::BIGINT, NULL::INT, k.hold_token, TRUE, NULL::TIMESTAMPTZ, FALSE;
+    RETURNING NULL::BIGINT, NULL::BIGINT, k.hold_token, TRUE, NULL::TIMESTAMPTZ, FALSE;
 
     /* Push the held executions' leases forward. Only a row this worker still leases at the execution the
        process holds is answered, so a row the process lost lapses and recovery takes it. Deliberately no
@@ -121,7 +121,7 @@ BEGIN
 
     -- The namespace's newest definition change: the worker re-reads its catalog only when it moves.
     RETURN QUERY
-    SELECT NULL::BIGINT, NULL::INT, NULL::UUID, FALSE, MAX(d.modified_at_utc), v_recovery_claimed
+    SELECT NULL::BIGINT, NULL::BIGINT, NULL::UUID, FALSE, MAX(d.modified_at_utc), v_recovery_claimed
     FROM {{schema}}.definitions d
     WHERE d.namespace_id = v_namespace_id;
 END;

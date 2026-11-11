@@ -392,7 +392,7 @@ public class DbSessionRetryRegionTests
 
         public void BindHeldLeases(
             DbCommand command,
-            IReadOnlyList<(long JobId, int ExecutionNumber)> executions,
+            IReadOnlyList<(long JobId, long ExecutionNumber)> executions,
             IReadOnlyList<LockToken> locks
         ) => throw new NotSupportedException();
 

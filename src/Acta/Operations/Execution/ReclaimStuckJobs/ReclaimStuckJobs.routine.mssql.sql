@@ -17,7 +17,7 @@ BEGIN
             (
                 job_id BIGINT NOT NULL PRIMARY KEY,
                 namespace_id INT NOT NULL,
-                execution_number INT NOT NULL,
+                execution_number BIGINT NOT NULL,
                 lineage_root_job_id BIGINT NULL,
                 definition_id INT NOT NULL,
                 tenant_id INT NULL,

@@ -154,7 +154,7 @@ internal sealed class WorkerHeartbeat(
                 }
             }
 
-            List<(long JobId, int ExecutionNumber)> held = [.. snapshot.Select(pair => pair.Entry.Key)];
+            List<(long JobId, long ExecutionNumber)> held = [.. snapshot.Select(pair => pair.Entry.Key)];
             List<LockToken> heldLocks = [.. snapshot.SelectMany(pair => pair.Locks)];
 
             // Renew the held leases and locks and union the still-owned ids. Capture the request-start
@@ -167,8 +167,8 @@ internal sealed class WorkerHeartbeat(
             // A row another transaction held is still owned but was not renewed, so it stays live without
             // moving its deadline.
             var renewRequestedAt = Stopwatch.GetTimestamp();
-            HashSet<(long JobId, int ExecutionNumber)>? live = [];
-            HashSet<(long JobId, int ExecutionNumber)> renewed = [];
+            HashSet<(long JobId, long ExecutionNumber)>? live = [];
+            HashSet<(long JobId, long ExecutionNumber)> renewed = [];
             HashSet<Guid> renewedHolds = [];
             DateTime? definitionsModifiedAtUtc = null;
             try
@@ -237,11 +237,11 @@ internal sealed class WorkerHeartbeat(
     private async Task RenewSkippedAsync(
         int workerId,
         IReadOnlyList<ExtendWorkerLeasesLease> leases,
-        HashSet<(long JobId, int ExecutionNumber)> renewed,
+        HashSet<(long JobId, long ExecutionNumber)> renewed,
         CancellationToken ct
     )
     {
-        List<(long JobId, int ExecutionNumber)> skipped = [.. leases.Where(l => !l.Renewed).Select(l => (l.JobId, l.ExecutionNumber))];
+        List<(long JobId, long ExecutionNumber)> skipped = [.. leases.Where(l => !l.Renewed).Select(l => (l.JobId, l.ExecutionNumber))];
         for (var retry = 0; retry < SkippedRenewalRetries && skipped.Count > 0; retry++)
         {
             await Task.Delay(SkippedRenewalPause, ct);
@@ -344,8 +344,8 @@ internal sealed class WorkerHeartbeat(
     /// </summary>
     private void FeedLeases(
         (InFlightJob Entry, IReadOnlyCollection<LockToken> Locks)[] snapshot,
-        HashSet<(long JobId, int ExecutionNumber)>? live,
-        HashSet<(long JobId, int ExecutionNumber)> renewed,
+        HashSet<(long JobId, long ExecutionNumber)>? live,
+        HashSet<(long JobId, long ExecutionNumber)> renewed,
         HashSet<Guid> renewedHolds,
         long renewRequestedAt
     )

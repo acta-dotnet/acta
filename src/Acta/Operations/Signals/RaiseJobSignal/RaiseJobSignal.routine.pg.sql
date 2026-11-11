@@ -23,7 +23,7 @@ DECLARE
     v_lineage_root_job_id BIGINT;
     v_definition_id INT;
     v_tenant_id INT;
-    v_execution_number INT;
+    v_execution_number BIGINT;
     v_event_recording SMALLINT;
 BEGIN
 

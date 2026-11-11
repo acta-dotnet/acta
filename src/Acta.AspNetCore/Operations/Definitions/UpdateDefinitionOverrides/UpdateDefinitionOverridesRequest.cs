@@ -9,7 +9,7 @@ namespace Acta.AspNetCore;
 /// leaves a member out answers 400.</param>
 /// <param name="ReasonMessage">Why the operator made this call, recorded on the event the call writes.</param>
 internal sealed record UpdateDefinitionOverridesRequest(
-    int? ExpectedVersion = null,
+    long? ExpectedVersion = null,
     DefinitionPolicyOverrides? Overrides = null,
     string? ReasonMessage = null
 ) : IControlRequest;

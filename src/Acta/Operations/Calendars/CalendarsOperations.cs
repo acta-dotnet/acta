@@ -20,7 +20,7 @@ internal sealed class CalendarsOperations(
     public ValueTask<ListCalendarsResponse> ListAsync(ListCalendarsQuery query, CancellationToken ct = default) =>
         listCalendars.HandleAsync(query, ct);
 
-    public ValueTask<GetCalendarResponse?> GetAsync(CalendarLookup calendar, int? version = null, CancellationToken ct = default) =>
+    public ValueTask<GetCalendarResponse?> GetAsync(CalendarLookup calendar, long? version = null, CancellationToken ct = default) =>
         getCalendar.HandleAsync(new GetCalendarQuery(calendar, version), ct);
 
     public ValueTask<ListCalendarVersionsResponse> ListVersionsAsync(ListCalendarVersionsQuery query, CancellationToken ct = default) =>
@@ -35,7 +35,7 @@ internal sealed class CalendarsOperations(
         CalendarLookup calendar,
         CalendarRoleCode role,
         string definition,
-        int? expectedLatestVersion = null,
+        long? expectedLatestVersion = null,
         string? reasonMessage = null,
         string? actor = null,
         CancellationToken ct = default
@@ -47,7 +47,7 @@ internal sealed class CalendarsOperations(
 
     public async ValueTask<PreviewCalendarResponse?> PreviewAsync(
         CalendarLookup calendar,
-        int version,
+        long version,
         DateTime? fromUtc = null,
         int count = 10,
         string? timeZoneId = null,
@@ -56,8 +56,8 @@ internal sealed class CalendarsOperations(
 
     public async ValueTask<PublishCalendarResponse> PublishAsync(
         CalendarLookup calendar,
-        int candidateVersion,
-        int? expectedCurrentVersion = null,
+        long candidateVersion,
+        long? expectedCurrentVersion = null,
         OverdueDecisionCode overdue = OverdueDecisionCode.Refuse,
         string? reasonMessage = null,
         string? actor = null,
@@ -70,7 +70,7 @@ internal sealed class CalendarsOperations(
 
     public ValueTask<ArchiveCalendarResponse> ArchiveAsync(
         CalendarLookup calendar,
-        int? expectedCurrentVersion = null,
+        long? expectedCurrentVersion = null,
         string? reasonMessage = null,
         string? actor = null,
         CancellationToken ct = default

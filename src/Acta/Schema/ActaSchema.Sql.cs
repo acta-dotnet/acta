@@ -70,7 +70,7 @@ internal static partial class ActaSchema
         /// NULL for an enqueue no handler makes. Set, they hold the insert to that attempt (docs/sql-internals.md,
         /// "Execution fence").
         /// </summary>
-        public static readonly DbValueSpec<int?> ParentExecutionNumber = new("p_parent_execution_number", DbKind.Int32);
+        public static readonly DbValueSpec<long?> ParentExecutionNumber = new("p_parent_execution_number", DbKind.Int64);
 
         public static readonly DbValueSpec<int?> ParentWorkerId = new("p_parent_worker_id", DbKind.Int32);
 
@@ -89,7 +89,7 @@ internal static partial class ActaSchema
 
         public static readonly DbValueSpec<byte?> ChildStatus = new("p_child_status", DbKind.Byte);
 
-        public static readonly DbValueSpec<int?> FenceExecutionNumber = new("p_fence_execution_number", DbKind.Int32);
+        public static readonly DbValueSpec<long?> FenceExecutionNumber = new("p_fence_execution_number", DbKind.Int64);
 
         public static readonly DbValueSpec<int?> FenceWorkerId = new("p_fence_worker_id", DbKind.Int32);
 
@@ -335,7 +335,7 @@ internal static partial class ActaSchema
         /// that version, else the write is rejected with VersionConflict (or NotFound when no row exists
         /// at the scope).
         /// </summary>
-        public static readonly DbValueSpec<int?> ExpectedRowVersionOptional = new("p_expected_version", DbKind.Int32);
+        public static readonly DbValueSpec<long?> ExpectedRowVersionOptional = new("p_expected_version", DbKind.Int64);
 
         /// <summary>
         /// Admin metadata CAS guard: the caller's expected row version; a mismatch rejects with the row's current version.

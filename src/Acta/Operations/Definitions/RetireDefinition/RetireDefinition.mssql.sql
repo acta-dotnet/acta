@@ -14,7 +14,7 @@ DECLARE @parked TABLE (
     event_recording_code TINYINT NOT NULL);
 DECLARE @cancelled TABLE (
     job_id BIGINT NOT NULL PRIMARY KEY,
-    execution_number INT NOT NULL);
+    execution_number BIGINT NOT NULL);
 DECLARE @slots TABLE (
     job_id BIGINT NOT NULL PRIMARY KEY,
     job_status_code TINYINT NOT NULL);

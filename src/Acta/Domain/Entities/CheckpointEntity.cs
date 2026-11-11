@@ -92,7 +92,8 @@ internal sealed class CheckpointEntity : IEntity
 
     /// <summary>
     /// Optimistic-concurrency token; operations manually increment via <c>SET version = version + 1</c>
-    /// on every UPDATE.
+    /// on every UPDATE. Int32 on purpose: a variable, signal or progress row written past it fails only its own job's
+    /// write, and a permanent job's firing record, which batch statements write twice a firing, is decades from it.
     /// </summary>
     [DbColumn("version", DbKind.Int32, Default = DbDefault.Zero)]
     [DbConcurrencyToken]

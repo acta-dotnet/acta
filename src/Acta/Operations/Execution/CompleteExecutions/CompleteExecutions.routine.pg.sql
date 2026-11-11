@@ -1,7 +1,7 @@
 CREATE OR REPLACE FUNCTION {{schema}}.complete_executions(
     p_leased_by_worker_id INT,
     p_job_ids BIGINT[],
-    p_execution_numbers INT[],
+    p_execution_numbers BIGINT[],
     p_succeeded BOOLEAN[],
     p_result_format_ids SMALLINT[],
     p_results BYTEA[],
@@ -23,7 +23,7 @@ CREATE OR REPLACE FUNCTION {{schema}}.complete_executions(
 )
 RETURNS TABLE (
     job_id BIGINT,
-    execution_number INT,
+    execution_number BIGINT,
     action SMALLINT,
     final_job_status_code SMALLINT,
     final_next_run_at_utc TIMESTAMPTZ,

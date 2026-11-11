@@ -94,13 +94,13 @@ internal sealed class PostgresDialect : ISqlDialect
 
     public void BindHeldLeases(
         DbCommand command,
-        IReadOnlyList<(long JobId, int ExecutionNumber)> executions,
+        IReadOnlyList<(long JobId, long ExecutionNumber)> executions,
         IReadOnlyList<LockToken> locks
     )
     {
         var postgres = (NpgsqlCommand)command;
         AddArray(postgres, "@p_job_ids", NpgsqlDbType.Bigint, executions.Select(e => e.JobId).ToArray());
-        AddArray(postgres, "@p_execution_numbers", NpgsqlDbType.Integer, executions.Select(e => e.ExecutionNumber).ToArray());
+        AddArray(postgres, "@p_execution_numbers", NpgsqlDbType.Bigint, executions.Select(e => e.ExecutionNumber).ToArray());
         AddArray(postgres, "@p_lock_keys", NpgsqlDbType.Varchar, locks.Select(l => l.Key).ToArray());
         AddArray(postgres, "@p_hold_tokens", NpgsqlDbType.Uuid, locks.Select(l => l.HoldToken).ToArray());
     }
@@ -483,7 +483,7 @@ internal sealed class PostgresDialect : ISqlDialect
 
         // PostgreSQL routine arguments are positional; this order matches complete_executions.
         AddArray(postgres, "@p_job_ids", NpgsqlDbType.Bigint, completions.Select(c => c.JobId).ToArray());
-        AddArray(postgres, "@p_execution_numbers", NpgsqlDbType.Integer, completions.Select(c => c.ExecutionNumber).ToArray());
+        AddArray(postgres, "@p_execution_numbers", NpgsqlDbType.Bigint, completions.Select(c => c.ExecutionNumber).ToArray());
         AddArray(postgres, "@p_succeeded", NpgsqlDbType.Boolean, completions.Select(c => c.Succeeded).ToArray());
         AddArray(postgres, "@p_result_format_ids", NpgsqlDbType.Smallint, completions.Select(c => (short)c.ResultFormatId).ToArray());
         AddArray(

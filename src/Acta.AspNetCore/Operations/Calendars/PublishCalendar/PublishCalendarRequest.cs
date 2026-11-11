@@ -12,8 +12,8 @@ namespace Acta.AspNetCore;
 /// rejects the publication.</param>
 /// <param name="ReasonMessage">Why the operator made this call, recorded on the event the call writes.</param>
 internal sealed record PublishCalendarRequest(
-    int? ExpectedCurrentVersion,
-    int? CandidateVersion,
+    long? ExpectedCurrentVersion,
+    long? CandidateVersion,
     OverdueDecisionCode OverdueDecision = OverdueDecisionCode.Refuse,
     string? ReasonMessage = null
 ) : IControlRequest;

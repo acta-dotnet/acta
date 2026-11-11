@@ -13422,7 +13422,7 @@
             "description": "The version whose definition to show; omit for the current version, else the latest.",
             "schema": {
               "type": "integer",
-              "format": "int32"
+              "format": "int64"
             }
           }
         ],
@@ -13614,7 +13614,7 @@
             "description": "The version whose definition to show; omit for the current version, else the latest.",
             "schema": {
               "type": "integer",
-              "format": "int32"
+              "format": "int64"
             }
           }
         ],
@@ -14249,7 +14249,7 @@
             "required": true,
             "schema": {
               "type": "integer",
-              "format": "int32"
+              "format": "int64"
             }
           },
           {
@@ -15449,7 +15449,7 @@
               "integer"
             ],
             "description": "The number of the published version as the caller last read it; when another is in force the call answers rejected and changes nothing. Leave it out to archive whatever is in force.",
-            "format": "int32"
+            "format": "int64"
           },
           "reasonMessage": {
             "type": [
@@ -15480,7 +15480,7 @@
               "integer"
             ],
             "description": "The number of the family's current version: the one archived when applied, the one still in force when rejected; null when the family has no current version.",
-            "format": "int32"
+            "format": "int64"
           },
           "dependentCount": {
             "type": "integer",
@@ -15745,7 +15745,7 @@
               "integer"
             ],
             "description": "The job's version as the caller last read it; when the job has another version the call answers version-conflict and changes nothing. Omit it to act on the job whatever its version.",
-            "format": "int32"
+            "format": "int64"
           }
         },
         "additionalProperties": false,
@@ -15780,7 +15780,7 @@
               "integer"
             ],
             "description": "The job's version after the call; on a version conflict, the version it has now; null when the job was not found.",
-            "format": "int32"
+            "format": "int64"
           }
         },
         "description": "What cancelling a job did, and the job's status and version after the attempt."
@@ -16756,17 +16756,17 @@
               "integer"
             ],
             "description": "The number of the published version in force; null when none is published. The publish and the archive take it as expectedCurrentVersion, and a publish sends 0 when none is published.",
-            "format": "int32"
+            "format": "int64"
           },
           "latestVersion": {
             "type": "integer",
             "description": "The number of the family's newest version; the draft save takes it as expectedLatestVersion.",
-            "format": "int32"
+            "format": "int64"
           },
           "shownVersion": {
             "type": "integer",
             "description": "The number of the version this answer shows.",
-            "format": "int32"
+            "format": "int64"
           },
           "shownStatus": {
             "description": "The status of the version this answer shows.",
@@ -17164,7 +17164,7 @@
           "version": {
             "type": "integer",
             "description": "The definition's version, which every change to it increments; the overrides update and the retire take it as expectedVersion.",
-            "format": "int32"
+            "format": "int64"
           }
         },
         "description": "One definition: its identity and status, the types and formats of its input and result, each policy as the value the code declares and the value in force, and the operator's overrides of them. A definition is addressed by its namespace and name."
@@ -17595,7 +17595,7 @@
           "executionNumber": {
             "type": "integer",
             "description": "How many times the job has been claimed; retries and reclaims count.",
-            "format": "int32"
+            "format": "int64"
           },
           "failureCount": {
             "type": "integer",
@@ -17642,7 +17642,7 @@
           "version": {
             "type": "integer",
             "description": "The job's version, which every change to its state increments; the pause, resume, restart, cancel, reschedule, and reprioritize controls take it as expectedVersion, which makes the call a compare-and-set.",
-            "format": "int32"
+            "format": "int64"
           }
         },
         "description": "One job: its identity, its place in its lineage, its status, when it runs next, who holds it, and when retention may delete it. The input is not included; read it from the job's input route."
@@ -17690,7 +17690,7 @@
           "version": {
             "type": "integer",
             "description": "The namespace's version, which every change to it increments; the namespace update takes it as expectedVersion.",
-            "format": "int32"
+            "format": "int64"
           }
         },
         "description": "One namespace. An active namespace accepts enqueues and a suspended one rejects them."
@@ -17878,7 +17878,7 @@
           "version": {
             "type": "integer",
             "description": "The schedule's version, which every change to it increments.",
-            "format": "int32"
+            "format": "int64"
           },
           "jobRef": {
             "oneOf": [
@@ -18001,7 +18001,7 @@
           "version": {
             "type": "integer",
             "description": "The tenant's version, which every change to it increments; the tenant update takes it as expectedVersion.",
-            "format": "int32"
+            "format": "int64"
           }
         },
         "description": "One tenant. An enqueue that names an active tenant is accepted, and one that names a suspended tenant is rejected."
@@ -18434,12 +18434,12 @@
               "integer"
             ],
             "description": "The number of the published version in force; null when none is published. The publish and the archive take it as expectedCurrentVersion, and a publish sends 0 when none is published.",
-            "format": "int32"
+            "format": "int64"
           },
           "latestVersion": {
             "type": "integer",
             "description": "The number of the family's newest version; the draft save takes it as expectedLatestVersion.",
-            "format": "int32"
+            "format": "int64"
           },
           "latestStatus": {
             "description": "The status of the family's newest version.",
@@ -18524,7 +18524,7 @@
           "version": {
             "type": "integer",
             "description": "The version's number within its family, starting at 1.",
-            "format": "int32"
+            "format": "int64"
           },
           "status": {
             "description": "The version's status.",
@@ -18724,7 +18724,7 @@
           "version": {
             "type": "integer",
             "description": "The definition's version, which every change to it increments; the overrides update and the retire take it as expectedVersion.",
-            "format": "int32"
+            "format": "int64"
           }
         },
         "description": "One definition in a page: its identity and status, the types of its input and result, and its priority, retry budget, concurrency limit, and rate limit, each as the override and the value in force. Read the definition itself for the rest."
@@ -18873,7 +18873,7 @@
               "integer"
             ],
             "description": "The attempt the event belongs to, when it belongs to one.",
-            "format": "int32"
+            "format": "int64"
           },
           "durationMs": {
             "type": [
@@ -19143,7 +19143,7 @@
           "executionNumber": {
             "type": "integer",
             "description": "How many times the job has been claimed; retries and reclaims count.",
-            "format": "int32"
+            "format": "int64"
           },
           "failureCount": {
             "type": "integer",
@@ -19322,7 +19322,7 @@
           "version": {
             "type": "integer",
             "description": "The namespace's version, which every change to it increments; the namespace update takes it as expectedVersion.",
-            "format": "int32"
+            "format": "int64"
           }
         },
         "description": "One namespace in a page."
@@ -19676,7 +19676,7 @@
           "version": {
             "type": "integer",
             "description": "The schedule's version, which every change to it increments.",
-            "format": "int32"
+            "format": "int64"
           },
           "jobRef": {
             "oneOf": [
@@ -19908,7 +19908,7 @@
           "version": {
             "type": "integer",
             "description": "The tenant's version, which every change to it increments; the tenant update takes it as expectedVersion.",
-            "format": "int32"
+            "format": "int64"
           }
         },
         "description": "One tenant in a page."
@@ -20142,7 +20142,7 @@
               "integer"
             ],
             "description": "The job's version as the caller last read it; when the job has another version the call answers version-conflict and changes nothing. Omit it to act on the job whatever its version.",
-            "format": "int32"
+            "format": "int64"
           }
         },
         "additionalProperties": false,
@@ -20177,7 +20177,7 @@
               "integer"
             ],
             "description": "The job's version after the call; on a version conflict, the version it has now; null when the job was not found.",
-            "format": "int32"
+            "format": "int64"
           }
         },
         "description": "What pausing a job did, and the job's status and version after the attempt."
@@ -20251,7 +20251,7 @@
               "integer"
             ],
             "description": "The schedule's version after the call; null when the schedule was not found.",
-            "format": "int32"
+            "format": "int64"
           }
         },
         "description": "What pausing a schedule did, and the schedule's state after the attempt."
@@ -20316,7 +20316,7 @@
           "version": {
             "type": "integer",
             "description": "The number of the version previewed.",
-            "format": "int32"
+            "format": "int64"
           },
           "currentVersion": {
             "type": [
@@ -20324,7 +20324,7 @@
               "integer"
             ],
             "description": "The number of the published version in force; null when none is published.",
-            "format": "int32"
+            "format": "int64"
           },
           "occurrencesUtc": {
             "type": "array",
@@ -20449,13 +20449,13 @@
               "integer"
             ],
             "description": "The number of the published version as the caller last read it; 0 when none is published. When another is in force, the call answers version-conflict and changes nothing; leave it out to publish whatever is in force.",
-            "format": "int32"
+            "format": "int64"
           },
           "candidateVersion": {
             "minimum": 1,
             "type": "integer",
             "description": "The number of the draft version to publish; the version already in force answers already-in-state and retimes nothing.",
-            "format": "int32"
+            "format": "int64"
           },
           "overdueDecision": {
             "description": "What to do when a schedule that names the family holds an overdue occurrence; refuse, the default, rejects the publication.",
@@ -20492,7 +20492,7 @@
               "integer"
             ],
             "description": "The number of the version in force after the call: the candidate when applied or already-in-state. Otherwise the family's current version, or null: when none is published, and when the call ended before reading it, as for a candidate that does not exist, is not a draft, or is bound to more schedules than one publication retimes.",
-            "format": "int32"
+            "format": "int64"
           },
           "retimedSchedules": {
             "type": "array",
@@ -20662,7 +20662,7 @@
               "integer"
             ],
             "description": "The job's version as the caller last read it; when the job has another version the call answers version-conflict and changes nothing. Omit it to act on the job whatever its version.",
-            "format": "int32"
+            "format": "int64"
           }
         },
         "additionalProperties": false,
@@ -20697,7 +20697,7 @@
               "integer"
             ],
             "description": "The job's version after the call; on a version conflict, the version it has now; null when the job was not found.",
-            "format": "int32"
+            "format": "int64"
           }
         },
         "description": "What reprioritizing a job did, and the job's status and version after the attempt."
@@ -20774,7 +20774,7 @@
               "integer"
             ],
             "description": "The job's version as the caller last read it; when the job has another version the call answers version-conflict and changes nothing. Omit it to act on the job whatever its version.",
-            "format": "int32"
+            "format": "int64"
           }
         },
         "additionalProperties": false,
@@ -20809,7 +20809,7 @@
               "integer"
             ],
             "description": "The job's version after the call; on a version conflict, the version it has now; null when the job was not found.",
-            "format": "int32"
+            "format": "int64"
           }
         },
         "description": "What rescheduling a job did, and the job's status and version after the attempt."
@@ -20880,7 +20880,7 @@
               "integer"
             ],
             "description": "The job's version as the caller last read it; when the job has another version the call answers version-conflict and changes nothing. Omit it to act on the job whatever its version.",
-            "format": "int32"
+            "format": "int64"
           }
         },
         "additionalProperties": false,
@@ -20915,7 +20915,7 @@
               "integer"
             ],
             "description": "The job's version after the call; on a version conflict, the version it has now; null when the job was not found.",
-            "format": "int32"
+            "format": "int64"
           }
         },
         "description": "What restarting a job did, and the job's status and version after the attempt."
@@ -20936,7 +20936,7 @@
               "integer"
             ],
             "description": "The job's version as the caller last read it; when the job has another version the call answers version-conflict and changes nothing. Omit it to act on the job whatever its version.",
-            "format": "int32"
+            "format": "int64"
           }
         },
         "additionalProperties": false,
@@ -20971,7 +20971,7 @@
               "integer"
             ],
             "description": "The job's version after the call; on a version conflict, the version it has now; null when the job was not found.",
-            "format": "int32"
+            "format": "int64"
           }
         },
         "description": "What resuming a job did, and the job's status and version after the attempt."
@@ -21007,7 +21007,7 @@
               "integer"
             ],
             "description": "The namespace's version after the call; null when the namespace was not found.",
-            "format": "int32"
+            "format": "int64"
           }
         },
         "description": "What resuming a namespace did, and the namespace's version after the attempt."
@@ -21073,7 +21073,7 @@
               "integer"
             ],
             "description": "The schedule's version after the call; null when the schedule was not found.",
-            "format": "int32"
+            "format": "int64"
           }
         },
         "description": "What resuming a schedule did, and the schedule's state after the attempt."
@@ -21109,7 +21109,7 @@
               "integer"
             ],
             "description": "The tenant's version after the call; null when the tenant was not found.",
-            "format": "int32"
+            "format": "int64"
           }
         },
         "description": "What resuming a tenant did, and the tenant's version after the attempt."
@@ -21123,7 +21123,7 @@
           "expectedVersion": {
             "type": "integer",
             "description": "The version as the caller last read it; when the row has another version the call answers version-conflict and changes nothing.",
-            "format": "int32"
+            "format": "int64"
           },
           "reasonMessage": {
             "type": [
@@ -21153,7 +21153,7 @@
               "integer"
             ],
             "description": "The definition's version after the call; on a version conflict, the version it has now; null when the definition was not found.",
-            "format": "int32"
+            "format": "int64"
           }
         },
         "description": "What retiring a definition did, and the definition's version after the attempt."
@@ -21179,7 +21179,7 @@
               "integer"
             ],
             "description": "The number of the family's newest version as the caller last read it; 0 for a family that has no version. When another is newest, the call answers version-conflict and changes nothing; leave it out to save whatever is newest. A definition equal to the newest version's answers already-in-state either way.",
-            "format": "int32"
+            "format": "int64"
           },
           "reasonMessage": {
             "type": [
@@ -21211,7 +21211,7 @@
               "integer"
             ],
             "description": "The number of the draft version that was saved; for already-in-state, the latest version, which holds the definition; when the store refused the draft, as version-conflict or rejected, the family's latest version, 0 for a family with none; null when the definition does not compile.",
-            "format": "int32"
+            "format": "int64"
           },
           "contentHash": {
             "type": [
@@ -21392,7 +21392,7 @@
               "integer"
             ],
             "description": "The namespace's version after the call; null when the namespace was not found.",
-            "format": "int32"
+            "format": "int64"
           }
         },
         "description": "What suspending a namespace did, and the namespace's version after the attempt."
@@ -21428,7 +21428,7 @@
               "integer"
             ],
             "description": "The tenant's version after the call; null when the tenant was not found.",
-            "format": "int32"
+            "format": "int64"
           }
         },
         "description": "What suspending a tenant did, and the tenant's version after the attempt."
@@ -21531,7 +21531,7 @@
               "integer"
             ],
             "description": "The schedule's version after the call; null when the schedule was not found.",
-            "format": "int32"
+            "format": "int64"
           },
           "jobRef": {
             "oneOf": [
@@ -21557,7 +21557,7 @@
           "expectedVersion": {
             "type": "integer",
             "description": "The version as the caller last read it; when the row has another version the call answers version-conflict and changes nothing.",
-            "format": "int32"
+            "format": "int64"
           },
           "overrides": {
             "description": "The whole set of overrides to store, every member present: null clears that override, and a body that leaves a member out answers 400.",
@@ -21591,7 +21591,7 @@
               "integer"
             ],
             "description": "The definition's version after the call; on a version conflict, the version it has now; null when the definition was not found.",
-            "format": "int32"
+            "format": "int64"
           }
         },
         "description": "What setting a definition's policy overrides did, and the definition's version after the attempt."
@@ -21667,7 +21667,7 @@
           "expectedVersion": {
             "type": "integer",
             "description": "The version as the caller last read it; when the row has another version the call answers version-conflict and changes nothing.",
-            "format": "int32"
+            "format": "int64"
           },
           "reasonMessage": {
             "type": [
@@ -21697,7 +21697,7 @@
               "integer"
             ],
             "description": "The namespace's version after the call; on a version conflict, the version it has now; null when the namespace was not found.",
-            "format": "int32"
+            "format": "int64"
           }
         },
         "description": "What updating a namespace did, and the namespace's version after the attempt."
@@ -21727,7 +21727,7 @@
           "expectedVersion": {
             "type": "integer",
             "description": "The version as the caller last read it; when the row has another version the call answers version-conflict and changes nothing.",
-            "format": "int32"
+            "format": "int64"
           },
           "reasonMessage": {
             "type": [
@@ -21757,7 +21757,7 @@
               "integer"
             ],
             "description": "The tenant's version after the call; on a version conflict, the version it has now; null when the tenant was not found.",
-            "format": "int32"
+            "format": "int64"
           }
         },
         "description": "What updating a tenant did, and the tenant's version after the attempt."

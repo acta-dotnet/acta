@@ -360,7 +360,7 @@ public sealed class ChildTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, T
 
     // Moves the child wait past its deadline the way real time would: the latch's stored expiration and
     // the parent's cached claim instant both go into the past, and nothing else is touched.
-    private static async Task ExpireChildWaitAsync(IDbSession db, long parentId, long childId, CancellationToken ct)
+    internal static async Task ExpireChildWaitAsync(IDbSession db, long parentId, long childId, CancellationToken ct)
     {
         var past = DateTime.UtcNow.AddMinutes(-1);
         await db.ExecuteRawAsync(

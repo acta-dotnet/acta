@@ -339,7 +339,7 @@ public abstract partial class JobContext
     /// </summary>
     private protected abstract Task<(bool Stored, TResult? Value)> ReadChildResultCoreAsync<TResult>(
         long childJobId,
-        int? executionNumber,
+        long? executionNumber,
         CancellationToken ct
     );
 }

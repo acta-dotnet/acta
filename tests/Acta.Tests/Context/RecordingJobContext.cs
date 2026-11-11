@@ -156,7 +156,7 @@ internal class RecordingJobContext(IReadOnlyDictionary<string, ChildJobOutcome>?
 
     private protected override Task<(bool Stored, TResult? Value)> ReadChildResultCoreAsync<TResult>(
         long childJobId,
-        int? executionNumber,
+        long? executionNumber,
         CancellationToken ct
     )
         where TResult : default => Task.FromResult(SeededChildResult is TResult typed ? (true, typed) : (false, default(TResult)));

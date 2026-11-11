@@ -48,10 +48,10 @@ BEGIN
 
         /* The held executions and lock holds arrive as JSON array text, expanded once into keyed tables. A process
            can hold two executions of one job, or two holds on one key, while a stale attempt unwinds. */
-        DECLARE @held TABLE (job_id BIGINT NOT NULL, execution_number INT NOT NULL, PRIMARY KEY (job_id, execution_number));
+        DECLARE @held TABLE (job_id BIGINT NOT NULL, execution_number BIGINT NOT NULL, PRIMARY KEY (job_id, execution_number));
         INSERT INTO @held (job_id, execution_number)
         SELECT job_id, execution_number
-        FROM OPENJSON(@p_executions) WITH (job_id BIGINT '$.job_id', execution_number INT '$.execution_number');
+        FROM OPENJSON(@p_executions) WITH (job_id BIGINT '$.job_id', execution_number BIGINT '$.execution_number');
 
         DECLARE @lock_held TABLE (
             lock_key VARCHAR(256) COLLATE Latin1_General_100_BIN2_UTF8 NOT NULL,
@@ -83,7 +83,7 @@ BEGIN
         -- only a row read that no longer matches goes unanswered, which stops its attempt (docs/sql-internals.md).
         DECLARE @seen TABLE (
             job_id BIGINT NOT NULL,
-            execution_number INT NOT NULL,
+            execution_number BIGINT NOT NULL,
             matched BIT NOT NULL,
             PRIMARY KEY (job_id, execution_number)
         );
@@ -127,7 +127,7 @@ BEGIN
 
         SELECT
             CAST(NULL AS BIGINT) AS job_id,
-            CAST(NULL AS INT) AS execution_number,
+            CAST(NULL AS BIGINT) AS execution_number,
             l.hold_token,
             CAST(1 AS BIT) AS renewed,
             CAST(NULL AS DATETIME2(3)) AS definitions_modified_at_utc,
@@ -150,7 +150,7 @@ BEGIN
         -- another transaction holds is skipped, which at worst delays that re-read by one beat.
         SELECT
             CAST(NULL AS BIGINT) AS job_id,
-            CAST(NULL AS INT) AS execution_number,
+            CAST(NULL AS BIGINT) AS execution_number,
             CAST(NULL AS UNIQUEIDENTIFIER) AS hold_token,
             CAST(0 AS BIT) AS renewed,
             MAX(d.modified_at_utc) AS definitions_modified_at_utc,

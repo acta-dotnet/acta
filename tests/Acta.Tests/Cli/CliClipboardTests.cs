@@ -617,7 +617,7 @@ public class CliRunnerClipboardTests
             JobLookup job,
             string? reasonMessage = null,
             string? actor = null,
-            int? expectedVersion = null,
+            long? expectedVersion = null,
             CancellationToken ct = default
         )
         {
@@ -629,7 +629,7 @@ public class CliRunnerClipboardTests
             JobLookup job,
             string? reasonMessage = null,
             string? actor = null,
-            int? expectedVersion = null,
+            long? expectedVersion = null,
             CancellationToken ct = default
         ) => throw new NotSupportedException();
 
@@ -637,7 +637,7 @@ public class CliRunnerClipboardTests
             JobLookup job,
             string? reasonMessage = null,
             string? actor = null,
-            int? expectedVersion = null,
+            long? expectedVersion = null,
             CancellationToken ct = default
         ) => throw new NotSupportedException();
 
@@ -645,7 +645,7 @@ public class CliRunnerClipboardTests
             JobLookup job,
             string? reasonMessage = null,
             string? actor = null,
-            int? expectedVersion = null,
+            long? expectedVersion = null,
             CancellationToken ct = default
         ) => throw new NotSupportedException();
 
@@ -654,7 +654,7 @@ public class CliRunnerClipboardTests
             DateTime? nextRunAtUtc = null,
             string? reasonMessage = null,
             string? actor = null,
-            int? expectedVersion = null,
+            long? expectedVersion = null,
             CancellationToken ct = default
         ) => throw new NotSupportedException();
 
@@ -663,7 +663,7 @@ public class CliRunnerClipboardTests
             JobPriorityCode priority,
             string? reasonMessage = null,
             string? actor = null,
-            int? expectedVersion = null,
+            long? expectedVersion = null,
             CancellationToken ct = default
         ) => throw new NotSupportedException();
 

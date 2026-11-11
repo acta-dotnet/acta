@@ -10,7 +10,7 @@ internal interface IClaimColumns
 
     int? DefinitionId { get; }
 
-    int? ExecutionNumber { get; }
+    long? ExecutionNumber { get; }
 
     string? DeduplicationKey { get; }
 

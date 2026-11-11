@@ -9,14 +9,14 @@ DROP TABLE IF EXISTS pg_temp._cancel_job_walk;
 CREATE TEMP TABLE _cancel_job_lane (lane_id BIGINT NOT NULL) ON COMMIT DROP;
 CREATE TEMP TABLE _cancel_job (
     from_status SMALLINT NOT NULL,
-    from_version INT NOT NULL,
+    from_version BIGINT NOT NULL,
     lane_id BIGINT,
     parent_job_id BIGINT,
     namespace_id INT NOT NULL,
     lineage_root_job_id BIGINT,
     definition_id INT NOT NULL,
     tenant_id INT,
-    execution_number INT NOT NULL,
+    execution_number BIGINT NOT NULL,
     worker_id INT,
     event_recording_code SMALLINT NOT NULL,
     applied BOOLEAN NOT NULL

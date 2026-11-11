@@ -24,9 +24,9 @@ internal sealed record GetCalendarResponse(
     string JobNamespace,
     string CalendarName,
     CalendarRoleCode Role,
-    int? CurrentVersion,
-    int LatestVersion,
-    int ShownVersion,
+    long? CurrentVersion,
+    long LatestVersion,
+    long ShownVersion,
     CalendarStatusCode ShownStatus,
     // Never null: the converter that writes the stored text is one over a nullable element.
     [property: JsonConverter(typeof(EmbeddedJsonConverter))] JsonElement? Definition

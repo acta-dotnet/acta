@@ -59,7 +59,7 @@ internal sealed class InFlightJob : IDisposable
 
     public ClaimedJob Claim { get; }
 
-    public (long JobId, int ExecutionNumber) Key => (Claim.JobId, Claim.ExecutionNumber);
+    public (long JobId, long ExecutionNumber) Key => (Claim.JobId, Claim.ExecutionNumber);
 
     /// <summary>The descriptor the executor ran it under; null for a claim handed back unrun.</summary>
     public JobDescriptor? Descriptor { get; set; }

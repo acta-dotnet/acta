@@ -13,7 +13,7 @@ namespace Acta;
 /// </summary>
 internal static class ChildOutcomeEnvelope
 {
-    public static byte[] Write(long childJobId, JobStatusCode status, int? executionNumber)
+    public static byte[] Write(long childJobId, JobStatusCode status, long? executionNumber)
     {
         var buffer = new ArrayBufferWriter<byte>();
         using (var writer = new Utf8JsonWriter(buffer))
@@ -34,7 +34,7 @@ internal static class ChildOutcomeEnvelope
     {
         long childJobId = 0;
         short status = 0;
-        int? executionNumber = null;
+        long? executionNumber = null;
 
         var reader = new Utf8JsonReader(utf8);
         while (reader.Read())
@@ -57,7 +57,7 @@ internal static class ChildOutcomeEnvelope
             else if (reader.ValueTextEquals("executionNumber"u8))
             {
                 reader.Read();
-                executionNumber = reader.GetInt32();
+                executionNumber = reader.GetInt64();
             }
             else
             {

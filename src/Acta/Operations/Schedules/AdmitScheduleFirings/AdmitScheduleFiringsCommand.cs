@@ -20,7 +20,7 @@ internal sealed record AdmitScheduleFiringsCommand(
 internal sealed record AdmitScheduleFiringsGroup(
     int Ordinal,
     long? JobId,
-    int? ExpectedJobVersion,
+    long? ExpectedJobVersion,
     int? ScheduleId,
     int? ExpectedStateVersion,
     bool Admit,

@@ -11,7 +11,7 @@
    after it cannot revive the wait, and the wait times out now. Pg states the same rules. */
 CREATE OR ALTER PROCEDURE {{schema}}.wait_job_signal
     @p_job_id BIGINT,
-    @p_execution_number INT,
+    @p_execution_number BIGINT,
     @p_leased_by_worker_id INT,
     @p_checkpoint_kind_code TINYINT,
     @p_checkpoint_name VARCHAR(128),

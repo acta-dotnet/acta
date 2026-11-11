@@ -9,7 +9,7 @@ CREATE TEMP TABLE _trigger_schedule_lock (granted INT NOT NULL) ON COMMIT DROP;
 CREATE TEMP TABLE _trigger_schedule_slot (
     job_status_code SMALLINT NOT NULL,
     firing_status_code SMALLINT,
-    execution_number INT NOT NULL
+    execution_number BIGINT NOT NULL
 ) ON COMMIT DROP;
 CREATE TEMP TABLE _trigger_schedule_target (schedule_id INT NOT NULL, schedule_status_code SMALLINT NOT NULL) ON COMMIT DROP;
 CREATE TEMP TABLE _trigger_schedule_action (action SMALLINT NOT NULL) ON COMMIT DROP;

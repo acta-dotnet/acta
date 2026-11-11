@@ -63,7 +63,7 @@ public class JobContextDeadlineTests
 
         private protected override Task<(bool Stored, TResult? Value)> ReadChildResultCoreAsync<TResult>(
             long childJobId,
-            int? executionNumber,
+            long? executionNumber,
             CancellationToken ct
         )
             where TResult : default => throw new NotSupportedException();

@@ -115,8 +115,8 @@ public static class ChaosCase
                     plan.Policy("faults", "chaos_mix", "outbox_rows_cap")
                 );
             var staging = StageAsync(source, outboxRows, (int)plan.Policy("faults", "chaos_mix", "outbox_chunk_rows"), chaos, ct);
-            List<(long Id, int Execution)> victims = [];
-            List<List<(long Id, int Execution)>> hits = [];
+            List<(long Id, long Execution)> victims = [];
+            List<List<(long Id, long Execution)>> hits = [];
             var kills = 0;
             var refused = 0;
             var failedStarts = 0;
@@ -129,7 +129,7 @@ public static class ChaosCase
                     var victim = running[random.Next(running.Length)];
                     // Paused, the victim's in-flight attempts are exactly those its kill interrupts.
                     victim.Pause();
-                    List<(long Id, int Execution)> inFlight;
+                    List<(long Id, long Execution)> inFlight;
                     try
                     {
                         inFlight = await BusyAsync(state, victim.Id, ct);
@@ -481,7 +481,7 @@ public static class ChaosCase
         return (pending, quarantined, keys.Count, [.. keys]);
     }
 
-    private static async Task<List<(long Id, int Execution)>> BusyAsync(OwnedProvider state, int pid, CancellationToken ct)
+    private static async Task<List<(long Id, long Execution)>> BusyAsync(OwnedProvider state, int pid, CancellationToken ct)
     {
         await using var connection = await state.OpenAsync(ct);
         await using var command = connection.CreateCommand();
@@ -489,14 +489,14 @@ public static class ChaosCase
         command.CommandTimeout = 300;
         command.CommandText =
             $"SELECT r.job_id, r.execution_number FROM {prefix}.jobs_state r JOIN {prefix}.workers w ON w.worker_id=r.leased_by_worker_id JOIN {prefix}.jobs j ON j.job_id=r.job_id JOIN {prefix}.definitions d ON d.definition_id=j.definition_id WHERE w.process_id={pid} AND r.job_status_code=50 /* JobStatusCode.Executing */ AND d.definition_name NOT LIKE 'sys.%'";
-        List<(long, int)> jobs = [];
+        List<(long, long)> jobs = [];
         await using var reader = await command.ExecuteReaderAsync(ct);
         while (await reader.ReadAsync(ct))
         {
             jobs.Add(
                 (
                     Convert.ToInt64(reader.GetValue(0), CultureInfo.InvariantCulture),
-                    Convert.ToInt32(reader.GetValue(1), CultureInfo.InvariantCulture)
+                    Convert.ToInt64(reader.GetValue(1), CultureInfo.InvariantCulture)
                 )
             );
         }

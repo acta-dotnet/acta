@@ -17,7 +17,7 @@ internal sealed record GetCalendarDetailResponse(
     public static async ValueTask<GetCalendarDetailResponse?> ComposeAsync(
         ICalendars calendars,
         CalendarLookup calendar,
-        int? version,
+        long? version,
         CancellationToken ct
     ) =>
         await calendars.GetAsync(calendar, version, ct) is { } head

@@ -127,49 +127,49 @@ internal sealed class FakeCalendars : ICalendars
 
     public List<ListCalendarsQuery> ListQueries { get; } = [];
 
-    public List<(CalendarLookup Calendar, int? Version)> Reads { get; } = [];
+    public List<(CalendarLookup Calendar, long? Version)> Reads { get; } = [];
 
     public List<ListCalendarVersionsQuery> VersionQueries { get; } = [];
 
     public List<ListCalendarDependentsQuery> DependentQueries { get; } = [];
 
-    public List<(CalendarLookup Calendar, int Version, DateTime? FromUtc, int Count, string? TimeZoneId)> Previews { get; } = [];
+    public List<(CalendarLookup Calendar, long Version, DateTime? FromUtc, int Count, string? TimeZoneId)> Previews { get; } = [];
 
     public List<(
         CalendarLookup Calendar,
         CalendarRoleCode Role,
         string Definition,
-        int? ExpectedLatestVersion,
+        long? ExpectedLatestVersion,
         string? Reason,
         string? Actor
     )> Drafts { get; } = [];
 
     public List<(
         CalendarLookup Calendar,
-        int CandidateVersion,
-        int? ExpectedCurrentVersion,
+        long CandidateVersion,
+        long? ExpectedCurrentVersion,
         OverdueDecisionCode Overdue,
         string? Reason,
         string? Actor
     )> Publications { get; } = [];
 
-    public List<(CalendarLookup Calendar, int? ExpectedCurrentVersion, string? Reason, string? Actor)> Archives { get; } = [];
+    public List<(CalendarLookup Calendar, long? ExpectedCurrentVersion, string? Reason, string? Actor)> Archives { get; } = [];
 
     public Func<ListCalendarsQuery, CancellationToken, ValueTask<ListCalendarsResponse>> List { get; set; }
 
-    public Func<CalendarLookup, int?, CancellationToken, ValueTask<GetCalendarResponse?>> Get { get; set; }
+    public Func<CalendarLookup, long?, CancellationToken, ValueTask<GetCalendarResponse?>> Get { get; set; }
 
     public Func<ListCalendarVersionsQuery, CancellationToken, ValueTask<ListCalendarVersionsResponse>> ListVersions { get; set; }
 
     public Func<ListCalendarDependentsQuery, CancellationToken, ValueTask<ListCalendarDependentsResponse>> ListDependents { get; set; }
 
-    public Func<CalendarLookup, int, DateTime?, int, string?, CancellationToken, ValueTask<PreviewCalendarResponse?>> Preview { get; set; }
+    public Func<CalendarLookup, long, DateTime?, int, string?, CancellationToken, ValueTask<PreviewCalendarResponse?>> Preview { get; set; }
 
     public Func<
         CalendarLookup,
         CalendarRoleCode,
         string,
-        int?,
+        long?,
         string?,
         string?,
         CancellationToken,
@@ -178,8 +178,8 @@ internal sealed class FakeCalendars : ICalendars
 
     public Func<
         CalendarLookup,
-        int,
-        int?,
+        long,
+        long?,
         OverdueDecisionCode,
         string?,
         string?,
@@ -187,11 +187,11 @@ internal sealed class FakeCalendars : ICalendars
         ValueTask<PublishCalendarResponse>
     > Publish { get; set; }
 
-    public Func<CalendarLookup, int?, string?, string?, CancellationToken, ValueTask<ArchiveCalendarResponse>> Archive { get; set; }
+    public Func<CalendarLookup, long?, string?, string?, CancellationToken, ValueTask<ArchiveCalendarResponse>> Archive { get; set; }
 
     ValueTask<ListCalendarsResponse> ICalendars.ListAsync(ListCalendarsQuery query, CancellationToken ct) => List(query, ct);
 
-    ValueTask<GetCalendarResponse?> ICalendars.GetAsync(CalendarLookup calendar, int? version, CancellationToken ct) =>
+    ValueTask<GetCalendarResponse?> ICalendars.GetAsync(CalendarLookup calendar, long? version, CancellationToken ct) =>
         Get(calendar, version, ct);
 
     ValueTask<ListCalendarVersionsResponse> ICalendars.ListVersionsAsync(ListCalendarVersionsQuery query, CancellationToken ct) =>
@@ -204,7 +204,7 @@ internal sealed class FakeCalendars : ICalendars
         CalendarLookup calendar,
         CalendarRoleCode role,
         string definition,
-        int? expectedLatestVersion,
+        long? expectedLatestVersion,
         string? reasonMessage,
         string? actor,
         CancellationToken ct
@@ -212,7 +212,7 @@ internal sealed class FakeCalendars : ICalendars
 
     ValueTask<PreviewCalendarResponse?> ICalendars.PreviewAsync(
         CalendarLookup calendar,
-        int version,
+        long version,
         DateTime? fromUtc,
         int count,
         string? timeZoneId,
@@ -221,8 +221,8 @@ internal sealed class FakeCalendars : ICalendars
 
     ValueTask<PublishCalendarResponse> ICalendars.PublishAsync(
         CalendarLookup calendar,
-        int candidateVersion,
-        int? expectedCurrentVersion,
+        long candidateVersion,
+        long? expectedCurrentVersion,
         OverdueDecisionCode overdue,
         string? reasonMessage,
         string? actor,
@@ -231,15 +231,15 @@ internal sealed class FakeCalendars : ICalendars
 
     ValueTask<ArchiveCalendarResponse> ICalendars.ArchiveAsync(
         CalendarLookup calendar,
-        int? expectedCurrentVersion,
+        long? expectedCurrentVersion,
         string? reasonMessage,
         string? actor,
         CancellationToken ct
     ) => Archive(calendar, expectedCurrentVersion, reasonMessage, actor, ct);
 
-    private static bool Known(CalendarLookup calendar, int version) => calendar.CalendarName != "missing" && version is 1 or 2;
+    private static bool Known(CalendarLookup calendar, long version) => calendar.CalendarName != "missing" && version is 1 or 2;
 
-    private static GetCalendarResponse Family(CalendarLookup calendar, int shownVersion) =>
+    private static GetCalendarResponse Family(CalendarLookup calendar, long shownVersion) =>
         new(
             calendar.JobNamespace,
             calendar.CalendarName,

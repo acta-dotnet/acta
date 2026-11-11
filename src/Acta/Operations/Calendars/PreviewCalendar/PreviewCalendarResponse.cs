@@ -17,8 +17,8 @@ namespace Acta;
 /// <param name="OverdueTotal">How many of those schedules have their next occurrence already due under the version in force.</param>
 public sealed record PreviewCalendarResponse(
     CalendarRoleCode Role,
-    int Version,
-    int? CurrentVersion,
+    long Version,
+    long? CurrentVersion,
     IReadOnlyList<DateTime> OccurrencesUtc,
     IReadOnlyList<DateTime> CurrentOccurrencesUtc,
     IReadOnlyList<CalendarWindow> Windows,

@@ -25,7 +25,7 @@ BEGIN
         DECLARE @message NVARCHAR(512);
         DECLARE
             @from_status TINYINT, @namespace_id INT, @lineage_root_job_id BIGINT,
-            @definition_id INT, @tenant_id INT, @execution_number INT, @event_recording TINYINT;
+            @definition_id INT, @tenant_id INT, @execution_number BIGINT, @event_recording TINYINT;
 
         -- The checkpoint's own lock, as wait_job_signal names it (docs/sql-internals.md, "Step, checkpoint and rate locks").
         DECLARE @checkpoint_lock NVARCHAR(255) = CONCAT(N'{{schema}}.checkpoint:', @p_job_id, N':', @p_checkpoint_kind_code, N':', @p_checkpoint_name);

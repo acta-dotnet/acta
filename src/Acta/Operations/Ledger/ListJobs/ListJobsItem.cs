@@ -42,6 +42,6 @@ public sealed record ListJobsItem(
     DateTime CreatedAtUtc,
     DateTime ModifiedAtUtc,
     DateTime? NextRunAtUtc,
-    int ExecutionNumber,
+    long ExecutionNumber,
     int FailureCount
 );

@@ -119,5 +119,5 @@ public sealed record GetDefinitionResponse(
     DefinitionPolicyOverrides Overrides,
     DateTime CreatedAtUtc,
     DateTime ModifiedAtUtc,
-    int Version
+    long Version
 );

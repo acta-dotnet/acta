@@ -4,5 +4,5 @@ namespace Acta;
 /// <param name="Action">What the call did: applied, or not-found.</param>
 public sealed record UpsertTagResponse(ControlAction Action) : ITagMutationResponse
 {
-    int? IControlResponse.Version => null;
+    long? IControlResponse.Version => null;
 }

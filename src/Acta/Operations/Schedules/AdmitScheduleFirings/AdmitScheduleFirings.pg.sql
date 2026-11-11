@@ -12,7 +12,7 @@ SELECT
     g.ordinal, g.job_id, g.expected_job_version, g.schedule_id, g.expected_state_version, g.admit, g.envelope,
     g.job_ref, g.deduplication_key, g.trigger_message, g.trigger_details
 FROM json_to_recordset(@p_groups::json) AS g (
-    ordinal INT, job_id BIGINT, expected_job_version INT, schedule_id INT, expected_state_version INT, admit BOOLEAN,
+    ordinal INT, job_id BIGINT, expected_job_version BIGINT, schedule_id INT, expected_state_version INT, admit BOOLEAN,
     envelope TEXT, job_ref UUID, deduplication_key VARCHAR, trigger_message VARCHAR, trigger_details TEXT);
 CREATE TEMP TABLE _adm_rows ON COMMIT DROP AS
 SELECT

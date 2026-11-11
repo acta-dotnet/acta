@@ -13,7 +13,7 @@ internal sealed record DurableRow(
     long? ParentJobId,
     int Status,
     string? Result,
-    int ExecutionNumber,
+    long ExecutionNumber,
     string JobNamespace,
     long? LineageRootJobId,
     long Modified
@@ -166,7 +166,7 @@ internal sealed class DurableReader(OwnedProvider provider)
                     // A status is a tinyint on SQL Server and a smallint elsewhere.
                     Convert.ToInt32(reader.GetValue(3), CultureInfo.InvariantCulture),
                     reader.IsDBNull(4) ? null : Decode((byte[])reader.GetValue(4)),
-                    reader.GetInt32(5),
+                    reader.GetInt64(5),
                     reader.GetString(6),
                     reader.IsDBNull(7) ? null : reader.GetInt64(7),
                     DatabaseTicks(reader.GetValue(8))

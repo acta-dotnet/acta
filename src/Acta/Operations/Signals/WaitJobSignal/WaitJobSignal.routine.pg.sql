@@ -8,7 +8,7 @@
    arrival; the loser re-reads the winner's row and resolves against that. */
 CREATE OR REPLACE FUNCTION {{schema}}.wait_job_signal(
     p_job_id BIGINT,
-    p_execution_number INT,
+    p_execution_number BIGINT,
     p_leased_by_worker_id INT,
     p_checkpoint_kind_code SMALLINT,
     p_checkpoint_name VARCHAR,

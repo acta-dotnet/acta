@@ -7,7 +7,7 @@ CREATE TEMP TABLE _update_job_input (
     lineage_root_job_id BIGINT,
     definition_id INT NOT NULL,
     tenant_id INT,
-    execution_number INT NOT NULL,
+    execution_number BIGINT NOT NULL,
     old_format_id SMALLINT NOT NULL,
     old_bytes INT
 ) ON COMMIT DROP;

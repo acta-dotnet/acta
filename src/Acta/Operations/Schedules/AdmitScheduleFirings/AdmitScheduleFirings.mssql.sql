@@ -13,7 +13,7 @@ BEGIN TRY
     DECLARE @groups TABLE (
         ordinal INT NOT NULL PRIMARY KEY,
         job_id BIGINT NULL,
-        expected_job_version INT NULL,
+        expected_job_version BIGINT NULL,
         schedule_id INT NULL,
         expected_state_version INT NULL,
         admit BIT NOT NULL,
@@ -49,7 +49,7 @@ BEGIN TRY
         ordinal, job_id, expected_job_version, schedule_id, expected_state_version, admit, envelope,
         job_ref, deduplication_key, trigger_message, trigger_details
     FROM OPENJSON(@p_groups) WITH (
-        ordinal INT '$.ordinal', job_id BIGINT '$.job_id', expected_job_version INT '$.expected_job_version',
+        ordinal INT '$.ordinal', job_id BIGINT '$.job_id', expected_job_version BIGINT '$.expected_job_version',
         schedule_id INT '$.schedule_id', expected_state_version INT '$.expected_state_version', admit BIT '$.admit',
         envelope NVARCHAR(MAX) '$.envelope', job_ref UNIQUEIDENTIFIER '$.job_ref', deduplication_key VARCHAR(128) '$.deduplication_key',
         trigger_message NVARCHAR(512) '$.trigger_message', trigger_details NVARCHAR(MAX) '$.trigger_details');

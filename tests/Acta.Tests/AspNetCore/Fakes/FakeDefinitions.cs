@@ -36,7 +36,7 @@ internal sealed class FakeDefinitions : IDefinitions
     public Func<
         string,
         string,
-        int,
+        long,
         DefinitionPolicyOverrides,
         string?,
         string?,
@@ -44,7 +44,7 @@ internal sealed class FakeDefinitions : IDefinitions
         ValueTask<UpdateDefinitionOverridesResponse>
     > UpdateOverrides { get; set; }
 
-    public Func<string, string, int, string?, string?, CancellationToken, ValueTask<RetireDefinitionResponse>> Retire { get; set; }
+    public Func<string, string, long, string?, string?, CancellationToken, ValueTask<RetireDefinitionResponse>> Retire { get; set; }
 
     public Func<string, string, CancellationToken, ValueTask<GetDefinitionResponse?>> Get { get; set; }
 
@@ -55,7 +55,7 @@ internal sealed class FakeDefinitions : IDefinitions
     ValueTask<UpdateDefinitionOverridesResponse> IDefinitions.UpdateOverridesAsync(
         string jobNamespace,
         string jobName,
-        int expectedVersion,
+        long expectedVersion,
         DefinitionPolicyOverrides overrides,
         string? reasonMessage,
         string? actor,
@@ -65,7 +65,7 @@ internal sealed class FakeDefinitions : IDefinitions
     ValueTask<RetireDefinitionResponse> IDefinitions.RetireAsync(
         string jobNamespace,
         string jobName,
-        int expectedVersion,
+        long expectedVersion,
         string? reasonMessage,
         string? actor,
         CancellationToken ct
@@ -80,7 +80,7 @@ internal sealed class FakeDefinitions : IDefinitions
         GetInputTemplate(jobNamespace, jobName);
 
     /// <summary>The outcome and the version after it: the definition's current version on a conflict, one past the expected on an apply.</summary>
-    private static (ControlAction Action, int? Version) Outcome(string jobName, int expectedVersion) =>
+    private static (ControlAction Action, long? Version) Outcome(string jobName, long expectedVersion) =>
         jobName == "missing" ? (ControlAction.NotFound, null)
         : expectedVersion == 999 ? (ControlAction.VersionConflict, SendInvoice.Version)
         : (ControlAction.Applied, expectedVersion + 1);

@@ -243,7 +243,7 @@ public sealed class PublishCalendarSpec : ActaRuntimeTestBase<ConformanceFixture
                 );
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Calendar.CalendarName, Days.CalendarName));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.ExpectedCurrentVersion, 1));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.CandidateVersion, candidate));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.CandidateVersion, (int)candidate));
                 cmd.AddEventFields(dialect, null, null);
                 dialect.BindPublishCalendar(cmd, []);
             },

@@ -19,5 +19,5 @@ public sealed record ListTenantsItem(
     TenantStatusCode Status,
     DateTime CreatedAtUtc,
     DateTime ModifiedAtUtc,
-    int Version
+    long Version
 );

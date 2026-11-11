@@ -631,6 +631,23 @@ public sealed class CalendarEndpointTests
     }
 
     [Fact]
+    public async Task A_version_past_32_bits_reaches_the_facade_whole_from_a_query_and_from_a_body()
+    {
+        const long wide = 5_000_000_000;
+        var fakes = new FakeOperations();
+        var (app, client) = await StartWithControlsAsync(fakes);
+        await using var _ = app;
+        var ct = TestContext.Current.CancellationToken;
+
+        using var read = await client.GetAsync($"{Prefix}/billing/office-hours?version={wide}", ct);
+        using var archived = await client.SendAsync(Post("/sys/holidays/archive", new { expectedCurrentVersion = wide }), ct);
+
+        // A version is 64-bit from the wire to the facade: a 32-bit hop would refuse the request or wrap the value.
+        Assert.Equal(wide, fakes.Calendars.Reads[^1].Version);
+        Assert.Equal(wide, Assert.Single(fakes.Calendars.Archives).ExpectedCurrentVersion);
+    }
+
+    [Fact]
     public async Task An_archive_without_an_expected_version_archives_with_no_check()
     {
         var fakes = new FakeOperations();

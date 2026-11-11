@@ -41,14 +41,14 @@ DO $$
 BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
-        WHERE name NOT IN ('M20261111030622_init')
+        WHERE name NOT IN ('M20261111034628_init')
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
 END
 $$;
 
--- ===== BEGIN M20261111030622_init =====
+-- ===== BEGIN M20261111034628_init =====
 CREATE SCHEMA IF NOT EXISTS acta;
 
 -- alerts
@@ -209,7 +209,7 @@ CREATE TABLE IF NOT EXISTS acta.events (
     definition_id integer NULL,
     tenant_id integer NULL,
     lineage_root_job_id bigint NULL,
-    execution_number integer NULL,
+    execution_number bigint NULL,
     duration_ms integer NULL,
     event_message varchar(512) NULL,
     details_format_id smallint DEFAULT 0 NOT NULL,
@@ -271,7 +271,7 @@ CREATE TABLE IF NOT EXISTS acta.jobs_state (
     job_status_code smallint NOT NULL,
     job_priority_code smallint NOT NULL,
     next_run_at_utc timestamptz NULL,
-    execution_number integer NOT NULL,
+    execution_number bigint NOT NULL,
     failure_count integer NOT NULL,
     leased_by_worker_id integer NULL,
     lease_expires_at_utc timestamptz NULL,
@@ -279,7 +279,7 @@ CREATE TABLE IF NOT EXISTS acta.jobs_state (
     modified_at_utc timestamptz DEFAULT now() NOT NULL,
     result_format_id smallint DEFAULT 0 NOT NULL,
     result bytea NULL,
-    version integer DEFAULT 0 NOT NULL
+    version bigint DEFAULT 0 NOT NULL
     , CONSTRAINT pk_jobs_state PRIMARY KEY (job_id)
     , CONSTRAINT ck_jobs_state_blocked_lane CHECK (job_status_code <> 15 OR lane_id IS NOT NULL)
     , CONSTRAINT ck_jobs_state_lease_consistency CHECK ((leased_by_worker_id IS NULL AND lease_expires_at_utc IS NULL) OR (leased_by_worker_id IS NOT NULL AND lease_expires_at_utc IS NOT NULL))
@@ -478,7 +478,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS ux_workers_ref ON acta.workers (worker_ref);
 CREATE OR REPLACE FUNCTION acta.access_job_checkpoint(
     p_action SMALLINT,
     p_job_id BIGINT,
-    p_execution_number INT,
+    p_execution_number BIGINT,
     p_leased_by_worker_id INT,
     p_checkpoint_kind_code SMALLINT,
     p_checkpoint_name VARCHAR,
@@ -619,7 +619,7 @@ $$;
 
 CREATE OR REPLACE FUNCTION acta.arm_or_consume_job_sleep_timer(
     p_job_id BIGINT,
-    p_execution_number INT,
+    p_execution_number BIGINT,
     p_leased_by_worker_id INT,
     p_checkpoint_name VARCHAR,
     p_delay_seconds INT DEFAULT NULL,
@@ -728,7 +728,7 @@ CREATE OR REPLACE FUNCTION acta.claim_jobs(
 RETURNS TABLE (
     job_id BIGINT,
     definition_id INT,
-    execution_number INT,
+    execution_number BIGINT,
     deduplication_key VARCHAR,
     job_kind_code SMALLINT,
     correlation_key VARCHAR,
@@ -856,7 +856,7 @@ AS $$
     SELECT
         NULL::bigint,
         NULL::int,
-        NULL::int,
+        NULL::bigint,
         NULL::varchar,
         NULL::smallint,
         NULL::varchar,
@@ -905,7 +905,7 @@ $$;
 CREATE OR REPLACE FUNCTION acta.complete_executions(
     p_leased_by_worker_id INT,
     p_job_ids BIGINT[],
-    p_execution_numbers INT[],
+    p_execution_numbers BIGINT[],
     p_succeeded BOOLEAN[],
     p_result_format_ids SMALLINT[],
     p_results BYTEA[],
@@ -927,7 +927,7 @@ CREATE OR REPLACE FUNCTION acta.complete_executions(
 )
 RETURNS TABLE (
     job_id BIGINT,
-    execution_number INT,
+    execution_number BIGINT,
     action SMALLINT,
     final_job_status_code SMALLINT,
     final_next_run_at_utc TIMESTAMPTZ,
@@ -1646,7 +1646,7 @@ $$;
 
 CREATE OR REPLACE FUNCTION acta.complete_job_step(
     p_job_id BIGINT,
-    p_execution_number INT,
+    p_execution_number BIGINT,
     p_leased_by_worker_id INT,
     p_step_name VARCHAR,
     p_succeeded BOOLEAN,
@@ -1722,7 +1722,7 @@ CREATE OR REPLACE FUNCTION acta.enqueue_job(
     p_tag_value VARCHAR [] DEFAULT NULL,
     p_tag_value_search VARCHAR [] DEFAULT NULL,
     p_lane_name VARCHAR DEFAULT NULL,
-    p_parent_execution_number INT DEFAULT NULL,
+    p_parent_execution_number BIGINT DEFAULT NULL,
     p_parent_worker_id INT DEFAULT NULL
 )
 RETURNS TABLE (ordinal INT, job_id BIGINT, job_ref UUID, action INT)
@@ -2613,14 +2613,14 @@ CREATE OR REPLACE FUNCTION acta.extend_worker_leases(
     p_lease_ttl_seconds INT,
     p_draining BOOLEAN,
     p_job_ids BIGINT[],
-    p_execution_numbers INT[],
+    p_execution_numbers BIGINT[],
     p_lock_keys VARCHAR[],
     p_hold_tokens UUID[],
     p_recovery_interval_seconds INT
 )
 RETURNS TABLE (
     job_id BIGINT,
-    execution_number INT,
+    execution_number BIGINT,
     hold_token UUID,
     renewed BOOLEAN,
     definitions_modified_at_utc TIMESTAMPTZ,
@@ -2673,7 +2673,7 @@ BEGIN
     SET expires_at_utc = v_new_expiry
     FROM unnest(p_lock_keys, p_hold_tokens) AS h (lock_key, hold_token)
     WHERE k.lock_key = h.lock_key AND k.hold_token = h.hold_token
-    RETURNING NULL::BIGINT, NULL::INT, k.hold_token, TRUE, NULL::TIMESTAMPTZ, FALSE;
+    RETURNING NULL::BIGINT, NULL::BIGINT, k.hold_token, TRUE, NULL::TIMESTAMPTZ, FALSE;
 
     /* Push the held executions' leases forward. Only a row this worker still leases at the execution the
        process holds is answered, so a row the process lost lapses and recovery takes it. Deliberately no
@@ -2731,7 +2731,7 @@ BEGIN
 
     -- The namespace's newest definition change: the worker re-reads its catalog only when it moves.
     RETURN QUERY
-    SELECT NULL::BIGINT, NULL::INT, NULL::UUID, FALSE, MAX(d.modified_at_utc), v_recovery_claimed
+    SELECT NULL::BIGINT, NULL::BIGINT, NULL::UUID, FALSE, MAX(d.modified_at_utc), v_recovery_claimed
     FROM acta.definitions d
     WHERE d.namespace_id = v_namespace_id;
 END;
@@ -3022,7 +3022,7 @@ DECLARE
     v_lineage_root_job_id BIGINT;
     v_definition_id INT;
     v_tenant_id INT;
-    v_execution_number INT;
+    v_execution_number BIGINT;
     v_event_recording SMALLINT;
 BEGIN
 
@@ -3778,7 +3778,7 @@ $$;
 
 CREATE OR REPLACE FUNCTION acta.start_job_step(
     p_job_id BIGINT,
-    p_execution_number INT,
+    p_execution_number BIGINT,
     p_leased_by_worker_id INT,
     p_step_name VARCHAR,
     p_at_most_once BOOLEAN
@@ -3919,7 +3919,7 @@ $$;
    arrival; the loser re-reads the winner's row and resolves against that. */
 CREATE OR REPLACE FUNCTION acta.wait_job_signal(
     p_job_id BIGINT,
-    p_execution_number INT,
+    p_execution_number BIGINT,
     p_leased_by_worker_id INT,
     p_checkpoint_kind_code SMALLINT,
     p_checkpoint_name VARCHAR,
@@ -4419,10 +4419,10 @@ JOIN acta.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO acta.migrations (name)
-VALUES ('M20261111030622_init')
+VALUES ('M20261111034628_init')
 ON CONFLICT (name) DO NOTHING;
 
--- ===== END M20261111030622_init =====
+-- ===== END M20261111034628_init =====
 
 COMMIT;
 

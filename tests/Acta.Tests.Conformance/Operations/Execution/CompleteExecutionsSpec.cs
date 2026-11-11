@@ -251,7 +251,7 @@ public sealed class CompleteExecutionsSpec : ActaRuntimeTestBase<ConformanceFixt
     }
 
     // A row is untouched while its version and its attempt events stay as they were.
-    private async Task<(int Version, int Finished)> StateAsync(long jobId, CancellationToken ct) =>
+    private async Task<(long Version, int Finished)> StateAsync(long jobId, CancellationToken ct) =>
         ((await ReadJobAsync(jobId, ct)).Version, (await AttemptEventsAsync(jobId, ct)).Count);
 
     // The job's attempt events, 40 to 44.

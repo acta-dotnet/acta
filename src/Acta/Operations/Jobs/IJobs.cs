@@ -279,7 +279,7 @@ public interface IJobs
         JobLookup job,
         string? reasonMessage = null,
         string? actor = null,
-        int? expectedVersion = null,
+        long? expectedVersion = null,
         CancellationToken ct = default
     );
 
@@ -294,7 +294,7 @@ public interface IJobs
         JobLookup job,
         string? reasonMessage = null,
         string? actor = null,
-        int? expectedVersion = null,
+        long? expectedVersion = null,
         CancellationToken ct = default
     );
 
@@ -310,7 +310,7 @@ public interface IJobs
         JobLookup job,
         string? reasonMessage = null,
         string? actor = null,
-        int? expectedVersion = null,
+        long? expectedVersion = null,
         CancellationToken ct = default
     );
 
@@ -325,7 +325,7 @@ public interface IJobs
         JobLookup job,
         string? reasonMessage = null,
         string? actor = null,
-        int? expectedVersion = null,
+        long? expectedVersion = null,
         CancellationToken ct = default
     );
 
@@ -342,7 +342,7 @@ public interface IJobs
         DateTime? nextRunAtUtc = null,
         string? reasonMessage = null,
         string? actor = null,
-        int? expectedVersion = null,
+        long? expectedVersion = null,
         CancellationToken ct = default
     );
 
@@ -359,7 +359,7 @@ public interface IJobs
         JobPriorityCode priority,
         string? reasonMessage = null,
         string? actor = null,
-        int? expectedVersion = null,
+        long? expectedVersion = null,
         CancellationToken ct = default
     );
 

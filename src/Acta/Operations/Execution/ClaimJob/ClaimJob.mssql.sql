@@ -20,7 +20,7 @@ BEGIN TRY
             job_ref UNIQUEIDENTIFIER NOT NULL,
             definition_id INT NOT NULL,
             tenant_id INT NULL,
-            execution_number INT NOT NULL,
+            execution_number BIGINT NOT NULL,
             deduplication_key VARCHAR(128) COLLATE Latin1_General_100_BIN2_UTF8 NULL,
             job_kind_code TINYINT NOT NULL,
             correlation_key VARCHAR(64) NULL,

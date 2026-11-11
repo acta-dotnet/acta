@@ -119,7 +119,7 @@ internal sealed partial class RuntimeJobContext(
     public override string? TenantName { get; } = tenantName;
     public override string JobName { get; } = jobName;
     public override JobRef JobRef { get; } = new JobRef(job.JobRef);
-    public override int ExecutionNumber { get; } = job.ExecutionNumber;
+    public override long ExecutionNumber { get; } = job.ExecutionNumber;
     public override int WorkerId { get; } = workerId;
     public override CancellationToken CancellationToken { get; } = cancellationToken;
     public override IReadOnlyList<TriggeringSchedule> TriggeringSchedules { get; } = firing?.TriggeringSchedules ?? [];
@@ -355,7 +355,7 @@ internal sealed partial class RuntimeJobContext(
 
     private protected override Task<(bool Stored, TResult? Value)> ReadChildResultCoreAsync<TResult>(
         long childJobId,
-        int? executionNumber,
+        long? executionNumber,
         CancellationToken ct
     )
         where TResult : default => _jobOperations.ReadResultAsync<TResult>(childJobId, executionNumber, ct);

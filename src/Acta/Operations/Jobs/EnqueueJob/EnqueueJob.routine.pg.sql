@@ -20,7 +20,7 @@ CREATE OR REPLACE FUNCTION {{schema}}.enqueue_job(
     p_tag_value VARCHAR [] DEFAULT NULL,
     p_tag_value_search VARCHAR [] DEFAULT NULL,
     p_lane_name VARCHAR DEFAULT NULL,
-    p_parent_execution_number INT DEFAULT NULL,
+    p_parent_execution_number BIGINT DEFAULT NULL,
     p_parent_worker_id INT DEFAULT NULL
 )
 RETURNS TABLE (ordinal INT, job_id BIGINT, job_ref UUID, action INT)

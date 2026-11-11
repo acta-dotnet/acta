@@ -16,7 +16,7 @@ internal sealed class DefinitionsOperations(
     public ValueTask<UpdateDefinitionOverridesResponse> UpdateOverridesAsync(
         string jobNamespace,
         string jobName,
-        int expectedVersion,
+        long expectedVersion,
         DefinitionPolicyOverrides overrides,
         string? reasonMessage = null,
         string? actor = null,
@@ -30,7 +30,7 @@ internal sealed class DefinitionsOperations(
     public ValueTask<RetireDefinitionResponse> RetireAsync(
         string jobNamespace,
         string jobName,
-        int expectedVersion,
+        long expectedVersion,
         string? reasonMessage = null,
         string? actor = null,
         CancellationToken ct = default

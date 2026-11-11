@@ -9,7 +9,7 @@ CREATE OR REPLACE FUNCTION {{schema}}.claim_jobs(
 RETURNS TABLE (
     job_id BIGINT,
     definition_id INT,
-    execution_number INT,
+    execution_number BIGINT,
     deduplication_key VARCHAR,
     job_kind_code SMALLINT,
     correlation_key VARCHAR,
@@ -137,7 +137,7 @@ AS $$
     SELECT
         NULL::bigint,
         NULL::int,
-        NULL::int,
+        NULL::bigint,
         NULL::varchar,
         NULL::smallint,
         NULL::varchar,

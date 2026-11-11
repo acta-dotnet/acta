@@ -8,7 +8,7 @@ BEGIN TRY
 
     DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
     DECLARE @found BIT = 0, @status TINYINT, @paused DATETIME2(7), @next DATETIME2(7), @version INT;
-    DECLARE @ns INT, @def INT, @slot BIGINT, @lineage BIGINT, @en INT, @event_recording TINYINT;
+    DECLARE @ns INT, @def INT, @slot BIGINT, @lineage BIGINT, @en BIGINT, @event_recording TINYINT;
     DECLARE @lock_result INT, @lock_resource NVARCHAR(255);
 
     /* The namespace's schedule lock, shared, before any row lock (docs/sql-internals.md, "Schedule lock"), so

@@ -57,7 +57,7 @@ GO
 -- ===== refuse a database a newer release already upgraded =====
 IF EXISTS (
     SELECT 1 FROM acta.migrations
-    WHERE name NOT IN ('M20261111030622_init')
+    WHERE name NOT IN ('M20261111034628_init')
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -65,7 +65,7 @@ BEGIN
     SET NOEXEC ON;
 END
 GO
--- ===== BEGIN M20261111030622_init =====
+-- ===== BEGIN M20261111034628_init =====
 SET QUOTED_IDENTIFIER ON;
 SET ANSI_NULLS ON;
 GO
@@ -245,7 +245,7 @@ CREATE TABLE acta.events (
     definition_id int NULL,
     tenant_id int NULL,
     lineage_root_job_id bigint NULL,
-    execution_number int NULL,
+    execution_number bigint NULL,
     duration_ms int NULL,
     event_message nvarchar(512) NULL,
     details_format_id tinyint DEFAULT 0 NOT NULL,
@@ -318,7 +318,7 @@ CREATE TABLE acta.jobs_state (
     job_status_code tinyint NOT NULL,
     job_priority_code tinyint NOT NULL,
     next_run_at_utc datetime2(3) NULL,
-    execution_number int NOT NULL,
+    execution_number bigint NOT NULL,
     failure_count int NOT NULL,
     leased_by_worker_id int NULL,
     lease_expires_at_utc datetime2(3) NULL,
@@ -326,7 +326,7 @@ CREATE TABLE acta.jobs_state (
     modified_at_utc datetime2(3) DEFAULT SYSUTCDATETIME() NOT NULL,
     result_format_id tinyint DEFAULT 0 NOT NULL,
     result varbinary(max) NULL,
-    version int DEFAULT 0 NOT NULL
+    version bigint DEFAULT 0 NOT NULL
     , CONSTRAINT pk_jobs_state PRIMARY KEY (job_id) WITH (OPTIMIZE_FOR_SEQUENTIAL_KEY = ON, ALLOW_PAGE_LOCKS = OFF)
     , CONSTRAINT ck_jobs_state_blocked_lane CHECK (job_status_code <> 15 OR lane_id IS NOT NULL)
     , CONSTRAINT ck_jobs_state_lease_consistency CHECK ((leased_by_worker_id IS NULL AND lease_expires_at_utc IS NULL) OR (leased_by_worker_id IS NOT NULL AND lease_expires_at_utc IS NOT NULL))
@@ -604,7 +604,7 @@ GO
 IF TYPE_ID(N'acta.complete_executions') IS NULL
 EXEC(N'CREATE TYPE acta.complete_executions AS TABLE (
     job_id                   BIGINT         NOT NULL,
-    execution_number         INT            NOT NULL,
+    execution_number         BIGINT         NOT NULL,
     succeeded                BIT            NOT NULL,
     result_format_id         TINYINT        NOT NULL,
     result                   VARBINARY(MAX) NULL,
@@ -705,7 +705,7 @@ GO
 CREATE OR ALTER PROCEDURE acta.access_job_checkpoint
     @p_action SMALLINT,
     @p_job_id BIGINT,
-    @p_execution_number INT,
+    @p_execution_number BIGINT,
     @p_leased_by_worker_id INT,
     @p_checkpoint_kind_code TINYINT,
     @p_checkpoint_name VARCHAR(128),
@@ -897,7 +897,7 @@ GO
 
 CREATE OR ALTER PROCEDURE acta.arm_or_consume_job_sleep_timer
     @p_job_id BIGINT,
-    @p_execution_number INT,
+    @p_execution_number BIGINT,
     @p_leased_by_worker_id INT,
     @p_checkpoint_name VARCHAR(128),
     @p_delay_seconds INT = NULL,
@@ -1059,7 +1059,7 @@ BEGIN
                 job_ref UNIQUEIDENTIFIER NOT NULL,
                 definition_id INT NOT NULL,
                 tenant_id INT NULL,
-                execution_number INT NOT NULL,
+                execution_number BIGINT NOT NULL,
                 deduplication_key VARCHAR(128) COLLATE Latin1_General_100_BIN2_UTF8 NULL,
                 job_kind_code TINYINT NOT NULL,
                 correlation_key VARCHAR(64) NULL,
@@ -1200,7 +1200,7 @@ BEGIN
                 SELECT
                     CAST(NULL AS BIGINT) AS job_id,
                     CAST(NULL AS INT) AS definition_id,
-                    CAST(NULL AS INT) AS execution_number,
+                    CAST(NULL AS BIGINT) AS execution_number,
                     CAST(NULL AS VARCHAR(128)) AS deduplication_key,
                     CAST(NULL AS TINYINT) AS job_kind_code,
                     CAST(NULL AS VARCHAR(64)) AS correlation_key,
@@ -1275,7 +1275,7 @@ BEGIN
         DECLARE @locked INT, @lanes BIT = 0, @children BIT = 0, @waits BIT = 0, @shapes BIT = 0, @recurring BIT = 0;
         DECLARE @rows TABLE (
             job_id BIGINT NOT NULL,
-            execution_number INT NOT NULL,
+            execution_number BIGINT NOT NULL,
             lane_id BIGINT NULL,
             parent_job_id BIGINT NULL,
             schedule_id INT NULL,
@@ -1285,7 +1285,7 @@ BEGIN
         );
         DECLARE @done TABLE (
             job_id BIGINT NOT NULL PRIMARY KEY,
-            execution_number INT NOT NULL,
+            execution_number BIGINT NOT NULL,
             job_status_code TINYINT NOT NULL,
             lane_id BIGINT NULL,
             parent_job_id BIGINT NULL,
@@ -1768,7 +1768,7 @@ BEGIN
                         event_message NVARCHAR(512) NULL,
                         latch_state TINYINT NULL,
                         parent_status TINYINT NULL,
-                        parent_execution INT NULL,
+                        parent_execution BIGINT NULL,
                         -- The latches' own key order: the name sorts as text, so child 10 comes before child 9.
                         PRIMARY KEY (parent_job_id, latch_name)
                     );
@@ -1782,7 +1782,7 @@ BEGIN
                             CAST(
                                 N'{"childJobId":' + CAST(d.job_id AS NVARCHAR(20))
                                 + N',"status":' + CAST(d.job_status_code AS NVARCHAR(3))
-                                + N',"executionNumber":' + CAST(d.execution_number AS NVARCHAR(11)) + N'}'
+                                + N',"executionNumber":' + CAST(d.execution_number AS NVARCHAR(20)) + N'}'
                                 AS VARCHAR(MAX)
                             ) COLLATE latin1_general_100_bin2_utf8 AS VARBINARY(MAX)
                         ),
@@ -1993,7 +1993,7 @@ GO
 
 CREATE OR ALTER PROCEDURE acta.complete_job_step
     @p_job_id BIGINT,
-    @p_execution_number INT,
+    @p_execution_number BIGINT,
     @p_leased_by_worker_id INT,
     @p_step_name VARCHAR(128),
     @p_succeeded BIT,
@@ -2078,7 +2078,7 @@ CREATE OR ALTER PROCEDURE acta.enqueue_job
     @p_tenant_override BIT = 0,
     @p_tags acta.enqueue_tags READONLY,
     @p_lane_name VARCHAR(128) = NULL,
-    @p_parent_execution_number INT = NULL,
+    @p_parent_execution_number BIGINT = NULL,
     @p_parent_worker_id INT = NULL
 AS
 BEGIN
@@ -3072,10 +3072,10 @@ BEGIN
 
         /* The held executions and lock holds arrive as JSON array text, expanded once into keyed tables. A process
            can hold two executions of one job, or two holds on one key, while a stale attempt unwinds. */
-        DECLARE @held TABLE (job_id BIGINT NOT NULL, execution_number INT NOT NULL, PRIMARY KEY (job_id, execution_number));
+        DECLARE @held TABLE (job_id BIGINT NOT NULL, execution_number BIGINT NOT NULL, PRIMARY KEY (job_id, execution_number));
         INSERT INTO @held (job_id, execution_number)
         SELECT job_id, execution_number
-        FROM OPENJSON(@p_executions) WITH (job_id BIGINT '$.job_id', execution_number INT '$.execution_number');
+        FROM OPENJSON(@p_executions) WITH (job_id BIGINT '$.job_id', execution_number BIGINT '$.execution_number');
 
         DECLARE @lock_held TABLE (
             lock_key VARCHAR(256) COLLATE Latin1_General_100_BIN2_UTF8 NOT NULL,
@@ -3107,7 +3107,7 @@ BEGIN
         -- only a row read that no longer matches goes unanswered, which stops its attempt (docs/sql-internals.md).
         DECLARE @seen TABLE (
             job_id BIGINT NOT NULL,
-            execution_number INT NOT NULL,
+            execution_number BIGINT NOT NULL,
             matched BIT NOT NULL,
             PRIMARY KEY (job_id, execution_number)
         );
@@ -3151,7 +3151,7 @@ BEGIN
 
         SELECT
             CAST(NULL AS BIGINT) AS job_id,
-            CAST(NULL AS INT) AS execution_number,
+            CAST(NULL AS BIGINT) AS execution_number,
             l.hold_token,
             CAST(1 AS BIT) AS renewed,
             CAST(NULL AS DATETIME2(3)) AS definitions_modified_at_utc,
@@ -3174,7 +3174,7 @@ BEGIN
         -- another transaction holds is skipped, which at worst delays that re-read by one beat.
         SELECT
             CAST(NULL AS BIGINT) AS job_id,
-            CAST(NULL AS INT) AS execution_number,
+            CAST(NULL AS BIGINT) AS execution_number,
             CAST(NULL AS UNIQUEIDENTIFIER) AS hold_token,
             CAST(0 AS BIT) AS renewed,
             MAX(d.modified_at_utc) AS definitions_modified_at_utc,
@@ -3620,7 +3620,7 @@ BEGIN
         DECLARE @message NVARCHAR(512);
         DECLARE
             @from_status TINYINT, @namespace_id INT, @lineage_root_job_id BIGINT,
-            @definition_id INT, @tenant_id INT, @execution_number INT, @event_recording TINYINT;
+            @definition_id INT, @tenant_id INT, @execution_number BIGINT, @event_recording TINYINT;
 
         -- The checkpoint's own lock, as wait_job_signal names it (docs/sql-internals.md, "Step, checkpoint and rate locks").
         DECLARE @checkpoint_lock NVARCHAR(255) = CONCAT(N'acta.checkpoint:', @p_job_id, N':', @p_checkpoint_kind_code, N':', @p_checkpoint_name);
@@ -3796,7 +3796,7 @@ BEGIN
             (
                 job_id BIGINT NOT NULL PRIMARY KEY,
                 namespace_id INT NOT NULL,
-                execution_number INT NOT NULL,
+                execution_number BIGINT NOT NULL,
                 lineage_root_job_id BIGINT NULL,
                 definition_id INT NOT NULL,
                 tenant_id INT NULL,
@@ -4422,7 +4422,7 @@ GO
 
 CREATE OR ALTER PROCEDURE acta.start_job_step
     @p_job_id BIGINT,
-    @p_execution_number INT,
+    @p_execution_number BIGINT,
     @p_leased_by_worker_id INT,
     @p_step_name VARCHAR(128),
     @p_at_most_once BIT
@@ -4571,7 +4571,7 @@ GO
    after it cannot revive the wait, and the wait times out now. Pg states the same rules. */
 CREATE OR ALTER PROCEDURE acta.wait_job_signal
     @p_job_id BIGINT,
-    @p_execution_number INT,
+    @p_execution_number BIGINT,
     @p_leased_by_worker_id INT,
     @p_checkpoint_kind_code TINYINT,
     @p_checkpoint_name VARCHAR(128),
@@ -5075,11 +5075,11 @@ JOIN acta.namespaces AS ns ON ns.namespace_id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261111030622_init')
+IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261111034628_init')
 INSERT INTO acta.migrations (name)
-VALUES ('M20261111030622_init');
+VALUES ('M20261111034628_init');
 GO
--- ===== END M20261111030622_init =====
+-- ===== END M20261111034628_init =====
 GO
 COMMIT TRANSACTION;
 GO

@@ -6,14 +6,14 @@ DROP TABLE IF EXISTS pg_temp._restart_job;
 CREATE TEMP TABLE _restart_job_lane (lane_id BIGINT NOT NULL) ON COMMIT DROP;
 CREATE TEMP TABLE _restart_job (
     from_status SMALLINT NOT NULL,
-    from_version INT NOT NULL,
+    from_version BIGINT NOT NULL,
     lane_id BIGINT,
     parent_job_id BIGINT,
     namespace_id INT NOT NULL,
     lineage_root_job_id BIGINT,
     definition_id INT NOT NULL,
     tenant_id INT,
-    execution_number INT NOT NULL,
+    execution_number BIGINT NOT NULL,
     action SMALLINT NOT NULL,
     to_status SMALLINT NOT NULL,
     schedule_id INT,

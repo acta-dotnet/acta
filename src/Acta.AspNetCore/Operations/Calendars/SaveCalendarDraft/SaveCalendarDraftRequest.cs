@@ -15,6 +15,6 @@ namespace Acta.AspNetCore;
 internal sealed record SaveCalendarDraftRequest(
     CalendarRoleCode Role,
     JsonElement Definition,
-    int? ExpectedLatestVersion,
+    long? ExpectedLatestVersion,
     string? ReasonMessage = null
 ) : IControlRequest;

@@ -204,7 +204,7 @@ public class EntitySchemaTests
         var c = ActaSchema.For<JobStateEntity>().Column("version");
 
         Assert.True(c.IsConcurrencyToken);
-        Assert.Equal(DbKind.Int32, c.Kind);
+        Assert.Equal(DbKind.Int64, c.Kind);
     }
 
     [Fact]

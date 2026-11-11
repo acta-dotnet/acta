@@ -35,7 +35,7 @@ internal sealed record DueSchedule(
     int OutstandingCount,
     int StateVersion,
     JobStatusCode? SlotStatus,
-    int? SlotVersion,
+    long? SlotVersion,
     CheckpointStatusCode? FiringStatus
 )
 {

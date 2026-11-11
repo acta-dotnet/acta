@@ -19,5 +19,5 @@ public sealed record GetTenantResponse(
     TenantStatusCode Status,
     DateTime CreatedAtUtc,
     DateTime ModifiedAtUtc,
-    int Version
+    long Version
 );

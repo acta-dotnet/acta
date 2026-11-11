@@ -36,7 +36,7 @@ internal sealed class ArchiveCalendarHandler(IDbSession session, ISqlDialect dia
     private Task<ArchiveCalendarResponse> ArchiveAsync(
         string jobNamespace,
         string calendarName,
-        int expected,
+        long expected,
         ArchiveCalendarCommand command,
         CancellationToken ct
     ) =>
@@ -46,7 +46,7 @@ internal sealed class ArchiveCalendarHandler(IDbSession session, ISqlDialect dia
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.NamespaceName, jobNamespace));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Calendar.CalendarName, calendarName));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.ExpectedCurrentVersion, expected));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.ExpectedCurrentVersion, DbParams.Int32Version(expected)));
                 cmd.AddEventFields(
                     dialect,
                     command.ReasonMessage.Truncate(ActaTextLimits.EventMessage),

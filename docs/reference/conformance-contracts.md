@@ -1120,6 +1120,25 @@
   - A note stores the id of the worker whose attempt wrote it
   - A note from an attempt the row has moved past is refused, and the current attempt's note is filed under it
 
+### A job past 32-bit counters runs and is controlled like any other
+- **Contract:** A job whose execution number and version are past 32 bits is claimed, run, controlled and reclaimed like any other, and its parent reads its outcome.
+- **Guarantees:**
+  - A job past 32-bit counters is claimed and lands, and its events carry the wide execution number
+  - The worker's batch claim takes a job past 32-bit counters and lands it
+  - A heartbeat renews the lease of an attempt past 32 bits and leaves the version where the claim left it
+  - A fenced handler write lands under an execution number past 32 bits
+  - A parent past 32-bit counters cancels its timed-out child under its own fence
+  - A signal wait past 32 bits suspends the job, and the raise releases it to run again
+  - A child started under a parent past 32 bits lands its wide execution in the outcome the parent reads
+  - Recovery reclaims an attempt past 32 bits whose lease lapsed and charges it to the wide execution
+  - A control verb applies to a job past 32-bit counters, compared at an expected version past 32 bits
+  - A permanent slot past 32-bit counters is admitted at its version, fires, and returns to Idle
+  - A schedule verb applies to a schedule whose permanent job is past 32-bit counters
+  - Retiring a definition cancels its job past 32-bit counters and records the wide execution number
+  - A verb on a 32-bit version answers an expected version past 32 bits as a conflict and changes nothing
+  - A calendar version past 32 bits is no version of the family, and nothing is changed for it
+  - The job read, the job list, explain, and the event list answer a job past 32-bit counters
+
 ### A job's child list holds its direct children, finished ones included
 - **Contract:** The child list of a job holds every job enqueued under it, terminal or not, and nothing from further down the lineage.
 - **Guarantees:**

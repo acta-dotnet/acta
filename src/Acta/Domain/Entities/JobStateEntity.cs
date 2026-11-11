@@ -142,14 +142,10 @@ internal sealed class JobStateEntity : IEntity<long>
 
     /// <summary>
     /// Monotonic-lifetime claim counter; incremented atomically on each claim. It follows claims, not
-    /// scheduled occurrences, so retries and reclaims advance it too. Int32 is a deliberate width: a
-    /// permanent job claimed once a second for its whole life would take about sixty-eight years to
-    /// exhaust it, and exhaustion lies outside the supported lifetime of one job row. The
-    /// providers raise on overflow rather than wrap (SQLite stores a wider integer, and the Int32
-    /// mapper rejects it on read), so the failure mode is an error, never a negative attempt number.
+    /// scheduled occurrences, so retries and reclaims advance it too. Int64: no job row lives long enough to exhaust it.
     /// </summary>
-    [DbColumn("execution_number", DbKind.Int32)]
-    public int ExecutionNumber { get; set; }
+    [DbColumn("execution_number", DbKind.Int64)]
+    public long ExecutionNumber { get; set; }
 
     /// <summary>
     /// Failure counter for the current cycle, compared against <c>MaxAttempts</c>. A permanent job counts its
@@ -198,11 +194,9 @@ internal sealed class JobStateEntity : IEntity<long>
 
     /// <summary>
     /// Optimistic-concurrency token for state transitions, bumped by every update except the heartbeat and a replayed
-    /// start. Int32 on purpose, the width of the public <c>expectedVersion</c>: a
-    /// permanent job firing every second (three bumps each) lasts about twenty-two years, and the providers raise on
-    /// overflow rather than wrap, so a token never comes back negative.
+    /// start. Int64 like the public <c>expectedVersion</c>: no job row lives long enough to exhaust it.
     /// </summary>
-    [DbColumn("version", DbKind.Int32, Default = DbDefault.Zero)]
+    [DbColumn("version", DbKind.Int64, Default = DbDefault.Zero)]
     [DbConcurrencyToken]
-    public int Version { get; set; }
+    public long Version { get; set; }
 }

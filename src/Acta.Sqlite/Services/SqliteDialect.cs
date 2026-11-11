@@ -182,7 +182,7 @@ internal sealed partial class SqliteDialect : ISqlDialect
 
     public void BindHeldLeases(
         DbCommand command,
-        IReadOnlyList<(long JobId, int ExecutionNumber)> executions,
+        IReadOnlyList<(long JobId, long ExecutionNumber)> executions,
         IReadOnlyList<LockToken> locks
     )
     {

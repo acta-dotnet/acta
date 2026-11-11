@@ -21,14 +21,14 @@ internal static class GetCalendarDetailEndpoint
                     GetCalendarDetailResponse.ComposeAsync(
                         call.Operations.Calendars,
                         key(http),
-                        QueryReader.Bind(http.Request, static query => query.Int("version")),
+                        QueryReader.Bind(http.Request, static query => query.Long("version")),
                         call.Ct
                     )
             )
             .WithQueryParameters([
                 new QueryParameterDoc(
                     "version",
-                    QueryParameterKind.Int,
+                    QueryParameterKind.Long,
                     "The version whose definition to show; omit for the current version, else the latest."
                 ),
             ]);

@@ -9,7 +9,7 @@ internal static class JobControl
     /// The public verbs are operator-only: the actor is stamped here, never taken from the caller, the operator
     /// code implies the reason, and the message is capped to its column so every provider stores the same text.
     /// </summary>
-    public static JobControlInput Operator(string? reasonMessage, string? actor, int? expectedVersion = null) =>
+    public static JobControlInput Operator(string? reasonMessage, string? actor, long? expectedVersion = null) =>
         new(JobControlActor.Operator(actor), null, reasonMessage.Truncate(ActaTextLimits.EventMessage), expectedVersion);
 
     /// <summary>Binds the transition's event: its message as <c>event_message</c> and its actor and reason as details.</summary>

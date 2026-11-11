@@ -15,7 +15,7 @@ internal static class ExecutionFenceStaging
         IDbSession db,
         long jobId,
         CancellationToken ct,
-        int executionNumber = 1,
+        long executionNumber = 1,
         int workerId = JobStateStaging.StagedWorkerId
     )
     {

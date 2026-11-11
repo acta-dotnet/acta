@@ -4,4 +4,4 @@ namespace Acta.AspNetCore;
 /// <param name="ExpectedVersion">The version as the caller last read it; when the row has another version the call answers
 /// version-conflict and changes nothing.</param>
 /// <param name="ReasonMessage">Why the operator made this call, recorded on the event the call writes.</param>
-internal sealed record RetireDefinitionRequest(int? ExpectedVersion = null, string? ReasonMessage = null) : IControlRequest;
+internal sealed record RetireDefinitionRequest(long? ExpectedVersion = null, string? ReasonMessage = null) : IControlRequest;

@@ -43,7 +43,7 @@ public sealed record ListEventsItem(
     string? TenantName,
     [property: JsonIgnore] int? WorkerId,
     WorkerRef? WorkerRef,
-    int? ExecutionNumber,
+    long? ExecutionNumber,
     int? DurationMs,
     string? Message,
     string? DetailsText

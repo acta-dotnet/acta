@@ -18,7 +18,9 @@ internal sealed class UpdateTenantHandler(IDbSession session, ISqlDialect dialec
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Tenant.TenantName, name));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Tenant.DisplayName, command.DisplayName));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Tenant.Description, command.Description));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.ExpectedRowVersion, command.ExpectedVersion));
+                cmd.Parameters.Add(
+                    dialect.CreateParameter(ActaSchema.Sql.ExpectedRowVersion, DbParams.Int32Version(command.ExpectedVersion))
+                );
                 cmd.AddOperatorAudit(dialect, command.Actor, command.ReasonMessage);
             },
             DbProjectionResolver.Resolve<UpdateTenantResponse>(),

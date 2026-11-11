@@ -65,7 +65,7 @@ public sealed record GetJobResponse(
     [property: JsonIgnore] long? BlockedBehindJobId,
     JobRef? BlockedBehindJobRef,
     DateTime? NextRunAtUtc,
-    int ExecutionNumber,
+    long ExecutionNumber,
     int FailureCount,
     [property: JsonIgnore] int? LeasedByWorkerId,
     DateTime? LeaseExpiresAtUtc,
@@ -73,5 +73,5 @@ public sealed record GetJobResponse(
     DateTime CreatedAtUtc,
     DateTime ModifiedAtUtc,
     WorkerRef? LeasedByWorkerRef,
-    int Version
+    long Version
 );

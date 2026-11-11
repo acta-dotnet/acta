@@ -1,6 +1,6 @@
 CREATE OR REPLACE FUNCTION {{schema}}.complete_job_step(
     p_job_id BIGINT,
-    p_execution_number INT,
+    p_execution_number BIGINT,
     p_leased_by_worker_id INT,
     p_step_name VARCHAR,
     p_succeeded BOOLEAN,

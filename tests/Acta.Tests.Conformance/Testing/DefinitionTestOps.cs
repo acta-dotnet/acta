@@ -51,7 +51,7 @@ internal static class DefinitionTestOps
         IServiceProvider services,
         string jobNamespace,
         string jobName,
-        int expectedVersion,
+        long expectedVersion,
         DefinitionPolicyOverrides overrides,
         string? actor,
         string? reasonMessage,

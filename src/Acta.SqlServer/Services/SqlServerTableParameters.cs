@@ -109,7 +109,7 @@ internal static class SqlServerTableParameters
     internal static readonly SqlMetaData[] CompleteExecutionsColumns =
     [
         new("job_id", SqlDbType.BigInt),
-        new("execution_number", SqlDbType.Int),
+        new("execution_number", SqlDbType.BigInt),
         new("succeeded", SqlDbType.Bit),
         new("result_format_id", SqlDbType.TinyInt),
         new("result", SqlDbType.VarBinary, -1),
@@ -134,7 +134,7 @@ internal static class SqlServerTableParameters
         foreach (var completion in completions)
         {
             record.SetInt64(0, completion.JobId);
-            record.SetInt32(1, completion.ExecutionNumber);
+            record.SetInt64(1, completion.ExecutionNumber);
             record.SetBoolean(2, completion.Succeeded);
             record.SetByte(3, completion.ResultFormatId);
             // A result with a format and no bytes is still a result, bound zero-length: ck_jobs_state_result_pair refuses a

@@ -14,7 +14,7 @@ namespace Acta;
 /// <param name="Reason">Why the publication was refused, when it was.</param>
 public sealed record PublishCalendarResponse(
     ControlAction Action,
-    int? Version,
+    long? Version,
     IReadOnlyList<string> RetimedSchedules,
     IReadOnlyList<string> OverdueSchedules,
     string? Reason

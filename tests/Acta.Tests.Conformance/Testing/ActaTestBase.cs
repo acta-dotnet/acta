@@ -248,11 +248,11 @@ internal sealed record TestJobRow(JobEntity Job, JobStateEntity JobState)
     public JobStatusCode Status => JobState.Status;
     public JobPriorityCode Priority => JobState.Priority;
     public DateTime? NextRunAtUtc => JobState.NextRunAtUtc;
-    public int ExecutionNumber => JobState.ExecutionNumber;
+    public long ExecutionNumber => JobState.ExecutionNumber;
     public int FailureCount => JobState.FailureCount;
     public DateTime? RetentionUntilUtc => JobState.RetentionUntilUtc;
     public DateTime ModifiedAtUtc => JobState.ModifiedAtUtc;
-    public int Version => JobState.Version;
+    public long Version => JobState.Version;
     public int? LeasedByWorkerId => JobState.LeasedByWorkerId;
     public DateTime? LeaseExpiresAtUtc => JobState.LeaseExpiresAtUtc;
 }

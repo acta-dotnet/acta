@@ -8,5 +8,5 @@ namespace Acta;
 public sealed record ResolveAlertResponse(AlertRef AlertRef, ControlAction Action, DateTime? AcknowledgedAtUtc, DateTime? ResolvedAtUtc)
     : IAlertControlResponse
 {
-    int? IControlResponse.Version => null;
+    long? IControlResponse.Version => null;
 }

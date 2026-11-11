@@ -58,7 +58,16 @@ internal sealed class FakeNamespaces : INamespaces
 
     public Func<string, string?, string?, CancellationToken, ValueTask<ResumeNamespaceResponse>> Resume { get; set; }
 
-    public Func<string, int, string?, string?, string?, string?, CancellationToken, ValueTask<UpdateNamespaceResponse>> Update { get; set; }
+    public Func<
+        string,
+        long,
+        string?,
+        string?,
+        string?,
+        string?,
+        CancellationToken,
+        ValueTask<UpdateNamespaceResponse>
+    > Update { get; set; }
 
     ValueTask<GetNamespaceResponse?> INamespaces.GetAsync(string namespaceName, CancellationToken ct) => Get(namespaceName, ct);
 
@@ -80,7 +89,7 @@ internal sealed class FakeNamespaces : INamespaces
 
     ValueTask<UpdateNamespaceResponse> INamespaces.UpdateAsync(
         string namespaceName,
-        int expectedVersion,
+        long expectedVersion,
         string? ownerTeam,
         string? description,
         string? reasonMessage,
@@ -93,8 +102,8 @@ internal sealed class FakeNamespaces : INamespaces
         string namespaceName,
         string? reasonMessage,
         string? actor,
-        Func<ControlAction, int?, T> response,
-        int? expectedVersion = null
+        Func<ControlAction, long?, T> response,
+        long? expectedVersion = null
     )
     {
         _ = NameSyntax.Canonicalize(namespaceName, nameof(namespaceName), NameSyntax.ExtendedMaxLength, reserveSystem: true);

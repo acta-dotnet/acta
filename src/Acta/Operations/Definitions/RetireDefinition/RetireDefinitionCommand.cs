@@ -4,7 +4,7 @@ namespace Acta;
 internal sealed record RetireDefinitionCommand(
     string JobNamespace,
     string JobName,
-    int ExpectedVersion,
+    long ExpectedVersion,
     string? ReasonMessage,
     string? Actor
 );

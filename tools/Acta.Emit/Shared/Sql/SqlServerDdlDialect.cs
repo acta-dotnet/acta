@@ -157,7 +157,7 @@ internal sealed class SqlServerDdlDialect : SqlDdlDialect
             IF TYPE_ID(N'{{schema}}.complete_executions') IS NULL
             EXEC(N'CREATE TYPE {{schema}}.complete_executions AS TABLE (
                 job_id                   BIGINT         NOT NULL,
-                execution_number         INT            NOT NULL,
+                execution_number         BIGINT         NOT NULL,
                 succeeded                BIT            NOT NULL,
                 result_format_id         TINYINT        NOT NULL,
                 result                   VARBINARY(MAX) NULL,

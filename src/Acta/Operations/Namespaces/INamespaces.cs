@@ -35,7 +35,7 @@ public interface INamespaces
     /// </summary>
     ValueTask<UpdateNamespaceResponse> UpdateAsync(
         string namespaceName,
-        int expectedVersion,
+        long expectedVersion,
         string? ownerTeam,
         string? description,
         string? reasonMessage = null,

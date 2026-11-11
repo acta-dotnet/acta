@@ -9,5 +9,5 @@ namespace Acta;
 public sealed record UpdateJobInputResponse([property: JsonIgnore] long JobId, ControlAction Action, JobStatusCode? Status)
     : IJobControlResponse
 {
-    int? IControlResponse.Version => null;
+    long? IControlResponse.Version => null;
 }

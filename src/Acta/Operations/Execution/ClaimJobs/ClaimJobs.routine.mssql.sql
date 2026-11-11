@@ -38,7 +38,7 @@ BEGIN
                 job_ref UNIQUEIDENTIFIER NOT NULL,
                 definition_id INT NOT NULL,
                 tenant_id INT NULL,
-                execution_number INT NOT NULL,
+                execution_number BIGINT NOT NULL,
                 deduplication_key VARCHAR(128) COLLATE Latin1_General_100_BIN2_UTF8 NULL,
                 job_kind_code TINYINT NOT NULL,
                 correlation_key VARCHAR(64) NULL,
@@ -179,7 +179,7 @@ BEGIN
                 SELECT
                     CAST(NULL AS BIGINT) AS job_id,
                     CAST(NULL AS INT) AS definition_id,
-                    CAST(NULL AS INT) AS execution_number,
+                    CAST(NULL AS BIGINT) AS execution_number,
                     CAST(NULL AS VARCHAR(128)) AS deduplication_key,
                     CAST(NULL AS TINYINT) AS job_kind_code,
                     CAST(NULL AS VARCHAR(64)) AS correlation_key,

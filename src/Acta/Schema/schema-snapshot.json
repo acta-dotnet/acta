@@ -652,7 +652,7 @@
         },
         {
           "Name": "execution_number",
-          "Signature": "Int32|0|0|0|True|None||coded=False|codeKind=|caseExact=False"
+          "Signature": "Int64|0|0|0|True|None||coded=False|codeKind=|caseExact=False"
         },
         {
           "Name": "duration_ms",
@@ -835,7 +835,7 @@
         },
         {
           "Name": "execution_number",
-          "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|caseExact=False"
+          "Signature": "Int64|0|0|0|False|None||coded=False|codeKind=|caseExact=False"
         },
         {
           "Name": "failure_count",
@@ -867,7 +867,7 @@
         },
         {
           "Name": "version",
-          "Signature": "Int32|0|0|0|False|Zero||coded=False|codeKind=|caseExact=False"
+          "Signature": "Int64|0|0|0|False|Zero||coded=False|codeKind=|caseExact=False"
         }
       ],
       "Indexes": [
@@ -1484,57 +1484,57 @@
   ],
   "Objects": {
     "mssql": {
-      "access_job_checkpoint": "76892c2583b2f120bbe684a299d9184dd9c899cea7c9fd4898e3cb621b5cd03f",
+      "access_job_checkpoint": "7447e07b01fb754fe915e0aa6ae45d7049a202938a0690147dde285fef01b5cd",
       "alerts_view": "f91827286e18c2d0c3d7629f635358eb0cd64f667275b60be35a2b4d6992d4ab",
-      "arm_or_consume_job_sleep_timer": "ae7572a2684ebf5875dd924c42a921706d976b70fbda0698e1ab284cb33eb3de",
+      "arm_or_consume_job_sleep_timer": "dacc198e04a53cfa0a39486ca42e6133a58a03447f0f5a703982b352b0d52543",
       "calendars_view": "bd5a920311aed994b9bf85b1e24fe4d74db59593e33407cbc5413b4214fbd2c9",
       "checkpoints_view": "798f62fb9c53ff43b262d949d37bfa428cae1d3ae0ee15ec9449d36b27a63cd1",
-      "claim_jobs": "670371693bb001c45b007d7bcd1e0c7572d02a42043baa01e3581ac9b7f3787f",
-      "complete_executions": "5fec205fa546ec551b223de40e7dd51b7771e2009d0d5f9728372ee036bfd52a",
-      "complete_job_step": "e981b9c984744ec9962d4a85cdfe96acaa95b1b38644e9377b0f0e7b9322a094",
+      "claim_jobs": "7fda436e9eed86f9622d1821732d6bac5cced0c140e4f40f136fc649b2a99c95",
+      "complete_executions": "2657ee5e6d9c795e208da7cac34863124962fbac80ccbe17bee438b876697601",
+      "complete_job_step": "3efc9621559aaa0018c7f6a4830ac96f8777ae5bfabd13a1db305f57ed77fe58",
       "definitions_view": "2be60e32e9ab05dde2ff7c3e69e81204731daf01c6f0794510ee7b7fbba53fc7",
       "deployments_view": "96fc0284fb1f47ce344419e633b8f89ade24ded7c4a118d0a514015548affa63",
-      "enqueue_job": "ea93b9ae8fbbcfd6ebba05aad565046f0d50bec3eb68e4ac9a9c22034e1e7ef9",
+      "enqueue_job": "31a61b7d397876118bff6c0b281c1f31d9d8055a2be26e7aa8798a4646833dc9",
       "enqueue_jobs": "9751449e005027e31e96f4dcd205c445ccbbeab1f804b71acb22297dd2c71b1b",
       "events_view": "1ef24a5f6f0396d31001d587af08c5a8a6e1facad9d76b6a5b62cc2874097478",
-      "extend_worker_leases": "20a45cc3d237080d3f755ee71863b591d03483b5eb916a34d5ea8f56d8872bbc",
+      "extend_worker_leases": "bd11a1466107868428f4215f36594fb28a20aab206d2db9908c6f625495c05c8",
       "jobs_view": "458bc42c8710bb0e53f7c875e2f52f77deb2e100d36b1a2a6a969008ae3cd277",
       "purge_expired_data": "b2cc8ca43a0b2a8b3fcf766f151b24d198bcb6ad08c23a7a7764916bb625ebb7",
-      "raise_job_signal": "4e6c313e93875ad403a1f35de153ea19cdc3e96cef338ea4c41f9b9d2ef5c7ad",
-      "reclaim_stuck_jobs": "d538c2c649d8856bf7c6f87954fc07114aed934ccfe2af6c3c27dc6f7ad284a1",
+      "raise_job_signal": "78925aa13e26f38dd65cf082dc474b9c5638c31c6bdd932a05c42e7de2dadee2",
+      "reclaim_stuck_jobs": "d968bf564c4979f3d225efd03f03222d6f45be4ecd4f7ac27b6df62cf221ff89",
       "reserve_rate": "6c670647c61105bf54f710e21222010bc21c5fb74db62825cce3495dd902fa22",
       "schedules_view": "8e8053b4bbbe7d1d36775ffcf01431a6f8e24644c9b13728bd467440394ddf59",
-      "start_job_step": "05aefd2763e29290a1ca9a30b3b0f3ea70478b63ffb7e5ce5bed14488a5e608d",
+      "start_job_step": "8ff1eaa6a0ac48ff731102199b2cb831bcf03038affc63bdcbe13aec65011763",
       "steps_view": "280be02643bee69af85cee0f0c69e6fad0a8be5722ee0331380550479da4c64f",
       "tags_view": "55d18a02036ad23fbf32bbcbeef0bac99a881b9adf9e80e61711b33ca46717bb",
-      "wait_job_signal": "a68451281f7d4b7e6e4acb00fed750150e6731d16115b52c476b41d36631a65c",
+      "wait_job_signal": "78307fa694a099249e92869c11d23e21343985efe558155651b2e460337cd639",
       "workers_view": "479bc6e7fdd8a3e6948fd652689e36e7942bcfc90cb8c1cce6ef63e442ce9f08"
     },
     "pg": {
-      "access_job_checkpoint": "63ad61e9c0596ebecab6148d760a7d2c70d1d6d94d754a3e34d6e1e38648391f",
+      "access_job_checkpoint": "a43167c7b687701d69e02d4a06f98931c5a826ee278a5c25c3446705277449af",
       "alerts_view": "380ee32ecaf057603d201dfda22aa8b98fe4264a09f5c5a0fb8e910ee74dc442",
-      "arm_or_consume_job_sleep_timer": "b84e46dc4cae18802396b132d2bce2a710eb1aa8a98128bc3c31bcb1c9e9bbbd",
+      "arm_or_consume_job_sleep_timer": "3d359af3d848bbad9b7ce24bcd99000cf28853b3510ce1df1ddf8471b0f8c766",
       "calendars_view": "c01af54b3e69d16b7de5a5e2bc25330fc1040445ecbbb4512cd29926eef1f155",
       "checkpoints_view": "34a025869cc5b4856a85b3e89039b8062cb1cae2d0267305184566a7db255e29",
-      "claim_jobs": "f2dfda1339c2f8c5f9c97df45594691a746c29c224bba5c343d39a3bda077237",
-      "complete_executions": "7150622a2f6a149a217ad6a5e4c896e33dceb56539f35da4a537fe6b1589b2c5",
-      "complete_job_step": "6a7d30fa911b6e67a2ef6c0ad6ce2b6fd30aa9434f6e1d6749c2fb5ff3809af3",
+      "claim_jobs": "37fb988af58674fbf420b4b0f166f13c5aa12d900caa5d5598f5a2074a92256c",
+      "complete_executions": "629117d4f9b0064440761d23542285e758b0ea58f2f49ad08a612b5d4c856743",
+      "complete_job_step": "a1b8d108cf60d37de042239d86048c7fd4ae0c12b8a075a56977cb9ecff35bc1",
       "definitions_view": "8414fba71f4632878bb61663d05d9974d135cd12c0b0cfe9acd929068b2f0ae1",
       "deployments_view": "6c8ab23e15969f1ec2d9116019d27f88d713c0b218d13ddd68390e04d74c513a",
-      "enqueue_job": "34f9a80abc78aa58c35c62b89ba231fdf4f3d1513e00fee05993c17db890a254",
+      "enqueue_job": "053d9a00b0a26c721f54754d2f6672cc1a162dc5e38f693e02bd7211429e3ae7",
       "enqueue_jobs": "6013b3d92dd2e32c562b60067ada971b2d8aeba9f84fff61dc53dde9b6f09036",
       "events_view": "09b910d334922ed549dc649f5c0f56bd91b016aed0ca4471fc414832396eadeb",
-      "extend_worker_leases": "50667e211a436774f6a0daa6170f14bb7ad3f8bd469eaff7fc181f701a429465",
+      "extend_worker_leases": "8a5afc7d8da253ef2c6cccebb8609473b1f37afd827b979a526d76222d8c4c51",
       "jobs_view": "c6a9ceaa8fbb38e8b0630f44f07489ddffa6aad5d17b4b7075f7680bd3785341",
       "purge_expired_data": "c9182d7dd6b40620bd3a9fe40ebcc8d9efb6cbb73989ab7d190a83e9cbd9598c",
-      "raise_job_signal": "58ddb5b532a7f2ad1c2c169e395dee6997beb730e9119263cc4af571fed08789",
+      "raise_job_signal": "e15475d5160905820d8913b2304049fdd44df3d619a19837eef90fbe4e0ec55d",
       "reclaim_stuck_jobs": "d929a6dd50a4cc635d7505725ef7a97023895b847343f9bbbdada6bbe4ec334f",
       "reserve_rate": "147eb58a9780d3a3a0f0660d4d0301c93a2a310dfbff598c2996b88d71eb6543",
       "schedules_view": "4a5dcb63974cf00da2f8ece71fc01965c3882db7a35f2bbe660722eed4f989d1",
-      "start_job_step": "9657b898650d15c6583d7862d107b3725fc8d0ca3feb2d79e401797c480420bb",
+      "start_job_step": "22406fd2ce08a6eb27da76074b39d423ee1df38817bf3e6e166c4974a267f1b7",
       "steps_view": "71c58f98e5d0c15c2086c85934c301633841e9036ee7d4ad44823bd2753d1f9b",
       "tags_view": "7c53250b8389ffff268b2c675dd929aa2bc434b34921753d649a49487c6b4d2f",
-      "wait_job_signal": "063f4e5d87f81a9915bfad01bebff1095b1273b2dac1525a81a023bd3be8eb50",
+      "wait_job_signal": "51bb5498e4cdc110ecd6dcd828d819d67bc1dc0bb1076baf62ceca631f7b0cd0",
       "workers_view": "83b2b8503a31f125ebc4c2c1b362fe0f180c5f04c6f679e63225612fcafcfeaa"
     },
     "sqlite": {

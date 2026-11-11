@@ -109,7 +109,7 @@ public sealed class ChildOutcomeOnFinishedParentSpec : ActaRuntimeTestBase<Confo
     }
 
     /// <summary>The child's latch on its parent as (status, execution), read from the stored envelope.</summary>
-    private async Task<(JobStatusCode Status, int ExecutionNumber)> LatchAsync(long parentId, long childId, CancellationToken ct)
+    private async Task<(JobStatusCode Status, long ExecutionNumber)> LatchAsync(long parentId, long childId, CancellationToken ct)
     {
         var latch = Assert.Single(await ReadSignalsAsync(parentId, ct), s => s.CheckpointName == $"sys.child.{childId}");
         Assert.Equal(CheckpointStatusCode.Set, latch.Status);
@@ -118,7 +118,7 @@ public sealed class ChildOutcomeOnFinishedParentSpec : ActaRuntimeTestBase<Confo
         Assert.Equal(childId, root.GetProperty("childJobId").GetInt64());
         return (
             (JobStatusCode)root.GetProperty("status").GetInt32(),
-            root.TryGetProperty("executionNumber", out var execution) ? execution.GetInt32() : 0
+            root.TryGetProperty("executionNumber", out var execution) ? execution.GetInt64() : 0
         );
     }
 }

@@ -45,7 +45,7 @@ public interface ITenants
     /// <summary>Update a tenant display name / description with a version CAS. Null clears the field. Emits tenant.updated.</summary>
     ValueTask<UpdateTenantResponse> UpdateAsync(
         string tenantName,
-        int expectedVersion,
+        long expectedVersion,
         string? displayName,
         string? description,
         string? reasonMessage = null,

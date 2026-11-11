@@ -11,7 +11,7 @@ namespace Acta;
 /// <param name="PublishedAtUtc">When the version was published, in UTC; null when it has not been.</param>
 /// <param name="ModifiedAtUtc">When the row last changed, in UTC.</param>
 public sealed record ListCalendarVersionsItem(
-    int Version,
+    long Version,
     CalendarStatusCode Status,
     string ContentHash,
     DateTime CreatedAtUtc,

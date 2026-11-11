@@ -16,7 +16,7 @@ BEGIN
         DECLARE @locked INT, @lanes BIT = 0, @children BIT = 0, @waits BIT = 0, @shapes BIT = 0, @recurring BIT = 0;
         DECLARE @rows TABLE (
             job_id BIGINT NOT NULL,
-            execution_number INT NOT NULL,
+            execution_number BIGINT NOT NULL,
             lane_id BIGINT NULL,
             parent_job_id BIGINT NULL,
             schedule_id INT NULL,
@@ -26,7 +26,7 @@ BEGIN
         );
         DECLARE @done TABLE (
             job_id BIGINT NOT NULL PRIMARY KEY,
-            execution_number INT NOT NULL,
+            execution_number BIGINT NOT NULL,
             job_status_code TINYINT NOT NULL,
             lane_id BIGINT NULL,
             parent_job_id BIGINT NULL,
@@ -509,7 +509,7 @@ BEGIN
                         event_message NVARCHAR(512) NULL,
                         latch_state TINYINT NULL,
                         parent_status TINYINT NULL,
-                        parent_execution INT NULL,
+                        parent_execution BIGINT NULL,
                         -- The latches' own key order: the name sorts as text, so child 10 comes before child 9.
                         PRIMARY KEY (parent_job_id, latch_name)
                     );
@@ -523,7 +523,7 @@ BEGIN
                             CAST(
                                 N'{"childJobId":' + CAST(d.job_id AS NVARCHAR(20))
                                 + N',"status":' + CAST(d.job_status_code AS NVARCHAR(3))
-                                + N',"executionNumber":' + CAST(d.execution_number AS NVARCHAR(11)) + N'}'
+                                + N',"executionNumber":' + CAST(d.execution_number AS NVARCHAR(20)) + N'}'
                                 AS VARCHAR(MAX)
                             ) COLLATE latin1_general_100_bin2_utf8 AS VARBINARY(MAX)
                         ),

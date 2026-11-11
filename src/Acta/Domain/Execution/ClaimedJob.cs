@@ -13,7 +13,7 @@ internal sealed record ClaimedJob(
     Guid JobRef,
     int DefinitionId,
     int? TenantId,
-    int ExecutionNumber,
+    long ExecutionNumber,
     string? CorrelationKey,
     string? ConcurrencyKey,
     byte InputFormatId,

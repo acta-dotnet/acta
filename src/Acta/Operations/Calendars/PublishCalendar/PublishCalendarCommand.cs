@@ -6,8 +6,8 @@ namespace Acta;
 /// </summary>
 internal sealed record PublishCalendarCommand(
     CalendarLookup Calendar,
-    int CandidateVersion,
-    int? ExpectedCurrentVersion,
+    long CandidateVersion,
+    long? ExpectedCurrentVersion,
     OverdueDecisionCode Overdue,
     string? ReasonMessage,
     string? Actor

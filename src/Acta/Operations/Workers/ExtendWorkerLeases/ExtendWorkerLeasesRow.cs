@@ -7,7 +7,7 @@ namespace Acta;
 /// </summary>
 internal readonly record struct ExtendWorkerLeasesRow(
     long? JobId,
-    int? ExecutionNumber,
+    long? ExecutionNumber,
     Guid? HoldToken,
     bool Renewed,
     DateTime? DefinitionsModifiedAtUtc,

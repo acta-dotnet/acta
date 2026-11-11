@@ -8,5 +8,5 @@ namespace Acta;
 /// <param name="Status">The job's status after the call; null when the job was not found or the purge removed it.</param>
 public sealed record PurgeJobResponse([property: JsonIgnore] long JobId, ControlAction Action, JobStatusCode? Status) : IJobControlResponse
 {
-    int? IControlResponse.Version => null;
+    long? IControlResponse.Version => null;
 }

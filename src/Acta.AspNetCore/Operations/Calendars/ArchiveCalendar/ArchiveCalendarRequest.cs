@@ -4,4 +4,4 @@ namespace Acta.AspNetCore;
 /// <param name="ExpectedCurrentVersion">The number of the published version as the caller last read it; when another is in force the call
 /// answers rejected and changes nothing. Leave it out to archive whatever is in force.</param>
 /// <param name="ReasonMessage">Why the operator made this call, recorded on the event the call writes.</param>
-internal sealed record ArchiveCalendarRequest(int? ExpectedCurrentVersion, string? ReasonMessage = null) : IControlRequest;
+internal sealed record ArchiveCalendarRequest(long? ExpectedCurrentVersion, string? ReasonMessage = null) : IControlRequest;

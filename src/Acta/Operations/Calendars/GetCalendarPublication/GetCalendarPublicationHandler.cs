@@ -11,7 +11,7 @@ internal sealed class GetCalendarPublicationHandler(IDbSession session, ISqlDial
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.NamespaceName, query.JobNamespace));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Calendar.CalendarName, query.CalendarName));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Calendar.Version, query.Version));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Calendar.Version, DbParams.Int32Version(query.Version)));
             },
             DbProjectionResolver.Resolve<FamilyVersion>(),
             ct

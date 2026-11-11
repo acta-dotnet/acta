@@ -9,7 +9,7 @@ internal sealed record ExtendWorkerLeasesCommand(
     int WorkerId,
     int LeaseTtlSeconds,
     bool Draining,
-    IReadOnlyList<(long JobId, int ExecutionNumber)> Executions,
+    IReadOnlyList<(long JobId, long ExecutionNumber)> Executions,
     IReadOnlyList<LockToken> Locks,
     int? RecoveryIntervalSeconds = null
 );

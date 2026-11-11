@@ -11,7 +11,7 @@ internal sealed record JobEventRecord(
     long Id,
     EventCode EventCode,
     DateTime CreatedAtUtc,
-    int? ExecutionNumber,
+    long? ExecutionNumber,
     int? DurationMs,
     int? WorkerId,
     string? Message,

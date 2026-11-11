@@ -73,7 +73,7 @@ public abstract partial class JobContext
     /// call's idempotency key comes from the business operation instead. Defaults to <c>1</c> for test contexts that
     /// do not set it.
     /// </summary>
-    public virtual int ExecutionNumber => 1;
+    public virtual long ExecutionNumber => 1;
 
     /// <summary>
     /// Whether a retryable failure of this attempt would end the job for good, or a permanent job's current firing, whose

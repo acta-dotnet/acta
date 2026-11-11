@@ -24,7 +24,7 @@ internal sealed record ListEventsRow(
     string? TenantName,
     int WorkerId,
     Guid? WorkerRef,
-    int? ExecutionNumber,
+    long? ExecutionNumber,
     int? DurationMs,
     string? EventMessage,
     byte DetailsFormatId,

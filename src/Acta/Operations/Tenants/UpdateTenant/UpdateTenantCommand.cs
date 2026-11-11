@@ -3,7 +3,7 @@ namespace Acta;
 /// <summary>One tenant edit as the facade received it; null clears a field.</summary>
 internal sealed record UpdateTenantCommand(
     string TenantName,
-    int ExpectedVersion,
+    long ExpectedVersion,
     string? DisplayName,
     string? Description,
     string? ReasonMessage,

@@ -60,7 +60,7 @@ internal static class CalendarsEndpoints
                 static async (http, call) =>
                     await call.Operations.Calendars.GetAsync(
                         Key(http),
-                        QueryReader.Bind(http.Request, static query => query.Int("version")),
+                        QueryReader.Bind(http.Request, static query => query.Long("version")),
                         call.Ct
                     )
                         is { } calendar
@@ -70,7 +70,7 @@ internal static class CalendarsEndpoints
             .WithQueryParameters([
                 new QueryParameterDoc(
                     "version",
-                    QueryParameterKind.Int,
+                    QueryParameterKind.Long,
                     "The version whose definition to show; omit for the current version, else the latest."
                 ),
             ]);
@@ -125,7 +125,7 @@ internal static class CalendarsEndpoints
                         http.Request,
                         static query =>
                             (
-                                Version: query.Int("version"),
+                                Version: query.Long("version"),
                                 FromUtc: query.DateTime("fromUtc"),
                                 Limit: query.PositiveInt("limit"),
                                 TimeZoneId: query.Text("timeZoneId")
@@ -143,7 +143,7 @@ internal static class CalendarsEndpoints
                         : throw new InvalidQueryException("version is required.")
             )
             .WithQueryParameters([
-                new QueryParameterDoc("version", QueryParameterKind.Int, "The version to forecast.", Required: true),
+                new QueryParameterDoc("version", QueryParameterKind.Long, "The version to forecast.", Required: true),
                 new QueryParameterDoc("fromUtc", QueryParameterKind.Instant, "Forecast from this instant; omit for the database clock."),
                 new QueryParameterDoc(
                     "limit",

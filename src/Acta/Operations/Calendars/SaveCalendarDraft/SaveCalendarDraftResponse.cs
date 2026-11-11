@@ -14,5 +14,5 @@ namespace Acta;
 /// <param name="ContentHash">A hash of the definition: the saved one, or the latest version's for already-in-state; null when the
 /// draft was refused.</param>
 /// <param name="Problems">Why the draft was not saved, one sentence each; empty when it was saved or already held.</param>
-public sealed record SaveCalendarDraftResponse(ControlAction Action, int? Version, string? ContentHash, IReadOnlyList<string> Problems)
+public sealed record SaveCalendarDraftResponse(ControlAction Action, long? Version, string? ContentHash, IReadOnlyList<string> Problems)
     : ICalendarControlResponse;

@@ -60,7 +60,7 @@ internal sealed class FakeTenants : ITenants
 
     public Func<string, string?, string?, CancellationToken, ValueTask<ResumeTenantResponse>> Resume { get; set; }
 
-    public Func<string, int, string?, string?, string?, string?, CancellationToken, ValueTask<UpdateTenantResponse>> Update { get; set; }
+    public Func<string, long, string?, string?, string?, string?, CancellationToken, ValueTask<UpdateTenantResponse>> Update { get; set; }
 
     ValueTask<RegisterTenantResponse> ITenants.RegisterAsync(
         string tenantName,
@@ -81,7 +81,7 @@ internal sealed class FakeTenants : ITenants
 
     ValueTask<UpdateTenantResponse> ITenants.UpdateAsync(
         string tenantName,
-        int expectedVersion,
+        long expectedVersion,
         string? displayName,
         string? description,
         string? reasonMessage,
@@ -93,8 +93,8 @@ internal sealed class FakeTenants : ITenants
         string tenantName,
         string? reasonMessage,
         string? actor,
-        Func<ControlAction, int?, T> response,
-        int? expectedVersion = null
+        Func<ControlAction, long?, T> response,
+        long? expectedVersion = null
     )
     {
         _ = NameSyntax.Canonicalize(tenantName, nameof(tenantName), NameSyntax.ExtendedMaxLength, reserveSystem: true);

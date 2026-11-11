@@ -9,7 +9,7 @@ namespace Acta;
 /// </summary>
 internal sealed record CompleteExecutionsValues(
     long JobId,
-    int ExecutionNumber,
+    long ExecutionNumber,
     bool Succeeded,
     byte ResultFormatId,
     ReadOnlyMemory<byte> Result,

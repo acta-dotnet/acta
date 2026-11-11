@@ -31,7 +31,7 @@ internal sealed class NamespacesOperations(
 
     public ValueTask<UpdateNamespaceResponse> UpdateAsync(
         string namespaceName,
-        int expectedVersion,
+        long expectedVersion,
         string? ownerTeam,
         string? description,
         string? reasonMessage = null,

@@ -31,7 +31,7 @@ internal sealed class GetCalendarHandler(GetCalendarVersionHandler getCalendarVe
         if (
             shown < 1
             || shown > head.LatestVersion
-            || await getCalendarVersion.HandleAsync(new GetCalendarVersionQuery(head.NamespaceId, calendarName, shown), ct)
+            || await getCalendarVersion.HandleAsync(new GetCalendarVersionQuery(head.NamespaceId, calendarName, (int)shown), ct)
                 is not { } version
         )
         {

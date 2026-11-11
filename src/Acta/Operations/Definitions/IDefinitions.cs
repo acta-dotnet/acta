@@ -10,7 +10,7 @@ public interface IDefinitions
     ValueTask<UpdateDefinitionOverridesResponse> UpdateOverridesAsync(
         string jobNamespace,
         string jobName,
-        int expectedVersion,
+        long expectedVersion,
         DefinitionPolicyOverrides overrides,
         string? reasonMessage = null,
         string? actor = null,
@@ -28,7 +28,7 @@ public interface IDefinitions
     ValueTask<RetireDefinitionResponse> RetireAsync(
         string jobNamespace,
         string jobName,
-        int expectedVersion,
+        long expectedVersion,
         string? reasonMessage = null,
         string? actor = null,
         CancellationToken ct = default

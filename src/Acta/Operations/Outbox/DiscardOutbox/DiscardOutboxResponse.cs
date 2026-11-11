@@ -6,5 +6,5 @@ namespace Acta;
 /// otherwise.</param>
 public sealed record DiscardOutboxResponse(ControlAction Action, DateTime? PendingSinceUtc) : IOutboxControlResponse
 {
-    int? IControlResponse.Version => null;
+    long? IControlResponse.Version => null;
 }

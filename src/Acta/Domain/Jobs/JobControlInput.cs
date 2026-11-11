@@ -5,7 +5,7 @@ namespace Acta;
 /// <see cref="EventReason"/> when the code does not imply it, and the human message. A null
 /// <c>ExpectedVersion</c> writes unconditionally.
 /// </summary>
-internal sealed record JobControlInput(string? Actor, string? Reason, string? Message, int? ExpectedVersion = null)
+internal sealed record JobControlInput(string? Actor, string? Reason, string? Message, long? ExpectedVersion = null)
 {
     /// <summary>The event's JSON details: the actor and the reason, or null when it has neither.</summary>
     public byte[]? Details => EventDetails.Write(("actor", Actor), ("reason", Reason));

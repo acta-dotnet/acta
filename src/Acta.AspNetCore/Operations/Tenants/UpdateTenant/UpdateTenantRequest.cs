@@ -9,6 +9,6 @@ namespace Acta.AspNetCore;
 internal sealed record UpdateTenantRequest(
     string? DisplayName = null,
     string? Description = null,
-    int? ExpectedVersion = null,
+    long? ExpectedVersion = null,
     string? ReasonMessage = null
 ) : IControlRequest;

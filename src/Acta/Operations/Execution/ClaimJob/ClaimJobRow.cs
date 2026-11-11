@@ -5,7 +5,7 @@ namespace Acta;
 internal sealed record ClaimJobRow(
     long? JobId,
     int? DefinitionId,
-    int? ExecutionNumber,
+    long? ExecutionNumber,
     string? DeduplicationKey,
     JobKindCode? JobKindCode,
     string? CorrelationKey,

@@ -18,9 +18,9 @@ public sealed record GetCalendarResponse(
     string JobNamespace,
     string CalendarName,
     CalendarRoleCode Role,
-    int? CurrentVersion,
-    int LatestVersion,
-    int ShownVersion,
+    long? CurrentVersion,
+    long LatestVersion,
+    long ShownVersion,
     CalendarStatusCode ShownStatus,
     string Definition
 );

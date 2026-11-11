@@ -9,6 +9,6 @@ namespace Acta.AspNetCore;
 internal sealed record UpdateNamespaceRequest(
     string? OwnerTeam = null,
     string? Description = null,
-    int? ExpectedVersion = null,
+    long? ExpectedVersion = null,
     string? ReasonMessage = null
 ) : IControlRequest;

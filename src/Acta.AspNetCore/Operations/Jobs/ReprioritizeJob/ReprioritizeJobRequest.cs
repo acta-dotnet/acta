@@ -10,5 +10,5 @@ namespace Acta.AspNetCore;
 internal sealed record ReprioritizeJobRequest(
     [property: JsonRequired] JobPriorityCode Priority,
     string? ReasonMessage = null,
-    int? ExpectedVersion = null
+    long? ExpectedVersion = null
 ) : IControlRequest;

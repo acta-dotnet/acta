@@ -105,8 +105,8 @@ internal sealed class EventEntity : IEntity<long>
     public long? LineageRootJobId { get; init; }
 
     /// <summary>The attempt an attempt fact or note belongs to, copied from <c>jobs_state.execution_number</c>.</summary>
-    [DbColumn("execution_number", DbKind.Int32)]
-    public int? ExecutionNumber { get; init; }
+    [DbColumn("execution_number", DbKind.Int64)]
+    public long? ExecutionNumber { get; init; }
 
     /// <summary>
     /// Wall-clock duration of a succeeded, failed, or yielded attempt in milliseconds, measured in code from start

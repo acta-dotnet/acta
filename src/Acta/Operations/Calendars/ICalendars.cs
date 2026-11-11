@@ -20,7 +20,7 @@ public interface ICalendars
     /// <paramref name="version"/> when given, else the current version, else the latest. Null when the family has no
     /// version, or has no <paramref name="version"/>.
     /// </summary>
-    ValueTask<GetCalendarResponse?> GetAsync(CalendarLookup calendar, int? version = null, CancellationToken ct = default);
+    ValueTask<GetCalendarResponse?> GetAsync(CalendarLookup calendar, long? version = null, CancellationToken ct = default);
 
     /// <summary>One page of the family's versions, newest first; an unknown family answers an empty page.</summary>
     ValueTask<ListCalendarVersionsResponse> ListVersionsAsync(ListCalendarVersionsQuery query, CancellationToken ct = default);
@@ -43,7 +43,7 @@ public interface ICalendars
         CalendarLookup calendar,
         CalendarRoleCode role,
         string definition,
-        int? expectedLatestVersion = null,
+        long? expectedLatestVersion = null,
         string? reasonMessage = null,
         string? actor = null,
         CancellationToken ct = default
@@ -58,7 +58,7 @@ public interface ICalendars
     /// </summary>
     ValueTask<PreviewCalendarResponse?> PreviewAsync(
         CalendarLookup calendar,
-        int version,
+        long version,
         DateTime? fromUtc = null,
         int count = 10,
         string? timeZoneId = null,
@@ -75,8 +75,8 @@ public interface ICalendars
     /// </summary>
     ValueTask<PublishCalendarResponse> PublishAsync(
         CalendarLookup calendar,
-        int candidateVersion,
-        int? expectedCurrentVersion = null,
+        long candidateVersion,
+        long? expectedCurrentVersion = null,
         OverdueDecisionCode overdue = OverdueDecisionCode.Refuse,
         string? reasonMessage = null,
         string? actor = null,
@@ -91,7 +91,7 @@ public interface ICalendars
     /// </summary>
     ValueTask<ArchiveCalendarResponse> ArchiveAsync(
         CalendarLookup calendar,
-        int? expectedCurrentVersion = null,
+        long? expectedCurrentVersion = null,
         string? reasonMessage = null,
         string? actor = null,
         CancellationToken ct = default

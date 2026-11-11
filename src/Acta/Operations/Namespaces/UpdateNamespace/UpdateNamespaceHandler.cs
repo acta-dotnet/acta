@@ -15,7 +15,9 @@ internal sealed class UpdateNamespaceHandler(IDbSession session, ISqlDialect dia
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.NamespaceName, name));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Namespace.OwnerTeam, command.OwnerTeam));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Namespace.Description, command.Description));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.ExpectedRowVersion, command.ExpectedVersion));
+                cmd.Parameters.Add(
+                    dialect.CreateParameter(ActaSchema.Sql.ExpectedRowVersion, DbParams.Int32Version(command.ExpectedVersion))
+                );
                 cmd.AddOperatorAudit(dialect, command.Actor, command.ReasonMessage);
             },
             DbProjectionResolver.Resolve<UpdateNamespaceResponse>(),

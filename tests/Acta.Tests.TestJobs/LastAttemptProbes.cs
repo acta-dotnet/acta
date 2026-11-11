@@ -9,7 +9,7 @@ namespace TestJobs;
 /// </summary>
 public static class LastAttemptProbes
 {
-    public static readonly ConcurrentDictionary<(long JobId, int ExecutionNumber), bool> Reads = new();
+    public static readonly ConcurrentDictionary<(long JobId, long ExecutionNumber), bool> Reads = new();
 
     // MaxAttempts = 2. The first attempt suspends on the signal, the resume after it fails, and the retry fails again.
     [Job("last-attempt-budget", MaxAttempts = 2, Backoff = "0s")]

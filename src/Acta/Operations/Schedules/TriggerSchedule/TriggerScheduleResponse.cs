@@ -20,6 +20,6 @@ public sealed record TriggerScheduleResponse(
     ScheduleStatusCode? Status,
     DateTime? PausedUntilUtc,
     DateTime? NextOccurrenceAtUtc,
-    int? Version,
+    long? Version,
     JobRef? JobRef
 ) : IScheduleControlResponse;

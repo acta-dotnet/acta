@@ -59,7 +59,7 @@ public sealed record GetScheduleResponse(
     DateTime? PausedUntilUtc,
     DateTime CreatedAtUtc,
     DateTime ModifiedAtUtc,
-    int Version,
+    long Version,
     JobRef? JobRef,
     int MaxOutstanding,
     int OutstandingCount,

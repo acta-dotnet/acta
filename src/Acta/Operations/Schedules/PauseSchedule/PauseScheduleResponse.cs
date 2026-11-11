@@ -12,5 +12,5 @@ public sealed record PauseScheduleResponse(
     ScheduleStatusCode? Status,
     DateTime? PausedUntilUtc,
     DateTime? NextOccurrenceAtUtc,
-    int? Version
+    long? Version
 ) : IScheduleControlResponse;

@@ -18,7 +18,7 @@ CREATE OR ALTER PROCEDURE {{schema}}.enqueue_job
     @p_tenant_override BIT = 0,
     @p_tags {{schema}}.enqueue_tags READONLY,
     @p_lane_name VARCHAR(128) = NULL,
-    @p_parent_execution_number INT = NULL,
+    @p_parent_execution_number BIGINT = NULL,
     @p_parent_worker_id INT = NULL
 AS
 BEGIN

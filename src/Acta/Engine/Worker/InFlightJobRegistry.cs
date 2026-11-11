@@ -10,7 +10,7 @@ namespace Acta;
 /// </summary>
 internal sealed class InFlightJobRegistry
 {
-    private readonly ConcurrentDictionary<(long JobId, int ExecutionNumber), InFlightJob> _entries = new();
+    private readonly ConcurrentDictionary<(long JobId, long ExecutionNumber), InFlightJob> _entries = new();
 
     public InFlightJobRegistry(JobsOptions options)
     {
@@ -44,7 +44,7 @@ internal sealed class InFlightJobRegistry
     /// </summary>
     public void Remove(InFlightJob entry)
     {
-        _entries.TryRemove(new KeyValuePair<(long, int), InFlightJob>(entry.Key, entry));
+        _entries.TryRemove(new KeyValuePair<(long, long), InFlightJob>(entry.Key, entry));
         ReleasePermit(entry);
         entry.Dispose();
     }

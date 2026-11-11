@@ -9,8 +9,8 @@ BEGIN TRY
     DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
     DECLARE
         @from_status TINYINT, @namespace_id INT,
-        @lineage_root_job_id BIGINT, @definition_id INT, @tenant_id INT, @execution_number INT,
-        @version INT;
+        @lineage_root_job_id BIGINT, @definition_id INT, @tenant_id INT, @execution_number BIGINT,
+        @version BIGINT;
     DECLARE @lane_id BIGINT;
 
     /* Lock order: the lane, then the job's rows (docs/sql-internals.md, "Lane lock
@@ -42,7 +42,7 @@ BEGIN TRY
             SELECT
                 CAST(2 /* ControlAction.NotFound */ AS TINYINT) AS action,
                 CAST(NULL AS TINYINT) AS status,
-                CAST(NULL AS INT) AS version,
+                CAST(NULL AS BIGINT) AS version,
                 CAST(0 AS TINYINT) AS lane_promoted;
             GOTO Finish;
         END;

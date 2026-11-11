@@ -23,7 +23,7 @@ internal sealed class UpdateDefinitionOverridesHandler(GetDefinitionIdHandler ge
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Definition.DefinitionId, definitionId));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Definition.Version, command.ExpectedVersion));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Definition.Version, DbParams.Int32Version(command.ExpectedVersion)));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Definition.JobPriorityCodeOverride, overrides.Priority));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Definition.MaxAttemptsOverride, overrides.MaxAttempts));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Definition.ConcurrencyLimitOverride, overrides.ConcurrencyLimit));

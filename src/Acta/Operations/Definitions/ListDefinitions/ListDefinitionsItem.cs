@@ -47,5 +47,5 @@ public sealed record ListDefinitionsItem(
     string? RateName,
     string? Lane,
     DateTime ModifiedAtUtc,
-    int Version
+    long Version
 );

@@ -9,7 +9,7 @@ BEGIN TRY
     DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
     DECLARE
         @status TINYINT, @namespace_id INT,
-        @lineage_root_job_id BIGINT, @definition_id INT, @tenant_id INT, @execution_number INT, @event_recording TINYINT;
+        @lineage_root_job_id BIGINT, @definition_id INT, @tenant_id INT, @execution_number BIGINT, @event_recording TINYINT;
 
     SELECT
         @status = r.job_status_code,

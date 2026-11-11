@@ -18,5 +18,5 @@ public sealed record GetNamespaceResponse(
     string? OwnerTeam,
     string? Description,
     string? DeploymentVersion,
-    int Version
+    long Version
 );

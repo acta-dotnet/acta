@@ -14,7 +14,7 @@ namespace TestJobs;
 /// </remarks>
 public static class AttemptIdentityProbe
 {
-    public sealed record AttemptIdentity(int ExecutionNumber, int WorkerId);
+    public sealed record AttemptIdentity(long ExecutionNumber, int WorkerId);
 
     [Job("attempt-identity", MaxAttempts = 3, Backoff = "0s")]
     public static async Task Run(JobContext ctx, CancellationToken ct)

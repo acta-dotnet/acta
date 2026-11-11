@@ -1,7 +1,7 @@
 CREATE OR ALTER PROCEDURE {{schema}}.access_job_checkpoint
     @p_action SMALLINT,
     @p_job_id BIGINT,
-    @p_execution_number INT,
+    @p_execution_number BIGINT,
     @p_leased_by_worker_id INT,
     @p_checkpoint_kind_code TINYINT,
     @p_checkpoint_name VARCHAR(128),

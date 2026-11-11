@@ -107,12 +107,18 @@ internal sealed class FakeJobs : IJobs
 
     public IReadOnlyList<ListJobStepsItem> StoredSteps { get; set; } = [];
 
-    public List<(string Verb, JobRef JobRef, string? Reason, string? Actor, int? ExpectedVersion)> ControlCalls { get; } = [];
+    public List<(string Verb, JobRef JobRef, string? Reason, string? Actor, long? ExpectedVersion)> ControlCalls { get; } = [];
 
-    public List<(JobRef JobRef, DateTime? NextRunAtUtc, string? Reason, string? Actor, int? ExpectedVersion)> RescheduleCalls { get; } = [];
-
-    public List<(JobRef JobRef, JobPriorityCode Priority, string? Reason, string? Actor, int? ExpectedVersion)> ReprioritizeCalls { get; } =
+    public List<(JobRef JobRef, DateTime? NextRunAtUtc, string? Reason, string? Actor, long? ExpectedVersion)> RescheduleCalls { get; } =
     [];
+
+    public List<(
+        JobRef JobRef,
+        JobPriorityCode Priority,
+        string? Reason,
+        string? Actor,
+        long? ExpectedVersion
+    )> ReprioritizeCalls { get; } = [];
 
     public List<(JobRef JobRef, string? Reason, string? Actor)> PurgeCalls { get; } = [];
 
@@ -142,22 +148,22 @@ internal sealed class FakeJobs : IJobs
 
     public Func<EnqueueJobRequest, CancellationToken, ValueTask<EnqueueJobResponse>> Enqueue { get; set; }
 
-    public Func<JobLookup, string?, string?, int?, CancellationToken, ValueTask<PauseJobResponse>> Pause { get; set; }
+    public Func<JobLookup, string?, string?, long?, CancellationToken, ValueTask<PauseJobResponse>> Pause { get; set; }
 
-    public Func<JobLookup, string?, string?, int?, CancellationToken, ValueTask<ResumeJobResponse>> Resume { get; set; }
+    public Func<JobLookup, string?, string?, long?, CancellationToken, ValueTask<ResumeJobResponse>> Resume { get; set; }
 
-    public Func<JobLookup, string?, string?, int?, CancellationToken, ValueTask<RestartJobResponse>> Restart { get; set; }
+    public Func<JobLookup, string?, string?, long?, CancellationToken, ValueTask<RestartJobResponse>> Restart { get; set; }
 
-    public Func<JobLookup, string?, string?, int?, CancellationToken, ValueTask<CancelJobResponse>> Cancel { get; set; }
+    public Func<JobLookup, string?, string?, long?, CancellationToken, ValueTask<CancelJobResponse>> Cancel { get; set; }
 
-    public Func<JobLookup, DateTime?, string?, string?, int?, CancellationToken, ValueTask<RescheduleJobResponse>> Reschedule { get; set; }
+    public Func<JobLookup, DateTime?, string?, string?, long?, CancellationToken, ValueTask<RescheduleJobResponse>> Reschedule { get; set; }
 
     public Func<
         JobLookup,
         JobPriorityCode,
         string?,
         string?,
-        int?,
+        long?,
         CancellationToken,
         ValueTask<ReprioritizeJobResponse>
     > Reprioritize { get; set; }
@@ -192,7 +198,7 @@ internal sealed class FakeJobs : IJobs
         JobLookup job,
         string? reasonMessage,
         string? actor,
-        int? expectedVersion,
+        long? expectedVersion,
         CancellationToken ct
     ) => Pause(job, reasonMessage, actor, expectedVersion, ct);
 
@@ -200,7 +206,7 @@ internal sealed class FakeJobs : IJobs
         JobLookup job,
         string? reasonMessage,
         string? actor,
-        int? expectedVersion,
+        long? expectedVersion,
         CancellationToken ct
     ) => Resume(job, reasonMessage, actor, expectedVersion, ct);
 
@@ -208,7 +214,7 @@ internal sealed class FakeJobs : IJobs
         JobLookup job,
         string? reasonMessage,
         string? actor,
-        int? expectedVersion,
+        long? expectedVersion,
         CancellationToken ct
     ) => Restart(job, reasonMessage, actor, expectedVersion, ct);
 
@@ -216,7 +222,7 @@ internal sealed class FakeJobs : IJobs
         JobLookup job,
         string? reasonMessage,
         string? actor,
-        int? expectedVersion,
+        long? expectedVersion,
         CancellationToken ct
     ) => Cancel(job, reasonMessage, actor, expectedVersion, ct);
 
@@ -225,7 +231,7 @@ internal sealed class FakeJobs : IJobs
         DateTime? nextRunAtUtc,
         string? reasonMessage,
         string? actor,
-        int? expectedVersion,
+        long? expectedVersion,
         CancellationToken ct
     ) => Reschedule(job, nextRunAtUtc, reasonMessage, actor, expectedVersion, ct);
 
@@ -234,7 +240,7 @@ internal sealed class FakeJobs : IJobs
         JobPriorityCode priority,
         string? reasonMessage,
         string? actor,
-        int? expectedVersion,
+        long? expectedVersion,
         CancellationToken ct
     ) => Reprioritize(job, priority, reasonMessage, actor, expectedVersion, ct);
 
@@ -409,9 +415,9 @@ internal sealed class FakeJobs : IJobs
         JobLookup job,
         string? reason,
         string? actor,
-        int? expectedVersion,
+        long? expectedVersion,
         JobStatusCode applied,
-        Func<long, ControlAction, JobStatusCode?, int?, T> respond
+        Func<long, ControlAction, JobStatusCode?, long?, T> respond
     )
     {
         ControlCalls.Add((verb, job.JobRef, reason, actor, expectedVersion));
@@ -420,9 +426,9 @@ internal sealed class FakeJobs : IJobs
     }
 
     // An applied verb answers the status it leaves the found job in, and the next version where the verb carries one.
-    private static (long JobId, ControlAction Action, JobStatusCode? Status, int? Version) ResultFor(
+    private static (long JobId, ControlAction Action, JobStatusCode? Status, long? Version) ResultFor(
         JobLookup job,
-        int? expectedVersion = null,
+        long? expectedVersion = null,
         JobStatusCode? applied = JobStatusCode.Ready
     ) =>
         job.JobRef == MissingJobRef ? (0, ControlAction.NotFound, null, null)

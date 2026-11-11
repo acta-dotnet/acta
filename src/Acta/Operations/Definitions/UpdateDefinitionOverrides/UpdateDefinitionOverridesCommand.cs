@@ -4,7 +4,7 @@ namespace Acta;
 internal sealed record UpdateDefinitionOverridesCommand(
     string JobNamespace,
     string JobName,
-    int ExpectedVersion,
+    long ExpectedVersion,
     DefinitionPolicyOverrides Overrides,
     string? ReasonMessage,
     string? Actor

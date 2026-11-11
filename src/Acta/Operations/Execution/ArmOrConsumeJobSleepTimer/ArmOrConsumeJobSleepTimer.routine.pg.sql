@@ -1,6 +1,6 @@
 CREATE OR REPLACE FUNCTION {{schema}}.arm_or_consume_job_sleep_timer(
     p_job_id BIGINT,
-    p_execution_number INT,
+    p_execution_number BIGINT,
     p_leased_by_worker_id INT,
     p_checkpoint_name VARCHAR,
     p_delay_seconds INT DEFAULT NULL,

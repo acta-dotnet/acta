@@ -40,7 +40,7 @@ internal sealed class TenantsOperations(
 
     public ValueTask<UpdateTenantResponse> UpdateAsync(
         string tenantName,
-        int expectedVersion,
+        long expectedVersion,
         string? displayName,
         string? description,
         string? reasonMessage = null,

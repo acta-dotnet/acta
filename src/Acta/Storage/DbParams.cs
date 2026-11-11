@@ -57,6 +57,12 @@ internal static class DbParams
         };
 
     /// <summary>
+    /// A caller's expected version bound against a 32-bit version column: itself when the column can hold it, else -1,
+    /// which no row's version is, so the verb answers as it does for any other stale version.
+    /// </summary>
+    public static int Int32Version(long expected) => expected is >= 0 and <= int.MaxValue ? (int)expected : -1;
+
+    /// <summary>
     /// JSON array text (<c>[1,2]</c>) for the dialects whose SQL expands an id set with OPENJSON or
     /// json_each; null for an empty set, which those bodies bind as DBNull and read as "no filter".
     /// </summary>
@@ -83,7 +89,7 @@ internal static class DbParams
     /// The held executions as JSON array text (<c>[{"job_id":1,"execution_number":2}]</c>) for the dialects whose
     /// lease renewal expands them with OPENJSON or json_each.
     /// </summary>
-    public static string JsonHeldExecutions(IReadOnlyList<(long JobId, int ExecutionNumber)> executions)
+    public static string JsonHeldExecutions(IReadOnlyList<(long JobId, long ExecutionNumber)> executions)
     {
         var text = new StringBuilder("[");
         for (var i = 0; i < executions.Count; i++)

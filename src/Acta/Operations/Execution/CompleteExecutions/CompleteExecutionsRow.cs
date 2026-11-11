@@ -10,7 +10,7 @@ namespace Acta;
 [DbProjection]
 internal sealed record CompleteExecutionsRow(
     long JobId,
-    int ExecutionNumber,
+    long ExecutionNumber,
     CompleteExecutionsAction Action,
     byte? FinalJobStatusCode,
     DateTime? FinalNextRunAtUtc,

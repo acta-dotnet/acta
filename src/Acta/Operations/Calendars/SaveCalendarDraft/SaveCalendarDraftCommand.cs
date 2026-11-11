@@ -8,7 +8,7 @@ internal sealed record SaveCalendarDraftCommand(
     CalendarLookup Calendar,
     CalendarRoleCode Role,
     string Definition,
-    int? ExpectedLatestVersion,
+    long? ExpectedLatestVersion,
     string? ReasonMessage,
     string? Actor
 );

@@ -9,7 +9,7 @@ BEGIN TRY
     DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
     DECLARE
         @from_status TINYINT, @namespace_id INT,
-        @lineage_root_job_id BIGINT, @definition_id INT, @tenant_id INT, @execution_number INT,
+        @lineage_root_job_id BIGINT, @definition_id INT, @tenant_id INT, @execution_number BIGINT,
         @old_format_id TINYINT, @old_input VARBINARY(MAX);
     DECLARE @old_members VARCHAR(100);
     DECLARE @details VARBINARY(MAX) = @p_details;

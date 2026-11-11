@@ -9,7 +9,7 @@ BEGIN TRY
     DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
     DECLARE @found BIT = 0, @status TINYINT, @paused DATETIME2(7), @next DATETIME2(7), @version INT;
     DECLARE @slot_status TINYINT, @firing_status TINYINT, @action TINYINT;
-    DECLARE @ns INT, @def INT, @lineage BIGINT, @en INT, @job_ref UNIQUEIDENTIFIER;
+    DECLARE @ns INT, @def INT, @lineage BIGINT, @en BIGINT, @job_ref UNIQUEIDENTIFIER;
     DECLARE @lock_result INT, @lock_resource NVARCHAR(255);
 
     /* The namespace's schedule lock, shared, before any row lock (docs/sql-internals.md, "Schedule lock"), then the

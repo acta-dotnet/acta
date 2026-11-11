@@ -9,8 +9,8 @@ BEGIN TRY
     DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
     DECLARE
         @from_status TINYINT, @namespace_id INT,
-        @lineage_root_job_id BIGINT, @definition_id INT, @tenant_id INT, @execution_number INT, @worker_id INT, @event_recording TINYINT,
-        @parent_job_id BIGINT, @retention_seconds INT, @version INT, @lane_id BIGINT, @settled INT;
+        @lineage_root_job_id BIGINT, @definition_id INT, @tenant_id INT, @execution_number BIGINT, @worker_id INT, @event_recording TINYINT,
+        @parent_job_id BIGINT, @retention_seconds INT, @version BIGINT, @lane_id BIGINT, @settled INT;
 
     /* Lock order: the lane, then the job's rows (docs/sql-internals.md, "Lane lock
        order"). lane_id never changes, so the unlocked read is safe. */
@@ -73,7 +73,7 @@ BEGIN TRY
                 CAST(2 /* ControlAction.NotFound */ AS TINYINT) AS action,
                 CAST(NULL AS TINYINT) AS status,
                 CAST(NULL AS BIGINT) AS parent_job_id,
-                CAST(NULL AS INT) AS version,
+                CAST(NULL AS BIGINT) AS version,
                 CAST(0 AS TINYINT) AS lane_promoted;
             GOTO Finish;
         END;

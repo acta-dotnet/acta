@@ -18,5 +18,5 @@ public sealed record ListNamespacesItem(
     string? OwnerTeam,
     string? Description,
     string? DeploymentVersion,
-    int Version
+    long Version
 );

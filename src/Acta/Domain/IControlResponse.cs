@@ -7,5 +7,5 @@ public interface IControlResponse
     ControlAction Action { get; }
 
     /// <summary>The target's version after the attempt; null when the verb found nothing to act on or carries no version.</summary>
-    int? Version { get; }
+    long? Version { get; }
 }

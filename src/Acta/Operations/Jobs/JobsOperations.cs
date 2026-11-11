@@ -150,7 +150,7 @@ internal sealed class JobsOperations(
         await getJobResult.ReadAsync(job, ct) is { } row ? routing.DecodeResult<TResult>(row) : default;
 
     /// <summary>The result <paramref name="executionNumber"/> stored, or the latest execution's when null, read as <typeparamref name="TResult"/>.</summary>
-    internal async Task<(bool Stored, TResult? Value)> ReadResultAsync<TResult>(long jobId, int? executionNumber, CancellationToken ct) =>
+    internal async Task<(bool Stored, TResult? Value)> ReadResultAsync<TResult>(long jobId, long? executionNumber, CancellationToken ct) =>
         await getJobResult.ReadAsync(jobId, executionNumber, ct) is { } row ? (true, routing.DecodeResult<TResult>(row)) : (false, default);
 
     public ValueTask<ListJobCheckpointsResponse> ListCheckpointsAsync(ListJobCheckpointsQuery query, CancellationToken ct = default) =>
@@ -163,7 +163,7 @@ internal sealed class JobsOperations(
         JobLookup job,
         string? reasonMessage = null,
         string? actor = null,
-        int? expectedVersion = null,
+        long? expectedVersion = null,
         CancellationToken ct = default
     ) => cancelJob.HandleAsync(new CancelJobCommand(job, reasonMessage, actor, expectedVersion), ct);
 
@@ -171,7 +171,7 @@ internal sealed class JobsOperations(
         JobLookup job,
         string? reasonMessage = null,
         string? actor = null,
-        int? expectedVersion = null,
+        long? expectedVersion = null,
         CancellationToken ct = default
     ) => pauseJob.HandleAsync(new PauseJobCommand(job, reasonMessage, actor, expectedVersion), ct);
 
@@ -179,7 +179,7 @@ internal sealed class JobsOperations(
         JobLookup job,
         string? reasonMessage = null,
         string? actor = null,
-        int? expectedVersion = null,
+        long? expectedVersion = null,
         CancellationToken ct = default
     ) => resumeJob.HandleAsync(new ResumeJobCommand(job, reasonMessage, actor, expectedVersion), ct);
 
@@ -187,7 +187,7 @@ internal sealed class JobsOperations(
         JobLookup job,
         string? reasonMessage = null,
         string? actor = null,
-        int? expectedVersion = null,
+        long? expectedVersion = null,
         CancellationToken ct = default
     ) => restartJob.HandleAsync(new RestartJobCommand(job, reasonMessage, actor, expectedVersion), ct);
 
@@ -196,7 +196,7 @@ internal sealed class JobsOperations(
         DateTime? nextRunAtUtc = null,
         string? reasonMessage = null,
         string? actor = null,
-        int? expectedVersion = null,
+        long? expectedVersion = null,
         CancellationToken ct = default
     ) => rescheduleJob.HandleAsync(new RescheduleJobCommand(job, nextRunAtUtc, reasonMessage, actor, expectedVersion), ct);
 
@@ -205,7 +205,7 @@ internal sealed class JobsOperations(
         JobPriorityCode priority,
         string? reasonMessage = null,
         string? actor = null,
-        int? expectedVersion = null,
+        long? expectedVersion = null,
         CancellationToken ct = default
     ) => reprioritizeJob.HandleAsync(new ReprioritizeJobCommand(job, priority, reasonMessage, actor, expectedVersion), ct);
 

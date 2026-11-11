@@ -404,7 +404,7 @@ public sealed class WorkerHeartbeatLeaseRunwayTests
     /// <summary>An entry for job <paramref name="jobId"/> at <paramref name="executionNumber"/>, unregistered.</summary>
     internal static InFlightJob Entry(
         long jobId,
-        int executionNumber = 0,
+        long executionNumber = 0,
         TimeSpan? leaseRunway = null,
         InFlightJobState state = InFlightJobState.Claimed
     ) =>

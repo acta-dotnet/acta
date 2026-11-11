@@ -8,7 +8,7 @@ namespace Acta.Tests.Execution;
 /// </summary>
 internal sealed record BoundCompletion(
     long JobId,
-    int ExecutionNumber,
+    long ExecutionNumber,
     bool Succeeded,
     EventCode EventCode,
     string? Reason,
@@ -46,7 +46,7 @@ internal sealed record BoundCompletion(
     private static BoundCompletion Read(JsonElement row) =>
         new(
             row.GetProperty("job_id").GetInt64(),
-            row.GetProperty("execution_number").GetInt32(),
+            row.GetProperty("execution_number").GetInt64(),
             row.GetProperty("succeeded").GetBoolean(),
             (EventCode)Number(row, "event_code")!.Value,
             row.TryGetProperty("reason", out var reason) ? reason.GetString() : null,

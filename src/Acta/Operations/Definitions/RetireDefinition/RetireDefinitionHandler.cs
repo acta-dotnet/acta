@@ -30,7 +30,7 @@ internal sealed class RetireDefinitionHandler(
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Definition.DefinitionId, definitionId));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Definition.Version, command.ExpectedVersion));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Definition.Version, DbParams.Int32Version(command.ExpectedVersion)));
                 cmd.AddOperatorAudit(dialect, command.Actor, command.ReasonMessage);
                 cmd.Parameters.Add(
                     dialect.CreateParameter(
