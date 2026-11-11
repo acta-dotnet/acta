@@ -68,6 +68,28 @@ public sealed class ScheduleRetirementSpec : ActaRuntimeTestBase<ConformanceFixt
         Assert.Equal(0, await CountEventsAsync(slotId, EventCode.SchedulePauseExpired, ct));
     }
 
+    [Fact(DisplayName = "A firing that fails for good after the retire pauses none of the retired definition's schedules")]
+    public async Task A_firing_that_fails_after_the_retire_pauses_nothing()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var jobName = Unique("retired-fail");
+        var defId = await CreateDefinitionAsync(jobName, ct, FiringFailurePolicyCode.PauseScheduling);
+        await RegisterAsync(defId, jobName, [Slot("only", FloorSeconds(DateTime.UtcNow.AddHours(6)))], ct);
+        var slotId = await SlotIdAsync(jobName, ct);
+        var workerId = await LeaseInFlightAsync(slotId, ct);
+        await RetireAsync(jobName, ct);
+
+        var result = await CompleteAsync(slotId, workerId, ct, succeeded: false);
+
+        // The policy pauses a live definition's schedules until an operator resumes them. On a retired one the pause
+        // would outlive the retire: a redeploy would bring the schedule back paused, and it would never fire.
+        Assert.Equal(CompleteExecutionsAction.Completed, result.Action);
+        var schedule = Assert.Single(await ScheduleTestOps.ReadAsync(Db, slotId, ct));
+        Assert.Equal(ScheduleStatusCode.Active, schedule.Status);
+        Assert.Null(schedule.PauseMessage);
+        Assert.Equal(0, await CountEventsAsync(slotId, EventCode.SchedulePaused, ct));
+    }
+
     [Fact(DisplayName = "A deploy's stored-state read leaves out a retired definition's schedules")]
     public async Task Readers_leave_out_a_retired_definitions_schedules()
     {
@@ -189,7 +211,7 @@ public sealed class ScheduleRetirementSpec : ActaRuntimeTestBase<ConformanceFixt
         return worker.Id;
     }
 
-    private Task<CompleteExecutionsRow> CompleteAsync(long jobId, int workerId, CancellationToken ct) =>
+    private Task<CompleteExecutionsRow> CompleteAsync(long jobId, int workerId, CancellationToken ct, bool succeeded = true) =>
         Services
             .GetRequiredService<ExecutionOperations>()
             .CompleteAsync(
@@ -197,10 +219,10 @@ public sealed class ScheduleRetirementSpec : ActaRuntimeTestBase<ConformanceFixt
                 new CompleteExecutionsValues(
                     jobId,
                     Attempt,
-                    true,
+                    succeeded,
                     JobPayloadFormat.None.Id,
                     ReadOnlyMemory<byte>.Empty,
-                    EventCode.JobExecutionSucceeded,
+                    succeeded ? EventCode.JobExecutionSucceeded : EventCode.JobFailed,
                     null,
                     null,
                     null,
@@ -219,9 +241,18 @@ public sealed class ScheduleRetirementSpec : ActaRuntimeTestBase<ConformanceFixt
         return await SlotIdAsync(jobName, ct);
     }
 
-    private async Task<int> CreateDefinitionAsync(string jobName, CancellationToken ct)
+    private async Task<int> CreateDefinitionAsync(
+        string jobName,
+        CancellationToken ct,
+        FiringFailurePolicyCode policy = FiringFailurePolicyCode.Continue
+    )
     {
-        var map = await DefinitionTestOps.RegisterAsync(Services, TestNamespaceId, [Def(jobName)], ct);
+        var map = await DefinitionTestOps.RegisterAsync(
+            Services,
+            TestNamespaceId,
+            [Def(jobName) with { FiringFailurePolicy = policy }],
+            ct
+        );
         return map[jobName];
     }
 

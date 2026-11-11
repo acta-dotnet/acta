@@ -114,6 +114,24 @@ public sealed class TriggerScheduleSpec : ActaStorageTestBase<ConformanceFixture
         Assert.Null(second.JobRef);
     }
 
+    [Fact(DisplayName = "A manual firing of a slot recorded below Audit still writes schedule.triggered")]
+    public async Task A_trigger_is_recorded_below_audit()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var (db, dialect) = Store();
+        var jobName = Unique("fire-quiet");
+        var defId = await CreateDefinitionAsync(db, dialect, jobName, ct);
+        await RegisterAsync(db, dialect, defId, jobName, [Slot("only", FloorSeconds(await NowAsync(ct)).AddHours(6))], ct);
+        var slotId = await SlotIdAsync(jobName, ct);
+        await JobStateStaging.SetEventRecordingAsync(Db, slotId, EventRecordingCode.Failures, ct);
+
+        var result = await Schedules.TriggerAsync(Lookup(jobName, "only"), reasonMessage: "fire now", actor: "op", ct: ct);
+
+        Assert.Equal(ControlAction.Applied, result.Action);
+        var triggered = await ReadSingleEventAsync(slotId, EventCode.ScheduleTriggered, ct);
+        Assert.Equal("fire now", triggered.EventMessage);
+    }
+
     [Fact(DisplayName = "Triggering a paused schedule is rejected and leaves the slot and schedule untouched")]
     public async Task Triggering_a_paused_schedule_is_rejected_and_leaves_state_untouched()
     {

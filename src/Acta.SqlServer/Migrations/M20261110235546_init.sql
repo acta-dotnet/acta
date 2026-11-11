@@ -1539,7 +1539,8 @@ BEGIN
                             (f.job_kind_code = 20 /* JobKindCode.Permanent */ AND f.job_status_code = 40 /* JobStatusCode.Idle */ AND f.succeeded = 0)
                             OR (f.schedule_id IS NOT NULL AND f.job_status_code = 200 /* JobStatusCode.Failed */)
                         )
-                        AND jd.firing_failure_policy_code = 20 /* FiringFailurePolicyCode.PauseScheduling */;
+                        AND jd.firing_failure_policy_code = 20 /* FiringFailurePolicyCode.PauseScheduling */
+                        AND jd.definition_status_code = 10 /* DefinitionStatusCode.Active */;
 
                     UPDATE st
                     SET next_evaluation_at_utc = NULL, modified_at_utc = @now, version = st.version + 1
@@ -1555,8 +1556,7 @@ BEGIN
                         1 /* JobPayloadFormat.Json */, CONVERT(VARBINARY(MAX), '{"schedule":"' + p.schedule_name + '","reason":"firing-failed"}')
                     FROM @policy_paused p
                     INNER JOIN {{schema}}.jobs j WITH (FORCESEEK) ON j.job_id = p.job_id
-                    INNER JOIN {{schema}}.jobs_state r WITH (FORCESEEK) ON r.job_id = p.job_id
-                    WHERE j.event_recording_code = 20 /* EventRecordingCode.Audit */;
+                    INNER JOIN {{schema}}.jobs_state r WITH (FORCESEEK) ON r.job_id = p.job_id;
                 END
             END
 
@@ -4065,7 +4065,8 @@ BEGIN
         WHERE
             js.schedule_status_code = 10 /* ScheduleStatusCode.Active */
             AND (r.to_status_code = 40 /* JobStatusCode.Idle */ OR (r.to_status_code = 200 /* JobStatusCode.Failed */ AND r.schedule_id IS NOT NULL))
-            AND jd.firing_failure_policy_code = 20 /* FiringFailurePolicyCode.PauseScheduling */;
+            AND jd.firing_failure_policy_code = 20 /* FiringFailurePolicyCode.PauseScheduling */
+            AND jd.definition_status_code = 10 /* DefinitionStatusCode.Active */;
 
         UPDATE st
         SET next_evaluation_at_utc = NULL, modified_at_utc = @now, version = st.version + 1
@@ -4080,8 +4081,7 @@ BEGIN
             r.definition_id, r.tenant_id, COALESCE(r.lineage_root_job_id, r.job_id), r.execution_number, 'Paused by the firing failure policy: the last firing failed for good.',
             1 /* JobPayloadFormat.Json */, CONVERT(VARBINARY(MAX), '{"schedule":"' + p.schedule_name + '","reason":"firing-failed"}')
         FROM @policy_paused p
-        INNER JOIN @reclaimed r ON r.job_id = p.job_id
-        WHERE r.event_recording_code = 20 /* EventRecordingCode.Audit */;
+        INNER JOIN @reclaimed r ON r.job_id = p.job_id;
 
         /* A head reclaimed to Failed hands its lane on; a head re-armed Ready keeps it. Promotion runs
            under the lane locks and re-reads each head rather than trusting the walk. */
@@ -4956,7 +4956,7 @@ JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE name = 'M20261110225447_init')
+IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE name = 'M20261110235546_init')
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261110225447_init');
+VALUES ('M20261110235546_init');
 GO

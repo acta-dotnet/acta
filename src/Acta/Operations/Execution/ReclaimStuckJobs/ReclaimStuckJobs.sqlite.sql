@@ -294,7 +294,7 @@ DROP TABLE IF EXISTS temp._reclaim_policy_paused;
 
 CREATE TEMP TABLE _reclaim_policy_paused AS
 SELECT js.schedule_id, js.schedule_name, MIN(j.job_id) AS job_id, j.namespace_id, j.definition_id, j.tenant_id,
-    COALESCE(j.lineage_root_job_id, j.job_id) AS lineage_root_job_id, r.execution_number, j.event_recording_code
+    COALESCE(j.lineage_root_job_id, j.job_id) AS lineage_root_job_id, r.execution_number
 FROM temp._reclaim_jobs rj
 INNER JOIN {{schema}}.jobs j ON j.job_id = rj.job_id
 INNER JOIN {{schema}}.jobs_state r ON r.job_id = rj.job_id
@@ -303,6 +303,7 @@ INNER JOIN {{schema}}.schedules js ON js.definition_id = jd.definition_id
 WHERE
     (rj.to_status = 40 /* JobStatusCode.Idle */ OR (rj.to_status = 200 /* JobStatusCode.Failed */ AND j.schedule_id IS NOT NULL))
     AND jd.firing_failure_policy_code = 20 /* FiringFailurePolicyCode.PauseScheduling */
+    AND jd.definition_status_code = 10 /* DefinitionStatusCode.Active */
     AND js.schedule_status_code = 10 /* ScheduleStatusCode.Active */
 GROUP BY js.schedule_id;
 
@@ -329,8 +330,7 @@ SELECT
     100 /* EventCode.SchedulePaused */, {{now}}, p.namespace_id, 50 /* EntityCode.Job */, p.job_id,
     p.definition_id, p.tenant_id, p.lineage_root_job_id, p.execution_number, 'Paused by the firing failure policy: the last firing failed for good.',
     1 /* JobPayloadFormat.Json */, CAST('{"schedule":"' || p.schedule_name || '","reason":"firing-failed"}' AS BLOB)
-FROM temp._reclaim_policy_paused p
-WHERE p.event_recording_code = 20 /* EventRecordingCode.Audit */;
+FROM temp._reclaim_policy_paused p;
 
 -- A head reclaimed to Failed hands its lane to the lowest-id unfinished member when that member is
 -- Blocked and no member runs; a head re-armed Ready keeps its lane.

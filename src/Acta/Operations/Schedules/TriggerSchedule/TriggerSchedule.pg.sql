@@ -105,7 +105,6 @@ FROM {{schema}}.jobs j
 CROSS JOIN _trigger_schedule_slot s
 WHERE
     j.job_id = @p_job_id
-    AND j.event_recording_code = 20 /* EventRecordingCode.Audit */
     AND EXISTS (SELECT 1 FROM _trigger_schedule_action a WHERE a.action = 1 /* ControlAction.Applied */);
 
 SELECT

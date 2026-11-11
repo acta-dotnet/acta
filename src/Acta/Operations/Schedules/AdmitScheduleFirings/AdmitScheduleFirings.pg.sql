@@ -212,8 +212,8 @@ FROM _adm_rows a
 INNER JOIN _adm_valid v ON v.ordinal = a.group_ordinal
 WHERE js.schedule_id = a.schedule_id AND a.expire_paused AND js.schedule_status_code = 10 /* ScheduleStatusCode.Active */;
 
--- Decision evidence at Audit: an expired or skipped range, an admission, an elapsed pause, an expiry pause, a manual
--- trigger. An evaluation that starts failing is written at every level. A slot's decisions hang on the slot, a
+-- Decision evidence: an expired or skipped range and an admission at Audit, and from ordinal 4 on, at every level, a
+-- pause that ends, an expiry pause, a manual trigger, a failing evaluation. A slot's decisions hang on the slot, a
 -- per-occurrence admission or trigger on its root, the rest on the definition. A schedule name is dotted kebab ASCII.
 INSERT INTO {{schema}}.events (
     event_code, created_at_utc, namespace_id,
@@ -271,7 +271,7 @@ FROM (
     LEFT JOIN {{schema}}.jobs_state r ON r.job_id = g.job_id
     LEFT JOIN {{schema}}.jobs root ON root.job_ref = g.job_ref
 ) k
-WHERE (k.event_recording_code = 20 /* EventRecordingCode.Audit */ OR k.ord = 7) AND k.details IS NOT NULL
+WHERE (k.event_recording_code = 20 /* EventRecordingCode.Audit */ OR k.ord >= 4) AND k.details IS NOT NULL
 ORDER BY k.schedule_id, k.ord;
 
 SELECT g.ordinal, (v.ordinal IS NOT NULL) AS applied

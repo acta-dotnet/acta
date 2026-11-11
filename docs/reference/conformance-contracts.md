@@ -2174,6 +2174,7 @@
   - Under PauseScheduling the failed firing pauses the schedule with the reason, and a resume puts it back in front of the admitter
   - Under Continue the failed firing leaves the schedule scheduled, and the next occurrence fires
   - A lost attempt that spends the budget applies the policy on reclaim as a completion would
+  - The policy's pause is recorded below Audit, on a completion and on a reclaim
 
 ### The horizon is the namespace's earliest next evaluation
 - **Contract:** The horizon is the earliest next evaluation among the namespace's schedules, and null when none has one.
@@ -2239,6 +2240,7 @@
 - **Guarantees:**
   - An indefinitely paused schedule admits nothing at its occurrence
   - A timed pause ends at its expiry, admits the occurrence due by then, returns to Active, and emits pause-expired
+  - A timed pause that ends on a slot recorded below Audit still writes pause-expired, and no admission event
   - A timed pause whose window holds no occurrence ends at its expiry without admitting anything
   - Under Skip an occurrence inside a timed pause is skipped at its expiry, not admitted late
   - Under Skip an occurrence inside a timed pause stays skipped when the pause ends on a busy job that frees inside the grace
@@ -2297,6 +2299,7 @@
 - **Contract:** After a retire, no reader returns its schedules, and no completion or verb, even one that read them first, writes their cursors or wakes their slot.
 - **Guarantees:**
   - A firing that lands after the retire returns the slot to Idle and leaves the retired schedules as they were
+  - A firing that fails for good after the retire pauses none of the retired definition's schedules
   - A deploy's stored-state read leaves out a retired definition's schedules
   - A resume that found the schedule before the retire writes no cursor after it
   - A pause that found the schedule before the retire leaves the retired schedule as the retire left it
@@ -2342,6 +2345,7 @@
 - **Guarantees:**
   - Triggering an Idle slot's schedule admits a manual firing now, leaves the schedule's own cursor untouched, audits it, and rejects a second one behind it
   - Triggering a per-occurrence schedule admits a new root ready at once, answers its ref, and rejects a second one at capacity
+  - A manual firing of a slot recorded below Audit still writes schedule.triggered
   - Triggering a paused schedule is rejected and leaves the slot and schedule untouched
   - Triggering a schedule whose slot is mid-execution is rejected because a fire is already in flight
   - Triggering a schedule whose slot is terminal is rejected with no phantom applied and no schedule.triggered event

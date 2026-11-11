@@ -352,9 +352,10 @@ BEGIN
             AND js.schedule_status_code = 10 /* ScheduleStatusCode.Active */
             AND (r.new_status = 40 /* JobStatusCode.Idle */ OR (r.new_status = 200 /* JobStatusCode.Failed */ AND r.schedule_id IS NOT NULL))
             AND jd.firing_failure_policy_code = 20 /* FiringFailurePolicyCode.PauseScheduling */
+            AND jd.definition_status_code = 10 /* DefinitionStatusCode.Active */
         RETURNING
             js.schedule_id, js.schedule_name, r.job_id, r.namespace_id, r.definition_id, r.tenant_id,
-            COALESCE(r.lineage_root_job_id, r.job_id) AS lineage_root_job_id, r.execution_number, r.event_recording_code
+            COALESCE(r.lineage_root_job_id, r.job_id) AS lineage_root_job_id, r.execution_number
     ),
     -- One write per schedule state, since a row updated twice in one statement keeps only one of the updates: the wake
     -- of a slot's parked members or of a schedule waiting for a root's capacity, the capacity each envelope settled
@@ -409,7 +410,6 @@ BEGIN
             p.definition_id, p.tenant_id, p.lineage_root_job_id, p.execution_number, 'Paused by the firing failure policy: the last firing failed for good.',
             1 /* JobPayloadFormat.Json */, convert_to('{"schedule":"' || p.schedule_name || '","reason":"firing-failed"}', 'UTF8')
         FROM policy_paused p
-        WHERE p.event_recording_code = 20 /* EventRecordingCode.Audit */
     )
     SELECT r.job_id, r.new_status, r.parent_job_id, 0::SMALLINT
     FROM reclaimed r;

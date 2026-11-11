@@ -41,14 +41,14 @@ DO $$
 BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
-        WHERE name NOT IN ('M20261110225447_init')
+        WHERE name NOT IN ('M20261110235546_init')
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
 END
 $$;
 
--- ===== BEGIN M20261110225447_init =====
+-- ===== BEGIN M20261110235546_init =====
 CREATE SCHEMA IF NOT EXISTS acta;
 
 -- alerts
@@ -1256,8 +1256,8 @@ BEGIN
         WHERE st.schedule_id = s.schedule_id;
 
         /* The definition's firing failure policy: a firing that failed for good (a spent budget, the slot back to Idle;
-           a charged root landed Failed) pauses every active schedule of the definition, with the reason as the pause
-           message, until an operator resumes them. A slot its handler held or stopped is not a failed firing. */
+           a charged root landed Failed) pauses every active schedule of a live definition until an operator resumes them.
+           A held or stopped slot is not a failed firing. A retired definition's pause would outlive a redeploy. */
         WITH paused AS (
             UPDATE acta.schedules js
             SET
@@ -1280,9 +1280,10 @@ BEGIN
                     OR (j.schedule_id IS NOT NULL AND r.job_status_code = 200 /* JobStatusCode.Failed */)
                 )
                 AND jd.firing_failure_policy_code = 20 /* FiringFailurePolicyCode.PauseScheduling */
+                AND jd.definition_status_code = 10 /* DefinitionStatusCode.Active */
             RETURNING
                 js.schedule_id, js.schedule_name, j.job_id, j.namespace_id, j.definition_id, j.tenant_id,
-                COALESCE(j.lineage_root_job_id, j.job_id) AS lineage_root_job_id, r.execution_number, j.event_recording_code
+                COALESCE(j.lineage_root_job_id, j.job_id) AS lineage_root_job_id, r.execution_number
         ),
         parked AS (
             UPDATE acta.schedules_state st
@@ -1297,8 +1298,7 @@ BEGIN
             100 /* EventCode.SchedulePaused */, now(), p.namespace_id, 50 /* EntityCode.Job */, p.job_id,
             p.definition_id, p.tenant_id, p.lineage_root_job_id, p.execution_number, 'Paused by the firing failure policy: the last firing failed for good.',
             1 /* JobPayloadFormat.Json */, convert_to('{"schedule":"' || p.schedule_name || '","reason":"firing-failed"}', 'UTF8')
-        FROM paused p
-        WHERE p.event_recording_code = 20 /* EventRecordingCode.Audit */;
+        FROM paused p;
     END IF;
 
     /* The attempt's own event under the recording gate (EventRecordingCode) plus the alert overlay, which writes a one-shot's
@@ -3487,9 +3487,10 @@ BEGIN
             AND js.schedule_status_code = 10 /* ScheduleStatusCode.Active */
             AND (r.new_status = 40 /* JobStatusCode.Idle */ OR (r.new_status = 200 /* JobStatusCode.Failed */ AND r.schedule_id IS NOT NULL))
             AND jd.firing_failure_policy_code = 20 /* FiringFailurePolicyCode.PauseScheduling */
+            AND jd.definition_status_code = 10 /* DefinitionStatusCode.Active */
         RETURNING
             js.schedule_id, js.schedule_name, r.job_id, r.namespace_id, r.definition_id, r.tenant_id,
-            COALESCE(r.lineage_root_job_id, r.job_id) AS lineage_root_job_id, r.execution_number, r.event_recording_code
+            COALESCE(r.lineage_root_job_id, r.job_id) AS lineage_root_job_id, r.execution_number
     ),
     -- One write per schedule state, since a row updated twice in one statement keeps only one of the updates: the wake
     -- of a slot's parked members or of a schedule waiting for a root's capacity, the capacity each envelope settled
@@ -3544,7 +3545,6 @@ BEGIN
             p.definition_id, p.tenant_id, p.lineage_root_job_id, p.execution_number, 'Paused by the firing failure policy: the last firing failed for good.',
             1 /* JobPayloadFormat.Json */, convert_to('{"schedule":"' || p.schedule_name || '","reason":"firing-failed"}', 'UTF8')
         FROM policy_paused p
-        WHERE p.event_recording_code = 20 /* EventRecordingCode.Audit */
     )
     SELECT r.job_id, r.new_status, r.parent_job_id, 0::SMALLINT
     FROM reclaimed r;
@@ -4368,10 +4368,10 @@ JOIN acta.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO acta.migrations (name)
-VALUES ('M20261110225447_init')
+VALUES ('M20261110235546_init')
 ON CONFLICT (name) DO NOTHING;
 
--- ===== END M20261110225447_init =====
+-- ===== END M20261110235546_init =====
 
 COMMIT;
 

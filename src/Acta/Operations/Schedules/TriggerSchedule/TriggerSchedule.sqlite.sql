@@ -79,9 +79,7 @@ SELECT
     @p_details
 FROM {{schema}}.jobs j
 JOIN temp._ts_target t ON t.action = 1 /* ControlAction.Applied */
-WHERE
-    j.job_id = @p_job_id
-    AND j.event_recording_code = 20 /* EventRecordingCode.Audit */;
+WHERE j.job_id = @p_job_id;
 
 SELECT
     CASE WHEN t.schedule_id IS NULL THEN 2 /* ControlAction.NotFound */ ELSE t.action END AS action,

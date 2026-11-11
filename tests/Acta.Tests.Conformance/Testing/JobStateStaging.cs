@@ -34,6 +34,15 @@ internal static class JobStateStaging
     public static Task SetStatusAsync(IDbSession db, long jobId, JobStatusCode status, CancellationToken ct) =>
         SetStatusAsync(db, jobId, (byte)status, ct);
 
+    /// <summary>Records <paramref name="jobId"/> at <paramref name="recording"/>, the level its definition snapshots at enqueue.</summary>
+    public static Task SetEventRecordingAsync(IDbSession db, long jobId, EventRecordingCode recording, CancellationToken ct) =>
+        db.ExecuteRawAsync(
+            "UPDATE {schema}.jobs SET event_recording_code = @p_level WHERE job_id = @p_id",
+            ct,
+            ("@p_level", (byte)recording),
+            ("@p_id", jobId)
+        );
+
     /// <summary>
     /// Applies <paramref name="set"/> to the jobs_state rows of <paramref name="jobIds"/>, a hundred per statement and
     /// by key. A predicate on anything else scans the shared table under update locks on SQL Server, waits behind

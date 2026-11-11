@@ -346,8 +346,8 @@ BEGIN
         WHERE st.schedule_id = s.schedule_id;
 
         /* The definition's firing failure policy: a firing that failed for good (a spent budget, the slot back to Idle;
-           a charged root landed Failed) pauses every active schedule of the definition, with the reason as the pause
-           message, until an operator resumes them. A slot its handler held or stopped is not a failed firing. */
+           a charged root landed Failed) pauses every active schedule of a live definition until an operator resumes them.
+           A held or stopped slot is not a failed firing. A retired definition's pause would outlive a redeploy. */
         WITH paused AS (
             UPDATE {{schema}}.schedules js
             SET
@@ -370,9 +370,10 @@ BEGIN
                     OR (j.schedule_id IS NOT NULL AND r.job_status_code = 200 /* JobStatusCode.Failed */)
                 )
                 AND jd.firing_failure_policy_code = 20 /* FiringFailurePolicyCode.PauseScheduling */
+                AND jd.definition_status_code = 10 /* DefinitionStatusCode.Active */
             RETURNING
                 js.schedule_id, js.schedule_name, j.job_id, j.namespace_id, j.definition_id, j.tenant_id,
-                COALESCE(j.lineage_root_job_id, j.job_id) AS lineage_root_job_id, r.execution_number, j.event_recording_code
+                COALESCE(j.lineage_root_job_id, j.job_id) AS lineage_root_job_id, r.execution_number
         ),
         parked AS (
             UPDATE {{schema}}.schedules_state st
@@ -387,8 +388,7 @@ BEGIN
             100 /* EventCode.SchedulePaused */, now(), p.namespace_id, 50 /* EntityCode.Job */, p.job_id,
             p.definition_id, p.tenant_id, p.lineage_root_job_id, p.execution_number, 'Paused by the firing failure policy: the last firing failed for good.',
             1 /* JobPayloadFormat.Json */, convert_to('{"schedule":"' || p.schedule_name || '","reason":"firing-failed"}', 'UTF8')
-        FROM paused p
-        WHERE p.event_recording_code = 20 /* EventRecordingCode.Audit */;
+        FROM paused p;
     END IF;
 
     /* The attempt's own event under the recording gate (EventRecordingCode) plus the alert overlay, which writes a one-shot's

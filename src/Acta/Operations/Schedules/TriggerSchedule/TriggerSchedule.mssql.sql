@@ -9,7 +9,7 @@ BEGIN TRY
     DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
     DECLARE @found BIT = 0, @status TINYINT, @paused DATETIME2(7), @next DATETIME2(7), @version INT;
     DECLARE @slot_status TINYINT, @firing_status TINYINT, @action TINYINT;
-    DECLARE @ns INT, @def INT, @lineage BIGINT, @en INT, @event_recording TINYINT, @job_ref UNIQUEIDENTIFIER;
+    DECLARE @ns INT, @def INT, @lineage BIGINT, @en INT, @job_ref UNIQUEIDENTIFIER;
     DECLARE @lock_result INT, @lock_resource NVARCHAR(255);
 
     /* The namespace's schedule lock, shared, before any row lock (docs/sql-internals.md, "Schedule lock"), then the
@@ -20,7 +20,6 @@ BEGIN TRY
         @ns = j.namespace_id,
         @def = j.definition_id,
         @lineage = j.lineage_root_job_id,
-        @event_recording = j.event_recording_code,
         @job_ref = j.job_ref
     FROM {{schema}}.jobs j
     WHERE j.job_id = @p_job_id;
@@ -103,21 +102,20 @@ BEGIN TRY
                     @p_job_id, 60 /* CheckpointKindCode.Firing */, 'sys.firing', 10 /* CheckpointStatusCode.Pending */,
                     1 /* JobPayloadFormat.Json */, CAST(CAST(@p_envelope AS VARCHAR(MAX)) AS VARBINARY(MAX)), @now, @now, 0);
 
-            IF @event_recording = 20 /* EventRecordingCode.Audit */
-                INSERT INTO {{schema}}.events (
-                    event_code, created_at_utc, namespace_id,
-                    entity_code, entity_id,
-                    definition_id, lineage_root_job_id,
-                    execution_number,
-                    event_message, details_format_id, details
-                )
-                VALUES (
-                    104 /* EventCode.ScheduleTriggered */, @now, @ns,
-                    50 /* EntityCode.Job */, @p_job_id,
-                    @def, COALESCE(@lineage, @p_job_id),
-                    @en,
-                    @p_event_message, @p_details_format_id, @p_details
-                );
+            INSERT INTO {{schema}}.events (
+                event_code, created_at_utc, namespace_id,
+                entity_code, entity_id,
+                definition_id, lineage_root_job_id,
+                execution_number,
+                event_message, details_format_id, details
+            )
+            VALUES (
+                104 /* EventCode.ScheduleTriggered */, @now, @ns,
+                50 /* EntityCode.Job */, @p_job_id,
+                @def, COALESCE(@lineage, @p_job_id),
+                @en,
+                @p_event_message, @p_details_format_id, @p_details
+            );
         END
 
     SELECT

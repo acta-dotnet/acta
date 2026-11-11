@@ -12,7 +12,7 @@ public enum EventRecordingCode : byte
 
     [Code(
         "failures",
-        "Records failed, orphaned, and finally failed attempts, a success only when it recovers from counted failures, a job that crash recovery releases from a stranded lane, and a caller's pause, resume, restart, reschedule, priority change, input update, or cancel. Under an enabled alert profile it also records a one-shot's success past its first attempt, which resolves the alert the failure opened."
+        "Records every failed or orphaned attempt, a success that recovers from counted failures, a job freed from a stranded lane, a caller's pause, resume, restart, reschedule, priority change, input update, or cancel, and a schedule's pause, pause end, manual trigger, or failing evaluation. Under an enabled alert profile, also a one-shot's success past its first attempt, which resolves its alert."
     )]
     Failures = 10,
 

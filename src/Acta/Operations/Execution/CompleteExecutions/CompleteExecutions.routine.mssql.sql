@@ -342,7 +342,8 @@ BEGIN
                             (f.job_kind_code = 20 /* JobKindCode.Permanent */ AND f.job_status_code = 40 /* JobStatusCode.Idle */ AND f.succeeded = 0)
                             OR (f.schedule_id IS NOT NULL AND f.job_status_code = 200 /* JobStatusCode.Failed */)
                         )
-                        AND jd.firing_failure_policy_code = 20 /* FiringFailurePolicyCode.PauseScheduling */;
+                        AND jd.firing_failure_policy_code = 20 /* FiringFailurePolicyCode.PauseScheduling */
+                        AND jd.definition_status_code = 10 /* DefinitionStatusCode.Active */;
 
                     UPDATE st
                     SET next_evaluation_at_utc = NULL, modified_at_utc = @now, version = st.version + 1
@@ -358,8 +359,7 @@ BEGIN
                         1 /* JobPayloadFormat.Json */, CONVERT(VARBINARY(MAX), '{"schedule":"' + p.schedule_name + '","reason":"firing-failed"}')
                     FROM @policy_paused p
                     INNER JOIN {{schema}}.jobs j WITH (FORCESEEK) ON j.job_id = p.job_id
-                    INNER JOIN {{schema}}.jobs_state r WITH (FORCESEEK) ON r.job_id = p.job_id
-                    WHERE j.event_recording_code = 20 /* EventRecordingCode.Audit */;
+                    INNER JOIN {{schema}}.jobs_state r WITH (FORCESEEK) ON r.job_id = p.job_id;
                 END
             END
 

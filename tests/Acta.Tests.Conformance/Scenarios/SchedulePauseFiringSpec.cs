@@ -82,6 +82,24 @@ public sealed class SchedulePauseFiringSpec : ActaRuntimeTestBase<ConformanceFix
         Assert.Contains(EventCode.SchedulePauseExpired, events.Select(e => e.EventCode));
     }
 
+    [Fact(DisplayName = "A timed pause that ends on a slot recorded below Audit still writes pause-expired, and no admission event")]
+    public async Task Pause_end_is_recorded_below_audit()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var slotId = await SlotIdAsync(ct);
+        await JobStateStaging.SetEventRecordingAsync(Db, slotId, EventRecordingCode.Failures, ct);
+        var until = await ScheduleCursorAsync(slotId, ct);
+        Assert.Equal(ControlAction.Applied, (await Schedules.PauseAsync(Lookup(), untilUtc: until, ct: ct)).Action);
+
+        await AdmitAtAsync(until, ct);
+
+        // The schedule went back to Active, which is recorded at every level. The occurrence it admitted in the same
+        // pass is a per-occurrence decision and stays at Audit.
+        Assert.Equal(JobStatusCode.Ready, (await ReadJobAsync(slotId, ct)).Status);
+        Assert.Equal(1, await CountEventsAsync(slotId, EventCode.SchedulePauseExpired, ct));
+        Assert.Equal(0, await CountEventsAsync(slotId, EventCode.ScheduleAdmitted, ct));
+    }
+
     [Fact(DisplayName = "A timed pause whose window holds no occurrence ends at its expiry without admitting anything")]
     public async Task Timed_pause_with_nothing_due_ends_without_a_firing()
     {

@@ -160,8 +160,45 @@ public sealed class FiringFailurePolicySpec : ActaRuntimeTestBase<ConformanceFix
         var workerId = await ChaosSpecHelpers.WorkerIdAsync(Db, ns, ct);
         var slotId = await ScheduleTestOps.SlotIdAsync(Db, TestNamespace, FiringFailurePolicyManifest.PausingJobName, ct);
 
-        // The firing's only attempt is in flight on a lease that lapsed.
         await AdmitAtAsync(slotId, await CursorAsync(slotId, ct), ct);
+        await LoseTheAttemptAsync(slotId, workerId, ns, ct);
+
+        Assert.Equal(JobStatusCode.Idle, (await ReadJobAsync(slotId, ct)).Status);
+        var schedule = Assert.Single(await ScheduleTestOps.ReadAsync(Db, slotId, ct));
+        Assert.Equal(ScheduleStatusCode.Paused, schedule.Status);
+        Assert.Equal("Paused by the firing failure policy: the last firing failed for good.", schedule.PauseMessage);
+        Assert.Equal(1, await CountEventsAsync(slotId, EventCode.SchedulePaused, ct));
+    }
+
+    [Theory(DisplayName = "The policy's pause is recorded below Audit, on a completion and on a reclaim")]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task The_policy_pause_is_recorded_below_audit(bool lostAttempt)
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
+        var slotId = await ScheduleTestOps.SlotIdAsync(Db, TestNamespace, FiringFailurePolicyManifest.PausingJobName, ct);
+        await JobStateStaging.SetEventRecordingAsync(Db, slotId, EventRecordingCode.Failures, ct);
+        await AdmitAtAsync(slotId, await CursorAsync(slotId, ct), ct);
+
+        if (lostAttempt)
+        {
+            await LoseTheAttemptAsync(slotId, await ChaosSpecHelpers.WorkerIdAsync(Db, ns, ct), ns, ct);
+        }
+        else
+        {
+            Assert.Equal(RunOnceStatus.Failed, await Runtime.RunOnceAsync(slotId, ct));
+        }
+
+        // The engine stopped every schedule of the definition: that is recorded whatever the level, as an operator's
+        // pause of one is. The admission before it is a per-occurrence decision and stays at Audit.
+        Assert.Equal(1, await CountEventsAsync(slotId, EventCode.SchedulePaused, ct));
+        Assert.Equal(0, await CountEventsAsync(slotId, EventCode.ScheduleAdmitted, ct));
+    }
+
+    // The firing's only attempt is in flight on a lease that lapsed, and recovery finds it.
+    private async Task LoseTheAttemptAsync(long slotId, int workerId, int ns, CancellationToken ct)
+    {
         Assert.Equal(
             1,
             await Db.From<JobStateEntity>()
@@ -179,12 +216,6 @@ public sealed class FiringFailurePolicySpec : ActaRuntimeTestBase<ConformanceFix
         );
 
         await ChaosSpecHelpers.ReclaimAsync(Services, ns, ct);
-
-        Assert.Equal(JobStatusCode.Idle, (await ReadJobAsync(slotId, ct)).Status);
-        var schedule = Assert.Single(await ScheduleTestOps.ReadAsync(Db, slotId, ct));
-        Assert.Equal(ScheduleStatusCode.Paused, schedule.Status);
-        Assert.Equal("Paused by the firing failure policy: the last firing failed for good.", schedule.PauseMessage);
-        Assert.Equal(1, await CountEventsAsync(slotId, EventCode.SchedulePaused, ct));
     }
 
     private async Task<DateTime> CursorAsync(long slotId, CancellationToken ct)
