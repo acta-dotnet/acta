@@ -84,7 +84,7 @@ internal static class ManifestSourceWriter
             );
             sb.AppendLine("    /// names are part of the job's contract.");
             sb.AppendLine("    /// </summary>");
-            sb.AppendLine($"    public sealed record {name}({string.Join(", ", parameters)});");
+            sb.AppendLine($"    {ContractAccessibility(job)} sealed record {name}({string.Join(", ", parameters)});");
         }
         sb.AppendLine("}");
         sb.AppendLine();
@@ -264,10 +264,29 @@ internal static class ManifestSourceWriter
                 $"    /// Call of job <c>{j.JobName}</c>, for <c>IJobs.EnqueueAsync</c>, <c>ScheduleAsync</c>, and <c>RunAndWaitAsync</c>."
             );
             sb.AppendLine("    /// </summary>");
-            sb.AppendLine($"    public static global::Acta.JobCall<{types}> {PascalCase(j.JobName)}({parameters}) =>");
+            sb.AppendLine($"    {ContractAccessibility(j)} static global::Acta.JobCall<{types}> {PascalCase(j.JobName)}({parameters}) =>");
             sb.AppendLine($"        new(new global::Acta.JobContract<{types}>(typeof({manifestTypeName}), \"{j.JobName}\"), {value});");
         }
     }
+
+    /// <summary>
+    /// The accessibility of a job's call and argument record: public, unless a type its handler takes or returns is not
+    /// visible outside the assembly, which a public member may not name. The handler's own accessibility does not count.
+    /// </summary>
+    private static string ContractAccessibility(DiscoveredJob j) =>
+        j.InputParameters.All(p => VisibleOutsideAssembly(p.Type)) && (j.ResultType is null || VisibleOutsideAssembly(j.ResultType))
+            ? "public"
+            : "internal";
+
+    private static bool VisibleOutsideAssembly(ITypeSymbol type) =>
+        type switch
+        {
+            IArrayTypeSymbol array => VisibleOutsideAssembly(array.ElementType),
+            INamedTypeSymbol named => named.DeclaredAccessibility == Accessibility.Public
+                && (named.ContainingType is null || VisibleOutsideAssembly(named.ContainingType))
+                && named.TypeArguments.All(VisibleOutsideAssembly),
+            _ => true,
+        };
 
     internal static string FormatString(string value) => Microsoft.CodeAnalysis.CSharp.SymbolDisplay.FormatLiteral(value, quote: true);
 

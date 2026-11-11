@@ -219,4 +219,62 @@ public class ManifestCallsTests
         Assert.Contains("public sealed record Args_0_send_invoice(int invoiceId, string recipient);", manifest);
         Assert.DoesNotContain("SendInvoice(", manifest, StringComparison.Ordinal);
     }
+
+    // A public member that names an internal type does not compile (CS0050, CS0051), and an internal contract is an
+    // ordinary choice for a job no other assembly calls.
+    [Theory]
+    [InlineData(
+        "internal sealed record Order(int Id);",
+        "internal static void Run(Order order) { }",
+        "JobCall<global::GenTests.Order> OnlyJob("
+    )]
+    [InlineData("internal sealed record Receipt(int Id);", "public static Receipt Run(Query query) => new(query.Id);", "Receipt> OnlyJob(")]
+    [InlineData("internal sealed record Part(int Id);", "public static void Run(Part part, int count) { }", "OnlyJobArgs> OnlyJob(")]
+    [InlineData(
+        "public static class Outer { internal sealed record Inner(int Id); }",
+        "public static void Run(Outer.Inner inner) { }",
+        "Inner> OnlyJob("
+    )]
+    [InlineData(
+        "internal sealed record Item(int Id);",
+        "public static void Run(System.Collections.Generic.List<Item[]> items) { }",
+        "OnlyJob("
+    )]
+    public void A_job_with_an_internal_contract_type_gets_an_internal_call(string declaration, string handler, string call)
+    {
+        var result = RunGenerator(
+            $$"""
+            using Acta;
+            namespace GenTests;
+
+            public sealed record Query(int Id);
+            public sealed record Probe(int Id);
+            {{declaration}}
+
+            internal static class Handler
+            {
+                [Job("only-job")]
+                {{handler}}
+
+                [Job("open-job")]
+                public static Probe Open(Probe probe) => probe;
+            }
+            """,
+            "GenTests",
+            out var compilation
+        );
+
+        Assert.Empty(result.Diagnostics);
+        AssertCompilesCleanly(compilation);
+        var manifest = Manifest(result);
+        var factory = manifest.Split('\n').Single(line => line.Contains(call, StringComparison.Ordinal));
+        Assert.StartsWith("    internal static global::Acta.JobCall<", factory, StringComparison.Ordinal);
+        if (call.Contains("Args", StringComparison.Ordinal))
+        {
+            Assert.Contains("internal sealed record OnlyJobArgs(", manifest, StringComparison.Ordinal);
+        }
+
+        // A job whose contract is public keeps its public call beside it, though its handler is internal too.
+        Assert.Contains("public static global::Acta.JobCall<global::GenTests.Probe, global::GenTests.Probe> OpenJob(", manifest);
+    }
 }
