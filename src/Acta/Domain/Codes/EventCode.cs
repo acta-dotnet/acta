@@ -185,7 +185,7 @@ public enum EventCode : byte
 
     [Code(
         "schedule.retimed",
-        "A deploy changed the schedule's timing, or a calendar it names was published; the undecided occurrences of the old timing were discarded and the schedule continues from the first occurrence of the new one. The details carry the schedule name."
+        "A deploy changed the schedule's timing or declared again a schedule it had dropped, or a calendar it names was published; the undecided occurrences of the old timing were discarded and the schedule continues from the first occurrence of the new one. The details carry the schedule name."
     )]
     ScheduleRetimed = 107,
 
@@ -194,6 +194,12 @@ public enum EventCode : byte
         "The schedule's next occurrence could not be computed, so it admits nothing and is tried again every minute; the message is the error and the details carry the schedule. Recorded whatever the event recording level, when the schedule enters the error."
     )]
     ScheduleEvaluationFailed = 108,
+
+    [Code(
+        "schedule.orphaned",
+        "A deploy dropped the schedule: its definition no longer declares it, so it fires nothing and keeps its history. The details carry the schedule name. Recorded whatever the event recording level."
+    )]
+    ScheduleOrphaned = 109,
 
     /// <summary>
     /// The calendar version row is the subject of every calendar.* event; details carry the calendar's name and the

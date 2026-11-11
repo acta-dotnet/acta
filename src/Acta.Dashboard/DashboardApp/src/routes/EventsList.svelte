@@ -28,7 +28,7 @@
     'job.restarted', 'job.reprioritized', 'job.purged', 'job.input-amended',
     'job.signal-raised', 'job.state-reset', 'job.note-recorded',
     'schedule.paused', 'schedule.resumed', 'schedule.pause-expired', 'schedule.triggered',
-    'schedule.admitted', 'schedule.skipped', 'schedule.retimed', 'schedule.evaluation-failed',
+    'schedule.admitted', 'schedule.skipped', 'schedule.retimed', 'schedule.evaluation-failed', 'schedule.orphaned',
     'calendar.draft-saved', 'calendar.published', 'calendar.archived',
     'worker.started', 'worker.stopped', 'worker.died',
     'alert.acknowledged', 'alert.resolved',

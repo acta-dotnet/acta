@@ -714,6 +714,7 @@ enum Acta.EventCode : System.Byte
     OutboxRequeued = 180
     ScheduleAdmitted = 105
     ScheduleEvaluationFailed = 108
+    ScheduleOrphaned = 109
     SchedulePauseExpired = 102
     SchedulePaused = 100
     ScheduleResumed = 101

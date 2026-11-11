@@ -237,6 +237,33 @@ public sealed class RegisterSchedulesSpec : ActaRuntimeTestBase<ConformanceFixtu
         Assert.Equal(1, await CountEventsAsync(slotId, EventCode.ScheduleRetimed, ct));
     }
 
+    [Fact(
+        DisplayName = "A deploy that drops a schedule records schedule.orphaned, and one that brings it back schedule.retimed, below Audit too"
+    )]
+    public async Task A_deploy_records_a_schedule_it_drops_and_one_it_brings_back()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var cursor = FloorSeconds(DateTime.UtcNow).AddHours(6);
+        var jobName = $"reregister-orphan-{Guid.NewGuid():N}";
+        var defId = await CreateDefinitionAsync(jobName, ct, EventRecordingCode.Failures);
+        await RegisterAsync(defId, jobName, [Slot("kept", cursor), Slot("dropped", cursor)], ct);
+        var slotId = await SlotIdAsync(jobName, ct);
+
+        await RegisterAsync(defId, jobName, [Slot("kept", cursor)], ct);
+        await RegisterAsync(defId, jobName, [Slot("kept", cursor)], ct);
+
+        // Dropped once, recorded once: the second deploy finds it already orphaned.
+        Assert.Equal("dropped", EventDetail(await ReadSingleEventAsync(slotId, EventCode.ScheduleOrphaned, ct), "schedule"));
+        Assert.Equal(0, await CountEventsAsync(slotId, EventCode.ScheduleRetimed, ct));
+
+        await RegisterAsync(defId, jobName, [Slot("kept", cursor), Slot("dropped", cursor)], ct);
+
+        // Back with the timing it had: its cursor starts over, which is a retime.
+        Assert.Equal("dropped", EventDetail(await ReadSingleEventAsync(slotId, EventCode.ScheduleRetimed, ct), "schedule"));
+        var schedules = await Db.From<ScheduleEntity>().Where(s => s.JobId == slotId).ToListAsync(ct);
+        Assert.Equal(ScheduleStatusCode.Active, Assert.Single(schedules, s => s.ScheduleName == "dropped").Status);
+    }
+
     [Fact(DisplayName = "Registration clears a cursor a racing fire left on an orphaned schedule or a retired definition's schedule")]
     public async Task Registration_clears_a_stale_cursor_on_an_orphaned_or_retired_schedule()
     {
@@ -329,9 +356,13 @@ public sealed class RegisterSchedulesSpec : ActaRuntimeTestBase<ConformanceFixtu
             ("@p_id", jobId)
         );
 
-    private async Task<int> CreateDefinitionAsync(string jobName, CancellationToken ct)
+    private async Task<int> CreateDefinitionAsync(
+        string jobName,
+        CancellationToken ct,
+        EventRecordingCode recording = EventRecordingCode.Audit
+    )
     {
-        var map = await DefinitionTestOps.RegisterAsync(Services, TestNamespaceId, [Def(jobName)], ct);
+        var map = await DefinitionTestOps.RegisterAsync(Services, TestNamespaceId, [Def(jobName) with { EventRecording = recording }], ct);
         return map[jobName];
     }
 

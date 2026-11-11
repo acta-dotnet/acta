@@ -75,6 +75,7 @@ public sealed class PersistedCodeContractTests
         EventCode.ScheduleSkipped=106|schedule.skipped
         EventCode.ScheduleRetimed=107|schedule.retimed
         EventCode.ScheduleEvaluationFailed=108|schedule.evaluation-failed
+        EventCode.ScheduleOrphaned=109|schedule.orphaned
         EventCode.CalendarDraftSaved=110|calendar.draft-saved
         EventCode.CalendarPublished=111|calendar.published
         EventCode.CalendarArchived=112|calendar.archived
@@ -213,10 +214,10 @@ public sealed class PersistedCodeContractTests
         WorkerStatusCode.Dead=200|dead
         """;
 
-    private const string ExpectedDescriptionHash = "5139B199BE358FDF7CEF1BE8149604BF32107D0A076FAED76BFCF75EBEB17C6D";
+    private const string ExpectedDescriptionHash = "BC9E4342D7D8F8791D392E6943AFC9113075FA5B19B79946F3D80D189B7197C5";
 
     [Fact]
-    public void Frozen_contract_covers_all_35_families_and_202_values()
+    public void Frozen_contract_covers_all_35_families_and_203_values()
     {
         var expected = ExpectedContract
             .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
@@ -226,7 +227,7 @@ public sealed class PersistedCodeContractTests
         var actual = families.SelectMany(ReadFamily).ToDictionary(x => x.Key, StringComparer.Ordinal);
 
         Assert.Equal(35, families.Length);
-        Assert.Equal(202, expected.Count);
+        Assert.Equal(203, expected.Count);
         Assert.Equal(expected.Keys.Order(), actual.Keys.Order());
 
         foreach (var (key, contract) in expected)
@@ -237,8 +238,8 @@ public sealed class PersistedCodeContractTests
             Assert.False(string.IsNullOrWhiteSpace(value.Description));
         }
 
-        Assert.Equal(202, CodeManifests.All.Count);
-        Assert.Equal(45, Enum.GetValues<EventCode>().Length);
+        Assert.Equal(203, CodeManifests.All.Count);
+        Assert.Equal(46, Enum.GetValues<EventCode>().Length);
 
         Assert.Equal((byte)200, (byte)JobStatusCode.Failed);
         Assert.Equal((byte)200, (byte)StepStatusCode.Exhausted);
@@ -246,7 +247,7 @@ public sealed class PersistedCodeContractTests
         Assert.Equal((byte)200, (byte)WorkerStatusCode.Dead);
 
         var payloads = new[] { JobPayloadFormat.None, JobPayloadFormat.Json, JobPayloadFormat.Bytes };
-        Assert.Equal(205, actual.Count + payloads.Length);
+        Assert.Equal(206, actual.Count + payloads.Length);
         Assert.Equal([0, 1, 2], payloads.Select(p => (int)p.Id));
 
         var canonical = string.Join(
@@ -324,7 +325,7 @@ public sealed class PersistedCodeContractTests
     {
         // The two widest families are the ones whose headroom is worth pinning: their assigned ids
         // (the manifest is the assigned set) plus the architecture reserve held out of EventCode.
-        Assert.Equal(45, EventCode.Manifest.Count);
+        Assert.Equal(46, EventCode.Manifest.Count);
         Assert.Equal(31, typeof(EventCode).GetCustomAttributes<ReservedCodeRangeAttribute>().Sum(range => range.End - range.Start + 1));
         Assert.All(
             CodeFamilies(),

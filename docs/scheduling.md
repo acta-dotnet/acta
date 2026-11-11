@@ -319,7 +319,7 @@ What each job verb does to a permanent job from each status is in the operator g
 - `<app> jobs deploy` and `<app> jobs migrate` write the definitions and schedules this build declares and record its version; a worker start writes none of them ([deploying jobs](./operator-guide.md#deploying-jobs)). In development, `MigrateOnStartup = true` does the deploy at startup.
 - A deploy with an unchanged schedule changes nothing. A changed expression, expression kind, time-zone id, interval anchor, availability calendar name, or bound retimes the schedule and discards its undecided occurrences; the zone's rules are not compared, only its id. No deploy decides an occurrence, the running fleet does ([catch-up, misfire, and expiration](#catch-up-misfire-and-expiration)).
 - The calendars a deploy's schedules name are published before it ([calendars](#calendars)). A publication and a deploy that binds its family never interleave: whichever starts second waits, so the deploy reads the version the publication leaves, or the publication retimes the schedules the deploy wrote.
-- A schedule a deploy drops is orphaned, and comes back without its pause when a build that declares it deploys, so to hold a permanent job across a rollback, pause the job, not the schedule.
+- A schedule a deploy drops is orphaned, recorded as `schedule.orphaned`, and comes back without its pause when a build that declares it deploys, recorded as `schedule.retimed`; both are written at every recording level. To hold a permanent job across a rollback, pause the job, not the schedule.
 
 ## Reading schedules in SQL
 

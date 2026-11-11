@@ -117,9 +117,9 @@ BEGIN TRY
             AND j.job_kind_code = 20 /* JobKindCode.Permanent */;
 
     -- The schedule writes seek by key (docs/sql-internals.md, "Locking reads seek").
-    /* A schedule whose timing changed is retimed: the old stream's undecided occurrences are discarded and the plan's
-       cursor is the new timing's first occurrence. Written before the declaration, which overwrites the fingerprint the
-       retime is decided by. A schedule name is dotted kebab ASCII. */
+    /* A schedule whose timing changed, or that a deploy brings back from orphaning, is retimed: undecided occurrences of
+       the old stream are discarded and the plan's cursor is the first of the new. Written at every recording level, before
+       the declaration, which overwrites the fingerprint and status it is decided by. A schedule name is dotted kebab ASCII. */
     INSERT INTO {{schema}}.events (
         event_code, created_at_utc, namespace_id,
         entity_code, entity_id,
@@ -137,7 +137,7 @@ BEGIN TRY
     INNER JOIN {{schema}}.schedules AS s WITH (FORCESEEK) ON s.definition_id = src.definition_id AND s.schedule_name = src.schedule_name
     INNER JOIN {{schema}}.jobs AS j WITH (FORCESEEK) ON j.job_id = s.job_id
     INNER JOIN {{schema}}.jobs_state AS r WITH (FORCESEEK) ON r.job_id = s.job_id
-    WHERE s.timing_fingerprint <> src.timing_fingerprint AND j.event_recording_code = 20 /* EventRecordingCode.Audit */;
+    WHERE (s.timing_fingerprint <> src.timing_fingerprint OR s.schedule_status_code = 230 /* ScheduleStatusCode.Orphaned */);
 
     -- A schedule with no slot records its retime against its definition.
     INSERT INTO {{schema}}.events (
@@ -153,11 +153,7 @@ BEGIN TRY
         1 /* JobPayloadFormat.Json */, CAST('{"schedule":"' + s.schedule_name + '"}' AS VARBINARY(MAX))
     FROM @p_schedules AS src
     INNER JOIN {{schema}}.schedules AS s WITH (FORCESEEK) ON s.definition_id = src.definition_id AND s.schedule_name = src.schedule_name
-    INNER JOIN {{schema}}.definitions AS d WITH (FORCESEEK) ON d.definition_id = s.definition_id
-    WHERE
-        s.job_id IS NULL
-        AND s.timing_fingerprint <> src.timing_fingerprint
-        AND d.event_recording_code_effective = 20 /* EventRecordingCode.Audit */;
+    WHERE s.job_id IS NULL AND (s.timing_fingerprint <> src.timing_fingerprint OR s.schedule_status_code = 230 /* ScheduleStatusCode.Orphaned */);
 
     -- The cursor is written on a retime, from the plan, and on a comeback from orphaning, which the plan seeded from now. A
     -- cursor the plan copied from the stored one is never written back: the plan read it unlocked, and another host's
@@ -346,6 +342,26 @@ BEGIN TRY
         modified_at_utc = @now
     FROM {{schema}}.schedules_state AS st WITH (FORCESEEK)
     INNER JOIN @candidates AS c ON c.schedule_id = st.schedule_id;
+
+    -- A deploy that drops a schedule says so at every recording level, on its slot or, with none, on its definition.
+    INSERT INTO {{schema}}.events (
+        event_code, created_at_utc, namespace_id,
+        entity_code, entity_id,
+        definition_id, tenant_id, lineage_root_job_id,
+        execution_number,
+        details_format_id, details
+    )
+    SELECT
+        109 /* EventCode.ScheduleOrphaned */, @now, @p_namespace_id,
+        CASE WHEN js.job_id IS NULL THEN 30 /* EntityCode.Definition */ ELSE 50 /* EntityCode.Job */ END,
+        COALESCE(js.job_id, js.definition_id),
+        js.definition_id, j.tenant_id, COALESCE(j.lineage_root_job_id, j.job_id),
+        COALESCE(r.execution_number, 0),
+        1 /* JobPayloadFormat.Json */, CAST('{"schedule":"' + js.schedule_name + '"}' AS VARBINARY(MAX))
+    FROM @candidates AS c
+    INNER JOIN {{schema}}.schedules AS js WITH (FORCESEEK) ON js.schedule_id = c.schedule_id
+    LEFT JOIN {{schema}}.jobs AS j WITH (FORCESEEK) ON j.job_id = js.job_id
+    LEFT JOIN {{schema}}.jobs_state AS r WITH (FORCESEEK) ON r.job_id = js.job_id;
 
     /* A retire that commits after the worker read its stored schedules leaves this call writing cursors for the
        retired definition's schedules; the heal clears every orphaned or retired schedule's cursor in the namespace. */

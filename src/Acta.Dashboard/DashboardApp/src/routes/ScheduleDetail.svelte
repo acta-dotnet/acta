@@ -110,7 +110,8 @@
     'schedule.triggered',
     'schedule.skipped',
     'schedule.retimed',
-    'schedule.evaluation-failed'
+    'schedule.evaluation-failed',
+    'schedule.orphaned'
   ];
   let definitionEvents = $derived(`definitions/${encodeURIComponent(jobNamespace)}/${encodeURIComponent(jobName)}/events`);
   async function scheduleEvents(eventCode: string, signal: AbortSignal): Promise<HistoryEvent[]> {
