@@ -3,7 +3,7 @@ namespace Acta;
 /// <summary>
 /// The durable outcome of one step, one row per <c>(JobId, StepName)</c>, written by <c>start_job_step</c> and
 /// <c>complete_job_step</c> behind <c>ctx.RunStepAsync</c>: inserted Pending on first run and ended Succeeded, or, for
-/// an at-most-once step, Exhausted or Interrupted (a job restart deletes an Exhausted row). <see cref="Status"/> is
+/// an at-most-once step, Failed or Interrupted (a job restart deletes a Failed row). <see cref="Status"/> is
 /// the success indicator, since a void step stores no result. A step retries through its job, so the row counts no
 /// attempts. Keyed by its job, as every job satellite is: concurrent steps of in-flight jobs spread over those jobs' pages.
 /// </summary>
@@ -29,13 +29,13 @@ internal sealed class StepEntity : IEntity
     public string StepName { get; init; } = default!;
 
     /// <summary>
-    /// <c>Pending</c> until the step succeeds; <c>Succeeded</c>, <c>Exhausted</c>, or <c>Interrupted</c> on terminal.
+    /// <c>Pending</c> until the step succeeds; <c>Succeeded</c>, <c>Failed</c>, or <c>Interrupted</c> on terminal.
     /// </summary>
     [DbColumn("step_status_code")]
     public StepStatusCode Status { get; set; }
 
     /// <summary>
-    /// Operator-readable failure of an at-most-once step, set on its terminal <c>Exhausted</c> or <c>Interrupted</c>
+    /// Operator-readable failure of an at-most-once step, set on its terminal <c>Failed</c> or <c>Interrupted</c>
     /// row and NULL on every other row; truncated by <c>MessageTruncator</c>.
     /// </summary>
     [DbColumn("failure_message", DbKind.UnicodeString, Size = 512)]
@@ -43,7 +43,7 @@ internal sealed class StepEntity : IEntity
 
     /// <summary>
     /// Format-id selector for <see cref="Result"/>; <c>0</c> means no result (void step or in-flight
-    /// or exhausted). <c>ck_steps_result_pair</c> enforces
+    /// or failed). <c>ck_steps_result_pair</c> enforces
     /// <c>(result_format_id = 0) = (result IS NULL)</c>, and <c>ck_steps_result_succeeded</c> admits a
     /// non-zero id only on a <c>Succeeded</c> row.
     /// </summary>

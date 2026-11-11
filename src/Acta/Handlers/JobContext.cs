@@ -79,7 +79,7 @@ public abstract partial class JobContext
     /// Whether a retryable failure of this attempt would end the job for good, or a permanent job's current firing, whose
     /// next firing has a fresh budget: the charged failures leave no <c>MaxAttempts</c> for a retry, or its backoff would pass
     /// a <c>Strict</c> deadline, which the completion reads again, so near the deadline the answer can change before it lands.
-    /// Counts charged failures, never <see cref="ExecutionNumber"/>. A non-retryable exception (<see cref="StepExhaustedException"/>,
+    /// Counts charged failures, never <see cref="ExecutionNumber"/>. A non-retryable exception (<see cref="StepFailedException"/>,
     /// <see cref="NotSupportedException"/>, <see cref="NotImplementedException"/>) ends the job on any attempt, so a compensating
     /// catch filters on it too. Best effort: a crash or a lost lease on the last attempt skips the catch. False in test contexts.
     /// </summary>

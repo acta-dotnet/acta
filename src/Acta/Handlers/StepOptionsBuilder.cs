@@ -14,10 +14,10 @@ public sealed class StepOptionsBuilder
 
     /// <summary>
     /// Runs the body at most once, for effects where a double run is worse than none (charge a card). A throw is recorded
-    /// <c>Exhausted</c> and surfaces as <see cref="StepExhaustedException"/> on every pass; a replay finding the step started
+    /// <c>Failed</c> and surfaces as <see cref="StepFailedException"/> on every pass; a replay finding the step started
     /// but unfinished throws <see cref="StepInterruptedException"/>, and the handler reconciles externally. A wait, sleep,
     /// reschedule, pause, or child wait in the body throws <see cref="InvalidOperationException"/> at the call, and a
-    /// reschedule or pause exception the body throws exhausts the step, since a resume would replay the body. Read from
+    /// reschedule or pause exception the body throws fails the step, since a resume would replay the body. Read from
     /// code on every pass, so switching it mid-flight reinterprets a started step.
     /// </summary>
     public StepOptionsBuilder AtMostOnce()

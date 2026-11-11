@@ -2564,7 +2564,7 @@ sealed class Acta.SqlProviderOptions
     System.String Schema { get;set; }
     System.TimeSpan CommandTimeout { get;set; }
     const System.Int32 MaxDeadlockRetryAttempts = 100
-sealed class Acta.StepExhaustedException : System.Exception
+sealed class Acta.StepFailedException : System.Exception
     .ctor(System.String stepName, System.String lastReasonMessage)
     System.String LastReasonMessage { get; }
     System.String StepName { get; }
@@ -2581,7 +2581,7 @@ sealed class Acta.StepResultContractMismatchException : System.Exception
     System.String StepName { get; }
     System.Type ExpectedType { get; }
 enum Acta.StepStatusCode : System.Byte
-    Exhausted = 200
+    Failed = 200
     Interrupted = 230
     Pending = 10
     Succeeded = 100

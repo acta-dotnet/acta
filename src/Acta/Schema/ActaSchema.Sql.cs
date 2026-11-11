@@ -129,7 +129,7 @@ internal static partial class ActaSchema
 
         /// <summary>
         /// Step completion's outcome discriminator: a success records the result, and a failure, which only an
-        /// at-most-once body records, terminalizes the step Exhausted.
+        /// at-most-once body records, terminalizes the step Failed.
         /// </summary>
         public static readonly DbValueSpec<bool> StepSucceeded = new("p_succeeded", DbKind.Boolean);
 

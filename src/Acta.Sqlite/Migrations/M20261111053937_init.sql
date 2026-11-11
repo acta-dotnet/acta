@@ -718,7 +718,7 @@ SELECT
     ns.namespace_name,
     d.definition_name,
     s.step_name,
-    CASE s.step_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'pending' WHEN 100 THEN 'succeeded' WHEN 200 THEN 'exhausted' WHEN 230 THEN 'interrupted' END AS step_status,
+    CASE s.step_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'pending' WHEN 100 THEN 'succeeded' WHEN 200 THEN 'failed' WHEN 230 THEN 'interrupted' END AS step_status,
     s.step_status_code,
     s.failure_message,
     CASE s.result_format_id
@@ -770,5 +770,5 @@ JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261111051238_init')
+VALUES ('M20261111053937_init')
 ON CONFLICT (name) DO NOTHING;

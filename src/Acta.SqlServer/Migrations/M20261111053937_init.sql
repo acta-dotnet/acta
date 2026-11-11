@@ -1960,10 +1960,10 @@ BEGIN
         )
             THROW 50012, 'ACTA:EXECUTION_FENCED:complete_job_step: the job is no longer executing this attempt.', 1;
 
-        -- Only an at-most-once body records a failure, and the failure ends the step Exhausted.
+        -- Only an at-most-once body records a failure, and the failure ends the step Failed.
         UPDATE {{schema}}.steps
         SET
-            step_status_code = CASE WHEN @p_succeeded = 1 THEN 100 /* StepStatusCode.Succeeded */ ELSE 200 /* StepStatusCode.Exhausted */ END,
+            step_status_code = CASE WHEN @p_succeeded = 1 THEN 100 /* StepStatusCode.Succeeded */ ELSE 200 /* StepStatusCode.Failed */ END,
             result_format_id = @p_result_format_id,
             result = @p_result,
             failure_message = @p_failure_message,
@@ -1976,7 +1976,7 @@ BEGIN
         ELSE IF @p_succeeded = 1
             SET @outcome = 1 /* CompleteJobStepOutcomeCode.Succeeded */;
         ELSE
-            SET @outcome = 3 /* CompleteJobStepOutcomeCode.Exhausted */;
+            SET @outcome = 3 /* CompleteJobStepOutcomeCode.Failed */;
 
         SELECT @outcome AS outcome_code;
 
@@ -4432,9 +4432,9 @@ BEGIN
                 SET @outcome = 3 /* StartJobStepOutcomeCode.ReplaySuccess */;
                 SET @rmsg = NULL;
             END
-        ELSE IF @state = 200 /* StepStatusCode.Exhausted */
+        ELSE IF @state = 200 /* StepStatusCode.Failed */
             BEGIN
-                SET @outcome = 4 /* StartJobStepOutcomeCode.Exhausted */;
+                SET @outcome = 4 /* StartJobStepOutcomeCode.Failed */;
                 SET @rfid = 0 /* JobPayloadFormat.None */;
                 SET @result = NULL;
             END
@@ -4954,7 +4954,7 @@ SELECT
     ns.namespace_name,
     d.definition_name,
     s.step_name,
-    CASE s.step_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'pending' WHEN 100 THEN 'succeeded' WHEN 200 THEN 'exhausted' WHEN 230 THEN 'interrupted' END AS step_status,
+    CASE s.step_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'pending' WHEN 100 THEN 'succeeded' WHEN 200 THEN 'failed' WHEN 230 THEN 'interrupted' END AS step_status,
     s.step_status_code,
     s.failure_message,
     CASE s.result_format_id
@@ -5010,7 +5010,7 @@ JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE name = 'M20261111051238_init')
+IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE name = 'M20261111053937_init')
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261111051238_init');
+VALUES ('M20261111053937_init');
 GO

@@ -156,12 +156,12 @@ WHERE
     AND (@p_expected_version IS NULL OR r.version = @p_expected_version)
     AND s.rejected = 0;
 
--- An exhausted at-most-once step, whose body threw, runs again on the operator's say-so; an interrupted one
+-- A failed at-most-once step, whose body threw, runs again on the operator's say-so; an interrupted one
 -- stays, since only someone who reconciled its outcome can say it may run again.
 DELETE FROM {{schema}}.steps
 WHERE
     job_id = @p_job_id
-    AND step_status_code = 200 /* StepStatusCode.Exhausted */
+    AND step_status_code = 200 /* StepStatusCode.Failed */
     AND (SELECT s.rejected FROM temp._restart_job s) = 0
     AND (@p_expected_version IS NULL OR (SELECT s.from_version FROM temp._restart_job s) = @p_expected_version);
 

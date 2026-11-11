@@ -20,7 +20,7 @@ The numbers are arranged so a raw value gives you a quick hint about the state y
 - Values below `100` represent work that is still active or waiting.
 - `100` represents normal successful completion.
 - Values between `150` and `199` represent controlled completion, such as rescheduling, suppression, or administrative closure.
-- `200` represents failure, exhaustion, or death.
+- `200` represents failure or death.
 - `220` represents cancellation.
 - `230` represents interruption or an unknown outcome.
 - `240` represents retirement or deprecation.
@@ -417,7 +417,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `Unspecified` | 0 | `unspecified` | Step status not recognized by this build; the row was written by a newer Acta. | Active |
 | `Pending` | 10 | `pending` | Started, with no success recorded; a retry of the job runs it again. | Active |
 | `Succeeded` | 100 | `succeeded` | Completed; its result, when it has one, is stored. | Active |
-| `Exhausted` | 200 | `exhausted` | An at-most-once step's body threw, so it does not run again; the job's handler receives the failure. | Active |
+| `Failed` | 200 | `failed` | An at-most-once step's body threw, so it does not run again; the job's handler receives the failure. | Active |
 | `Interrupted` | 230 | `interrupted` | A step that runs at most once was re-entered before it completed, so whether it ran is unknown; the job's handler receives the interruption. | Active |
 
 ### `TenantStatusCode` · `tenant-status` <a id="code-family-tenantstatuscode"></a>

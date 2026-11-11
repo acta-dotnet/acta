@@ -10,13 +10,13 @@ namespace Acta.Tests.Conformance.Scenarios;
 /// Conformance for durable steps: <c>ctx.RunStepAsync</c> runs a body once, persists the
 /// outcome to <c>steps</c>, and replay-skips a succeeded step. A body that throws fails the attempt
 /// and spends the job's budget; a wait inside a body resumes without spending any; an at-most-once
-/// body that throws exhausts to <c>StepExhaustedException</c>.
+/// body that throws ends its step failed, with <c>StepFailedException</c>.
 /// </summary>
 [ConformanceSpec(
     "steps.run-and-retry",
     "RunStepAsync runs once, replays results, and runs again on the job's retry",
     Area = "Steps",
-    Contract = "A step runs once and replay-skips a success, a throwing body spends the job's budget, a wait in a body charges nothing, and an at-most-once failure exhausts."
+    Contract = "A step runs once and replay-skips a success, a throwing body spends the job's budget, a wait in a body charges nothing, and an at-most-once failure is final."
 )]
 public sealed class StepSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
@@ -134,23 +134,23 @@ public sealed class StepSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.
         Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(enqueued.JobId, ct)).Status);
     }
 
-    [Fact(DisplayName = "An exhausted at-most-once step throws StepExhaustedException and fails the parent at once when uncaught")]
-    public async Task Exhausted_step_fails_the_parent_when_uncaught()
+    [Fact(DisplayName = "A failed at-most-once step throws StepFailedException and fails the parent at once when uncaught")]
+    public async Task Failed_step_fails_the_parent_when_uncaught()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-step-exhaust", JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-step-fail", JobPayload.None), ct);
 
         // The body throws once: the step is terminal, and the parent's remaining budget is not spent on it.
         Assert.Equal(RunOnceStatus.Failed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var step = Assert.Single(await ReadStepsAsync(enqueued.JobId, ct));
-        Assert.Equal(StepStatusCode.Exhausted, step.Status);
+        Assert.Equal(StepStatusCode.Failed, step.Status);
         Assert.Equal("boom", step.FailureMessage);
 
         var job = await ReadJobAsync(enqueued.JobId, ct);
         Assert.Equal(JobStatusCode.Failed, job.Status);
         var failedEvent = await ReadLatestEventAsync(enqueued.JobId, EventCode.JobFailed, ct);
-        // Uncaught, the exhaustion is non-retryable: every retry would replay the exhausted step and throw again.
+        // Uncaught, the failure is non-retryable: every retry would replay the failed step and throw again.
         Assert.Equal(EventReason.NonRetryableException, EventDetail(failedEvent, "reason"));
         Assert.Equal(1, JobStepProbes.BodyInvocations[enqueued.JobId]);
     }

@@ -104,7 +104,6 @@ public sealed class ActaMetricsTests
     [InlineData("replayed")]
     [InlineData("interrupted")]
     [InlineData("failed")]
-    [InlineData("exhausted")]
     public void RecordStep_increments_steps_counter_with_outcome_tag(string outcome)
     {
         using var metrics = new ActaMetrics();

@@ -11,8 +11,8 @@ internal enum StartJobStepOutcomeCode : byte
     /// <summary>Already succeeded; return the stored result without running the body.</summary>
     ReplaySuccess = 3,
 
-    /// <summary>An at-most-once body already failed; throw <c>StepExhaustedException</c>.</summary>
-    Exhausted = 4,
+    /// <summary>An at-most-once body already failed; throw <c>StepFailedException</c>.</summary>
+    Failed = 4,
 
     /// <summary>An at-most-once step was re-entered before completion; the row was terminalized
     /// <c>Interrupted</c>. Do not run the body; throw <c>StepInterruptedException</c>.</summary>

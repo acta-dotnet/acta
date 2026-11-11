@@ -433,7 +433,7 @@ public class JobExplainerTests
     }
 
     [Fact]
-    public void Steps_render_succeeded_pending_and_exhausted_phrases()
+    public void Steps_render_succeeded_pending_and_failed_phrases()
     {
         var data = Data(
             Header(JobStatusCode.Suspended),
@@ -441,7 +441,7 @@ public class JobExplainerTests
             [
                 new ExplainJobStepRow("reserve-stock", StepStatusCode.Succeeded, FailureMessage: null),
                 new ExplainJobStepRow("charge-card", StepStatusCode.Pending, FailureMessage: null),
-                new ExplainJobStepRow("ship", StepStatusCode.Exhausted, FailureMessage: "carrier down"),
+                new ExplainJobStepRow("ship", StepStatusCode.Failed, FailureMessage: "carrier down"),
             ]
         );
 

@@ -10,10 +10,10 @@ WHERE NOT EXISTS (
         AND r.leased_by_worker_id = @p_leased_by_worker_id
 );
 
--- Only an at-most-once body records a failure, and the failure ends the step Exhausted.
+-- Only an at-most-once body records a failure, and the failure ends the step Failed.
 UPDATE {{schema}}.steps
 SET
-    step_status_code = CASE WHEN @p_succeeded THEN 100 /* StepStatusCode.Succeeded */ ELSE 200 /* StepStatusCode.Exhausted */ END,
+    step_status_code = CASE WHEN @p_succeeded THEN 100 /* StepStatusCode.Succeeded */ ELSE 200 /* StepStatusCode.Failed */ END,
     result_format_id = @p_result_format_id,
     result = @p_result,
     failure_message = @p_failure_message,
@@ -25,5 +25,5 @@ SELECT
     CASE
         WHEN CHANGES() = 0 THEN 4 /* CompleteJobStepOutcomeCode.StaleVersion */
         WHEN @p_succeeded THEN 1 /* CompleteJobStepOutcomeCode.Succeeded */
-        ELSE 3 /* CompleteJobStepOutcomeCode.Exhausted */
+        ELSE 3 /* CompleteJobStepOutcomeCode.Failed */
     END AS outcome_code;

@@ -87,21 +87,21 @@ public sealed class StartJobStepSpec : ActaRuntimeTestBase<ConformanceFixture, T
         Assert.Equal(stored.Version, (await ReadStepAsync(job, ct)).Version);
     }
 
-    [Fact(DisplayName = "An exhausted step is refused with its final reason, on every later entry")]
-    public async Task Exhausted_step_is_refused_with_its_reason()
+    [Fact(DisplayName = "A failed step is refused with its final reason, on every later entry")]
+    public async Task Failed_step_is_refused_with_its_reason()
     {
         var ct = TestContext.Current.CancellationToken;
         var job = await EnqueueAsync(ct);
         var first = await Execution.StartJobStepAsync(job, StepName, atMostOnce: true, ct);
-        Assert.Equal(CompleteJobStepOutcomeCode.Exhausted, (await CompleteAsync(job, succeeded: false, first.Version, ct)).Outcome);
+        Assert.Equal(CompleteJobStepOutcomeCode.Failed, (await CompleteAsync(job, succeeded: false, first.Version, ct)).Outcome);
 
         for (var entry = 0; entry < 2; entry++)
         {
             var refused = await Execution.StartJobStepAsync(job, StepName, atMostOnce: true, ct);
-            Assert.Equal(StartJobStepOutcomeCode.Exhausted, refused.Outcome);
+            Assert.Equal(StartJobStepOutcomeCode.Failed, refused.Outcome);
             Assert.Equal("card declined", refused.FailureMessage);
         }
-        Assert.Equal(StepStatusCode.Exhausted, (await ReadStepAsync(job, ct)).Status);
+        Assert.Equal(StepStatusCode.Failed, (await ReadStepAsync(job, ct)).Status);
     }
 
     private static readonly byte[] Result = Encoding.UTF8.GetBytes("{\"receipt\":7}");

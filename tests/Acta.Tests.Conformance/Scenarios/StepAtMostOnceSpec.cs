@@ -265,16 +265,16 @@ public sealed class StepAtMostOnceSpec : ActaRuntimeTestBase<ConformanceFixture,
         // The wait armed no checkpoint, and the body's failure is the step's terminal one, so it never runs again.
         Assert.Empty(await ReadSignalsAsync(enqueued.JobId, ct));
         var row = await ReadStepAsync(enqueued.JobId, ct);
-        Assert.Equal(StepStatusCode.Exhausted, row.Status);
+        Assert.Equal(StepStatusCode.Failed, row.Status);
         Assert.Equal(refused.Message, row.FailureMessage);
         Assert.Equal(JobStatusCode.Failed, (await ReadJobAsync(enqueued.JobId, ct)).Status);
     }
 
-    [Fact(DisplayName = "A RescheduleJobException an at-most-once body throws is refused and exhausts the step")]
+    [Fact(DisplayName = "A RescheduleJobException an at-most-once body throws is refused and fails the step")]
     public Task Thrown_reschedule_inside_an_at_most_once_body_is_refused() =>
         AssertThrownSuspensionRefusedAsync(AtMostOnceStepManifest.ThrowsRescheduleProbe, nameof(RescheduleJobException));
 
-    [Fact(DisplayName = "A HandlerPauseException an at-most-once body throws is refused and exhausts the step")]
+    [Fact(DisplayName = "A HandlerPauseException an at-most-once body throws is refused and fails the step")]
     public Task Thrown_pause_inside_an_at_most_once_body_is_refused() =>
         AssertThrownSuspensionRefusedAsync(AtMostOnceStepManifest.ThrowsPauseProbe, nameof(HandlerPauseException));
 
@@ -287,7 +287,7 @@ public sealed class StepAtMostOnceSpec : ActaRuntimeTestBase<ConformanceFixture,
         Assert.Equal(RunOnceStatus.Failed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var row = await ReadStepAsync(enqueued.JobId, ct);
-        Assert.Equal(StepStatusCode.Exhausted, row.Status);
+        Assert.Equal(StepStatusCode.Failed, row.Status);
         Assert.StartsWith(
             $"A thrown {thrown} inside the AtMostOnce step '{StepName}' is refused",
             row.FailureMessage,

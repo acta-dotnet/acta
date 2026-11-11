@@ -141,15 +141,15 @@ charges nothing.
 
 To compensate before the last failure lands, catch on `ctx.IsLastAttempt`, which reads the budget the
 job has already spent (and a Strict deadline), never the execution number:
-`catch (Exception ex) when (ctx.IsLastAttempt || ex is StepExhaustedException) { await ctx.RunStepAsync("release-stock", ...); throw; }`.
-The filter takes `StepExhaustedException` too because a non-retryable exception ends the job on any
+`catch (Exception ex) when (ctx.IsLastAttempt || ex is StepFailedException) { await ctx.RunStepAsync("release-stock", ...); throw; }`.
+The filter takes `StepFailedException` too because a non-retryable exception ends the job on any
 attempt. That is best effort: a crash or a lost lease on the last attempt skips the catch, so the compensation
 is an idempotent step, and work whose compensation must happen runs as a child job the parent
 compensates when the child lands `Failed`.
 
 For side effects where a duplicate is worse than an ambiguous interruption (a payment capture),
 `AtMostOnce()` runs the body zero-or-one times and hands the handler an explicit interrupted state to
-reconcile. A body that throws exhausts the step: every later attempt throws `StepExhaustedException`
+reconcile. A body that throws fails the step for good: every later attempt throws `StepFailedException`
 for it without running the body, so left uncaught it fails the job at once; catch it where the job can
 go on, and an operator restart runs the step again. A wait inside an at-most-once body throws at the
 call, because its resume would run the body again.

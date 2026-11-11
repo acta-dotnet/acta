@@ -1630,10 +1630,10 @@ BEGIN
             USING ERRCODE = 'P0001';
     END IF;
 
-    -- Only an at-most-once body records a failure, and the failure ends the step Exhausted.
+    -- Only an at-most-once body records a failure, and the failure ends the step Failed.
     UPDATE {{schema}}.steps a
     SET
-        step_status_code = CASE WHEN p_succeeded THEN 100 /* StepStatusCode.Succeeded */ ELSE 200 /* StepStatusCode.Exhausted */ END,
+        step_status_code = CASE WHEN p_succeeded THEN 100 /* StepStatusCode.Succeeded */ ELSE 200 /* StepStatusCode.Failed */ END,
         result_format_id = p_result_format_id,
         result = p_result,
         failure_message = p_failure_message,
@@ -1645,7 +1645,7 @@ BEGIN
     RETURN QUERY SELECT CASE
         WHEN v_rows = 0 THEN 4 /* CompleteJobStepOutcomeCode.StaleVersion */
         WHEN p_succeeded THEN 1 /* CompleteJobStepOutcomeCode.Succeeded */
-        ELSE 3 /* CompleteJobStepOutcomeCode.Exhausted */
+        ELSE 3 /* CompleteJobStepOutcomeCode.Failed */
     END::SMALLINT;
 END;
 $$;
@@ -3831,9 +3831,9 @@ BEGIN
 
         RETURN QUERY SELECT 3 /* StartJobStepOutcomeCode.ReplaySuccess */::SMALLINT, v_version,
             v_rfid, v_result, NULL::VARCHAR;
-    ELSIF v_state = 200 /* StepStatusCode.Exhausted */ THEN
+    ELSIF v_state = 200 /* StepStatusCode.Failed */ THEN
 
-        RETURN QUERY SELECT 4 /* StartJobStepOutcomeCode.Exhausted */::SMALLINT, v_version,
+        RETURN QUERY SELECT 4 /* StartJobStepOutcomeCode.Failed */::SMALLINT, v_version,
             0 /* JobPayloadFormat.None */::SMALLINT, NULL::BYTEA, v_rmsg;
     ELSIF v_state = 230 /* StepStatusCode.Interrupted */ THEN
         -- Terminal at-most-once ambiguity from an earlier replay; re-throw consistently, no mutation.
@@ -4325,7 +4325,7 @@ SELECT
     ns.namespace_name,
     d.definition_name,
     s.step_name,
-    CASE s.step_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'pending' WHEN 100 THEN 'succeeded' WHEN 200 THEN 'exhausted' WHEN 230 THEN 'interrupted' END AS step_status,
+    CASE s.step_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'pending' WHEN 100 THEN 'succeeded' WHEN 200 THEN 'failed' WHEN 230 THEN 'interrupted' END AS step_status,
     s.step_status_code,
     s.failure_message,
     CASE s.result_format_id
@@ -4375,5 +4375,5 @@ JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261111051238_init')
+VALUES ('M20261111053937_init')
 ON CONFLICT (name) DO NOTHING;

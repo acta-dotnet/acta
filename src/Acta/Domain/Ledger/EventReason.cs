@@ -17,7 +17,7 @@ internal static class EventReason
 
     /// <summary>
     /// The handler threw an exception the runtime classifies as non-retryable (NotImplementedException,
-    /// NotSupportedException, an uncaught StepExhaustedException, a handler DI cannot build), or returned a result that
+    /// NotSupportedException, an uncaught StepFailedException, a handler DI cannot build), or returned a result that
     /// cannot be recorded.
     /// </summary>
     public const string NonRetryableException = "non-retryable-exception";

@@ -158,7 +158,7 @@ public static class JobStepProbes
         {
             await ctx.RunStepAsync("unrecorded", _ => UnrecordedAsync(ctx, (string)null!), ct);
         }
-        catch (Exception ex) when (ctx.IsLastAttempt || ex is StepExhaustedException)
+        catch (Exception ex) when (ctx.IsLastAttempt || ex is StepFailedException)
         {
             await ctx.RunStepAsync("compensate", _ => Task.CompletedTask, ct);
             throw;
@@ -171,10 +171,10 @@ public static class JobStepProbes
         return Task.FromResult(result);
     }
 
-    // An at-most-once body that throws exhausts the step. The parent's default budget has attempts left, so the job
-    // failing at once proves the uncaught StepExhaustedException is not retried.
-    [Job("job-step-exhaust")]
-    public static Task StepExhaust(JobContext ctx, CancellationToken ct) =>
+    // An at-most-once body that throws fails the step. The parent's default budget has attempts left, so the job
+    // failing at once proves the uncaught StepFailedException is not retried.
+    [Job("job-step-fail")]
+    public static Task StepFail(JobContext ctx, CancellationToken ct) =>
         ctx.RunStepAsync(
             "always-fails",
             async _ =>

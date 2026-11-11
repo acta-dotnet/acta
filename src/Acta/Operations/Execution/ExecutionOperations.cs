@@ -63,14 +63,14 @@ internal sealed class ExecutionOperations(
 
     /// <summary>
     /// Reads or inserts the <c>(job_id, name)</c> step under the attempt's fence and decides
-    /// invoke / replay / exhausted / interrupted. Never mutates job status.
+    /// invoke / replay / failed / interrupted. Never mutates job status.
     /// </summary>
     public Task<StartJobStepResponse> StartJobStepAsync(ExecutionFence fence, string name, bool atMostOnce, CancellationToken ct) =>
         startJobStep.HandleAsync(new StartJobStepCommand(fence, name, atMostOnce), ct);
 
     /// <summary>
     /// Records an invoked step's outcome (store the result and mark Succeeded, or mark an at-most-once body's
-    /// failure Exhausted), guarded by the <c>ExpectedVersion</c> CAS.
+    /// failure Failed), guarded by the <c>ExpectedVersion</c> CAS.
     /// </summary>
     public Task<CompleteJobStepResponse> CompleteJobStepAsync(CompleteJobStepCommand command, CancellationToken ct) =>
         completeJobStep.HandleAsync(command, ct);

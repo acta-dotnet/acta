@@ -180,7 +180,7 @@ JobLookup job = JobRef.Parse("job_01a14f4e954e7bf68ac609f3fcad8e3d");
 await jobs.CancelAsync(job, "superseded by order-9");  // cascades to non-terminal descendants
 await jobs.PauseAsync(job);                             // hold a not-yet-running job
 await jobs.ResumeAsync(job);                            // Paused -> Ready at its kept next run (now if it was Suspended), or Idle for a permanent job with no firing outstanding
-await jobs.RestartAsync(job);                           // resets failure budget + retention and Exhausted steps, runs now
+await jobs.RestartAsync(job);                           // resets failure budget + retention and Failed steps, runs now
 await jobs.RaiseSignalAsync(job, "approval", payload);  // releases a Suspended WaitSignalAsync
 await jobs.RescheduleAsync(job, inTwoHours);             // move a waiting job's next run (re-arms Ready)
 await jobs.RescheduleAsync(job);                         // run now: an idle permanent job takes a manual firing
@@ -220,7 +220,7 @@ client reads `action`, the resulting `status`, and the row's `version` without s
 |---|---|---|---|---|---|---|---|---|---|---|
 | `pause` | A | A | A | A | A | 409 | 409 | 409 | 409 | Paused |
 | `resume` | 409 | 409 | 409 | A | 409 | 409 | 409 | 409 | 409 | Ready at the next run time it kept, or now when that has passed or the job was paused while Suspended on a signal or child wait, so its handler sees a signal raised meanwhile; or Blocked behind its lane; a permanent job with no firing outstanding returns to Idle |
-| `restart` | A | A | A | A | A | 409 | A | A | A | Ready, or Blocked behind its lane, or Idle for a permanent job; failure budget, retention, and Exhausted steps reset |
+| `restart` | A | A | A | A | A | 409 | A | A | A | Ready, or Blocked behind its lane, or Idle for a permanent job; failure budget, retention, and Failed steps reset |
 | `cancel` | A | A | A | A | A | A | 409 | 409 | 409 | Cancelled, cascading to non-terminal descendants |
 | `purge` | 409 | 409 | 409 | 409 | A | 409 | A | A | A | Row hard-deleted, `job.purged` event kept |
 | `reschedule` | A | A | A | A | A | 409 | 409 | 409 | 409 | Ready at the new instant, or Blocked behind its lane; an Idle permanent job takes a manual firing |
@@ -494,7 +494,7 @@ In production a deploy step applies Acta's migrations, never application startup
 
 ```
 $ ConnectionStrings__acta="<DDL login>" dotnet MyApp.dll jobs migrate
-applied M20261111051238_init to schema acta
+applied M20261111053937_init to schema acta
 namespace billing: 1.6.1+b81d04e (Production)
   added    sys.alerts
   added    sys.retention
@@ -983,7 +983,7 @@ occurrence to the running fleet's admitter. See [catch-up, misfire, and expirati
 
 Restart re-arms the same job and keeps its input and event history. Succeeded durable steps still do
 not rerun unless state was explicitly reset, but bare handler code and incomplete steps can run
-again, and an exhausted at-most-once step runs again. An interrupted at-most-once step still
+again, and a failed at-most-once step runs again. An interrupted at-most-once step still
 throws until the handler reconciles it. Fix or understand the original cause before confirming
 restart.
 
@@ -1410,7 +1410,7 @@ SELECT job_id, job_ref, namespace_name, definition_name, step_name, step_status,
 
 A succeeded step replays from stored result. A step whose body throws fails the job's attempt and
 stays `pending`, so the job's retry, under its own budget, runs it again; only an at-most-once step
-ends `exhausted` or `interrupted`, with the failure on its row.
+ends `failed` or `interrupted`, with the failure on its row.
 
 ### Recurring Schedules
 

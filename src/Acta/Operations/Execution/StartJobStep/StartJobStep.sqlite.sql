@@ -43,7 +43,7 @@ WHERE NOT EXISTS (
 SELECT
     CASE
         WHEN a.step_status_code = 100 /* StepStatusCode.Succeeded */ THEN 3 /* StartJobStepOutcomeCode.ReplaySuccess */
-        WHEN a.step_status_code = 200 /* StepStatusCode.Exhausted */ THEN 4 /* StartJobStepOutcomeCode.Exhausted */
+        WHEN a.step_status_code = 200 /* StepStatusCode.Failed */ THEN 4 /* StartJobStepOutcomeCode.Failed */
         WHEN a.step_status_code = 230 /* StepStatusCode.Interrupted */ THEN 5 /* StartJobStepOutcomeCode.Interrupted */
         ELSE 1 /* StartJobStepOutcomeCode.Invoke */
     END AS outcome_code,
@@ -54,6 +54,6 @@ SELECT
         ELSE 0 /* JobPayloadFormat.None */
     END AS result_format_id,
     CASE WHEN a.step_status_code = 100 /* StepStatusCode.Succeeded */ THEN a.result ELSE NULL END AS result,
-    CASE WHEN a.step_status_code = 200 /* StepStatusCode.Exhausted */ THEN a.failure_message ELSE NULL END AS failure_message
+    CASE WHEN a.step_status_code = 200 /* StepStatusCode.Failed */ THEN a.failure_message ELSE NULL END AS failure_message
 FROM {{schema}}.steps a
 WHERE a.job_id = @p_job_id AND a.step_name = @p_step_name;

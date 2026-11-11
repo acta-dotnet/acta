@@ -56,7 +56,7 @@ internal static class CodeFamilyEmitter
         sb.AppendLine(
             "- Values between `150` and `199` represent controlled completion, such as rescheduling, suppression, or administrative closure."
         );
-        sb.AppendLine("- `200` represents failure, exhaustion, or death.");
+        sb.AppendLine("- `200` represents failure or death.");
         sb.AppendLine("- `220` represents cancellation.");
         sb.AppendLine("- `230` represents interruption or an unknown outcome.");
         sb.AppendLine("- `240` represents retirement or deprecation.");

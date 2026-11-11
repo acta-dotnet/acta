@@ -431,7 +431,7 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
 
         Assert.Equal(1, await InsertStepAsync(enq.JobId, "result-succeeded", StepStatusCode.Succeeded, ct, resultFormatId: 1));
 
-        foreach (var status in new[] { StepStatusCode.Pending, StepStatusCode.Exhausted, StepStatusCode.Interrupted })
+        foreach (var status in new[] { StepStatusCode.Pending, StepStatusCode.Failed, StepStatusCode.Interrupted })
         {
             Assert.Equal(1, await InsertStepAsync(enq.JobId, $"no-result-{(byte)status}", status, ct));
             await Assert.ThrowsAnyAsync<DbException>(() =>
@@ -441,7 +441,7 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
 
         // complete_job_step writes the status and the result together, so a Succeeded row can never be moved
         // off that status while the result stays behind.
-        await Assert.ThrowsAnyAsync<DbException>(() => SetStepStatusAsync(enq.JobId, "result-succeeded", StepStatusCode.Exhausted, ct));
+        await Assert.ThrowsAnyAsync<DbException>(() => SetStepStatusAsync(enq.JobId, "result-succeeded", StepStatusCode.Failed, ct));
     }
 
     // Raw composition: a row with no result omits the result column rather than binding it explicit-NULL,

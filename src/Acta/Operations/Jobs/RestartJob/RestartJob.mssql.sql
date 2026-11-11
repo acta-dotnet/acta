@@ -265,12 +265,12 @@ BEGIN TRY
             js.job_id = @p_job_id
             AND st.evaluation_status_code IN (20 /* ScheduleEvaluationStatusCode.WaitingForCapacity */, 50 /* ScheduleEvaluationStatusCode.JobUnavailable */);
 
-    -- An exhausted at-most-once step, whose body threw, runs again on the operator's say-so; an interrupted one
+    -- A failed at-most-once step, whose body threw, runs again on the operator's say-so; an interrupted one
     -- stays, since only someone who reconciled its outcome can say it may run again.
     DELETE FROM {{schema}}.steps
     WHERE
         job_id = @p_job_id
-        AND step_status_code = 200 /* StepStatusCode.Exhausted */;
+        AND step_status_code = 200 /* StepStatusCode.Failed */;
 
     INSERT INTO {{schema}}.events (
         event_code, created_at_utc, namespace_id,

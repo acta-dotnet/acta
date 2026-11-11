@@ -10,9 +10,9 @@ namespace Acta.Tests.Conformance.Operations.Execution;
 /// <summary>Conformance for <c>complete_job_step</c>, which records an invoked step's outcome under the version its start returned.</summary>
 [ConformanceSpec(
     "complete-job-step.decision",
-    "Completing a step stores a success or exhausts an at-most-once step",
+    "Completing a step stores a success or fails an at-most-once step",
     Area = "Execution",
-    Contract = "A step completion stores a success, exhausts the step on an at-most-once body's failure, and writes nothing on a stale version."
+    Contract = "A step completion stores a success, fails the step on an at-most-once body's failure, and writes nothing on a stale version."
 )]
 public sealed class CompleteJobStepSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
@@ -40,18 +40,18 @@ public sealed class CompleteJobStepSpec : ActaRuntimeTestBase<ConformanceFixture
         Assert.Equal(start.Version + 1, step.Version);
     }
 
-    [Fact(DisplayName = "An at-most-once body's failure exhausts the step with its reason")]
-    public async Task Failure_exhausts_the_step()
+    [Fact(DisplayName = "An at-most-once body's failure ends the step Failed with its reason")]
+    public async Task Failure_fails_the_step()
     {
         var ct = TestContext.Current.CancellationToken;
         var job = await EnqueueAsync(ct);
         var start = await Execution.StartJobStepAsync(job, StepName, atMostOnce: true, ct);
 
-        var exhausted = await FailAsync(job, start.Version, ct);
+        var failed = await FailAsync(job, start.Version, ct);
 
-        Assert.Equal(new CompleteJobStepResponse(CompleteJobStepOutcomeCode.Exhausted), exhausted);
+        Assert.Equal(new CompleteJobStepResponse(CompleteJobStepOutcomeCode.Failed), failed);
         var step = await ReadStepAsync(job, ct);
-        Assert.Equal(StepStatusCode.Exhausted, step.Status);
+        Assert.Equal(StepStatusCode.Failed, step.Status);
         Assert.Equal(Reason, step.FailureMessage);
         Assert.Null(step.Result);
         Assert.Equal(start.Version + 1, step.Version);

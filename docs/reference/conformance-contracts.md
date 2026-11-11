@@ -481,12 +481,12 @@
 - **Guarantees:**
   - Maintenance registration is idempotent (no duplicate slot) and a due tick has exactly one claimant
 
-### Signals, step exhaustion, and lost wakes converge without timing assumptions
-- **Contract:** Signals raised before or after waiter creation, step exhaustion, and lost wake notifications each produce one legal final state.
+### Signals, a failed step, and lost wakes converge without timing assumptions
+- **Contract:** Signals raised before or after waiter creation, a failed step, and lost wake notifications each produce one legal final state.
 - **Guarantees:**
   - Signal raised before a waiter exists is consumed without suspending
   - Signal raised after a waiter exists resumes the suspended job
-  - Step exhaustion fails the parent exactly once
+  - A failed at-most-once step fails the parent exactly once
   - Lost wake notification is recovered by the safety poll path
 
 ### Worker crash boundaries recover through one legal final state
@@ -1002,11 +1002,11 @@
   - A zero-length sleep or one whose resume instant has passed continues at once and arms nothing
   - A second sleep under another name while one is pending is rejected and arms nothing
 
-### Completing a step stores a success or exhausts an at-most-once step
-- **Contract:** A step completion stores a success, exhausts the step on an at-most-once body's failure, and writes nothing on a stale version.
+### Completing a step stores a success or fails an at-most-once step
+- **Contract:** A step completion stores a success, fails the step on an at-most-once body's failure, and writes nothing on a stale version.
 - **Guarantees:**
   - A success stores the result and marks the step Succeeded
-  - An at-most-once body's failure exhausts the step with its reason
+  - An at-most-once body's failure ends the step Failed with its reason
   - A success or a failure carrying a stale version reports StaleVersion and writes nothing
 
 ### A Strict deadline terminates an overdue job and blocks a retry past the deadline
@@ -1199,7 +1199,7 @@
   - A Pending ordinary step re-entered is invoked again and its row is left unchanged
   - An at-most-once step re-entered before completion is terminalized Interrupted and never invoked again
   - A succeeded step replays its stored result without a write
-  - An exhausted step is refused with its final reason, on every later entry
+  - A failed step is refused with its final reason, on every later entry
 
 ### A timeout within budget re-arms to Ready; exhausted budget lands Failed
 - **Contract:** A per-attempt timeout re-arms the job to Ready incrementing failure_count while budget remains and lands terminal Failed once MaxAttempts is exhausted.
@@ -2559,17 +2559,17 @@
   - Uncaught StepInterruptedException fails the parent terminally without re-invoking the body
   - Caught StepInterruptedException lets the parent proceed to Succeeded
   - A wait inside an at-most-once body is refused at the call and arms nothing
-  - A RescheduleJobException an at-most-once body throws is refused and exhausts the step
-  - A HandlerPauseException an at-most-once body throws is refused and exhausts the step
+  - A RescheduleJobException an at-most-once body throws is refused and fails the step
+  - A HandlerPauseException an at-most-once body throws is refused and fails the step
 
-### An exhausted step re-throws on re-entry until a restart clears it
-- **Contract:** Re-entering an exhausted at-most-once step throws StepExhaustedException without running the body, and a restart runs it afresh.
+### A failed step re-throws on re-entry until a restart clears it
+- **Contract:** Re-entering a failed at-most-once step throws StepFailedException without running the body, and a restart runs it afresh.
 - **Guarantees:**
-  - Restarting a job whose step exhausted runs the step body again
-  - Re-entering an exhausted step throws StepExhaustedException without invoking the body
+  - Restarting a job whose step failed runs the step body again
+  - Re-entering a failed step throws StepFailedException without invoking the body
 
 ### RunStepAsync runs once, replays results, and runs again on the job's retry
-- **Contract:** A step runs once and replay-skips a success, a throwing body spends the job's budget, a wait in a body charges nothing, and an at-most-once failure exhausts.
+- **Contract:** A step runs once and replay-skips a success, a throwing body spends the job's budget, a wait in a body charges nothing, and an at-most-once failure is final.
 - **Guarantees:**
   - A typed step runs its body once and returns the stored result
   - A void step succeeds with no result payload
@@ -2577,7 +2577,7 @@
   - A wait inside an ordinary step resumes and completes, and the job's failure count stays untouched
   - A wait inside an ordinary step charges nothing, so a later failure keeps the job's whole budget
   - A throwing ordinary step fails the attempt, spends the job's budget, and the retry replays the steps that succeeded
-  - An exhausted at-most-once step throws StepExhaustedException and fails the parent at once when uncaught
+  - A failed at-most-once step throws StepFailedException and fails the parent at once when uncaught
   - CompleteJobStep loses the CAS and reports StaleVersion when the step advanced under another execution
   - CompleteJobStep reports StaleVersion rather than throwing when the step row is absent
 

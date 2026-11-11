@@ -8,8 +8,8 @@ internal enum CompleteJobStepOutcomeCode : byte
     /// <summary>Body succeeded; the step is terminal <c>Succeeded</c> with the stored result.</summary>
     Succeeded = 1,
 
-    /// <summary>An at-most-once body failed; the step is terminal <c>Exhausted</c>.</summary>
-    Exhausted = 3,
+    /// <summary>An at-most-once body failed; the step is terminal <c>Failed</c>.</summary>
+    Failed = 3,
 
     /// <summary>
     /// The version CAS matched no row: the step advanced under a concurrent execution of the same job,

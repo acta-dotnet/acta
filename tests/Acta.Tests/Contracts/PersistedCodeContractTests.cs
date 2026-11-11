@@ -101,7 +101,7 @@ public sealed class PersistedCodeContractTests
         StepStatusCode.Unspecified=0|unspecified
         StepStatusCode.Pending=10|pending
         StepStatusCode.Succeeded=100|succeeded
-        StepStatusCode.Exhausted=200|exhausted
+        StepStatusCode.Failed=200|failed
         StepStatusCode.Interrupted=230|interrupted
         DeadlineBehaviorCode.Unspecified=0|unspecified
         DeadlineBehaviorCode.Strict=10|strict
@@ -205,7 +205,7 @@ public sealed class PersistedCodeContractTests
         WorkerStatusCode.Dead=200|dead
         """;
 
-    private const string ExpectedDescriptionHash = "C00B6B9CD788F0FCE74454E44BA8A4FABCB49BDF47B491987DE2EB1CA51FA75D";
+    private const string ExpectedDescriptionHash = "849843E2D48C329BEA64ECFFB0F1B4B5D0AC271DFF3F05C1B51DFFE56320311D";
 
     [Fact]
     public void Frozen_contract_covers_all_32_families_and_194_values()
@@ -233,7 +233,7 @@ public sealed class PersistedCodeContractTests
         Assert.Equal(46, Enum.GetValues<EventCode>().Length);
 
         Assert.Equal((byte)200, (byte)JobStatusCode.Failed);
-        Assert.Equal((byte)200, (byte)StepStatusCode.Exhausted);
+        Assert.Equal((byte)200, (byte)StepStatusCode.Failed);
         Assert.Equal((byte)200, (byte)AlertDeliveryStatusCode.Failed);
         Assert.Equal((byte)200, (byte)WorkerStatusCode.Dead);
 

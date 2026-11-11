@@ -9,9 +9,9 @@ namespace Acta.Tests.Conformance.Engine.Worker;
 
 [ConformanceSpec(
     "chaos.signal-step-wake",
-    "Signals, step exhaustion, and lost wakes converge without timing assumptions",
+    "Signals, a failed step, and lost wakes converge without timing assumptions",
     Area = "Chaos",
-    Contract = "Signals raised before or after waiter creation, step exhaustion, and lost wake notifications each produce one legal final state."
+    Contract = "Signals raised before or after waiter creation, a failed step, and lost wake notifications each produce one legal final state."
 )]
 public sealed class SignalStepWakeChaosSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
@@ -75,20 +75,20 @@ public sealed class SignalStepWakeChaosSpec : ActaRuntimeTestBase<ConformanceFix
         Assert.True(suspended.Id < raised.Id && raised.Id < resumed.Id);
     }
 
-    [Fact(DisplayName = "Step exhaustion fails the parent exactly once")]
-    public async Task Step_exhaustion_fails_parent_once()
+    [Fact(DisplayName = "A failed at-most-once step fails the parent exactly once")]
+    public async Task Failed_step_fails_parent_once()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enqueued = await ChaosSpecHelpers.EnqueueNoPayloadAsync(Jobs, TestNamespace, "job-step-exhaust", ct);
+        var enqueued = await ChaosSpecHelpers.EnqueueNoPayloadAsync(Jobs, TestNamespace, "job-step-fail", ct);
 
-        // --- 1. The at-most-once body throws, which exhausts the step and fails the parent.
+        // --- 1. The at-most-once body throws, which fails the step for good and fails the parent.
         Assert.Equal(RunOnceStatus.Failed, await Runtime.RunOnceAsync(enqueued, ct));
 
-        // --- 2. The step is Exhausted (no read operation, read the row).
+        // --- 2. The step is Failed (no read operation, read the row).
         var step = Assert.Single(await Db.From<StepEntity>().Where(a => a.JobId == enqueued.JobId).ToListAsync(ct));
-        Assert.Equal(StepStatusCode.Exhausted, step.Status);
+        Assert.Equal(StepStatusCode.Failed, step.Status);
 
-        // --- 3. The parent is Failed at once: an uncaught exhaustion is non-retryable.
+        // --- 3. The parent is Failed at once: an uncaught step failure is non-retryable.
         var job = await Jobs.GetAsync(enqueued, ct);
         Assert.NotNull(job);
         Assert.Equal(JobStatusCode.Failed, job!.Status);

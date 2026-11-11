@@ -329,7 +329,7 @@ internal sealed class HandlerInvocation(
 
     private ExecutionCompletion Faulted(Exception ex, bool inputDeserialized, JobDescriptor descriptor, ClaimedJob job)
     {
-        // A failure retrying cannot change, a programming error, an exhausted at-most-once step that throws again on
+        // A failure retrying cannot change, a programming error, a failed at-most-once step that throws again on
         // every replay, a handler DI cannot build from the same registrations, or a finished body whose result could
         // not be recorded, lands terminal Failed through the same completion branch as ctx.FailAsync, leaving the retry
         // budget untouched.
@@ -337,7 +337,7 @@ internal sealed class HandlerInvocation(
             ex
             is NotImplementedException
                 or NotSupportedException
-                or StepExhaustedException
+                or StepFailedException
                 or HandlerActivationException
                 or ResultNotRecordedException;
         if (!inputDeserialized && log.IsEnabled(LogLevel.Warning))

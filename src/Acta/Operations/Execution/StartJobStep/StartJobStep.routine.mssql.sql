@@ -76,9 +76,9 @@ BEGIN
                 SET @outcome = 3 /* StartJobStepOutcomeCode.ReplaySuccess */;
                 SET @rmsg = NULL;
             END
-        ELSE IF @state = 200 /* StepStatusCode.Exhausted */
+        ELSE IF @state = 200 /* StepStatusCode.Failed */
             BEGIN
-                SET @outcome = 4 /* StartJobStepOutcomeCode.Exhausted */;
+                SET @outcome = 4 /* StartJobStepOutcomeCode.Failed */;
                 SET @rfid = 0 /* JobPayloadFormat.None */;
                 SET @result = NULL;
             END

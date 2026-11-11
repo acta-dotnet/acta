@@ -5,7 +5,7 @@ namespace Acta.Tests.Execution;
 
 /// <summary>
 /// Pins which outcome an attempt lands when something other than the handler's return decides it: a control verb
-/// called inside a step body, a step exhausted before this attempt, and a service that throws while the attempt's
+/// called inside a step body, a step failed before this attempt, and a service that throws while the attempt's
 /// scope is disposed after the outcome is decided; and that the handler's failure line says what lands, or that recovery
 /// reclaims the job when the worker stops before the write.
 /// </summary>
@@ -28,12 +28,12 @@ public sealed class WorkerExecutorOutcomeTests
     }
 
     [Fact]
-    public async Task An_uncaught_exhausted_step_fails_the_job_at_once_instead_of_retrying_it()
+    public async Task An_uncaught_failed_step_fails_the_job_at_once_instead_of_retrying_it()
     {
-        // Every retry would replay the exhausted step and throw again, so the budget is not spent on it.
+        // Every retry would replay the failed step and throw again, so the budget is not spent on it.
         var harness = new WorkerExecutorHarness(maxAttempts: 10);
 
-        var outcome = await harness.RunAsync(static (_, _) => throw new StepExhaustedException(WorkerExecutorHarness.StepName, "declined"));
+        var outcome = await harness.RunAsync(static (_, _) => throw new StepFailedException(WorkerExecutorHarness.StepName, "declined"));
 
         Assert.Equal(RunOnceStatus.Failed, outcome);
         Assert.Equal(EventReason.NonRetryableException, harness.Completion.Reason);

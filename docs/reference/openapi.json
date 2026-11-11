@@ -19232,7 +19232,7 @@
               "null",
               "string"
             ],
-            "description": "Why an at-most-once step ended exhausted or interrupted; null for every other step."
+            "description": "Why an at-most-once step ended failed or interrupted; null for every other step."
           },
           "createdAtUtc": {
             "type": "string",
@@ -21325,12 +21325,12 @@
           "pending"
         ],
         "type": "string",
-        "description": "Where a step stands. A step is pending from its first start until it succeeds, and an at-most-once step ends exhausted when its body threw, or interrupted when it was re-entered before it completed.\n\nKnown values:\n- unspecified: Step status not recognized by this build; the row was written by a newer Acta.\n- pending: Started, with no success recorded; a retry of the job runs it again.\n- succeeded: Completed; its result, when it has one, is stored.\n- exhausted: An at-most-once step's body threw, so it does not run again; the job's handler receives the failure.\n- interrupted: A step that runs at most once was re-entered before it completed, so whether it ran is unknown; the job's handler receives the interruption.\n\nOther values may appear: keep a value this client does not know as it is.",
+        "description": "Where a step stands. A step is pending from its first start until it succeeds, and an at-most-once step ends failed when its body threw, or interrupted when it was re-entered before it completed.\n\nKnown values:\n- unspecified: Step status not recognized by this build; the row was written by a newer Acta.\n- pending: Started, with no success recorded; a retry of the job runs it again.\n- succeeded: Completed; its result, when it has one, is stored.\n- failed: An at-most-once step's body threw, so it does not run again; the job's handler receives the failure.\n- interrupted: A step that runs at most once was re-entered before it completed, so whether it ran is unknown; the job's handler receives the interruption.\n\nOther values may appear: keep a value this client does not know as it is.",
         "x-acta-known-values": [
           "unspecified",
           "pending",
           "succeeded",
-          "exhausted",
+          "failed",
           "interrupted"
         ]
       },

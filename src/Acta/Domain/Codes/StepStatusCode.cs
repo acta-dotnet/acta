@@ -4,7 +4,7 @@ namespace Acta;
 
 /// <summary>
 /// Where a step stands. A step is pending from its first start until it succeeds, and an at-most-once step ends
-/// exhausted when its body threw, or interrupted when it was re-entered before it completed.
+/// failed when its body threw, or interrupted when it was re-entered before it completed.
 /// </summary>
 [JsonConverter(typeof(StepStatusCodeJsonConverter))]
 [CodeKind("job-step-status")]
@@ -24,9 +24,9 @@ public enum StepStatusCode : byte
     Succeeded = 100,
 
     /// <summary>Terminal failure of an <c>AtMostOnce</c> body. <c>Result</c> is NULL; <c>FailureMessage</c> carries
-    /// the body's failure; the handler receives <c>StepExhaustedException</c>.</summary>
-    [Code("exhausted", "An at-most-once step's body threw, so it does not run again; the job's handler receives the failure.")]
-    Exhausted = 200,
+    /// the body's failure; the handler receives <c>StepFailedException</c>.</summary>
+    [Code("failed", "An at-most-once step's body threw, so it does not run again; the job's handler receives the failure.")]
+    Failed = 200,
 
     /// <summary>Terminal ambiguity for an <c>AtMostOnce</c> step re-entered on replay before its outcome
     /// was recorded (the worker died mid-flight). The body is never re-invoked; it may have run zero or

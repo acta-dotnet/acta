@@ -372,7 +372,7 @@ internal sealed class ExplainJobHandler(GetJobIdHandler getJobId, IDbSession ses
         s.StepStatus switch
         {
             StepStatusCode.Succeeded => "succeeded and will not rerun",
-            StepStatusCode.Exhausted => s.FailureMessage is { Length: > 0 } m
+            StepStatusCode.Failed => s.FailureMessage is { Length: > 0 } m
                 ? $"failed and runs at most once, so it will not rerun: {m}"
                 : "failed and runs at most once, so it will not rerun",
             StepStatusCode.Pending => "has started and has no recorded success",

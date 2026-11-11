@@ -34,10 +34,10 @@ BEGIN
         )
             THROW 50012, 'ACTA:EXECUTION_FENCED:complete_job_step: the job is no longer executing this attempt.', 1;
 
-        -- Only an at-most-once body records a failure, and the failure ends the step Exhausted.
+        -- Only an at-most-once body records a failure, and the failure ends the step Failed.
         UPDATE {{schema}}.steps
         SET
-            step_status_code = CASE WHEN @p_succeeded = 1 THEN 100 /* StepStatusCode.Succeeded */ ELSE 200 /* StepStatusCode.Exhausted */ END,
+            step_status_code = CASE WHEN @p_succeeded = 1 THEN 100 /* StepStatusCode.Succeeded */ ELSE 200 /* StepStatusCode.Failed */ END,
             result_format_id = @p_result_format_id,
             result = @p_result,
             failure_message = @p_failure_message,
@@ -50,7 +50,7 @@ BEGIN
         ELSE IF @p_succeeded = 1
             SET @outcome = 1 /* CompleteJobStepOutcomeCode.Succeeded */;
         ELSE
-            SET @outcome = 3 /* CompleteJobStepOutcomeCode.Exhausted */;
+            SET @outcome = 3 /* CompleteJobStepOutcomeCode.Failed */;
 
         SELECT @outcome AS outcome_code;
 

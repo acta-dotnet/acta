@@ -218,7 +218,7 @@ internal sealed class ActaMetrics : IDisposable
         Add(_wakeupWaits, 1, new TagList { { "namespace", @namespace }, { "result", result } });
 
     /// <summary>
-    /// outcome is one of { replayed, interrupted, succeeded, failed, exhausted } - the five
+    /// outcome is one of { replayed, interrupted, succeeded, failed } - the ones
     /// RuntimeJobContext actually emits, pinned as a set in ActaMetricsTests. step_name is
     /// deliberately excluded: user-defined, would blow up cardinality; it stays on the log scope.
     /// </summary>

@@ -32,7 +32,7 @@ internal sealed partial class RuntimeJobContext
     ) => RunStepImplAsync(name, body, storeResult: true, options, ct);
 
     /// <summary>
-    /// Durable step orchestration: start (invoke, replay, exhausted, or interrupted), run the body, record the success.
+    /// Durable step orchestration: start (invoke, replay, failed, or interrupted), run the body, record the success.
     /// An ordinary body's failure propagates and fails the attempt, so the job's retry runs it again; an at-most-once
     /// body's failure is recorded terminal first.
     /// </summary>
@@ -50,8 +50,8 @@ internal sealed partial class RuntimeJobContext
             case StartJobStepOutcomeCode.ReplaySuccess:
                 RecordStep(name, "replayed");
                 return storeResult ? DeserializeStepResult<TResult>(name, start.ResultFormatId, start.Result!) : default!;
-            case StartJobStepOutcomeCode.Exhausted:
-                throw new StepExhaustedException(name, start.FailureMessage);
+            case StartJobStepOutcomeCode.Failed:
+                throw new StepFailedException(name, start.FailureMessage);
             case StartJobStepOutcomeCode.Interrupted:
                 // An AtMostOnce step re-entered before its outcome was recorded: the row was terminalized
                 // Interrupted by start_job_step. Do NOT run the body; the outcome is ambiguous (ran 0 or 1
@@ -73,7 +73,7 @@ internal sealed partial class RuntimeJobContext
         {
             // A suspension the body threw itself rather than through a guarded call: its resume would find the step
             // started and interrupt it, so it is refused as those calls are. Fail and cancel end the job and pass through.
-            throw await ExhaustAsync(
+            throw await RecordFailureAsync(
                 name,
                 start.Version,
                 AtMostOnceSuspensionRefused($"A thrown {control.GetType().Name}", name).Message,
@@ -94,7 +94,7 @@ internal sealed partial class RuntimeJobContext
                 throw;
             }
 
-            throw await ExhaustAsync(name, start.Version, ex.Message, ct);
+            throw await RecordFailureAsync(name, start.Version, ex.Message, ct);
         }
 
         // The body has run. A result that cannot be recorded fails the step for good rather than the attempt, whose retry
@@ -112,7 +112,7 @@ internal sealed partial class RuntimeJobContext
             throw Unrecorded(ex.Message.TrimEnd('.'), ex);
         }
         catch (Exception ex)
-            when (ex is not (JobControlException or StepExhaustedException)
+            when (ex is not (JobControlException or StepFailedException)
                 && (ex is not OperationCanceledException || !ct.IsCancellationRequested)
             )
         {
@@ -140,10 +140,10 @@ internal sealed partial class RuntimeJobContext
         RecordStep(name, "succeeded");
         return value;
 
-        StepExhaustedException Unrecorded(string why, Exception? cause)
+        StepFailedException Unrecorded(string why, Exception? cause)
         {
             RecordStep(name, "failed");
-            return new StepExhaustedException(name, $"its body ran, and its result was not recorded: {why}", cause);
+            return new StepFailedException(name, $"its body ran, and its result was not recorded: {why}", cause);
         }
     }
 
@@ -151,7 +151,7 @@ internal sealed partial class RuntimeJobContext
         FencedAsync(() => _executionStore.CompleteJobStepAsync(command, ct));
 
     /// <summary>Records an at-most-once body's failure terminal and answers the exception its call throws.</summary>
-    private async Task<StepExhaustedException> ExhaustAsync(string name, int version, string failureMessage, CancellationToken ct)
+    private async Task<StepFailedException> RecordFailureAsync(string name, int version, string failureMessage, CancellationToken ct)
     {
         var message = failureMessage.Truncate(ActaTextLimits.StepFailureMessage);
         var failure = await CompleteJobStepAsync(
@@ -164,12 +164,12 @@ internal sealed partial class RuntimeJobContext
             throw new StepOwnershipLostException(name);
         }
 
-        RecordStep(name, "exhausted");
+        RecordStep(name, "failed");
         if (_log.IsEnabled(LogLevel.Warning))
         {
-            ActaLog.StepExhausted(_log, JobId, $"step '{name}': {message}");
+            ActaLog.StepFailed(_log, JobId, $"step '{name}': {message}");
         }
-        return new StepExhaustedException(name, message);
+        return new StepFailedException(name, message);
     }
 
     private JobPayload SerializeStepResult<TResult>(TResult value)

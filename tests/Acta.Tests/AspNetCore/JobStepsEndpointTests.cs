@@ -17,7 +17,7 @@ public sealed class JobStepsEndpointTests
 
     private static readonly ListJobStepsItem Ship = new(
         "ship",
-        StepStatusCode.Exhausted,
+        StepStatusCode.Failed,
         "Carrier timed out.",
         StartedAtUtc.AddMinutes(1),
         StartedAtUtc.AddMinutes(2)
@@ -77,7 +77,7 @@ public sealed class JobStepsEndpointTests
         var items = root.GetProperty("items");
         Assert.Equal(2, items.GetArrayLength());
         Assert.Equal("ship", items[0].GetProperty("name").GetString());
-        Assert.Equal("exhausted", items[0].GetProperty("status").GetString());
+        Assert.Equal("failed", items[0].GetProperty("status").GetString());
         Assert.Equal("Carrier timed out.", items[0].GetProperty("failureMessage").GetString());
         Assert.Equal("charge", items[1].GetProperty("name").GetString());
         Assert.Equal("succeeded", items[1].GetProperty("status").GetString());

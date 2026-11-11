@@ -98,9 +98,9 @@ BEGIN
 
         RETURN QUERY SELECT 3 /* StartJobStepOutcomeCode.ReplaySuccess */::SMALLINT, v_version,
             v_rfid, v_result, NULL::VARCHAR;
-    ELSIF v_state = 200 /* StepStatusCode.Exhausted */ THEN
+    ELSIF v_state = 200 /* StepStatusCode.Failed */ THEN
 
-        RETURN QUERY SELECT 4 /* StartJobStepOutcomeCode.Exhausted */::SMALLINT, v_version,
+        RETURN QUERY SELECT 4 /* StartJobStepOutcomeCode.Failed */::SMALLINT, v_version,
             0 /* JobPayloadFormat.None */::SMALLINT, NULL::BYTEA, v_rmsg;
     ELSIF v_state = 230 /* StepStatusCode.Interrupted */ THEN
         -- Terminal at-most-once ambiguity from an earlier replay; re-throw consistently, no mutation.

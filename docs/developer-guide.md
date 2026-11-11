@@ -188,14 +188,14 @@ try
 {
     await ctx.RunStepAsync("charge-card", ChargeCardAsync, ct);
 }
-catch (Exception ex) when (ctx.IsLastAttempt || ex is StepExhaustedException)
+catch (Exception ex) when (ctx.IsLastAttempt || ex is StepFailedException)
 {
     await ctx.RunStepAsync("release-stock", ReleaseStockAsync, ct);
     throw;
 }
 ```
 
-The filter also takes `StepExhaustedException`, which an at-most-once body that threw and any step whose result could not be recorded both raise, because a non-retryable exception ends the job on any attempt while `IsLastAttempt` still reads false; add `NotSupportedException` and `NotImplementedException` if the body can throw them.
+The filter also takes `StepFailedException`, which an at-most-once body that threw and any step whose result could not be recorded both raise, because a non-retryable exception ends the job on any attempt while `IsLastAttempt` still reads false; add `NotSupportedException` and `NotImplementedException` if the body can throw them.
 
 Compensation in a catch is best effort. A worker crash or a lost lease on the last attempt skips the catch block, and a reclaim can spend the budget and fail the job with no handler code running, so the compensation is an idempotent step of its own. Work whose compensation must happen runs the risky part as a child job, and the parent compensates when the child lands `Failed`: `WaitChildAsync` survives crashes.
 
@@ -217,9 +217,9 @@ catch (StepInterruptedException)
 
 If the worker dies after the step's start is recorded but before its outcome, the step becomes `Interrupted` and `RunStepAsync` throws `StepInterruptedException`: the body ran zero or one times, and Acta cannot tell which. Reconcile against the external system; never assume the effect happened. Uncaught, the exception fails the job terminally (`job.step-interrupted`).
 
-A body that throws leaves the step `Exhausted`, and `RunStepAsync` throws `StepExhaustedException` then and on every replay without running the body; catch it where the job can go on. Uncaught, it fails the job at once instead of retrying it, since every retry would throw again. Restarting the job runs the step again.
+A body that throws leaves the step `Failed`, and `RunStepAsync` throws `StepFailedException` then and on every replay without running the body; catch it where the job can go on. Uncaught, it fails the job at once instead of retrying it, since every retry would throw again. Restarting the job runs the step again.
 
-A wait, sleep, reschedule, pause, or child wait inside an at-most-once body throws `InvalidOperationException` at the call, before it writes anything: the resume would replay the job from the top and run the body again. A `RescheduleJobException` or `HandlerPauseException` the body throws itself is refused the same way, and the step ends `Exhausted`. Move the wait out of the step.
+A wait, sleep, reschedule, pause, or child wait inside an at-most-once body throws `InvalidOperationException` at the call, before it writes anything: the resume would replay the job from the top and run the body again. A `RescheduleJobException` or `HandlerPauseException` the body throws itself is refused the same way, and the step ends `Failed`. Move the wait out of the step.
 
 In a permanent job, catch the exception and prefer a per-period step name (`$"charge-{period}"`): an uncaught interruption stops the whole schedule. Each period's step row stays as long as the job, so at a high cadence run the charge in a job per occurrence, as above.
 
@@ -538,7 +538,7 @@ Task<string> Handle(Lookup request, CancellationToken ct);
 
 ### Large payloads
 
-Durable job instructions are stored inline, capped by `JobsOptions.MaxInlinePayloadBytes` (1 MiB default). Caller-controlled inline writes that exceed the cap (enqueue input, signal values, and handler variable and progress writes) throw `PayloadTooLargeException` and never reach storage. Results are measured against the same cap after their body has run, so neither is retried: a handler result past it is dropped, the job still succeeds, and the events carry `job.result-oversized`; a step result past it, or one that is null or cannot be serialized, throws `StepExhaustedException` from `RunStepAsync`, which fails the job for good when uncaught, because a retry would run the finished body again.
+Durable job instructions are stored inline, capped by `JobsOptions.MaxInlinePayloadBytes` (1 MiB default). Caller-controlled inline writes that exceed the cap (enqueue input, signal values, and handler variable and progress writes) throw `PayloadTooLargeException` and never reach storage. Results are measured against the same cap after their body has run, so neither is retried: a handler result past it is dropped, the job still succeeds, and the events carry `job.result-oversized`; a step result past it, or one that is null or cannot be serialized, throws `StepFailedException` from `RunStepAsync`, which fails the job for good when uncaught, because a retry would run the finished body again.
 
 For large files, exports, media, archives, reports, or model inputs, store the bytes in file/blob/object storage and enqueue a reference (URI, checksum, size, content type). The handler opens, verifies, processes, and returns a small durable result. The job input is the durable pointer and verification contract, not the file. See `concepts/000-fundamentals/025-large-payload-reference`.
 
@@ -546,7 +546,7 @@ For large files, exports, media, archives, reports, or model inputs, store the b
 
 Unhandled exceptions escape the handler and are captured as attempt failures. The framework records the exception's `Message`, truncated to 512 characters, as the attempt's failure message, at the job's event recording level; retry policy decides whether the job retries or becomes terminal. Nothing redacts that message: it is shown on the read surface and sent to alert channels, so keep secrets and personal data out of exception messages.
 
-`NotImplementedException`, `NotSupportedException`, an uncaught `StepExhaustedException`, a `HandlerActivationException` for a handler DI cannot build ([Lifecycle and visibility](#lifecycle-and-visibility)), and a handler result that is null or cannot be serialized are non-retryable: the job lands terminal `Failed` immediately (reason `non-retryable-exception`) without consuming retry budget, since retrying cannot change the outcome. A permanent job instead settles that firing as failed and returns to `Idle` for its next one, as a spent budget does. For custom non-retryable types, call `ctx.FailAsync` in the handler or register a pipeline behavior that translates them.
+`NotImplementedException`, `NotSupportedException`, an uncaught `StepFailedException`, a `HandlerActivationException` for a handler DI cannot build ([Lifecycle and visibility](#lifecycle-and-visibility)), and a handler result that is null or cannot be serialized are non-retryable: the job lands terminal `Failed` immediately (reason `non-retryable-exception`) without consuming retry budget, since retrying cannot change the outcome. A permanent job instead settles that firing as failed and returns to `Idle` for its next one, as a spent budget does. For custom non-retryable types, call `ctx.FailAsync` in the handler or register a pipeline behavior that translates them.
 
 Handlers should not return failure-as-result unless the domain considers that a successful outcome.
 
