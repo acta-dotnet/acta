@@ -1,5 +1,5 @@
 // Concept: a child group never throws on its own; ThrowIfAnyFailed is the opt-in escalation.
-// A failed child surfaces in JoinOutcome.Failed, MapOutcome.Failed, and ParallelOutcome.Failed.
+// A failed child surfaces in ChildrenWaitOutcome.Failed, MapOutcome.Failed, and ParallelOutcome.Failed.
 using Acta;
 using Acta.Concepts.ChildFailureOutcomes;
 using Microsoft.Extensions.DependencyInjection;
@@ -32,7 +32,7 @@ var parallelOutcome = await jobs.RunAndWaitAsync<RunParallelEscalated>(new RunPa
 Console.WriteLine($"parent: {parallelOutcome.Status} (expected Failed)");
 
 // --- Scenario 3: JoinAsync, ThrowIfAnyFailed escalation ---
-// Same pattern for JoinOutcome: the handler escalates, parent lands Failed.
+// Same pattern for a join: the handler escalates, parent lands Failed.
 Console.WriteLine("--- scenario 3: join with one failing child, ThrowIfAnyFailed ---");
 var joinOutcome = await jobs.RunAndWaitAsync<RunJoinEscalated>(new RunJoinEscalated());
 Console.WriteLine($"parent: {joinOutcome.Status} (expected Failed)");
@@ -136,7 +136,7 @@ namespace Acta.Concepts.ChildFailureOutcomes
         }
 
         // Scenario 3: two children started by hand and joined; one child fails. Handler calls
-        // ThrowIfAnyFailed on the JoinOutcome; the parent lands Failed.
+        // ThrowIfAnyFailed on the join's outcome; the parent lands Failed.
         // MaxAttempts = 1 keeps the parent from retrying after the escalation throws.
         [Job("run-join-escalated", MaxAttempts = 1)]
         public async Task HandleJoinEscalated(RunJoinEscalated _, JobContext context, CancellationToken ct)

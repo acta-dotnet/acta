@@ -44,6 +44,8 @@ Not tagged yet.
 
 **Read a bounded child wait's `ChildJobOutcome`**: `TryWaitChildAsync` answers the `ChildJobOutcome` every other child wait answers, and `ChildWaitOutcome` is gone. `result.TimedOut` reads as before, `result.Completed` is `!result.TimedOut`, and `result.Outcome!.Status` is `result.Status`. On a timeout `Status` is `Cancelled`, the status Acta drove the child to, so branch on `TimedOut` first, as with a group wait.
 
+**Read `ChildrenWaitOutcome` from the unbounded `JoinAsync`**: both `JoinAsync` overloads answer `ChildrenWaitOutcome`, and `JoinOutcome` is gone. `Children`, `Succeeded`, `Failed`, and `ThrowIfAnyFailed` read as before, and `TimedOut` is always false on an unbounded join. Code that names the type changes, and so does code that built, deconstructed, or copied a `JoinOutcome` or read one back as a job result: only the framework builds a `ChildrenWaitOutcome`, so a handler that wants to return its children's outcomes returns a shape of its own.
+
 ### Fixes
 
 - On SQL Server, two definition overrides updates in different namespaces could deadlock, and one failed as the victim: the update that carries a rate override to the definitions sharing its meter read every definition row under update locks before filtering by namespace, and waited on another namespace's row that its own update held. It now seeks its own namespace's rows.

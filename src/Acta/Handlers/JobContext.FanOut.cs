@@ -11,18 +11,17 @@ public abstract partial class JobContext
     /// order. A nicer wrapper over
     /// <see cref="WaitChildrenAsync(IReadOnlyList{long}, CancellationToken)"/>: it does not throw because a child
     /// failed and does not cancel siblings; branch on the returned outcome or call
-    /// <see cref="JoinOutcome.ThrowIfAnyFailed"/>.
+    /// <see cref="ChildrenWaitOutcome.ThrowIfAnyFailed"/>.
     /// </summary>
-    public async Task<JoinOutcome> JoinAsync(IReadOnlyList<EnqueueJobResponse> children, CancellationToken ct = default)
+    public async Task<ChildrenWaitOutcome> JoinAsync(IReadOnlyList<EnqueueJobResponse> children, CancellationToken ct = default)
     {
         ThrowIfInAtMostOnceStep(nameof(JoinAsync));
-        return new(await WaitChildrenAsync(ChildIds(children), ct));
+        return ChildrenWaitOutcome.From(await WaitChildrenAsync(ChildIds(children), ct));
     }
 
     /// <summary>
     /// Bounded twin of <see cref="JoinAsync(IReadOnlyList{EnqueueJobResponse}, CancellationToken)"/>: the whole join
-    /// shares one stored deadline a replay never extends. It answers a <see cref="ChildrenWaitOutcome"/>, which carries
-    /// the same ordered outcomes as a <see cref="JoinOutcome"/> and can also say the group ran out of time.
+    /// shares one stored deadline a replay never extends, and the outcome says which children ran out of time.
     /// </summary>
     /// <param name="children">The child handles to join on, in the order the outcomes come back.</param>
     /// <param name="timeout">Budget for the whole join from DB now, not per child. Must be positive.</param>

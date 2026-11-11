@@ -258,7 +258,7 @@
     <span class="k">var</span> ready = <span class="k">await</span> ctx.TryWaitChildAsync(
         package.JobId, TimeSpan.FromMinutes(30), ct);
 
-    <span class="k">if</span> (ready.Outcome <span class="k">is</span> <span class="k">not</span> { Succeeded: <span class="k">true</span> })
+    <span class="k">if</span> (!ready.Succeeded)
     {
         <span class="k">await</span> ctx.FailAsync(ready.TimedOut
             ? <span class="s">"Packaging timed out"</span> : <span class="s">"Packaging did not succeed"</span>, ct);

@@ -146,7 +146,7 @@ curated-view rows.
 | 215 | [map-parallel-join](../concepts/200-durable-execution/215-map-parallel-join/) | `ParallelAsync`, `MapAsync`, and `JoinAsync` fan out child jobs and wait, all over the same latches |
 | 216 | [variable-lifecycle](../concepts/200-durable-execution/216-variable-lifecycle/) | Durable-variable lifecycle: `GetOrSet` (compute-once), `Exists`, `Delete`, defaults, raw `JobPayload` |
 | 217 | [absolute-time-controls](../concepts/200-durable-execution/217-absolute-time-controls/) | Absolute-instant timing: `ScheduleAsync(input, runAt)`, `SleepUntilAsync`, `RescheduleUntilAsync` |
-| 219 | [child-failure-outcomes](../concepts/200-durable-execution/219-child-failure-outcomes/) | Child-group failure handling: `MapOutcome`/`ParallelOutcome`/`JoinOutcome` and `ThrowIfAnyFailed` |
+| 219 | [child-failure-outcomes](../concepts/200-durable-execution/219-child-failure-outcomes/) | Child-group failure handling: `MapOutcome`/`ParallelOutcome`/`ChildrenWaitOutcome` and `ThrowIfAnyFailed` |
 | 220 | [at-most-once-step](../concepts/200-durable-execution/220-at-most-once-step/) | **Engineering Lab.** Real process loss after a side effect: refuse body replay, surface ambiguity, reconcile |
 | 301 | [fail-job](../concepts/300-failure-and-recovery/301-fail-job/) | `ctx.FailAsync` ends the job permanently - no retries (unlike throwing) |
 | 302 | [cancel-job](../concepts/300-failure-and-recovery/302-cancel-job/) | `ctx.CancelAsync` ends the job as Cancelled |
