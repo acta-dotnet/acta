@@ -42,7 +42,7 @@ WHERE
     );
 -- end child-only
 
-SELECT ACTA_ERROR('Enqueue rejected: one or more child rows reference a missing or terminal parent job.')
+SELECT ACTA_ERROR('ACTA:ENQ_PARENT_UNAVAILABLE:Enqueue rejected: one or more child rows reference a missing or terminal parent job.')
 WHERE
     @p_parent_job_id IS NOT NULL
     AND NOT EXISTS (

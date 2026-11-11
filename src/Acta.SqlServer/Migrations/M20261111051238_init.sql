@@ -2219,7 +2219,7 @@ BEGIN
 
                 IF @lineage IS NULL
                     BEGIN
-                        THROW 50002, 'Enqueue rejected: one or more child rows reference a missing or terminal parent job.', 1;
+                        THROW 50002, 'ACTA:ENQ_PARENT_UNAVAILABLE:Enqueue rejected: one or more child rows reference a missing or terminal parent job.', 1;
                     END;
 
                 IF @lane_id IS NOT NULL
@@ -2665,7 +2665,7 @@ BEGIN
             WHERE parent_job_id IS NOT NULL
         )
             BEGIN
-                THROW 50002, 'Enqueue rejected: one or more child rows reference a missing or terminal parent job.', 1;
+                THROW 50002, 'ACTA:ENQ_PARENT_UNAVAILABLE:Enqueue rejected: one or more child rows reference a missing or terminal parent job.', 1;
             END;
 
         IF
@@ -5010,7 +5010,7 @@ JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE name = 'M20261111042513_init')
+IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE name = 'M20261111051238_init')
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261111042513_init');
+VALUES ('M20261111051238_init');
 GO

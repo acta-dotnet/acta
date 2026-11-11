@@ -305,10 +305,11 @@ An enqueue that trips a tenant or namespace guard throws a typed `EnqueueRejecte
 `TenantRequired` / `TenantForbidden` (the definition's `TenantRequirement` policy), and
 `TenantMismatch` (a child named a different tenant than its parent without the explicit override),
 `RouteUnknown` (no definition by that namespace and name), `DefinitionRetired`, `AncestorLane` (a child
-in the lane of an unfinished ancestor), and `LaneIsolation` (a laned enqueue inside a caller
-transaction whose isolation reads a snapshot older than the lane lock). Guard-wrapped HTTP handlers
-map it to 409 with the reason in the ProblemDetails `reasonCode`, kebab-case (`route-unknown`). A missing or terminal parent still surfaces as a
-raw provider error. The same guards apply when the external outbox relays a record: a record that trips one
+in the lane of an unfinished ancestor), `LaneIsolation` (a laned enqueue inside a caller
+transaction whose isolation reads a snapshot older than the lane lock), and `ParentUnavailable` (a
+child whose parent does not exist or has finished). Guard-wrapped HTTP handlers
+map it to 409 with the reason in the ProblemDetails `reasonCode`, kebab-case (`route-unknown`).
+The same guards apply when the external outbox relays a record: a record that trips one
 (for example a Required definition staged without a tenant) lands in the outbox failure path
 instead of enqueuing.
 
@@ -493,7 +494,7 @@ In production a deploy step applies Acta's migrations, never application startup
 
 ```
 $ ConnectionStrings__acta="<DDL login>" dotnet MyApp.dll jobs migrate
-applied M20261111042513_init to schema acta
+applied M20261111051238_init to schema acta
 namespace billing: 1.6.1+b81d04e (Production)
   added    sys.alerts
   added    sys.retention

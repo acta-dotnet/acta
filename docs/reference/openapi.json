@@ -16249,7 +16249,7 @@
           "namespace-suspended"
         ],
         "type": "string",
-        "description": "Why an enqueue was refused.\n\nKnown values: namespace-suspended, tenant-suspended, tenant-unknown, route-unknown, definition-retired, tenant-required, tenant-forbidden, tenant-mismatch, ancestor-lane, lane-isolation.\n\nOther values may appear: keep a value this client does not know as it is.",
+        "description": "Why an enqueue was refused.\n\nKnown values: namespace-suspended, tenant-suspended, tenant-unknown, route-unknown, definition-retired, tenant-required, tenant-forbidden, tenant-mismatch, ancestor-lane, lane-isolation, parent-unavailable.\n\nOther values may appear: keep a value this client does not know as it is.",
         "x-acta-known-values": [
           "namespace-suspended",
           "tenant-suspended",
@@ -16260,7 +16260,8 @@
           "tenant-forbidden",
           "tenant-mismatch",
           "ancestor-lane",
-          "lane-isolation"
+          "lane-isolation",
+          "parent-unavailable"
         ]
       },
       "EntityCode": {

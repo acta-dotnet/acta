@@ -41,14 +41,14 @@ DO $$
 BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
-        WHERE name NOT IN ('M20261111042513_init')
+        WHERE name NOT IN ('M20261111051238_init')
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
 END
 $$;
 
--- ===== BEGIN M20261111042513_init =====
+-- ===== BEGIN M20261111051238_init =====
 CREATE SCHEMA IF NOT EXISTS acta;
 
 -- alerts
@@ -1872,7 +1872,7 @@ BEGIN
         END IF;
 
         IF v_lineage IS NULL THEN
-            RAISE EXCEPTION 'Enqueue rejected: one or more child rows reference a missing or terminal parent job.'
+            RAISE EXCEPTION 'ACTA:ENQ_PARENT_UNAVAILABLE:Enqueue rejected: one or more child rows reference a missing or terminal parent job.'
                 USING ERRCODE = 'P0001';
         END IF;
 
@@ -2233,7 +2233,7 @@ BEGIN
     WHERE pr.job_status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */);
 
     IF parent_count IS DISTINCT FROM parent_live THEN
-        RAISE EXCEPTION 'Enqueue rejected: one or more child rows reference a missing or terminal parent job.'
+        RAISE EXCEPTION 'ACTA:ENQ_PARENT_UNAVAILABLE:Enqueue rejected: one or more child rows reference a missing or terminal parent job.'
             USING ERRCODE = 'P0001';
     END IF;
 
@@ -4426,10 +4426,10 @@ JOIN acta.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO acta.migrations (name)
-VALUES ('M20261111042513_init')
+VALUES ('M20261111051238_init')
 ON CONFLICT (name) DO NOTHING;
 
--- ===== END M20261111042513_init =====
+-- ===== END M20261111051238_init =====
 
 COMMIT;
 

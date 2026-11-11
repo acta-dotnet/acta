@@ -181,7 +181,7 @@ BEGIN
     WHERE pr.job_status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */);
 
     IF parent_count IS DISTINCT FROM parent_live THEN
-        RAISE EXCEPTION 'Enqueue rejected: one or more child rows reference a missing or terminal parent job.'
+        RAISE EXCEPTION 'ACTA:ENQ_PARENT_UNAVAILABLE:Enqueue rejected: one or more child rows reference a missing or terminal parent job.'
             USING ERRCODE = 'P0001';
     END IF;
 

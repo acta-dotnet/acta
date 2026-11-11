@@ -27,7 +27,7 @@ WHERE EXISTS (
     WHERE jd.definition_status_code <> 10 /* DefinitionStatusCode.Active */
 );
 
-SELECT ACTA_ERROR('Enqueue rejected: one or more child rows reference a missing or terminal parent job.')
+SELECT ACTA_ERROR('ACTA:ENQ_PARENT_UNAVAILABLE:Enqueue rejected: one or more child rows reference a missing or terminal parent job.')
 WHERE EXISTS (
     SELECT 1 FROM JSON_EACH(@p_rows) r
     WHERE

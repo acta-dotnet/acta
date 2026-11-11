@@ -161,6 +161,7 @@ internal static class JobEnqueue
         ("ACTA:ENQ_TENANT_MISMATCH:", EnqueueRejectionReason.TenantMismatch),
         ("ACTA:ENQ_ANCESTOR_LANE:", EnqueueRejectionReason.AncestorLane),
         ("ACTA:ENQ_LANE_ISOLATION:", EnqueueRejectionReason.LaneIsolation),
+        ("ACTA:ENQ_PARENT_UNAVAILABLE:", EnqueueRejectionReason.ParentUnavailable),
     ];
 
     private static EnqueueRejectedException? Rejection(DbException ex)

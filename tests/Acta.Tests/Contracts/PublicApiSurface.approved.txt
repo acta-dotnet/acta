@@ -627,6 +627,7 @@ enum Acta.EnqueueRejectionReason : System.Byte
     DefinitionRetired = 5
     LaneIsolation = 10
     NamespaceSuspended = 1
+    ParentUnavailable = 11
     RouteUnknown = 4
     TenantForbidden = 7
     TenantMismatch = 8

@@ -38,8 +38,8 @@ public sealed class PgEnqueueSnapshotTests : ActaRuntimeTestBase<PgConformanceFi
         await cancel.CommitAsync(ct);
 
         // The cancel's walk of the parent's children ran, or will run, without this child: it must not exist.
-        var refused = await Assert.ThrowsAsync<Npgsql.PostgresException>(() => child);
-        Assert.Contains("terminal parent", refused.MessageText, StringComparison.Ordinal);
+        var refused = await Assert.ThrowsAsync<EnqueueRejectedException>(() => child);
+        Assert.Equal(EnqueueRejectionReason.ParentUnavailable, refused.Reason);
         Assert.Empty(await Db.From<JobEntity>().Where(j => j.ParentJobId == parent.JobId).ToListAsync(ct));
     }
 

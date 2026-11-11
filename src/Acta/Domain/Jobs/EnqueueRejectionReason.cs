@@ -38,4 +38,7 @@ public enum EnqueueRejectionReason : byte
     /// (PostgreSQL REPEATABLE READ or SERIALIZABLE, SQL Server SNAPSHOT), so it could not order the lane.
     /// </summary>
     LaneIsolation = 10,
+
+    /// <summary>A child names a parent job that does not exist or has already finished.</summary>
+    ParentUnavailable = 11,
 }

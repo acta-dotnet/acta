@@ -1,4 +1,3 @@
-using System.Data.Common;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -263,12 +262,13 @@ public sealed class ChildJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
         var done = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-child-echo", JobPayload.Json(new ChildEcho(1))), ct);
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(done, ct));
 
-        await Assert.ThrowsAnyAsync<DbException>(async () =>
+        var refused = await Assert.ThrowsAsync<EnqueueRejectedException>(async () =>
             await Jobs.EnqueueAsync(
                 new EnqueueJobRequest(TestNamespace, "job-child-echo", JobPayload.Json(new ChildEcho(2)), ParentJobId: done.JobId),
                 ct
             )
         );
+        Assert.Equal(EnqueueRejectionReason.ParentUnavailable, refused.Reason);
     }
 
     [Fact(DisplayName = "User signals cannot use the reserved sys.child latch namespace")]

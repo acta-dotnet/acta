@@ -169,7 +169,7 @@ BEGIN
         END IF;
 
         IF v_lineage IS NULL THEN
-            RAISE EXCEPTION 'Enqueue rejected: one or more child rows reference a missing or terminal parent job.'
+            RAISE EXCEPTION 'ACTA:ENQ_PARENT_UNAVAILABLE:Enqueue rejected: one or more child rows reference a missing or terminal parent job.'
                 USING ERRCODE = 'P0001';
         END IF;
 

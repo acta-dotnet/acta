@@ -882,8 +882,8 @@
   - An enqueue rejection inside the caller transaction requires full caller rollback and persists nothing
   - A transactional enqueue publishes no wakeup while the owned path publishes one
 
-### Typed enqueue rejection reasons for namespace, tenant, route, and definition
-- **Contract:** Maps suspended namespace/tenant, unknown tenant, unknown route, and retired definition to EnqueueRejectedException reasons, preserving the provider exception.
+### Typed enqueue rejections for namespace, tenant, route, definition, and parent
+- **Contract:** Maps a suspended namespace or tenant, unknown tenant or route, retired definition, and unavailable parent to typed reasons that keep the provider exception.
 - **Guarantees:**
   - Enqueue into a suspended namespace throws NamespaceSuspended
   - Enqueue with a suspended tenant throws TenantSuspended
@@ -891,6 +891,7 @@
   - A batch into a suspended namespace throws NamespaceSuspended
   - An unknown job rejection throws RouteUnknown
   - Enqueue against a retired definition throws DefinitionRetired
+  - A child of a parent that does not exist or has finished throws ParentUnavailable and is not stored
 
 ### GetJobIdByDeduplicationKey returns the id for a known key, null otherwise
 - **Contract:** GetJobIdByDeduplicationKey resolves a root job's id from its namespace and deduplication key, and returns null when no row matches.

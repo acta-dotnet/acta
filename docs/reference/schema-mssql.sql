@@ -57,7 +57,7 @@ GO
 -- ===== refuse a database a newer release already upgraded =====
 IF EXISTS (
     SELECT 1 FROM acta.migrations
-    WHERE name NOT IN ('M20261111042513_init')
+    WHERE name NOT IN ('M20261111051238_init')
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -65,7 +65,7 @@ BEGIN
     SET NOEXEC ON;
 END
 GO
--- ===== BEGIN M20261111042513_init =====
+-- ===== BEGIN M20261111051238_init =====
 SET QUOTED_IDENTIFIER ON;
 SET ANSI_NULLS ON;
 GO
@@ -2287,7 +2287,7 @@ BEGIN
 
                 IF @lineage IS NULL
                     BEGIN
-                        THROW 50002, 'Enqueue rejected: one or more child rows reference a missing or terminal parent job.', 1;
+                        THROW 50002, 'ACTA:ENQ_PARENT_UNAVAILABLE:Enqueue rejected: one or more child rows reference a missing or terminal parent job.', 1;
                     END;
 
                 IF @lane_id IS NOT NULL
@@ -2733,7 +2733,7 @@ BEGIN
             WHERE parent_job_id IS NOT NULL
         )
             BEGIN
-                THROW 50002, 'Enqueue rejected: one or more child rows reference a missing or terminal parent job.', 1;
+                THROW 50002, 'ACTA:ENQ_PARENT_UNAVAILABLE:Enqueue rejected: one or more child rows reference a missing or terminal parent job.', 1;
             END;
 
         IF
@@ -5078,11 +5078,11 @@ JOIN acta.namespaces AS ns ON ns.namespace_id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261111042513_init')
+IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261111051238_init')
 INSERT INTO acta.migrations (name)
-VALUES ('M20261111042513_init');
+VALUES ('M20261111051238_init');
 GO
--- ===== END M20261111042513_init =====
+-- ===== END M20261111051238_init =====
 GO
 COMMIT TRANSACTION;
 GO
