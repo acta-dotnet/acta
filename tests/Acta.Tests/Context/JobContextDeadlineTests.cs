@@ -61,6 +61,15 @@ public class JobContextDeadlineTests
         private protected override Task<EnqueueJobResponse> StartChildCoreAsync(EnqueueJobRequest request, CancellationToken ct) =>
             throw new NotSupportedException();
 
+        private protected override Task<EnqueueJobResponse> StartChildCallCoreAsync<TInput>(
+            Type? manifestType,
+            string? jobName,
+            TInput input,
+            Type? resultType,
+            JobEnqueueOptions options,
+            CancellationToken ct
+        ) => throw new NotSupportedException();
+
         private protected override Task<(bool Stored, TResult? Value)> ReadChildResultCoreAsync<TResult>(
             long childJobId,
             long? executionNumber,

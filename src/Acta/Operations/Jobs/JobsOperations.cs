@@ -274,6 +274,18 @@ internal sealed class JobsOperations(
     )
         where TInput : notnull => EnqueueChildAsync(routing.FromInput(input, options), parent, ct);
 
+    /// <summary>A child enqueue of a generated call, by the job the call names, under its parent's fence like the typed one.</summary>
+    internal ValueTask<EnqueueJobResponse> EnqueueChildAsync<TInput>(
+        Type? manifestType,
+        string? jobName,
+        TInput input,
+        Type? resultType,
+        JobEnqueueOptions options,
+        ExecutionFence parent,
+        CancellationToken ct
+    )
+        where TInput : notnull => EnqueueChildAsync(routing.FromContract(manifestType, jobName, input, options, resultType), parent, ct);
+
     /// <summary>A child enqueue of an explicit route, under its parent's fence like the typed one.</summary>
     internal ValueTask<EnqueueJobResponse> EnqueueChildAsync(EnqueueJobRequest request, ExecutionFence parent, CancellationToken ct) =>
         enqueueJob.HandleAsync(new EnqueueJobCommand(request, ParentFence: parent), ct);

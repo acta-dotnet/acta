@@ -40,6 +40,51 @@ public sealed class ChildAsyncOverloadTests
         Assert.Equal(ctx.JobId, options.ParentJobId);
     }
 
+    // A call passed to an input-typed form would compile, with the call itself as the input, and fail at run time, so
+    // each form that can take a call must win the overload resolution: the recording context notes which sink ran.
+    [Fact]
+    public async Task Every_form_given_a_call_starts_the_job_the_call_names()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var plain = new JobCall<Probe>(new JobContract<Probe>(typeof(ChildAsyncOverloadTests), "probe"), new Probe());
+        var typed = new JobCall<Probe, int>(new JobContract<Probe, int>(typeof(ChildAsyncOverloadTests), "probe"), new Probe());
+        var minute = TimeSpan.FromMinutes(1);
+        (string Sink, Func<RecordingJobContext, Task> Call)[] forms =
+        [
+            ("call:probe:none", c => c.StartChildAsync("child", plain)),
+            ("call:probe:none", c => c.StartChildAsync("child", plain, ct)),
+            ("call:probe:Int32", c => c.StartChildAsync("child", typed)),
+            ("call:probe:Int32", c => c.StartChildAsync("child", typed, ct)),
+            ("call:probe:none", c => c.ExecuteChildAsync("child", plain)),
+            ("call:probe:none", c => c.ExecuteChildAsync("child", plain, ct)),
+            ("call:probe:none", c => c.ExecuteChildAsync("child", plain, minute)),
+            ("call:probe:none", c => c.ExecuteChildAsync("child", plain, minute, ct)),
+            ("call:probe:Int32", c => c.ExecuteChildAsync("child", typed)),
+            ("call:probe:Int32", c => c.ExecuteChildAsync("child", typed, ct)),
+            ("call:probe:Int32", c => c.ExecuteChildAsync("child", typed, minute)),
+            ("call:probe:Int32", c => c.ExecuteChildAsync("child", typed, minute, ct)),
+        ];
+
+        foreach (var (sink, call) in forms)
+        {
+            var ctx = new RecordingJobContext { SeededChildResult = 42 };
+            await call(ctx);
+            Assert.Equal(sink, ctx.Events[0]);
+            Assert.Equal("child", Assert.Single(ctx.StartOptions).DeduplicationKey);
+        }
+    }
+
+    [Fact]
+    public async Task A_call_of_a_job_with_a_result_answers_the_outcome_with_its_value()
+    {
+        var ctx = new RecordingJobContext { SeededChildResult = 42 };
+        var call = new JobCall<Probe, int>(new JobContract<Probe, int>(typeof(ChildAsyncOverloadTests), "probe"), new Probe());
+
+        JobOutcome<int> outcome = await ctx.ExecuteChildAsync("child", call, TestContext.Current.CancellationToken);
+
+        Assert.Equal(42, outcome.ValueOrThrow());
+    }
+
     [Fact]
     public async Task ExecuteChildAsync_generic_positional_ct_forwards_configure_null_and_returns_the_seeded_result()
     {

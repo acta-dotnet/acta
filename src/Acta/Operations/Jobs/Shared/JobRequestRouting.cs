@@ -18,6 +18,19 @@ internal sealed class JobRequestRouting(
         where TInput : notnull
     {
         ArgumentNullException.ThrowIfNull(input);
+        // A call reaches here only when its argument was named input, which binds this form over the call's own.
+        if (
+            typeof(TInput).IsGenericType
+            && typeof(TInput).GetGenericTypeDefinition() is var call
+            && (call == typeof(JobCall<>) || call == typeof(JobCall<,>))
+        )
+        {
+            throw new ArgumentException(
+                "A generated call was passed as a job's input. Pass the call positionally, or name its argument job, so it is enqueued by the job it names.",
+                nameof(input)
+            );
+        }
+
         var route = typeRegistry.Resolve(typeof(TInput), options?.JobNamespace);
         return Request(route.Namespace, route.JobName, Serialize(route.InputFormat, input), options);
     }
@@ -34,7 +47,7 @@ internal sealed class JobRequestRouting(
         where TInput : notnull
         where TResult : notnull => FromContract(call.Contract.ManifestType, call.Contract.JobName, call.Input, options, typeof(TResult));
 
-    private EnqueueJobRequest FromContract<TInput>(
+    internal EnqueueJobRequest FromContract<TInput>(
         Type? manifestType,
         string? jobName,
         TInput input,

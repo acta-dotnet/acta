@@ -64,6 +64,10 @@ Not tagged yet.
 
 **Expect 422 from a preview that cannot be evaluated**: `GET /calendars/{jobNamespace}/{calendarName}/preview` and `GET /schedules/{jobNamespace}/{jobName}/{scheduleName}/preview` answered 500 for a calendar or an expression that cannot be evaluated, such as one whose excluded dates close it. They answer a 422 problem whose detail says why, and `PreviewAsync` throws `ScheduleEvaluationException`, which is an `InvalidOperationException` as before.
 
+### Additions
+
+- **A handler starts a child by its generated call.** `ctx.StartChildAsync("ship", ShippingJobs.Ship(order), ct)` and `ctx.ExecuteChildAsync("ship", ShippingJobs.Ship(order), ct)` take the call `IJobs` takes: the child is the job the call names, so nothing is inferred from the input's type and two jobs may share one, and a call of a job with a result answers `JobOutcome<TResult>` with the result type inferred. Every shape the input-typed forms have exists for a call: with `configure`, with `ct` in the next position, and bounded by a timeout.
+
 ### Fixes
 
 - A deploy that changed only a schedule's expiry left a schedule parked behind a busy permanent job or at its `MaxOutstanding` asleep: the new `ExpireAfter` and `ExpireAction` were stored, and nothing evaluated the schedule again until a settlement or an operator woke it, so a `Pause` expiry added because work was stuck did not pause it. A deploy that changes a parked schedule's expiry now wakes it as one that changes its capacity does, with the cursor and an operator's pause left alone.

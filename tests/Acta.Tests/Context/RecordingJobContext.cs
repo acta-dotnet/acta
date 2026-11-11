@@ -65,6 +65,19 @@ internal class RecordingJobContext(IReadOnlyDictionary<string, ChildJobOutcome>?
         return Task.FromResult(new EnqueueJobResponse(id, JobRef.New(), EnqueueJobAction.Inserted));
     }
 
+    private protected override Task<EnqueueJobResponse> StartChildCallCoreAsync<TInput>(
+        Type? manifestType,
+        string? jobName,
+        TInput input,
+        Type? resultType,
+        JobEnqueueOptions options,
+        CancellationToken ct
+    )
+    {
+        Events.Add($"call:{jobName}:{resultType?.Name ?? "none"}");
+        return StartChildCoreAsync(input, options, ct);
+    }
+
     private protected override Task<SignalCheckpointState> WaitSignalCoreAsync(string name, CancellationToken ct)
     {
         if (!name.StartsWith("sys.child.", StringComparison.Ordinal))

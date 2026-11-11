@@ -34,6 +34,11 @@ public static class ChildJobProbes
         return outcome.ValueOrThrow();
     }
 
+    /// <summary>Runs its child through the manifest's generated call, which names the child's job and its result type.</summary>
+    [Job("job-parent-by-call")]
+    public static async Task<ChildEchoResult> ParentByCall(JobContext ctx, CancellationToken ct) =>
+        (await ctx.ExecuteChildAsync("echo", TestJobsManifest.JobChildEcho(new ChildEcho(21)), ct)).ValueOrThrow();
+
     [Job("job-child-resultless")]
     public static Task ChildResultless(ResultlessChild input, CancellationToken ct) => Task.CompletedTask;
 

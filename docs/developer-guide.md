@@ -568,6 +568,8 @@ Minimum guaranteed surface categories:
 * Transition helpers.
 * Alerts.
 
+A child is started from its input, `ctx.ExecuteChildAsync("ship", order, ct)`, which finds the job by the input's type, or from the manifest's generated call, `ctx.ExecuteChildAsync("ship", ShippingJobs.Ship(order), ct)`, which names the job and, for a job with a result, answers `JobOutcome<TResult>` with no type argument. `StartChildAsync` takes both forms too. Use the call when two jobs share an input type.
+
 ### Child-job groups: Map, Parallel, Join
 
 | Convenience | Shape |

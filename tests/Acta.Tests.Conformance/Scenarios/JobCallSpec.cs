@@ -18,7 +18,7 @@ namespace Acta.Tests.Conformance.Scenarios;
     Area = "Enqueue",
     Contract = "Enqueue, schedule, and run-and-wait take a generated call, which names its job and its input, and several handler parameters are stored as one JSON object."
 )]
-[Deploys("add-numbers", "cancellable", "format-invoice")]
+[Deploys("add-numbers", "cancellable", "format-invoice", "job-child-echo", "job-parent-by-call")]
 public sealed class JobCallSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<JobCallSpec>>
 {
     protected override bool RunAsWorker => true;
@@ -40,6 +40,37 @@ public sealed class JobCallSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf
         Assert.Equal("add-numbers", (await Jobs.GetAsync(handle, ct))!.JobName);
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(handle, ct));
         Assert.Equal(5, (await handle.GetResultAsync(ct)).Sum);
+    }
+
+    [Fact(DisplayName = "A call passed by name as an input is refused with how to pass it, and nothing is enqueued")]
+    public async Task A_call_named_as_an_input_is_refused()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var key = Unique("named-input");
+
+        // Naming the argument input binds the input-typed form, whose job would be found by the call's own type.
+        var refused = await Assert.ThrowsAsync<ArgumentException>(() =>
+            Jobs.EnqueueAsync(input: TestJobsManifest.AddNumbers(new AddNumbers(2, 3)), o => o.DeduplicationKey(key), ct).AsTask()
+        );
+
+        Assert.Contains("name its argument job", refused.Message, StringComparison.Ordinal);
+        Assert.Null(await Jobs.GetIdAsync(JobLookup.ByDeduplicationKey(TestNamespace, key), ct));
+    }
+
+    [Fact(DisplayName = "A handler runs a child by a generated call and reads the child's typed result from the outcome")]
+    public async Task A_handler_runs_a_child_by_its_call()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var parent = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-parent-by-call", JobPayload.None), ct);
+
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(parent, ct));
+        var child = Assert.Single(await Db.From<JobEntity>().Where(j => j.ParentJobId == parent.JobId).ToListAsync(ct));
+        Assert.Equal("echo", child.DeduplicationKey);
+        Assert.Equal("job-child-echo", (await Jobs.GetAsync(JobLookup.ById(child.Id), ct))!.JobName);
+
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(child.Id, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(parent, ct));
+        Assert.Equal(42, (await Jobs.GetResultAsync<ChildEchoResult>(parent, ct)).Doubled);
     }
 
     [Fact(DisplayName = "A call of a handler taking several parameters stores them as one object and answers the typed result")]

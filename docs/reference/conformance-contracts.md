@@ -929,6 +929,8 @@
 - **Contract:** Enqueue, schedule, and run-and-wait take a generated call, which names its job and its input, and several handler parameters are stored as one JSON object.
 - **Guarantees:**
   - A call resolves its route without input-type inference and round-trips the typed result
+  - A call passed by name as an input is refused with how to pass it, and nothing is enqueued
+  - A handler runs a child by a generated call and reads the child's typed result from the outcome
   - A call of a handler taking several parameters stores them as one object and answers the typed result
   - A no-input call enqueues its own job
   - A call's configure callback applies its options

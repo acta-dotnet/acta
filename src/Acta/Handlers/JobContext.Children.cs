@@ -119,9 +119,7 @@ public abstract partial class JobContext
         where TInput : notnull
     {
         ThrowIfInAtMostOnceStep(nameof(ExecuteChildAsync));
-        var child = await StartChildAsync(name, input, configure, ct);
-        var outcome = await WaitChildAsync(child.JobId, ct);
-        return ToJobOutcome(child, outcome.Status);
+        return await SettleChildAsync(await StartChildAsync(name, input, configure, ct), timeout: null, ct);
     }
 
     /// <summary>
@@ -156,8 +154,7 @@ public abstract partial class JobContext
         var child = await StartChildAsync(name, input, configure, ct);
         // One child needs no group deadline checkpoint: the latch's own stored expiration already is the one
         // persisted absolute instant, and a second copy of it could only drift.
-        var outcome = await TryWaitChildAsync(child.JobId, timeout, ct);
-        return outcome.TimedOut ? JobOutcome.TimedOut(child.JobId, child.JobRef, TimedOutChildStatus) : ToJobOutcome(child, outcome.Status);
+        return await SettleChildAsync(child, timeout, ct);
     }
 
     /// <summary>
@@ -168,6 +165,43 @@ public abstract partial class JobContext
     /// </summary>
     public Task<JobOutcome> ExecuteChildAsync<TInput>(string name, TInput input, TimeSpan timeout, CancellationToken ct)
         where TInput : notnull => ExecuteChildAsync(name, input, timeout, configure: null, ct: ct);
+
+    /// <summary>Waits a started child to its outcome, under <paramref name="timeout"/> when one is given.</summary>
+    private async Task<JobOutcome> SettleChildAsync(EnqueueJobResponse child, TimeSpan? timeout, CancellationToken ct)
+    {
+        var outcome = timeout is { } bound ? await TryWaitChildAsync(child.JobId, bound, ct) : await WaitChildAsync(child.JobId, ct);
+        return outcome.TimedOut ? JobOutcome.TimedOut(child.JobId, child.JobRef, TimedOutChildStatus) : ToJobOutcome(child, outcome.Status);
+    }
+
+    /// <summary>
+    /// <see cref="SettleChildAsync(EnqueueJobResponse, TimeSpan?, CancellationToken)"/> with the result a succeeded
+    /// child stored; a success with none throws, since the caller asked for a result the child did not produce.
+    /// </summary>
+    private async Task<JobOutcome<TResult>> SettleChildAsync<TResult>(
+        EnqueueJobResponse child,
+        string name,
+        TimeSpan? timeout,
+        CancellationToken ct
+    )
+        where TResult : notnull
+    {
+        var outcome = timeout is { } bound ? await TryWaitChildAsync(child.JobId, bound, ct) : await WaitChildAsync(child.JobId, ct);
+        if (outcome.TimedOut)
+        {
+            return JobOutcome<TResult>.TimedOut(child.JobId, child.JobRef, TimedOutChildStatus);
+        }
+
+        return outcome.Status switch
+        {
+            JobStatusCode.Succeeded => JobOutcome<TResult>.Succeeded(
+                child.JobId,
+                child.JobRef,
+                await RequireChildResultAsync<TResult>(outcome, name, ct)
+            ),
+            JobStatusCode.Cancelled => JobOutcome<TResult>.Cancelled(child.JobId, child.JobRef),
+            _ => JobOutcome<TResult>.Failed(child.JobId, child.JobRef),
+        };
+    }
 
     private static JobOutcome ToJobOutcome(EnqueueJobResponse child, JobStatusCode status) =>
         status switch
@@ -202,16 +236,7 @@ public abstract partial class JobContext
         where TResult : notnull
     {
         ThrowIfInAtMostOnceStep(nameof(ExecuteChildAsync));
-        var child = await StartChildAsync(name, input, configure, ct);
-        var outcome = await WaitChildAsync(child.JobId, ct);
-        if (outcome.Status != JobStatusCode.Succeeded)
-        {
-            return outcome.Status == JobStatusCode.Cancelled
-                ? JobOutcome<TResult>.Cancelled(child.JobId, child.JobRef)
-                : JobOutcome<TResult>.Failed(child.JobId, child.JobRef);
-        }
-
-        return JobOutcome<TResult>.Succeeded(child.JobId, child.JobRef, await RequireChildResultAsync<TResult>(outcome, name, ct));
+        return await SettleChildAsync<TResult>(await StartChildAsync(name, input, configure, ct), name, timeout: null, ct);
     }
 
     /// <summary>
@@ -243,20 +268,7 @@ public abstract partial class JobContext
     {
         ThrowIfInAtMostOnceStep(nameof(ExecuteChildAsync));
         ToWaitTimeoutSeconds(timeout);
-        var child = await StartChildAsync(name, input, configure, ct);
-        var outcome = await TryWaitChildAsync(child.JobId, timeout, ct);
-        if (outcome.TimedOut)
-        {
-            return JobOutcome<TResult>.TimedOut(child.JobId, child.JobRef, TimedOutChildStatus);
-        }
-        if (outcome.Status != JobStatusCode.Succeeded)
-        {
-            return outcome.Status == JobStatusCode.Cancelled
-                ? JobOutcome<TResult>.Cancelled(child.JobId, child.JobRef)
-                : JobOutcome<TResult>.Failed(child.JobId, child.JobRef);
-        }
-
-        return JobOutcome<TResult>.Succeeded(child.JobId, child.JobRef, await RequireChildResultAsync<TResult>(outcome, name, ct));
+        return await SettleChildAsync<TResult>(await StartChildAsync(name, input, configure, ct), name, timeout, ct);
     }
 
     /// <summary>
