@@ -91,22 +91,29 @@
         <div class="vs-row" id="hangfire">
           <div class="who"><b>Hangfire</b><span>background job runner</span></div>
           <div class="why">
-            <p><b>Keep it when</b> it already runs your jobs well: a widely used runner with recurring jobs, automatic retries, and a dashboard, on storage you know.</p>
-            <p><b>Consider Acta when</b> a job's state should be data in your own SQL database that you can query, with typed inputs, durable steps, signals, child jobs, and order and limits held across every worker.</p>
+            <p><b>Keep it when</b> it already runs your jobs well: a widely used runner with recurring jobs, automatic retries, continuations, and a dashboard, on storage you know, with batches and throttling in its paid packages.</p>
+            <p><b>Consider Acta when</b> progress inside a job has to survive a restart: named steps, signals, long waits, and child jobs in one handler, with order and limits held across every worker and the job's state in SQL views you can query.</p>
           </div>
         </div>
         <div class="vs-row" id="quartz">
           <div class="who"><b>Quartz.NET</b><span>scheduler</span></div>
           <div class="why">
-            <p><b>Keep it when</b> the calendar is the hard part: rich cron and calendar rules, misfire handling, and clustering you have already tuned.</p>
-            <p><b>Consider Acta when</b> what happens after a job starts matters more than when it starts: steps, long waits, crash recovery, lineage, and operator controls.</p>
+            <p><b>Keep it when</b> the calendar is the hard part: rich cron and calendar rules, misfire handling, and clustering you have already tuned. Its 4.x line adds a dashboard, continuations, and execution groups that cap work across a cluster.</p>
+            <p><b>Consider Acta when</b> the job itself has state to keep: steps whose results survive a restart, long waits, child jobs, lineage, and one answer to why a job is where it is.</p>
           </div>
         </div>
         <div class="vs-row" id="tickerq">
           <div class="who"><b>TickerQ</b><span>scheduler</span></div>
           <div class="why">
-            <p><b>Keep it when</b> you want a source-generated scheduler with persistence, a dashboard, chaining, priorities, and concurrency controls.</p>
-            <p><b>Consider Acta when</b> the database should be the record of resumable work: checkpoints, signals, recovery evidence, and operator intervention.</p>
+            <p><b>Keep it when</b> you want a source-generated scheduler with persistence, a dashboard, priorities, and, in its 5.x line, durable chains of jobs with parallel branches.</p>
+            <p><b>Consider Acta when</b> one job should carry its own progress: checkpoints inside the handler, signals and timers it waits on, lanes and limits, recovery evidence, and operator intervention.</p>
+          </div>
+        </div>
+        <div class="vs-row" id="workflow-core">
+          <div class="who"><b>Workflow Core</b><span>workflow library</span></div>
+          <div class="why">
+            <p><b>Keep it when</b> your workflows are graphs of steps, declared in fluent C#, JSON, or YAML, and it already persists them where you need.</p>
+            <p><b>Consider Acta when</b> you would rather write the workflow as an ordinary C# handler, with named steps, waits, and child jobs as its durable points, and run it under the same controls, limits, and SQL views as every other job.</p>
           </div>
         </div>
         <div class="vs-row" id="temporal">
@@ -119,8 +126,22 @@
         <div class="vs-row" id="elsa">
           <div class="who"><b>Elsa Workflows</b><span>workflow library</span></div>
           <div class="why">
-            <p><b>Keep it when</b> you want a visual designer, with workflows stored as data that can change without a deploy.</p>
-            <p><b>Consider Acta when</b> your team writes and reviews workflows as code, as plain C# handlers.</p>
+            <p><b>Keep it when</b> you want workflows as data that can change without a deploy, built in code or drawn in its designer, hosted in your application or on their own.</p>
+            <p><b>Consider Acta when</b> your team writes and reviews workflows as plain C# handlers, and wants its jobs, schedules, and workflows in one model.</p>
+          </div>
+        </div>
+        <div class="vs-row" id="durable-task">
+          <div class="who"><b>Durable Task</b><span>Durable Functions and its SDKs</span></div>
+          <div class="why">
+            <p><b>Keep it when</b> you host on Azure Functions, or want a managed Azure service to hold your orchestrations' state. Durable Functions can also keep it in SQL Server.</p>
+            <p><b>Consider Acta when</b> the state belongs in the application's own PostgreSQL, SQL Server, or SQLite database, wherever the application runs, and you want checkpoints you place yourself rather than orchestrator code that replays.</p>
+          </div>
+        </div>
+        <div class="vs-row" id="wolverine">
+          <div class="who"><b>Wolverine</b><span>messaging framework</span></div>
+          <div class="why">
+            <p><b>Keep it when</b> your background work is message handling: a durable inbox and outbox, durable local queues, and scheduled messages, on a database you already run.</p>
+            <p><b>Consider Acta when</b> the unit is a job with a life of its own: steps, waits, child jobs, a schedule, a history, and an operator who can pause, restart, or signal it.</p>
           </div>
         </div>
         <div class="vs-row" id="brokers">
@@ -131,6 +152,7 @@
           </div>
         </div>
       </div>
+      <p class="hint">Each row describes the project as its own documentation did in November 2026: Quartz.NET at 4.x, and TickerQ at 5.x, then a preview.</p>
 
       <h2 class="ref-group" id="fit">Signs that Acta fits, and signs that it does not</h2>
       <div class="facts two">
