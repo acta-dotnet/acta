@@ -2,10 +2,11 @@
 -- A retired definition's schedules are left out, and any ListDueSchedules leaves out for a code not listed here, so
 -- their wakes never keep the admitter polling. The database clock comes back with it, so an idle admitter makes one read.
 SELECT MIN(st.next_evaluation_at_utc) AS next_evaluation_at_utc, SYSUTCDATETIME() AS db_now_utc
-FROM {{schema}}.schedules_state st
-INNER JOIN {{schema}}.namespaces n ON n.namespace_id = st.namespace_id
-INNER JOIN {{schema}}.schedules s ON s.schedule_id = st.schedule_id
-INNER JOIN {{schema}}.definitions d ON d.definition_id = s.definition_id
+-- Every table is sought by key from the namespace's due index (docs/sql-internals.md, "Locking reads seek").
+FROM {{schema}}.schedules_state st WITH (FORCESEEK (ix_schedules_state_due (namespace_id)))
+INNER JOIN {{schema}}.namespaces n WITH (FORCESEEK) ON n.namespace_id = st.namespace_id
+INNER JOIN {{schema}}.schedules s WITH (FORCESEEK) ON s.schedule_id = st.schedule_id
+INNER JOIN {{schema}}.definitions d WITH (FORCESEEK) ON d.definition_id = s.definition_id
 WHERE
     st.namespace_id = @p_namespace_id
     AND st.next_evaluation_at_utc IS NOT NULL

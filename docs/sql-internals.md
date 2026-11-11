@@ -232,7 +232,8 @@ filter so the hint always compiles:
   with deploys of its own namespace, so a statement that scanned would lock, or with `READ_COMMITTED_SNAPSHOT` off wait
   on, every namespace's rows; concurrent deploys of different namespaces deadlocked that way.
 - Every other read of one namespace's schedules seeks that namespace's rows too: an admission pass's read seeks its due
-  schedules through `ix_schedules_state_due` and each member of their permanent jobs through `ix_schedules_job`, its
+  schedules through `ix_schedules_state_due` and each member of their permanent jobs through `ix_schedules_job`, the
+  horizon read it makes between passes seeks the same index and each row behind it by key, its
   apply reads the jobs and roots its evidence names by key, and a
   namespace calendar's plan read, a publication's check for a schedule its plan missed, and an archive's count of the
   family's schedules start from the namespace's definitions. A draft's name check seeks the sys namespace's family. A
