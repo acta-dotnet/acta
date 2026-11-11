@@ -100,13 +100,15 @@ internal sealed class CancelJobHandler(
 
     /// <summary>
     /// <see cref="JobsOperations.CancelTreeAsync"/>: the root's cancel, then the descendant walk, every node under
-    /// <paramref name="fence"/>, so an attempt that lost its job stops at the next node.
+    /// <paramref name="fence"/>, so an attempt that lost its job stops at the next node. The fence is the walk's only
+    /// guard: the walk runs once, inside that attempt, and a root that finished just before its cancel still has its
+    /// live descendants cancelled.
     /// </summary>
     internal async Task CancelTreeAsync(long rootJobId, JobControlInput input, ExecutionFence fence, CancellationToken ct)
     {
         var root = await CancelAsync(rootJobId, input, fence, walkRootJobId: null, ct);
         var promoted = root.Action == ControlAction.Applied && root.LanePromoted;
-        var walk = await WalkAsync(rootJobId, rootJobId, input, fence, ct);
+        var walk = await WalkAsync(walkRootJobId: null, rootJobId, input, fence, ct);
         await JobControl.WakeWorkersIfAsync(wakeup, walk.Promoted || promoted, ct);
     }
 
@@ -125,7 +127,7 @@ internal sealed class CancelJobHandler(
     internal const string WalkEndedToken = "ACTA:CANCEL_WALK_ENDED:";
 
     private async Task<(bool Promoted, bool Ended)> WalkAsync(
-        long rootJobId,
+        long? walkRootJobId,
         long parentJobId,
         JobControlInput input,
         ExecutionFence? fence,
@@ -138,7 +140,7 @@ internal sealed class CancelJobHandler(
             CancelJobRow row;
             try
             {
-                row = await CancelAsync(childId, input, fence, rootJobId, ct);
+                row = await CancelAsync(childId, input, fence, walkRootJobId, ct);
             }
             catch (DbException ex) when (ex.Message.Contains(WalkEndedToken, StringComparison.Ordinal))
             {
@@ -146,7 +148,7 @@ internal sealed class CancelJobHandler(
             }
 
             promoted |= row.Action == ControlAction.Applied && row.LanePromoted;
-            var below = await WalkAsync(rootJobId, childId, input, fence, ct);
+            var below = await WalkAsync(walkRootJobId, childId, input, fence, ct);
             promoted |= below.Promoted;
             if (below.Ended)
             {
