@@ -11,15 +11,18 @@ DROP TABLE IF EXISTS temp._purge_lanes;
 
 -- No retention index: walk this namespace's jobs from newer to older through ix_jobs_namespace_created, ten batches a
 -- slice, and delete the expired ones in it. A cycle ends at the namespace's oldest job, which answers no cursor; a
--- full batch ends the slice at its last delete, so the walk never reads a deleted row again.
+-- full batch ends the slice at its last delete, so the walk moves on past what it deleted.
 CREATE TEMP TABLE _purge_cursor AS
 -- A cycle starts at the newest job old enough to have expired: none expires sooner than the shortest retention any
--- definition of the namespace has, a retired one included.
+-- definition of the namespace has, a retired one included. The framework's own are left out: they run only permanent
+-- jobs, and their default would hold a longer-keeping namespace's walk to it.
 SELECT
     COALESCE(
         @p_before_created_utc,
         @p_cutoff_utc - 1000 * (
-            SELECT COALESCE(MIN(d.retention_seconds_effective), 0) FROM {{schema}}.definitions d WHERE d.namespace_id = @p_namespace_id
+            SELECT COALESCE(MIN(d.retention_seconds_effective), 0)
+            FROM {{schema}}.definitions d
+            WHERE d.namespace_id = @p_namespace_id AND d.definition_name NOT LIKE 'sys.%'
         )
     ) AS below,
     CASE WHEN @p_before_created_utc IS NULL THEN 9223372036854775807 ELSE @p_before_job_id END AS below_id;

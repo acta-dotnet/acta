@@ -41,14 +41,14 @@ DO $$
 BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
-        WHERE name NOT IN ('M20261111024650_init')
+        WHERE name NOT IN ('M20261111025445_init')
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
 END
 $$;
 
--- ===== BEGIN M20261111024650_init =====
+-- ===== BEGIN M20261111025445_init =====
 CREATE SCHEMA IF NOT EXISTS acta;
 
 -- alerts
@@ -2777,14 +2777,15 @@ BEGIN
     WHEN 1 THEN
         /* No retention index: walk this namespace's jobs from newer to older through ix_jobs_namespace_created, ten
            batches a slice, and delete the expired ones in it. A cycle ends at the namespace's oldest job, which answers
-           no cursor; a full batch ends the slice at its last delete, so the walk never reads a deleted row again. */
+           no cursor; a full batch ends the slice at its last delete, so the walk moves on past what it deleted. */
         IF v_below IS NULL THEN
             -- A cycle starts at the newest job old enough to have expired: none expires sooner than the shortest
-            -- retention any definition of the namespace has, a retired one included.
+            -- retention any definition of the namespace has, a retired one included. The framework's own are left
+            -- out: they run only permanent jobs, and their default would hold a longer-keeping namespace's walk to it.
             SELECT p_cutoff_utc - make_interval(secs => COALESCE(min(d.retention_seconds_effective), 0))
             INTO v_below
             FROM acta.definitions d
-            WHERE d.namespace_id = p_namespace_id;
+            WHERE d.namespace_id = p_namespace_id AND d.definition_name NOT LIKE 'sys.%';
             v_below_id := 9223372036854775807;
         END IF;
 
@@ -4421,10 +4422,10 @@ JOIN acta.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO acta.migrations (name)
-VALUES ('M20261111024650_init')
+VALUES ('M20261111025445_init')
 ON CONFLICT (name) DO NOTHING;
 
--- ===== END M20261111024650_init =====
+-- ===== END M20261111025445_init =====
 
 COMMIT;
 

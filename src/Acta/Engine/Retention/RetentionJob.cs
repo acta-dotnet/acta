@@ -75,9 +75,9 @@ internal sealed class RetentionJob(
                 SweepSystemEvents: true
             ),
             count => LogUndeliveredPurge(ctx, count),
-            ct
+            ct,
+            place => ctx.SetVariableAsync(RetentionCursor.VariableName, place ?? RetentionCursor.None, ct)
         );
-        await ctx.SetVariableAsync(RetentionCursor.VariableName, swept.JobsCursor ?? RetentionCursor.None, ct);
         if (swept.BudgetSpent)
         {
             await ctx.RescheduleAsync(TimeSpan.Zero, "More rows have expired than one pass deletes.", ct);
@@ -86,12 +86,14 @@ internal sealed class RetentionJob(
 
     /// <summary>
     /// Runs bounded atomic batches against cutoffs captured once from the database clock. Reports committed
-    /// undelivered-alert deletions once, including when the sweep fails or is cancelled.
+    /// undelivered-alert deletions once, including when the sweep fails or is cancelled, and hands the jobs walk's place
+    /// to <paramref name="keepJobsPlace"/> as soon as the walk stops, so a later section that fails does not cost it.
     /// </summary>
     public async Task<RetentionSweepCounts> PurgeExpiredDataAsync(
         RetentionSweep command,
         Action<int>? reportUndeliveredPurge,
-        CancellationToken ct
+        CancellationToken ct,
+        Func<RetentionCursor?, Task>? keepJobsPlace = null
     )
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(command.BatchSize);
@@ -144,6 +146,11 @@ internal sealed class RetentionJob(
                     // An unfinished cycle runs on at once only when the pass deleted: one that read nothing but jobs still
                     // kept waits for the next tick, or a namespace of long-kept jobs would never rest.
                     budgetSpent |= cursor is not null && counts[index] > 0;
+                    if (keepJobsPlace is not null)
+                    {
+                        await keepJobsPlace(cursor);
+                    }
+
                     continue;
                 }
                 budgetSpent |= await PurgeSectionAsync(

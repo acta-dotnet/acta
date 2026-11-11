@@ -34,7 +34,7 @@ namespace Acta;
     Filter = "job_status_code IN (10, 20) AND next_run_at_utc IS NOT NULL",
     Usage = "claim_hot_path"
 )]
-// No retention index: every completion appended to its tail, so purge_expired_data walks jobs_state by job id instead.
+// No retention index: every completion appended to its tail, so purge_expired_data walks ix_jobs_namespace_created instead.
 // job_status_code stays in the filter but out of the key, which is all the heartbeat needs.
 [DbIndex(
     Name = "ix_jobs_state_worker_inflight",

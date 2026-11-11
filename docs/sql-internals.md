@@ -94,11 +94,12 @@ and unreferenced lanes in that order. A section deletes in bounded batches, and 
 The jobs section is the exception: no index finds expired jobs, so each call walks its own namespace's
 jobs from newer to older through `ix_jobs_namespace_created`, from the cursor the previous pass stored
 on the slot (`p_before_created_utc` and `p_before_job_id`, the `retention-cursor` job variable), reads
-ten batches' worth of them, deletes the expired ones among them, and answers where it stopped: at its
-last delete when the batch was full, so no call reads a deleted row again. A cycle starts at the newest
+ten batches' worth of them, deletes a batch of the expired ones among them, and answers where it stopped:
+at its last delete when the batch was full, so the walk moves on past what it deleted. A cycle starts at the newest
 job old enough to have expired, which is the cutoff less the shortest retention any definition of the
-namespace has, and ends at the namespace's oldest job. A pass walks until the cycle ends, a delete
-budget's worth of jobs is gone, or its time is spent, and keeps its place for the next.
+namespace has, the framework's own `sys.` definitions aside, and ends at the namespace's oldest job. A
+pass walks until the cycle ends, a delete budget's worth of jobs is gone, or its time is spent, and
+stores its place then, before the later sections run.
 Each batch is atomic; failure or cancellation later in the sweep preserves completed batches.
 `RetentionJob` never retries the whole sweep. Committed undelivered-alert deletions produce one
 warning per sweep, including when a later batch fails or cancellation stops the sweep.
@@ -214,8 +215,8 @@ filter so the hint always compiles:
   `ux_definitions_namespace_name`. They run in the caller's transaction, and at repeatable read or serializable every
   row a read touches stays share-locked until the caller commits, so a lookup that scanned `namespaces` held every
   namespace's row and deadlocked with deploys writing theirs.
-- The retention purge's staging read seeks `jobs_state` from its cursor and `jobs` by key, and its event
-  read seeks `ix_events_namespace_created`.
+- The retention purge's staging read seeks `ix_jobs_namespace_created` from its cursor and then `jobs_state`
+  and `jobs` by key, and its event read seeks `ix_events_namespace_created`.
 - The outbox claim, its lease recovery and lane check, the relay's finalizes, the backlog count, and the
   operator's quarantine reads, requeue, and discard seek without naming an index, because the producer owns that
   table's DDL. A scan of the producer's table would also wait on every row a producer transaction still holds

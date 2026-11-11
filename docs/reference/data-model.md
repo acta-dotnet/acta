@@ -352,7 +352,7 @@ One row in `acta.jobs`, Acta's only work unit: the append-mostly identity/input 
 | Name | Columns | Uniqueness | Filter | Usage |
 |---|---|---|---|---|
 | `ix_jobs_parent` | `parent_job_id` | not unique | `parent_job_id IS NOT NULL` | `child_fanout` |
-| `ix_jobs_namespace_created` | `namespace_id`, `created_at_utc` DESC, `job_id` DESC | not unique | none | `dashboard_grid` |
+| `ix_jobs_namespace_created` | `namespace_id`, `created_at_utc` DESC, `job_id` DESC | not unique | none | `dashboard_grid, maintenance` |
 | `ux_jobs_ref` | `job_ref` | unique | none | `uniqueness` |
 | `ux_jobs_deduplication_key_root` | `namespace_id`, `deduplication_key` | unique | `deduplication_key IS NOT NULL AND parent_job_id IS NULL` | `uniqueness` |
 | `ux_jobs_deduplication_key_child` | `parent_job_id`, `deduplication_key` | unique | `deduplication_key IS NOT NULL AND parent_job_id IS NOT NULL` | `uniqueness` |

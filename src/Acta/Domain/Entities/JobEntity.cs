@@ -29,7 +29,7 @@ namespace Acta;
     Name = "ix_jobs_namespace_created",
     Columns = ["namespace_id", "created_at_utc", "job_id"],
     Descending = ["created_at_utc", "job_id"],
-    Usage = "dashboard_grid"
+    Usage = "dashboard_grid, maintenance"
 )]
 [DbCheck(Name = "ck_jobs_input_pair", Sql = "(input_format_id = 0 AND input IS NULL) OR (input_format_id <> 0 AND input IS NOT NULL)")]
 internal sealed class JobEntity : IEntity<long>

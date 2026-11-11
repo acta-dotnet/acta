@@ -23,37 +23,26 @@ public sealed class PurgeExpiredDataJobsWalkSpec : ActaRuntimeTestBase<Conforman
 {
     private static readonly TimeSpan Hour = TimeSpan.FromHours(1);
 
-    [Fact(DisplayName = "A cycle deletes the namespace's expired jobs, keeps the others, and ends at its oldest job")]
-    public async Task A_cycle_deletes_the_expired_jobs_and_ends_at_the_oldest()
+    [Fact(DisplayName = "A cycle passes the jobs still kept, deletes the expired ones behind them, and ends at its oldest job")]
+    public async Task A_cycle_passes_kept_jobs_and_deletes_the_expired_behind_them()
     {
         var ct = TestContext.Current.CancellationToken;
         var now = await NowAsync(ct);
         var (ns, definition) = await SeedNamespaceAsync(retention: Hour, ct);
-        long[] expired =
-        [
-            await SeedFinishedAsync(ns, definition, now - (4 * Hour), now - (3 * Hour), ct),
-            await SeedFinishedAsync(ns, definition, now - (3 * Hour), now - (2 * Hour), ct),
-            await SeedFinishedAsync(ns, definition, now - (2 * Hour), now - Hour, ct),
-        ];
-        var kept = await SeedFinishedAsync(ns, definition, now - (3.5 * Hour), now + Hour, ct);
-
-        RetentionCursor? cursor = null;
-        var purged = 0;
-        for (var call = 0; call < 100; call++)
+        // One job a batch is ten a slice: the first slice holds only jobs still kept, and the expired ones lie behind it.
+        var kept = new List<long>();
+        for (var job = 0; job < 11; job++)
         {
-            var walked = await WalkAsync(ns, batchSize: 1000, cursor, ct);
-            purged += walked.Purged;
-            Assert.True(cursor is null || walked.Next is null || IsOlder(walked.Next, cursor), "the walk only moves to older jobs");
-            cursor = walked.Next;
-            if (cursor is null)
-            {
-                break;
-            }
+            kept.Add(await SeedFinishedAsync(ns, definition, now - (2 * Hour) - TimeSpan.FromMinutes(job), now + Hour, ct));
         }
+        await SeedFinishedAsync(ns, definition, now - (4 * Hour), now - (3 * Hour), ct);
+        await SeedFinishedAsync(ns, definition, now - (5 * Hour), now - (2 * Hour), ct);
 
-        Assert.Null(cursor);
-        Assert.Equal(expired.Length, purged);
-        Assert.Equal([kept], await JobsOfAsync(ns, ct));
+        var (purged, calls) = await WalkCycleAsync(ns, batchSize: 1, ct);
+
+        Assert.Equal(2, purged);
+        Assert.True(calls > 2, $"the cycle took {calls} calls, so it never read past its first slice");
+        Assert.Equal(kept.Order(), (await JobsOfAsync(ns, ct)).Order());
     }
 
     [Fact(DisplayName = "A full batch ends its slice at its last delete, and the next call reads on from there")]
@@ -66,14 +55,32 @@ public sealed class PurgeExpiredDataJobsWalkSpec : ActaRuntimeTestBase<Conforman
         var middle = await SeedFinishedAsync(ns, definition, now - (3 * Hour), now - Hour, ct);
         var oldest = await SeedFinishedAsync(ns, definition, now - (4 * Hour), now - Hour, ct);
 
-        // One job a batch, ten a slice: the three share a slice, and each full batch stops the walk at the job it deleted,
-        // so no call reads a deleted job again.
+        // One job a batch, ten a slice: the three share a slice, and each full batch stops the walk at the job it deleted.
         var first = await WalkAsync(ns, batchSize: 1, before: null, ct);
         var second = await WalkAsync(ns, batchSize: 1, first.Next, ct);
 
         Assert.Equal((1, newest), (first.Purged, first.Next?.JobId));
         Assert.Equal((1, middle), (second.Purged, second.Next?.JobId));
         Assert.Equal([oldest], await JobsOfAsync(ns, ct));
+    }
+
+    [Fact(DisplayName = "Jobs created at one instant, more of them than a slice, are all deleted")]
+    public async Task Jobs_that_share_an_instant_are_all_deleted()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var now = await NowAsync(ct);
+        var (ns, definition) = await SeedNamespaceAsync(retention: Hour, ct);
+        // A batch enqueue stamps every row with one instant, so the walk stops and resumes inside an instant, by job id.
+        var created = now - (3 * Hour);
+        for (var job = 0; job < 12; job++)
+        {
+            await SeedFinishedAsync(ns, definition, created, now - Hour, ct);
+        }
+
+        var (purged, _) = await WalkCycleAsync(ns, batchSize: 1, ct);
+
+        Assert.Equal(12, purged);
+        Assert.Empty(await JobsOfAsync(ns, ct));
     }
 
     [Fact(DisplayName = "An expired job is deleted by the first slice however many newer jobs other namespaces hold")]
@@ -102,19 +109,55 @@ public sealed class PurgeExpiredDataJobsWalkSpec : ActaRuntimeTestBase<Conforman
         var ct = TestContext.Current.CancellationToken;
         var now = await NowAsync(ct);
         var (ns, kept) = await SeedNamespaceAsync(retention: TimeSpan.FromDays(1), ct);
-        var retired = await SeedDefinitionAsync(ns, retention: Hour, DefinitionStatusCode.Retired, ct);
+        var retired = await SeedDefinitionAsync(ns, Unique("walk-retired"), retention: Hour, DefinitionStatusCode.Retired, ct);
         await SeedFinishedAsync(ns, retired, now - (2 * Hour), now - Hour, ct);
         // Its deadline has passed, as after an operator raised the retention it landed under, and it is younger than
         // the shortest retention: the walk does not reach it until it is that old. Late, never early.
         var young = await SeedFinishedAsync(ns, kept, now - TimeSpan.FromMinutes(30), now - TimeSpan.FromMinutes(1), ct);
 
-        RetentionCursor? cursor = null;
-        do
-        {
-            cursor = (await WalkAsync(ns, batchSize: 1000, cursor, ct)).Next;
-        } while (cursor is not null);
+        await WalkCycleAsync(ns, batchSize: 1000, ct);
 
         Assert.Equal([young], await JobsOfAsync(ns, ct));
+    }
+
+    [Fact(DisplayName = "The framework's own definitions do not set where a cycle starts")]
+    public async Task A_system_definition_does_not_set_the_start()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var now = await NowAsync(ct);
+        var (ns, definition) = await SeedNamespaceAsync(retention: TimeSpan.FromDays(1), ct);
+        // Every worker namespace carries the sys definitions, which run only permanent jobs and keep the default
+        // retention: counted, they would hold the walk of a namespace that keeps its jobs longer to that default.
+        await SeedDefinitionAsync(ns, "sys.walk-probe", retention: Hour, DefinitionStatusCode.Active, ct);
+        await SeedFinishedAsync(ns, definition, now - (2 * Hour), now - TimeSpan.FromMinutes(1), ct);
+
+        var walked = await WalkAsync(ns, batchSize: 1, before: null, ct);
+
+        // Nothing in the namespace is a day old, so the cycle that starts a day back has nothing to read.
+        Assert.Equal(0, walked.Purged);
+        Assert.Null(walked.Next);
+    }
+
+    // One cycle from its start to the namespace's oldest job, each call reading on from the last one's answer.
+    private async Task<(int Purged, int Calls)> WalkCycleAsync(int ns, int batchSize, CancellationToken ct)
+    {
+        RetentionCursor? cursor = null;
+        var purged = 0;
+        for (var call = 1; call <= 100; call++)
+        {
+            var walked = await WalkAsync(ns, batchSize, cursor, ct);
+            purged += walked.Purged;
+            if (walked.Next is null)
+            {
+                return (purged, call);
+            }
+
+            Assert.True(cursor is null || IsOlder(walked.Next, cursor), "the walk only moves to older jobs");
+            cursor = walked.Next;
+        }
+
+        Assert.Fail("the walk did not reach the namespace's oldest job in a hundred calls");
+        return default;
     }
 
     private static bool IsOlder(RetentionCursor next, RetentionCursor than) =>
@@ -137,12 +180,11 @@ public sealed class PurgeExpiredDataJobsWalkSpec : ActaRuntimeTestBase<Conforman
     {
         var name = Unique("walk") + "-" + Guid.NewGuid().ToString("N")[..8];
         var ns = await new ActaTestSeeder(Db).SeedJobNamespaceAsync(name, ct: ct);
-        return (ns, await SeedDefinitionAsync(ns, retention, DefinitionStatusCode.Active, ct));
+        return (ns, await SeedDefinitionAsync(ns, Unique("walk-def"), retention, DefinitionStatusCode.Active, ct));
     }
 
-    private async Task<int> SeedDefinitionAsync(int ns, TimeSpan retention, DefinitionStatusCode status, CancellationToken ct)
+    private async Task<int> SeedDefinitionAsync(int ns, string name, TimeSpan retention, DefinitionStatusCode status, CancellationToken ct)
     {
-        var name = Unique("walk-def") + "-" + status.ToString().ToLowerInvariant();
         var definition = await new ActaTestSeeder(Db).SeedJobDefinitionAsync(ns, name, ct: ct);
         await Db.ExecuteRawAsync(
             "UPDATE {schema}.definitions SET retention_seconds = @p_retention, definition_status_code = @p_status WHERE definition_id = @p_id",

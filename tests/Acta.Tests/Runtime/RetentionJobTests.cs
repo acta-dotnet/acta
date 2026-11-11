@@ -1,3 +1,4 @@
+using Acta.Tests.Context;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Xunit;
@@ -194,6 +195,65 @@ public sealed class RetentionJobTests
             .PurgeExpiredDataAsync(Sweep with { JobsWalkBudget = TimeSpan.Zero }, null, TestContext.Current.CancellationToken);
 
         Assert.Equal(budgetSpent, result.BudgetSpent);
+    }
+
+    [Fact]
+    public async Task The_walks_place_is_kept_before_a_later_section_can_fail()
+    {
+        var store = new Store(
+            static command => command.Section == RetentionSection.Events ? throw new InvalidOperationException("failed batch") : 0,
+            Older
+        );
+        RetentionCursor? kept = null;
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            Job(store.Handler, new Clock())
+                .PurgeExpiredDataAsync(
+                    Sweep with
+                    {
+                        JobsWalkBudget = TimeSpan.Zero,
+                    },
+                    null,
+                    TestContext.Current.CancellationToken,
+                    place =>
+                    {
+                        kept = place;
+                        return Task.CompletedTask;
+                    }
+                )
+        );
+
+        Assert.Equal(Older(store.Calls[0]), kept);
+    }
+
+    [Fact]
+    public async Task The_handler_stores_the_walks_place_and_the_next_pass_reads_on_from_it()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        // A whole delete budget in one slice: the pass stops mid-cycle having deleted, so it runs again at once.
+        var store = new Store(static command => command.Section == RetentionSection.Jobs ? 50_000 : 0, Older);
+        var ctx = new RecordingJobContext();
+        var job = Job(store.Handler, new Clock());
+
+        await Assert.ThrowsAsync<RescheduleJobException>(() => job.Handle(ctx, ct));
+        await Assert.ThrowsAsync<RescheduleJobException>(() => job.Handle(ctx, ct));
+
+        var jobs = store.Calls.Where(c => c.Section == RetentionSection.Jobs).ToList();
+        Assert.Null(jobs[0].Before);
+        Assert.Equal(Older(jobs[0]), jobs[1].Before);
+        Assert.Equal(Older(jobs[1]), await ctx.GetRequiredVariableAsync<RetentionCursor>(RetentionCursor.VariableName, ct));
+    }
+
+    [Fact]
+    public async Task The_handler_stores_no_place_once_a_cycle_has_ended()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var store = new Store(static _ => 0, static _ => null);
+        var ctx = new RecordingJobContext();
+
+        await Job(store.Handler, new Clock()).Handle(ctx, ct);
+
+        Assert.Equal(RetentionCursor.None, await ctx.GetRequiredVariableAsync<RetentionCursor>(RetentionCursor.VariableName, ct));
     }
 
     // A walk that never reaches the namespace's oldest job.

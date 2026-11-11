@@ -23,6 +23,7 @@ public sealed class ReflectionFreeJsonTests
 
     [Theory]
     [InlineData(typeof(AlertsCursor))]
+    [InlineData(typeof(RetentionCursor))]
     [InlineData(typeof(string))]
     [InlineData(typeof(long))]
     public void Every_value_Acta_persists_resolves_without_the_application(Type type) => Assert.NotNull(ReflectionFree.GetTypeInfo(type));

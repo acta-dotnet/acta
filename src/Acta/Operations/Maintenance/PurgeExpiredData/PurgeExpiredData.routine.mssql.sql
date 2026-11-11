@@ -40,16 +40,17 @@ BEGIN
 
                 /* No retention index: walk this namespace's jobs from newer to older through ix_jobs_namespace_created, ten
                    batches a slice, and delete the expired ones in it. A cycle ends at the namespace's oldest job, which answers
-                   no cursor; a full batch ends the slice at its last delete, so the walk never reads a deleted row again. */
+                   no cursor; a full batch ends the slice at its last delete, so the walk moves on past what it deleted. */
                 DECLARE @below DATETIME2(3) = @p_before_created_utc;
                 DECLARE @below_id BIGINT = @p_before_job_id;
                 IF @below IS NULL
                     BEGIN
-                        -- A cycle starts at the newest job old enough to have expired: none expires sooner than the
-                        -- shortest retention any definition of the namespace has, a retired one included.
+                        /* A cycle starts at the newest job old enough to have expired: none expires sooner than the
+                           shortest retention any definition of the namespace has, a retired one included. The framework's own
+                           are left out: they run only permanent jobs, and their default would hold a longer-keeping walk to it. */
                         SELECT @below = DATEADD(SECOND, -COALESCE(MIN(d.retention_seconds_effective), 0), @p_cutoff_utc)
                         FROM {{schema}}.definitions d WITH (FORCESEEK (ux_definitions_namespace_name (namespace_id)))
-                        WHERE d.namespace_id = @p_namespace_id;
+                        WHERE d.namespace_id = @p_namespace_id AND d.definition_name NOT LIKE 'sys.%';
                         SET @below_id = 9223372036854775807;
                     END;
 

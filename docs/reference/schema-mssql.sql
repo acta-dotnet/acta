@@ -57,7 +57,7 @@ GO
 -- ===== refuse a database a newer release already upgraded =====
 IF EXISTS (
     SELECT 1 FROM acta.migrations
-    WHERE name NOT IN ('M20261111024650_init')
+    WHERE name NOT IN ('M20261111025445_init')
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -65,7 +65,7 @@ BEGIN
     SET NOEXEC ON;
 END
 GO
--- ===== BEGIN M20261111024650_init =====
+-- ===== BEGIN M20261111025445_init =====
 SET QUOTED_IDENTIFIER ON;
 SET ANSI_NULLS ON;
 GO
@@ -3236,16 +3236,17 @@ BEGIN
 
                 /* No retention index: walk this namespace's jobs from newer to older through ix_jobs_namespace_created, ten
                    batches a slice, and delete the expired ones in it. A cycle ends at the namespace's oldest job, which answers
-                   no cursor; a full batch ends the slice at its last delete, so the walk never reads a deleted row again. */
+                   no cursor; a full batch ends the slice at its last delete, so the walk moves on past what it deleted. */
                 DECLARE @below DATETIME2(3) = @p_before_created_utc;
                 DECLARE @below_id BIGINT = @p_before_job_id;
                 IF @below IS NULL
                     BEGIN
-                        -- A cycle starts at the newest job old enough to have expired: none expires sooner than the
-                        -- shortest retention any definition of the namespace has, a retired one included.
+                        /* A cycle starts at the newest job old enough to have expired: none expires sooner than the
+                           shortest retention any definition of the namespace has, a retired one included. The framework's own
+                           are left out: they run only permanent jobs, and their default would hold a longer-keeping walk to it. */
                         SELECT @below = DATEADD(SECOND, -COALESCE(MIN(d.retention_seconds_effective), 0), @p_cutoff_utc)
                         FROM acta.definitions d WITH (FORCESEEK (ux_definitions_namespace_name (namespace_id)))
-                        WHERE d.namespace_id = @p_namespace_id;
+                        WHERE d.namespace_id = @p_namespace_id AND d.definition_name NOT LIKE 'sys.%';
                         SET @below_id = 9223372036854775807;
                     END;
 
@@ -5077,11 +5078,11 @@ JOIN acta.namespaces AS ns ON ns.namespace_id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261111024650_init')
+IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261111025445_init')
 INSERT INTO acta.migrations (name)
-VALUES ('M20261111024650_init');
+VALUES ('M20261111025445_init');
 GO
--- ===== END M20261111024650_init =====
+-- ===== END M20261111025445_init =====
 GO
 COMMIT TRANSACTION;
 GO

@@ -1908,10 +1908,12 @@
 ### Purge walks its namespace's jobs from the retention bound to the oldest
 - **Contract:** The jobs walk reads only its namespace's jobs, from the newest old enough to have expired to the oldest, and deletes the expired ones a batch at a time.
 - **Guarantees:**
-  - A cycle deletes the namespace's expired jobs, keeps the others, and ends at its oldest job
+  - A cycle passes the jobs still kept, deletes the expired ones behind them, and ends at its oldest job
   - A full batch ends its slice at its last delete, and the next call reads on from there
+  - Jobs created at one instant, more of them than a slice, are all deleted
   - An expired job is deleted by the first slice however many newer jobs other namespaces hold
   - A cycle starts at the shortest retention any definition has, a retired one included, and a younger job waits
+  - The framework's own definitions do not set where a cycle starts
 
 ### Purge reaps expired jobs events alerts and terminal workers within batches
 - **Contract:** Purge deletes terminal jobs with cascade, expired events, aged alerts settled or not under separate counts, terminal workers and expired locks.
