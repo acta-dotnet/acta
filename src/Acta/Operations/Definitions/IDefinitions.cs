@@ -46,5 +46,9 @@ public interface IDefinitions
     /// manifest (an enqueue-only dashboard pointed at a shared ledger), so callers degrade quietly. The key is trimmed and
     /// folded to lowercase as every name is, and one that is no name throws <see cref="InvalidQueryException"/>.
     /// </summary>
-    GetDefinitionInputTemplateResponse? GetInputTemplate(string jobNamespace, string jobName);
+    ValueTask<GetDefinitionInputTemplateResponse?> GetInputTemplateAsync(
+        string jobNamespace,
+        string jobName,
+        CancellationToken ct = default
+    );
 }

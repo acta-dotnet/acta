@@ -48,7 +48,15 @@ internal static class DefinitionsEndpoints
             ActaApiJsonContext.Relaxed.GetDefinitionResponse,
             static (http, call) => call.Operations.Definitions.GetAsync(Key(http).Namespace, Key(http).Name, call.Ct)
         );
-        GetDefinitionInputTemplateEndpoint.Map(reads);
+        // The enqueue form's shape hint. A job this host never registered is the 404, which the form reads as no template.
+        reads.MapDetail(
+            "/definitions/{jobNamespace}/{jobName}/input-template",
+            new("getDefinitionInputTemplate", ActaPermissions.Read),
+            "Read a JSON template of the definition's input.",
+            "Input template",
+            ActaApiJsonContext.Relaxed.GetDefinitionInputTemplateResponse,
+            static (http, call) => call.Operations.Definitions.GetInputTemplateAsync(Key(http).Namespace, Key(http).Name, call.Ct)
+        );
         reads.MapTags(
             controls,
             "/definitions/{jobNamespace}/{jobName}/tags",

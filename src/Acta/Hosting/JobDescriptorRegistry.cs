@@ -2,7 +2,7 @@ namespace Acta;
 
 /// <summary>
 /// Maps a (namespace, job name) pair to its generated <see cref="JobDescriptor"/>, backing
-/// <see cref="IDefinitions.GetInputTemplate"/>. Built once at
+/// <see cref="IDefinitions.GetInputTemplateAsync"/>. Built once at
 /// <see cref="ActaServiceCollectionExtensions.UseActa"/> from the declared catalogs (Reference and
 /// Run alike), so an enqueue-only dashboard host resolves the same descriptors a worker host does.
 /// A host that never registered the job's manifest has no entry and reports null: the descriptor is

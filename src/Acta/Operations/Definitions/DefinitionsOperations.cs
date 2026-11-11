@@ -42,8 +42,11 @@ internal sealed class DefinitionsOperations(
     public ValueTask<ListDefinitionsResponse> ListAsync(ListDefinitionsQuery query, CancellationToken ct = default) =>
         listDefinitions.HandleAsync(query, ct);
 
-    public GetDefinitionInputTemplateResponse? GetInputTemplate(string jobNamespace, string jobName) =>
-        getDefinitionInputTemplate.Handle(new GetDefinitionInputTemplateQuery(jobNamespace, jobName));
+    public ValueTask<GetDefinitionInputTemplateResponse?> GetInputTemplateAsync(
+        string jobNamespace,
+        string jobName,
+        CancellationToken ct = default
+    ) => ValueTask.FromResult(getDefinitionInputTemplate.Handle(new GetDefinitionInputTemplateQuery(jobNamespace, jobName)));
 
     /// <summary>
     /// Registers a namespace's whole definitions set and answers each descriptor's definition id; a steady-state restart

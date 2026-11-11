@@ -1121,7 +1121,7 @@ interface Acta.IControlResponse
     System.Nullable<System.Int64> Version { get; }
 interface Acta.IDefinitionControlResponse : Acta.IControlResponse
 interface Acta.IDefinitions
-    Acta.GetDefinitionInputTemplateResponse GetInputTemplate(System.String jobNamespace, System.String jobName)
+    System.Threading.Tasks.ValueTask<Acta.GetDefinitionInputTemplateResponse> GetInputTemplateAsync(System.String jobNamespace, System.String jobName, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.GetDefinitionResponse> GetAsync(System.String jobNamespace, System.String jobName, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.ListDefinitionsResponse> ListAsync(Acta.ListDefinitionsQuery query, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.RetireDefinitionResponse> RetireAsync(System.String jobNamespace, System.String jobName, System.Int64 expectedVersion, System.String reasonMessage = null, System.String actor = null, System.Threading.CancellationToken ct = default)

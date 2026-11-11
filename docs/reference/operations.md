@@ -57,7 +57,7 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 | --- | --- | --- | --- | --- | --- | --- |
 | `GetDefinition` | `IDefinitions.GetAsync` | `GET /definitions/{jobNamespace}/{jobName}` (`getDefinition`, `acta.read`) | · | inline | · | `GetDefinitionSpec` |
 | `GetDefinitionId` | · | · | · | · | · | `GetDefinitionIdSpec` |
-| `GetDefinitionInputTemplate` | `IDefinitions.GetInputTemplate` | `GET /definitions/{jobNamespace}/{jobName}/input-template` (`getDefinitionInputTemplate`, `acta.read`) | · | · | · | `GetDefinitionInputTemplateSpec` |
+| `GetDefinitionInputTemplate` | `IDefinitions.GetInputTemplateAsync` | `GET /definitions/{jobNamespace}/{jobName}/input-template` (`getDefinitionInputTemplate`, `acta.read`) | · | · | · | `GetDefinitionInputTemplateSpec` |
 | `ListDefinitionContracts` | · | · | · | inline | · | `ListDefinitionContractsSpec` |
 | `ListDefinitions` | `IDefinitions.ListAsync` | `GET /definitions` (`listDefinitions`, `acta.read`) | · | inline | · | `ListDefinitionsFilterMatrixSpec`, `ListDefinitionsSpec` |
 | `RegisterDefinitions` | · | · | · | inline | `definitions` | `RegisterDefinitionsSpec` |

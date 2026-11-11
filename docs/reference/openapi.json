@@ -12402,6 +12402,26 @@
                 }
               }
             }
+          },
+          "503": {
+            "description": "The database could not be reached or refused the call; retry later.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "getDefinitionInputTemplate": {
+                    "value": {
+                      "type": "https://tools.ietf.org/html/rfc9110#section-15.6.4",
+                      "title": "Service unavailable.",
+                      "status": 503,
+                      "detail": "The Acta API is temporarily unavailable: the database is unreachable or rejected the request."
+                    }
+                  }
+                }
+              }
+            }
           }
         },
         "x-acta-permission": "acta.read"

@@ -38,6 +38,8 @@ Not tagged yet.
 
 **Pass a namespace by the name `jobNamespace`**: the parameter is `jobNamespace` on `INamespaces.GetAsync`, `SuspendAsync`, `ResumeAsync`, and `UpdateAsync`, on `IActaBuilder.Run` and `Reference`, and on `TagTarget.ForNamespace`, `JobEnqueueOptionsBuilder.JobNamespace`, and `WorkerWakeupChannel.WorkerNamespace`, where it was `namespaceName`. Only a call that names the argument changes: `j.Run<BillingJobs>(namespaceName: "billing")` becomes `j.Run<BillingJobs>(jobNamespace: "billing")`.
 
+**Await `IDefinitions.GetInputTemplateAsync`**: `GetInputTemplate` was the one facade member that answered without a task. It is `GetInputTemplateAsync`, returns a `ValueTask`, and takes a cancellation token, as every other member does. It still reads only the in-process manifest. Its route, `GET /definitions/{jobNamespace}/{jobName}/input-template`, is mapped as every other read is, so the OpenAPI document declares a 503 for it too.
+
 ### Fixes
 
 - On SQL Server, two definition overrides updates in different namespaces could deadlock, and one failed as the victim: the update that carries a rate override to the definitions sharing its meter read every definition row under update locks before filtering by namespace, and waited on another namespace's row that its own update held. It now seeks its own namespace's rows.

@@ -15,9 +15,13 @@ namespace Acta.Tests.Conformance.Operations.Definitions;
 public sealed class GetDefinitionInputTemplateSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsManifest>
 {
     [Fact(DisplayName = "A Json job reports its input type, format, and a skeleton of its members")]
-    public void Json_job_reports_its_template()
+    public async Task Json_job_reports_its_template()
     {
-        var template = Operations.Definitions.GetInputTemplate(TestNamespace, "add-numbers");
+        var template = await Operations.Definitions.GetInputTemplateAsync(
+            TestNamespace,
+            "add-numbers",
+            TestContext.Current.CancellationToken
+        );
 
         Assert.NotNull(template);
         Assert.Equal(typeof(AddNumbers).FullName, template.InputTypeName);
@@ -26,9 +30,13 @@ public sealed class GetDefinitionInputTemplateSpec : ActaRuntimeTestBase<Conform
     }
 
     [Fact(DisplayName = "A job that takes no input reports the NoInput type and no skeleton")]
-    public void No_input_job_has_no_template()
+    public async Task No_input_job_has_no_template()
     {
-        var template = Operations.Definitions.GetInputTemplate(TestNamespace, "job-wait-signal");
+        var template = await Operations.Definitions.GetInputTemplateAsync(
+            TestNamespace,
+            "job-wait-signal",
+            TestContext.Current.CancellationToken
+        );
 
         Assert.NotNull(template);
         Assert.Equal(typeof(NoInput).FullName, template.InputTypeName);
@@ -36,10 +44,11 @@ public sealed class GetDefinitionInputTemplateSpec : ActaRuntimeTestBase<Conform
     }
 
     [Fact(DisplayName = "An unknown job or a namespace this host did not register reads null")]
-    public void Unregistered_job_reads_null()
+    public async Task Unregistered_job_reads_null()
     {
-        Assert.Null(Operations.Definitions.GetInputTemplate(TestNamespace, "no-such-job"));
-        Assert.Null(Operations.Definitions.GetInputTemplate(Unique("other-ns"), "add-numbers"));
+        var ct = TestContext.Current.CancellationToken;
+        Assert.Null(await Operations.Definitions.GetInputTemplateAsync(TestNamespace, "no-such-job", ct));
+        Assert.Null(await Operations.Definitions.GetInputTemplateAsync(Unique("other-ns"), "add-numbers", ct));
     }
 
     [Fact(DisplayName = "A definition stored by another host but absent from this manifest reads null")]
@@ -49,6 +58,6 @@ public sealed class GetDefinitionInputTemplateSpec : ActaRuntimeTestBase<Conform
         var jobName = Unique("stored-only");
         await new ActaTestSeeder(Db).SeedJobDefinitionAsync(Runtime.RegisteredNamespaceIds[TestNamespace], name: jobName, ct: ct);
 
-        Assert.Null(Operations.Definitions.GetInputTemplate(TestNamespace, jobName));
+        Assert.Null(await Operations.Definitions.GetInputTemplateAsync(TestNamespace, jobName, ct));
     }
 }

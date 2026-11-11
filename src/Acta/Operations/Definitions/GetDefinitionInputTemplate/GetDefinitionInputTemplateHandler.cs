@@ -1,6 +1,6 @@
 namespace Acta;
 
-/// <summary><see cref="IDefinitions.GetInputTemplate"/>: reads the generated manifest in process; no SQL, no reflection.</summary>
+/// <summary><see cref="IDefinitions.GetInputTemplateAsync"/>: reads the generated manifest in process; no SQL, no reflection.</summary>
 internal sealed class GetDefinitionInputTemplateHandler(JobDescriptorRegistry descriptorRegistry)
 {
     public GetDefinitionInputTemplateResponse? Handle(GetDefinitionInputTemplateQuery query)

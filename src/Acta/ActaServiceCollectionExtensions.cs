@@ -349,7 +349,7 @@ public static class ActaServiceCollectionExtensions
         var contractRegistry = JobContractRegistry.Build(builder.Catalogs);
         services.AddSingleton(contractRegistry);
 
-        // Descriptor index: (namespace, job name) -> generated descriptor, backing IDefinitions.GetInputTemplate.
+        // Descriptor index: (namespace, job name) -> generated descriptor, backing IDefinitions.GetInputTemplateAsync.
         // Same catalogs again, so an enqueue-only host answers for every job it references.
         services.AddSingleton(JobDescriptorRegistry.Build(builder.Catalogs));
 

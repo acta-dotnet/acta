@@ -76,8 +76,11 @@ internal sealed class FakeDefinitions : IDefinitions
 
     ValueTask<ListDefinitionsResponse> IDefinitions.ListAsync(ListDefinitionsQuery query, CancellationToken ct) => List(query, ct);
 
-    GetDefinitionInputTemplateResponse? IDefinitions.GetInputTemplate(string jobNamespace, string jobName) =>
-        GetInputTemplate(jobNamespace, jobName);
+    ValueTask<GetDefinitionInputTemplateResponse?> IDefinitions.GetInputTemplateAsync(
+        string jobNamespace,
+        string jobName,
+        CancellationToken ct
+    ) => ValueTask.FromResult(GetInputTemplate(jobNamespace, jobName));
 
     /// <summary>The outcome and the version after it: the definition's current version on a conflict, one past the expected on an apply.</summary>
     private static (ControlAction Action, long? Version) Outcome(string jobName, long expectedVersion) =>
