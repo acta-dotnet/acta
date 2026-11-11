@@ -46,6 +46,8 @@ Not tagged yet.
 
 **Read `ChildrenWaitOutcome` from the unbounded `JoinAsync`**: both `JoinAsync` overloads answer `ChildrenWaitOutcome`, and `JoinOutcome` is gone. `Children`, `Succeeded`, `Failed`, and `ThrowIfAnyFailed` read as before, and `TimedOut` is always false on an unbounded join. Code that names the type changes, and so does code that built, deconstructed, or copied a `JoinOutcome` or read one back as a job result: only the framework builds a `ChildrenWaitOutcome`, so a handler that wants to return its children's outcomes returns a shape of its own.
 
+**Drop the `schema` argument from SQLite's `AddToActaOutboxAsync`**: SQLite has no schema to name, the create script never took one, and the relay reads the table from `main`, so a row staged under any other name was never relayed. Staging now names `main` itself, so a temporary table of the same name cannot take the row.
+
 ### Fixes
 
 - On SQL Server, two definition overrides updates in different namespaces could deadlock, and one failed as the victim: the update that carries a rate override to the definitions sharing its meter read every definition row under update locks before filtering by namespace, and waited on another namespace's row that its own update held. It now seeks its own namespace's rows.

@@ -35,7 +35,7 @@ public sealed partial class SqliteConformanceFixture
         await using var tx = (SqliteTransaction)await c.BeginTransactionAsync();
         foreach (var request in requests)
         {
-            await tx.AddToActaOutboxAsync(request, outboxTable, "main");
+            await tx.AddToActaOutboxAsync(request, outboxTable);
         }
         await tx.CommitAsync();
     }
@@ -45,7 +45,7 @@ public sealed partial class SqliteConformanceFixture
         var c = new SqliteConnection(SqliteIntegrationSchema.BootstrappedConnectionString);
         await c.OpenAsync();
         var tx = (SqliteTransaction)await c.BeginTransactionAsync();
-        return new OutboxProducer(c, tx, request => tx.AddToActaOutboxAsync(request, outboxTable, "main"));
+        return new OutboxProducer(c, tx, request => tx.AddToActaOutboxAsync(request, outboxTable));
     }
 
     public async ValueTask<(int BusinessRows, int OutboxRows)> StageWithBusinessWriteAsync(
@@ -66,7 +66,7 @@ public sealed partial class SqliteConformanceFixture
                 biz.CommandText = $"INSERT INTO main.{probe} (marker) VALUES (1);";
                 await biz.ExecuteNonQueryAsync();
             }
-            await tx.AddToActaOutboxAsync(request, outboxTable, "main");
+            await tx.AddToActaOutboxAsync(request, outboxTable);
             if (commit)
             {
                 await tx.CommitAsync();

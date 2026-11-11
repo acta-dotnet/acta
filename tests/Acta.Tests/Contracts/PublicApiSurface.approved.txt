@@ -78,7 +78,7 @@ static class Acta.Sqlite.SqliteMigrations
     static System.Threading.Tasks.Task<System.Boolean> ApplyOutboxAsync(System.String connectionString, System.String table = "acta_outbox", System.Threading.CancellationToken cancellationToken = default)
     static System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<System.String>> ApplyAsync(System.String connectionString, System.Threading.CancellationToken cancellationToken = default)
 static class Acta.Sqlite.SqliteOutboxStagingExtensions
-    static System.Threading.Tasks.Task AddToActaOutboxAsync(this Microsoft.Data.Sqlite.SqliteTransaction transaction, Acta.EnqueueJobRequest request, System.String table = "acta_outbox", System.String schema = null, System.Threading.CancellationToken cancellationToken = default)
+    static System.Threading.Tasks.Task AddToActaOutboxAsync(this Microsoft.Data.Sqlite.SqliteTransaction transaction, Acta.EnqueueJobRequest request, System.String table = "acta_outbox", System.Threading.CancellationToken cancellationToken = default)
 
 ## Acta.Testing
 sealed record Acta.Testing.ActaAdmissionReport

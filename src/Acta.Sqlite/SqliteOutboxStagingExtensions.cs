@@ -18,13 +18,13 @@ public static class SqliteOutboxStagingExtensions
         this SqliteTransaction transaction,
         EnqueueJobRequest request,
         string table = "acta_outbox",
-        string? schema = null,
         CancellationToken cancellationToken = default
     )
     {
         // Shared prologue: identifier qualification, request validation/projection, and the structural
-        // transaction guard, all before any I/O and identical across every provider.
-        var (row, connection, sql) = OutboxStaging.Prepare(transaction, request, table, schema);
+        // transaction guard, all before any I/O and identical across every provider. The table is named in main, where
+        // the relay reads it, so a temporary table of the same name cannot take the row.
+        var (row, connection, sql) = OutboxStaging.Prepare(transaction, request, table, schema: "main");
         return InsertAsync(transaction, connection, row, sql, cancellationToken);
     }
 

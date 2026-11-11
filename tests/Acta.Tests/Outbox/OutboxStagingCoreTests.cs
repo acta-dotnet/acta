@@ -230,4 +230,29 @@ public sealed class OutboxStagingCoreTests
             transaction.AddToActaOutboxAsync(Valid(), cancellationToken: TestContext.Current.CancellationToken)
         );
     }
+
+    [Fact(DisplayName = "SQLite staging writes the table in main, which the relay reads, past a temporary table of its name")]
+    public async Task Sqlite_staging_names_main()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync(ct);
+        await using (var setup = connection.CreateCommand())
+        {
+            // An unqualified name resolves to a temporary table first.
+            setup.CommandText =
+                Acta.Sqlite.SqliteMigrations.CreateOutboxScript() + "CREATE TEMP TABLE acta_outbox AS SELECT * FROM main.acta_outbox;";
+            await setup.ExecuteNonQueryAsync(ct);
+        }
+
+        await using (var transaction = (SqliteTransaction)await connection.BeginTransactionAsync(ct))
+        {
+            await transaction.AddToActaOutboxAsync(Valid(), cancellationToken: ct);
+            await transaction.CommitAsync(ct);
+        }
+
+        await using var count = connection.CreateCommand();
+        count.CommandText = "SELECT (SELECT COUNT(*) FROM main.acta_outbox) || ':' || (SELECT COUNT(*) FROM temp.acta_outbox)";
+        Assert.Equal("1:0", await count.ExecuteScalarAsync(ct));
+    }
 }
