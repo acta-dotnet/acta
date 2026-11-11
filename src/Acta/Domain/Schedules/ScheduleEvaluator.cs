@@ -227,6 +227,23 @@ internal static class ScheduleEvaluator
     private static bool IsSourceFailure(Exception ex) =>
         ex is FormatException or ArgumentException or InvalidOperationException or TimeZoneNotFoundException or InvalidTimeZoneException;
 
+    /// <summary>
+    /// Runs a preview's walk of a source. What the admitter would park as an evaluation error is thrown as
+    /// <see cref="ScheduleEvaluationException"/> with the source's own message; a calendar with no published version
+    /// keeps its own exception.
+    /// </summary>
+    internal static T Preview<T>(Func<T> walk)
+    {
+        try
+        {
+            return walk();
+        }
+        catch (Exception ex) when (ex is not CalendarUnavailableException && IsSourceFailure(ex))
+        {
+            throw new ScheduleEvaluationException(ex.Message, ex);
+        }
+    }
+
     private static ScheduleEvaluation Unchanged(
         ScheduleCursor cursor,
         ScheduleEvaluationStatusCode status,

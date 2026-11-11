@@ -157,7 +157,9 @@ internal static class CalendarsEndpoints
                     QueryParameterKind.String,
                     "The zone a schedule would evaluate the calendar in; omit for UTC."
                 ),
-            ]);
+            ])
+            // A version that cannot be evaluated answers a problem (RouteTable.Run).
+            .ProducesProblem(StatusCodes.Status422UnprocessableEntity);
 
         controls.MapCommand(
             "/calendars/{jobNamespace}/{calendarName}/drafts",

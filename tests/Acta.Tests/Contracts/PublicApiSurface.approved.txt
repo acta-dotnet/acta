@@ -2418,6 +2418,8 @@ sealed record Acta.ScheduleDescriptor
     System.String JobName { get;init; }
     System.String ScheduleName { get;init; }
     System.String TimeZoneId { get;init; }
+sealed class Acta.ScheduleEvaluationException : System.InvalidOperationException
+    .ctor(System.String message, System.Exception innerException)
 enum Acta.ScheduleEvaluationStatusCode : System.Byte
     EvaluationError = 40
     Exhausted = 30

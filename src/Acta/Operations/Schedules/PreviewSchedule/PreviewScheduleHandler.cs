@@ -15,7 +15,7 @@ internal sealed class PreviewScheduleHandler(GetScheduleTargetHandler getSchedul
 
         var t = target.Timing;
         var source = await calendars.SourceAsync(target.NamespaceId, t, ct);
-        var nextOccurrences = NextOccurrenceCalculator.Walk(source, target.NowUtc, query.Count);
+        var nextOccurrences = ScheduleEvaluator.Preview(() => NextOccurrenceCalculator.Walk(source, target.NowUtc, query.Count));
         return new PreviewScheduleResponse(t.Expression, t.TimeZoneId ?? "UTC", nextOccurrences);
     }
 }

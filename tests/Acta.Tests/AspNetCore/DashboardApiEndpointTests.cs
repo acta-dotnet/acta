@@ -1021,6 +1021,27 @@ public sealed class DashboardApiEndpointTests
         Assert.Contains("'pay-days' has no published version", body);
     }
 
+    [Fact]
+    public async Task Schedule_preview_of_a_source_that_cannot_be_evaluated_is_a_422_problem_saying_why()
+    {
+        var fakes = new FakeOperations();
+        fakes.Schedules.Preview = static (_, _, _) =>
+            throw new ScheduleEvaluationException(
+                "No occurrence within 1100 days of 2027-01-04T00:00:00Z; the excluded dates close the source.",
+                new InvalidOperationException()
+            );
+        var (app, client) = await TestDashboardHost.StartAsync(fakes: fakes);
+        await using var _ = app;
+        var ct = TestContext.Current.CancellationToken;
+
+        var response = await client.GetAsync("/acta/api/v1/schedules/billing/send-invoice/daily/preview", ct);
+        var body = await response.Content.ReadAsStringAsync(ct);
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
+        Assert.Contains("Evaluation failed.", body);
+        Assert.Contains("the excluded dates close the source", body);
+    }
+
     [Theory]
     [InlineData("bad!/send-invoice/daily")]
     [InlineData("billing/send%20invoice/daily")]

@@ -67,8 +67,9 @@ internal static class SchedulesEndpoints
                     Default: 10
                 ),
             ])
-            // A calendar this host cannot resolve answers a problem (RouteTable.Run).
-            .ProducesProblem(StatusCodes.Status409Conflict);
+            // A calendar this host cannot resolve, and a source that cannot be evaluated, each answer a problem (RouteTable.Run).
+            .ProducesProblem(StatusCodes.Status409Conflict)
+            .ProducesProblem(StatusCodes.Status422UnprocessableEntity);
 
         controls.MapCommand(
             "/schedules/{jobNamespace}/{jobName}/{scheduleName}/pause",

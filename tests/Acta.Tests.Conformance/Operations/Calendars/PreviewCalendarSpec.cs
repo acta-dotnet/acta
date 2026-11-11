@@ -41,4 +41,21 @@ public sealed class PreviewCalendarSpec : ActaStorageTestBase<ConformanceFixture
         Assert.Empty(preview.Schedules);
         Assert.Null(await Calendars.PreviewAsync(calendar, 3, from, ct: ct));
     }
+
+    [Fact(DisplayName = "A version that cannot be evaluated previews as an evaluation failure that says why")]
+    public async Task A_version_that_cannot_be_evaluated_says_why()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var calendar = new CalendarLookup(TestNamespace, Unique("eighth-of-week"));
+        // It compiles, and no week has an eighth business day.
+        var never = """{"kind":"business-day","select":"first","of":"week","nth":8,"time":"09:00"}""";
+        Assert.Equal(
+            ControlAction.Applied,
+            (await Calendars.SaveDraftAsync(calendar, CalendarRoleCode.Occurrence, never, 0, ct: ct)).Action
+        );
+
+        var ex = await Assert.ThrowsAsync<ScheduleEvaluationException>(async () => await Calendars.PreviewAsync(calendar, 1, ct: ct));
+
+        Assert.Contains("No business day within", ex.Message, StringComparison.Ordinal);
+    }
 }

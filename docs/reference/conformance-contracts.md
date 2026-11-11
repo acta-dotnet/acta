@@ -2071,6 +2071,7 @@
 - **Contract:** A preview forecasts a version's next instants or windows beside the current version's over the same horizon, and a version the family lacks previews as null.
 - **Guarantees:**
   - A draft previews its windows beside the current version's; a version the family lacks previews as null
+  - A version that cannot be evaluated previews as an evaluation failure that says why
 
 ### A publication reads the current version and its candidate with their definitions
 - **Contract:** The read answers the family's Published version and the version asked for with their definitions, and nothing for an unknown family.

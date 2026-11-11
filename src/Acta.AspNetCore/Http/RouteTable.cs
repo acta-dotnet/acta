@@ -332,6 +332,17 @@ internal static class RouteTable
             // The schedule exists; a calendar it names has no published version. The message names the calendar and where it was looked for.
             return ControlEndpointValidation.Problem(StatusCodes.Status409Conflict, "Calendar not available.", ex.Message);
         }
+        catch (ScheduleEvaluationException ex)
+        {
+            // The schedule or the calendar version exists and cannot be evaluated. The message is the source's own and says why.
+            // The framework's own type for a 422 names the WebDAV RFC; every other problem here names RFC 9110.
+            return Results.Problem(
+                statusCode: StatusCodes.Status422UnprocessableEntity,
+                title: "Evaluation failed.",
+                detail: ex.Message,
+                type: "https://tools.ietf.org/html/rfc9110#section-15.5.21"
+            );
+        }
     }
 
     /// <summary>The internal id of the job a filter names, or null with no filter; a filter naming no job is the 404.</summary>

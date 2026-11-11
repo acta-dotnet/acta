@@ -13169,6 +13169,26 @@
               }
             }
           },
+          "422": {
+            "description": "The target exists and its expression or calendar cannot be evaluated; the problem's detail says why.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "previewSchedule": {
+                    "value": {
+                      "type": "https://tools.ietf.org/html/rfc9110#section-15.5.21",
+                      "title": "Evaluation failed.",
+                      "status": 422,
+                      "detail": "The calendar 'pay-days' threw while asked for the occurrence after 2027-01-04T00:00:00.0000000Z: No occurrence within 1100 days of 2027-01-04T00:00:00.0000000Z; the excluded dates close the source."
+                    }
+                  }
+                }
+              }
+            }
+          },
           "500": {
             "description": "The server failed unexpectedly; the problem document leaves the cause to the host's log.",
             "content": {
@@ -14403,6 +14423,26 @@
                       "type": "https://tools.ietf.org/html/rfc9110#section-15.5.5",
                       "title": "Calendar not found.",
                       "status": 404
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The target exists and its expression or calendar cannot be evaluated; the problem's detail says why.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "previewCalendar": {
+                    "value": {
+                      "type": "https://tools.ietf.org/html/rfc9110#section-15.5.21",
+                      "title": "Evaluation failed.",
+                      "status": 422,
+                      "detail": "The calendar 'pay-days' threw while asked for the occurrence after 2027-01-04T00:00:00.0000000Z: No occurrence within 1100 days of 2027-01-04T00:00:00.0000000Z; the excluded dates close the source."
                     }
                   }
                 }

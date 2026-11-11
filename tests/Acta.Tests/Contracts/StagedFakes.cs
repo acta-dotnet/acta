@@ -132,7 +132,13 @@ internal static class StagedFakes
                     "The availability calendar 'office-hours' has no published version in the namespace's calendar catalog or the "
                         + "shared one."
                 )
-                : preview(schedule, count, ct);
+            : schedule.ScheduleName == "unevaluable" ? throw Unevaluable()
+            : preview(schedule, count, ct);
+        var previewCalendar = fakes.Calendars.Preview;
+        fakes.Calendars.Preview = (calendar, version, fromUtc, count, timeZoneId, ct) =>
+            calendar.CalendarName == "unevaluable"
+                ? throw Unevaluable()
+                : previewCalendar(calendar, version, fromUtc, count, timeZoneId, ct);
         var upsert = fakes.Tags.Upsert;
         fakes.Tags.Upsert = (target, tag, ct) =>
             IsMissing(target) ? ValueTask.FromResult(new UpsertTagResponse(ControlAction.NotFound)) : upsert(target, tag, ct);
@@ -144,6 +150,14 @@ internal static class StagedFakes
 
     /// <summary>The job the rejected ref names: a job with no input, so an input update has nothing to replace.</summary>
     private const long RejectedJobId = 43;
+
+    // What a preview throws for a source the evaluator cannot read, with the calendar's own message.
+    private static ScheduleEvaluationException Unevaluable() =>
+        new(
+            "The calendar 'pay-days' threw while asked for the occurrence after 2027-01-04T00:00:00.0000000Z: No occurrence "
+                + "within 1100 days of 2027-01-04T00:00:00.0000000Z; the excluded dates close the source.",
+            new InvalidOperationException()
+        );
 
     private static bool IsMissing(TagTarget target) =>
         target.Lookup is "missing" or (_, "missing") || target.Lookup is JobLookup { JobRef: var job } && job == FakeJobs.MissingJobRef;

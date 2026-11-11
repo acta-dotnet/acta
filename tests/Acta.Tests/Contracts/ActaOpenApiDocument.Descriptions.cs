@@ -74,6 +74,7 @@ internal static partial class ActaOpenApiDocument
                 "The control was refused and nothing was written; the body's action says why: rejected by the target's state, or "
                     + "version-conflict where the call carries an expected version.",
             ("413", _, _) => "The body is larger than the server accepts.",
+            ("422", _, _) => "The target exists and its expression or calendar cannot be evaluated; the problem's detail says why.",
             ("415", _, _) => "The body is not application/json.",
             ("500", _, _) => "The server failed unexpectedly; the problem document leaves the cause to the host's log.",
             ("503", _, _) => "The database could not be reached or refused the call; retry later.",

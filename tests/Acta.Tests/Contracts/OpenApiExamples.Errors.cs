@@ -223,6 +223,12 @@ internal static partial class OpenApiExamples
                     }
                 }
                 break;
+            case 422:
+                foreach (var key in keys.Where(key => key is "scheduleName" or "calendarName"))
+                {
+                    yield return new($"{key} unevaluable") { Values = One(key, "unevaluable") };
+                }
+                break;
             case 413:
                 yield return new("an oversized body") { Body = _ => $$"""{"reasonMessage":"{{new string('a', cap)}}"}""" };
                 break;

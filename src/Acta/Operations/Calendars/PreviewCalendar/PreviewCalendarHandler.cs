@@ -43,17 +43,31 @@ internal sealed class PreviewCalendarHandler(
             version.Role,
             version.Version,
             current?.Version,
-            Occurrences(compiled.Calendar, calendarName, query.TimeZoneId, from, count),
-            Occurrences(compiledCurrent?.Calendar, calendarName, query.TimeZoneId, from, count),
-            Windows(compiled.Availability, from, zone, count),
-            Windows(compiledCurrent?.Availability, from, zone, count),
+            ScheduleEvaluator.Preview(() => Occurrences(compiled.Calendar, calendarName, query.TimeZoneId, from, count)),
+            ScheduleEvaluator.Preview(() => Occurrences(compiledCurrent?.Calendar, calendarName, query.TimeZoneId, from, count)),
+            ScheduleEvaluator.Preview(() => Windows(compiled.Availability, from, zone, count)),
+            ScheduleEvaluator.Preview(() => Windows(compiledCurrent?.Availability, from, zone, count)),
             [.. schedules.Take(ScheduleLimit)],
             schedules.Count,
             schedules.Count(static item => item.Overdue)
         );
     }
 
-    private static CompiledCalendar Compile(FamilyVersion row) => CalendarDefinition.Compile(row.Role, row.Definition);
+    // A stored version this host cannot compile, a zone it does not know for one, is an evaluation failure of the preview.
+    private static CompiledCalendar Compile(FamilyVersion row)
+    {
+        try
+        {
+            return CalendarDefinition.Compile(row.Role, row.Definition);
+        }
+        catch (CalendarDefinitionException ex)
+        {
+            throw new ScheduleEvaluationException(
+                $"Version {row.Version} does not compile on this host: {string.Join(" ", ex.Problems)}",
+                ex
+            );
+        }
+    }
 
     /// <summary>The calendar walked as a schedule bound to it alone would be, under the calculator's contract checks.</summary>
     private static IReadOnlyList<DateTime> Occurrences(
