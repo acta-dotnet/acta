@@ -16,7 +16,6 @@ internal sealed class CompleteJobStepHandler(IDbSession session, ISqlDialect dia
                     cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.StepSucceeded, command.Succeeded));
                     cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Step.ResultFormatId, command.ResultFormatId));
                     cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Step.Result, command.Result));
-                    cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Step.FailureCode, command.FailureCode));
                     cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Step.FailureMessage, command.FailureMessage));
                     cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Step.Version, command.ExpectedVersion));
                 },

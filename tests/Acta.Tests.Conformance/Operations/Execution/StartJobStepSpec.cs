@@ -64,7 +64,6 @@ public sealed class StartJobStepSpec : ActaRuntimeTestBase<ConformanceFixture, T
         Assert.Equal(StartJobStepOutcomeCode.Interrupted, reentered.Outcome);
         var interrupted = await ReadStepAsync(job, ct);
         Assert.Equal(StepStatusCode.Interrupted, interrupted.Status);
-        Assert.Equal(StepFailureCode.Interrupted, interrupted.FailureCode);
 
         // Interrupted is terminal: a later entry answers the same and writes nothing.
         Assert.Equal(StartJobStepOutcomeCode.Interrupted, (await Execution.StartJobStepAsync(job, StepName, atMostOnce: true, ct)).Outcome);
@@ -100,7 +99,6 @@ public sealed class StartJobStepSpec : ActaRuntimeTestBase<ConformanceFixture, T
         {
             var refused = await Execution.StartJobStepAsync(job, StepName, atMostOnce: true, ct);
             Assert.Equal(StartJobStepOutcomeCode.Exhausted, refused.Outcome);
-            Assert.Equal(StepFailureCode.UnhandledException, refused.FailureCode);
             Assert.Equal("card declined", refused.FailureMessage);
         }
         Assert.Equal(StepStatusCode.Exhausted, (await ReadStepAsync(job, ct)).Status);
@@ -119,8 +117,8 @@ public sealed class StartJobStepSpec : ActaRuntimeTestBase<ConformanceFixture, T
     private Task<CompleteJobStepResponse> CompleteAsync(ExecutionFence job, bool succeeded, int version, CancellationToken ct) =>
         Execution.CompleteJobStepAsync(
             succeeded
-                ? new CompleteJobStepCommand(job, StepName, true, JobPayloadFormat.Json.Id, Result, null, null, version)
-                : new CompleteJobStepCommand(job, StepName, false, 0, null, StepFailureCode.UnhandledException, "card declined", version),
+                ? new CompleteJobStepCommand(job, StepName, true, JobPayloadFormat.Json.Id, Result, null, version)
+                : new CompleteJobStepCommand(job, StepName, false, 0, null, "card declined", version),
             ct
         );
 

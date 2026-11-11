@@ -6,7 +6,6 @@ CREATE OR ALTER PROCEDURE {{schema}}.complete_job_step
     @p_succeeded BIT,
     @p_result_format_id TINYINT,
     @p_result VARBINARY(MAX),
-    @p_failure_code TINYINT,
     @p_failure_message NVARCHAR(512),
     @p_version INT
 AS
@@ -41,7 +40,6 @@ BEGIN
             step_status_code = CASE WHEN @p_succeeded = 1 THEN 100 /* StepStatusCode.Succeeded */ ELSE 200 /* StepStatusCode.Exhausted */ END,
             result_format_id = @p_result_format_id,
             result = @p_result,
-            failure_code = @p_failure_code,
             failure_message = @p_failure_message,
             modified_at_utc = @now,
             version = version + 1

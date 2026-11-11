@@ -50,9 +50,7 @@ public class EntitySchemaTests
         Assert.Contains(worker.Columns, c => c.Name == "host_name");
         Assert.Contains(worker.Checks, c => c.Name == "ck_workers_max_concurrent_executors" && c.Sql == "max_concurrent_executors > 0");
 
-        var step = ActaSchema.For<StepEntity>();
-        Assert.Equal("step-failure", step.Column("failure_code").CodeKind);
-        Assert.Contains(step.Checks, c => c.Name == "ck_steps_failure_pair");
+        Assert.Equal("job-step-status", ActaSchema.For<StepEntity>().Column("step_status_code").CodeKind);
 
         var alertColumns = ActaSchema.For<AlertEntity>().Columns.Select(c => c.Name).ToHashSet(StringComparer.Ordinal);
         Assert.Superset(

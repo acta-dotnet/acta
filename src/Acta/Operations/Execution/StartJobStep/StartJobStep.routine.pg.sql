@@ -10,7 +10,6 @@ RETURNS TABLE (
     version INT,
     result_format_id SMALLINT,
     result BYTEA,
-    failure_code SMALLINT,
     failure_message VARCHAR
 )
 LANGUAGE plpgsql
@@ -21,7 +20,6 @@ DECLARE
     v_version INT;
     v_rfid SMALLINT;
     v_result BYTEA;
-    v_rcode SMALLINT;
     v_rmsg VARCHAR;
 BEGIN
     -- The step changes only while this attempt holds the job's row, share-locked to commit before the step row
@@ -45,9 +43,8 @@ BEGIN
         a.version,
         a.result_format_id,
         a.result,
-        a.failure_code,
         a.failure_message
-    INTO v_state, v_version, v_rfid, v_result, v_rcode, v_rmsg
+    INTO v_state, v_version, v_rfid, v_result, v_rmsg
     FROM {{schema}}.steps a
     WHERE
         a.job_id = p_job_id
@@ -77,7 +74,7 @@ BEGIN
 
         IF FOUND THEN
             RETURN QUERY SELECT 1 /* StartJobStepOutcomeCode.Invoke */::SMALLINT, v_version,
-                0 /* JobPayloadFormat.None */::SMALLINT, NULL::BYTEA, NULL::SMALLINT, NULL::VARCHAR;
+                0 /* JobPayloadFormat.None */::SMALLINT, NULL::BYTEA, NULL::VARCHAR;
             RETURN;
         END IF;
 
@@ -88,9 +85,8 @@ BEGIN
             a.version,
             a.result_format_id,
             a.result,
-            a.failure_code,
             a.failure_message
-        INTO v_state, v_version, v_rfid, v_result, v_rcode, v_rmsg
+        INTO v_state, v_version, v_rfid, v_result, v_rmsg
         FROM {{schema}}.steps a
         WHERE
             a.job_id = p_job_id
@@ -101,15 +97,15 @@ BEGIN
     IF v_state = 100 /* StepStatusCode.Succeeded */ THEN
 
         RETURN QUERY SELECT 3 /* StartJobStepOutcomeCode.ReplaySuccess */::SMALLINT, v_version,
-            v_rfid, v_result, NULL::SMALLINT, NULL::VARCHAR;
+            v_rfid, v_result, NULL::VARCHAR;
     ELSIF v_state = 200 /* StepStatusCode.Exhausted */ THEN
 
         RETURN QUERY SELECT 4 /* StartJobStepOutcomeCode.Exhausted */::SMALLINT, v_version,
-            0 /* JobPayloadFormat.None */::SMALLINT, NULL::BYTEA, v_rcode, v_rmsg;
+            0 /* JobPayloadFormat.None */::SMALLINT, NULL::BYTEA, v_rmsg;
     ELSIF v_state = 230 /* StepStatusCode.Interrupted */ THEN
         -- Terminal at-most-once ambiguity from an earlier replay; re-throw consistently, no mutation.
         RETURN QUERY SELECT 5 /* StartJobStepOutcomeCode.Interrupted */::SMALLINT, v_version,
-            0 /* JobPayloadFormat.None */::SMALLINT, NULL::BYTEA, NULL::SMALLINT, NULL::VARCHAR;
+            0 /* JobPayloadFormat.None */::SMALLINT, NULL::BYTEA, NULL::VARCHAR;
     ELSIF p_at_most_once THEN
         -- Pending step re-entered on replay under AtMostOnce: the worker died after start_job_step recorded
         -- the pending row but before complete_job_step. Do not re-invoke; terminalize the row Interrupted
@@ -117,7 +113,6 @@ BEGIN
         UPDATE {{schema}}.steps a
         SET
             step_status_code = 230 /* StepStatusCode.Interrupted */,
-            failure_code = 20 /* StepFailureCode.Interrupted */,
             failure_message = 'At-most-once step re-entered before completion; outcome unknown.',
             modified_at_utc = v_now,
             version = a.version + 1
@@ -127,11 +122,11 @@ BEGIN
         RETURNING a.version INTO v_version;
 
         RETURN QUERY SELECT 5 /* StartJobStepOutcomeCode.Interrupted */::SMALLINT, v_version,
-            0 /* JobPayloadFormat.None */::SMALLINT, NULL::BYTEA, NULL::SMALLINT, NULL::VARCHAR;
+            0 /* JobPayloadFormat.None */::SMALLINT, NULL::BYTEA, NULL::VARCHAR;
     ELSE
         -- An ordinary step with no success recorded runs again, its row unchanged.
         RETURN QUERY SELECT 1 /* StartJobStepOutcomeCode.Invoke */::SMALLINT, v_version,
-            0 /* JobPayloadFormat.None */::SMALLINT, NULL::BYTEA, NULL::SMALLINT, NULL::VARCHAR;
+            0 /* JobPayloadFormat.None */::SMALLINT, NULL::BYTEA, NULL::VARCHAR;
     END IF;
 END;
 $$;

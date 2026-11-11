@@ -5,7 +5,7 @@
 > Generated reference for Acta code families and the payload-format registry.
 > Every persisted code is documented here exactly once; the data-model reference [`data-model.md`](./data-model.md) links into this file from every code-bearing column.
 
-This release: **36 families**, **206 values**.
+This release: **35 families**, **203 values**.
 
 > Numeric IDs are stable family-local persistence identifiers. Enum members carry programmatic meaning; textual codes carry operator-facing meaning.
 > Numeric grouping is a readability convention, not a runtime schema. Canonical failure states use `200`.
@@ -66,7 +66,6 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | [`ScheduleOriginCode`](#code-family-scheduleorigincode) | `schedule-origin` | `byte` |
 | [`ScheduleStatusCode`](#code-family-schedulestatuscode) | `schedule-status` | `byte` |
 | [`ScheduledDeliveryCode`](#code-family-scheduleddeliverycode) | `scheduled-delivery` | `byte` |
-| [`StepFailureCode`](#code-family-stepfailurecode) | `step-failure` | `byte` |
 | [`StepStatusCode`](#code-family-stepstatuscode) | `job-step-status` | `byte` |
 | [`TenantStatusCode`](#code-family-tenantstatuscode) | `tenant-status` | `byte` |
 | [`WorkerStatusCode`](#code-family-workerstatuscode) | `worker-status` | `byte` |
@@ -428,14 +427,6 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `Unspecified` | 0 | `unspecified` | Scheduled delivery not recognized by this build; the row was written by a newer Acta. | Active |
 | `Permanent` | 10 | `permanent` | Default. The definition's schedules fire one permanent job again and again. | Active |
 | `PerOccurrence` | 20 | `per-occurrence` | Each admitted occurrence enqueues a fresh ordinary root job with its own state, retries, and retention. | Active |
-
-### `StepFailureCode` · `step-failure` <a id="code-family-stepfailurecode"></a>
-
-| Member | Id | Code | Description | Lifecycle |
-|---|---:|---|---|---|
-| `Unspecified` | 0 | `unspecified` | Step failure not recognized by this build; the row was written by a newer Acta. | Active |
-| `UnhandledException` | 10 | `unhandled-exception` | An at-most-once step body threw, so the step does not run again. | Active |
-| `Interrupted` | 20 | `interrupted` | An at-most-once step was re-entered on replay before its outcome was recorded (worker died mid-flight); the body is not re-run and the outcome is unknown. | Active |
 
 ### `StepStatusCode` · `job-step-status` <a id="code-family-stepstatuscode"></a>
 

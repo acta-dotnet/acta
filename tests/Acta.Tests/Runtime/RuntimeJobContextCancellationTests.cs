@@ -107,7 +107,6 @@ public sealed class RuntimeJobContextCancellationTests
                     Version: 1,
                     ResultFormatId: 0,
                     Result: null,
-                    FailureCode: null,
                     FailureMessage: null
                 ),
                 "CompleteJobStep" => throw new InvalidOperationException("CompleteJobStep must not run for caller cancellation."),

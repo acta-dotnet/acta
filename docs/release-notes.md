@@ -16,6 +16,8 @@ Not tagged yet.
 
 **Stop reading `schedules.misfire_grace_seconds`**: the column is gone. Every row held the same sixty seconds, which is the engine's own constant now, so a query that named the column drops it.
 
+**Read a step's failure from its status**: `steps.failure_code`, the `failure` and `failure_code` columns of `steps_view`, `StepFailureCode`, and `StepExhaustedException.LastReasonCode` with its constructor argument are gone. `Exhausted` always meant the body threw and `Interrupted` always meant the step was re-entered before it completed, so the code restated the status. `failure_message` and `LastReasonMessage` keep the reason.
+
 ### Fixes
 
 - On SQL Server, two definition overrides updates in different namespaces could deadlock, and one failed as the victim: the update that carries a rate override to the definitions sharing its meter read every definition row under update locks before filtering by namespace, and waited on another namespace's row that its own update held. It now seeks its own namespace's rows.

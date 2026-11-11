@@ -6,7 +6,6 @@ CREATE OR REPLACE FUNCTION {{schema}}.complete_job_step(
     p_succeeded BOOLEAN,
     p_result_format_id SMALLINT,
     p_result BYTEA,
-    p_failure_code SMALLINT,
     p_failure_message VARCHAR,
     p_version INT
 )
@@ -41,7 +40,6 @@ BEGIN
         step_status_code = CASE WHEN p_succeeded THEN 100 /* StepStatusCode.Succeeded */ ELSE 200 /* StepStatusCode.Exhausted */ END,
         result_format_id = p_result_format_id,
         result = p_result,
-        failure_code = p_failure_code,
         failure_message = p_failure_message,
         modified_at_utc = v_now,
         version = a.version + 1

@@ -2604,28 +2604,9 @@ sealed class Acta.SqlProviderOptions
     System.TimeSpan CommandTimeout { get;set; }
     const System.Int32 MaxDeadlockRetryAttempts = 100
 sealed class Acta.StepExhaustedException : System.Exception
-    .ctor(System.String stepName, System.Nullable<Acta.StepFailureCode> lastReasonCode, System.String lastReasonMessage)
-    System.Nullable<Acta.StepFailureCode> LastReasonCode { get; }
+    .ctor(System.String stepName, System.String lastReasonMessage)
     System.String LastReasonMessage { get; }
     System.String StepName { get; }
-enum Acta.StepFailureCode : System.Byte
-    Interrupted = 20
-    UnhandledException = 10
-    Unspecified = 0
-static class Acta.StepFailureCodeExtensions
-    static Acta.StepFailureCode FromCode(System.String code)
-    static Acta.StepFailureCode FromId(System.Byte id)
-    static System.Boolean IsKnownId(System.Byte id)
-    static System.Boolean IsWritableId(System.Byte id)
-    static System.Byte get_ToId(Acta.StepFailureCode value)
-    static System.Collections.Generic.IReadOnlyList<Acta.CodeManifestEntry> get_Manifest()
-    static System.String get_Code(Acta.StepFailureCode value)
-    static System.String get_CodeKind()
-    static System.String get_Description(Acta.StepFailureCode value)
-sealed class Acta.StepFailureCodeJsonConverter : System.Text.Json.Serialization.JsonConverter<Acta.StepFailureCode>
-    .ctor()
-    Acta.StepFailureCode Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
-    System.Void Write(System.Text.Json.Utf8JsonWriter writer, Acta.StepFailureCode value, System.Text.Json.JsonSerializerOptions options)
 sealed class Acta.StepInterruptedException : System.Exception
     .ctor(System.String stepName)
     System.String StepName { get; }

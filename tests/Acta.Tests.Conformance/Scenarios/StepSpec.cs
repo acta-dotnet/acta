@@ -145,7 +145,6 @@ public sealed class StepSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.
 
         var step = Assert.Single(await ReadStepsAsync(enqueued.JobId, ct));
         Assert.Equal(StepStatusCode.Exhausted, step.Status);
-        Assert.Equal(StepFailureCode.UnhandledException, step.FailureCode);
         Assert.Equal("boom", step.FailureMessage);
 
         var job = await ReadJobAsync(enqueued.JobId, ct);
@@ -201,16 +200,7 @@ public sealed class StepSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.
     }
 
     private static CompleteJobStepCommand Success(ExecutionFence job, int expectedVersion) =>
-        new(
-            job,
-            "compute",
-            Succeeded: true,
-            ResultFormatId: 0,
-            Result: null,
-            FailureCode: null,
-            FailureMessage: null,
-            ExpectedVersion: expectedVersion
-        );
+        new(job, "compute", Succeeded: true, ResultFormatId: 0, Result: null, FailureMessage: null, ExpectedVersion: expectedVersion);
 
     private async Task<IReadOnlyList<StepEntity>> ReadStepsAsync(long jobId, CancellationToken ct)
     {

@@ -14,7 +14,6 @@ namespace Acta;
     Sql = "(result_format_id = 0 AND result IS NULL) OR (result_format_id <> 0 AND result IS NOT NULL)"
 )]
 [DbCheck(Name = "ck_steps_result_succeeded", Sql = "result_format_id = 0 OR step_status_code = 100")]
-[DbCheck(Name = "ck_steps_failure_pair", Sql = "failure_message IS NULL OR failure_code IS NOT NULL")]
 internal sealed class StepEntity : IEntity
 {
     /// <summary>
@@ -36,15 +35,8 @@ internal sealed class StepEntity : IEntity
     public StepStatusCode Status { get; set; }
 
     /// <summary>
-    /// Machine-readable failure of an at-most-once step, set on its terminal <c>Exhausted</c> or <c>Interrupted</c>
-    /// row so post-mortem reads have the failure context; NULL on every other row.
-    /// </summary>
-    [DbColumn("failure_code")]
-    public StepFailureCode? FailureCode { get; set; }
-
-    /// <summary>
-    /// Free-form prose paired with <see cref="FailureCode"/> by <c>ck_steps_failure_pair</c>; truncated by
-    /// <c>MessageTruncator</c>.
+    /// Operator-readable failure of an at-most-once step, set on its terminal <c>Exhausted</c> or <c>Interrupted</c>
+    /// row and NULL on every other row; truncated by <c>MessageTruncator</c>.
     /// </summary>
     [DbColumn("failure_message", DbKind.UnicodeString, Size = 512)]
     public string? FailureMessage { get; set; }

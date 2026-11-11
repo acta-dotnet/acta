@@ -364,7 +364,6 @@ CREATE TABLE IF NOT EXISTS {{schema}}.steps (
     job_id bigint NOT NULL,
     step_name varchar(128) NOT NULL,
     step_status_code smallint NOT NULL,
-    failure_code smallint NULL,
     failure_message varchar(512) NULL,
     result_format_id smallint NOT NULL,
     result bytea NULL,
@@ -374,7 +373,6 @@ CREATE TABLE IF NOT EXISTS {{schema}}.steps (
     , CONSTRAINT pk_steps PRIMARY KEY (job_id, step_name)
     , CONSTRAINT ck_steps_result_pair CHECK ((result_format_id = 0 AND result IS NULL) OR (result_format_id <> 0 AND result IS NOT NULL))
     , CONSTRAINT ck_steps_result_succeeded CHECK (result_format_id = 0 OR step_status_code = 100)
-    , CONSTRAINT ck_steps_failure_pair CHECK (failure_message IS NULL OR failure_code IS NOT NULL)
     , CONSTRAINT ck_steps_result_format_id_byte CHECK (result_format_id BETWEEN 0 AND 255)
 );
 
@@ -1606,7 +1604,6 @@ CREATE OR REPLACE FUNCTION {{schema}}.complete_job_step(
     p_succeeded BOOLEAN,
     p_result_format_id SMALLINT,
     p_result BYTEA,
-    p_failure_code SMALLINT,
     p_failure_message VARCHAR,
     p_version INT
 )
@@ -1641,7 +1638,6 @@ BEGIN
         step_status_code = CASE WHEN p_succeeded THEN 100 /* StepStatusCode.Succeeded */ ELSE 200 /* StepStatusCode.Exhausted */ END,
         result_format_id = p_result_format_id,
         result = p_result,
-        failure_code = p_failure_code,
         failure_message = p_failure_message,
         modified_at_utc = v_now,
         version = a.version + 1
@@ -3742,7 +3738,6 @@ RETURNS TABLE (
     version INT,
     result_format_id SMALLINT,
     result BYTEA,
-    failure_code SMALLINT,
     failure_message VARCHAR
 )
 LANGUAGE plpgsql
@@ -3753,7 +3748,6 @@ DECLARE
     v_version INT;
     v_rfid SMALLINT;
     v_result BYTEA;
-    v_rcode SMALLINT;
     v_rmsg VARCHAR;
 BEGIN
     -- The step changes only while this attempt holds the job's row, share-locked to commit before the step row
@@ -3777,9 +3771,8 @@ BEGIN
         a.version,
         a.result_format_id,
         a.result,
-        a.failure_code,
         a.failure_message
-    INTO v_state, v_version, v_rfid, v_result, v_rcode, v_rmsg
+    INTO v_state, v_version, v_rfid, v_result, v_rmsg
     FROM {{schema}}.steps a
     WHERE
         a.job_id = p_job_id
@@ -3809,7 +3802,7 @@ BEGIN
 
         IF FOUND THEN
             RETURN QUERY SELECT 1 /* StartJobStepOutcomeCode.Invoke */::SMALLINT, v_version,
-                0 /* JobPayloadFormat.None */::SMALLINT, NULL::BYTEA, NULL::SMALLINT, NULL::VARCHAR;
+                0 /* JobPayloadFormat.None */::SMALLINT, NULL::BYTEA, NULL::VARCHAR;
             RETURN;
         END IF;
 
@@ -3820,9 +3813,8 @@ BEGIN
             a.version,
             a.result_format_id,
             a.result,
-            a.failure_code,
             a.failure_message
-        INTO v_state, v_version, v_rfid, v_result, v_rcode, v_rmsg
+        INTO v_state, v_version, v_rfid, v_result, v_rmsg
         FROM {{schema}}.steps a
         WHERE
             a.job_id = p_job_id
@@ -3833,15 +3825,15 @@ BEGIN
     IF v_state = 100 /* StepStatusCode.Succeeded */ THEN
 
         RETURN QUERY SELECT 3 /* StartJobStepOutcomeCode.ReplaySuccess */::SMALLINT, v_version,
-            v_rfid, v_result, NULL::SMALLINT, NULL::VARCHAR;
+            v_rfid, v_result, NULL::VARCHAR;
     ELSIF v_state = 200 /* StepStatusCode.Exhausted */ THEN
 
         RETURN QUERY SELECT 4 /* StartJobStepOutcomeCode.Exhausted */::SMALLINT, v_version,
-            0 /* JobPayloadFormat.None */::SMALLINT, NULL::BYTEA, v_rcode, v_rmsg;
+            0 /* JobPayloadFormat.None */::SMALLINT, NULL::BYTEA, v_rmsg;
     ELSIF v_state = 230 /* StepStatusCode.Interrupted */ THEN
         -- Terminal at-most-once ambiguity from an earlier replay; re-throw consistently, no mutation.
         RETURN QUERY SELECT 5 /* StartJobStepOutcomeCode.Interrupted */::SMALLINT, v_version,
-            0 /* JobPayloadFormat.None */::SMALLINT, NULL::BYTEA, NULL::SMALLINT, NULL::VARCHAR;
+            0 /* JobPayloadFormat.None */::SMALLINT, NULL::BYTEA, NULL::VARCHAR;
     ELSIF p_at_most_once THEN
         -- Pending step re-entered on replay under AtMostOnce: the worker died after start_job_step recorded
         -- the pending row but before complete_job_step. Do not re-invoke; terminalize the row Interrupted
@@ -3849,7 +3841,6 @@ BEGIN
         UPDATE {{schema}}.steps a
         SET
             step_status_code = 230 /* StepStatusCode.Interrupted */,
-            failure_code = 20 /* StepFailureCode.Interrupted */,
             failure_message = 'At-most-once step re-entered before completion; outcome unknown.',
             modified_at_utc = v_now,
             version = a.version + 1
@@ -3859,11 +3850,11 @@ BEGIN
         RETURNING a.version INTO v_version;
 
         RETURN QUERY SELECT 5 /* StartJobStepOutcomeCode.Interrupted */::SMALLINT, v_version,
-            0 /* JobPayloadFormat.None */::SMALLINT, NULL::BYTEA, NULL::SMALLINT, NULL::VARCHAR;
+            0 /* JobPayloadFormat.None */::SMALLINT, NULL::BYTEA, NULL::VARCHAR;
     ELSE
         -- An ordinary step with no success recorded runs again, its row unchanged.
         RETURN QUERY SELECT 1 /* StartJobStepOutcomeCode.Invoke */::SMALLINT, v_version,
-            0 /* JobPayloadFormat.None */::SMALLINT, NULL::BYTEA, NULL::SMALLINT, NULL::VARCHAR;
+            0 /* JobPayloadFormat.None */::SMALLINT, NULL::BYTEA, NULL::VARCHAR;
     END IF;
 END;
 $$;
@@ -4334,8 +4325,6 @@ SELECT
     s.step_name,
     CASE s.step_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'pending' WHEN 100 THEN 'succeeded' WHEN 200 THEN 'exhausted' WHEN 230 THEN 'interrupted' END AS step_status,
     s.step_status_code,
-    CASE s.failure_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'unhandled-exception' WHEN 20 THEN 'interrupted' END AS failure,
-    s.failure_code,
     s.failure_message,
     CASE s.result_format_id
         WHEN 0 /* JobPayloadFormat.None */ THEN 'none'
@@ -4384,5 +4373,5 @@ JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261111021241_init')
+VALUES ('M20261111022653_init')
 ON CONFLICT (name) DO NOTHING;

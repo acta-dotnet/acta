@@ -36,7 +36,6 @@ public sealed class CompleteJobStepSpec : ActaRuntimeTestBase<ConformanceFixture
         Assert.Equal(StepStatusCode.Succeeded, step.Status);
         Assert.Equal(JobPayloadFormat.Json.Id, step.ResultFormatId);
         Assert.Equal(Result, step.Result);
-        Assert.Null(step.FailureCode);
         Assert.Null(step.FailureMessage);
         Assert.Equal(start.Version + 1, step.Version);
     }
@@ -53,7 +52,6 @@ public sealed class CompleteJobStepSpec : ActaRuntimeTestBase<ConformanceFixture
         Assert.Equal(new CompleteJobStepResponse(CompleteJobStepOutcomeCode.Exhausted), exhausted);
         var step = await ReadStepAsync(job, ct);
         Assert.Equal(StepStatusCode.Exhausted, step.Status);
-        Assert.Equal(StepFailureCode.UnhandledException, step.FailureCode);
         Assert.Equal(Reason, step.FailureMessage);
         Assert.Null(step.Result);
         Assert.Equal(start.Version + 1, step.Version);
@@ -78,7 +76,7 @@ public sealed class CompleteJobStepSpec : ActaRuntimeTestBase<ConformanceFixture
         Assert.Equal(StepStatusCode.Succeeded, after.Status);
         Assert.Equal(before.Version, after.Version);
         Assert.Equal(Result, after.Result);
-        Assert.Null(after.FailureCode);
+        Assert.Null(after.FailureMessage);
     }
 
     // A job staged Executing, as a claim leaves it, so the step writes pass the execution fence.
@@ -91,22 +89,13 @@ public sealed class CompleteJobStepSpec : ActaRuntimeTestBase<ConformanceFixture
 
     private Task<CompleteJobStepResponse> SucceedAsync(ExecutionFence job, int version, CancellationToken ct) =>
         Execution.CompleteJobStepAsync(
-            new CompleteJobStepCommand(job, StepName, true, JobPayloadFormat.Json.Id, Result, null, null, version),
+            new CompleteJobStepCommand(job, StepName, true, JobPayloadFormat.Json.Id, Result, null, version),
             ct
         );
 
     private Task<CompleteJobStepResponse> FailAsync(ExecutionFence job, int version, CancellationToken ct) =>
         Execution.CompleteJobStepAsync(
-            new CompleteJobStepCommand(
-                job,
-                StepName,
-                Succeeded: false,
-                ResultFormatId: 0,
-                Result: null,
-                StepFailureCode.UnhandledException,
-                Reason,
-                version
-            ),
+            new CompleteJobStepCommand(job, StepName, Succeeded: false, ResultFormatId: 0, Result: null, Reason, version),
             ct
         );
 

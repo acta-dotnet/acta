@@ -23,8 +23,8 @@ public enum StepStatusCode : byte
     [Code("succeeded", "Completed; its result, when it has one, is stored.")]
     Succeeded = 100,
 
-    /// <summary>Terminal failure of an <c>AtMostOnce</c> body. <c>Result</c> is NULL; <c>FailureCode</c> /
-    /// <c>FailureMessage</c> carry the body's failure; the handler receives <c>StepExhaustedException</c>.</summary>
+    /// <summary>Terminal failure of an <c>AtMostOnce</c> body. <c>Result</c> is NULL; <c>FailureMessage</c> carries
+    /// the body's failure; the handler receives <c>StepExhaustedException</c>.</summary>
     [Code("exhausted", "An at-most-once step's body threw, so it does not run again; the job's handler receives the failure.")]
     Exhausted = 200,
 

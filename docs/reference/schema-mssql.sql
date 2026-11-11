@@ -57,7 +57,7 @@ GO
 -- ===== refuse a database a newer release already upgraded =====
 IF EXISTS (
     SELECT 1 FROM acta.migrations
-    WHERE name NOT IN ('M20261111021241_init')
+    WHERE name NOT IN ('M20261111022653_init')
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -65,7 +65,7 @@ BEGIN
     SET NOEXEC ON;
 END
 GO
--- ===== BEGIN M20261111021241_init =====
+-- ===== BEGIN M20261111022653_init =====
 SET QUOTED_IDENTIFIER ON;
 SET ANSI_NULLS ON;
 GO
@@ -488,7 +488,6 @@ CREATE TABLE acta.steps (
     job_id bigint NOT NULL,
     step_name varchar(128) NOT NULL,
     step_status_code tinyint NOT NULL,
-    failure_code tinyint NULL,
     failure_message nvarchar(512) NULL,
     result_format_id tinyint NOT NULL,
     result varbinary(max) NULL,
@@ -498,7 +497,6 @@ CREATE TABLE acta.steps (
     , CONSTRAINT pk_steps PRIMARY KEY (job_id, step_name)
     , CONSTRAINT ck_steps_result_pair CHECK ((result_format_id = 0 AND result IS NULL) OR (result_format_id <> 0 AND result IS NOT NULL))
     , CONSTRAINT ck_steps_result_succeeded CHECK (result_format_id = 0 OR step_status_code = 100)
-    , CONSTRAINT ck_steps_failure_pair CHECK (failure_message IS NULL OR failure_code IS NOT NULL)
 );
 END
 GO
@@ -2004,7 +2002,6 @@ CREATE OR ALTER PROCEDURE acta.complete_job_step
     @p_succeeded BIT,
     @p_result_format_id TINYINT,
     @p_result VARBINARY(MAX),
-    @p_failure_code TINYINT,
     @p_failure_message NVARCHAR(512),
     @p_version INT
 AS
@@ -2039,7 +2036,6 @@ BEGIN
             step_status_code = CASE WHEN @p_succeeded = 1 THEN 100 /* StepStatusCode.Succeeded */ ELSE 200 /* StepStatusCode.Exhausted */ END,
             result_format_id = @p_result_format_id,
             result = @p_result,
-            failure_code = @p_failure_code,
             failure_message = @p_failure_message,
             modified_at_utc = @now,
             version = version + 1
@@ -4446,7 +4442,6 @@ BEGIN
         DECLARE @version INT;
         DECLARE @rfid TINYINT = 0;
         DECLARE @result VARBINARY(MAX) = NULL;
-        DECLARE @rcode SMALLINT = NULL;
         DECLARE @rmsg NVARCHAR(512) = NULL;
         DECLARE @state TINYINT;
 
@@ -4478,7 +4473,6 @@ BEGIN
             @version = version,
             @rfid = result_format_id,
             @result = result,
-            @rcode = failure_code,
             @rmsg = failure_message
         FROM acta.steps WITH (UPDLOCK)
         WHERE job_id = @p_job_id AND step_name = @p_step_name;
@@ -4498,13 +4492,11 @@ BEGIN
                 SET @version = 0;
                 SET @rfid = 0 /* JobPayloadFormat.None */;
                 SET @result = NULL;
-                SET @rcode = NULL;
                 SET @rmsg = NULL;
             END
         ELSE IF @state = 100 /* StepStatusCode.Succeeded */
             BEGIN
                 SET @outcome = 3 /* StartJobStepOutcomeCode.ReplaySuccess */;
-                SET @rcode = NULL;
                 SET @rmsg = NULL;
             END
         ELSE IF @state = 200 /* StepStatusCode.Exhausted */
@@ -4519,7 +4511,6 @@ BEGIN
                 SET @outcome = 5 /* StartJobStepOutcomeCode.Interrupted */;
                 SET @rfid = 0 /* JobPayloadFormat.None */;
                 SET @result = NULL;
-                SET @rcode = NULL;
                 SET @rmsg = NULL;
             END
         ELSE IF @p_at_most_once = 1
@@ -4530,7 +4521,6 @@ BEGIN
                 UPDATE acta.steps
                 SET
                     step_status_code = 230 /* StepStatusCode.Interrupted */,
-                    failure_code = 20 /* StepFailureCode.Interrupted */,
                     failure_message = N'At-most-once step re-entered before completion; outcome unknown.',
                     modified_at_utc = @now,
                     version = version + 1
@@ -4540,7 +4530,6 @@ BEGIN
                 SET @outcome = 5 /* StartJobStepOutcomeCode.Interrupted */;
                 SET @rfid = 0 /* JobPayloadFormat.None */;
                 SET @result = NULL;
-                SET @rcode = NULL;
                 SET @rmsg = NULL;
             END
         ELSE
@@ -4549,7 +4538,6 @@ BEGIN
                 SET @outcome = 1 /* StartJobStepOutcomeCode.Invoke */;
                 SET @rfid = 0 /* JobPayloadFormat.None */;
                 SET @result = NULL;
-                SET @rcode = NULL;
                 SET @rmsg = NULL;
             END
 
@@ -4558,7 +4546,6 @@ BEGIN
             @version AS version,
             @rfid AS result_format_id,
             @result AS result,
-            @rcode AS failure_code,
             @rmsg AS failure_message;
 
         IF @entry_trancount = 0
@@ -5039,8 +5026,6 @@ SELECT
     s.step_name,
     CASE s.step_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'pending' WHEN 100 THEN 'succeeded' WHEN 200 THEN 'exhausted' WHEN 230 THEN 'interrupted' END AS step_status,
     s.step_status_code,
-    CASE s.failure_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'unhandled-exception' WHEN 20 THEN 'interrupted' END AS failure,
-    s.failure_code,
     s.failure_message,
     CASE s.result_format_id
         WHEN 0 /* JobPayloadFormat.None */ THEN 'none'
@@ -5095,11 +5080,11 @@ JOIN acta.namespaces AS ns ON ns.namespace_id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261111021241_init')
+IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261111022653_init')
 INSERT INTO acta.migrations (name)
-VALUES ('M20261111021241_init');
+VALUES ('M20261111022653_init');
 GO
--- ===== END M20261111021241_init =====
+-- ===== END M20261111022653_init =====
 GO
 COMMIT TRANSACTION;
 GO

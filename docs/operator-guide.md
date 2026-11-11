@@ -148,7 +148,7 @@ SELECT c.job_id, c.job_ref, c.checkpoint_name, c.checkpoint_status, c.value_form
  WHERE j.job_status = 'suspended' AND c.checkpoint_kind = 'signal';
 
 -- The steps of a job: which named steps ran and their outcome.
-SELECT step_name, step_status, failure, failure_message
+SELECT step_name, step_status, failure_message
   FROM acta.steps_view WHERE job_id = :job_id ORDER BY step_name;
 
 -- Durable sleep timers for a job: when each named wait is due.
@@ -493,7 +493,7 @@ In production a deploy step applies Acta's migrations, never application startup
 
 ```
 $ ConnectionStrings__acta="<DDL login>" dotnet MyApp.dll jobs migrate
-applied M20261111021241_init to schema acta
+applied M20261111022653_init to schema acta
 namespace billing: 1.6.1+b81d04e (Production)
   added    sys.alerts
   added    sys.retention
@@ -1400,7 +1400,7 @@ Timers are job-internal checkpoints. The owning job becomes claimable when the t
 ### Step State
 
 ```sql
-SELECT job_id, job_ref, namespace_name, definition_name, step_name, step_status, failure, failure_message, result_format, result_text
+SELECT job_id, job_ref, namespace_name, definition_name, step_name, step_status, failure_message, result_format, result_text
   FROM acta.steps_view
  WHERE job_id = :job_id
  ORDER BY step_name;

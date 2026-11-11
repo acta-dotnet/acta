@@ -212,10 +212,9 @@ public sealed class StepAtMostOnceSpec : ActaRuntimeTestBase<ConformanceFixture,
         // The body was never invoked on the replay.
         Assert.False(AtMostOnceStepHandler.BodyInvocations.ContainsKey(enqueued.JobId));
 
-        // The step is terminal Interrupted with the step-interrupted reason stamped by start_job_step.
+        // start_job_step stamped the step terminal Interrupted.
         var row = await ReadStepAsync(enqueued.JobId, ct);
         Assert.Equal(StepStatusCode.Interrupted, row.Status);
-        Assert.Equal(StepFailureCode.Interrupted, row.FailureCode);
 
         // Explain surfaces the interruption at both job and step level.
         var x = await Jobs.ExplainAsync(JobLookup.ById(enqueued.JobId), ct);

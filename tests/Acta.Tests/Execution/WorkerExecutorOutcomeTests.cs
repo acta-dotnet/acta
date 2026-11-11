@@ -33,10 +33,7 @@ public sealed class WorkerExecutorOutcomeTests
         // Every retry would replay the exhausted step and throw again, so the budget is not spent on it.
         var harness = new WorkerExecutorHarness(maxAttempts: 10);
 
-        var outcome = await harness.RunAsync(
-            static (_, _) =>
-                throw new StepExhaustedException(WorkerExecutorHarness.StepName, StepFailureCode.UnhandledException, "declined")
-        );
+        var outcome = await harness.RunAsync(static (_, _) => throw new StepExhaustedException(WorkerExecutorHarness.StepName, "declined"));
 
         Assert.Equal(RunOnceStatus.Failed, outcome);
         Assert.Equal(EventReason.NonRetryableException, harness.Completion.Reason);

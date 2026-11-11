@@ -355,7 +355,6 @@ internal sealed class WorkerExecutorHarness(
                 Version: 1,
                 ResultFormatId: 0,
                 Result: null,
-                FailureCode: null,
                 FailureMessage: null
             );
         }

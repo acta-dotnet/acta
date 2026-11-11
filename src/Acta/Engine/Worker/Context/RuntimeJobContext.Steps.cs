@@ -51,7 +51,7 @@ internal sealed partial class RuntimeJobContext
                 RecordStep(name, "replayed");
                 return storeResult ? DeserializeStepResult<TResult>(name, start.ResultFormatId, start.Result!) : default!;
             case StartJobStepOutcomeCode.Exhausted:
-                throw new StepExhaustedException(name, start.FailureCode, start.FailureMessage);
+                throw new StepExhaustedException(name, start.FailureMessage);
             case StartJobStepOutcomeCode.Interrupted:
                 // An AtMostOnce step re-entered before its outcome was recorded: the row was terminalized
                 // Interrupted by start_job_step. Do NOT run the body; the outcome is ambiguous (ran 0 or 1
@@ -126,7 +126,6 @@ internal sealed partial class RuntimeJobContext
                 Succeeded: true,
                 payload.Format.Id,
                 storeResult ? payload.Data.ToArray() : null,
-                FailureCode: null,
                 FailureMessage: null,
                 start.Version
             ),
@@ -144,7 +143,7 @@ internal sealed partial class RuntimeJobContext
         StepExhaustedException Unrecorded(string why, Exception? cause)
         {
             RecordStep(name, "failed");
-            return new StepExhaustedException(name, null, $"its body ran, and its result was not recorded: {why}", cause);
+            return new StepExhaustedException(name, $"its body ran, and its result was not recorded: {why}", cause);
         }
     }
 
@@ -156,16 +155,7 @@ internal sealed partial class RuntimeJobContext
     {
         var message = failureMessage.Truncate(ActaTextLimits.StepFailureMessage);
         var failure = await CompleteJobStepAsync(
-            new CompleteJobStepCommand(
-                Fence,
-                name,
-                Succeeded: false,
-                ResultFormatId: 0,
-                Result: null,
-                StepFailureCode.UnhandledException,
-                message,
-                version
-            ),
+            new CompleteJobStepCommand(Fence, name, Succeeded: false, ResultFormatId: 0, Result: null, message, version),
             ct
         );
 
@@ -179,7 +169,7 @@ internal sealed partial class RuntimeJobContext
         {
             ActaLog.StepExhausted(_log, JobId, $"step '{name}': {message}");
         }
-        return new StepExhaustedException(name, StepFailureCode.UnhandledException, message);
+        return new StepExhaustedException(name, message);
     }
 
     private JobPayload SerializeStepResult<TResult>(TResult value)

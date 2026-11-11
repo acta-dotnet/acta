@@ -6,8 +6,6 @@ SELECT
     s.step_name,
     {{decode:job-step-status:s.step_status_code}} AS step_status,
     s.step_status_code,
-    {{decode:step-failure:s.failure_code}} AS failure,
-    s.failure_code,
     s.failure_message,
     CASE s.result_format_id
         WHEN 0 /* JobPayloadFormat.None */ THEN 'none'

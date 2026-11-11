@@ -575,7 +575,7 @@ public sealed class ExecutionFenceSpec : ActaRuntimeTestBase<ConformanceFixture,
                 ),
             .. steps
                 .OrderBy(s => s.StepName, StringComparer.Ordinal)
-                .Select(s => $"step {s.StepName} {s.Status} v{s.Version} {s.FailureCode}"),
+                .Select(s => $"step {s.StepName} {s.Status} v{s.Version} {s.FailureMessage}"),
             .. children.Order().Select(id => $"child {id}"),
             $"notes {notes.Count}",
             $"job {state.Status} e{state.ExecutionNumber} w{state.LeasedByWorkerId} v{state.Version} {state.NextRunAtUtc:o}",

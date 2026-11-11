@@ -445,53 +445,10 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
         await Assert.ThrowsAnyAsync<DbException>(() => SetStepStatusAsync(enq.JobId, "result-succeeded", StepStatusCode.Exhausted, ct));
     }
 
-    [Fact(DisplayName = "ck_steps_failure_pair rejects a failure message with no failure code, on INSERT and on UPDATE")]
-    public async Task Steps_failure_message_requires_a_failure_code()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        var enq = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 1))), ct);
-
-        // Both legal shapes: no failure at all, and the full pair complete_job_step writes on a failure.
-        Assert.Equal(1, await InsertStepAsync(enq.JobId, "failure-none", StepStatusCode.Pending, ct));
-        Assert.Equal(
-            1,
-            await InsertStepAsync(
-                enq.JobId,
-                "failure-pair",
-                StepStatusCode.Exhausted,
-                ct,
-                failureCode: StepFailureCode.UnhandledException,
-                failureMessage: "boom"
-            )
-        );
-
-        await Assert.ThrowsAnyAsync<DbException>(() =>
-            InsertStepAsync(enq.JobId, "failure-orphan", StepStatusCode.Exhausted, ct, failureMessage: "boom")
-        );
-
-        // The same orphan reached by UPDATE: clearing only the code off a paired row.
-        await Assert.ThrowsAnyAsync<DbException>(() =>
-            Db.ExecuteRawAsync(
-                "UPDATE {schema}.steps SET failure_code = NULL WHERE job_id = @p_job_id AND step_name = @p_name",
-                ct,
-                ("@p_job_id", enq.JobId),
-                ("@p_name", "failure-pair")
-            )
-        );
-    }
-
-    // Raw composition: nullable columns are omitted rather than bound explicit-NULL, and code columns are
-    // rendered as literals, because SQL Server infers no type for a null TINYINT or VARBINARY parameter
-    // (the same class of issue ActaTestSeeder.SeedJobAsync sidesteps for jobs.input).
-    private Task<int> InsertStepAsync(
-        long jobId,
-        string name,
-        StepStatusCode status,
-        CancellationToken ct,
-        byte resultFormatId = 0,
-        StepFailureCode? failureCode = null,
-        string? failureMessage = null
-    )
+    // Raw composition: a row with no result omits the result column rather than binding it explicit-NULL,
+    // because SQL Server infers no type for a null VARBINARY parameter (the same class of issue
+    // ActaTestSeeder.SeedJobAsync sidesteps for jobs.input).
+    private Task<int> InsertStepAsync(long jobId, string name, StepStatusCode status, CancellationToken ct, byte resultFormatId = 0)
     {
         List<string> columns = ["job_id", "step_name", "step_status_code", "result_format_id"];
         List<string> values =
@@ -510,19 +467,6 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
             columns.Add("result");
             values.Add("@p_result");
             parameters.Add(("@p_result", new byte[] { 0x01 }));
-        }
-
-        if (failureCode is { } code)
-        {
-            columns.Add("failure_code");
-            values.Add(((byte)code).ToString(CultureInfo.InvariantCulture));
-        }
-
-        if (failureMessage is { } message)
-        {
-            columns.Add("failure_message");
-            values.Add("@p_message");
-            parameters.Add(("@p_message", message));
         }
 
         return Db.ExecuteRawAsync(

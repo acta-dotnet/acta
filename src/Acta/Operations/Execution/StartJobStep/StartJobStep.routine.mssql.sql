@@ -19,7 +19,6 @@ BEGIN
         DECLARE @version INT;
         DECLARE @rfid TINYINT = 0;
         DECLARE @result VARBINARY(MAX) = NULL;
-        DECLARE @rcode SMALLINT = NULL;
         DECLARE @rmsg NVARCHAR(512) = NULL;
         DECLARE @state TINYINT;
 
@@ -51,7 +50,6 @@ BEGIN
             @version = version,
             @rfid = result_format_id,
             @result = result,
-            @rcode = failure_code,
             @rmsg = failure_message
         FROM {{schema}}.steps WITH (UPDLOCK)
         WHERE job_id = @p_job_id AND step_name = @p_step_name;
@@ -71,13 +69,11 @@ BEGIN
                 SET @version = 0;
                 SET @rfid = 0 /* JobPayloadFormat.None */;
                 SET @result = NULL;
-                SET @rcode = NULL;
                 SET @rmsg = NULL;
             END
         ELSE IF @state = 100 /* StepStatusCode.Succeeded */
             BEGIN
                 SET @outcome = 3 /* StartJobStepOutcomeCode.ReplaySuccess */;
-                SET @rcode = NULL;
                 SET @rmsg = NULL;
             END
         ELSE IF @state = 200 /* StepStatusCode.Exhausted */
@@ -92,7 +88,6 @@ BEGIN
                 SET @outcome = 5 /* StartJobStepOutcomeCode.Interrupted */;
                 SET @rfid = 0 /* JobPayloadFormat.None */;
                 SET @result = NULL;
-                SET @rcode = NULL;
                 SET @rmsg = NULL;
             END
         ELSE IF @p_at_most_once = 1
@@ -103,7 +98,6 @@ BEGIN
                 UPDATE {{schema}}.steps
                 SET
                     step_status_code = 230 /* StepStatusCode.Interrupted */,
-                    failure_code = 20 /* StepFailureCode.Interrupted */,
                     failure_message = N'At-most-once step re-entered before completion; outcome unknown.',
                     modified_at_utc = @now,
                     version = version + 1
@@ -113,7 +107,6 @@ BEGIN
                 SET @outcome = 5 /* StartJobStepOutcomeCode.Interrupted */;
                 SET @rfid = 0 /* JobPayloadFormat.None */;
                 SET @result = NULL;
-                SET @rcode = NULL;
                 SET @rmsg = NULL;
             END
         ELSE
@@ -122,7 +115,6 @@ BEGIN
                 SET @outcome = 1 /* StartJobStepOutcomeCode.Invoke */;
                 SET @rfid = 0 /* JobPayloadFormat.None */;
                 SET @result = NULL;
-                SET @rcode = NULL;
                 SET @rmsg = NULL;
             END
 
@@ -131,7 +123,6 @@ BEGIN
             @version AS version,
             @rfid AS result_format_id,
             @result AS result,
-            @rcode AS failure_code,
             @rmsg AS failure_message;
 
         IF @entry_trancount = 0

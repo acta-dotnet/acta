@@ -10,6 +10,5 @@ internal sealed record StartJobStepResponse(
     int Version,
     byte ResultFormatId,
     byte[]? Result,
-    StepFailureCode? FailureCode,
     string? FailureMessage
 );

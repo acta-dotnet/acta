@@ -15,7 +15,6 @@ WHERE NOT EXISTS (
 UPDATE {{schema}}.steps
 SET
     step_status_code = 230 /* StepStatusCode.Interrupted */,
-    failure_code = 20 /* StepFailureCode.Interrupted */,
     failure_message = 'At-most-once step re-entered before completion; outcome unknown.',
     modified_at_utc = {{now}},
     version = version + 1
@@ -55,7 +54,6 @@ SELECT
         ELSE 0 /* JobPayloadFormat.None */
     END AS result_format_id,
     CASE WHEN a.step_status_code = 100 /* StepStatusCode.Succeeded */ THEN a.result ELSE NULL END AS result,
-    CASE WHEN a.step_status_code = 200 /* StepStatusCode.Exhausted */ THEN a.failure_code ELSE NULL END AS failure_code,
     CASE WHEN a.step_status_code = 200 /* StepStatusCode.Exhausted */ THEN a.failure_message ELSE NULL END AS failure_message
 FROM {{schema}}.steps a
 WHERE a.job_id = @p_job_id AND a.step_name = @p_step_name;

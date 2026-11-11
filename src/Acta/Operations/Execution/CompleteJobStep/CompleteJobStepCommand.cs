@@ -10,7 +10,6 @@ internal sealed record CompleteJobStepCommand(
     bool Succeeded,
     byte ResultFormatId,
     byte[]? Result,
-    StepFailureCode? FailureCode,
     string? FailureMessage,
     int ExpectedVersion
 );

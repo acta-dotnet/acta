@@ -2418,7 +2418,6 @@
   - Consumer payload format 255 remains storable
   - ck_checkpoints_kind_shape rejects every mismatched kind/status/due shape on INSERT and on UPDATE
   - ck_steps_result_succeeded admits a stored result only on a Succeeded row
-  - ck_steps_failure_pair rejects a failure message with no failure code, on INSERT and on UPDATE
   - ck_workers_max_concurrent_executors rejects an INSERT with max_concurrent_executors zero
   - jobs_state agrees with jobs on namespace_id after EnqueueJob, EnqueueJobs, a child enqueue, and Restart
   - A recurring slot's schedule and cursor rows agree with its job on namespace_id and definition_id

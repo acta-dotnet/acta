@@ -2,7 +2,7 @@
 
 # Data model reference
 
-Structural reference for the Acta persistence model: **17 entities**, **249 columns**, **39 indexes**, **37 check constraints**, **4 foreign keys**. Names render with the default `acta` schema prefix; substitute the configured schema if different. Code families resolve into [`code-families.md`](./code-families.md). The foreign-key enforcement policy (which references are CASCADE, RESTRICT, or deliberately unenforced) is in [SQL recipes](../operator-guide.md#foreign-key-policy).
+Structural reference for the Acta persistence model: **17 entities**, **248 columns**, **39 indexes**, **36 check constraints**, **4 foreign keys**. Names render with the default `acta` schema prefix; substitute the configured schema if different. Code families resolve into [`code-families.md`](./code-families.md). The foreign-key enforcement policy (which references are CASCADE, RESTRICT, or deliberately unenforced) is in [SQL recipes](../operator-guide.md#foreign-key-policy).
 
 ## Schema inventory
 
@@ -21,7 +21,7 @@ Structural reference for the Acta persistence model: **17 entities**, **249 colu
 | [`acta.namespaces`](#entity-acta-namespaces) | Service-owned execution boundary. | [`NamespaceStatusCode`](./code-families.md#code-family-namespacestatuscode) |
 | [`acta.schedules`](#entity-acta-schedules) | One named recurring schedule of a definition, with its own identity: its declaration and operator lifecycle. | [`ScheduleOriginCode`](./code-families.md#code-family-scheduleorigincode), [`ScheduleExpressionKindCode`](./code-families.md#code-family-scheduleexpressionkindcode), [`MisfireStrategyCode`](./code-families.md#code-family-misfirestrategycode), [`ScheduleFullBehaviorCode`](./code-families.md#code-family-schedulefullbehaviorcode), [`ScheduleExpireActionCode`](./code-families.md#code-family-scheduleexpireactioncode), [`ScheduleStatusCode`](./code-families.md#code-family-schedulestatuscode) |
 | [`acta.schedules_state`](#entity-acta-schedules-state) | The decision and wake state of one schedule, split from `ScheduleEntity` so an admission rewrites only this narrow row. | [`ScheduleEvaluationStatusCode`](./code-families.md#code-family-scheduleevaluationstatuscode) |
-| [`acta.steps`](#entity-acta-steps) | The durable outcome of one step, one row per `(JobId, StepName)`, written by `start_job_step` and `complete_job_step` behind `ctx.RunStepAsync`: inserted Pending on first run and ended Succeeded, or, for an at-most-once step, Exhausted or Interrupted (a job restart deletes an ... | [`StepStatusCode`](./code-families.md#code-family-stepstatuscode), [`StepFailureCode`](./code-families.md#code-family-stepfailurecode), [`JobPayloadFormat`](./code-families.md#code-family-jobpayloadformat) |
+| [`acta.steps`](#entity-acta-steps) | The durable outcome of one step, one row per `(JobId, StepName)`, written by `start_job_step` and `complete_job_step` behind `ctx.RunStepAsync`: inserted Pending on first run and ended Succeeded, or, for an at-most-once step, Exhausted or Interrupted (a job restart deletes an ... | [`StepStatusCode`](./code-families.md#code-family-stepstatuscode), [`JobPayloadFormat`](./code-families.md#code-family-jobpayloadformat) |
 | [`acta.tags`](#entity-acta-tags) | Exact searchable metadata attached to one entity. | [`EntityCode`](./code-families.md#code-family-entitycode) |
 | [`acta.tenants`](#entity-acta-tenants) | The tenants a job can be about: an optional, validated scope on individual jobs, orthogonal to the namespace, which stays the work-ownership boundary. | [`TenantStatusCode`](./code-families.md#code-family-tenantstatuscode) |
 | [`acta.workers`](#entity-acta-workers) | Worker registration and liveness row. | [`WorkerStatusCode`](./code-families.md#code-family-workerstatuscode) |
@@ -610,8 +610,7 @@ The durable outcome of one step, one row per `(JobId, StepName)`, written by `st
 | `job_id`<a id="column-acta-steps--job-id"></a> | `Int64` | · | no | · | PK | Owning Job; purge and retention delete a job's steps with it. The key's first column. |
 | `step_name`<a id="column-acta-steps--step-name"></a> | `AsciiString` | 128 | no | · | PK | Step name. Kebab-case ASCII. The key's second column. |
 | `step_status_code`<a id="column-acta-steps--step-status-code"></a> | `Byte` | · | no | · | [`StepStatusCode`](./code-families.md#code-family-stepstatuscode) (`job-step-status`) | `Pending` until the step succeeds; `Succeeded`, `Exhausted`, or `Interrupted` on terminal. |
-| `failure_code`<a id="column-acta-steps--failure-code"></a> | `Byte` | · | yes | · | [`StepFailureCode`](./code-families.md#code-family-stepfailurecode) (`step-failure`) | Machine-readable failure of an at-most-once step, set on its terminal `Exhausted` or `Interrupted` row so post-mortem reads have the failure context; NULL on every other row. |
-| `failure_message`<a id="column-acta-steps--failure-message"></a> | `UnicodeString` | 512 | yes | · | · | Free-form prose paired with `FailureCode` by `ck_steps_failure_pair`; truncated by `MessageTruncator`. |
+| `failure_message`<a id="column-acta-steps--failure-message"></a> | `UnicodeString` | 512 | yes | · | · | Operator-readable failure of an at-most-once step, set on its terminal `Exhausted` or `Interrupted` row and NULL on every other row; truncated by `MessageTruncator`. |
 | `result_format_id`<a id="column-acta-steps--result-format-id"></a> | `Byte` | · | no | · | [`JobPayloadFormat`](./code-families.md#code-family-jobpayloadformat) | Format-id selector for `Result`; `0` means no result (void step or in-flight or exhausted). `ck_steps_result_pair` enforces `(result_format_id = 0) = (result IS NULL)`, and `ck_steps_result_succeeded` admits a non-zero id only on a `Succeeded` row. |
 | `result`<a id="column-acta-steps--result"></a> | `BinaryPayload` | max | yes | · | · | Encoded step result; opaque bytes. NULL when `ResultFormatId` is 0. |
 | `created_at_utc`<a id="column-acta-steps--created-at-utc"></a> | `UtcInstant` | · | no | `UtcNow` | · | First-invocation instant. Rendered server-side via `UtcNow` on the initial INSERT and never updated thereafter. |
@@ -624,7 +623,6 @@ The durable outcome of one step, one row per `(JobId, StepName)`, written by `st
 |---|---|
 | `ck_steps_result_pair` | `(result_format_id = 0 AND result IS NULL) OR (result_format_id <> 0 AND result IS NOT NULL)` |
 | `ck_steps_result_succeeded` | `result_format_id = 0 OR step_status_code = 100` |
-| `ck_steps_failure_pair` | `failure_message IS NULL OR failure_code IS NOT NULL` |
 
 ---
 
