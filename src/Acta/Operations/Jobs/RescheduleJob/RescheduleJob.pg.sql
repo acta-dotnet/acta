@@ -15,7 +15,6 @@ CREATE TEMP TABLE _reschedule_job (
     definition_id INT NOT NULL,
     tenant_id INT,
     execution_number INT NOT NULL,
-    event_recording_code SMALLINT NOT NULL,
     to_status SMALLINT NOT NULL,
     fires BOOLEAN NOT NULL,
     applies BOOLEAN NOT NULL
@@ -40,10 +39,10 @@ FOR UPDATE;
 -- moves its instant like any waiting job. Idle applies to a slot alone.
 INSERT INTO _reschedule_job (
     from_status, from_version, lane_id, namespace_id, lineage_root_job_id, definition_id, tenant_id, execution_number,
-    event_recording_code, to_status, fires, applies)
+    to_status, fires, applies)
 SELECT
     r.job_status_code, r.version, r.lane_id, j.namespace_id, j.lineage_root_job_id, j.definition_id, j.tenant_id, r.execution_number,
-    j.event_recording_code, 10 /* JobStatusCode.Ready */,
+    10 /* JobStatusCode.Ready */,
     j.job_kind_code = 20 /* JobKindCode.Permanent */
         AND r.job_status_code IN (40 /* JobStatusCode.Idle */, 30 /* JobStatusCode.Paused */)
         AND NOT EXISTS (
@@ -155,8 +154,7 @@ SELECT
     @p_event_message, @p_details_format_id, @p_details
 FROM _reschedule_job s
 WHERE
-    s.event_recording_code = 20 /* EventRecordingCode.Audit */
-    AND (@p_expected_version IS NULL OR s.from_version = @p_expected_version)
+    (@p_expected_version IS NULL OR s.from_version = @p_expected_version)
     AND s.applies;
 
 SELECT

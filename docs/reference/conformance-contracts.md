@@ -680,14 +680,13 @@
   - Illegal control is Rejected with the current status
   - Control on a missing job is NotFound
 
-### Control verbs transition unconditionally but emit events only at Audit recording
-- **Contract:** Control verbs apply their status transition unconditionally and only write a job event when the job's event recording is Audit (code 20).
+### Control verbs record their event at every recording level
+- **Contract:** A control verb that applies writes its event at every recording level, while a cascaded cancel and a raised signal write theirs only at Audit.
 - **Guarantees:**
-  - Pause applies transition at every event recording level and emits event only at Audit
-  - Resume applies transition at every event recording level and emits event only at Audit
-  - Cancel applies transition at every event recording level and emits event only at Audit
-  - Restart applies transition at every event recording level and emits event only at Audit
-  - RaiseJobSignal upserts the signal unconditionally and emits event only at Audit
+  - A control verb that applies writes its event below Audit
+  - A cancel is recorded on the job it names at every level, and on a descendant it reaches only at Audit
+  - A caller's cancel of an executing job below Audit records the cancel and not the attempt's yield
+  - A raised signal sets its checkpoint at every recording level and writes its event only at Audit
 
 ### Handler Fail Cancel Pause finalize the attempt without returning to user code
 - **Contract:** Handler control verbs and non-retryable exceptions finalize the attempt without returning to user code, budget untouched and no result written.
@@ -1579,7 +1578,9 @@
 - **Contract:** ExplainJob's reason for a Cancelled job is the job.cancelled event's message and actor, and null where no such event was recorded.
 - **Guarantees:**
   - A cancelled job's reason is the cancel's message, followed by the operator who cancelled it
-  - At the failures-only recording level a cancelled job has no reason, not the failure before the cancel
+  - At the Failures recording level a cancelled job still explains its cancel, not the failure before it
+  - A cancel before a restart does not explain a later cancel that recorded nothing
+  - A job its ancestor's cancel reached below Audit has no reason
 
 ### ExplainJob returns explain sets for a known id and null otherwise
 - **Contract:** ExplainJob returns the header, the newest steps up to its fetch limit, and the checkpoints of a matching job id from one snapshot, or null when none matches.

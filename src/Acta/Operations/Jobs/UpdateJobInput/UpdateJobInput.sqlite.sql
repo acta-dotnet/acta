@@ -58,7 +58,6 @@ JOIN {{schema}}.jobs_state r ON r.job_id = j.job_id
 CROSS JOIN old_input o
 WHERE
     j.job_id = @p_job_id
-    AND j.event_recording_code = 20 /* EventRecordingCode.Audit */
     AND r.job_status_code <> 50 /* JobStatusCode.Executing */;
 
 UPDATE {{schema}}.jobs

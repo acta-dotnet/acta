@@ -9,7 +9,7 @@ BEGIN TRY
     DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
     DECLARE
         @from_status TINYINT, @namespace_id INT,
-        @lineage_root_job_id BIGINT, @definition_id INT, @tenant_id INT, @execution_number INT, @event_recording TINYINT,
+        @lineage_root_job_id BIGINT, @definition_id INT, @tenant_id INT, @execution_number INT,
         @version INT;
     DECLARE @lane_id BIGINT, @to_status TINYINT = 10 /* JobStatusCode.Ready */;
 
@@ -31,7 +31,6 @@ BEGIN TRY
         @definition_id = j.definition_id,
         @tenant_id = j.tenant_id,
         @execution_number = r.execution_number,
-        @event_recording = j.event_recording_code,
         @version = r.version
     FROM {{schema}}.jobs_state r WITH (UPDLOCK, ROWLOCK)
     INNER JOIN {{schema}}.jobs j ON j.job_id = r.job_id
@@ -140,23 +139,20 @@ BEGIN TRY
             js.job_id = @p_job_id
             AND st.evaluation_status_code IN (20 /* ScheduleEvaluationStatusCode.WaitingForCapacity */, 50 /* ScheduleEvaluationStatusCode.JobUnavailable */);
 
-    IF @event_recording = 20 /* EventRecordingCode.Audit */
-        BEGIN
-            INSERT INTO {{schema}}.events (
-                event_code, created_at_utc, namespace_id,
-                entity_code, entity_id,
-                definition_id, tenant_id, lineage_root_job_id,
-                execution_number,
-                event_message, details_format_id, details
-            )
-            VALUES (
-                72 /* EventCode.JobResumed */, @now, @namespace_id,
-                50 /* EntityCode.Job */, @p_job_id,
-                @definition_id, @tenant_id, COALESCE(@lineage_root_job_id, @p_job_id),
-                @execution_number,
-                @p_event_message, @p_details_format_id, @p_details
-            );
-        END
+    INSERT INTO {{schema}}.events (
+        event_code, created_at_utc, namespace_id,
+        entity_code, entity_id,
+        definition_id, tenant_id, lineage_root_job_id,
+        execution_number,
+        event_message, details_format_id, details
+    )
+    VALUES (
+        72 /* EventCode.JobResumed */, @now, @namespace_id,
+        50 /* EntityCode.Job */, @p_job_id,
+        @definition_id, @tenant_id, COALESCE(@lineage_root_job_id, @p_job_id),
+        @execution_number,
+        @p_event_message, @p_details_format_id, @p_details
+    );
 
     SELECT
         CAST(1 /* ControlAction.Applied */ AS TINYINT) AS action,

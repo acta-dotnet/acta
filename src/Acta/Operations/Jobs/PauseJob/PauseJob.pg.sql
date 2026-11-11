@@ -14,7 +14,6 @@ CREATE TEMP TABLE _pause_job (
     definition_id INT NOT NULL,
     tenant_id INT,
     execution_number INT NOT NULL,
-    event_recording_code SMALLINT NOT NULL,
     applied BOOLEAN NOT NULL
 ) ON COMMIT DROP;
 CREATE TEMP TABLE _pause_job_promoted (job_id BIGINT NOT NULL) ON COMMIT DROP;
@@ -28,10 +27,9 @@ FOR UPDATE;
 -- A Blocked follower may be paused too; a paused member still holds its place in the lane.
 INSERT INTO _pause_job (
     from_status, from_version, lane_id, namespace_id, lineage_root_job_id, definition_id, tenant_id, execution_number,
-    event_recording_code, applied)
+    applied)
 SELECT
     r.job_status_code, r.version, r.lane_id, j.namespace_id, j.lineage_root_job_id, j.definition_id, j.tenant_id, r.execution_number,
-    j.event_recording_code,
     (@p_expected_version IS NULL OR r.version = @p_expected_version)
     AND r.job_status_code IN (
         40 /* JobStatusCode.Idle */, 30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */,
@@ -110,7 +108,7 @@ SELECT
     s.execution_number,
     @p_event_message, @p_details_format_id, @p_details
 FROM _pause_job s
-WHERE s.applied AND s.event_recording_code = 20 /* EventRecordingCode.Audit */;
+WHERE s.applied;
 
 SELECT
     CASE

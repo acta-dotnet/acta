@@ -36,7 +36,6 @@ FROM {{schema}}.jobs j
 JOIN {{schema}}.jobs_state r ON r.job_id = j.job_id
 WHERE
     j.job_id = @p_job_id
-    AND j.event_recording_code = 20 /* EventRecordingCode.Audit */
     AND (@p_expected_version IS NULL OR r.version = @p_expected_version)
     AND r.job_status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */);
 

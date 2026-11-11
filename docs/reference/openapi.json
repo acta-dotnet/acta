@@ -16368,7 +16368,7 @@
           "failures"
         ],
         "type": "string",
-        "description": "How much of a job's history is recorded as events.\n\nKnown values:\n- unspecified: Event recording not recognized by this build; the row was written by a newer Acta.\n- failures: Records failed, orphaned, and finally failed attempts, a success only when it recovers from counted failures, and a job that crash recovery releases from a stranded lane. Under an enabled alert profile it also records a one-shot's success past its first attempt, as after a restart, so the success resolves the alert the failure opened.\n- audit: Records every per-job event. The default for an application's jobs.\n\nOther values may appear: keep a value this client does not know as it is.",
+        "description": "How much of a job's history is recorded as events.\n\nKnown values:\n- unspecified: Event recording not recognized by this build; the row was written by a newer Acta.\n- failures: Records failed, orphaned, and finally failed attempts, a success only when it recovers from counted failures, a job that crash recovery releases from a stranded lane, and a caller's pause, resume, restart, reschedule, priority change, input update, or cancel. Under an enabled alert profile it also records a one-shot's success past its first attempt, which resolves the alert the failure opened.\n- audit: Records every per-job event. The default for an application's jobs.\n\nOther values may appear: keep a value this client does not know as it is.",
         "x-acta-known-values": [
           "unspecified",
           "failures",

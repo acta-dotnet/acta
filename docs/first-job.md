@@ -306,7 +306,7 @@ On SQLite the views show their `_utc` columns as ISO 8601 UTC text, such as `202
 
 `events_view` holds each job's append-only timeline: at the default `Audit` recording level, an event
 for each attempt's outcome and each control, such as a cancel; a definition at `Failures` keeps its
-failures alone. `event_message` carries a control's reason and `details_text` its JSON details, the
+failures and the controls a caller applied. `event_message` carries a control's reason and `details_text` its JSON details, the
 actor among them when the call named one. The enqueue writes no event.
 
 ## The first test

@@ -11,8 +11,7 @@ CREATE TEMP TABLE _reprioritize_job (
     lineage_root_job_id BIGINT,
     definition_id INT NOT NULL,
     tenant_id INT,
-    execution_number INT NOT NULL,
-    event_recording_code SMALLINT NOT NULL
+    execution_number INT NOT NULL
 ) ON COMMIT DROP;
 
 INSERT INTO _reprioritize_job_lane (lane_id)
@@ -22,11 +21,9 @@ WHERE l.lane_id = (SELECT r.lane_id FROM {{schema}}.jobs_state r WHERE r.job_id 
 FOR UPDATE;
 
 INSERT INTO _reprioritize_job (
-    from_status, from_version, namespace_id, lineage_root_job_id, definition_id, tenant_id, execution_number,
-    event_recording_code)
+    from_status, from_version, namespace_id, lineage_root_job_id, definition_id, tenant_id, execution_number)
 SELECT
-    r.job_status_code, r.version, j.namespace_id, j.lineage_root_job_id, j.definition_id, j.tenant_id, r.execution_number,
-    j.event_recording_code
+    r.job_status_code, r.version, j.namespace_id, j.lineage_root_job_id, j.definition_id, j.tenant_id, r.execution_number
 FROM {{schema}}.jobs j
 JOIN {{schema}}.jobs_state r ON r.job_id = j.job_id
 WHERE j.job_id = @p_job_id
@@ -58,8 +55,7 @@ SELECT
     @p_event_message, @p_details_format_id, @p_details
 FROM _reprioritize_job s
 WHERE
-    s.event_recording_code = 20 /* EventRecordingCode.Audit */
-    AND (@p_expected_version IS NULL OR s.from_version = @p_expected_version)
+    (@p_expected_version IS NULL OR s.from_version = @p_expected_version)
     AND s.from_status NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */);
 
 SELECT

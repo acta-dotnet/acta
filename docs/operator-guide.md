@@ -74,7 +74,8 @@ counters), but they cannot guard *history*: the runtime fences every mutation
 on version counters and lease ownership, so a hand-edited `version`, `execution_number`, or lease
 column produces a row the engine either refuses to touch or mistakes for another worker's, with no
 constraint to stop you. Every control verb (restart, cancel, reschedule, purge) makes its change
-under those fences and leaves an audited event; a manual UPDATE does neither.
+under those fences and records it as an event at every recording level; a manual UPDATE does
+neither.
 
 Lanes make a hand edit worse. Setting a laned job back to Ready, or a Blocked job to Ready, puts two
 jobs of one lane in flight, and no repair can take that back. Setting a lane's head to a terminal

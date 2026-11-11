@@ -73,6 +73,7 @@ WHERE
     AND (@p_expected_version IS NULL OR r.version = @p_expected_version)
     AND r.job_status_code = 50 /* JobStatusCode.Executing */;
 
+-- A caller's own cancel is recorded at every level; one an ancestor's cancel or attempt cascades, only at Audit.
 INSERT INTO {{schema}}.events (
     event_code,
     created_at_utc,
@@ -103,7 +104,7 @@ FROM {{schema}}.jobs j
 JOIN {{schema}}.jobs_state r ON r.job_id = j.job_id
 WHERE
     j.job_id = @p_job_id
-    AND j.event_recording_code = 20 /* EventRecordingCode.Audit */
+    AND (j.event_recording_code = 20 /* EventRecordingCode.Audit */ OR (@p_fence_job_id IS NULL AND @p_walk_root_job_id IS NULL))
     AND (@p_expected_version IS NULL OR r.version = @p_expected_version)
     AND r.job_status_code IN (40 /* JobStatusCode.Idle */, 30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 50 /* JobStatusCode.Executing */);
 

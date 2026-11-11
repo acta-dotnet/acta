@@ -60,8 +60,9 @@ public sealed class AlertCaptureOverlaySpec : ActaRuntimeTestBase<ConformanceFix
         Assert.Equal(ControlAction.Applied, (await Jobs.RestartAsync(job, ct: ct)).Action);
         await AlertTestOps.RunUntilAttemptsAsync(Runtime, job, () => FailuresAuditProbe.Attempts(TestNamespace), 2, ct);
 
-        // The status beside the silence: an attempt that never ran would also write nothing.
+        // The status beside the silence: an attempt that never ran would also write nothing. The restart is the
+        // caller's own act and is recorded at every level.
         Assert.Equal(JobStatusCode.Succeeded, (await Jobs.GetStatusAsync(job, ct))?.Status);
-        Assert.Empty(await GetEventsByJobId.Run(Services, job.JobId, ct));
+        Assert.Equal([EventCode.JobRestarted], (await GetEventsByJobId.Run(Services, job.JobId, ct)).Select(e => e.EventCode));
     }
 }

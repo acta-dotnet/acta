@@ -271,7 +271,7 @@ public interface IJobs
     /// Cancel the job identified by <paramref name="job"/>: any non-terminal status moves to <c>Cancelled</c>, and the
     /// cancel cascades to its non-terminal descendants (event reason <c>parent-cancelled</c>), running to the end when
     /// <paramref name="ct"/> stops the wait for it. <paramref name="reasonMessage"/> is the message of the job.cancelled
-    /// event, written at the definition's Audit recording level, and <paramref name="actor"/> goes in that event's details
+    /// event, written at every recording level (a descendant's only at Audit), and <paramref name="actor"/> goes in its details
     /// as the operator identity (the authenticated principal name; null when unknown). An already-terminal job is
     /// <see cref="ControlAction.Rejected"/>; a missing job is <see cref="ControlAction.NotFound"/>.
     /// </summary>

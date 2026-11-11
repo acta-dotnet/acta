@@ -13,7 +13,6 @@ CREATE TEMP TABLE _resume_job (
     definition_id INT NOT NULL,
     tenant_id INT,
     execution_number INT NOT NULL,
-    event_recording_code SMALLINT NOT NULL,
     to_status SMALLINT NOT NULL
 ) ON COMMIT DROP;
 
@@ -25,10 +24,9 @@ FOR UPDATE;
 
 INSERT INTO _resume_job (
     from_status, from_version, lane_id, namespace_id, lineage_root_job_id, definition_id, tenant_id, execution_number,
-    event_recording_code, to_status)
+    to_status)
 SELECT
     r.job_status_code, r.version, r.lane_id, j.namespace_id, j.lineage_root_job_id, j.definition_id, j.tenant_id, r.execution_number,
-    j.event_recording_code,
     -- A slot with no firing outstanding resumes Idle, for admission to find; one paused mid-firing resumes Ready to
     -- run it.
     CASE
@@ -128,8 +126,7 @@ SELECT
     @p_event_message, @p_details_format_id, @p_details
 FROM _resume_job s
 WHERE
-    s.event_recording_code = 20 /* EventRecordingCode.Audit */
-    AND (@p_expected_version IS NULL OR s.from_version = @p_expected_version)
+    (@p_expected_version IS NULL OR s.from_version = @p_expected_version)
     AND s.from_status = 30 /* JobStatusCode.Paused */;
 
 SELECT

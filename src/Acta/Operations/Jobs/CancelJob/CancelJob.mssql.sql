@@ -215,37 +215,38 @@ BEGIN TRY
             SET @promoted = @@ROWCOUNT;
         END;
 
-    IF @event_recording = 20 /* EventRecordingCode.Audit */
+    -- The attempt's details lead with its outcome, then the cancel's own: the writer's payload is a compact
+    -- JSON object, so its members follow the outcome once its opening brace is dropped. Pure ASCII, so
+    -- VARCHAR -> VARBINARY is UTF-8.
+    IF @event_recording = 20 /* EventRecordingCode.Audit */ AND @from_status = 50 /* JobStatusCode.Executing */
         BEGIN
-            -- The attempt's details lead with its outcome, then the cancel's own: the writer's payload is a compact
-            -- JSON object, so its members follow the outcome once its opening brace is dropped. Pure ASCII, so
-            -- VARCHAR -> VARBINARY is UTF-8.
-            IF @from_status = 50 /* JobStatusCode.Executing */
-                BEGIN
-                    INSERT INTO {{schema}}.events (
-                        event_code, created_at_utc, namespace_id,
-                        worker_id,
-                        entity_code, entity_id,
-                        definition_id, tenant_id, lineage_root_job_id,
-                        execution_number,
-                        event_message, details_format_id, details
-                    )
-                    VALUES (
-                        43 /* EventCode.JobExecutionYielded */, @now, @namespace_id,
-                        @worker_id,
-                        50 /* EntityCode.Job */, @p_job_id,
-                        @definition_id, @tenant_id, COALESCE(@lineage_root_job_id, @p_job_id),
-                        @execution_number,
-                        @p_event_message, 1 /* JobPayloadFormat.Json */,
-                        CASE
-                            WHEN @p_details IS NULL THEN CONVERT(VARBINARY(MAX), '{"outcome":"cancelled"}')
-                            ELSE
-                                CONVERT(VARBINARY(MAX), '{"outcome":"cancelled",')
-                                + SUBSTRING(@p_details, 2, DATALENGTH(@p_details) - 1)
-                        END
-                    );
-                END;
+            INSERT INTO {{schema}}.events (
+                event_code, created_at_utc, namespace_id,
+                worker_id,
+                entity_code, entity_id,
+                definition_id, tenant_id, lineage_root_job_id,
+                execution_number,
+                event_message, details_format_id, details
+            )
+            VALUES (
+                43 /* EventCode.JobExecutionYielded */, @now, @namespace_id,
+                @worker_id,
+                50 /* EntityCode.Job */, @p_job_id,
+                @definition_id, @tenant_id, COALESCE(@lineage_root_job_id, @p_job_id),
+                @execution_number,
+                @p_event_message, 1 /* JobPayloadFormat.Json */,
+                CASE
+                    WHEN @p_details IS NULL THEN CONVERT(VARBINARY(MAX), '{"outcome":"cancelled"}')
+                    ELSE
+                        CONVERT(VARBINARY(MAX), '{"outcome":"cancelled",')
+                        + SUBSTRING(@p_details, 2, DATALENGTH(@p_details) - 1)
+                END
+            );
+        END;
 
+    -- A caller's own cancel is recorded at every level; one an ancestor's cancel or attempt cascades, only at Audit.
+    IF @event_recording = 20 /* EventRecordingCode.Audit */ OR (@p_fence_job_id IS NULL AND @p_walk_root_job_id IS NULL)
+        BEGIN
             INSERT INTO {{schema}}.events (
                 event_code, created_at_utc, namespace_id,
                 entity_code, entity_id,

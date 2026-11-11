@@ -204,6 +204,7 @@ WHERE
     AND s.event_recording_code = 20 /* EventRecordingCode.Audit */
     AND s.from_status = 50 /* JobStatusCode.Executing */;
 
+-- A caller's own cancel is recorded at every level; one an ancestor's cancel or attempt cascades, only at Audit.
 INSERT INTO {{schema}}.events (
     event_code, created_at_utc, namespace_id,
     entity_code, entity_id,
@@ -218,7 +219,9 @@ SELECT
     s.execution_number,
     @p_event_message, @p_details_format_id, @p_details
 FROM _cancel_job s
-WHERE s.applied AND s.event_recording_code = 20 /* EventRecordingCode.Audit */;
+WHERE
+    s.applied
+    AND (s.event_recording_code = 20 /* EventRecordingCode.Audit */ OR (@p_fence_job_id IS NULL AND @p_walk_root_job_id IS NULL));
 
 SELECT
     CASE

@@ -8,16 +8,15 @@ CREATE TEMP TABLE _update_job_input (
     definition_id INT NOT NULL,
     tenant_id INT,
     execution_number INT NOT NULL,
-    event_recording_code SMALLINT NOT NULL,
     old_format_id SMALLINT NOT NULL,
     old_bytes INT
 ) ON COMMIT DROP;
 
 INSERT INTO _update_job_input (
-    from_status, namespace_id, lineage_root_job_id, definition_id, tenant_id, execution_number, event_recording_code,
+    from_status, namespace_id, lineage_root_job_id, definition_id, tenant_id, execution_number,
     old_format_id, old_bytes)
 SELECT
-    r.job_status_code, j.namespace_id, j.lineage_root_job_id, j.definition_id, j.tenant_id, r.execution_number, j.event_recording_code,
+    r.job_status_code, j.namespace_id, j.lineage_root_job_id, j.definition_id, j.tenant_id, r.execution_number,
     j.input_format_id, octet_length(j.input)
 FROM {{schema}}.jobs j
 JOIN {{schema}}.jobs_state r ON r.job_id = j.job_id
@@ -72,9 +71,7 @@ CROSS JOIN LATERAL (
             || '","bytes":' || s.old_bytes::text
         END AS members
 ) o
-WHERE
-    s.event_recording_code = 20 /* EventRecordingCode.Audit */
-    AND s.from_status <> 50 /* JobStatusCode.Executing */;
+WHERE s.from_status <> 50 /* JobStatusCode.Executing */;
 
 SELECT
     CASE

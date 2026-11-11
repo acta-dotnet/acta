@@ -14,7 +14,6 @@ CREATE TEMP TABLE _restart_job (
     definition_id INT NOT NULL,
     tenant_id INT,
     execution_number INT NOT NULL,
-    event_recording_code SMALLINT NOT NULL,
     action SMALLINT NOT NULL,
     to_status SMALLINT NOT NULL,
     schedule_id INT,
@@ -29,10 +28,10 @@ FOR UPDATE;
 
 INSERT INTO _restart_job (
     from_status, from_version, lane_id, parent_job_id, namespace_id, lineage_root_job_id, definition_id, tenant_id,
-    execution_number, event_recording_code, schedule_id, recharge, action, to_status)
+    execution_number, schedule_id, recharge, action, to_status)
 SELECT
     r.job_status_code, r.version, r.lane_id, j.parent_job_id, j.namespace_id, j.lineage_root_job_id, j.definition_id, j.tenant_id,
-    r.execution_number, j.event_recording_code,
+    r.execution_number,
     j.schedule_id,
     -- A finished charged root runs again as a new firing of its schedule, charged to it again.
     j.schedule_id IS NOT NULL AND r.job_status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */),
@@ -231,7 +230,7 @@ SELECT
     s.execution_number,
     @p_event_message, @p_details_format_id, @p_details
 FROM _restart_job s
-WHERE s.action = 1 /* ControlAction.Applied */ AND s.event_recording_code = 20 /* EventRecordingCode.Audit */;
+WHERE s.action = 1 /* ControlAction.Applied */;
 
 SELECT
     COALESCE(s.action, 2 /* ControlAction.NotFound */)::SMALLINT AS action,

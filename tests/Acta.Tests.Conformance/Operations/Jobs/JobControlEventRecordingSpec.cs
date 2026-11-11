@@ -7,162 +7,127 @@ using Xunit;
 namespace Acta.Tests.Conformance.Operations.Jobs;
 
 /// <summary>
-/// Conformance for control-verb event recording gating: Pause / Resume / Cancel / Restart / RaiseJobSignal each
-/// apply their status transition unconditionally but only insert a <c>events</c> row when the
-/// job's <c>event_recording_code</c> is 20 (Audit). Proves POLICY-03 closure across all five verbs.
+/// Conformance for what a control verb records. A verb a caller applies to one job changes what runs, so its event
+/// is written whatever the job's recording level. A cancel that cascades from an ancestor and a raised signal are
+/// written at volume, and only at Audit.
 /// </summary>
 [ConformanceSpec(
     "control.event-recording-gating",
-    "Control verbs transition unconditionally but emit events only at Audit recording",
+    "Control verbs record their event at every recording level",
     Area = "Control",
-    Contract = "Control verbs apply their status transition unconditionally and only write a job event when the job's event recording is Audit (code 20)."
+    Contract = "A control verb that applies writes its event at every recording level, while a cascaded cancel and a raised signal write theirs only at Audit."
 )]
 public sealed class JobControlEventRecordingSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
-    [Fact(DisplayName = "Pause applies transition at every event recording level and emits event only at Audit")]
-    public async Task Pause_applies_transition_at_every_event_recording_level_and_emits_event_only_at_audit()
+    [Theory(DisplayName = "A control verb that applies writes its event below Audit")]
+    [InlineData("pause", EventCode.JobPaused)]
+    [InlineData("resume", EventCode.JobResumed)]
+    [InlineData("cancel", EventCode.JobCancelled)]
+    [InlineData("restart", EventCode.JobRestarted)]
+    [InlineData("reschedule", EventCode.JobRescheduled)]
+    [InlineData("reprioritize", EventCode.JobReprioritized)]
+    [InlineData("update-input", EventCode.JobInputAmended)]
+    public async Task Control_verb_records_its_event_below_audit(string verb, EventCode recorded)
     {
         var ct = TestContext.Current.CancellationToken;
-        var input = ControlInput();
+        var job = await EnqueueAsync(parentJobId: null, EventRecordingCode.Failures, ct);
+        if (verb == "resume")
+        {
+            await JobStateStaging.SetStatusAsync(Db, job.JobId, (byte)JobStatusCode.Paused, ct);
+        }
+        else if (verb == "restart")
+        {
+            await JobStateStaging.SetStatusAsync(Db, job.JobId, (byte)JobStatusCode.Succeeded, ct);
+        }
 
-        var jobL = await EnqueueAsync(ct);
-        var jobF = await EnqueueAsync(ct);
-        await SetEventRecordingAsync(Db, jobL, EventRecordingCode.Failures, ct);
-        await SetEventRecordingAsync(Db, jobF, EventRecordingCode.Audit, ct);
+        var action = verb switch
+        {
+            "pause" => (await Jobs.PauseAsync(job, "why", "op", ct: ct)).Action,
+            "resume" => (await Jobs.ResumeAsync(job, "why", "op", ct: ct)).Action,
+            "cancel" => (await Jobs.CancelAsync(job, "why", "op", ct: ct)).Action,
+            "restart" => (await Jobs.RestartAsync(job, "why", "op", ct: ct)).Action,
+            "reschedule" => (await Jobs.RescheduleAsync(job, DateTime.UtcNow.AddHours(1), "why", "op", ct: ct)).Action,
+            "reprioritize" => (await Jobs.ReprioritizeAsync(job, JobPriorityCode.High, "why", "op", ct: ct)).Action,
+            _ => (await Jobs.UpdateInputAsync(job, JobPayload.Json(new AddNumbers(4, 5)), "why", "op", ct)).Action,
+        };
 
-        var outcomeL = await Services.GetRequiredService<PauseJobHandler>().PauseAsync(jobL, input, ct);
-        var outcomeF = await Services.GetRequiredService<PauseJobHandler>().PauseAsync(jobF, input, ct);
-
-        Assert.Equal(ControlAction.Applied, outcomeL.Action);
-        Assert.Equal(JobStatusCode.Paused, outcomeL.Status);
-        Assert.Equal(0, await CountEventsAsync(jobL, EventCode.JobPaused, ct));
-
-        Assert.Equal(ControlAction.Applied, outcomeF.Action);
-        Assert.Equal(JobStatusCode.Paused, outcomeF.Status);
-        Assert.Equal(1, await CountEventsAsync(jobF, EventCode.JobPaused, ct));
+        Assert.Equal(ControlAction.Applied, action);
+        Assert.Equal("why", (await ReadSingleEventAsync(job.JobId, recorded, ct)).EventMessage);
     }
 
-    [Fact(DisplayName = "Resume applies transition at every event recording level and emits event only at Audit")]
-    public async Task Resume_applies_transition_at_every_event_recording_level_and_emits_event_only_at_audit()
+    [Fact(DisplayName = "A cancel is recorded on the job it names at every level, and on a descendant it reaches only at Audit")]
+    public async Task Cascaded_cancel_is_recorded_only_at_audit()
     {
         var ct = TestContext.Current.CancellationToken;
-        var input = ControlInput();
+        var parent = await EnqueueAsync(parentJobId: null, EventRecordingCode.Failures, ct);
+        var quietChild = await EnqueueAsync(parent.JobId, EventRecordingCode.Failures, ct);
+        var auditedChild = await EnqueueAsync(parent.JobId, EventRecordingCode.Audit, ct);
 
-        var jobL = await EnqueueAsync(ct);
-        var jobF = await EnqueueAsync(ct);
-        await SetJobStatusAsync(Db, jobL, (byte)JobStatusCode.Paused, ct);
-        await SetJobStatusAsync(Db, jobF, (byte)JobStatusCode.Paused, ct);
-        await SetEventRecordingAsync(Db, jobL, EventRecordingCode.Failures, ct);
-        await SetEventRecordingAsync(Db, jobF, EventRecordingCode.Audit, ct);
+        Assert.Equal(ControlAction.Applied, (await Jobs.CancelAsync(parent, "why", "op", ct: ct)).Action);
 
-        var outcomeL = await Services.GetRequiredService<ResumeJobHandler>().ResumeAsync(jobL, input, ct);
-        var outcomeF = await Services.GetRequiredService<ResumeJobHandler>().ResumeAsync(jobF, input, ct);
-
-        Assert.Equal(ControlAction.Applied, outcomeL.Action);
-        Assert.Equal(JobStatusCode.Ready, outcomeL.Status);
-        Assert.Equal(0, await CountEventsAsync(jobL, EventCode.JobResumed, ct));
-
-        Assert.Equal(ControlAction.Applied, outcomeF.Action);
-        Assert.Equal(JobStatusCode.Ready, outcomeF.Status);
-        Assert.Equal(1, await CountEventsAsync(jobF, EventCode.JobResumed, ct));
+        // One cancel of a wide tree must not write an event per descendant where the definitions asked for quiet.
+        Assert.Equal(1, await CountEventsAsync(parent.JobId, EventCode.JobCancelled, ct));
+        Assert.Equal(JobStatusCode.Cancelled, (await ReadJobAsync(quietChild.JobId, ct)).Status);
+        Assert.Equal(0, await CountEventsAsync(quietChild.JobId, EventCode.JobCancelled, ct));
+        Assert.Equal(1, await CountEventsAsync(auditedChild.JobId, EventCode.JobCancelled, ct));
     }
 
-    [Fact(DisplayName = "Cancel applies transition at every event recording level and emits event only at Audit")]
-    public async Task Cancel_applies_transition_at_every_event_recording_level_and_emits_event_only_at_audit()
+    [Fact(DisplayName = "A caller's cancel of an executing job below Audit records the cancel and not the attempt's yield")]
+    public async Task Cancel_of_an_executing_job_below_audit_records_no_yield()
     {
         var ct = TestContext.Current.CancellationToken;
-        var input = ControlInput();
+        var job = await EnqueueAsync(parentJobId: null, EventRecordingCode.Failures, ct);
+        var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
+        var worker = Assert.IsType<WorkerEntity>(await Db.From<WorkerEntity>().Where(w => w.NamespaceId == ns).SingleOrDefaultAsync(ct));
+        var claim = await Services
+            .GetRequiredService<ExecutionOperations>()
+            .ClaimJobAsync(new ClaimOptions(ns, worker.Id, MaxBatch: 1), 30, job.JobId, ct);
+        Assert.Single(claim.Jobs);
 
-        var jobL = await EnqueueAsync(ct);
-        var jobF = await EnqueueAsync(ct);
-        await SetEventRecordingAsync(Db, jobL, EventRecordingCode.Failures, ct);
-        await SetEventRecordingAsync(Db, jobF, EventRecordingCode.Audit, ct);
+        Assert.Equal(ControlAction.Applied, (await Jobs.CancelAsync(job, "why", "op", ct: ct)).Action);
 
-        var outcomeL = await Services.GetRequiredService<CancelJobHandler>().CancelAsync(jobL, input, fence: null, walkRootJobId: null, ct);
-        var outcomeF = await Services.GetRequiredService<CancelJobHandler>().CancelAsync(jobF, input, fence: null, walkRootJobId: null, ct);
-
-        Assert.Equal(ControlAction.Applied, outcomeL.Action);
-        Assert.Equal(JobStatusCode.Cancelled, outcomeL.Status);
-        Assert.Equal(0, await CountEventsAsync(jobL, EventCode.JobCancelled, ct));
-
-        Assert.Equal(ControlAction.Applied, outcomeF.Action);
-        Assert.Equal(JobStatusCode.Cancelled, outcomeF.Status);
-        Assert.Equal(1, await CountEventsAsync(jobF, EventCode.JobCancelled, ct));
+        // The yield is the attempt's outcome, which this level records only for a failure.
+        Assert.Equal(1, await CountEventsAsync(job.JobId, EventCode.JobCancelled, ct));
+        Assert.Equal(0, await CountEventsAsync(job.JobId, EventCode.JobExecutionYielded, ct));
     }
 
-    [Fact(DisplayName = "Restart applies transition at every event recording level and emits event only at Audit")]
-    public async Task Restart_applies_transition_at_every_event_recording_level_and_emits_event_only_at_audit()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        var input = ControlInput();
-
-        var jobL = await EnqueueAsync(ct);
-        var jobF = await EnqueueAsync(ct);
-        await SetJobStatusAsync(Db, jobL, (byte)JobStatusCode.Succeeded, ct);
-        await SetJobStatusAsync(Db, jobF, (byte)JobStatusCode.Succeeded, ct);
-        await SetEventRecordingAsync(Db, jobL, EventRecordingCode.Failures, ct);
-        await SetEventRecordingAsync(Db, jobF, EventRecordingCode.Audit, ct);
-
-        var outcomeL = await Services.GetRequiredService<RestartJobHandler>().RestartAsync(jobL, input, null, ct);
-        var outcomeF = await Services.GetRequiredService<RestartJobHandler>().RestartAsync(jobF, input, null, ct);
-
-        Assert.Equal(ControlAction.Applied, outcomeL.Action);
-        Assert.Equal(JobStatusCode.Ready, outcomeL.Status);
-        Assert.Equal(0, await CountEventsAsync(jobL, EventCode.JobRestarted, ct));
-
-        Assert.Equal(ControlAction.Applied, outcomeF.Action);
-        Assert.Equal(JobStatusCode.Ready, outcomeF.Status);
-        Assert.Equal(1, await CountEventsAsync(jobF, EventCode.JobRestarted, ct));
-    }
-
-    [Fact(DisplayName = "RaiseJobSignal upserts the signal unconditionally and emits event only at Audit")]
+    [Fact(DisplayName = "A raised signal sets its checkpoint at every recording level and writes its event only at Audit")]
     public async Task RaiseSignal_upserts_signal_unconditionally_and_emits_event_only_at_audit()
     {
         var ct = TestContext.Current.CancellationToken;
-        var input = ControlInput();
+        var input = new JobControlInput("test", null, "event recording gate test");
+        var quietId = (await EnqueueAsync(parentJobId: null, EventRecordingCode.Failures, ct)).JobId;
+        var auditedId = (await EnqueueAsync(parentJobId: null, EventRecordingCode.Audit, ct)).JobId;
+        var signals = Services.GetRequiredService<SignalsOperations>();
 
-        var jobL = await EnqueueAsync(ct);
-        var jobF = await EnqueueAsync(ct);
-        await SetEventRecordingAsync(Db, jobL, EventRecordingCode.Failures, ct);
-        await SetEventRecordingAsync(Db, jobF, EventRecordingCode.Audit, ct);
-
-        var outcomeL = await Services
-            .GetRequiredService<SignalsOperations>()
-            .RaiseJobSignalAsync(new RaiseJobSignalCheckpoint(jobL, CheckpointKindCode.Signal, "gate", 0, null, input), ct);
-        var outcomeF = await Services
-            .GetRequiredService<SignalsOperations>()
-            .RaiseJobSignalAsync(new RaiseJobSignalCheckpoint(jobF, CheckpointKindCode.Signal, "gate", 0, null, input), ct);
-
-        Assert.Equal(ControlAction.Applied, outcomeL.Action);
-        Assert.Equal(JobStatusCode.Ready, outcomeL.Status);
-        Assert.Equal(CheckpointStatusCode.Set, (await ReadSignalsAsync(jobL, ct)).Single().Status);
-        Assert.Equal(0, await CountEventsAsync(jobL, EventCode.JobSignalRaised, ct));
-
-        Assert.Equal(ControlAction.Applied, outcomeF.Action);
-        Assert.Equal(JobStatusCode.Ready, outcomeF.Status);
-        Assert.Equal(CheckpointStatusCode.Set, (await ReadSignalsAsync(jobF, ct)).Single().Status);
-        Assert.Equal(1, await CountEventsAsync(jobF, EventCode.JobSignalRaised, ct));
-    }
-
-    private async Task<long> EnqueueAsync(CancellationToken ct)
-    {
-        var enqueued = await Jobs.EnqueueAsync(
-            new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 3))),
+        var quiet = await signals.RaiseJobSignalAsync(
+            new RaiseJobSignalCheckpoint(quietId, CheckpointKindCode.Signal, "gate", 0, null, input),
             ct
         );
-        return enqueued.JobId;
-    }
-
-    private static JobControlInput ControlInput() => new("test", null, "event recording gate test");
-
-    private static Task SetEventRecordingAsync(IDbSession db, long jobId, EventRecordingCode eventRecording, CancellationToken ct) =>
-        db.ExecuteRawAsync(
-            "UPDATE {schema}.jobs SET event_recording_code = @p_level WHERE job_id = @p_id",
-            ct,
-            ("@p_level", (byte)eventRecording),
-            ("@p_id", jobId)
+        var audited = await signals.RaiseJobSignalAsync(
+            new RaiseJobSignalCheckpoint(auditedId, CheckpointKindCode.Signal, "gate", 0, null, input),
+            ct
         );
 
-    private static Task SetJobStatusAsync(IDbSession db, long jobId, byte statusCode, CancellationToken ct) =>
-        JobStateStaging.SetStatusAsync(db, jobId, statusCode, ct);
+        Assert.Equal(ControlAction.Applied, quiet.Action);
+        Assert.Equal(CheckpointStatusCode.Set, (await ReadSignalsAsync(quietId, ct)).Single().Status);
+        Assert.Equal(0, await CountEventsAsync(quietId, EventCode.JobSignalRaised, ct));
+
+        Assert.Equal(ControlAction.Applied, audited.Action);
+        Assert.Equal(CheckpointStatusCode.Set, (await ReadSignalsAsync(auditedId, ct)).Single().Status);
+        Assert.Equal(1, await CountEventsAsync(auditedId, EventCode.JobSignalRaised, ct));
+    }
+
+    private async Task<EnqueueJobResponse> EnqueueAsync(long? parentJobId, EventRecordingCode recording, CancellationToken ct)
+    {
+        var request = new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 3)), ParentJobId: parentJobId);
+        var job = await Jobs.EnqueueAsync(request, ct);
+        await Db.ExecuteRawAsync(
+            "UPDATE {schema}.jobs SET event_recording_code = @p_level WHERE job_id = @p_id",
+            ct,
+            ("@p_level", (byte)recording),
+            ("@p_id", job.JobId)
+        );
+        return job;
+    }
 }

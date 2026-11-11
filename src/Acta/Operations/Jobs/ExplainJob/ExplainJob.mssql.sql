@@ -50,20 +50,28 @@ FROM (
     INNER JOIN {{schema}}.namespaces ns ON ns.namespace_id = j.namespace_id
     INNER JOIN {{schema}}.definitions jd ON jd.definition_id = j.definition_id
     LEFT JOIN {{schema}}.workers w ON w.worker_id = r.leased_by_worker_id
+    -- A restart ends what an earlier cancel explains: a cancel after it that recorded nothing has no reason.
     OUTER APPLY (
-        SELECT TOP (1) e.event_message, e.details_format_id, e.details
+        SELECT TOP (1) e.event_code, e.event_message, e.details_format_id, e.details
         FROM {{schema}}.events e
         WHERE
             e.entity_code = 50 /* EntityCode.Job */
             AND e.entity_id = j.job_id
             AND (
-                (r.job_status_code = 220 /* JobStatusCode.Cancelled */ AND e.event_code = 70 /* EventCode.JobCancelled */)
+                (
+                    r.job_status_code = 220 /* JobStatusCode.Cancelled */
+                    AND e.event_code IN (70 /* EventCode.JobCancelled */, 73 /* EventCode.JobRestarted */)
+                )
                 OR (
                     r.job_status_code <> 220 /* JobStatusCode.Cancelled */
                     AND e.event_code IN (41 /* EventCode.JobExecutionFailed */, 42 /* EventCode.JobExecutionOrphaned */, 44 /* EventCode.JobFailed */)
                 )
             )
         ORDER BY e.created_at_utc DESC, e.event_id DESC
+    ) newest
+    OUTER APPLY (
+        SELECT newest.event_message, newest.details_format_id, newest.details
+        WHERE newest.event_code <> 73 /* EventCode.JobRestarted */
     ) le
     OUTER APPLY (
         SELECT TOP (1) e.worker_id
