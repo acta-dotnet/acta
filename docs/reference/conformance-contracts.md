@@ -1200,6 +1200,7 @@
   - One JobStateReset event is emitted with the job as its actor and no reason
   - Reset below Audit recording clears the rows but emits no event
   - A reset from an attempt that no longer holds the job is refused and clears nothing
+  - A reset passes a checkpoint another transaction holds and clears the rest
 
 ### The worker pipeline drains a backlog exactly once
 - **Contract:** The claimer and its executors drain a backlog exactly once, claiming Ready to Executing in one round-trip.

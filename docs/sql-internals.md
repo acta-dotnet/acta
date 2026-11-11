@@ -328,6 +328,12 @@ reads it under `UPDLOCK`; a refusal raises 51205:
 
 The sleep timer needs none: `arm_or_consume_job_sleep_timer` locks the job's `jobs_state` row first.
 
+A raise, and a child's landing that writes its parent's latch, hold the checkpoint and then lock the job's
+`jobs_state` row. `ResetJobState` goes the other way: it holds the job's row, as every write of a running
+handler does, and then deletes the job's checkpoints. So its delete passes a checkpoint another transaction
+holds (`SKIP LOCKED` on PostgreSQL, `READPAST` on SQL Server) and never waits for one. The checkpoint it
+passed keeps what that transaction writes, as if the raise had come after the reset.
+
 ### Outbox lock
 
 The outbox claim never waits on a producer's open transaction. Its lane check reads with

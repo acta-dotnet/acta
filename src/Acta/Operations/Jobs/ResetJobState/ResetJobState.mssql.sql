@@ -35,8 +35,9 @@ BEGIN TRY
             GOTO Finish;
         END;
 
-    -- The scheduler's firing envelope is not the handler's state and stays.
-    DELETE FROM {{schema}}.checkpoints
+    -- The scheduler's firing envelope is not the handler's state and stays. A checkpoint another transaction holds is
+    -- passed (docs/sql-internals.md, "Step, checkpoint and rate locks"): its write lands after the reset.
+    DELETE FROM {{schema}}.checkpoints WITH (READPAST, ROWLOCK)
     WHERE job_id = @p_job_id AND checkpoint_kind_code <> 60 /* CheckpointKindCode.Firing */;
     DELETE FROM {{schema}}.steps
     WHERE job_id = @p_job_id;

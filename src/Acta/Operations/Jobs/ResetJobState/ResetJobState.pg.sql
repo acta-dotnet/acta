@@ -15,9 +15,19 @@ WITH target AS (
     FOR UPDATE OF r
 ),
 cleared_checkpoints AS (
-    -- The scheduler's firing envelope is not the handler's state and stays.
-    DELETE FROM {{schema}}.checkpoints
-    WHERE job_id IN (SELECT t.job_id FROM target t) AND checkpoint_kind_code <> 60 /* CheckpointKindCode.Firing */
+    -- The scheduler's firing envelope is not the handler's state and stays. A checkpoint another transaction holds is
+    -- passed (docs/sql-internals.md, "Step, checkpoint and rate locks"): its write lands after the reset.
+    DELETE FROM {{schema}}.checkpoints c
+    USING (
+        SELECT k.job_id, k.checkpoint_kind_code, k.checkpoint_name
+        FROM {{schema}}.checkpoints k
+        WHERE k.job_id IN (SELECT t.job_id FROM target t) AND k.checkpoint_kind_code <> 60 /* CheckpointKindCode.Firing */
+        FOR UPDATE SKIP LOCKED
+    ) free
+    WHERE
+        c.job_id = free.job_id
+        AND c.checkpoint_kind_code = free.checkpoint_kind_code
+        AND c.checkpoint_name = free.checkpoint_name
 ),
 cleared_steps AS (
     DELETE FROM {{schema}}.steps WHERE job_id IN (SELECT t.job_id FROM target t)

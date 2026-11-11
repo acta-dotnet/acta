@@ -109,6 +109,50 @@ public sealed class ResetJobStateSpec : ActaRuntimeTestBase<ConformanceFixture, 
         Assert.Equal(next.ExecutionNumber, (await ReadJobAsync(job.JobId, ct)).ExecutionNumber);
     }
 
+    [Fact(DisplayName = "A reset passes a checkpoint another transaction holds and clears the rest")]
+    public async Task Reset_passes_a_checkpoint_another_transaction_holds()
+    {
+        Assert.SkipWhen(
+            Db.Provider == DbProvider.Sqlite,
+            "SQLite runs one writer at a time, so no transaction holds a checkpoint while the reset runs."
+        );
+        var ct = TestContext.Current.CancellationToken;
+        var job = await EnqueueAsync(ct);
+        await SeedSubstrateAsync(Db, job, ct);
+
+        // A raise, and a child's landing, lock the checkpoint first and the job's row second; the reset holds that row.
+        await using var holder = await Db.OpenConnectionAsync(ct);
+        await using var hold = await holder.BeginTransactionAsync(ct);
+        await using (var lockRow = holder.CreateCommand())
+        {
+            lockRow.Transaction = hold;
+            var row = $"job_id = @id AND checkpoint_kind_code = {(byte)CheckpointKindCode.Signal} AND checkpoint_name = 's.test'";
+            lockRow.CommandText =
+                Db.Provider == DbProvider.SqlServer
+                    ? $"SELECT checkpoint_name FROM {Db.Schema}.checkpoints WITH (UPDLOCK, ROWLOCK) WHERE {row}"
+                    : $"SELECT checkpoint_name FROM {Db.Schema}.checkpoints WHERE {row} FOR UPDATE";
+            var p = lockRow.CreateParameter();
+            p.ParameterName = "@id";
+            p.Value = job.JobId;
+            lockRow.Parameters.Add(p);
+            Assert.Equal("s.test", await lockRow.ExecuteScalarAsync(ct));
+        }
+
+        await Services
+            .GetRequiredService<ResetJobStateHandler>()
+            .HandleAsync(new ResetJobStateCommand(job), ct)
+            .WaitAsync(SpecWaits.Gate, ct);
+        await hold.RollbackAsync(ct);
+
+        Assert.Equal([CheckpointKindCode.Signal], await KindsLeftAsync(job.JobId, ct));
+        Assert.Equal(0, await Db.From<StepEntity>().Where(a => a.JobId == job.JobId).CountAsync(ct));
+    }
+
+    private async Task<IEnumerable<CheckpointKindCode>> KindsLeftAsync(long jobId, CancellationToken ct) =>
+        (await Db.From<CheckpointEntity>().Where(c => c.JobId == jobId && c.Kind != CheckpointKindCode.Firing).ToListAsync(ct)).Select(c =>
+            c.Kind
+        );
+
     // A job staged Executing, as a claim leaves it, so its handler-only writes pass the execution fence.
     private async Task<ExecutionFence> EnqueueAsync(CancellationToken ct)
     {
