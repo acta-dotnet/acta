@@ -411,11 +411,6 @@ sealed record Acta.ChildJobOutcome
     System.Boolean Succeeded { get; }
     System.Boolean TimedOut { get; }
     System.Int64 ChildJobId { get;init; }
-sealed record Acta.ChildWaitOutcome
-    Acta.ChildJobOutcome Outcome { get; }
-    System.Boolean Completed { get; }
-    System.Boolean TimedOut { get; }
-    System.Int64 ChildJobId { get; }
 sealed record Acta.ChildrenWaitOutcome
     System.Boolean Succeeded { get; }
     System.Boolean TimedOut { get; }
@@ -1322,8 +1317,8 @@ abstract class Acta.JobContext
     System.Threading.Tasks.Task SleepUntilAsync(System.String name, System.DateTimeOffset resumeAtUtc, System.String reasonMessage = null, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task WaitSignalAsync(System.String name, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task WaitSignalAsync(System.String name, System.TimeSpan timeout, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.Task<Acta.ChildJobOutcome> TryWaitChildAsync(System.Int64 childJobId, System.TimeSpan timeout, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task<Acta.ChildJobOutcome> WaitChildAsync(System.Int64 childJobId, System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.Task<Acta.ChildWaitOutcome> TryWaitChildAsync(System.Int64 childJobId, System.TimeSpan timeout, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task<Acta.ChildrenWaitOutcome> JoinAsync(System.Collections.Generic.IReadOnlyList<Acta.EnqueueJobResponse> children, System.TimeSpan timeout, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task<Acta.ChildrenWaitOutcome> TryWaitChildrenAsync(System.Collections.Generic.IReadOnlyList<System.Int64> childJobIds, System.TimeSpan timeout, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task<Acta.EnqueueJobResponse> StartChildAsync(System.String name, System.String jobNamespace, System.String jobName, Acta.JobPayload input = default, System.Action<Acta.JobEnqueueOptionsBuilder> configure = null, System.Threading.CancellationToken ct = default)

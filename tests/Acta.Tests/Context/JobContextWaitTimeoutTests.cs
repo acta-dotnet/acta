@@ -75,10 +75,9 @@ public sealed class JobContextWaitTimeoutTests
 
         var result = await ctx.TryWaitChildAsync(child.JobId, TimeSpan.FromMinutes(5), ct);
 
-        Assert.True(result.Completed);
         Assert.False(result.TimedOut);
         Assert.Equal(child.JobId, result.ChildJobId);
-        Assert.Equal(JobStatusCode.Succeeded, result.Outcome!.Status);
+        Assert.Equal(JobStatusCode.Succeeded, result.Status);
         Assert.Equal(["start:only", "wait:only"], ctx.Events);
     }
 
@@ -93,9 +92,8 @@ public sealed class JobContextWaitTimeoutTests
         // The ordering is the point: the handler must never regain control while the subtree it gave
         // up on is still live.
         Assert.True(result.TimedOut);
-        Assert.False(result.Completed);
+        Assert.False(result.Succeeded);
         Assert.Equal(7, result.ChildJobId);
-        Assert.Null(result.Outcome);
         Assert.Equal(["wait:sys.child.7", "cancel:7"], ctx.Events);
     }
 

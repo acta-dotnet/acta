@@ -142,10 +142,8 @@ public abstract partial class JobContext
         var child = await StartChildAsync(name, input, configure, ct);
         // One child needs no group deadline checkpoint: the latch's own stored expiration already is the one
         // persisted absolute instant, and a second copy of it could only drift.
-        var result = await TryWaitChildAsync(child.JobId, timeout, ct);
-        return result.Outcome is { } outcome
-            ? ToJobOutcome(child, outcome.Status)
-            : JobOutcome.TimedOut(child.JobId, child.JobRef, TimedOutChildStatus);
+        var outcome = await TryWaitChildAsync(child.JobId, timeout, ct);
+        return outcome.TimedOut ? JobOutcome.TimedOut(child.JobId, child.JobRef, TimedOutChildStatus) : ToJobOutcome(child, outcome.Status);
     }
 
     /// <summary>
@@ -232,8 +230,8 @@ public abstract partial class JobContext
         ThrowIfInAtMostOnceStep(nameof(ExecuteChildAsync));
         ToWaitTimeoutSeconds(timeout);
         var child = await StartChildAsync(name, input, configure, ct);
-        var result = await TryWaitChildAsync(child.JobId, timeout, ct);
-        if (result.Outcome is not { } outcome)
+        var outcome = await TryWaitChildAsync(child.JobId, timeout, ct);
+        if (outcome.TimedOut)
         {
             return JobOutcome<TResult>.TimedOut(child.JobId, child.JobRef, TimedOutChildStatus);
         }

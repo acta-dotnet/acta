@@ -26,11 +26,11 @@ public abstract partial class JobContext
     /// Bounded twin of <see cref="WaitChildAsync"/>. The first pass stores <c>db_now + timeout</c> (whole seconds,
     /// rounded up, positive) as the latch's expiration; a replay reuses that instant and never extends it. A child
     /// landing before the replayed wait settles the latch is still taken. A timeout never cancels this Job: the handler
-    /// resumes with <see cref="ChildWaitOutcome.TimedOut"/> after Acta cancels the unfinished child and its subtree
+    /// resumes with <see cref="ChildJobOutcome.TimedOut"/> after Acta cancels the unfinished child and its subtree
     /// (<c>job.wait-timed-out</c>), free to compensate, start a replacement, or cancel itself. There is no non-Try twin:
     /// a child timeout resolves in the parent's favour, so a non-returning overload would mean nothing.
     /// </summary>
-    public async Task<ChildWaitOutcome> TryWaitChildAsync(long childJobId, TimeSpan timeout, CancellationToken ct = default)
+    public async Task<ChildJobOutcome> TryWaitChildAsync(long childJobId, TimeSpan timeout, CancellationToken ct = default)
     {
         ThrowIfInAtMostOnceStep(nameof(TryWaitChildAsync));
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(childJobId);
@@ -46,15 +46,15 @@ public abstract partial class JobContext
     /// sees TimedOut while the subtree is still burning workers, and a replay re-runs a cancel that is a no-op on
     /// terminal rows.
     /// </summary>
-    private async Task<ChildWaitOutcome> ResolveChildWaitAsync(long childJobId, SignalCheckpointState outcome, CancellationToken ct)
+    private async Task<ChildJobOutcome> ResolveChildWaitAsync(long childJobId, SignalCheckpointState outcome, CancellationToken ct)
     {
         if (!outcome.TimedOut)
         {
-            return ChildWaitOutcome.Landed(ParseChildOutcome(childJobId, outcome));
+            return ParseChildOutcome(childJobId, outcome);
         }
 
         await CancelTimedOutChildCoreAsync(childJobId, ct);
-        return ChildWaitOutcome.Expired(childJobId);
+        return ChildJobOutcome.Expired(childJobId);
     }
 
     /// <summary>
@@ -156,8 +156,7 @@ public abstract partial class JobContext
         for (var i = 0; i < childJobIds.Count; i++)
         {
             var latch = await WaitSignalUntilCoreAsync(ChildLatchName(childJobIds[i]), deadlineAtUtc, ct);
-            var result = await ResolveChildWaitAsync(childJobIds[i], latch, ct);
-            outcomes[i] = result.Outcome ?? ChildJobOutcome.Expired(childJobIds[i]);
+            outcomes[i] = await ResolveChildWaitAsync(childJobIds[i], latch, ct);
         }
         return outcomes;
     }

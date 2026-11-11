@@ -40,7 +40,6 @@ public sealed class TypeNamingTests
         "MapItemOutcome",
         "ParallelOutcome",
         "JoinOutcome",
-        "ChildWaitOutcome",
         "ChildrenWaitOutcome",
         "SignalWaitOutcome",
     ];

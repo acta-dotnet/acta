@@ -1,7 +1,7 @@
 namespace Acta;
 
 /// <summary>
-/// Terminal outcome of a child job, returned by <see cref="JobContext.WaitChildAsync"/>. Reports the
+/// Terminal outcome of a child job, returned by <see cref="JobContext.WaitChildAsync"/> and the bounded waits. Reports the
 /// child's terminal status only; the wait never throws on a failed or cancelled child, the handler
 /// branches on <see cref="Succeeded"/>, its typed result, or a business value. The failure reason is
 /// not carried here: read it from the child's event timeline (<see cref="ILedger.ListEventsAsync"/>).
@@ -9,8 +9,8 @@ namespace Acta;
 public sealed record ChildJobOutcome(long ChildJobId, JobStatusCode Status)
 {
     /// <summary>
-    /// True when a bounded group wait gave up on this child before it landed. <see cref="Status"/> then
-    /// carries <c>Cancelled</c>, the status Acta drove the child to when the group deadline passed,
+    /// True when a bounded wait gave up on this child before it landed. <see cref="Status"/> then
+    /// carries <c>Cancelled</c>, the status Acta drove the child to when the deadline passed,
     /// rather than one observed through the child's outcome latch; branch on this flag first. Always
     /// false on an outcome that came back from the latch, which is every outcome an unbounded wait
     /// returns.
@@ -27,7 +27,7 @@ public sealed record ChildJobOutcome(long ChildJobId, JobStatusCode Status)
     public bool Succeeded => !TimedOut && Status == JobStatusCode.Succeeded;
 
     /// <summary>
-    /// Reports the status Acta drove the child to, not one it observed: the group timeout cancels
+    /// Reports the status Acta drove the child to, not one it observed: the timeout cancels
     /// the unfinished child before the handler resumes, so Cancelled is what Acta made true. A
     /// child that landed terminal in the same instant as the expiry keeps whatever status it
     /// actually reached, and the flag says this entry does not report it.

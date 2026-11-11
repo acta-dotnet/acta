@@ -42,7 +42,7 @@ public static class ChildTimeoutProbes
         var result = await ctx.TryWaitChildAsync(child.JobId, LongWait, ct);
         await ctx.NoteAsync("child wait resumed", ct);
         await ctx.SetVariableAsync("ran.after", true, ct);
-        return new ChildWaitReport(result.TimedOut, result.Completed, result.ChildJobId, result.Outcome);
+        return Report(result);
     }
 
     /// <summary>
@@ -57,7 +57,7 @@ public static class ChildTimeoutProbes
         var result = await ctx.TryWaitChildAsync(slow.JobId, LongWait, ct);
         await ctx.NoteAsync("child wait resumed", ct);
         await ctx.SetVariableAsync("ran.after", true, ct);
-        return new ChildWaitReport(result.TimedOut, result.Completed, result.ChildJobId, result.Outcome);
+        return Report(result);
     }
 
     /// <summary>
@@ -91,7 +91,7 @@ public static class ChildTimeoutProbes
     {
         var result = await ctx.TryWaitChildAsync(input.ForeignJobId, LongWait, ct);
         await ctx.NoteAsync("foreign wait resumed", ct);
-        return new ChildWaitReport(result.TimedOut, result.Completed, result.ChildJobId, result.Outcome);
+        return Report(result);
     }
 
     /// <summary>
@@ -104,14 +104,18 @@ public static class ChildTimeoutProbes
     {
         var first = await ctx.StartChildAsync("first", ctx.JobNamespace, "job-wait-signal", JobPayload.None, ct: ct);
         var result = await ctx.TryWaitChildAsync(first.JobId, LongWait, ct);
-        if (result.Completed)
+        if (!result.TimedOut)
         {
-            return new ChildWaitReport(result.TimedOut, result.Completed, result.ChildJobId, result.Outcome);
+            return Report(result);
         }
 
         var replacement = await ctx.StartChildAsync("second", ctx.JobNamespace, "job-child-quick", JobPayload.None, ct: ct);
         var landed = await ctx.WaitChildAsync(replacement.JobId, ct);
         await ctx.NoteAsync("replacement child joined", ct);
-        return new ChildWaitReport(result.TimedOut, result.Completed, result.ChildJobId, landed);
+        return new ChildWaitReport(TimedOut: true, Completed: false, result.ChildJobId, landed);
     }
+
+    // A timed-out wait reports no outcome: the status it carries is the one Acta drove the child to.
+    private static ChildWaitReport Report(ChildJobOutcome result) =>
+        new(result.TimedOut, !result.TimedOut, result.ChildJobId, result.TimedOut ? null : result);
 }
