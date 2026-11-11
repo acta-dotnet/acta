@@ -1,5 +1,13 @@
 # Release notes
 
+## 1.0.0-rc.10
+
+Not tagged yet.
+
+### Fixes
+
+- On SQL Server, two definition overrides updates in different namespaces could deadlock, and one failed as the victim: the update that carries a rate override to the definitions sharing its meter read every definition row under update locks before filtering by namespace, and waited on another namespace's row that its own update held. It now seeks its own namespace's rows.
+
 ## 1.0.0-rc.9
 
 Tagged 2026-11-09. rc.9 makes deploys explicit with `jobs deploy`, moves the dashboard into its own package, gives operations and the HTTP contract one naming convention, and runs on SQL Server with READ_COMMITTED_SNAPSHOT off as well as on. The schema changes: reprovision, as every pre-1.0 release asks.

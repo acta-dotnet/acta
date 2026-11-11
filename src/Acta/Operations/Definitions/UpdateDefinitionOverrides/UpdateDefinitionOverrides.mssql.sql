@@ -75,16 +75,17 @@ BEGIN TRY
     -- A definition on a meter carries every sibling that already has a rate (declared or overridden)
     -- on the same effective key along with it here, so the meter never carries two rates and the
     -- last write wins for every participant. See JobDefinitionPolicyOverrides.RateLimit.
-    UPDATE {{schema}}.definitions
+    UPDATE d
     SET
         rate_limit_override = @p_rate_limit_override,
         modified_at_utc = @stamp,
-        version = version + 1
+        version = d.version + 1
+    FROM {{schema}}.definitions d WITH (FORCESEEK (ux_definitions_namespace_name (namespace_id))) -- a scan would U-lock other namespaces' rows
     WHERE
-        namespace_id = @ns
-        AND definition_id <> @p_definition_id
-        AND (rate_limit IS NOT NULL OR rate_limit_override IS NOT NULL)
-        AND LOWER(COALESCE(rate_name, definition_name)) = @meter;
+        d.namespace_id = @ns
+        AND d.definition_id <> @p_definition_id
+        AND (d.rate_limit IS NOT NULL OR d.rate_limit_override IS NOT NULL)
+        AND LOWER(COALESCE(d.rate_name, d.definition_name)) = @meter;
 
     -- A recurring job's slot is one long-lived job, so it takes the new event recording here, at once, rather than at
     -- the next deploy's registration; an ordinary job keeps the recording it was enqueued with.
