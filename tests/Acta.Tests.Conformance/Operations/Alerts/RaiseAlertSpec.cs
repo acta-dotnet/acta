@@ -11,8 +11,8 @@ namespace Acta.Tests.Conformance.Operations.Alerts;
 /// always inserts; a non-null key names an incident whose one open row absorbs every repeat, bumping
 /// <c>occurrence_count</c> and leaving delivery/resolution untouched; once that row is resolved the next
 /// raise opens a fresh incident rather than re-opening it), that bounded prose is truncated to
-/// its column width, and that <c>ctx.AlertAsync</c> stamps the framework origin (Manual / Notice /
-/// Pending) and the caller's key. Runs against SqlServer and Postgres via the provider one-liners.
+/// its column width, and that <c>ctx.AlertAsync</c> stamps the kind Manual, Pending delivery, and the
+/// caller's key. Runs against SqlServer and Postgres via the provider one-liners.
 /// </summary>
 [ConformanceSpec(
     "raise-job-alert.write-and-dedupe",
@@ -38,7 +38,7 @@ public sealed class RaiseAlertSpec : ActaStorageTestBase<ConformanceFixture>
         (JobIdValue, JobRefValue) = await Seeder.SeedJobAsync(TestNamespaceId, DefId, ct: ct);
     }
 
-    [Fact(DisplayName = "A null deduplication key inserts one manual alert row stamping Manual origin and Pending delivery")]
+    [Fact(DisplayName = "A null deduplication key inserts one manual alert row stamping the Manual kind and Pending delivery")]
     public async Task Run_inserts_one_manual_alert_row()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -47,7 +47,6 @@ public sealed class RaiseAlertSpec : ActaStorageTestBase<ConformanceFixture>
             Services,
             TestNamespace,
             JobIdValue,
-            AlertOriginCode.Manual,
             AlertSeverityCode.Error,
             AlertKindCode.Manual,
             "boom",
@@ -59,7 +58,6 @@ public sealed class RaiseAlertSpec : ActaStorageTestBase<ConformanceFixture>
         );
 
         var row = Assert.Single(await ReadAlertsAsync(TestNamespaceId, ct));
-        Assert.Equal(AlertOriginCode.Manual, row.OriginCode);
         Assert.Equal(AlertDeliveryStatusCode.Pending, row.DeliveryStatusCode);
         Assert.Equal(AlertSeverityCode.Error, row.SeverityCode);
         Assert.Equal(AlertKindCode.Manual, row.Kind);
@@ -128,8 +126,7 @@ public sealed class RaiseAlertSpec : ActaStorageTestBase<ConformanceFixture>
         );
 
         // Stamped directly rather than through a resolve verb: this fact is about the raise path's
-        // reading of a resolved row, and the two resolve verbs each filter on origin and kind of their
-        // own.
+        // reading of a resolved row, and the two resolve verbs each carry filters of their own.
         Assert.Equal(
             1,
             await Db.From<AlertEntity>()
@@ -165,7 +162,6 @@ public sealed class RaiseAlertSpec : ActaStorageTestBase<ConformanceFixture>
             Services,
             TestNamespace,
             JobIdValue,
-            AlertOriginCode.Manual,
             AlertSeverityCode.Warning,
             AlertKindCode.Manual,
             new string('t', 1000),
@@ -181,8 +177,8 @@ public sealed class RaiseAlertSpec : ActaStorageTestBase<ConformanceFixture>
         Assert.Equal(ActaSchema.Alert.AlertMessage.Size, row.AlertMessage.Length);
     }
 
-    [Fact(DisplayName = "AlertAsync stamps the Manual origin and carries the caller's deduplication key")]
-    public async Task AlertAsync_through_context_stamps_origin_and_key()
+    [Fact(DisplayName = "AlertAsync stamps the Manual kind and carries the caller's deduplication key")]
+    public async Task AlertAsync_through_context_stamps_kind_and_key()
     {
         var ct = TestContext.Current.CancellationToken;
         var ctx = BuildContext();
@@ -190,7 +186,6 @@ public sealed class RaiseAlertSpec : ActaStorageTestBase<ConformanceFixture>
         await ctx.AlertAsync("title", "message", AlertSeverityCode.Error, channelName: "ops", deduplicationKey: "ctx-key", ct: ct);
 
         var row = Assert.Single(await ReadAlertsAsync(TestNamespaceId, ct));
-        Assert.Equal(AlertOriginCode.Manual, row.OriginCode);
         Assert.Equal(JobIdValue, row.JobId);
         Assert.Equal(AlertDeliveryStatusCode.Pending, row.DeliveryStatusCode);
         Assert.Equal(AlertKindCode.Manual, row.Kind);
@@ -212,7 +207,6 @@ public sealed class RaiseAlertSpec : ActaStorageTestBase<ConformanceFixture>
                 Services,
                 TestNamespace,
                 999_999_999_999L,
-                AlertOriginCode.Manual,
                 AlertSeverityCode.Warning,
                 AlertKindCode.Manual,
                 "t",
@@ -234,7 +228,6 @@ public sealed class RaiseAlertSpec : ActaStorageTestBase<ConformanceFixture>
             Services,
             TestNamespace,
             null,
-            AlertOriginCode.Manual,
             AlertSeverityCode.Warning,
             AlertKindCode.Manual,
             "t",
@@ -287,7 +280,6 @@ public sealed class RaiseAlertSpec : ActaStorageTestBase<ConformanceFixture>
             Services,
             TestNamespace,
             JobIdValue,
-            AlertOriginCode.Manual,
             AlertSeverityCode.Warning,
             AlertKindCode.Manual,
             title,

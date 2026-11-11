@@ -65,7 +65,6 @@ public sealed class LedgerForwardCodeReadSpec : ActaRuntimeTestBase<ConformanceF
             Services,
             TestNamespace,
             enqueued.JobId,
-            AlertOriginCode.Manual,
             AlertSeverityCode.Info,
             AlertKindCode.Manual,
             "forward-read alert",

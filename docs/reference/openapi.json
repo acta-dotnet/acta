@@ -11209,7 +11209,6 @@
                           "alertRef": "alr_019826f00000700080000000000002a1",
                           "jobNamespace": "billing",
                           "jobRef": "job_00000000000000000000000000000042",
-                          "origin": "automatic",
                           "severity": "critical",
                           "kind": "first-failure",
                           "title": "Invoice provider timed out",
@@ -11376,7 +11375,6 @@
                       "alertRef": "alr_019826f00000700080000000000002a1",
                       "jobNamespace": "billing",
                       "jobRef": "job_00000000000000000000000000000042",
-                      "origin": "automatic",
                       "severity": "critical",
                       "kind": "first-failure",
                       "title": "Invoice provider timed out",
@@ -15421,18 +15419,6 @@
           "manual"
         ]
       },
-      "AlertOriginCode": {
-        "examples": [
-          "automatic"
-        ],
-        "type": "string",
-        "description": "How an alert came to be raised.\n\nKnown values:\n- unspecified: Alert origin not recognized by this build; the row was written by a newer Acta.\n- automatic: Raised by the engine on a failure, a timeout, a lost worker, or a deadline.\n- manual: Raised by a job's handler.\n\nOther values may appear: keep a value this client does not know as it is.",
-        "x-acta-known-values": [
-          "unspecified",
-          "automatic",
-          "manual"
-        ]
-      },
       "AlertProfileCode": {
         "examples": [
           "none"
@@ -16621,7 +16607,6 @@
           "alertRef",
           "jobNamespace",
           "jobRef",
-          "origin",
           "severity",
           "kind",
           "title",
@@ -16656,10 +16641,6 @@
               }
             ],
             "description": "The ref of the job the alert is about, when it is about a job."
-          },
-          "origin": {
-            "description": "How the alert came to be raised.",
-            "$ref": "#/components/schemas/AlertOriginCode"
           },
           "severity": {
             "description": "The alert's severity.",
@@ -18205,7 +18186,6 @@
           "alertRef",
           "jobNamespace",
           "jobRef",
-          "origin",
           "severity",
           "kind",
           "title",
@@ -18240,10 +18220,6 @@
               }
             ],
             "description": "The ref of the job the alert is about, when it is about a job."
-          },
-          "origin": {
-            "description": "How the alert came to be raised.",
-            "$ref": "#/components/schemas/AlertOriginCode"
           },
           "severity": {
             "description": "The alert's severity.",

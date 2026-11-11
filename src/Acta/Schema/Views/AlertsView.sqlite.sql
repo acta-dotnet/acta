@@ -6,8 +6,6 @@ SELECT
     a.job_ref,
     j.definition_id,
     d.definition_name,
-    {{decode:alert-origin:a.alert_origin_code}} AS alert_origin,
-    a.alert_origin_code,
     {{decode:alert-severity:a.alert_severity_code}} AS alert_severity,
     a.alert_severity_code,
     {{decode:alert-kind:a.alert_kind_code}} AS alert_kind,

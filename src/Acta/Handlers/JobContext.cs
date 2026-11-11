@@ -174,7 +174,7 @@ public abstract partial class JobContext
     }
 
     /// <summary>
-    /// Persists an operator-facing alert from inside the handler, stamped <c>Manual</c> origin and reason, delivery
+    /// Persists an operator-facing alert from inside the handler, stamped kind <c>Manual</c>, delivery
     /// <c>Pending</c>, and this job's namespace and job. A non-null <paramref name="deduplicationKey"/> collapses
     /// repeats onto the one unresolved row carrying it (<c>occurrence_count</c>++, content refreshed) and opens a
     /// fresh row once that one is resolved; a null key always inserts. A null <paramref name="channelName"/> routes to

@@ -34,10 +34,10 @@ public sealed class ResolveAlertsSpec : ActaStorageTestBase<ConformanceFixture>
         var (otherJobId, _) = await Seeder.SeedJobAsync(TestNamespaceId, DefId, ct: ct);
         foreach (var kind in new[] { AlertKindCode.FirstFailure, AlertKindCode.ThresholdReached, AlertKindCode.FinalFailure })
         {
-            await RaiseAsync(JobIdValue, AlertOriginCode.Automatic, kind, sourceEventId: null, ct);
+            await RaiseAsync(JobIdValue, kind, sourceEventId: null, ct);
         }
-        await RaiseAsync(JobIdValue, AlertOriginCode.Manual, AlertKindCode.Manual, sourceEventId: null, ct);
-        await RaiseAsync(otherJobId, AlertOriginCode.Automatic, AlertKindCode.FinalFailure, sourceEventId: null, ct);
+        await RaiseAsync(JobIdValue, AlertKindCode.Manual, sourceEventId: null, ct);
+        await RaiseAsync(otherJobId, AlertKindCode.FinalFailure, sourceEventId: null, ct);
         var before = (await ReadAlertsAsync(TestNamespaceId, ct)).ToDictionary(a => a.Id);
 
         Assert.Equal(3, await ResolveAsync(TestNamespaceId, JobIdValue, 500, ct));
@@ -46,12 +46,12 @@ public sealed class ResolveAlertsSpec : ActaStorageTestBase<ConformanceFixture>
         var closed = after.Where(a => a.ResolvedAtUtc is not null).ToList();
         Assert.Equal(3, closed.Count);
         Assert.All(closed, a => Assert.Equal(JobIdValue, a.JobId));
-        Assert.All(closed, a => Assert.Equal(AlertOriginCode.Automatic, a.OriginCode));
+        Assert.All(closed, a => Assert.NotEqual(AlertKindCode.Manual, a.Kind));
         Assert.All(closed, a => Assert.Equal(500L, a.LastProjectedEventId));
         Assert.All(closed, a => Assert.Equal(before[a.Id].Version + 1, a.Version));
 
         var open = after.Where(a => a.ResolvedAtUtc is null).ToList();
-        Assert.Single(open, a => a.JobId == JobIdValue && a.OriginCode == AlertOriginCode.Manual);
+        Assert.Single(open, a => a.JobId == JobIdValue && a.Kind == AlertKindCode.Manual);
         Assert.Single(open, a => a.JobId == otherJobId);
         Assert.All(open, a => Assert.Equal(before[a.Id].Version, a.Version));
     }
@@ -60,7 +60,7 @@ public sealed class ResolveAlertsSpec : ActaStorageTestBase<ConformanceFixture>
     public async Task Success_at_or_before_the_mark_closes_nothing()
     {
         var ct = TestContext.Current.CancellationToken;
-        await RaiseAsync(JobIdValue, AlertOriginCode.Automatic, AlertKindCode.FirstFailure, sourceEventId: 200, ct);
+        await RaiseAsync(JobIdValue, AlertKindCode.FirstFailure, sourceEventId: 200, ct);
         var raised = Assert.Single(await ReadAlertsAsync(TestNamespaceId, ct));
 
         // A replayed success sitting behind the failure that raised the row, and one at the mark itself.
@@ -81,7 +81,7 @@ public sealed class ResolveAlertsSpec : ActaStorageTestBase<ConformanceFixture>
     public async Task Second_success_closes_nothing()
     {
         var ct = TestContext.Current.CancellationToken;
-        await RaiseAsync(JobIdValue, AlertOriginCode.Automatic, AlertKindCode.FinalFailure, sourceEventId: null, ct);
+        await RaiseAsync(JobIdValue, AlertKindCode.FinalFailure, sourceEventId: null, ct);
         Assert.Equal(1, await ResolveAsync(TestNamespaceId, JobIdValue, 300, ct));
         var first = Assert.Single(await ReadAlertsAsync(TestNamespaceId, ct));
 
@@ -99,7 +99,7 @@ public sealed class ResolveAlertsSpec : ActaStorageTestBase<ConformanceFixture>
         var ct = TestContext.Current.CancellationToken;
         var otherNamespaceId = await Seeder.SeedJobNamespaceAsync(Unique("other-ns"), ct: ct);
         var (quietJobId, _) = await Seeder.SeedJobAsync(TestNamespaceId, DefId, ct: ct);
-        await RaiseAsync(JobIdValue, AlertOriginCode.Automatic, AlertKindCode.FinalFailure, sourceEventId: null, ct);
+        await RaiseAsync(JobIdValue, AlertKindCode.FinalFailure, sourceEventId: null, ct);
         var raised = Assert.Single(await ReadAlertsAsync(TestNamespaceId, ct));
 
         Assert.Equal(0, await ResolveAsync(otherNamespaceId, JobIdValue, 500, ct));
@@ -125,20 +125,13 @@ public sealed class ResolveAlertsSpec : ActaStorageTestBase<ConformanceFixture>
     /// A keyless raise, so every call is its own row. The source event id stands in for the failure event the
     /// projector would pass: a mark compared by value, not a reference to an events row.
     /// </summary>
-    private Task<RaiseAlertResponse> RaiseAsync(
-        long jobId,
-        AlertOriginCode origin,
-        AlertKindCode kind,
-        long? sourceEventId,
-        CancellationToken ct
-    ) =>
+    private Task<RaiseAlertResponse> RaiseAsync(long jobId, AlertKindCode kind, long? sourceEventId, CancellationToken ct) =>
         Services
             .GetRequiredService<AlertsOperations>()
             .RaiseAlertAsync(
                 RaiseAlertCommand.Create(
                     TestNamespace,
                     jobId,
-                    origin,
                     AlertSeverityCode.Error,
                     kind,
                     title: "failing",

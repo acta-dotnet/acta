@@ -273,7 +273,6 @@ export interface AlertDetailView {
   alertRef: string;
   jobNamespace: string;
   jobRef: string | null;
-  origin: string;
   severity: string;
   kind: string;
   title: string;

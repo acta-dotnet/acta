@@ -8,7 +8,7 @@ WHERE
 
 INSERT INTO {{schema}}.alerts (
     namespace_id, alert_ref, job_id, job_ref,
-    alert_origin_code, alert_severity_code, alert_kind_code, title, alert_message, channel_name,
+    alert_severity_code, alert_kind_code, title, alert_message, channel_name,
     deduplication_key, occurrence_count, last_projected_event_id,
     delivery_status_code, retry_count
 )
@@ -17,7 +17,6 @@ SELECT
     @p_alert_ref,
     @p_job_id,
     jr.job_ref,
-    @p_alert_origin_code,
     @p_alert_severity_code,
     @p_alert_kind_code,
     @p_title,
@@ -50,7 +49,6 @@ ON CONFLICT (namespace_id, deduplication_key) WHERE deduplication_key IS NOT NUL
 DO UPDATE SET
     job_id = excluded.job_id,
     job_ref = excluded.job_ref,
-    alert_origin_code = excluded.alert_origin_code,
     alert_severity_code = excluded.alert_severity_code,
     alert_kind_code = excluded.alert_kind_code,
     title = excluded.title,

@@ -30,14 +30,14 @@ BEGIN TRY
         BEGIN
             INSERT INTO {{schema}}.alerts (
                 namespace_id, alert_ref, job_id, job_ref,
-                alert_origin_code, alert_severity_code, alert_kind_code, title, alert_message, channel_name,
+                alert_severity_code, alert_kind_code, title, alert_message, channel_name,
                 deduplication_key, occurrence_count, last_projected_event_id,
                 delivery_status_code, retry_count,
                 created_at_utc, modified_at_utc, version
             )
             VALUES (
                 @v_ns, @p_alert_ref, @p_job_id, @v_job_ref,
-                @p_alert_origin_code, @p_alert_severity_code, @p_alert_kind_code, @p_title, @p_alert_message, @p_channel_name,
+                @p_alert_severity_code, @p_alert_kind_code, @p_title, @p_alert_message, @p_channel_name,
                 NULL, 1, @p_source_event_id,
                 @p_delivery_status_code, 0,
                 @now, @now, 0
@@ -63,7 +63,6 @@ BEGIN TRY
     SET
         job_id = @p_job_id,
         job_ref = @v_job_ref,
-        alert_origin_code = @p_alert_origin_code,
         alert_severity_code = @p_alert_severity_code,
         alert_kind_code = @p_alert_kind_code,
         title = @p_title,
@@ -92,7 +91,7 @@ BEGIN TRY
             -- row of this identity already marked at or past this event.
             INSERT INTO {{schema}}.alerts (
                 namespace_id, alert_ref, job_id, job_ref,
-                alert_origin_code, alert_severity_code, alert_kind_code, title, alert_message, channel_name,
+                alert_severity_code, alert_kind_code, title, alert_message, channel_name,
                 deduplication_key, occurrence_count, last_projected_event_id,
                 delivery_status_code, retry_count,
                 created_at_utc, modified_at_utc, version
@@ -100,7 +99,7 @@ BEGIN TRY
             OUTPUT INSERTED.occurrence_count, INSERTED.last_projected_event_id INTO @updated
             SELECT
                 @v_ns, @p_alert_ref, @p_job_id, @v_job_ref,
-                @p_alert_origin_code, @p_alert_severity_code, @p_alert_kind_code, @p_title, @p_alert_message, @p_channel_name,
+                @p_alert_severity_code, @p_alert_kind_code, @p_title, @p_alert_message, @p_channel_name,
                 @p_deduplication_key, 1, @p_source_event_id,
                 @p_delivery_status_code, 0,
                 @now, @now, 0

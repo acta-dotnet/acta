@@ -11,8 +11,7 @@ SELECT
     a.channel_name,
     a.alert_ref,
     a.job_ref,
-    a.version,
-    a.alert_origin_code AS origin
+    a.version
 FROM {{schema}}.alerts a
 LEFT JOIN {{schema}}.jobs j
     ON j.job_id = a.job_id

@@ -436,7 +436,6 @@ internal sealed class AlertsJob(
             command = RaiseAlertCommand.Create(
                 ctx.JobNamespace,
                 e.JobId,
-                AlertOriginCode.Automatic,
                 severity,
                 reason,
                 title,

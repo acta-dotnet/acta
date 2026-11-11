@@ -27,7 +27,6 @@ SET
 WHERE
     a.namespace_id = @p_namespace_id
     AND a.job_id = @p_job_id
-    AND a.alert_origin_code = 10 /* AlertOriginCode.Automatic */
     AND a.alert_kind_code IN (
         10 /* AlertKindCode.FirstFailure */, 20 /* AlertKindCode.ThresholdReached */, 30 /* AlertKindCode.FinalFailure */
     )

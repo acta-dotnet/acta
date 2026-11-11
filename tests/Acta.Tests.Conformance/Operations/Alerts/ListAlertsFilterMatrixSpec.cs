@@ -25,23 +25,8 @@ public sealed class ListAlertsFilterMatrixSpec : ActaRuntimeTestBase<Conformance
         AlertDeliveryStatusCode delivery,
         CancellationToken ct,
         string ns = null!,
-        AlertOriginCode origin = AlertOriginCode.Manual,
         AlertKindCode kind = AlertKindCode.Manual
-    ) =>
-        AlertTestOps.RaiseAsync(
-            Services,
-            ns ?? TestNamespace,
-            jobId,
-            origin,
-            severity,
-            kind,
-            "title",
-            "message",
-            "default",
-            delivery,
-            null,
-            ct
-        );
+    ) => AlertTestOps.RaiseAsync(Services, ns ?? TestNamespace, jobId, severity, kind, "title", "message", "default", delivery, null, ct);
 
     /// <summary>
     /// Enqueue one job in this spec's own namespace and return its id, for use as an alert subject.
@@ -170,7 +155,7 @@ public sealed class ListAlertsFilterMatrixSpec : ActaRuntimeTestBase<Conformance
         var ct = TestContext.Current.CancellationToken;
         var queries = Services.GetRequiredService<IActaOperations>();
 
-        // Alert A: Automatic + FirstFailure kind so ResolveAlerts will close it. The subject is a job
+        // Alert A: FirstFailure kind so ResolveAlerts will close it. The subject is a job
         // this spec enqueues, for the reason EnqueueProbeJobAsync documents - a hardcoded id names rows
         // another spec created. This was the one fact the rest of the class's migration missed.
         var resolveJobId = await EnqueueProbeJobAsync(ct);
@@ -180,17 +165,16 @@ public sealed class ListAlertsFilterMatrixSpec : ActaRuntimeTestBase<Conformance
             AlertSeverityCode.Warning,
             AlertDeliveryStatusCode.Pending,
             ct,
-            origin: AlertOriginCode.Automatic,
             kind: AlertKindCode.FirstFailure
         );
 
         // Alert B: Manual: ResolveAlerts ignores it
         await RaiseAsync(Db, null, AlertSeverityCode.Warning, AlertDeliveryStatusCode.Pending, ct);
 
-        // Capture IDs before resolving (via origin discrimination, independent of unresolvedOnly filter)
+        // Capture IDs before resolving (via kind discrimination, independent of unresolvedOnly filter)
         var all = await AllAlertsAsync(ct);
-        var aId = all.Single(a => a.Origin == AlertOriginCode.Automatic).AlertId;
-        var bId = all.Single(a => a.Origin == AlertOriginCode.Manual).AlertId;
+        var aId = all.Single(a => a.Kind == AlertKindCode.FirstFailure).AlertId;
+        var bId = all.Single(a => a.Kind == AlertKindCode.Manual).AlertId;
 
         // Resolve alert A
         var nsId = Runtime.RegisteredNamespaceIds[TestNamespace];

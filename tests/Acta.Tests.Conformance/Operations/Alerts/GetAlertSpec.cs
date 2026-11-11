@@ -119,7 +119,6 @@ public sealed class GetAlertSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
         Assert.Equal(row.Id, detail.AlertId);
         Assert.Equal(row.JobId, detail.JobId);
         Assert.Equal(row.JobRef, detail.JobRef?.Value);
-        Assert.Equal(row.OriginCode, detail.Origin);
         Assert.Equal(row.SeverityCode, detail.Severity);
         Assert.Equal(row.Kind, detail.Kind);
         Assert.Equal(row.Title, detail.Title);
@@ -148,7 +147,6 @@ public sealed class GetAlertSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
             Services,
             TestNamespace,
             jobId,
-            AlertOriginCode.Manual,
             AlertSeverityCode.Warning,
             AlertKindCode.Manual,
             "get-spec alert",

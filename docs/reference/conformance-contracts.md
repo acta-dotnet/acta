@@ -259,12 +259,12 @@
 ### Manual alert write collapses onto the open incident and truncates bounded prose
 - **Contract:** A null deduplication key always inserts, a non-null key collapses repeats onto its one open row, and a raise after resolution opens a fresh row.
 - **Guarantees:**
-  - A null deduplication key inserts one manual alert row stamping Manual origin and Pending delivery
+  - A null deduplication key inserts one manual alert row stamping the Manual kind and Pending delivery
   - Repeated null deduplication keys always insert fresh rows
   - A non-null key collapses repeats onto its one open row and bumps occurrence_count, leaving delivery and resolution untouched
   - A raise after the incident resolved opens a fresh row with fresh delivery, leaving the resolved row resolved
   - Bounded prose truncates to column width
-  - AlertAsync stamps the Manual origin and carries the caller's deduplication key
+  - AlertAsync stamps the Manual kind and carries the caller's deduplication key
   - Raising with a non-null unknown jobId throws ArgumentException, not a provider constraint error
   - Raising with a null jobId still inserts a job-less alert
 

@@ -7,7 +7,6 @@ CREATE TABLE IF NOT EXISTS {{schema}}.alerts (
     namespace_id integer NOT NULL,
     job_id integer NULL,
     job_ref text NULL,
-    alert_origin_code integer NOT NULL,
     alert_severity_code integer NOT NULL,
     alert_kind_code integer NOT NULL,
     title text NOT NULL,
@@ -425,8 +424,6 @@ SELECT
     a.job_ref,
     j.definition_id,
     d.definition_name,
-    CASE a.alert_origin_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'automatic' WHEN 20 THEN 'manual' END AS alert_origin,
-    a.alert_origin_code,
     CASE a.alert_severity_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'info' WHEN 20 THEN 'warning' WHEN 30 THEN 'error' WHEN 40 THEN 'critical' END AS alert_severity,
     a.alert_severity_code,
     CASE a.alert_kind_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'first-failure' WHEN 20 THEN 'threshold-reached' WHEN 30 THEN 'final-failure' WHEN 40 THEN 'manual' END AS alert_kind,
@@ -775,5 +772,5 @@ JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261111022653_init')
+VALUES ('M20261111024650_init')
 ON CONFLICT (name) DO NOTHING;

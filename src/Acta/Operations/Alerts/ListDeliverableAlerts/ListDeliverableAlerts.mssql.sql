@@ -11,8 +11,7 @@ SELECT TOP (@p_alert_batch_size)
     a.channel_name,
     a.alert_ref,
     a.job_ref,
-    a.version,
-    a.alert_origin_code AS origin
+    a.version
 FROM {{schema}}.alerts a WITH (FORCESEEK (ix_alerts_delivery_due (namespace_id)))
 LEFT JOIN {{schema}}.jobs j WITH (FORCESEEK)
     ON j.job_id = a.job_id

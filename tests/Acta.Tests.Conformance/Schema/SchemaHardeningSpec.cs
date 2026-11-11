@@ -114,7 +114,6 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
             AlertRef = Acta.AlertRef.New().Value,
             JobId = jobId,
             JobRef = jobRef,
-            OriginCode = AlertOriginCode.Manual,
             SeverityCode = AlertSeverityCode.Info,
             Kind = AlertKindCode.FirstFailure,
             Title = "schema-hardening check",

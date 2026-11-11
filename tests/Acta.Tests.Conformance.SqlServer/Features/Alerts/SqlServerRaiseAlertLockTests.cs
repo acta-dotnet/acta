@@ -29,7 +29,6 @@ public sealed class SqlServerRaiseAlertLockTests : ActaStorageTestBase<SqlServer
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.NamespaceName, held.JobNamespace));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Alert.JobId, held.JobId));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Alert.AlertOriginCode, (short)held.Origin));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Alert.AlertSeverityCode, (short)held.Severity));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Alert.AlertKindCode, (short)held.Kind));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Alert.Title, held.Title));
@@ -58,7 +57,6 @@ public sealed class SqlServerRaiseAlertLockTests : ActaStorageTestBase<SqlServer
         RaiseAlertCommand.Create(
             TestNamespace,
             null,
-            AlertOriginCode.Manual,
             AlertSeverityCode.Warning,
             AlertKindCode.Manual,
             "gap",

@@ -44,7 +44,6 @@ public sealed class AlertThresholdReachedSpec : ActaRuntimeTestBase<ConformanceF
 
         // Exactly three alerts: FirstFailure + ThresholdReached + FinalFailure.
         Assert.Equal(3, alerts.Count);
-        Assert.All(alerts, a => Assert.Equal(AlertOriginCode.Automatic, a.OriginCode));
 
         var threshold = Assert.Single(alerts, a => a.Kind == AlertKindCode.ThresholdReached);
         Assert.Equal(AlertSeverityCode.Error, threshold.SeverityCode);
@@ -82,7 +81,6 @@ public sealed class AlertThresholdReachedSpec : ActaRuntimeTestBase<ConformanceF
 
         var threshold = Assert.Single(alerts, a => a.Kind == AlertKindCode.ThresholdReached);
         Assert.Equal(AlertSeverityCode.Error, threshold.SeverityCode);
-        Assert.Equal(AlertOriginCode.Automatic, threshold.OriginCode);
         Assert.Equal(AlertKindCode.ThresholdReached, threshold.Kind);
         Assert.Equal(1, threshold.OccurrenceCount);
         Assert.Contains("threshold-reached", threshold.DeduplicationKey);
@@ -210,7 +208,6 @@ public sealed class AlertThresholdReachedSpec : ActaRuntimeTestBase<ConformanceF
             Services,
             TestNamespace,
             jobId,
-            AlertOriginCode.Automatic,
             AlertSeverityCode.Error,
             AlertKindCode.ThresholdReached,
             "Threshold test",

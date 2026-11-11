@@ -56,7 +56,7 @@ while (true)
 Console.WriteLine($"alerts ({alertItems.Count}):");
 foreach (var alert in alertItems.OrderBy(a => a.CreatedAtUtc))
 {
-    Console.WriteLine($"  [{alert.Severity}] {alert.Kind} x{alert.OccurrenceCount} origin={alert.Origin} channel='{alert.ChannelName}'");
+    Console.WriteLine($"  [{alert.Severity}] {alert.Kind} x{alert.OccurrenceCount} channel='{alert.ChannelName}'");
 }
 
 await host.StopAsync();

@@ -16,7 +16,6 @@ internal sealed class RaiseAlertHandler(IDbSession session, ISqlDialect dialect)
                 {
                     cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.NamespaceName, command.JobNamespace));
                     cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Alert.JobId, command.JobId));
-                    cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Alert.AlertOriginCode, (short)command.Origin));
                     cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Alert.AlertSeverityCode, (short)command.Severity));
                     cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Alert.AlertKindCode, (short)command.Kind));
                     cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Alert.Title, command.Title));

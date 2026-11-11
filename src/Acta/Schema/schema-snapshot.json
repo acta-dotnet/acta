@@ -25,10 +25,6 @@
           "Signature": "Guid|0|0|0|True|None||coded=False|codeKind=|caseExact=False"
         },
         {
-          "Name": "alert_origin_code",
-          "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=alert-origin|caseExact=False"
-        },
-        {
           "Name": "alert_severity_code",
           "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=alert-severity|caseExact=False"
         },
@@ -1497,7 +1493,7 @@
   "Objects": {
     "mssql": {
       "access_job_checkpoint": "76892c2583b2f120bbe684a299d9184dd9c899cea7c9fd4898e3cb621b5cd03f",
-      "alerts_view": "772db11af4c75c3ce01e06e399cabc28e77b36ff11f4be5db40b0d1e7f936ef8",
+      "alerts_view": "f91827286e18c2d0c3d7629f635358eb0cd64f667275b60be35a2b4d6992d4ab",
       "arm_or_consume_job_sleep_timer": "ae7572a2684ebf5875dd924c42a921706d976b70fbda0698e1ab284cb33eb3de",
       "calendars_view": "bd5a920311aed994b9bf85b1e24fe4d74db59593e33407cbc5413b4214fbd2c9",
       "checkpoints_view": "798f62fb9c53ff43b262d949d37bfa428cae1d3ae0ee15ec9449d36b27a63cd1",
@@ -1524,7 +1520,7 @@
     },
     "pg": {
       "access_job_checkpoint": "63ad61e9c0596ebecab6148d760a7d2c70d1d6d94d754a3e34d6e1e38648391f",
-      "alerts_view": "aa6bce4adff1a2415dd750e641b2c4ae1698290003973d26506d0545135e4bd6",
+      "alerts_view": "380ee32ecaf057603d201dfda22aa8b98fe4264a09f5c5a0fb8e910ee74dc442",
       "arm_or_consume_job_sleep_timer": "b84e46dc4cae18802396b132d2bce2a710eb1aa8a98128bc3c31bcb1c9e9bbbd",
       "calendars_view": "c01af54b3e69d16b7de5a5e2bc25330fc1040445ecbbb4512cd29926eef1f155",
       "checkpoints_view": "34a025869cc5b4856a85b3e89039b8062cb1cae2d0267305184566a7db255e29",
@@ -1550,7 +1546,7 @@
       "workers_view": "83b2b8503a31f125ebc4c2c1b362fe0f180c5f04c6f679e63225612fcafcfeaa"
     },
     "sqlite": {
-      "alerts_view": "1871ef1015dad6de0fdeca37c786cbf0bb71cf8f5940fe22191c29fd8692d265",
+      "alerts_view": "f66281c28c1aecceae31cb531c06a141d5ad692b0c6c0474972f884621bfb0a8",
       "calendars_view": "bf23bb7e792f01f033cbcf247a23f57f5f1458229d1ddd993b80806a1aec038d",
       "checkpoints_view": "51ec3b286c5fa5170b687dd137a98fc54ed3711c0401bd1be552da78a522452e",
       "definitions_view": "fbfe0602f88cce3877583826e8b31c93c02029a9401c568e2b7c065e018ae5c3",

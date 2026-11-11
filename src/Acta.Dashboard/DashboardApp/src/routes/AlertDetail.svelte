@@ -116,11 +116,10 @@
           <div><dt>{settled ? 'Next reminder' : 'Next attempt'}</dt><dd><RelativeTime value={alert.retryAfterUtc} /></dd></div>
         </dl>
       </FocusDisclosure>
-      <FocusDisclosure title="Technical details" hint="Origin, identifiers and dates">
+      <FocusDisclosure title="Technical details" hint="Kind, identifiers and dates">
         <DetailFacts facts={[
           { label: 'Full reference', value: alert.alertRef, kind: 'mono', copy: true, wide: true },
           { label: 'Kind', value: alert.kind },
-          { label: 'Origin', value: alert.origin },
           { label: 'Modified', value: alert.modifiedAtUtc, kind: 'time' },
           { label: 'Acknowledged', value: alert.acknowledgedAtUtc, kind: 'time' },
           { label: 'Resolved', value: alert.resolvedAtUtc, kind: 'time' },

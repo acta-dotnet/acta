@@ -145,7 +145,6 @@ public sealed class ReclaimStuckJobsWaitTimeoutSpec : ActaRuntimeTestBase<Confor
         await RunAlertsAsync(enqueued.JobId, ns, ct);
         var raised = Assert.Single(await ReadAlertsAsync(ns, ct));
         Assert.Equal(enqueued.JobId, raised.JobId);
-        Assert.Equal(AlertOriginCode.Automatic, raised.OriginCode);
         Assert.Equal(AlertKindCode.FirstFailure, raised.Kind);
         Assert.Null(raised.ResolvedAtUtc);
 

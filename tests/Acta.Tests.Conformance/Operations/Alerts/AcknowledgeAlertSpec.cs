@@ -29,7 +29,6 @@ public sealed class AcknowledgeAlertSpec : ActaRuntimeTestBase<ConformanceFixtur
             Services,
             TestNamespace,
             enqueued.JobId,
-            AlertOriginCode.Manual,
             AlertSeverityCode.Info,
             AlertKindCode.Manual,
             "ack-resolve-spec alert",

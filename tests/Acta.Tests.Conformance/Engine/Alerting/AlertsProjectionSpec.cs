@@ -41,7 +41,6 @@ public sealed class AlertsProjectionSpec : ActaRuntimeTestBase<ConformanceFixtur
 
         var alerts = await ReadAlertsAsync(NamespaceId, ct);
         Assert.Equal(2, alerts.Count);
-        Assert.All(alerts, a => Assert.Equal(AlertOriginCode.Automatic, a.OriginCode));
         Assert.All(alerts, a => Assert.Equal(job.JobId, a.JobId));
 
         var final = Assert.Single(alerts, a => a.Kind == AlertKindCode.FinalFailure);

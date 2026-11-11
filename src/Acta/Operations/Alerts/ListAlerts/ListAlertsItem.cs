@@ -10,7 +10,6 @@ namespace Acta;
 /// <param name="AlertRef">The alert's ref, alr_ followed by 32 hex digits.</param>
 /// <param name="JobNamespace">The namespace the alert belongs to.</param>
 /// <param name="JobRef">The ref of the job the alert is about, when it is about a job.</param>
-/// <param name="Origin">How the alert came to be raised.</param>
 /// <param name="Severity">The alert's severity.</param>
 /// <param name="Kind">What raised the alert.</param>
 /// <param name="Title">The alert's short title.</param>
@@ -30,7 +29,6 @@ public sealed record ListAlertsItem(
     string JobNamespace,
     [property: JsonIgnore] long? JobId,
     JobRef? JobRef,
-    AlertOriginCode Origin,
     AlertSeverityCode Severity,
     AlertKindCode Kind,
     string Title,

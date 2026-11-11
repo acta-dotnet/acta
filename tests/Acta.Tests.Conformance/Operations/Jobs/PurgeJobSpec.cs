@@ -35,7 +35,6 @@ public sealed class PurgeJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
             Services,
             TestNamespace,
             completed.JobId,
-            AlertOriginCode.Manual,
             AlertSeverityCode.Info,
             AlertKindCode.Manual,
             "purge-spec alert",

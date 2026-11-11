@@ -67,7 +67,6 @@ public sealed class RaiseAlertRefStabilitySpec : ActaStorageTestBase<Conformance
             Services,
             TestNamespace,
             JobIdValue,
-            AlertOriginCode.Manual,
             AlertSeverityCode.Warning,
             AlertKindCode.Manual,
             title,

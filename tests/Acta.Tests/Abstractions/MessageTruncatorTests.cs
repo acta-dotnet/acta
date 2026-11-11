@@ -91,7 +91,6 @@ public sealed class MessageTruncatorTests
         var command = RaiseAlertCommand.Create(
             "test-ns",
             jobId: 1,
-            AlertOriginCode.Automatic,
             AlertSeverityCode.Error,
             AlertKindCode.FinalFailure,
             title: "Job 'x' failed",

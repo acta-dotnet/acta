@@ -126,7 +126,6 @@ public sealed class ListDeliverableAlertsSpec : ActaStorageTestBase<ConformanceF
         Assert.Equal(row.AlertRef, due.AlertRef);
         Assert.Equal(row.JobRef, due.JobRef);
         Assert.Equal(row.Version, due.Version);
-        Assert.Equal(row.OriginCode, due.Origin);
         Assert.Equal(row.SeverityCode, due.Severity);
         Assert.Equal(row.Kind, due.Kind);
         Assert.Equal(row.Title, due.Title);
@@ -163,7 +162,6 @@ public sealed class ListDeliverableAlertsSpec : ActaStorageTestBase<ConformanceF
             Services,
             jobNamespace,
             jobId,
-            AlertOriginCode.Automatic,
             AlertSeverityCode.Error,
             AlertKindCode.FinalFailure,
             title: "deliverable",

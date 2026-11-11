@@ -97,13 +97,6 @@ internal sealed class AlertEntity : IEntity<long>
     public Guid? JobRef { get; init; }
 
     /// <summary>
-    /// Origin of the alert (<c>Automatic</c> / <c>Manual</c>); shapes the
-    /// deduplication-key default and audit attribution.
-    /// </summary>
-    [DbColumn("alert_origin_code")]
-    public AlertOriginCode OriginCode { get; init; }
-
-    /// <summary>
     /// Severity tier (<c>Info</c> / <c>Warning</c> / <c>Error</c> / <c>Critical</c>) shaping channel routing
     /// rules and oncall pages.
     /// </summary>
@@ -111,7 +104,8 @@ internal sealed class AlertEntity : IEntity<long>
     public AlertSeverityCode SeverityCode { get; init; }
 
     /// <summary>
-    /// What kind of alert this is (per the <see cref="AlertKindCode"/> taxonomy); informs triage flow.
+    /// What kind of alert this is (per the <see cref="AlertKindCode"/> taxonomy); informs triage flow. <c>Manual</c> is
+    /// an alert a handler raised, and every other kind is one the engine raised.
     /// </summary>
     [DbColumn("alert_kind_code")]
     public AlertKindCode Kind { get; init; }
@@ -139,7 +133,7 @@ internal sealed class AlertEntity : IEntity<long>
     /// Operator-readable semantic grouping string (NOT a cryptographic hash). When non-null it names the
     /// incident identity: the unique <c>(namespace_id, deduplication_key)</c> index over unresolved rows
     /// collapses repeats onto the one open row; when null, every call inserts a fresh row. As wide as every key,
-    /// <c>jobs.deduplication_key</c> included: the Automatic-origin default template
+    /// <c>jobs.deduplication_key</c> included: the engine's default template
     /// <c>auto:{definitionId}:{jobId}:{alert_kind}:{job_reason}</c> stays under 100 characters.
     /// </summary>
     [DbColumn("deduplication_key", DbKind.AsciiString, Size = 128, CaseExact = true)]

@@ -18,6 +18,8 @@ Not tagged yet.
 
 **Read a step's failure from its status**: `steps.failure_code`, the `failure` and `failure_code` columns of `steps_view`, `StepFailureCode`, and `StepExhaustedException.LastReasonCode` with its constructor argument are gone. `Exhausted` always meant the body threw and `Interrupted` always meant the step was re-entered before it completed, so the code restated the status. `failure_message` and `LastReasonMessage` keep the reason.
 
+**Read whether the engine or a handler raised an alert from its kind**: `alerts.alert_origin_code`, the `alert_origin` and `alert_origin_code` columns of `alerts_view`, `AlertOriginCode`, and the `origin` field of the alert responses are gone. The kind `manual` is a handler's alert and every other kind is the engine's, so the origin restated the kind.
+
 ### Fixes
 
 - On SQL Server, two definition overrides updates in different namespaces could deadlock, and one failed as the victim: the update that carries a rate override to the definitions sharing its meter read every definition row under update locks before filtering by namespace, and waited on another namespace's row that its own update held. It now seeks its own namespace's rows.

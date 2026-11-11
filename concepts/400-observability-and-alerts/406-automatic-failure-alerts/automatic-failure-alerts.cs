@@ -68,7 +68,7 @@ else
     foreach (var alert in alertPage.Items)
     {
         Console.WriteLine(
-            $"alert kind={alert.Kind} severity={alert.Severity} origin={alert.Origin} "
+            $"alert kind={alert.Kind} severity={alert.Severity} "
                 + $"occurrences={alert.OccurrenceCount} channel='{alert.ChannelName}' delivery={alert.DeliveryStatus}"
         );
         Console.WriteLine($"  title: {alert.Title}");

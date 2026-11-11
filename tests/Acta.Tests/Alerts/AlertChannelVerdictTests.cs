@@ -69,8 +69,7 @@ public sealed class AlertChannelVerdictTests
             ChannelName: "ops",
             AlertRef: new Guid("019826f0-0000-7000-8000-000000000001"),
             JobRef: null,
-            Version: 0,
-            Origin: AlertOriginCode.Automatic
+            Version: 0
         );
 
     private static AlertChannelDeclaration Channel(

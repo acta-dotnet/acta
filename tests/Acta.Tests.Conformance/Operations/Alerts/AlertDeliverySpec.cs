@@ -26,8 +26,8 @@ public sealed class AlertDeliverySpec : ActaStorageTestBase<ConformanceFixture>
     private static readonly DateTime PastInstant = new(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc);
     private static readonly DateTime FutureInstant = new(2999, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
-    // A real definition + job, so the automatic resolve (which filters on job_id, Automatic origin, and
-    // the failure kinds) has something to close and ck_alerts_job_ref_pair is satisfied.
+    // A real definition + job, so the automatic resolve (which filters on job_id and the failure kinds) has
+    // something to close and ck_alerts_job_ref_pair is satisfied.
     private long JobIdValue;
     private int DefId;
 
@@ -347,7 +347,6 @@ public sealed class AlertDeliverySpec : ActaStorageTestBase<ConformanceFixture>
             Services,
             TestNamespace,
             jobId: null,
-            AlertOriginCode.Automatic,
             severity,
             AlertKindCode.FinalFailure,
             title: "t",
@@ -361,14 +360,13 @@ public sealed class AlertDeliverySpec : ActaStorageTestBase<ConformanceFixture>
     private Task RaiseAutomaticAsync(string deduplicationKey, CancellationToken ct) =>
         RaiseAutomaticAsync(deduplicationKey, JobIdValue, ct);
 
-    // The shape the projector writes: Automatic origin, a failure kind, and a job the resolve verb can
-    // scope to - the only rows ResolveAlerts closes.
+    // The shape the projector writes: a failure kind and a job the resolve verb can scope to - the only
+    // rows ResolveAlerts closes.
     private Task RaiseAutomaticAsync(string deduplicationKey, long jobId, CancellationToken ct) =>
         AlertTestOps.RaiseAsync(
             Services,
             TestNamespace,
             jobId,
-            AlertOriginCode.Automatic,
             AlertSeverityCode.Error,
             AlertKindCode.FinalFailure,
             title: "t",

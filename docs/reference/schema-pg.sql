@@ -41,14 +41,14 @@ DO $$
 BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
-        WHERE name NOT IN ('M20261111022653_init')
+        WHERE name NOT IN ('M20261111024650_init')
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
 END
 $$;
 
--- ===== BEGIN M20261111022653_init =====
+-- ===== BEGIN M20261111024650_init =====
 CREATE SCHEMA IF NOT EXISTS acta;
 
 -- alerts
@@ -58,7 +58,6 @@ CREATE TABLE IF NOT EXISTS acta.alerts (
     namespace_id integer NOT NULL,
     job_id bigint NULL,
     job_ref uuid NULL,
-    alert_origin_code smallint NOT NULL,
     alert_severity_code smallint NOT NULL,
     alert_kind_code smallint NOT NULL,
     title varchar(512) NOT NULL,
@@ -4084,8 +4083,6 @@ SELECT
     a.job_ref,
     j.definition_id,
     d.definition_name,
-    CASE a.alert_origin_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'automatic' WHEN 20 THEN 'manual' END AS alert_origin,
-    a.alert_origin_code,
     CASE a.alert_severity_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'info' WHEN 20 THEN 'warning' WHEN 30 THEN 'error' WHEN 40 THEN 'critical' END AS alert_severity,
     a.alert_severity_code,
     CASE a.alert_kind_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'first-failure' WHEN 20 THEN 'threshold-reached' WHEN 30 THEN 'final-failure' WHEN 40 THEN 'manual' END AS alert_kind,
@@ -4424,10 +4421,10 @@ JOIN acta.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO acta.migrations (name)
-VALUES ('M20261111022653_init')
+VALUES ('M20261111024650_init')
 ON CONFLICT (name) DO NOTHING;
 
--- ===== END M20261111022653_init =====
+-- ===== END M20261111024650_init =====
 
 COMMIT;
 

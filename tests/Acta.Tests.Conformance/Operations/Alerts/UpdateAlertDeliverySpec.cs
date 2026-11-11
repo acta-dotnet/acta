@@ -103,7 +103,6 @@ public sealed class UpdateAlertDeliverySpec : ActaStorageTestBase<ConformanceFix
             Services,
             TestNamespace,
             jobId: null,
-            AlertOriginCode.Automatic,
             AlertSeverityCode.Error,
             AlertKindCode.FinalFailure,
             title: "settle me",

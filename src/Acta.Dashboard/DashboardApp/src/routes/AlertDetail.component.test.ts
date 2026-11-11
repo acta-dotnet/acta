@@ -10,7 +10,6 @@ function alert(deliveryStatus: string, retryCount: number) {
     alertRef,
     jobNamespace: 'shipping',
     jobRef: 'job_019f71ce69e07b85bf41fc7bf0562502',
-    origin: 'automatic',
     severity: 'error',
     kind: 'final-failure',
     title: "Job 'print-label' failed",

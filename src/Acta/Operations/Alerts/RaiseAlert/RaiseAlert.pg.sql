@@ -34,7 +34,6 @@ INSERT INTO {{schema}}.alerts (
     alert_ref,
     job_id,
     job_ref,
-    alert_origin_code,
     alert_severity_code,
     alert_kind_code,
     title,
@@ -53,7 +52,6 @@ SELECT
     @p_alert_ref,
     @p_job_id,
     (SELECT jr.job_ref FROM _raise_alert_job jr),
-    @p_alert_origin_code,
     @p_alert_severity_code,
     @p_alert_kind_code,
     @p_title,
@@ -88,7 +86,6 @@ ON CONFLICT (namespace_id, deduplication_key) WHERE deduplication_key IS NOT NUL
 DO UPDATE SET
     job_id = EXCLUDED.job_id,
     job_ref = EXCLUDED.job_ref,
-    alert_origin_code = EXCLUDED.alert_origin_code,
     alert_severity_code = EXCLUDED.alert_severity_code,
     alert_kind_code = EXCLUDED.alert_kind_code,
     title = EXCLUDED.title,

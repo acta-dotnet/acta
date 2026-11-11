@@ -211,24 +211,6 @@ sealed record Acta.AlertNotification
     System.String Message { get;init; }
     System.String RunbookUrl { get;init; }
     System.String Title { get;init; }
-enum Acta.AlertOriginCode : System.Byte
-    Automatic = 10
-    Manual = 20
-    Unspecified = 0
-static class Acta.AlertOriginCodeExtensions
-    static Acta.AlertOriginCode FromCode(System.String code)
-    static Acta.AlertOriginCode FromId(System.Byte id)
-    static System.Boolean IsKnownId(System.Byte id)
-    static System.Boolean IsWritableId(System.Byte id)
-    static System.Byte get_ToId(Acta.AlertOriginCode value)
-    static System.Collections.Generic.IReadOnlyList<Acta.CodeManifestEntry> get_Manifest()
-    static System.String get_Code(Acta.AlertOriginCode value)
-    static System.String get_CodeKind()
-    static System.String get_Description(Acta.AlertOriginCode value)
-sealed class Acta.AlertOriginCodeJsonConverter : System.Text.Json.Serialization.JsonConverter<Acta.AlertOriginCode>
-    .ctor()
-    Acta.AlertOriginCode Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
-    System.Void Write(System.Text.Json.Utf8JsonWriter writer, Acta.AlertOriginCode value, System.Text.Json.JsonSerializerOptions options)
 enum Acta.AlertProfileCode : System.Byte
     Info = 20
     None = 0
@@ -819,10 +801,9 @@ sealed class Acta.FiringFailurePolicyCodeJsonConverter : System.Text.Json.Serial
     Acta.FiringFailurePolicyCode Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
     System.Void Write(System.Text.Json.Utf8JsonWriter writer, Acta.FiringFailurePolicyCode value, System.Text.Json.JsonSerializerOptions options)
 sealed record Acta.GetAlertResponse
-    .ctor(Acta.AlertRef AlertRef, System.Int64 AlertId, System.String JobNamespace, System.Nullable<System.Int64> JobId, System.Nullable<Acta.JobRef> JobRef, Acta.AlertOriginCode Origin, Acta.AlertSeverityCode Severity, Acta.AlertKindCode Kind, System.String Title, System.String Message, System.String ChannelName, System.Int32 OccurrenceCount, System.Nullable<System.DateTime> ResolvedAtUtc, Acta.AlertDeliveryStatusCode DeliveryStatus, System.Int32 RetryCount, System.Nullable<System.DateTime> RetryAfterUtc, System.DateTime CreatedAtUtc, System.DateTime ModifiedAtUtc, System.Nullable<System.DateTime> AcknowledgedAtUtc)
+    .ctor(Acta.AlertRef AlertRef, System.Int64 AlertId, System.String JobNamespace, System.Nullable<System.Int64> JobId, System.Nullable<Acta.JobRef> JobRef, Acta.AlertSeverityCode Severity, Acta.AlertKindCode Kind, System.String Title, System.String Message, System.String ChannelName, System.Int32 OccurrenceCount, System.Nullable<System.DateTime> ResolvedAtUtc, Acta.AlertDeliveryStatusCode DeliveryStatus, System.Int32 RetryCount, System.Nullable<System.DateTime> RetryAfterUtc, System.DateTime CreatedAtUtc, System.DateTime ModifiedAtUtc, System.Nullable<System.DateTime> AcknowledgedAtUtc)
     Acta.AlertDeliveryStatusCode DeliveryStatus { get;init; }
     Acta.AlertKindCode Kind { get;init; }
-    Acta.AlertOriginCode Origin { get;init; }
     Acta.AlertRef AlertRef { get;init; }
     Acta.AlertSeverityCode Severity { get;init; }
     System.DateTime CreatedAtUtc { get;init; }
@@ -1696,10 +1677,9 @@ sealed class Acta.JsonJobPayloadSerializer : Acta.IJobPayloadSerializer
 static class Acta.KeySyntax
     static System.String Canonicalize(System.String value, System.String paramName, System.Int32 maxLength = 128)
 sealed record Acta.ListAlertsItem
-    .ctor(Acta.AlertRef AlertRef, System.Int64 AlertId, System.String JobNamespace, System.Nullable<System.Int64> JobId, System.Nullable<Acta.JobRef> JobRef, Acta.AlertOriginCode Origin, Acta.AlertSeverityCode Severity, Acta.AlertKindCode Kind, System.String Title, System.String Message, System.String ChannelName, System.Int32 OccurrenceCount, System.Nullable<System.DateTime> ResolvedAtUtc, Acta.AlertDeliveryStatusCode DeliveryStatus, System.Int32 RetryCount, System.Nullable<System.DateTime> RetryAfterUtc, System.DateTime CreatedAtUtc, System.DateTime ModifiedAtUtc, System.Nullable<System.DateTime> AcknowledgedAtUtc)
+    .ctor(Acta.AlertRef AlertRef, System.Int64 AlertId, System.String JobNamespace, System.Nullable<System.Int64> JobId, System.Nullable<Acta.JobRef> JobRef, Acta.AlertSeverityCode Severity, Acta.AlertKindCode Kind, System.String Title, System.String Message, System.String ChannelName, System.Int32 OccurrenceCount, System.Nullable<System.DateTime> ResolvedAtUtc, Acta.AlertDeliveryStatusCode DeliveryStatus, System.Int32 RetryCount, System.Nullable<System.DateTime> RetryAfterUtc, System.DateTime CreatedAtUtc, System.DateTime ModifiedAtUtc, System.Nullable<System.DateTime> AcknowledgedAtUtc)
     Acta.AlertDeliveryStatusCode DeliveryStatus { get;init; }
     Acta.AlertKindCode Kind { get;init; }
-    Acta.AlertOriginCode Origin { get;init; }
     Acta.AlertRef AlertRef { get;init; }
     Acta.AlertSeverityCode Severity { get;init; }
     System.DateTime CreatedAtUtc { get;init; }

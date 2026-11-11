@@ -2,7 +2,6 @@ SELECT
     a.alert_id,
     ns.namespace_name AS job_namespace,
     a.job_id,
-    a.alert_origin_code AS origin,
     a.alert_severity_code AS severity,
     a.alert_kind_code AS kind,
     a.title,

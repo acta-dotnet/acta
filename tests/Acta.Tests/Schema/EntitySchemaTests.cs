@@ -53,10 +53,7 @@ public class EntitySchemaTests
         Assert.Equal("job-step-status", ActaSchema.For<StepEntity>().Column("step_status_code").CodeKind);
 
         var alertColumns = ActaSchema.For<AlertEntity>().Columns.Select(c => c.Name).ToHashSet(StringComparer.Ordinal);
-        Assert.Superset(
-            new HashSet<string> { "alert_origin_code", "alert_severity_code", "alert_kind_code", "alert_message" },
-            alertColumns
-        );
+        Assert.Superset(new HashSet<string> { "alert_severity_code", "alert_kind_code", "alert_message" }, alertColumns);
     }
 
     [Fact]

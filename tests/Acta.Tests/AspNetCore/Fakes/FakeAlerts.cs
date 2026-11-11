@@ -71,7 +71,6 @@ internal sealed class FakeAlerts : IAlerts
         "billing",
         42,
         FakeJobs.FoundJobRef,
-        AlertOriginCode.Manual,
         AlertSeverityCode.Critical,
         AlertKindCode.Manual,
         "Invoice provider timed out",

@@ -136,7 +136,6 @@ public sealed class AlertProfileMatrixSpec : ActaRuntimeTestBase<ConformanceFixt
             Services,
             TestNamespace,
             job.JobId,
-            AlertOriginCode.Automatic,
             AlertSeverityCode.Error,
             AlertKindCode.FinalFailure,
             seeded.Title,

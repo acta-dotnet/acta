@@ -7,7 +7,6 @@ namespace Acta;
 internal sealed record RaiseAlertCommand(
     string JobNamespace,
     long? JobId,
-    AlertOriginCode Origin,
     AlertSeverityCode Severity,
     AlertKindCode Kind,
     string Title,
@@ -22,7 +21,6 @@ internal sealed record RaiseAlertCommand(
     public static RaiseAlertCommand Create(
         string jobNamespace,
         long? jobId,
-        AlertOriginCode origin,
         AlertSeverityCode severity,
         AlertKindCode kind,
         string title,
@@ -42,7 +40,6 @@ internal sealed record RaiseAlertCommand(
         return new RaiseAlertCommand(
             jobNamespace,
             jobId,
-            origin,
             severity,
             kind,
             title.Truncate(ActaTextLimits.AlertTitle)!,
@@ -59,7 +56,7 @@ internal sealed record RaiseAlertCommand(
     }
 
     /// <summary>
-    /// A handler's own <c>JobContext.AlertAsync</c>: manual origin and kind, the <c>default</c> channel when
+    /// A handler's own <c>JobContext.AlertAsync</c>: the kind <c>Manual</c>, the <c>default</c> channel when
     /// none is named, and no projected event behind it, so it always applies and never moves the projection
     /// high-water mark. A null deduplication key always inserts; a non-null key collapses onto the one open
     /// row carrying it, and opens a fresh row once that one is resolved.
@@ -76,7 +73,6 @@ internal sealed record RaiseAlertCommand(
         Create(
             jobNamespace,
             jobId,
-            AlertOriginCode.Manual,
             severity,
             AlertKindCode.Manual,
             title,

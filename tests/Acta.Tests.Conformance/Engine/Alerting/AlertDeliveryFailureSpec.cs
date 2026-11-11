@@ -258,7 +258,6 @@ public sealed class AlertDeliveryFailureSpec : ActaStorageTestBase<ConformanceFi
             Services,
             TestNamespace,
             jobId: null,
-            AlertOriginCode.Automatic,
             AlertSeverityCode.Info,
             AlertKindCode.FinalFailure,
             title: "test-alert",
@@ -377,7 +376,7 @@ public sealed class AlertDeliveryFailureSpec : ActaStorageTestBase<ConformanceFi
         var ct = TestContext.Current.CancellationToken;
 
         await SeedChannelAsync(Db, "ch-log", "log", ct);
-        await RaiseAlertAsync(Db, "ch-log", jobId: null, ct, AlertOriginCode.Manual);
+        await RaiseAlertAsync(Db, "ch-log", jobId: null, ct, AlertKindCode.Manual);
 
         await RunDeliveryAsync(maxRetries: 5, ct);
 
@@ -400,12 +399,12 @@ public sealed class AlertDeliveryFailureSpec : ActaStorageTestBase<ConformanceFi
 
         // No transport for this kind: the send fails permanently on the first pass.
         await SeedChannelAsync(Db, "ch-manual", MissingKind, ct);
-        await RaiseAlertAsync(Db, "ch-manual", jobId: null, ct, AlertOriginCode.Manual);
+        await RaiseAlertAsync(Db, "ch-manual", jobId: null, ct, AlertKindCode.Manual);
 
         var failingPass = await RunDeliveryAsync(maxRetries: 5, ct);
         var failed = Assert.Single(await ReadAlertsAsync(TestNamespaceId, ct));
         Assert.Equal(AlertDeliveryStatusCode.Failed, failed.DeliveryStatusCode);
-        // Origin does not exempt a failed send: nobody has been told yet, so it is scheduled to try again.
+        // The manual kind does not exempt a failed send: nobody has been told yet, so it is scheduled to try again.
         AssertScheduledOneIntervalOut(failed.RetryAfterUtc, failingPass);
 
         // The instant comes round with the transport now available, and the alert finally lands.
@@ -515,15 +514,14 @@ public sealed class AlertDeliveryFailureSpec : ActaStorageTestBase<ConformanceFi
         string channel,
         long? jobId,
         CancellationToken ct,
-        AlertOriginCode origin = AlertOriginCode.Automatic
+        AlertKindCode kind = AlertKindCode.FinalFailure
     ) =>
         AlertTestOps.RaiseAsync(
             Services,
             TestNamespace,
             jobId,
-            origin,
             AlertSeverityCode.Error,
-            origin == AlertOriginCode.Manual ? AlertKindCode.Manual : AlertKindCode.FinalFailure,
+            kind,
             title: "test-alert",
             message: "test-message",
             channelName: channel,

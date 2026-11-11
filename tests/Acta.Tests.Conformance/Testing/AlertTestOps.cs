@@ -21,7 +21,6 @@ internal static class AlertTestOps
         IServiceProvider services,
         string jobNamespace,
         long? jobId,
-        AlertOriginCode origin,
         AlertSeverityCode severity,
         AlertKindCode kind,
         string title,
@@ -37,7 +36,6 @@ internal static class AlertTestOps
                 RaiseAlertCommand.Create(
                     jobNamespace,
                     jobId,
-                    origin,
                     severity,
                     kind,
                     title,

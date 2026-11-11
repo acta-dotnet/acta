@@ -29,7 +29,6 @@ public sealed class ResolveAlertSpec : ActaRuntimeTestBase<ConformanceFixture, T
             Services,
             TestNamespace,
             enqueued.JobId,
-            AlertOriginCode.Manual,
             AlertSeverityCode.Info,
             AlertKindCode.Manual,
             "ack-resolve-spec alert",

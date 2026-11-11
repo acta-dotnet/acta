@@ -254,14 +254,14 @@ internal sealed class AlertDelivery(
 
     /// <summary>
     /// When a delivered send should be repeated, written into retry_after_utc as the row's one
-    /// "not before" instant. Automatic alerts track a condition Acta watches, so while the incident
-    /// stays open the operator is re-notified on the interval. A manual alert is one handler's
+    /// "not before" instant. An alert the engine raised tracks a condition Acta watches, so while the
+    /// incident stays open the operator is re-notified on the interval. A manual alert is one handler's
     /// statement at one moment: nothing in Acta knows whether it still holds, and the caller owns
     /// resolving it, so turning every ctx.AlertAsync into an unbounded daily nag would be Acta
     /// inventing a lifecycle it cannot see.
     /// </summary>
     private DateTime? ReminderAfter(DeliverableAlert a, DateTime nowUtc) =>
-        a.Origin == AlertOriginCode.Automatic ? nowUtc + _reminderInterval : null;
+        a.Kind != AlertKindCode.Manual ? nowUtc + _reminderInterval : null;
 
     /// <summary>
     /// Every settlement writes against the version the row carried at selection, and losing that compare-and-swap is

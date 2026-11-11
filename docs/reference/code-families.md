@@ -5,7 +5,7 @@
 > Generated reference for Acta code families and the payload-format registry.
 > Every persisted code is documented here exactly once; the data-model reference [`data-model.md`](./data-model.md) links into this file from every code-bearing column.
 
-This release: **35 families**, **203 values**.
+This release: **34 families**, **200 values**.
 
 > Numeric IDs are stable family-local persistence identifiers. Enum members carry programmatic meaning; textual codes carry operator-facing meaning.
 > Numeric grouping is a readability convention, not a runtime schema. Canonical failure states use `200`.
@@ -37,7 +37,6 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | [`AlertChannelStatusCode`](#code-family-alertchannelstatuscode) | `alert-channel-status` | `byte` |
 | [`AlertDeliveryStatusCode`](#code-family-alertdeliverystatuscode) | `alert-delivery-status` | `byte` |
 | [`AlertKindCode`](#code-family-alertkindcode) | `alert-kind` | `byte` |
-| [`AlertOriginCode`](#code-family-alertorigincode) | `alert-origin` | `byte` |
 | [`AlertProfileCode`](#code-family-alertprofilecode) | `alert-profile` | `byte` |
 | [`AlertSeverityCode`](#code-family-alertseveritycode) | `alert-severity` | `byte` |
 | [`CalendarRoleCode`](#code-family-calendarrolecode) | `calendar-role` | `byte` |
@@ -101,14 +100,6 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `ThresholdReached` | 20 | `threshold-reached` | A counted condition reached its configured threshold, such as a job that keeps losing its claim. | Active |
 | `FinalFailure` | 30 | `final-failure` | The job failed for good. | Active |
 | `Manual` | 40 | `manual` | Raised by a job's handler. | Active |
-
-### `AlertOriginCode` · `alert-origin` <a id="code-family-alertorigincode"></a>
-
-| Member | Id | Code | Description | Lifecycle |
-|---|---:|---|---|---|
-| `Unspecified` | 0 | `unspecified` | Alert origin not recognized by this build; the row was written by a newer Acta. | Active |
-| `Automatic` | 10 | `automatic` | Raised by the engine on a failure, a timeout, a lost worker, or a deadline. | Active |
-| `Manual` | 20 | `manual` | Raised by a job's handler. | Active |
 
 ### `AlertProfileCode` · `alert-profile` <a id="code-family-alertprofilecode"></a>
 

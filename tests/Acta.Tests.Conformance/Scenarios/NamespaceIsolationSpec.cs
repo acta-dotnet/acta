@@ -489,7 +489,6 @@ public sealed class NamespaceIsolationSpec : ActaRuntimeTestBase<ConformanceFixt
             services,
             jobNamespace,
             jobId,
-            AlertOriginCode.Manual,
             AlertSeverityCode.Error,
             AlertKindCode.Manual,
             "isolation",
