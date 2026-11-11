@@ -114,7 +114,7 @@ public sealed class SqlServerDirectSqlEnqueueTests : ActaRuntimeTestBase<SqlServ
     [Theory(DisplayName = "@p_input_format_id is stored, and without it the input's presence decides the format")]
     [InlineData("", 0)]
     [InlineData(Input, 1)]
-    [InlineData("@p_input_format_id = 1, " + Input, 1)]
+    [InlineData("@p_input_format_id = 2, " + Input, 2)]
     public async Task The_input_format_is_stored(string arguments, byte format)
     {
         var ct = TestContext.Current.CancellationToken;
@@ -124,7 +124,7 @@ public sealed class SqlServerDirectSqlEnqueueTests : ActaRuntimeTestBase<SqlServ
         Assert.Equal(format, (await ReadAsync(jobId, ct)).InputFormatId);
     }
 
-    [Fact(DisplayName = "@p_tags stores the job's tags")]
+    [Fact(DisplayName = "@p_tags stores a tag the API reads and filters by")]
     public async Task Tags_are_stored()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -132,11 +132,27 @@ public sealed class SqlServerDirectSqlEnqueueTests : ActaRuntimeTestBase<SqlServ
         var (jobId, _, _) = await EnqueueAsync(
             "",
             ct,
-            declarations: "INSERT INTO @tags (ordinal, tag_name, tag_value, tag_value_search) VALUES (0, 'region', N'EU-West', N'eu-west');"
+            declarations: "INSERT INTO @tags (ordinal, tag_name, tag_value, tag_value_search) VALUES (0, 'region', N'EU-West', N'EU-WEST');"
         );
 
         var tags = (await Operations.Tags.ListAsync(new ListTagsQuery(TagTarget.ForJob(JobLookup.ById(jobId))), ct)).Items;
         Assert.Equal(new ListTagsItem("region", "EU-West"), Assert.Single(tags));
+        // The search value is the value trimmed and upper-cased, as the API writes it, so the API's filter finds the job.
+        var filter = new ListJobsQuery(TestNamespace, PageSize: 100, Tags: [new TagFilter("region", "eu-west")]);
+        Assert.Contains((await Operations.Ledger.ListJobsAsync(filter, ct)).Items, j => j.JobId == jobId);
+    }
+
+    [Theory(DisplayName = "An empty key is refused, since every later enqueue would share it")]
+    [InlineData("@p_deduplication_key")]
+    [InlineData("@p_correlation_key")]
+    [InlineData("@p_concurrency_key")]
+    public async Task An_empty_key_is_refused(string parameter)
+    {
+        var ct = TestContext.Current.CancellationToken;
+
+        var refused = await Assert.ThrowsAsync<Microsoft.Data.SqlClient.SqlException>(() => EnqueueAsync($"{parameter} = ''", ct));
+
+        Assert.Contains("a key is empty", refused.Message, StringComparison.Ordinal);
     }
 
     [Fact(DisplayName = "@p_parent_job_id, @p_tenant_name and @p_tenant_override place a child under its parent and tenant")]

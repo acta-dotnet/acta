@@ -68,6 +68,23 @@ internal sealed class UpdateDefinitionOverridesHandler(GetDefinitionIdHandler ge
         {
             overrides = overrides with { EventRecording = null };
         }
+        // A code with no member is stored and then read by nothing: no claim reads a priority outside the bands, so every
+        // later job of the definition would wait for good, and the reads that name a code would fail on it.
+        if (overrides.Priority is { } priority && !Enum.IsDefined(priority))
+        {
+            throw new ArgumentOutOfRangeException(nameof(overrides), $"Priority override {(int)priority} is not a priority band.");
+        }
+        if (overrides.DeadlineBehavior is { } behavior && !Enum.IsDefined(behavior))
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(overrides),
+                $"DeadlineBehavior override {(int)behavior} is not a deadline behavior."
+            );
+        }
+        if (overrides.AlertProfile is { } profile && !Enum.IsDefined(profile))
+        {
+            throw new ArgumentOutOfRangeException(nameof(overrides), $"AlertProfile override {(int)profile} is not an alert profile.");
+        }
         // A level with no member would record nothing, not even the failures an alert profile reads.
         if (overrides.EventRecording is { } recording && !Enum.IsDefined(recording))
         {

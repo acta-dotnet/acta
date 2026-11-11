@@ -27,6 +27,20 @@ public sealed class DefinitionOverrideValidationTests
         Assert.Throws<ArgumentOutOfRangeException>(() => Normalize(new DefinitionPolicyOverrides(EventRecording: (EventRecordingCode)42)));
 
     [Fact]
+    public void A_priority_that_is_not_a_band_is_rejected() =>
+        // No claim reads between two bands, so every later job of the definition would be stored and never run.
+        Assert.Throws<ArgumentOutOfRangeException>(() => Normalize(new DefinitionPolicyOverrides(Priority: (JobPriorityCode)60)));
+
+    [Fact]
+    public void A_deadline_behavior_or_an_alert_profile_with_no_member_is_rejected()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            Normalize(new DefinitionPolicyOverrides(DeadlineBehavior: (DeadlineBehaviorCode)42))
+        );
+        Assert.Throws<ArgumentOutOfRangeException>(() => Normalize(new DefinitionPolicyOverrides(AlertProfile: (AlertProfileCode)42)));
+    }
+
+    [Fact]
     public void An_execution_timeout_past_the_CancelAfter_ceiling_is_rejected()
     {
         Assert.Throws<ArgumentOutOfRangeException>(() =>

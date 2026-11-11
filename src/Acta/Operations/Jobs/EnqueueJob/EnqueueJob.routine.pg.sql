@@ -49,6 +49,12 @@ BEGIN
             USING ERRCODE = 'P0001';
     END IF;
 
+    -- An empty key is a key: every later enqueue with it would deduplicate onto the first job, or share its slot.
+    IF p_deduplication_key = '' OR p_correlation_key = '' OR p_concurrency_key = '' THEN
+        RAISE EXCEPTION 'Enqueue rejected: a key is empty. Pass NULL for no key.'
+            USING ERRCODE = 'P0001';
+    END IF;
+
     SELECT
         ns.namespace_id,
         ns.namespace_status_code,

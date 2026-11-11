@@ -41,14 +41,14 @@ DO $$
 BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
-        WHERE name NOT IN ('M20261111020239_init')
+        WHERE name NOT IN ('M20261111020827_init')
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
 END
 $$;
 
--- ===== BEGIN M20261111020239_init =====
+-- ===== BEGIN M20261111020827_init =====
 CREATE SCHEMA IF NOT EXISTS acta;
 
 -- alerts
@@ -1756,6 +1756,12 @@ BEGIN
     -- The claim reads band by band, so a priority between two bands would be stored and never claimed.
     IF p_job_priority_code_override NOT IN (0 /* JobPriorityCode.Bulk */, 50 /* JobPriorityCode.Normal */, 70 /* JobPriorityCode.High */, 85 /* JobPriorityCode.Critical */, 100 /* JobPriorityCode.Realtime */) THEN
         RAISE EXCEPTION 'Enqueue rejected: the job priority is not a priority band (0, 50, 70, 85, 100).'
+            USING ERRCODE = 'P0001';
+    END IF;
+
+    -- An empty key is a key: every later enqueue with it would deduplicate onto the first job, or share its slot.
+    IF p_deduplication_key = '' OR p_correlation_key = '' OR p_concurrency_key = '' THEN
+        RAISE EXCEPTION 'Enqueue rejected: a key is empty. Pass NULL for no key.'
             USING ERRCODE = 'P0001';
     END IF;
 
@@ -4430,10 +4436,10 @@ JOIN acta.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO acta.migrations (name)
-VALUES ('M20261111020239_init')
+VALUES ('M20261111020827_init')
 ON CONFLICT (name) DO NOTHING;
 
--- ===== END M20261111020239_init =====
+-- ===== END M20261111020827_init =====
 
 COMMIT;
 

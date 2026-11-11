@@ -48,6 +48,10 @@ BEGIN
         IF @p_job_priority_code_override NOT IN (0 /* JobPriorityCode.Bulk */, 50 /* JobPriorityCode.Normal */, 70 /* JobPriorityCode.High */, 85 /* JobPriorityCode.Critical */, 100 /* JobPriorityCode.Realtime */)
             THROW 50014, 'Enqueue rejected: the job priority is not a priority band (0, 50, 70, 85, 100).', 1;
 
+        -- An empty key is a key: every later enqueue with it would deduplicate onto the first job, or share its slot.
+        IF @p_deduplication_key = '' OR @p_correlation_key = '' OR @p_concurrency_key = ''
+            THROW 50015, 'Enqueue rejected: a key is empty. Pass NULL for no key.', 1;
+
         SELECT
             @ns_id = ns.namespace_id,
             @ns_status = ns.namespace_status_code,

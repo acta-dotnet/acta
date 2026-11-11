@@ -22,13 +22,13 @@ public sealed partial class EnqueuePriorityBandTests
         var guard = Guard().Match(sql);
 
         Assert.True(guard.Success, $"{routine} has no priority band guard");
-        Assert.Equal(bands, Literal().Matches(guard.Groups["ids"].Value).Select(id => int.Parse(id.Value)).Order());
+        Assert.Equal(bands, Comment().Replace(guard.Groups["ids"].Value, "").Split(',').Select(id => int.Parse(id.Trim())).Order());
         Assert.Contains($"is not a priority band ({string.Join(", ", bands)}).", sql, StringComparison.Ordinal);
     }
 
     [GeneratedRegex(@"p_job_priority_code_override NOT IN \((?<ids>[^()]*)\)")]
     private static partial Regex Guard();
 
-    [GeneratedRegex(@"(?<![\w.])\d+(?=\s*/\*)")]
-    private static partial Regex Literal();
+    [GeneratedRegex(@"/\*.*?\*/")]
+    private static partial Regex Comment();
 }

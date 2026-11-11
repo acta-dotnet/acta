@@ -493,7 +493,7 @@ In production a deploy step applies Acta's migrations, never application startup
 
 ```
 $ ConnectionStrings__acta="<DDL login>" dotnet MyApp.dll jobs migrate
-applied M20261111020239_init to schema acta
+applied M20261111020827_init to schema acta
 namespace billing: 1.6.1+b81d04e (Production)
   added    sys.alerts
   added    sys.retention
@@ -1290,7 +1290,7 @@ With the default json format, `p_input` must be exactly one strict JSON value. T
 malformed row stores, fails its handler's deserialization, and reads back over HTTP as `base64` with `malformed: true`.
 Postgres takes tags as the three arrays `p_tag_name`, `p_tag_value`, and `p_tag_value_search`.
 
-The routine stores what it is given, where the API canonicalizes first. Pass every name (namespace, job, tenant, lane, tag) as it is stored, which is lowercase, and every key as the API would take it: printable ASCII with no whitespace. A key outside that rule is stored, deduplicates, runs, and reads back as stored, but an API lookup by that key refuses it. A priority must be one of the bands 0, 50, 70, 85, and 100; any other is refused, since a job between two bands would never be claimed.
+The routine stores what it is given, where the API canonicalizes first. Pass every name (namespace, job, tenant, lane, tag) as it is stored, which is lowercase, and every key as the API would take it: printable ASCII with no whitespace, within its column's width, since SQL Server cuts a longer value to the width without an error, and for a deduplication key not starting with `sys.`, which the engine's own keys use. A key outside that rule is stored, deduplicates, runs, and reads back as stored, but the API cannot look it up or filter by it. An empty key is refused: pass `NULL` for no key. A priority must be one of the bands 0, 50, 70, 85, and 100; any other is refused, since a job between two bands would never be claimed. `p_tag_value_search` is the tag's value trimmed and upper-cased, which is what the API's tag filters compare. On PostgreSQL the two small integers need a cast, as in `p_job_priority_code_override => 70::smallint`.
 
 SQLite has no callable enqueue routine; enqueue through the application (`IJobs.EnqueueAsync`).
 

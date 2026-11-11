@@ -57,7 +57,7 @@ GO
 -- ===== refuse a database a newer release already upgraded =====
 IF EXISTS (
     SELECT 1 FROM acta.migrations
-    WHERE name NOT IN ('M20261111020239_init')
+    WHERE name NOT IN ('M20261111020827_init')
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -65,7 +65,7 @@ BEGIN
     SET NOEXEC ON;
 END
 GO
--- ===== BEGIN M20261111020239_init =====
+-- ===== BEGIN M20261111020827_init =====
 SET QUOTED_IDENTIFIER ON;
 SET ANSI_NULLS ON;
 GO
@@ -2115,6 +2115,10 @@ BEGIN
         -- The claim reads band by band, so a priority between two bands would be stored and never claimed.
         IF @p_job_priority_code_override NOT IN (0 /* JobPriorityCode.Bulk */, 50 /* JobPriorityCode.Normal */, 70 /* JobPriorityCode.High */, 85 /* JobPriorityCode.Critical */, 100 /* JobPriorityCode.Realtime */)
             THROW 50014, 'Enqueue rejected: the job priority is not a priority band (0, 50, 70, 85, 100).', 1;
+
+        -- An empty key is a key: every later enqueue with it would deduplicate onto the first job, or share its slot.
+        IF @p_deduplication_key = '' OR @p_correlation_key = '' OR @p_concurrency_key = ''
+            THROW 50015, 'Enqueue rejected: a key is empty. Pass NULL for no key.', 1;
 
         SELECT
             @ns_id = ns.namespace_id,
@@ -5092,11 +5096,11 @@ JOIN acta.namespaces AS ns ON ns.namespace_id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261111020239_init')
+IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261111020827_init')
 INSERT INTO acta.migrations (name)
-VALUES ('M20261111020239_init');
+VALUES ('M20261111020827_init');
 GO
--- ===== END M20261111020239_init =====
+-- ===== END M20261111020827_init =====
 GO
 COMMIT TRANSACTION;
 GO
