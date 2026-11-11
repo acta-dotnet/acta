@@ -53,11 +53,11 @@ CREATE TEMP TABLE release_guard (
 INSERT INTO release_guard
 SELECT EXISTS (
     SELECT 1 FROM main.migrations
-    WHERE name NOT IN ('M20261111111402_init')
+    WHERE name NOT IN ('M20261111123108_init')
 );
 DROP TABLE release_guard;
 
--- ===== BEGIN M20261111111402_init =====
+-- ===== BEGIN M20261111123108_init =====
 CREATE TABLE IF NOT EXISTS main.alerts (
     alert_id integer PRIMARY KEY AUTOINCREMENT,
     alert_ref text NOT NULL,
@@ -827,10 +827,10 @@ JOIN main.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO main.migrations (name)
-VALUES ('M20261111111402_init')
+VALUES ('M20261111123108_init')
 ON CONFLICT (name) DO NOTHING;
 
--- ===== END M20261111111402_init =====
+-- ===== END M20261111123108_init =====
 
 COMMIT;
 

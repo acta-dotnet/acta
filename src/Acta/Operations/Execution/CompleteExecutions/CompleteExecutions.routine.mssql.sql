@@ -253,8 +253,8 @@ BEGIN
                         modified_at_utc = @now,
                         version = st.version + 1
                     FROM {{schema}}.schedules_state st WITH (FORCESEEK)
-                    INNER JOIN {{schema}}.schedules js ON js.schedule_id = st.schedule_id
-                    INNER JOIN @done d ON d.job_id = js.job_id
+                    INNER JOIN {{schema}}.schedules js WITH (FORCESEEK (ix_schedules_job (job_id))) ON js.schedule_id = st.schedule_id
+                    INNER JOIN @done d ON d.job_id = js.job_id AND js.job_id IS NOT NULL
                     INNER JOIN {{schema}}.jobs j WITH (FORCESEEK) ON j.job_id = d.job_id
                     WHERE
                         d.job_status_code IN (40 /* JobStatusCode.Idle */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
@@ -599,7 +599,7 @@ BEGIN
                         CASE WHEN p.reason IS NULL THEN 0 /* JobPayloadFormat.None */ ELSE 1 /* JobPayloadFormat.Json */ END,
                         CAST('{"reason":"' + p.reason + '"}' AS VARBINARY(MAX))
                     FROM #parents p
-                    INNER JOIN {{schema}}.jobs pj ON pj.job_id = p.parent_job_id
+                    INNER JOIN {{schema}}.jobs pj WITH (FORCESEEK) ON pj.job_id = p.parent_job_id
                     WHERE pj.event_recording_code = 20 /* EventRecordingCode.Audit */ AND p.parent_status IS NOT NULL
                     ORDER BY p.parent_job_id, p.child_job_id;
 
@@ -639,7 +639,7 @@ BEGIN
                             parent_status = 20 /* JobStatusCode.Suspended */
                             AND latch_state = 10 /* CheckpointStatusCode.Pending */
                     ) w
-                    INNER JOIN {{schema}}.jobs pj ON pj.job_id = w.parent_job_id
+                    INNER JOIN {{schema}}.jobs pj WITH (FORCESEEK) ON pj.job_id = w.parent_job_id
                     WHERE pj.event_recording_code = 20 /* EventRecordingCode.Audit */;
 
                     UPDATE d

@@ -57,7 +57,7 @@ GO
 -- ===== refuse a database a newer release already upgraded =====
 IF EXISTS (
     SELECT 1 FROM acta.migrations
-    WHERE name NOT IN ('M20261111111402_init')
+    WHERE name NOT IN ('M20261111123108_init')
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -65,7 +65,7 @@ BEGIN
     SET NOEXEC ON;
 END
 GO
--- ===== BEGIN M20261111111402_init =====
+-- ===== BEGIN M20261111123108_init =====
 SET QUOTED_IDENTIFIER ON;
 SET ANSI_NULLS ON;
 GO
@@ -1513,8 +1513,8 @@ BEGIN
                         modified_at_utc = @now,
                         version = st.version + 1
                     FROM acta.schedules_state st WITH (FORCESEEK)
-                    INNER JOIN acta.schedules js ON js.schedule_id = st.schedule_id
-                    INNER JOIN @done d ON d.job_id = js.job_id
+                    INNER JOIN acta.schedules js WITH (FORCESEEK (ix_schedules_job (job_id))) ON js.schedule_id = st.schedule_id
+                    INNER JOIN @done d ON d.job_id = js.job_id AND js.job_id IS NOT NULL
                     INNER JOIN acta.jobs j WITH (FORCESEEK) ON j.job_id = d.job_id
                     WHERE
                         d.job_status_code IN (40 /* JobStatusCode.Idle */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
@@ -1859,7 +1859,7 @@ BEGIN
                         CASE WHEN p.reason IS NULL THEN 0 /* JobPayloadFormat.None */ ELSE 1 /* JobPayloadFormat.Json */ END,
                         CAST('{"reason":"' + p.reason + '"}' AS VARBINARY(MAX))
                     FROM #parents p
-                    INNER JOIN acta.jobs pj ON pj.job_id = p.parent_job_id
+                    INNER JOIN acta.jobs pj WITH (FORCESEEK) ON pj.job_id = p.parent_job_id
                     WHERE pj.event_recording_code = 20 /* EventRecordingCode.Audit */ AND p.parent_status IS NOT NULL
                     ORDER BY p.parent_job_id, p.child_job_id;
 
@@ -1899,7 +1899,7 @@ BEGIN
                             parent_status = 20 /* JobStatusCode.Suspended */
                             AND latch_state = 10 /* CheckpointStatusCode.Pending */
                     ) w
-                    INNER JOIN acta.jobs pj ON pj.job_id = w.parent_job_id
+                    INNER JOIN acta.jobs pj WITH (FORCESEEK) ON pj.job_id = w.parent_job_id
                     WHERE pj.event_recording_code = 20 /* EventRecordingCode.Audit */;
 
                     UPDATE d
@@ -2264,7 +2264,7 @@ BEGIN
                     @parent_corr = pj.correlation_key,
                     @parent_tenant = pj.tenant_id
                 FROM acta.jobs pj WITH (UPDLOCK, ROWLOCK, FORCESEEK)
-                INNER JOIN acta.jobs_state pr ON pr.job_id = pj.job_id
+                INNER JOIN acta.jobs_state pr WITH (FORCESEEK) ON pr.job_id = pj.job_id
                 WHERE
                     pj.job_id = @p_parent_job_id
                     AND pr.job_status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */);
@@ -2294,17 +2294,17 @@ BEGIN
                     BEGIN
                         WITH ancestors AS (
                             SELECT a.job_id, a.parent_job_id
-                            FROM acta.jobs a
+                            FROM acta.jobs a WITH (FORCESEEK)
                             WHERE a.job_id = @p_parent_job_id
                             UNION ALL
                             SELECT a.job_id, a.parent_job_id
-                            FROM acta.jobs a
+                            FROM acta.jobs a WITH (FORCESEEK)
                             INNER JOIN ancestors c ON a.job_id = c.parent_job_id
                         )
 
                         SELECT @ancestor_lane_hits = COUNT(*)
                         FROM ancestors c
-                        INNER JOIN acta.jobs_state ar ON ar.job_id = c.job_id
+                        INNER JOIN acta.jobs_state ar WITH (FORCESEEK) ON ar.job_id = c.job_id
                         WHERE
                             ar.lane_id = @lane_id
                             AND ar.job_status_code IN (
@@ -2721,7 +2721,7 @@ BEGIN
             pj.tenant_id
         FROM @p_batch b
         INNER JOIN acta.jobs pj WITH (UPDLOCK, ROWLOCK, FORCESEEK) ON pj.job_id = b.parent_job_id
-        INNER JOIN acta.jobs_state pr ON pr.job_id = pj.job_id
+        INNER JOIN acta.jobs_state pr WITH (FORCESEEK) ON pr.job_id = pj.job_id
         WHERE
             b.parent_job_id IS NOT NULL
             AND pr.job_status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
@@ -2803,17 +2803,17 @@ BEGIN
                     SELECT r.lane_id, a.job_id, a.parent_job_id
                     FROM @resolved r
                     INNER JOIN @p_batch b ON b.ordinal = r.ordinal
-                    INNER JOIN acta.jobs a ON a.job_id = b.parent_job_id
+                    INNER JOIN acta.jobs a WITH (FORCESEEK) ON a.job_id = b.parent_job_id
                     WHERE r.lane_id IS NOT NULL
                     UNION ALL
                     SELECT c.lane_id, a.job_id, a.parent_job_id
-                    FROM acta.jobs a
+                    FROM acta.jobs a WITH (FORCESEEK)
                     INNER JOIN ancestors c ON a.job_id = c.parent_job_id
                 )
 
                 SELECT @ancestor_lane_hits = COUNT(*)
                 FROM ancestors c
-                INNER JOIN acta.jobs_state ar ON ar.job_id = c.job_id
+                INNER JOIN acta.jobs_state ar WITH (FORCESEEK) ON ar.job_id = c.job_id
                 WHERE
                     ar.lane_id = c.lane_id
                     AND ar.job_status_code IN (
@@ -4163,8 +4163,8 @@ BEGIN
             modified_at_utc = @now,
             version = st.version + 1
         FROM acta.schedules_state st WITH (FORCESEEK)
-        INNER JOIN acta.schedules js WITH (FORCESEEK) ON js.schedule_id = st.schedule_id
-        INNER JOIN @reclaimed r ON r.job_id = js.job_id
+        INNER JOIN acta.schedules js WITH (FORCESEEK (ix_schedules_job (job_id))) ON js.schedule_id = st.schedule_id
+        INNER JOIN @reclaimed r ON r.job_id = js.job_id AND js.job_id IS NOT NULL
         WHERE
             r.to_status_code = 40 /* JobStatusCode.Idle */
             AND st.evaluation_status_code IN (20 /* ScheduleEvaluationStatusCode.WaitingForCapacity */, 50 /* ScheduleEvaluationStatusCode.JobUnavailable */);
@@ -5089,11 +5089,11 @@ JOIN acta.namespaces AS ns ON ns.namespace_id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261111111402_init')
+IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261111123108_init')
 INSERT INTO acta.migrations (name)
-VALUES ('M20261111111402_init');
+VALUES ('M20261111123108_init');
 GO
--- ===== END M20261111111402_init =====
+-- ===== END M20261111123108_init =====
 GO
 COMMIT TRANSACTION;
 GO

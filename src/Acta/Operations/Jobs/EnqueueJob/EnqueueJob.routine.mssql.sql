@@ -203,7 +203,7 @@ BEGIN
                     @parent_corr = pj.correlation_key,
                     @parent_tenant = pj.tenant_id
                 FROM {{schema}}.jobs pj WITH (UPDLOCK, ROWLOCK, FORCESEEK)
-                INNER JOIN {{schema}}.jobs_state pr ON pr.job_id = pj.job_id
+                INNER JOIN {{schema}}.jobs_state pr WITH (FORCESEEK) ON pr.job_id = pj.job_id
                 WHERE
                     pj.job_id = @p_parent_job_id
                     AND pr.job_status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */);
@@ -233,17 +233,17 @@ BEGIN
                     BEGIN
                         WITH ancestors AS (
                             SELECT a.job_id, a.parent_job_id
-                            FROM {{schema}}.jobs a
+                            FROM {{schema}}.jobs a WITH (FORCESEEK)
                             WHERE a.job_id = @p_parent_job_id
                             UNION ALL
                             SELECT a.job_id, a.parent_job_id
-                            FROM {{schema}}.jobs a
+                            FROM {{schema}}.jobs a WITH (FORCESEEK)
                             INNER JOIN ancestors c ON a.job_id = c.parent_job_id
                         )
 
                         SELECT @ancestor_lane_hits = COUNT(*)
                         FROM ancestors c
-                        INNER JOIN {{schema}}.jobs_state ar ON ar.job_id = c.job_id
+                        INNER JOIN {{schema}}.jobs_state ar WITH (FORCESEEK) ON ar.job_id = c.job_id
                         WHERE
                             ar.lane_id = @lane_id
                             AND ar.job_status_code IN (

@@ -371,8 +371,8 @@ BEGIN
             modified_at_utc = @now,
             version = st.version + 1
         FROM {{schema}}.schedules_state st WITH (FORCESEEK)
-        INNER JOIN {{schema}}.schedules js WITH (FORCESEEK) ON js.schedule_id = st.schedule_id
-        INNER JOIN @reclaimed r ON r.job_id = js.job_id
+        INNER JOIN {{schema}}.schedules js WITH (FORCESEEK (ix_schedules_job (job_id))) ON js.schedule_id = st.schedule_id
+        INNER JOIN @reclaimed r ON r.job_id = js.job_id AND js.job_id IS NOT NULL
         WHERE
             r.to_status_code = 40 /* JobStatusCode.Idle */
             AND st.evaluation_status_code IN (20 /* ScheduleEvaluationStatusCode.WaitingForCapacity */, 50 /* ScheduleEvaluationStatusCode.JobUnavailable */);
