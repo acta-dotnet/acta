@@ -308,8 +308,7 @@ internal sealed class WorkerHeartbeat(
     /// Re-reads the namespace's catalog: re-overlays the effective policy onto the live descriptors, so an operator
     /// override edited in the dashboard reaches the hot path (backoff, timeout, deadline, retention, max attempts), and
     /// records the retired definitions, so a retire stops their jobs, both within one heartbeat and no restart required.
-    /// Runs only when the newest definition change moved: two edits of one namespace committed within the same instant
-    /// in reverse order can leave one of them unseen until the next edit.
+    /// Runs only when the namespace's newest definition stamp moved, which every write of a definition moves.
     /// </summary>
     private async Task OverlayDefinitionsAsync(CancellationToken ct)
     {

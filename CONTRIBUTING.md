@@ -865,6 +865,7 @@ dotnet run -c Release --project tools/Acta.Verify -- release --db all --output a
 - `docs/release-notes.md` has a section for the version, leading with what a consumer must change.
 - Flip its header from "(unreleased)" to "Tagged <date>" in B, before tagging: the tag captures the header forever.
 - Review the README, the guides, and known limitations against the release, including the stability statement.
+- Read each sentence on the site that says what the release run checks beside the check it names in `tools/Acta.Verify/Certification/certify.sql`: it claims what the check's comment claims, and carries the blind spot the comment states.
 - Set the header of `llms.txt` to the release and the date it was verified, and copy it to `site/llms.txt`.
 
 ### After publishing

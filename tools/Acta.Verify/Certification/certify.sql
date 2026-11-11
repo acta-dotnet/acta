@@ -20,10 +20,9 @@
 -- TIMING - the evidence MUST stamp LeaseTtlSeconds, HeartbeatInterval and WorkerDeadAfter, because
 -- every property here is timing-dependent. A shorter lease manufactures more handler overlap than
 -- production would ever see by reclaiming live-but-slow workers sooner; a longer one hides overlap
--- production does see. F09 leaves the triad at the framework defaults (180s / 45s / 5min) in the
--- standard and full profiles, so those runs certify the shipped configuration; the quick profile
--- compresses it and its report says so. The two windows differ, which is why reclaim leads
--- dead-marking: lease 180s, dead-after 5min.
+-- production does see. The chaos scenario leaves the three at the framework defaults in the check
+-- and release suites, a 45 s heartbeat, a 180 s lease, and dead after 315 s, so those runs certify
+-- the shipped configuration. The two windows differ, which is why reclaim leads dead-marking.
 --
 -- SCOPE - stated so no reader over-reads a green result. Most checks derive from the ledger alone.
 -- Checks 7, 10, 13, 14 and 15 additionally need the witness notes the chaos shapes' bodies write via
@@ -241,7 +240,7 @@ WHERE  n.bodies > 1;
 -- ---------------------------------------------------------------------------------------------
 -- The ledger-reachable half of the outbox certification. The staging table lives in the producer's
 -- database, which this file - bound to the Acta schema - cannot reach, so the check is split across
--- that ownership seam: F09 probes the producer for *drained* (zero rows Pending or Claimed after
+-- that ownership seam: the chaos case probes the producer for *drained* (zero rows Pending or Claimed after
 -- quiesce) and bridges staged operation counts to the ledger for *delivered* (every committed
 -- operation's job exists; a deduplicated handoff counts as delivered). What the ledger alone can
 -- assert is what happened AFTER the handoff: every job the relay created ran to Succeeded. The staged
@@ -257,8 +256,8 @@ WHERE  j.deduplication_key LIKE 'outbox-%'
 -- ---------------------------------------------------------------------------------------------
 -- 12. how many outbox rows the relay delivered           [MEASURED: always reports, never fails]
 -- ---------------------------------------------------------------------------------------------
--- The number F09 pairs with its producer-side staged count: only the harness can see both databases,
--- so the ledger half is reported here as evidence and F09's outbox-delivered check asserts the pair.
+-- The number the chaos case pairs with its producer-side staged count: only the harness can see both
+-- databases, so the ledger half is reported here and the case's outbox-delivered check asserts the pair.
 SELECT 'outbox-relayed' AS check_name, COUNT(*) AS relayed_jobs
 FROM   {s}jobs j
 WHERE  j.deduplication_key LIKE 'outbox-%'
@@ -287,7 +286,7 @@ WHERE  e.entity_code = 50 /* EntityCode.Job */ AND e.event_code = 90 /* EventCod
 -- 14. the rate meter never over-admitted                 [COMPUTED IN PROCESS: see LedgerValidation]
 -- ---------------------------------------------------------------------------------------------
 -- The rate-limit claim: a definition declaring a rate never starts more handlers inside a window than
--- its meter allows, while workers are being killed and their attempts reclaimed and re-run. F09 runs
+-- its meter allows, while workers are being killed and their attempts reclaimed and re-run. Chaos runs
 -- three meters side by side, `metered-10`, `metered-50`, and `metered-100` at 10/s, 50/s, and 100/s,
 -- and each is checked against its own budgets, so one meter admitting on another's turns fails too.
 --
