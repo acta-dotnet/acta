@@ -61,7 +61,7 @@ internal sealed class ActaMetrics : IDisposable
     {
         Meter = new Meter(MeterName);
         _executions = Meter.CreateCounter<long>("acta.executions", "{execution}", "Completed job executions, tagged by outcome.");
-        _executionDurationMs = Meter.CreateHistogram<double>("acta.duration", "ms", "Handler execution duration.");
+        _executionDurationMs = Meter.CreateHistogram<double>("acta.executions.duration", "ms", "Handler execution duration.");
         _claims = Meter.CreateCounter<long>("acta.claims", "{claim}", "Job claim attempts, tagged by result.");
         _steps = Meter.CreateCounter<long>("acta.steps", "{step}", "Durable step outcomes, tagged by outcome.");
         _lockReleaseFailures = Meter.CreateCounter<long>(

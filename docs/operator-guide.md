@@ -763,7 +763,7 @@ keeps claiming, admitting, and settling.
 | Instrument | Unit | What it measures |
 | --- | --- | --- |
 | `acta.executions` | execution | Completed job executions, tagged by outcome. |
-| `acta.duration` | ms | Handler execution duration. |
+| `acta.executions.duration` | ms | Handler execution duration. |
 | `acta.claims` | claim | Claim attempts, tagged by result. |
 | `acta.steps` | step | Durable step outcomes, tagged by outcome. |
 | `acta.jobs.inflight` | job | Jobs this process holds, tagged by state: claimed, executing, or finalizing. |

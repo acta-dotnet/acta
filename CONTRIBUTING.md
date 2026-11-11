@@ -648,7 +648,7 @@ operator's index maps a log field, so both outlive the release that introduced t
   its query language read as one namespace.
 - **Segments narrow left to right**: subject, then the thing that happened to it
   (`acta.lock.release.failures`, `acta.alert.projection.skips`).
-- **The unit lives in the instrument, not in the name.** `acta.duration` declares `ms` as its unit
+- **The unit lives in the instrument, not in the name.** `acta.executions.duration` declares `ms` as its unit
   argument; a name never restates what the unit already carries.
 - **Tags stay low-cardinality** - `namespace`, `job_name`, `outcome`, `reason`, `result`, `state`. Job id
   and execution number are deliberately absent from metrics and live on the log scope and traces

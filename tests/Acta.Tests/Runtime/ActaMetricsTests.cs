@@ -38,7 +38,7 @@ public sealed class ActaMetricsTests
         var (Value, Tags) = Assert.Single(
             Collect<double>(
                 metrics,
-                "acta.duration",
+                "acta.executions.duration",
                 () => metrics.RecordExecution("billing", "send-receipt", "failed", reason: "unhandled-exception", durationMs: 42)
             )
         );
