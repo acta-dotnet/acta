@@ -365,6 +365,12 @@ internal static partial class ActaLog
     public static partial void AlertDrainStoppedAtBound(ILogger log, string actaNamespace, long actaDurationMs, string actaDetail);
 
     [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "Acta sys.alerts: delivery stopped at its time budget in namespace ({ActaNamespace}) after {ActaDurationMs} ms; the alerts it did not reach are sent on the next pass."
+    )]
+    public static partial void AlertDeliveryStoppedAtBudget(ILogger log, string actaNamespace, long actaDurationMs);
+
+    [LoggerMessage(
         Level = LogLevel.Information,
         Message = "Acta sys.alerts: replayed skipped alert event ({ActaDetail}) in namespace ({ActaNamespace})."
     )]

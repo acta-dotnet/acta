@@ -837,6 +837,7 @@ w.AddAlertChannel("ops-slack", AlertTransportKinds.SlackWebhook,
 
 - Route a job with `[Job(AlertChannelName = "ops-slack")]`. Without one it goes to the namespace's implicit `default` channel, which logs, so failures reach the logs with no setup. `RunbookUrl` on the job travels with the notification.
 - The built-in transports are `log` and `slack-webhook`; a custom one registers an `IAlertTransport`. Endpoints and credentials stay in configuration and are never stored in the database.
+- A send has ten seconds. One that has not answered by then is cancelled, given up, and retried on the delivery backoff, and a pass that has spent thirty seconds leaves the alerts it did not reach for the next pass a minute later, so an endpoint that never answers delays the other channels by one pass at most.
 - A channel's `MinSeverity` and its `Disabled` or `Deprecated` status suppress delivery. A channel the namespace does not configure fails delivery, and `AlertChannelValidationMode` checks every definition's routing at startup.
 - A failed send retries for a few minutes, about five attempts, and then settles `Failed`. Delivery is at least once. Resolving an alert before it is sent cancels the send.
 

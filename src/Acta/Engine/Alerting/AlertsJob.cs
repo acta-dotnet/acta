@@ -77,6 +77,12 @@ internal sealed class AlertsJob(
     /// </summary>
     internal AlertDrainBudget Drain { get; init; } = DefaultDrain;
 
+    /// <summary>What a delivery pass may spend: ten seconds on one send, and the generate drain's budget on all of them.</summary>
+    internal static readonly AlertDeliveryBudget DefaultDelivery = new(TimeSpan.FromSeconds(10), GenerateTimeBudget);
+
+    /// <summary>Init-only and internal as <see cref="Drain"/> is: a spec reaches a bound without waiting out a wall clock.</summary>
+    internal AlertDeliveryBudget Delivery { get; init; } = DefaultDelivery;
+
     /// <summary>
     /// Runs one alerting pass for the firing namespace: projects new alert-relevant events into
     /// <c>alerts</c> rows, then delivers the rows that are due. <c>EventRecording = Failures</c> keeps idle
@@ -102,7 +108,7 @@ internal sealed class AlertsJob(
         var nowUtc = await _clock.GetUtcNowAsync(ct);
         var settlement = new AlertSettlementClock(nowUtc, clockRequestedAt);
         await GenerateAsync(ctx, nowUtc, ct);
-        await _delivery.DeliverAsync(ctx, settlement, ct);
+        await _delivery.DeliverAsync(ctx, settlement, Delivery, ct);
     }
 
     /// <summary>
@@ -470,6 +476,9 @@ internal sealed class AlertsJob(
 /// drain between batches, so a batch in flight finishes and checkpoints its cursor. The first bound ends the drain.
 /// </summary>
 internal sealed record AlertDrainBudget(int BatchSize, int MaxBatches, TimeSpan TimeBudget);
+
+/// <summary>The limit on one send and the budget of a whole delivery pass.</summary>
+internal sealed record AlertDeliveryBudget(TimeSpan Send, TimeSpan Pass);
 
 /// <summary>
 /// The alert projector's poison classification: raised only for the two proven malformed-ledger

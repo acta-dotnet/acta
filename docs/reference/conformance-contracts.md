@@ -136,6 +136,7 @@
 - **Contract:** A throwing transport retries to terminal Failed, a missing transport fails at once, and settling schedules the reminder that re-sends an open automatic alert.
 - **Guarantees:**
   - Throwing transport bumps retry_count and parks with a backoff instant
+  - A transport that never answers costs its alert one timeout and the pass its budget, and the rest deliver next pass
   - Transport throws at max retries and marks the alert terminal Failed
   - Missing transport marks the alert Failed immediately on the first pass
   - Missing configured channel marks the alert Failed immediately

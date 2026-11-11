@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Microsoft.Extensions.Logging;
 
 namespace Acta;
@@ -7,6 +8,7 @@ namespace Acta;
 /// transport, sends or suppresses, and settles the row against the version it carried at selection on the pass's
 /// settlement clock, at least once, so a crash after the send may resend. One batch per invocation, never a drain:
 /// ten thousand webhooks in one tick would turn protecting the database into an outage on the operator's own channel.
+/// Each send has a limit and the pass a budget, so one endpoint that never answers costs the others one pass at most.
 /// </summary>
 internal sealed class AlertDelivery(
     AlertsOperations alerts,
@@ -31,11 +33,23 @@ internal sealed class AlertDelivery(
     /// </summary>
     private static readonly Backoff RetryBackoff = Backoff.Parse("30s..1h");
 
-    internal async Task DeliverAsync(JobContext ctx, AlertSettlementClock settlement, CancellationToken ct)
+    internal async Task DeliverAsync(JobContext ctx, AlertSettlementClock settlement, AlertDeliveryBudget budget, CancellationToken ct)
     {
         var due = (await _alerts.ListDeliverableAlertsAsync(ctx.NamespaceId, DeliverBatchSize, ct)).Alerts;
+        var elapsed = Stopwatch.StartNew();
         foreach (var a in due)
         {
+            // A pass that spent its budget leaves the rest due for the next one, a minute on.
+            if (elapsed.Elapsed >= budget.Pass)
+            {
+                if (_log.IsEnabled(LogLevel.Warning))
+                {
+                    ActaLog.AlertDeliveryStoppedAtBudget(_log, ctx.JobNamespace, elapsed.ElapsedMilliseconds);
+                }
+
+                return;
+            }
+
             var channel = _channels.Resolve(ctx.JobNamespace, a.ChannelName);
             var transport = channel is null ? null : _transports.Resolve(channel.TransportKind);
             var decision = AlertChannelVerdict.Decide(a, channel, transport);
@@ -53,7 +67,7 @@ internal sealed class AlertDelivery(
                     continue;
             }
 
-            var outcome = await SendAsync(ctx, a, channel!, transport!, ct);
+            var outcome = await SendAsync(ctx, a, channel!, transport!, budget.Send, ct);
             await SettleAsync(a, outcome, settlement, ct);
         }
     }
@@ -63,6 +77,7 @@ internal sealed class AlertDelivery(
         DeliverableAlert a,
         AlertChannelDeclaration channel,
         IAlertTransport transport,
+        TimeSpan limit,
         CancellationToken ct
     )
     {
@@ -86,9 +101,13 @@ internal sealed class AlertDelivery(
             Config: ReadOnlyMemory<byte>.Empty
         );
 
+        // A transport is anyone's code. The send is cancelled at its limit, and the wait for it ends there too, since a
+        // transport that ignores its token would otherwise hold every alert behind it; the timeout is a retryable failure.
+        using var limited = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        limited.CancelAfter(limit);
         try
         {
-            return await transport.SendAsync(notification, target, ct);
+            return await transport.SendAsync(notification, target, limited.Token).WaitAsync(limit, ct);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {

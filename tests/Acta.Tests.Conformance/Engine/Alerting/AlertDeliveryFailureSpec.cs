@@ -29,6 +29,7 @@ public sealed class AlertDeliveryFailureSpec : ActaStorageTestBase<ConformanceFi
     private const string MissingKind = "spy-missing";
     private const string ResolvingKind = "spy-resolve-mid-send";
     private const string PausingKind = "spy-pause-mid-send";
+    private const string HangingKind = "spy-hang";
 
     // Long enough that the pause survives the coarsest instant the three providers store (whole
     // milliseconds), short enough to be beneath notice in a suite. Only its lower bound is relied on.
@@ -62,6 +63,7 @@ public sealed class AlertDeliveryFailureSpec : ActaStorageTestBase<ConformanceFi
         // Add spy transports; LogAlertTransport (kind="log") is still registered by UseActa.
         services.AddSingleton<IAlertTransport>(new ThrowingTransport());
         services.AddSingleton<IAlertTransport>(new PausingTransport());
+        services.AddSingleton<IAlertTransport>(new HangingTransport());
         services.AddSingleton<IAlertTransport>(Resolver);
         base.ConfigureServices(services, testNamespace);
     }
@@ -91,6 +93,32 @@ public sealed class AlertDeliveryFailureSpec : ActaStorageTestBase<ConformanceFi
         Assert.Equal(AlertDeliveryStatusCode.RetryAfter, row2.DeliveryStatusCode);
         Assert.Equal(2, row2.RetryCount);
         Assert.NotNull(row2.RetryAfterUtc);
+    }
+
+    [Fact(
+        DisplayName = "A transport that never answers costs its alert one timeout and the pass its budget, and the rest deliver next pass"
+    )]
+    public async Task A_transport_that_never_answers_does_not_hold_the_other_channels()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await SeedChannelAsync(Db, "ch-hang", HangingKind, ct);
+        await SeedChannelAsync(Db, "ch-log", "log", ct);
+        await RaiseAlertAsync(Db, "ch-hang", jobId: null, ct);
+        await RaiseAlertAsync(Db, "ch-log", jobId: null, ct);
+
+        // The send is given up at its limit, which is already more than this pass may spend, so the pass ends there.
+        var budget = new AlertDeliveryBudget(Send: TimeSpan.FromMilliseconds(20), Pass: TimeSpan.FromMilliseconds(1));
+        await RunDeliveryAsync(maxRetries: 5, ct, budget);
+
+        var first = await ReadAlertsAsync(TestNamespaceId, ct);
+        var hung = Assert.Single(first, a => a.ChannelName == "ch-hang");
+        Assert.Equal((AlertDeliveryStatusCode.RetryAfter, 1), (hung.DeliveryStatusCode, hung.RetryCount));
+        Assert.Equal(AlertDeliveryStatusCode.Pending, Assert.Single(first, a => a.ChannelName == "ch-log").DeliveryStatusCode);
+
+        // A pass with time to spare gives the hung endpoint its limit again and then reaches the alert behind it.
+        await RunDeliveryAsync(maxRetries: 5, ct, budget with { Pass = TimeSpan.FromMinutes(1) });
+        var second = await ReadAlertsAsync(TestNamespaceId, ct);
+        Assert.Equal(AlertDeliveryStatusCode.Delivered, Assert.Single(second, a => a.ChannelName == "ch-log").DeliveryStatusCode);
     }
 
     [Fact(DisplayName = "Transport throws at max retries and marks the alert terminal Failed")]
@@ -483,7 +511,7 @@ public sealed class AlertDeliveryFailureSpec : ActaStorageTestBase<ConformanceFi
     /// <see cref="AssertScheduledOneIntervalOut"/> bound the answer instead of guessing at it. Measured
     /// around the whole call, so it can only over-cover the settlement's own offset, never under-cover it.
     /// </summary>
-    private async Task<TimeSpan> RunDeliveryAsync(int maxRetries, CancellationToken ct)
+    private async Task<TimeSpan> RunDeliveryAsync(int maxRetries, CancellationToken ct, AlertDeliveryBudget? budget = null)
     {
         var alerts = new AlertsJob(
             Services.GetRequiredService<AlertsOperations>(),
@@ -491,7 +519,10 @@ public sealed class AlertDeliveryFailureSpec : ActaStorageTestBase<ConformanceFi
             new AlertChannelRegistry([new WorkerRegistration(TestNamespace, null, null, [], [.. Channels.Values])]),
             Services.GetRequiredService<IAlertTransportRegistry>(),
             Options.Create(new JobsOptions { AlertDeliveryMaxRetries = maxRetries, AlertReminderInterval = ReminderInterval })
-        );
+        )
+        {
+            Delivery = budget ?? AlertsJob.DefaultDelivery,
+        };
 
         var ctx = await BuildAlertsCtxAsync(ct);
         var started = Stopwatch.GetTimestamp();
@@ -590,6 +621,15 @@ public sealed class AlertDeliveryFailureSpec : ActaStorageTestBase<ConformanceFi
         public ValueTask<DateTime> GetUtcNowAsync(CancellationToken ct) => ValueTask.FromResult(Now);
 
         public void AdvanceTo(DateTime utc) => Interlocked.Exchange(ref _ticks, utc.Ticks);
+    }
+
+    /// <summary>A transport that never answers and never looks at its token, as a hung endpoint behind a careless client does.</summary>
+    private sealed class HangingTransport : IAlertTransport
+    {
+        public string TransportKind => HangingKind;
+
+        public Task<AlertSendStatus> SendAsync(AlertNotification n, AlertTarget t, CancellationToken ct) =>
+            new TaskCompletionSource<AlertSendStatus>().Task;
     }
 
     private sealed class ThrowingTransport : IAlertTransport
