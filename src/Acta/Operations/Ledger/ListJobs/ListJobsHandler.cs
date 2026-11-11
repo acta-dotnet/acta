@@ -63,16 +63,7 @@ internal sealed class ListJobsHandler(IDbSession session, ISqlDialect dialect)
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.PageTake, paging.Fetch));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.IncludeTotalFlag, query.IncludeTotal ? true : (bool?)null));
             },
-            reader =>
-            {
-                var item = read(reader);
-                return item.DeduplicationKey is null
-                    ? item
-                    : item with
-                    {
-                        DeduplicationKey = PersistedDeduplicationKey.Normalize(item.DeduplicationKey),
-                    };
-            },
+            read,
             ct
         );
         var (items, nextCursor, hasMore, pageSize, totalCount) = paging.Page(rows, total, static item => [item.CreatedAtUtc, item.JobId]);

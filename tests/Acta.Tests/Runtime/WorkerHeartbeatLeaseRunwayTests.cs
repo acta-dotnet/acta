@@ -415,7 +415,6 @@ public sealed class WorkerHeartbeatLeaseRunwayTests
                 DefinitionId: 1,
                 TenantId: null,
                 ExecutionNumber: executionNumber,
-                DeduplicationKey: null,
                 CorrelationKey: null,
                 ConcurrencyKey: null,
                 InputFormatId: 0,

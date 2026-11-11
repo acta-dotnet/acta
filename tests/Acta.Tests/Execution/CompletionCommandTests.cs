@@ -28,7 +28,7 @@ public sealed class CompletionCommandTests
         {
             JobRetentionSeconds = 123,
         };
-        var job = new ClaimedJob(1, Guid.Empty, 1, null, 2, null, null, null, 0, ReadOnlyMemory<byte>.Empty, null, default, 0)
+        var job = new ClaimedJob(1, Guid.Empty, 1, null, 2, null, null, 0, ReadOnlyMemory<byte>.Empty, null, default, 0)
         {
             LaneId = 7,
             ParentJobId = 8,
@@ -116,7 +116,7 @@ public sealed class CompletionCommandTests
             null!,
             null
         );
-        var job = new ClaimedJob(1, Guid.Empty, 1, null, 2, null, null, null, 0, ReadOnlyMemory<byte>.Empty, null, default, 0)
+        var job = new ClaimedJob(1, Guid.Empty, 1, null, 2, null, null, 0, ReadOnlyMemory<byte>.Empty, null, default, 0)
         {
             Kind = JobKindCode.Permanent,
         };

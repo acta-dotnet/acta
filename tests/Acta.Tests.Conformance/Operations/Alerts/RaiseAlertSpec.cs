@@ -255,7 +255,6 @@ public sealed class RaiseAlertSpec : ActaStorageTestBase<ConformanceFixture>
             DefinitionId: DefId,
             TenantId: null,
             ExecutionNumber: ExecNo,
-            DeduplicationKey: null,
             CorrelationKey: "corr-ctx",
             ConcurrencyKey: null,
             InputFormatId: 0,

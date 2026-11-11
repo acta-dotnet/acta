@@ -307,7 +307,6 @@ internal static class AlertTestOps
             DefinitionId: 1,
             TenantId: null,
             ExecutionNumber: owner.ExecutionNumber,
-            DeduplicationKey: null,
             CorrelationKey: null,
             ConcurrencyKey: null,
             InputFormatId: 0,

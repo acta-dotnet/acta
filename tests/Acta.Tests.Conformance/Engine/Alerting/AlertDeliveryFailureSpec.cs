@@ -610,7 +610,6 @@ public sealed class AlertDeliveryFailureSpec : ActaStorageTestBase<ConformanceFi
             DefinitionId: 0,
             TenantId: null,
             ExecutionNumber: 1,
-            DeduplicationKey: null,
             CorrelationKey: null,
             ConcurrencyKey: null,
             InputFormatId: 0,

@@ -45,13 +45,12 @@ internal sealed partial class RuntimeJobContext
     /// <summary>
     /// Concurrency-slot admission, taken by the runner after the start CAS and before the handler.
     /// The key owns slots 0..limit-1 under the prefix {ns_id}.sem.{key}, disjoint from RunWithLockAsync's
-    /// {ns_id}.lock.{key}; limit 1 is slot 0 alone, the mutex. The key part is exact, so two keys that
-    /// differ only by case are two groups. A key derived from a definition name may be a system job's
-    /// (sys.retention with a limit), which the key rule allows.
+    /// {ns_id}.lock.{key}; limit 1 is slot 0 alone, the mutex. The key part is the stored key, exact, so two keys
+    /// that differ only by case are two groups, and one the SQL door stored outside the API's key rule still runs.
     /// </summary>
     internal async Task<bool> TryAcquireConcurrencySlotAsync(string concurrencyKey, int limit, CancellationToken ct)
     {
-        var prefix = $"{_namespaceId}.sem.{KeySyntax.Canonicalize(concurrencyKey, nameof(concurrencyKey))}";
+        var prefix = $"{_namespaceId}.sem.{concurrencyKey}";
         // A lost race is a slot another admission took just now, so the next try reads past it, and limit lost
         // races mean every slot was taken. Only a try that finds every slot held turns the job away sooner.
         for (var tries = 0; tries < limit; tries++)

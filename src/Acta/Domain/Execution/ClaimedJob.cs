@@ -14,7 +14,6 @@ internal sealed record ClaimedJob(
     int DefinitionId,
     int? TenantId,
     int ExecutionNumber,
-    string? DeduplicationKey,
     string? CorrelationKey,
     string? ConcurrencyKey,
     byte InputFormatId,
@@ -36,9 +35,6 @@ internal sealed record ClaimedJob(
             DefinitionId: Required(row.DefinitionId, "definition_id"),
             TenantId: row.TenantId,
             ExecutionNumber: Required(row.ExecutionNumber, "execution_number"),
-            DeduplicationKey: row.DeduplicationKey is null
-                ? null
-                : KeySyntax.Canonicalize(row.DeduplicationKey, nameof(row.DeduplicationKey)),
             CorrelationKey: row.CorrelationKey,
             ConcurrencyKey: row.ConcurrencyKey,
             InputFormatId: Required(row.InputFormatId, "input_format_id"),

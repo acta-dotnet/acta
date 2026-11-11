@@ -31,7 +31,6 @@ public sealed class RuntimeJobContextLockReleaseTests
                 DefinitionId: 1,
                 TenantId: null,
                 ExecutionNumber: 1,
-                DeduplicationKey: null,
                 CorrelationKey: null,
                 ConcurrencyKey: "customer-1",
                 InputFormatId: 0,

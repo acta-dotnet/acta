@@ -260,7 +260,6 @@ internal sealed class WorkerExecutorHarness(
             DefinitionId: 1,
             TenantId: null,
             ExecutionNumber: 3,
-            DeduplicationKey: null,
             CorrelationKey: null,
             ConcurrencyKey: concurrencyKey,
             InputFormatId: 0,

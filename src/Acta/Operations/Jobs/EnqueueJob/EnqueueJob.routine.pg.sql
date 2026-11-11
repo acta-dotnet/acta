@@ -43,6 +43,12 @@ DECLARE
     v_lane VARCHAR;
     v_lane_id BIGINT;
 BEGIN
+    -- The claim reads band by band, so a priority between two bands would be stored and never claimed.
+    IF p_job_priority_code_override NOT IN (0 /* JobPriorityCode.Bulk */, 50 /* JobPriorityCode.Normal */, 70 /* JobPriorityCode.High */, 85 /* JobPriorityCode.Critical */, 100 /* JobPriorityCode.Realtime */) THEN
+        RAISE EXCEPTION 'Enqueue rejected: the job priority is not a priority band (0, 50, 70, 85, 100).'
+            USING ERRCODE = 'P0001';
+    END IF;
+
     SELECT
         ns.namespace_id,
         ns.namespace_status_code,

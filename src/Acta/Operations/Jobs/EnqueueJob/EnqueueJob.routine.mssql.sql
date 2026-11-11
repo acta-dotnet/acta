@@ -44,6 +44,10 @@ BEGIN
         -- Server-generate the job ref when the caller omits it (a proc default cannot be NEWID()).
         SET @p_job_ref = COALESCE(@p_job_ref, NEWID());
 
+        -- The claim reads band by band, so a priority between two bands would be stored and never claimed.
+        IF @p_job_priority_code_override NOT IN (0 /* JobPriorityCode.Bulk */, 50 /* JobPriorityCode.Normal */, 70 /* JobPriorityCode.High */, 85 /* JobPriorityCode.Critical */, 100 /* JobPriorityCode.Realtime */)
+            THROW 50014, 'Enqueue rejected: the job priority is not a priority band (0, 50, 70, 85, 100).', 1;
+
         SELECT
             @ns_id = ns.namespace_id,
             @ns_status = ns.namespace_status_code,

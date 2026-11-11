@@ -13,16 +13,7 @@ internal sealed class GetJobHandler(GetJobIdHandler getJobId, IDbSession session
         return await session.QuerySingleAsync(
             "GetJob",
             cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.JobId, jobId)),
-            reader =>
-            {
-                var job = read(reader);
-                return job.DeduplicationKey is null
-                    ? job
-                    : job with
-                    {
-                        DeduplicationKey = PersistedDeduplicationKey.Normalize(job.DeduplicationKey),
-                    };
-            },
+            read,
             ct
         );
     }

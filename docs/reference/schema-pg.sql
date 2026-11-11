@@ -41,14 +41,14 @@ DO $$
 BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
-        WHERE name NOT IN ('M20261111010149_init')
+        WHERE name NOT IN ('M20261111012847_init')
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
 END
 $$;
 
--- ===== BEGIN M20261111010149_init =====
+-- ===== BEGIN M20261111012847_init =====
 CREATE SCHEMA IF NOT EXISTS acta;
 
 -- alerts
@@ -1753,6 +1753,12 @@ DECLARE
     v_lane VARCHAR;
     v_lane_id BIGINT;
 BEGIN
+    -- The claim reads band by band, so a priority between two bands would be stored and never claimed.
+    IF p_job_priority_code_override NOT IN (0 /* JobPriorityCode.Bulk */, 50 /* JobPriorityCode.Normal */, 70 /* JobPriorityCode.High */, 85 /* JobPriorityCode.Critical */, 100 /* JobPriorityCode.Realtime */) THEN
+        RAISE EXCEPTION 'Enqueue rejected: the job priority is not a priority band (0, 50, 70, 85, 100).'
+            USING ERRCODE = 'P0001';
+    END IF;
+
     SELECT
         ns.namespace_id,
         ns.namespace_status_code,
@@ -4390,10 +4396,10 @@ JOIN acta.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO acta.migrations (name)
-VALUES ('M20261111010149_init')
+VALUES ('M20261111012847_init')
 ON CONFLICT (name) DO NOTHING;
 
--- ===== END M20261111010149_init =====
+-- ===== END M20261111012847_init =====
 
 COMMIT;
 

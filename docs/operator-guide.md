@@ -491,7 +491,7 @@ In production a deploy step applies Acta's migrations, never application startup
 
 ```
 $ ConnectionStrings__acta="<DDL login>" dotnet MyApp.dll jobs migrate
-applied M20261111010149_init to schema acta
+applied M20261111012847_init to schema acta
 namespace billing: 1.6.1+b81d04e (Production)
   added    sys.alerts
   added    sys.retention
@@ -1287,6 +1287,8 @@ The optional parameters keep their column names: `p_deduplication_key`, `p_corre
 With the default json format, `p_input` must be exactly one strict JSON value. The routine does not check it, so a
 malformed row stores, fails its handler's deserialization, and reads back over HTTP as `base64` with `malformed: true`.
 Postgres takes tags as the three arrays `p_tag_name`, `p_tag_value`, and `p_tag_value_search`.
+
+The routine stores what it is given, where the API canonicalizes first. Pass every name (namespace, job, tenant, lane, tag) as it is stored, which is lowercase, and every key as the API would take it: printable ASCII with no whitespace. A key outside that rule is stored, deduplicates, runs, and reads back as stored, but an API lookup by that key refuses it. A priority must be one of the bands 0, 50, 70, 85, and 100; any other is refused, since a job between two bands would never be claimed.
 
 SQLite has no callable enqueue routine; enqueue through the application (`IJobs.EnqueueAsync`).
 

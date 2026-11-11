@@ -95,7 +95,6 @@ public class FailureCountSaturationTests
             DefinitionId: 1,
             TenantId: null,
             ExecutionNumber: 1,
-            DeduplicationKey: null,
             CorrelationKey: null,
             ConcurrencyKey: null,
             InputFormatId: 0,
