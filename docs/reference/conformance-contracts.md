@@ -2225,6 +2225,7 @@
   - A deploy with no calendar published names every schedule and its calendar, and writes nothing
   - A deploy whose calendars are published under the other role says which role each has and which is needed
   - A deploy that meets a version this build cannot read names that calendar alone, with the compiler's reason
+  - A deploy that brings a retired definition back holds its schedule's calendar to the same rule
 
 ### The due read returns whole slots in evaluation order and leaves out the dead
 - **Contract:** A due read returns the members of each slot with a schedule due by now, in slot then name order, at most Take, less the orphaned, retired, and unreadable.

@@ -52,6 +52,7 @@ Not tagged yet.
 
 ### Fixes
 
+- A deploy that brought a retired definition back, because the build declares it again, did not check its schedules' calendars with the rest. A calendar archived while the definition was retired then failed the deploy during registration with one schedule's error, where the calendar check lists every schedule and what its calendar lacks before anything is written. A returning definition's calendars are checked with the others.
 - On SQL Server, two definition overrides updates in different namespaces could deadlock, and one failed as the victim: the update that carries a rate override to the definitions sharing its meter read every definition row under update locks before filtering by namespace, and waited on another namespace's row that its own update held. It now seeks its own namespace's rows.
 - On SQL Server, a definition overrides update read every job row under update locks to find the definition's permanent job, so it waited on any other namespace's open work. It now seeks the definition's permanent job.
 - On SQL Server with READ_COMMITTED_SNAPSHOT off, a job purge, the jobs listing, and the events listing read every row of `events`, `lanes`, or `workers` respectively, so each waited on another namespace's open transaction. Each now reads only the rows it joins.

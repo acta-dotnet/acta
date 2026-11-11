@@ -49,7 +49,7 @@ internal sealed class CatalogRegistrar(
         ValidateScheduledDelivery(ns, allDescriptors, storedContracts);
         var contractDrifts = ContractDriftDetector.Detect(allDescriptors, storedContracts);
         ContractDriftPolicy.Apply(_options.Value.PayloadContractDriftMode, contractDrifts, ns, _log);
-        var resolve = await ValidateCalendarsAsync(ns, namespaceId, allDescriptors, storedContracts, transaction, ct);
+        var resolve = await ValidateCalendarsAsync(ns, namespaceId, allDescriptors, transaction, ct);
 
         var registered = await _definitions.RegisterDefinitionsAsync(
             new(namespaceId, allDescriptors, storedContracts, deploymentVersion, transaction),
@@ -76,8 +76,7 @@ internal sealed class CatalogRegistrar(
             }
         }
 
-        var retired = catalog.Where(c => c.Status == DefinitionStatusCode.Retired).Select(c => c.DefinitionId).ToHashSet();
-        await ReconcileSchedulesAsync(ns, namespaceId, descriptorById, retired, nowUtc, resolve, transaction, ct);
+        await ReconcileSchedulesAsync(ns, namespaceId, descriptorById, nowUtc, resolve, transaction, ct);
 
         var undeclared = storedContracts
             .Where(s => s.Status == DefinitionStatusCode.Active && !defIds.ContainsKey(s.DefinitionName))
@@ -381,25 +380,18 @@ internal sealed class CatalogRegistrar(
         string ns,
         int namespaceId,
         ImmutableArray<JobDescriptor> descriptors,
-        IReadOnlyCollection<StoredDefinitionContract> stored,
         DbTransaction transaction,
         CancellationToken ct
     )
     {
-        // A retired definition keeps its schedules as the retire left them, so this deploy does not judge its calendars.
-        // They are loaded all the same: registration reactivates a retired definition a build declares again, and
-        // the plan then resolves its schedules.
-        var retired = stored
-            .Where(s => s.Status == DefinitionStatusCode.Retired)
-            .Select(s => s.DefinitionName)
-            .ToHashSet(StringComparer.Ordinal);
+        // A retired definition a build declares again is judged with the rest: registration makes it Active and the plan
+        // resolves its schedules.
         var schedules = descriptors
             .Where(d => !d.Schedules.IsDefaultOrEmpty)
             .SelectMany(d =>
                 d.Schedules.Select(s =>
                     (
                         Path: $"{ns}/{d.JobName}/{s.ScheduleName}",
-                        Retired: retired.Contains(d.JobName),
                         Timing: new ScheduleTiming(s.Expression, s.ExpressionKind, null, null, s.AvailabilityCalendarName)
                     )
                 )
@@ -408,7 +400,6 @@ internal sealed class CatalogRegistrar(
         var resolve = await calendars.PreloadAsync(namespaceId, schedules.SelectMany(s => s.Timing.CalendarNames()), transaction, ct);
 
         var problems = schedules
-            .Where(s => !s.Retired)
             .SelectMany(s => resolve(s.Timing).Problems().Select(problem => $"Schedule '{s.Path}': {problem}"))
             .ToList();
         if (problems.Count > 0)
@@ -446,13 +437,12 @@ internal sealed class CatalogRegistrar(
     /// Definition-sourced recurring slots: reconcile each scheduled definition's slot + schedules against persisted
     /// cursors at a deploy. The upsert set is the union of {descriptors that declare >= 1 [Schedule]} and {definitions
     /// with persisted schedule state}, so removed schedules can pause an existing slot, while ordinary non-scheduled jobs
-    /// are never touched; a <paramref name="retired"/> definition keeps its schedules as the retire left them.
+    /// are never touched. A retired definition the build no longer declares keeps its schedules as the retire left them.
     /// </summary>
     private async Task ReconcileSchedulesAsync(
         string ns,
         int namespaceId,
         Dictionary<int, JobDescriptor> descriptorById,
-        HashSet<int> retired,
         DateTime nowUtc,
         Func<ScheduleTiming, ScheduleSource> resolve,
         DbTransaction transaction,
@@ -495,10 +485,10 @@ internal sealed class CatalogRegistrar(
 
         foreach (var defId in inScope.Order())
         {
-            if (!descriptorById.TryGetValue(defId, out var descriptor) || retired.Contains(defId))
+            if (!descriptorById.TryGetValue(defId, out var descriptor))
             {
-                // Persisted schedules for a definition no longer in this manifest, or one still retired: leave its
-                // slot alone (definition retirement is a separate concern, not schedule reconciliation).
+                // Persisted schedules for a definition no longer in this manifest, retired or not: leave its slot alone
+                // (definition retirement is a separate concern, not schedule reconciliation).
                 continue;
             }
 

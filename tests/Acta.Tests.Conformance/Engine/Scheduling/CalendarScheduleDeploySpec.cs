@@ -126,6 +126,43 @@ public sealed class CalendarScheduleDeploySpec : ActaTestBase<ConformanceFixture
         await AssertNothingWrittenAsync(namespaceExisted: true, ct);
     }
 
+    [Fact(DisplayName = "A deploy that brings a retired definition back holds its schedule's calendar to the same rule")]
+    public async Task A_deploy_that_brings_a_retired_definition_back_checks_its_calendar()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var days = new CalendarLookup(TestNamespace, CalendarScheduleManifest.CalendarName);
+        await PublishAsync(CalendarScheduleManifest.CalendarName, CalendarRoleCode.Occurrence, CalendarTestOps.OccurrenceDefinition, ct);
+        await PublishAsync(
+            CalendarScheduleManifest.AvailabilityName,
+            CalendarRoleCode.Availability,
+            CalendarTestOps.AvailabilityDefinition,
+            ct
+        );
+        await DeployAsync(ct);
+
+        // Retired, the definition's schedule no longer holds the family, so its current version can be archived.
+        var definitions = Services.GetRequiredService<IActaOperations>().Definitions;
+        var definition = await definitions.GetAsync(TestNamespace, CalendarScheduleManifest.CalendarJobName, ct);
+        Assert.Equal(
+            ControlAction.Applied,
+            (await definitions.RetireAsync(TestNamespace, CalendarScheduleManifest.CalendarJobName, definition!.Version, ct: ct)).Action
+        );
+        Assert.Equal(ControlAction.Applied, (await Calendars.ArchiveAsync(days, ct: ct)).Action);
+
+        // The build still declares the job, so this deploy makes it Active again and plans its schedule.
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => DeployAsync(ct));
+
+        Assert.Contains(
+            $"{CalendarSchedule}: The occurrence calendar '{CalendarScheduleManifest.CalendarName}' has no published version",
+            ex.Message,
+            StringComparison.Ordinal
+        );
+        Assert.Equal(
+            DefinitionStatusCode.Retired,
+            (await definitions.GetAsync(TestNamespace, CalendarScheduleManifest.CalendarJobName, ct))!.Status
+        );
+    }
+
     private Task DeployAsync(CancellationToken ct) => CatalogTestOps.DeployAsync(Services, ct);
 
     private async Task PublishAsync(string calendarName, CalendarRoleCode role, string definition, CancellationToken ct)
