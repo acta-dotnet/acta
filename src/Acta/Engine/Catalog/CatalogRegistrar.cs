@@ -484,14 +484,20 @@ internal sealed class CatalogRegistrar(
 }
 
 /// <summary>
-/// Which jobs of the generated <c>ActaJobs</c> framework manifest a worker namespace registers, and whether its worker
-/// runs crash recovery. <see cref="JobsOptions.RunSystemJobs"/> brings the maintenance set; an outbox relay brings
+/// Which jobs of the generated <c>ActaJobs</c> framework manifest a worker namespace registers, whether its worker
+/// runs crash recovery, and the retry curve those jobs share. <see cref="JobsOptions.RunSystemJobs"/> brings the maintenance set; an outbox relay brings
 /// <c>sys.outbox</c>, which is opt-in and registers only through <c>AddOutboxRelay</c>. Either one needs crash recovery
 /// and <c>sys.alerts</c>, so a relay brings them even when automatic registration is off, and never forces the
 /// unrelated <c>sys.retention</c>.
 /// </summary>
 internal static class SystemJobs
 {
+    /// <summary>
+    /// The retry curve every <c>sys.*</c> job declares: a failed tick comes back within a minute, where a job's default
+    /// curve reaches a day.
+    /// </summary>
+    public const string Backoff = "15s..1m x2 ~10%";
+
     public static IReadOnlySet<string> For(bool runSystemJobs, bool hasRelay)
     {
         var names = new HashSet<string>(StringComparer.Ordinal);

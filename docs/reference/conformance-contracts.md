@@ -1505,10 +1505,11 @@
   - An open producer on one lane holds no other lane
 
 ### AddOutboxRelay dispatches sys.outbox and a broken source fails only it
-- **Contract:** A worker with AddOutboxRelay registers and dispatches sys.outbox, and an unavailable source fails only that tick.
+- **Contract:** A worker with AddOutboxRelay registers and dispatches sys.outbox, and an unavailable source fails only that tick, which retries within a minute.
 - **Guarantees:**
   - The relay registers sys.outbox (and sys.alerts) but not the automatic-only sys.retention
   - A broken source fails only the sys.outbox tick while ordinary jobs still complete
+  - However many ticks fail in a row, the next pass comes within a minute
 
 ### Relay crash windows never lose a row or duplicate a target job
 - **Contract:** A relay tick that fails before target enqueue reclaims the row, and one that fails after enqueue still yields exactly one target job.

@@ -768,7 +768,7 @@ Set retention long enough for audit, incident response, and late restarts; the r
 | --- | --- | --- | --- |
 | Worker startup | A validation failure (options, clock skew, schedule time zone, alert routing in `Fail` mode) or a refusal (nothing deployed in the namespace, a version that has not deployed there, a declared job with no definition) throws from `StartAsync`. | Does not start. | Fix the configuration, or run `jobs deploy`, and restart. |
 | Claimer, executors, finalizer, heartbeat | An Error log under `Acta.WorkerRuntime` (`claim iteration failed`, `heartbeat tick failed`, `executor faulted on job`, `finalizer faulted`). | Backs off and keeps running; one bad job never stops a loop. | Investigate the logged cause, usually the database; no restart needed. |
-| `sys.alerts`, `sys.retention` | A failed pass is an ordinary job failure, retried on the next tick; a transport fault logs a Warning and retries. | Keeps running. | Usually none. |
+| `sys.alerts`, `sys.retention`, `sys.outbox` | A failed pass is a job failure, retried after fifteen seconds, doubling to a minute, for up to fifteen attempts; the next scheduled pass then starts fresh. An alert transport fault logs a Warning, and that delivery retries. | Keeps running. | Usually none. |
 | CLI | Exit code 1 rejected, 2 not found, 64 usage, 130 cancelled. | Exits. | Read the code and stderr, then retry. |
 | Dashboard and API | An Error log under `Acta.AspNetCore` and a 503 for a database or network fault, 500 otherwise, 400 for bad input. | Keeps serving. | A run of 503s means the database is down. |
 

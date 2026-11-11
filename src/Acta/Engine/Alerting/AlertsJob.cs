@@ -86,7 +86,8 @@ internal sealed class AlertsJob(
         "sys.alerts",
         Priority = JobPriorityCode.Realtime,
         EventRecording = EventRecordingCode.Failures,
-        AlertProfile = AlertProfileCode.SysCritical
+        AlertProfile = AlertProfileCode.SysCritical,
+        Backoff = SystemJobs.Backoff
     )]
     [Schedule("default", Cron.EveryMinute)]
     public async Task Handle(JobContext ctx, CancellationToken ct)

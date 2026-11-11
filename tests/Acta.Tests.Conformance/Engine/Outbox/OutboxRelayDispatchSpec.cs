@@ -14,7 +14,7 @@ namespace Acta.Tests.Conformance.Engine.Outbox;
     "outbox.relay-dispatch",
     "AddOutboxRelay dispatches sys.outbox and a broken source fails only it",
     Area = "Outbox",
-    Contract = "A worker with AddOutboxRelay registers and dispatches sys.outbox, and an unavailable source fails only that tick."
+    Contract = "A worker with AddOutboxRelay registers and dispatches sys.outbox, and an unavailable source fails only that tick, which retries within a minute."
 )]
 public sealed class OutboxRelayDispatchSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
@@ -84,5 +84,25 @@ public sealed class OutboxRelayDispatchSpec : ActaRuntimeTestBase<ConformanceFix
         // Ordinary jobs keep running after the relay tick failed.
         var after = await EnqueueAndRunAsync("echo", new TestJobs.Echo("after"), ct);
         Assert.NotEqual(0, after.JobId);
+    }
+
+    [Fact(DisplayName = "However many ticks fail in a row, the next pass comes within a minute")]
+    public async Task Failed_ticks_keep_retrying_within_a_minute()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
+        var slotId = await ScheduleTestOps.SlotIdAsync(Db, ns, "sys.outbox", ct);
+
+        // Six failures put a doubling curve past its cap, so the delay read here is the longest the job ever waits.
+        const int Failures = 6;
+        for (var failed = 0; failed < Failures; failed++)
+        {
+            await ChaosSpecHelpers.SetReadyAsync(Db, slotId, ct);
+            Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(TestNamespace, slotId, ct));
+        }
+
+        var state = (await ReadJobAsync(slotId, ct)).JobState;
+        Assert.Equal(Failures, state.FailureCount);
+        Assert.InRange(Assert.IsType<DateTime>(state.NextRunAtUtc) - state.ModifiedAtUtc, TimeSpan.Zero, TimeSpan.FromMinutes(1));
     }
 }

@@ -50,7 +50,8 @@ internal sealed class RetentionJob(
         "sys.retention",
         Priority = JobPriorityCode.Realtime,
         EventRecording = EventRecordingCode.Failures,
-        AlertProfile = AlertProfileCode.SysCritical
+        AlertProfile = AlertProfileCode.SysCritical,
+        Backoff = SystemJobs.Backoff
     )]
     [Schedule("default", Cron.Hourly)]
     public async Task Handle(JobContext ctx, CancellationToken ct)
