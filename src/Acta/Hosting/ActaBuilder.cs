@@ -70,9 +70,12 @@ internal sealed class ActaBuilder(IServiceCollection services) : IActaBuilder
         {
             throw new ArgumentException("ownerTeam, when supplied, must be non-whitespace.", nameof(configure));
         }
-        if (builder.Description is { Length: > 256 })
+        if (builder.Description is { Length: > TextLimits.NamespaceDescription })
         {
-            throw new ArgumentException($"Description must be <= 256 characters ({builder.Description.Length} given).", nameof(configure));
+            throw new ArgumentException(
+                $"Description must be <= {TextLimits.NamespaceDescription} characters ({builder.Description.Length} given).",
+                nameof(configure)
+            );
         }
         if (_workers.Any(w => string.Equals(w.NamespaceName, namespaceName, StringComparison.Ordinal)))
         {

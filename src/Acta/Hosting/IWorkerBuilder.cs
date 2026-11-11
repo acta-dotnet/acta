@@ -43,7 +43,7 @@ public interface IWorkerBuilder
     string? OwnerTeam { get; set; }
 
     /// <summary>
-    /// Optional human description recorded on the <c>namespaces</c> row. Max 256 characters. Every deploy rewrites a
+    /// Optional human description recorded on the <c>namespaces</c> row. Max 512 characters. Every deploy rewrites a
     /// value set here; left unset, the value an operator set through the namespace update stays.
     /// </summary>
     string? Description { get; set; }
