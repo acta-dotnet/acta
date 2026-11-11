@@ -208,6 +208,16 @@ internal static class CalendarDefinition
                     Only(rule, rulePath, "a weekly rule", "days", "windows");
                     var days = Weekdays(Required(rule, rulePath, "days"), $"{rulePath}.days");
                     var windows = Windows(Required(rule, rulePath, "windows"), $"{rulePath}.windows");
+                    // Only a date override closes its date with an empty list; a rule with no window opens nothing.
+                    if (
+                        rule.TryGetProperty("windows", out var listed)
+                        && listed.ValueKind == JsonValueKind.Array
+                        && listed.GetArrayLength() == 0
+                    )
+                    {
+                        Problem($"{rulePath}.windows", "list at least one window.");
+                    }
+
                     foreach (var day in days)
                     {
                         (weekly.TryGetValue(day, out var list) ? list : weekly[day] = []).AddRange(windows);

@@ -258,6 +258,10 @@ public sealed class CalendarDefinitionTests
     [InlineData("""{"kind":"explicit-instants","instants":[]}""", "$.kind: 'explicit-instants' is an occurrence source")]
     [InlineData("""{"kind":"weekly-availability"}""", "$: a weekly-availability needs weekly rules or date overrides.")]
     [InlineData(
+        """{"kind":"weekly-availability","weekly":[{"days":["Monday"],"windows":[]}]}""",
+        "$.weekly[0].windows: list at least one window"
+    )]
+    [InlineData(
         """{"kind":"weekly-availability","weekly":[{"days":["Funday"],"windows":[["09:00","09:00"]]}]}""",
         "$.weekly[0].days[0]: a weekday"
     )]

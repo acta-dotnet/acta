@@ -166,7 +166,7 @@ internal static partial class ActaOpenApiDocument
             "The windows that are open on some weekdays.",
             ["days", "windows"],
             ("days", Weekdays("The weekdays the windows apply on, each Monday to Sunday; case is ignored.")),
-            ("windows", List("The windows open on those weekdays.", Ref(LocalWindowSchema)))
+            ("windows", List("The windows open on those weekdays.", Ref(LocalWindowSchema), 1))
         );
         schemas[LocalWindowSchema] = new OpenApiSchema
         {
