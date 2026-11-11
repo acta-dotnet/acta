@@ -152,7 +152,7 @@ A job handler has one input, a single parameter or several the generator folds i
 
 ```csharp
 public Task Run(SendEmail request, CancellationToken ct);              // no durable result
-public Task<ReceiptResult> Run(SendReceipt request, CancellationToken ct);   // durable result; returning null fails the attempt
+public Task<ReceiptResult> Run(SendReceipt request, CancellationToken ct);   // durable result; returning null fails the job
 ```
 
 The generator emits descriptors from the declared signature. The runtime uses those descriptors and does not infer result behavior from return values at invocation time.
@@ -195,7 +195,7 @@ catch (Exception ex) when (ctx.IsLastAttempt || ex is StepExhaustedException)
 }
 ```
 
-The filter also takes `StepExhaustedException` because a non-retryable exception ends the job on any attempt while `IsLastAttempt` still reads false; add `NotSupportedException` and `NotImplementedException` if the body can throw them.
+The filter also takes `StepExhaustedException`, which an at-most-once body that threw and any step whose result could not be recorded both raise, because a non-retryable exception ends the job on any attempt while `IsLastAttempt` still reads false; add `NotSupportedException` and `NotImplementedException` if the body can throw them.
 
 Compensation in a catch is best effort. A worker crash or a lost lease on the last attempt skips the catch block, and a reclaim can spend the budget and fail the job with no handler code running, so the compensation is an idempotent step of its own. Work whose compensation must happen runs the risky part as a child job, and the parent compensates when the child lands `Failed`: `WaitChildAsync` survives crashes.
 
@@ -525,11 +525,11 @@ ValueTask<TResult>
 
 A job stores at most one result, on its `jobs_state` row, written by a successful completion: a one-shot job's terminal success, or a permanent job's successful occurrence, which replaces the previous one. Every claim and every restart clears it, so while an attempt runs the job has no result, and a failed occurrence of a permanent job leaves none. A handler that wants more history keeps it itself, in a variable, its own table, or object storage.
 
-The result value is non-null by contract: a handler that returns `null` from a declared result type fails the attempt, and `null` is never persisted as a result. A succeeded job has no result when it declares none, or when its result was larger than `MaxInlinePayloadBytes` and was dropped (reason `job.result-oversized`).
+The result value is non-null by contract: a handler that returns `null` from a declared result type fails the job for good on that attempt, since a retry would run the finished handler again, and `null` is never persisted as a result. A succeeded job has no result when it declares none, or when its result was larger than `MaxInlinePayloadBytes` and was dropped (reason `job.result-oversized`).
 
 Failed, cancelled, or abandoned attempts store no result (timeouts record failed with reason `execution-timeout`). The job's `jobs_state` row stores current state; job events explain transitions. Failure detail belongs in status and events, not in `TResult`.
 
-Nullable annotations do not change the descriptor. Both of these declare a durable result and must return non-null; returning `null` fails the attempt either way:
+Nullable annotations do not change the descriptor. Both of these declare a durable result and must return non-null; returning `null` fails the job either way:
 
 ```csharp
 Task<string?> Handle(Lookup request, CancellationToken ct);
@@ -538,7 +538,7 @@ Task<string> Handle(Lookup request, CancellationToken ct);
 
 ### Large payloads
 
-Durable job instructions are stored inline, capped by `JobsOptions.MaxInlinePayloadBytes` (1 MiB default). Caller-controlled inline writes that exceed the cap (enqueue input, signal values, and handler variable and progress writes) throw `PayloadTooLargeException` and never reach storage. Results are measured against the same cap after their body has run, so neither is retried: a handler result past it is dropped, the job still succeeds, and the events carry `job.result-oversized`; a step result past it fails the job for good, as does a handler or step result that is null or cannot be serialized, because a retry would run the finished body again.
+Durable job instructions are stored inline, capped by `JobsOptions.MaxInlinePayloadBytes` (1 MiB default). Caller-controlled inline writes that exceed the cap (enqueue input, signal values, and handler variable and progress writes) throw `PayloadTooLargeException` and never reach storage. Results are measured against the same cap after their body has run, so neither is retried: a handler result past it is dropped, the job still succeeds, and the events carry `job.result-oversized`; a step result past it, or one that is null or cannot be serialized, throws `StepExhaustedException` from `RunStepAsync`, which fails the job for good when uncaught, because a retry would run the finished body again.
 
 For large files, exports, media, archives, reports, or model inputs, store the bytes in file/blob/object storage and enqueue a reference (URI, checksum, size, content type). The handler opens, verifies, processes, and returns a small durable result. The job input is the durable pointer and verification contract, not the file. See `concepts/000-fundamentals/025-large-payload-reference`.
 
@@ -546,7 +546,7 @@ For large files, exports, media, archives, reports, or model inputs, store the b
 
 Unhandled exceptions escape the handler and are captured as attempt failures. The framework records the exception's `Message`, truncated to 512 characters, as the attempt's failure message, at the job's event recording level; retry policy decides whether the job retries or becomes terminal. Nothing redacts that message: it is shown on the read surface and sent to alert channels, so keep secrets and personal data out of exception messages.
 
-`NotImplementedException`, `NotSupportedException`, an uncaught `StepExhaustedException`, and a `HandlerActivationException` for a handler DI cannot build ([Lifecycle and visibility](#lifecycle-and-visibility)) are non-retryable: the job lands terminal `Failed` immediately (reason `non-retryable-exception`) without consuming retry budget, since retrying cannot change the outcome. A permanent job instead settles that firing as failed and returns to `Idle` for its next one, as a spent budget does. For custom non-retryable types, call `ctx.FailAsync` in the handler or register a pipeline behavior that translates them.
+`NotImplementedException`, `NotSupportedException`, an uncaught `StepExhaustedException`, a `HandlerActivationException` for a handler DI cannot build ([Lifecycle and visibility](#lifecycle-and-visibility)), and a handler result that is null or cannot be serialized are non-retryable: the job lands terminal `Failed` immediately (reason `non-retryable-exception`) without consuming retry budget, since retrying cannot change the outcome. A permanent job instead settles that firing as failed and returns to `Idle` for its next one, as a spent budget does. For custom non-retryable types, call `ctx.FailAsync` in the handler or register a pipeline behavior that translates them.
 
 Handlers should not return failure-as-result unless the domain considers that a successful outcome.
 

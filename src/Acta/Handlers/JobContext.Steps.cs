@@ -41,10 +41,10 @@ public abstract partial class JobContext
     /// <summary>
     /// Result-returning variant of
     /// <see cref="RunStepAsync(string, Func{CancellationToken, Task}, Action{StepOptionsBuilder}, CancellationToken)"/>:
-    /// a replay of a succeeded step returns the stored result deserialized to <typeparamref name="TResult"/> without
-    /// re-running the body, or throws <see cref="StepResultContractMismatchException"/> when it no longer fits. Wrap
-    /// each outside-world effect in its own step, one effect per step: jobs are at-least-once, so an unwrapped call
-    /// repeats on every retry and a crash between two effects in one step re-runs both.
+    /// a replay of a succeeded step returns the stored result as <typeparamref name="TResult"/> without re-running the body,
+    /// or throws <see cref="StepResultContractMismatchException"/> when it no longer fits. A result that is null, cannot be
+    /// serialized, or is over the inline cap throws <see cref="StepExhaustedException"/>. Wrap each outside-world effect in
+    /// its own step: an unwrapped call repeats on every retry, and a crash between two effects in one step re-runs both.
     /// </summary>
     public async Task<TResult> RunStepAsync<TResult>(
         string name,

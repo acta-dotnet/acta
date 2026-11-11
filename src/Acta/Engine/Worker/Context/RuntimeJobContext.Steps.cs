@@ -97,16 +97,23 @@ internal sealed partial class RuntimeJobContext
             throw await ExhaustAsync(name, start.Version, ex.Message, ct);
         }
 
-        // The body has run. A result that cannot be recorded ends the job rather than the attempt, whose retry would run
-        // the body again. The step is left started, so an at-most-once body is not run by a restart either.
+        // The body has run. A result that cannot be recorded fails the step for good rather than the attempt, whose retry
+        // would run the body again. The step is left started, so an at-most-once body is not run by a restart either.
         JobPayload payload;
         try
         {
-            payload = storeResult ? SerializeStepResult(value) : JobPayload.None;
+            payload =
+                !storeResult ? JobPayload.None
+                : value is null ? throw Unrecorded("it returned null for a non-null result type")
+                : SerializeStepResult(value);
         }
-        catch (Exception ex)
+        catch (PayloadTooLargeException ex)
         {
-            throw new ResultNotRecordedException($"Step '{name}' ran, and its result was not recorded: {ex.Message}", ex);
+            throw Unrecorded(ex.Message.TrimEnd('.'));
+        }
+        catch (Exception ex) when (ex is not (OperationCanceledException or JobControlException or StepExhaustedException))
+        {
+            throw Unrecorded($"it could not be serialized: {ex.Message.TrimEnd('.')}");
         }
 
         var success = await CompleteJobStepAsync(
@@ -130,6 +137,12 @@ internal sealed partial class RuntimeJobContext
 
         RecordStep(name, "succeeded");
         return value;
+
+        StepExhaustedException Unrecorded(string why)
+        {
+            RecordStep(name, "failed");
+            return new StepExhaustedException(name, null, $"its body ran, and its result was not recorded: {why}");
+        }
     }
 
     private Task<CompleteJobStepResponse> CompleteJobStepAsync(CompleteJobStepCommand command, CancellationToken ct) =>
@@ -168,15 +181,6 @@ internal sealed partial class RuntimeJobContext
 
     private JobPayload SerializeStepResult<TResult>(TResult value)
     {
-        if (value is null)
-        {
-            // Null contract: a step result is never null (same rule as a handler Task<T> result).
-            throw new InvalidOperationException(
-                "it returned null for a non-null result type. Acta results cannot be null: "
-                    + "use the non-result RunStepAsync overload, or wrap optional data in a non-null object."
-            );
-        }
-
         var payload = JsonSerializer().Serialize(value);
         EnsureInlineSize("step result", payload);
         return payload;

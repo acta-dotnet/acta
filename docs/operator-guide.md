@@ -671,8 +671,9 @@ Inline payloads are for durable instructions and small results, not file storage
 enqueue inputs, variables, progress, and signal values. Handler results are measured
 against the same cap, but one past it is dropped rather than thrown, because the handler has already
 run: the job still succeeds, a warning is logged, and its events carry `job.result-oversized`. A step
-result past it fails the job for good with `non-retryable-exception`: its body has run too, and a retry
-would run it again.
+result past it fails the step: uncaught, the job fails for good with `non-retryable-exception`, since its
+body has run too and a retry would run it again. A restart runs an ordinary step again and finds an
+at-most-once one interrupted.
 
 For large files, exports, media, archives, reports, ML inputs, or sensitive data, store the body in
 file/blob/object storage and enqueue a small reference that includes enough information to verify

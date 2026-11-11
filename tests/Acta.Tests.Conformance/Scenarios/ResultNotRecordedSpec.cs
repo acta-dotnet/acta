@@ -24,8 +24,9 @@ public sealed class ResultNotRecordedSpec : ActaRuntimeTestBase<ConformanceFixtu
         services.Configure<JobsOptions>(o => o.MaxInlinePayloadBytes = 1024);
     }
 
-    [Theory(DisplayName = "A step whose result is null or over the cap fails the job for good with its body run once")]
+    [Theory(DisplayName = "A step whose result is null, unserializable, or over the cap fails the job for good and is not run again")]
     [InlineData("job-step-null-result", "returned null")]
+    [InlineData("job-step-unserializable-result", "could not be serialized")]
     [InlineData("job-step-oversize-result", "MaxInlinePayloadBytes")]
     public async Task Unrecorded_step_result_fails_the_job_without_a_rerun(string jobName, string why)
     {
@@ -34,6 +35,7 @@ public sealed class ResultNotRecordedSpec : ActaRuntimeTestBase<ConformanceFixtu
 
         // The default budget has attempts left: a retryable failure would re-arm the job and run the body again.
         Assert.Equal(RunOnceStatus.Failed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.NothingClaimed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var job = await ReadJobAsync(enqueued.JobId, ct);
         Assert.Equal(JobStatusCode.Failed, job.Status);
@@ -43,6 +45,23 @@ public sealed class ResultNotRecordedSpec : ActaRuntimeTestBase<ConformanceFixtu
         Assert.Equal(EventReason.NonRetryableException, EventDetail(failed, "reason"));
         Assert.Contains("its result was not recorded", failed.EventMessage, StringComparison.Ordinal);
         Assert.Contains(why, failed.EventMessage, StringComparison.Ordinal);
+    }
+
+    [Fact(DisplayName = "A handler can catch the failure of a step whose result was not recorded and compensate")]
+    public async Task Unrecorded_step_result_is_catchable_for_compensation()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var enqueued = await Jobs.EnqueueAsync(
+            new EnqueueJobRequest(TestNamespace, "job-step-null-result-compensated", JobPayload.None),
+            ct
+        );
+
+        Assert.Equal(RunOnceStatus.Failed, await Runtime.RunOnceAsync(enqueued, ct));
+
+        // The job ends on an attempt that is not its last, so the idiom's filter must match the exception by its type.
+        var steps = await Db.From<StepEntity>().Where(s => s.JobId == enqueued.JobId).ToListAsync(ct);
+        Assert.Equal(StepStatusCode.Succeeded, Assert.Single(steps, s => s.StepName == "compensate").Status);
+        Assert.Equal(StepStatusCode.Pending, Assert.Single(steps, s => s.StepName == "unrecorded").Status);
     }
 
     [Fact(DisplayName = "An at-most-once step whose result cannot be recorded never runs again, a restart of its job included")]

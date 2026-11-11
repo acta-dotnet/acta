@@ -136,17 +136,36 @@ public static class JobStepProbes
     // budget has attempts left, so the body running once proves the failure is not retried.
     [Job("job-step-null-result")]
     public static Task<string> StepNullResult(JobContext ctx, CancellationToken ct) =>
-        ctx.RunStepAsync("unrecorded", _ => UnrecordedAsync(ctx, null!), ct);
+        ctx.RunStepAsync("unrecorded", _ => UnrecordedAsync(ctx, (string)null!), ct);
 
     [Job("job-step-null-result-at-most-once")]
     public static Task<string> StepNullResultAtMostOnce(JobContext ctx, CancellationToken ct) =>
-        ctx.RunStepAsync("unrecorded", _ => UnrecordedAsync(ctx, null!), options => options.AtMostOnce(), ct);
+        ctx.RunStepAsync("unrecorded", _ => UnrecordedAsync(ctx, (string)null!), options => options.AtMostOnce(), ct);
 
     [Job("job-step-oversize-result")]
     public static Task<string> StepOversizeResult(JobContext ctx, CancellationToken ct) =>
         ctx.RunStepAsync("unrecorded", _ => UnrecordedAsync(ctx, new string('x', 4096)), ct);
 
-    private static Task<string> UnrecordedAsync(JobContext ctx, string result)
+    [Job("job-step-unserializable-result")]
+    public static async Task<long> StepUnserializableResult(JobContext ctx, CancellationToken ct) =>
+        (await ctx.RunStepAsync("unrecorded", _ => UnrecordedAsync(ctx, new UnserializableOutput(ctx.JobId)), ct)).Value;
+
+    // The compensation idiom of the developer guide, around a step whose result cannot be recorded.
+    [Job("job-step-null-result-compensated")]
+    public static async Task StepNullResultCompensated(JobContext ctx, CancellationToken ct)
+    {
+        try
+        {
+            await ctx.RunStepAsync("unrecorded", _ => UnrecordedAsync(ctx, (string)null!), ct);
+        }
+        catch (Exception ex) when (ctx.IsLastAttempt || ex is StepExhaustedException)
+        {
+            await ctx.RunStepAsync("compensate", _ => Task.CompletedTask, ct);
+            throw;
+        }
+    }
+
+    private static Task<TResult> UnrecordedAsync<TResult>(JobContext ctx, TResult result)
     {
         RecordInvocation(ctx.JobId);
         return Task.FromResult(result);

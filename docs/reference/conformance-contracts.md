@@ -2490,7 +2490,8 @@
 ### A result that cannot be recorded never runs its body again
 - **Contract:** A finished body whose result cannot be recorded fails its job for good instead of running again, and an at-most-once step stays unrun through a restart.
 - **Guarantees:**
-  - A step whose result is null or over the cap fails the job for good with its body run once
+  - A step whose result is null, unserializable, or over the cap fails the job for good and is not run again
+  - A handler can catch the failure of a step whose result was not recorded and compensate
   - An at-most-once step whose result cannot be recorded never runs again, a restart of its job included
   - A handler whose result cannot be serialized fails the job for good on that attempt
 

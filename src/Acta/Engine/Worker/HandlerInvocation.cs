@@ -162,7 +162,7 @@ internal sealed class HandlerInvocation(
         if (invocation.Result is null)
         {
             throw new ResultNotRecordedException(
-                "The handler ran and returned null for a non-null result type. Acta results cannot be null: "
+                "The handler returned null for a non-null result type. Acta results cannot be null: "
                     + "use Task for no result, or wrap optional data in a non-null object."
             );
         }
@@ -177,9 +177,9 @@ internal sealed class HandlerInvocation(
         {
             payload = serializeResult(serializers.Resolve(resultFormat.Id), invocation.Result);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not (OperationCanceledException or JobControlException))
         {
-            throw new ResultNotRecordedException($"The handler ran, and its result could not be serialized: {ex.Message}", ex);
+            throw new ResultNotRecordedException($"The handler's result could not be serialized: {ex.Message}", ex);
         }
 
         if (payload.Data.Length <= maxInlinePayloadBytes)
