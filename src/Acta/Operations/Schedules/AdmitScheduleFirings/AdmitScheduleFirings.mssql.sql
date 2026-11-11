@@ -285,7 +285,7 @@ BEGIN TRY
 
     -- Decision evidence at Audit: an expired or skipped range, an admission, an elapsed pause, an expiry pause, a manual
     -- trigger. An evaluation that starts failing is written at every level. A slot's decisions hang on the slot, a
-    -- per-occurrence admission or trigger on its root, the rest on the definition. The VARCHAR cast is the UTF-8 of ASCII.
+    -- per-occurrence admission or trigger on its root, the rest on the definition. The cast is UTF-8, for a trigger's actor.
     INSERT INTO {{schema}}.events (
         event_code, created_at_utc, namespace_id,
         entity_code, entity_id,
@@ -299,7 +299,8 @@ BEGIN TRY
         COALESCE(k.on_job, k.definition_id),
         k.definition_id, k.tenant_id, k.lineage_root_job_id,
         k.execution_number,
-        k.event_message, 1 /* JobPayloadFormat.Json */, CAST(CAST(k.details AS VARCHAR(MAX)) AS VARBINARY(MAX))
+        k.event_message, 1 /* JobPayloadFormat.Json */,
+        CAST(CAST(k.details COLLATE Latin1_General_100_BIN2_UTF8 AS VARCHAR(MAX)) AS VARBINARY(MAX))
     FROM (
         SELECT
             x.schedule_id, x.ord, x.event_code, x.details, x.event_message,
