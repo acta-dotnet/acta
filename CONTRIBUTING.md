@@ -400,7 +400,7 @@ comment text (no em dashes, arrows, emoji), XML doc blocks of 8 lines or less wi
 `<param>` lines not counted, no comment that names a date, a release candidate, a review, or a CI run,
 `<remarks>` on internal types only via its allowlist
 (reserved for concurrency/CAS/provider-difference contracts; clear an entry after a scrub), and no stale
-markers (TODO, "later", "placeholder"). Run that test class after any comment pass.
+markers (TODO, "not yet", "placeholder"). Run that test class after any comment pass.
 
 ## Naming conventions
 

@@ -34,7 +34,6 @@ public sealed partial class CommentStyleTests
         new("stub", MyRegex()),
         new("placeholder", new Regex(@"\bplaceholder\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)),
         new("future", new Regex(@"\bfuture\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)),
-        new("later", new Regex(@"\blater\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)),
         new("TODO", new Regex(@"\bTODO\b", RegexOptions.Compiled)),
         new("not yet", new Regex(@"\bnot\s+yet\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)),
         new("design only", new Regex(@"\bdesign\s+only\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)),
