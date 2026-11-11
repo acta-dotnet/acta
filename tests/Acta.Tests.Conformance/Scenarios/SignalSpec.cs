@@ -247,6 +247,24 @@ public sealed class SignalSpec : ActaRuntimeTestBase<ConformanceFixture, TestJob
         Assert.Equal(JobStatusCode.Ready, (await Jobs.RaiseSignalAsync(enqueued, "go", JobPayload.None, ct: ct)).Status);
     }
 
+    [Fact(DisplayName = "A state reset on the way out of a suspending wait fails the attempt and keeps the checkpoint")]
+    public async Task Reset_while_suspending_is_refused()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-wait-signal-then-reset", JobPayload.None), ct);
+
+        // The reset would delete the checkpoint the job is about to wait on, and no raise could then release it.
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
+
+        var job = await ReadJobAsync(enqueued.JobId, ct);
+        Assert.Equal(JobStatusCode.Ready, job.Status);
+        Assert.Equal(1, job.FailureCount);
+        Assert.Equal(CheckpointStatusCode.Pending, (await ReadSignalsAsync(enqueued.JobId, ct)).Single().Status);
+        var failed = await ReadSingleEventAsync(enqueued.JobId, EventCode.JobExecutionFailed, ct);
+        Assert.Contains("ResetStateAsync", failed.EventMessage, StringComparison.Ordinal);
+        Assert.Equal(0, await CountEventsAsync(enqueued.JobId, EventCode.JobStateReset, ct));
+    }
+
     [Fact(DisplayName = "Raise is rejected against a terminal job and writes no checkpoint")]
     public async Task Raise_signal_does_not_reactivate_terminal_job()
     {

@@ -137,7 +137,7 @@ public sealed class ChildJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
         Assert.Equal(3, children.Count);
 
         // The parent waits on its first child, a. Another child landing records its outcome and leaves the parent
-        // suspended, so a fan-out does not cost the parent one execution per child.
+        // suspended: a child the parent does not wait on costs it no execution.
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(children.Single(j => j.DeduplicationKey == "c").Id, ct));
         var waiting = await ReadJobAsync(parent.JobId, ct);
         Assert.Equal(JobStatusCode.Suspended, waiting.Status);

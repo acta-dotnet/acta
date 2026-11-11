@@ -218,8 +218,16 @@ internal sealed partial class RuntimeJobContext(
     private protected override Task<bool> DeleteVariableCoreAsync(string name, CancellationToken ct) =>
         FencedAsync(() => CheckpointAccess.DeleteAsync(_executionStore, Fence, CheckpointKindCode.Variable, name, ct));
 
+    /// <summary>True once a wait or sleep has told the handler to suspend: the job then waits on the checkpoint it armed.</summary>
+    private volatile bool _suspending;
+
     private protected override Task ResetStateCoreAsync(CancellationToken ct) =>
-        FencedAsync(() => _jobOperations.ResetJobStateAsync(Fence, ct));
+        _suspending
+            ? throw new InvalidOperationException(
+                "ResetStateAsync ran after a wait or sleep suspended this attempt, as from a finally or catch block around "
+                    + "one. It would delete the checkpoint the job waits on. Reset state as the handler's last action."
+            )
+            : FencedAsync(() => _jobOperations.ResetJobStateAsync(Fence, ct));
 
     private protected override async Task SleepCoreAsync(
         string name,
@@ -242,6 +250,7 @@ internal sealed partial class RuntimeJobContext(
                 return;
             case ArmOrConsumeJobSleepTimerOutcomeCode.Suspend:
                 // The host writes the stored due to jobs_state.next_run_at_utc and finalizes the attempt Suspended.
+                _suspending = true;
                 throw new SuspendSignal(decision.DueAtUtc!.Value, reason);
             default:
                 throw new InvalidOperationException(
@@ -280,6 +289,7 @@ internal sealed partial class RuntimeJobContext(
             ? CheckpointKindCode.ChildLatch
             : CheckpointKindCode.Signal;
         var decision = await FencedAsync(() => _signals.WaitJobSignalAsync(Fence, kind, name, timeoutSeconds, dueAtUtc, ct));
+        _suspending |= decision.Outcome == WaitJobSignalOutcomeCode.SuspendPending;
         return decision.Outcome switch
         {
             WaitJobSignalOutcomeCode.ContinueSet => new SignalCheckpointState(decision.ValueFormatId, decision.Value),

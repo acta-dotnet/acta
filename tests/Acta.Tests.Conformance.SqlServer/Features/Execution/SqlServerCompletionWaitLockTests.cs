@@ -10,7 +10,7 @@ namespace Acta.Tests.Conformance.SqlServer.Features.Execution;
 /// <summary>
 /// SQL Server <c>complete_executions</c> takes a waiting job's awaited checkpoint lock, with every other checkpoint lock it needs,
 /// before it reads any checkpoint, as every writer of a checkpoint does: it holds no gap of <c>pk_checkpoints</c>, and a raise that
-/// creates the awaited checkpoint still waits for the landing and then wakes the job.
+/// creates the awaited checkpoint still waits for the landing, which lands the job Ready.
 /// </summary>
 public sealed class SqlServerCompletionWaitLockTests : ActaRuntimeTestBase<SqlServerConformanceFixture, TestJobsManifest>
 {
@@ -53,7 +53,7 @@ public sealed class SqlServerCompletionWaitLockTests : ActaRuntimeTestBase<SqlSe
     }
 
     [Fact(DisplayName = "A raise that creates a missing awaited checkpoint waits for the wait landing, which lands Ready")]
-    public async Task Raise_creating_the_awaited_checkpoint_waits_for_the_landing_and_wakes_the_job()
+    public async Task Raise_creating_the_awaited_checkpoint_waits_for_the_landing()
     {
         var ct = TestContext.Current.CancellationToken;
         var (workerId, claimed) = await ClaimAsync(ct);

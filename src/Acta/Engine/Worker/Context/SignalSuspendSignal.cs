@@ -5,8 +5,8 @@ namespace Acta;
 /// is still unset, carrying the <see cref="SignalName"/> and an operator <paramref name="reasonMessage"/> so the host
 /// finalizes the attempt through the <c>complete_executions</c> signal wait (Job to <c>Suspended</c>, no
 /// <c>next_run_at_utc</c>) rather than the timer branch. Internal by design: the only safe way to wait is
-/// <c>ctx.WaitSignalAsync</c>, which arms the checkpoint before signalling; a raw user throw would skip arming and strand
-/// the Job, so this type never escapes the assembly.
+/// <c>ctx.WaitSignalAsync</c>, which arms the checkpoint before signalling; a raw user throw would skip arming and land
+/// the Job Ready to run again at once, so this type never escapes the assembly.
 /// </summary>
 internal sealed class SignalSuspendSignal(string signalName, string? reasonMessage) : JobControlException(reasonMessage)
 {

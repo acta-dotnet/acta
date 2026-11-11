@@ -10,6 +10,8 @@ Not tagged yet.
 
 **Write an interval schedule in days or less**: `"P1M"` and `"P1Y"` were read as 30 and 365 days, and are now a build error (ACTA0122). Write `"P30D"` for thirty days, or a cron for a calendar month or year.
 
+**Call `ResetStateAsync` as a handler's last action, not in a `finally` or `catch` around a wait or sleep**: there it deleted the checkpoint the job was suspending on, and it now throws once a wait or sleep has suspended the attempt.
+
 ### Fixes
 
 - On SQL Server, two definition overrides updates in different namespaces could deadlock, and one failed as the victim: the update that carries a rate override to the definitions sharing its meter read every definition row under update locks before filtering by namespace, and waited on another namespace's row that its own update held. It now seeks its own namespace's rows.

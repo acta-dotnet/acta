@@ -19,6 +19,20 @@ public static class JobSignalProbes
         await ctx.SetVariableAsync("ran.after", true, ct);
     }
 
+    // Resets on the way out of its wait, as a finally around a whole handler does.
+    [Job("job-wait-signal-then-reset")]
+    public static async Task WaitSignalThenReset(JobContext ctx, CancellationToken ct)
+    {
+        try
+        {
+            await ctx.WaitSignalAsync("go", ct);
+        }
+        finally
+        {
+            await ctx.ResetStateAsync(ct);
+        }
+    }
+
     [Job("job-wait-signal-typed")]
     public static async Task<ReviewDecision> WaitSignalTyped(JobContext ctx, CancellationToken ct)
     {

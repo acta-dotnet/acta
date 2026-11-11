@@ -2438,6 +2438,7 @@
   - A duplicate raise is last-writer-wins
   - Raise sets the checkpoint but does not reactivate a paused job
   - A raise of a name the job does not wait on is stored and leaves the job suspended
+  - A state reset on the way out of a suspending wait fails the attempt and keeps the checkpoint
   - Raise is rejected against a terminal job and writes no checkpoint
   - Raise returns NotFound for an unknown job
 

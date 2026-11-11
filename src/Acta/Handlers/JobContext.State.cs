@@ -182,11 +182,11 @@ public abstract partial class JobContext
 
     /// <summary>
     /// Clears this Job's durable state (every step, result row, and checkpoint other than the scheduler's firing
-    /// envelope) so the next execution starts as new; the status, lease, failure budget, and schedule stay, the current attempt
-    /// completes normally, and <c>job.state-reset</c> is emitted. Meant as the final action of a handler that runs
-    /// again, never its first: mid-handler it discards the variables, timers, step checkpoints, and signals the rest of
-    /// the attempt would read, a finished child still dedupes by name and is raised again only by the next recovery pass
-    /// (use per-fire child names), and an already-run <c>AtMostOnce</c> step can run twice if the attempt aborts.
+    /// envelope) so the next execution starts as new; the status, lease, failure budget, and schedule stay, the attempt
+    /// completes normally, and <c>job.state-reset</c> is emitted. Meant as a handler's final action: mid-handler it discards
+    /// what the rest of the attempt would read, a finished child still dedupes by name and is raised again only by the next
+    /// recovery pass (use per-fire child names), and an already-run <c>AtMostOnce</c> step can run twice if the attempt aborts.
+    /// Once a wait or sleep has suspended the attempt it throws, as in a finally around one: the job waits on that checkpoint.
     /// </summary>
     public async Task ResetStateAsync(CancellationToken ct = default)
     {
