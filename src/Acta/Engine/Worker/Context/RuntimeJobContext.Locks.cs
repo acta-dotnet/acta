@@ -1,5 +1,6 @@
 #nullable enable
 
+using System.Diagnostics;
 using Microsoft.Extensions.Logging;
 
 namespace Acta;
@@ -8,16 +9,24 @@ internal sealed partial class RuntimeJobContext
 {
     private protected override async Task<Guid?> AcquireLockCoreAsync(string key, CancellationToken ct)
     {
+        var requestedAt = Stopwatch.GetTimestamp();
         var token = (await _locks.AcquireLockAsync(ComposeLockKey(key), TimeSpan.FromSeconds(_leaseTtlSeconds), JobId, ct)).Token;
         if (token is { } held)
         {
             // Register so the heartbeat renews this handler-acquired lock for as long as the
             // critical section runs; without it a long action would outlive the lease TTL and the lock
             // could be stolen mid-section.
-            _inFlightJob?.TrackLock(held);
+            TrackLock(held, requestedAt);
         }
         return token?.HoldToken;
     }
+
+    /// <summary>
+    /// Tracks a hold from the moment its acquire's request started, the latest its lease can have begun, so a late
+    /// answer counts against its runway and one that came too late cancels the attempt before it relies on the hold.
+    /// </summary>
+    private void TrackLock(LockToken held, long requestedAt) =>
+        _inFlightJob?.TrackLock(held, _leaseRunway - Stopwatch.GetElapsedTime(requestedAt));
 
     private protected override Task ReleaseLockCoreAsync(string key, Guid holdToken, CancellationToken ct)
     {
@@ -47,10 +56,11 @@ internal sealed partial class RuntimeJobContext
         // races mean every slot was taken. Only a try that finds every slot held turns the job away sooner.
         for (var tries = 0; tries < limit; tries++)
         {
+            var requestedAt = Stopwatch.GetTimestamp();
             var slot = await _locks.AcquireLockSlotAsync(prefix, limit, TimeSpan.FromSeconds(_leaseTtlSeconds), JobId, ct);
             if (slot.Token is { } held)
             {
-                _inFlightJob?.TrackLock(held);
+                TrackLock(held, requestedAt);
                 _concurrencySlotToken = held;
                 return true;
             }

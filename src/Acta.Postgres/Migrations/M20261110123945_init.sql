@@ -2550,7 +2550,7 @@ CREATE OR REPLACE FUNCTION {{schema}}.extend_worker_leases(
 RETURNS TABLE (
     job_id BIGINT,
     execution_number INT,
-    lock_key VARCHAR,
+    hold_token UUID,
     renewed BOOLEAN,
     definitions_modified_at_utc TIMESTAMPTZ,
     recovery_claimed BOOLEAN
@@ -2578,14 +2578,15 @@ BEGIN
     WHERE worker_id = p_leased_by_worker_id
     RETURNING namespace_id INTO v_namespace_id;
 
-    -- Lock holds renew first and never skip: no routine locks both locks and jobs_state. A hold whose token
+    -- Lock holds renew first and never skip: no routine locks both locks and jobs_state. A renewed hold is answered
+    -- by its token, so a process holding a stale and a current hold on one key tells them apart; a hold whose token
     -- moved is not answered, and the attempt that relied on it stops.
     RETURN QUERY
     UPDATE {{schema}}.locks k
     SET expires_at_utc = v_new_expiry
     FROM unnest(p_lock_keys, p_hold_tokens) AS h (lock_key, hold_token)
     WHERE k.lock_key = h.lock_key AND k.hold_token = h.hold_token
-    RETURNING NULL::BIGINT, NULL::INT, k.lock_key, TRUE, NULL::TIMESTAMPTZ, FALSE;
+    RETURNING NULL::BIGINT, NULL::INT, k.hold_token, TRUE, NULL::TIMESTAMPTZ, FALSE;
 
     /* Push the held executions' leases forward. Only a row this worker still leases at the execution the
        process holds is answered, so a row the process lost lapses and recovery takes it. Deliberately no
@@ -2623,7 +2624,7 @@ BEGIN
         WHERE r.job_id IN (SELECT l.job_id FROM locked l)
         RETURNING r.job_id
     )
-    SELECT m.job_id, m.execution_number, NULL::VARCHAR, e.job_id IS NOT NULL, NULL::TIMESTAMPTZ, FALSE
+    SELECT m.job_id, m.execution_number, NULL::UUID, e.job_id IS NOT NULL, NULL::TIMESTAMPTZ, FALSE
     FROM matched m
     LEFT JOIN extended e ON e.job_id = m.job_id;
 
@@ -2643,7 +2644,7 @@ BEGIN
 
     -- The namespace's newest definition change: the worker re-reads its catalog only when it moves.
     RETURN QUERY
-    SELECT NULL::BIGINT, NULL::INT, NULL::VARCHAR, FALSE, MAX(d.modified_at_utc), v_recovery_claimed
+    SELECT NULL::BIGINT, NULL::INT, NULL::UUID, FALSE, MAX(d.modified_at_utc), v_recovery_claimed
     FROM {{schema}}.definitions d
     WHERE d.namespace_id = v_namespace_id;
 END;
@@ -4306,5 +4307,5 @@ JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261110071552_init')
+VALUES ('M20261110123945_init')
 ON CONFLICT (name) DO NOTHING;

@@ -159,7 +159,7 @@ internal sealed class WorkerHeartbeat(
             var renewRequestedAt = Stopwatch.GetTimestamp();
             HashSet<(long JobId, int ExecutionNumber)>? live = [];
             HashSet<(long JobId, int ExecutionNumber)> renewed = [];
-            HashSet<string> renewedLocks = new(StringComparer.Ordinal);
+            HashSet<Guid> renewedHolds = [];
             DateTime? definitionsModifiedAtUtc = null;
             try
             {
@@ -175,7 +175,7 @@ internal sealed class WorkerHeartbeat(
                     {
                         RunRecovery(namespaceName, ct);
                     }
-                    renewedLocks.UnionWith(answer.RenewedLockKeys);
+                    renewedHolds.UnionWith(answer.RenewedHoldTokens);
                     definitionsModifiedAtUtc = answer.DefinitionsModifiedAtUtc;
                     foreach (var lease in answer.Leases)
                     {
@@ -197,7 +197,7 @@ internal sealed class WorkerHeartbeat(
                 live = null;
             }
 
-            FeedLeases(snapshot, live, renewed, renewedLocks, renewRequestedAt);
+            FeedLeases(snapshot, live, renewed, renewedHolds, renewRequestedAt);
             if (live is not null && definitionsModifiedAtUtc != _definitionsModifiedAtUtc)
             {
                 await OverlayDefinitionsAsync(ct);
@@ -325,18 +325,18 @@ internal sealed class WorkerHeartbeat(
     }
 
     /// <summary>
-    /// For each entry in the pre-extend snapshot, matched on job and execution: a renewal re-arms its lease deadline
-    /// from the request start; a row skipped because another transaction held it keeps its deadline; an execution the
-    /// refresh dropped (operator cancel, a stolen or reclaimed lease, or the job claimed again) is cancelled now unless
-    /// it is Finalizing, where the completion write's compare-and-swap decides; and an entry still holding a lock the
-    /// call did not renew is cancelled. <c>live</c> is null when the refresh threw: a definitive loss cannot be told
-    /// from a blip, so nothing moves and the deadlines decide.
+    /// For each entry in the pre-extend snapshot, matched on job and execution: an execution the refresh dropped
+    /// (operator cancel, a stolen or reclaimed lease, or the job claimed again) is cancelled now unless it is
+    /// Finalizing, where the completion write's compare-and-swap decides; an entry still holding a lock the call did
+    /// not renew is cancelled; otherwise each renewed hold and a renewed lease move their deadlines from the request
+    /// start, and a row skipped because another transaction held it keeps its deadline. <c>live</c> is null when the
+    /// refresh threw: a definitive loss cannot be told from a blip, so nothing moves and the deadlines decide.
     /// </summary>
     private void FeedLeases(
         (InFlightJob Entry, IReadOnlyCollection<LockToken> Locks)[] snapshot,
         HashSet<(long JobId, int ExecutionNumber)>? live,
         HashSet<(long JobId, int ExecutionNumber)> renewed,
-        HashSet<string> renewedLocks,
+        HashSet<Guid> renewedHolds,
         long renewRequestedAt
     )
     {
@@ -354,6 +354,18 @@ internal sealed class WorkerHeartbeat(
                 entry.Cancel();
                 continue;
             }
+
+            // Holds are matched by token, so a stale hold on a key another attempt of this process now holds counts as
+            // lost. A lock the handler released while the renewal was in flight is no longer held, so only a lock it
+            // still relies on, now taken by another holder, ends its critical section.
+            if (locks.Any(token => !renewedHolds.Contains(token.HoldToken) && entry.Holds(token)))
+            {
+                entry.Cancel();
+                ActaLog.HeldLockLost(_log, entry.Claim.JobId);
+                continue;
+            }
+
+            entry.ConfirmLocks(locks, runway);
             if (renewed.Contains(entry.Key))
             {
                 var headroom = entry.LeaseHeadroom;
@@ -362,14 +374,6 @@ internal sealed class WorkerHeartbeat(
                 {
                     metrics?.RecordLeaseHeadroom(ns, value);
                 }
-            }
-
-            // A lock the handler released while the renewal was in flight is no longer held, so only a lock it
-            // still relies on, now taken by another holder, ends its critical section.
-            if (locks.Any(token => !renewedLocks.Contains(token.Key) && entry.Holds(token)))
-            {
-                entry.Cancel();
-                ActaLog.HeldLockLost(_log, entry.Claim.JobId);
             }
         }
     }

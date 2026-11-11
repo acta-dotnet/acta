@@ -165,7 +165,7 @@ public sealed class WorkerFinalizerTests
                 {
                     "CompleteExecutions" when Interlocked.Increment(ref writes) == 1 => FailOnce(failed),
                     "CompleteExecutions" => await LandAsync(landing, token),
-                    "ExtendWorkerLeases" => new ExtendWorkerLeasesRow(42, ExecutionNumber: 3, LockKey: null, Renewed: true, null),
+                    "ExtendWorkerLeases" => new ExtendWorkerLeasesRow(42, ExecutionNumber: 3, HoldToken: null, Renewed: true, null),
                     _ => throw new NotSupportedException(call.Stem),
                 }
         );

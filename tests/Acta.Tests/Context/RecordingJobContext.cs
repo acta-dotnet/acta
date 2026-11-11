@@ -38,11 +38,17 @@ internal class RecordingJobContext(IReadOnlyDictionary<string, ChildJobOutcome>?
     public int LockReleaseCalls { get; private set; }
     public List<Exception> LockReleaseFailures { get; } = [];
 
+    /// <summary>The attempt's source, which a lock acquire cancels when <see cref="AcquireStopsAttempt"/> is set.</summary>
+    public CancellationTokenSource? Attempt { get; init; }
+
+    /// <summary>Whether a lock acquire answers with a hold and stops the attempt, as one answered too late does.</summary>
+    public bool AcquireStopsAttempt { get; init; }
+
     public override long JobId => 1000;
     public override string JobNamespace => "test-ns";
     public override int NamespaceId => 1;
     public override string JobName => "parent";
-    public override CancellationToken CancellationToken => CancellationToken.None;
+    public override CancellationToken CancellationToken => Attempt?.Token ?? CancellationToken.None;
 
     private protected override Task<EnqueueJobResponse> StartChildCoreAsync<TInput>(
         TInput input,
@@ -177,7 +183,14 @@ internal class RecordingJobContext(IReadOnlyDictionary<string, ChildJobOutcome>?
         return await body(ct);
     }
 
-    private protected override Task<Guid?> AcquireLockCoreAsync(string key, CancellationToken ct) => Task.FromResult<Guid?>(Guid.NewGuid());
+    private protected override Task<Guid?> AcquireLockCoreAsync(string key, CancellationToken ct)
+    {
+        if (AcquireStopsAttempt)
+        {
+            Attempt?.Cancel();
+        }
+        return Task.FromResult<Guid?>(Guid.NewGuid());
+    }
 
     private protected override Task ReleaseLockCoreAsync(string key, Guid holdToken, CancellationToken ct)
     {

@@ -33,10 +33,14 @@ internal sealed partial class RuntimeJobContext(
     ActaMetrics? metrics = null,
     string? tenantName = null,
     int workerId = 0,
-    Acta.IActaClock? clock = null
+    Acta.IActaClock? clock = null,
+    TimeSpan? leaseRunway = null
 ) : JobContext
 {
     private const string ProgressVariableName = "sys.progress";
+
+    // InFlightJob.LeaseRunway for an attempt whose entry has a lease source; null for one without.
+    private readonly TimeSpan? _leaseRunway = leaseRunway;
 
     private readonly JobsOperations _jobOperations = jobOperations;
     private readonly SignalsOperations _signals = signals;

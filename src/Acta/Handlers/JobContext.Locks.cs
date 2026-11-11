@@ -60,6 +60,8 @@ public abstract partial class JobContext
             {
                 try
                 {
+                    // An acquire whose answer came too late to trust the hold cancels the attempt; the action never runs.
+                    lct.ThrowIfCancellationRequested();
                     return await action();
                 }
                 finally

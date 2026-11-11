@@ -33,6 +33,31 @@ public sealed class JobContextLockReleaseTests
     }
 
     [Fact]
+    public async Task A_hold_answered_too_late_runs_no_action_and_is_released()
+    {
+        // The acquire's answer arrived past the hold's runway, so tracking it stopped the attempt: another holder may
+        // already have the key, and the action must not run under it.
+        using var attempt = new CancellationTokenSource();
+        var ctx = new RecordingJobContext { Attempt = attempt, AcquireStopsAttempt = true };
+        var ran = false;
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            ctx.RunWithLockAsync(
+                "key",
+                () =>
+                {
+                    ran = true;
+                    return Task.CompletedTask;
+                },
+                ct: TestContext.Current.CancellationToken
+            )
+        );
+
+        Assert.False(ran);
+        Assert.Equal(1, ctx.LockReleaseCalls);
+    }
+
+    [Fact]
     public async Task Release_failure_does_not_mask_action_cancellation()
     {
         using var cts = new CancellationTokenSource();

@@ -6,21 +6,28 @@ namespace Acta;
 /// <summary>
 /// One claim this worker holds, from the claim to its completion write: the attempt source that stops the handler,
 /// linked from the host token, the execution-timeout source, and the lease source, plus the locks the attempt holds.
-/// The lease source is the entry's deadline: armed at the claim and re-armed by the heartbeat on each confirmed
-/// renewal, it cancels the attempt <see cref="LeaseRunway"/> past the lease's request start, so an outage stops the
-/// handler with nothing watching. A single-shot entry, built without a runway, has no lease source, so a debugger
-/// pause never finds it cancelled on resume.
+/// The lease source is the entry's deadline: the earliest of the execution lease's and each held lock's, each one
+/// <see cref="LeaseRunway"/> past the request start that last confirmed it (the claim, an acquire, a renewal), so an
+/// outage stops the handler with nothing watching. A single-shot entry, built without a runway, has no lease source,
+/// so a debugger pause never finds it cancelled on resume.
 /// </summary>
 internal sealed class InFlightJob : IDisposable
 {
     private readonly CancellationTokenSource _timeout = new();
     private readonly CancellationTokenSource? _lease;
     private readonly CancellationTokenSource _attempt;
-    private readonly ConcurrentDictionary<LockToken, byte> _heldLocks = new();
+
+    // Each held lock's own deadline, as a Stopwatch timestamp.
+    private readonly ConcurrentDictionary<LockToken, long> _heldLocks = new();
+
+    // Orders the deadline moves, so a renewal and an acquire racing each other never arm a stale deadline last.
+    private readonly Lock _deadlineGate = new();
     private volatile InFlightJobState _state;
     private int _permit;
 
-    // When the lease source fires, as a Stopwatch timestamp.
+    // The execution lease's own deadline, and the earliest of it and the locks', when the lease source fires; both
+    // Stopwatch timestamps.
+    private long _executionDeadline;
     private long _leaseDeadline;
 
     public InFlightJob(ClaimedJob claim, TimeSpan? leaseRunway, CancellationToken hostCt, bool holdsPermit = false)
@@ -71,12 +78,52 @@ internal sealed class InFlightJob : IDisposable
     public bool TimedOut => _timeout.IsCancellationRequested;
 
     /// <summary>
-    /// Cancels the attempt after <paramref name="delay"/>, replacing any earlier deadline, or at once when no runway is
-    /// left; a no-op without a lease source, and after the entry was disposed under a racing heartbeat.
+    /// Moves the execution lease's deadline <paramref name="delay"/> out, replacing the earlier one, and re-arms the
+    /// lease source at the earliest deadline the entry holds, which cancels at once when no runway is left; a no-op
+    /// without a lease source, and after the entry was disposed under a racing heartbeat.
     /// </summary>
     public void ArmLease(TimeSpan delay)
     {
-        Volatile.Write(ref _leaseDeadline, Stopwatch.GetTimestamp() + (long)(delay.TotalSeconds * Stopwatch.Frequency));
+        lock (_deadlineGate)
+        {
+            _executionDeadline = DeadlineAfter(delay);
+            ArmEarliest();
+        }
+    }
+
+    /// <summary>
+    /// Moves the deadline of each still-held lock in <paramref name="renewed"/> <paramref name="delay"/> out, then re-arms
+    /// the lease source at the earliest deadline the entry holds.
+    /// </summary>
+    public void ConfirmLocks(IEnumerable<LockToken> renewed, TimeSpan delay)
+    {
+        lock (_deadlineGate)
+        {
+            var deadline = DeadlineAfter(delay);
+            foreach (var token in renewed)
+            {
+                if (_heldLocks.ContainsKey(token))
+                {
+                    _heldLocks[token] = deadline;
+                }
+            }
+            ArmEarliest();
+        }
+    }
+
+    private static long DeadlineAfter(TimeSpan delay) => Stopwatch.GetTimestamp() + (long)(delay.TotalSeconds * Stopwatch.Frequency);
+
+    // Call under _deadlineGate.
+    private void ArmEarliest()
+    {
+        var deadline = _executionDeadline;
+        foreach (var (_, lockDeadline) in _heldLocks)
+        {
+            deadline = Math.Min(deadline, lockDeadline);
+        }
+
+        Volatile.Write(ref _leaseDeadline, deadline);
+        var delay = Stopwatch.GetElapsedTime(Stopwatch.GetTimestamp(), deadline);
         try
         {
             if (delay <= TimeSpan.Zero)
@@ -100,13 +147,35 @@ internal sealed class InFlightJob : IDisposable
     /// <summary>True exactly once for an entry built holding one of the registry's permits, so every exit may call it.</summary>
     public bool ReleasePermit() => Interlocked.Exchange(ref _permit, 0) == 1;
 
-    public void TrackLock(LockToken token) => _heldLocks[token] = 0;
+    /// <summary>
+    /// Tracks a lock the attempt acquired, so the heartbeat renews it, with <paramref name="runway"/> left before its
+    /// lease runs out: the lease runway less the time since the acquire's request started, or null for an attempt
+    /// without a lease source. An acquire whose answer came late may hand over a hold already near its expiry, and the
+    /// attempt must stop before another holder can take it.
+    /// </summary>
+    public void TrackLock(LockToken token, TimeSpan? runway)
+    {
+        lock (_deadlineGate)
+        {
+            _heldLocks[token] = runway is { } left ? DeadlineAfter(left) : long.MaxValue;
+            ArmEarliest();
+        }
+    }
 
     /// <summary>
     /// Stop tracking a lock the handler released, so the heartbeat no longer renews it and a release is never
-    /// mistaken for a steal. Called before the store release so the two never race.
+    /// mistaken for a steal, and drop its deadline. Called before the store release so the two never race.
     /// </summary>
-    public void UntrackLock(LockToken token) => _heldLocks.TryRemove(token, out _);
+    public void UntrackLock(LockToken token)
+    {
+        lock (_deadlineGate)
+        {
+            if (_heldLocks.TryRemove(token, out _))
+            {
+                ArmEarliest();
+            }
+        }
+    }
 
     /// <summary>
     /// Whether the attempt still holds <paramref name="token"/>, used to tell a genuine steal (still

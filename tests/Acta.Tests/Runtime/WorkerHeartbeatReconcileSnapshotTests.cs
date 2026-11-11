@@ -77,7 +77,7 @@ public sealed class WorkerHeartbeatReconcileSnapshotTests
                         .Select(id => new ExtendWorkerLeasesRow(
                             id,
                             ExecutionNumber: 0,
-                            LockKey: null,
+                            HoldToken: null,
                             Renewed: true,
                             DefinitionsModifiedAtUtc: null
                         ))

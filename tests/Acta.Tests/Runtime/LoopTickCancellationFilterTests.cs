@@ -73,7 +73,7 @@ public sealed class LoopTickCancellationFilterTests
         var services = new ScriptedSession(call =>
             call.Stem == "ListDefinitionContracts"
                 ? throw failure
-                : new ExtendWorkerLeasesRow(JobId: null, ExecutionNumber: null, LockKey: null, Renewed: false, DateTime.UtcNow)
+                : new ExtendWorkerLeasesRow(JobId: null, ExecutionNumber: null, HoldToken: null, Renewed: false, DateTime.UtcNow)
         ).Services();
 
         var heartbeat = new WorkerHeartbeat(

@@ -3016,12 +3016,13 @@ BEGIN
             hold_token UNIQUEIDENTIFIER '$.hold_token'
         );
 
-        -- Lock holds renew first and never skip: no routine locks both locks and jobs_state. A hold whose token
-        -- moved is not answered, and the attempt that relied on it stops.
-        DECLARE @lock_renewed TABLE (lock_key VARCHAR(256) COLLATE Latin1_General_100_BIN2_UTF8 NOT NULL PRIMARY KEY);
+        -- Lock holds renew first and never skip: no routine locks both locks and jobs_state. A renewed hold is
+        -- answered by its token, so a process holding a stale and a current hold on one key tells them apart; a hold
+        -- whose token moved is not answered, and the attempt that relied on it stops.
+        DECLARE @lock_renewed TABLE (hold_token UNIQUEIDENTIFIER NOT NULL PRIMARY KEY);
         UPDATE k
         SET expires_at_utc = @new_expiry
-        OUTPUT INSERTED.lock_key INTO @lock_renewed (lock_key)
+        OUTPUT INSERTED.hold_token INTO @lock_renewed (hold_token)
         FROM {{schema}}.locks k WITH (FORCESEEK)
         INNER JOIN @lock_held h ON h.lock_key = k.lock_key AND h.hold_token = k.hold_token;
 
@@ -3078,7 +3079,7 @@ BEGIN
         SELECT
             CAST(NULL AS BIGINT) AS job_id,
             CAST(NULL AS INT) AS execution_number,
-            l.lock_key,
+            l.hold_token,
             CAST(1 AS BIT) AS renewed,
             CAST(NULL AS DATETIME2(3)) AS definitions_modified_at_utc,
             CAST(0 AS BIT) AS recovery_claimed
@@ -3087,7 +3088,7 @@ BEGIN
         SELECT
             h.job_id,
             h.execution_number,
-            CAST(NULL AS VARCHAR(256)),
+            CAST(NULL AS UNIQUEIDENTIFIER),
             CAST(CASE WHEN n.job_id IS NULL THEN 0 ELSE 1 END AS BIT),
             CAST(NULL AS DATETIME2(3)),
             CAST(0 AS BIT)
@@ -3101,7 +3102,7 @@ BEGIN
         SELECT
             CAST(NULL AS BIGINT) AS job_id,
             CAST(NULL AS INT) AS execution_number,
-            CAST(NULL AS VARCHAR(256)) AS lock_key,
+            CAST(NULL AS UNIQUEIDENTIFIER) AS hold_token,
             CAST(0 AS BIT) AS renewed,
             MAX(d.modified_at_utc) AS definitions_modified_at_utc,
             @recovery_claimed AS recovery_claimed
@@ -4959,7 +4960,7 @@ JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE name = 'M20261110071552_init')
+IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE name = 'M20261110123945_init')
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261110071552_init');
+VALUES ('M20261110123945_init');
 GO

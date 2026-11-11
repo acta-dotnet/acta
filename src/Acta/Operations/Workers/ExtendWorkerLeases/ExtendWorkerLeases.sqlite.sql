@@ -18,9 +18,10 @@ DROP TABLE IF EXISTS temp._ewl_locks;
 DROP TABLE IF EXISTS temp._ewl_renewed;
 DROP TABLE IF EXISTS temp._ewl_recovery;
 
--- Lock holds renew first: a hold whose token moved is not answered, and the attempt that relied on it stops.
+-- Lock holds renew first. A renewed hold is answered by its token, so a process holding a stale and a current hold
+-- on one key tells them apart; a hold whose token moved is not answered, and the attempt that relied on it stops.
 CREATE TEMP TABLE _ewl_locks AS
-SELECT k.lock_key
+SELECT k.lock_key, k.hold_token
 FROM json_each(@p_locks) h
 INNER JOIN {{schema}}.locks k
     ON k.lock_key = json_extract(h.value, '$.lock_key') AND k.hold_token = json_extract(h.value, '$.hold_token');
@@ -67,7 +68,7 @@ WHERE namespace_id IN (SELECT namespace_id FROM temp._ewl_recovery);
 SELECT
     NULL AS job_id,
     NULL AS execution_number,
-    l.lock_key,
+    l.hold_token,
     1 AS renewed,
     NULL AS definitions_modified_at_utc,
     0 AS recovery_claimed
@@ -80,7 +81,7 @@ UNION ALL
 SELECT
     NULL AS job_id,
     NULL AS execution_number,
-    NULL AS lock_key,
+    NULL AS hold_token,
     0 AS renewed,
     MAX(d.modified_at_utc) AS definitions_modified_at_utc,
     (SELECT COUNT(*) FROM temp._ewl_recovery) AS recovery_claimed

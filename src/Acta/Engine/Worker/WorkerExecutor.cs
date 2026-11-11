@@ -345,7 +345,8 @@ internal sealed class WorkerExecutor(
             metrics,
             tenantName,
             workerId,
-            clock
+            clock,
+            InFlightJob.LeaseRunway(_options)
         );
         attemptServices.GetRequiredService<IJobContextAccessor>().JobContext = jobContext;
         return jobContext;

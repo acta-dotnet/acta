@@ -25,7 +25,7 @@ internal sealed class ExtendWorkerLeasesHandler(IDbSession session, ISqlDialect 
         );
 
         List<ExtendWorkerLeasesLease> leases = [];
-        List<string> renewedLockKeys = [];
+        List<Guid> renewedHoldTokens = [];
         DateTime? definitionsModifiedAtUtc = null;
         var recoveryClaimed = false;
         foreach (var row in rows)
@@ -34,9 +34,9 @@ internal sealed class ExtendWorkerLeasesHandler(IDbSession session, ISqlDialect 
             {
                 leases.Add(new ExtendWorkerLeasesLease(jobId, row.ExecutionNumber!.Value, row.Renewed));
             }
-            else if (row.LockKey is { } lockKey)
+            else if (row.HoldToken is { } holdToken)
             {
-                renewedLockKeys.Add(lockKey);
+                renewedHoldTokens.Add(holdToken);
             }
             else
             {
@@ -45,6 +45,6 @@ internal sealed class ExtendWorkerLeasesHandler(IDbSession session, ISqlDialect 
             }
         }
 
-        return new ExtendWorkerLeasesResponse(leases, renewedLockKeys, definitionsModifiedAtUtc, recoveryClaimed);
+        return new ExtendWorkerLeasesResponse(leases, renewedHoldTokens, definitionsModifiedAtUtc, recoveryClaimed);
     }
 }

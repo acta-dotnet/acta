@@ -203,7 +203,7 @@ public sealed class WorkerHeartbeatLeaseRunwayTests
         var heartbeat = Heartbeat(WorkerStore(_ => throw new InvalidOperationException("synthetic transient worker-store fault")));
         using var entry = Held(Entry(1, leaseRunway: ShortLease));
         var armedAt = Stopwatch.GetTimestamp();
-        entry.TrackLock(new LockToken("orders.flaky", Guid.NewGuid()));
+        entry.TrackLock(new LockToken("orders.flaky", Guid.NewGuid()), ClaimRunway);
 
         // The pass reports the renewal unanswered, which is what a spec repeating a beat until one lands reads.
         Assert.False(await heartbeat.TickAsync(TestContext.Current.CancellationToken));
@@ -217,10 +217,10 @@ public sealed class WorkerHeartbeatLeaseRunwayTests
     public async Task Worker_heartbeat_renews_a_held_lock_in_the_same_call()
     {
         var held = new LockToken("orders.a", Guid.NewGuid());
-        var session = new ScriptedSession(_ => new[] { Lease(1), Lock(held.Key) });
+        var session = new ScriptedSession(_ => new[] { Lease(1), Lock(held) });
         var heartbeat = Heartbeat(session.Services().GetRequiredService<WorkersOperations>());
         using var entry = Held(Entry(1));
-        entry.TrackLock(held);
+        entry.TrackLock(held, ClaimRunway);
 
         await heartbeat.TickAsync(TestContext.Current.CancellationToken);
 
@@ -236,7 +236,7 @@ public sealed class WorkerHeartbeatLeaseRunwayTests
     {
         var heartbeat = Heartbeat(WorkerStore(_ => Lease(1)));
         using var entry = Held(Entry(1));
-        entry.TrackLock(new LockToken("orders.lost", Guid.NewGuid()));
+        entry.TrackLock(new LockToken("orders.lost", Guid.NewGuid()), ClaimRunway);
 
         await heartbeat.TickAsync(TestContext.Current.CancellationToken);
 
@@ -245,11 +245,88 @@ public sealed class WorkerHeartbeatLeaseRunwayTests
     }
 
     [Fact]
+    public async Task A_stale_hold_on_a_key_another_attempt_of_this_process_holds_is_lost()
+    {
+        // Attempt 1's hold lapsed and attempt 2, on the same process, took the key. The renewal finds only attempt 2's
+        // token, and answering by token, not by key, tells the two holds apart.
+        var stale = new LockToken("orders.k", Guid.NewGuid());
+        var current = new LockToken("orders.k", Guid.NewGuid());
+        var heartbeat = Heartbeat(WorkerStore(_ => new[] { Lease(1), Lease(2), Lock(current) }));
+        using var first = Held(Entry(1));
+        using var second = Held(Entry(2));
+        first.TrackLock(stale, ClaimRunway);
+        second.TrackLock(current, ClaimRunway);
+
+        await heartbeat.TickAsync(TestContext.Current.CancellationToken);
+
+        Assert.True(first.AttemptToken.IsCancellationRequested);
+        Assert.False(second.AttemptToken.IsCancellationRequested);
+    }
+
+    [Fact]
+    public void A_hold_answered_after_its_runway_cancels_the_attempt()
+    {
+        // The acquire committed, then its answer took longer than the runway: the hold may have lapsed already.
+        using var entry = Held(Entry(1, leaseRunway: ClaimRunway));
+
+        entry.TrackLock(new LockToken("orders.late", Guid.NewGuid()), TimeSpan.FromSeconds(-1));
+
+        Assert.True(entry.AttemptToken.IsCancellationRequested);
+    }
+
+    [Fact]
+    public void A_hold_answered_late_brings_the_deadline_forward_and_its_release_moves_it_back()
+    {
+        using var entry = Held(Entry(1, leaseRunway: ClaimRunway));
+        var hold = new LockToken("orders.late", Guid.NewGuid());
+
+        entry.TrackLock(hold, TimeSpan.FromSeconds(1));
+        Assert.True(entry.LeaseHeadroom <= TimeSpan.FromSeconds(1), $"the deadline stood {entry.LeaseHeadroom} out with the hold.");
+
+        entry.UntrackLock(hold);
+        Assert.True(entry.LeaseHeadroom > TimeSpan.FromSeconds(1), $"the deadline stood {entry.LeaseHeadroom} out after the release.");
+        Assert.False(entry.AttemptToken.IsCancellationRequested);
+    }
+
+    [Fact]
+    public async Task A_renewal_moves_a_renewed_hold_with_the_lease()
+    {
+        var hold = new LockToken("orders.k", Guid.NewGuid());
+        var heartbeat = Heartbeat(WorkerStore(_ => new[] { Lease(1), Lock(hold) }));
+        using var entry = Held(Entry(1, leaseRunway: ClaimRunway));
+        entry.TrackLock(hold, TimeSpan.FromSeconds(1));
+
+        await heartbeat.TickAsync(TestContext.Current.CancellationToken);
+
+        Assert.True(entry.LeaseHeadroom > ClaimRunway, $"the deadline stood {entry.LeaseHeadroom} out after the renewal.");
+    }
+
+    [Fact]
+    public async Task A_hold_taken_while_the_renewal_was_in_flight_keeps_its_own_deadline()
+    {
+        // The hold was not in the beat's snapshot, so the beat did not renew it, and renewing the lease must not carry
+        // the attempt past the hold's own runway.
+        using var entry = Held(Entry(1, leaseRunway: ClaimRunway));
+        var heartbeat = Heartbeat(
+            WorkerStore(_ =>
+            {
+                entry.TrackLock(new LockToken("orders.mid", Guid.NewGuid()), TimeSpan.FromSeconds(1));
+                return Lease(1);
+            })
+        );
+
+        await heartbeat.TickAsync(TestContext.Current.CancellationToken);
+
+        Assert.True(entry.LeaseHeadroom <= TimeSpan.FromSeconds(1), $"the deadline stood {entry.LeaseHeadroom} out after the renewal.");
+        Assert.False(entry.AttemptToken.IsCancellationRequested);
+    }
+
+    [Fact]
     public async Task Worker_heartbeat_ignores_a_lock_released_while_the_renewal_was_in_flight()
     {
         var released = new LockToken("orders.released", Guid.NewGuid());
         using var entry = Held(Entry(1));
-        entry.TrackLock(released);
+        entry.TrackLock(released, ClaimRunway);
 
         // The handler releases (untracks) the lock while the renewal is in flight, so the renewal finds no hold.
         var heartbeat = Heartbeat(
@@ -323,8 +400,8 @@ public sealed class WorkerHeartbeatLeaseRunwayTests
         new ScriptedSession(answer).Services().GetRequiredService<WorkersOperations>();
 
     private static ExtendWorkerLeasesRow Lease(long jobId, bool renewed = true) =>
-        new(jobId, ExecutionNumber: 0, LockKey: null, renewed, DefinitionsModifiedAtUtc: null);
+        new(jobId, ExecutionNumber: 0, HoldToken: null, renewed, DefinitionsModifiedAtUtc: null);
 
-    private static ExtendWorkerLeasesRow Lock(string lockKey) =>
-        new(JobId: null, ExecutionNumber: null, lockKey, Renewed: true, DefinitionsModifiedAtUtc: null);
+    private static ExtendWorkerLeasesRow Lock(LockToken hold) =>
+        new(JobId: null, ExecutionNumber: null, hold.HoldToken, Renewed: true, DefinitionsModifiedAtUtc: null);
 }

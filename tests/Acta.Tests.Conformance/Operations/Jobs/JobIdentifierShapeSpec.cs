@@ -197,7 +197,7 @@ public sealed class JobIdentifierShapeSpec : ActaRuntimeTestBase<ConformanceFixt
             .GetRequiredService<WorkersOperations>()
             .ExtendWorkerLeasesAsync(new ExtendWorkerLeasesCommand(worker!.Id, leaseTtl, false, [], [exact.Value, folded.Value]), ct);
 
-        Assert.Equal([key, key.ToLowerInvariant()], answer.RenewedLockKeys.Order(StringComparer.Ordinal));
+        Assert.Equal(new[] { exact.Value.HoldToken, folded.Value.HoldToken }.Order(), answer.RenewedHoldTokens.Order());
         Assert.True((await locks.ReleaseLockAsync(exact.Value, ct)).Released);
         Assert.True((await locks.ReleaseLockAsync(folded.Value, ct)).Released);
     }
