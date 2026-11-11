@@ -53,11 +53,11 @@ CREATE TEMP TABLE release_guard (
 INSERT INTO release_guard
 SELECT EXISTS (
     SELECT 1 FROM main.migrations
-    WHERE name NOT IN ('M20261111162810_init')
+    WHERE name NOT IN ('M20261111163142_init')
 );
 DROP TABLE release_guard;
 
--- ===== BEGIN M20261111162810_init =====
+-- ===== BEGIN M20261111163142_init =====
 CREATE TABLE IF NOT EXISTS main.alerts (
     alert_id integer PRIMARY KEY AUTOINCREMENT,
     alert_ref text NOT NULL,
@@ -679,6 +679,7 @@ SELECT
     j.deduplication_key,
     j.correlation_key,
     j.concurrency_key,
+    lane.lane_name,
     j.parent_job_id,
     COALESCE(j.lineage_root_job_id, j.job_id) AS lineage_root_job_id,
     j.schedule_id,
@@ -710,8 +711,7 @@ SELECT
     strftime('%Y-%m-%dT%H:%M:%fZ', r.retention_until_utc / 1000.0, 'unixepoch') AS retention_until_utc,
     strftime('%Y-%m-%dT%H:%M:%fZ', j.created_at_utc / 1000.0, 'unixepoch') AS created_at_utc,
     strftime('%Y-%m-%dT%H:%M:%fZ', r.modified_at_utc / 1000.0, 'unixepoch') AS modified_at_utc,
-    r.version,
-    lane.lane_name
+    r.version
 FROM main.jobs AS j
 JOIN main.jobs_state AS r ON r.job_id = j.job_id
 JOIN main.namespaces AS ns ON ns.namespace_id = j.namespace_id
@@ -827,10 +827,10 @@ JOIN main.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO main.migrations (name)
-VALUES ('M20261111162810_init')
+VALUES ('M20261111163142_init')
 ON CONFLICT (name) DO NOTHING;
 
--- ===== END M20261111162810_init =====
+-- ===== END M20261111163142_init =====
 
 COMMIT;
 

@@ -24,6 +24,8 @@ Not tagged yet.
 
 **Stop reading or filtering on a schedule's origin**: `schedules.schedule_origin_code`, the `schedule_origin` and `schedule_origin_code` columns of `schedules_view`, `ScheduleOriginCode`, the `origin` field of the schedule responses, and the `origin` filter of the schedule list (`ListSchedulesQuery.Origin` and `origin` on `GET /schedules`) are gone. Every schedule comes from a `[Schedule]` declaration, so the origin was always `definition`.
 
+**Read `jobs_view` by column name, or move one position**: `lane_name` follows `concurrency_key`, with the job's other keys, where it was the last column. A reader that takes columns by name sees no change.
+
 **Read who performed an operator action from `events.actor`, not from `details`**: an operator verb's event names its operator in the `actor` column, which `events_view` shows beside `event_message` and an event over HTTP carries as `actor`, and `ListEventsItem` gains `Actor` after `Message`. The `actor` fact of `details` no longer exists: `details` holds only machine-readable facts, so a verb whose only fact was its operator now writes no details. A handler's state reset names its job's id as the actor, as its details did.
 
 **Catch `EnqueueRejectedException` for a child whose parent is gone**: an enqueue that names a `ParentJobId` of a job that does not exist or has finished threw the database provider's own exception, and now throws `EnqueueRejectedException` with the reason `ParentUnavailable`, as every other refused enqueue does. The HTTP enqueue takes no parent, so its answers are unchanged. A child a handler starts after its attempt lost the job still throws `ExecutionFencedException`.

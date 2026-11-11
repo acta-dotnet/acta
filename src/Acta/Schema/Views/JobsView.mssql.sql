@@ -10,6 +10,7 @@ SELECT
     j.deduplication_key,
     j.correlation_key,
     j.concurrency_key,
+    lane.lane_name,
     j.parent_job_id,
     COALESCE(j.lineage_root_job_id, j.job_id) AS lineage_root_job_id,
     j.schedule_id,
@@ -49,8 +50,7 @@ SELECT
     r.retention_until_utc,
     j.created_at_utc,
     r.modified_at_utc,
-    r.version,
-    lane.lane_name
+    r.version
 FROM {{schema}}.jobs AS j
 JOIN {{schema}}.jobs_state AS r ON r.job_id = j.job_id
 JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = j.namespace_id

@@ -10,6 +10,7 @@ SELECT
     j.deduplication_key,
     j.correlation_key,
     j.concurrency_key,
+    lane.lane_name,
     j.parent_job_id,
     COALESCE(j.lineage_root_job_id, j.job_id) AS lineage_root_job_id,
     j.schedule_id,
@@ -41,8 +42,7 @@ SELECT
     strftime('%Y-%m-%dT%H:%M:%fZ', r.retention_until_utc / 1000.0, 'unixepoch') AS retention_until_utc,
     strftime('%Y-%m-%dT%H:%M:%fZ', j.created_at_utc / 1000.0, 'unixepoch') AS created_at_utc,
     strftime('%Y-%m-%dT%H:%M:%fZ', r.modified_at_utc / 1000.0, 'unixepoch') AS modified_at_utc,
-    r.version,
-    lane.lane_name
+    r.version
 FROM {{schema}}.jobs AS j
 JOIN {{schema}}.jobs_state AS r ON r.job_id = j.job_id
 JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = j.namespace_id
