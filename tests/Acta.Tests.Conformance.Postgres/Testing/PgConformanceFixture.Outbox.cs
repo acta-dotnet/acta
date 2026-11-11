@@ -130,8 +130,8 @@ public sealed partial class PgConformanceFixture
         await using var cmd = c.CreateCommand();
         cmd.CommandText = $"""
             INSERT INTO {Schema}.{table}
-                (outbox_id, job_namespace, job_name, input_format_id, input, deduplication_key,
-                 meta, priority_code, created_at_utc, next_attempt_at_utc, status_code, failure_count,
+                (outbox_id, namespace_name, job_name, input_format_id, input, deduplication_key,
+                 meta, job_priority_code, created_at_utc, next_attempt_at_utc, outbox_status_code, failure_count,
                  claim_token, claim_until_utc)
             VALUES (@id, @ns, @name, @fmt, @data, @dedup, @meta, @prio, @created, @next, @status, @failures,
                     @token, @until);
@@ -163,7 +163,7 @@ public sealed partial class PgConformanceFixture
         await c.OpenAsync();
         await using var cmd = c.CreateCommand();
         cmd.CommandText = $"""
-            SELECT status_code, failure_count, claim_token, claim_until_utc, next_attempt_at_utc, last_error
+            SELECT outbox_status_code, failure_count, claim_token, claim_until_utc, next_attempt_at_utc, failure_message
               FROM {Schema}.{table} WHERE outbox_id = @id;
             """;
         cmd.Parameters.Add(new NpgsqlParameter("@id", NpgsqlDbType.Uuid) { Value = outboxId });
@@ -196,7 +196,7 @@ public sealed partial class PgConformanceFixture
         await c.OpenAsync();
         await using var cmd = c.CreateCommand();
         cmd.CommandText =
-            $"UPDATE {Schema}.{table} SET next_attempt_at_utc = now() - INTERVAL '1 hour' WHERE status_code = 10 /* OutboxStatusCode.Pending */;";
+            $"UPDATE {Schema}.{table} SET next_attempt_at_utc = now() - INTERVAL '1 hour' WHERE outbox_status_code = 10 /* OutboxStatusCode.Pending */;";
         await cmd.ExecuteNonQueryAsync();
     }
 

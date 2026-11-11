@@ -40,7 +40,7 @@ internal static class OutboxSchema
 
         /// <summary>
         /// A JSON array of per-row reschedule/quarantine records
-        /// ([{"outbox_id","failure_count","backoff_seconds"?,"last_error"}, ...]) so each of those finalizes
+        /// ([{"outbox_id","failure_count","backoff_seconds"?,"failure_message"}, ...]) so each of those finalizes
         /// the whole claimed group in one set-based round trip; every provider unnests it server-side
         /// (PG jsonb_to_recordset, SQL Server OPENJSON ... WITH, SQLite json_each + json_extract). Each row
         /// carries its own failure count, per-row backoff (added to the SOURCE clock in-SQL), and error, so

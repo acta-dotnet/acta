@@ -10,7 +10,7 @@ namespace Acta.Postgres;
 /// <see cref="NpgsqlTransaction"/>, so the outbox row commits or rolls back with the producer's business writes. Zero
 /// configuration: no dependency injection, no <c>UseActa</c>, no ledger connection; reference the package, write
 /// <c>using Acta.Postgres;</c>, and call the extension. The database defaults populate the operational columns
-/// (<c>created_at_utc</c>, <c>status_code</c>, <c>failure_count</c>, <c>next_attempt_at_utc</c>); the relay drains the table.
+/// (<c>created_at_utc</c>, <c>outbox_status_code</c>, <c>failure_count</c>, <c>next_attempt_at_utc</c>); the relay drains the table.
 /// </summary>
 public static class PostgresOutboxStagingExtensions
 {
@@ -42,16 +42,16 @@ public static class PostgresOutboxStagingExtensions
 
         var p = command.Parameters;
         p.Add(new NpgsqlParameter("@outbox_id", NpgsqlDbType.Uuid) { Value = row.OutboxId });
-        p.Add(new NpgsqlParameter("@job_namespace", NpgsqlDbType.Varchar) { Value = row.JobNamespace });
+        p.Add(new NpgsqlParameter("@namespace_name", NpgsqlDbType.Varchar) { Value = row.JobNamespace });
         p.Add(new NpgsqlParameter("@job_name", NpgsqlDbType.Varchar) { Value = row.JobName });
         p.Add(new NpgsqlParameter("@input_format_id", NpgsqlDbType.Smallint) { Value = (short)row.InputFormatId });
         p.Add(new NpgsqlParameter("@input", NpgsqlDbType.Bytea) { Value = (object?)row.Input ?? DBNull.Value });
         p.Add(new NpgsqlParameter("@deduplication_key", NpgsqlDbType.Varchar) { Value = row.DeduplicationKey });
         p.Add(new NpgsqlParameter("@correlation_key", NpgsqlDbType.Varchar) { Value = (object?)row.CorrelationKey ?? DBNull.Value });
         p.Add(new NpgsqlParameter("@concurrency_key", NpgsqlDbType.Varchar) { Value = (object?)row.ConcurrencyKey ?? DBNull.Value });
-        p.Add(new NpgsqlParameter("@lane", NpgsqlDbType.Varchar) { Value = (object?)row.Lane ?? DBNull.Value });
+        p.Add(new NpgsqlParameter("@lane_name", NpgsqlDbType.Varchar) { Value = (object?)row.Lane ?? DBNull.Value });
         p.Add(
-            new NpgsqlParameter("@priority_code", NpgsqlDbType.Smallint)
+            new NpgsqlParameter("@job_priority_code", NpgsqlDbType.Smallint)
             {
                 Value = row.PriorityCode is { } code ? (short)code : DBNull.Value,
             }

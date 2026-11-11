@@ -5,5 +5,5 @@ DELETE o
 FROM {{table_ref}} AS o WITH (FORCESEEK)
 WHERE
     o.claim_token = @p_claim_token
-    AND o.status_code = 20 /* OutboxStatusCode.Claimed */
+    AND o.outbox_status_code = 20 /* OutboxStatusCode.Claimed */
     AND o.outbox_id IN (SELECT CAST(value AS UNIQUEIDENTIFIER) FROM OPENJSON(@p_outbox_ids));

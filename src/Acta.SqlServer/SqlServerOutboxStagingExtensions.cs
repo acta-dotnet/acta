@@ -42,15 +42,15 @@ public static class SqlServerOutboxStagingExtensions
 
         var p = command.Parameters;
         p.Add(new SqlParameter("@outbox_id", SqlDbType.UniqueIdentifier) { Value = row.OutboxId });
-        p.Add(new SqlParameter("@job_namespace", SqlDbType.VarChar, 64) { Value = row.JobNamespace });
+        p.Add(new SqlParameter("@namespace_name", SqlDbType.VarChar, 64) { Value = row.JobNamespace });
         p.Add(new SqlParameter("@job_name", SqlDbType.VarChar, 128) { Value = row.JobName });
         p.Add(new SqlParameter("@input_format_id", SqlDbType.TinyInt) { Value = row.InputFormatId });
         p.Add(new SqlParameter("@input", SqlDbType.VarBinary, -1) { Value = (object?)row.Input ?? DBNull.Value });
         p.Add(new SqlParameter("@deduplication_key", SqlDbType.VarChar, 128) { Value = row.DeduplicationKey });
         p.Add(new SqlParameter("@correlation_key", SqlDbType.VarChar, 64) { Value = (object?)row.CorrelationKey ?? DBNull.Value });
         p.Add(new SqlParameter("@concurrency_key", SqlDbType.VarChar, 128) { Value = (object?)row.ConcurrencyKey ?? DBNull.Value });
-        p.Add(new SqlParameter("@lane", SqlDbType.VarChar, 128) { Value = (object?)row.Lane ?? DBNull.Value });
-        p.Add(new SqlParameter("@priority_code", SqlDbType.TinyInt) { Value = row.PriorityCode is { } code ? code : DBNull.Value });
+        p.Add(new SqlParameter("@lane_name", SqlDbType.VarChar, 128) { Value = (object?)row.Lane ?? DBNull.Value });
+        p.Add(new SqlParameter("@job_priority_code", SqlDbType.TinyInt) { Value = row.PriorityCode is { } code ? code : DBNull.Value });
         p.Add(new SqlParameter("@next_run_at_utc", SqlDbType.DateTime2) { Value = (object?)row.NextRunAtUtc ?? DBNull.Value });
         p.Add(new SqlParameter("@delay_seconds", SqlDbType.Int) { Value = (object?)row.DelaySeconds ?? DBNull.Value });
         p.Add(new SqlParameter("@tenant_name", SqlDbType.VarChar, 128) { Value = (object?)row.TenantName ?? DBNull.Value });

@@ -59,22 +59,22 @@ public static class SqlServerMigrations
             CREATE TABLE {t} (
                 id bigint IDENTITY(1,1) NOT NULL,
                 outbox_id uniqueidentifier NOT NULL,
-                job_namespace varchar(128) NOT NULL,
+                namespace_name varchar(128) NOT NULL,
                 job_name varchar(128) NOT NULL,
                 input_format_id tinyint NOT NULL,
                 input varbinary(max) NULL,
                 deduplication_key varchar(128) COLLATE Latin1_General_100_BIN2_UTF8 NOT NULL,
                 correlation_key varchar(64) NULL,
                 concurrency_key varchar(128) COLLATE Latin1_General_100_BIN2_UTF8 NULL,
-                lane varchar(128) NULL,
-                priority_code tinyint NULL,
+                lane_name varchar(128) NULL,
+                job_priority_code tinyint NULL,
                 next_run_at_utc datetime2 NULL,
                 delay_seconds int NULL,
                 tenant_name varchar(128) NULL,
                 meta nvarchar(max) NULL,
-                last_error nvarchar(512) NULL,
+                failure_message nvarchar(512) NULL,
                 created_at_utc datetime2 NOT NULL DEFAULT SYSUTCDATETIME(),
-                status_code tinyint NOT NULL DEFAULT 10,
+                outbox_status_code tinyint NOT NULL DEFAULT 10,
                 failure_count int NOT NULL DEFAULT 0,
                 next_attempt_at_utc datetime2 NOT NULL DEFAULT SYSUTCDATETIME(),
                 claim_token uniqueidentifier NULL,
@@ -88,13 +88,13 @@ public static class SqlServerMigrations
                 CONSTRAINT ck_{table}_schedule_exclusive CHECK (next_run_at_utc IS NULL OR delay_seconds IS NULL),
                 CONSTRAINT ck_{table}_meta_json CHECK (meta IS NULL OR ISJSON(meta) = 1),
                 CONSTRAINT ck_{table}_claim_pair CHECK (
-                    (status_code = 20 AND claim_token IS NOT NULL AND claim_until_utc IS NOT NULL)
-                    OR (status_code <> 20 AND claim_token IS NULL AND claim_until_utc IS NULL))
+                    (outbox_status_code = 20 AND claim_token IS NOT NULL AND claim_until_utc IS NOT NULL)
+                    OR (outbox_status_code <> 20 AND claim_token IS NULL AND claim_until_utc IS NULL))
             );
             CREATE INDEX ix_{table}_due ON {t}
-                (status_code, next_attempt_at_utc, id);
-            CREATE INDEX ix_{table}_claims ON {t} (status_code, claim_until_utc);
-            CREATE INDEX ix_{table}_lane ON {t} (job_namespace, lane, id);
+                (outbox_status_code, next_attempt_at_utc, id);
+            CREATE INDEX ix_{table}_claims ON {t} (outbox_status_code, claim_until_utc);
+            CREATE INDEX ix_{table}_lane ON {t} (namespace_name, lane_name, id);
             ALTER TABLE {t} SET (LOCK_ESCALATION = DISABLE);
             """;
     }

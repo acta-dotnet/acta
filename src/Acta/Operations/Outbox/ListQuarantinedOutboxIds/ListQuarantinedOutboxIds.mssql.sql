@@ -4,7 +4,7 @@
 SELECT outbox_id
 FROM {{table_ref}} WITH (FORCESEEK)
 WHERE
-    status_code = 90 /* OutboxStatusCode.Quarantined */
+    outbox_status_code = 90 /* OutboxStatusCode.Quarantined */
     AND (
         @p_outbox_ids IS NULL
         OR outbox_id IN (SELECT CAST(value AS UNIQUEIDENTIFIER) FROM OPENJSON(@p_outbox_ids))

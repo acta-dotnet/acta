@@ -62,22 +62,22 @@ public static class SqliteMigrations
             CREATE TABLE {table} (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 outbox_id TEXT NOT NULL,
-                job_namespace TEXT NOT NULL,
+                namespace_name TEXT NOT NULL,
                 job_name TEXT NOT NULL,
                 input_format_id INTEGER NOT NULL,
                 input BLOB NULL,
                 deduplication_key TEXT NOT NULL,
                 correlation_key TEXT NULL,
                 concurrency_key TEXT NULL,
-                lane TEXT NULL,
-                priority_code INTEGER NULL,
+                lane_name TEXT NULL,
+                job_priority_code INTEGER NULL,
                 next_run_at_utc TEXT NULL,
                 delay_seconds INTEGER NULL,
                 tenant_name TEXT NULL,
                 meta TEXT NULL,
-                last_error TEXT NULL,
+                failure_message TEXT NULL,
                 created_at_utc TEXT NOT NULL DEFAULT (strftime('%Y-%m-%d %H:%M:%f','now')),
-                status_code INTEGER NOT NULL DEFAULT 10,
+                outbox_status_code INTEGER NOT NULL DEFAULT 10,
                 failure_count INTEGER NOT NULL DEFAULT 0,
                 next_attempt_at_utc TEXT NOT NULL DEFAULT (strftime('%Y-%m-%d %H:%M:%f','now')),
                 claim_token TEXT NULL,
@@ -90,7 +90,7 @@ public static class SqliteMigrations
                 CONSTRAINT ck_{table}_payload_pair CHECK (
                     input_format_id BETWEEN 0 AND 255
                     AND ((input_format_id = 0 AND input IS NULL) OR (input_format_id <> 0 AND input IS NOT NULL))),
-                CONSTRAINT ck_{table}_priority_range CHECK (priority_code IS NULL OR priority_code BETWEEN 0 AND 255),
+                CONSTRAINT ck_{table}_priority_range CHECK (job_priority_code IS NULL OR job_priority_code BETWEEN 0 AND 255),
                 CONSTRAINT ck_{table}_delay_nonneg CHECK (delay_seconds IS NULL OR delay_seconds BETWEEN 0 AND 2147483647),
                 CONSTRAINT ck_{table}_failure_nonneg CHECK (failure_count BETWEEN 0 AND 2147483647),
                 CONSTRAINT ck_{table}_next_run_instant CHECK (
@@ -100,14 +100,14 @@ public static class SqliteMigrations
                 CONSTRAINT ck_{table}_schedule_exclusive CHECK (next_run_at_utc IS NULL OR delay_seconds IS NULL),
                 CONSTRAINT ck_{table}_meta_json CHECK (meta IS NULL OR json_valid(meta)),
                 CONSTRAINT ck_{table}_claim_pair CHECK (
-                    (status_code = 20 AND claim_token IS NOT NULL AND claim_until_utc IS NOT NULL)
-                    OR (status_code <> 20 AND claim_token IS NULL AND claim_until_utc IS NULL))
+                    (outbox_status_code = 20 AND claim_token IS NOT NULL AND claim_until_utc IS NOT NULL)
+                    OR (outbox_status_code <> 20 AND claim_token IS NULL AND claim_until_utc IS NULL))
             ) STRICT;
             CREATE UNIQUE INDEX ux_{table}_outbox_id ON {table} (lower(replace(outbox_id, '-', '')));
             CREATE INDEX ix_{table}_due ON {table}
-                (status_code, next_attempt_at_utc);
-            CREATE INDEX ix_{table}_claims ON {table} (status_code, claim_until_utc);
-            CREATE INDEX ix_{table}_lane ON {table} (job_namespace, lane);
+                (outbox_status_code, next_attempt_at_utc);
+            CREATE INDEX ix_{table}_claims ON {table} (outbox_status_code, claim_until_utc);
+            CREATE INDEX ix_{table}_lane ON {table} (namespace_name, lane_name);
             """;
     }
 }

@@ -19,10 +19,10 @@ public sealed class PgOutboxRangeSpec
         await WithTableAsync(
             async (conn, schema, table, ct) =>
             {
-                await ExecAsync(conn, Insert(schema, table, "priority_code", "255"), ct);
+                await ExecAsync(conn, Insert(schema, table, "job_priority_code", "255"), ct);
 
                 var refused = await Assert.ThrowsAsync<PostgresException>(() =>
-                    ExecAsync(conn, Insert(schema, table, "priority_code", "256"), ct)
+                    ExecAsync(conn, Insert(schema, table, "job_priority_code", "256"), ct)
                 );
                 Assert.Equal($"ck_{table}_priority_range", refused.ConstraintName);
             }
@@ -76,7 +76,7 @@ public sealed class PgOutboxRangeSpec
     }
 
     private static string Insert(string schema, string table, string column, string literal) =>
-        $"INSERT INTO {schema}.{table} (outbox_id, job_namespace, job_name, input_format_id, deduplication_key, {column}) "
+        $"INSERT INTO {schema}.{table} (outbox_id, namespace_name, job_name, input_format_id, deduplication_key, {column}) "
         + $"VALUES ('{Guid.NewGuid()}', 'orders', 'send', 0, '{Guid.NewGuid():N}', {literal});";
 
     private static async Task ExecAsync(NpgsqlConnection conn, string sql, CancellationToken ct)

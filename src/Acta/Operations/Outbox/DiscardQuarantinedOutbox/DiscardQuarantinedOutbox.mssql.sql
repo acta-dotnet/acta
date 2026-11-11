@@ -6,7 +6,7 @@ DELETE o
 OUTPUT DELETED.outbox_id
 FROM {{table_ref}} AS o WITH (FORCESEEK)
 WHERE
-    o.status_code = 90 /* OutboxStatusCode.Quarantined */
+    o.outbox_status_code = 90 /* OutboxStatusCode.Quarantined */
     AND (
         @p_outbox_ids IS NULL
         OR o.outbox_id IN (SELECT CAST(value AS UNIQUEIDENTIFIER) FROM OPENJSON(@p_outbox_ids))

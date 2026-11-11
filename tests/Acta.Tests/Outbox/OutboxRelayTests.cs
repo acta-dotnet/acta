@@ -456,7 +456,7 @@ public sealed class OutboxRelayTests
                 row.GetProperty("outbox_id").GetGuid(),
                 row.GetProperty("failure_count").GetInt32(),
                 row.GetProperty("backoff_seconds").GetInt32(),
-                row.GetProperty("last_error").GetString()!
+                row.GetProperty("failure_message").GetString()!
             );
 
         private static List<T> Json<T>(string json, Func<JsonElement, T> read)

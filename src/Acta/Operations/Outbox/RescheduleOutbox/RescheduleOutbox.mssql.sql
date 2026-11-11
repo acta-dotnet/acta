@@ -20,12 +20,12 @@ BEGIN TRY
     -- Seeks by key, so a producer's uncommitted rows never hold it up (docs/sql-internals.md, "Locking reads seek").
     UPDATE o
     SET
-        status_code = 10 /* OutboxStatusCode.Pending */,
+        outbox_status_code = 10 /* OutboxStatusCode.Pending */,
         claim_token = NULL,
         claim_until_utc = NULL,
         failure_count = r.failure_count,
         next_attempt_at_utc = DATEADD(SECOND, r.backoff_seconds, SYSUTCDATETIME()),
-        last_error = r.last_error
+        failure_message = r.failure_message
     FROM {{table_ref}} AS o WITH (FORCESEEK)
     INNER JOIN
         OPENJSON (@p_rows)
@@ -33,10 +33,10 @@ BEGIN TRY
             outbox_id UNIQUEIDENTIFIER '$.outbox_id',
             failure_count INT '$.failure_count',
             backoff_seconds INT '$.backoff_seconds',
-            last_error NVARCHAR(512) '$.last_error'
+            failure_message NVARCHAR(512) '$.failure_message'
         ) AS r
         ON o.outbox_id = r.outbox_id
-    WHERE o.claim_token = @p_claim_token AND o.status_code = 20 /* OutboxStatusCode.Claimed */;
+    WHERE o.claim_token = @p_claim_token AND o.outbox_status_code = 20 /* OutboxStatusCode.Claimed */;
 
     IF @entry_trancount = 0
         COMMIT TRANSACTION;

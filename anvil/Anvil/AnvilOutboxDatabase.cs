@@ -76,7 +76,7 @@ public sealed class AnvilOutboxDatabase(string path, AnvilSession session)
     {
         await using var connection = await OpenAsync(ct);
         await using var command = connection.CreateCommand();
-        command.CommandText = "SELECT status_code, COUNT(*) FROM acta_outbox GROUP BY status_code";
+        command.CommandText = "SELECT outbox_status_code, COUNT(*) FROM acta_outbox GROUP BY outbox_status_code";
         long pending = 0;
         long quarantined = 0;
         await using var reader = await command.ExecuteReaderAsync(ct);

@@ -3,19 +3,19 @@
    columns are r_-prefixed so unqualified target columns resolve to the outbox table under UPDATE FROM. */
 UPDATE {{table_ref}}
 SET
-    status_code = 90 /* OutboxStatusCode.Quarantined */,
+    outbox_status_code = 90 /* OutboxStatusCode.Quarantined */,
     claim_token = NULL,
     claim_until_utc = NULL,
     failure_count = r.r_failure_count,
-    last_error = r.r_last_error
+    failure_message = r.r_failure_message
 FROM (
     SELECT
         json_extract(value, '$.outbox_id') AS r_outbox_id,
         json_extract(value, '$.failure_count') AS r_failure_count,
-        json_extract(value, '$.last_error') AS r_last_error
+        json_extract(value, '$.failure_message') AS r_failure_message
     FROM json_each(@p_rows)
 ) AS r
 WHERE
     lower(replace(outbox_id, '-', '')) = lower(replace(r.r_outbox_id, '-', ''))
     AND claim_token = @p_claim_token COLLATE NOCASE
-    AND status_code = 20 /* OutboxStatusCode.Claimed */;
+    AND outbox_status_code = 20 /* OutboxStatusCode.Claimed */;

@@ -30,6 +30,8 @@ Not tagged yet.
 
 **Stop reading `quarantined=` in an outbox source's last tick**: the `lastTickSummary` of `GET /outbox/sources` and the `sys.outbox` job's `outbox-status` variable no longer carry the number of rows the pass quarantined. It was zero in every stored summary, because a pass that quarantines a row fails and stores none. `quarantineTotal` is the count to read.
 
+**Recreate the outbox table, or rename five of its columns**: `job_namespace` is `namespace_name`, `lane` is `lane_name`, `priority_code` is `job_priority_code`, `status_code` is `outbox_status_code`, and `last_error` is `failure_message`, so the table names its columns as every Acta table does. Create it again from the provider's `CreateOutboxScript`, or rename the columns in place, and change any SQL of your own that reads the table, such as a cleanup job or a monitoring query. Staging through `AddToActaOutboxAsync` needs no change, and no constraint or index is renamed.
+
 ### Fixes
 
 - On SQL Server, two definition overrides updates in different namespaces could deadlock, and one failed as the victim: the update that carries a rate override to the definitions sharing its meter read every definition row under update locks before filtering by namespace, and waited on another namespace's row that its own update held. It now seeks its own namespace's rows.

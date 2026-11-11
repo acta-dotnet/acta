@@ -44,16 +44,19 @@ public static class SqliteOutboxStagingExtensions
         // Explicit SqliteType (never AddWithValue, per the AOT parameter-metadata policy). The raw Guid binds
         // to TEXT with Microsoft.Data.Sqlite's canonical encoding; instants use the millisecond ISO text.
         p.Add(new SqliteParameter("@outbox_id", SqliteType.Text) { Value = row.OutboxId });
-        p.Add(new SqliteParameter("@job_namespace", SqliteType.Text) { Value = row.JobNamespace });
+        p.Add(new SqliteParameter("@namespace_name", SqliteType.Text) { Value = row.JobNamespace });
         p.Add(new SqliteParameter("@job_name", SqliteType.Text) { Value = row.JobName });
         p.Add(new SqliteParameter("@input_format_id", SqliteType.Integer) { Value = (long)row.InputFormatId });
         p.Add(new SqliteParameter("@input", SqliteType.Blob) { Value = (object?)row.Input ?? DBNull.Value });
         p.Add(new SqliteParameter("@deduplication_key", SqliteType.Text) { Value = row.DeduplicationKey });
         p.Add(new SqliteParameter("@correlation_key", SqliteType.Text) { Value = (object?)row.CorrelationKey ?? DBNull.Value });
         p.Add(new SqliteParameter("@concurrency_key", SqliteType.Text) { Value = (object?)row.ConcurrencyKey ?? DBNull.Value });
-        p.Add(new SqliteParameter("@lane", SqliteType.Text) { Value = (object?)row.Lane ?? DBNull.Value });
+        p.Add(new SqliteParameter("@lane_name", SqliteType.Text) { Value = (object?)row.Lane ?? DBNull.Value });
         p.Add(
-            new SqliteParameter("@priority_code", SqliteType.Integer) { Value = row.PriorityCode is { } code ? (long)code : DBNull.Value }
+            new SqliteParameter("@job_priority_code", SqliteType.Integer)
+            {
+                Value = row.PriorityCode is { } code ? (long)code : DBNull.Value,
+            }
         );
         p.Add(
             new SqliteParameter("@next_run_at_utc", SqliteType.Text)

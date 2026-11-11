@@ -1144,7 +1144,7 @@ If a producer staged an `acta_outbox` row and no Acta job appeared, check the re
   180 s default) expires and another relay reclaims it.
 - Connectivity and table-shape problems fail inside `sys.outbox` and raise a `SysCritical` alert rather
   than blocking unrelated jobs. Check `acta.alerts_view` and the `sys.outbox` event timeline.
-- A row the relay could not deliver is quarantined in place (`status_code = 90`) and excluded from claims.
+- A row the relay could not deliver is quarantined in place (`outbox_status_code = 90`) and excluded from claims.
   Requeue or discard it through `IActaOperations.Outbox`, `POST /outbox/{jobNamespace}/requeue` or
   `/discard`, or the dashboard's outbox panel; the
   [quarantine SQL recipes](#quarantined-outbox-rows) are the unaudited fallback. A requeue without
@@ -1530,7 +1530,7 @@ SELECT t.entity_id AS job_id, j.job_ref, j.namespace_name, j.definition_name, j.
 These recipes run against the **producer** database's external-outbox table, not the `acta` ledger
 schema. The default physical name is `acta_outbox` in the provider's default schema; substitute your
 configured table/schema. Status codes are `10` Pending, `20` Claimed, `90` Quarantined. Only requeue or
-delete rows the relay has quarantined (`status_code = 90`); leave Pending and Claimed rows to the relay.
+delete rows the relay has quarantined (`outbox_status_code = 90`); leave Pending and Claimed rows to the relay.
 Prefer the audited verbs, `IActaOperations.Outbox.RequeueAsync` and `DiscardAsync` or
 `POST /outbox/{jobNamespace}/requeue` and `/discard`, which write `outbox.requeued` and
 `outbox.discarded` events; these statements leave no audit trail.
@@ -1539,9 +1539,9 @@ Background: [transactional enqueue and the external outbox](./developer-guide.md
 Inspect quarantined rows:
 
 ```sql
-SELECT outbox_id, job_namespace, job_name, deduplication_key, failure_count, last_error, created_at_utc
+SELECT outbox_id, namespace_name, job_name, deduplication_key, failure_count, failure_message, created_at_utc
   FROM acta_outbox
- WHERE status_code = 90
+ WHERE outbox_status_code = 90
  ORDER BY created_at_utc;
 ```
 
@@ -1553,9 +1553,9 @@ the database clock, and clear the claim and error fields. Requeue only after fix
 
 ```sql
 UPDATE acta_outbox
-   SET status_code = 10, failure_count = 0, next_attempt_at_utc = now(),
-       claim_token = NULL, claim_until_utc = NULL, last_error = NULL
- WHERE status_code = 90
+   SET outbox_status_code = 10, failure_count = 0, next_attempt_at_utc = now(),
+       claim_token = NULL, claim_until_utc = NULL, failure_message = NULL
+ WHERE outbox_status_code = 90
    AND outbox_id = :outbox_id;
 ```
 
@@ -1563,9 +1563,9 @@ UPDATE acta_outbox
 
 ```sql
 UPDATE acta_outbox
-   SET status_code = 10, failure_count = 0, next_attempt_at_utc = SYSUTCDATETIME(),
-       claim_token = NULL, claim_until_utc = NULL, last_error = NULL
- WHERE status_code = 90
+   SET outbox_status_code = 10, failure_count = 0, next_attempt_at_utc = SYSUTCDATETIME(),
+       claim_token = NULL, claim_until_utc = NULL, failure_message = NULL
+ WHERE outbox_status_code = 90
    AND outbox_id = @outbox_id;
 ```
 
@@ -1573,9 +1573,9 @@ UPDATE acta_outbox
 
 ```sql
 UPDATE acta_outbox
-   SET status_code = 10, failure_count = 0, next_attempt_at_utc = datetime('now'),
-       claim_token = NULL, claim_until_utc = NULL, last_error = NULL
- WHERE status_code = 90
+   SET outbox_status_code = 10, failure_count = 0, next_attempt_at_utc = datetime('now'),
+       claim_token = NULL, claim_until_utc = NULL, failure_message = NULL
+ WHERE outbox_status_code = 90
    AND outbox_id = :outbox_id;
 ```
 
@@ -1583,11 +1583,11 @@ Delete a quarantined row that should never be delivered (the payload is wrong an
 
 ```sql
 DELETE FROM acta_outbox
- WHERE status_code = 90
+ WHERE outbox_status_code = 90
    AND outbox_id = :outbox_id;
 ```
 
-The `status_code = 90` guard keeps a requeue or delete from racing a row the relay currently owns: a
+The `outbox_status_code = 90` guard keeps a requeue or delete from racing a row the relay currently owns: a
 Claimed row is finalized by token CAS, so a stale operator write against it would not match anyway, but
 scoping to Quarantined makes the intent explicit and the statement idempotent.
 

@@ -3,7 +3,7 @@
 SELECT outbox_id
 FROM {{table_ref}}
 WHERE
-    status_code = 90 /* OutboxStatusCode.Quarantined */
+    outbox_status_code = 90 /* OutboxStatusCode.Quarantined */
     AND (
         @p_outbox_ids IS NULL
         OR lower(replace(outbox_id, '-', '')) IN (SELECT lower(replace(value, '-', '')) FROM json_each(@p_outbox_ids))

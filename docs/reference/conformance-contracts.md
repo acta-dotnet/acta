@@ -1495,7 +1495,7 @@
   - A stale token no-ops and the owning token releases the row for immediate reclaim
 
 ### Requeue returns quarantined rows to Pending, budget reset, evidence kept
-- **Contract:** RequeueQuarantined moves targeted (or all, when ids are null) Quarantined rows to Pending, due now, failure_count reset, last_error kept, returning the ids.
+- **Contract:** RequeueQuarantined moves targeted (or, with null ids, all) Quarantined rows to Pending, due now, failure_count reset, failure_message kept, returning the ids.
 - **Guarantees:**
   - Id-scoped requeue frees one row, the null form sweeps the rest, and freed rows claim again
 

@@ -467,7 +467,7 @@ public static class ChaosCase
         await connection.OpenAsync(ct);
         await using var command = connection.CreateCommand();
         command.CommandText =
-            $"SELECT SUM(CASE WHEN status_code <> 90 /* OutboxStatusCode.Quarantined */ THEN 1 ELSE 0 END), SUM(CASE WHEN status_code = 90 /* OutboxStatusCode.Quarantined */ THEN 1 ELSE 0 END) FROM acta_outbox; SELECT business_key FROM domain_obligations ORDER BY business_key;";
+            $"SELECT SUM(CASE WHEN outbox_status_code <> 90 /* OutboxStatusCode.Quarantined */ THEN 1 ELSE 0 END), SUM(CASE WHEN outbox_status_code = 90 /* OutboxStatusCode.Quarantined */ THEN 1 ELSE 0 END) FROM acta_outbox; SELECT business_key FROM domain_obligations ORDER BY business_key;";
         await using var reader = await command.ExecuteReaderAsync(ct);
         await reader.ReadAsync(ct);
         var pending = reader.IsDBNull(0) ? 0 : reader.GetInt64(0);

@@ -2,13 +2,13 @@
    under one BEGIN IMMEDIATE write lock. Instants are the canonical outbox SQLite ISO text, so the clock and
    lease use strftime, not the ledger's epoch-milliseconds encoding. */
 UPDATE {{table_ref}}
-SET status_code = 10 /* OutboxStatusCode.Pending */, claim_token = NULL, claim_until_utc = NULL
-WHERE status_code = 20 /* OutboxStatusCode.Claimed */ AND claim_until_utc <= STRFTIME('%Y-%m-%d %H:%M:%f', 'now');
+SET outbox_status_code = 10 /* OutboxStatusCode.Pending */, claim_token = NULL, claim_until_utc = NULL
+WHERE outbox_status_code = 20 /* OutboxStatusCode.Claimed */ AND claim_until_utc <= STRFTIME('%Y-%m-%d %H:%M:%f', 'now');
 
 /* A laned row waits while an older row of its lane is Pending or Claimed (OutboxOperations.Source.ClaimAsync). */
 UPDATE {{table_ref}}
 SET
-    status_code = 20 /* OutboxStatusCode.Claimed */,
+    outbox_status_code = 20 /* OutboxStatusCode.Claimed */,
     claim_token = @p_claim_token,
     claim_until_utc = STRFTIME('%Y-%m-%d %H:%M:%f', 'now', '+' || CAST(@p_lease_ttl_seconds AS TEXT) || ' seconds')
 WHERE
@@ -16,18 +16,18 @@ WHERE
         SELECT c.id
         FROM {{table_ref}} c
         WHERE
-            c.status_code = 10 /* OutboxStatusCode.Pending */
+            c.outbox_status_code = 10 /* OutboxStatusCode.Pending */
             AND c.next_attempt_at_utc <= STRFTIME('%Y-%m-%d %H:%M:%f', 'now')
             AND (
-                c.lane IS NULL
+                c.lane_name IS NULL
                 OR NOT EXISTS (
                     SELECT 1
                     FROM {{table_ref}} e
                     WHERE
-                        e.job_namespace = c.job_namespace
-                        AND e.lane = c.lane
+                        e.namespace_name = c.namespace_name
+                        AND e.lane_name = c.lane_name
                         AND e.id < c.id
-                        AND e.status_code IN (10 /* OutboxStatusCode.Pending */, 20 /* OutboxStatusCode.Claimed */)
+                        AND e.outbox_status_code IN (10 /* OutboxStatusCode.Pending */, 20 /* OutboxStatusCode.Claimed */)
                 )
             )
         ORDER BY c.next_attempt_at_utc ASC, c.id ASC
@@ -36,7 +36,7 @@ WHERE
 /* A run instant reads back canonical, so a T or Z spelling of the UTC text reads as the same instant; text SQLite
    cannot read comes back as written and fails the read rather than reading as no instant. */
 RETURNING
-    outbox_id, job_namespace, job_name, input_format_id, input,
-    deduplication_key, correlation_key, concurrency_key, lane, priority_code,
+    outbox_id, namespace_name, job_name, input_format_id, input,
+    deduplication_key, correlation_key, concurrency_key, lane_name, job_priority_code,
     COALESCE(strftime('%Y-%m-%d %H:%M:%f', next_run_at_utc), next_run_at_utc) AS next_run_at_utc,
     delay_seconds, tenant_name, meta, failure_count, id;

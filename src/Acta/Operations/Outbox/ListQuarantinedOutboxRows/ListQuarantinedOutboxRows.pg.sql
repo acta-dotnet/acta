@@ -2,11 +2,11 @@
    source encodings (a timestamp cursor would need per-provider instant rendering for no operator gain on
    a table that is near-empty by design). The operator surface orders a fetched page for display. */
 SELECT
-    outbox_id, job_namespace, job_name, deduplication_key, correlation_key, tenant_name,
-    failure_count, last_error, created_at_utc
+    outbox_id, namespace_name AS job_namespace, job_name, deduplication_key, correlation_key, tenant_name,
+    failure_count, failure_message AS last_error, created_at_utc
 FROM {{table_ref}}
 WHERE
-    status_code = 90 /* OutboxStatusCode.Quarantined */
+    outbox_status_code = 90 /* OutboxStatusCode.Quarantined */
     AND (@p_after_outbox_id IS NULL OR outbox_id > @p_after_outbox_id)
 ORDER BY outbox_id ASC
 LIMIT @p_page_size;

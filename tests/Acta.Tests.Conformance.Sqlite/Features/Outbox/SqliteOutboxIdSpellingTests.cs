@@ -66,7 +66,7 @@ public sealed class SqliteOutboxIdSpellingTests : ActaTestBase<SqliteConformance
         await conn.OpenAsync(ct);
         await using var cmd = conn.CreateCommand();
         cmd.CommandText =
-            $"INSERT INTO main.{table} (outbox_id, job_namespace, job_name, input_format_id, deduplication_key, "
+            $"INSERT INTO main.{table} (outbox_id, namespace_name, job_name, input_format_id, deduplication_key, "
             + "created_at_utc, next_attempt_at_utc) VALUES (@id, 'orders', 'send', 0, @dedup, "
             + "strftime('%Y-%m-%d %H:%M:%f', 'now', '-5 minutes'), strftime('%Y-%m-%d %H:%M:%f', 'now', '-5 minutes'))";
         cmd.Parameters.Add(new SqliteParameter("@id", SqliteType.Text) { Value = outboxId });
@@ -80,7 +80,7 @@ public sealed class SqliteOutboxIdSpellingTests : ActaTestBase<SqliteConformance
         await using var conn = new SqliteConnection(SqliteIntegrationSchema.BootstrappedConnectionString);
         await conn.OpenAsync(ct);
         await using var cmd = conn.CreateCommand();
-        cmd.CommandText = $"SELECT status_code || ':' || failure_count FROM main.{table} ORDER BY id";
+        cmd.CommandText = $"SELECT outbox_status_code || ':' || failure_count FROM main.{table} ORDER BY id";
         await using var reader = await cmd.ExecuteReaderAsync(ct);
         var states = new List<string>();
         while (await reader.ReadAsync(ct))

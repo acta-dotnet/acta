@@ -3,7 +3,7 @@
 SELECT outbox_id
 FROM {{table_ref}}
 WHERE
-    status_code = 90 /* OutboxStatusCode.Quarantined */
+    outbox_status_code = 90 /* OutboxStatusCode.Quarantined */
     AND (
         @p_outbox_ids IS NULL
         OR outbox_id IN (SELECT value::uuid FROM jsonb_array_elements_text(@p_outbox_ids::jsonb))

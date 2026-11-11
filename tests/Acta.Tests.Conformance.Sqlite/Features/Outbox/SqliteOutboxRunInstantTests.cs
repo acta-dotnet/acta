@@ -37,7 +37,7 @@ public sealed class SqliteOutboxRunInstantTests : ActaTestBase<SqliteConformance
         await conn.OpenAsync(ct);
         await using var cmd = conn.CreateCommand();
         cmd.CommandText =
-            $"INSERT INTO main.{table} (outbox_id, job_namespace, job_name, input_format_id, deduplication_key, next_run_at_utc, "
+            $"INSERT INTO main.{table} (outbox_id, namespace_name, job_name, input_format_id, deduplication_key, next_run_at_utc, "
             + "next_attempt_at_utc) VALUES (@id, 'orders', 'send', 0, @dedup, @next, strftime('%Y-%m-%d %H:%M:%f', 'now', '-5 minutes'))";
         cmd.Parameters.Add(new SqliteParameter("@id", SqliteType.Text) { Value = Guid.NewGuid().ToString() });
         cmd.Parameters.Add(new SqliteParameter("@dedup", SqliteType.Text) { Value = Guid.NewGuid().ToString("N") });

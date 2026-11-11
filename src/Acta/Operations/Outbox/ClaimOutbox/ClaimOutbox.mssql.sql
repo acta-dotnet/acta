@@ -20,9 +20,9 @@ BEGIN TRY
     -- Every read seeks and locks rows only (docs/sql-internals.md, "Locking reads seek"), with no index named:
     -- the producer owns this table's DDL and may rename its indexes.
     UPDATE o
-    SET status_code = 10 /* OutboxStatusCode.Pending */, claim_token = NULL, claim_until_utc = NULL
+    SET outbox_status_code = 10 /* OutboxStatusCode.Pending */, claim_token = NULL, claim_until_utc = NULL
     FROM {{table_ref}} AS o WITH (FORCESEEK, ROWLOCK)
-    WHERE o.status_code = 20 /* OutboxStatusCode.Claimed */ AND o.claim_until_utc <= SYSUTCDATETIME();
+    WHERE o.outbox_status_code = 20 /* OutboxStatusCode.Claimed */ AND o.claim_until_utc <= SYSUTCDATETIME();
 
     /* A laned row waits while an older row of its lane is Pending or Claimed (OutboxOperations.Source.ClaimAsync).
        The check skips a row a producer has not committed, which counts as absent, as under read-committed
@@ -31,18 +31,18 @@ BEGIN TRY
         SELECT TOP (@p_batch_size) c.id
         FROM {{table_ref}} AS c WITH (UPDLOCK, READPAST, ROWLOCK, FORCESEEK)
         WHERE
-            c.status_code = 10 /* OutboxStatusCode.Pending */
+            c.outbox_status_code = 10 /* OutboxStatusCode.Pending */
             AND c.next_attempt_at_utc <= SYSUTCDATETIME()
             AND (
-                c.lane IS NULL
+                c.lane_name IS NULL
                 OR NOT EXISTS (
                     SELECT 1
                     FROM {{table_ref}} AS e WITH (READCOMMITTEDLOCK, READPAST, FORCESEEK)
                     WHERE
-                        e.job_namespace = c.job_namespace
-                        AND e.lane = c.lane
+                        e.namespace_name = c.namespace_name
+                        AND e.lane_name = c.lane_name
                         AND e.id < c.id
-                        AND e.status_code IN (10 /* OutboxStatusCode.Pending */, 20 /* OutboxStatusCode.Claimed */)
+                        AND e.outbox_status_code IN (10 /* OutboxStatusCode.Pending */, 20 /* OutboxStatusCode.Claimed */)
                 )
             )
         ORDER BY c.next_attempt_at_utc ASC, c.id ASC
@@ -50,12 +50,12 @@ BEGIN TRY
 
     UPDATE o
     SET
-        status_code = 20 /* OutboxStatusCode.Claimed */,
+        outbox_status_code = 20 /* OutboxStatusCode.Claimed */,
         claim_token = @p_claim_token,
         claim_until_utc = DATEADD(SECOND, @p_lease_ttl_seconds, SYSUTCDATETIME())
     OUTPUT
-        INSERTED.outbox_id, INSERTED.job_namespace, INSERTED.job_name, INSERTED.input_format_id, INSERTED.input,
-        INSERTED.deduplication_key, INSERTED.correlation_key, INSERTED.concurrency_key, INSERTED.lane, INSERTED.priority_code,
+        INSERTED.outbox_id, INSERTED.namespace_name, INSERTED.job_name, INSERTED.input_format_id, INSERTED.input,
+        INSERTED.deduplication_key, INSERTED.correlation_key, INSERTED.concurrency_key, INSERTED.lane_name, INSERTED.job_priority_code,
         INSERTED.next_run_at_utc, INSERTED.delay_seconds, INSERTED.tenant_name, INSERTED.meta, INSERTED.failure_count, INSERTED.id
     FROM {{table_ref}} AS o WITH (FORCESEEK, ROWLOCK)
     INNER JOIN due ON due.id = o.id;

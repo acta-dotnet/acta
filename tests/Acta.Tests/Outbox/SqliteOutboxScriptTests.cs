@@ -55,8 +55,8 @@ public sealed class SqliteOutboxScriptTests
     }
 
     [Theory]
-    [InlineData("priority_code", 256L, "ck_acta_outbox_priority_range")]
-    [InlineData("priority_code", -1L, "ck_acta_outbox_priority_range")]
+    [InlineData("job_priority_code", 256L, "ck_acta_outbox_priority_range")]
+    [InlineData("job_priority_code", -1L, "ck_acta_outbox_priority_range")]
     [InlineData("delay_seconds", 2147483648L, "ck_acta_outbox_delay_nonneg")]
     [InlineData("failure_count", 2147483648L, "ck_acta_outbox_failure_nonneg")]
     public async Task A_value_the_relay_cannot_project_is_refused(string column, long value, string check)
@@ -72,7 +72,7 @@ public sealed class SqliteOutboxScriptTests
     {
         await using var db = await OpenAsync();
 
-        await InsertAsync(db, Id, ("priority_code", 255L));
+        await InsertAsync(db, Id, ("job_priority_code", 255L));
         await InsertAsync(db, Guid.NewGuid().ToString(), ("delay_seconds", (long)int.MaxValue));
         await InsertAsync(db, Guid.NewGuid().ToString().ToUpperInvariant(), ("failure_count", (long)int.MaxValue));
         await using var count = db.CreateCommand();
@@ -146,7 +146,7 @@ public sealed class SqliteOutboxScriptTests
         var column = extra is { } e ? ", " + e.Column : "";
         var value = extra is null ? "" : ", @value";
         cmd.CommandText =
-            $"INSERT INTO acta_outbox (outbox_id, job_namespace, job_name, input_format_id, deduplication_key{column}) "
+            $"INSERT INTO acta_outbox (outbox_id, namespace_name, job_name, input_format_id, deduplication_key{column}) "
             + $"VALUES (@id, 'orders', 'send', 0, @dedup{value})";
         cmd.Parameters.AddWithValue("@id", outboxId);
         cmd.Parameters.AddWithValue("@dedup", Guid.NewGuid().ToString("N"));

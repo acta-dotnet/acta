@@ -6,7 +6,7 @@ namespace Acta.Tests.Conformance.Operations.Outbox;
 
 /// <summary>
 /// Conformance for the operator requeue - the exit <c>OutboxStatusCode.Quarantined</c> promises: the row
-/// returns to Pending, immediately due, with its failure budget reset and <c>last_error</c> kept as the
+/// returns to Pending, immediately due, with its failure budget reset and <c>failure_message</c> kept as the
 /// evidence of why it was quarantined. An id-scoped requeue touches only its ids; a null id set sweeps
 /// every quarantined row; a non-quarantined id is untouched (the status filter is the whole guard).
 /// </summary>
@@ -14,7 +14,7 @@ namespace Acta.Tests.Conformance.Operations.Outbox;
     "outbox-requeue.operator-exit",
     "Requeue returns quarantined rows to Pending, budget reset, evidence kept",
     Area = "Outbox",
-    Contract = "RequeueQuarantined moves targeted (or all, when ids are null) Quarantined rows to Pending, due now, failure_count reset, last_error kept, returning the ids."
+    Contract = "RequeueQuarantined moves targeted (or, with null ids, all) Quarantined rows to Pending, due now, failure_count reset, failure_message kept, returning the ids."
 )]
 public sealed class RequeueQuarantinedOutboxSpec : OutboxSpecBase
 {

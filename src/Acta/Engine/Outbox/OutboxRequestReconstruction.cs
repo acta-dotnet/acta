@@ -4,7 +4,7 @@ namespace Acta;
 
 /// <summary>
 /// Rebuilds the canonical <see cref="EnqueueJobRequest"/> from a claimed <see cref="ClaimOutboxRow"/> using
-/// the raw enqueue vocabulary. A null <c>priority_code</c> stays null in the request (no override); the
+/// the raw enqueue vocabulary. A null <c>job_priority_code</c> stays null in the request (no override); the
 /// external table's <c>ParentJobId</c>-less contract means the reconstructed request is always a root job.
 /// A malformed <c>meta</c>, missing tag name, an over-cap payload, an unsupported <c>input_format_id</c>, or input
 /// its format rejects (json that is not UTF-8 or holds a NUL byte) throws <see cref="OutboxContractException"/>

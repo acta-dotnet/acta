@@ -18,10 +18,10 @@ internal static class OutboxStaging
     /// extension binds these named parameters with its own typed parameter objects.
     /// </summary>
     private const string InsertColumnsAndValues = """
-            (outbox_id, job_namespace, job_name, input_format_id, input, deduplication_key,
-             correlation_key, concurrency_key, lane, priority_code, next_run_at_utc, delay_seconds, tenant_name, meta)
-        VALUES (@outbox_id, @job_namespace, @job_name, @input_format_id, @input, @deduplication_key,
-                @correlation_key, @concurrency_key, @lane, @priority_code, @next_run_at_utc, @delay_seconds, @tenant_name, @meta);
+            (outbox_id, namespace_name, job_name, input_format_id, input, deduplication_key,
+             correlation_key, concurrency_key, lane_name, job_priority_code, next_run_at_utc, delay_seconds, tenant_name, meta)
+        VALUES (@outbox_id, @namespace_name, @job_name, @input_format_id, @input, @deduplication_key,
+                @correlation_key, @concurrency_key, @lane_name, @job_priority_code, @next_run_at_utc, @delay_seconds, @tenant_name, @meta);
         """;
 
     /// <summary>

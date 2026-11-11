@@ -70,22 +70,22 @@ public static class PostgresMigrations
             CREATE TABLE {t} (
                 id bigint GENERATED ALWAYS AS IDENTITY,
                 outbox_id uuid NOT NULL,
-                job_namespace varchar(128) NOT NULL,
+                namespace_name varchar(128) NOT NULL,
                 job_name varchar(128) NOT NULL,
                 input_format_id smallint NOT NULL,
                 input bytea NULL,
                 deduplication_key varchar(128) NOT NULL,
                 correlation_key varchar(64) NULL,
                 concurrency_key varchar(128) NULL,
-                lane varchar(128) NULL,
-                priority_code smallint NULL,
+                lane_name varchar(128) NULL,
+                job_priority_code smallint NULL,
                 next_run_at_utc timestamptz NULL,
                 delay_seconds integer NULL,
                 tenant_name varchar(128) NULL,
                 meta jsonb NULL,
-                last_error varchar(512) NULL,
+                failure_message varchar(512) NULL,
                 created_at_utc timestamptz NOT NULL DEFAULT now(),
-                status_code smallint NOT NULL DEFAULT 10,
+                outbox_status_code smallint NOT NULL DEFAULT 10,
                 failure_count integer NOT NULL DEFAULT 0,
                 next_attempt_at_utc timestamptz NOT NULL DEFAULT now(),
                 claim_token uuid NULL,
@@ -95,7 +95,7 @@ public static class PostgresMigrations
                 CONSTRAINT ck_{table}_payload_pair CHECK (
                     input_format_id BETWEEN 0 AND 255
                     AND ((input_format_id = 0 AND input IS NULL) OR (input_format_id <> 0 AND input IS NOT NULL))),
-                CONSTRAINT ck_{table}_priority_range CHECK (priority_code IS NULL OR priority_code BETWEEN 0 AND 255),
+                CONSTRAINT ck_{table}_priority_range CHECK (job_priority_code IS NULL OR job_priority_code BETWEEN 0 AND 255),
                 CONSTRAINT ck_{table}_delay_nonneg CHECK (delay_seconds IS NULL OR delay_seconds >= 0),
                 CONSTRAINT ck_{table}_failure_nonneg CHECK (failure_count >= 0),
                 CONSTRAINT ck_{table}_next_run_instant CHECK (
@@ -104,13 +104,13 @@ public static class PostgresMigrations
                 CONSTRAINT ck_{table}_schedule_exclusive CHECK (next_run_at_utc IS NULL OR delay_seconds IS NULL),
                 CONSTRAINT ck_{table}_meta_json CHECK (meta IS NULL OR jsonb_typeof(meta) IS NOT NULL),
                 CONSTRAINT ck_{table}_claim_pair CHECK (
-                    (status_code = 20 AND claim_token IS NOT NULL AND claim_until_utc IS NOT NULL)
-                    OR (status_code <> 20 AND claim_token IS NULL AND claim_until_utc IS NULL))
+                    (outbox_status_code = 20 AND claim_token IS NOT NULL AND claim_until_utc IS NOT NULL)
+                    OR (outbox_status_code <> 20 AND claim_token IS NULL AND claim_until_utc IS NULL))
             );
             CREATE INDEX ix_{table}_due ON {t}
-                (status_code, next_attempt_at_utc, id);
-            CREATE INDEX ix_{table}_claims ON {t} (status_code, claim_until_utc);
-            CREATE INDEX ix_{table}_lane ON {t} (job_namespace, lane, id);
+                (outbox_status_code, next_attempt_at_utc, id);
+            CREATE INDEX ix_{table}_claims ON {t} (outbox_status_code, claim_until_utc);
+            CREATE INDEX ix_{table}_lane ON {t} (namespace_name, lane_name, id);
             """;
     }
 }
