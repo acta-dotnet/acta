@@ -57,7 +57,7 @@ GO
 -- ===== refuse a database a newer release already upgraded =====
 IF EXISTS (
     SELECT 1 FROM acta.migrations
-    WHERE name NOT IN ('M20261110213509_init')
+    WHERE name NOT IN ('M20261110225447_init')
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -65,7 +65,7 @@ BEGIN
     SET NOEXEC ON;
 END
 GO
--- ===== BEGIN M20261110213509_init =====
+-- ===== BEGIN M20261110225447_init =====
 SET QUOTED_IDENTIFIER ON;
 SET ANSI_NULLS ON;
 GO
@@ -1402,13 +1402,14 @@ BEGIN
                 END
 
             -- The awaited checkpoint is the only place a wait's deadline lives; its lock lets a raise that won the race land the
-            -- job Ready, and makes a raise that creates a missing checkpoint wait for this landing and then wake the job.
+            -- job Ready. A wait with no checkpoint has nothing to wait on and lands Ready too, so a raise that creates the
+            -- missing checkpoint, which waits for this landing, has no job left to wake.
             IF @waits = 1
                 UPDATE x
-                SET sig_state = s.checkpoint_status_code, sig_due = s.due_at_utc
+                SET sig_state = COALESCE(s.checkpoint_status_code, 20 /* CheckpointStatusCode.Set */), sig_due = s.due_at_utc
                 FROM @rows x
                 INNER JOIN @p_batch c ON c.job_id = x.job_id AND c.execution_number = x.execution_number AND c.wait_signal_name IS NOT NULL
-                INNER JOIN acta.checkpoints s WITH (UPDLOCK, FORCESEEK)
+                LEFT JOIN acta.checkpoints s WITH (UPDLOCK, FORCESEEK)
                     ON
                         s.job_id = x.job_id
                         AND s.checkpoint_kind_code IN (20 /* CheckpointKindCode.Signal */, 50 /* CheckpointKindCode.ChildLatch */)
@@ -1760,7 +1761,8 @@ BEGIN
                 WHERE j.event_recording_code = 20 /* EventRecordingCode.Audit */ AND k.event_code IS NOT NULL
                 ORDER BY d.job_id, k.ord;
 
-            -- A child that landed terminal sets its latch on the parent and wakes a Suspended parent.
+            -- A child that landed terminal sets its latch on the parent and wakes a Suspended parent that waits on it: only a
+            -- latch that was Pending releases, so another child landing costs the parent no execution.
             IF @children = 1
                 BEGIN
                     CREATE TABLE #parents (
@@ -1877,7 +1879,7 @@ BEGIN
                         FROM #parents
                         WHERE
                             parent_status = 20 /* JobStatusCode.Suspended */
-                            AND (latch_state IS NULL OR latch_state <> 30 /* CheckpointStatusCode.Expired */)
+                            AND latch_state = 10 /* CheckpointStatusCode.Pending */
                     ) w
                     INNER JOIN acta.jobs_state pr WITH (INDEX (pk_jobs_state), FORCESEEK, ROWLOCK) ON pr.job_id = w.parent_job_id
                     WHERE pr.job_status_code = 20 /* JobStatusCode.Suspended */;
@@ -1900,7 +1902,7 @@ BEGIN
                         FROM #parents
                         WHERE
                             parent_status = 20 /* JobStatusCode.Suspended */
-                            AND (latch_state IS NULL OR latch_state <> 30 /* CheckpointStatusCode.Expired */)
+                            AND latch_state = 10 /* CheckpointStatusCode.Pending */
                     ) w
                     INNER JOIN acta.jobs pj ON pj.job_id = w.parent_job_id
                     WHERE pj.event_recording_code = 20 /* EventRecordingCode.Audit */;
@@ -1911,7 +1913,7 @@ BEGIN
                     INNER JOIN #parents p ON p.child_job_id = d.job_id
                     WHERE
                         p.parent_status = 20 /* JobStatusCode.Suspended */
-                        AND (p.latch_state IS NULL OR p.latch_state <> 30 /* CheckpointStatusCode.Expired */);
+                        AND p.latch_state = 10 /* CheckpointStatusCode.Pending */;
                 END
 
             /* A laned job that finished, or that its handler paused, leaves the lane with no runner: the lowest-id
@@ -3659,7 +3661,8 @@ BEGIN
                 @message, @p_details_format_id, @p_details
             );
 
-        IF @from_status = 20 /* JobStatusCode.Suspended */ AND @expired = 0
+        -- Only the checkpoint the job waits on releases it; any other raise is stored for the wait that will read it.
+        IF @from_status = 20 /* JobStatusCode.Suspended */ AND @existing = 10 /* CheckpointStatusCode.Pending */
             BEGIN
                 UPDATE acta.jobs_state
                 SET
@@ -5021,11 +5024,11 @@ JOIN acta.namespaces AS ns ON ns.namespace_id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261110213509_init')
+IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261110225447_init')
 INSERT INTO acta.migrations (name)
-VALUES ('M20261110213509_init');
+VALUES ('M20261110225447_init');
 GO
--- ===== END M20261110213509_init =====
+-- ===== END M20261110225447_init =====
 GO
 COMMIT TRANSACTION;
 GO

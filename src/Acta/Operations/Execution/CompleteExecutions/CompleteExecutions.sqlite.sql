@@ -62,14 +62,18 @@ WHERE
 
 -- begin waits
 -- The awaited checkpoint is the only place a wait's deadline lives, and a raise that won the race lands the job Ready.
+-- A wait with no checkpoint has nothing to wait on and lands Ready too.
 UPDATE temp._ces_done
 SET
-    sig_state = (
-        SELECT s.checkpoint_status_code FROM {{schema}}.checkpoints s
-        WHERE
-            s.job_id = temp._ces_done.job_id
-            AND s.checkpoint_kind_code IN (20 /* CheckpointKindCode.Signal */, 50 /* CheckpointKindCode.ChildLatch */)
-            AND s.checkpoint_name = temp._ces_done.wait_signal_name
+    sig_state = COALESCE(
+        (
+            SELECT s.checkpoint_status_code FROM {{schema}}.checkpoints s
+            WHERE
+                s.job_id = temp._ces_done.job_id
+                AND s.checkpoint_kind_code IN (20 /* CheckpointKindCode.Signal */, 50 /* CheckpointKindCode.ChildLatch */)
+                AND s.checkpoint_name = temp._ces_done.wait_signal_name
+        ),
+        20 /* CheckpointStatusCode.Set */
     ),
     sig_due = (
         SELECT s.due_at_utc FROM {{schema}}.checkpoints s
@@ -376,9 +380,9 @@ ORDER BY k.job_id, k.ord;
 -- end shapes
 
 -- begin children
-/* A terminal child sets its latch on the parent and wakes a Suspended parent. An Expired latch already timed the wait
-   out, so a later child writes no latch and wakes no one, though the audit event records it. A finished parent takes
-   the latch too, for a restart to read; parent_status is set only for a terminal child whose parent still exists. */
+/* A terminal child sets its latch on the parent and wakes a Suspended parent whose latch was Pending: it waits on that
+   child. An Expired latch already timed the wait out, so a later child writes no latch, though the event records it. A
+   finished parent takes the latch for a restart to read; parent_status is set only when the parent still exists. */
 UPDATE temp._ces_done
 SET
     parent_status = (SELECT pr.job_status_code FROM {{schema}}.jobs_state pr WHERE pr.job_id = temp._ces_done.parent_job_id),
@@ -448,7 +452,7 @@ INNER JOIN {{schema}}.jobs pj ON pj.job_id = d.parent_job_id
 INNER JOIN {{schema}}.jobs_state pr ON pr.job_id = d.parent_job_id
 WHERE
     d.parent_status = 20 /* JobStatusCode.Suspended */
-    AND (d.latch_state IS NULL OR d.latch_state <> 30 /* CheckpointStatusCode.Expired */)
+    AND d.latch_state = 10 /* CheckpointStatusCode.Pending */
     AND pj.event_recording_code = 20 /* EventRecordingCode.Audit */;
 
 UPDATE {{schema}}.jobs_state
@@ -464,7 +468,7 @@ WHERE
         FROM temp._ces_done d
         WHERE
             d.parent_status = 20 /* JobStatusCode.Suspended */
-            AND (d.latch_state IS NULL OR d.latch_state <> 30 /* CheckpointStatusCode.Expired */)
+            AND d.latch_state = 10 /* CheckpointStatusCode.Pending */
     );
 -- end children
 
@@ -518,11 +522,7 @@ SELECT
     r.job_status_code AS final_job_status_code,
     r.next_run_at_utc AS final_next_run_at_utc,
     {{now}} AS db_now,
-    CASE
-        WHEN d.parent_status = 20 /* JobStatusCode.Suspended */ AND (d.latch_state IS NULL OR d.latch_state <> 30 /* CheckpointStatusCode.Expired */)
-            THEN 1
-        ELSE 0
-    END AS parent_released,
+    CASE WHEN d.parent_status = 20 /* JobStatusCode.Suspended */ AND d.latch_state = 10 /* CheckpointStatusCode.Pending */ THEN 1 ELSE 0 END AS parent_released,
     CASE WHEN d.head_id IS NOT NULL THEN 1 ELSE 0 END AS lane_promoted
 FROM jsonb_each(@p_completions) c
 LEFT JOIN temp._ces_done d

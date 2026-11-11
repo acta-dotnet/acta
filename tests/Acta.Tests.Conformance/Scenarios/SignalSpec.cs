@@ -16,7 +16,7 @@ namespace Acta.Tests.Conformance.Scenarios;
     "signals.wait-and-raise",
     "Wait suspends a job and a raise releases it last-writer-wins",
     Area = "Signals",
-    Contract = "WaitSignalAsync suspends a job on a Pending checkpoint and RaiseSignalAsync sets the checkpoint last-writer-wins releasing only a Suspended job to Ready."
+    Contract = "WaitSignalAsync suspends a job on a Pending checkpoint and RaiseSignalAsync sets the checkpoint last-writer-wins, releasing a Suspended job that waits on it."
 )]
 public sealed class SignalSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
@@ -221,6 +221,30 @@ public sealed class SignalSpec : ActaRuntimeTestBase<ConformanceFixture, TestJob
 
         Assert.Equal(JobStatusCode.Paused, (await ReadJobAsync(enqueued.JobId, ct)).Status);
         Assert.Equal(CheckpointStatusCode.Set, (await ReadSignalsAsync(enqueued.JobId, ct)).Single().Status);
+    }
+
+    [Fact(DisplayName = "A raise of a name the job does not wait on is stored and leaves the job suspended")]
+    public async Task Raise_of_another_name_does_not_wake_the_job()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct);
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
+
+        var other = await Jobs.RaiseSignalAsync(enqueued, "other", JobPayload.None, ct: ct);
+
+        // The signal is kept for a wait that may ask for it; the job has not run again.
+        Assert.Equal(ControlAction.Applied, other.Action);
+        Assert.Equal(JobStatusCode.Suspended, other.Status);
+        var waiting = await ReadJobAsync(enqueued.JobId, ct);
+        Assert.Equal(JobStatusCode.Suspended, waiting.Status);
+        Assert.Equal(1, waiting.JobState.ExecutionNumber);
+        Assert.Contains(
+            await ReadSignalsAsync(enqueued.JobId, ct),
+            s => s.CheckpointName == "other" && s.Status == CheckpointStatusCode.Set
+        );
+
+        // The name it waits on still releases it.
+        Assert.Equal(JobStatusCode.Ready, (await Jobs.RaiseSignalAsync(enqueued, "go", JobPayload.None, ct: ct)).Status);
     }
 
     [Fact(DisplayName = "Raise is rejected against a terminal job and writes no checkpoint")]

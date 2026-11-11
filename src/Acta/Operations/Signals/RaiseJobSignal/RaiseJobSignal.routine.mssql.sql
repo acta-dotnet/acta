@@ -132,7 +132,8 @@ BEGIN
                 @message, @p_details_format_id, @p_details
             );
 
-        IF @from_status = 20 /* JobStatusCode.Suspended */ AND @expired = 0
+        -- Only the checkpoint the job waits on releases it; any other raise is stored for the wait that will read it.
+        IF @from_status = 20 /* JobStatusCode.Suspended */ AND @existing = 10 /* CheckpointStatusCode.Pending */
             BEGIN
                 UPDATE {{schema}}.jobs_state
                 SET

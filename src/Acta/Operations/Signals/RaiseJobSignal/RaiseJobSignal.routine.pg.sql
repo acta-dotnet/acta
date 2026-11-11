@@ -149,7 +149,8 @@ BEGIN
             p_details);
     END IF;
 
-    IF v_from_status = 20 /* JobStatusCode.Suspended */ AND NOT v_expired THEN
+    -- Only the checkpoint the job waits on releases it; any other raise is stored for the wait that will read it.
+    IF v_from_status = 20 /* JobStatusCode.Suspended */ AND v_existing = 10 /* CheckpointStatusCode.Pending */ THEN
         UPDATE {{schema}}.jobs_state
         SET
             job_status_code = 10 /* JobStatusCode.Ready */,

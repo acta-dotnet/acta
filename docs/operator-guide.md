@@ -225,7 +225,7 @@ client reads `action`, the resulting `status`, and the row's `version` without s
 | `reschedule` | A | A | A | A | A | 409 | 409 | 409 | 409 | Ready at the new instant, or Blocked behind its lane; an Idle permanent job takes a manual firing |
 | `reprioritize` | A | A | A | A | A | A | 409 | 409 | 409 | Priority changed, status untouched |
 | `input` (amend) | A | A | A | A | A | 409 | A | A | A | Input replaced, format round-tripped |
-| `signal` | A | A | A | A | A | A | 409 | 409 | 409 | Signal set; a Suspended job goes Ready, and its replay re-suspends any wait the raise did not satisfy |
+| `signal` | A | A | A | A | A | A | 409 | 409 | 409 | Signal set; a Suspended job that waits on it goes Ready, and one that waits on something else stays Suspended |
 
 Repeating a verb is a no-op only where the table says so. **`pause` is idempotent** (Paused stays
 Paused, applied). **`resume` is not**: it accepts only Paused, so resuming an already-running job is
@@ -480,7 +480,7 @@ In production a deploy step applies Acta's migrations, never application startup
 
 ```
 $ ConnectionStrings__acta="<DDL login>" dotnet MyApp.dll jobs migrate
-applied M20261110213509_init to schema acta
+applied M20261110225447_init to schema acta
 namespace billing: 1.6.1+b81d04e (Production)
   added    sys.alerts
   added    sys.retention

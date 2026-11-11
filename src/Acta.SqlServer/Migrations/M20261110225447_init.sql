@@ -1334,13 +1334,14 @@ BEGIN
                 END
 
             -- The awaited checkpoint is the only place a wait's deadline lives; its lock lets a raise that won the race land the
-            -- job Ready, and makes a raise that creates a missing checkpoint wait for this landing and then wake the job.
+            -- job Ready. A wait with no checkpoint has nothing to wait on and lands Ready too, so a raise that creates the
+            -- missing checkpoint, which waits for this landing, has no job left to wake.
             IF @waits = 1
                 UPDATE x
-                SET sig_state = s.checkpoint_status_code, sig_due = s.due_at_utc
+                SET sig_state = COALESCE(s.checkpoint_status_code, 20 /* CheckpointStatusCode.Set */), sig_due = s.due_at_utc
                 FROM @rows x
                 INNER JOIN @p_batch c ON c.job_id = x.job_id AND c.execution_number = x.execution_number AND c.wait_signal_name IS NOT NULL
-                INNER JOIN {{schema}}.checkpoints s WITH (UPDLOCK, FORCESEEK)
+                LEFT JOIN {{schema}}.checkpoints s WITH (UPDLOCK, FORCESEEK)
                     ON
                         s.job_id = x.job_id
                         AND s.checkpoint_kind_code IN (20 /* CheckpointKindCode.Signal */, 50 /* CheckpointKindCode.ChildLatch */)
@@ -1692,7 +1693,8 @@ BEGIN
                 WHERE j.event_recording_code = 20 /* EventRecordingCode.Audit */ AND k.event_code IS NOT NULL
                 ORDER BY d.job_id, k.ord;
 
-            -- A child that landed terminal sets its latch on the parent and wakes a Suspended parent.
+            -- A child that landed terminal sets its latch on the parent and wakes a Suspended parent that waits on it: only a
+            -- latch that was Pending releases, so another child landing costs the parent no execution.
             IF @children = 1
                 BEGIN
                     CREATE TABLE #parents (
@@ -1809,7 +1811,7 @@ BEGIN
                         FROM #parents
                         WHERE
                             parent_status = 20 /* JobStatusCode.Suspended */
-                            AND (latch_state IS NULL OR latch_state <> 30 /* CheckpointStatusCode.Expired */)
+                            AND latch_state = 10 /* CheckpointStatusCode.Pending */
                     ) w
                     INNER JOIN {{schema}}.jobs_state pr WITH (INDEX (pk_jobs_state), FORCESEEK, ROWLOCK) ON pr.job_id = w.parent_job_id
                     WHERE pr.job_status_code = 20 /* JobStatusCode.Suspended */;
@@ -1832,7 +1834,7 @@ BEGIN
                         FROM #parents
                         WHERE
                             parent_status = 20 /* JobStatusCode.Suspended */
-                            AND (latch_state IS NULL OR latch_state <> 30 /* CheckpointStatusCode.Expired */)
+                            AND latch_state = 10 /* CheckpointStatusCode.Pending */
                     ) w
                     INNER JOIN {{schema}}.jobs pj ON pj.job_id = w.parent_job_id
                     WHERE pj.event_recording_code = 20 /* EventRecordingCode.Audit */;
@@ -1843,7 +1845,7 @@ BEGIN
                     INNER JOIN #parents p ON p.child_job_id = d.job_id
                     WHERE
                         p.parent_status = 20 /* JobStatusCode.Suspended */
-                        AND (p.latch_state IS NULL OR p.latch_state <> 30 /* CheckpointStatusCode.Expired */);
+                        AND p.latch_state = 10 /* CheckpointStatusCode.Pending */;
                 END
 
             /* A laned job that finished, or that its handler paused, leaves the lane with no runner: the lowest-id
@@ -3591,7 +3593,8 @@ BEGIN
                 @message, @p_details_format_id, @p_details
             );
 
-        IF @from_status = 20 /* JobStatusCode.Suspended */ AND @expired = 0
+        -- Only the checkpoint the job waits on releases it; any other raise is stored for the wait that will read it.
+        IF @from_status = 20 /* JobStatusCode.Suspended */ AND @existing = 10 /* CheckpointStatusCode.Pending */
             BEGIN
                 UPDATE {{schema}}.jobs_state
                 SET
@@ -4953,7 +4956,7 @@ JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE name = 'M20261110213509_init')
+IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE name = 'M20261110225447_init')
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261110213509_init');
+VALUES ('M20261110225447_init');
 GO

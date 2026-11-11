@@ -52,7 +52,7 @@ public sealed class SqlServerCompletionWaitLockTests : ActaRuntimeTestBase<SqlSe
         Assert.Equal(1, await insert);
     }
 
-    [Fact(DisplayName = "A raise that creates a missing awaited checkpoint waits for the wait landing, then wakes the job")]
+    [Fact(DisplayName = "A raise that creates a missing awaited checkpoint waits for the wait landing, which lands Ready")]
     public async Task Raise_creating_the_awaited_checkpoint_waits_for_the_landing_and_wakes_the_job()
     {
         var ct = TestContext.Current.CancellationToken;

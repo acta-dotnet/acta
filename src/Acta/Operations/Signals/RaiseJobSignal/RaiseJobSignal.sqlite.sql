@@ -12,6 +12,18 @@ WHERE
     AND c.checkpoint_name = @p_checkpoint_name
     AND c.checkpoint_status_code = 30 /* CheckpointStatusCode.Expired */;
 
+-- Only the checkpoint the job waits on releases it, so whether it was Pending is captured before the upsert too.
+DROP TABLE IF EXISTS temp._raise_pending;
+
+CREATE TEMP TABLE _raise_pending AS
+SELECT 1 AS pending
+FROM {{schema}}.checkpoints c
+WHERE
+    c.job_id = @p_job_id
+    AND c.checkpoint_kind_code = @p_checkpoint_kind_code
+    AND c.checkpoint_name = @p_checkpoint_name
+    AND c.checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */;
+
 -- A child latch for an outcome the child no longer holds writes nothing: the child was restarted since, and its
 -- next landing raises the latch itself. A purged child has no row, and its latch is raised.
 DROP TABLE IF EXISTS temp._raise_stale;
@@ -129,7 +141,7 @@ WHERE
     j.job_id = @p_job_id
     AND r.job_status_code = 20 /* JobStatusCode.Suspended */
     AND j.event_recording_code = 20 /* EventRecordingCode.Audit */
-    AND NOT EXISTS (SELECT 1 FROM temp._raise_expired)
+    AND EXISTS (SELECT 1 FROM temp._raise_pending)
     AND NOT EXISTS (SELECT 1 FROM temp._raise_stale);
 
 UPDATE {{schema}}.jobs_state
@@ -141,7 +153,7 @@ SET
 WHERE
     job_id = @p_job_id
     AND job_status_code = 20 /* JobStatusCode.Suspended */
-    AND NOT EXISTS (SELECT 1 FROM temp._raise_expired)
+    AND EXISTS (SELECT 1 FROM temp._raise_pending)
     AND NOT EXISTS (SELECT 1 FROM temp._raise_stale);
 
 SELECT

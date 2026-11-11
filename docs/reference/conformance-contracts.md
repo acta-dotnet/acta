@@ -521,7 +521,7 @@
   - A late latch raise after the child succeeded again names no execution, so the parent reads the newest result
   - Child start is replay-deduped by name per parent
   - WaitChildAsync returns an outcome record and never throws on child failure
-  - WaitChildrenAsync joins all children regardless of completion order
+  - WaitChildrenAsync joins all children in any completion order, woken only by the child it waits on
   - Operator cancel cascades to the non-terminal descendant subtree with reason ParentCancelled
   - A handler self-cancel cascades to its children with reason ParentCancelled
   - Parent completion never cascades, and a child that lands afterwards records its outcome on the finished parent
@@ -1002,6 +1002,7 @@
   - A row another worker leases is NotOwner, a terminal row AlreadyTerminal, and neither is touched
   - A reclaimed attempt's late completion stores no result, and the attempt that replaced it stores its own
   - At the failures level a failed attempt is recorded, and a success only when it recovers from counted failures
+  - A wait that lands with no checkpoint to wait on lands Ready, and one with a pending checkpoint Suspended
 
 ### A handler write from an attempt that no longer holds its job changes nothing
 - **Contract:** A write from a superseded attempt, on any worker, changes nothing, while the current attempt's writes and completion land and the stale one stops uncharged.
@@ -2425,7 +2426,7 @@
   - The same completion with nothing raised in the window still parks the job Suspended
 
 ### Wait suspends a job and a raise releases it last-writer-wins
-- **Contract:** WaitSignalAsync suspends a job on a Pending checkpoint and RaiseSignalAsync sets the checkpoint last-writer-wins releasing only a Suspended job to Ready.
+- **Contract:** WaitSignalAsync suspends a job on a Pending checkpoint and RaiseSignalAsync sets the checkpoint last-writer-wins, releasing a Suspended job that waits on it.
 - **Guarantees:**
   - Raise wakes an idle loop to run the released job
   - Wait lands Suspended with a Pending checkpoint and no NextRunAtUtc
@@ -2436,6 +2437,7 @@
   - A presence signal sets the checkpoint with a null payload
   - A duplicate raise is last-writer-wins
   - Raise sets the checkpoint but does not reactivate a paused job
+  - A raise of a name the job does not wait on is stored and leaves the job suspended
   - Raise is rejected against a terminal job and writes no checkpoint
   - Raise returns NotFound for an unknown job
 

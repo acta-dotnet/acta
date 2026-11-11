@@ -126,7 +126,7 @@ public sealed class ChildJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
         Assert.False(outcome.Succeeded);
     }
 
-    [Fact(DisplayName = "WaitChildrenAsync joins all children regardless of completion order")]
+    [Fact(DisplayName = "WaitChildrenAsync joins all children in any completion order, woken only by the child it waits on")]
     public async Task Wait_children_joins_all_regardless_of_completion_order()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -136,19 +136,24 @@ public sealed class ChildJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
         var children = await ReadChildrenAsync(parent.JobId, ct);
         Assert.Equal(3, children.Count);
 
-        // Complete out of order: c, a, b. Each terminal child releases the parent, which replays and
-        // either suspends on the next pending latch or finishes.
-        foreach (var key in (string[])["c", "a", "b"])
+        // The parent waits on its first child, a. Another child landing records its outcome and leaves the parent
+        // suspended, so a fan-out does not cost the parent one execution per child.
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(children.Single(j => j.DeduplicationKey == "c").Id, ct));
+        var waiting = await ReadJobAsync(parent.JobId, ct);
+        Assert.Equal(JobStatusCode.Suspended, waiting.Status);
+        Assert.Equal(1, waiting.JobState.ExecutionNumber);
+
+        // a releases it; it replays past c, whose outcome is already there, and waits on b, which releases it again.
+        foreach (var key in (string[])["a", "b"])
         {
-            var child = children.Single(j => j.DeduplicationKey == key);
-            Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(child.Id, ct));
-            if ((await ReadJobAsync(parent.JobId, ct)).Status == JobStatusCode.Ready)
-            {
-                await Runtime.RunOnceAsync(parent, ct);
-            }
+            Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(children.Single(j => j.DeduplicationKey == key).Id, ct));
+            Assert.Equal(JobStatusCode.Ready, (await ReadJobAsync(parent.JobId, ct)).Status);
+            await Runtime.RunOnceAsync(parent, ct);
         }
 
-        Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(parent.JobId, ct)).Status);
+        var joined = await ReadJobAsync(parent.JobId, ct);
+        Assert.Equal(JobStatusCode.Succeeded, joined.Status);
+        Assert.Equal(3, joined.JobState.ExecutionNumber);
         Assert.Equal(12, (await Jobs.GetResultAsync<ChildEchoResult>(parent, ct))!.Doubled);
     }
 

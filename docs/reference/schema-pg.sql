@@ -41,14 +41,14 @@ DO $$
 BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
-        WHERE name NOT IN ('M20261110213509_init')
+        WHERE name NOT IN ('M20261110225447_init')
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
 END
 $$;
 
--- ===== BEGIN M20261110213509_init =====
+-- ===== BEGIN M20261110225447_init =====
 CREATE SCHEMA IF NOT EXISTS acta;
 
 -- alerts
@@ -1109,7 +1109,8 @@ BEGIN
             r.failure_count AS prior_failure_count,
             r.lane_id,
             j.parent_job_id,
-            s.checkpoint_status_code AS sig_state,
+            -- A wait with no checkpoint has nothing to wait on, so it lands Ready as one whose raise won the race does.
+            COALESCE(s.checkpoint_status_code, 20 /* CheckpointStatusCode.Set */) AS sig_state,
             s.due_at_utc AS sig_due
         FROM acta.jobs_state r
         INNER JOIN completions c ON c.job_id = r.job_id AND c.execution_number = r.execution_number
@@ -1444,7 +1445,8 @@ BEGIN
         ORDER BY r.job_id, k.ord;
     END IF;
 
-    -- A child that landed terminal sets its latch on the parent and wakes a Suspended parent.
+    -- A child that landed terminal sets its latch on the parent and wakes a Suspended parent that waits on it: only a
+    -- latch that was Pending releases, so another child landing costs the parent no execution.
     IF v_children IS NOT NULL THEN
         PERFORM 1
         FROM acta.checkpoints s
@@ -1471,6 +1473,7 @@ BEGIN
                 c.reason,
                 c.event_message,
                 COALESCE(l.checkpoint_status_code = 30 /* CheckpointStatusCode.Expired */, FALSE) AS latch_expired,
+                COALESCE(l.checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */, FALSE) AS latch_pending,
                 pr.job_status_code AS parent_status,
                 pr.execution_number AS parent_execution,
                 pj.namespace_id,
@@ -1553,7 +1556,7 @@ BEGIN
                 modified_at_utc = now(),
                 version = pr.version + 1
             WHERE
-                pr.job_id IN (SELECT s.parent_job_id FROM settled s WHERE s.parent_status = 20 /* JobStatusCode.Suspended */ AND NOT s.latch_expired)
+                pr.job_id IN (SELECT s.parent_job_id FROM settled s WHERE s.parent_status = 20 /* JobStatusCode.Suspended */ AND s.latch_pending)
                 AND pr.job_status_code = 20 /* JobStatusCode.Suspended */
             RETURNING pr.job_id
         ),
@@ -1576,13 +1579,13 @@ BEGIN
                 FROM settled s
                 WHERE
                     s.parent_status = 20 /* JobStatusCode.Suspended */
-                    AND NOT s.latch_expired
+                    AND s.latch_pending
                     AND s.event_recording_code = 20 /* EventRecordingCode.Audit */
             ) w
         )
         SELECT array_agg(s.child_job_id) INTO v_released
         FROM settled s
-        WHERE s.parent_status = 20 /* JobStatusCode.Suspended */ AND NOT s.latch_expired;
+        WHERE s.parent_status = 20 /* JobStatusCode.Suspended */ AND s.latch_pending;
     END IF;
 
     /* A laned job that finished, or that its handler paused, leaves the lane with no runner: the lowest-id
@@ -3083,7 +3086,8 @@ BEGIN
             p_details);
     END IF;
 
-    IF v_from_status = 20 /* JobStatusCode.Suspended */ AND NOT v_expired THEN
+    -- Only the checkpoint the job waits on releases it; any other raise is stored for the wait that will read it.
+    IF v_from_status = 20 /* JobStatusCode.Suspended */ AND v_existing = 10 /* CheckpointStatusCode.Pending */ THEN
         UPDATE acta.jobs_state
         SET
             job_status_code = 10 /* JobStatusCode.Ready */,
@@ -4364,10 +4368,10 @@ JOIN acta.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO acta.migrations (name)
-VALUES ('M20261110213509_init')
+VALUES ('M20261110225447_init')
 ON CONFLICT (name) DO NOTHING;
 
--- ===== END M20261110213509_init =====
+-- ===== END M20261110225447_init =====
 
 COMMIT;
 

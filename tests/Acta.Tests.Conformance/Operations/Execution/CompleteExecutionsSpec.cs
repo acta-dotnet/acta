@@ -176,6 +176,34 @@ public sealed class CompleteExecutionsSpec : ActaRuntimeTestBase<ConformanceFixt
         Assert.Equal(1, await CountEventsAsync(failing.JobId, EventCode.JobExecutionSucceeded, ct));
     }
 
+    [Fact(DisplayName = "A wait that lands with no checkpoint to wait on lands Ready, and one with a pending checkpoint Suspended")]
+    public async Task Wait_with_no_checkpoint_lands_ready()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var workerId = await WorkerIdAsync(ct);
+        var missing = await ExecutingAsync(AddNumbers(), workerId, ct);
+        var armed = await ExecutingAsync(AddNumbers(), workerId, ct);
+        var fence = new ExecutionFence(armed.JobId, armed.ExecutionNumber, workerId);
+        await Services.GetRequiredService<SignalsOperations>().WaitJobSignalAsync(fence, CheckpointKindCode.Signal, "go", null, null, ct);
+
+        // Only a raise that finds the checkpoint Pending releases a suspended job, so a job must never land Suspended
+        // on a checkpoint that is not there: no raise could release it.
+        var answers = await CompleteAsync(workerId, [Waiting(missing), Waiting(armed)], ct);
+
+        Assert.Equal((CompleteExecutionsAction.Completed, (byte?)JobStatusCode.Ready), Answer(answers, missing));
+        Assert.Equal((CompleteExecutionsAction.Completed, (byte?)JobStatusCode.Suspended), Answer(answers, armed));
+        Assert.NotNull((await ReadJobAsync(missing.JobId, ct)).NextRunAtUtc);
+    }
+
+    // The landing of an attempt that suspended on the signal "go".
+    private static CompleteExecutionsValues Waiting(ClaimedJob job) =>
+        Plain(job) with
+        {
+            EventCode = EventCode.JobExecutionYielded,
+            RescheduleEventCode = EventCode.JobSuspended,
+            WaitSignalName = "go",
+        };
+
     private EnqueueJobRequest AddNumbers() => new(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 2)));
 
     // A success with no result, the shape each fact varies.
