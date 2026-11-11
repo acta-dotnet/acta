@@ -12,7 +12,7 @@ public sealed class ScheduleAttribute : Attribute
 {
     /// <summary>Declares a schedule whose occurrences come from an expression.</summary>
     /// <param name="name">Operator-stable kebab-case schedule name, unique within the definition.</param>
-    /// <param name="expression">Cron (Cronos; 6 fields for seconds), an ISO 8601 duration ("PT5M"), or a plain one ("5m", "1h").</param>
+    /// <param name="expression">Cron (Cronos; 6 fields for seconds), an ISO 8601 duration of days or less ("PT5M", "P1D"), or a plain one ("5m", "1h").</param>
     public ScheduleAttribute(string name, string expression)
     {
         Name = name;

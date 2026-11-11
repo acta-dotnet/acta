@@ -8,6 +8,8 @@ Not tagged yet.
 
 **Drop and reprovision every database an rc.9 build provisioned**: the baseline is re-cut, and nothing translates it.
 
+**Write an interval schedule in days or less**: `"P1M"` and `"P1Y"` were read as 30 and 365 days, and are now a build error (ACTA0122). Write `"P30D"` for thirty days, or a cron for a calendar month or year.
+
 ### Fixes
 
 - On SQL Server, two definition overrides updates in different namespaces could deadlock, and one failed as the victim: the update that carries a rate override to the definitions sharing its meter read every definition row under update locks before filtering by namespace, and waited on another namespace's row that its own update held. It now seeks its own namespace's rows.

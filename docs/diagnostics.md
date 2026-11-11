@@ -118,8 +118,9 @@ public Task Close(NightlyClose input, CancellationToken ct) => ...;
 
 **Invalid schedule expression.** The expression is neither a cron expression in the Cronos dialect
 (5 or 6 fields) nor an interval of whole milliseconds and at least one second, since an occurrence is
-stored at millisecond precision. `Cron.Hourly` and the other `Cron` constants are known-good cron
-strings; an interval is `"5m"`, `"PT5M"`, or `"PT1.5S"`.
+stored at millisecond precision. An interval's largest unit is the day: `"P1M"` and `"P1Y"` are refused,
+because a month and a year have no fixed length. `Cron.Hourly` and the other `Cron` constants are
+known-good cron strings; an interval is `"5m"`, `"PT5M"`, or `"P1D"`.
 
 ## ACTA0123 <a id="acta0123"></a>
 

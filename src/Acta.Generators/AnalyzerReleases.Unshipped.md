@@ -12,7 +12,7 @@ ACTA0104 | Acta | Warning | Duplicate input type; typed enqueue cannot route uni
 ACTA0105 | Acta | Error | Invalid [Job] policy value (duration, bounds, undefined code)
 ACTA0106 | Acta | Warning | Duplicate contract member name; colliding members are omitted
 ACTA0121 | Acta | Error | Invalid [Schedule] declaration
-ACTA0122 | Acta | Error | Invalid schedule expression (cron or positive ISO 8601 duration)
+ACTA0122 | Acta | Error | Invalid schedule expression (cron, or a positive interval of days or less)
 ACTA0123 | Acta | Error | Scheduled input has no accessible parameterless constructor
 ACTA0124 | Acta | Error | Invalid [Schedule] policy value (MaxOutstanding below 1, undefined FullBehavior or MisfireStrategy)
 ACTA0125 | Acta | Error | MaxOutstanding other than 1 on a Permanent definition's schedule

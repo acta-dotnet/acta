@@ -20,15 +20,32 @@ internal static class NextOccurrenceCalculator
 
     /// <summary>
     /// Parses an interval expression to a <see cref="TimeSpan"/>: the human duration syntax (<c>5m</c>,
-    /// <c>10s</c>) or full ISO 8601 (<c>PT5M</c>, and calendar forms such as <c>P1D</c>). A <c>P</c>/<c>p</c>
-    /// prefix routes to <see cref="XmlConvert.ToTimeSpan"/> (so calendar durations keep working); everything
-    /// else is the human form. Whole milliseconds only: an occurrence is stored at millisecond precision on every
+    /// <c>10s</c>) or ISO 8601 in days and smaller (<c>PT5M</c>, <c>P1D</c>). A <c>P</c>/<c>p</c> prefix routes to
+    /// <see cref="XmlConvert.ToTimeSpan"/>; everything else is the human form. An interval is one fixed length, so a
+    /// year or a month is refused. Whole milliseconds only: an occurrence is stored at millisecond precision on every
     /// provider, and a finer interval would make two ticks one stored instant.
     /// </summary>
     internal static TimeSpan ParseInterval(string expression)
     {
         var e = expression.TrimStart();
-        var span = e.Length > 0 && e[0] is 'P' or 'p' ? XmlConvert.ToTimeSpan(e) : DurationSyntax.ParseHuman(e);
+        var iso = e.Length > 0 && e[0] is 'P' or 'p';
+        if (iso && DurationSyntax.IsoHasYearOrMonth(e))
+        {
+            throw new ArgumentException(
+                $"Interval '{expression}' counts years or months, whose length varies. Write it in days, or use a cron.",
+                nameof(expression)
+            );
+        }
+
+        TimeSpan span;
+        try
+        {
+            span = iso ? XmlConvert.ToTimeSpan(e) : DurationSyntax.ParseHuman(e);
+        }
+        catch (OverflowException)
+        {
+            throw new ArgumentException($"Interval '{expression}' is longer than a duration can hold.", nameof(expression));
+        }
         return span.Ticks % TimeSpan.TicksPerMillisecond == 0
             ? span
             : throw new ArgumentException(

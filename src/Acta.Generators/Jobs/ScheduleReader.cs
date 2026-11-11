@@ -369,7 +369,7 @@ internal static class ScheduleReader
 
     /// <summary>
     /// Mirrors NextOccurrenceCalculator.ParseInterval: an interval is the human form (number + ms/s/m/h/d)
-    /// or an ISO 8601 duration via XmlConvert, of at least one second, as often as cron can fire, which keeps a slot's
+    /// or an ISO 8601 duration of days and smaller via XmlConvert, of at least one second, as often as cron can fire, which keeps a slot's
     /// 32-bit counters inside their range for decades, and of whole milliseconds, the precision an occurrence is
     /// stored at; cron uses the conservative Cronos-dialect validator.
     /// </summary>
@@ -391,12 +391,20 @@ internal static class ScheduleReader
         }
         if (e[0] is 'P' or 'p')
         {
+            // Years and months have no fixed length, and XmlConvert would read them as 365 and 30 days.
+            var time = e.IndexOf('T');
+            var date = time < 0 ? e : e.Substring(0, time);
+            if (date.IndexOf('Y') >= 0 || date.IndexOf('M') >= 0)
+            {
+                return false;
+            }
+
             try
             {
                 span = System.Xml.XmlConvert.ToTimeSpan(e);
                 return true;
             }
-            catch (FormatException)
+            catch (Exception ex) when (ex is FormatException or OverflowException)
             {
                 return false;
             }
@@ -407,7 +415,7 @@ internal static class ScheduleReader
         {
             i++;
         }
-        if (i == 0 || i == e.Length)
+        if (i == 0 || i == e.Length || e[i - 1] == '.')
         {
             return false;
         }

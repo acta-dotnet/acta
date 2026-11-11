@@ -57,10 +57,38 @@ public sealed class NextOccurrenceCalculatorTests
     [Fact]
     public void Calendar_iso_interval_still_parses()
     {
-        // A calendar ISO 8601 duration (P1D) keeps working through the P-prefix path, unlike the restricted
-        // policy-duration syntax which rejects calendar units.
+        // A day is one fixed length, so P1D is an interval; the policy-duration syntax refuses every date unit.
         var next = NextOccurrenceCalculator.Next("P1D", null, ScheduleExpressionKindCode.Interval, Utc(12, 0));
         Assert.Equal(Utc(12, 0).AddDays(1), next);
+    }
+
+    // A month and a year have no one length, and XmlConvert would read them as 30 and 365 days.
+    [Theory]
+    [InlineData("P1M")]
+    [InlineData("P1Y")]
+    [InlineData("P1Y2M3D")]
+    [InlineData("P1MT1H")]
+    public void An_interval_in_years_or_months_is_refused(string expression)
+    {
+        var refused = Assert.Throws<ArgumentException>(() =>
+            NextOccurrenceCalculator.Next(expression, null, ScheduleExpressionKindCode.Interval, Utc(12, 0))
+        );
+        Assert.Contains("years or months", refused.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void An_interval_longer_than_a_duration_holds_is_refused()
+    {
+        Assert.Throws<ArgumentException>(() =>
+            NextOccurrenceCalculator.Next("P10675200D", null, ScheduleExpressionKindCode.Interval, Utc(12, 0))
+        );
+    }
+
+    [Fact]
+    public void An_iso_interval_reads_M_after_T_as_minutes()
+    {
+        var next = NextOccurrenceCalculator.Next("P1DT30M", null, ScheduleExpressionKindCode.Interval, Utc(12, 0));
+        Assert.Equal(Utc(12, 0).AddDays(1).AddMinutes(30), next);
     }
 
     [Fact]

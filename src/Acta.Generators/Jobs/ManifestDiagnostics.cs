@@ -439,7 +439,7 @@ internal static class ManifestDiagnostics
     public static DiagnosticRecord InvalidScheduleExpression(DiscoveredJob job, string scheduleName, string expression) =>
         new(
             "ACTA0122",
-            $"`[Schedule(\"{scheduleName}\")]` on `[Job(\"{job.JobName}\")]` expression `\"{expression}\"` is not a valid cron expression (Cronos dialect, 5 or 6 fields) or an interval of whole milliseconds and at least one second (e.g. `\"5m\"`, `\"PT5M\"`, or `\"PT1.5S\"`).",
+            $"`[Schedule(\"{scheduleName}\")]` on `[Job(\"{job.JobName}\")]` expression `\"{expression}\"` is not a valid cron expression (Cronos dialect, 5 or 6 fields) or an interval of whole milliseconds, at least one second, and no years or months (e.g. `\"5m\"`, `\"PT5M\"`, or `\"P1D\"`).",
             job.Location
         );
 

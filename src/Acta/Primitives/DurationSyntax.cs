@@ -85,6 +85,17 @@ internal static class DurationSyntax
             : (int)seconds;
     }
 
+    /// <summary>
+    /// Whether an ISO 8601 duration counts years or months. Their length depends on the date they start from, and
+    /// <see cref="XmlConvert.ToTimeSpan"/> would read them as 365 and 30 days.
+    /// </summary>
+    public static bool IsoHasYearOrMonth(string s)
+    {
+        var t = s.IndexOf('T', StringComparison.Ordinal);
+        var date = t < 0 ? s.AsSpan() : s.AsSpan(0, t);
+        return date.ContainsAny('Y', 'M');
+    }
+
     private static bool IsoIsTimeOnly(string s)
     {
         var t = s.IndexOf('T', StringComparison.Ordinal);

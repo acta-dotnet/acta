@@ -1545,6 +1545,12 @@ public class ManifestGeneratorDiagnosticTests
     [InlineData("500ms")]
     [InlineData("PT0.5S")]
     [InlineData("PT1.0000001S")]
+    [InlineData("P1M")]
+    [InlineData("P1Y")]
+    [InlineData("P1Y2M3D")]
+    [InlineData("P1MT1H")]
+    [InlineData("P10675200D")]
+    [InlineData("5.m")]
     public void Invalid_interval_errors_ACTA0122(string expression)
     {
         var result = RunGenerator(
@@ -1576,6 +1582,8 @@ public class ManifestGeneratorDiagnosticTests
     [InlineData("@daily")]
     [InlineData("PT5M")]
     [InlineData("P1D")]
+    [InlineData("P30D")]
+    [InlineData("P1DT30M")]
     [InlineData("5m")]
     [InlineData("10s")]
     [InlineData("1s")]

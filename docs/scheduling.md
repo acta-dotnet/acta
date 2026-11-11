@@ -33,7 +33,7 @@ public Task Reconcile(JobContext ctx, CancellationToken ct) => ...;
 ```
 
 - A schedule's name is kebab-case, stable for operators, and unique within the definition; several `[Schedule]` may decorate one handler, each with its own cursor.
-- The expression is a cron with five fields, or six for seconds (`Cron.Hourly` and its siblings name the common ones), an ISO 8601 duration (`"PT5M"`), or a plain one (`"5m"`, `"1h"`). An interval steps on the grid of its anchor, the deploy that introduced it, and never drifts.
+- The expression is a cron with five fields, or six for seconds (`Cron.Hourly` and its siblings name the common ones), an ISO 8601 duration (`"PT5M"`), or a plain one (`"5m"`, `"1h"`). A duration's largest unit is the day: a month or a year has no fixed length, so write it as a cron. An interval steps on the grid of its anchor, the deploy that introduced it, and never drifts.
 - `TimeZoneId` is an IANA or Windows id, UTC by default, and is ignored for intervals.
 - `Environments` names the environments the schedule registers in, matched against `JobsOptions.EnvironmentName` by the deploy; a schedule with no list registers everywhere.
 - `Description` is persisted on the schedule row, apart from the note an operator writes when pausing or resuming.
