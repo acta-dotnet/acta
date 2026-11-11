@@ -1326,7 +1326,6 @@ abstract class Acta.JobContext
     System.Threading.Tasks.Task<Acta.ChildWaitOutcome> TryWaitChildAsync(System.Int64 childJobId, System.TimeSpan timeout, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task<Acta.ChildrenWaitOutcome> JoinAsync(System.Collections.Generic.IReadOnlyList<Acta.EnqueueJobResponse> children, System.TimeSpan timeout, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task<Acta.ChildrenWaitOutcome> TryWaitChildrenAsync(System.Collections.Generic.IReadOnlyList<System.Int64> childJobIds, System.TimeSpan timeout, System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.Task<Acta.ChildrenWaitOutcome> WaitChildrenAsync(System.Collections.Generic.IReadOnlyList<System.Int64> childJobIds, System.TimeSpan timeout, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task<Acta.EnqueueJobResponse> StartChildAsync(System.String name, System.String jobNamespace, System.String jobName, Acta.JobPayload input = default, System.Action<Acta.JobEnqueueOptionsBuilder> configure = null, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task<Acta.EnqueueJobResponse> StartChildAsync<TInput>(System.String name, TInput input, System.Action<Acta.JobEnqueueOptionsBuilder> configure = null, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task<Acta.EnqueueJobResponse> StartChildAsync<TInput>(System.String name, TInput input, System.Threading.CancellationToken ct)

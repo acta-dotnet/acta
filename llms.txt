@@ -208,7 +208,7 @@ only under its own key.
 | calling an API directly in the body | `await ctx.RunStepAsync("charge", ct => ...)` | a step records its outcome, so a retry does not repeat recorded work |
 | `catch { }` around the body | let it throw, or `await ctx.FailAsync(reason)` | swallowing turns a retryable failure into a silent success |
 | polling a flag in a loop | `await ctx.TryWaitSignalAsync("approved", timeout)` | polling burns a worker; a signal parks the job, and the timeout keeps it from parking forever |
-| starting children and looping until done | `await ctx.WaitChildrenAsync(ids)` (or with a timeout), or `MapAsync` when the children come from a list | the parent parks instead of occupying a worker |
+| starting children and looping until done | `await ctx.WaitChildrenAsync(ids)` (`TryWaitChildrenAsync(ids, timeout)` with a deadline), or `MapAsync` when the children come from a list | the parent parks instead of occupying a worker |
 | `DateTime.Now` | `DateTime.UtcNow`, or a value from the input | the ledger is UTC throughout |
 
 ## Waiting for an outside event

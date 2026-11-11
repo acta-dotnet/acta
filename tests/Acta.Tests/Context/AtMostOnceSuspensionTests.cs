@@ -25,7 +25,6 @@ public sealed class AtMostOnceSuspensionTests
         ["WaitChildAsync"] = (ctx, ct) => ctx.WaitChildAsync(7, ct),
         ["TryWaitChildAsync"] = (ctx, ct) => ctx.TryWaitChildAsync(7, Timeout, ct),
         ["WaitChildrenAsync"] = (ctx, ct) => ctx.WaitChildrenAsync([7], ct),
-        ["WaitChildrenAsync timeout"] = (ctx, ct) => ctx.WaitChildrenAsync([7], Timeout, ct),
         ["TryWaitChildrenAsync"] = (ctx, ct) => ctx.TryWaitChildrenAsync([7], Timeout, ct),
         ["ExecuteChildAsync"] = (ctx, ct) => ctx.ExecuteChildAsync("ship", new NoInput(), ct),
         ["ExecuteChildAsync timeout"] = (ctx, ct) => ctx.ExecuteChildAsync("ship", new NoInput(), Timeout, ct),

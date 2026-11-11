@@ -97,17 +97,6 @@ public abstract partial class JobContext
     }
 
     /// <summary>
-    /// Bounded twin of <see cref="WaitChildrenAsync(IReadOnlyList{long}, CancellationToken)"/>, the same call as
-    /// <see cref="TryWaitChildrenAsync"/>. It answers a <see cref="ChildrenWaitOutcome"/> rather than the unbounded
-    /// form's plain list, because a group that ran out of time has more to report than an outcome per child.
-    /// </summary>
-    /// <param name="childJobIds">The children to wait for, in the order the outcomes come back.</param>
-    /// <param name="timeout">Budget for the whole group from DB now, not per child. Must be positive.</param>
-    /// <param name="ct">Cancellation; linked with the per-attempt <see cref="CancellationToken"/>.</param>
-    public Task<ChildrenWaitOutcome> WaitChildrenAsync(IReadOnlyList<long> childJobIds, TimeSpan timeout, CancellationToken ct = default) =>
-        TryWaitChildrenAsync(childJobIds, timeout, ct);
-
-    /// <summary>
     /// Durable, replay-safe bounded wait for a whole group of children. The first pass stores <c>db_now + timeout</c>
     /// once as the group's deadline (whole seconds, positive, for the group rather than per child), and every child on
     /// every replay waits toward that one instant: the budget never restarts, except after <see cref="ResetStateAsync"/>,
