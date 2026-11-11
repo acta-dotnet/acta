@@ -179,7 +179,7 @@ async function mockDashboard(
       const source = {
         jobNamespace: 'billing',
         jobRef,
-        lastTickSummary: 'claimed=0 relayed=0 dedup=0 quarantined=3 backlog=0 quarantine=3 lag=0s since the last successful relay pass',
+        lastTickSummary: 'claimed=0 relayed=0 dedup=0 backlog=0 quarantine=3',
         backlog: 0,
         quarantineTotal: 3,
         isLocal: true

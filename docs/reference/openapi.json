@@ -11552,7 +11552,7 @@
                         {
                           "jobNamespace": "billing",
                           "jobRef": "job_00000000000000000000000000000044",
-                          "lastTickSummary": "claimed=2 relayed=2 dedup=0 quarantined=0 backlog=5 quarantine=1",
+                          "lastTickSummary": "claimed=2 relayed=2 dedup=0 backlog=5 quarantine=1",
                           "backlog": 5,
                           "quarantineTotal": 1,
                           "isLocal": true

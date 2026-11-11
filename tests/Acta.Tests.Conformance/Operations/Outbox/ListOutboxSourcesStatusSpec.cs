@@ -24,7 +24,7 @@ public sealed class ListOutboxSourcesStatusSpec : OutboxRelayHostBase
         var settled = Assert.Single((await Outbox.ListSourcesAsync(new ListOutboxSourcesQuery(JobNamespace: TestNamespace), ct)).Items);
         Assert.Equal(0, settled.Backlog);
         Assert.Equal(1, settled.QuarantineTotal);
-        Assert.Equal("claimed=0 relayed=0 dedup=0 quarantined=0 backlog=0 quarantine=1", settled.LastTickSummary);
+        Assert.Equal("claimed=0 relayed=0 dedup=0 backlog=0 quarantine=1", settled.LastTickSummary);
         Assert.True(settled.IsLocal);
 
         // A reserved input format quarantines on contact, and a quarantine fails the tick.

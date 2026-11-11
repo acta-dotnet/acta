@@ -28,6 +28,8 @@ Not tagged yet.
 
 **Catch `EnqueueRejectedException` for a child whose parent is gone**: an enqueue that names a `ParentJobId` of a job that does not exist or has finished threw the database provider's own exception, and now throws `EnqueueRejectedException` with the reason `ParentUnavailable`, as every other refused enqueue does. The HTTP enqueue takes no parent, so its answers are unchanged. A child a handler starts after its attempt lost the job still throws `ExecutionFencedException`.
 
+**Stop reading `quarantined=` in an outbox source's last tick**: the `lastTickSummary` of `GET /outbox/sources` and the `sys.outbox` job's `outbox-status` variable no longer carry the number of rows the pass quarantined. It was zero in every stored summary, because a pass that quarantines a row fails and stores none. `quarantineTotal` is the count to read.
+
 ### Fixes
 
 - On SQL Server, two definition overrides updates in different namespaces could deadlock, and one failed as the victim: the update that carries a rate override to the definitions sharing its meter read every definition row under update locks before filtering by namespace, and waited on another namespace's row that its own update held. It now seeks its own namespace's rows.

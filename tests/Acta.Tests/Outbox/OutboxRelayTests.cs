@@ -46,6 +46,22 @@ public sealed class OutboxRelayTests
             Interlocked.Increment(ref _staged)
         );
 
+    [Fact(DisplayName = "A tick summary is stored as exactly its members, in order")]
+    public void Stored_summary_json_is_pinned()
+    {
+        // Peers on other builds read this variable, so its members are a persisted shape.
+        var stored = JsonSerializer.Serialize(
+            new OutboxTickSummary(2, 1, 1, 5, 3) with
+            {
+                Requeued = 4,
+                Discarded = 6,
+            },
+            OutboxTickSummaryJsonContext.Default.OutboxTickSummary
+        );
+
+        Assert.Equal("""{"Claimed":2,"Relayed":1,"Deduplicated":1,"Backlog":5,"QuarantineTotal":3,"Requeued":4,"Discarded":6}""", stored);
+    }
+
     [Fact]
     public async Task Duplicate_handoffs_coalesce_to_the_earliest_representative_and_delete_the_group()
     {
@@ -62,8 +78,8 @@ public sealed class OutboxRelayTests
         Assert.Equal("k1", request.DeduplicationKey);
         Assert.Equal([early.OutboxId, late.OutboxId], store.Deleted.ToHashSet());
         // Two rows claimed, one job inserted, one coalesced member absorbed as a dedup.
-        Assert.Equal(new OutboxTickSummary(2, 1, 1, 0, 0, 0), summary);
-        Assert.Equal("claimed=2 relayed=1 dedup=1 quarantined=0 backlog=0 quarantine=0", summary.ToString());
+        Assert.Equal(new OutboxTickSummary(2, 1, 1, 0, 0), summary);
+        Assert.Equal("claimed=2 relayed=1 dedup=1 backlog=0 quarantine=0", summary.ToString());
     }
 
     [Theory]
@@ -84,7 +100,7 @@ public sealed class OutboxRelayTests
 
         Assert.Single(Assert.Single(target.Batches));
         Assert.Equal(3, store.Deleted.Count);
-        Assert.Equal(new OutboxTickSummary(3, relayed, deduplicated, 0, 0, 0), summary);
+        Assert.Equal(new OutboxTickSummary(3, relayed, deduplicated, 0, 0), summary);
     }
 
     [Fact]
@@ -120,7 +136,7 @@ public sealed class OutboxRelayTests
         Assert.Contains(row.OutboxId, store.Deleted);
         Assert.Empty(store.Quarantined);
         // The target already held the handoff: nothing relayed, the whole group counts as deduplicated.
-        Assert.Equal(new OutboxTickSummary(1, 0, 1, 0, 0, 0), summary);
+        Assert.Equal(new OutboxTickSummary(1, 0, 1, 0, 0), summary);
     }
 
     [Fact]
@@ -144,7 +160,7 @@ public sealed class OutboxRelayTests
         Assert.Contains(good2.OutboxId, store.Deleted);
         Assert.DoesNotContain(bad.OutboxId, store.Deleted);
         // The per-group retry arm counts too: two groups relayed, the rejected group counts nothing.
-        Assert.Equal(new OutboxTickSummary(3, 2, 0, 0, 0, 0), summary);
+        Assert.Equal(new OutboxTickSummary(3, 2, 0, 0, 0), summary);
         var reschedule = Assert.Single(store.Rescheduled);
         Assert.Equal(bad.OutboxId, reschedule.OutboxId);
         Assert.Equal(1, reschedule.FailureCount);
@@ -211,7 +227,7 @@ public sealed class OutboxRelayTests
 
         Assert.Equal(3, store.ClaimCalls);
         Assert.Equal(2500, store.Deleted.Count);
-        Assert.Equal(new OutboxTickSummary(2500, 2500, 0, 0, 0, 0), summary);
+        Assert.Equal(new OutboxTickSummary(2500, 2500, 0, 0, 0), summary);
     }
 
     [Fact]
@@ -225,7 +241,7 @@ public sealed class OutboxRelayTests
 
         Assert.Equal(1, store.ClaimCalls);
         // The summary reports the one batch relayed and the rest as the backlog the next tick continues.
-        Assert.Equal(new OutboxTickSummary(1000, 1000, 0, 0, 1500, 0), summary);
+        Assert.Equal(new OutboxTickSummary(1000, 1000, 0, 1500, 0), summary);
     }
 
     [Fact]

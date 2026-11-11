@@ -161,7 +161,7 @@ internal sealed class OutboxRelay(OutboxOperations.Source source, JobsOperations
         // what currently sits in quarantine - the cross-peer channel operator surfaces read.
         var backlog = await source.CountBacklogAsync(ct);
         var quarantineTotal = await source.CountQuarantinedAsync(ct);
-        return new OutboxTickSummary(claimedTotal, relayed, deduplicated, quarantinedIds.Count, backlog, quarantineTotal);
+        return new OutboxTickSummary(claimedTotal, relayed, deduplicated, backlog, quarantineTotal);
     }
 
     /// <summary>
