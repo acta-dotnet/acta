@@ -154,6 +154,9 @@ internal enum BusinessPeriod
 /// <summary>The <c>at-opening</c> kind: an occurrence at the start of each window of an inline availability calendar.</summary>
 internal sealed class AtOpeningCalendar(IActaAvailabilityCalendar availability) : IActaCalendar
 {
+    /// <summary>Answers one run of open time may take before it is judged endless; each reaches as far as a weekly calendar scans.</summary>
+    private const int MaxRunAnswers = 8;
+
     public DateTime? GetNextOccurrence(CalendarContext context)
     {
         var after = DateTime.SpecifyKind(context.AfterUtc, DateTimeKind.Utc);
@@ -167,13 +170,27 @@ internal sealed class AtOpeningCalendar(IActaAvailabilityCalendar availability) 
             return window.StartUtc;
         }
 
-        // The window contains the instant: the next opening is the window after it.
-        if (window.EndUtc is not { } end)
+        // The window contains the instant: the next opening is the window after it. An answer that stops where its scan
+        // does continues in the next one, which then starts before that end, so a long run is followed to its real end.
+        var end = window.EndUtc;
+        for (var answers = 0; answers < MaxRunAnswers; answers++)
         {
-            return null;
+            if (end is not { } closed || availability.GetWindowAtOrAfter(new AvailabilityContext(closed, context.TimeZone)) is not { } next)
+            {
+                return null;
+            }
+
+            if (next.StartUtc >= closed)
+            {
+                return next.StartUtc;
+            }
+
+            end = next.EndUtc;
         }
 
-        return availability.GetWindowAtOrAfter(new AvailabilityContext(end, context.TimeZone))?.StartUtc;
+        throw new InvalidOperationException(
+            $"The availability stays open past {end:O}, as far as it is followed; an at-opening source needs windows that close."
+        );
     }
 }
 

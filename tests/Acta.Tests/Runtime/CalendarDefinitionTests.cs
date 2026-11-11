@@ -212,6 +212,48 @@ public sealed class CalendarDefinitionTests
         Assert.DoesNotContain((byte)'\n', a.CanonicalJson.ToArray());
     }
 
+    // A week that never closes is answered as far as its scan goes, and the next answer starts inside that window: an
+    // opening read from it would be an instant nothing opened at, alone or through a union.
+    [Theory]
+    [InlineData(
+        """{"kind":"weekly-availability","timeZone":"UTC","weekly":[{"days":["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"],"windows":[["00:00","24:00"]]}]}"""
+    )]
+    [InlineData(
+        """{"kind":"union","of":[{"kind":"weekly-availability","timeZone":"UTC","weekly":[{"days":["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"],"windows":[["00:00","24:00"]]}]}]}"""
+    )]
+    public void At_opening_refuses_an_availability_that_stays_open_past_its_scan(string availability)
+    {
+        var openings = Occurrence("""{"kind":"at-opening","availability":""" + availability + "}");
+
+        var ex = Assert.Throws<InvalidOperationException>(() => NextAfter(openings, Utc(1, 4, 12)));
+
+        Assert.Contains("stays open", ex.Message, StringComparison.Ordinal);
+    }
+
+    // A run longer than one answer reaches is followed to its real end: 1,200 open days through a union, a closed day,
+    // and the day that opens after it.
+    [Fact]
+    public void At_opening_follows_a_run_longer_than_one_answer_to_the_opening_after_it()
+    {
+        static string Days(int parity) =>
+            string.Join(
+                ',',
+                Enumerable
+                    .Range(0, 1200)
+                    .Where(day => day % 2 == parity)
+                    .Append(parity == 0 ? 1201 : -1)
+                    .Where(day => day >= 0)
+                    .Select(day => $"\"{new DateOnly(2027, 1, 1).AddDays(day):yyyy-MM-dd}\":[[\"00:00\",\"24:00\"]]")
+            );
+        static string Operand(int parity) =>
+            """{"kind":"weekly-availability","timeZone":"UTC","weekly":[],"dateOverrides":{""" + Days(parity) + "}}";
+        var union = """{"kind":"union","of":[""" + Operand(0) + "," + Operand(1) + "]}";
+        var openings = Occurrence("""{"kind":"at-opening","availability":""" + union + "}");
+
+        Assert.Equal(Utc(1, 1, 0), NextAfter(openings, Utc(12, 31, 0, year: 2026)));
+        Assert.Equal(new DateTime(2027, 1, 1, 0, 0, 0, DateTimeKind.Utc).AddDays(1201), NextAfter(openings, Utc(1, 1, 0)));
+    }
+
     [Theory]
     [InlineData("""{"kind":"explicit-instants","instants":[]}""", "$.kind: 'explicit-instants' is an occurrence source")]
     [InlineData("""{"kind":"weekly-availability"}""", "$: a weekly-availability needs weekly rules or date overrides.")]
