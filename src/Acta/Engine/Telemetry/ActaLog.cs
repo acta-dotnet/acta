@@ -377,6 +377,12 @@ internal static partial class ActaLog
     public static partial void AlertEventReplayed(ILogger log, string actaDetail, string actaNamespace);
 
     [LoggerMessage(
+        Level = LogLevel.Information,
+        Message = "Acta sys.alerts: passed alert event ({ActaDetail}) in namespace ({ActaNamespace}): its job is gone."
+    )]
+    public static partial void AlertEventJobGone(ILogger log, string actaDetail, string actaNamespace);
+
+    [LoggerMessage(
         Level = LogLevel.Warning,
         Message = "Acta sys.alerts: skipped poison alert event ({ActaDetail}) in namespace ({ActaNamespace})."
     )]

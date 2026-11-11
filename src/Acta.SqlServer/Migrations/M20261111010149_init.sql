@@ -3231,6 +3231,14 @@ BEGIN
                             )
                             AND d.alert_profile_code_effective <> 0 /* AlertProfileCode.None */
                     )
+                    -- A job stays while an alert of it is undelivered: the failure it reports has reached nobody yet.
+                    AND NOT EXISTS (
+                        SELECT 1 FROM {{schema}}.alerts a WITH (FORCESEEK (ix_alerts_job (job_id)))
+                        WHERE
+                            a.job_id = j.job_id
+                            AND a.job_id IS NOT NULL
+                            AND a.delivery_status_code IN (10 /* AlertDeliveryStatusCode.Pending */, 20 /* AlertDeliveryStatusCode.RetryAfter */)
+                    )
                 ORDER BY r.job_id DESC;
 
                 SET @next_job_id = CASE
@@ -3244,6 +3252,27 @@ BEGIN
                 -- (docs/sql-internals.md, "Foreign keys in set-based writes").
                 DELETE t FROM {{schema}}.tags t WITH (FORCESEEK (pk_tags (entity_code, entity_id)))
                 INNER JOIN @job_del d ON t.entity_code = 50 /* EntityCode.Job */ AND t.entity_id = d.job_id;
+
+                /* The jobs' settled alerts go with them, so no alert outlives its job. They are read through ix_alerts_job
+                   without locks, each identity row is locked before its row (docs/sql-internals.md, "Alert lock order"),
+                   and the delete rechecks the job, since a deduplicated raise moves an open alert to its own job. */
+                DELETE @alert_del;
+                INSERT INTO @alert_del (alert_id, deduplication_key)
+                SELECT a.alert_id, a.deduplication_key
+                FROM @job_del d
+                INNER JOIN {{schema}}.alerts a WITH (FORCESEEK (ix_alerts_job (job_id))) ON a.job_id = d.job_id AND a.job_id IS NOT NULL;
+                DECLARE @alert_identities INT = (
+                    SELECT COUNT(*)
+                    FROM @alert_del d
+                    INNER JOIN {{schema}}.alerts a WITH (UPDLOCK, FORCESEEK (ix_alerts_deduplication_key_identity (namespace_id, deduplication_key)))
+                        ON
+                            a.namespace_id = @p_namespace_id
+                            AND a.deduplication_key = d.deduplication_key
+                            AND a.alert_id = d.alert_id
+                    WHERE d.deduplication_key IS NOT NULL
+                );
+                DELETE a FROM {{schema}}.alerts a WITH (FORCESEEK) INNER JOIN @alert_del d ON d.alert_id = a.alert_id
+                WHERE EXISTS (SELECT 1 FROM @job_del j WHERE j.job_id = a.job_id);
                 DELETE c FROM {{schema}}.checkpoints c WITH (FORCESEEK) INNER JOIN @job_del d ON d.job_id = c.job_id;
                 DELETE r FROM {{schema}}.jobs_state r WITH (FORCESEEK) INNER JOIN @job_del d ON d.job_id = r.job_id;
                 DELETE s FROM {{schema}}.steps s WITH (FORCESEEK) INNER JOIN @job_del d ON d.job_id = s.job_id;
@@ -4968,7 +4997,7 @@ JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE name = 'M20261111001806_init')
+IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE name = 'M20261111010149_init')
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261111001806_init');
+VALUES ('M20261111010149_init');
 GO

@@ -41,14 +41,14 @@ DO $$
 BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
-        WHERE name NOT IN ('M20261111001806_init')
+        WHERE name NOT IN ('M20261111010149_init')
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
 END
 $$;
 
--- ===== BEGIN M20261111001806_init =====
+-- ===== BEGIN M20261111010149_init =====
 CREATE SCHEMA IF NOT EXISTS acta;
 
 -- alerts
@@ -2805,6 +2805,10 @@ BEGIN
                             OR (e.event_code = 40 /* EventCode.JobExecutionSucceeded */ AND e.execution_number > 1)
                         )
                         AND d.alert_profile_code_effective <> 0 /* AlertProfileCode.None */)
+                -- A job stays while an alert of it is undelivered: the failure it reports has reached nobody yet.
+                AND NOT EXISTS (
+                    SELECT 1 FROM acta.alerts a
+                    WHERE a.job_id = j.job_id AND a.delivery_status_code IN (10 /* AlertDeliveryStatusCode.Pending */, 20 /* AlertDeliveryStatusCode.RetryAfter */))
             ORDER BY r.job_id DESC
             LIMIT p_batch_size
             FOR UPDATE OF j, r SKIP LOCKED) q;
@@ -2819,6 +2823,8 @@ BEGIN
             WHERE
                 entity_code = 50 /* EntityCode.Job */
                 AND entity_id = ANY(v_ids);
+            -- The job's settled alerts go with it, so no alert outlives its job (docs/sql-internals.md, "Alert lock order").
+            DELETE FROM acta.alerts a WHERE a.job_id = ANY(v_ids);
             DELETE FROM acta.checkpoints c WHERE c.job_id = ANY(v_ids);
             DELETE FROM acta.steps s WHERE s.job_id = ANY(v_ids);
             DELETE FROM acta.schedules_state st
@@ -4384,10 +4390,10 @@ JOIN acta.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO acta.migrations (name)
-VALUES ('M20261111001806_init')
+VALUES ('M20261111010149_init')
 ON CONFLICT (name) DO NOTHING;
 
--- ===== END M20261111001806_init =====
+-- ===== END M20261111010149_init =====
 
 COMMIT;
 

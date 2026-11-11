@@ -72,11 +72,17 @@ WHERE
                 OR (e.event_code = 40 /* EventCode.JobExecutionSucceeded */ AND e.execution_number > 1)
             )
             AND d.alert_profile_code_effective <> 0 /* AlertProfileCode.None */)
+    -- A job stays while an alert of it is undelivered: the failure it reports has reached nobody yet.
+    AND NOT EXISTS (
+        SELECT 1 FROM {{schema}}.alerts a
+        WHERE a.job_id = j.job_id AND a.delivery_status_code IN (10 /* AlertDeliveryStatusCode.Pending */, 20 /* AlertDeliveryStatusCode.RetryAfter */))
 ORDER BY r.job_id DESC
 LIMIT @p_batch_size;
 
 DELETE FROM {{schema}}.tags WHERE entity_code = 50 /* EntityCode.Job */ AND entity_id IN (SELECT p.job_id FROM temp._purge_jobs p);
 
+-- The job's settled alerts go with it, so no alert outlives its job.
+DELETE FROM {{schema}}.alerts WHERE job_id IN (SELECT p.job_id FROM temp._purge_jobs p);
 DELETE FROM {{schema}}.checkpoints WHERE job_id IN (SELECT p.job_id FROM temp._purge_jobs p);
 DELETE FROM {{schema}}.steps WHERE job_id IN (SELECT p.job_id FROM temp._purge_jobs p);
 DELETE FROM {{schema}}.schedules_state

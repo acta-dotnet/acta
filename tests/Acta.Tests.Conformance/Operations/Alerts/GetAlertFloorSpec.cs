@@ -70,5 +70,45 @@ public sealed class GetAlertFloorSpec : ActaRuntimeTestBase<ConformanceFixture, 
 
     private int NamespaceId => Runtime.RegisteredNamespaceIds[TestNamespace];
 
+    [Fact(DisplayName = "An event whose job is gone leaves no skip record, and a record stored for one is dropped by the next pass")]
+    public async Task A_gone_job_pins_no_floor()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var projector = await AlertTestOps.RecurringSlotIdAsync(Services, TestNamespace, "sys.alerts", ct);
+        var seeder = new ActaTestSeeder(Db);
+        var definitionId = await seeder.SeedJobDefinitionAsync(NamespaceId, Unique("gone-probe"), AlertProfileCode.OnTerminal, ct);
+        var (jobId, _) = await seeder.SeedJobAsync(NamespaceId, definitionId, ct: ct);
+        var recorded = await StageFailureAsync(definitionId, jobId, ct);
+        var arriving = await StageFailureAsync(definitionId, jobId, ct);
+        await AlertTestOps.RecordProjectionSkipAsync(Services, TestNamespace, NamespaceId, projector, recorded, ct, jobId: jobId);
+        await Db.ExecuteRawAsync("DELETE FROM {schema}.jobs_state WHERE job_id = @p_id", ct, ("@p_id", jobId));
+        await Db.ExecuteRawAsync("DELETE FROM {schema}.jobs WHERE job_id = @p_id", ct, ("@p_id", jobId));
+
+        await AlertTestOps.RunAlertsJobAsync(Services, TestNamespace, NamespaceId, projector, options: null, drain: null, ct);
+
+        // Nothing can bring the job back, so neither event is held: a record would keep the retention floor at it for good.
+        var floor = await Alerts.GetAlertFloorAsync(NamespaceId, ct);
+        Assert.Empty(floor.Poison);
+        Assert.Equal(arriving, floor.Cursor.EventId);
+        Assert.Empty(await ReadAlertsAsync(NamespaceId, ct));
+    }
+
+    private Task<long> StageFailureAsync(int definitionId, long jobId, CancellationToken ct) =>
+        StagedEvents.InsertAsync(
+            Db,
+            new EventEntity
+            {
+                EventCode = EventCode.JobFailed,
+                NamespaceId = NamespaceId,
+                EntityCode = EntityCode.Job,
+                EntityId = jobId,
+                DefinitionId = definitionId,
+                ExecutionNumber = 1,
+                EventMessage = "staged",
+            },
+            EventDetails.Write(("reason", EventReason.UnhandledException)),
+            ct
+        );
+
     private AlertsOperations Alerts => Services.GetRequiredService<AlertsOperations>();
 }

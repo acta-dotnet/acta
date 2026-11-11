@@ -221,6 +221,8 @@
 - **Contract:** Raising, resolving, and sweeping alerts while their jobs are purged never deadlocks and never leaves an alert on a purged job.
 - **Guarantees:**
   - Raising, resolving, and sweeping alerts while their jobs are purged never deadlocks or orphans an alert
+  - An alert another job's raise takes over while retention deletes its first job stays with the job that took it
+  - Retention deleting finished jobs while their alerts are raised and resolved never deadlocks or orphans an alert
 
 ### The alert floor is the projector's cursor and the skips it still holds
 - **Contract:** GetAlertFloor reads a namespace's sys.alerts cursor and skip records, by namespace or by one of its jobs, and a namespace without the slot owes nothing.
@@ -228,6 +230,7 @@
   - A namespace without a sys.alerts slot owes nothing, so its floor is the purge cutoff
   - A projector that has not checkpointed owes everything: its floor is the start of time
   - The floor is the cursor, and each skip record names its event and job, read by namespace or by a job in it
+  - An event whose job is gone leaves no skip record, and a record stored for one is dropped by the next pass
 
 ### The alertable-event read walks a (stamp, id) cursor up to an inclusive horizon
 - **Contract:** ListAlertableEvents reads a namespace's alertable finished attempts after the (stamp, id) cursor and at or before the horizon, ordered by stamp then id.
@@ -1912,6 +1915,7 @@
 - **Contract:** Purge deletes terminal jobs with cascade, expired events, aged alerts settled or not under separate counts, terminal workers and expired locks.
 - **Guarantees:**
   - Job retention deletes the job's tags with the job
+  - Retention keeps a job while an alert of it is undelivered, and takes its settled alerts with it
   - A future-retention job stamped with the default window survives the purge
   - Expired events are deleted and recent events are kept
   - The automatic sweep also deletes the sys namespace's expired tenant events and keeps its recent ones

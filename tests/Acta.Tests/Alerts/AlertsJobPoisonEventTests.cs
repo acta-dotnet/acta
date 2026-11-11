@@ -11,7 +11,31 @@ namespace Acta.Tests.Alerts;
 public sealed class AlertsJobPoisonEventTests
 {
     [Fact]
-    public async Task Deterministic_bad_event_is_durably_skipped_and_later_events_project()
+    public async Task A_malformed_event_is_durably_skipped_and_later_events_project()
+    {
+        var store = new PoisonAlertStore(deterministicFailure: false, malformedFirstEvent: true);
+        var logger = new RecordingLogger();
+        var job = CreateJob(store, logger);
+        var ctx = new RecordingJobContext();
+        var ct = TestContext.Current.CancellationToken;
+
+        await job.Handle(ctx, ct);
+
+        Assert.Equal([12L], store.RaiseAttempts);
+        Assert.Equal(12L, (await ctx.GetRequiredVariableAsync<AlertsCursor>(AlertsJob.CursorVariableName, ct)).EventId);
+        var skip = await ctx.GetRequiredVariableAsync<string>("alerts-skip-11", ct);
+        Assert.Contains("namespace=test-ns", skip);
+        Assert.Contains("eventId=11", skip);
+        Assert.Equal(new PoisonAlertEvent(11, 101, DateTime.UnixEpoch.Ticks), PoisonAlertEvent.Parse("alerts-skip-11", skip));
+        Assert.Contains("reason=invalid-event", skip);
+        Assert.Contains(LogLevel.Warning, logger.Levels);
+
+        await job.Handle(ctx, ct);
+        Assert.Equal([12L], store.RaiseAttempts);
+    }
+
+    [Fact]
+    public async Task An_event_whose_job_is_gone_is_passed_with_no_skip_record()
     {
         var store = new PoisonAlertStore(deterministicFailure: true);
         var logger = new RecordingLogger();
@@ -21,14 +45,11 @@ public sealed class AlertsJobPoisonEventTests
 
         await job.Handle(ctx, ct);
 
+        // Nothing can bring the job back, so a record of the event would only hold the retention floor at it for good.
         Assert.Equal([11L, 12L], store.RaiseAttempts);
         Assert.Equal(12L, (await ctx.GetRequiredVariableAsync<AlertsCursor>(AlertsJob.CursorVariableName, ct)).EventId);
-        var skip = await ctx.GetRequiredVariableAsync<string>("alerts-skip-11", ct);
-        Assert.Contains("namespace=test-ns", skip);
-        Assert.Contains("eventId=11", skip);
-        Assert.Equal(new PoisonAlertEvent(11, 101, DateTime.UnixEpoch.Ticks), PoisonAlertEvent.Parse("alerts-skip-11", skip));
-        Assert.Contains("reason=unknown-job", skip);
-        Assert.Contains(LogLevel.Warning, logger.Levels);
+        Assert.False(await ctx.ExistsVariableAsync("alerts-skip-11", ct));
+        Assert.DoesNotContain(LogLevel.Warning, logger.Levels);
 
         await job.Handle(ctx, ct);
         Assert.Equal([11L, 12L], store.RaiseAttempts);
@@ -74,9 +95,14 @@ public sealed class AlertsJobPoisonEventTests
         return new(alerts, clock, channels: null!, transports: null!, Options.Create(new JobsOptions()), logger);
     }
 
-    private sealed class PoisonAlertStore(bool deterministicFailure, Exception? failure = null)
+    private sealed class PoisonAlertStore(bool deterministicFailure, Exception? failure = null, bool malformedFirstEvent = false)
     {
-        private static readonly AlertableEvent[] Events = [Event(11, 101), Event(12, 102)];
+        // A channel name no canonicalization accepts makes the stored event itself malformed.
+        private readonly AlertableEvent[] Events =
+        [
+            malformedFirstEvent ? Event(11, 101) with { AlertChannelName = "Not A Channel" } : Event(11, 101),
+            Event(12, 102),
+        ];
 
         public List<long> RaiseAttempts { get; } = [];
 

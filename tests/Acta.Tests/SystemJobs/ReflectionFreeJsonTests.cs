@@ -55,7 +55,7 @@ public sealed class ReflectionFreeJsonTests
     public async Task Sys_alerts_writes_and_reads_a_poison_record_and_projects_the_events_after_it()
     {
         var ct = TestContext.Current.CancellationToken;
-        var ledger = new AlertLedger([Event(11, PoisonJobId), Event(12, 102)]);
+        var ledger = new AlertLedger([Event(11, PoisonJobId) with { AlertChannelName = "Not A Channel" }, Event(12, 102)]);
         var json = new JsonJobPayloadSerializer(ReflectionFree);
         using var services = ledger.Session().Services(acta => acta.Services.AddSingleton<IJobPayloadSerializer>(json));
         var alerts = services.GetRequiredService<AlertsOperations>();
@@ -66,7 +66,8 @@ public sealed class ReflectionFreeJsonTests
         ledger.Events.Add(Event(13, 103));
         await job.Handle(ctx, ct);
 
-        Assert.Equal([11L, 12L, 11L, 13L], ledger.Raised);
+        // The malformed event never reaches a raise: it is recorded, and replayed from its record on the second pass.
+        Assert.Equal([12L, 13L], ledger.Raised);
         var floor = await alerts.GetAlertFloorAsync(ctx.NamespaceId, ct);
         Assert.Equal(13L, floor.Cursor.EventId);
         Assert.Equal(new PoisonAlertEvent(11, PoisonJobId, DateTime.UnixEpoch.Ticks), Assert.Single(floor.Poison));
@@ -121,8 +122,8 @@ public sealed class ReflectionFreeJsonTests
         );
 
     /// <summary>
-    /// The sys.alerts slot's variables, the event ledger, and the raises behind one scripted session. A raise for the
-    /// poison job fails as the provider does when the job row is gone.
+    /// The sys.alerts slot's variables, the event ledger, and the raises behind one scripted session. The poison
+    /// job's event names a channel no canonicalization accepts, the malformed shape the projector records and replays.
     /// </summary>
     private sealed class AlertLedger(IEnumerable<AlertableEvent> events)
     {
@@ -167,7 +168,7 @@ public sealed class ReflectionFreeJsonTests
         private RaiseAlertResponse Raise(long? jobId, long? sourceEventId)
         {
             Raised.Add(sourceEventId!.Value);
-            return jobId == PoisonJobId ? throw new UnknownJob() : new RaiseAlertResponse(1, sourceEventId);
+            return new RaiseAlertResponse(1, sourceEventId);
         }
 
         private static PoisonAlertEvent Skip(AlertableEvent e) => new(e.EventId, e.JobId, e.CreatedAtUtc.Ticks);
@@ -177,8 +178,6 @@ public sealed class ReflectionFreeJsonTests
     {
         public JsonTypeInfo? GetTypeInfo(Type type, JsonSerializerOptions options) => null;
     }
-
-    private sealed class UnknownJob() : DbException("ACTA:ALERT_UNKNOWN_JOB: 101");
 
     private sealed class FixedClock : IActaClock
     {

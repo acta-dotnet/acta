@@ -405,9 +405,11 @@ app.MapActa("/acta", options =>
 
 ## Retention and purge
 
-A job landing terminal gets `retention_until_utc` from its definition's `JobRetention` (default 90 days). The hourly `sys.retention` job deletes terminal jobs past it, with their checkpoints and steps, and deletes events and alerts past `JobEventsRetention` and `AlertRetention`, and stopped or dead workers once both `WorkerRetention` and `JobEventsRetention` have passed, so every event keeps its worker. Each tick walks `jobs_state` from where the last one stopped, up to two million rows, so a job goes within one walk of its deadline. A pass deletes at most 50,000 rows a section; one that reaches that with rows still expiring runs again at once instead of waiting for the next hour, so a busy namespace is swept back to back until it has caught up.
+A job landing terminal gets `retention_until_utc` from its definition's `JobRetention` (default 90 days). The hourly `sys.retention` job deletes terminal jobs past it, with their checkpoints, steps, and settled alerts, and deletes events and alerts past `JobEventsRetention` and `AlertRetention`, and stopped or dead workers once both `WorkerRetention` and `JobEventsRetention` have passed, so every event keeps its worker. Each tick walks `jobs_state` from where the last one stopped, up to two million rows, so a job goes within one walk of its deadline. A pass deletes at most 50,000 rows a section; one that reaches that with rows still expiring runs again at once instead of waiting for the next hour, so a busy namespace is swept back to back until it has caught up.
 
 A permanent job is purged only by deliberate decommission: `Idle`, `Failed`, or `Cancelled`, no firing outstanding, and no live schedule pinning it (every schedule orphaned, or the definition retired); the retention sweep never deletes a permanent job whose definition is live. Like every job it holds at most one result: its latest successful firing's, cleared when the next firing is claimed.
+
+A job is kept past its retention while one of its alerts is undelivered, since the failure it reports has reached nobody yet, and while the alert projector still owes one of its events; its settled alerts are deleted with it, an open incident included, so no alert outlives its job and its reminders end there. A paused or cancelled `sys.alerts` therefore holds retention back, by design: resume it rather than work around it.
 
 `AlertRetention` is a hard cap: an alert past it is deleted even if it was never delivered or is still open, and a pass that deleted undelivered alerts logs one warning (`reason=alert-retention-cap`). If that line appears, find out why delivery is not settling.
 
@@ -417,7 +419,7 @@ A permanent job is purged only by deliberate decommission: `Idle`, `Failed`, or 
 | Eligible job | Terminal and past its deadline, unless it is a stopped permanent job whose definition is live | Terminal now; a permanent job only when nothing pins it |
 | Child jobs | Keeps a completed child while its parent is live; a finished tree drains leaves first | Refuses a parent with children and a child whose parent is live |
 | Job event | None | `job.purged`, carrying the job's ref and name |
-| The job's events and alerts | Age out on their own windows | Deleted at once |
+| The job's events and alerts | Events age out on their own window; alerts go with the job, which waits for an undelivered one | Deleted at once |
 
 Manual purge removes Acta's record of one finished job and nothing else, such as your business data or backups. It is not backlog control: pause, cancel, reschedule, or add capacity instead.
 
@@ -489,7 +491,7 @@ In production a deploy step applies Acta's migrations, never application startup
 
 ```
 $ ConnectionStrings__acta="<DDL login>" dotnet MyApp.dll jobs migrate
-applied M20261111001806_init to schema acta
+applied M20261111010149_init to schema acta
 namespace billing: 1.6.1+b81d04e (Production)
   added    sys.alerts
   added    sys.retention
@@ -843,7 +845,7 @@ w.AddAlertChannel("ops-slack", AlertTransportKinds.SlackWebhook,
 
 ### Operator surface
 
-`IActaOperations.Alerts` lists, reads, acknowledges, and resolves alerts, as do the dashboard and `POST /alerts/{alertRef}/acknowledge|resolve`. Acknowledging does not stop reminders; resolving does. Neither changes the job. Alerts age out on `AlertRetention`, independently of their job. The concepts `402-alerts`, `403-alert-channel`, `405-real-alert-routing`, `406-automatic-failure-alerts`, and `411-alert-escalation` run each part.
+`IActaOperations.Alerts` lists, reads, acknowledges, and resolves alerts, as do the dashboard and `POST /alerts/{alertRef}/acknowledge|resolve`. Acknowledging does not stop reminders; resolving does. Neither changes the job. An alert is deleted with its job, by retention or a purge, and otherwise ages out on `AlertRetention`. The concepts `402-alerts`, `403-alert-channel`, `405-real-alert-routing`, `406-automatic-failure-alerts`, and `411-alert-escalation` run each part.
 
 ## What happens if…
 

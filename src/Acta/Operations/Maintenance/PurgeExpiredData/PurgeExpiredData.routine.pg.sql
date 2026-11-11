@@ -81,6 +81,10 @@ BEGIN
                             OR (e.event_code = 40 /* EventCode.JobExecutionSucceeded */ AND e.execution_number > 1)
                         )
                         AND d.alert_profile_code_effective <> 0 /* AlertProfileCode.None */)
+                -- A job stays while an alert of it is undelivered: the failure it reports has reached nobody yet.
+                AND NOT EXISTS (
+                    SELECT 1 FROM {{schema}}.alerts a
+                    WHERE a.job_id = j.job_id AND a.delivery_status_code IN (10 /* AlertDeliveryStatusCode.Pending */, 20 /* AlertDeliveryStatusCode.RetryAfter */))
             ORDER BY r.job_id DESC
             LIMIT p_batch_size
             FOR UPDATE OF j, r SKIP LOCKED) q;
@@ -95,6 +99,8 @@ BEGIN
             WHERE
                 entity_code = 50 /* EntityCode.Job */
                 AND entity_id = ANY(v_ids);
+            -- The job's settled alerts go with it, so no alert outlives its job (docs/sql-internals.md, "Alert lock order").
+            DELETE FROM {{schema}}.alerts a WHERE a.job_id = ANY(v_ids);
             DELETE FROM {{schema}}.checkpoints c WHERE c.job_id = ANY(v_ids);
             DELETE FROM {{schema}}.steps s WHERE s.job_id = ANY(v_ids);
             DELETE FROM {{schema}}.schedules_state st

@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Globalization;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -161,6 +162,12 @@ internal sealed class AlertsJob(
                 {
                     await ProjectAsync(ctx, e, ct);
                 }
+                catch (AlertProjectionDataException ex) when (ex.Reason == AlertProjectionDataException.UnknownJob)
+                {
+                    // Its job is gone, so the event has no subject left to alert on and no later pass can project it: it
+                    // is passed with no skip record, which would hold the retention floor at it for good.
+                    LogSubjectGone(ctx, e.EventId);
+                }
                 catch (AlertProjectionDataException ex)
                 {
                     await RecordProjectionSkipAsync(ctx, e, ex, ct);
@@ -228,8 +235,8 @@ internal sealed class AlertsJob(
     /// <summary>
     /// Replays the poison events this projector skipped, behind the cursor or not. One a newer success of its job
     /// supersedes is dispositioned without a raise, since the incident it would open has closed, and one the ledger no
-    /// longer holds has nothing left to replay; either way its record is deleted, as it is once a replay projects. One
-    /// still malformed keeps its record until it projects or its definition disables alerts.
+    /// longer holds, or whose job is gone, has nothing left to replay; either way its record is deleted, as it is once a
+    /// replay projects. One still malformed keeps its record until it projects or its definition disables alerts.
     /// </summary>
     private async Task ReplaySkippedAsync(JobContext ctx, Stopwatch elapsed, CancellationToken ct)
     {
@@ -253,15 +260,20 @@ internal sealed class AlertsJob(
                 break;
             }
 
+            var gone = false;
             if (!e.Superseded && e.AlertProfile != AlertProfileCode.None)
             {
                 try
                 {
                     await ProjectAsync(ctx, e, ct);
                 }
-                catch (AlertProjectionDataException)
+                catch (AlertProjectionDataException ex)
                 {
-                    continue;
+                    gone = ex.Reason == AlertProjectionDataException.UnknownJob;
+                    if (!gone)
+                    {
+                        continue;
+                    }
                 }
             }
 
@@ -269,13 +281,25 @@ internal sealed class AlertsJob(
             if (_log.IsEnabled(LogLevel.Information))
             {
                 var disposition =
-                    e.Superseded ? "superseded"
+                    gone ? "job gone"
+                    : e.Superseded ? "superseded"
                     : e.AlertProfile == AlertProfileCode.None ? "disabled"
                     : "projected";
                 var detail = $"{e.EventId}, {disposition}";
                 ActaLog.AlertEventReplayed(_log, detail, ctx.JobNamespace);
             }
         }
+    }
+
+    private void LogSubjectGone(JobContext ctx, long eventId)
+    {
+        if (_log.IsEnabled(LogLevel.Information))
+        {
+            var detail = eventId.ToString(CultureInfo.InvariantCulture);
+            ActaLog.AlertEventJobGone(_log, detail, ctx.JobNamespace);
+        }
+
+        _metrics?.RecordAlertProjectionSkip(ctx.JobNamespace, AlertProjectionDataException.UnknownJob);
     }
 
     private async Task RecordProjectionSkipAsync(
@@ -430,7 +454,7 @@ internal sealed class AlertsJob(
         {
             // A stored field (channel name, deduplication key) failed canonicalization: the event
             // itself is malformed, and retrying can never fix it.
-            throw new AlertProjectionDataException("invalid-event", ex.Message, ex);
+            throw new AlertProjectionDataException(AlertProjectionDataException.InvalidEvent, ex.Message, ex);
         }
 
         try
@@ -441,7 +465,7 @@ internal sealed class AlertsJob(
         {
             // The provider's ACTA:ALERT_UNKNOWN_JOB signal: the subject job row is gone (purged
             // between the event write and this projection), so the event can never project.
-            throw new AlertProjectionDataException("unknown-job", ex.Message, ex);
+            throw new AlertProjectionDataException(AlertProjectionDataException.UnknownJob, ex.Message, ex);
         }
     }
 
@@ -481,13 +505,16 @@ internal sealed record AlertDrainBudget(int BatchSize, int MaxBatches, TimeSpan 
 internal sealed record AlertDeliveryBudget(TimeSpan Send, TimeSpan Pass);
 
 /// <summary>
-/// The alert projector's poison classification: raised only for the two proven malformed-ledger
-/// shapes it deliberately skips past (the subject job no longer exists, or a stored field fails
-/// canonicalization). Any other exception fails the <c>sys.alerts</c> pass, so the shared event
-/// cursor never advances over an event that hit an unexpected error.
+/// The alert projector's classification of an event it passes without projecting: its subject job no longer exists,
+/// which nothing can change, so it leaves no record, or a stored field fails canonicalization, which is recorded as a
+/// skip and replayed. Any other exception fails the <c>sys.alerts</c> pass, so the shared event cursor never advances
+/// over an event that hit an unexpected error.
 /// </summary>
 internal sealed class AlertProjectionDataException(string reason, string message, Exception inner) : Exception(message, inner)
 {
-    /// <summary>Skip classification recorded on the durable outcome: "unknown-job" or "invalid-event".</summary>
+    internal const string UnknownJob = "unknown-job";
+    internal const string InvalidEvent = "invalid-event";
+
+    /// <summary>The classification: <see cref="UnknownJob"/> or <see cref="InvalidEvent"/>, the one a skip record carries.</summary>
     public string Reason { get; } = reason;
 }

@@ -85,6 +85,59 @@ public sealed class PurgeExpiredDataSpec : ActaRuntimeTestBase<ConformanceFixtur
         Assert.Empty(await Db.From<TagEntity>().Where(t => t.EntityCode == EntityCode.Job && t.EntityId == jobId).ToListAsync(ct));
     }
 
+    [Fact(DisplayName = "Retention keeps a job while an alert of it is undelivered, and takes its settled alerts with it")]
+    public async Task A_job_with_an_undelivered_alert_stays_and_settled_alerts_go_with_their_job()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
+        var waiting = (await EnqueueAndRunAsync("purge-now", new PurgeProbe("waiting"), ct)).JobId;
+        var retrying = (await EnqueueAndRunAsync("purge-now", new PurgeProbe("retrying"), ct)).JobId;
+        var told = (await EnqueueAndRunAsync("purge-now", new PurgeProbe("told"), ct)).JobId;
+        await RaiseForJobAsync(waiting, AlertDeliveryStatusCode.Pending, key: null, ct);
+        await RaiseForJobAsync(retrying, AlertDeliveryStatusCode.RetryAfter, key: null, ct);
+        // Keyed, as every automatic alert is: on SQL Server its identity row is locked before the row.
+        await RaiseForJobAsync(told, AlertDeliveryStatusCode.Delivered, Unique("told"), ct);
+
+        // The alert window is not due, so the settled alert goes only because its job does.
+        var purged = await RetentionTestOps.PurgeUntilAsync(
+            Services,
+            ns,
+            NoEventPurgeDays,
+            NoAlertPurgeDays,
+            NoWorkerPurgeSeconds,
+            1000,
+            50,
+            async () => await Db.From<JobEntity>().Where(j => j.Id == told).SingleOrDefaultAsync(ct) is null,
+            ct
+        );
+
+        // The failure an undelivered alert reports has reached nobody yet, and delivering it names the job.
+        Assert.Equal(1, purged.Jobs);
+        foreach (var kept in new[] { waiting, retrying })
+        {
+            Assert.NotNull(await Db.From<JobEntity>().Where(j => j.Id == kept).SingleOrDefaultAsync(ct));
+            Assert.Single(await Db.From<AlertEntity>().Where(a => a.JobId == kept).ToListAsync(ct));
+        }
+
+        Assert.Empty(await Db.From<AlertEntity>().Where(a => a.JobId == told).ToListAsync(ct));
+    }
+
+    private Task RaiseForJobAsync(long jobId, AlertDeliveryStatusCode delivery, string? key, CancellationToken ct) =>
+        AlertTestOps.RaiseAsync(
+            Services,
+            TestNamespace,
+            jobId,
+            AlertOriginCode.Automatic,
+            AlertSeverityCode.Error,
+            AlertKindCode.FinalFailure,
+            title: "retention",
+            message: "retention",
+            channelName: "default",
+            delivery,
+            deduplicationKey: key,
+            ct
+        );
+
     [Fact(DisplayName = "A future-retention job stamped with the default window survives the purge")]
     public async Task Future_retention_job_survives_and_is_stamped_with_the_default_window()
     {

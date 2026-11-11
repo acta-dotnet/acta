@@ -405,10 +405,11 @@ once, so there the watermark only keeps the claim alike.
 ### Alert lock order
 
 A statement that writes a job's alerts locks the job row first, then the alert rows. `PurgeJob` holds the
-job row while it deletes the job's alerts, and `raise_alert` and `resolve_alerts` lock the same
-row before they touch an alert: `UPDLOCK` on SQL Server, `FOR SHARE` on PostgreSQL against the
-purge's `FOR UPDATE`. A raise or resolve that meets a purge of its job waits for it. A raise that then
-finds the job gone is refused, so no alert outlives its job.
+job row while it deletes the job's alerts, as retention's job sweep holds the rows of the jobs it
+deletes, and `raise_alert` and `resolve_alerts` lock the same row before they touch an alert:
+`UPDLOCK` on SQL Server, `FOR SHARE` on PostgreSQL against the purge's `FOR UPDATE`. A raise or
+resolve that meets a purge of its job waits for it. A raise that then finds the job gone is refused,
+so no alert outlives its job.
 
 - PostgreSQL takes `FOR SHARE`, not `FOR KEY SHARE`. The key-share path in `heap_lock_tuple` releases
   the buffer lock, relocks it, and then rechecks only for an update. A `FOR UPDATE` taken in that window
@@ -418,8 +419,10 @@ finds the job gone is refused, so no alert outlives its job.
   relocking, and on `jobs` it adds a conflict only with `UpdateJobInput`'s update.
 
 - `ix_alerts_job` (`job_id, alert_id`, filtered to rows with a job) holds a job's alerts. On SQL Server,
-  purge and resolve seek it without locks, which the held job row makes safe, and then lock each row by
-  primary key. On PostgreSQL and SQLite, their equality on `job_id` seeks it directly. Before that index,
+  purge, retention's job sweep, and resolve seek it without locks and then lock each row by primary key.
+  The held job row keeps an alert from joining the job meanwhile, but a deduplicated raise moves an open
+  alert to its own job under that job's row alone, so each write rechecks the job on the row it locked.
+  On PostgreSQL and SQLite, their equality on `job_id` seeks it directly. Before that index,
   each SQL Server path scanned `pk_alerts` under update locks, and scans for different jobs deadlocked.
 - On SQL Server a row that has a deduplication identity is locked through its
   `ix_alerts_deduplication_key_identity` key before the row itself. `raise_alert` takes `sp_getapplock`,
@@ -428,8 +431,9 @@ finds the job gone is refused, so no alert outlives its job.
   refusal raises 51205. Under `HOLDLOCK` the seek range-locked the identity's next key, so raises of
   neighbouring identities waited on each other, and a read left unpinned held an `ix_alerts_delivery_due`
   key while it waited for a row a purge had deleted. `PurgeJob` and
-  the alert retention sections lock identity rows through the same index before deleting them.
-  Retention stages its batch without locks and locks with `READPAST`, so it skips a row a raise holds.
+  every retention section that deletes alerts lock identity rows through the same index before deleting them.
+  The alert sections stage their batch without locks and lock with `READPAST`, so they skip a row a raise
+  holds; `PurgeJob` and the job sweep wait for it, since the job is going and its alerts with it.
   A delete that took the row first and the index key second deadlocked against a raise, whichever job
   that raise was for.
 - Acknowledge and manual resolve lock one alert row by its ref and only read the job, and delivery
