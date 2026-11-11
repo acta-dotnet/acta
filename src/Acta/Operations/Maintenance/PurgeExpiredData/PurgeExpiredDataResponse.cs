@@ -1,7 +1,7 @@
 namespace Acta;
 
 /// <summary>
-/// How many roots the batch deleted, and for the jobs section where the walk continues: the next batch reads below
-/// <see cref="NextJobId"/>, and zero means the walk reached the oldest row and starts again from the newest.
+/// How many roots the batch deleted, and for the jobs section where the walk continues: the next batch reads the jobs
+/// before <see cref="Next"/>, and null means the walk reached the namespace's oldest job, which ends its cycle.
 /// </summary>
-internal readonly record struct PurgeExpiredDataResponse(int Purged, long NextJobId);
+internal readonly record struct PurgeExpiredDataResponse(int Purged, RetentionCursor? Next);

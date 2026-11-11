@@ -18,7 +18,7 @@ internal static class RetentionTestOps
         int batchSize,
         int maxIterations,
         CancellationToken ct,
-        long jobsCursor = 0,
+        RetentionCursor? jobsCursor = null,
         bool sweepSystemEvents = false
     ) =>
         ActivatorUtilities
@@ -31,6 +31,7 @@ internal static class RetentionTestOps
                     workerRetentionSeconds,
                     batchSize,
                     maxIterations,
+                    TimeSpan.FromSeconds(30),
                     jobsCursor,
                     SweepSystemEvents: sweepSystemEvents
                 ),

@@ -190,7 +190,10 @@ internal static partial class ActaSchema
 
         public static readonly DbValueSpec<int> PurgeBatchSize = new("p_batch_size", DbKind.Int32);
 
-        /// <summary>The jobs walk's cursor: the section reads the jobs_state rows below this job id, or from the newest when zero.</summary>
+        /// <summary>The instant half of the jobs walk's cursor (<see cref="RetentionCursor"/>); null starts a cycle.</summary>
+        public static readonly DbValueSpec<DateTime?> PurgeBeforeCreatedUtc = new("p_before_created_utc", DbKind.UtcInstant);
+
+        /// <summary>The job id half of the jobs walk's cursor; see <see cref="PurgeBeforeCreatedUtc"/>.</summary>
         public static readonly DbValueSpec<long> PurgeBeforeJobId = new("p_before_job_id", DbKind.Int64);
 
         /// <summary>

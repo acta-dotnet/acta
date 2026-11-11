@@ -405,7 +405,9 @@ app.MapActa("/acta", options =>
 
 ## Retention and purge
 
-A job landing terminal gets `retention_until_utc` from its definition's `JobRetention` (default 90 days). The hourly `sys.retention` job deletes terminal jobs past it, with their checkpoints, steps, and settled alerts, and deletes events and alerts past `JobEventsRetention` and `AlertRetention`, and stopped or dead workers once both `WorkerRetention` and `JobEventsRetention` have passed, so every event keeps its worker. Each tick walks `jobs_state` from where the last one stopped, up to two million rows, so a job goes within one walk of its deadline. A pass deletes at most 50,000 rows a section; one that reaches that with rows still expiring runs again at once instead of waiting for the next hour, so a busy namespace is swept back to back until it has caught up.
+A job landing terminal gets `retention_until_utc` from its definition's `JobRetention` (default 90 days). The hourly `sys.retention` job deletes terminal jobs past it, with their checkpoints, steps, and settled alerts, and deletes events and alerts past `JobEventsRetention` and `AlertRetention`, and stopped or dead workers once both `WorkerRetention` and `JobEventsRetention` have passed, so every event keeps its worker. The job sweep reads only its own namespace's jobs, starting at the newest one old enough to have expired under the namespace's shortest `JobRetention`, so a namespace whose definitions share a retention reads little beyond what it deletes. A pass deletes a bounded number of rows a section; one that reaches that with rows still expiring, or that deleted jobs and has more of its walk left, runs again at once instead of waiting for the next hour, so a busy namespace is swept back to back until it has caught up.
+
+Two things follow from where the sweep starts. A namespace that mixes a short retention with long ones reads its long-kept jobs on the way to the expired ones, a bounded stretch of them each pass, so short-lived work beside a very large long-kept history is swept late: give that work a namespace of its own. And a job that landed under a retention you have since raised is kept until it is as old as the namespace's shortest retention now: a retention change deletes late, never early.
 
 A permanent job is purged only by deliberate decommission: `Idle`, `Failed`, or `Cancelled`, no firing outstanding, and no live schedule pinning it (every schedule orphaned, or the definition retired); the retention sweep never deletes a permanent job whose definition is live. Like every job it holds at most one result: its latest successful firing's, cleared when the next firing is claimed.
 
@@ -491,7 +493,7 @@ In production a deploy step applies Acta's migrations, never application startup
 
 ```
 $ ConnectionStrings__acta="<DDL login>" dotnet MyApp.dll jobs migrate
-applied M20261111013550_init to schema acta
+applied M20261111020239_init to schema acta
 namespace billing: 1.6.1+b81d04e (Production)
   added    sys.alerts
   added    sys.retention

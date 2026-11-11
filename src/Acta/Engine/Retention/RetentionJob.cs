@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -7,8 +8,8 @@ namespace Acta;
 /// <summary>
 /// <c>sys.retention</c>, auto-registered into every worker namespace: whichever live worker claims the hourly tick runs
 /// one namespace-scoped <c>purge_expired_data</c> pass, plus the sys namespace's expired events. The slot's single claim
-/// per tick is the only coordination. A pass that spends a section's delete budget re-arms at once, so a backlog is
-/// swept back to back. The pass never runs ahead of the namespace's alert projector: what the projector still owes,
+/// per tick is the only coordination. A pass that spends a section's delete budget, or deletes jobs and leaves its walk
+/// unfinished, re-arms at once, so a backlog is swept back to back. The pass never runs ahead of the namespace's alert projector: what the projector still owes,
 /// events and their jobs, waits for it. <c>Failures</c> recording keeps idle ticks out of <c>events</c>.
 /// </summary>
 internal sealed class RetentionJob(
@@ -26,8 +27,11 @@ internal sealed class RetentionJob(
     private const int BatchSize = 100;
     private const int MaxIterations = 500;
 
-    /// <summary>The job variable that keeps the jobs walk's position from one tick to the next.</summary>
-    private const string JobsCursorVariable = "purge-cursor";
+    /// <summary>
+    /// How long one pass walks jobs: a namespace whose definitions keep jobs for different lengths reads the longer-kept
+    /// ones on its way to the expired, and the rest of that walk waits for the next pass.
+    /// </summary>
+    private static readonly TimeSpan JobsWalkBudget = TimeSpan.FromSeconds(30);
 
     /// <summary>The seeded sys namespace, which owns the tenant events and where no worker runs a pass of its own.</summary>
     /// <summary>
@@ -64,13 +68,16 @@ internal sealed class RetentionJob(
                 _workerRetentionSeconds,
                 BatchSize,
                 MaxIterations,
-                await ctx.GetVariableOrDefaultAsync(JobsCursorVariable, 0L, ct),
+                JobsWalkBudget,
+                await ctx.GetVariableOrDefaultAsync(RetentionCursor.VariableName, RetentionCursor.None, ct) is { Ticks: > 0 } stored
+                    ? stored
+                    : null,
                 SweepSystemEvents: true
             ),
             count => LogUndeliveredPurge(ctx, count),
             ct
         );
-        await ctx.SetVariableAsync(JobsCursorVariable, swept.JobsCursor, ct);
+        await ctx.SetVariableAsync(RetentionCursor.VariableName, swept.JobsCursor ?? RetentionCursor.None, ct);
         if (swept.BudgetSpent)
         {
             await ctx.RescheduleAsync(TimeSpan.Zero, "More rows have expired than one pass deletes.", ct);
@@ -89,7 +96,7 @@ internal sealed class RetentionJob(
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(command.BatchSize);
         ArgumentOutOfRangeException.ThrowIfNegative(command.MaxIterations);
-        ArgumentOutOfRangeException.ThrowIfNegative(command.MaxJobSlices);
+        ArgumentOutOfRangeException.ThrowIfLessThan(command.JobsWalkBudget, TimeSpan.Zero);
         var now = await clock.GetUtcNowAsync(ct);
         // Read once, before any batch: the cursor only moves forward, so a floor read early keeps at least as much.
         var alertFloor = await maintenance.GetAlertFloorAsync(command.NamespaceId, ct);
@@ -119,22 +126,24 @@ internal sealed class RetentionJob(
                 };
                 if (section == RetentionSection.Jobs)
                 {
-                    // A slice with nothing expired is no reason to stop: the walk ends at the oldest row, after
-                    // MaxJobSlices slices, or once a delete budget's worth of jobs is gone.
+                    // A slice with nothing expired is no reason to stop: the walk ends with its cycle, at the namespace's
+                    // oldest job, once a delete budget's worth of jobs is gone, or when its time is spent.
                     var deleteBudget = (long)command.MaxIterations * command.BatchSize;
-                    for (var slice = 0; slice < command.MaxJobSlices && counts[index] < deleteBudget; slice++)
+                    var walking = Stopwatch.StartNew();
+                    while (counts[index] < deleteBudget)
                     {
                         ct.ThrowIfCancellationRequested();
-                        var walked = await maintenance.PurgeExpiredDataAsync(batch with { BeforeJobId = cursor }, ct);
+                        var walked = await maintenance.PurgeExpiredDataAsync(batch with { Before = cursor }, ct);
                         counts[index] = checked(counts[index] + walked.Purged);
-                        cursor = walked.NextJobId;
-                        if (cursor == 0)
+                        cursor = walked.Next;
+                        if (cursor is null || walking.Elapsed >= command.JobsWalkBudget)
                         {
                             break;
                         }
                     }
-                    // Only the delete budget re-arms: a walk that ran out of slices over live rows resumes at the next tick.
-                    budgetSpent |= cursor != 0 && counts[index] >= deleteBudget;
+                    // An unfinished cycle runs on at once only when the pass deleted: one that read nothing but jobs still
+                    // kept waits for the next tick, or a namespace of long-kept jobs would never rest.
+                    budgetSpent |= cursor is not null && counts[index] > 0;
                     continue;
                 }
                 budgetSpent |= await PurgeSectionAsync(
@@ -214,10 +223,10 @@ internal sealed class RetentionJob(
 }
 
 /// <summary>
-/// Validated purge sweep bounds for one namespace, and where the jobs walk stopped last time: the walk reads below
-/// <see cref="JobsCursor"/>, or from the newest row when zero. <see cref="MaxJobSlices"/> bounds the rows a sweep walks,
-/// apart from the rows it deletes: expired jobs sit at the oldest end, so a walk reads the live rows before its first
-/// delete, and a walk budget tied to the delete budget would take days to get there on a large table.
+/// Validated purge sweep bounds for one namespace, and where the jobs walk stopped last time: the walk reads the jobs
+/// before <see cref="JobsCursor"/>, and null starts a cycle. <see cref="JobsWalkBudget"/> bounds the time a
+/// sweep walks, apart from the rows it deletes: a walk may read jobs still kept before its first delete, and a walk
+/// budget tied to the delete budget would take days to pass them on a large table.
 /// <see cref="SweepSystemEvents"/> also sweeps the sys namespace's expired events, uncounted.
 /// </summary>
 internal sealed record RetentionSweep(
@@ -227,8 +236,8 @@ internal sealed record RetentionSweep(
     int WorkerRetentionSeconds,
     int BatchSize,
     int MaxIterations,
-    long JobsCursor = 0,
-    int MaxJobSlices = 2000,
+    TimeSpan JobsWalkBudget,
+    RetentionCursor? JobsCursor = null,
     bool SweepSystemEvents = false
 );
 
@@ -247,6 +256,6 @@ internal readonly record struct RetentionSweepCounts(
     int Workers,
     int Locks,
     int Lanes,
-    long JobsCursor,
+    RetentionCursor? JobsCursor,
     bool BudgetSpent = false
 );

@@ -5,18 +5,24 @@ CREATE OR REPLACE FUNCTION {{schema}}.purge_expired_data(
     p_section INT,
     p_cutoff_utc TIMESTAMPTZ,
     p_batch_size INT,
+    p_before_created_utc TIMESTAMPTZ DEFAULT NULL,
     p_before_job_id BIGINT DEFAULT 0,
     p_alert_floor_utc TIMESTAMPTZ DEFAULT NULL,
     p_alert_floor_event_id BIGINT DEFAULT NULL
 )
-RETURNS TABLE (deleted_count INT, next_job_id BIGINT)
+RETURNS TABLE (deleted_count INT, next_created_utc TIMESTAMPTZ, next_job_id BIGINT)
 LANGUAGE plpgsql
 AS $$
 DECLARE
     v_rows INT := 0;
-    v_next BIGINT := 0;
-    v_below BIGINT;
-    v_slice_end BIGINT;
+    v_next TIMESTAMPTZ;
+    v_next_id BIGINT := 0;
+    v_below TIMESTAMPTZ := p_before_created_utc;
+    v_below_id BIGINT := p_before_job_id;
+    v_slice_end TIMESTAMPTZ;
+    v_slice_end_id BIGINT;
+    v_last TIMESTAMPTZ;
+    v_last_id BIGINT;
     v_ids BIGINT[];
     v_worker_ids INT[];
     v_lock_keys TEXT[];
@@ -29,22 +35,38 @@ BEGIN
 
     CASE p_section
     WHEN 1 THEN
-        /* No retention index: walk jobs_state downward from the cursor, ten batches a slice, and delete this
-           namespace's expired jobs in it; downward, so a walk has a fixed end however fast enqueues arrive.
-           A full batch ends the slice at its last delete; the oldest row answers zero, and the walk restarts. */
-        v_below := CASE WHEN p_before_job_id = 0 THEN 9223372036854775807 ELSE p_before_job_id END;
-        SELECT min(s.job_id) INTO v_slice_end FROM (
-            SELECT r.job_id FROM {{schema}}.jobs_state r
-            WHERE r.job_id < v_below
-            ORDER BY r.job_id DESC
-            LIMIT p_batch_size * 10) s;
-        SELECT array_agg(q.job_id) INTO v_ids FROM (
-            SELECT j.job_id FROM {{schema}}.jobs j
+        /* No retention index: walk this namespace's jobs from newer to older through ix_jobs_namespace_created, ten
+           batches a slice, and delete the expired ones in it. A cycle ends at the namespace's oldest job, which answers
+           no cursor; a full batch ends the slice at its last delete, so the walk never reads a deleted row again. */
+        IF v_below IS NULL THEN
+            -- A cycle starts at the newest job old enough to have expired: none expires sooner than the shortest
+            -- retention any definition of the namespace has, a retired one included.
+            SELECT p_cutoff_utc - make_interval(secs => COALESCE(min(d.retention_seconds_effective), 0))
+            INTO v_below
+            FROM {{schema}}.definitions d
+            WHERE d.namespace_id = p_namespace_id;
+            v_below_id := 9223372036854775807;
+        END IF;
+
+        SELECT s.created_at_utc, s.job_id INTO v_slice_end, v_slice_end_id FROM (
+            SELECT j.created_at_utc, j.job_id FROM {{schema}}.jobs j
+            WHERE j.namespace_id = p_namespace_id AND (j.created_at_utc, j.job_id) < (v_below, v_below_id)
+            ORDER BY j.created_at_utc DESC, j.job_id DESC
+            LIMIT p_batch_size * 10) s
+        ORDER BY s.created_at_utc, s.job_id
+        LIMIT 1;
+        SELECT
+            array_agg(q.job_id),
+            min(q.created_at_utc),
+            (array_agg(q.job_id ORDER BY q.created_at_utc, q.job_id))[1]
+        INTO v_ids, v_last, v_last_id
+        FROM (
+            SELECT j.job_id, j.created_at_utc FROM {{schema}}.jobs j
             JOIN {{schema}}.jobs_state r ON r.job_id = j.job_id
             WHERE
-                r.job_id < v_below
-                AND r.job_id >= v_slice_end
-                AND r.namespace_id = p_namespace_id
+                j.namespace_id = p_namespace_id
+                AND (j.created_at_utc, j.job_id) < (v_below, v_below_id)
+                AND (j.created_at_utc, j.job_id) >= (v_slice_end, v_slice_end_id)
                 AND r.job_status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
                 AND r.retention_until_utc IS NOT NULL
                 AND r.retention_until_utc <= p_cutoff_utc
@@ -85,15 +107,17 @@ BEGIN
                 AND NOT EXISTS (
                     SELECT 1 FROM {{schema}}.alerts a
                     WHERE a.job_id = j.job_id AND a.delivery_status_code IN (10 /* AlertDeliveryStatusCode.Pending */, 20 /* AlertDeliveryStatusCode.RetryAfter */))
-            ORDER BY r.job_id DESC
+            ORDER BY j.created_at_utc DESC, j.job_id DESC
             LIMIT p_batch_size
             FOR UPDATE OF j, r SKIP LOCKED) q;
         v_rows := COALESCE(cardinality(v_ids), 0);
-        v_next := CASE
-            WHEN v_slice_end IS NULL THEN 0
-            WHEN v_rows = p_batch_size THEN (SELECT min(x) FROM unnest(v_ids) x)
-            ELSE v_slice_end
-        END;
+        IF v_rows = p_batch_size THEN
+            v_next := v_last;
+            v_next_id := v_last_id;
+        ELSIF v_slice_end IS NOT NULL THEN
+            v_next := v_slice_end;
+            v_next_id := v_slice_end_id;
+        END IF;
         IF v_rows > 0 THEN
             DELETE FROM {{schema}}.tags
             WHERE
@@ -229,6 +253,6 @@ BEGIN
         GET DIAGNOSTICS v_rows = ROW_COUNT;
     END CASE;
 
-    RETURN QUERY SELECT v_rows, v_next;
+    RETURN QUERY SELECT v_rows, v_next, v_next_id;
 END;
 $$;

@@ -1,4 +1,5 @@
 -- Only the selected section can stage rows; SQLite owns one immediate transaction for the file.
+DROP TABLE IF EXISTS temp._purge_cursor;
 DROP TABLE IF EXISTS temp._purge_slice;
 DROP TABLE IF EXISTS temp._purge_jobs;
 DROP TABLE IF EXISTS temp._purge_events;
@@ -8,32 +9,50 @@ DROP TABLE IF EXISTS temp._purge_workers;
 DROP TABLE IF EXISTS temp._purge_locks;
 DROP TABLE IF EXISTS temp._purge_lanes;
 
--- No retention index: walk jobs_state downward from the cursor, ten batches a slice, and delete this namespace's
--- expired jobs in it; downward, so a walk has a fixed end however fast enqueues arrive. A full batch ends the
--- slice at its last delete; the oldest row answers zero, and the walk restarts.
-CREATE TEMP TABLE _purge_slice AS
+-- No retention index: walk this namespace's jobs from newer to older through ix_jobs_namespace_created, ten batches a
+-- slice, and delete the expired ones in it. A cycle ends at the namespace's oldest job, which answers no cursor; a
+-- full batch ends the slice at its last delete, so the walk never reads a deleted row again.
+CREATE TEMP TABLE _purge_cursor AS
+-- A cycle starts at the newest job old enough to have expired: none expires sooner than the shortest retention any
+-- definition of the namespace has, a retired one included.
 SELECT
-    CASE WHEN @p_before_job_id = 0 THEN 9223372036854775807 ELSE @p_before_job_id END AS below,
-    (
-        SELECT MIN(s.job_id)
-        FROM (
-            SELECT r.job_id
-            FROM {{schema}}.jobs_state r
-            WHERE @p_section = 1 AND r.job_id < CASE WHEN @p_before_job_id = 0 THEN 9223372036854775807 ELSE @p_before_job_id END
-            ORDER BY r.job_id DESC
-            LIMIT @p_batch_size * 10
-        ) s
-    ) AS slice_end;
+    COALESCE(
+        @p_before_created_utc,
+        @p_cutoff_utc - 1000 * (
+            SELECT COALESCE(MIN(d.retention_seconds_effective), 0) FROM {{schema}}.definitions d WHERE d.namespace_id = @p_namespace_id
+        )
+    ) AS below,
+    CASE WHEN @p_before_created_utc IS NULL THEN 9223372036854775807 ELSE @p_before_job_id END AS below_id;
+
+CREATE TEMP TABLE _purge_slice AS
+SELECT s.created_at_utc AS slice_end, s.job_id AS slice_end_id
+FROM (
+    SELECT j.created_at_utc, j.job_id
+    FROM {{schema}}.jobs j, temp._purge_cursor c
+    WHERE
+        @p_section = 1
+        AND j.namespace_id = @p_namespace_id
+        AND j.created_at_utc <= c.below
+        AND (j.created_at_utc < c.below OR j.job_id < c.below_id)
+    ORDER BY j.created_at_utc DESC, j.job_id DESC
+    LIMIT @p_batch_size * 10
+) s
+ORDER BY s.created_at_utc, s.job_id
+LIMIT 1;
 
 CREATE TEMP TABLE _purge_jobs AS
-SELECT r.job_id
-FROM {{schema}}.jobs_state r
-JOIN {{schema}}.jobs j ON j.job_id = r.job_id
+SELECT r.job_id, j.created_at_utc
+FROM {{schema}}.jobs j
+JOIN {{schema}}.jobs_state r ON r.job_id = j.job_id
+JOIN temp._purge_cursor c
+JOIN temp._purge_slice e
 WHERE
     @p_section = 1
-    AND r.job_id < (SELECT below FROM temp._purge_slice)
-    AND r.job_id >= (SELECT slice_end FROM temp._purge_slice)
-    AND r.namespace_id = @p_namespace_id
+    AND j.namespace_id = @p_namespace_id
+    AND j.created_at_utc <= c.below
+    AND (j.created_at_utc < c.below OR j.job_id < c.below_id)
+    AND j.created_at_utc >= e.slice_end
+    AND (j.created_at_utc > e.slice_end OR j.job_id >= e.slice_end_id)
     AND r.job_status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
     AND r.retention_until_utc IS NOT NULL
     AND r.retention_until_utc <= @p_cutoff_utc
@@ -76,7 +95,7 @@ WHERE
     AND NOT EXISTS (
         SELECT 1 FROM {{schema}}.alerts a
         WHERE a.job_id = j.job_id AND a.delivery_status_code IN (10 /* AlertDeliveryStatusCode.Pending */, 20 /* AlertDeliveryStatusCode.RetryAfter */))
-ORDER BY r.job_id DESC
+ORDER BY j.created_at_utc DESC, j.job_id DESC
 LIMIT @p_batch_size;
 
 DELETE FROM {{schema}}.tags WHERE entity_code = 50 /* EntityCode.Job */ AND entity_id IN (SELECT p.job_id FROM temp._purge_jobs p);
@@ -206,7 +225,12 @@ SELECT
     + (SELECT COUNT(*) FROM temp._purge_locks)
     + (SELECT COUNT(*) FROM temp._purge_lanes) AS deleted_count,
     CASE
-        WHEN @p_section <> 1 OR (SELECT slice_end FROM temp._purge_slice) IS NULL THEN 0
-        WHEN (SELECT COUNT(*) FROM temp._purge_jobs) = @p_batch_size THEN (SELECT MIN(job_id) FROM temp._purge_jobs)
+        WHEN (SELECT COUNT(*) FROM temp._purge_jobs) = @p_batch_size
+            THEN (SELECT p.created_at_utc FROM temp._purge_jobs p ORDER BY p.created_at_utc, p.job_id LIMIT 1)
         ELSE (SELECT slice_end FROM temp._purge_slice)
+    END AS next_created_utc,
+    CASE
+        WHEN (SELECT COUNT(*) FROM temp._purge_jobs) = @p_batch_size
+            THEN (SELECT p.job_id FROM temp._purge_jobs p ORDER BY p.created_at_utc, p.job_id LIMIT 1)
+        ELSE COALESCE((SELECT slice_end_id FROM temp._purge_slice), 0)
     END AS next_job_id;

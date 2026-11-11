@@ -5,6 +5,7 @@ CREATE OR ALTER PROCEDURE {{schema}}.purge_expired_data
     @p_section INT,
     @p_cutoff_utc DATETIME2(7),
     @p_batch_size INT,
+    @p_before_created_utc DATETIME2(7) = NULL,
     @p_before_job_id BIGINT = 0,
     @p_alert_floor_utc DATETIME2(7) = NULL,
     @p_alert_floor_event_id BIGINT = NULL
@@ -22,8 +23,9 @@ BEGIN
             THROW 50002, 'Invalid retention section or batch size.', 1;
 
         DECLARE @rows INT = 0;
+        DECLARE @next_created_utc DATETIME2(3) = NULL;
         DECLARE @next_job_id BIGINT = 0;
-        DECLARE @job_del TABLE (job_id BIGINT NOT NULL);
+        DECLARE @job_del TABLE (job_id BIGINT NOT NULL, created_at_utc DATETIME2(3) NOT NULL);
         DECLARE @event_del TABLE (worker_id INT NOT NULL, event_id BIGINT NOT NULL, PRIMARY KEY (worker_id, event_id));
         DECLARE @lock_del TABLE (lock_key VARCHAR(256) COLLATE Latin1_General_100_BIN2_UTF8 NOT NULL);
         DECLARE @alert_del TABLE (alert_id BIGINT NOT NULL PRIMARY KEY, deduplication_key VARCHAR(128) COLLATE Latin1_General_100_BIN2_UTF8 NULL);
@@ -36,30 +38,49 @@ BEGIN
             BEGIN
                 DELETE @job_del;
 
-                /* No retention index: walk jobs_state downward from the cursor, ten batches a slice, and delete this
-                   namespace's expired jobs in it; downward, so a walk has a fixed end however fast enqueues arrive.
-                   A full batch ends the slice at its last delete; the oldest row answers zero, and the walk restarts. */
-                DECLARE @below BIGINT = CASE WHEN @p_before_job_id = 0 THEN 9223372036854775807 ELSE @p_before_job_id END;
-                -- The walk skips a row another transaction holds; the delete below locks and re-checks its own.
-                DECLARE @slice_end BIGINT = (
-                    SELECT MIN(s.job_id)
-                    FROM (
-                        SELECT TOP (@p_batch_size * 10) r.job_id
-                        FROM {{schema}}.jobs_state r WITH (READCOMMITTEDLOCK, READPAST)
-                        WHERE r.job_id < @below
-                        ORDER BY r.job_id DESC
-                    ) s
-                );
+                /* No retention index: walk this namespace's jobs from newer to older through ix_jobs_namespace_created, ten
+                   batches a slice, and delete the expired ones in it. A cycle ends at the namespace's oldest job, which answers
+                   no cursor; a full batch ends the slice at its last delete, so the walk never reads a deleted row again. */
+                DECLARE @below DATETIME2(3) = @p_before_created_utc;
+                DECLARE @below_id BIGINT = @p_before_job_id;
+                IF @below IS NULL
+                    BEGIN
+                        -- A cycle starts at the newest job old enough to have expired: none expires sooner than the
+                        -- shortest retention any definition of the namespace has, a retired one included.
+                        SELECT @below = DATEADD(SECOND, -COALESCE(MIN(d.retention_seconds_effective), 0), @p_cutoff_utc)
+                        FROM {{schema}}.definitions d WITH (FORCESEEK (ux_definitions_namespace_name (namespace_id)))
+                        WHERE d.namespace_id = @p_namespace_id;
+                        SET @below_id = 9223372036854775807;
+                    END;
 
-                -- A locking read seeks (docs/sql-internals.md, "Locking reads seek").
-                INSERT INTO @job_del (job_id)
-                SELECT TOP (@p_batch_size) j.job_id
-                FROM {{schema}}.jobs_state r WITH (UPDLOCK, READPAST, FORCESEEK)
+                -- The walk skips a row another transaction holds; the delete below locks and re-checks its own.
+                DECLARE @slice_end DATETIME2(3), @slice_end_id BIGINT;
+                SELECT TOP (1) @slice_end = s.created_at_utc, @slice_end_id = s.job_id
+                FROM (
+                    SELECT TOP (@p_batch_size * 10) w.created_at_utc, w.job_id
+                    FROM {{schema}}.jobs w WITH (READCOMMITTEDLOCK, READPAST, FORCESEEK (ix_jobs_namespace_created (namespace_id, created_at_utc)))
+                    WHERE
+                        w.namespace_id = @p_namespace_id
+                        AND w.created_at_utc <= @below
+                        AND (w.created_at_utc < @below OR w.job_id < @below_id)
+                    ORDER BY w.created_at_utc DESC, w.job_id DESC
+                ) s
+                ORDER BY s.created_at_utc, s.job_id;
+
+                /* A locking read seeks (docs/sql-internals.md, "Locking reads seek"). The walk reads the index without
+                   update locks, so a slice of live jobs holds none; a job is locked through its state row, where the
+                   status and the deadline are read, and then its own row. */
+                INSERT INTO @job_del (job_id, created_at_utc)
+                SELECT TOP (@p_batch_size) j.job_id, w.created_at_utc
+                FROM {{schema}}.jobs w WITH (READCOMMITTEDLOCK, READPAST, FORCESEEK (ix_jobs_namespace_created (namespace_id, created_at_utc)))
+                INNER JOIN {{schema}}.jobs_state r WITH (UPDLOCK, READPAST, FORCESEEK) ON r.job_id = w.job_id
                 INNER JOIN {{schema}}.jobs j WITH (UPDLOCK, READPAST, FORCESEEK) ON j.job_id = r.job_id
                 WHERE
-                    r.job_id < @below
-                    AND r.job_id >= @slice_end
-                    AND r.namespace_id = @p_namespace_id
+                    w.namespace_id = @p_namespace_id
+                    AND w.created_at_utc <= @below
+                    AND (w.created_at_utc < @below OR w.job_id < @below_id)
+                    AND w.created_at_utc >= @slice_end
+                    AND (w.created_at_utc > @slice_end OR w.job_id >= @slice_end_id)
                     AND r.job_status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
                     AND r.retention_until_utc IS NOT NULL
                     AND r.retention_until_utc <= @p_cutoff_utc
@@ -113,13 +134,15 @@ BEGIN
                             AND a.job_id IS NOT NULL
                             AND a.delivery_status_code IN (10 /* AlertDeliveryStatusCode.Pending */, 20 /* AlertDeliveryStatusCode.RetryAfter */)
                     )
-                ORDER BY r.job_id DESC;
+                ORDER BY w.created_at_utc DESC, w.job_id DESC
+                OPTION (FORCE ORDER, LOOP JOIN);
 
-                SET @next_job_id = CASE
-                    WHEN @slice_end IS NULL THEN 0
-                    WHEN (SELECT COUNT(*) FROM @job_del) = @p_batch_size THEN (SELECT MIN(job_id) FROM @job_del)
-                    ELSE @slice_end
-                END;
+                IF (SELECT COUNT(*) FROM @job_del) = @p_batch_size
+                    SELECT TOP (1) @next_created_utc = d.created_at_utc, @next_job_id = d.job_id
+                    FROM @job_del d
+                    ORDER BY d.created_at_utc, d.job_id;
+                ELSE IF @slice_end IS NOT NULL
+                    SELECT @next_created_utc = @slice_end, @next_job_id = @slice_end_id;
 
                 -- Each delete below seeks its rows by job id: an unhinted plan can scan
                 -- the whole child table under update locks
@@ -361,7 +384,7 @@ BEGIN
                 SET @rows = @@ROWCOUNT;
             END;
 
-        SELECT @rows AS deleted_count, @next_job_id AS next_job_id;
+        SELECT @rows AS deleted_count, @next_created_utc AS next_created_utc, @next_job_id AS next_job_id;
 
         IF @entry_trancount = 0
             COMMIT TRANSACTION;

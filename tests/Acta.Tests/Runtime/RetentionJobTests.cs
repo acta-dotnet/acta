@@ -7,7 +7,7 @@ namespace Acta.Tests.Runtime;
 public sealed class RetentionJobTests
 {
     private static readonly DateTime Now = new(2026, 9, 6, 12, 0, 0, DateTimeKind.Utc);
-    private static readonly RetentionSweep Sweep = new(42, 2, 3, 4, 10, 2, MaxJobSlices: 2);
+    private static readonly RetentionSweep Sweep = new(42, 2, 3, 4, 10, 2, TimeSpan.MaxValue);
 
     [Fact]
     public async Task Sections_are_ordered_bounded_and_share_one_database_clock_read()
@@ -18,14 +18,15 @@ public sealed class RetentionJobTests
 
         Assert.Equal(1, clock.Reads);
         Assert.Equal(14, store.Calls.Count);
-        // Every section but the jobs walk spent its two batches finding rows, so the sweep asks to run again at once.
-        Assert.Equal(new RetentionSweepCounts(2, 2, 2, 2, 2, 2, 2, 999, BudgetSpent: true), result);
+        // Every section but the jobs walk, whose cycle ended, spent its two batches finding rows, so the sweep asks to
+        // run again at once.
+        Assert.Equal(new RetentionSweepCounts(2, 2, 2, 2, 2, 2, 2, null, BudgetSpent: true), result);
         for (var index = 0; index < 7; index++)
         {
             var first = store.Calls[index * 2];
             Assert.Equal((RetentionSection)(index + 1), first.Section);
             // The jobs walk's two calls differ only in the cursor.
-            Assert.Equal(first with { BeforeJobId = 0 }, store.Calls[index * 2 + 1] with { BeforeJobId = 0 });
+            Assert.Equal(first with { Before = null }, store.Calls[index * 2 + 1] with { Before = null });
             Assert.Equal(42, first.NamespaceId);
             Assert.Equal(10, first.BatchSize);
             Assert.Equal(
@@ -48,7 +49,7 @@ public sealed class RetentionJobTests
         var store = new Store(static _ => 0);
         var result = await Job(store.Handler, new Clock()).PurgeExpiredDataAsync(Sweep, null, TestContext.Current.CancellationToken);
         Assert.Equal(8, store.Calls.Count);
-        Assert.Equal(new RetentionSweepCounts(0, 0, 0, 0, 0, 0, 0, 999), result);
+        Assert.Equal(new RetentionSweepCounts(0, 0, 0, 0, 0, 0, 0, null), result);
     }
 
     [Fact]
@@ -63,7 +64,7 @@ public sealed class RetentionJobTests
         Assert.True(result.BudgetSpent);
         Assert.Equal(RetentionSection.Events, store.Calls[2].Section);
         Assert.All(store.Calls.Skip(3).Take(2), call => Assert.Equal(store.Calls[2] with { NamespaceId = 1 }, call));
-        Assert.Equal(new RetentionSweepCounts(0, 0, 0, 0, 0, 0, 0, 999, BudgetSpent: true), result);
+        Assert.Equal(new RetentionSweepCounts(0, 0, 0, 0, 0, 0, 0, null, BudgetSpent: true), result);
     }
 
     [Theory]
@@ -79,15 +80,16 @@ public sealed class RetentionJobTests
     }
 
     [Fact]
-    public async Task The_jobs_walk_continues_from_the_cursor_and_ends_at_the_oldest_row()
+    public async Task The_jobs_walk_continues_from_the_cursor_and_ends_with_its_cycle()
     {
-        var store = new Store(static _ => 1, static command => command.BeforeJobId == 70 ? 0 : 70);
+        var (stored, older) = (new RetentionCursor(Now.AddDays(-5).Ticks, 500), new RetentionCursor(Now.AddDays(-70).Ticks, 70));
+        var store = new Store(static _ => 1, command => command.Before == older ? null : older);
         var result = await Job(store.Handler, new Clock())
-            .PurgeExpiredDataAsync(Sweep with { JobsCursor = 500 }, null, TestContext.Current.CancellationToken);
+            .PurgeExpiredDataAsync(Sweep with { JobsCursor = stored }, null, TestContext.Current.CancellationToken);
 
         var jobs = store.Calls.Where(c => c.Section == RetentionSection.Jobs).ToList();
-        Assert.Equal([500L, 70L], jobs.Select(c => c.BeforeJobId));
-        Assert.Equal(0, result.JobsCursor);
+        Assert.Equal([stored, older], jobs.Select(c => c.Before));
+        Assert.Null(result.JobsCursor);
         Assert.Equal(2, result.Jobs);
     }
 
@@ -151,32 +153,51 @@ public sealed class RetentionJobTests
     }
 
     [Theory]
-    [InlineData(0, 5)]
-    [InlineData(10, 2)]
-    public async Task The_jobs_walk_spends_its_slices_apart_from_its_deletes(int deletedPerSlice, int expectedSlices)
+    [InlineData(10, false, 2)]
+    [InlineData(0, true, 1)]
+    public async Task The_jobs_walk_stops_at_its_delete_budget_or_its_time_and_keeps_its_place(
+        int deletedPerSlice,
+        bool timeSpent,
+        int expectedSlices
+    )
     {
-        // Nothing expired: the walk takes every slice it is given. Ten a slice: it stops at the delete budget of
-        // MaxIterations x BatchSize = 20, though slices remain.
-        var store = new Store(_ => deletedPerSlice);
-        await Job(store.Handler, new Clock())
-            .PurgeExpiredDataAsync(Sweep with { MaxJobSlices = 5 }, null, TestContext.Current.CancellationToken);
+        // Ten a slice reaches the delete budget of MaxIterations x BatchSize = 20 in two slices, though the cycle goes
+        // on. A walk whose time is spent stops after the slice it was reading, whatever that slice held.
+        var store = new Store(_ => deletedPerSlice, Older);
+        var result = await Job(store.Handler, new Clock())
+            .PurgeExpiredDataAsync(
+                Sweep with
+                {
+                    JobsWalkBudget = timeSpent ? TimeSpan.Zero : TimeSpan.MaxValue,
+                },
+                null,
+                TestContext.Current.CancellationToken
+            );
 
         Assert.Equal(expectedSlices, store.Calls.Count(c => c.Section == RetentionSection.Jobs));
+        Assert.NotNull(result.JobsCursor);
     }
 
     [Theory]
-    [InlineData(10, true)]
-    [InlineData(0, false)]
-    public async Task Only_the_jobs_delete_budget_re_arms_the_walk_never_its_slices(int deletedPerSlice, bool budgetSpent)
+    [InlineData(10, false, true)]
+    [InlineData(0, false, false)]
+    [InlineData(10, true, false)]
+    public async Task An_unfinished_jobs_walk_runs_again_at_once_only_when_it_deleted(int deletedPerSlice, bool cycleEnds, bool budgetSpent)
     {
-        // Ten a slice reaches the delete budget of 20 with the walk still going: run again at once. A walk that spends
-        // every slice over live rows deletes nothing and waits for the next tick.
-        var store = new Store(command => command.Section == RetentionSection.Jobs ? deletedPerSlice : 0);
+        // One slice a pass. A pass that deleted and has more to walk runs again at once; one that read only jobs still
+        // kept waits for its tick, or a namespace of long-kept jobs would never rest; one whose cycle ended is done.
+        var store = new Store(
+            command => command.Section == RetentionSection.Jobs ? deletedPerSlice : 0,
+            cycleEnds ? static _ => null : Older
+        );
         var result = await Job(store.Handler, new Clock())
-            .PurgeExpiredDataAsync(Sweep with { MaxJobSlices = 5 }, null, TestContext.Current.CancellationToken);
+            .PurgeExpiredDataAsync(Sweep with { JobsWalkBudget = TimeSpan.Zero }, null, TestContext.Current.CancellationToken);
 
         Assert.Equal(budgetSpent, result.BudgetSpent);
     }
+
+    // A walk that never reaches the namespace's oldest job.
+    private static RetentionCursor? Older(PurgeExpiredDataCommand command) => new((command.Before?.Utc ?? Now).AddDays(-1).Ticks, 7);
 
     private static RetentionJob Job(MaintenanceOperations maintenance, IClockOperations clock) =>
         new(maintenance, clock, Options.Create(new JobsOptions()));
@@ -189,8 +210,8 @@ public sealed class RetentionJobTests
     }
 
     /// <summary>The real purge handler over a scripted session that decodes each bound batch back into its command.</summary>
-    /// <remarks>The jobs walk answers <paramref name="next"/>, by default one row below the cursor, never the end.</remarks>
-    internal sealed class Store(Func<PurgeExpiredDataCommand, int> execute, Func<PurgeExpiredDataCommand, long>? next = null)
+    /// <remarks>The jobs walk answers <paramref name="next"/>: by default a cursor to the call that starts a cycle and the cycle's end to the next.</remarks>
+    internal sealed class Store(Func<PurgeExpiredDataCommand, int> execute, Func<PurgeExpiredDataCommand, RetentionCursor?>? next = null)
     {
         public List<PurgeExpiredDataCommand> Calls { get; } = [];
 
@@ -210,15 +231,17 @@ public sealed class RetentionJobTests
                 (RetentionSection)call.Get(ActaSchema.Sql.PurgeSection),
                 call.Get(ActaSchema.Sql.PurgeCutoffUtc),
                 call.Get(ActaSchema.Sql.PurgeBatchSize),
-                call.Get(ActaSchema.Sql.PurgeBeforeJobId)
+                call.Get(ActaSchema.Sql.PurgeBeforeCreatedUtc) is { } before
+                    ? new RetentionCursor(before.Ticks, call.Get(ActaSchema.Sql.PurgeBeforeJobId))
+                    : null
             );
             Calls.Add(command);
-            var nextJobId =
-                command.Section != RetentionSection.Jobs ? 0
+            var cursor =
+                command.Section != RetentionSection.Jobs ? null
                 : next is not null ? next(command)
-                : command.BeforeJobId == 0 ? 1000
-                : command.BeforeJobId - 1;
-            return new PurgeExpiredDataResponse(execute(command), nextJobId);
+                : command.Before is null ? new RetentionCursor(Now.AddDays(-100).Ticks, 1000)
+                : null;
+            return new PurgeExpiredDataResponse(execute(command), cursor);
         }
     }
 }

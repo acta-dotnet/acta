@@ -140,6 +140,7 @@ public sealed class JsonJobPayloadSerializer(JsonSerializerOptions options) : IJ
 /// (<see cref="JsonJobPayloadSerializer.ReflectionFreeResolver"/>).
 /// </summary>
 [JsonSerializable(typeof(AlertsCursor))]
+[JsonSerializable(typeof(RetentionCursor))]
 [JsonSerializable(typeof(string))]
 [JsonSerializable(typeof(bool))]
 [JsonSerializable(typeof(char))]

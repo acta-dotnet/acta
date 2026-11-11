@@ -90,12 +90,15 @@ bounded batch. The events and jobs sections honor the alert floor: an alert-requ
 the alerts projector's consumed cursor, and the job that owns it, are excluded until projected.
 `RetentionJob` reads database time once, calculates fixed sweep cutoffs, and
 visits jobs, events, settled alerts, undelivered alerts, poison-skip checkpoints, workers, expired locks,
-and unreferenced lanes in that order. Defaults remain 1,000 rows and 50 iterations per section, and an
-empty batch ends its section. The jobs section is the exception: no index finds expired jobs, so each
-call walks `jobs_state` down by job id from the cursor the previous tick stored on the slot
-(`p_before_job_id`, the `purge-cursor` job variable), scans ten batches' worth of rows, deletes the
-namespace's expired jobs among them, and answers where it stopped; a tick takes up to 200 such slices,
-two million rows, or stops early at the oldest row or once a delete budget's worth of jobs is gone.
+and unreferenced lanes in that order. A section deletes in bounded batches, and an empty batch ends it.
+The jobs section is the exception: no index finds expired jobs, so each call walks its own namespace's
+jobs from newer to older through `ix_jobs_namespace_created`, from the cursor the previous pass stored
+on the slot (`p_before_created_utc` and `p_before_job_id`, the `retention-cursor` job variable), reads
+ten batches' worth of them, deletes the expired ones among them, and answers where it stopped: at its
+last delete when the batch was full, so no call reads a deleted row again. A cycle starts at the newest
+job old enough to have expired, which is the cutoff less the shortest retention any definition of the
+namespace has, and ends at the namespace's oldest job. A pass walks until the cycle ends, a delete
+budget's worth of jobs is gone, or its time is spent, and keeps its place for the next.
 Each batch is atomic; failure or cancellation later in the sweep preserves completed batches.
 `RetentionJob` never retries the whole sweep. Committed undelivered-alert deletions produce one
 warning per sweep, including when a later batch fails or cancellation stops the sweep.
