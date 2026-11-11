@@ -1154,6 +1154,7 @@ interface Acta.IJobs
     System.Threading.Tasks.ValueTask<Acta.GetJobResultResponse> GetResultAsync(Acta.JobLookup job, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.GetJobStatusResponse> GetStatusAsync(Acta.JobLookup job, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.JobHandle<TResult>> EnqueueAsync<TInput, TResult>(Acta.JobCall<TInput, TResult> job, System.Action<Acta.JobEnqueueOptionsBuilder> configure = null, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.ValueTask<Acta.JobHandle<TResult>> GetHandleAsync<TResult>(Acta.JobRef jobRef, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.JobHandle> EnqueueAsync<TInput>(Acta.JobCall<TInput> job, System.Action<Acta.JobEnqueueOptionsBuilder> configure = null, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.JobHandle> EnqueueAsync<TInput>(TInput input, System.Action<Acta.JobEnqueueOptionsBuilder> configure = null, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.JobHandle> GetHandleAsync(Acta.JobRef jobRef, System.Threading.CancellationToken ct = default)

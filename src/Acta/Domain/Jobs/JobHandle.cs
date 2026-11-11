@@ -3,7 +3,7 @@ namespace Acta;
 /// <summary>
 /// What a typed enqueue answers: the <see cref="EnqueueJobResponse"/> plus the reads and verbs that follow the job,
 /// each forwarded to <see cref="IJobs"/> by its committed id, so none pays an extra lookup. Being the response, it
-/// passes wherever one is taken. <see cref="IJobs.GetHandleAsync"/> rebuilds one from a ref in another process.
+/// passes wherever one is taken. <see cref="IJobs.GetHandleAsync(JobRef, CancellationToken)"/> rebuilds one from a ref in another process.
 /// </summary>
 public record JobHandle : EnqueueJobResponse
 {

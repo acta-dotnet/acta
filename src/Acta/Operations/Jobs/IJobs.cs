@@ -97,6 +97,17 @@ public interface IJobs
         await GetIdAsync(jobRef, ct) is { } resolved ? new JobHandle(this, resolved.JobId, jobRef, EnqueueJobAction.Deduplicated) : null;
 
     /// <summary>
+    /// <see cref="GetHandleAsync(JobRef, CancellationToken)"/> for a job that returns a result: the handle's wait and
+    /// result read answer <typeparamref name="TResult"/> without naming it again. The result type is checked when a
+    /// read decodes a result, not here.
+    /// </summary>
+    async ValueTask<JobHandle<TResult>?> GetHandleAsync<TResult>(JobRef jobRef, CancellationToken ct = default)
+        where TResult : notnull =>
+        await GetIdAsync(jobRef, ct) is { } resolved
+            ? new JobHandle<TResult>(this, resolved.JobId, jobRef, EnqueueJobAction.Deduplicated)
+            : null;
+
+    /// <summary>
     /// Enqueue-and-wait for a generated call; same waiting semantics as the typed
     /// <see cref="RunAndWaitAsync{TInput}(TInput, JobExecutionOptions, CancellationToken)"/>, with the job named rather
     /// than inferred.

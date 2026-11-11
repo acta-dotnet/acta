@@ -68,6 +68,7 @@ Not tagged yet.
 
 - **A handler starts a child by its generated call.** `ctx.StartChildAsync("ship", ShippingJobs.Ship(order), ct)` and `ctx.ExecuteChildAsync("ship", ShippingJobs.Ship(order), ct)` take the call `IJobs` takes: the child is the job the call names, so nothing is inferred from the input's type and two jobs may share one, and a call of a job with a result answers `JobOutcome<TResult>` with the result type inferred. Every shape the input-typed forms have exists for a call: with `configure`, with `ct` in the next position, and bounded by a timeout.
 
+- **A handle is rebuilt with its result type.** `jobs.GetHandleAsync<Receipt>(jobRef)` answers the `JobHandle<Receipt>` a generated call's enqueue answers, so a process that holds only the ref waits and reads the result without naming the type at each call.
 - **Every line of an attempt carries the job's public ref.** The per-attempt log scope stamps `ActaJobRef` beside `ActaJobId`, on Acta's lines and the handler's own, so a line found in the logs opens the job in the dashboard or the API by the ref it carries, with no lookup of the internal id.
 
 ### Fixes

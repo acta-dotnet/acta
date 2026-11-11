@@ -113,6 +113,14 @@ public sealed class JobHandleSpec : ActaRuntimeTestBase<ConformanceFixture, Jobs
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(rebuilt, ct));
         Assert.True((await rebuilt.WaitAsync(ct: ct)).IsSuccess);
         Assert.Null(await Jobs.GetHandleAsync(JobRef.New(), ct));
+
+        // Rebuilt with its result type, the handle reads and waits as the one a generated call answers.
+        JobHandle<AddNumbersResult>? typed = await Jobs.GetHandleAsync<AddNumbersResult>(original.JobRef, ct);
+        Assert.NotNull(typed);
+        Assert.Equal(original.JobId, typed.JobId);
+        Assert.Equal(6, (await typed.GetResultAsync(ct)).Sum);
+        Assert.Equal(6, (await typed.WaitAsync(ct: ct)).ValueOrThrow().Sum);
+        Assert.Null(await Jobs.GetHandleAsync<AddNumbersResult>(JobRef.New(), ct));
     }
 
     [Fact(DisplayName = "Waiting on a job that does not exist throws at once")]
