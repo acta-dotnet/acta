@@ -60,7 +60,7 @@ internal static class ManifestSourceWriter
         sb.AppendLine();
         sb.AppendLine("/// <summary>");
         sb.AppendLine("/// Generator-emitted manifest for this assembly. Bound to a namespace at registration");
-        sb.AppendLine($"/// time via <c>IActaBuilder.Run&lt;{manifestTypeName}&gt;(namespaceName)</c>.");
+        sb.AppendLine($"/// time via <c>IActaBuilder.Run&lt;{manifestTypeName}&gt;(jobNamespace)</c>.");
         sb.AppendLine("/// </summary>");
         sb.AppendLine($"public sealed class {manifestTypeName} : global::Acta.IJobManifest");
         sb.AppendLine("{");

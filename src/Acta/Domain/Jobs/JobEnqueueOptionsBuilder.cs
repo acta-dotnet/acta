@@ -24,10 +24,10 @@ public sealed class JobEnqueueOptionsBuilder
     /// Namespace to enqueue into; only needed when the input type, or the call's manifest, is registered under
     /// more than one namespace.
     /// </summary>
-    public JobEnqueueOptionsBuilder JobNamespace(string namespaceName)
+    public JobEnqueueOptionsBuilder JobNamespace(string jobNamespace)
     {
-        namespaceName = NameSyntax.Canonicalize(namespaceName, nameof(namespaceName), reserveSystem: true);
-        _namespace = namespaceName;
+        jobNamespace = NameSyntax.Canonicalize(jobNamespace, nameof(jobNamespace), reserveSystem: true);
+        _namespace = jobNamespace;
         return this;
     }
 

@@ -10,11 +10,11 @@ internal sealed class FakeNamespaces : INamespaces
 {
     public FakeNamespaces()
     {
-        Get = static (namespaceName, _) =>
+        Get = static (jobNamespace, _) =>
         {
-            NameSyntax.Canonicalize(namespaceName, nameof(namespaceName));
+            NameSyntax.Canonicalize(jobNamespace, nameof(jobNamespace));
             return ValueTask.FromResult<GetNamespaceResponse?>(
-                namespaceName == "billing"
+                jobNamespace == "billing"
                     ? new GetNamespaceResponse(2, "billing", NamespaceStatusCode.Active, "payments", "billing jobs", "1.6.2+5c0ffee", 3)
                     : null
             );
@@ -32,14 +32,14 @@ internal sealed class FakeNamespaces : INamespaces
                     null
                 )
             );
-        Suspend = (namespaceName, reason, actor, _) =>
-            Apply("suspend", namespaceName, reason, actor, static (action, version) => new SuspendNamespaceResponse(action, version));
-        Resume = (namespaceName, reason, actor, _) =>
-            Apply("resume", namespaceName, reason, actor, static (action, version) => new ResumeNamespaceResponse(action, version));
-        Update = (namespaceName, expectedVersion, _, _, reason, actor, _) =>
+        Suspend = (jobNamespace, reason, actor, _) =>
+            Apply("suspend", jobNamespace, reason, actor, static (action, version) => new SuspendNamespaceResponse(action, version));
+        Resume = (jobNamespace, reason, actor, _) =>
+            Apply("resume", jobNamespace, reason, actor, static (action, version) => new ResumeNamespaceResponse(action, version));
+        Update = (jobNamespace, expectedVersion, _, _, reason, actor, _) =>
             Apply(
                 "patch",
-                namespaceName,
+                jobNamespace,
                 reason,
                 actor,
                 static (action, version) => new UpdateNamespaceResponse(action, version),
@@ -69,45 +69,45 @@ internal sealed class FakeNamespaces : INamespaces
         ValueTask<UpdateNamespaceResponse>
     > Update { get; set; }
 
-    ValueTask<GetNamespaceResponse?> INamespaces.GetAsync(string namespaceName, CancellationToken ct) => Get(namespaceName, ct);
+    ValueTask<GetNamespaceResponse?> INamespaces.GetAsync(string jobNamespace, CancellationToken ct) => Get(jobNamespace, ct);
 
     ValueTask<ListNamespacesResponse> INamespaces.ListAsync(ListNamespacesQuery query, CancellationToken ct) => List(query, ct);
 
     ValueTask<SuspendNamespaceResponse> INamespaces.SuspendAsync(
-        string namespaceName,
+        string jobNamespace,
         string? reasonMessage,
         string? actor,
         CancellationToken ct
-    ) => Suspend(namespaceName, reasonMessage, actor, ct);
+    ) => Suspend(jobNamespace, reasonMessage, actor, ct);
 
     ValueTask<ResumeNamespaceResponse> INamespaces.ResumeAsync(
-        string namespaceName,
+        string jobNamespace,
         string? reasonMessage,
         string? actor,
         CancellationToken ct
-    ) => Resume(namespaceName, reasonMessage, actor, ct);
+    ) => Resume(jobNamespace, reasonMessage, actor, ct);
 
     ValueTask<UpdateNamespaceResponse> INamespaces.UpdateAsync(
-        string namespaceName,
+        string jobNamespace,
         long expectedVersion,
         string? ownerTeam,
         string? description,
         string? reasonMessage,
         string? actor,
         CancellationToken ct
-    ) => Update(namespaceName, expectedVersion, ownerTeam, description, reasonMessage, actor, ct);
+    ) => Update(jobNamespace, expectedVersion, ownerTeam, description, reasonMessage, actor, ct);
 
     private ValueTask<T> Apply<T>(
         string verb,
-        string namespaceName,
+        string jobNamespace,
         string? reasonMessage,
         string? actor,
         Func<ControlAction, long?, T> response,
         long? expectedVersion = null
     )
     {
-        _ = NameSyntax.Canonicalize(namespaceName, nameof(namespaceName), NameSyntax.ExtendedMaxLength, reserveSystem: true);
-        if (namespaceName == "missing")
+        _ = NameSyntax.Canonicalize(jobNamespace, nameof(jobNamespace), NameSyntax.ExtendedMaxLength, reserveSystem: true);
+        if (jobNamespace == "missing")
         {
             return ValueTask.FromResult(response(ControlAction.NotFound, null));
         }
@@ -117,7 +117,7 @@ internal sealed class FakeNamespaces : INamespaces
             return ValueTask.FromResult(response(ControlAction.VersionConflict, 5));
         }
 
-        AdminCalls.Add((verb, namespaceName, reasonMessage, actor));
+        AdminCalls.Add((verb, jobNamespace, reasonMessage, actor));
         return ValueTask.FromResult(response(ControlAction.Applied, (expectedVersion ?? 3) + 1));
     }
 }

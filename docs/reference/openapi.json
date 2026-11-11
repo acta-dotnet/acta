@@ -3131,7 +3131,7 @@
                       "type": "https://tools.ietf.org/html/rfc9110#section-15.5.1",
                       "title": "Invalid tag or tag target.",
                       "status": 400,
-                      "detail": "Identifier 'bad key' is not kebab-case or dotted-kebab (each segment must match `[a-z][a-z0-9-]*`). (Parameter 'namespaceName')"
+                      "detail": "Identifier 'bad key' is not kebab-case or dotted-kebab (each segment must match `[a-z][a-z0-9-]*`). (Parameter 'jobNamespace')"
                     }
                   }
                 }
@@ -3323,7 +3323,7 @@
                       "type": "https://tools.ietf.org/html/rfc9110#section-15.5.1",
                       "title": "Invalid tag or tag target.",
                       "status": 400,
-                      "detail": "Identifier 'bad key' is not kebab-case or dotted-kebab (each segment must match `[a-z][a-z0-9-]*`). (Parameter 'namespaceName')"
+                      "detail": "Identifier 'bad key' is not kebab-case or dotted-kebab (each segment must match `[a-z][a-z0-9-]*`). (Parameter 'jobNamespace')"
                     }
                   }
                 }
@@ -3483,7 +3483,7 @@
                       "type": "https://tools.ietf.org/html/rfc9110#section-15.5.1",
                       "title": "Invalid namespace jobNamespace.",
                       "status": 400,
-                      "detail": "Identifier 'bad key' is not kebab-case or dotted-kebab (each segment must match `[a-z][a-z0-9-]*`). (Parameter 'namespaceName')"
+                      "detail": "Identifier 'bad key' is not kebab-case or dotted-kebab (each segment must match `[a-z][a-z0-9-]*`). (Parameter 'jobNamespace')"
                     }
                   }
                 }
@@ -3684,7 +3684,7 @@
                       "type": "https://tools.ietf.org/html/rfc9110#section-15.5.1",
                       "title": "Invalid namespace jobNamespace.",
                       "status": 400,
-                      "detail": "Identifier 'bad key' is not kebab-case or dotted-kebab (each segment must match `[a-z][a-z0-9-]*`). (Parameter 'namespaceName')"
+                      "detail": "Identifier 'bad key' is not kebab-case or dotted-kebab (each segment must match `[a-z][a-z0-9-]*`). (Parameter 'jobNamespace')"
                     }
                   }
                 }
@@ -3888,7 +3888,7 @@
                       "type": "https://tools.ietf.org/html/rfc9110#section-15.5.1",
                       "title": "Invalid namespace update.",
                       "status": 400,
-                      "detail": "Identifier 'bad key' is not kebab-case or dotted-kebab (each segment must match `[a-z][a-z0-9-]*`). (Parameter 'namespaceName')"
+                      "detail": "Identifier 'bad key' is not kebab-case or dotted-kebab (each segment must match `[a-z][a-z0-9-]*`). (Parameter 'jobNamespace')"
                     }
                   }
                 }
@@ -4093,7 +4093,7 @@
                       "type": "https://tools.ietf.org/html/rfc9110#section-15.5.1",
                       "title": "Invalid request.",
                       "status": 400,
-                      "detail": "Identifier 'bad key' is not kebab-case or dotted-kebab (each segment must match `[a-z][a-z0-9-]*`). (Parameter 'namespaceName')"
+                      "detail": "Identifier 'bad key' is not kebab-case or dotted-kebab (each segment must match `[a-z][a-z0-9-]*`). (Parameter 'jobNamespace')"
                     }
                   }
                 }
@@ -10832,7 +10832,7 @@
                       "type": "https://tools.ietf.org/html/rfc9110#section-15.5.1",
                       "title": "Invalid tag or tag target.",
                       "status": 400,
-                      "detail": "Identifier 'bad key' is not kebab-case or dotted-kebab (each segment must match `[a-z][a-z0-9-]*`). (Parameter 'namespaceName')"
+                      "detail": "Identifier 'bad key' is not kebab-case or dotted-kebab (each segment must match `[a-z][a-z0-9-]*`). (Parameter 'jobNamespace')"
                     }
                   }
                 }

@@ -46,10 +46,10 @@ internal sealed class ActaBuilder(IServiceCollection services) : IActaBuilder
         return this;
     }
 
-    public IActaBuilder Run<TManifest>(string namespaceName, string? ownerTeam = null, string? description = null)
+    public IActaBuilder Run<TManifest>(string jobNamespace, string? ownerTeam = null, string? description = null)
         where TManifest : class, IJobManifest =>
         Run(
-            namespaceName,
+            jobNamespace,
             w =>
             {
                 w.OwnerTeam = ownerTeam;
@@ -58,9 +58,9 @@ internal sealed class ActaBuilder(IServiceCollection services) : IActaBuilder
             }
         );
 
-    public IActaBuilder Run(string namespaceName, Action<IWorkerBuilder> configure)
+    public IActaBuilder Run(string jobNamespace, Action<IWorkerBuilder> configure)
     {
-        namespaceName = NameSyntax.Canonicalize(namespaceName, nameof(namespaceName), reserveSystem: true);
+        jobNamespace = NameSyntax.Canonicalize(jobNamespace, nameof(jobNamespace), reserveSystem: true);
         ArgumentNullException.ThrowIfNull(configure);
 
         var builder = new WorkerBuilder();
@@ -77,16 +77,16 @@ internal sealed class ActaBuilder(IServiceCollection services) : IActaBuilder
                 nameof(configure)
             );
         }
-        if (_workers.Any(w => string.Equals(w.NamespaceName, namespaceName, StringComparison.Ordinal)))
+        if (_workers.Any(w => string.Equals(w.NamespaceName, jobNamespace, StringComparison.Ordinal)))
         {
             throw new InvalidOperationException(
-                $"A worker for namespace '{namespaceName}' is already registered. Each worker in a process must own a distinct namespace."
+                $"A worker for namespace '{jobNamespace}' is already registered. Each worker in a process must own a distinct namespace."
             );
         }
 
         _workers.Add(
             new WorkerRegistration(
-                namespaceName,
+                jobNamespace,
                 builder.OwnerTeam,
                 builder.Description,
                 builder.Manifests,
@@ -97,19 +97,19 @@ internal sealed class ActaBuilder(IServiceCollection services) : IActaBuilder
         return this;
     }
 
-    public IActaBuilder Reference<TManifest>(string namespaceName)
+    public IActaBuilder Reference<TManifest>(string jobNamespace)
         where TManifest : class, IJobManifest
     {
-        namespaceName = NameSyntax.Canonicalize(namespaceName, nameof(namespaceName), reserveSystem: true);
+        jobNamespace = NameSyntax.Canonicalize(jobNamespace, nameof(jobNamespace), reserveSystem: true);
 
         if (
             !_references.Any(r =>
-                string.Equals(r.NamespaceName, namespaceName, StringComparison.Ordinal) && r.Manifests[0].ManifestType == typeof(TManifest)
+                string.Equals(r.NamespaceName, jobNamespace, StringComparison.Ordinal) && r.Manifests[0].ManifestType == typeof(TManifest)
             )
         )
         {
             _references.Add(
-                new CatalogDeclaration(namespaceName, [new ManifestRegistration(typeof(TManifest), static () => TManifest.Descriptors)])
+                new CatalogDeclaration(jobNamespace, [new ManifestRegistration(typeof(TManifest), static () => TManifest.Descriptors)])
             );
         }
         return this;

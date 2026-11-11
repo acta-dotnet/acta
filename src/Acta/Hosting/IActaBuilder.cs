@@ -26,31 +26,31 @@ public interface IActaBuilder
     IActaBuilder ConfigureOptions(Action<JobsOptions> configure);
 
     /// <summary>
-    /// Declare a worker that claims <paramref name="namespaceName"/> and hosts the single manifest
+    /// Declare a worker that claims <paramref name="jobNamespace"/> and hosts the single manifest
     /// <typeparamref name="TManifest"/>, shorthand for the lambda overload with one <c>AddManifest</c> call. A process
     /// may host several workers, each owning a distinct namespace (call <c>Run</c> once per worker); two workers for
     /// the same namespace throw at DI build. An enqueue-only runtime calls <see cref="Reference{TManifest}"/> instead.
     /// </summary>
-    IActaBuilder Run<TManifest>(string namespaceName, string? ownerTeam = null, string? description = null)
+    IActaBuilder Run<TManifest>(string jobNamespace, string? ownerTeam = null, string? description = null)
         where TManifest : class, IJobManifest;
 
     /// <summary>
-    /// Declare a worker that claims <paramref name="namespaceName"/> and hosts the manifests declared on the
+    /// Declare a worker that claims <paramref name="jobNamespace"/> and hosts the manifests declared on the
     /// <see cref="IWorkerBuilder"/>. At initialization the framework upserts the <c>namespaces</c> row (with the
     /// owner team and description when supplied), upserts every declared manifest's <c>definitions</c> rows under
     /// it, and inserts a <c>workers</c> row. A process may host several workers, each owning a distinct namespace;
     /// two workers for the same namespace throw at DI build.
     /// </summary>
-    IActaBuilder Run(string namespaceName, Action<IWorkerBuilder> configure);
+    IActaBuilder Run(string jobNamespace, Action<IWorkerBuilder> configure);
 
     /// <summary>
-    /// Make <typeparamref name="TManifest"/>'s jobs typed-enqueueable under <paramref name="namespaceName"/> without
+    /// Make <typeparamref name="TManifest"/>'s jobs typed-enqueueable under <paramref name="jobNamespace"/> without
     /// running a worker in this process: the enqueue-only counterpart of <c>Run</c>, which feeds the typed
     /// <c>IJobs.EnqueueAsync</c> route index but registers no worker, writes no catalog rows, and never claims jobs.
     /// The namespace's worker owns migrations and definition registration, so start it once before the first
     /// enqueue. <c>Run</c> implies Reference for its own namespace.
     /// </summary>
-    IActaBuilder Reference<TManifest>(string namespaceName)
+    IActaBuilder Reference<TManifest>(string jobNamespace)
         where TManifest : class, IJobManifest;
 
     /// <summary>

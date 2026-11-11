@@ -676,7 +676,7 @@ builder.Services.UseActa(j =>
         o.DeploymentVersion = builder.Configuration["GIT_SHA"];
     });
 
-    j.Run<BillingJobs>(namespaceName: "billing", ownerTeam: "payments");
+    j.Run<BillingJobs>(jobNamespace: "billing", ownerTeam: "payments");
 });
 ```
 
@@ -969,7 +969,7 @@ public sealed class SendWelcomeEmailTests : IAsyncLifetime
                     opts.Schema = schema;                  // the throwaway schema the host allocated
                     opts.MigrateOnStartup = true;          // migrate it
                 });
-                j.Run<UsersJobs>(namespaceName: "users", ownerTeam: "growth");
+                j.Run<UsersJobs>(jobNamespace: "users", ownerTeam: "growth");
             },
             new ActaTestHostOptions
             {

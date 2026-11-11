@@ -5,7 +5,7 @@ internal sealed class SuspendNamespaceHandler(IDbSession session, ISqlDialect di
 {
     public async ValueTask<SuspendNamespaceResponse> HandleAsync(SuspendNamespaceCommand command, CancellationToken ct)
     {
-        var name = NameSyntax.Canonicalize(command.NamespaceName, "namespaceName", reserveSystem: true);
+        var name = NameSyntax.Canonicalize(command.NamespaceName, "jobNamespace", reserveSystem: true);
 
         return await session.ExecuteOneAsync(
             new StoreCommand("SuspendNamespace"),

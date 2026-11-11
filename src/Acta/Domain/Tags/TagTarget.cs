@@ -18,8 +18,8 @@ public sealed class TagTarget
     public static TagTarget ForTenant(string tenantName) =>
         new(EntityCode.Tenant, NameSyntax.Canonicalize(tenantName, nameof(tenantName), NameSyntax.ExtendedMaxLength));
 
-    public static TagTarget ForNamespace(string namespaceName) =>
-        new(EntityCode.Namespace, NameSyntax.Canonicalize(namespaceName, nameof(namespaceName)));
+    public static TagTarget ForNamespace(string jobNamespace) =>
+        new(EntityCode.Namespace, NameSyntax.Canonicalize(jobNamespace, nameof(jobNamespace)));
 
     public static TagTarget ForDefinition(string jobNamespace, string jobName) =>
         new(

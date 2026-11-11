@@ -9,28 +9,28 @@ internal sealed class NamespacesOperations(
     UpdateNamespaceHandler updateNamespace
 ) : INamespaces
 {
-    public ValueTask<GetNamespaceResponse?> GetAsync(string namespaceName, CancellationToken ct = default) =>
-        getNamespace.HandleAsync(new GetNamespaceQuery(namespaceName), ct);
+    public ValueTask<GetNamespaceResponse?> GetAsync(string jobNamespace, CancellationToken ct = default) =>
+        getNamespace.HandleAsync(new GetNamespaceQuery(jobNamespace), ct);
 
     public ValueTask<ListNamespacesResponse> ListAsync(ListNamespacesQuery query, CancellationToken ct = default) =>
         listNamespaces.HandleAsync(query, ct);
 
     public ValueTask<SuspendNamespaceResponse> SuspendAsync(
-        string namespaceName,
+        string jobNamespace,
         string? reasonMessage = null,
         string? actor = null,
         CancellationToken ct = default
-    ) => suspendNamespace.HandleAsync(new SuspendNamespaceCommand(namespaceName, reasonMessage, actor), ct);
+    ) => suspendNamespace.HandleAsync(new SuspendNamespaceCommand(jobNamespace, reasonMessage, actor), ct);
 
     public ValueTask<ResumeNamespaceResponse> ResumeAsync(
-        string namespaceName,
+        string jobNamespace,
         string? reasonMessage = null,
         string? actor = null,
         CancellationToken ct = default
-    ) => resumeNamespace.HandleAsync(new ResumeNamespaceCommand(namespaceName, reasonMessage, actor), ct);
+    ) => resumeNamespace.HandleAsync(new ResumeNamespaceCommand(jobNamespace, reasonMessage, actor), ct);
 
     public ValueTask<UpdateNamespaceResponse> UpdateAsync(
-        string namespaceName,
+        string jobNamespace,
         long expectedVersion,
         string? ownerTeam,
         string? description,
@@ -39,7 +39,7 @@ internal sealed class NamespacesOperations(
         CancellationToken ct = default
     ) =>
         updateNamespace.HandleAsync(
-            new UpdateNamespaceCommand(namespaceName, expectedVersion, ownerTeam, description, reasonMessage, actor),
+            new UpdateNamespaceCommand(jobNamespace, expectedVersion, ownerTeam, description, reasonMessage, actor),
             ct
         );
 }

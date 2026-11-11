@@ -102,7 +102,7 @@ internal sealed class WorkerContext(WorkerRegistration? workerRegistration)
     {
         if (WorkerRegistration is null)
         {
-            throw new InvalidOperationException("Worker mode required. Call j.Run<TManifest>(namespaceName, ...) inside UseActa.");
+            throw new InvalidOperationException("Worker mode required. Call j.Run<TManifest>(jobNamespace, ...) inside UseActa.");
         }
         if (namespaceName != WorkerRegistration.NamespaceName)
         {

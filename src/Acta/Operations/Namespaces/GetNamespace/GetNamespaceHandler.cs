@@ -5,7 +5,7 @@ internal sealed class GetNamespaceHandler(IDbSession session, ISqlDialect dialec
 {
     public ValueTask<GetNamespaceResponse?> HandleAsync(GetNamespaceQuery query, CancellationToken ct)
     {
-        var name = NameSyntax.Canonicalize(query.NamespaceName, "namespaceName");
+        var name = NameSyntax.Canonicalize(query.NamespaceName, "jobNamespace");
 
         return new(
             session.QuerySingleAsync(

@@ -7,14 +7,14 @@ namespace Acta;
 public interface INamespaces
 {
     /// <summary>Point-read one registered namespace by name; null when it does not exist.</summary>
-    ValueTask<GetNamespaceResponse?> GetAsync(string namespaceName, CancellationToken ct = default);
+    ValueTask<GetNamespaceResponse?> GetAsync(string jobNamespace, CancellationToken ct = default);
 
     /// <summary>List registered namespaces alphabetically with their status, owner team, description, and version for the admin page.</summary>
     ValueTask<ListNamespacesResponse> ListAsync(ListNamespacesQuery query, CancellationToken ct = default);
 
     /// <summary>Suspend a namespace by name (status-only, idempotent). Emits namespace.suspended.</summary>
     ValueTask<SuspendNamespaceResponse> SuspendAsync(
-        string namespaceName,
+        string jobNamespace,
         string? reasonMessage = null,
         string? actor = null,
         CancellationToken ct = default
@@ -22,7 +22,7 @@ public interface INamespaces
 
     /// <summary>Resume a suspended namespace by name (status-only, idempotent). Emits namespace.resumed.</summary>
     ValueTask<ResumeNamespaceResponse> ResumeAsync(
-        string namespaceName,
+        string jobNamespace,
         string? reasonMessage = null,
         string? actor = null,
         CancellationToken ct = default
@@ -34,7 +34,7 @@ public interface INamespaces
     /// declare is the operator's and survives every deploy.
     /// </summary>
     ValueTask<UpdateNamespaceResponse> UpdateAsync(
-        string namespaceName,
+        string jobNamespace,
         long expectedVersion,
         string? ownerTeam,
         string? description,

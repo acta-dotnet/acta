@@ -44,15 +44,15 @@ public readonly record struct WorkerWakeupChannel
     /// The channel one worker namespace's claim loop waits on. <c>"*"</c> is reserved for
     /// <see cref="AllWorkerNamespaces"/> and rejected here.
     /// </summary>
-    public static WorkerWakeupChannel WorkerNamespace(string namespaceName)
+    public static WorkerWakeupChannel WorkerNamespace(string jobNamespace)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(namespaceName);
-        return namespaceName == AllWorkerNamespacesName
+        ArgumentException.ThrowIfNullOrWhiteSpace(jobNamespace);
+        return jobNamespace == AllWorkerNamespacesName
             ? throw new ArgumentException(
                 $"'{AllWorkerNamespacesName}' is reserved for WorkerWakeupChannel.AllWorkerNamespaces.",
-                nameof(namespaceName)
+                nameof(jobNamespace)
             )
-            : new WorkerWakeupChannel(WorkerNamespacePrefix + namespaceName, WorkerWakeupChannelKind.WorkerNamespace);
+            : new WorkerWakeupChannel(WorkerNamespacePrefix + jobNamespace, WorkerWakeupChannelKind.WorkerNamespace);
     }
 
     /// <summary>The channel addressing every worker namespace; wakes all current claim-loop waiters.</summary>
@@ -64,8 +64,8 @@ public readonly record struct WorkerWakeupChannel
     /// The in-process channel one worker namespace's schedule admitter waits on, apart from its claim loop: a settled
     /// firing and an all-namespaces wake set it, an enqueue or a completion does not. It never travels on a transport.
     /// </summary>
-    internal static WorkerWakeupChannel Admission(string namespaceName) =>
-        new(AdmissionPrefix + WorkerNamespace(namespaceName).Name, WorkerWakeupChannelKind.WorkerNamespace);
+    internal static WorkerWakeupChannel Admission(string jobNamespace) =>
+        new(AdmissionPrefix + WorkerNamespace(jobNamespace).Name, WorkerWakeupChannelKind.WorkerNamespace);
 
     /// <summary>The channel a caller waits on for one job's terminal completion.</summary>
     public static WorkerWakeupChannel JobCompletion(long jobId)

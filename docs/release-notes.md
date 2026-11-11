@@ -36,6 +36,8 @@ Not tagged yet.
 
 **Rename `EventCode.JobDefinitionRetired` and `EventCode.JobDefinitionOverridesUpdated`**: they are `DefinitionRetired` and `DefinitionOverridesUpdated`, as their codes `definition.retired` and `definition.overrides-updated` already read. The codes and their ids are unchanged, so nothing stored or sent over HTTP changes.
 
+**Pass a namespace by the name `jobNamespace`**: the parameter is `jobNamespace` on `INamespaces.GetAsync`, `SuspendAsync`, `ResumeAsync`, and `UpdateAsync`, on `IActaBuilder.Run` and `Reference`, and on `TagTarget.ForNamespace`, `JobEnqueueOptionsBuilder.JobNamespace`, and `WorkerWakeupChannel.WorkerNamespace`, where it was `namespaceName`. Only a call that names the argument changes: `j.Run<BillingJobs>(namespaceName: "billing")` becomes `j.Run<BillingJobs>(jobNamespace: "billing")`.
+
 ### Fixes
 
 - On SQL Server, two definition overrides updates in different namespaces could deadlock, and one failed as the victim: the update that carries a rate override to the definitions sharing its meter read every definition row under update locks before filtering by namespace, and waited on another namespace's row that its own update held. It now seeks its own namespace's rows.
