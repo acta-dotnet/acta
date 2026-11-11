@@ -636,11 +636,12 @@
   - Re-resolving an already-resolved alert is Applied without mutation and emits no second event
   - ResolveAsync suppresses a queued delivery and clears retry_after_utc, leaving an already-sent one alone
 
-### Cancel stamps retention once and rejects a re-cancel
-- **Contract:** Cancel from Suspended or Executing applies and stamps retention_until_utc, and re-cancelling a Cancelled job is Rejected without re-stamping.
+### Cancel stamps retention once and walks only a cancelled job's tree
+- **Contract:** A cancel stamps retention once, a re-cancel is Rejected, and a walk that outlives a restart of its job cancels none of the new children.
 - **Guarantees:**
   - Cancel from Suspended and Executing is Applied and stamps retention_until_utc
   - Re-cancel of a Cancelled job is Rejected and does not re-stamp retention_until_utc
+  - A descendant walk that outlives a restart of its root leaves the restarted job's new children alone
 
 ### An external cancel reaches the running handler's token via heartbeat
 - **Contract:** An external cancel reaches the handler's CancellationToken through the next heartbeat tick so the handler stops cooperatively and the row settles Cancelled.

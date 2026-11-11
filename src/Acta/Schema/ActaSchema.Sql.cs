@@ -93,6 +93,13 @@ internal static partial class ActaSchema
         public static readonly DbValueSpec<int?> FenceWorkerId = new("p_fence_worker_id", DbKind.Int32);
 
         /// <summary>
+        /// cancel_job's walk guard: the job whose descendants a walk cancels, NULL for any other cancel. Set, the cancel
+        /// lands only while that job is still Cancelled; a restart since takes the walk's reason away, and the cancel
+        /// raises instead, which ends the walk.
+        /// </summary>
+        public static readonly DbValueSpec<long?> WalkRootJobId = new("p_walk_root_job_id", DbKind.Int64);
+
+        /// <summary>
         /// extend_worker_leases drain flag: true flips an Active worker to Draining as the heartbeat
         /// refreshes its leases, so a graceful stop surfaces the draining phase without a dedicated routine.
         /// </summary>

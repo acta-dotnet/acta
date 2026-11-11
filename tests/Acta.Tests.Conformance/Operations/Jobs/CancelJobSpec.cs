@@ -6,12 +6,15 @@ using Xunit;
 
 namespace Acta.Tests.Conformance.Operations.Jobs;
 
-/// <summary>Conformance for cancel's status guard: a live job cancels with a retention stamp, a cancelled one rejects.</summary>
+/// <summary>
+/// Conformance for cancel's status guards: a live job cancels with a retention stamp, a cancelled one rejects, and a
+/// descendant walk cancels only while the job it walks is still Cancelled.
+/// </summary>
 [ConformanceSpec(
     "cancel-job.state-guard",
-    "Cancel stamps retention once and rejects a re-cancel",
+    "Cancel stamps retention once and walks only a cancelled job's tree",
     Area = "Control",
-    Contract = "Cancel from Suspended or Executing applies and stamps retention_until_utc, and re-cancelling a Cancelled job is Rejected without re-stamping."
+    Contract = "A cancel stamps retention once, a re-cancel is Rejected, and a walk that outlives a restart of its job cancels none of the new children."
 )]
 public sealed class CancelJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
@@ -56,8 +59,12 @@ public sealed class CancelJobSpec : ActaRuntimeTestBase<ConformanceFixture, Test
         // db_now-derived instant against this process's clock would fold container clock skew into a
         // one-second lower bound, and skew is not what this fact is about.
         var tBefore = (await NowAsync(ct)).AddSeconds(-1);
-        var cancelSuspended = await Services.GetRequiredService<CancelJobHandler>().CancelAsync(suspendedJob, input, fence: null, ct);
-        var cancelExecuting = await Services.GetRequiredService<CancelJobHandler>().CancelAsync(executingJob, input, fence: null, ct);
+        var cancelSuspended = await Services
+            .GetRequiredService<CancelJobHandler>()
+            .CancelAsync(suspendedJob, input, fence: null, walkRootJobId: null, ct);
+        var cancelExecuting = await Services
+            .GetRequiredService<CancelJobHandler>()
+            .CancelAsync(executingJob, input, fence: null, walkRootJobId: null, ct);
         var tAfter = (await NowAsync(ct)).AddDays(91);
 
         Assert.Equal(ControlAction.Applied, cancelSuspended.Action);
@@ -84,19 +91,47 @@ public sealed class CancelJobSpec : ActaRuntimeTestBase<ConformanceFixture, Test
 
         var jobId = await EnqueueAsync(ct);
 
-        var first = await Services.GetRequiredService<CancelJobHandler>().CancelAsync(jobId, input, fence: null, ct);
+        var first = await Services.GetRequiredService<CancelJobHandler>().CancelAsync(jobId, input, fence: null, walkRootJobId: null, ct);
         Assert.Equal(ControlAction.Applied, first.Action);
         Assert.Equal(JobStatusCode.Cancelled, first.Status);
 
         var afterFirst = await ReadJobAsync(jobId, ct);
         var retentionAfterFirst = afterFirst.RetentionUntilUtc;
 
-        var second = await Services.GetRequiredService<CancelJobHandler>().CancelAsync(jobId, input, fence: null, ct);
+        var second = await Services.GetRequiredService<CancelJobHandler>().CancelAsync(jobId, input, fence: null, walkRootJobId: null, ct);
         Assert.Equal(ControlAction.Rejected, second.Action);
         Assert.Equal(JobStatusCode.Cancelled, second.Status);
 
         var afterSecond = await ReadJobAsync(jobId, ct);
         Assert.Equal(JobStatusCode.Cancelled, afterSecond.Status);
         Assert.Equal(retentionAfterFirst, afterSecond.RetentionUntilUtc);
+    }
+
+    [Fact(DisplayName = "A descendant walk that outlives a restart of its root leaves the restarted job's new children alone")]
+    public async Task A_walk_outliving_a_restart_spares_the_new_children()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var root = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct);
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(root, ct));
+        Assert.Equal(ControlAction.Applied, (await Jobs.CancelAsync(root, "stop the job tree", ct: ct)).Action);
+
+        // The root restarts and its new execution starts a child before the first cancel's walk comes back to it.
+        Assert.Equal(ControlAction.Applied, (await Jobs.RestartAsync(root, ct: ct)).Action);
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(root, ct));
+        var child = await Jobs.EnqueueAsync(
+            new EnqueueJobRequest(
+                TestNamespace,
+                "job-wait-signal",
+                JobPayload.None,
+                DeduplicationKey: "after-restart",
+                ParentJobId: root.JobId
+            ),
+            ct
+        );
+
+        await Services.GetRequiredService<JobsOperations>().CancelDescendantsAsync(root.JobId, ct);
+
+        Assert.NotEqual(JobStatusCode.Cancelled, (await ReadJobAsync(child.JobId, ct)).Status);
+        Assert.Equal(0, await CountEventsAsync(child.JobId, EventCode.JobCancelled, ct));
     }
 }

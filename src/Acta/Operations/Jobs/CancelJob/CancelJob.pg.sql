@@ -5,6 +5,7 @@ DROP TABLE IF EXISTS pg_temp._cancel_job_lane;
 DROP TABLE IF EXISTS pg_temp._cancel_job;
 DROP TABLE IF EXISTS pg_temp._cancel_job_promoted;
 DROP TABLE IF EXISTS pg_temp._cancel_job_fence;
+DROP TABLE IF EXISTS pg_temp._cancel_job_walk;
 CREATE TEMP TABLE _cancel_job_lane (lane_id BIGINT NOT NULL) ON COMMIT DROP;
 CREATE TEMP TABLE _cancel_job (
     from_status SMALLINT NOT NULL,
@@ -22,6 +23,7 @@ CREATE TEMP TABLE _cancel_job (
 ) ON COMMIT DROP;
 CREATE TEMP TABLE _cancel_job_promoted (job_id BIGINT NOT NULL) ON COMMIT DROP;
 CREATE TEMP TABLE _cancel_job_fence (held BOOLEAN NOT NULL) ON COMMIT DROP;
+CREATE TEMP TABLE _cancel_job_walk (held BOOLEAN NOT NULL) ON COMMIT DROP;
 
 INSERT INTO _cancel_job_lane (lane_id)
 SELECT l.lane_id
@@ -60,10 +62,24 @@ SELECT EXISTS (
 )
 WHERE @p_fence_job_id IS NOT NULL;
 
+-- A descendant walk cancels only while its root is still Cancelled, read unlocked once this job's rows are locked: a
+-- child the root enqueued after a restart commits after that restart, so a walk that finds the child finds the root
+-- moved too.
+INSERT INTO _cancel_job_walk (held)
+SELECT EXISTS (
+    SELECT 1
+    FROM {{schema}}.jobs_state wr
+    WHERE wr.job_id = @p_walk_root_job_id AND wr.job_status_code = 220 /* JobStatusCode.Cancelled */
+)
+WHERE @p_walk_root_job_id IS NOT NULL;
+
 DO $$
 BEGIN
     IF EXISTS (SELECT 1 FROM pg_temp._cancel_job_fence WHERE NOT held) THEN
         RAISE EXCEPTION 'ACTA:EXECUTION_FENCED:cancel_job: the awaiting job is no longer executing this attempt.' USING ERRCODE = 'P0001';
+    END IF;
+    IF EXISTS (SELECT 1 FROM pg_temp._cancel_job_walk WHERE NOT held) THEN
+        RAISE EXCEPTION 'ACTA:CANCEL_WALK_ENDED:cancel_job: the walk''s root is no longer cancelled.' USING ERRCODE = 'P0001';
     END IF;
 END
 $$;

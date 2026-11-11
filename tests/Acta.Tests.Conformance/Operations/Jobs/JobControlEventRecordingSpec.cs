@@ -78,8 +78,8 @@ public sealed class JobControlEventRecordingSpec : ActaRuntimeTestBase<Conforman
         await SetEventRecordingAsync(Db, jobL, EventRecordingCode.Failures, ct);
         await SetEventRecordingAsync(Db, jobF, EventRecordingCode.Audit, ct);
 
-        var outcomeL = await Services.GetRequiredService<CancelJobHandler>().CancelAsync(jobL, input, fence: null, ct);
-        var outcomeF = await Services.GetRequiredService<CancelJobHandler>().CancelAsync(jobF, input, fence: null, ct);
+        var outcomeL = await Services.GetRequiredService<CancelJobHandler>().CancelAsync(jobL, input, fence: null, walkRootJobId: null, ct);
+        var outcomeF = await Services.GetRequiredService<CancelJobHandler>().CancelAsync(jobF, input, fence: null, walkRootJobId: null, ct);
 
         Assert.Equal(ControlAction.Applied, outcomeL.Action);
         Assert.Equal(JobStatusCode.Cancelled, outcomeL.Status);

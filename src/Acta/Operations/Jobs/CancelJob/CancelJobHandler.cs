@@ -1,3 +1,5 @@
+using System.Data.Common;
+
 namespace Acta;
 
 /// <summary>
@@ -30,6 +32,7 @@ internal sealed class CancelJobHandler(
             jobId,
             JobControl.Operator(command.ReasonMessage, command.Actor, command.ExpectedVersion),
             fence: null,
+            walkRootJobId: null,
             ct
         );
 
@@ -59,8 +62,16 @@ internal sealed class CancelJobHandler(
     /// <summary>
     /// One <c>cancel_job</c> call by id that wakes the job's waiters when it applied: no lookup, no latch, no worker wake.
     /// A <paramref name="fence"/> holds it to an ancestor's attempt, and a refusal throws <see cref="ExecutionFencedException"/>.
+    /// A <paramref name="walkRootJobId"/> holds it to that job still being Cancelled, and a refusal throws the provider's
+    /// error carrying <see cref="WalkEndedToken"/>.
     /// </summary>
-    internal async Task<CancelJobRow> CancelAsync(long jobId, JobControlInput input, ExecutionFence? fence, CancellationToken ct)
+    internal async Task<CancelJobRow> CancelAsync(
+        long jobId,
+        JobControlInput input,
+        ExecutionFence? fence,
+        long? walkRootJobId,
+        CancellationToken ct
+    )
     {
         var row = await ExecutionFencedException.TranslateAsync(
             session.ExecuteOneAsync(
@@ -71,6 +82,7 @@ internal sealed class CancelJobHandler(
                     cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.FenceJobId, fence?.JobId));
                     cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.FenceExecutionNumber, fence?.ExecutionNumber));
                     cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.FenceWorkerId, fence?.WorkerId));
+                    cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.WalkRootJobId, walkRootJobId));
                     JobControl.BindEvent(cmd, dialect, input);
                     JobControl.BindExpectedVersion(cmd, dialect, input);
                 },
@@ -92,30 +104,56 @@ internal sealed class CancelJobHandler(
     /// </summary>
     internal async Task CancelTreeAsync(long rootJobId, JobControlInput input, ExecutionFence fence, CancellationToken ct)
     {
-        var root = await CancelAsync(rootJobId, input, fence, ct);
+        var root = await CancelAsync(rootJobId, input, fence, walkRootJobId: null, ct);
         var promoted = root.Action == ControlAction.Applied && root.LanePromoted;
-        await JobControl.WakeWorkersIfAsync(wakeup, await WalkAsync(rootJobId, input, fence, ct) || promoted, ct);
+        var walk = await WalkAsync(rootJobId, rootJobId, input, fence, ct);
+        await JobControl.WakeWorkersIfAsync(wakeup, walk.Promoted || promoted, ct);
     }
 
     /// <summary>
     /// Cancels the non-terminal descendant subtree top-down, one transaction per node: a crash mid-walk leaves
     /// repairable stragglers, and terminal children are recursed through too, so a re-run reaches live
     /// descendants behind them. In-subtree latches are skipped, since each node's parent is already terminal.
-    /// Wakes every worker namespace once if a cancel promoted a lane member.
+    /// Each cancel lands only while the root is still Cancelled, so a walk that outlives a restart of the root ends
+    /// there and leaves the restarted job's new children alone. Wakes every worker namespace once if a cancel
+    /// promoted a lane member.
     /// </summary>
     internal async Task CancelDescendantsAsync(long rootJobId, JobControlInput input, CancellationToken ct) =>
-        await JobControl.WakeWorkersIfAsync(wakeup, await WalkAsync(rootJobId, input, fence: null, ct), ct);
+        await JobControl.WakeWorkersIfAsync(wakeup, (await WalkAsync(rootJobId, rootJobId, input, fence: null, ct)).Promoted, ct);
 
-    private async Task<bool> WalkAsync(long parentJobId, JobControlInput input, ExecutionFence? fence, CancellationToken ct)
+    /// <summary>The token <c>cancel_job</c> raises when a walk's root is no longer Cancelled.</summary>
+    internal const string WalkEndedToken = "ACTA:CANCEL_WALK_ENDED:";
+
+    private async Task<(bool Promoted, bool Ended)> WalkAsync(
+        long rootJobId,
+        long parentJobId,
+        JobControlInput input,
+        ExecutionFence? fence,
+        CancellationToken ct
+    )
     {
         var promoted = false;
         foreach (var childId in (await execution.ListChildJobIdsAsync(parentJobId, ct)).ChildJobIds)
         {
-            var row = await CancelAsync(childId, input, fence, ct);
+            CancelJobRow row;
+            try
+            {
+                row = await CancelAsync(childId, input, fence, rootJobId, ct);
+            }
+            catch (DbException ex) when (ex.Message.Contains(WalkEndedToken, StringComparison.Ordinal))
+            {
+                return (promoted, true);
+            }
+
             promoted |= row.Action == ControlAction.Applied && row.LanePromoted;
-            promoted |= await WalkAsync(childId, input, fence, ct);
+            var below = await WalkAsync(rootJobId, childId, input, fence, ct);
+            promoted |= below.Promoted;
+            if (below.Ended)
+            {
+                return (promoted, true);
+            }
         }
 
-        return promoted;
+        return (promoted, false);
     }
 }

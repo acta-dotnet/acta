@@ -54,6 +54,18 @@ BEGIN TRY
         )
         THROW 50012, 'ACTA:EXECUTION_FENCED:cancel_job: the awaiting job is no longer executing this attempt.', 1;
 
+    -- A descendant walk cancels only while its root is still Cancelled, read unlocked once this job's rows are locked: a
+    -- child the root enqueued after a restart commits after that restart, so a walk that finds the child finds the root
+    -- moved too.
+    IF
+        @p_walk_root_job_id IS NOT NULL
+        AND NOT EXISTS (
+            SELECT 1
+            FROM {{schema}}.jobs_state wr
+            WHERE wr.job_id = @p_walk_root_job_id AND wr.job_status_code = 220 /* JobStatusCode.Cancelled */
+        )
+        THROW 50013, 'ACTA:CANCEL_WALK_ENDED:cancel_job: the walk''s root is no longer cancelled.', 1;
+
     IF @from_status IS NULL
         BEGIN
 

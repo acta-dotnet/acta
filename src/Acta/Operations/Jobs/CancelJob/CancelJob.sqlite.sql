@@ -13,6 +13,16 @@ WHERE
             AND fr.leased_by_worker_id = @p_fence_worker_id
     );
 
+-- A descendant walk cancels only while its root is still Cancelled: a restart since took the walk's reason away.
+SELECT ACTA_ERROR('ACTA:CANCEL_WALK_ENDED:cancel_job: the walk''s root is no longer cancelled.')
+WHERE
+    @p_walk_root_job_id IS NOT NULL
+    AND NOT EXISTS (
+        SELECT 1
+        FROM {{schema}}.jobs_state wr
+        WHERE wr.job_id = @p_walk_root_job_id AND wr.job_status_code = 220 /* JobStatusCode.Cancelled */
+    );
+
 DROP TABLE IF EXISTS temp._cancel_job;
 
 CREATE TEMP TABLE _cancel_job AS
