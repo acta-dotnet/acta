@@ -34,6 +34,10 @@ public sealed class AlertProjectionDrainSpec : ActaRuntimeTestBase<ConformanceFi
     // cooperative half: the batch in flight still completed and still checkpointed.
     private static readonly AlertDrainBudget SpentBudgetDrain = new(BatchSize: 4, MaxBatches: 40, TimeBudget: TimeSpan.Zero);
 
+    // The shipped batch size and cap, with a time budget no runner reaches: the backlog fact is about batches, and the
+    // shipped 30 s budget, the one bound a slow runner can hit, would end its pass early on a loaded machine.
+    private static readonly AlertDrainBudget ShippedBatches = AlertsJob.DefaultDrain with { TimeBudget = TimeSpan.FromHours(1) };
+
     private const int StagedBacklog = 20;
 
     private int NamespaceId => Runtime.RegisteredNamespaceIds[TestNamespace];
@@ -49,7 +53,7 @@ public sealed class AlertProjectionDrainSpec : ActaRuntimeTestBase<ConformanceFi
         var backlog = (AlertsJob.DefaultDrain.BatchSize * 2) + 88;
         var staged = await StageFailureEventsAsync(subject, backlog, ct);
 
-        await RunAlertsAsync(subject.JobId, drain: null, ct);
+        await RunAlertsAsync(subject.JobId, ShippedBatches, ct);
 
         // The count is the load-bearing number: one row proves the incident collapsed, and its count
         // proves every staged event was projected by this one invocation, not just the first batch.
