@@ -215,7 +215,7 @@ public sealed class ActaMetricsTests
         using var metrics = new ActaMetrics();
 
         var (Value, Tags) = Assert.Single(
-            Collect<long>(metrics, "acta.alert.projection.skips", () => metrics.RecordAlertProjectionSkip("billing", "unknown-job"))
+            Collect<long>(metrics, "acta.alerts.projection.skips", () => metrics.RecordAlertProjectionSkip("billing", "unknown-job"))
         );
 
         Assert.Equal(1, Value);

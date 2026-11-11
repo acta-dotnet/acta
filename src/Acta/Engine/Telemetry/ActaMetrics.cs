@@ -70,7 +70,7 @@ internal sealed class ActaMetrics : IDisposable
             "Best-effort lock releases that failed and were left for TTL cleanup."
         );
         _alertProjectionSkips = Meter.CreateCounter<long>(
-            "acta.alert.projection.skips",
+            "acta.alerts.projection.skips",
             "{skip}",
             "Poison alert events durably skipped by the automatic projector."
         );

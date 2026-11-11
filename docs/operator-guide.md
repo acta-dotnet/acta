@@ -777,7 +777,7 @@ keeps claiming, admitting, and settling.
 | `acta.wakeup.publish.failures` | publish | Wake publishes the transport failed to deliver. |
 | `acta.wakeup.waits` | wait | Idle claim-loop waits, tagged by how they returned. |
 | `acta.alerts.lag` | s | How far the alert projector stood behind the database clock when a pass began. |
-| `acta.alert.projection.skips` | skip | Poison alert events the projector skipped. |
+| `acta.alerts.projection.skips` | skip | Poison alert events the projector skipped. |
 | `acta.schedule.decisions` | decision | Decisions an admission pass applied: admitted, skipped, expired, blocked, exhausted, or error. |
 | `acta.schedule.lag` | ms | How far past its nominal instant an occurrence stood when it was admitted. |
 | `acta.schedule.due.age` | s | How long past its evaluation instant a due schedule stood when a pass read it. |
