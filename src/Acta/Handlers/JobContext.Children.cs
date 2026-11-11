@@ -278,6 +278,18 @@ public abstract partial class JobContext
             );
     }
 
+    /// <summary>
+    /// Starts a fan-out group's child under <paramref name="key"/>, <c>{group}/{item}</c>. No child name holds a
+    /// <c>/</c>, so a group's children share a key with no other group's and with no child the handler named itself.
+    /// </summary>
+    internal async Task<EnqueueJobResponse> StartGroupChildAsync<TInput>(string key, TInput input, CancellationToken ct)
+        where TInput : notnull
+    {
+        ArgumentNullException.ThrowIfNull(input);
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, CancellationToken);
+        return await StartChildCoreAsync(input, BuildChildOptions(key, configure: null), linked.Token);
+    }
+
     private JobEnqueueOptions BuildChildOptions(string name, Action<JobEnqueueOptionsBuilder>? configure)
     {
         JobEnqueueOptions? configured = null;

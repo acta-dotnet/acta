@@ -49,7 +49,7 @@ public sealed class MapAsyncTests
             TestContext.Current.CancellationToken
         );
 
-        Assert.Equal(["resize-images-1", "resize-images-2", "resize-images-3"], ctx.Started.Select(s => s.Name));
+        Assert.Equal(["resize-images/1", "resize-images/2", "resize-images/3"], ctx.Started.Select(s => s.Name));
     }
 
     [Fact]
@@ -123,9 +123,10 @@ public sealed class MapAsyncTests
 
         var name = ctx1.Started[0].Name;
         Assert.Equal(name, ctx2.Started[0].Name);
-        Assert.StartsWith("group-", name);
+        Assert.StartsWith("group/", name);
         Assert.DoesNotContain(' ', name);
-        Assert.Equal(name, NameSyntax.Canonicalize(name, nameof(name), NameSyntax.ExtendedMaxLength));
+        Assert.Equal(name, KeySyntax.Canonicalize(name, nameof(name)));
+        Assert.Equal(name["group/".Length..], NameSyntax.Canonicalize(name["group/".Length..], nameof(name)));
     }
 
     [Fact]
@@ -180,7 +181,7 @@ public sealed class MapAsyncTests
     [Fact]
     public async Task Map_returns_failed_items_and_escalates_on_demand()
     {
-        var ctx = new RecordingJobContext(new Dictionary<string, ChildJobOutcome> { ["resize-images-2"] = new(0, JobStatusCode.Failed) });
+        var ctx = new RecordingJobContext(new Dictionary<string, ChildJobOutcome> { ["resize-images/2"] = new(0, JobStatusCode.Failed) });
 
         var resized = await ctx.MapAsync(
             "resize-images",

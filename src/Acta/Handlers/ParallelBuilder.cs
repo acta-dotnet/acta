@@ -18,7 +18,7 @@ public sealed class ParallelBuilder
     {
         ArgumentNullException.ThrowIfNull(branchName);
         ArgumentNullException.ThrowIfNull(input);
-        _branches.Add(new Branch(branchName, (context, childName, ct) => context.StartChildAsync(childName, input, ct: ct)));
+        _branches.Add(new Branch(branchName, (context, childKey, ct) => context.StartGroupChildAsync(childKey, input, ct)));
         return this;
     }
 

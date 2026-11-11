@@ -578,7 +578,7 @@ Minimum guaranteed surface categories:
 
 Each child is an ordinary job, and the groups are ordinary `StartChildAsync` calls plus a `WaitChildrenAsync` join, not a workflow runtime. They wait for every child and return every outcome: they never fail fast or cancel siblings, and throw only when asked (`ThrowIfAnyFailed`). A failed child stays failed on replay until restarted. Its newer outcome is recorded on the parent when it lands or is cancelled, even after the parent finished, so a parent restarted afterwards reads it; a wait that had already timed out keeps its timeout. Each also takes a `TimeSpan timeout`, one deadline for the whole group that cancels only the members still running and reports `TimedOut` in the outcome.
 
-Child names are deterministic: `{group}-{branch}` for Parallel and `{group}-{key}` (or a hash of an unsafe key) for Map. They share the parent's child-name space, so reusing a group name lands two starts on one child. Groups do not limit concurrency; use concurrency keys or worker capacity. Concept `215-map-parallel-join` shows all three.
+A group's children are keyed deterministically: `{group}/{branch}` for Parallel and `{group}/{key}` (or a hash of an unsafe key) for Map. No child name holds a `/`, so a group's children never share a key with another group's or with a child you named yourself; reusing a group name with the same branch or key lands two starts on one child. Groups do not limit concurrency; use concurrency keys or worker capacity. Concept `215-map-parallel-join` shows all three.
 
 ### CancellationToken semantics
 

@@ -38,7 +38,21 @@ public sealed class ParallelAsyncTests
             TestContext.Current.CancellationToken
         );
 
-        Assert.Equal(["checkout-reserve-inventory", "checkout-charge-card"], ctx.Started.Select(s => s.Name));
+        Assert.Equal(["checkout/reserve-inventory", "checkout/charge-card"], ctx.Started.Select(s => s.Name));
+    }
+
+    [Fact]
+    public async Task Two_groups_whose_names_and_branches_concatenate_alike_start_separate_children()
+    {
+        var ctx = new RecordingJobContext();
+        var ct = TestContext.Current.CancellationToken;
+
+        // Joined by a hyphen, both would be the child "ship-eu-west".
+        await ctx.ParallelAsync("ship", p => p.Child("eu-west", new Probe()), ct);
+        await ctx.ParallelAsync("ship-eu", p => p.Child("west", new Probe()), ct);
+        await ctx.StartChildAsync("ship-eu-west", new Probe(), ct: ct);
+
+        Assert.Equal(["ship/eu-west", "ship-eu/west", "ship-eu-west"], ctx.Started.Select(s => s.Name));
     }
 
     [Fact]
@@ -88,7 +102,7 @@ public sealed class ParallelAsyncTests
     public async Task Parallel_returns_branch_keyed_outcomes()
     {
         var ctx = new RecordingJobContext(
-            new Dictionary<string, ChildJobOutcome> { ["checkout-charge-card"] = new(0, JobStatusCode.Failed) }
+            new Dictionary<string, ChildJobOutcome> { ["checkout/charge-card"] = new(0, JobStatusCode.Failed) }
         );
 
         var checkout = await ctx.ParallelAsync(
