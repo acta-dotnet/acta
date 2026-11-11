@@ -28,7 +28,8 @@ namespace Acta.Tests.Conformance.Operations.Execution;
     Area = "Claim",
     Contract = "A claim takes up to the rows it asks for, none due before its watermark, an empty one returns one horizon sentinel, and excluded rows are invisible to both."
 )]
-public sealed class ClaimJobsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("add-numbers", "failures-audit-probe")]
+public sealed class ClaimJobsSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<ClaimJobsSpec>>
 {
     private const int Batch = 5;
 

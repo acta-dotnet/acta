@@ -18,7 +18,8 @@ namespace Acta.Tests.Conformance.Scenarios;
     Area = "Enqueue",
     Contract = "Enqueue, schedule, and run-and-wait take a generated call, which names its job and its input, and several handler parameters are stored as one JSON object."
 )]
-public sealed class JobCallSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("add-numbers", "cancellable", "format-invoice")]
+public sealed class JobCallSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<JobCallSpec>>
 {
     protected override bool RunAsWorker => true;
 

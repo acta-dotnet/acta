@@ -13,7 +13,8 @@ namespace Acta.Tests.Conformance.Engine.Outbox;
 /// wired <c>sys.outbox</c> job uses in production. Declares no <c>[Fact]</c> so it is not itself a
 /// candidate contract spec; each concrete spec adds its own metadata and guarantees.
 /// </summary>
-public abstract class OutboxRelayIntegrationBase : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("echo", "lane-step")]
+public abstract class OutboxRelayIntegrationBase : ActaRuntimeTestBase<ConformanceFixture, JobsOf<OutboxRelayIntegrationBase>>
 {
     private protected string SourceTable { get; private set; } = null!;
 
@@ -146,7 +147,11 @@ public abstract class OutboxRelayIntegrationBase : ActaRuntimeTestBase<Conforman
         services.UseActa(j =>
         {
             Fixture.ApplyProvider(j, Schema.SchemaName);
-            j.Run<TestJobs.TestJobsManifest>(namespaceName, ownerTeam: "test", description: GetType().FullName + ":" + namespaceName);
+            j.Run<JobsOf<OutboxRelayIntegrationBase>>(
+                namespaceName,
+                ownerTeam: "test",
+                description: GetType().FullName + ":" + namespaceName
+            );
         });
         services.Configure<JobsOptions>(o => o.RunSystemJobs = false);
         return services.BuildServiceProvider(validateScopes: true);

@@ -24,7 +24,8 @@ namespace Acta.Tests.Conformance.Engine.Worker;
     Area = "Recovery",
     Contract = "A graceful stop flips the worker Active to Draining, runs the in-flight handler to completion, then stamps Stopped."
 )]
-public sealed class WorkerDrainSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("drain-gate")]
+public sealed class WorkerDrainSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<WorkerDrainSpec>>
 {
     // A hang guard, not a measurement: these specs drive the real claim loop and its DB round-trips,
     // which run slow under the suite's cross-test parallelism and finish well under a second in

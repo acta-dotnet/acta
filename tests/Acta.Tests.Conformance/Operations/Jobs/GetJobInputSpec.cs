@@ -13,7 +13,8 @@ namespace Acta.Tests.Conformance.Operations.Jobs;
     Area = "Reads",
     Contract = "GetJobInput returns the payload and format a job was enqueued with, and null when no job row matches."
 )]
-public sealed class GetJobInputSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("add-numbers")]
+public sealed class GetJobInputSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<GetJobInputSpec>>
 {
     [Fact(DisplayName = "GetJobInput returns the payload the job was enqueued with")]
     public async Task Input_readable_after_enqueue_equals_enqueued()

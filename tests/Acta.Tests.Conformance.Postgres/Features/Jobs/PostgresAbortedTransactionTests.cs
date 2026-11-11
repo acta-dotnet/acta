@@ -13,7 +13,8 @@ namespace Acta.Tests.Conformance.Postgres.Features.Jobs;
 /// command fails with 25P02 until the caller rolls back, and only the caller's rollback discards the business
 /// write. Provider-specific, so it lives in the PostgreSQL head.
 /// </summary>
-public sealed class PostgresAbortedTransactionTests : ActaRuntimeTestBase<PgConformanceFixture, TestJobsManifest>
+[Deploys("add-numbers")]
+public sealed class PostgresAbortedTransactionTests : ActaRuntimeTestBase<PgConformanceFixture, JobsOf<PostgresAbortedTransactionTests>>
 {
     private const string ProbeTable = "acta_txn_aborted_probe";
 

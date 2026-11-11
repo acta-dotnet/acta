@@ -15,7 +15,8 @@ namespace Acta.Tests.Conformance.Operations.Execution;
     Area = "Execution",
     Contract = "A checkpoint keyed by job, kind, and name is overwritten by Set, kept by GetOrSet, removed by Delete, and never written without a payload."
 )]
-public sealed class AccessJobCheckpointSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("add-numbers")]
+public sealed class AccessJobCheckpointSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<AccessJobCheckpointSpec>>
 {
     private static readonly byte Json = JobPayloadFormat.Json.Id;
 

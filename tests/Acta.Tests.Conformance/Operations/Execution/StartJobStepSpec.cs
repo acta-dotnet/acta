@@ -14,7 +14,8 @@ namespace Acta.Tests.Conformance.Operations.Execution;
     Area = "Execution",
     Contract = "A step start invokes a new or unfinished ordinary step, replays a success, interrupts a re-entered at-most-once step, and refuses a terminal failure."
 )]
-public sealed class StartJobStepSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("add-numbers", "charge")]
+public sealed class StartJobStepSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<StartJobStepSpec>>
 {
     private const string StepName = "charge";
 

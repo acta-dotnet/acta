@@ -10,7 +10,8 @@ namespace Acta.Tests.Conformance.Postgres.Features.Jobs;
 /// PostgreSQL answers a statement from the snapshot it began with, and a row lock it waited for does not refresh the
 /// other rows it joined. An enqueue that waited must not act on what it read before the wait.
 /// </summary>
-public sealed class PgEnqueueSnapshotTests : ActaRuntimeTestBase<PgConformanceFixture, TestJobsManifest>
+[Deploys("add-numbers")]
+public sealed class PgEnqueueSnapshotTests : ActaRuntimeTestBase<PgConformanceFixture, JobsOf<PgEnqueueSnapshotTests>>
 {
     private static readonly JobPayload Payload = JobPayload.Json(new AddNumbers(1, 2));
 

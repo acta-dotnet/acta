@@ -21,7 +21,8 @@ namespace Acta.Tests.Conformance.Operations.Jobs;
     Area = "Enqueue",
     Contract = "EnqueueJob/EnqueueJobs reject a suspended namespace, accept it again once reactivated, and land a batch that passed the gate whole."
 )]
-public sealed class EnqueueJobNamespaceSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("add-numbers")]
+public sealed class EnqueueJobNamespaceSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<EnqueueJobNamespaceSpec>>
 {
     protected override bool RunAsWorker => true;
 

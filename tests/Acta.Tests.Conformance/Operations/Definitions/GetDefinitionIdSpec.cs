@@ -15,7 +15,8 @@ namespace Acta.Tests.Conformance.Operations.Definitions;
     Area = "Reads",
     Contract = "GetDefinitionId returns the catalog id of the definition a namespace and name identify exactly, and null when no definition carries that key."
 )]
-public sealed class GetDefinitionIdSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("add-numbers")]
+public sealed class GetDefinitionIdSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<GetDefinitionIdSpec>>
 {
     [Fact(DisplayName = "A registered name resolves to its definition's catalog id")]
     public async Task A_registered_name_resolves_to_its_id()

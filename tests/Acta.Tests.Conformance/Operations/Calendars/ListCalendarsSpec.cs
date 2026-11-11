@@ -6,15 +6,15 @@ namespace Acta.Tests.Conformance.Operations.Calendars;
 
 /// <summary>
 /// Conformance for listing calendar families: one item per family by name, its current and latest versions, the live
-/// schedules that name it, a namespace's list with the shared families in <c>sys</c> or a list across
-/// every namespace, the role, name, and latest-status filters, and keyset paging. Other specs leave shared families behind, so every read
-/// here keeps to this test's own names.
+/// schedules that name it, a namespace's list or a list across every namespace, the role, name, and latest-status
+/// filters, and keyset paging. The shared families in <c>sys</c> are <see cref="CalendarSharedScopeSpec"/>'s, which leaves
+/// some behind, so every read here keeps to this test's own names.
 /// </summary>
 [ConformanceSpec(
     "calendar.list",
     "Calendar families list by name with their current and latest versions",
     Area = "Scheduling",
-    Contract = "The list answers one item per family by name with its versions and live bound schedules, in one namespace with sys or in all, filtered and paged."
+    Contract = "The list answers one item per family by name with its versions and live bound schedules, in one namespace or in all, filtered and paged."
 )]
 public sealed class ListCalendarsSpec : ActaStorageTestBase<ConformanceFixture>
 {
@@ -187,50 +187,12 @@ public sealed class ListCalendarsSpec : ActaStorageTestBase<ConformanceFixture>
         );
     }
 
-    [Fact(DisplayName = "A namespace's list filtered by the latest version's status filters the shared families too")]
-    public async Task The_status_filter_applies_to_the_shared_families_in_a_namespace_list()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        var ownDraft = new CalendarLookup(TestNamespace, Unique("a-own-draft"));
-        var sharedDraft = new CalendarLookup("sys", Unique("b-shared-draft"));
-        var sharedPublished = new CalendarLookup("sys", Unique("c-shared-published"));
-        var ownPublished = new CalendarLookup(TestNamespace, Unique("d-own-published"));
-        foreach (var calendar in new[] { ownDraft, sharedDraft, sharedPublished, ownPublished })
-        {
-            await Calendars.SaveDraftAsync(calendar, CalendarRoleCode.Availability, CalendarTestOps.AvailabilityDefinition, 0, ct: ct);
-        }
-
-        await Calendars.PublishAsync(sharedPublished, 1, 0, ct: ct);
-        await Calendars.PublishAsync(ownPublished, 1, 0, ct: ct);
-
-        var drafts = await Calendars.ListAsync(
-            new ListCalendarsQuery(TestNamespace, NameContains: TestId, LatestStatus: CalendarStatusCode.Draft, IncludeTotal: true),
-            ct
-        );
-        var published = await Calendars.ListAsync(
-            new ListCalendarsQuery(TestNamespace, NameContains: TestId, LatestStatus: CalendarStatusCode.Published, IncludeTotal: true),
-            ct
-        );
-
-        Assert.Equal(
-            [(TestNamespace, ownDraft.CalendarName), ("sys", sharedDraft.CalendarName)],
-            drafts.Items.Select(i => (i.JobNamespace, i.CalendarName))
-        );
-        Assert.Equal(2, drafts.TotalCount);
-        Assert.Equal(
-            [("sys", sharedPublished.CalendarName), (TestNamespace, ownPublished.CalendarName)],
-            published.Items.Select(i => (i.JobNamespace, i.CalendarName))
-        );
-        Assert.Equal(2, published.TotalCount);
-    }
-
-    [Fact(DisplayName = "A namespace's list adds the shared families, and a list without a namespace spans every namespace")]
-    public async Task A_namespace_lists_with_the_shared_families_and_no_namespace_lists_them_all()
+    [Fact(DisplayName = "A list without a namespace spans every namespace, and two families of one name page by namespace")]
+    public async Task A_list_without_a_namespace_spans_every_namespace()
     {
         var ct = TestContext.Current.CancellationToken;
         var elsewhere = Unique("elsewhere");
         var hours = Unique("hours");
-        var closures = Unique("closures");
         await Calendars.SaveDraftAsync(
             new(TestNamespace, hours),
             CalendarRoleCode.Availability,
@@ -245,10 +207,8 @@ public sealed class ListCalendarsSpec : ActaStorageTestBase<ConformanceFixture>
             0,
             ct: ct
         );
-        await Calendars.SaveDraftAsync(new("sys", closures), CalendarRoleCode.Occurrence, CalendarTestOps.OccurrenceDefinition, 0, ct: ct);
 
         var scoped = await Calendars.ListAsync(new ListCalendarsQuery(TestNamespace, NameContains: TestId), ct);
-        var shared = await Calendars.ListAsync(new ListCalendarsQuery("sys", NameContains: TestId), ct);
         var everywhere = await Calendars.ListAsync(new ListCalendarsQuery(NameContains: TestId, IncludeTotal: true), ct);
         // Two families share a name, so a page of one must break the tie by namespace and lose neither.
         var paged = new List<ListCalendarsItem>();
@@ -260,13 +220,11 @@ public sealed class ListCalendarsSpec : ActaStorageTestBase<ConformanceFixture>
             cursor = page.NextCursor;
         } while (cursor is not null);
 
-        Assert.Equal([("sys", closures), (TestNamespace, hours)], scoped.Items.Select(i => (i.JobNamespace, i.CalendarName)));
-        Assert.Equal([("sys", closures)], shared.Items.Select(i => (i.JobNamespace, i.CalendarName)));
-        Assert.Equal(3, everywhere.TotalCount);
-        Assert.Equal(("sys", closures), (everywhere.Items[0].JobNamespace, everywhere.Items[0].CalendarName));
+        Assert.Equal([(TestNamespace, hours)], scoped.Items.Select(i => (i.JobNamespace, i.CalendarName)));
+        Assert.Equal(2, everywhere.TotalCount);
         Assert.Equal(
             [elsewhere, TestNamespace],
-            everywhere.Items.Skip(1).Where(i => i.CalendarName == hours).Select(i => i.JobNamespace).Order(StringComparer.Ordinal)
+            everywhere.Items.Where(i => i.CalendarName == hours).Select(i => i.JobNamespace).Order(StringComparer.Ordinal)
         );
         Assert.Equal(everywhere.Items.Select(i => (i.JobNamespace, i.CalendarName)), paged.Select(i => (i.JobNamespace, i.CalendarName)));
     }

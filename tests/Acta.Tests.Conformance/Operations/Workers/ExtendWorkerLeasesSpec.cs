@@ -19,7 +19,8 @@ namespace Acta.Tests.Conformance.Operations.Workers;
     Area = "Execution",
     Contract = "The heartbeat extends a held lease without a version bump and stamps last_seen, while a leased row the process does not hold lapses to recovery."
 )]
-public sealed class ExtendWorkerLeasesSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("add-numbers", "chaos-counting")]
+public sealed class ExtendWorkerLeasesSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<ExtendWorkerLeasesSpec>>
 {
     [Fact(DisplayName = "The heartbeat pushes a held lease further out, advances worker last_seen, and the lease survives a reclaim sweep")]
     public async Task Heartbeat_extends_a_live_lease_and_reclaim_leaves_it_alone()

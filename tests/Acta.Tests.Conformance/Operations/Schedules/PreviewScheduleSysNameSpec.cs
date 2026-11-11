@@ -12,7 +12,8 @@ namespace Acta.Tests.Conformance.Operations.Schedules;
     Area = "Scheduling",
     Contract = "Schedule preview resolves a sys.-prefixed system schedule name through the lookup-permissive canonicalizer rather than the write-validating one."
 )]
-public sealed class PreviewScheduleSysNameSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("add-numbers")]
+public sealed class PreviewScheduleSysNameSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<PreviewScheduleSysNameSpec>>
 {
     // Live slot cursors are this spec's subject; the harness default would park them.
     protected override bool ParkScheduleSlots => false;

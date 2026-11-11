@@ -16,7 +16,8 @@ namespace Acta.Tests.Conformance.Operations.Schedules;
     Area = "Scheduling",
     Contract = "Registration never moves a slot, writes a cursor only on a retime or where the stored one was cleared, and never adopts an ordinary job."
 )]
-public sealed class RegisterSchedulesSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("add-numbers")]
+public sealed class RegisterSchedulesSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<RegisterSchedulesSpec>>
 {
     // Live slot cursors are this spec's subject; the harness default would park them.
     protected override bool ParkScheduleSlots => false;

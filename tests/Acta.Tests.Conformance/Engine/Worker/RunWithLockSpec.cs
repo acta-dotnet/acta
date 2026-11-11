@@ -17,7 +17,8 @@ namespace Acta.Tests.Conformance.Engine.Worker;
     Area = "Execution",
     Contract = "RunWithLockAsync runs one job's action at a time, throws when its wait budget is spent, and frees the lock when the action returns, throws or suspends."
 )]
-public sealed class RunWithLockSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsManifest>
+[Deploys("lock-contender", "lock-holder")]
+public sealed class RunWithLockSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<RunWithLockSpec>>
 {
     [Fact(DisplayName = "A job that asks for a lock another job is inside never runs its action and fails with the timeout")]
     public async Task A_held_lock_keeps_the_other_action_out()

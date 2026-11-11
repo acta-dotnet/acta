@@ -16,7 +16,8 @@ namespace Acta.Tests.Conformance.Operations.Alerts;
     Area = "Alerts",
     Contract = "GetAlertFloor reads a namespace's sys.alerts cursor and skip records, by namespace or by one of its jobs, and a namespace without the slot owes nothing."
 )]
-public sealed class GetAlertFloorSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("add-numbers")]
+public sealed class GetAlertFloorSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<GetAlertFloorSpec>>
 {
     // The projector's slot is what the floor reads, so the namespace has to carry it.
     protected override bool RunSystemJobs => true;

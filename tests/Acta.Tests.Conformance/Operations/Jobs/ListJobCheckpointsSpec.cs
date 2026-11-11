@@ -13,7 +13,8 @@ namespace Acta.Tests.Conformance.Operations.Jobs;
     Area = "Reads",
     Contract = "ListJobCheckpoints pages a job's checkpoints by kind then name, values intact, empty for none or no job, its cursor passing a kind this build does not know."
 )]
-public sealed class ListJobCheckpointsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("add-numbers")]
+public sealed class ListJobCheckpointsSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<ListJobCheckpointsSpec>>
 {
     [Fact(DisplayName = "ListJobCheckpoints lists variable and signal checkpoints with kind, state, and value round-tripped")]
     public async Task Checkpoints_round_trip_kind_state_and_value()

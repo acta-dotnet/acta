@@ -16,7 +16,8 @@ namespace Acta.Tests.Conformance.Engine.Worker;
     Area = "Execution",
     Contract = "A handler that exceeds its ExecutionTimeout has its token fired by the timeout source and the completion records ExecutionTimeout applying the retry budget."
 )]
-public sealed class ExecutionTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("timeout-probe")]
+public sealed class ExecutionTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<ExecutionTimeoutSpec>>
 {
     [Fact(
         DisplayName = "The timeout fires the handler token, the job lands Failed, and the reason is ExecutionTimeout distinct from external cancel"

@@ -21,7 +21,8 @@ namespace Acta.Tests.Conformance.Scenarios;
     Area = "Lanes",
     Contract = "Concurrent enqueues, completions, and cancels on a lane take the lane lock first, so a younger enqueue waits for an older open one and none of them deadlocks."
 )]
-public sealed class LaneLockOrderSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("lane-defined", "lane-step")]
+public sealed class LaneLockOrderSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<LaneLockOrderSpec>>
 {
     private const int Rounds = 20;
 

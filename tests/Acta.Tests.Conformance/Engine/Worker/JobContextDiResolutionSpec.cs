@@ -20,7 +20,8 @@ namespace Acta.Tests.Conformance.Engine.Worker;
     Area = "Execution",
     Contract = "An instance handler receives a populated JobContext by constructor injection matching the running job's identity and its resolved tenant scope."
 )]
-public sealed class JobContextDiResolutionSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("context-probe")]
+public sealed class JobContextDiResolutionSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<JobContextDiResolutionSpec>>
 {
     [Fact(DisplayName = "Handler receives a JobContext by constructor injection matching the running job identity")]
     public async Task Handler_resolves_JobContext_from_constructor_injection()

@@ -16,7 +16,8 @@ namespace Acta.Tests.Conformance.Operations.Ledger;
     Area = "Reads",
     Contract = "ListJobs filters partition the result to exactly the matching rows and exclude all non-matching rows for each filter dimension."
 )]
-public sealed class ListJobsFilterMatrixSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("add-numbers", "echo", "recurring-ping")]
+public sealed class ListJobsFilterMatrixSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<ListJobsFilterMatrixSpec>>
 {
     private JobEnqueueValues AddNumbersRow(
         string? tenantName = null,
@@ -234,11 +235,11 @@ public sealed class ListJobsFilterMatrixSpec : ActaRuntimeTestBase<ConformanceFi
         var dialect = Services.GetRequiredService<ISqlDialect>();
         var serializers = Services.GetRequiredService<IJobPayloadSerializerRegistry>();
 
-        // Register a second namespace with all test job definitions so enqueue can resolve them
+        // Register a second namespace with this spec's definitions so enqueue can resolve them
         var ns2Name = Unique("ns2");
         var seeder = new ActaTestSeeder(Db);
         var ns2Id = await seeder.SeedJobNamespaceAsync(ns2Name, "test", ct);
-        await DefinitionTestOps.RegisterAsync(Services, ns2Id, TestJobsManifest.Descriptors.Descriptors, ct);
+        await DefinitionTestOps.RegisterAsync<JobsOf<ListJobsFilterMatrixSpec>>(Services, ns2Id, ct);
 
         // Enqueue two jobs in the primary namespace, one in the second
         var ns1Outcomes = await EnqueueAsync([AddNumbersRow(), AddNumbersRow()], ct);

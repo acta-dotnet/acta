@@ -16,7 +16,8 @@ namespace Acta.Tests.Conformance.Scenarios;
     Area = "Lanes",
     Contract = "An enqueue whose effective lane equals the lane of an unfinished ancestor is rejected with AncestorLane, and a child never inherits its parent's lane."
 )]
-public sealed class LaneAncestorGuardSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("lane-defined", "lane-step")]
+public sealed class LaneAncestorGuardSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<LaneAncestorGuardSpec>>
 {
     [Fact(DisplayName = "A child in its parent's lane is rejected, in another lane or none it lands, and it inherits no lane")]
     public async Task Child_in_its_parents_lane_is_rejected()

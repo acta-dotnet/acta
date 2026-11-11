@@ -16,7 +16,8 @@ namespace Acta.Tests.Conformance.Operations.Ledger;
     Area = "Reads",
     Contract = "An event a worker wrote stores that worker's id and lists with its ref, and a worker-less event stores worker_id 0 and lists with no worker."
 )]
-public sealed class ListEventsWorkerSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("add-numbers")]
+public sealed class ListEventsWorkerSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<ListEventsWorkerSpec>>
 {
     [Fact(DisplayName = "An operator cancel stores worker_id 0 and lists with no worker")]
     public async Task Operator_cancel_stores_worker_zero_and_lists_with_no_worker()

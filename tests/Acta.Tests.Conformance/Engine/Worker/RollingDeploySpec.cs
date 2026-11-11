@@ -77,7 +77,8 @@ public sealed class RollingNextBuildManifest : IJobManifest
     Area = "Runtime",
     Contract = "A worker hands back a claim it has no handler for and stops claiming that definition, and a deploy that omits a definition leaves it Active."
 )]
-public sealed class RollingDeploySpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsManifest>
+[Deploys("add-numbers", "failures-audit-probe")]
+public sealed class RollingDeploySpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<RollingDeploySpec>>
 {
     private const string SharedJob = RollingNextBuildManifest.SharedJob;
 
@@ -153,7 +154,7 @@ public sealed class RollingDeploySpec : ActaRuntimeTestBase<ConformanceFixture, 
         var strandedNew = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, NewJob, JobPayload.None), ct);
         var rolledBackOld = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, OldOnlyJob, JobPayload.None), ct);
 
-        await using var rollback = BuildProvider<TestJobsManifest>("old-build-rollback");
+        await using var rollback = BuildProvider<JobsOf<RollingDeploySpec>>("old-build-rollback");
         var rollbackRuntime = rollback.GetServices<WorkerRuntime>().Single();
         await CatalogTestOps.DeployAndStartAsync(rollback, rollbackRuntime, ct);
 

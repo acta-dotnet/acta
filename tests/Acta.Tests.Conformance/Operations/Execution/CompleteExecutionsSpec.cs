@@ -16,7 +16,8 @@ namespace Acta.Tests.Conformance.Operations.Execution;
     Area = "Execution",
     Contract = "A completion batch writes what one completion per job writes, sets a child's latch, hands a lane on, and touches no row it does not complete."
 )]
-public sealed class CompleteExecutionsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("add-numbers", "failures-audit-probe", "lane-step")]
+public sealed class CompleteExecutionsSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<CompleteExecutionsSpec>>
 {
     private const int LeaseTtl = 30;
 

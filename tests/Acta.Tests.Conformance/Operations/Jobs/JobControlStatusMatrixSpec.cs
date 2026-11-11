@@ -19,7 +19,8 @@ namespace Acta.Tests.Conformance.Operations.Jobs;
     Area = "Control",
     Contract = "A control verb applies from each status the operator guide's table marks applied and is rejected from every other, for an ordinary and an Idle permanent job."
 )]
-public sealed class JobControlStatusMatrixSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsManifest>
+[Deploys("lane-step", "recurring-ping")]
+public sealed class JobControlStatusMatrixSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<JobControlStatusMatrixSpec>>
 {
     // The table's columns for an ordinary job, in its order: R B S P X, then the three finished statuses.
     private static readonly JobStatusCode[] Statuses =

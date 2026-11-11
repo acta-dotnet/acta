@@ -17,7 +17,8 @@ namespace Acta.Tests.Conformance.Operations.Ledger;
     Area = "Reads",
     Contract = "GetOverview returns non-negative health counters for the requested namespace and a globally-scoped result that is a superset of any namespace-scoped result."
 )]
-public sealed class GetOverviewSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("add-numbers", "job-wait-signal", "job-wait-signal-timeout")]
+public sealed class GetOverviewSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<GetOverviewSpec>>
 {
     [Fact(
         DisplayName = "Namespace-scoped counters are non-negative and reflect the enqueued job, and the global result is a superset of the namespace count"

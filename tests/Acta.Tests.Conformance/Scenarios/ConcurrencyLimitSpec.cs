@@ -22,7 +22,8 @@ namespace Acta.Tests.Conformance.Scenarios;
     Area = "Concurrency",
     Contract = "A concurrency key admits at most its definition's limit at once, one lock slot each, taken lowest free first, a lost race retried up to the limit."
 )]
-public sealed class ConcurrencyLimitSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("concurrency-limit-probe", "concurrency-slot-gate")]
+public sealed class ConcurrencyLimitSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<ConcurrencyLimitSpec>>
 {
     private static readonly TimeSpan HeldTtl = TimeSpan.FromMinutes(5);
 

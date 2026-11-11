@@ -21,7 +21,8 @@ namespace Acta.Tests.Conformance.Scenarios;
     Area = "Execution",
     Contract = "A registered job enqueued through IJobs is claimed, executed and lands Succeeded with the canonical claim/start/finish timeline and a deserializable result."
 )]
-public sealed class GoldenPathSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("add-numbers")]
+public sealed class GoldenPathSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<GoldenPathSpec>>
 {
     [Fact(
         DisplayName = "Job completes Succeeded with a Started then Finished(Succeeded, Executing to Succeeded) timeline and a result that deserializes to what the handler returned"

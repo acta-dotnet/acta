@@ -13,6 +13,14 @@ internal static class DefinitionTestOps
     /// <summary>The passes a registration here gets before its error stands.</summary>
     private const int RegistrationPasses = 5;
 
+    /// <summary>Registers a manifest's jobs in <paramref name="namespaceId"/>, as the overload below registers a list.</summary>
+    public static Task<IReadOnlyDictionary<string, int>> RegisterAsync<TManifest>(
+        IServiceProvider services,
+        int namespaceId,
+        CancellationToken ct
+    )
+        where TManifest : IJobManifest => RegisterAsync(services, namespaceId, TManifest.Descriptors.Descriptors, ct);
+
     /// <summary>
     /// Registers <paramref name="descriptors"/> through the handler a deploy runs, in passes: a registration that waited
     /// out its command timeout behind the other specs' registrations, or lost a race for the same new rows, runs again,

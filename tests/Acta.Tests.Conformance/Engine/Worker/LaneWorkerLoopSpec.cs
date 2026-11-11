@@ -17,7 +17,8 @@ namespace Acta.Tests.Conformance.Engine.Worker;
     Area = "Lanes",
     Contract = "With several executors each lane runs one member at a time in enqueue order while different lanes run in parallel."
 )]
-public sealed class LaneWorkerLoopSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("lane-step")]
+public sealed class LaneWorkerLoopSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<LaneWorkerLoopSpec>>
 {
     private const int PerLane = 6;
 

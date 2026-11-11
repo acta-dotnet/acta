@@ -18,7 +18,8 @@ namespace Acta.Tests.Conformance.Engine.Telemetry;
     Area = "Telemetry",
     Contract = "A job that runs to success adds one acta.executions measurement tagged with its namespace, its job name, and outcome succeeded."
 )]
-public sealed class ExecutionMetricsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsManifest>
+[Deploys("add-numbers")]
+public sealed class ExecutionMetricsSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<ExecutionMetricsSpec>>
 {
     [Fact(DisplayName = "A succeeded run adds one acta.executions count tagged namespace, job_name, and outcome succeeded")]
     public async Task Succeeded_run_is_counted_once()

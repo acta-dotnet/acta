@@ -19,7 +19,9 @@ namespace Acta.Tests.Conformance.SqlServer.Features.Schedules;
 /// locks: one that locks pages waits on the page the row is in, and the engine can lock pages once a table is large,
 /// so those facts tell only then.
 /// </summary>
-public sealed class SqlServerScheduleReadLockTests : ActaRuntimeTestBase<SqlServerConformanceFixture, TestJobsManifest>
+[Deploys("add-numbers", "recurring-ping")]
+public sealed class SqlServerScheduleReadLockTests
+    : ActaRuntimeTestBase<SqlServerConformanceFixture, JobsOf<SqlServerScheduleReadLockTests>>
 {
     [Fact(DisplayName = "A deploy's schedule-state read waits on no other namespace's uncommitted schedule")]
     public async Task Schedule_state_read_seeks_its_own_namespace()

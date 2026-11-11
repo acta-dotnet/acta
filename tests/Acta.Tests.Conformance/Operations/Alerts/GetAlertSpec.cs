@@ -13,7 +13,8 @@ namespace Acta.Tests.Conformance.Operations.Alerts;
     Area = "Reads",
     Contract = "Alerts.GetAsync returns the alert row its ref names, as it stands, with the namespace name and job ref, and null for a ref no alert carries."
 )]
-public sealed class GetAlertSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("add-numbers")]
+public sealed class GetAlertSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<GetAlertSpec>>
 {
     [Fact(DisplayName = "GetAsync answers the stored row under its ref with the namespace name and the job's public ref")]
     public async Task Get_answers_the_stored_row()

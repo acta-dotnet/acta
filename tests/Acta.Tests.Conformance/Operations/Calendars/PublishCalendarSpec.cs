@@ -434,7 +434,14 @@ public sealed class PublishCalendarSpec : ActaRuntimeTestBase<ConformanceFixture
         var slotId = await ScheduleTestOps.SlotIdAsync(Db, TestNamespace, PublishCalendarManifest.OfficeJobName, ct);
         await PauseAsync(PublishCalendarManifest.OfficeJobName, ct);
         // Two more schedules bind the family, and a later registration drops one of them, which orphans it.
-        var defId = await CalendarTestOps.BindAvailabilityAsync(Services, nsId, "bound-job", Hours.CalendarName, ["kept", "dropped"], ct);
+        var defId = await CalendarTestOps.BindAvailabilityAsync(
+            Services,
+            nsId,
+            Unique("bound-job"),
+            Hours.CalendarName,
+            ["kept", "dropped"],
+            ct
+        );
         await CalendarTestOps.RegisterAsync(Services, nsId, defId, Hours.CalendarName, ["kept"], ct);
         var orphaned = Assert.Single(
             await Db.From<ScheduleEntity>().Where(s => s.DefinitionId == defId && s.ScheduleName == "dropped").ToListAsync(ct)
@@ -478,7 +485,7 @@ public sealed class PublishCalendarSpec : ActaRuntimeTestBase<ConformanceFixture
         await CalendarTestOps.BindAvailabilityAsync(
             Services,
             nsId,
-            "crowd-job",
+            Unique("crowd-job"),
             Hours.CalendarName,
             [.. Enumerable.Range(0, bound).Select(i => $"s{i}")],
             ct

@@ -17,7 +17,8 @@ namespace Acta.Tests.Conformance.Scenarios;
     Area = "Enqueue",
     Contract = "Every engine pass and dashboard read returns while an application's transaction holds an uncommitted laned enqueue and child."
 )]
-public sealed class OpenCallerTransactionSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsManifest>
+[Deploys("add-numbers", "echo", "lane-step")]
+public sealed class OpenCallerTransactionSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<OpenCallerTransactionSpec>>
 {
     protected override bool OwnSchema => true;
 

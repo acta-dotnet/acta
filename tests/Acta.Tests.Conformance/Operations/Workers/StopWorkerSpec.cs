@@ -16,7 +16,8 @@ namespace Acta.Tests.Conformance.Operations.Workers;
     Area = "Workers",
     Contract = "Stopping an active worker flips it to Stopped and emits one worker.stopped event, and a second stop on the terminal worker is a no-op."
 )]
-public sealed class StopWorkerSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("add-numbers")]
+public sealed class StopWorkerSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<StopWorkerSpec>>
 {
     [Fact(DisplayName = "An active worker flips to Stopped with exactly one worker.stopped event, whose code is the whole reason")]
     public async Task Stops_an_active_worker_and_emits_the_event()

@@ -17,7 +17,8 @@ namespace Acta.Tests.Conformance.Engine.Worker;
     Area = "Runtime",
     Contract = "A row leased by this worker that no attempt holds is not renewed by the heartbeat, and recovery returns it to Ready once its lease lapses."
 )]
-public sealed class OrphanedClaimChaosSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("chaos-counting")]
+public sealed class OrphanedClaimChaosSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<OrphanedClaimChaosSpec>>
 {
     private StoreFaultPlan _faults = null!;
 

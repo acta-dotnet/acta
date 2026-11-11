@@ -19,7 +19,8 @@ namespace Acta.Tests.Conformance.Engine.Alerting;
     Area = "Alerts",
     Contract = "A permanent slot's failed attempt records why it failed, re-armed or returned to Idle, so the projector can alert on a job that would otherwise fail unwatched."
 )]
-public sealed class RecurringFailureAlertSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("recurring-ping")]
+public sealed class RecurringFailureAlertSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<RecurringFailureAlertSpec>>
 {
     // The manifest's recurring slot: one stable job id that survives every failed fire, which is the
     // whole reason this failure shape exists as something separate from a one-off's retry.

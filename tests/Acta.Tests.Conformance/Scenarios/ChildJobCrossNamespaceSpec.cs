@@ -16,6 +16,7 @@ namespace Acta.Tests.Conformance.Scenarios;
     Area = "ChildJobs",
     Contract = "StartChildAsync targets any namespace and the child's terminal landing releases the waiting parent across the namespace boundary."
 )]
+[Deploys("job-child-echo", "job-parent-cross-namespace")]
 public sealed class ChildJobCrossNamespaceSpec : ActaTestBase<ConformanceFixture>
 {
     private WorkerRuntime _parentRuntime = null!;
@@ -35,8 +36,12 @@ public sealed class ChildJobCrossNamespaceSpec : ActaTestBase<ConformanceFixture
         services.UseActa(j =>
         {
             Fixture.ApplyProvider(j, Schema.SchemaName);
-            j.Run<TestJobs.TestJobsManifest>(testNamespace, ownerTeam: "test", description: GetType().FullName);
-            j.Run<TestJobs.TestJobsManifest>(DeriveChildNamespace(testNamespace), ownerTeam: "test", description: GetType().FullName);
+            j.Run<JobsOf<ChildJobCrossNamespaceSpec>>(testNamespace, ownerTeam: "test", description: GetType().FullName);
+            j.Run<JobsOf<ChildJobCrossNamespaceSpec>>(
+                DeriveChildNamespace(testNamespace),
+                ownerTeam: "test",
+                description: GetType().FullName
+            );
         });
         services.Configure<JobsOptions>(o => o.RunSystemJobs = false);
     }

@@ -180,6 +180,23 @@ A test passes or fails on what the code did, never on how fast the machine ran i
 
 To check a change against a starved runner, pin the full suite to two cores and run it several times: `taskset -c 0,1 dotnet test Acta.slnx -c Release --settings tests/Acta.runsettings` on Linux, or `start "" /affinity 3 /wait /b dotnet test Acta.slnx -c Release --settings tests\Acta.runsettings` from `cmd` on Windows.
 
+### Tests that run in parallel
+
+The conformance suites run their classes at once against one schema that no test cleans, so a test shares every table with the rest of the run and with the rows earlier runs left behind. A test owns what it created and reaches it only by an identifier nothing else can hold.
+
+- `ActaTestBase` gives each test its own namespace, `TestNamespace`, and a token, `TestId`. Whatever a namespace scopes (jobs, definitions, schedules, lanes, rate meters, its calendars) is isolated by working in `TestNamespace`.
+- A name or key the test invents is `Unique("name")`, which appends `TestId`: a deduplication, correlation, concurrency or lock key, a tenant, a lane, a calendar family, a definition registered at run time, a second namespace. One token then finds every row a test left, which a bare literal or a fresh Guid does not give.
+- `Unique` is required where no namespace scopes the name: `locks.lock_key`, tenants, calendars in the shared `sys` namespace, an outbox table.
+- A numeric id is one the database returned: the enqueue's answer, a seeded row, a lookup by name. A literal `1` or `42` is some other test's row.
+- An id that must not exist is the id of a row the test created and then removed (enqueue, run, purge), since the database never gives it out again. A read may also use `long.MaxValue`, which no identity reaches. A write is never keyed by an invented id.
+- A literal identifier is right in two places: a job, schedule, signal or lock name that the compiled test manifest or a handler declares, used inside the test's namespace, and a unit test on a scripted or fake session, which has no database.
+- An assertion reads the test's own rows, filtered by its namespace id, a job id, or a `Unique` key. A count or a list over a whole table also holds the neighbours' rows.
+- A test changes only rows it created: a delete or an update is keyed by the test's own ids, never by a predicate another test's rows can match.
+- State outside the rows, such as a static gate or counter in a test job, is keyed by `TestNamespace` or the job id, since two tests run the same handler at once.
+- A fact that needs a table to itself (a row lock held until another session waits on it, a race with deadlock retry off) overrides `OwnSchema` and runs on a schema of its own.
+- A runtime spec deploys only the test jobs it names: `[Deploys("add-numbers")]` on the class, and `JobsOf<TSpec>` as its manifest. Every test deploys its catalog into its own namespace, so the whole test manifest would be written once per fact. The list holds every job a fact enqueues, reads, or starts as a child, the scheduled job a fact needs a schedule from, and `purge-now` where a fact expires a job by hand and sweeps it. `SpecCatalogTests` refuses a spec that takes the whole manifest.
+- A write in the shared `sys` namespace, such as a shared calendar's draft, publication or archive, takes the schedule lock every deploy in the schema shares, so it holds up every test that is starting. Keep such facts few, as `CalendarSharedScopeSpec` does, and hold every other calendar rule on a calendar of the test's own namespace.
+
 ## Dashboard development
 
 The dashboard is a Svelte app in `src/Acta.Dashboard/DashboardApp`:

@@ -15,7 +15,8 @@ namespace Acta.Tests.Conformance.Scenarios;
     Area = "Lanes",
     Contract = "A retention sweep deletes a lane that no jobs_state row references, keeps a lane with any jobs_state row, and never strands an enqueue racing the delete."
 )]
-public sealed class LaneRetentionSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("lane-step")]
+public sealed class LaneRetentionSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<LaneRetentionSpec>>
 {
     private const int NoEventPurgeDays = 100_000;
     private const int NoAlertPurgeDays = 100_000;

@@ -18,7 +18,8 @@ namespace Acta.Tests.Conformance.Operations.Execution;
     Area = "Execution",
     Contract = "A live parent's Pending latch on its own child is reported once that child is terminal or gone, and never otherwise."
 )]
-public sealed class ListStaleJobChildLatchesSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("add-numbers", "job-child-echo", "job-parent-one")]
+public sealed class ListStaleJobChildLatchesSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<ListStaleJobChildLatchesSpec>>
 {
     private int NamespaceId => Runtime.RegisteredNamespaceIds[TestNamespace];
 

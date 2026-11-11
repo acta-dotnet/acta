@@ -16,7 +16,8 @@ namespace Acta.Tests.Conformance.Operations.Alerts;
     Area = "Reads",
     Contract = "ListAlerts filters partition the alert rows to exactly the matching ids and exclude all non-matching ids for each filter dimension."
 )]
-public sealed class ListAlertsFilterMatrixSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("add-numbers")]
+public sealed class ListAlertsFilterMatrixSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<ListAlertsFilterMatrixSpec>>
 {
     private Task RaiseAsync(
         IDbSession db,

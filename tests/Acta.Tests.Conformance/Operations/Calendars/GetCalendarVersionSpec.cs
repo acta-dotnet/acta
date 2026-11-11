@@ -35,19 +35,4 @@ public sealed class GetCalendarVersionSpec : ActaStorageTestBase<ConformanceFixt
         Assert.Equal((await Calendars.GetAsync(calendar, 1, ct))!.Definition, Encoding.UTF8.GetString(archived.Definition.Span));
         Assert.Null(missing);
     }
-
-    [Fact(DisplayName = "A version in the shared sys catalog resolves from any namespace")]
-    public async Task A_shared_version_resolves_from_any_namespace()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        var shared = new CalendarLookup("sys", Unique("holidays"));
-        await Calendars.SaveDraftAsync(shared, CalendarRoleCode.Availability, CalendarTestOps.AvailabilityDefinition, 0, ct: ct);
-
-        var resolved = await Services
-            .GetRequiredService<CalendarsOperations>()
-            .GetCalendarVersionAsync(TestNamespaceId, shared.CalendarName, 1, ct);
-
-        Assert.NotNull(resolved);
-        Assert.Equal(CalendarRoleCode.Availability, resolved.Role);
-    }
 }

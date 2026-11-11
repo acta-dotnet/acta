@@ -19,7 +19,8 @@ namespace Acta.Tests.Conformance.Engine.Worker;
     Area = "Execution",
     Contract = "A write from a superseded attempt, on any worker, changes nothing, while the current attempt's writes and completion land and the stale one stops uncharged."
 )]
-public sealed class ExecutionFenceSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("add-numbers", "charge", "execution-fence-probe")]
+public sealed class ExecutionFenceSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<ExecutionFenceSpec>>
 {
     private const int LeaseTtlSeconds = 300;
     private const string Receipt = "receipt";

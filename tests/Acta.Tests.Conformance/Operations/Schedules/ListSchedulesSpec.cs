@@ -15,7 +15,8 @@ namespace Acta.Tests.Conformance.Operations.Schedules;
     Area = "Reads",
     Contract = "ListSchedules pages live schedules next-run first by cursor without duplicates and reads the page plus an opt-in filter-wide count in one command."
 )]
-public sealed class ListSchedulesSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("add-numbers")]
+public sealed class ListSchedulesSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<ListSchedulesSpec>>
 {
     // Live slot cursors are this spec's subject; the harness default would park them.
     protected override bool ParkScheduleSlots => false;

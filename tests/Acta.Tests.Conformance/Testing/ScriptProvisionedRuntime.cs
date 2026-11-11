@@ -15,7 +15,7 @@ public static class ScriptProvisionedRuntime
     private const string Namespace = "provision-script";
 
     /// <summary>Enqueues one add-numbers job, drives it to its result, and returns its reference.</summary>
-    public static async Task<JobRef> RunJobAsync(
+    public static async Task<JobRef> RunJobAsync<TSpec>(
         Action<IActaBuilder, string> applyProvider,
         string schema,
         int left,
@@ -23,7 +23,7 @@ public static class ScriptProvisionedRuntime
         CancellationToken ct
     )
     {
-        await using var host = await StartAsync(applyProvider, schema, ct);
+        await using var host = await StartAsync<TSpec>(applyProvider, schema, ct);
         var enqueued = await host.Jobs.EnqueueAsync(new AddNumbers(left, right), ct: ct);
         Assert.Equal(ActaRunStatus.Completed, await host.RunOnceAsync(enqueued, ct));
         Assert.Equal(
@@ -34,7 +34,7 @@ public static class ScriptProvisionedRuntime
     }
 
     /// <summary>Asserts that a job run earlier still reads back as succeeded with its result.</summary>
-    public static async Task AssertSucceededAsync(
+    public static async Task AssertSucceededAsync<TSpec>(
         Action<IActaBuilder, string> applyProvider,
         string schema,
         JobRef job,
@@ -42,17 +42,17 @@ public static class ScriptProvisionedRuntime
         CancellationToken ct
     )
     {
-        await using var host = await StartAsync(applyProvider, schema, ct);
+        await using var host = await StartAsync<TSpec>(applyProvider, schema, ct);
         Assert.Equal(JobStatusCode.Succeeded, (await host.Jobs.GetStatusAsync(JobLookup.ByRef(job), ct))?.Status);
         Assert.Equal(new AddNumbersResult(sum), await host.Jobs.GetResultAsync<AddNumbersResult>(JobLookup.ByRef(job), ct));
     }
 
-    private static Task<IActaTestHost> StartAsync(Action<IActaBuilder, string> applyProvider, string schema, CancellationToken ct) =>
+    private static Task<IActaTestHost> StartAsync<TSpec>(Action<IActaBuilder, string> applyProvider, string schema, CancellationToken ct) =>
         ActaTestHost.StartAsync(
             (j, s) =>
             {
                 applyProvider(j, s);
-                j.Run<TestJobsManifest>(Namespace, ownerTeam: "test", description: nameof(ScriptProvisionedRuntime));
+                j.Run<JobsOf<TSpec>>(Namespace, ownerTeam: "test", description: nameof(ScriptProvisionedRuntime));
             },
             new ActaTestHostOptions
             {

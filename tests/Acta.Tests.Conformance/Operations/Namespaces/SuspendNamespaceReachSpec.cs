@@ -16,7 +16,8 @@ namespace Acta.Tests.Conformance.Operations.Namespaces;
     Area = "Admin",
     Contract = "A suspended namespace rejects a running job's child start and holds every schedule, the system jobs' too, while the jobs it already holds still run."
 )]
-public sealed class SuspendNamespaceReachSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("add-numbers", "failures-audit-probe", "job-child-echo", "job-parent-one")]
+public sealed class SuspendNamespaceReachSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<SuspendNamespaceReachSpec>>
 {
     // The system jobs' schedules are a subject here: the harness default leaves them out and parks every cursor.
     protected override bool RunSystemJobs => true;

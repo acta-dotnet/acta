@@ -15,7 +15,8 @@ namespace Acta.Tests.Conformance.Schema;
     Area = "Schema",
     Contract = "Each operator view returns exactly its pinned columns, in order, on every provider."
 )]
-public sealed class OperatorViewSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsManifest>
+[Deploys("add-numbers")]
+public sealed class OperatorViewSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<OperatorViewSpec>>
 {
     // One entry per view: the columns it returns, in order, separated by spaces.
     private static readonly Dictionary<string, string> Columns = new(StringComparer.Ordinal)

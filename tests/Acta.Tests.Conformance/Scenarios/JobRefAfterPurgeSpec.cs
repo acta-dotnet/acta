@@ -18,7 +18,8 @@ namespace Acta.Tests.Conformance.Scenarios;
     Area = "Retention",
     Contract = "After the job row is purged, its surviving events read back by job id with no public ref, and the ref resolves to null."
 )]
-public sealed class JobRefAfterPurgeSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("purge-now")]
+public sealed class JobRefAfterPurgeSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<JobRefAfterPurgeSpec>>
 {
     // A wide retention window makes the events/alerts/workers sections no-ops, so only the
     // zero-retention job row is deleted, leaving its events behind.

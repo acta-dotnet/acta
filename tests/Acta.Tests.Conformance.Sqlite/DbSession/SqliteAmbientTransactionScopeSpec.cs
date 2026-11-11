@@ -14,7 +14,9 @@ namespace Acta.Tests.Conformance.Sqlite.DbSession;
 /// the documented rejection naming the correct rewrites, and the same enqueue inside
 /// <c>TransactionScope(Suppress)</c> succeeds with owned semantics.
 /// </summary>
-public sealed class SqliteAmbientTransactionScopeSpec : ActaRuntimeTestBase<SqliteConformanceFixture, TestJobsManifest>
+[Deploys("add-numbers")]
+public sealed class SqliteAmbientTransactionScopeSpec
+    : ActaRuntimeTestBase<SqliteConformanceFixture, JobsOf<SqliteAmbientTransactionScopeSpec>>
 {
     private async Task<EnqueueJobResponse> EnqueueAsync(CancellationToken ct)
     {

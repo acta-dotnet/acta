@@ -15,7 +15,8 @@ namespace Acta.Tests.Conformance.Sqlite.Features.Jobs;
 /// StateChange preparation of an Acta-owned connection is not in play. Provider-specific, so it lives in
 /// the SQLite head rather than the shared cross-provider contract.
 /// </summary>
-public sealed class SqliteCallerConnectionPrepTests : ActaRuntimeTestBase<SqliteConformanceFixture, TestJobsManifest>
+[Deploys("add-numbers")]
+public sealed class SqliteCallerConnectionPrepTests : ActaRuntimeTestBase<SqliteConformanceFixture, JobsOf<SqliteCallerConnectionPrepTests>>
 {
     [Fact(DisplayName = "A caller connection with foreign_keys disabled is rejected before the enqueue runs")]
     public async Task Caller_connection_without_foreign_keys_is_rejected()

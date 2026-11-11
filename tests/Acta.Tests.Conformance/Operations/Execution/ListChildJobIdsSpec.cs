@@ -13,7 +13,8 @@ namespace Acta.Tests.Conformance.Operations.Execution;
     Area = "Execution",
     Contract = "The child list of a job holds every job enqueued under it, terminal or not, and nothing from further down the lineage."
 )]
-public sealed class ListChildJobIdsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("job-child-echo")]
+public sealed class ListChildJobIdsSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<ListChildJobIdsSpec>>
 {
     private ExecutionOperations Execution => Services.GetRequiredService<ExecutionOperations>();
 

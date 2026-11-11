@@ -24,7 +24,28 @@ namespace Acta.Tests.Conformance.Scenarios;
     Area = "Namespaces",
     Contract = "With every row of another namespace held by an open transaction, each per-namespace operation completes without waiting on it."
 )]
-public sealed class NamespaceIsolationSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsManifest>
+// purge-now keeps its jobs no time at all, so a sweep walks the namespace from the cutoff and reaches a job that a
+// fact expires by hand.
+[Deploys(
+    "add-numbers",
+    "concurrency-limit-probe",
+    "echo",
+    "flaky-recover",
+    "job-child-echo",
+    "job-note",
+    "job-parent-one",
+    "job-sleep-basic",
+    "job-step-basic",
+    "job-wait-signal",
+    "lane-step",
+    "lock-holder",
+    "on-terminal-probe",
+    "purge-now",
+    "rate-limited-probe",
+    "recurring-ping",
+    "tenant-required-probe"
+)]
+public sealed class NamespaceIsolationSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<NamespaceIsolationSpec>>
 {
     // An operation that seeks finishes in milliseconds; one that waits on the held rows never does.
     private static readonly TimeSpan Limit = TimeSpan.FromSeconds(10);
@@ -541,7 +562,7 @@ public sealed class NamespaceIsolationSpec : ActaRuntimeTestBase<ConformanceFixt
         services.UseActa(j =>
         {
             Fixture.ApplyProvider(j, Schema.SchemaName);
-            j.Run<TestJobsManifest>(jobNamespace, ownerTeam: "test", description: GetType().FullName + ":other");
+            j.Run<JobsOf<NamespaceIsolationSpec>>(jobNamespace, ownerTeam: "test", description: GetType().FullName + ":other");
         });
         services.Configure<JobsOptions>(o => o.RunSystemJobs = false);
         var provider = services.BuildServiceProvider(validateScopes: true);

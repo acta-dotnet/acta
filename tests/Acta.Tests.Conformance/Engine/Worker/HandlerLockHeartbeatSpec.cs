@@ -20,7 +20,8 @@ namespace Acta.Tests.Conformance.Engine.Worker;
     Area = "Locks",
     Contract = "The heartbeat renews every lock an attempt holds with its job lease, and a lost held lock aborts the attempt into a retryable failure within one heartbeat."
 )]
-public sealed class HandlerLockHeartbeatSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("lock-holder")]
+public sealed class HandlerLockHeartbeatSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<HandlerLockHeartbeatSpec>>
 {
     // A hang guard, not a measurement: the waits below are for a probe gate and the run task, both
     // driven by acts that already happened. See SpecWaits.

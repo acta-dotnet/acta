@@ -13,7 +13,8 @@ namespace Acta.Tests.Conformance.Operations.Jobs;
     Area = "Reads",
     Contract = "ListJobSteps pages a job's steps newest first with status and attempt, each step once across pages, and an empty page for a job without a row."
 )]
-public sealed class ListJobStepsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("add-numbers", "charge")]
+public sealed class ListJobStepsSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<ListJobStepsSpec>>
 {
     [Fact(DisplayName = "ListJobSteps pages three steps newest first to a null cursor")]
     public async Task Steps_page_newest_first_to_the_end()

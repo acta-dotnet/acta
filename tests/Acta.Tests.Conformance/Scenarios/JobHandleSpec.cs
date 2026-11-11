@@ -16,7 +16,8 @@ namespace Acta.Tests.Conformance.Scenarios;
     Area = "Enqueue",
     Contract = "A typed enqueue's handle waits for the terminal outcome and typed result, and a timed-out or cancelled wait leaves the job running."
 )]
-public sealed class JobHandleSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("add-numbers", "format-invoice")]
+public sealed class JobHandleSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<JobHandleSpec>>
 {
     protected override bool RunAsWorker => true;
 

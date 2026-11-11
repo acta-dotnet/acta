@@ -11,7 +11,8 @@ namespace Acta.Tests.Conformance.Operations.Namespaces;
     Area = "Admin",
     Contract = "Suspend flips a namespace to Suspended once with a version bump and namespace.suspended, reports NotFound for unknown names, and rejects sys."
 )]
-public sealed class SuspendNamespaceSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("add-numbers")]
+public sealed class SuspendNamespaceSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<SuspendNamespaceSpec>>
 {
     protected override bool RunAsWorker => true;
 

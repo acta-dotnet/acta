@@ -19,7 +19,8 @@ namespace Acta.Tests.Conformance.Engine.Scheduling;
     Area = "Scheduling",
     Contract = "A pass admits a due firing onto its Idle slot, reports the earliest next evaluation, and later occurrences wait on the outstanding firing until settlement."
 )]
-public sealed class ScheduleAdmitterSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("recurring-ping")]
+public sealed class ScheduleAdmitterSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<ScheduleAdmitterSpec>>
 {
     // Live schedule cursors are this spec's subject; the harness default would park them.
     protected override bool ParkScheduleSlots => false;

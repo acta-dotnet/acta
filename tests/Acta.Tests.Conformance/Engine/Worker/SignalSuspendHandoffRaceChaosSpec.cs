@@ -22,7 +22,8 @@ namespace Acta.Tests.Conformance.Engine.Worker;
     Area = "Signals",
     Contract = "complete_executions re-reads the awaited checkpoint under lock, so a raise that beat the suspend write lands the job Ready and claimable, payload intact."
 )]
-public sealed class SignalSuspendHandoffRaceChaosSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("job-wait-signal-typed")]
+public sealed class SignalSuspendHandoffRaceChaosSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<SignalSuspendHandoffRaceChaosSpec>>
 {
     private const string JobName = "job-wait-signal-typed";
     private const string SignalName = "review";

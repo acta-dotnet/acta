@@ -23,7 +23,8 @@ namespace Acta.Tests.Conformance.Scenarios;
     Area = "Concurrency",
     Contract = "A rate name admits its burst at once and then one per interval, booking each early job a turn it waits for or returns to."
 )]
-public sealed class RateLimitSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("charge", "rate-and-slot-probe", "rate-limited-probe", "rate-shared-left", "rate-shared-right", "stripe")]
+public sealed class RateLimitSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<RateLimitSpec>>
 {
     private const int Burst = 10;
     private const int IntervalMilliseconds = 100;

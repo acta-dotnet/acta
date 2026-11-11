@@ -17,7 +17,8 @@ namespace Acta.Tests.Conformance.Scenarios;
     Area = "Lanes",
     Contract = "A recovery pass promotes the lowest Blocked member of a lane with no live head, records why, and wakes the namespace, leaving lanes with a live head alone."
 )]
-public sealed class LaneRepairSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("lane-step")]
+public sealed class LaneRepairSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<LaneRepairSpec>>
 {
     private readonly RecordingWakeup _wakeups = new();
 

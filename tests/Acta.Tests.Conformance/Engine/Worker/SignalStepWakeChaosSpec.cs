@@ -13,7 +13,8 @@ namespace Acta.Tests.Conformance.Engine.Worker;
     Area = "Chaos",
     Contract = "Signals raised before or after waiter creation, a failed step, and lost wake notifications each produce one legal final state."
 )]
-public sealed class SignalStepWakeChaosSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("chaos-counting", "job-step-fail", "job-wait-signal")]
+public sealed class SignalStepWakeChaosSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<SignalStepWakeChaosSpec>>
 {
     private ControlledWakeup _wakeup = null!;
 

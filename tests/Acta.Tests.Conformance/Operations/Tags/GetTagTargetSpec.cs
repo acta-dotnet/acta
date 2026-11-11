@@ -17,7 +17,8 @@ namespace Acta.Tests.Conformance.Operations.Tags;
     Area = "Tags",
     Contract = "GetTagTarget resolves a ref or natural-key target to the row the tags table joins on, passes the rest through, and returns null when the entity is missing."
 )]
-public sealed class GetTagTargetSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsManifest>
+[Deploys("add-numbers")]
+public sealed class GetTagTargetSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<GetTagTargetSpec>>
 {
     [Fact(DisplayName = "Each existing target resolves to its entity kind and the id or name the tags table joins on")]
     public async Task Existing_targets_resolve_to_their_rows()

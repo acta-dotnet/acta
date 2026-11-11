@@ -17,7 +17,8 @@ namespace Acta.Tests.Conformance.Engine.AlertCapture;
     Area = "Alerts",
     Contract = "At Failures a lease reclaim writes the orphaned event alerts raise on, and a restarted one-shot's success is written only under an enabled alert profile."
 )]
-public sealed class AlertCaptureOverlaySpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("add-numbers", "failures-audit-probe")]
+public sealed class AlertCaptureOverlaySpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<AlertCaptureOverlaySpec>>
 {
     private int NamespaceId => Runtime.RegisteredNamespaceIds[TestNamespace];
 

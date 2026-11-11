@@ -19,7 +19,8 @@ namespace Acta.Tests.Conformance.Scenarios;
     Area = "Lanes",
     Contract = "A restart of a finished laned job reactivates the same row, Blocked while another member runs and Ready otherwise, and it runs next."
 )]
-public sealed class LaneRestartSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("lane-doomed", "lane-pauser", "lane-step")]
+public sealed class LaneRestartSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<LaneRestartSpec>>
 {
     private const int Rounds = 20;
 

@@ -20,7 +20,8 @@ namespace Acta.Tests.Conformance.Schema;
     Area = "Schema",
     Contract = "The hardened baseline schema enforces every new CHECK, admits one unresolved alert per deduplication key, seeds sys, and keeps jobs_state in step with jobs."
 )]
-public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsManifest>
+[Deploys("add-numbers", "recurring-ping")]
+public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<SchemaHardeningSpec>>
 {
     [Fact(DisplayName = "The seeded sys namespace (id 1, name sys) exists on a fresh install")]
     public async Task Sys_namespace_seed_row_exists()

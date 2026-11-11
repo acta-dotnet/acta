@@ -12,7 +12,8 @@ namespace Acta.Tests.Conformance.Operations.Definitions;
     Area = "Reads",
     Contract = "GetDefinitionInputTemplate returns a registered job's input type, format, and JSON skeleton from this host's manifest, and null for a job it did not register."
 )]
-public sealed class GetDefinitionInputTemplateSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsManifest>
+[Deploys("add-numbers", "job-wait-signal")]
+public sealed class GetDefinitionInputTemplateSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<GetDefinitionInputTemplateSpec>>
 {
     [Fact(DisplayName = "A Json job reports its input type, format, and a skeleton of its members")]
     public async Task Json_job_reports_its_template()

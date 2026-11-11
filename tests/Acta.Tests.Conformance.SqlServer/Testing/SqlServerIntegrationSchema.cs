@@ -68,7 +68,13 @@ public sealed class SqlServerIntegrationSchema : IIntegrationSchema
             Assert.Skip("SQL Server integration tests require ACTA_TEST_MSSQL.");
         }
 
-        var builder = new SqlConnectionStringBuilder(adminConn) { TrustServerCertificate = true, ConnectTimeout = 15 };
+        // The wait for a pooled connection is a guarded wait like any other: the suite starts every test at once on one
+        // pool, so the last in line waits its turn for seconds, and for longer on a loaded box.
+        var builder = new SqlConnectionStringBuilder(adminConn)
+        {
+            TrustServerCertificate = true,
+            ConnectTimeout = (int)SpecWaits.Gate.TotalSeconds,
+        };
         var connectionString = builder.ConnectionString;
 
         EnsureTestTarget(builder.InitialCatalog, IntegrationConfig.TestSchemaName);

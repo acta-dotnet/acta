@@ -17,6 +17,7 @@ namespace Acta.Tests.Conformance.Engine.Worker;
     Area = "Workers",
     Contract = "Replicas that deploy the same new namespace, definitions, and recurring slots at once all start and agree on one catalog."
 )]
+[Deploys("add-numbers", "purge-now")]
 public sealed class ReplicaStartupSpec : ActaTestBase<ConformanceFixture>
 {
     private const int Replicas = 4;
@@ -64,7 +65,7 @@ public sealed class ReplicaStartupSpec : ActaTestBase<ConformanceFixture>
         services.UseActa(j =>
         {
             Fixture.ApplyProvider(j, Schema.SchemaName);
-            j.Run<TestJobs.TestJobsManifest>(ns, ownerTeam: "test", description: $"replica-{index}");
+            j.Run<JobsOf<ReplicaStartupSpec>>(ns, ownerTeam: "test", description: $"replica-{index}");
         });
         services.Configure<JobsOptions>(o => o.RunSystemJobs = true);
         return services.BuildServiceProvider(validateScopes: true);

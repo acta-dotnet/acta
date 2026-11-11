@@ -17,7 +17,8 @@ namespace Acta.Tests.Conformance.Operations.Workers;
     Contract = "ListWorkers marks a live worker stale once its last heartbeat is older than LeaseTtlSeconds on the database clock, "
         + "and never a Dead one."
 )]
-public sealed class ListWorkersStaleSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("add-numbers")]
+public sealed class ListWorkersStaleSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<ListWorkersStaleSpec>>
 {
     [Fact(DisplayName = "A live worker silent past the lease window lists as stale, and a fresh or dead one does not")]
     public async Task Stale_is_judged_against_the_lease_window()

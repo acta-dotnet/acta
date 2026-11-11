@@ -10,7 +10,8 @@ namespace Acta.Tests.Conformance.Operations.Workers;
     Area = "Reads",
     Contract = "GetWorker returns the durable worker projection matching the supplied id and null when no row matches."
 )]
-public sealed class GetWorkerSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("add-numbers")]
+public sealed class GetWorkerSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<GetWorkerSpec>>
 {
     [Fact(DisplayName = "A known worker id returns its durable detail projection")]
     public async Task Returns_worker_for_known_id()

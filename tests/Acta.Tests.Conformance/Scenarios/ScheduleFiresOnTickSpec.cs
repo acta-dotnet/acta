@@ -18,7 +18,8 @@ namespace Acta.Tests.Conformance.Scenarios;
     Area = "Scheduling",
     Contract = "A permanent slot fires on one stable id: admission advances the cursor, the attempt runs the firing, and the slot returns to Idle with one result per firing."
 )]
-public sealed class ScheduleFiresOnTickSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("recurring-ping")]
+public sealed class ScheduleFiresOnTickSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<ScheduleFiresOnTickSpec>>
 {
     // Live schedule cursors are this spec's subject; the harness default would park them.
     protected override bool ParkScheduleSlots => false;

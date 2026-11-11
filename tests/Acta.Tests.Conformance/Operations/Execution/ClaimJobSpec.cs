@@ -13,7 +13,8 @@ namespace Acta.Tests.Conformance.Operations.Execution;
     Area = "Claim",
     Contract = "ClaimJob leases the named job only while it is due in the caller's namespace, and without a name leases at most one job by the scan."
 )]
-public sealed class ClaimJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("add-numbers")]
+public sealed class ClaimJobSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<ClaimJobSpec>>
 {
     private const int LeaseTtlSeconds = 30;
 

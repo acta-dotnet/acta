@@ -17,7 +17,8 @@ namespace Acta.Tests.Conformance.Engine.Worker;
     Area = "Execution",
     Contract = "A Strict deadline lands the job Cancelled with JobDeadlineExceeded at admission or when the next retry would overshoot, without consuming the retry budget."
 )]
-public sealed class DeadlineSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("deadline-advisory-probe", "deadline-retry-probe", "deadline-strict-probe", "deadline-strict-wait-probe")]
+public sealed class DeadlineSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<DeadlineSpec>>
 {
     [Fact(DisplayName = "Strict admission cancels without running the handler")]
     public async Task Strict_overdue_at_admission_cancels_without_running_handler()

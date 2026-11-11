@@ -18,7 +18,8 @@ namespace Acta.Tests.Conformance.Engine.Worker;
     Area = "Scheduling",
     Contract = "Schedule registration honors each schedule's declared environments, registering only those active in the deploy's environment and withholding the rest."
 )]
-public sealed class ScheduleEnvironmentGatingSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("env-gated-ping", "env-prod-only-ping")]
+public sealed class ScheduleEnvironmentGatingSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<ScheduleEnvironmentGatingSpec>>
 {
     // Live slot cursors are this spec's subject; the harness default would park them.
     protected override bool ParkScheduleSlots => false;

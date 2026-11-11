@@ -25,7 +25,8 @@ namespace Acta.Tests.Conformance.Operations.Execution;
     Area = "Recovery",
     Contract = "An expired-lease attempt whose awaited wait had already expired returns to Suspended uncharged, and still raises the job's automatic incident."
 )]
-public sealed class ReclaimStuckJobsWaitTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("job-try-wait-signal-timeout", "job-try-wait-signal-timeout-then-hold", "job-wait-signal-timeout")]
+public sealed class ReclaimStuckJobsWaitTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<ReclaimStuckJobsWaitTimeoutSpec>>
 {
     [Fact(DisplayName = "A crash after the wait expired re-arms the job Suspended on the same deadline with no attempt charged")]
     public async Task Crash_after_the_wait_expired_is_reclaimed_without_charging_the_job()

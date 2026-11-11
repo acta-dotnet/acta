@@ -19,7 +19,8 @@ namespace Acta.Tests.Conformance.Operations.Definitions;
     Area = "Catalog",
     Contract = "Retiring a definition cancels its parked jobs with reason definition-retired, refuses enqueue, and lets a running attempt finish but never re-arms its job."
 )]
-public sealed class RetireDefinitionSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsManifest>
+[Deploys("add-numbers", "chaos-counting", "chaos-holding", "job-child-echo", "job-parent-one", "job-wait-signal")]
+public sealed class RetireDefinitionSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<RetireDefinitionSpec>>
 {
     private const string Actor = "spec-operator";
 
@@ -194,7 +195,7 @@ public sealed class RetireDefinitionSpec : ActaRuntimeTestBase<ConformanceFixtur
         Assert.Equal(1, await ChaosSpecHelpers.ReclaimAsync(Services, ns, ct));
 
         // Started, not deployed: a deploy by a build that declares the definition would make it Active again.
-        await using var later = BuildProvider<TestJobs.TestJobsManifest>("after-retire");
+        await using var later = BuildProvider<JobsOf<RetireDefinitionSpec>>("after-retire");
         var runtime = later.GetServices<WorkerRuntime>().Single();
         await runtime.InitializeAsync(ct);
 

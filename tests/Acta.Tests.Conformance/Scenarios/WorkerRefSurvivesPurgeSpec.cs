@@ -17,7 +17,8 @@ namespace Acta.Tests.Conformance.Scenarios;
     Area = "Retention",
     Contract = "Retention keeps a terminal worker's row while its events last, so their joined worker ref resolves."
 )]
-public sealed class WorkerRefSurvivesPurgeSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("add-numbers")]
+public sealed class WorkerRefSurvivesPurgeSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<WorkerRefSurvivesPurgeSpec>>
 {
     [Fact(
         DisplayName = "Aged completion and lifecycle events still resolve their stopped worker's ref after a sweep with the default windows"

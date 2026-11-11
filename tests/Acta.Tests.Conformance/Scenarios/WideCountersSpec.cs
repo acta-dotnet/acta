@@ -17,7 +17,19 @@ namespace Acta.Tests.Conformance.Scenarios;
     Area = "Execution",
     Contract = "A job whose execution number and version are past 32 bits is claimed, run, controlled and reclaimed like any other, and its parent reads its outcome."
 )]
-public sealed class WideCountersSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsManifest>
+[Deploys(
+    "add-numbers",
+    "job-child-echo",
+    "job-note",
+    "job-parent-one",
+    "job-parent-try-wait-child",
+    "job-sleep-basic",
+    "job-step-basic",
+    "job-step-reset-inside",
+    "job-wait-signal",
+    "recurring-ping"
+)]
+public sealed class WideCountersSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<WideCountersSpec>>
 {
     private const long PlantedExecution = 3_000_000_000;
     private const long PlantedVersion = 5_000_000_000;
@@ -400,7 +412,7 @@ public sealed class WideCountersSpec : ActaRuntimeTestBase<ConformanceFixture, T
                 Assert.Equal(before.OwnerTeam, (await Operations.Namespaces.GetAsync(TestNamespace, ct))!.OwnerTeam);
                 break;
             default:
-                var calendar = new CalendarLookup(TestNamespace, "wide-counters");
+                var calendar = new CalendarLookup(TestNamespace, Unique("wide-counters"));
                 var saved = await Operations.Calendars.SaveDraftAsync(
                     calendar,
                     CalendarRoleCode.Availability,
@@ -425,7 +437,7 @@ public sealed class WideCountersSpec : ActaRuntimeTestBase<ConformanceFixture, T
     {
         var ct = TestContext.Current.CancellationToken;
         var calendars = Operations.Calendars;
-        var calendar = new CalendarLookup(TestNamespace, "wide-versions");
+        var calendar = new CalendarLookup(TestNamespace, Unique("wide-versions"));
         var first = await calendars.SaveDraftAsync(
             calendar,
             CalendarRoleCode.Availability,

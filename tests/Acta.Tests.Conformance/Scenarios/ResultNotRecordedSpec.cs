@@ -16,7 +16,15 @@ namespace Acta.Tests.Conformance.Scenarios;
     Area = "Steps",
     Contract = "A finished body whose result cannot be recorded fails its job for good instead of running again, and an at-most-once step stays unrun through a restart."
 )]
-public sealed class ResultNotRecordedSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys(
+    "job-step-null-result",
+    "job-step-null-result-at-most-once",
+    "job-step-null-result-compensated",
+    "job-step-oversize-result",
+    "job-step-unserializable-result",
+    "unserializable-result"
+)]
+public sealed class ResultNotRecordedSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<ResultNotRecordedSpec>>
 {
     protected override void ConfigureServices(IServiceCollection services, string testNamespace)
     {

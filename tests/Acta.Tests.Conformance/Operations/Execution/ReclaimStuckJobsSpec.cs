@@ -19,7 +19,8 @@ namespace Acta.Tests.Conformance.Operations.Execution;
     Area = "Recovery",
     Contract = "An expired-lease job returns to Ready charged one failure, or lands terminal Failed once MaxAttempts is reached."
 )]
-public sealed class ReclaimStuckJobsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("add-numbers", "recurring-ping")]
+public sealed class ReclaimStuckJobsSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<ReclaimStuckJobsSpec>>
 {
     [Fact(DisplayName = "Job goes terminal Failed once failure_count reaches MaxAttempts")]
     public async Task Reclaim_fails_the_job_once_max_attempts_is_reached()

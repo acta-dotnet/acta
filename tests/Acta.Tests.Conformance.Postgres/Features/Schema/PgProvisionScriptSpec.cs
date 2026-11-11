@@ -13,6 +13,7 @@ namespace Acta.Tests.Conformance.Postgres.Features.Schema;
 /// locked-down deployments consume it. Runs the committed file against a fresh schema name (using
 /// the header's own "replace the schema name throughout" instruction) and inspects the result.
 /// </summary>
+[Deploys("add-numbers")]
 public sealed partial class PgProvisionScriptSpec
 {
     [Fact(DisplayName = "The published pg provision script provisions a fresh schema verbatim")]
@@ -90,9 +91,9 @@ public sealed partial class PgProvisionScriptSpec
         try
         {
             await ExecuteAsync(conn, script, ct);
-            var job = await ScriptProvisionedRuntime.RunJobAsync(fixture.ApplyProvider, schema, 2, 3, ct);
+            var job = await ScriptProvisionedRuntime.RunJobAsync<PgProvisionScriptSpec>(fixture.ApplyProvider, schema, 2, 3, ct);
             await ExecuteAsync(conn, script, ct);
-            await ScriptProvisionedRuntime.AssertSucceededAsync(fixture.ApplyProvider, schema, job, 5, ct);
+            await ScriptProvisionedRuntime.AssertSucceededAsync<PgProvisionScriptSpec>(fixture.ApplyProvider, schema, job, 5, ct);
         }
         finally
         {

@@ -13,7 +13,8 @@ namespace Acta.Tests.Conformance.Operations.Execution;
     Area = "Execution",
     Contract = "A sleep arms one Pending timer and suspends on its stored instant until that passes, then consumes it once and continues on every later entry."
 )]
-public sealed class ArmOrConsumeJobSleepTimerSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("add-numbers")]
+public sealed class ArmOrConsumeJobSleepTimerSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<ArmOrConsumeJobSleepTimerSpec>>
 {
     private const string TimerName = "t.nap";
 

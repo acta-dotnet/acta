@@ -14,7 +14,8 @@ namespace Acta.Tests.Conformance.Operations.Jobs;
     Area = "Enqueue",
     Contract = "Maps a suspended namespace or tenant, unknown tenant or route, retired definition, and unavailable parent to typed reasons that keep the provider exception."
 )]
-public sealed class EnqueueJobRejectionTaxonomySpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("add-numbers")]
+public sealed class EnqueueJobRejectionTaxonomySpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<EnqueueJobRejectionTaxonomySpec>>
 {
     protected override bool RunAsWorker => true;
 
@@ -96,14 +97,15 @@ public sealed class EnqueueJobRejectionTaxonomySpec : ActaRuntimeTestBase<Confor
     public async Task Unavailable_parent_throws_parent_unavailable(string parent, bool batch)
     {
         var ct = TestContext.Current.CancellationToken;
-        var parentJobId = long.MaxValue;
-        if (parent == "finished")
+        var done = await Jobs.EnqueueAsync(Request(), ct);
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(done, ct));
+        if (parent == "missing")
         {
-            var done = await Jobs.EnqueueAsync(Request(), ct);
-            Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(done, ct));
-            parentJobId = done.JobId;
+            // The id of a row that is gone, which the database never gives out again.
+            Assert.Equal(ControlAction.Applied, (await Jobs.PurgeAsync(done, ct: ct)).Action);
         }
 
+        var parentJobId = done.JobId;
         var child = Request() with { ParentJobId = parentJobId };
         var ex = await Assert.ThrowsAsync<EnqueueRejectedException>(async () =>
         {

@@ -17,7 +17,8 @@ namespace Acta.Tests.Conformance.Operations.Jobs;
     Area = "Enqueue",
     Contract = "GetJobIdByDeduplicationKey resolves a root job's id from its namespace and deduplication key, and returns null when no row matches."
 )]
-public sealed class GetJobIdByDeduplicationKeySpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("add-numbers")]
+public sealed class GetJobIdByDeduplicationKeySpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<GetJobIdByDeduplicationKeySpec>>
 {
     [Fact(DisplayName = "Known deduplication key resolves to the enqueued job id and an unknown key returns null")]
     public async Task Known_deduplication_key_resolves_to_job_id_and_unknown_returns_null()

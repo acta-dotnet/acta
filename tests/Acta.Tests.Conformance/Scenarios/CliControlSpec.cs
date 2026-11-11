@@ -17,7 +17,8 @@ namespace Acta.Tests.Conformance.Scenarios;
     Area = "Control",
     Contract = "CLI verbs apply the matching IJobs control or read with banded exit codes and debug claims only the targeted job for an in-process run."
 )]
-public sealed class CliControlSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("add-numbers", "lane-step")]
+public sealed class CliControlSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<CliControlSpec>>
 {
     protected override bool RunAsWorker => true;
 

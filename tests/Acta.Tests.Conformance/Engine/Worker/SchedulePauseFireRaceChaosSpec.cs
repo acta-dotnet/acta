@@ -22,7 +22,8 @@ namespace Acta.Tests.Conformance.Engine.Worker;
     Area = "Scheduling",
     Contract = "A pause applied while a firing is in flight survives its completion: settlement never wakes a paused schedule."
 )]
-public sealed class SchedulePauseFireRaceChaosSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("recurring-ping")]
+public sealed class SchedulePauseFireRaceChaosSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<SchedulePauseFireRaceChaosSpec>>
 {
     // Live schedule cursors are this spec's subject; the harness default would park them.
     protected override bool ParkScheduleSlots => false;

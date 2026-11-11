@@ -13,7 +13,8 @@ namespace Acta.Tests.Conformance.Operations.Jobs;
     Area = "Control",
     Contract = "Pause applies to a Suspended job, and pausing a Paused job applies again rather than rejecting."
 )]
-public sealed class PauseJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("add-numbers")]
+public sealed class PauseJobSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<PauseJobSpec>>
 {
     // The database clock, which is the one the verbs stamp their instants from.
     private async Task<DateTime> NowAsync(CancellationToken ct) => await Services.GetRequiredService<IActaClock>().GetUtcNowAsync(ct);

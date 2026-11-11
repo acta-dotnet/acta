@@ -14,6 +14,7 @@ namespace Acta.Tests.Conformance.SqlServer.Features.Schema;
 /// file against a fresh schema name (using the header's own "replace the schema name throughout"
 /// instruction) in a database of the fact's own, which the fact drops when it ends.
 /// </summary>
+[Deploys("add-numbers")]
 public sealed partial class MsSqlProvisionScriptSpec
 {
     private const string Newer = "M99991231235959_newer";
@@ -67,9 +68,9 @@ public sealed partial class MsSqlProvisionScriptSpec
             });
 
         await RunScriptAsync(database.ConnectionString, script, ct);
-        var job = await ScriptProvisionedRuntime.RunJobAsync(ApplyProvider, schema, 2, 3, ct);
+        var job = await ScriptProvisionedRuntime.RunJobAsync<MsSqlProvisionScriptSpec>(ApplyProvider, schema, 2, 3, ct);
         await RunScriptAsync(database.ConnectionString, script, ct);
-        await ScriptProvisionedRuntime.AssertSucceededAsync(ApplyProvider, schema, job, 5, ct);
+        await ScriptProvisionedRuntime.AssertSucceededAsync<MsSqlProvisionScriptSpec>(ApplyProvider, schema, job, 5, ct);
     }
 
     [Fact(DisplayName = "An older script over a newer release's migration changes nothing, even in a client that runs on past errors")]

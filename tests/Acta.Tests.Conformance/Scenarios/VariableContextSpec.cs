@@ -13,7 +13,16 @@ namespace Acta.Tests.Conformance.Scenarios;
     Area = "Variables",
     Contract = "The variable context API persists set/get/get-or-set/delete/exists with last-writer-wins versioning, idempotent delete, format fidelity and payload validation."
 )]
-public sealed class VariableContextSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys(
+    "job-variable-corrupt-reader",
+    "job-variable-lifecycle",
+    "job-variable-persistence",
+    "job-variable-race",
+    "job-variable-roundtrip",
+    "job-variable-validation",
+    "job-variable-versioning"
+)]
+public sealed class VariableContextSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<VariableContextSpec>>
 {
     [Fact(DisplayName = "The full variable lifecycle round-trips through the context API with a factory run once and idempotent delete")]
     public async Task Variable_lifecycle_round_trips_through_context_api()

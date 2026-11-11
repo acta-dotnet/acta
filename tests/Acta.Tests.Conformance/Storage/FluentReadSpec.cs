@@ -17,7 +17,8 @@ namespace Acta.Tests.Conformance.Storage;
     Area = "Testing",
     Contract = "The fluent reader materializes whole entities, supports compound and IN predicates, and counts matching rows."
 )]
-public sealed class FluentReadSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("add-numbers")]
+public sealed class FluentReadSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<FluentReadSpec>>
 {
     protected override bool RunAsWorker => true;
 

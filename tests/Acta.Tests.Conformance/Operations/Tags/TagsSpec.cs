@@ -11,7 +11,8 @@ namespace Acta.Tests.Conformance.Operations.Tags;
     Area = "Tags",
     Contract = "ITags lists an empty page for a missing target, atomically replaces, idempotently upserts/removes, and typed queries require every exact tag filter."
 )]
-public sealed class TagsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsManifest>
+[Deploys("add-numbers", "echo")]
+public sealed class TagsSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<TagsSpec>>
 {
     [Fact(DisplayName = "All four targets list an empty page whether they exist or not, and missing targets mutate NotFound")]
     public async Task Untagged_and_missing_targets_list_empty_and_missing_ones_mutate_not_found()

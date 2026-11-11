@@ -13,7 +13,8 @@ namespace Acta.Tests.Conformance.Engine.Retention;
     Area = "Retention",
     Contract = "Purge preserves unresolved sys.alerts skip records and the projector cursor regardless of their age."
 )]
-public sealed class AlertSkipVariableRetentionSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("add-numbers")]
+public sealed class AlertSkipVariableRetentionSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<AlertSkipVariableRetentionSpec>>
 {
     private const int NoEventPurgeDays = 100_000;
     private const int NoAlertPurgeDays = 100_000;

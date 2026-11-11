@@ -10,6 +10,7 @@ namespace Acta.Tests.Conformance.Sqlite.Features.Schema;
 /// files are execution-proven. SQLite targets <c>main</c>, so a fresh in-memory database stands in
 /// for the fresh schema.
 /// </summary>
+[Deploys("add-numbers")]
 public sealed class SqliteProvisionScriptSpec
 {
     [Fact(DisplayName = "The published sqlite provision script provisions a fresh database verbatim")]
@@ -61,9 +62,9 @@ public sealed class SqliteProvisionScriptSpec
         try
         {
             await RunScriptAsync(connectionString, script, ct);
-            var job = await ScriptProvisionedRuntime.RunJobAsync(ApplyProvider, "main", 2, 3, ct);
+            var job = await ScriptProvisionedRuntime.RunJobAsync<SqliteProvisionScriptSpec>(ApplyProvider, "main", 2, 3, ct);
             await RunScriptAsync(connectionString, script, ct);
-            await ScriptProvisionedRuntime.AssertSucceededAsync(ApplyProvider, "main", job, 5, ct);
+            await ScriptProvisionedRuntime.AssertSucceededAsync<SqliteProvisionScriptSpec>(ApplyProvider, "main", job, 5, ct);
         }
         finally
         {

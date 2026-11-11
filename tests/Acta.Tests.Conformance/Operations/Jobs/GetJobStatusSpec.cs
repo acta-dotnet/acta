@@ -17,7 +17,8 @@ namespace Acta.Tests.Conformance.Operations.Jobs;
     Area = "Reads",
     Contract = "GetJobStatus returns the current JobStatusCode for a matching job row and null when no row matches the supplied id."
 )]
-public sealed class GetJobStatusSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("add-numbers")]
+public sealed class GetJobStatusSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<GetJobStatusSpec>>
 {
     [Fact(DisplayName = "A known job id returns its current JobStatusCode and a freshly enqueued job reads as Ready")]
     public async Task Returns_Ready_for_a_freshly_enqueued_job()

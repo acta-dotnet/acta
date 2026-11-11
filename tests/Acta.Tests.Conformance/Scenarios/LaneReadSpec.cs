@@ -15,7 +15,8 @@ namespace Acta.Tests.Conformance.Scenarios;
     Area = "Lanes",
     Contract = "A job read carries its lane and, while Blocked, the lane's lowest-id unfinished member, and the jobs list filters by lane."
 )]
-public sealed class LaneReadSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("lane-step")]
+public sealed class LaneReadSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<LaneReadSpec>>
 {
     [Fact(DisplayName = "A Blocked follower reads its lane and the head it waits behind")]
     public async Task Blocked_follower_reads_its_lane_and_head()

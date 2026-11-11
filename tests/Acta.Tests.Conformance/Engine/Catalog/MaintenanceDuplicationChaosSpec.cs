@@ -11,7 +11,8 @@ namespace Acta.Tests.Conformance.Engine.Catalog;
     Area = "Chaos",
     Contract = "A repeated deploy of the system maintenance jobs is idempotent, and the recurring maintenance slot is claimed by only one worker."
 )]
-public sealed class MaintenanceDuplicationChaosSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("add-numbers")]
+public sealed class MaintenanceDuplicationChaosSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<MaintenanceDuplicationChaosSpec>>
 {
     // A normal positive lease; the race here is decided by claim ownership.
     private const int LeaseTtlSeconds = 60;
@@ -72,7 +73,7 @@ public sealed class MaintenanceDuplicationChaosSpec : ActaRuntimeTestBase<Confor
         services.UseActa(j =>
         {
             Fixture.ApplyProvider(j, Schema.SchemaName);
-            j.Run<TestJobs.TestJobsManifest>(TestNamespace, ownerTeam: "test", description: GetType().FullName + ":second");
+            j.Run<JobsOf<MaintenanceDuplicationChaosSpec>>(TestNamespace, ownerTeam: "test", description: GetType().FullName + ":second");
         });
         services.Configure<JobsOptions>(o => o.RunSystemJobs = true);
         return services.BuildServiceProvider(validateScopes: true);

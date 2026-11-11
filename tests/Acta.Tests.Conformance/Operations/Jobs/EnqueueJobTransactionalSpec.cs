@@ -23,7 +23,8 @@ namespace Acta.Tests.Conformance.Operations.Jobs;
     Area = "Enqueue",
     Contract = "Every transactional enqueue overload joins the caller transaction, rejects invalid transactions, publishes no wakeup, and leaves completion to the caller."
 )]
-public sealed class EnqueueJobTransactionalSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsManifest>
+[Deploys("add-numbers")]
+public sealed class EnqueueJobTransactionalSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<EnqueueJobTransactionalSpec>>
 {
     private const string ProbeTable = "acta_txn_contract_probe";
 

@@ -12,6 +12,14 @@ namespace Acta.Tests.Conformance.Scenarios;
     Area = "Testing",
     Contract = "IActaTestHost makes a parked timer, bounded wait, or schedule due at once, admits a due schedule in one pass, and refuses a wait with no deadline."
 )]
+[Deploys(
+    "job-parent-try-wait-child",
+    "job-parent-try-wait-children",
+    "job-sleep-basic",
+    "job-try-wait-signal-timeout",
+    "job-wait-signal",
+    "recurring-ping"
+)]
 public sealed class TestHostHelpersSpec : ActaTestBase<ConformanceFixture>
 {
     private const int MaxTicks = 20;
@@ -206,7 +214,8 @@ public sealed class TestHostHelpersSpec : ActaTestBase<ConformanceFixture>
             (j, schema) =>
             {
                 Fixture.ApplyProvider(j, schema);
-                j.Run<TestJobsManifest>(TestNamespace, ownerTeam: "test", description: GetType().FullName);
+                j.Run<JobsOf<TestHostHelpersSpec>>(TestNamespace, ownerTeam: "test", description: GetType().FullName);
+                j.Reference<TestJobsManifest>(TestNamespace);
             },
             new ActaTestHostOptions
             {

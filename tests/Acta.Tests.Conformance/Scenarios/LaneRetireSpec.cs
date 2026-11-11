@@ -18,7 +18,8 @@ namespace Acta.Tests.Conformance.Scenarios;
     Area = "Lanes",
     Contract = "A definition retire cancels its parked laned jobs in its own transaction and then promotes each lane's lowest Blocked member once, even if the caller is gone."
 )]
-public sealed class LaneRetireSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("chaos-holding", "lane-defined", "lane-step")]
+public sealed class LaneRetireSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<LaneRetireSpec>>
 {
     private readonly CancelOnFirstWake _wakeups = new();
 

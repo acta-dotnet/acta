@@ -18,7 +18,8 @@ namespace Acta.Tests.Conformance.Engine.Worker;
     Area = "Execution",
     Contract = "ctx.ExecutionNumber and ctx.WorkerId report the running attempt's ledger identity, advancing with each retry."
 )]
-public sealed class JobAttemptIdentitySpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("attempt-identity")]
+public sealed class JobAttemptIdentitySpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<JobAttemptIdentitySpec>>
 {
     [Fact(DisplayName = "ctx.ExecutionNumber advances with each attempt and ctx.WorkerId matches the executing worker")]
     public async Task Context_reports_the_ledger_attempt_identity()

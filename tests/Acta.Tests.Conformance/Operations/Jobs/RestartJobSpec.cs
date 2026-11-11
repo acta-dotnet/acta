@@ -16,7 +16,8 @@ namespace Acta.Tests.Conformance.Operations.Jobs;
     Area = "Control",
     Contract = "Restart revives a Failed or Cancelled job with failure_count reset, retention and the stored result cleared, and is Rejected from Executing."
 )]
-public sealed class RestartJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("add-numbers")]
+public sealed class RestartJobSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<RestartJobSpec>>
 {
     // The database clock, which is the one the verbs stamp their instants from.
     private async Task<DateTime> NowAsync(CancellationToken ct) => await Services.GetRequiredService<IActaClock>().GetUtcNowAsync(ct);

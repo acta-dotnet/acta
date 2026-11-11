@@ -22,7 +22,8 @@ namespace Acta.Tests.Conformance.Engine.Alerting;
     Area = "Alerts",
     Contract = "The sys.alerts projector classifies finished events into first-failure and final-failure alerts, resolves them on success, and advances its cursor."
 )]
-public sealed class AlertsProjectionSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("flaky-recover", "no-alert-probe", "retry-probe")]
+public sealed class AlertsProjectionSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<AlertsProjectionSpec>>
 {
     private int NamespaceId => Runtime.RegisteredNamespaceIds[TestNamespace];
 

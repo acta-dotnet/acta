@@ -16,7 +16,8 @@ namespace Acta.Tests.Conformance.Engine.Wakeup;
     Area = "Wakeup",
     Contract = "A wake transport that throws costs only the prompt wake: the enqueue still answers, and its job runs to completion."
 )]
-public sealed class WakePublishFailureSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsManifest>
+[Deploys("add-numbers")]
+public sealed class WakePublishFailureSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<WakePublishFailureSpec>>
 {
     private readonly ThrowingWakeup _wakeup = new();
 

@@ -16,7 +16,8 @@ namespace Acta.Tests.Conformance.Operations.Definitions;
     Area = "Reads",
     Contract = "ListDefinitions filters partition the definition rows to exactly the matching ids and exclude all non-matching ids for each filter dimension."
 )]
-public sealed class ListDefinitionsFilterMatrixSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("add-numbers")]
+public sealed class ListDefinitionsFilterMatrixSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<ListDefinitionsFilterMatrixSpec>>
 {
     /// <summary>Creates a minimal synthetic job descriptor for a given job name.</summary>
     private static JobDescriptor Def(string name) =>

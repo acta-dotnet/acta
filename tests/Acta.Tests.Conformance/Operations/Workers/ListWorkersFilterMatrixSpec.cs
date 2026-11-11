@@ -16,7 +16,8 @@ namespace Acta.Tests.Conformance.Operations.Workers;
     Area = "Reads",
     Contract = "ListWorkers filters partition the worker rows to exactly the matching ids and exclude all non-matching ids for each filter dimension."
 )]
-public sealed class ListWorkersFilterMatrixSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("add-numbers")]
+public sealed class ListWorkersFilterMatrixSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<ListWorkersFilterMatrixSpec>>
 {
     [Fact(DisplayName = "Status filter partitions workers by status and each partition excludes all workers with different statuses")]
     public async Task Status_filter_partitions_workers_by_status()

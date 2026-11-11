@@ -14,7 +14,8 @@ namespace Acta.Tests.Conformance.Operations.Execution;
     Area = "Execution",
     Contract = "A step completion stores a success, fails the step on an at-most-once body's failure, and writes nothing on a stale version."
 )]
-public sealed class CompleteJobStepSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("add-numbers")]
+public sealed class CompleteJobStepSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<CompleteJobStepSpec>>
 {
     private const string StepName = "ship";
     private const string Reason = "carrier offline";

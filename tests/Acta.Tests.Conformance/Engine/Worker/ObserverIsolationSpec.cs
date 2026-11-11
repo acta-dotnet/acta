@@ -18,7 +18,8 @@ namespace Acta.Tests.Conformance.Engine.Worker;
     Area = "Recovery",
     Contract = "A listener that throws on claim, wake-wait, or due-age measurements, once or on every call, leaves a running worker claiming jobs and admitting schedules."
 )]
-public sealed class ObserverIsolationSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsManifest>
+[Deploys("add-numbers", "recurring-ping")]
+public sealed class ObserverIsolationSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<ObserverIsolationSpec>>
 {
     private static readonly TimeSpan Timeout = SpecWaits.Gate;
 

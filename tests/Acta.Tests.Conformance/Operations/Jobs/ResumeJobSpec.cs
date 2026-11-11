@@ -16,7 +16,8 @@ namespace Acta.Tests.Conformance.Operations.Jobs;
     Area = "Control",
     Contract = "Resume keeps a paused job's future next_run_at_utc, a sleep's included, and runs now one already past or paused while suspended on a signal or child wait."
 )]
-public sealed class ResumeJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("add-numbers", "job-sleep-basic", "job-wait-signal-timeout")]
+public sealed class ResumeJobSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<ResumeJobSpec>>
 {
     // The database clock, which is the one the verbs stamp their instants from.
     private async Task<DateTime> NowAsync(CancellationToken ct) => await Services.GetRequiredService<IActaClock>().GetUtcNowAsync(ct);

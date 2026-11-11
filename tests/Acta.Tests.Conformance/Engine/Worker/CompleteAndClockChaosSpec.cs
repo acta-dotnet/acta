@@ -12,7 +12,8 @@ namespace Acta.Tests.Conformance.Engine.Worker;
     Area = "Chaos",
     Contract = "Transient storage failures before and after CompleteExecutions converge to one state, and DB/app clock skew is enforced at initialization."
 )]
-public sealed class CompleteAndClockChaosSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("chaos-counting")]
+public sealed class CompleteAndClockChaosSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<CompleteAndClockChaosSpec>>
 {
     private StoreFaultPlan _faults = null!;
 
@@ -106,7 +107,7 @@ public sealed class ClockSkewInitializationChaosSpec : ActaTestBase<ConformanceF
         services.UseActa(j =>
         {
             Fixture.ApplyProvider(j, Schema.SchemaName);
-            j.Run<TestJobs.TestJobsManifest>(testNamespace, ownerTeam: "test", description: GetType().FullName);
+            j.Run<JobsOf<CompleteAndClockChaosSpec>>(testNamespace, ownerTeam: "test", description: GetType().FullName);
         });
         services.Configure<JobsOptions>(o =>
         {
@@ -152,7 +153,7 @@ public sealed class ClockSkewInitializationChaosSpec : ActaTestBase<ConformanceF
         services.UseActa(j =>
         {
             Fixture.ApplyProvider(j, Schema.SchemaName);
-            j.Run<TestJobs.TestJobsManifest>(testNamespace, ownerTeam: "test", description: GetType().FullName);
+            j.Run<JobsOf<CompleteAndClockChaosSpec>>(testNamespace, ownerTeam: "test", description: GetType().FullName);
         });
         services.Configure<JobsOptions>(o =>
         {

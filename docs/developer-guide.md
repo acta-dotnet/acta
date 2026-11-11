@@ -1036,12 +1036,11 @@ touching the policy; to walk the retry path with no forcing at all, give the tes
 ```csharp
 public static class FlakyJobs
 {
-    public static int Attempts;
-
     [Job("flaky-step", MaxAttempts = 2, Backoff = "0s")]
-    public static Task Handle(FlakyStep input)
+    public static Task Handle(FlakyStep input, JobContext ctx, CancellationToken ct)
     {
-        if (Interlocked.Increment(ref Attempts) == 1)
+        // The attempt's own number decides, so nothing is shared with a test running beside this one.
+        if (ctx.ExecutionNumber == 1)
         {
             throw new InvalidOperationException("first attempt fails");
         }
@@ -1054,12 +1053,11 @@ public static class FlakyJobs
 [Fact]
 public async Task Retries_once_then_completes()
 {
-    FlakyJobs.Attempts = 0;
     var enqueued = await _host.Jobs.EnqueueAsync(new FlakyStep());
 
     Assert.Equal(ActaRunStatus.Rearmed, await _host.RunOnceAsync(enqueued));   // attempt 1 throws
     Assert.Equal(ActaRunStatus.Completed, await _host.RunOnceAsync(enqueued)); // attempt 2 succeeds
-    Assert.Equal(2, FlakyJobs.Attempts);
+    Assert.Equal(2L, (await _host.Jobs.GetAsync(enqueued))?.ExecutionNumber);
 }
 ```
 
@@ -1149,6 +1147,18 @@ For everything `IJobs` does not project (audit timeline, tags, lease rows), reso
 from `host.Services` or query the schema directly: `host.Schema` names it, and
 [`data-model.md`](./reference/data-model.md) documents every table.
 
+### Tests that run in parallel
+
+A test runner may run test classes at once, and the tests of one class share whatever its host holds. A test stays independent when everything it drives and reads is something it created.
+
+- **A host is the unit of isolation.** Each `ActaTestHost.StartAsync` gets a schema of its own, so classes that start their own host never see each other's rows. SQLite has one schema, so give each host its own database file.
+- **Tests that share a host share its tables.** That is the facts of a class behind one fixture, and every class on a pinned `ActaTestHostOptions.Schema`. Give each test its own deduplication, correlation, concurrency and lock keys, built from a value made in the test such as a new `Guid`, and on a pinned schema its own namespace as well.
+- **Drive the job you enqueued.** `RunOnceAsync(enqueued)` runs that job. `RunOnceAsync("users")` runs whichever job of the namespace is due, which on a shared host may be another test's.
+- **Take identity from the answer.** The `JobHandle` the enqueue returned addresses the job for every read and every verb. A job something else enqueued is found by `JobLookup.ByDeduplicationKey(...)` with the test's own key. A numeric id written into a test is some other row.
+- **Assert on your own rows.** Read the job through its handle. A list or a count over a namespace also holds whatever else the host has run.
+- **Keep handler state out of static fields.** Two tests run the same handler in one process, so a static counter or gate belongs to both. Register a fake in `ConfigureServices`, one per host, or let the job decide from what it carries: its input, or `ctx.ExecutionNumber`.
+- **Make things due, never wait for them.** `ForceJobDueAsync` and the other `Force...DueAsync` helpers bring a retry, a timer, a wait timeout or a schedule to now. A sleep sized to the backoff passes on a fast machine and fails on a busy one.
+
 ### Host lifecycle and cost
 
 - `IAsyncLifetime` on a test class runs per fact. xUnit creates a fresh test-class instance for
@@ -1160,8 +1170,6 @@ from `host.Services` or query the schema directly: `host.Schema` names it, and
   instance.
 - Disposal does not drop the schema. Throwaway schemas accumulate in the test database; recycle the
   database periodically, or pin `ActaTestHostOptions.Schema` to a fixed name and reset it yourself.
-- Pinned schemas share state. With `options.Schema = "acta_it"` across classes, use unique
-  deduplication keys and namespaces per test or assertions will see each other's rows.
 - Fakes and clocks go in `ConfigureServices`. It runs after `UseActa`, so it can replace
   anything the runtime registered as well as register your handler classes' dependencies.
 - At-least-once still applies. The test host runs the production pipeline; a handler that is not

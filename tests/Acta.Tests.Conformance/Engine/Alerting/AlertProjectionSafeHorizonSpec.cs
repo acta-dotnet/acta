@@ -29,7 +29,8 @@ namespace Acta.Tests.Conformance.Engine.Alerting;
     Area = "Alerts",
     Contract = "The sys.alerts read offers an event only once its stamp is behind the safe horizon, cursored by (created_at_utc, id) so no uncommitted event is stepped over."
 )]
-public sealed class AlertProjectionSafeHorizonSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsManifest>
+[Deploys("add-numbers")]
+public sealed class AlertProjectionSafeHorizonSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<AlertProjectionSafeHorizonSpec>>
 {
     private int NamespaceId => Runtime.RegisteredNamespaceIds[TestNamespace];
 

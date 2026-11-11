@@ -16,7 +16,8 @@ namespace Acta.Tests.Conformance.Engine.Worker;
     Area = "Runtime",
     Contract = "A read that fails between the claim and the handler is repeated, and the attempt completes."
 )]
-public sealed class SetupReadChaosSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("recurring-ping")]
+public sealed class SetupReadChaosSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<SetupReadChaosSpec>>
 {
     private StoreFaultPlan _faults = null!;
 

@@ -22,7 +22,8 @@ namespace Acta.Tests.Conformance.Operations.Workers;
     Area = "Execution",
     Contract = "A lease renewal skips an in-flight row another transaction holds, reporting it unrenewed, so it never waits on a completing child."
 )]
-public sealed class ExtendWorkerLeasesRaceSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("lane-step")]
+public sealed class ExtendWorkerLeasesRaceSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<ExtendWorkerLeasesRaceSpec>>
 {
     protected override bool OwnSchema => true;
 

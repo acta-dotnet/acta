@@ -15,7 +15,8 @@ namespace Acta.Tests.Conformance.Scenarios;
     Area = "Execution",
     Contract = "Every landing in Succeeded, Failed, or Cancelled writes next_run_at_utc NULL: a completion, a cancel and its cascade, a retire, and a reclaim."
 )]
-public sealed class FinishedJobNextRunSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("add-numbers", "retry-probe")]
+public sealed class FinishedJobNextRunSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<FinishedJobNextRunSpec>>
 {
     [Fact(DisplayName = "A completion clears the next run: a success, a laned success, and a spent retry budget")]
     public async Task A_completion_clears_the_next_run()

@@ -14,7 +14,8 @@ namespace Acta.Tests.Conformance.Operations.Namespaces;
     Area = "Reads",
     Contract = "ListNamespaces pages namespaces name-ascending carrying id, status, owner_team, description, and version, and includes the seeded sys row."
 )]
-public sealed class ListNamespacesSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("add-numbers")]
+public sealed class ListNamespacesSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<ListNamespacesSpec>>
 {
     protected override bool RunAsWorker => true;
 

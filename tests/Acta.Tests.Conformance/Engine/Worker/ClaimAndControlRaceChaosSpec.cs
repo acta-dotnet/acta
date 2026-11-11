@@ -12,7 +12,8 @@ namespace Acta.Tests.Conformance.Engine.Worker;
     Area = "Chaos",
     Contract = "Concurrent claims and control verbs at the executing boundary resolve to exactly one legal state with explicit events."
 )]
-public sealed class ClaimAndControlRaceChaosSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("add-numbers", "chaos-counting", "chaos-holding")]
+public sealed class ClaimAndControlRaceChaosSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<ClaimAndControlRaceChaosSpec>>
 {
     // A normal positive lease; these races resolve by claim ownership, not by lease expiry.
     private const int LeaseTtlSeconds = 60;

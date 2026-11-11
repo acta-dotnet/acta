@@ -10,7 +10,9 @@ namespace Acta.Tests.Conformance.SqlServer.Features.Jobs;
 /// stores what the API field of its name reads back, and the routine stores a key as given, so the engine and the reads
 /// take a stored key as stored.
 /// </summary>
-public sealed class SqlServerDirectSqlEnqueueTests : ActaRuntimeTestBase<SqlServerConformanceFixture, TestJobsManifest>
+[Deploys("add-numbers", "concurrency-limit-probe")]
+public sealed class SqlServerDirectSqlEnqueueTests
+    : ActaRuntimeTestBase<SqlServerConformanceFixture, JobsOf<SqlServerDirectSqlEnqueueTests>>
 {
     private const string Input = "@p_input = 0x7B226C656674223A312C227269676874223A327D";
 
@@ -87,15 +89,15 @@ public sealed class SqlServerDirectSqlEnqueueTests : ActaRuntimeTestBase<SqlServ
     public async Task Priority_correlation_and_lane_are_stored()
     {
         var ct = TestContext.Current.CancellationToken;
-        var lane = Unique("sql-lane");
+        var (lane, trace) = (Unique("sql-lane"), Unique("sql-trace"));
 
         var (jobId, _, _) = await EnqueueAsync(
-            $"@p_job_priority_code_override = 70, @p_correlation_key = 'sql-trace', @p_lane_name = '{lane}'",
+            $"@p_job_priority_code_override = 70, @p_correlation_key = '{trace}', @p_lane_name = '{lane}'",
             ct
         );
 
         var read = await ReadAsync(jobId, ct);
-        Assert.Equal((JobPriorityCode.High, "sql-trace", lane), (read.Priority, read.CorrelationKey, read.Lane));
+        Assert.Equal((JobPriorityCode.High, trace, lane), (read.Priority, read.CorrelationKey, read.Lane));
     }
 
     [Theory(DisplayName = "@p_next_run_at_utc and @p_delay_seconds hold the job until then")]

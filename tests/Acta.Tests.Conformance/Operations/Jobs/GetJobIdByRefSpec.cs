@@ -17,7 +17,8 @@ namespace Acta.Tests.Conformance.Operations.Jobs;
     Area = "Enqueue",
     Contract = "Every enqueued job carries a server-generated job_ref that resolves to its internal id, and an unknown ref resolves to null."
 )]
-public sealed class GetJobIdByRefSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("add-numbers")]
+public sealed class GetJobIdByRefSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<GetJobIdByRefSpec>>
 {
     [Fact(
         DisplayName = "Enqueue returns a non-empty ref that resolves and reads back the same job, dedup echoes the existing ref, and an unknown ref returns null"

@@ -11,7 +11,8 @@ namespace Acta.Tests.Conformance.Sqlite.Features.Schema;
 /// tables keep epoch milliseconds: fixed-width text sorts and compares in time order, so the recipes order and filter
 /// on it as they do on a server's timestamp.
 /// </summary>
-public sealed class SqliteViewInstantSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("add-numbers")]
+public sealed class SqliteViewInstantSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<SqliteViewInstantSpec>>
 {
     private const string Iso = "[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z";
 

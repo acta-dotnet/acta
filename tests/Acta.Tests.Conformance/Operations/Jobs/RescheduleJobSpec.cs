@@ -15,7 +15,8 @@ namespace Acta.Tests.Conformance.Operations.Jobs;
     Area = "Control",
     Contract = "RescheduleAsync moves Paused, Suspended, or Ready rows to the requested instant, re-arms Paused or Suspended Ready, and rejects in-flight or terminal rows."
 )]
-public sealed class RescheduleJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("add-numbers")]
+public sealed class RescheduleJobSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<RescheduleJobSpec>>
 {
     [Fact(DisplayName = "RescheduleAsync moves a Ready job's next run to the requested instant and bumps the runtime version")]
     public async Task Reschedule_ready_job_moves_cursor()

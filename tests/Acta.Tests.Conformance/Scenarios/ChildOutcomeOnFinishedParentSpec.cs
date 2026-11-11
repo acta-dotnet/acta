@@ -17,7 +17,8 @@ namespace Acta.Tests.Conformance.Scenarios;
     Area = "ChildJobs",
     Contract = "A child that lands again or is cancelled after its parent finished records its newer outcome on the parent, which a restart of the parent reads."
 )]
-public sealed class ChildOutcomeOnFinishedParentSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsManifest>
+[Deploys("job-child-echo", "job-child-fail", "job-parent-fire-and-forget", "job-parent-of-failing-child", "job-wait-signal")]
+public sealed class ChildOutcomeOnFinishedParentSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<ChildOutcomeOnFinishedParentSpec>>
 {
     [Fact(DisplayName = "A child that runs again while its parent is finished replaces its outcome on the parent")]
     public async Task A_child_rerun_under_a_finished_parent_replaces_its_outcome()
@@ -77,13 +78,19 @@ public sealed class ChildOutcomeOnFinishedParentSpec : ActaRuntimeTestBase<Confo
                 TestNamespace,
                 "job-child-echo",
                 JobPayload.Json(new ChildEcho(1)),
-                DeduplicationKey: "done",
+                DeduplicationKey: Unique("done"),
                 ParentJobId: root.JobId
             ),
             ct
         );
         var live = await Jobs.EnqueueAsync(
-            new EnqueueJobRequest(TestNamespace, "job-wait-signal", JobPayload.None, DeduplicationKey: "held", ParentJobId: finished.JobId),
+            new EnqueueJobRequest(
+                TestNamespace,
+                "job-wait-signal",
+                JobPayload.None,
+                DeduplicationKey: Unique("held"),
+                ParentJobId: finished.JobId
+            ),
             ct
         );
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(finished, ct));

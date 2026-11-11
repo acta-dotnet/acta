@@ -28,7 +28,8 @@ namespace Acta.Tests.Conformance.Operations.Jobs;
     Area = "Enqueue",
     Contract = "A batch enqueue inserts one Ready job per input row with positionally-aligned outcomes, persists tags, and writes no events on enqueue."
 )]
-public sealed class EnqueueJobsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("add-numbers")]
+public sealed class EnqueueJobsSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<EnqueueJobsSpec>>
 {
     // Enqueue-only spec - we never call StartAsync, so no claim/execute loop runs. But we still
     // deploy and run InitializeAsync (worker-mode) so the per-test namespace is written and registered in

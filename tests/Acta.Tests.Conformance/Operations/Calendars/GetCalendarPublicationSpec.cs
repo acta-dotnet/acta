@@ -11,7 +11,7 @@ namespace Acta.Tests.Conformance.Operations.Calendars;
     "calendar.publication-read",
     "A publication reads the current version and its candidate with their definitions",
     Area = "Scheduling",
-    Contract = "The read answers the family's Published version and the version asked for with their definitions, in a namespace or in sys, and nothing for an unknown family."
+    Contract = "The read answers the family's Published version and the version asked for with their definitions, and nothing for an unknown family."
 )]
 public sealed class GetCalendarPublicationSpec : ActaStorageTestBase<ConformanceFixture>
 {
@@ -51,24 +51,5 @@ public sealed class GetCalendarPublicationSpec : ActaStorageTestBase<Conformance
         var unknown = await handler.HandleAsync(new GetCalendarPublicationQuery(TestNamespace, Unique("no-such"), 1), ct);
         Assert.Null(unknown.Current);
         Assert.Null(unknown.Candidate);
-    }
-
-    [Fact(DisplayName = "A shared family reads back from sys with its namespace id")]
-    public async Task A_shared_family_reads_back_from_sys()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        var shared = new CalendarLookup("sys", Unique("holidays"));
-        await Calendars.SaveDraftAsync(shared, CalendarRoleCode.Availability, CalendarTestOps.AvailabilityDefinition, 0, ct: ct);
-
-        var (current, candidate) = await Services
-            .GetRequiredService<GetCalendarPublicationHandler>()
-            .HandleAsync(new GetCalendarPublicationQuery("sys", shared.CalendarName, 1), ct);
-
-        Assert.Null(current);
-        Assert.NotNull(candidate);
-        Assert.Equal(
-            (NameSyntax.SystemNamespaceId, 1, CalendarStatusCode.Draft),
-            (candidate.NamespaceId, candidate.Version, candidate.Status)
-        );
     }
 }

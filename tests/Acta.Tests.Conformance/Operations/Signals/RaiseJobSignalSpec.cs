@@ -12,7 +12,8 @@ namespace Acta.Tests.Conformance.Operations.Signals;
     Area = "Signals",
     Contract = "Raise upserts the job's named checkpoint to Set with the latest payload and records the operator, while a missing job is NotFound and a finished one Rejected."
 )]
-public sealed class RaiseJobSignalSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsManifest>
+[Deploys("job-wait-signal", "job-wait-signal-typed")]
+public sealed class RaiseJobSignalSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<RaiseJobSignalSpec>>
 {
     private async Task<CheckpointEntity> ReadCheckpointAsync(long jobId, string name, CancellationToken ct) =>
         Assert.Single(

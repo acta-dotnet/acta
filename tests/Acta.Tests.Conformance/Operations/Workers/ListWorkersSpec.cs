@@ -15,7 +15,8 @@ namespace Acta.Tests.Conformance.Operations.Workers;
     Area = "Reads",
     Contract = "ListWorkers pages worker rows newest seen first by cursor and reads the page plus an opt-in filter-wide count in one command."
 )]
-public sealed class ListWorkersSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("add-numbers")]
+public sealed class ListWorkersSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<ListWorkersSpec>>
 {
     [Fact(DisplayName = "Walking NextCursor visits every worker once in descending last-seen order with a TotalCount matching the walk")]
     public async Task Walks_workers_in_descending_last_seen_order()

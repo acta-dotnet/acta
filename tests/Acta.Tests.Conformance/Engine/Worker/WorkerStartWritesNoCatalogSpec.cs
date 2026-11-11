@@ -18,6 +18,7 @@ namespace Acta.Tests.Conformance.Engine.Worker;
     Area = "Workers",
     Contract = "A worker start completes under a held schedule lock and leaves the catalog as it was whatever its build declares, and a deploy waits for that lock."
 )]
+[Deploys("recurring-ping")]
 public sealed class WorkerStartWritesNoCatalogSpec : ActaTestBase<ConformanceFixture>
 {
     private static readonly TimeSpan Blocked = TimeSpan.FromMilliseconds(500);
@@ -30,7 +31,7 @@ public sealed class WorkerStartWritesNoCatalogSpec : ActaTestBase<ConformanceFix
     {
         var ct = TestContext.Current.CancellationToken;
         var ns = Unique("start-same");
-        await using var build = Replica<TestJobsManifest>(ns);
+        await using var build = Replica<JobsOf<WorkerStartWritesNoCatalogSpec>>(ns);
         var nsId = await DeployAsync(build, ns, ct);
         var before = await SnapshotAsync(nsId, ct);
 
@@ -44,7 +45,7 @@ public sealed class WorkerStartWritesNoCatalogSpec : ActaTestBase<ConformanceFix
     {
         var ct = TestContext.Current.CancellationToken;
         var ns = Unique("start-changed");
-        await using var deployed = Replica<TestJobsManifest>(ns);
+        await using var deployed = Replica<JobsOf<WorkerStartWritesNoCatalogSpec>>(ns);
         var nsId = await DeployAsync(deployed, ns, ct);
         var before = await SnapshotAsync(nsId, ct);
 
@@ -61,7 +62,7 @@ public sealed class WorkerStartWritesNoCatalogSpec : ActaTestBase<ConformanceFix
     {
         var ct = TestContext.Current.CancellationToken;
         var ns = Unique("deploy-changed");
-        await using var deployed = Replica<TestJobsManifest>(ns);
+        await using var deployed = Replica<JobsOf<WorkerStartWritesNoCatalogSpec>>(ns);
         var nsId = await DeployAsync(deployed, ns, ct);
         var before = await SnapshotAsync(nsId, ct);
 

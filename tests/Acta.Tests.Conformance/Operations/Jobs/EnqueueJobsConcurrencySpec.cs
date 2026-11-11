@@ -20,7 +20,8 @@ namespace Acta.Tests.Conformance.Operations.Jobs;
     Area = "Enqueue",
     Contract = "Batch enqueues racing into one namespace all land without a deadlock, unlaned ones as Ready and laned ones in batch order behind their lane head."
 )]
-public sealed class EnqueueJobsConcurrencySpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("add-numbers")]
+public sealed class EnqueueJobsConcurrencySpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<EnqueueJobsConcurrencySpec>>
 {
     private const int Producers = 4;
     private const int BatchSize = 1000;

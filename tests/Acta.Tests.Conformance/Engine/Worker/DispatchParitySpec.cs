@@ -17,7 +17,8 @@ namespace Acta.Tests.Conformance.Engine.Worker;
     Area = "Execution",
     Contract = "The claimer and its executors drain a backlog exactly once, claiming Ready to Executing in one round-trip."
 )]
-public sealed class DispatchParitySpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("load-echo")]
+public sealed class DispatchParitySpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<DispatchParitySpec>>
 {
     private const int JobCount = 50;
 

@@ -16,6 +16,7 @@ namespace Acta.Tests.Conformance.Engine.Alerting;
     Area = "Alerts",
     Contract = "Definition AlertChannelName validates against worker startup configuration while Off, Warn, and Fail modes keep their documented behavior."
 )]
+[Deploys("policy-probe")]
 public sealed class AlertChannelValidationSpec : ActaTestBase<ConformanceFixture>
 {
     [Fact(DisplayName = "Fail mode rejects a missing configured channel")]
@@ -65,7 +66,7 @@ public sealed class AlertChannelValidationSpec : ActaTestBase<ConformanceFixture
                 namespaceName,
                 w =>
                 {
-                    w.AddManifest<TestJobs.TestJobsManifest>();
+                    w.AddManifest<JobsOf<AlertChannelValidationSpec>>();
                     configureOpsChannel?.Invoke(w);
                 }
             );

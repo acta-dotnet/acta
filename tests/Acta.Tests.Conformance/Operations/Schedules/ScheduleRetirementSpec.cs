@@ -17,7 +17,8 @@ namespace Acta.Tests.Conformance.Operations.Schedules;
     Area = "Scheduling",
     Contract = "After a retire, no reader returns its schedules, and no completion or verb, even one that read them first, writes their cursors or wakes their slot."
 )]
-public sealed class ScheduleRetirementSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("add-numbers")]
+public sealed class ScheduleRetirementSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<ScheduleRetirementSpec>>
 {
     private const int Attempt = 1;
     private const string Cron5 = "*/5 * * * *";

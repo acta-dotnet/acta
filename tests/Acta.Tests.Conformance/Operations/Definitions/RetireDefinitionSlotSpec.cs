@@ -16,7 +16,8 @@ namespace Acta.Tests.Conformance.Operations.Definitions;
     Area = "Catalog",
     Contract = "Retiring a recurring definition settles its queued firing, leaves the slot Idle or as the operator held it, and a later deploy resumes its schedules from now."
 )]
-public sealed class RetireDefinitionSlotSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsManifest>
+[Deploys("recurring-ping")]
+public sealed class RetireDefinitionSlotSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<RetireDefinitionSlotSpec>>
 {
     private const string Actor = "spec-operator";
 
@@ -191,7 +192,7 @@ public sealed class RetireDefinitionSlotSpec : ActaRuntimeTestBase<ConformanceFi
     /// <summary>Another build coming up in the test namespace: its deploy writes the definitions and their schedules, then its worker starts.</summary>
     private async Task StartBuildAsync(string tag, CancellationToken ct)
     {
-        await using var build = BuildProvider<TestJobsManifest>(tag);
+        await using var build = BuildProvider<JobsOf<RetireDefinitionSlotSpec>>(tag);
         await CatalogTestOps.DeployAndStartAsync(build, build.GetServices<WorkerRuntime>().Single(), ct);
     }
 

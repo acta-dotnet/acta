@@ -18,7 +18,8 @@ namespace Acta.Tests.Conformance.Scenarios;
     Area = "Scheduling",
     Contract = "A paused schedule admits nothing, and a timed pause ends at its expiry by the misfire policy, admitting only an occurrence due by then."
 )]
-public sealed class SchedulePauseFiringSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("recurring-ping")]
+public sealed class SchedulePauseFiringSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<SchedulePauseFiringSpec>>
 {
     // Live schedule cursors are this spec's subject; the harness default would park them.
     protected override bool ParkScheduleSlots => false;

@@ -17,7 +17,8 @@ namespace Acta.Tests.Conformance.Engine.Worker;
     Area = "Workers",
     Contract = "Beside eight callers enqueuing as fast as the database takes them, a job is claimed, run, and completed within 30 s, on SQLite within 400 of their enqueues."
 )]
-public sealed class EnqueueFloodSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("echo")]
+public sealed class EnqueueFloodSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<EnqueueFloodSpec>>
 {
     private const int Callers = 8;
 

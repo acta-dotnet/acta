@@ -15,7 +15,8 @@ namespace Acta.Tests.Conformance.Operations.Schedules;
     Area = "Reads",
     Contract = "ListSchedules filters partition the schedule rows to exactly the matching ids and exclude all non-matching ids for each filter dimension."
 )]
-public sealed class ListSchedulesFilterMatrixSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("recurring-ping")]
+public sealed class ListSchedulesFilterMatrixSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<ListSchedulesFilterMatrixSpec>>
 {
     // Live slot cursors are this spec's subject; the harness default would park them.
     protected override bool ParkScheduleSlots => false;

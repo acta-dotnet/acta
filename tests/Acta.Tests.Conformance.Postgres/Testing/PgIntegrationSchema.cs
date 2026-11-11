@@ -66,7 +66,9 @@ public sealed class PgIntegrationSchema : IIntegrationSchema
             Assert.Skip("Postgres integration tests require ACTA_TEST_PG.");
         }
 
-        var adminBuilder = new NpgsqlConnectionStringBuilder(adminConn) { Timeout = 15 };
+        // The wait for a pooled connection is a guarded wait like any other: the suite starts every test at once on one
+        // pool, so the last in line waits its turn for seconds, and for longer on a loaded box.
+        var adminBuilder = new NpgsqlConnectionStringBuilder(adminConn) { Timeout = (int)SpecWaits.Gate.TotalSeconds };
 
         EnsureTestTarget(adminBuilder.Database ?? string.Empty, IntegrationConfig.TestSchemaName);
 

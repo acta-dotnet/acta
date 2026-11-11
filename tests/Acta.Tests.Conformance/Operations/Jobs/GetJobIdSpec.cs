@@ -16,7 +16,8 @@ namespace Acta.Tests.Conformance.Operations.Jobs;
     Area = "Reads",
     Contract = "GetJobId returns the internal id of the job a ref or a root deduplication key names, returns an id lookup's own id, and returns null when no job matches."
 )]
-public sealed class GetJobIdSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("add-numbers")]
+public sealed class GetJobIdSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<GetJobIdSpec>>
 {
     [Fact(DisplayName = "A ref and a deduplication key resolve to the enqueued job's id")]
     public async Task Ref_and_deduplication_key_resolve_to_the_id()

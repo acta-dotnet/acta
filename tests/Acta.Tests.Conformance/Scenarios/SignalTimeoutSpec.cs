@@ -18,7 +18,19 @@ namespace Acta.Tests.Conformance.Scenarios;
     Area = "Signals",
     Contract = "A bounded wait stores an absolute expiration on its checkpoint, wakes the Suspended job at that instant, resolves TimedOut once, and revives on no later raise."
 )]
-public sealed class SignalTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys(
+    "job-try-wait-signal-timeout",
+    "job-try-wait-signal-timeout-then-hold",
+    "job-try-wait-signal-timeout-then-unbounded",
+    "job-try-wait-signal-timeout-typed",
+    "job-wait-signal",
+    "job-wait-signal-timeout",
+    "job-wait-signal-timeout-downgrade",
+    "job-wait-signal-timeout-replay",
+    "job-wait-signal-timeout-typed",
+    "job-wait-signal-timeout-upgrade"
+)]
+public sealed class SignalTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<SignalTimeoutSpec>>
 {
     [Fact(DisplayName = "Arming stores an expiration on the checkpoint and carries it into the Suspended job's next run")]
     public async Task Arming_stores_the_expiration_on_the_checkpoint_and_the_job()

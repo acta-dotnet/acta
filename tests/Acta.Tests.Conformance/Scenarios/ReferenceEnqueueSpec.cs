@@ -18,7 +18,8 @@ namespace Acta.Tests.Conformance.Scenarios;
     Area = "Enqueue",
     Contract = "j.Reference<TManifest> feeds the typed route index without declaring a worker, so the host typed-enqueues and the namespace's Run worker completes it."
 )]
-public sealed class ReferenceEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("add-numbers")]
+public sealed class ReferenceEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<ReferenceEnqueueSpec>>
 {
     protected override bool RunAsWorker => true;
 

@@ -15,7 +15,8 @@ namespace Acta.Tests.Conformance.Engine.Worker;
     Area = "Execution",
     Contract = "IsLastAttempt is true when a failure would end the job, by its spent budget or a Strict deadline, and a resume that spent nothing leaves it false."
 )]
-public sealed class LastAttemptSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("last-attempt-budget", "last-attempt-deadline", "last-attempt-jitter")]
+public sealed class LastAttemptSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<LastAttemptSpec>>
 {
     [Fact(DisplayName = "IsLastAttempt is false before the last attempt and on a resume that spent nothing, and true on the last attempt")]
     public async Task Is_last_attempt_follows_the_spent_budget()

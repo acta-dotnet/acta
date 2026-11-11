@@ -12,7 +12,8 @@ namespace Acta.Tests.Conformance.Postgres.Features.Jobs;
 /// REPEATABLE READ or SERIALIZABLE that read comes from the transaction's first snapshot, which can miss
 /// a member committed while it waited, so a laned enqueue in such a caller transaction is refused.
 /// </summary>
-public sealed class PostgresLaneIsolationTests : ActaRuntimeTestBase<PgConformanceFixture, TestJobsManifest>
+[Deploys("lane-step")]
+public sealed class PostgresLaneIsolationTests : ActaRuntimeTestBase<PgConformanceFixture, JobsOf<PostgresLaneIsolationTests>>
 {
     [Theory(DisplayName = "A laned enqueue in a snapshot-isolated caller transaction is refused, single and batched")]
     [InlineData(IsolationLevel.RepeatableRead)]

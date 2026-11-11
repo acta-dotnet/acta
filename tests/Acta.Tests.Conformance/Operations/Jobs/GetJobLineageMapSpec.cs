@@ -18,7 +18,8 @@ namespace Acta.Tests.Conformance.Operations.Jobs;
     Area = "Reads",
     Contract = "GetJobLineageMap returns the focus job, its nearest ancestors root-first, newest steps, checkpoints, and capped direct children, or null when no row matches."
 )]
-public sealed class GetJobLineageMapSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("add-numbers")]
+public sealed class GetJobLineageMapSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<GetJobLineageMapSpec>>
 {
     private async Task<long> EnqueueAsync(long? parentId, CancellationToken ct)
     {

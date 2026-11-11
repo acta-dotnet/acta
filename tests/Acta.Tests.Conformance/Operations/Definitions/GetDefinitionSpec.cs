@@ -14,7 +14,8 @@ namespace Acta.Tests.Conformance.Operations.Definitions;
     Area = "Reads",
     Contract = "GetDefinition returns the fully-projected definitions row for the supplied namespace and name, and null when none matches."
 )]
-public sealed class GetDefinitionSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("add-numbers")]
+public sealed class GetDefinitionSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<GetDefinitionSpec>>
 {
     [Fact(DisplayName = "A known name returns the matching definition row")]
     public async Task Returns_definition_for_known_name()

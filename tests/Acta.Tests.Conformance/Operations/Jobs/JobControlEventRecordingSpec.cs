@@ -17,7 +17,8 @@ namespace Acta.Tests.Conformance.Operations.Jobs;
     Area = "Control",
     Contract = "A control verb that applies writes its event at every recording level, while a cascaded cancel and a raised signal write theirs only at Audit."
 )]
-public sealed class JobControlEventRecordingSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("add-numbers")]
+public sealed class JobControlEventRecordingSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<JobControlEventRecordingSpec>>
 {
     [Theory(DisplayName = "A control verb that applies writes its event below Audit")]
     [InlineData("pause", EventCode.JobPaused)]

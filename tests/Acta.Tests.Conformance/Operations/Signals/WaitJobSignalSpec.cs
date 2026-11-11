@@ -13,7 +13,8 @@ namespace Acta.Tests.Conformance.Operations.Signals;
     Area = "Signals",
     Contract = "Wait arms a Pending checkpoint once, continues with a Set one's payload, and answers TimedOut past a stored expiry or at once when first armed past an instant."
 )]
-public sealed class WaitJobSignalSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsManifest>
+[Deploys("job-wait-signal")]
+public sealed class WaitJobSignalSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<WaitJobSignalSpec>>
 {
     private SignalsOperations Signals => Services.GetRequiredService<SignalsOperations>();
 

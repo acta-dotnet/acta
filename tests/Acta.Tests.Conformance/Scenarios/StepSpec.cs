@@ -18,7 +18,18 @@ namespace Acta.Tests.Conformance.Scenarios;
     Area = "Steps",
     Contract = "A step runs once and replay-skips a success, a throwing body spends the job's budget, a wait in a body charges nothing, and an at-most-once failure is final."
 )]
-public sealed class StepSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys(
+    "charge",
+    "job-step-basic",
+    "job-step-fail",
+    "job-step-replay",
+    "job-step-reset-inside",
+    "job-step-throw",
+    "job-step-void",
+    "job-step-wait",
+    "job-step-wait-then-fail"
+)]
+public sealed class StepSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<StepSpec>>
 {
     [Fact(DisplayName = "A typed step runs its body once and returns the stored result")]
     public async Task Typed_step_runs_once_and_returns_result()

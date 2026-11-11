@@ -16,7 +16,8 @@ namespace Acta.Tests.Conformance.Engine.Outbox;
     Area = "Outbox",
     Contract = "A worker with AddOutboxRelay registers and dispatches sys.outbox, and an unavailable source fails only that tick, which retries within a minute."
 )]
-public sealed class OutboxRelayDispatchSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("echo")]
+public sealed class OutboxRelayDispatchSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<OutboxRelayDispatchSpec>>
 {
     protected override void ConfigureServices(IServiceCollection services, string testNamespace)
     {
@@ -29,7 +30,7 @@ public sealed class OutboxRelayDispatchSpec : ActaRuntimeTestBase<ConformanceFix
                 {
                     w.OwnerTeam = "test";
                     w.Description = GetType().FullName;
-                    w.AddManifest<TestJobs.TestJobsManifest>();
+                    w.AddManifest<JobsOf<OutboxRelayDispatchSpec>>();
                     w.AddOutboxRelay(
                         "wired-src",
                         source =>

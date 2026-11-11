@@ -18,7 +18,22 @@ namespace Acta.Tests.Conformance.Scenarios;
     Area = "ChildJobs",
     Contract = "StartChildAsync dedupes by name per parent and a terminal child raises a durable latch that releases a waiting parent while cancel cascades to the live subtree."
 )]
-public sealed class ChildJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys(
+    "echo",
+    "job-child-echo",
+    "job-child-fail",
+    "job-child-resultless",
+    "job-parent-cancel-self",
+    "job-parent-fire-and-forget",
+    "job-parent-many",
+    "job-parent-of-failing-child",
+    "job-parent-of-restarted-child",
+    "job-parent-of-resultless-child",
+    "job-parent-one",
+    "job-wait-signal",
+    "old-then-oversize-result-probe"
+)]
+public sealed class ChildJobSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<ChildJobSpec>>
 {
     [Fact(DisplayName = "A terminal child sets a durable sys.child latch that releases the Suspended parent, which reads the child result")]
     public async Task Parent_starts_child_waits_on_latch_and_reads_result()

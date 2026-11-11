@@ -16,7 +16,8 @@ namespace Acta.Tests.Conformance.Engine.Worker;
     Area = "Catalog",
     Contract = "A deploy writes the namespace and each definition's full policy or framework defaults, and a worker start writes its worker row and WorkerStarted event once."
 )]
-public sealed class WorkerRuntimeRegistrationSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("echo", "policy-probe")]
+public sealed class WorkerRuntimeRegistrationSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<WorkerRuntimeRegistrationSpec>>
 {
     [Fact(DisplayName = "The deploy writes the namespace row and the start reads its id")]
     public async Task Initialize_assigns_namespace_id_and_writes_namespace_row()

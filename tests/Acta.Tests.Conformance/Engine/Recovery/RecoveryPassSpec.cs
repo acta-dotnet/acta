@@ -20,7 +20,8 @@ namespace Acta.Tests.Conformance.Engine.Recovery;
     Area = "Recovery",
     Contract = "A heartbeat takes the namespace's recovery pass once per interval, and one pass reclaims lapsed leases, re-raises lost latches, and wakes workers."
 )]
-public sealed class RecoveryPassSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("add-numbers", "job-child-echo", "job-parent-one")]
+public sealed class RecoveryPassSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<RecoveryPassSpec>>
 {
     // Claim with a negative TTL so the lease lands in the past, deterministically simulating a worker
     // that claimed then died long enough ago for its lease to lapse.

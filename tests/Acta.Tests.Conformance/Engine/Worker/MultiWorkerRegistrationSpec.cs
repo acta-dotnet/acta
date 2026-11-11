@@ -17,6 +17,7 @@ namespace Acta.Tests.Conformance.Engine.Worker;
     Area = "Workers",
     Contract = "Three Run calls in one process register three workers each owning its own namespace and manifest catalog and each claims and runs jobs only in its namespace."
 )]
+[Deploys("add-numbers")]
 public sealed class MultiWorkerRegistrationSpec : ActaTestBase<ConformanceFixture>
 {
     private string[] Namespaces => [Unique("mw-a"), Unique("mw-b"), Unique("mw-c")];
@@ -30,7 +31,7 @@ public sealed class MultiWorkerRegistrationSpec : ActaTestBase<ConformanceFixtur
             Fixture.ApplyProvider(j, Schema.SchemaName);
             foreach (var ns in Namespaces)
             {
-                j.Run<TestJobs.TestJobsManifest>(ns, ownerTeam: "test");
+                j.Run<JobsOf<MultiWorkerRegistrationSpec>>(ns, ownerTeam: "test");
             }
         });
     }

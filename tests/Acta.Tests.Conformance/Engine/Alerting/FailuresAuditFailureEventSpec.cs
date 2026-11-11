@@ -19,7 +19,8 @@ namespace Acta.Tests.Conformance.Engine.Alerting;
     Area = "Alerts",
     Contract = "At Failures every failed attempt writes its event, the terminal one as JobFailed, and a success writes one when it answers a failure or a restart."
 )]
-public sealed class FailuresAuditFailureEventSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("failures-audit-probe", "failures-audit-slot")]
+public sealed class FailuresAuditFailureEventSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<FailuresAuditFailureEventSpec>>
 {
     private const string JobName = "failures-audit-probe";
     private const string SlotName = "failures-audit-slot";

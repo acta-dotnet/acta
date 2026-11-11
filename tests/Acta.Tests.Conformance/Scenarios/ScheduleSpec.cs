@@ -16,7 +16,8 @@ namespace Acta.Tests.Conformance.Scenarios;
     Area = "Enqueue",
     Contract = "ScheduleAsync enqueues one job held until db_now plus the delay or until the given instant, which wins over a time set in configure."
 )]
-public sealed class ScheduleSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("add-numbers", "cancellable")]
+public sealed class ScheduleSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<ScheduleSpec>>
 {
     protected override bool RunAsWorker => true;
 

@@ -18,7 +18,8 @@ namespace Acta.Tests.Conformance.Scenarios;
     Area = "Signals",
     Contract = "WaitSignalAsync suspends a job on a Pending checkpoint and RaiseSignalAsync sets the checkpoint last-writer-wins, releasing a Suspended job that waits on it."
 )]
-public sealed class SignalSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("job-wait-signal", "job-wait-signal-then-reset", "job-wait-signal-twice", "job-wait-signal-typed")]
+public sealed class SignalSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<SignalSpec>>
 {
     private WakeupParkProbe _wakeup = null!;
 

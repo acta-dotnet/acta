@@ -9,7 +9,8 @@ namespace Acta.Tests.Conformance.Operations.Outbox;
 /// the test manifest and an outbox relay over its own source table, so it owns a <c>sys.outbox</c> slot and
 /// this host can read the source. Declares no <c>[Fact]</c>.
 /// </summary>
-public abstract class OutboxRelayHostBase : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("echo", "job-wait-signal")]
+public abstract class OutboxRelayHostBase : ActaRuntimeTestBase<ConformanceFixture, JobsOf<OutboxRelayHostBase>>
 {
     private protected string SourceTable => "acta_outbox_op_" + TestId;
 
@@ -26,7 +27,7 @@ public abstract class OutboxRelayHostBase : ActaRuntimeTestBase<ConformanceFixtu
                 {
                     w.OwnerTeam = "test";
                     w.Description = GetType().FullName;
-                    w.AddManifest<TestJobs.TestJobsManifest>();
+                    w.AddManifest<JobsOf<OutboxRelayHostBase>>();
                     w.AddOutboxRelay(
                         "operator-src",
                         source =>

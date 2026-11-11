@@ -19,7 +19,8 @@ namespace Acta.Tests.Conformance.Operations.Maintenance;
     Area = "Retention",
     Contract = "The jobs walk reads only its namespace's jobs, from the newest old enough to have expired to the oldest, and deletes the expired ones a batch at a time."
 )]
-public sealed class PurgeExpiredDataJobsWalkSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("add-numbers")]
+public sealed class PurgeExpiredDataJobsWalkSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<PurgeExpiredDataJobsWalkSpec>>
 {
     private static readonly TimeSpan Hour = TimeSpan.FromHours(1);
 
@@ -128,7 +129,7 @@ public sealed class PurgeExpiredDataJobsWalkSpec : ActaRuntimeTestBase<Conforman
         var (ns, definition) = await SeedNamespaceAsync(retention: TimeSpan.FromDays(1), ct);
         // Every worker namespace carries the sys definitions, which run only permanent jobs and keep the default
         // retention: counted, they would hold the walk of a namespace that keeps its jobs longer to that default.
-        await SeedDefinitionAsync(ns, "sys.walk-probe", retention: Hour, DefinitionStatusCode.Active, ct);
+        await SeedDefinitionAsync(ns, Unique("sys.walk-probe"), retention: Hour, DefinitionStatusCode.Active, ct);
         await SeedFinishedAsync(ns, definition, now - (2 * Hour), now - TimeSpan.FromMinutes(1), ct);
 
         var walked = await WalkAsync(ns, batchSize: 1, before: null, ct);

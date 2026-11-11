@@ -15,7 +15,8 @@ namespace Acta.Tests.Conformance.Operations.Definitions;
     Area = "Reads",
     Contract = "ListDefinitions pages the catalog ordered namespace then name then id and reads the page plus an opt-in filter-wide count in one command."
 )]
-public sealed class ListDefinitionsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("add-numbers")]
+public sealed class ListDefinitionsSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<ListDefinitionsSpec>>
 {
     [Fact(DisplayName = "Walking NextCursor visits every definition exactly once in ascending order and TotalCount matches the walk")]
     public async Task Walks_catalog_in_ascending_order_and_total_matches()

@@ -15,7 +15,8 @@ namespace Acta.Tests.Conformance.Engine.AlertCapture;
     Area = "Alerts",
     Contract = "PurgeAsync answers Rejected with the job's status while the projector owes an event of the job, and purges it once that event is projected."
 )]
-public sealed class AlertCapturePurgeSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("add-numbers", "job-throw-not-implemented")]
+public sealed class AlertCapturePurgeSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<AlertCapturePurgeSpec>>
 {
     // The floor is the namespace's own sys.alerts cursor, so the slot has to exist.
     protected override bool RunSystemJobs => true;

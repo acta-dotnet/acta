@@ -19,7 +19,8 @@ namespace Acta.Tests.Conformance.Engine.Worker;
     Area = "Execution",
     Contract = "A failed one-shot re-arms to Ready bumping failure_count while attempts remain and lands Failed at MaxAttempts, and a success resets failure_count to 0."
 )]
-public sealed class OneShotRetrySpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("failures-audit-probe", "flaky-recover", "retry-probe")]
+public sealed class OneShotRetrySpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<OneShotRetrySpec>>
 {
     [Fact(
         DisplayName = "In-budget failures re-arm to Ready bumping failure_count and an exhausted budget lands Failed with the failure reason preserved"

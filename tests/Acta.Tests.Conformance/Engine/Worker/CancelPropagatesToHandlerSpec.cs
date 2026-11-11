@@ -16,7 +16,8 @@ namespace Acta.Tests.Conformance.Engine.Worker;
     Area = "Control",
     Contract = "An external cancel reaches the handler's CancellationToken through the next heartbeat tick so the handler stops cooperatively and the row settles Cancelled."
 )]
-public sealed class CancelPropagatesToHandlerSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("cancellable")]
+public sealed class CancelPropagatesToHandlerSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<CancelPropagatesToHandlerSpec>>
 {
     [Fact(
         DisplayName = "An external cancel fires the handler token via heartbeat, the handler stops cooperatively, and the job settles Cancelled"

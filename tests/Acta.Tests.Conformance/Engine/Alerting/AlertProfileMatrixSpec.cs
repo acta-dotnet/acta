@@ -18,7 +18,8 @@ namespace Acta.Tests.Conformance.Engine.Alerting;
     Area = "Alerts",
     Contract = "Each alert profile gates non-terminal emission and severity, and a re-fire on a resolved alert's key opens a fresh incident rather than re-opening it."
 )]
-public sealed class AlertProfileMatrixSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("info-alert-probe", "on-terminal-probe", "sys-critical-probe")]
+public sealed class AlertProfileMatrixSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<AlertProfileMatrixSpec>>
 {
     private int NamespaceId => Runtime.RegisteredNamespaceIds[TestNamespace];
 

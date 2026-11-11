@@ -18,7 +18,8 @@ namespace Acta.Tests.Conformance.Operations.Jobs;
     Area = "Enqueue",
     Contract = "A Required definition rejects tenant-less rows and accepts explicit or inherited tenants while a Forbidden one rejects explicit keys and stores NULL."
 )]
-public sealed class EnqueueJobTenantRequirementSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("add-numbers", "tenant-forbidden-probe", "tenant-required-probe")]
+public sealed class EnqueueJobTenantRequirementSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<EnqueueJobTenantRequirementSpec>>
 {
     protected override bool RunAsWorker => true;
 

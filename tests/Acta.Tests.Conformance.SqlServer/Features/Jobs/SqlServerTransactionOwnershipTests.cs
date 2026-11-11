@@ -14,7 +14,9 @@ namespace Acta.Tests.Conformance.SqlServer.Features.Jobs;
 /// database rejection <c>XACT_ABORT</c> terminates the caller transaction, so the caller cannot commit the
 /// business work either. Provider-specific, so it lives in the SQL Server head.
 /// </summary>
-public sealed class SqlServerTransactionOwnershipTests : ActaRuntimeTestBase<SqlServerConformanceFixture, TestJobsManifest>
+[Deploys("add-numbers")]
+public sealed class SqlServerTransactionOwnershipTests
+    : ActaRuntimeTestBase<SqlServerConformanceFixture, JobsOf<SqlServerTransactionOwnershipTests>>
 {
     private const string ProbeTable = "acta_txn_own_probe";
 

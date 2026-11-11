@@ -22,7 +22,8 @@ namespace Acta.Tests.Conformance.Engine.Alerting;
     Area = "Alerts",
     Contract = "Re-projecting events the sys.alerts cursor never advanced past leaves the incidents they moved untouched and opens none behind a resolution."
 )]
-public sealed class AlertProjectionReplaySpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsManifest>
+[Deploys("recurring-ping")]
+public sealed class AlertProjectionReplaySpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<AlertProjectionReplaySpec>>
 {
     // A recurring slot: one stable job id that survives its own success and can fail again after it,
     // which is the whole reason this spec drives a schedule instead of a one-shot probe.

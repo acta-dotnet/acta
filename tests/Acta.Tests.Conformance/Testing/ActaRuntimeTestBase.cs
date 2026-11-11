@@ -57,6 +57,12 @@ public abstract class ActaRuntimeTestBase<TFixture, TManifest> : ActaTestBase<TF
             if (RunAsWorker)
             {
                 j.Run<TManifest>(testNamespace, ownerTeam: "test", description: GetType().FullName);
+                if (typeof(TManifest).IsGenericType && typeof(TManifest).GetGenericTypeDefinition() == typeof(JobsOf<>))
+                {
+                    // A generated call or a typed enqueue of a test job routes by the test manifest's own type, so the
+                    // host references it: every test job routes here, and only the ones the spec names are deployed.
+                    j.Reference<TestJobs.TestJobsManifest>(testNamespace);
+                }
             }
         });
         services.Configure<JobsOptions>(o => o.RunSystemJobs = RunSystemJobs);

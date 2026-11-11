@@ -22,7 +22,8 @@ namespace Acta.Tests.Conformance.Scenarios;
     Area = "Concurrency",
     Contract = "At most one same-key handler executes at a time: the runner takes the key lock after claim and a loser is re-armed Ready after a fixed bounce delay."
 )]
-public sealed class ConcurrencyKeyMutexSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("add-numbers", "attempt-overlap", "exclusive-probe")]
+public sealed class ConcurrencyKeyMutexSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<ConcurrencyKeyMutexSpec>>
 {
     protected override void ConfigureServices(IServiceCollection services, string testNamespace)
     {

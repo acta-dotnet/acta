@@ -15,7 +15,8 @@ namespace Acta.Tests.Conformance.Operations.Jobs;
     Area = "Reads",
     Contract = "ExplainJob's reason for a Cancelled job is the job.cancelled event's message and actor, and null where no such event was recorded."
 )]
-public sealed class ExplainJobCancelReasonSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("add-numbers", "failures-audit-probe")]
+public sealed class ExplainJobCancelReasonSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<ExplainJobCancelReasonSpec>>
 {
     [Fact(DisplayName = "A cancelled job's reason is the cancel's message, followed by the operator who cancelled it")]
     public async Task A_cancelled_job_explains_its_cancel()

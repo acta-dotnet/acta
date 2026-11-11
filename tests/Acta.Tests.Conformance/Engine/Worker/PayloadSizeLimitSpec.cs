@@ -17,7 +17,8 @@ namespace Acta.Tests.Conformance.Engine.Worker;
     Area = "Payloads",
     Contract = "Caller writes past the cap throw PayloadTooLargeException and an oversize handler result is dropped so the job still completes."
 )]
-public sealed class PayloadSizeLimitSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("add-numbers", "oversize-result-probe", "oversize-variable-probe")]
+public sealed class PayloadSizeLimitSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<PayloadSizeLimitSpec>>
 {
     private const int Cap = 1024;
 

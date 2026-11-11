@@ -14,7 +14,8 @@ namespace Acta.Tests.Conformance.SqlServer.Features.Jobs;
 /// committed data per statement or under its locks and is accepted. A lane an open enqueue created is skipped by the
 /// job list's lane filter, which tells only once lanes is large enough for the engine to lock pages for a scan.
 /// </summary>
-public sealed class SqlServerLaneIsolationTests : ActaRuntimeTestBase<SqlServerConformanceFixture, TestJobsManifest>
+[Deploys("lane-step")]
+public sealed class SqlServerLaneIsolationTests : ActaRuntimeTestBase<SqlServerConformanceFixture, JobsOf<SqlServerLaneIsolationTests>>
 {
     // Unpooled: SQL Server keeps a connection's isolation level across pool reuse, and these tests change it.
     private static string ConnectionString =>

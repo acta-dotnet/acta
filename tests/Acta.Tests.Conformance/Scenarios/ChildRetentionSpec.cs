@@ -18,7 +18,10 @@ namespace Acta.Tests.Conformance.Scenarios;
     Area = "ChildJobs",
     Contract = "Retention and manual purge keep a completed child whose parent is not terminal, and release it, leaves first, once the parent is."
 )]
-public sealed class ChildRetentionSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+// purge-now keeps its jobs no time at all, so a sweep walks the namespace from the cutoff and reaches a job that a
+// fact expires by hand.
+[Deploys("job-child-echo", "job-parent-one", "purge-now")]
+public sealed class ChildRetentionSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<ChildRetentionSpec>>
 {
     private int NamespaceId => Runtime.RegisteredNamespaceIds[TestNamespace];
 

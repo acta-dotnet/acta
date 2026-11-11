@@ -11,7 +11,8 @@ namespace Acta.Tests.Conformance.Operations.Namespaces;
     Area = "Admin",
     Contract = "Resume flips a suspended namespace back to Active and emits namespace.resumed, while sys is rejected at the facade."
 )]
-public sealed class ResumeNamespaceSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("add-numbers")]
+public sealed class ResumeNamespaceSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<ResumeNamespaceSpec>>
 {
     protected override bool RunAsWorker => true;
 

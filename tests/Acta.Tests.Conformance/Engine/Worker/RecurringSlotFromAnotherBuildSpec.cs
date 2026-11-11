@@ -7,15 +7,15 @@ using Xunit;
 namespace Acta.Tests.Conformance.Engine.Worker;
 
 /// <summary>
-/// The earlier build's manifest: the test manifest with <c>recurring-ping</c> declaring no schedule,
-/// the way a build looks before a deploy adds <c>[Schedule]</c> to a job it already runs.
+/// The earlier build's manifest: <c>recurring-ping</c> declaring no schedule, the way a build looks before a deploy
+/// adds <c>[Schedule]</c> to a job it already runs.
 /// </summary>
 public sealed class UnscheduledPingManifest : IJobManifest
 {
     public const string JobName = "recurring-ping";
 
     public static JobDescriptorManifest Descriptors { get; } =
-        new([.. TestJobsManifest.Descriptors.Descriptors.Select(d => d.JobName == JobName ? d with { Schedules = [] } : d)]);
+        new([.. TestJobsManifest.Descriptors.Descriptors.Where(d => d.JobName == JobName).Select(d => d with { Schedules = [] })]);
 }
 
 /// <summary>
@@ -29,6 +29,7 @@ public sealed class UnscheduledPingManifest : IJobManifest
     Area = "Scheduling",
     Contract = "A worker lands a slot another build deployed after it started Idle, as a permanent slot, never finished like a one-shot."
 )]
+[Deploys("recurring-ping")]
 public sealed class RecurringSlotFromAnotherBuildSpec : ActaRuntimeTestBase<ConformanceFixture, UnscheduledPingManifest>
 {
     private const string ScheduleName = "every-5-minutes";
@@ -38,7 +39,7 @@ public sealed class RecurringSlotFromAnotherBuildSpec : ActaRuntimeTestBase<Conf
     {
         var ct = TestContext.Current.CancellationToken;
 
-        await using var laterBuild = BuildProvider<TestJobsManifest>("later-build");
+        await using var laterBuild = BuildProvider<JobsOf<RecurringSlotFromAnotherBuildSpec>>("later-build");
         await CatalogTestOps.DeployAsync(laterBuild, ct);
         var triggered = await Operations.Schedules.TriggerAsync(
             new ScheduleLookup(TestNamespace, UnscheduledPingManifest.JobName, ScheduleName),

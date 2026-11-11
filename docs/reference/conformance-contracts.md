@@ -2051,15 +2051,14 @@
   - Get answers the definition as the save stored it: compact, its keys in the order sent, its escapes as written
 
 ### Calendar families list by name with their current and latest versions
-- **Contract:** The list answers one item per family by name with its versions and live bound schedules, in one namespace with sys or in all, filtered and paged.
+- **Contract:** The list answers one item per family by name with its versions and live bound schedules, in one namespace or in all, filtered and paged.
 - **Guarantees:**
   - A family of drafts lists once, with its latest version and no current version
   - A published family lists its current version and counts the live schedules naming it
   - A schedule of a retired definition does not count as a live schedule naming the family
   - The list filters by role and name fragment, counts the filter on request, and pages by name
   - The list filters by the latest version's status, counts the filter on request, and pages across a cursor
-  - A namespace's list filtered by the latest version's status filters the shared families too
-  - A namespace's list adds the shared families, and a list without a namespace spans every namespace
+  - A list without a namespace spans every namespace, and two families of one name page by namespace
 
 ### A calendar resolver keeps the versions its own preload read
 - **Contract:** A resolver answers the calendar version its own preload read, whatever version a later preload of the same family reads.
@@ -2072,10 +2071,9 @@
   - A draft previews its windows beside the current version's; a version the family lacks previews as null
 
 ### A publication reads the current version and its candidate with their definitions
-- **Contract:** The read answers the family's Published version and the version asked for with their definitions, in a namespace or in sys, and nothing for an unknown family.
+- **Contract:** The read answers the family's Published version and the version asked for with their definitions, and nothing for an unknown family.
 - **Guarantees:**
   - The current version and the asked-for draft read back with their definitions; an unknown family reads nothing
-  - A shared family reads back from sys with its namespace id
 
 ### A catalog calendar sources a schedule and a publication retimes every bound one
 - **Contract:** A schedule follows the catalog's current version by name, and a publication retimes every bound schedule atomically, refusing or discarding an overdue backlog.
@@ -2105,18 +2103,22 @@
   - A draft equal to an Archived latest version saves it again as a new draft
   - A draft in the other role is Rejected naming the family's role and writes nothing
   - A definition that does not compile throws with every problem by its path, and writes no row and no event
-  - A shared calendar and a namespace's cannot share a name, in either order
-  - Two first drafts of one name at the same moment, one shared and one in a namespace, save one and reject the other
   - Two first drafts at the same moment in a namespace that does not exist yet both save, and create it once
   - Two different drafts of one family at the same moment, with no expected version, save as the next two versions, each row and event its own
   - Two identical drafts of one family at the same moment save one version, and the other answers AlreadyInState with it
   - A first draft creates a namespace no worker has run in, and a role other than Occurrence or Availability throws
 
+### A calendar saved in sys is one family every namespace reads and none can shadow
+- **Contract:** A family in sys reads back from sys, resolves and lists in every namespace under its latest status, and takes its name in both scopes whichever saves first.
+- **Guarantees:**
+  - A shared family reads back from sys, resolves from a namespace, and lists there under its latest status
+  - A shared calendar and a namespace's cannot share a name, in either order
+  - Two first drafts of one name at the same moment, one shared and one in a namespace, save one and reject the other
+
 ### Any calendar version reads back with its definition, whatever its status
 - **Contract:** A version reads back with its role, status, and stored definition whatever its status, and a version the family lacks reads as null.
 - **Guarantees:**
   - An archived version reads back with its role, status, and definition; a version the family lacks is null
-  - A version in the shared sys catalog resolves from any namespace
 
 ### ListCalendarVersions pages a family's versions newest first
 - **Contract:** ListCalendarVersions pages a family's versions newest first with status, content hash, and publication instant, and answers an empty page for an unknown family.

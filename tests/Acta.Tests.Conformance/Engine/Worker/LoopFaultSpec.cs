@@ -17,7 +17,8 @@ namespace Acta.Tests.Conformance.Engine.Worker;
     Area = "Recovery",
     Contract = "A loop of a running worker that faults stops its other loops, and RunAsync ends with that fault instead of heartbeating with no claim loop."
 )]
-public sealed class LoopFaultSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsManifest>
+[Deploys("add-numbers")]
+public sealed class LoopFaultSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<LoopFaultSpec>>
 {
     private readonly BreakingWakeup _wakeup = new();
 

@@ -15,7 +15,8 @@ namespace Acta.Tests.Conformance.Operations.Jobs;
     Area = "Control",
     Contract = "The operator a job verb names is its event's actor, byte-identical on every provider, and the event's details name no actor."
 )]
-public sealed class JobControlActorSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("add-numbers")]
+public sealed class JobControlActorSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<JobControlActorSpec>>
 {
     // Two-byte UTF-8 letters: a varchar column or an ASCII parameter would fold them.
     private const string Operator = "Jože Kovač";

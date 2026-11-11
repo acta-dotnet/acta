@@ -15,7 +15,8 @@ namespace Acta.Tests.Conformance.Operations.Schedules;
     Area = "Scheduling",
     Contract = "GetSchedule returns the schedule a path names, member for member the schedules list's row for it, or null when the namespace, job, or schedule is absent."
 )]
-public sealed class GetScheduleSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("recurring-ping")]
+public sealed class GetScheduleSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<GetScheduleSpec>>
 {
     private const string JobName = "recurring-ping";
     private const string ScheduleName = "every-5-minutes";

@@ -23,7 +23,8 @@ namespace Acta.Tests.Conformance.Engine.Worker;
     Area = "Recovery",
     Contract = "A graceful worker stop with a job in-flight writes no completion and leaves it Executing for recovery, never terminal Failed."
 )]
-public sealed class WorkerShutdownDrainSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("cancellable")]
+public sealed class WorkerShutdownDrainSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<WorkerShutdownDrainSpec>>
 {
     // A hang guard, not a measurement: these specs drive the real claim loop and its DB round-trips,
     // which run slow under the suite's cross-test parallelism and finish well under a second in

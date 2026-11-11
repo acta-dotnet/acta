@@ -19,7 +19,8 @@ namespace Acta.Tests.Conformance.Scenarios;
     Area = "Lanes",
     Contract = "Jobs of one lane run one at a time in job-id order, each settle promoting the next unfinished member, and no retry, delay, or priority reorders them."
 )]
-public sealed class LaneOrderingSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("lane-defined", "lane-doomed", "lane-flaky", "lane-step")]
+public sealed class LaneOrderingSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<LaneOrderingSpec>>
 {
     [Fact(DisplayName = "A lane runs its jobs in enqueue order, one at a time, whatever their priority")]
     public async Task Lane_runs_in_enqueue_order_whatever_the_priority()

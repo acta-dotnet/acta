@@ -19,7 +19,24 @@ namespace Acta.Tests.Conformance.Scenarios;
     Area = "ChildJobs",
     Contract = "A bounded group wait spends one stored deadline across all children and replays, and on expiry cancels only its unfinished members, all in one pass."
 )]
-public sealed class ChildGroupTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys(
+    "job-child-echo",
+    "job-child-group-hold",
+    "job-child-quick",
+    "job-child-with-grandchild",
+    "job-parent-execute-child-bounded",
+    "job-parent-join-bounded",
+    "job-parent-map-bounded",
+    "job-parent-one",
+    "job-parent-parallel-bounded",
+    "job-parent-re-wait-same-group",
+    "job-parent-try-wait-children",
+    "job-parent-try-wait-children-subtree",
+    "job-parent-two-groups",
+    "job-parent-wait-children-unbounded",
+    "job-wait-signal"
+)]
+public sealed class ChildGroupTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<ChildGroupTimeoutSpec>>
 {
     [Fact(DisplayName = "A group that finishes before its deadline returns what the unbounded form returns")]
     public async Task Group_before_the_deadline_matches_the_unbounded_form()

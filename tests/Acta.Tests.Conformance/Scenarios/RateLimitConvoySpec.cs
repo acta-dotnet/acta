@@ -24,7 +24,8 @@ namespace Acta.Tests.Conformance.Scenarios;
     Area = "Concurrency",
     Contract = "Reservations delayed behind a held bucket row are judged at the clock when the row frees, so the release admits the burst and books the rest."
 )]
-public sealed class RateLimitConvoySpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("add-numbers")]
+public sealed class RateLimitConvoySpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<RateLimitConvoySpec>>
 {
     private const int Burst = 10;
     private const int IntervalMilliseconds = 100;
@@ -46,24 +47,37 @@ public sealed class RateLimitConvoySpec : ActaRuntimeTestBase<ConformanceFixture
         var locks = Services.GetRequiredService<LocksOperations>();
         var key = $"{TestNamespace}.rate.convoy";
 
-        // One reservation creates the bucket row and sets its instant.
-        Assert.True((await locks.ReserveRateAsync(key, 1, IntervalMilliseconds, Burst, GraceSeconds, ct)).Admitted);
-
+        // One reservation creates the bucket row and the holder locks it. An idle bucket lives one interval and any
+        // spec's retention pass sweeps it after that, so a pair a sweep came between is repeated.
         await using var holder = await Db.OpenConnectionAsync(ct);
-        await using var hold = await holder.BeginTransactionAsync(ct);
-        await using (var lockRow = holder.CreateCommand())
-        {
-            lockRow.Transaction = hold;
-            lockRow.CommandText =
-                Db.Provider == DbProvider.SqlServer
-                    ? $"SELECT lock_key FROM {Db.Schema}.locks WITH (UPDLOCK, HOLDLOCK) WHERE lock_key = @k"
-                    : $"SELECT lock_key FROM {Db.Schema}.locks WHERE lock_key = @k FOR UPDATE";
-            var p = lockRow.CreateParameter();
-            p.ParameterName = "@k";
-            p.Value = key;
-            lockRow.Parameters.Add(p);
-            Assert.Equal(key, await lockRow.ExecuteScalarAsync(ct));
-        }
+        var hold = await SpecWaits.RepeatUntilAsync<DbTransaction?>(
+            async () =>
+            {
+                await locks.ReserveRateAsync(key, 1, IntervalMilliseconds, Burst, GraceSeconds, ct);
+                var transaction = await holder.BeginTransactionAsync(ct);
+                await using var lockRow = holder.CreateCommand();
+                lockRow.Transaction = transaction;
+                lockRow.CommandText =
+                    Db.Provider == DbProvider.SqlServer
+                        ? $"SELECT lock_key FROM {Db.Schema}.locks WITH (UPDLOCK, HOLDLOCK) WHERE lock_key = @k"
+                        : $"SELECT lock_key FROM {Db.Schema}.locks WHERE lock_key = @k FOR UPDATE";
+                var p = lockRow.CreateParameter();
+                p.ParameterName = "@k";
+                p.Value = key;
+                lockRow.Parameters.Add(p);
+                if (key.Equals(await lockRow.ExecuteScalarAsync(ct)))
+                {
+                    return transaction;
+                }
+
+                await transaction.DisposeAsync();
+                return null;
+            },
+            held => held is not null,
+            ct
+        );
+        Assert.NotNull(hold);
+        await using var held = hold;
 
         // The convoy: each call blocks on the held row the instant it reaches the store.
         var queued = new List<Task<ReserveRateResponse>>(QueuedCalls);

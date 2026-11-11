@@ -15,7 +15,8 @@ namespace Acta.Tests.Conformance.Operations.Jobs;
     Area = "Control",
     Contract = "A null expectedVersion applies unconditionally, a matching one applies and returns version + 1, and a stale one is VersionConflict that writes nothing."
 )]
-public sealed class JobControlVersionGuardSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("add-numbers")]
+public sealed class JobControlVersionGuardSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<JobControlVersionGuardSpec>>
 {
     [Fact(DisplayName = "Competing pauses with one version have one winner and one audit event")]
     public async Task Concurrent_matching_tokens_have_one_winner()

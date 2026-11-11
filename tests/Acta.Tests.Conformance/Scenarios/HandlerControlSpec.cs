@@ -17,7 +17,8 @@ namespace Acta.Tests.Conformance.Scenarios;
     Area = "Control",
     Contract = "Handler control verbs and non-retryable exceptions finalize the attempt without returning to user code, budget untouched and no result written."
 )]
-public sealed class HandlerControlSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("job-handler-cancel", "job-handler-fail", "job-handler-pause", "job-throw-not-implemented", "missing-service-probe")]
+public sealed class HandlerControlSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<HandlerControlSpec>>
 {
     [Fact(
         DisplayName = "Handler fail lands terminal Failed with budget untouched, no result, the matching reason, and no post-control user code"

@@ -14,7 +14,8 @@ namespace Acta.Tests.Conformance.Postgres.Features.Outbox;
 /// (<see cref="OutboxRelay"/> over the SQLite source store and the owned Postgres target). Concrete
 /// (not a generic candidate spec), so it binds no per-provider head and adds no matrix.
 /// </summary>
-public sealed class PgSqliteMixedRelaySpec : ActaRuntimeTestBase<PgConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("echo")]
+public sealed class PgSqliteMixedRelaySpec : ActaRuntimeTestBase<PgConformanceFixture, JobsOf<PgSqliteMixedRelaySpec>>
 {
     private string _sqlitePath = null!;
     private string _sqliteConn = null!;

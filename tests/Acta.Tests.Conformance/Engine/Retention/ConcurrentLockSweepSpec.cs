@@ -18,7 +18,8 @@ namespace Acta.Tests.Conformance.Engine.Retention;
     Area = "Retention",
     Contract = "Retention sweeps racing over the same expired lock rows each reap rows no other sweep holds, and together they reap all of them without a deadlock."
 )]
-public sealed class ConcurrentLockSweepSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("add-numbers")]
+public sealed class ConcurrentLockSweepSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<ConcurrentLockSweepSpec>>
 {
     private const int ExpiredRows = 1000;
     private const int Sweeps = 8;

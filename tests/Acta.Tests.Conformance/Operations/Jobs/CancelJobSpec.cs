@@ -16,7 +16,8 @@ namespace Acta.Tests.Conformance.Operations.Jobs;
     Area = "Control",
     Contract = "A cancel stamps retention once, a re-cancel is Rejected, and a walk that outlives a restart of its job cancels none of the new children."
 )]
-public sealed class CancelJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("add-numbers", "job-wait-signal")]
+public sealed class CancelJobSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<CancelJobSpec>>
 {
     // The database clock, which is the one the verbs stamp their instants from.
     private async Task<DateTime> NowAsync(CancellationToken ct) => await Services.GetRequiredService<IActaClock>().GetUtcNowAsync(ct);

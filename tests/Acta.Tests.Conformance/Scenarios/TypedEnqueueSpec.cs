@@ -21,7 +21,8 @@ namespace Acta.Tests.Conformance.Scenarios;
     Area = "Enqueue",
     Contract = "The typed IJobs façade resolves the route from the input type, applies deduplication-key dedupe and delayed-run options, and RunAndWaitAsync waits."
 )]
-public sealed class TypedEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("add-numbers", "null-result", "old-then-oversize-result-probe", "policy-probe", "scalar-double-echo", "scalar-int-echo")]
+public sealed class TypedEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<TypedEnqueueSpec>>
 {
     protected override bool RunAsWorker => true;
 

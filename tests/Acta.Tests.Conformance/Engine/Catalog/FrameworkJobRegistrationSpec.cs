@@ -17,7 +17,8 @@ namespace Acta.Tests.Conformance.Engine.Catalog;
     Area = "Catalog",
     Contract = "A deploy registers system definitions with an Idle permanent slot and a default schedule."
 )]
-public sealed class FrameworkJobRegistrationSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("add-numbers")]
+public sealed class FrameworkJobRegistrationSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<FrameworkJobRegistrationSpec>>
 {
     // Live slot cursors are this spec's subject; the harness default would park them.
     protected override bool ParkScheduleSlots => false;

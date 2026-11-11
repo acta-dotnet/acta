@@ -10,7 +10,8 @@ namespace Acta.Tests.Conformance.Operations.Execution;
 /// parked on an unbounded wait, and High rows due in an hour. The claim-skew spec and the provider plan
 /// tests share it.
 /// </summary>
-public abstract class ClaimSkewTestBase : ActaRuntimeTestBase<ConformanceFixture, TestJobsManifest>
+[Deploys("add-numbers")]
+public abstract class ClaimSkewTestBase : ActaRuntimeTestBase<ConformanceFixture, JobsOf<ClaimSkewTestBase>>
 {
     /// <summary>Normal rows <see cref="SeedSkewAsync"/> parks on an unbounded wait.</summary>
     protected const int ParkedRows = 300;

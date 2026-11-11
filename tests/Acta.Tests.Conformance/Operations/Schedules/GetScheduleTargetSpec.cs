@@ -16,7 +16,8 @@ namespace Acta.Tests.Conformance.Operations.Schedules;
     Area = "Scheduling",
     Contract = "GetScheduleTarget returns a named live schedule with its id, slot job, definition, and the database clock, or null when the job or schedule is absent."
 )]
-public sealed class GetScheduleTargetSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("recurring-ping")]
+public sealed class GetScheduleTargetSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<GetScheduleTargetSpec>>
 {
     private const string JobName = "recurring-ping";
     private const string ScheduleName = "every-5-minutes";

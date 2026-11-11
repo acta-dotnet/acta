@@ -20,7 +20,8 @@ namespace Acta.Tests.Conformance.Scenarios;
     Area = "Control",
     Contract = "IJobs control verbs apply legal transitions stamping Operator/ControlManual, persist reason on reason-bearing states, reject illegal moves and report not-found."
 )]
-public sealed class ControlVerbsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("add-numbers")]
+public sealed class ControlVerbsSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<ControlVerbsSpec>>
 {
     protected override bool RunAsWorker => true;
 

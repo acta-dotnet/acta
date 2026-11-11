@@ -12,7 +12,9 @@ namespace Acta.Tests.Conformance.SqlServer.Features.Execution;
 /// before it reads any checkpoint, as every writer of a checkpoint does: it holds no gap of <c>pk_checkpoints</c>, and a raise that
 /// creates the awaited checkpoint still waits for the landing, which lands the job Ready.
 /// </summary>
-public sealed class SqlServerCompletionWaitLockTests : ActaRuntimeTestBase<SqlServerConformanceFixture, TestJobsManifest>
+[Deploys("job-wait-signal")]
+public sealed class SqlServerCompletionWaitLockTests
+    : ActaRuntimeTestBase<SqlServerConformanceFixture, JobsOf<SqlServerCompletionWaitLockTests>>
 {
     private SignalsOperations Signals => Services.GetRequiredService<SignalsOperations>();
 

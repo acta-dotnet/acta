@@ -16,6 +16,7 @@ namespace Acta.Tests.Conformance.Engine.Alerting;
     Area = "Alerts",
     Contract = "The registry provides a default channel per namespace, applies builder declarations as last-write-wins, and isolates namespaces."
 )]
+[Deploys("add-numbers")]
 public sealed class AlertChannelRegistrySpec : ActaTestBase<ConformanceFixture>
 {
     private string PrimaryNamespace => "acr-" + TestId;
@@ -30,7 +31,7 @@ public sealed class AlertChannelRegistrySpec : ActaTestBase<ConformanceFixture>
             j.Run(
                 PrimaryNamespace,
                 w =>
-                    w.AddManifest<TestJobs.TestJobsManifest>()
+                    w.AddManifest<JobsOf<AlertChannelRegistrySpec>>()
                         .AddAlertChannel(
                             "default",
                             "slack-webhook",
@@ -45,7 +46,7 @@ public sealed class AlertChannelRegistrySpec : ActaTestBase<ConformanceFixture>
                             o => o.MinSeverity = AlertSeverityCode.Error
                         )
             );
-            j.Run(OtherNamespace, w => w.AddManifest<TestJobs.TestJobsManifest>());
+            j.Run(OtherNamespace, w => w.AddManifest<JobsOf<AlertChannelRegistrySpec>>());
         });
         services.Configure<JobsOptions>(o => o.RunSystemJobs = false);
     }

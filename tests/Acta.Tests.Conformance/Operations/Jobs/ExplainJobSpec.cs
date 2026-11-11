@@ -17,7 +17,8 @@ namespace Acta.Tests.Conformance.Operations.Jobs;
     Area = "Reads",
     Contract = "ExplainJob returns the header, the newest steps up to its fetch limit, and the checkpoints of a matching job id from one snapshot, or null when none matches."
 )]
-public sealed class ExplainJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("add-numbers")]
+public sealed class ExplainJobSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<ExplainJobSpec>>
 {
     [Fact(DisplayName = "A known job id returns a populated header (Ready) with no steps or checkpoints")]
     public async Task Returns_explain_data_for_known_job_id()

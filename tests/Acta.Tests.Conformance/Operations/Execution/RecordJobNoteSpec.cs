@@ -12,7 +12,8 @@ namespace Acta.Tests.Conformance.Operations.Execution;
     Area = "Execution",
     Contract = "ctx.NoteAsync appends a job.note-recorded event with the message, optional JSON details, and the writing attempt and worker, while that attempt holds the job."
 )]
-public sealed class RecordJobNoteSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[Deploys("job-note")]
+public sealed class RecordJobNoteSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<RecordJobNoteSpec>>
 {
     [Fact(DisplayName = "A note for an unknown job is refused like one from an attempt that no longer holds its job")]
     public async Task Unknown_job_is_refused()
