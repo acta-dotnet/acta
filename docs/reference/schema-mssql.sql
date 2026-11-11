@@ -57,7 +57,7 @@ GO
 -- ===== refuse a database a newer release already upgraded =====
 IF EXISTS (
     SELECT 1 FROM acta.migrations
-    WHERE name NOT IN ('M20261110125040_init')
+    WHERE name NOT IN ('M20261110132152_init')
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -65,7 +65,7 @@ BEGIN
     SET NOEXEC ON;
 END
 GO
--- ===== BEGIN M20261110125040_init =====
+-- ===== BEGIN M20261110132152_init =====
 SET QUOTED_IDENTIFIER ON;
 SET ANSI_NULLS ON;
 GO
@@ -2516,9 +2516,8 @@ BEGIN
                 WHERE tenant_name IS NOT NULL
             )
             BEGIN
-                -- A named tenant resolves by name alone and its status is judged below: a status filter here, read a
-                -- statement before the check, would leave a tenant resumed in between unresolved and store the job
-                -- without it, or with the parent's.
+                -- A named tenant resolves by name alone, and the checks below judge the id resolved here, so a tenant
+                -- registered, suspended, or resumed in between can never leave the stored job without it.
                 UPDATE r
                 SET tenant_id = t.tenant_id
                 FROM @resolved r
@@ -2528,21 +2527,18 @@ BEGIN
 
                 IF
                     EXISTS (
-                        SELECT 1 FROM @p_batch b
-                        WHERE
-                            b.tenant_name IS NOT NULL
-                            AND NOT EXISTS (
-                                SELECT 1 FROM acta.tenants t
-                                WHERE t.tenant_name = b.tenant_name
-                            )
+                        SELECT 1
+                        FROM @p_batch b
+                        INNER JOIN @resolved r ON r.ordinal = b.ordinal
+                        WHERE b.tenant_name IS NOT NULL AND r.tenant_id IS NULL
                     )
                     BEGIN
                         THROW 50004, 'ACTA:ENQ_TENANT_UNKNOWN:Enqueue rejected: one or more rows reference an unknown tenant.', 1;
                     END;
                 IF
                     EXISTS (
-                        SELECT 1 FROM @p_batch b JOIN acta.tenants t ON t.tenant_name = b.tenant_name
-                        WHERE b.tenant_name IS NOT NULL AND t.tenant_status_code <> 10 /* TenantStatusCode.Active */
+                        SELECT 1 FROM @resolved r JOIN acta.tenants t ON t.tenant_id = r.tenant_id
+                        WHERE t.tenant_status_code <> 10 /* TenantStatusCode.Active */
                     )
                     BEGIN
                         THROW 50006, 'ACTA:ENQ_TENANT_SUSPENDED:Enqueue rejected: one or more rows reference a suspended tenant.', 1;
@@ -5028,11 +5024,11 @@ JOIN acta.namespaces AS ns ON ns.namespace_id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261110125040_init')
+IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261110132152_init')
 INSERT INTO acta.migrations (name)
-VALUES ('M20261110125040_init');
+VALUES ('M20261110132152_init');
 GO
--- ===== END M20261110125040_init =====
+-- ===== END M20261110132152_init =====
 GO
 COMMIT TRANSACTION;
 GO

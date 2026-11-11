@@ -41,14 +41,14 @@ DO $$
 BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
-        WHERE name NOT IN ('M20261110125040_init')
+        WHERE name NOT IN ('M20261110132152_init')
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
 END
 $$;
 
--- ===== BEGIN M20261110125040_init =====
+-- ===== BEGIN M20261110132152_init =====
 CREATE SCHEMA IF NOT EXISTS acta;
 
 -- alerts
@@ -2283,10 +2283,6 @@ BEGIN
             USING ERRCODE = 'P0001';
     END IF;
 
-    -- The staging resolves names alone, since every status was judged above: a status that changed since, while the
-    -- batch waited on a lane or a parent, would otherwise drop a row and commit the rest, or store a named tenant's job
-    -- without its tenant. A tenant is stored as named, and inherited from the parent only when none is named.
-    --
     -- Resolve catalog + pre-allocate the job id ONCE into a temp table keyed by that id, so the inserts
     -- below read a staged, ANALYZEd set instead of re-joining a catalog CTE the planner sizes at ~1 row
     -- (which forces batch-rescanning Nested Loops once the job state sits in its own table).
@@ -2382,6 +2378,8 @@ BEGIN
         b.lane
     FROM batch_rows b
     INNER JOIN ranked_ids ri ON ri.rn = b.rn
+    -- By name alone, every status judged above: a status filter here would drop the row of a namespace suspended
+    -- while the batch waited, committing the rest, or store a named tenant's job without its tenant.
     INNER JOIN acta.namespaces ns ON ns.namespace_name = b.namespace_name
     INNER JOIN acta.definitions jd ON jd.namespace_id = ns.namespace_id AND jd.definition_name = b.job_name
     LEFT JOIN acta.tenants t ON t.tenant_name = b.tenant_name
@@ -4363,10 +4361,10 @@ JOIN acta.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO acta.migrations (name)
-VALUES ('M20261110125040_init')
+VALUES ('M20261110132152_init')
 ON CONFLICT (name) DO NOTHING;
 
--- ===== END M20261110125040_init =====
+-- ===== END M20261110132152_init =====
 
 COMMIT;
 

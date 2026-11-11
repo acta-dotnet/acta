@@ -2448,9 +2448,8 @@ BEGIN
                 WHERE tenant_name IS NOT NULL
             )
             BEGIN
-                -- A named tenant resolves by name alone and its status is judged below: a status filter here, read a
-                -- statement before the check, would leave a tenant resumed in between unresolved and store the job
-                -- without it, or with the parent's.
+                -- A named tenant resolves by name alone, and the checks below judge the id resolved here, so a tenant
+                -- registered, suspended, or resumed in between can never leave the stored job without it.
                 UPDATE r
                 SET tenant_id = t.tenant_id
                 FROM @resolved r
@@ -2460,21 +2459,18 @@ BEGIN
 
                 IF
                     EXISTS (
-                        SELECT 1 FROM @p_batch b
-                        WHERE
-                            b.tenant_name IS NOT NULL
-                            AND NOT EXISTS (
-                                SELECT 1 FROM {{schema}}.tenants t
-                                WHERE t.tenant_name = b.tenant_name
-                            )
+                        SELECT 1
+                        FROM @p_batch b
+                        INNER JOIN @resolved r ON r.ordinal = b.ordinal
+                        WHERE b.tenant_name IS NOT NULL AND r.tenant_id IS NULL
                     )
                     BEGIN
                         THROW 50004, 'ACTA:ENQ_TENANT_UNKNOWN:Enqueue rejected: one or more rows reference an unknown tenant.', 1;
                     END;
                 IF
                     EXISTS (
-                        SELECT 1 FROM @p_batch b JOIN {{schema}}.tenants t ON t.tenant_name = b.tenant_name
-                        WHERE b.tenant_name IS NOT NULL AND t.tenant_status_code <> 10 /* TenantStatusCode.Active */
+                        SELECT 1 FROM @resolved r JOIN {{schema}}.tenants t ON t.tenant_id = r.tenant_id
+                        WHERE t.tenant_status_code <> 10 /* TenantStatusCode.Active */
                     )
                     BEGIN
                         THROW 50006, 'ACTA:ENQ_TENANT_SUSPENDED:Enqueue rejected: one or more rows reference a suspended tenant.', 1;
@@ -4960,7 +4956,7 @@ JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE name = 'M20261110125040_init')
+IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE name = 'M20261110132152_init')
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261110125040_init');
+VALUES ('M20261110132152_init');
 GO
