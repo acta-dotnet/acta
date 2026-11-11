@@ -5,7 +5,7 @@
 > Generated reference for Acta code families and the payload-format registry.
 > Every persisted code is documented here exactly once; the data-model reference [`data-model.md`](./data-model.md) links into this file from every code-bearing column.
 
-This release: **36 families**, **204 values**.
+This release: **36 families**, **205 values**.
 
 > Numeric IDs are stable family-local persistence identifiers. Enum members carry programmatic meaning; textual codes carry operator-facing meaning.
 > Numeric grouping is a readability convention, not a runtime schema. Canonical failure states use `200`.
@@ -256,6 +256,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `ScheduleAdmitted` | 105 | `schedule.admitted` | The scheduler chose one of the schedule's occurrences to fire; the details carry the schedule, the occurrence, the time through which the schedule is decided, and the firing id. | Active |
 | `ScheduleSkipped` | 106 | `schedule.skipped` | A range of the schedule's occurrences was decided without work: the misfire policy skipped it, it expired, the schedule was full, its calendar no longer produces it, or a calendar publication discarded it; details carry the schedule, the range, and the reason. | Active |
 | `ScheduleRetimed` | 107 | `schedule.retimed` | A deploy changed the schedule's timing, or a calendar it names was published; the undecided occurrences of the old timing were discarded and the schedule continues from the first occurrence of the new one. The details carry the schedule name. | Active |
+| `ScheduleEvaluationFailed` | 108 | `schedule.evaluation-failed` | The schedule's next occurrence could not be computed, so it admits nothing and is tried again every minute; the message is the error and the details carry the schedule. Recorded whatever the event recording level, when the schedule enters the error. | Active |
 | `CalendarDraftSaved` | 110 | `calendar.draft-saved` | An operator saved a new draft version of a catalog calendar. The details carry the calendar, the version, and the role; the message carries the reason. | Active |
 | `CalendarPublished` | 111 | `calendar.published` | An operator published a catalog calendar version, which became the family's current one. Details carry the calendar, the version, the version it replaced, the overdue decision, and the schedules it affected. | Active |
 | `CalendarArchived` | 112 | `calendar.archived` | An operator archived a catalog calendar's current version; the family has no current version until another is published. Details carry the calendar and the version. | Active |

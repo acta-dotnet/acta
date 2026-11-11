@@ -381,13 +381,20 @@ internal sealed class ScheduleAdmitter(
             s.ExpireAction ?? ScheduleExpireActionCode.Unspecified
         );
         var e = ScheduleEvaluator.Evaluate(resolve(s.Timing()), policy, Cursor(s), capacity, nowUtc);
-        if (e.Error is { } error && log is not null && s.EvaluationStatus != ScheduleEvaluationStatusCode.EvaluationError)
+        if (log is not null && StartedFailing(s, e))
         {
-            ActaLog.ScheduleEvaluationFailed(log, s.DefinitionName, $"schedule '{s.ScheduleName}': {error}");
+            ActaLog.ScheduleEvaluationFailed(log, s.DefinitionName, $"schedule '{s.ScheduleName}': {e.Error}");
         }
 
         return e;
     }
+
+    /// <summary>
+    /// Whether this is the pass that finds the schedule failing, the one that logs the error and records its event;
+    /// the retries while the schedule stays in error do neither.
+    /// </summary>
+    private static bool StartedFailing(DueSchedule s, ScheduleEvaluation e) =>
+        e.Error is not null && s.EvaluationStatus != ScheduleEvaluationStatusCode.EvaluationError;
 
     private static FiringContributor Contributor(DueSchedule s, AdmittedOccurrence admit) =>
         new(s.ScheduleId, s.ScheduleName, admit.OccurrenceAtUtc, s.TimeZoneId ?? "UTC", admit.CoveredThroughUtc, s.TimingFingerprint);
@@ -412,6 +419,7 @@ internal sealed class ScheduleAdmitter(
             admittedDetails,
             skippedDetails,
             ExpiredDetails(s, e),
+            StartedFailing(s, e) ? e.Error.Truncate(ActaTextLimits.EventMessage) : null,
             e.PausedByExpiry
         );
 

@@ -2113,6 +2113,7 @@
   - A pass with nothing due admits nothing and reports the earliest next evaluation as its horizon
   - An outstanding firing fills the slot: a later occurrence waits for capacity until settlement wakes it
   - A pass reports its decision, lag, overdue frontier, and wall time on the meter
+  - A schedule whose evaluation starts failing records it once, below the Audit level too
   - A schedule that holds a code this build does not know is left alone: not due, no wake, no write
 
 ### A published calendar sources a schedule, an availability calendar filters one

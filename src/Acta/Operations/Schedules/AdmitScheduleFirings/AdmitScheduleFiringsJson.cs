@@ -45,6 +45,7 @@ internal static class AdmitScheduleFiringsJson
                 JsonRows.Text(writer, "admitted_details", r.AdmittedDetails);
                 JsonRows.Text(writer, "skipped_details", r.SkippedDetails);
                 JsonRows.Text(writer, "expired_details", r.ExpiredDetails);
+                JsonRows.Text(writer, "evaluation_error", r.EvaluationError);
                 writer.WriteBoolean("expire_paused", r.ExpirePaused);
                 writer.WriteBoolean("check_only", r.CheckOnly);
             }

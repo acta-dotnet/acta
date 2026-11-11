@@ -642,6 +642,32 @@ public class ScheduleEvaluatorTests
     }
 
     [Fact]
+    public void A_schedule_in_error_stays_in_error_on_a_busy_slot_while_its_source_still_throws()
+    {
+        // A zone no host knows: the cron cannot be read. Parked as waiting it would lose the error, and the settlement
+        // that woke it would find the failure all over again.
+        var unknownZone = new ScheduleTiming("* * * * *", ScheduleExpressionKindCode.Cron, "Nowhere/Unknown", null);
+        var inError = new ScheduleCursor(Utc(10, 5), ScheduleStatusCode.Active, null, ScheduleEvaluationStatusCode.EvaluationError);
+
+        var d = Evaluate(unknownZone, inError, Utc(10, 6), capacity: AdmissionCapacity.Full);
+
+        Assert.Equal(ScheduleEvaluationStatusCode.EvaluationError, d.Status);
+        Assert.NotNull(d.Error);
+        Assert.Equal(Utc(10, 7), d.NextEvaluationAtUtc);
+    }
+
+    [Fact]
+    public void A_schedule_in_error_whose_source_reads_again_parks_on_a_busy_slot_like_any_other()
+    {
+        var inError = new ScheduleCursor(Utc(10, 5), ScheduleStatusCode.Active, null, ScheduleEvaluationStatusCode.EvaluationError);
+
+        var d = Evaluate(EveryMinute, inError, Utc(10, 6), capacity: AdmissionCapacity.Full);
+
+        Assert.Equal(ScheduleEvaluationStatusCode.WaitingForCapacity, d.Status);
+        Assert.Null(d.Error);
+    }
+
+    [Fact]
     public void A_stored_occurrence_the_calendar_no_longer_produces_is_skipped_as_source_changed()
     {
         // The cursor names 10:05, but the calendar now produces only the tens of minutes, so 10:05 is decided without

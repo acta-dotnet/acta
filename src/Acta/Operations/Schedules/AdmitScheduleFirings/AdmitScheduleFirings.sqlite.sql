@@ -33,6 +33,7 @@ SELECT
     json_extract(a.value, '$.admitted_details') AS admitted_details,
     json_extract(a.value, '$.skipped_details') AS skipped_details,
     json_extract(a.value, '$.expired_details') AS expired_details,
+    json_extract(a.value, '$.evaluation_error') AS evaluation_error,
     json_extract(a.value, '$.expire_paused') AS expire_paused,
     json_extract(a.value, '$.check_only') AS check_only
 FROM json_each(@p_rows) a;
@@ -193,9 +194,9 @@ FROM temp._adm_rows a
 JOIN temp._adm_valid v ON v.ordinal = a.group_ordinal
 WHERE js.schedule_id = a.schedule_id AND a.expire_paused = 1 AND js.schedule_status_code = 10 /* ScheduleStatusCode.Active */;
 
--- Decision evidence at Audit: an expired range, a skipped range, an admission, an elapsed pause, an expiry pause, a
--- manual trigger. A slot's decisions hang on the slot; a per-occurrence admission or trigger on its root, the rest of a
--- per-occurrence schedule's on the definition. A schedule name is dotted kebab ASCII.
+-- Decision evidence at Audit: an expired or skipped range, an admission, an elapsed pause, an expiry pause, a manual
+-- trigger. An evaluation that starts failing is written at every level. A slot's decisions hang on the slot, a
+-- per-occurrence admission or trigger on its root, the rest on the definition. A schedule name is dotted kebab ASCII.
 INSERT INTO {{schema}}.events (
     event_code, created_at_utc, namespace_id,
     entity_code, entity_id,
@@ -239,6 +240,10 @@ FROM (
         SELECT g.ordinal, g.schedule_id, 6, 104 /* EventCode.ScheduleTriggered */, g.trigger_details, g.trigger_message
         FROM temp._adm_groups g
         WHERE g.job_id IS NULL AND g.admit = 1 AND g.trigger_details IS NOT NULL
+        UNION ALL
+        SELECT a.group_ordinal, a.schedule_id, 7, 108 /* EventCode.ScheduleEvaluationFailed */, '{"schedule":"' || a.schedule_name || '"}', a.evaluation_error
+        FROM temp._adm_rows a
+        WHERE a.evaluation_error IS NOT NULL
     ) x
     JOIN temp._adm_valid v ON v.ordinal = x.group_ordinal
     JOIN temp._adm_groups g ON g.ordinal = x.group_ordinal
@@ -248,7 +253,7 @@ FROM (
     LEFT JOIN {{schema}}.jobs_state r ON r.job_id = g.job_id
     LEFT JOIN {{schema}}.jobs root ON root.job_ref = g.job_ref
 ) k
-WHERE k.event_recording_code = 20 /* EventRecordingCode.Audit */ AND k.details IS NOT NULL
+WHERE (k.event_recording_code = 20 /* EventRecordingCode.Audit */ OR k.ord = 7) AND k.details IS NOT NULL
 ORDER BY k.schedule_id, k.ord;
 
 SELECT g.ordinal, CASE WHEN v.ordinal IS NULL THEN 0 ELSE 1 END AS applied

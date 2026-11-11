@@ -18,12 +18,13 @@ CREATE TEMP TABLE _adm_rows ON COMMIT DROP AS
 SELECT
     a.group_ordinal, a.schedule_id, a.schedule_name, a.expected_version, a.expected_schedule_version,
     a.next_occurrence_at_utc, a.next_evaluation_at_utc, a.evaluation_status_code,
-    a.pause_ended, a.admitted_details, a.skipped_details, a.expired_details, a.expire_paused, a.check_only
+    a.pause_ended, a.admitted_details, a.skipped_details, a.expired_details, a.evaluation_error,
+    a.expire_paused, a.check_only
 FROM json_to_recordset(@p_rows::json) AS a (
     group_ordinal INT, schedule_id INT, schedule_name VARCHAR, expected_version INT, expected_schedule_version INT,
     next_occurrence_at_utc TIMESTAMPTZ, next_evaluation_at_utc TIMESTAMPTZ,
     evaluation_status_code SMALLINT, pause_ended BOOLEAN, admitted_details TEXT, skipped_details TEXT,
-    expired_details TEXT, expire_paused BOOLEAN, check_only BOOLEAN);
+    expired_details TEXT, evaluation_error VARCHAR, expire_paused BOOLEAN, check_only BOOLEAN);
 CREATE TEMP TABLE _adm_slots (job_id BIGINT NOT NULL, valid BOOLEAN NOT NULL) ON COMMIT DROP;
 CREATE TEMP TABLE _adm_states (schedule_id INT NOT NULL, version INT NOT NULL, schedule_version INT NOT NULL) ON COMMIT DROP;
 CREATE TEMP TABLE _adm_valid (ordinal INT NOT NULL) ON COMMIT DROP;
@@ -211,9 +212,9 @@ FROM _adm_rows a
 INNER JOIN _adm_valid v ON v.ordinal = a.group_ordinal
 WHERE js.schedule_id = a.schedule_id AND a.expire_paused AND js.schedule_status_code = 10 /* ScheduleStatusCode.Active */;
 
--- Decision evidence at Audit: an expired range, a skipped range, an admission, an elapsed pause, an expiry pause, a
--- manual trigger. A slot's decisions hang on the slot; a per-occurrence admission or trigger on its root, the rest of a
--- per-occurrence schedule's on the definition. A schedule name is dotted kebab ASCII.
+-- Decision evidence at Audit: an expired or skipped range, an admission, an elapsed pause, an expiry pause, a manual
+-- trigger. An evaluation that starts failing is written at every level. A slot's decisions hang on the slot, a
+-- per-occurrence admission or trigger on its root, the rest on the definition. A schedule name is dotted kebab ASCII.
 INSERT INTO {{schema}}.events (
     event_code, created_at_utc, namespace_id,
     entity_code, entity_id,
@@ -257,6 +258,10 @@ FROM (
         SELECT g.ordinal, g.schedule_id, 6, 104 /* EventCode.ScheduleTriggered */, g.trigger_details, g.trigger_message
         FROM _adm_groups g
         WHERE g.job_id IS NULL AND g.admit AND g.trigger_details IS NOT NULL
+        UNION ALL
+        SELECT a.group_ordinal, a.schedule_id, 7, 108 /* EventCode.ScheduleEvaluationFailed */, '{"schedule":"' || a.schedule_name || '"}', a.evaluation_error
+        FROM _adm_rows a
+        WHERE a.evaluation_error IS NOT NULL
     ) x
     INNER JOIN _adm_valid v ON v.ordinal = x.group_ordinal
     INNER JOIN _adm_groups g ON g.ordinal = x.group_ordinal
@@ -266,7 +271,7 @@ FROM (
     LEFT JOIN {{schema}}.jobs_state r ON r.job_id = g.job_id
     LEFT JOIN {{schema}}.jobs root ON root.job_ref = g.job_ref
 ) k
-WHERE k.event_recording_code = 20 /* EventRecordingCode.Audit */ AND k.details IS NOT NULL
+WHERE (k.event_recording_code = 20 /* EventRecordingCode.Audit */ OR k.ord = 7) AND k.details IS NOT NULL
 ORDER BY k.schedule_id, k.ord;
 
 SELECT g.ordinal, (v.ordinal IS NOT NULL) AS applied

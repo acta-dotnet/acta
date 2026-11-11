@@ -147,6 +147,45 @@ public sealed class ScheduleAdmitterSpec : ActaRuntimeTestBase<ConformanceFixtur
         Assert.Contains(seen, m => m.Instrument == "acta.schedule.pass" && m.Value >= 0);
     }
 
+    [Fact(DisplayName = "A schedule whose evaluation starts failing records it once, below the Audit level too")]
+    public async Task A_failing_evaluation_is_recorded_once_at_every_level()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var slotId = await SlotIdAsync(ct);
+        var occurrence = await ScheduleCursorAsync(slotId, ct);
+        // A level where a schedule's decisions leave no event, and a zone no host knows, so the evaluation throws.
+        await Db.ExecuteRawAsync(
+            $"UPDATE {{schema}}.jobs SET event_recording_code = {(int)EventRecordingCode.Failures} WHERE job_id = @p_id",
+            ct,
+            ("@p_id", slotId)
+        );
+        await Db.ExecuteRawAsync(
+            "UPDATE {schema}.schedules SET time_zone_id = 'Nowhere/Unknown' WHERE job_id = @p_id",
+            ct,
+            ("@p_id", slotId)
+        );
+
+        Clock.AdvanceTo(occurrence);
+        await Runtime.AdmitOnceAsync(TestNamespace, ct);
+        // The retry a minute on meets the same error, on a slot that has become busy, and adds nothing: a failing
+        // schedule is not parked as waiting for the slot.
+        await ChaosSpecHelpers.SetReadyAsync(Db, slotId, ct);
+        var retry = occurrence.AddMinutes(1).AddSeconds(1);
+        Clock.AdvanceTo(retry);
+        await Runtime.AdmitOnceAsync(TestNamespace, ct);
+
+        var schedule = await ScheduleAsync(slotId, ct);
+        Assert.Equal(ScheduleEvaluationStatusCode.EvaluationError, schedule.EvaluationStatus);
+        Assert.Equal(retry.AddMinutes(1), schedule.NextEvaluationAtUtc);
+        var failed = Assert.Single(
+            await Db.From<EventEntity>()
+                .Where(e => e.EntityCode == EntityCode.Job && e.EntityId == slotId && e.EventCode == EventCode.ScheduleEvaluationFailed)
+                .ToListAsync(ct)
+        );
+        Assert.Contains("Nowhere/Unknown", failed.EventMessage);
+        Assert.Equal($"{{\"schedule\":\"{ScheduleName}\"}}", System.Text.Encoding.UTF8.GetString(failed.Details!));
+    }
+
     // A newer build can store a code this one cannot read while both serve the namespace.
     [Theory(DisplayName = "A schedule that holds a code this build does not know is left alone: not due, no wake, no write")]
     [InlineData("schedule_status_code = 250")]

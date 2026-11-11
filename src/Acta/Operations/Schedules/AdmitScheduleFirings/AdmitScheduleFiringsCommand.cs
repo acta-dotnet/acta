@@ -33,8 +33,9 @@ internal sealed record AdmitScheduleFiringsGroup(
 
 /// <summary>
 /// One schedule a group read, at its state version and the declaration version its capacity and policies came from: its
-/// new cursor fields, the audit each decision leaves, and whether an expired occurrence pauses it for an operator. A
-/// check-only row writes nothing; it fails its group when either version moved.
+/// new cursor fields, the audit each decision leaves, the error of an evaluation that has just started failing, and
+/// whether an expired occurrence pauses it for an operator. A check-only row writes nothing; it fails its group when
+/// either version moved.
 /// </summary>
 internal sealed record AdmitScheduleFiringsValues(
     int GroupOrdinal,
@@ -49,6 +50,7 @@ internal sealed record AdmitScheduleFiringsValues(
     string? AdmittedDetails,
     string? SkippedDetails,
     string? ExpiredDetails,
+    string? EvaluationError,
     bool ExpirePaused,
     bool CheckOnly = false
 )
@@ -71,6 +73,7 @@ internal sealed record AdmitScheduleFiringsValues(
             null,
             default,
             false,
+            null,
             null,
             null,
             null,

@@ -72,6 +72,13 @@ internal static class ScheduleEvaluator
         DateTime? skippedThrough = null;
         try
         {
+            // A schedule in error stays in error while its source still throws, whatever the slot can take: parked, it
+            // would read as waiting, and the settlement that woke it would start the same failure over.
+            if (cursor.EvaluationStatus == ScheduleEvaluationStatusCode.EvaluationError)
+            {
+                _ = NextOccurrenceCalculator.Next(source, next);
+            }
+
             // A calendar is code or catalog content that can change under a stored cursor, and a cursor can sit outside
             // the bounds, as one a test host plants: an occurrence the source no longer produces is skipped as such, and
             // the cursor moves to the first it does, decided on the next pass.

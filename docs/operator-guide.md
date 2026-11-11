@@ -480,7 +480,7 @@ In production a deploy step applies Acta's migrations, never application startup
 
 ```
 $ ConnectionStrings__acta="<DDL login>" dotnet MyApp.dll jobs migrate
-applied M20261110132152_init to schema acta
+applied M20261110205022_init to schema acta
 namespace billing: 1.6.1+b81d04e (Production)
   added    sys.alerts
   added    sys.retention
@@ -1399,7 +1399,7 @@ SELECT namespace_name, definition_name, schedule_name, schedule_status, schedule
  ORDER BY namespace_name, next_occurrence_at_utc NULLS LAST, schedule_name;
 ```
 
-A schedule whose `expression_kind` is `calendar` names its calendar in `expression`, and one that fires only inside an availability calendar's windows names it in `availability_calendar_name`. The row keeps the name only; an `evaluation_status` of `evaluation-error` on such a schedule is a calendar the worker log explains, and the other schedules of the namespace go on ([calendars](./scheduling.md#calendars)). The catalog itself is `calendars_view`: one row per version with its role, status, and hash.
+A schedule whose `expression_kind` is `calendar` names its calendar in `expression`, and one that fires only inside an availability calendar's windows names it in `availability_calendar_name`. The row keeps the name only; an `evaluation_status` of `evaluation-error` on such a schedule is a calendar its `schedule.evaluation-failed` event explains, and the other schedules of the namespace go on ([calendars](./scheduling.md#calendars)). The catalog itself is `calendars_view`: one row per version with its role, status, and hash.
 
 `start_at_utc` and `end_before_utc` are the schedule's bounds, [start, end) on the occurrences' own instants; null is no bound, and a schedule past its end reads `exhausted` with no `next_occurrence_at_utc` ([finite schedules](./scheduling.md#finite-schedules)).
 

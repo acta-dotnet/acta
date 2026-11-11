@@ -35,6 +35,7 @@ BEGIN TRY
         admitted_details NVARCHAR(MAX) NULL,
         skipped_details NVARCHAR(MAX) NULL,
         expired_details NVARCHAR(MAX) NULL,
+        evaluation_error NVARCHAR(512) NULL,
         expire_paused BIT NOT NULL,
         check_only BIT NOT NULL);
     DECLARE @slots TABLE (job_id BIGINT NOT NULL PRIMARY KEY, valid BIT NOT NULL);
@@ -56,18 +57,19 @@ BEGIN TRY
     INSERT INTO @rows (
         schedule_id, group_ordinal, schedule_name, expected_version, expected_schedule_version,
         next_occurrence_at_utc, next_evaluation_at_utc, evaluation_status_code,
-        pause_ended, admitted_details, skipped_details, expired_details, expire_paused, check_only)
+        pause_ended, admitted_details, skipped_details, expired_details, evaluation_error, expire_paused, check_only)
     SELECT
         schedule_id, group_ordinal, schedule_name, expected_version, expected_schedule_version,
         next_occurrence_at_utc, next_evaluation_at_utc, evaluation_status_code,
-        pause_ended, admitted_details, skipped_details, expired_details, expire_paused, check_only
+        pause_ended, admitted_details, skipped_details, expired_details, evaluation_error, expire_paused, check_only
     FROM OPENJSON(@p_rows) WITH (
         schedule_id INT '$.schedule_id', group_ordinal INT '$.group_ordinal', schedule_name VARCHAR(128) '$.schedule_name',
         expected_version INT '$.expected_version', expected_schedule_version INT '$.expected_schedule_version',
         next_occurrence_at_utc DATETIME2(3) '$.next_occurrence_at_utc',
         next_evaluation_at_utc DATETIME2(3) '$.next_evaluation_at_utc', evaluation_status_code TINYINT '$.evaluation_status_code',
         pause_ended BIT '$.pause_ended', admitted_details NVARCHAR(MAX) '$.admitted_details', skipped_details NVARCHAR(MAX) '$.skipped_details',
-        expired_details NVARCHAR(MAX) '$.expired_details', expire_paused BIT '$.expire_paused', check_only BIT '$.check_only');
+        expired_details NVARCHAR(MAX) '$.expired_details', evaluation_error NVARCHAR(512) '$.evaluation_error',
+        expire_paused BIT '$.expire_paused', check_only BIT '$.check_only');
 
     -- The namespace's schedule lock, shared, before any row lock (docs/sql-internals.md, "Schedule lock").
     EXEC @lock_result = sys.sp_getapplock @lock_resource, 'Shared', 'Transaction', -1;
@@ -281,9 +283,9 @@ BEGIN TRY
     INNER JOIN @valid v ON v.ordinal = a.group_ordinal
     WHERE a.expire_paused = 1 AND js.schedule_status_code = 10 /* ScheduleStatusCode.Active */;
 
-    -- Decision evidence at Audit: an expired range, a skipped range, an admission, an elapsed pause, an expiry pause, a
-    -- manual trigger. A slot's decisions hang on the slot; a per-occurrence admission or trigger on its root, the rest
-    -- of a per-occurrence schedule's on the definition. ASCII names and JSON, so the VARCHAR cast is their UTF-8.
+    -- Decision evidence at Audit: an expired or skipped range, an admission, an elapsed pause, an expiry pause, a manual
+    -- trigger. An evaluation that starts failing is written at every level. A slot's decisions hang on the slot, a
+    -- per-occurrence admission or trigger on its root, the rest on the definition. The VARCHAR cast is the UTF-8 of ASCII.
     INSERT INTO {{schema}}.events (
         event_code, created_at_utc, namespace_id,
         entity_code, entity_id,
@@ -327,6 +329,10 @@ BEGIN TRY
             SELECT g.ordinal, g.schedule_id, 6, 104 /* EventCode.ScheduleTriggered */, g.trigger_details, g.trigger_message
             FROM @groups g
             WHERE g.job_id IS NULL AND g.admit = 1 AND g.trigger_details IS NOT NULL
+            UNION ALL
+            SELECT a.group_ordinal, a.schedule_id, 7, 108 /* EventCode.ScheduleEvaluationFailed */, N'{"schedule":"' + a.schedule_name + N'"}', a.evaluation_error
+            FROM @rows a
+            WHERE a.evaluation_error IS NOT NULL
         ) x
         INNER JOIN @valid v ON v.ordinal = x.group_ordinal
         INNER JOIN @groups g ON g.ordinal = x.group_ordinal
@@ -338,7 +344,7 @@ BEGIN TRY
         LEFT JOIN {{schema}}.jobs_state r WITH (FORCESEEK) ON r.job_id = g.job_id
         LEFT JOIN {{schema}}.jobs root WITH (FORCESEEK) ON root.job_ref = g.job_ref
     ) k
-    WHERE k.event_recording_code = 20 /* EventRecordingCode.Audit */ AND k.details IS NOT NULL
+    WHERE (k.event_recording_code = 20 /* EventRecordingCode.Audit */ OR k.ord = 7) AND k.details IS NOT NULL
     ORDER BY k.schedule_id, k.ord;
 
     SELECT g.ordinal, CAST(CASE WHEN v.ordinal IS NULL THEN 0 ELSE 1 END AS BIT) AS applied

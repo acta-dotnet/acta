@@ -189,6 +189,12 @@ public enum EventCode : byte
     )]
     ScheduleRetimed = 107,
 
+    [Code(
+        "schedule.evaluation-failed",
+        "The schedule's next occurrence could not be computed, so it admits nothing and is tried again every minute; the message is the error and the details carry the schedule. Recorded whatever the event recording level, when the schedule enters the error."
+    )]
+    ScheduleEvaluationFailed = 108,
+
     /// <summary>
     /// The calendar version row is the subject of every calendar.* event; details carry the calendar's name and the
     /// version. Always emitted regardless of event recording: catalog changes are low-volume operator activity.
