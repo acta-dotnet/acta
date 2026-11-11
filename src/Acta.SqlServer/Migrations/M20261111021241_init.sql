@@ -364,7 +364,6 @@ CREATE TABLE {{schema}}.schedules (
     expression_kind_code tinyint NOT NULL,
     misfire_strategy_code tinyint NOT NULL,
     interval_anchor_at_utc datetime2(3) NULL,
-    misfire_grace_seconds int NOT NULL,
     timing_fingerprint varchar(64) NOT NULL,
     max_outstanding int NOT NULL,
     full_behavior_code tinyint NOT NULL,
@@ -5028,7 +5027,7 @@ JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE name = 'M20261111020827_init')
+IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE name = 'M20261111021241_init')
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261111020827_init');
+VALUES ('M20261111021241_init');
 GO

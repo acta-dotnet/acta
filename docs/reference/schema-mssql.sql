@@ -57,7 +57,7 @@ GO
 -- ===== refuse a database a newer release already upgraded =====
 IF EXISTS (
     SELECT 1 FROM acta.migrations
-    WHERE name NOT IN ('M20261111020827_init')
+    WHERE name NOT IN ('M20261111021241_init')
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -65,7 +65,7 @@ BEGIN
     SET NOEXEC ON;
 END
 GO
--- ===== BEGIN M20261111020827_init =====
+-- ===== BEGIN M20261111021241_init =====
 SET QUOTED_IDENTIFIER ON;
 SET ANSI_NULLS ON;
 GO
@@ -432,7 +432,6 @@ CREATE TABLE acta.schedules (
     expression_kind_code tinyint NOT NULL,
     misfire_strategy_code tinyint NOT NULL,
     interval_anchor_at_utc datetime2(3) NULL,
-    misfire_grace_seconds int NOT NULL,
     timing_fingerprint varchar(64) NOT NULL,
     max_outstanding int NOT NULL,
     full_behavior_code tinyint NOT NULL,
@@ -5096,11 +5095,11 @@ JOIN acta.namespaces AS ns ON ns.namespace_id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261111020827_init')
+IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261111021241_init')
 INSERT INTO acta.migrations (name)
-VALUES ('M20261111020827_init');
+VALUES ('M20261111021241_init');
 GO
--- ===== END M20261111020827_init =====
+-- ===== END M20261111021241_init =====
 GO
 COMMIT TRANSACTION;
 GO

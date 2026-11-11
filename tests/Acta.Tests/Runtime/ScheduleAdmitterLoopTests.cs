@@ -81,7 +81,6 @@ public sealed class ScheduleAdmitterLoopTests
             TimeZoneId: null,
             ExpressionKind: ScheduleExpressionKindCode.Interval,
             MisfireStrategy: MisfireStrategyCode.CatchUpAll,
-            MisfireGraceSeconds: 60,
             IntervalAnchorAtUtc: null,
             TimingFingerprint: "fingerprint",
             AvailabilityCalendarName: null,

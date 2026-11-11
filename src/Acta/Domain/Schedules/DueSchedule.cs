@@ -17,7 +17,6 @@ internal sealed record DueSchedule(
     string? TimeZoneId,
     ScheduleExpressionKindCode ExpressionKind,
     MisfireStrategyCode MisfireStrategy,
-    int MisfireGraceSeconds,
     DateTime? IntervalAnchorAtUtc,
     string TimingFingerprint,
     string? AvailabilityCalendarName,

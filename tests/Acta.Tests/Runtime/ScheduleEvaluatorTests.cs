@@ -9,8 +9,6 @@ namespace Acta.Tests.Runtime;
 /// </summary>
 public class ScheduleEvaluatorTests
 {
-    private static readonly TimeSpan Grace = TimeSpan.FromMinutes(1);
-
     private static DateTime Utc(int hour, int minute, int second = 0) => new(2024, 1, 2, hour, minute, second, DateTimeKind.Utc);
 
     private static readonly ScheduleTiming EveryMinute = new("* * * * *", ScheduleExpressionKindCode.Cron, "UTC", null);
@@ -31,7 +29,7 @@ public class ScheduleEvaluatorTests
     ) =>
         ScheduleEvaluator.Evaluate(
             new ScheduleSource(timing, calendar, null),
-            new SchedulePolicy(misfire, Grace, expireAfter, expireAction),
+            new SchedulePolicy(misfire, expireAfter, expireAction),
             cursor,
             capacity,
             now

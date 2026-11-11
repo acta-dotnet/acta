@@ -110,13 +110,6 @@ internal sealed class ScheduleEntity : IEntity<int>
     public DateTime? IntervalAnchorAtUtc { get; init; }
 
     /// <summary>
-    /// How long past its instant a due occurrence still counts as on time rather than missed: the misfire policy
-    /// decides only what is older. Covers a slow admission pass, not downtime.
-    /// </summary>
-    [DbColumn("misfire_grace_seconds", DbKind.Int32)]
-    public int MisfireGraceSeconds { get; init; }
-
-    /// <summary>
     /// <see cref="TimingFingerprint"/> of the declaration as registered: the expression, its kind, the zone id, the
     /// anchor, the availability calendar's name, and the bounds. A registration whose fingerprint matches leaves the cursor alone; one that differs is a
     /// timing change. A retire writes <c>retired</c>, so a build that registers the definition again retimes the schedule from now.

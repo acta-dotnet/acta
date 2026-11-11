@@ -307,7 +307,6 @@ CREATE TABLE IF NOT EXISTS {{schema}}.schedules (
     expression_kind_code integer NOT NULL,
     misfire_strategy_code integer NOT NULL,
     interval_anchor_at_utc integer NULL,
-    misfire_grace_seconds integer NOT NULL,
     timing_fingerprint text NOT NULL,
     max_outstanding integer NOT NULL,
     full_behavior_code integer NOT NULL,
@@ -780,5 +779,5 @@ JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261111020827_init')
+VALUES ('M20261111021241_init')
 ON CONFLICT (name) DO NOTHING;

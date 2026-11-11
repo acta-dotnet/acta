@@ -131,18 +131,13 @@ public sealed class ScheduleDueWalkTests
                     skipped,
                     following
                 );
+                // Within the grace the latest occurrence fires and the earlier ones are skipped; past it, all are.
+                var onTime = latest >= now - ScheduleEvaluator.MisfireGrace;
                 AssertEvaluation(
                     context,
-                    Evaluate(source, MisfireStrategyCode.Skip, from, now, TimeSpan.FromDays(365)),
-                    (latest, latest),
-                    skipped,
-                    following
-                );
-                AssertEvaluation(
-                    context,
-                    Evaluate(source, MisfireStrategyCode.Skip, from, now, TimeSpan.Zero),
-                    latest == now ? (latest, latest) : null,
-                    latest == now ? skipped : (from, latest),
+                    Evaluate(source, MisfireStrategyCode.Skip, from, now),
+                    onTime ? (latest, latest) : null,
+                    onTime ? skipped : (from, latest),
                     following
                 );
             }
@@ -288,16 +283,10 @@ public sealed class ScheduleDueWalkTests
         Assert.True(following == e.NextOccurrenceAtUtc, $"{context}: next {e.NextOccurrenceAtUtc:O}, expected {following:O}");
     }
 
-    private static ScheduleEvaluation Evaluate(
-        ScheduleSource source,
-        MisfireStrategyCode misfire,
-        DateTime from,
-        DateTime now,
-        TimeSpan? grace = null
-    ) =>
+    private static ScheduleEvaluation Evaluate(ScheduleSource source, MisfireStrategyCode misfire, DateTime from, DateTime now) =>
         ScheduleEvaluator.Evaluate(
             source,
-            new SchedulePolicy(misfire, grace ?? TimeSpan.FromMinutes(1), null, ScheduleExpireActionCode.Unspecified),
+            new SchedulePolicy(misfire, null, ScheduleExpireActionCode.Unspecified),
             new ScheduleCursor(from, ScheduleStatusCode.Active, null),
             AdmissionCapacity.Available,
             now

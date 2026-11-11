@@ -1105,10 +1105,6 @@
           "Signature": "UtcInstant|0|0|0|True|None||coded=False|codeKind=|caseExact=False"
         },
         {
-          "Name": "misfire_grace_seconds",
-          "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|caseExact=False"
-        },
-        {
           "Name": "timing_fingerprint",
           "Signature": "AsciiString|64|0|0|False|None||coded=False|codeKind=|caseExact=False"
         },

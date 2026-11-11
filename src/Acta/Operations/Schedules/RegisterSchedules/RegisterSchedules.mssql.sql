@@ -238,7 +238,7 @@ BEGIN TRY
     INSERT INTO {{schema}}.schedules (
         namespace_id, job_id, definition_id, schedule_name, schedule_origin_code,
         expression, time_zone_id, expression_kind_code, misfire_strategy_code,
-        interval_anchor_at_utc, misfire_grace_seconds, timing_fingerprint,
+        interval_anchor_at_utc, timing_fingerprint,
         max_outstanding, full_behavior_code, expire_after_seconds, expire_action_code,
         availability_calendar_name, start_at_utc, end_before_utc,
         schedule_status_code, paused_until_utc, description,
@@ -255,7 +255,6 @@ BEGIN TRY
         src.expression_kind_code,
         src.misfire_strategy_code,
         src.interval_anchor_at_utc,
-        60,
         src.timing_fingerprint,
         src.max_outstanding,
         src.full_behavior_code,

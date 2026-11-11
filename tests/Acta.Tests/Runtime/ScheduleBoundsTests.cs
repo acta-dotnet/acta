@@ -10,8 +10,6 @@ namespace Acta.Tests.Runtime;
 /// </summary>
 public sealed class ScheduleBoundsTests
 {
-    private static readonly TimeSpan Grace = TimeSpan.FromMinutes(1);
-
     private static DateTime Utc(int h, int m, int s = 0) => new(2024, 1, 1, h, m, s, DateTimeKind.Utc);
 
     private static ScheduleTiming Cron(string expression, DateTime? start = null, DateTime? end = null) =>
@@ -32,7 +30,7 @@ public sealed class ScheduleBoundsTests
     ) =>
         ScheduleEvaluator.Evaluate(
             Bare(timing),
-            new SchedulePolicy(misfire, Grace, expireAfter, expireAction),
+            new SchedulePolicy(misfire, expireAfter, expireAction),
             new ScheduleCursor(cursor, ScheduleStatusCode.Active, null),
             AdmissionCapacity.Available,
             now

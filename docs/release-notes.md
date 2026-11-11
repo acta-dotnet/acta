@@ -14,6 +14,8 @@ Not tagged yet.
 
 **Catch `StepExhaustedException` around a step whose result may be too large**: `RunStepAsync` threw `PayloadTooLargeException` for a result over `MaxInlinePayloadBytes` and `InvalidOperationException` for a null one, and now throws `StepExhaustedException` for both.
 
+**Stop reading `schedules.misfire_grace_seconds`**: the column is gone. Every row held the same sixty seconds, which is the engine's own constant now, so a query that named the column drops it.
+
 ### Fixes
 
 - On SQL Server, two definition overrides updates in different namespaces could deadlock, and one failed as the victim: the update that carries a rate override to the definitions sharing its meter read every definition row under update locks before filtering by namespace, and waited on another namespace's row that its own update held. It now seeks its own namespace's rows.

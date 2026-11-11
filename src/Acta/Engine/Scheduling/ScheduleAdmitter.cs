@@ -376,7 +376,6 @@ internal sealed class ScheduleAdmitter(
     {
         var policy = new SchedulePolicy(
             s.MisfireStrategy,
-            TimeSpan.FromSeconds(s.MisfireGraceSeconds),
             s.ExpireAfterSeconds is { } expireAfter ? TimeSpan.FromSeconds(expireAfter) : null,
             s.ExpireAction ?? ScheduleExpireActionCode.Unspecified
         );

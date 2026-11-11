@@ -38,7 +38,6 @@ SELECT
     s.time_zone_id,
     s.expression_kind_code AS expression_kind,
     s.misfire_strategy_code AS misfire_strategy,
-    s.misfire_grace_seconds,
     s.interval_anchor_at_utc,
     s.timing_fingerprint,
     s.availability_calendar_name,

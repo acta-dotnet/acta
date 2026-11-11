@@ -8,8 +8,18 @@ namespace Acta;
 /// </summary>
 internal static class ScheduleEvaluator
 {
-    /// <summary>How long an evaluation error waits before the same cursor is evaluated again.</summary>
-    internal static readonly TimeSpan ErrorRetryDelay = TimeSpan.FromMinutes(1);
+    /// <summary>
+    /// How long past its instant a due occurrence still counts as on time under <c>Skip</c> rather than missed. It
+    /// covers a slow admission pass, not downtime.
+    /// </summary>
+    internal static readonly TimeSpan MisfireGrace = TimeSpan.FromMinutes(1);
+
+    /// <summary>
+    /// How long an evaluation error waits before the same cursor is evaluated again. Never shorter than the grace: an
+    /// error at the pass that ends a pause keeps the cursor and forgets the pause, and the occurrence it kept must be
+    /// past its grace when the retry decides it, or it would fire from inside the pause.
+    /// </summary>
+    internal static readonly TimeSpan ErrorRetryDelay = MisfireGrace;
 
     /// <summary>
     /// The due occurrences one evaluation steps through before it searches the rest of the backlog instead. Stepping
@@ -185,7 +195,7 @@ internal static class ScheduleEvaluator
                 case MisfireStrategyCode.Skip:
                     // The latest due occurrence is on time within the grace, which is what keeps a slow pass from
                     // counting as a misfire; every earlier one is missed, as the latest is when it is late.
-                    var onTime = Latest() >= now - policy.Grace;
+                    var onTime = Latest() >= now - MisfireGrace;
                     admit = onTime ? new AdmittedOccurrence(Latest(), Latest()) : null;
                     if (next < Latest() || !onTime)
                     {
