@@ -41,6 +41,20 @@ internal sealed record DueSchedule(
 )
 {
     /// <summary>The schedule's timing as stored.</summary>
+    /// <summary>
+    /// Whether this build knows every code the schedule holds. A newer build can store one this build does not have
+    /// while both serve the namespace; the admitter's reads leave such a schedule out, and a publication leaves it be.
+    /// </summary>
+    public bool Readable =>
+        Known(Status)
+        && Known(ExpressionKind)
+        && Known(MisfireStrategy)
+        && Known(FullBehavior)
+        && (ExpireAction is not { } action || Known(action));
+
+    private static bool Known<T>(T code)
+        where T : struct, Enum => Enum.IsDefined(code) && !code.Equals(default(T));
+
     public ScheduleTiming Timing() =>
         new(Expression, ExpressionKind, TimeZoneId, IntervalAnchorAtUtc, AvailabilityCalendarName, StartAtUtc, EndBeforeUtc);
 }

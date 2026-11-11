@@ -169,6 +169,29 @@ public sealed class PublishCalendarSpec : ActaRuntimeTestBase<ConformanceFixture
         Assert.Equal([CalendarStatusCode.Published, CalendarStatusCode.Superseded], versions.Select(v => v.Status));
     }
 
+    // A newer build can store a code this one cannot read while both serve the namespace.
+    [Theory(DisplayName = "A publication leaves a bound schedule this build cannot read as it is")]
+    [InlineData("schedule_status_code = 250")]
+    [InlineData("misfire_strategy_code = 250")]
+    [InlineData("full_behavior_code = 250")]
+    public async Task A_publication_leaves_an_unreadable_schedule_alone(string unknown)
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var slotId = await ScheduleTestOps.SlotIdAsync(Db, TestNamespace, PublishCalendarManifest.DaysJobName, ct);
+        await Db.ExecuteRawAsync($"UPDATE {{schema}}.schedules SET {unknown} WHERE job_id = @p_id", ct, ("@p_id", slotId));
+        var before = Assert.Single(await ScheduleTestOps.ReadAsync(Db, slotId, ct));
+        Clock.AdvanceTo(Start.AddSeconds(30));
+
+        var published = await PublishAsync(Days, CalendarRoleCode.Occurrence, Instants(10, 11), ct);
+
+        Assert.Equal(2, published.Version);
+        Assert.Empty(published.RetimedSchedules);
+        var after = Assert.Single(await ScheduleTestOps.ReadAsync(Db, slotId, ct));
+        Assert.Equal(before.NextOccurrenceAtUtc, after.NextOccurrenceAtUtc);
+        Assert.Equal(before.Cursor.Version, after.Cursor.Version);
+        Assert.Empty(await EventsAsync(slotId, EventCode.ScheduleRetimed, ct));
+    }
+
     [Fact(DisplayName = "An overdue occurrence refuses a publication until the caller discards it as a skipped range")]
     public async Task An_overdue_occurrence_refuses_or_is_discarded()
     {

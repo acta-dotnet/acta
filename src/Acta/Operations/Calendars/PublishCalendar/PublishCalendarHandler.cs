@@ -92,10 +92,11 @@ internal sealed class PublishCalendarHandler(
             var overdue = new List<string>();
             foreach (var s in bound)
             {
-                // An orphaned schedule has no cursor to move; its declaration comes back with its definition. The apply
-                // still checks it has not moved, as it does every schedule that names the family.
+                // An orphaned schedule has no cursor to move; its declaration comes back with its definition. One that
+                // holds a code this build does not know is a newer build's to retime. The apply still checks neither
+                // has moved, as it does every schedule that names the family.
                 var unchanged = new PublishCalendarValues(s.ScheduleId, s.ScheduleVersion, s.StateVersion, null, null, null);
-                if (s.Status == ScheduleStatusCode.Orphaned)
+                if (s.Status == ScheduleStatusCode.Orphaned || !s.Readable)
                 {
                     plan.Add(unchanged);
                     continue;
