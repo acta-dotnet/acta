@@ -57,7 +57,7 @@ GO
 -- ===== refuse a database a newer release already upgraded =====
 IF EXISTS (
     SELECT 1 FROM acta.migrations
-    WHERE name NOT IN ('M20261110123945_init')
+    WHERE name NOT IN ('M20261110125040_init')
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -65,7 +65,7 @@ BEGIN
     SET NOEXEC ON;
 END
 GO
--- ===== BEGIN M20261110123945_init =====
+-- ===== BEGIN M20261110125040_init =====
 SET QUOTED_IDENTIFIER ON;
 SET ANSI_NULLS ON;
 GO
@@ -2516,14 +2516,14 @@ BEGIN
                 WHERE tenant_name IS NOT NULL
             )
             BEGIN
+                -- A named tenant resolves by name alone and its status is judged below: a status filter here, read a
+                -- statement before the check, would leave a tenant resumed in between unresolved and store the job
+                -- without it, or with the parent's.
                 UPDATE r
                 SET tenant_id = t.tenant_id
                 FROM @resolved r
                 INNER JOIN @p_batch b ON b.ordinal = r.ordinal
-                INNER JOIN acta.tenants t
-                    ON
-                        t.tenant_name = b.tenant_name
-                        AND t.tenant_status_code = 10 /* TenantStatusCode.Active */
+                INNER JOIN acta.tenants t ON t.tenant_name = b.tenant_name
                 WHERE b.tenant_name IS NOT NULL;
 
                 IF
@@ -5028,11 +5028,11 @@ JOIN acta.namespaces AS ns ON ns.namespace_id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261110123945_init')
+IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261110125040_init')
 INSERT INTO acta.migrations (name)
-VALUES ('M20261110123945_init');
+VALUES ('M20261110125040_init');
 GO
--- ===== END M20261110123945_init =====
+-- ===== END M20261110125040_init =====
 GO
 COMMIT TRANSACTION;
 GO

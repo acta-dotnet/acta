@@ -789,11 +789,12 @@
   - Four producers racing 1000-row batches over shared lanes land in batch order behind one head per lane
 
 ### Enqueue rejects a suspended namespace and resumes once reactivated
-- **Contract:** EnqueueJob/EnqueueJobs reject enqueue into a suspended namespace and accept it again once the namespace is reactivated.
+- **Contract:** EnqueueJob/EnqueueJobs reject a suspended namespace, accept it again once reactivated, and land a batch that passed the gate whole.
 - **Guarantees:**
   - A suspended namespace rejects enqueue and persists nothing
   - A suspended namespace rejects EnqueueJob and persists nothing
   - Enqueue succeeds again once the namespace is reactivated
+  - A batch that passed the gate before a suspend committed lands whole
 
 ### Tenant suspension is admission control, not work closure
 - **Contract:** Suspension rejects new enqueues naming the tenant name while admitted workflows may expand through inherited children after the suspend commits.

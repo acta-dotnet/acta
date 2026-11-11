@@ -249,6 +249,10 @@ BEGIN
             USING ERRCODE = 'P0001';
     END IF;
 
+    -- The staging resolves names alone, since every status was judged above: a status that changed since, while the
+    -- batch waited on a lane or a parent, would otherwise drop a row and commit the rest, or store a named tenant's job
+    -- without its tenant. A tenant is stored as named, and inherited from the parent only when none is named.
+    --
     -- Resolve catalog + pre-allocate the job id ONCE into a temp table keyed by that id, so the inserts
     -- below read a staged, ANALYZEd set instead of re-joining a catalog CTE the planner sizes at ~1 row
     -- (which forces batch-rescanning Nested Loops once the job state sits in its own table).
@@ -329,8 +333,11 @@ BEGIN
         COALESCE(b.correlation_key, pj.correlation_key),
         ns.namespace_id,
         jd.definition_id,
-        CASE WHEN jd.tenant_requirement_code = 20 /* DefinitionTenantRequirementCode.Forbidden */ THEN NULL
-            ELSE COALESCE(t.tenant_id, pj.tenant_id) END,
+        CASE
+            WHEN jd.tenant_requirement_code = 20 /* DefinitionTenantRequirementCode.Forbidden */ THEN NULL
+            WHEN b.tenant_name IS NOT NULL THEN t.tenant_id
+            ELSE pj.tenant_id
+        END,
         b.input_format_id,
         b.input,
         b.concurrency_key,
@@ -341,11 +348,9 @@ BEGIN
         b.lane
     FROM batch_rows b
     INNER JOIN ranked_ids ri ON ri.rn = b.rn
-    INNER JOIN {{schema}}.namespaces ns
-        ON ns.namespace_name = b.namespace_name
-        AND ns.namespace_status_code = 10 /* NamespaceStatusCode.Active */
+    INNER JOIN {{schema}}.namespaces ns ON ns.namespace_name = b.namespace_name
     INNER JOIN {{schema}}.definitions jd ON jd.namespace_id = ns.namespace_id AND jd.definition_name = b.job_name
-    LEFT JOIN {{schema}}.tenants t ON t.tenant_name = b.tenant_name AND t.tenant_status_code = 10 /* TenantStatusCode.Active */
+    LEFT JOIN {{schema}}.tenants t ON t.tenant_name = b.tenant_name
     LEFT JOIN {{schema}}.jobs pj ON pj.job_id = b.parent_job_id;
 
     IF lane_count > 0 THEN

@@ -19,7 +19,7 @@ namespace Acta.Tests.Conformance.Operations.Jobs;
     "enqueue-jobs.namespace-gate",
     "Enqueue rejects a suspended namespace and resumes once reactivated",
     Area = "Enqueue",
-    Contract = "EnqueueJob/EnqueueJobs reject enqueue into a suspended namespace and accept it again once the namespace is reactivated."
+    Contract = "EnqueueJob/EnqueueJobs reject a suspended namespace, accept it again once reactivated, and land a batch that passed the gate whole."
 )]
 public sealed class EnqueueJobNamespaceSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
@@ -90,5 +90,52 @@ public sealed class EnqueueJobNamespaceSpec : ActaRuntimeTestBase<ConformanceFix
         var job = await ReadJobAsync(result[0].JobId, ct);
 
         Assert.NotNull(job);
+    }
+
+    [Fact(DisplayName = "A batch that passed the gate before a suspend committed lands whole")]
+    public async Task A_batch_waiting_on_a_lane_through_a_suspend_lands_whole()
+    {
+        if (Db.Provider == DbProvider.Sqlite)
+        {
+            Assert.Skip("SQLite has one writer: the suspend cannot commit while the batch runs.");
+        }
+        var ct = TestContext.Current.CancellationToken;
+        var lane = Unique("held-lane");
+        var payload = JobPayload.Json(new AddNumbers(1, 2));
+        await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", payload, Lane: lane), ct);
+
+        // Holding the lane stops the batch after its gate and before it stages; the suspend commits in between.
+        var namespaceId = Runtime.RegisteredNamespaceIds[TestNamespace];
+        await using var connection = await Db.OpenConnectionAsync(ct);
+        await using var blocker = await connection.BeginTransactionAsync(ct);
+        await using (var cmd = connection.CreateCommand())
+        {
+            // By its key, as the batch locks it: a lock taken through the name index alone would not stop it.
+            cmd.Transaction = blocker;
+            cmd.CommandText = $"SELECT lane_id FROM {Db.Schema}.lanes WHERE namespace_id = {namespaceId} AND lane_name = '{lane}'";
+            var laneId = Convert.ToInt64(await cmd.ExecuteScalarAsync(ct), System.Globalization.CultureInfo.InvariantCulture);
+            cmd.CommandText =
+                Db.Provider == DbProvider.SqlServer
+                    ? $"SELECT lane_id FROM {Db.Schema}.lanes WITH (UPDLOCK, ROWLOCK) WHERE lane_id = {laneId}"
+                    : $"SELECT lane_id FROM {Db.Schema}.lanes WHERE lane_id = {laneId} FOR UPDATE";
+            Assert.NotNull(await cmd.ExecuteScalarAsync(ct));
+        }
+
+        var batch = Jobs.EnqueueJobsAsync(
+                [
+                    new EnqueueJobRequest(TestNamespace, "add-numbers", payload, Lane: lane),
+                    new EnqueueJobRequest(TestNamespace, "add-numbers", payload),
+                ],
+                ct
+            )
+            .AsTask();
+        await LockWaitProbe.WaitAsync(Db, "enqueue_jobs", LockWait.Row, batch, blocker, ct);
+        await SetNamespaceStatusAsync(NamespaceStatusCode.Suspended, ct);
+        await blocker.RollbackAsync(ct);
+
+        // Staging drops no row whose namespace changed since the gate, so the batch is all or nothing.
+        var outcomes = (await batch).Jobs;
+        Assert.Equal(2, outcomes.Count);
+        Assert.All(outcomes, outcome => Assert.Equal(EnqueueJobAction.Inserted, outcome.Action));
     }
 }

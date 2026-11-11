@@ -85,14 +85,14 @@ BEGIN
                 WHERE tenant_name IS NOT NULL
             )
             BEGIN
+                -- A named tenant resolves by name alone and its status is judged below: a status filter here, read a
+                -- statement before the check, would leave a tenant resumed in between unresolved and store the job
+                -- without it, or with the parent's.
                 UPDATE r
                 SET tenant_id = t.tenant_id
                 FROM @resolved r
                 INNER JOIN @p_batch b ON b.ordinal = r.ordinal
-                INNER JOIN {{schema}}.tenants t
-                    ON
-                        t.tenant_name = b.tenant_name
-                        AND t.tenant_status_code = 10 /* TenantStatusCode.Active */
+                INNER JOIN {{schema}}.tenants t ON t.tenant_name = b.tenant_name
                 WHERE b.tenant_name IS NOT NULL;
 
                 IF
