@@ -4,9 +4,14 @@
 
 Not tagged yet.
 
+### What a consumer must change
+
+**Drop and reprovision every database an rc.9 build provisioned**: the baseline is re-cut, and nothing translates it.
+
 ### Fixes
 
 - On SQL Server, two definition overrides updates in different namespaces could deadlock, and one failed as the victim: the update that carries a rate override to the definitions sharing its meter read every definition row under update locks before filtering by namespace, and waited on another namespace's row that its own update held. It now seeks its own namespace's rows.
+- On PostgreSQL, the crash-recovery pass could read a stuck job's lanes through `ix_jobs_state_lane_member`, every live laned row, when the table's statistics priced it the same as `ix_jobs_state_worker_inflight`. It now reads them through the in-flight index alone.
 
 ## 1.0.0-rc.9
 

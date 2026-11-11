@@ -1552,7 +1552,7 @@
       "jobs_view": "c6a9ceaa8fbb38e8b0630f44f07489ddffa6aad5d17b4b7075f7680bd3785341",
       "purge_expired_data": "44d6880f335c760cb9ddd0129ab317e12cab423cbe4d8bac820da1e7f07ec215",
       "raise_job_signal": "47b7a40fc9a3c4a24c6088171c3702d24f150d3cef1a304f6375a6d126b78e69",
-      "reclaim_stuck_jobs": "74e49dd2895a61265e32073f8933e1a2e44217885185822f89671fe50a343110",
+      "reclaim_stuck_jobs": "9eac332fb96df76ec7e6e543af747bbf11808e905f616a93489e29abd97808d8",
       "reserve_rate": "147eb58a9780d3a3a0f0660d4d0301c93a2a310dfbff598c2996b88d71eb6543",
       "schedules_view": "37a7b274470248c050b6174f972e1d63e33b33420612b9a1f7b6691063f9c5b8",
       "start_job_step": "3221bccacd799071e9bb48ffa9d2ad1b1a9168b3e296858c162cfffe11931462",

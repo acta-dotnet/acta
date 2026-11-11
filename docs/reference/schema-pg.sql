@@ -41,14 +41,14 @@ DO $$
 BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
-        WHERE name NOT IN ('M20261108075926_init')
+        WHERE name NOT IN ('M20261109062128_init')
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
 END
 $$;
 
--- ===== BEGIN M20261108075926_init =====
+-- ===== BEGIN M20261109062128_init =====
 CREATE SCHEMA IF NOT EXISTS acta;
 
 -- alerts
@@ -3198,7 +3198,7 @@ BEGIN
     -- Lock order: the stuck rows' lanes and the stranded lanes in id order, then the jobs_state rows
     -- (docs/sql-internals.md, "Lane lock order"). A lane another transaction holds is
     -- skipped, and its stuck rows and repair wait for a later pass.
-    v_candidates := v_stranded || ARRAY(
+    v_candidates := v_stranded || array_remove(ARRAY(
         SELECT r.lane_id
         FROM acta.jobs_state r
         WHERE
@@ -3207,8 +3207,7 @@ BEGIN
             AND r.leased_by_worker_id IS NOT NULL
             AND r.lease_expires_at_utc < now()
             AND r.namespace_id = p_namespace_id
-            AND r.lane_id IS NOT NULL
-    );
+    ), NULL); -- NULL lanes drop here, not in the scan, so ix_jobs_state_lane_member cannot tie with the in-flight index.
     FOR v_lane_id IN
         SELECT l.lane_id
         FROM acta.lanes l
@@ -4358,10 +4357,10 @@ JOIN acta.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO acta.migrations (name)
-VALUES ('M20261108075926_init')
+VALUES ('M20261109062128_init')
 ON CONFLICT (name) DO NOTHING;
 
--- ===== END M20261108075926_init =====
+-- ===== END M20261109062128_init =====
 
 COMMIT;
 
