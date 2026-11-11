@@ -16,7 +16,7 @@ public enum NamespaceStatusCode : byte
 
     [Code(
         "suspended",
-        "Enqueues into the namespace are rejected and its schedules hold, until an operator resumes it. Jobs already running are unaffected."
+        "Enqueues into the namespace are rejected, a running job's child start included, and its schedules hold, the system jobs' too, until an operator resumes it. Jobs it already holds still run."
     )]
     Suspended = 20,
 }

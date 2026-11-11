@@ -29,6 +29,13 @@
   - Resuming a suspended tenant applies and emits one tenant.resumed
   - Re-resuming an active tenant is AlreadyInState with no event
 
+### A suspended namespace takes no new work and still runs what it holds
+- **Contract:** A suspended namespace rejects a running job's child start and holds every schedule, the system jobs' too, while the jobs it already holds still run.
+- **Guarantees:**
+  - A suspended namespace's Ready and retrying jobs are still claimed and run
+  - A suspended namespace's system schedules hold, and a resume hands them back to the admitter
+  - A running job's child start into its suspended namespace is rejected and fails the attempt
+
 ### Namespace suspend flips status, emits one 15xx event, and rejects sys
 - **Contract:** Suspend flips a namespace to Suspended once with a version bump and namespace.suspended, reports NotFound for unknown names, and rejects sys.
 - **Guarantees:**

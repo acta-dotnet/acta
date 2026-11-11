@@ -264,7 +264,13 @@ tenant name are rejected once the suspend has committed, while jobs already admi
 running workflow may still create children that inherit the suspended tenant (an inherited tenant id
 carries no key to re-check). Namespace suspension also holds the namespace's schedules: nothing is admitted
 into it, by the admitter, a manual trigger, or a permanent job's Run now, and on resume the misfire policy decides the missed window
-as it does after downtime. Suspension is reversible and status-only.
+as it does after downtime. That reaches the namespace's own system jobs, so its alert projection, retention and
+outbox relay stop firing until the resume. A running job's child start into it is rejected, which fails that attempt
+unless the handler catches the rejection. An outbox row bound for it waits for the resume when the suspended
+namespace's own relay would have moved it; a relay that still runs elsewhere refuses the row, and once its retries
+run out quarantines it, to be requeued by hand. The jobs the namespace already holds, Ready or waiting on a retry,
+are still claimed and run.
+Suspension is reversible and status-only.
 
 ```csharp
 await operations.Tenants.SuspendAsync("cust-4711", "billing hold");

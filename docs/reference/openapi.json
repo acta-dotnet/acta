@@ -20151,7 +20151,7 @@
           "active"
         ],
         "type": "string",
-        "description": "Whether a namespace accepts enqueues.\n\nKnown values:\n- unspecified: Namespace status not recognized by this build; the row was written by a newer Acta.\n- active: Enqueues into the namespace are accepted.\n- suspended: Enqueues into the namespace are rejected and its schedules hold, until an operator resumes it. Jobs already running are unaffected.\n\nOther values may appear: keep a value this client does not know as it is.",
+        "description": "Whether a namespace accepts enqueues.\n\nKnown values:\n- unspecified: Namespace status not recognized by this build; the row was written by a newer Acta.\n- active: Enqueues into the namespace are accepted.\n- suspended: Enqueues into the namespace are rejected, a running job's child start included, and its schedules hold, the system jobs' too, until an operator resumes it. Jobs it already holds still run.\n\nOther values may appear: keep a value this client does not know as it is.",
         "x-acta-known-values": [
           "unspecified",
           "active",

@@ -151,7 +151,7 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 | `GetNamespace` | `INamespaces.GetAsync` | `GET /namespaces/{jobNamespace}` (`getNamespace`, `acta.read`) | · | inline | · | `GetNamespaceSpec` |
 | `ListNamespaces` | `INamespaces.ListAsync` | `GET /namespaces` (`listNamespaces`, `acta.read`) | · | inline | · | `ListNamespacesSpec` |
 | `ResumeNamespace` | `INamespaces.ResumeAsync` | `POST /namespaces/{jobNamespace}/resume` (`resumeNamespace`, `acta.admin`) | · | inline | `events`, `namespaces` | `ResumeNamespaceSpec` |
-| `SuspendNamespace` | `INamespaces.SuspendAsync` | `POST /namespaces/{jobNamespace}/suspend` (`suspendNamespace`, `acta.admin`) | · | inline | `events`, `namespaces` | `SuspendNamespaceSpec` |
+| `SuspendNamespace` | `INamespaces.SuspendAsync` | `POST /namespaces/{jobNamespace}/suspend` (`suspendNamespace`, `acta.admin`) | · | inline | `events`, `namespaces` | `SuspendNamespaceReachSpec`, `SuspendNamespaceSpec` |
 | `UpdateNamespace` | `INamespaces.UpdateAsync` | `PUT /namespaces/{jobNamespace}` (`updateNamespace`, `acta.admin`) | · | inline | `events`, `namespaces` | `UpdateNamespaceSpec` |
 
 ## Outbox

@@ -347,7 +347,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 |---|---:|---|---|---|
 | `Unspecified` | 0 | `unspecified` | Namespace status not recognized by this build; the row was written by a newer Acta. | Active |
 | `Active` | 10 | `active` | Enqueues into the namespace are accepted. | Active |
-| `Suspended` | 20 | `suspended` | Enqueues into the namespace are rejected and its schedules hold, until an operator resumes it. Jobs already running are unaffected. | Active |
+| `Suspended` | 20 | `suspended` | Enqueues into the namespace are rejected, a running job's child start included, and its schedules hold, the system jobs' too, until an operator resumes it. Jobs it already holds still run. | Active |
 
 ### `OutboxStatusCode` · `outbox-status` <a id="code-family-outboxstatuscode"></a>
 
