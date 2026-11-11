@@ -207,7 +207,7 @@ public sealed class WideCountersSpec : ActaRuntimeTestBase<ConformanceFixture, J
         await AssertCountersAsync(parent.JobId, PlantedExecution + 1, PlantedVersion + 3, ct);
 
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(parent, ct));
-        Assert.Equal(42, (await Jobs.GetResultAsync<ChildEchoResult>(parent, ct))!.Doubled);
+        Assert.Equal(42, (await Jobs.GetResultAsync<ChildEchoResult>(parent, ct)).Doubled);
         await AssertCountersAsync(parent.JobId, PlantedExecution + 2, PlantedVersion + 5, ct);
     }
 

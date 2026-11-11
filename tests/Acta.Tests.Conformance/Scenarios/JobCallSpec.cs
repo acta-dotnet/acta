@@ -39,7 +39,7 @@ public sealed class JobCallSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf
         Assert.Equal(EnqueueJobAction.Inserted, handle.Action);
         Assert.Equal("add-numbers", (await Jobs.GetAsync(handle, ct))!.JobName);
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(handle, ct));
-        Assert.Equal(5, (await handle.GetResultAsync(ct))!.Sum);
+        Assert.Equal(5, (await handle.GetResultAsync(ct)).Sum);
     }
 
     [Fact(DisplayName = "A call of a handler taking several parameters stores them as one object and answers the typed result")]

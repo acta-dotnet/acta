@@ -32,7 +32,7 @@ public sealed class VariableContextSpec : ActaRuntimeTestBase<ConformanceFixture
 
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
 
-        var result = (await Jobs.GetResultAsync<VariableLifecycleResult>(enqueued, ct))!;
+        var result = await Jobs.GetResultAsync<VariableLifecycleResult>(enqueued, ct);
         Assert.False(result.ExistsBefore);
         Assert.Null(result.AbsentValue);
         Assert.Equal("fallback", result.DefaultValue);
@@ -61,7 +61,7 @@ public sealed class VariableContextSpec : ActaRuntimeTestBase<ConformanceFixture
 
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
 
-        var result = (await Jobs.GetResultAsync<VariablePersistenceResult>(enqueued, ct))!;
+        var result = await Jobs.GetResultAsync<VariablePersistenceResult>(enqueued, ct);
         Assert.Equal(string.Empty, result.EmptyString);
         Assert.Equal(0, result.EmptyBytesLength);
 
@@ -122,7 +122,7 @@ public sealed class VariableContextSpec : ActaRuntimeTestBase<ConformanceFixture
 
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
 
-        var result = (await Jobs.GetResultAsync<VariableVersioningResult>(enqueued, ct))!;
+        var result = await Jobs.GetResultAsync<VariableVersioningResult>(enqueued, ct);
         Assert.Equal("v2", result.OverwrittenValue);
 
         var row = await ReadVariableRowAsync(enqueued.JobId, "fetch.status", ct);
@@ -139,7 +139,7 @@ public sealed class VariableContextSpec : ActaRuntimeTestBase<ConformanceFixture
 
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
 
-        var result = (await Jobs.GetResultAsync<VariableVersioningResult>(enqueued, ct))!;
+        var result = await Jobs.GetResultAsync<VariableVersioningResult>(enqueued, ct);
         Assert.Equal(7, result.GetOrSetInsertedValue);
         Assert.Equal(7, result.GetOrSetExistingValue);
         Assert.Equal(1, result.FactoryCalls);
@@ -158,7 +158,7 @@ public sealed class VariableContextSpec : ActaRuntimeTestBase<ConformanceFixture
 
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
 
-        var result = (await Jobs.GetResultAsync<VariableValidationResult>(enqueued, ct))!;
+        var result = await Jobs.GetResultAsync<VariableValidationResult>(enqueued, ct);
         Assert.True(result.InvalidNamesRejected);
         Assert.True(result.ReservedSetRejected);
         Assert.True(result.ReservedDeleteRejected);
@@ -178,7 +178,7 @@ public sealed class VariableContextSpec : ActaRuntimeTestBase<ConformanceFixture
 
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
 
-        var result = (await Jobs.GetResultAsync<VariableRaceResult>(enqueued, ct))!;
+        var result = await Jobs.GetResultAsync<VariableRaceResult>(enqueued, ct);
         Assert.Equal(1, result.DistinctObservedValues);
         Assert.All(result.ObservedValues, value => Assert.Equal(result.StoredValue, value));
         Assert.InRange(result.StoredValue, 0, 15);
@@ -198,7 +198,7 @@ public sealed class VariableContextSpec : ActaRuntimeTestBase<ConformanceFixture
 
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
 
-        var result = (await Jobs.GetResultAsync<VariableRoundTripResult>(enqueued, ct))!;
+        var result = await Jobs.GetResultAsync<VariableRoundTripResult>(enqueued, ct);
         Assert.True(result.PrimitiveValues);
         Assert.True(result.StringValues);
         Assert.True(result.ObjectValues);
@@ -218,7 +218,7 @@ public sealed class VariableContextSpec : ActaRuntimeTestBase<ConformanceFixture
 
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
 
-        var result = (await Jobs.GetResultAsync<VariableCorruptReadResult>(enqueued, ct))!;
+        var result = await Jobs.GetResultAsync<VariableCorruptReadResult>(enqueued, ct);
         Assert.True(result.Rejected);
         Assert.False(result.FactoryRan);
     }

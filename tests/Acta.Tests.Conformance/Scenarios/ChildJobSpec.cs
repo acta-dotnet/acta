@@ -60,7 +60,7 @@ public sealed class ChildJobSpec : ActaRuntimeTestBase<ConformanceFixture, JobsO
 
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(parent, ct));
         Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(parent.JobId, ct)).Status);
-        Assert.Equal(42, (await Jobs.GetResultAsync<ChildEchoResult>(parent, ct))!.Doubled);
+        Assert.Equal(42, (await Jobs.GetResultAsync<ChildEchoResult>(parent, ct)).Doubled);
     }
 
     [Fact(DisplayName = "A late latch raise for an outcome the child no longer holds leaves the newer outcome on the parent")]
@@ -99,7 +99,7 @@ public sealed class ChildJobSpec : ActaRuntimeTestBase<ConformanceFixture, JobsO
         await RaiseChildLatch.Run(Services.GetRequiredService<SignalsOperations>(), child.Id, parent.JobId, JobStatusCode.Succeeded, ct);
 
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(parent, ct));
-        Assert.Equal(42, (await Jobs.GetResultAsync<ChildEchoResult>(parent, ct))!.Doubled);
+        Assert.Equal(42, (await Jobs.GetResultAsync<ChildEchoResult>(parent, ct)).Doubled);
         var latch = Assert.Single(await ReadSignalsAsync(parent.JobId, ct));
         Assert.Null(ChildOutcomeEnvelope.Parse(latch.Value!).ExecutionNumber);
     }
@@ -134,8 +134,7 @@ public sealed class ChildJobSpec : ActaRuntimeTestBase<ConformanceFixture, JobsO
         Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(parent.JobId, ct)).Status);
 
         var outcome = await Jobs.GetResultAsync<ChildJobOutcome>(parent, ct);
-        Assert.NotNull(outcome);
-        Assert.Equal(child.Id, outcome!.ChildJobId);
+        Assert.Equal(child.Id, outcome.ChildJobId);
         Assert.Equal(JobStatusCode.Failed, outcome.Status);
         Assert.False(outcome.Succeeded);
     }
@@ -168,7 +167,7 @@ public sealed class ChildJobSpec : ActaRuntimeTestBase<ConformanceFixture, JobsO
         var joined = await ReadJobAsync(parent.JobId, ct);
         Assert.Equal(JobStatusCode.Succeeded, joined.Status);
         Assert.Equal(3, joined.JobState.ExecutionNumber);
-        Assert.Equal(12, (await Jobs.GetResultAsync<ChildEchoResult>(parent, ct))!.Doubled);
+        Assert.Equal(12, (await Jobs.GetResultAsync<ChildEchoResult>(parent, ct)).Doubled);
     }
 
     [Fact(DisplayName = "Operator cancel cascades to the non-terminal descendant subtree with reason ParentCancelled")]

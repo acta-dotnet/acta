@@ -102,6 +102,9 @@ public static class ShippingHandlers
   included: `jobs.EnqueueAsync(new ShipOrder(orderId), o => o.DeduplicationKey(key))`. A handler may take several input parameters before `JobContext` and
   `CancellationToken`; they travel as one generated record, `ShippingJobs.{Job}Args`, whose parameter names
   are stored JSON keys. Under Native AOT, declare the input record yourself and take it as the one parameter.
+- The handle follows the job without another lookup: `await handle.WaitAsync()` answers its outcome, `await handle.GetResultAsync()` returns the stored result
+  and throws when there is none, and `await handle.TryGetResultAsync()` answers `(Found, Value)` for a result that may not exist yet.
+  From a ref the same reads are on `IJobs`: `jobs.GetResultAsync<ShipmentLabel>(jobRef)`. Neither read waits.
 - Handlers resolve through DI: an instance class's constructor dependencies must be registered. One DI cannot build fails its job on the first attempt with `HandlerActivationException`, never retried, and the message names the missing service.
 
 ## Wiring rules by situation

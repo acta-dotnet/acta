@@ -970,6 +970,7 @@
 - **Guarantees:**
   - Typed enqueue resolves the route, serializes the input and round-trips the result
   - Typed enqueue round-trips scalar value-type inputs without misclassifying them as none
+  - A value-type result is not found until the job stores one, and a stored zero is found
   - Typed enqueue applies the deduplication key and a repeat deduplicates onto one row
   - A delayed job is not claimable before due but runs once due
   - A handler returning a null result fails the job and stores no result
@@ -1939,6 +1940,8 @@
 - **Contract:** GetJobResult is a non-blocking read that returns null before the job produces a result and the typed and raw payload after a successful run.
 - **Guarantees:**
   - Returns null before a result exists without blocking
+  - A read that expects a result throws, naming the job and its status, when the job has stored none
+  - A lookup that matches no job reads as not found, and a read that expects a result says no job matches
   - The typed result deserializes and the raw payload is returned after completion
 
 ## Retention
@@ -2290,6 +2293,7 @@
   - A per-occurrence schedule under CatchUpAll admits one root per pass up to its capacity, then waits for a settlement
   - Under Discard the occurrences older than the expiry are skipped with the reason expired and the rest fire
   - Under Pause an expiry pauses the schedule with the reason, and a resume expires what is stale by then without pausing again
+  - A pausing expiry deployed while a schedule is full pauses it once its waiting occurrence ages out, its roots still outstanding
   - A cron with seconds a month behind is decided in one pass: its latest occurrence fires and the rest are skipped
 
 ### A multi-schedule slot takes one firing per pass from every due schedule
@@ -2359,6 +2363,7 @@
   - Registration never moves a stored cursor back, retimes on a changed timing, and seeds a cleared cursor
   - A plan copied before the last occurrence was admitted never writes it back over the exhausted cursor
   - A declaration that changes the capacity wakes a schedule parked at the old one; one that keeps it leaves it parked
+  - A declaration that changes the expiry wakes a schedule parked under the old one, cursor kept; one an operator paused stays asleep
   - A schedule's availability calendar registers and reads back, a changed name re-registers in place, and a plain restart writes nothing
   - A slot-less schedule resolves by path, pauses and resumes with the audit on its definition, and triggers a manual root
 

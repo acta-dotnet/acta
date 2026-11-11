@@ -68,7 +68,7 @@ public static class ChildJobProbes
         var sum = 0;
         foreach (var outcome in outcomes)
         {
-            sum += (await ctx.GetChildResultAsync<ChildEchoResult>(outcome.ChildJobId, ct))!.Doubled;
+            sum += (await ctx.GetChildResultAsync<ChildEchoResult>(outcome.ChildJobId, ct)).Doubled;
         }
         return new ChildEchoResult(sum);
     }

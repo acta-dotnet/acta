@@ -259,13 +259,37 @@ public interface IJobs
     ValueTask<ListJobStepsResponse> ListStepsAsync(ListJobStepsQuery query, CancellationToken ct = default);
 
     /// <summary>
-    /// Typed convenience over <see cref="GetResultAsync(JobLookup, CancellationToken)"/>: deserializes the
-    /// stored result payload to <typeparamref name="TResult"/> via the registered serializer, or returns
-    /// <c>default</c> when the job has produced no result. Non-blocking (does not wait for completion). Throws, rather
+    /// The job's stored result read as <typeparamref name="TResult"/>, for a caller that expects one. Throws
+    /// <see cref="InvalidOperationException"/>, naming the job and its status, when the job has stored none or no job
+    /// matches; <see cref="TryGetResultAsync{TResult}"/> reads a result that may not exist yet, and states the rest.
+    /// It reads and does not wait: <see cref="WaitAsync{TResult}"/> follows a job to its result.
+    /// </summary>
+    async ValueTask<TResult> GetResultAsync<TResult>(JobLookup job, CancellationToken ct = default)
+        where TResult : notnull
+    {
+        var (found, value) = await TryGetResultAsync<TResult>(job, ct);
+        if (found)
+        {
+            return value!;
+        }
+
+        // Read only to say why: the job's status, or that no job matches.
+        throw new InvalidOperationException(
+            await GetAsync(job, ct) is { } snapshot
+                ? $"Job {snapshot.JobRef} ('{snapshot.JobName}') is {snapshot.Status} and has stored no result. "
+                    + "TryGetResultAsync reads a result that may not exist yet."
+                : "No job matches the lookup, so there is no result to read."
+        );
+    }
+
+    /// <summary>
+    /// The job's stored result read as <typeparamref name="TResult"/> through the registered serializer, and whether it
+    /// has one: <c>Found</c> is false, with a default <c>Value</c>, until the job has produced a result or when no job
+    /// matches, so a stored zero or false is told from none. Non-blocking (does not wait for completion). Throws, rather
     /// than decoding, when this process registers the job's definition with a result type other than
     /// <typeparamref name="TResult"/>; a definition it does not register is decoded without that check.
     /// </summary>
-    ValueTask<TResult?> GetResultAsync<TResult>(JobLookup job, CancellationToken ct = default);
+    ValueTask<(bool Found, TResult? Value)> TryGetResultAsync<TResult>(JobLookup job, CancellationToken ct = default);
 
     /// <summary>
     /// Cancel the job identified by <paramref name="job"/>: any non-terminal status moves to <c>Cancelled</c>, and the

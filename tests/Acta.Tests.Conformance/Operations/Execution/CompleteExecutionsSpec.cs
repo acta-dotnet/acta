@@ -141,7 +141,7 @@ public sealed class CompleteExecutionsSpec : ActaRuntimeTestBase<ConformanceFixt
         );
 
         Assert.Equal(CompleteExecutionsAction.Completed, landed[current.JobId].Action);
-        Assert.Equal(3, (await Jobs.GetResultAsync<AddNumbersResult>(JobLookup.ById(stale.JobId), ct))?.Sum);
+        Assert.Equal(3, (await Jobs.GetResultAsync<AddNumbersResult>(JobLookup.ById(stale.JobId), ct)).Sum);
     }
 
     [Fact(DisplayName = "At the failures level a failed attempt is recorded, and a success only when it recovers from counted failures")]

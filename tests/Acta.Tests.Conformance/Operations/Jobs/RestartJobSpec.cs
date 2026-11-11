@@ -85,7 +85,7 @@ public sealed class RestartJobSpec : ActaRuntimeTestBase<ConformanceFixture, Job
             ct
         );
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
-        Assert.Equal(5, (await Jobs.GetResultAsync<AddNumbersResult>(enqueued, ct))?.Sum);
+        Assert.Equal(5, (await Jobs.GetResultAsync<AddNumbersResult>(enqueued, ct)).Sum);
 
         Assert.Equal(
             ControlAction.Applied,
@@ -95,7 +95,7 @@ public sealed class RestartJobSpec : ActaRuntimeTestBase<ConformanceFixture, Job
         Assert.Null(await Jobs.GetResultAsync(enqueued, ct));
 
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
-        Assert.Equal(30, (await Jobs.GetResultAsync<AddNumbersResult>(enqueued, ct))?.Sum);
+        Assert.Equal(30, (await Jobs.GetResultAsync<AddNumbersResult>(enqueued, ct)).Sum);
     }
 
     [Fact(DisplayName = "Restart from Executing is Rejected and leaves the status unchanged")]

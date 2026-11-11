@@ -71,7 +71,7 @@ namespace Acta.Concepts.CrossNamespaceChild
             }
 
             var receipt = await context.GetChildResultAsync<PaymentReceipt>(charge.JobId, ct);
-            return new OrderConfirmation(order.OrderId, receipt!.TransactionId);
+            return new OrderConfirmation(order.OrderId, receipt.TransactionId);
         }
 
         [Job("charge-payment")]

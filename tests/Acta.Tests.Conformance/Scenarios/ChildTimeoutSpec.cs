@@ -51,8 +51,7 @@ public sealed class ChildTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, J
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(parent, ct));
 
         var report = await Jobs.GetResultAsync<ChildWaitReport>(parent, ct);
-        Assert.NotNull(report);
-        Assert.False(report!.TimedOut);
+        Assert.False(report.TimedOut);
         Assert.True(report.Completed);
         Assert.Equal(child, report.ChildJobId);
         Assert.Equal(JobStatusCode.Succeeded, report.Outcome!.Status);
@@ -74,7 +73,7 @@ public sealed class ChildTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, J
         Assert.Equal(RunOnceStatus.Failed, await Runtime.RunOnceAsync(await OnlyChildAsync(failing.JobId, ct), ct));
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(failing, ct));
         var failed = await Jobs.GetResultAsync<ChildWaitReport>(failing, ct);
-        Assert.True(failed!.Completed);
+        Assert.True(failed.Completed);
         Assert.Equal(JobStatusCode.Failed, failed.Outcome!.Status);
 
         var cancelled = await StartParentAsync("job-wait-signal", ct);
@@ -85,7 +84,7 @@ public sealed class ChildTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, J
         // The cancel raised the latch, so the parent is Ready without its deadline ever mattering.
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(cancelled, ct));
         var stopped = await Jobs.GetResultAsync<ChildWaitReport>(cancelled, ct);
-        Assert.True(stopped!.Completed);
+        Assert.True(stopped.Completed);
         Assert.Equal(JobStatusCode.Cancelled, stopped.Outcome!.Status);
     }
 
@@ -119,7 +118,7 @@ public sealed class ChildTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, J
         Assert.Equal(0, await CountEventsAsync(parent.JobId, EventCode.JobCancelled, ct));
 
         var report = await Jobs.GetResultAsync<ChildWaitReport>(parent, ct);
-        Assert.True(report!.TimedOut);
+        Assert.True(report.TimedOut);
         Assert.False(report.Completed);
         Assert.Equal(slow, report.ChildJobId);
         Assert.Null(report.Outcome);
@@ -156,7 +155,7 @@ public sealed class ChildTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, J
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(parent, ct));
 
         var report = await Jobs.GetResultAsync<ChildWaitReport>(parent, ct);
-        Assert.True(report!.TimedOut);
+        Assert.True(report.TimedOut);
         Assert.Equal(first, report.ChildJobId);
         Assert.Equal(second, report.Outcome!.ChildJobId);
         Assert.Equal(JobStatusCode.Succeeded, report.Outcome.Status);
@@ -183,7 +182,7 @@ public sealed class ChildTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, J
         var second = (await ChildIdsAsync(parent.JobId, ct))["second"];
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(second, ct));
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(parent, ct));
-        Assert.True((await Jobs.GetResultAsync<ChildWaitReport>(parent, ct))!.TimedOut);
+        Assert.True((await Jobs.GetResultAsync<ChildWaitReport>(parent, ct)).TimedOut);
         Assert.Equal(1, await CountEventsAsync(first, EventCode.JobCancelled, ct));
     }
 
@@ -218,7 +217,7 @@ public sealed class ChildTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, J
 
         // The parent still resolves TimedOut, and its cancel of an already-succeeded child is rejected.
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(parent, ct));
-        Assert.True((await Jobs.GetResultAsync<ChildWaitReport>(parent, ct))!.TimedOut);
+        Assert.True((await Jobs.GetResultAsync<ChildWaitReport>(parent, ct)).TimedOut);
         Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(child, ct)).Status);
         Assert.Equal(0, await CountEventsAsync(child, EventCode.JobCancelled, ct));
     }
@@ -307,7 +306,7 @@ public sealed class ChildTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, J
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(parent, ct));
 
         var report = await Jobs.GetResultAsync<ChildWaitReport>(parent, ct);
-        Assert.True(report!.TimedOut);
+        Assert.True(report.TimedOut);
         Assert.Equal(foreign.JobId, report.ChildJobId);
         Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(parent.JobId, ct)).Status);
 

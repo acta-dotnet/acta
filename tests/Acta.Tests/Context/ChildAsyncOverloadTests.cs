@@ -52,4 +52,19 @@ public sealed class ChildAsyncOverloadTests
         var options = Assert.Single(ctx.StartOptions);
         Assert.Equal("reserve-inventory", options.DeduplicationKey);
     }
+
+    [Fact]
+    public async Task A_child_result_read_returns_the_result_or_throws_and_the_try_read_says_which()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var stored = new RecordingJobContext { SeededChildResult = 0 };
+        var none = new RecordingJobContext();
+
+        // A stored zero is a result; a child that stored none is told apart by the Try read and refused by the other.
+        Assert.Equal(0, await stored.GetChildResultAsync<int>(7, ct));
+        Assert.Equal((true, 0), await stored.TryGetChildResultAsync<int>(7, ct));
+        Assert.Equal((false, 0), await none.TryGetChildResultAsync<int>(7, ct));
+        var refused = await Assert.ThrowsAsync<InvalidOperationException>(() => none.GetChildResultAsync<int>(7, ct));
+        Assert.Contains("Child job 7 has stored no result", refused.Message, StringComparison.Ordinal);
+    }
 }

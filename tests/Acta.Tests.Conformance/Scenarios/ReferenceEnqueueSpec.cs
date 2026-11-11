@@ -50,6 +50,6 @@ public sealed class ReferenceEnqueueSpec : ActaRuntimeTestBase<ConformanceFixtur
         // The real worker (the test-base host) claims and completes the referenced enqueue.
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(outcome, ct));
         var result = await Jobs.GetResultAsync<AddNumbersResult>(outcome, ct);
-        Assert.Equal(5, result!.Sum);
+        Assert.Equal(5, result.Sum);
     }
 }

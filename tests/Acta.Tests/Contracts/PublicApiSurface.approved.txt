@@ -1173,6 +1173,7 @@ interface Acta.IJobs
     System.Threading.Tasks.ValueTask<Acta.RestartJobResponse> RestartAsync(Acta.JobLookup job, System.String reasonMessage = null, System.String actor = null, System.Nullable<System.Int64> expectedVersion = null, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.ResumeJobResponse> ResumeAsync(Acta.JobLookup job, System.String reasonMessage = null, System.String actor = null, System.Nullable<System.Int64> expectedVersion = null, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.UpdateJobInputResponse> UpdateInputAsync(Acta.JobLookup job, Acta.JobPayload input, System.String reasonMessage = null, System.String actor = null, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.ValueTask<System.ValueTuple<System.Boolean, TResult>> TryGetResultAsync<TResult>(Acta.JobLookup job, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<TResult> GetResultAsync<TResult>(Acta.JobLookup job, System.Threading.CancellationToken ct = default)
 interface Acta.ILedger
     System.Threading.Tasks.ValueTask<Acta.GetOverviewResponse> GetOverviewAsync(Acta.GetOverviewQuery query, System.Threading.CancellationToken ct = default)
@@ -1342,6 +1343,7 @@ abstract class Acta.JobContext
     System.Threading.Tasks.Task<System.Boolean> DeleteVariableAsync(System.String name, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task<System.Boolean> ExistsVariableAsync(System.String name, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<Acta.ChildJobOutcome>> WaitChildrenAsync(System.Collections.Generic.IReadOnlyList<System.Int64> childJobIds, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.Task<System.ValueTuple<System.Boolean, TResult>> TryGetChildResultAsync<TResult>(System.Int64 childJobId, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task<T> GetOrSetVariableAsync<T>(System.String name, System.Func<System.Threading.CancellationToken, System.Threading.Tasks.Task<T>> valueFactory, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task<T> GetOrSetVariableAsync<T>(System.String name, System.Func<T> valueFactory, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task<T> GetRequiredVariableAsync<T>(System.String name, System.Threading.CancellationToken ct = default)
@@ -1448,11 +1450,13 @@ record Acta.JobHandle : Acta.EnqueueJobResponse
     System.Threading.Tasks.ValueTask<Acta.GetJobStatusResponse> GetStatusAsync(System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.JobOutcome<TResult>> WaitAsync<TResult>(System.Nullable<System.TimeSpan> timeout = null, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.JobOutcome> WaitAsync(System.Nullable<System.TimeSpan> timeout = null, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.ValueTask<System.ValueTuple<System.Boolean, TResult>> TryGetResultAsync<TResult>(System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<TResult> GetResultAsync<TResult>(System.Threading.CancellationToken ct = default)
     protected .ctor(Acta.JobHandle original)
 record Acta.JobHandle<TResult> : Acta.JobHandle
     .ctor(Acta.IJobs jobs, System.Int64 jobId, Acta.JobRef jobRef, Acta.EnqueueJobAction action)
     System.Threading.Tasks.ValueTask<Acta.JobOutcome<TResult>> WaitAsync(System.Nullable<System.TimeSpan> timeout = null, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.ValueTask<System.ValueTuple<System.Boolean, TResult>> TryGetResultAsync(System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<TResult> GetResultAsync(System.Threading.CancellationToken ct = default)
     protected .ctor(Acta.JobHandle<TResult> original)
 delegate Acta.JobHandlerInvokeDelegate

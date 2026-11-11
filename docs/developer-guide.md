@@ -763,10 +763,11 @@ Receipt sent = (await receipt.WaitAsync()).ValueOrThrow();
 ```
 
 - Each job's member on the generated manifest is a factory (`BillingJobs.SendInvoice(...)`): it takes the handler's input parameters, none when the input carries no data, and returns the job's call. A call names its job, so nothing is inferred from the input's type. The factory is public, unless the job takes or returns a type other assemblies cannot see: then it is internal, as is the job's argument record. Enqueue and schedule take it with options as a `configure` callback, and run-and-wait with its `JobExecutionOptions`.
-- A typed enqueue or a call answers a `JobHandle`: the `EnqueueJobResponse` (`JobRef`, `JobId`, `Action`) plus `GetStatusAsync`, `WaitAsync`, `GetResultAsync`, `CancelAsync`, and `ExplainAsync`, each addressed by the job's id, so none spends a query resolving the job.
+- A typed enqueue or a call answers a `JobHandle`: the `EnqueueJobResponse` (`JobRef`, `JobId`, `Action`) plus `GetStatusAsync`, `WaitAsync`, `GetResultAsync`, `TryGetResultAsync`, `CancelAsync`, and `ExplainAsync`, each addressed by the job's id, so none spends a query resolving the job.
 - A result job's call answers `JobHandle<TResult>`, so the wait and the result read need no type argument; an input-typed enqueue names it: `job.WaitAsync<Receipt>()`.
 - `WaitAsync` returns the outcome, never throws it; a timeout (30 seconds by default) or a cancelled token stops the wait, never the job. It throws when no job matches, for a non-positive timeout, when its token is cancelled, when a typed wait finds a success that stored no result, and when a typed wait or result read meets a job whose definition, as this process registers it, produces another result type, which a deduplication key shared across definitions can hand back. A job of a definition this process does not register is decoded without that check.
 - A successful wait's result is the one the execution it saw succeed stored.
+- `GetResultAsync<T>` is a point-in-time read that answers null until the job has stored a result, whatever `T` is: a record reads as itself, and a value type as its nullable (`int?`), so a stored zero is not mistaken for no result. Code that is generic over the result type calls `TryGetResultAsync<T>`, which answers whether a result exists beside its value.
 - `IJobs.WaitAsync(jobRef)` waits on a job another process enqueued, and `IJobs.GetHandleAsync(jobRef)` rebuilds a handle for it, or answers null when no job matches.
 - `ScheduleAsync` takes a `TimeSpan`, counted on the database clock and rounded up to whole seconds, or a `DateTimeOffset`, and it accepts the same `configure` callback as `EnqueueAsync`; the time wins over one set there. It creates one job; a recurring schedule is `[Schedule]`.
 - `RunAndWaitAsync` is enqueue then wait in one call; its `JobExecutionOptions` carry the enqueue options plus the wait: `new JobExecutionOptions { DeduplicationKey = "invoice-8", WaitTimeout = TimeSpan.FromMinutes(1) }`. A typed result comes through the job's call, `jobs.RunAndWaitAsync(BillingJobs.SendInvoice(new SendInvoice(7)))`, which answers `JobOutcome<Receipt>`; with an input alone it answers `JobOutcome`.
@@ -1140,7 +1141,7 @@ var enqueued = await _host.Jobs.EnqueueAsync(new AddNumbers(2, 3));
 await _host.RunOnceAsync(enqueued);
 
 var result = await enqueued.GetResultAsync<AddNumbersResult>();
-Assert.Equal(5, result!.Sum);
+Assert.Equal(5, result.Sum);
 ```
 
 For everything `IJobs` does not project (audit timeline, tags, lease rows), resolve what you need

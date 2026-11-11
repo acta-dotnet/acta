@@ -97,7 +97,7 @@ public sealed class TestHostHelpersSpec : ActaTestBase<ConformanceFixture>
         await host.ForceWaitTimeoutDueAsync(parent, latch.CheckpointName, ct);
         await RunUntilAsync(host, parent, JobStatusCode.Succeeded, ct);
 
-        Assert.True((await host.Jobs.GetResultAsync<ChildWaitReport>(JobLookup.ById(parent.JobId), ct))!.TimedOut);
+        Assert.True((await host.Jobs.GetResultAsync<ChildWaitReport>(JobLookup.ById(parent.JobId), ct)).TimedOut);
         Assert.Equal(
             CheckpointStatusCode.Expired,
             Assert.Single(await CheckpointsAsync(host, parent.JobId, CheckpointKindCode.ChildLatch, ct)).Status
@@ -121,7 +121,7 @@ public sealed class TestHostHelpersSpec : ActaTestBase<ConformanceFixture>
         await host.ForceGroupWaitTimeoutDueAsync(parent, ct);
         await RunUntilAsync(host, parent, JobStatusCode.Succeeded, ct);
 
-        var report = (await host.Jobs.GetResultAsync<ChildGroupReport>(JobLookup.ById(parent.JobId), ct))!;
+        var report = await host.Jobs.GetResultAsync<ChildGroupReport>(JobLookup.ById(parent.JobId), ct);
         Assert.True(report.TimedOut);
         Assert.All(report.Children, c => Assert.True(c.TimedOut));
 

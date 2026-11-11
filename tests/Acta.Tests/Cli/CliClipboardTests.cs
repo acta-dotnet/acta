@@ -610,7 +610,7 @@ public class CliRunnerClipboardTests
         public ValueTask<ListJobStepsResponse> ListStepsAsync(ListJobStepsQuery query, CancellationToken ct = default) =>
             throw new NotSupportedException();
 
-        public ValueTask<TResult?> GetResultAsync<TResult>(JobLookup job, CancellationToken ct = default) =>
+        public ValueTask<(bool Found, TResult? Value)> TryGetResultAsync<TResult>(JobLookup job, CancellationToken ct = default) =>
             throw new NotSupportedException();
 
         public ValueTask<CancelJobResponse> CancelAsync(

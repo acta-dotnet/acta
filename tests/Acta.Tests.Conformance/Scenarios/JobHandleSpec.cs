@@ -33,7 +33,7 @@ public sealed class JobHandleSpec : ActaRuntimeTestBase<ConformanceFixture, Jobs
         Assert.True(outcome.IsSuccess);
         Assert.Equal(handle.JobRef, outcome.JobRef);
         Assert.Equal(5, outcome.ValueOrThrow().Sum);
-        Assert.Equal(5, (await handle.GetResultAsync(ct))!.Sum);
+        Assert.Equal(5, (await handle.GetResultAsync(ct)).Sum);
     }
 
     [Fact(DisplayName = "An input-typed enqueue's handle names the result type at the wait")]
@@ -64,7 +64,11 @@ public sealed class JobHandleSpec : ActaRuntimeTestBase<ConformanceFixture, Jobs
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(sum, ct));
         var refused = await Assert.ThrowsAsync<InvalidOperationException>(async () => await invoice.WaitAsync(ct: ct));
         Assert.Contains(typeof(AddNumbersResult).FullName!, refused.Message, StringComparison.Ordinal);
-        await Assert.ThrowsAsync<InvalidOperationException>(async () => await invoice.GetResultAsync(ct));
+        // Both result reads decode through one check, so both name the type the job produces.
+        refused = await Assert.ThrowsAsync<InvalidOperationException>(async () => await invoice.GetResultAsync(ct));
+        Assert.Contains(typeof(AddNumbersResult).FullName!, refused.Message, StringComparison.Ordinal);
+        refused = await Assert.ThrowsAsync<InvalidOperationException>(async () => await invoice.TryGetResultAsync(ct));
+        Assert.Contains(typeof(AddNumbersResult).FullName!, refused.Message, StringComparison.Ordinal);
         Assert.Equal(5, (await sum.WaitAsync(ct: ct)).ValueOrThrow().Sum);
     }
 

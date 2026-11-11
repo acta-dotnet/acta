@@ -77,16 +77,30 @@ public abstract partial class JobContext
     }
 
     /// <summary>
-    /// Reads a child's stored result, deserialized to <typeparamref name="TResult"/>; <c>default</c>
-    /// when the child stored none or was already purged by retention, which keeps a
-    /// completed child while this job is not terminal. Point-in-time and non-blocking; wait for the
-    /// child first when ordering matters.
+    /// A child's stored result, deserialized to <typeparamref name="TResult"/>, for a handler that expects one: read it
+    /// after a wait answered the child Succeeded. Throws <see cref="InvalidOperationException"/> when the child has
+    /// stored none; <see cref="TryGetChildResultAsync{TResult}"/> reads one that may not exist, and states the rest.
     /// </summary>
-    public async Task<TResult?> GetChildResultAsync<TResult>(long childJobId, CancellationToken ct = default)
+    public async Task<TResult> GetChildResultAsync<TResult>(long childJobId, CancellationToken ct = default)
+        where TResult : notnull =>
+        await TryGetChildResultAsync<TResult>(childJobId, ct) is (true, var value)
+            ? value!
+            : throw new InvalidOperationException(
+                $"Child job {childJobId} has stored no result: it has not succeeded, it returns none, or retention "
+                    + "purged it. TryGetChildResultAsync reads a result that may not exist."
+            );
+
+    /// <summary>
+    /// Reads a child's stored result, deserialized to <typeparamref name="TResult"/>, and whether it has one:
+    /// <c>Found</c> is false when the child stored none or was already purged by retention, which keeps a completed
+    /// child while this job is not terminal. Point-in-time and non-blocking; wait for the child first when ordering
+    /// matters.
+    /// </summary>
+    public async Task<(bool Found, TResult? Value)> TryGetChildResultAsync<TResult>(long childJobId, CancellationToken ct = default)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(childJobId);
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, CancellationToken);
-        return (await ReadChildResultCoreAsync<TResult>(childJobId, executionNumber: null, linked.Token)).Value;
+        return await ReadChildResultCoreAsync<TResult>(childJobId, executionNumber: null, linked.Token);
     }
 
     /// <summary>

@@ -172,7 +172,7 @@ namespace Acta.Concepts.ChildJobs
             var m = await context.GetChildResultAsync<Snowball>(middle.JobId, ct);
             var h = await context.GetChildResultAsync<Snowball>(head.JobId, ct);
 
-            var height = b!.Diameter + m!.Diameter + h!.Diameter;
+            var height = b.Diameter + m.Diameter + h.Diameter;
             Console.WriteLine($"[{input.Name}] stacked {b.Diameter} + {m.Diameter} + {h.Diameter} = {height}cm tall");
             return new FinishedSnowman(input.Name, height);
         }

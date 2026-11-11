@@ -119,6 +119,8 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 
 `IJobs.RunAndWaitAsync` runs `EnqueueJob`, `GetJob`, `GetJobResult`.
 
+`IJobs.TryGetResultAsync` runs `GetJobResult`.
+
 `IJobs.WaitAsync` runs `GetJob`, `GetJobId`, `GetJobResult`.
 
 ## Ledger

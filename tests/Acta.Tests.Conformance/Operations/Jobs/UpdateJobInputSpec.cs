@@ -154,8 +154,7 @@ public sealed class UpdateJobInputSpec : ActaRuntimeTestBase<ConformanceFixture,
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued.JobId, ct));
 
         var typed = await Jobs.GetResultAsync<AddNumbersResult>(enqueued, ct);
-        Assert.NotNull(typed);
-        Assert.Equal(30, typed!.Sum);
+        Assert.Equal(30, typed.Sum);
     }
 
     [Fact(DisplayName = "UpdateJobInput stores the new payload's format id, so a bytes job amends as bytes")]

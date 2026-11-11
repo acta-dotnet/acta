@@ -266,7 +266,7 @@ internal sealed class FakeJobs : IJobs
     ValueTask<GetJobStatusResponse?> IJobs.GetStatusAsync(JobLookup job, CancellationToken ct) =>
         ValueTask.FromResult(Detail(job) is { } found ? new GetJobStatusResponse(found.Status) : null);
 
-    ValueTask<TResult?> IJobs.GetResultAsync<TResult>(JobLookup job, CancellationToken ct)
+    ValueTask<(bool Found, TResult? Value)> IJobs.TryGetResultAsync<TResult>(JobLookup job, CancellationToken ct)
         where TResult : default => throw new NotSupportedException();
 
     ValueTask<RaiseJobSignalResponse> IJobs.RaiseSignalAsync<T>(JobLookup job, string name, T value, string? actor, CancellationToken ct) =>

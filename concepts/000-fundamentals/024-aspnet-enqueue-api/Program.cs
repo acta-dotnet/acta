@@ -52,7 +52,7 @@ app.MapGet(
         ImportResult? result = null;
         if (snapshot.Status.IsTerminal)
         {
-            result = await jobs.GetResultAsync<ImportResult>(parsed, ct);
+            (_, result) = await jobs.TryGetResultAsync<ImportResult>(parsed, ct);
         }
 
         return Results.Ok(

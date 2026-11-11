@@ -29,7 +29,32 @@ public sealed class GetJobResultSpec : ActaRuntimeTestBase<ConformanceFixture, J
         );
 
         Assert.Null((await Jobs.GetResultAsync(enqueued, ct))?.Result);
-        Assert.Null(await Jobs.GetResultAsync<AddNumbersResult>(enqueued, ct));
+        Assert.Equal((false, null), await Jobs.TryGetResultAsync<AddNumbersResult>(enqueued, ct));
+    }
+
+    [Fact(DisplayName = "A read that expects a result throws, naming the job and its status, when the job has stored none")]
+    public async Task A_read_that_expects_a_result_throws_when_there_is_none()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var enqueued = await Jobs.EnqueueAsync(new AddNumbers(2, 3), ct: ct);
+
+        var none = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await Jobs.GetResultAsync<AddNumbersResult>(enqueued, ct)
+        );
+        Assert.Contains(enqueued.JobRef.ToString(), none.Message, StringComparison.Ordinal);
+        Assert.Contains("is Ready and has stored no result", none.Message, StringComparison.Ordinal);
+        await Assert.ThrowsAsync<InvalidOperationException>(async () => await enqueued.GetResultAsync<AddNumbersResult>(ct));
+    }
+
+    [Fact(DisplayName = "A lookup that matches no job reads as not found, and a read that expects a result says no job matches")]
+    public async Task A_lookup_that_matches_no_job_has_no_result()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var nobody = JobLookup.ByDeduplicationKey(TestNamespace, Unique("no-such-job"));
+
+        Assert.Equal((false, null), await Jobs.TryGetResultAsync<AddNumbersResult>(nobody, ct));
+        var none = await Assert.ThrowsAsync<InvalidOperationException>(async () => await Jobs.GetResultAsync<AddNumbersResult>(nobody, ct));
+        Assert.StartsWith("No job matches", none.Message, StringComparison.Ordinal);
     }
 
     [Fact(DisplayName = "The typed result deserializes and the raw payload is returned after completion")]
@@ -44,8 +69,7 @@ public sealed class GetJobResultSpec : ActaRuntimeTestBase<ConformanceFixture, J
         await Runtime.RunOnceAsync(enqueued, ct);
 
         var typed = await Jobs.GetResultAsync<AddNumbersResult>(enqueued, ct);
-        Assert.NotNull(typed);
-        Assert.Equal(5, typed!.Sum);
+        Assert.Equal(5, typed.Sum);
 
         var raw = (await Jobs.GetResultAsync(enqueued, ct))?.Result;
         Assert.NotNull(raw);

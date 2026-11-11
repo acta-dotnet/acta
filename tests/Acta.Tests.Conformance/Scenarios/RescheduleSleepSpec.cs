@@ -196,7 +196,7 @@ public sealed class RescheduleSleepSpec : ActaRuntimeTestBase<ConformanceFixture
 
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
 
-        var result = (await Jobs.GetResultAsync<SleepValidationResult>(enqueued, ct))!;
+        var result = await Jobs.GetResultAsync<SleepValidationResult>(enqueued, ct);
         Assert.True(result.InvalidNameRejected);
         Assert.True(result.ReservedNameRejected);
         Assert.True(result.NegativeDelayRejected);

@@ -162,11 +162,11 @@ app.MapGet(
             : Results.NotFound()
 );
 
-// The typed result: null until a successful completion stored one.
+// The typed result: found once a successful completion stored one.
 app.MapGet(
     "/jobs/{jobRef}/label",
     async (JobRef jobRef, IJobs jobs) =>
-        await jobs.GetResultAsync<ShipmentLabel>(jobRef) is { } label ? Results.Ok(label) : Results.NoContent()
+        await jobs.TryGetResultAsync<ShipmentLabel>(jobRef) is (true, var label) ? Results.Ok(label) : Results.NoContent()
 );
 
 // Why: the status in words, the reason the last attempt failed, and what an operator can do next.
@@ -266,8 +266,9 @@ numeric `JobId` is for joins and SQL debugging only.
 ### Status and result
 
 `jobs.GetAsync(jobRef)` answers the row: `Status`, `FailureCount`, `NextRunAtUtc`, timestamps, and
-the deduplication, correlation, and concurrency keys you set. `jobs.GetResultAsync<ShipmentLabel>(jobRef)` answers the stored result, null until a
-successful completion wrote one. A job stores one result; a permanent job's next success replaces it.
+the deduplication, correlation, and concurrency keys you set. `jobs.TryGetResultAsync<ShipmentLabel>(jobRef)` answers the stored result and whether there is one: nothing is found until a
+successful completion wrote one. `GetResultAsync<ShipmentLabel>` returns a result you expect, and throws when there is none.
+A job stores one result; a permanent job's next success replaces it.
 
 ### Ask why
 
@@ -383,7 +384,7 @@ public sealed class ShippingTests : IAsyncLifetime
         Assert.Equal(ActaRunStatus.Completed, await _host.RunOnceAsync(job, Ct));
 
         var label = await job.GetResultAsync(Ct);
-        Assert.Equal("AP00001042", label!.TrackingNumber);
+        Assert.Equal("AP00001042", label.TrackingNumber);
     }
 
     [Fact]
@@ -397,7 +398,7 @@ public sealed class ShippingTests : IAsyncLifetime
         // The retry is due about a minute out under the default backoff; the test makes it due now.
         await _host.ForceJobDueAsync(job, Ct);
         Assert.Equal(ActaRunStatus.Completed, await _host.RunOnceAsync(job, Ct));
-        Assert.Equal("AP00001044", (await job.GetResultAsync(Ct))!.TrackingNumber);
+        Assert.Equal("AP00001044", (await job.GetResultAsync(Ct)).TrackingNumber);
     }
 
     [Fact]

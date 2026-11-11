@@ -116,7 +116,7 @@ public sealed class ScheduleFiresOnTickSpec : ActaRuntimeTestBase<ConformanceFix
         var slot = JobLookup.ById(slotId);
 
         await FireOnceAsync(slotId, ct);
-        Assert.Equal(1, (await Jobs.GetResultAsync<RecurringPingResult>(slot, ct))?.Sequence);
+        Assert.Equal(1, (await Jobs.GetResultAsync<RecurringPingResult>(slot, ct)).Sequence);
 
         var observed = false;
         GetJobResultResponse? whileRunning = null;
@@ -128,7 +128,7 @@ public sealed class ScheduleFiresOnTickSpec : ActaRuntimeTestBase<ConformanceFix
         await FireOnceAsync(slotId, ct);
         Assert.True(observed);
         Assert.Null(whileRunning);
-        Assert.Equal(2, (await Jobs.GetResultAsync<RecurringPingResult>(slot, ct))?.Sequence);
+        Assert.Equal(2, (await Jobs.GetResultAsync<RecurringPingResult>(slot, ct)).Sequence);
 
         // A failed attempt re-arms the firing for its second try and keeps no result.
         RecurringPingHandler.FailWhileSequenceAtMost[TestNamespace] = 3;

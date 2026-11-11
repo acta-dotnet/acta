@@ -58,8 +58,7 @@ public sealed class TypedEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, J
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(outcome, ct));
 
         var result = await Jobs.GetResultAsync<AddNumbersResult>(outcome, ct);
-        Assert.NotNull(result);
-        Assert.Equal(5, result!.Sum);
+        Assert.Equal(5, result.Sum);
     }
 
     [Fact(DisplayName = "Typed enqueue round-trips scalar value-type inputs without misclassifying them as none")]
@@ -76,6 +75,23 @@ public sealed class TypedEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, J
         var doubleJob = await Jobs.EnqueueAsync(9.0, ct: ct);
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(doubleJob, ct));
         Assert.Equal(4.5, await Jobs.GetResultAsync<double>(doubleJob, ct));
+    }
+
+    [Fact(DisplayName = "A value-type result is not found until the job stores one, and a stored zero is found")]
+    public async Task A_value_type_result_tells_none_from_zero()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var job = await Jobs.EnqueueAsync(0, ct: ct);
+
+        Assert.Equal((false, 0), await Jobs.TryGetResultAsync<int>(job, ct));
+        Assert.Equal((false, 0), await job.TryGetResultAsync<int>(ct));
+        await Assert.ThrowsAsync<InvalidOperationException>(async () => await Jobs.GetResultAsync<int>(job, ct));
+
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(job, ct));
+        Assert.Equal((true, 0), await Jobs.TryGetResultAsync<int>(job, ct));
+        Assert.Equal((true, 0), await job.TryGetResultAsync<int>(ct));
+        Assert.Equal(0, await Jobs.GetResultAsync<int>(job, ct));
+        Assert.Equal(0, await job.GetResultAsync<int>(ct));
     }
 
     [Fact(DisplayName = "Typed enqueue applies the deduplication key and a repeat deduplicates onto one row")]
@@ -113,7 +129,7 @@ public sealed class TypedEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, J
         var due = await Jobs.EnqueueAsync(new AddNumbers(3, 4), o => o.NextRunAt(DateTime.UtcNow.AddMinutes(-1)), ct);
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(due, ct));
         var result = await Jobs.GetResultAsync<AddNumbersResult>(due, ct);
-        Assert.Equal(7, result!.Sum);
+        Assert.Equal(7, result.Sum);
     }
 
     [Fact(DisplayName = "A handler returning a null result fails the job and stores no result")]
@@ -130,8 +146,7 @@ public sealed class TypedEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, J
         Assert.Equal(JobStatusCode.Failed, snapshot!.Status);
         Assert.Equal(0, snapshot.FailureCount);
 
-        var result = await Jobs.GetResultAsync<NullResultOutput>(outcome, ct);
-        Assert.Null(result);
+        Assert.False((await Jobs.TryGetResultAsync<NullResultOutput>(outcome, ct)).Found);
     }
 
     [Fact(DisplayName = "RunAndWaitAsync enqueues, waits for completion and returns the typed result")]

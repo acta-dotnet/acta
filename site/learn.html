@@ -343,7 +343,7 @@ app.MapGet("/reports/{id}", async (string id, IJobs jobs, CancellationToken ct) 
         return Results.NotFound();
     }
 
-    var report = job.Status == JobStatusCode.Succeeded ? await jobs.GetResultAsync&lt;ReportResult&gt;(jobRef, ct) : null;
+    var (_, report) = await jobs.TryGetResultAsync&lt;ReportResult&gt;(jobRef, ct);
     return Results.Ok(new
     {
         job = job.JobRef.ToString(),
@@ -572,7 +572,7 @@ app.MapGet("/reports/{id}", async (string id, IJobs jobs, CancellationToken ct) 
         return Results.NotFound();
     }
 
-    var report = job.Status == JobStatusCode.Succeeded ? await jobs.GetResultAsync&lt;ReportResult&gt;(jobRef, ct) : null;
+    var (_, report) = await jobs.TryGetResultAsync&lt;ReportResult&gt;(jobRef, ct);
     return Results.Ok(new
     {
         job = job.JobRef.ToString(),

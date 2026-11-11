@@ -307,7 +307,7 @@ internal static class StorageCases
             plan.Deadline(1, 0, state.DrainRate),
             ct
         );
-        var result = await jobs.GetResultAsync<string>(root, ct);
+        var (_, result) = await jobs.TryGetResultAsync<string>(root, ct);
         checks.Add(
             new(
                 "retained-parent-result",

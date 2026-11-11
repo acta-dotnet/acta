@@ -74,11 +74,11 @@ app.MapGet(
             : Results.NotFound()
 );
 
-// The typed result: null until a successful completion stored one.
+// The typed result: found once a successful completion stored one.
 app.MapGet(
     "/jobs/{jobRef}/label",
     async (JobRef jobRef, IJobs jobs) =>
-        await jobs.GetResultAsync<ShipmentLabel>(jobRef) is { } label ? Results.Ok(label) : Results.NoContent()
+        await jobs.TryGetResultAsync<ShipmentLabel>(jobRef) is (true, var label) ? Results.Ok(label) : Results.NoContent()
 );
 
 // Why: the status in words, the reason the last attempt failed, and what an operator can do next.

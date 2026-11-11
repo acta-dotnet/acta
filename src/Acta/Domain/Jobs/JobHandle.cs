@@ -28,7 +28,12 @@ public record JobHandle : EnqueueJobResponse
         where TResult : notnull => _jobs.WaitAsync<TResult>(this, timeout, ct);
 
     /// <inheritdoc cref="IJobs.GetResultAsync{TResult}"/>
-    public ValueTask<TResult?> GetResultAsync<TResult>(CancellationToken ct = default) => _jobs.GetResultAsync<TResult>(this, ct);
+    public ValueTask<TResult> GetResultAsync<TResult>(CancellationToken ct = default)
+        where TResult : notnull => _jobs.GetResultAsync<TResult>(this, ct);
+
+    /// <inheritdoc cref="IJobs.TryGetResultAsync{TResult}"/>
+    public ValueTask<(bool Found, TResult? Value)> TryGetResultAsync<TResult>(CancellationToken ct = default) =>
+        _jobs.TryGetResultAsync<TResult>(this, ct);
 
     /// <inheritdoc cref="IJobs.CancelAsync"/>
     public ValueTask<CancelJobResponse> CancelAsync(string? reasonMessage = null, string? actor = null, CancellationToken ct = default) =>
@@ -39,8 +44,8 @@ public record JobHandle : EnqueueJobResponse
 }
 
 /// <summary>
-/// A <see cref="JobHandle"/> from a result-bearing contract: <see cref="WaitAsync"/> and <see cref="GetResultAsync"/>
-/// answer the job's <typeparamref name="TResult"/> without naming it again.
+/// A <see cref="JobHandle"/> from a result-bearing contract: <see cref="WaitAsync"/>, <see cref="GetResultAsync"/> and
+/// <see cref="TryGetResultAsync"/> answer the job's <typeparamref name="TResult"/> without naming it again.
 /// </summary>
 public record JobHandle<TResult> : JobHandle
     where TResult : notnull
@@ -54,5 +59,8 @@ public record JobHandle<TResult> : JobHandle
         WaitAsync<TResult>(timeout, ct);
 
     /// <inheritdoc cref="IJobs.GetResultAsync{TResult}"/>
-    public ValueTask<TResult?> GetResultAsync(CancellationToken ct = default) => GetResultAsync<TResult>(ct);
+    public ValueTask<TResult> GetResultAsync(CancellationToken ct = default) => GetResultAsync<TResult>(ct);
+
+    /// <inheritdoc cref="IJobs.TryGetResultAsync{TResult}"/>
+    public ValueTask<(bool Found, TResult? Value)> TryGetResultAsync(CancellationToken ct = default) => TryGetResultAsync<TResult>(ct);
 }

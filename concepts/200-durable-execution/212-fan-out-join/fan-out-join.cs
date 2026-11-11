@@ -58,7 +58,7 @@ namespace Acta.Concepts.FanOutJoin
             var total = 0L;
             foreach (var item in chunks.Items)
             {
-                total += (await context.GetChildResultAsync<PartialSum>(item.ChildJobId, ct))!.Value;
+                total += (await context.GetChildResultAsync<PartialSum>(item.ChildJobId, ct)).Value;
             }
 
             return new SumResult(total);

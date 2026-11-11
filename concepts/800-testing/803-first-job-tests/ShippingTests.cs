@@ -51,7 +51,7 @@ public sealed class ShippingTests : IAsyncLifetime
         Assert.Equal(ActaRunStatus.Completed, await _host.RunOnceAsync(job, Ct));
 
         var label = await job.GetResultAsync(Ct);
-        Assert.Equal("AP00001042", label!.TrackingNumber);
+        Assert.Equal("AP00001042", label.TrackingNumber);
     }
 
     [Fact]
@@ -65,7 +65,7 @@ public sealed class ShippingTests : IAsyncLifetime
         // The retry is due about a minute out under the default backoff; the test makes it due now.
         await _host.ForceJobDueAsync(job, Ct);
         Assert.Equal(ActaRunStatus.Completed, await _host.RunOnceAsync(job, Ct));
-        Assert.Equal("AP00001044", (await job.GetResultAsync(Ct))!.TrackingNumber);
+        Assert.Equal("AP00001044", (await job.GetResultAsync(Ct)).TrackingNumber);
     }
 
     [Fact]

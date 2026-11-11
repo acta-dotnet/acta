@@ -29,7 +29,7 @@ public sealed class OrderTests(ActaHostFixture acta) : ActaTestBase(acta)
         Assert.Equal(JobStatusCode.Succeeded, (await enqueued.GetStatusAsync(Ct))?.Status);
 
         var result = await enqueued.GetResultAsync<OrderResult>(Ct);
-        Assert.True(result!.Charged);
+        Assert.True(result.Charged);
         Assert.Equal(1, OrderJob.ReserveCount); // reserve ran exactly once across the replay
     }
 
@@ -45,6 +45,6 @@ public sealed class OrderTests(ActaHostFixture acta) : ActaTestBase(acta)
 
         Assert.Equal(ActaRunStatus.Completed, await Host.RunOnceAsync(enqueued, Ct));
         var result = await enqueued.GetResultAsync<OrderResult>(Ct);
-        Assert.False(result!.Charged);
+        Assert.False(result.Charged);
     }
 }

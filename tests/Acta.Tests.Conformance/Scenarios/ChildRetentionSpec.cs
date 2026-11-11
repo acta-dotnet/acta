@@ -40,10 +40,10 @@ public sealed class ChildRetentionSpec : ActaRuntimeTestBase<ConformanceFixture,
         // The parent is Ready, released by the child's latch and not yet replayed: live, not terminal.
         await SweepAsync(ct);
         Assert.Equal(ControlAction.Rejected, (await Jobs.PurgeAsync(JobLookup.ById(childId), ct: ct)).Action);
-        Assert.Equal(42, (await Jobs.GetResultAsync<ChildEchoResult>(JobLookup.ById(childId), ct))!.Doubled);
+        Assert.Equal(42, (await Jobs.GetResultAsync<ChildEchoResult>(JobLookup.ById(childId), ct)).Doubled);
 
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(parent, ct));
-        Assert.Equal(42, (await Jobs.GetResultAsync<ChildEchoResult>(parent, ct))!.Doubled);
+        Assert.Equal(42, (await Jobs.GetResultAsync<ChildEchoResult>(parent, ct)).Doubled);
         Assert.Equal(childId, Assert.Single(await ChildIdsAsync(parent.JobId, ct)));
         Assert.Equal(1, (await Jobs.GetAsync(JobLookup.ById(childId), ct))!.ExecutionNumber);
 

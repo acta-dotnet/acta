@@ -23,7 +23,7 @@ public sealed class EchoJobTests(ActaHostFixture acta) : ActaTestBase(acta)
         Assert.Equal(ActaRunStatus.Completed, outcome);
         Assert.Equal(JobStatusCode.Succeeded, (await enqueued.GetStatusAsync(Ct))?.Status);
         var result = await enqueued.GetResultAsync<EchoResult>(Ct);
-        Assert.Equal("hello", result!.Message);
+        Assert.Equal("hello", result.Message);
     }
 
     [Fact]

@@ -67,10 +67,10 @@ public sealed class ChildGroupTimeoutSpec : ActaRuntimeTestBase<ConformanceFixtu
         // Same statuses, same order, same flags: the bound is invisible when nothing runs out of time.
         var boundedReport = await Jobs.GetResultAsync<ChildGroupReport>(bounded, ct);
         var unboundedReport = await Jobs.GetResultAsync<ChildGroupReport>(unbounded, ct);
-        Assert.False(boundedReport!.TimedOut);
+        Assert.False(boundedReport.TimedOut);
         Assert.True(boundedReport.Succeeded);
         Assert.Equal(
-            unboundedReport!.Children.Select(c => (c.Status, c.TimedOut, c.Succeeded)),
+            unboundedReport.Children.Select(c => (c.Status, c.TimedOut, c.Succeeded)),
             boundedReport.Children.Select(c => (c.Status, c.TimedOut, c.Succeeded))
         );
         Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(bounded.JobId, ct)).Status);
@@ -109,7 +109,7 @@ public sealed class ChildGroupTimeoutSpec : ActaRuntimeTestBase<ConformanceFixtu
 
         // The member that landed in time keeps its own outcome; the one that did not reports the timeout.
         var report = await Jobs.GetResultAsync<ChildGroupReport>(parent, ct);
-        Assert.True(report!.TimedOut);
+        Assert.True(report.TimedOut);
         Assert.False(report.Succeeded);
         Assert.True(report.Children[0].TimedOut);
         Assert.Equal(deep, report.Children[0].ChildJobId);
@@ -234,7 +234,7 @@ public sealed class ChildGroupTimeoutSpec : ActaRuntimeTestBase<ConformanceFixtu
         );
 
         var report = await Jobs.GetResultAsync<ChildGroupReport>(parent, ct);
-        Assert.True(report!.TimedOut);
+        Assert.True(report.TimedOut);
         Assert.Equal(size, report.Children.Count);
         Assert.All(report.Children, c => Assert.True(c.TimedOut));
         foreach (var member in (await ChildIdsAsync(parent.JobId, ct)).Values)
@@ -269,7 +269,7 @@ public sealed class ChildGroupTimeoutSpec : ActaRuntimeTestBase<ConformanceFixtu
             Assert.Equal(1, await CountEventsAsync(member, EventCode.JobCancelled, ct));
             Assert.Equal(JobStatusCode.Cancelled, (await ReadJobAsync(member, ct)).Status);
         }
-        Assert.True((await Jobs.GetResultAsync<ChildGroupReport>(parent, ct))!.TimedOut);
+        Assert.True((await Jobs.GetResultAsync<ChildGroupReport>(parent, ct)).TimedOut);
     }
 
     [Fact(DisplayName = "Two groups in one job keep separate deadlines and expire independently")]
@@ -315,7 +315,7 @@ public sealed class ChildGroupTimeoutSpec : ActaRuntimeTestBase<ConformanceFixtu
         Assert.Equal(firstCheckpoint.Value, untouched.Value);
 
         var report = await Jobs.GetResultAsync<TwoGroupReport>(parent, ct);
-        Assert.False(report!.First.TimedOut);
+        Assert.False(report.First.TimedOut);
         Assert.True(report.First.Succeeded);
         Assert.True(report.Second.TimedOut);
         foreach (var landed in (long[])[members["a0"], members["a1"]])
@@ -342,7 +342,7 @@ public sealed class ChildGroupTimeoutSpec : ActaRuntimeTestBase<ConformanceFixtu
         var reused = Assert.Single(await ReadDeadlineCheckpointsAsync(landed.JobId, ct));
         Assert.Equal(0, await CountReasonAsync(landed.JobId, EventReason.WaitTimedOut, ct));
         var landedReport = await Jobs.GetResultAsync<TwoGroupReport>(landed, ct);
-        Assert.True(landedReport!.First.Succeeded);
+        Assert.True(landedReport.First.Succeeded);
         Assert.True(landedReport.Second.Succeeded);
         Assert.Equal(landedReport.First.Children[0].ChildJobId, landedReport.Second.Children[0].ChildJobId);
         Assert.NotNull(reused.Value);
@@ -358,7 +358,7 @@ public sealed class ChildGroupTimeoutSpec : ActaRuntimeTestBase<ConformanceFixtu
         // again instead of buying the member a fresh budget. Deliberate. A handler wanting another
         // chance starts a replacement child, which is a different id and therefore a different group.
         var expiredReport = await Jobs.GetResultAsync<TwoGroupReport>(expired, ct);
-        Assert.True(expiredReport!.First.TimedOut);
+        Assert.True(expiredReport.First.TimedOut);
         Assert.True(expiredReport.Second.TimedOut);
         Assert.Single(await ReadDeadlineCheckpointsAsync(expired.JobId, ct));
         Assert.Equal(1, await CountEventsAsync(member, EventCode.JobCancelled, ct));
@@ -381,7 +381,7 @@ public sealed class ChildGroupTimeoutSpec : ActaRuntimeTestBase<ConformanceFixtu
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(parent, ct));
 
         var report = await Jobs.GetResultAsync<ChildExecuteReport>(parent, ct);
-        Assert.True(report!.IsTimedOut);
+        Assert.True(report.IsTimedOut);
         Assert.False(report.IsSuccess);
         Assert.Equal(JobStatusCode.Cancelled, report.Status);
         Assert.Equal(JobStatusCode.Cancelled, (await ReadJobAsync(child, ct)).Status);
@@ -439,7 +439,7 @@ public sealed class ChildGroupTimeoutSpec : ActaRuntimeTestBase<ConformanceFixtu
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(parent, ct));
 
         var report = await Jobs.GetResultAsync<ChildGroupReport>(parent, ct);
-        Assert.True(report!.TimedOut);
+        Assert.True(report.TimedOut);
         Assert.False(report.Succeeded);
         Assert.True(report.Children[0].Succeeded);
         Assert.False(report.Children[0].TimedOut);
