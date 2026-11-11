@@ -169,6 +169,13 @@ internal sealed partial class WorkerFinalizer
             };
         }
 
+        if (slot && s.Reason == EventReason.NonRetryableException)
+        {
+            // An exception no retry can change fails the firing, not the job: the slot returns to Idle for its next
+            // firing as a spent budget does, with the budget untouched. Only the handler's own fail stops the job.
+            return command with { EventCode = EventCode.JobExecutionFailed, FinalStatus = JobStatusCode.Idle };
+        }
+
         if (s.HandlerStatusCode is { } handlerStatus)
         {
             // Handler fail/cancel/pause: a deliberate terminal/hold decision; the whole Job stops. No result payload; budget

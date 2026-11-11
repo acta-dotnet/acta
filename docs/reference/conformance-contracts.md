@@ -2173,6 +2173,7 @@
 - **Guarantees:**
   - Under PauseScheduling the failed firing pauses the schedule with the reason, and a resume puts it back in front of the admitter
   - Under Continue the failed firing leaves the schedule scheduled, and the next occurrence fires
+  - An exception no retry can change fails the firing at once and leaves the permanent job for its next occurrence
   - A lost attempt that spends the budget applies the policy on reclaim as a completion would
   - The policy's pause is recorded below Audit, on a completion and on a reclaim
 

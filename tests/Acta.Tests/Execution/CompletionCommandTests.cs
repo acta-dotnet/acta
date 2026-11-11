@@ -94,4 +94,41 @@ public sealed class CompletionCommandTests
             return GC.GetAllocatedBytesForCurrentThread() - before;
         }
     }
+
+    [Fact]
+    public void A_non_retryable_failure_of_a_permanent_job_settles_the_firing_and_keeps_the_job()
+    {
+        var descriptor = new JobDescriptor(
+            "slot",
+            typeof(CompletionCommandTests),
+            "Run",
+            typeof(object),
+            null,
+            default,
+            null,
+            default,
+            3,
+            default,
+            default,
+            default,
+            default,
+            null!,
+            null!,
+            null
+        );
+        var job = new ClaimedJob(1, Guid.Empty, 1, null, 2, null, null, null, 0, ReadOnlyMemory<byte>.Empty, null, default, 0)
+        {
+            Kind = JobKindCode.Permanent,
+        };
+        var completion = ExecutionCompletion.Terminal(CompletionKind.Failed, EventReason.NonRetryableException, "no", JobStatusCode.Failed);
+
+        var slot = WorkerFinalizer.BuildCommand(descriptor, job, completion, default);
+        var oneShot = WorkerFinalizer.BuildCommand(descriptor, job with { Kind = JobKindCode.Ordinary }, completion, default);
+
+        // The firing failed for good and the slot waits for its next one; the same exception ends a one-shot job.
+        Assert.Equal((JobStatusCode.Idle, EventCode.JobExecutionFailed, false), (slot.FinalStatus, slot.EventCode, slot.Succeeded));
+        Assert.Null(slot.FailureCount);
+        Assert.Equal((byte)JobStatusCode.Failed, oneShot.HandlerStatusCode);
+        Assert.Null(oneShot.FinalStatus);
+    }
 }

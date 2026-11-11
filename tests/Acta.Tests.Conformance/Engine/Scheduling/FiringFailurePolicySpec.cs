@@ -11,17 +11,34 @@ internal static class FailingPingHandler
     public static Task Run(JobContext ctx, CancellationToken ct) => throw new InvalidOperationException("the firing fails");
 }
 
-/// <summary>Two scheduled definitions that always fail, one under each firing failure policy.</summary>
+/// <summary>Throws what no retry can change, on a definition with attempts to spare.</summary>
+internal static class UnsupportedPingHandler
+{
+    public static Task Run(JobContext ctx, CancellationToken ct) => throw new NotSupportedException("the firing cannot run");
+}
+
+/// <summary>Scheduled definitions that always fail: one under each firing failure policy, and one that fails without a retry.</summary>
 public sealed class FiringFailurePolicyManifest : IJobManifest
 {
     public const string PausingJobName = "policy-pause";
     public const string ContinuingJobName = "policy-continue";
+    public const string NonRetryableJobName = "policy-non-retryable";
     public const string ScheduleName = "every-5-minutes";
 
     public static JobDescriptorManifest Descriptors { get; } =
         new([
             Descriptor(PausingJobName, FiringFailurePolicyCode.PauseScheduling),
             Descriptor(ContinuingJobName, FiringFailurePolicyCode.Continue),
+            Descriptor(NonRetryableJobName, FiringFailurePolicyCode.Continue) with
+            {
+                HandlerType = typeof(UnsupportedPingHandler),
+                MaxAttempts = 3,
+                Invoker = static async (_, _, ctx, ct) =>
+                {
+                    await UnsupportedPingHandler.Run(ctx, ct);
+                    return new JobHandlerOutput(false, null);
+                },
+            },
         ]);
 
     private static JobDescriptor Descriptor(string jobName, FiringFailurePolicyCode policy) =>
@@ -146,6 +163,29 @@ public sealed class FiringFailurePolicySpec : ActaRuntimeTestBase<ConformanceFix
         Assert.Equal(ScheduleStatusCode.Active, schedule.Status);
         Assert.Equal(occurrence.AddMinutes(5), schedule.NextEvaluationAtUtc);
         Assert.Equal(0, await CountEventsAsync(slotId, EventCode.SchedulePaused, ct));
+
+        await AdmitAtAsync(slotId, occurrence.AddMinutes(5), ct);
+        Assert.Equal(RunOnceStatus.Failed, await Runtime.RunOnceAsync(slotId, ct));
+        Assert.Equal(2, (await ReadJobAsync(slotId, ct)).ExecutionNumber);
+    }
+
+    [Fact(DisplayName = "An exception no retry can change fails the firing at once and leaves the permanent job for its next occurrence")]
+    public async Task A_non_retryable_failure_fails_the_firing_not_the_job()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var slotId = await ScheduleTestOps.SlotIdAsync(Db, TestNamespace, FiringFailurePolicyManifest.NonRetryableJobName, ct);
+        var occurrence = await CursorAsync(slotId, ct);
+
+        // Three attempts are allowed and one is made: a retry would throw the same thing.
+        await AdmitAtAsync(slotId, occurrence, ct);
+        Assert.Equal(RunOnceStatus.Failed, await Runtime.RunOnceAsync(slotId, ct));
+
+        // A slot left Failed would hold every later occurrence until an operator restarted it.
+        var slot = await ReadJobAsync(slotId, ct);
+        Assert.Equal(JobStatusCode.Idle, slot.Status);
+        Assert.Equal(1, slot.ExecutionNumber);
+        var failed = await ReadSingleEventAsync(slotId, EventCode.JobExecutionFailed, ct);
+        Assert.Equal(EventReason.NonRetryableException, EventDetail(failed, "reason"));
 
         await AdmitAtAsync(slotId, occurrence.AddMinutes(5), ct);
         Assert.Equal(RunOnceStatus.Failed, await Runtime.RunOnceAsync(slotId, ct));
