@@ -41,14 +41,14 @@ DO $$
 BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
-        WHERE name NOT IN ('M20261111012847_init')
+        WHERE name NOT IN ('M20261111013550_init')
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
 END
 $$;
 
--- ===== BEGIN M20261111012847_init =====
+-- ===== BEGIN M20261111013550_init =====
 CREATE SCHEMA IF NOT EXISTS acta;
 
 -- alerts
@@ -1858,6 +1858,16 @@ BEGIN
                 RAISE EXCEPTION 'ACTA:EXECUTION_FENCED:enqueue_job: parent job % is no longer executing attempt %.',
                     p_parent_job_id, p_parent_execution_number
                     USING ERRCODE = 'P0001';
+            END IF;
+        ELSIF v_lineage IS NOT NULL THEN
+            -- The read above answered from a snapshot older than a cancel it waited for, so the status is read again
+            -- now that the parent's row is held (docs/sql-internals.md, "A read after a lock"). The fence is that read.
+            PERFORM 1
+            FROM acta.jobs_state pr
+            WHERE pr.job_id = p_parent_job_id AND pr.job_status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */);
+
+            IF NOT FOUND THEN
+                v_lineage := NULL;
             END IF;
         END IF;
 
@@ -4396,10 +4406,10 @@ JOIN acta.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO acta.migrations (name)
-VALUES ('M20261111012847_init')
+VALUES ('M20261111013550_init')
 ON CONFLICT (name) DO NOTHING;
 
--- ===== END M20261111012847_init =====
+-- ===== END M20261111013550_init =====
 
 COMMIT;
 

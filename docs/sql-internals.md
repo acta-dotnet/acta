@@ -381,6 +381,21 @@ out its last one as any other worker's would.
   trip, and the executor ends the attempt as it ends a lost lease: no completion and no retry charged.
   `complete_job_step`'s version check stays as a second guard.
 
+### A read after a lock
+
+PostgreSQL answers a statement from the snapshot it began with. A statement that locks one row and reads another
+in the same join waits for the lock and then reads the other row as it was before the wait, since only the locked
+row is fetched again. So a decision on a row the statement does not lock is read by a later statement, after the
+lock is held.
+
+- `enqueue_jobs` locks its batch's parents and then reads their status. `enqueue_job` reads the parent's status
+  again once it holds the parent's `jobs` row; for a child its parent's handler starts, the fence read is that
+  second read. A cancel holds both of the job's rows, so without the second read a child enqueued behind its
+  parent's cancel was stored under the cancelled parent, after the cancel had listed the children it walks.
+- A caller's REPEATABLE READ transaction keeps one snapshot for all its statements, so its second read is no newer
+  than its first (docs/known-limitations.md).
+- SQL Server's cancel holds only the `jobs_state` row, so a child's enqueue does not wait for it there.
+
 ### Claim watermark
 
 A claim removes each row it takes from `ix_jobs_state_claim_ready`, and the removed entries stay at the

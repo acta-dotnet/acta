@@ -149,6 +149,16 @@ BEGIN
                     p_parent_job_id, p_parent_execution_number
                     USING ERRCODE = 'P0001';
             END IF;
+        ELSIF v_lineage IS NOT NULL THEN
+            -- The read above answered from a snapshot older than a cancel it waited for, so the status is read again
+            -- now that the parent's row is held (docs/sql-internals.md, "A read after a lock"). The fence is that read.
+            PERFORM 1
+            FROM {{schema}}.jobs_state pr
+            WHERE pr.job_id = p_parent_job_id AND pr.job_status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */);
+
+            IF NOT FOUND THEN
+                v_lineage := NULL;
+            END IF;
         END IF;
 
         IF v_lineage IS NULL THEN
