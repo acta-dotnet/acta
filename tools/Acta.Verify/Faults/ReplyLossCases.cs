@@ -90,6 +90,54 @@ internal static class ReplyLossCases
             plan.Deadline(1, worker.Settings!.LeaseSeconds, state.DrainRate),
             ct
         );
+        if (!enqueueLoss)
+        {
+            // The row was terminal before the reply was lost, so the wait above says nothing of the worker. These three
+            // do: it repeated the completion and was told it had landed, it ran work enqueued since, and it stopped clean.
+            var recovery = plan.Deadline(1, worker.Settings!.LeaseSeconds, state.DrainRate);
+            checks.Add(
+                new(
+                    "completion-repeated",
+                    input.Key,
+                    await effects.WaitBarrierAsync("committed-reply-repeated-AlreadyTerminal", TimeSpan.FromSeconds(recovery), ct)
+                        is not null,
+                    "The worker repeated the completion whose reply it lost, and the database answered that it had already landed."
+                )
+            );
+            var followUp = new WorkInput("follow-up");
+            expected = WorkloadModel.Expected([input, followUp]);
+            await jobs.EnqueueAsync(
+                new EnqueueJobRequest(
+                    "verify",
+                    "work",
+                    JobPayload.Json(followUp, WorkJson.Default.WorkInput),
+                    DeduplicationKey: followUp.Key
+                ),
+                ct
+            );
+            var continued = true;
+            try
+            {
+                await FaultCaseRunner.WaitAsync(
+                    async () => (await reader.ReadAsync(null, ct)) is { Count: 2 } rows && rows.All(r => r.Status == 100),
+                    recovery,
+                    ct
+                );
+            }
+            catch (TimeoutException)
+            {
+                continued = false;
+            }
+            checks.Add(new("worker-continues", followUp.Key, continued, "The worker ran a job enqueued after the lost reply."));
+            checks.Add(
+                new(
+                    "worker-stops-clean",
+                    input.Key,
+                    await worker.StopAsync(ct),
+                    "Asked to stop, the worker drained and exited with no attempt left in flight."
+                )
+            );
+        }
         var actual = await reader.OutcomesAsync(ct);
         checks.Add(
             new(

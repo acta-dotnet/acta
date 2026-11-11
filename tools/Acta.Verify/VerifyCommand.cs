@@ -113,7 +113,8 @@ public static class VerifyCommand
                         using var shutdown = CancellationTokenSource.CreateLinkedTokenSource(ct);
                         shutdown.CancelAfter(TimeSpan.FromSeconds(10));
                         await host.StopAsync(shutdown.Token);
-                        return 0;
+                        // A stop that leaves an attempt registered did not drain, whatever the host answered.
+                        return host.Services.GetServices<WorkerRuntime>().Sum(runtime => runtime.InFlightCount) == 0 ? 0 : 5;
                     }
                 }
                 return 0;

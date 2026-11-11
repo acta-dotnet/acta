@@ -4,13 +4,15 @@ namespace Acta.Verify;
 
 /// <summary>
 /// Holds the first matching store write at the effects barrier and optionally loses its reply. With a job id, only a
-/// completion batch that carries that job matches, so a system job's completion cannot take the injection.
+/// completion batch that carries that job matches, so a system job's completion cannot take the injection, and the
+/// next completion that carries the job after a lost reply is recorded with the action the database answered.
 /// </summary>
 internal sealed record StoreInjection(string Operation, string Boundary, bool LoseReply = false, long? JobId = null);
 
 internal sealed class InstrumentedSession(IDbSession inner, StoreInjection injection, EffectClient effects) : IDbSession
 {
     private int _fired;
+    private int _repeated;
     public DbProvider Provider => inner.Provider;
     public string Schema => inner.Schema;
 
@@ -31,17 +33,25 @@ internal sealed class InstrumentedSession(IDbSession inner, StoreInjection injec
     )
     {
         var rows = await inner.ExecuteAsync(command, bind, mapRow, ct);
-        if (
-            command.Operation == injection.Operation
-            && (injection.JobId is not { } jobId || rows.Any(r => r is CompleteExecutionsRow c && c.JobId == jobId))
-            && Interlocked.CompareExchange(ref _fired, 1, 0) == 0
-        )
+        if (command.Operation != injection.Operation)
+        {
+            return rows;
+        }
+
+        var carried = injection.JobId is { } jobId ? rows.OfType<CompleteExecutionsRow>().FirstOrDefault(c => c.JobId == jobId) : null;
+        if ((injection.JobId is null || carried is not null) && Interlocked.CompareExchange(ref _fired, 1, 0) == 0)
         {
             await effects.CallAsync("barrier", "root", injection.Boundary, false, 0, ct);
             if (injection.LoseReply)
             {
                 throw new TimeoutException("Instrumented committed reply loss.");
             }
+        }
+        else if (carried is not null && injection.LoseReply && Interlocked.CompareExchange(ref _repeated, 1, 0) == 0)
+        {
+            // The first call after the lost reply that carries the job again: the worker repeated its completion, and
+            // what the database answered is recorded under the boundary's name for the case to read.
+            await effects.CallAsync("barrier", "root", $"{injection.Boundary}-repeated-{carried.Action}", false, 0, ct);
         }
         return rows;
     }
