@@ -41,14 +41,14 @@ DO $$
 BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
-        WHERE name NOT IN ('M20261110235546_init')
+        WHERE name NOT IN ('M20261111001208_init')
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
 END
 $$;
 
--- ===== BEGIN M20261110235546_init =====
+-- ===== BEGIN M20261111001208_init =====
 CREATE SCHEMA IF NOT EXISTS acta;
 
 -- alerts
@@ -2616,8 +2616,16 @@ AS $$
 DECLARE
     v_new_expiry TIMESTAMPTZ := now() + (p_lease_ttl_seconds * INTERVAL '1 second');
     v_namespace_id INT;
+    v_was_dead BOOLEAN;
     v_recovery_claimed BOOLEAN := FALSE;
 BEGIN
+    -- The status the heartbeat replaces, read under the row's lock so a mark-dead that landed first is seen.
+    SELECT w.namespace_id, w.worker_status_code = 200 /* WorkerStatusCode.Dead */
+    INTO v_namespace_id, v_was_dead
+    FROM acta.workers w
+    WHERE w.worker_id = p_leased_by_worker_id
+    FOR UPDATE;
+
     UPDATE acta.workers
     SET
         last_seen_at_utc = now(),
@@ -2631,8 +2639,16 @@ BEGIN
         END,
         modified_at_utc = now(),
         version = version + 1
-    WHERE worker_id = p_leased_by_worker_id
-    RETURNING namespace_id INTO v_namespace_id;
+    WHERE worker_id = p_leased_by_worker_id;
+
+    -- A worker marked Dead that heartbeats is alive again, and says so as its registration did.
+    IF v_was_dead THEN
+        INSERT INTO acta.events (event_code, created_at_utc, namespace_id, worker_id, entity_code, entity_id)
+        VALUES (
+            120 /* EventCode.WorkerStarted */, now(), v_namespace_id, p_leased_by_worker_id,
+            130 /* EntityCode.Worker */, p_leased_by_worker_id
+        );
+    END IF;
 
     -- Lock holds renew first and never skip: no routine locks both locks and jobs_state. A renewed hold is answered
     -- by its token, so a process holding a stale and a current hold on one key tells them apart; a hold whose token
@@ -4368,10 +4384,10 @@ JOIN acta.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO acta.migrations (name)
-VALUES ('M20261110235546_init')
+VALUES ('M20261111001208_init')
 ON CONFLICT (name) DO NOTHING;
 
--- ===== END M20261110235546_init =====
+-- ===== END M20261111001208_init =====
 
 COMMIT;
 

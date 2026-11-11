@@ -1069,6 +1069,7 @@
 - **Contract:** The heartbeat extends a held lease without a version bump and stamps last_seen, while a leased row the process does not hold lapses to recovery.
 - **Guarantees:**
   - The heartbeat pushes a held lease further out, advances worker last_seen, and the lease survives a reclaim sweep
+  - A heartbeat from a worker marked Dead makes it Active again and records worker.started, once
   - The heartbeat leaves a claimed job's runtime version alone, and the job stays Executing
   - A leased row the process does not hold is neither renewed nor answered, and recovery reclaims it once its lease lapses
 

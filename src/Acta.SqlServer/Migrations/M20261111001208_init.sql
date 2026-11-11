@@ -2974,6 +2974,9 @@ BEGIN
         DECLARE @new_expiry DATETIME2(7) = DATEADD(SECOND, @p_lease_ttl_seconds, @now);
         DECLARE @namespace_id INT = (SELECT w.namespace_id FROM {{schema}}.workers w WHERE w.worker_id = @p_leased_by_worker_id);
 
+        -- The status the heartbeat replaces comes from the update itself, so a mark-dead that landed first is seen.
+        DECLARE @replaced TABLE (worker_status_code TINYINT NOT NULL);
+
         UPDATE {{schema}}.workers
         SET
             last_seen_at_utc = @now,
@@ -2987,7 +2990,16 @@ BEGIN
             END,
             modified_at_utc = @now,
             version = version + 1
+        OUTPUT DELETED.worker_status_code INTO @replaced (worker_status_code)
         WHERE worker_id = @p_leased_by_worker_id;
+
+        -- A worker marked Dead that heartbeats is alive again, and says so as its registration did.
+        IF EXISTS (SELECT 1 FROM @replaced WHERE worker_status_code = 200 /* WorkerStatusCode.Dead */)
+            INSERT INTO {{schema}}.events (event_code, created_at_utc, namespace_id, worker_id, entity_code, entity_id)
+            VALUES (
+                120 /* EventCode.WorkerStarted */, @now, @namespace_id, @p_leased_by_worker_id,
+                130 /* EntityCode.Worker */, @p_leased_by_worker_id
+            );
 
         /* The held executions and lock holds arrive as JSON array text, expanded once into keyed tables. A process
            can hold two executions of one job, or two holds on one key, while a stale attempt unwinds. */
@@ -4956,7 +4968,7 @@ JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE name = 'M20261110235546_init')
+IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE name = 'M20261111001208_init')
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261110235546_init');
+VALUES ('M20261111001208_init');
 GO

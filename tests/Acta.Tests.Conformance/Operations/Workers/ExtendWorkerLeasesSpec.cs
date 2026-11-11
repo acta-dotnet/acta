@@ -70,6 +70,36 @@ public sealed class ExtendWorkerLeasesSpec : ActaRuntimeTestBase<ConformanceFixt
         Assert.Equal(workerId, still.LeasedByWorkerId);
     }
 
+    [Fact(DisplayName = "A heartbeat from a worker marked Dead makes it Active again and records worker.started, once")]
+    public async Task A_dead_worker_that_heartbeats_records_its_return()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
+        var worker = Assert.IsType<WorkerEntity>(await Db.From<WorkerEntity>().Where(w => w.NamespaceId == ns).SingleOrDefaultAsync(ct));
+        var leaseTtl = Services.GetRequiredService<IOptions<JobsOptions>>().Value.LeaseTtlSeconds;
+        var started = await WorkerStartsAsync(worker.Id, ct);
+
+        // Recovery marked it dead while its database was out of reach; the process itself never stopped.
+        await Db.From<WorkerEntity>()
+            .Where(w => w.Id == worker.Id)
+            .UpdateOnlyAsync(() => new WorkerEntity { Status = WorkerStatusCode.Dead }, ct);
+        var workers = Services.GetRequiredService<WorkersOperations>();
+        await workers.ExtendWorkerLeasesAsync(new ExtendWorkerLeasesCommand(worker.Id, leaseTtl, false, [], []), ct);
+
+        var revived = await Db.From<WorkerEntity>().Where(w => w.Id == worker.Id).SingleOrDefaultAsync(ct);
+        Assert.Equal(WorkerStatusCode.Active, revived!.Status);
+        Assert.Equal(started + 1, await WorkerStartsAsync(worker.Id, ct));
+
+        // A live worker's heartbeat is not a start.
+        await workers.ExtendWorkerLeasesAsync(new ExtendWorkerLeasesCommand(worker.Id, leaseTtl, false, [], []), ct);
+        Assert.Equal(started + 1, await WorkerStartsAsync(worker.Id, ct));
+    }
+
+    private Task<int> WorkerStartsAsync(int workerId, CancellationToken ct) =>
+        Db.From<EventEntity>()
+            .Where(e => e.EntityCode == EntityCode.Worker && e.EntityId == workerId && e.EventCode == EventCode.WorkerStarted)
+            .CountAsync(ct);
+
     [Fact(DisplayName = "The heartbeat leaves a claimed job's runtime version alone, and the job stays Executing")]
     public async Task Heartbeat_leaves_the_runtime_version_alone()
     {

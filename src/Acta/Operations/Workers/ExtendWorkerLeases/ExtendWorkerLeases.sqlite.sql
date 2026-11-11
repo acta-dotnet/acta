@@ -1,3 +1,10 @@
+-- A worker marked Dead that heartbeats is alive again, and says so as its registration did. The event is written
+-- before the update replaces the status it reads.
+INSERT INTO {{schema}}.events (event_code, created_at_utc, namespace_id, worker_id, entity_code, entity_id)
+SELECT 120 /* EventCode.WorkerStarted */, {{now}}, w.namespace_id, w.worker_id, 130 /* EntityCode.Worker */, w.worker_id
+FROM {{schema}}.workers w
+WHERE w.worker_id = @p_leased_by_worker_id AND w.worker_status_code = 200 /* WorkerStatusCode.Dead */;
+
 UPDATE {{schema}}.workers
 SET
     last_seen_at_utc = {{now}},

@@ -260,7 +260,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `CalendarDraftSaved` | 110 | `calendar.draft-saved` | An operator saved a new draft version of a catalog calendar. The details carry the calendar, the version, and the role; the message carries the reason. | Active |
 | `CalendarPublished` | 111 | `calendar.published` | An operator published a catalog calendar version, which became the family's current one. Details carry the calendar, the version, the version it replaced, the overdue decision, and the schedules it affected. | Active |
 | `CalendarArchived` | 112 | `calendar.archived` | An operator archived a catalog calendar's current version; the family has no current version until another is published. Details carry the calendar and the version. | Active |
-| `WorkerStarted` | 120 | `worker.started` | A worker process registered and is active. | Active |
+| `WorkerStarted` | 120 | `worker.started` | A worker process registered and is active, or one marked dead heartbeated again. | Active |
 | `WorkerStopped` | 121 | `worker.stopped` | A worker process shut down cleanly. | Active |
 | `WorkerDied` | 122 | `worker.died` | A worker's heartbeat went stale and crash recovery marked it dead. | Active |
 | `AlertAcknowledged` | 140 | `alert.acknowledged` | An operator acknowledged an alert; the message carries the note. | Active |

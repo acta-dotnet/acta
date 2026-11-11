@@ -52,8 +52,8 @@ naming the worker. A worker
 killed outright never reaches the clean path, so it stays `Active`, or `Draining` if the kill landed
 mid-drain, until recovery marks it `Dead` - which is why a kill and a crash are indistinguishable
 here, and correctly so. A worker cut off by a database outage longer than `WorkerDeadAfter` is
-marked `Dead` too, and its first heartbeat after the outage makes it `Active` again, with no event
-of its own.
+marked `Dead` too, and its first heartbeat after the outage makes it `Active` again and records
+`worker.started`, so every `worker.died` of a worker that lived on has a start after it.
 
 ```sql
 -- Workers that died in the last hour, and how long they had been running.
@@ -489,7 +489,7 @@ In production a deploy step applies Acta's migrations, never application startup
 
 ```
 $ ConnectionStrings__acta="<DDL login>" dotnet MyApp.dll jobs migrate
-applied M20261110235546_init to schema acta
+applied M20261111001208_init to schema acta
 namespace billing: 1.6.1+b81d04e (Production)
   added    sys.alerts
   added    sys.retention

@@ -238,7 +238,7 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 
 | Operation | Facade | HTTP | CLI | SQL | Writes | Specs |
 | --- | --- | --- | --- | --- | --- | --- |
-| `ExtendWorkerLeases` | · | · | · | routine | `jobs_state`, `locks`, `namespaces`, `workers` | `ExtendWorkerLeasesRaceSpec`, `ExtendWorkerLeasesReviveSpec`, `ExtendWorkerLeasesSpec` |
+| `ExtendWorkerLeases` | · | · | · | routine | `events`, `jobs_state`, `locks`, `namespaces`, `workers` | `ExtendWorkerLeasesRaceSpec`, `ExtendWorkerLeasesReviveSpec`, `ExtendWorkerLeasesSpec` |
 | `GetWorker` | `IWorkers.GetAsync` | `GET /workers/{workerRef}` (`getWorker`, `acta.read`) | · | inline | · | `GetWorkerSpec` |
 | `ListWorkers` | `IWorkers.ListAsync` | `GET /workers` (`listWorkers`, `acta.read`) | · | inline | · | `ListWorkersFilterMatrixSpec`, `ListWorkersSpec`, `ListWorkersStaleSpec` |
 | `MarkDeadWorkers` | · | · | · | inline | `events`, `workers` | `MarkDeadWorkersSpec` |

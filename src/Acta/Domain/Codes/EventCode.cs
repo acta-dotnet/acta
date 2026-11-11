@@ -218,7 +218,7 @@ public enum EventCode : byte
     CalendarArchived = 112,
 
     /// <summary>The worker is the subject of every worker.* event.</summary>
-    [Code("worker.started", "A worker process registered and is active.")]
+    [Code("worker.started", "A worker process registered and is active, or one marked dead heartbeated again.")]
     WorkerStarted = 120,
 
     [Code("worker.stopped", "A worker process shut down cleanly.")]
