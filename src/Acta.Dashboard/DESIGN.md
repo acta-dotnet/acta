@@ -39,6 +39,7 @@ Acta should feel calm, technically precise, modern, and readable. Focus is the d
 - Use tabular numbers where values are compared.
 - Keep the Acta mark aligned optically with the wordmark's capital height.
 - Align the website header and footer brand to the same horizontal position.
+- Every website page carries the same header and footer, and one 1328px frame holds the header, the content, and the footer, so nothing moves between pages. The benchmark page is generated with that frame.
 - Theme controls must preserve scroll position.
 
 ## Application shell

@@ -44,11 +44,7 @@
         button.dataset.theme = theme;
         button.title = `${label} theme`;
         button.setAttribute("aria-label", `${label} theme`);
-        if (document.body.classList.contains("homepage")) {
-          button.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icons[theme]}</svg>`;
-        } else {
-          button.textContent = label;
-        }
+        button.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icons[theme]}</svg>`;
         button.addEventListener("click", () => {
           stored = theme;
           apply(theme);

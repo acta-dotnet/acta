@@ -34,6 +34,9 @@
   --r-pill: 999px;
   --label: 0.7rem;
   --section: clamp(3.4rem, 8vh, 5.6rem);
+  --page-gutter: 48px;
+  --brand-size: 27px;
+  --brand-gap: 9px;
 }
 /* day: the same type, rules, and verdi accent on light surfaces; assets/theme.js sets the attribute before the first paint */
 :root[data-theme="light"] {
@@ -100,41 +103,65 @@ pre code { font-size: inherit; color: inherit; }
 }
 .skip-link:focus { transform: translateY(0); }
 
-.wrap { max-width: 1560px; margin: 0 auto; padding-inline: clamp(20px, 4vw, 64px); }
+/* One frame for every page: the header, the content, and the footer share it, so nothing moves between pages and the
+   brand lines up with the text below it. */
+.wrap { max-width: 1328px; margin: 0 auto; padding-inline: var(--page-gutter); }
 
 /* chrome: the sticky top line, identical on every page */
 .chrome {
   position: sticky; top: 0; z-index: 10;
-  display: flex; align-items: center; gap: 1.4rem;
-  padding: 0.6rem clamp(20px, 2.5vw, 40px);
-  background: var(--chrome); backdrop-filter: blur(10px);
-  border-bottom: 1px solid var(--hair);
-  font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--faint);
+  display: flex; align-items: center; min-height: 88px; padding: 22px 0;
+  background: var(--chrome); border-bottom: 1px solid var(--hair);
+  font-family: var(--sans); font-size: 14px; color: var(--faint);
 }
-/* the brand: the A mark alone, in verdi, linking home */
-.chrome .brand { display: inline-flex; align-items: center; color: var(--verdi); }
-.chrome .brand svg { flex: none; width: 1.6rem; height: 1.7rem; }
-.chrome .brand svg path { fill: none; stroke: currentColor; stroke-width: 4.1; stroke-linecap: round; stroke-linejoin: round; }
-.chrome .brand svg circle { fill: currentColor; }
-.chrome nav { margin-left: auto; display: flex; align-items: center; gap: 1.6rem; }
-.chrome nav a { text-decoration: none; }
+.chrome-inner { width: 100%; display: flex; align-items: center; gap: 24px; }
+/* Both lockups use the font's actual capital height, with the SVG's empty margins cropped out. */
+.chrome .site-brand, .site-footer .site-brand { display: inline-flex; align-items: baseline; gap: var(--brand-gap); color: var(--text); text-decoration: none; font-family: var(--sans); font-size: var(--brand-size); font-weight: 600; letter-spacing: -1.2px; line-height: 1; }
+.chrome .site-brand svg, .site-footer .site-brand svg { display: block; flex: none; width: 1cap; height: 1cap; color: var(--verdi); }
+.site-footer .site-brand { display: flex; width: fit-content; }
+.brand-word { display: block; font: inherit; letter-spacing: inherit; }
+.brand-word > span { color: var(--verdi); }
+.chrome .meta { font-size: 12px; color: var(--faint); line-height: 1; padding: 3px 0 0 24px; border-left: 1px solid var(--hair); }
+@supports (text-box-trim: trim-both) {
+  .chrome .site-brand, .site-footer .site-brand { align-items: center; }
+  .brand-word, .chrome .meta { text-box-trim: trim-both; text-box-edge: cap alphabetic; }
+  .chrome .meta { padding-top: 0; }
+}
+.chrome nav { margin-left: auto; display: flex; align-items: center; gap: 24px; color: var(--muted); }
+.chrome nav a { text-decoration: none; white-space: nowrap; }
 .chrome nav a:hover { color: var(--verdi); }
 /* the one link off the site: GitHub's mark, centred on the line, coloured like the words beside it */
 .chrome nav .gh { align-self: center; display: inline-flex; }
-.chrome nav .gh svg { display: block; width: 1.35em; height: 1.35em; }
-/* the meta line gives way first, so the header fits every width above a phone */
-@media (max-width: 1000px) {
+.chrome nav .gh svg { display: block; width: 18px; height: 18px; }
+/* the theme switch: assets/theme.js fills every [data-theme-controls] with a sun and a moon, the one in force lit */
+.header-appearance { display: inline-flex; padding-left: 20px; border-left: 1px solid var(--hair); }
+.theme { display: inline-flex; align-items: center; gap: 3px; padding: 3px; border: 1px solid var(--hair); border-radius: 8px; background: var(--panel); }
+.theme button { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 29px; padding: 6px; border: 0; border-radius: 5px; background: transparent; color: var(--faint); cursor: pointer; font: inherit; transition: color 0.15s ease; }
+.theme button svg { width: 16px; height: 16px; }
+.theme button[aria-pressed="true"] { color: var(--verdi); background: var(--verdi-wash); }
+.theme button:hover { color: var(--text); }
+/* the meta line gives way first, then the gaps narrow, and a phone keeps Start and GitHub's mark beside the brand */
+@media (max-width: 1100px) {
   .chrome .meta { display: none; }
 }
-@media (max-width: 700px) {
-  .chrome { gap: 0.9rem; font-size: 0.68rem; }
-  .chrome nav { gap: 0.7rem; }
-  .chrome nav a { white-space: nowrap; }
-  /* on a phone the header keeps Capabilities, Benchmark and GitHub's mark; the brand links home */
-  .chrome nav a:not([href="/capabilities"]):not([href="/benchmark"]):not(.gh) { display: none; }
+@media (max-width: 900px) {
+  :root { --page-gutter: 28px; }
+  .chrome-inner, .chrome nav { gap: 18px; }
 }
-@media (max-width: 360px) {
-  .chrome { gap: 0.7rem; padding-inline: 14px; }
+@media (max-width: 640px) {
+  :root { --page-gutter: 20px; --brand-size: 24px; --brand-gap: 6px; }
+  .chrome { padding: 14px 0; min-height: 72px; }
+  .chrome-inner, .chrome nav { gap: 16px; }
+  .chrome nav { font-size: 12px; }
+  .chrome nav a:not([href="/start"]):not(.gh) { display: none; }
+  .header-appearance { padding-left: 12px; }
+  .theme button { width: 27px; height: 27px; }
+}
+@media (max-width: 370px) {
+  :root { --page-gutter: 14px; }
+  .chrome-inner, .chrome nav { gap: 10px; }
+  .header-appearance { padding-left: 8px; }
+  .chrome nav .gh { display: none; }
 }
 
 /* the record line: a ledger stamp that opens every section */
@@ -281,49 +308,36 @@ h2 { font-size: clamp(1.9rem, 3vw, 2.75rem); max-width: 32ch; }
 .also .sep { margin: 0 0.9em; opacity: 0.5; }
 
 /* the footer: the site's map in four columns on a panel, and a bottom line with the author and the theme switch */
-.site-footer { padding: 3.4rem 0 2.2rem; border-top: 1px solid var(--hair); background: var(--panel); color: var(--muted); font-size: 0.92rem; line-height: 1.6; }
-.footer-grid { display: grid; grid-template-columns: 1.4fr 1fr 1fr 1.1fr; gap: 2.4rem; }
+.site-footer { padding: 64px 0 28px; border-top: 1px solid var(--hair); background: var(--panel); color: var(--muted); font-size: 13px; line-height: 1.6; }
+.footer-grid { display: grid; grid-template-columns: 1.4fr 1fr 1fr 1.1fr; gap: 40px; }
 .footer-grid > * { min-width: 0; }
 .footer-about p { margin: 0.9rem 0 0; max-width: 34ch; }
-.footer-about .footer-brand { margin: 0; font-family: var(--serif); font-weight: 600; font-size: 2.3rem; line-height: 1; color: var(--text); }
-.footer-brand .dot { color: var(--verdi); }
-.footer-about .footer-license, .footer-head {
-  font-family: var(--mono); font-size: var(--label); letter-spacing: 0.16em; text-transform: uppercase; color: var(--faint);
-}
-.footer-about .footer-license { margin-top: 1.5rem; max-width: none; }
-.footer-head { margin: 0 0 1rem; }
+.footer-about .footer-license { margin-top: 1.5rem; max-width: none; font-size: 11px; color: var(--faint); }
+.footer-head { margin: 0 0 20px; font-size: 12px; font-weight: 500; color: var(--text); }
 .site-footer nav a, .footer-release a { display: block; width: fit-content; margin-top: 0.55rem; text-decoration: none; }
 .site-footer a:hover { color: var(--verdi); }
 /* the current release: a verdi dot, the version in mono, and what kind of release it is */
-.footer-version { display: flex; flex-wrap: wrap; align-items: center; gap: 0.2rem 0.6rem; margin: 0 0 1rem; font-family: var(--mono); color: var(--text); }
+.footer-version { display: flex; flex-wrap: wrap; align-items: center; gap: 0.2rem 0.6rem; margin: 0 0 1rem; font-family: var(--mono); font-size: 12px; color: var(--text); }
 .footer-release .footer-version a { display: inline; margin: 0; color: var(--text); text-decoration: underline; text-decoration-color: var(--hair); text-underline-offset: 4px; }
 .footer-release .footer-version a:hover { color: var(--verdi); text-decoration-color: var(--verdi); }
 .footer-version > span:last-child { width: 100%; padding-left: calc(7px + 0.6rem); font-family: var(--sans); font-size: 0.85rem; color: var(--faint); }
 .release-dot { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--verdi); box-shadow: 0 0 0 3px var(--verdi-wash); }
 .footer-bottom {
-  display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 1rem 2rem;
-  margin-top: 2.8rem; padding-top: 1.3rem; border-top: 1px solid var(--hair-soft); font-size: 0.85rem; color: var(--faint);
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem 2rem;
+  margin-top: 48px; padding-top: 1.3rem; border-top: 1px solid var(--hair-soft); font-size: 11px; color: var(--faint);
 }
 .footer-bottom p { margin: 0; }
 .footer-bottom a { color: var(--muted); text-decoration: none; }
 @media (max-width: 900px) { .footer-grid { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 640px) {
+  .footer-grid { gap: 32px 24px; }
+  .site-footer { padding-top: 40px; font-size: 12px; }
+}
 @media (max-width: 520px) { .footer-about, .footer-release { grid-column: 1 / -1; } }
-/* the day/night switch, added by assets/theme.js to the footer's bottom line: two mono words, the one in force lit, the
-   other setting its theme */
-footer .theme {
-  display: inline-flex; gap: 0.6em; align-items: baseline; white-space: nowrap;
-  font-family: var(--mono); font-size: var(--label); letter-spacing: 0.14em; text-transform: uppercase;
-}
-footer .theme button {
-  padding: 0; border: 0; background: transparent; cursor: pointer;
-  font: inherit; letter-spacing: inherit; text-transform: inherit; color: var(--faint); transition: color 0.15s ease;
-}
-footer .theme button[aria-pressed="true"] { color: var(--text); cursor: default; }
-footer .theme button[aria-pressed="false"]:hover { color: var(--verdi); }
 
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
-  .skip-link, .button, .copy, .golink, .golink::after, footer .theme button { transition: none; }
+  .skip-link, .button, .copy, .golink, .golink::after, .theme button { transition: none; }
 }
 @media print {
   :root { --text: #111; --muted: #333; --faint: #555; --panel: #fff; --panel-2: #f4f4f4; --hair: #ccc; --hair-soft: #ddd; --verdi: #0a6b52; --code: #111; --code-inline: #111; }

@@ -794,7 +794,7 @@ public static partial class Report
 
     /// <summary>
     /// The published report as a page of the site: the site's stylesheet and theme switch, and the header bar and footer
-    /// of <paramref name="framePage"/> (site/start.html; every page but the homepage shares them), around the same body
+    /// of <paramref name="framePage"/> (site/start.html; every page of the site shares them), around the same body
     /// as report.html, opened like every other page by a record line, the title, and the paragraph under it as the lede.
     /// A test keeps site/benchmark.html equal to this page of docs/reference/benchmark.md.
     /// </summary>
