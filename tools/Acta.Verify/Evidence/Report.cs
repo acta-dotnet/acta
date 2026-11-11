@@ -175,7 +175,9 @@ public static partial class Report
                 var violated = cases.Count(c =>
                     c.Provider == p && c.Reason?.StartsWith("Ledger checks returned", StringComparison.Ordinal) == true
                 );
-                return violated > 0 ? $"fail, {violated} trials violated" : $"pass, {checkedTrials:N0} trials checked";
+                return violated > 0 ? $"fail, {violated} trials violated"
+                    : checkedTrials > 0 ? $"pass, {checkedTrials:N0} trials checked"
+                    : "not run";
             }
         );
         var measured = plan.Scenarios.Where(s => ScenarioRunner.PhaseOf(s) == "performance").ToArray();
@@ -187,7 +189,9 @@ public static partial class Report
                     cases.Where(c => c.Provider == p && c.Phase == "reconcile" && c.Status == "FAIL" && c.Measurement == "MISSED").ToArray()
                         is { Length: > 0 } missed
                         ? $"missed {missed.Length}" + (missed.All(c => held.Contains((c.Id, c.Provider))) ? ", held on rerun" : "")
-                        : "held"
+                    : cases.Any(c => c.Provider == p && c.Phase == "measure" && c.Status == "PASS" && measured.Any(s => s.Id == c.Id))
+                        ? "held"
+                    : "not run"
             );
         }
         foreach (var scenario in measured.Where(s => s.Headline is not null))

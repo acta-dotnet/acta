@@ -397,6 +397,20 @@ public sealed class RecoveryTests : IDisposable
         Assert.StartsWith("# Acta Verify: FAIL", Report.Markdown(bundle.DirectoryPath, round, [skipped]));
     }
 
+    [Fact]
+    public void A_run_stopped_before_its_first_trial_reports_ledger_checks_and_floors_as_not_run()
+    {
+        var plan = Protocol.Plan("release", ["pg"], 1729, ["three-steps"]);
+        var bundle = new EvidenceBundle(_root, plan.RunId);
+        bundle.Write("resolved-plan.json", plan, VerifyJson.Default.RunPlan);
+        Finish(bundle, "INCONCLUSIVE", [CaseResult.Incomplete("three-steps", "pg", "measure", "Interrupted before the first trial.")]);
+
+        var report = Report.Markdown(bundle.DirectoryPath, BundleVerifier.Load(bundle.DirectoryPath));
+
+        Assert.Contains("| Ledger checks | not run |", report);
+        Assert.Contains("| Performance floors | not run |", report);
+    }
+
     private string Measured(params (double Rate, string Measurement, double P99)[] trials) => Measured(1729, trials);
 
     private string Measured(int seed, params (double Rate, string Measurement, double P99)[] trials) =>
