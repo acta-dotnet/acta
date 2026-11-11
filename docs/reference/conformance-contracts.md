@@ -332,7 +332,7 @@
   - Recording the current version again writes neither the row nor the namespace
   - Recording an earlier version makes it current again and keeps the row from its first deploy
   - Versions that differ only in case are two versions, each with its own row
-  - Recording stores a changed owner or description, and clears one the deploy no longer declares
+  - Recording stores a changed owner or description, and keeps one the deploy does not declare
   - Every recording leaves a namespace.deployed event naming the version, the one it replaced, and what changed
 
 ### StartDeployment opens a deploy's namespaces and answers where each stands

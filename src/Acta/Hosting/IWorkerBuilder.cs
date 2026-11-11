@@ -37,12 +37,14 @@ public interface IWorkerBuilder
     IWorkerBuilder AddOutboxRelay(string sourceName, Action<IOutboxSourceBuilder> configure);
 
     /// <summary>
-    /// Optional owning team recorded on the <c>namespaces</c> row. Must be non-whitespace when supplied.
+    /// Optional owning team recorded on the <c>namespaces</c> row. Must be non-whitespace when supplied. Every deploy
+    /// rewrites a value set here; left unset, the value an operator set through the namespace update stays.
     /// </summary>
     string? OwnerTeam { get; set; }
 
     /// <summary>
-    /// Optional human description recorded on the <c>namespaces</c> row. Max 256 characters.
+    /// Optional human description recorded on the <c>namespaces</c> row. Max 256 characters. Every deploy rewrites a
+    /// value set here; left unset, the value an operator set through the namespace update stays.
     /// </summary>
     string? Description { get; set; }
 }

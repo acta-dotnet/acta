@@ -16,12 +16,13 @@ WHERE
     );
 
 -- An unchanged namespace writes nothing, so a repeated deploy leaves its version and modified_at_utc: EXCEPT compares
--- NULL-safely, and the binary collation sees a case edit of the owner or the description.
+-- NULL-safely, and the binary collation sees a case edit of the owner or the description. A value the build declares
+-- is the build's, and every deploy rewrites it; one it does not declare is the operator's.
 UPDATE n
 SET
     deployment_version = COALESCE(@p_deployment_version, n.deployment_version),
-    owner_team = @p_owner_team,
-    description = @p_description,
+    owner_team = COALESCE(@p_owner_team, n.owner_team),
+    description = COALESCE(@p_description, n.description),
     modified_at_utc = @now,
     version = n.version + 1
 FROM {{schema}}.namespaces AS n
@@ -33,7 +34,10 @@ WHERE
             n.owner_team COLLATE Latin1_General_100_BIN2,
             n.description COLLATE Latin1_General_100_BIN2
         EXCEPT
-        SELECT COALESCE(@p_deployment_version, n.deployment_version), @p_owner_team, @p_description
+        SELECT
+            COALESCE(@p_deployment_version, n.deployment_version),
+            COALESCE(@p_owner_team, n.owner_team),
+            COALESCE(@p_description, n.description)
     );
 
 -- The evidence of the deploy: one event per recorded run, also for a run that changed nothing.

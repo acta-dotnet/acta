@@ -284,7 +284,9 @@ await operations.Namespaces.UpdateAsync("billing", ownerTeam: "payments", descri
 Suspend/resume are idempotent (already-in-state succeeds as a no-op, reported as already-in-state, with no event); metadata updates are
 version-CAS guarded, a stale `version` returns a conflict with the current row state instead of writing.
 Tenant metadata is `displayName` + `description`; namespace metadata is `ownerTeam` + `description`
-(namespaces have no display name). Null clears a field. The seeded `sys` namespace cannot be suspended or
+(namespaces have no display name). Null clears a field. A namespace value the build declares
+(`w.OwnerTeam`, `w.Description`) is the build's, and every deploy rewrites it; one the build does not
+declare is the operator's and survives every deploy. The seeded `sys` namespace cannot be suspended or
 edited. Every applied transition is audited on the events timeline in the admin band
 (`tenant.suspended` 10 through `namespace.updated` 22); tenant events land on the seeded
 `sys` namespace, namespace events on the namespace itself.

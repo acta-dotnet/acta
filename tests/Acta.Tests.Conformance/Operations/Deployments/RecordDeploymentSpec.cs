@@ -130,21 +130,26 @@ public sealed class RecordDeploymentSpec : ActaStorageTestBase<ConformanceFixtur
         Assert.Equal(2, (await ReadDeploymentsAsync(ct)).Count);
     }
 
-    [Fact(DisplayName = "Recording stores a changed owner or description, and clears one the deploy no longer declares")]
-    public async Task Recording_stores_a_changed_owner_or_description_and_clears_an_undeclared_one()
+    [Fact(DisplayName = "Recording stores a changed owner or description, and keeps one the deploy does not declare")]
+    public async Task Recording_stores_a_changed_owner_or_description_and_keeps_an_undeclared_one()
     {
         var ct = TestContext.Current.CancellationToken;
         await RecordAsync("1.0.0", "billing", "Invoices and dunning", ct);
         var declared = await ReadNamespaceAsync(ct);
         Assert.Equal(("billing", "Invoices and dunning"), (declared.OwnerTeam, declared.Description));
 
+        // A value the build declares is the build's. One it does not declare is the operator's, set through the
+        // namespace update, and a deploy that cleared it would undo that edit on every release.
         await RecordAsync("1.0.0", "payments", null, ct);
 
         var changed = await ReadNamespaceAsync(ct);
-        Assert.Equal("payments", changed.OwnerTeam);
-        Assert.Null(changed.Description);
+        Assert.Equal(("payments", "Invoices and dunning"), (changed.OwnerTeam, changed.Description));
         Assert.Equal(declared.Version + 1, changed.Version);
         Assert.Single(await ReadDeploymentsAsync(ct));
+
+        // Declaring nothing changes nothing, so the namespace is not written at all.
+        await RecordAsync("1.0.0", null, null, ct);
+        Assert.Equal(changed.Version, (await ReadNamespaceAsync(ct)).Version);
     }
 
     [Fact(DisplayName = "Every recording leaves a namespace.deployed event naming the version, the one it replaced, and what changed")]

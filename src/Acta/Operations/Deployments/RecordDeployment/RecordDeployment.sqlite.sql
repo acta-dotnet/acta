@@ -9,18 +9,19 @@ WHERE
     );
 
 -- An unchanged namespace writes nothing, so a repeated deploy leaves its version and modified_at_utc.
+-- A value the build declares is the build's, and every deploy rewrites it; one it does not declare is the operator's.
 UPDATE {{schema}}.namespaces SET
     deployment_version = COALESCE(@p_deployment_version, deployment_version),
-    owner_team = @p_owner_team,
-    description = @p_description,
+    owner_team = COALESCE(@p_owner_team, owner_team),
+    description = COALESCE(@p_description, description),
     modified_at_utc = {{now}},
     version = version + 1
 WHERE
     namespace_id = @p_namespace_id
     AND (
         deployment_version IS NOT COALESCE(@p_deployment_version, deployment_version)
-        OR owner_team IS NOT @p_owner_team
-        OR description IS NOT @p_description
+        OR owner_team IS NOT COALESCE(@p_owner_team, owner_team)
+        OR description IS NOT COALESCE(@p_description, description)
     );
 
 -- The evidence of the deploy: one event per recorded run, also for a run that changed nothing.

@@ -29,8 +29,9 @@ public interface INamespaces
     );
 
     /// <summary>
-    /// Update a namespace owner team / description with a version CAS. Null clears the field.
-    /// Emits namespace.updated.
+    /// Update a namespace owner team / description with a version CAS. Null clears the field. Emits namespace.updated.
+    /// A value the build declares on its worker is the build's, and the next deploy rewrites it; one the build does not
+    /// declare is the operator's and survives every deploy.
     /// </summary>
     ValueTask<UpdateNamespaceResponse> UpdateAsync(
         string namespaceName,
