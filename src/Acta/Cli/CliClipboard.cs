@@ -61,13 +61,14 @@ internal static class CliClipboard
                 return null;
             }
 
-            var text = process.StandardOutput.ReadToEnd();
-            if (!process.WaitForExit(TimeSpan.FromSeconds(10)))
+            // The read is bounded with the wait: a tool that never closes its output would otherwise hold the verb.
+            var text = process.StandardOutput.ReadToEndAsync();
+            if (!process.WaitForExit(TimeSpan.FromSeconds(10)) || !text.Wait(TimeSpan.FromSeconds(1)))
             {
                 process.Kill();
                 return null;
             }
-            return process.ExitCode == 0 ? text : null;
+            return process.ExitCode == 0 ? text.Result : null;
         }
         catch (Exception)
         {
