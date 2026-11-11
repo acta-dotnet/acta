@@ -3,10 +3,9 @@ using Xunit;
 namespace Acta.Tests.Runtime;
 
 /// <summary>
-/// The one walk an evaluation takes over a due backlog answers what two walks answered before: the latest due
-/// occurrence, and the one before it that ends a skipped range. Checked against those two walks, kept here as the
-/// reference, over crons, calendars, availability-filtered sources, and grid intervals, across DST transitions and
-/// backlogs from none to over a week deep.
+/// What an evaluation reads from a due backlog: the latest due occurrence, and the one before it that ends a skipped
+/// range. Checked against two plain walks, kept here as the reference, over crons, calendars, availability-filtered
+/// sources, and grid intervals, across DST transitions and backlogs from none to decades deep.
 /// </summary>
 public sealed class ScheduleDueWalkTests
 {
@@ -57,6 +56,8 @@ public sealed class ScheduleDueWalkTests
         ["cron in the gap"] = Cron("30 2 * * *", Ljubljana),
         ["cron in the fold"] = Cron("*/20 1 * * *", NewYork),
         ["cron hourly across both changes"] = Cron("0 * * * *", NewYork),
+        // Ireland's zone data has winter as the shifted time, which turns the order of a fold's two passes around.
+        ["cron in a fold whose winter is the shifted time"] = Cron("*/20 * * * *", "Europe/Dublin"),
         ["cron weekly"] = Cron("0 6 * * 1", Ljubljana),
         ["cron that ends"] = new(
             new ScheduleTiming("*/5 * * * *", ScheduleExpressionKindCode.Cron, "UTC", null, EndBeforeUtc: Utc(2027, 3, 28, 1)),
@@ -106,6 +107,9 @@ public sealed class ScheduleDueWalkTests
 
                 var due = ScheduleEvaluator.LatestDue(source, from, now);
                 Assert.True(latest == due.Latest, $"{context}: latest {due.Latest:O}, expected {latest:O}");
+                // With no steps the search answers alone, which a backlog short of DueSteps would never ask of it.
+                var searched = ScheduleEvaluator.LatestDue(source, from, now, dueSteps: 0);
+                Assert.True(due == searched, $"{context}: searched {searched.Latest:O} after {searched.Before:O}, stepped {due.Latest:O}");
                 if (source.Timing.ExpressionKind != ScheduleExpressionKindCode.Interval || source.Availability is not null)
                 {
                     Assert.True(previous == due.Before, $"{context}: before {due.Before:O}, expected {previous:O}");
@@ -145,6 +149,123 @@ public sealed class ScheduleDueWalkTests
         }
 
         Assert.True(ranges > 0, $"{name}: no backlog held two occurrences, so the occurrence before the latest was never compared");
+    }
+
+    // A cron with seconds a month behind has over two million occurrences due, more than any walk should take.
+    [Fact]
+    public void A_backlog_past_a_million_occurrences_is_decided_like_any_other()
+    {
+        var source = Cron("* * * * * *", "UTC");
+        var from = Utc(2027, 1, 4, 5);
+        var latest = from.AddDays(30);
+        var now = latest.AddMilliseconds(250);
+        var previous = latest.AddSeconds(-1);
+        var following = latest.AddSeconds(1);
+
+        Assert.Equal((latest, (DateTime?)previous), ScheduleEvaluator.LatestDue(source, from, now));
+        AssertEvaluation("once", Evaluate(source, MisfireStrategyCode.CatchUpOnce, from, now), (from, latest), (null, null), following);
+        AssertEvaluation(
+            "latest",
+            Evaluate(source, MisfireStrategyCode.CatchUpLatest, from, now),
+            (latest, latest),
+            (from, previous),
+            following
+        );
+        AssertEvaluation("skip", Evaluate(source, MisfireStrategyCode.Skip, from, now), (latest, latest), (from, previous), following);
+    }
+
+    // Registration anchors every interval, so only the search is held to an unanchored one: it must stay on the
+    // cursor's grid, where a seek from an arbitrary instant would start a grid of its own.
+    [Fact]
+    public void An_unanchored_interval_within_availability_is_searched_on_the_cursors_grid()
+    {
+        var source = Available("PT25M", ScheduleExpressionKindCode.Interval, OfficeHours, Ljubljana);
+        var from = Assert.IsType<DateTime>(NextOccurrenceCalculator.Next(source, Utc(2027, 1, 4, 5)));
+        var latest = ReferenceLatestDue(source, from, from.AddDays(9));
+
+        var due = ScheduleEvaluator.LatestDue(source, from, from.AddDays(9), dueSteps: 0);
+
+        Assert.Equal(latest, due.Latest);
+        Assert.Equal(ReferencePreviousDue(source, from, latest), due.Before);
+    }
+
+    // Samoa skipped 30 December 2011, and a daily cron there can answer an instant that does not advance. Stepped or
+    // searched, the evaluation ends: decided, or refused as a source that does not advance.
+    [Theory]
+    [InlineData(0)]
+    [InlineData(ScheduleEvaluator.DueSteps)]
+    public async Task A_cron_that_does_not_advance_ends_its_evaluation(int dueSteps)
+    {
+        var source = Cron("0 0 * * *", "Pacific/Apia");
+        var from = new DateTime(2011, 12, 1, 10, 0, 0, DateTimeKind.Utc);
+        var now = new DateTime(2011, 12, 31, 11, 0, 0, DateTimeKind.Utc);
+
+        var ended = Task.Run(() => Record.Exception(() => ScheduleEvaluator.LatestDue(source, from, now, dueSteps)));
+
+        var thrown = await ended.WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
+        Assert.True(thrown is null or InvalidOperationException, $"{thrown}");
+    }
+
+    // The steps hand over to the search at any depth: exactly as many due as steps, one more, one fewer.
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    public void The_search_takes_over_from_the_steps_at_any_depth(int dueSteps)
+    {
+        var source = Cron("* * * * *", "UTC");
+        var from = Utc(2027, 1, 4, 5);
+        for (var due = 0; due <= 5; due++)
+        {
+            var latest = from.AddMinutes(due);
+            DateTime? before = due == 0 ? null : latest.AddMinutes(-1);
+
+            Assert.Equal((latest, before), ScheduleEvaluator.LatestDue(source, from, latest.AddSeconds(10), dueSteps));
+        }
+    }
+
+    [Fact]
+    public void A_backlog_of_any_depth_costs_a_bounded_number_of_seeks()
+    {
+        var everySecond = new EverySecond();
+        var source = new ScheduleSource(
+            new ScheduleTiming("every-second", ScheduleExpressionKindCode.Calendar, "UTC", null),
+            everySecond,
+            null
+        );
+        var from = Utc(2027, 1, 4, 5);
+        var latest = from.AddDays(30);
+
+        var due = ScheduleEvaluator.LatestDue(source, from, latest.AddMilliseconds(250));
+
+        Assert.Equal((latest, (DateTime?)latest.AddSeconds(-1)), due);
+        // Two searches of a span of ticks, each at most one seek per bit of the span and the step's own seek first.
+        Assert.InRange(everySecond.Seeks, 1, ScheduleEvaluator.DueSteps + 130);
+    }
+
+    private sealed class EverySecond : IActaCalendar
+    {
+        public int Seeks { get; private set; }
+
+        public DateTime? GetNextOccurrence(CalendarContext context)
+        {
+            Seeks++;
+            return new DateTime((context.AfterUtc.Ticks / TimeSpan.TicksPerSecond + 1) * TimeSpan.TicksPerSecond, DateTimeKind.Utc);
+        }
+    }
+
+    [Fact]
+    public void A_backlog_of_decades_matches_the_reference_walks()
+    {
+        var source = Cron("0 9 * * 1-5", Ljubljana);
+        var from = Assert.IsType<DateTime>(NextOccurrenceCalculator.Next(source, Utc(2027, 1, 4, 5)));
+        var now = from.AddYears(30).AddHours(3);
+        var latest = ReferenceLatestDue(source, from, now);
+
+        var due = ScheduleEvaluator.LatestDue(source, from, now);
+
+        Assert.Equal(latest, due.Latest);
+        Assert.Equal(ReferencePreviousDue(source, from, latest), due.Before);
     }
 
     private static void AssertEvaluation(

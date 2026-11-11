@@ -12,10 +12,11 @@ internal static class ScheduleEvaluator
     internal static readonly TimeSpan ErrorRetryDelay = TimeSpan.FromMinutes(1);
 
     /// <summary>
-    /// The most due occurrences one evaluation walks before it gives up on the source: a cron a second behind by more
-    /// than this is an error to look at, not a range to skip silently.
+    /// The due occurrences one evaluation steps through before it searches the rest of the backlog instead. Stepping
+    /// is exact for any source, the search for any whose answers do not depend on where a seek starts, and a backlog
+    /// deeper than this is decided either way: none is an error.
     /// </summary>
-    private const int MaxDueWalk = 1_000_000;
+    internal const int DueSteps = 1000;
 
     public static ScheduleEvaluation Evaluate(
         ScheduleSource source,
@@ -133,7 +134,7 @@ internal static class ScheduleEvaluator
                 );
             }
 
-            // The last due occurrence and the one before it, walked only for a policy that coalesces into it: CatchUpAll
+            // The last due occurrence and the one before it, asked only for a policy that coalesces into it: CatchUpAll
             // admits the cursor alone, so a deep backlog costs it nothing per pass.
             (DateTime Latest, DateTime? Before)? latestDue = null;
             (DateTime Latest, DateTime? Before) Due() => latestDue ??= LatestDue(source, next, now);
@@ -229,11 +230,17 @@ internal static class ScheduleEvaluator
     /// <summary>
     /// The last occurrence at or before <paramref name="nowUtc"/>, starting from the due <paramref name="fromUtc"/>: an
     /// interval's grid arithmetic, cut at the schedule's end so no coalescing policy admits or covers an instant past it,
-    /// or a bounded walk when the source is a cron, a calendar, or filtered by availability, which the calculator bounds.
-    /// A walk also answers the occurrence just before the last, so a skipped range costs no second walk: null when the
-    /// walk took no step, and always on the grid.
+    /// or, for any other source, up to <paramref name="dueSteps"/> steps and then a search, so a backlog of any depth
+    /// costs a bounded number of seeks. The occurrence just before the last comes with it, the end of a skipped range:
+    /// null when the cursor is itself the last, and for a grid interval, whose caller subtracts the interval. Only a
+    /// test passes its own <paramref name="dueSteps"/>, to hold the search alone to the steps.
     /// </summary>
-    internal static (DateTime Latest, DateTime? Before) LatestDue(ScheduleSource source, DateTime fromUtc, DateTime nowUtc)
+    internal static (DateTime Latest, DateTime? Before) LatestDue(
+        ScheduleSource source,
+        DateTime fromUtc,
+        DateTime nowUtc,
+        int dueSteps = DueSteps
+    )
     {
         var timing = source.Timing;
         if (OnGrid(source))
@@ -248,11 +255,14 @@ internal static class ScheduleEvaluator
             return (latest < fromUtc ? fromUtc : latest, null);
         }
 
+        // One anchor for every seek: an unanchored interval filtered by availability grids from the instant it is
+        // asked, and only a fixed grid makes the occurrences one set that a search can halve.
+        var seekAnchor = timing.IntervalAnchorAtUtc ?? fromUtc;
         DateTime? before = null;
         var current = fromUtc;
-        for (var walked = 0; walked < MaxDueWalk; walked++)
+        for (var stepped = 0; stepped < dueSteps; stepped++)
         {
-            if (NextOccurrenceCalculator.Next(source, current) is not { } candidate || candidate > nowUtc)
+            if (After(source, seekAnchor, current) is not { } candidate || candidate > nowUtc)
             {
                 return (current, before);
             }
@@ -261,9 +271,55 @@ internal static class ScheduleEvaluator
             current = candidate;
         }
 
-        throw new InvalidOperationException(
-            $"More than {MaxDueWalk} occurrences of '{timing.Expression}' are due; the source cannot be evaluated."
-        );
+        var lastDue = LastAtOrBefore(source, seekAnchor, current, nowUtc);
+        return lastDue == current ? (current, before) : (lastDue, LastAtOrBefore(source, seekAnchor, current, lastDue.AddTicks(-1)));
+    }
+
+    /// <summary>
+    /// The last occurrence at or before <paramref name="limitUtc"/>, given one known at <paramref name="knownUtc"/>. The
+    /// first seek is the one a step would make, so a search that finds nothing more due fails only where a step would.
+    /// After it, a seek from the middle of the span either finds an occurrence in its upper half, which becomes the
+    /// known one, or shows that half empty, so the span halves on every seek however many occurrences it holds.
+    /// </summary>
+    private static DateTime LastAtOrBefore(ScheduleSource source, DateTime anchorUtc, DateTime knownUtc, DateTime limitUtc)
+    {
+        if (After(source, anchorUtc, knownUtc) is not { } next || next > limitUtc)
+        {
+            return knownUtc;
+        }
+
+        var last = next;
+        // No occurrence lies after this instant and at or before the limit.
+        var emptyAfter = limitUtc;
+        while (last < emptyAfter)
+        {
+            // Halved in whole ticks, which rounds down: the middle stays below the bound, so a span of one tick shrinks.
+            var middle = last.AddTicks((emptyAfter - last).Ticks / 2);
+            if (After(source, anchorUtc, middle) is { } found && found <= limitUtc)
+            {
+                last = found;
+            }
+            else
+            {
+                emptyAfter = middle;
+            }
+        }
+
+        return last;
+    }
+
+    /// <summary>
+    /// The first occurrence after <paramref name="afterUtc"/>, refused when it does not advance: a cron in a zone that
+    /// skipped a calendar day can answer the seek instant or one before it, and a search on such answers never ends.
+    /// </summary>
+    private static DateTime? After(ScheduleSource source, DateTime anchorUtc, DateTime afterUtc)
+    {
+        var next = NextOccurrenceCalculator.FirstAfter(source, anchorUtc, afterUtc);
+        return next <= afterUtc
+            ? throw new InvalidOperationException(
+                $"'{source.Timing.Expression}' answered {next:O}, not after {afterUtc:O}; an occurrence must advance."
+            )
+            : next;
     }
 
     /// <summary>The occurrence just before a due range's last, the end of a skipped range; asked only of a range of two or more.</summary>

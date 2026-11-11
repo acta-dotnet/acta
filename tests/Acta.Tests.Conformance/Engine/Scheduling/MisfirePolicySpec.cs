@@ -5,14 +5,15 @@ using Xunit;
 
 namespace Acta.Tests.Conformance.Engine.Scheduling;
 
-/// <summary>Every-minute schedules under the catch-up and expiration policies, one definition per fact.</summary>
+/// <summary>Schedules under the catch-up and expiration policies, one definition per fact.</summary>
 public sealed class MisfirePolicyManifest : IJobManifest
 {
     public const string BacklogSlotJobName = "backlog-slot";
     public const string BacklogRootsJobName = "backlog-roots";
     public const string ExpireDiscardJobName = "expire-discard";
     public const string ExpirePauseJobName = "expire-pause";
-    public const string ScheduleName = "every-minute";
+    public const string BacklogSecondsJobName = "backlog-seconds";
+    public const string ScheduleName = "recurring";
 
     public static JobDescriptorManifest Descriptors { get; } =
         new([
@@ -20,6 +21,15 @@ public sealed class MisfirePolicyManifest : IJobManifest
             Descriptor(BacklogRootsJobName, ScheduledDeliveryCode.PerOccurrence, 2, null, ScheduleExpireActionCode.Unspecified),
             Descriptor(ExpireDiscardJobName, ScheduledDeliveryCode.Permanent, 1, 120, ScheduleExpireActionCode.Discard),
             Descriptor(ExpirePauseJobName, ScheduledDeliveryCode.Permanent, 1, 120, ScheduleExpireActionCode.Pause),
+            Descriptor(
+                BacklogSecondsJobName,
+                ScheduledDeliveryCode.Permanent,
+                1,
+                null,
+                ScheduleExpireActionCode.Unspecified,
+                "* * * * * *",
+                MisfireStrategyCode.CatchUpLatest
+            ),
         ]);
 
     private static JobDescriptor Descriptor(
@@ -27,7 +37,9 @@ public sealed class MisfirePolicyManifest : IJobManifest
         ScheduledDeliveryCode delivery,
         int maxOutstanding,
         int? expireAfterSeconds,
-        ScheduleExpireActionCode expireAction
+        ScheduleExpireActionCode expireAction,
+        string expression = "* * * * *",
+        MisfireStrategyCode misfire = MisfireStrategyCode.CatchUpAll
     ) =>
         new(
             JobName: jobName,
@@ -57,9 +69,9 @@ public sealed class MisfirePolicyManifest : IJobManifest
                 new ScheduleDescriptor(
                     JobName: jobName,
                     ScheduleName: ScheduleName,
-                    Expression: "* * * * *",
+                    Expression: expression,
                     TimeZoneId: null,
-                    MisfireStrategy: MisfireStrategyCode.CatchUpAll,
+                    MisfireStrategy: misfire,
                     ExpressionKind: ScheduleExpressionKindCode.Cron,
                     Description: null,
                     Environments: [],
@@ -78,12 +90,13 @@ public sealed class MisfirePolicyManifest : IJobManifest
 /// CatchUpAll drains a backlog one occurrence per settlement, on a slot and across a per-occurrence schedule's
 /// capacity; expiration decides the occurrences older than the age without work, audited with the reason, and under
 /// Pause stops the schedule for an operator, whose resume expires what is stale by then once more without pausing again.
+/// A backlog of any depth is decided in one pass.
 /// </summary>
 [ConformanceSpec(
     "schedule.misfire-policies",
     "CatchUpAll drains a backlog in order, expiration discards or pauses stale work",
     Area = "Scheduling",
-    Contract = "CatchUpAll admits a backlog one occurrence per settlement within capacity, and an occurrence older than the expiry is skipped as expired, pausing under Pause."
+    Contract = "CatchUpAll admits a backlog one occurrence per settlement, an expired occurrence is skipped, pausing under Pause, and no backlog is too deep to decide."
 )]
 public sealed class MisfirePolicySpec : ActaRuntimeTestBase<ConformanceFixture, MisfirePolicyManifest>
 {
@@ -229,6 +242,31 @@ public sealed class MisfirePolicySpec : ActaRuntimeTestBase<ConformanceFixture, 
         Assert.Equal(1, await CountEventsAsync(slotId, EventCode.SchedulePaused, ct));
     }
 
+    [Fact(DisplayName = "A cron with seconds a month behind is decided in one pass: its latest occurrence fires and the rest are skipped")]
+    public async Task A_backlog_past_a_million_occurrences_is_decided_in_one_pass()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await IsolateAsync(MisfirePolicyManifest.BacklogSecondsJobName, ct);
+        var slotId = await ScheduleTestOps.SlotIdAsync(Db, TestNamespace, MisfirePolicyManifest.BacklogSecondsJobName, ct);
+        var first = Assert.Single(await ScheduleTestOps.ReadAsync(Db, slotId, ct)).NextOccurrenceAtUtc!.Value;
+        var latest = first.AddDays(30);
+        Clock.AdvanceTo(latest.AddMilliseconds(250));
+
+        await Runtime.AdmitOnceAsync(TestNamespace, ct);
+
+        Assert.Equal(JobStatusCode.Ready, (await ReadJobAsync(slotId, ct)).Status);
+        Assert.Equal(latest, await OccurrenceAsync(slotId, ct));
+        var schedule = Assert.Single(await ScheduleTestOps.ReadAsync(Db, slotId, ct));
+        Assert.Equal(latest.AddSeconds(1), schedule.NextOccurrenceAtUtc);
+        var skipped = Assert.Single(
+            await Db.From<EventEntity>()
+                .Where(e => e.EntityCode == EntityCode.Job && e.EntityId == slotId && e.EventCode == EventCode.ScheduleSkipped)
+                .ToListAsync(ct)
+        );
+        Assert.Equal(Iso(first), EventDetail(skipped, "from"));
+        Assert.Equal(Iso(latest.AddSeconds(-1)), EventDetail(skipped, "through"));
+    }
+
     /// <summary>Pauses every other definition's schedule, so a pass over the shared namespace decides this fact's alone.</summary>
     private async Task IsolateAsync(string jobName, CancellationToken ct)
     {
@@ -239,6 +277,7 @@ public sealed class MisfirePolicySpec : ActaRuntimeTestBase<ConformanceFixture, 
                 MisfirePolicyManifest.BacklogRootsJobName,
                 MisfirePolicyManifest.ExpireDiscardJobName,
                 MisfirePolicyManifest.ExpirePauseJobName,
+                MisfirePolicyManifest.BacklogSecondsJobName,
             }
         )
         {
