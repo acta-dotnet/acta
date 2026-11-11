@@ -11,7 +11,7 @@ namespace Acta;
 /// Delivers an alert to a Slack incoming webhook (<c>transport_kind = "slack-webhook"</c>): POSTs the
 /// <see cref="SlackAlertFormatter"/> payload to the channel's <c>endpoint</c> URL. Maps HTTP outcomes to
 /// retry semantics: 2xx delivered, 429/5xx retryable, other 4xx permanent. No external dependency (BCL
-/// <see cref="HttpClient"/> and origin-generated JSON).
+/// <see cref="HttpClient"/> and source-generated JSON).
 /// </summary>
 internal sealed class SlackAlertTransport(HttpClient? http = null, ILogger<SlackAlertTransport>? log = null) : IAlertTransport
 {
@@ -69,7 +69,7 @@ internal sealed class SlackAlertTransport(HttpClient? http = null, ILogger<Slack
 /// Builds the Slack incoming-webhook payload for an alert: a header line with a severity emoji and title,
 /// the message body, and a colored attachment carrying the alert ref, kind, namespace, the subject job's
 /// ref when there is one, occurrences, and runbook. Identity is always a public ref, never a row id.
-/// Pure (no I/O); the JSON shape is origin-generated for NativeAOT via <see cref="AlertSlackJsonContext"/>.
+/// Pure (no I/O); the JSON shape is source-generated for NativeAOT via <see cref="AlertSlackJsonContext"/>.
 /// </summary>
 internal static class SlackAlertFormatter
 {

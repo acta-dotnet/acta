@@ -6,7 +6,7 @@ namespace Acta.Tests.Alerts;
 /// <summary>
 /// Pure (no-network) coverage for <see cref="SlackAlertFormatter"/>: severity drives the emoji / color,
 /// the header carries the title, and the optional fields (job, occurrences, runbook) are included only
-/// when present. The payload round-trips through the origin-generated JSON context.
+/// when present. The payload round-trips through the source-generated JSON context.
 /// </summary>
 public sealed class SlackAlertFormatterTests
 {
