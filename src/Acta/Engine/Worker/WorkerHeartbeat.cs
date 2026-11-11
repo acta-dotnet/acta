@@ -144,6 +144,16 @@ internal sealed class WorkerHeartbeat(
             // meanwhile is harmless: the registry disposes it after removing it, so a late Cancel() or
             // ArmLease() lands on a token nothing reads anymore or a disposed source, which both swallow.
             var snapshot = _registry.Snapshot().Select(entry => (Entry: entry, Locks: entry.HeldLocks)).ToArray();
+            // A handler that ignores its token cannot be stopped, and it keeps its lease and locks, since the body they
+            // guard is still running. It is named here once instead, for whoever must restart the process.
+            foreach (var (entry, _) in snapshot)
+            {
+                if (entry.OutranTimeout(_leaseRunway))
+                {
+                    ActaLog.HandlerIgnoredTimeout(_log, entry.Descriptor?.JobName ?? "?", new JobRef(entry.Claim.JobRef).ToString());
+                }
+            }
+
             List<(long JobId, int ExecutionNumber)> held = [.. snapshot.Select(pair => pair.Entry.Key)];
             List<LockToken> heldLocks = [.. snapshot.SelectMany(pair => pair.Locks)];
 

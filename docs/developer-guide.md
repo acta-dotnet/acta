@@ -592,7 +592,7 @@ The token passed to a handler is the current attempt token, not a logical-job to
 | lease lost / revoked | retry (`job.attempt-aborted`), or reclaim (`job.lease-expired`) once the lease lapses |
 | write refused        | nothing for this attempt: the write changed nothing, and the execution that holds the job decides |
 
-The handler honors the token; the framework records the cause and chooses the final transition.
+The handler honors the token; the framework records the cause and chooses the final transition. A handler that runs on past its execution timeout cannot be stopped from outside: it keeps its lease and its locks until it returns, and the worker logs an error naming the job once it has run more than half a lease past the timeout ([known limitations](./known-limitations.md#execution-model)).
 
 ### Lifecycle and visibility
 

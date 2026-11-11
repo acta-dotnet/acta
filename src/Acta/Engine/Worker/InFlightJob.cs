@@ -25,6 +25,11 @@ internal sealed class InFlightJob : IDisposable
     private volatile InFlightJobState _state;
     private int _permit;
 
+    // When a beat first saw the execution timeout fired, as a Stopwatch timestamp: zero until one has, and
+    // OutranReported once OutranTimeout answered true.
+    private long _timeoutSeenAt;
+    private const long OutranReported = -1;
+
     // The execution lease's own deadline, and the earliest of it and the locks', when the lease source fires; both
     // Stopwatch timestamps.
     private long _executionDeadline;
@@ -162,6 +167,34 @@ internal sealed class InFlightJob : IDisposable
         _lease is null ? null : Stopwatch.GetElapsedTime(Stopwatch.GetTimestamp(), Volatile.Read(ref _leaseDeadline));
 
     public void ArmTimeout(TimeSpan delay) => _timeout.CancelAfter(delay);
+
+    /// <summary>
+    /// True once, at the first beat that finds the attempt still running a whole <paramref name="runway"/> after a beat
+    /// first saw its execution timeout fired: its handler ignores its token. Counted from a beat, not from the timer,
+    /// so a timer that fired late takes nothing from the handler's time to unwind. Never true without a lease source,
+    /// nor once the handler returned. Only the heartbeat calls it, one beat at a time.
+    /// </summary>
+    public bool OutranTimeout(TimeSpan runway)
+    {
+        if (_lease is null || _state != InFlightJobState.Executing || !TimedOut || _timeoutSeenAt == OutranReported)
+        {
+            return false;
+        }
+
+        if (_timeoutSeenAt == 0)
+        {
+            _timeoutSeenAt = Stopwatch.GetTimestamp();
+            return false;
+        }
+
+        if (Stopwatch.GetElapsedTime(_timeoutSeenAt) <= runway)
+        {
+            return false;
+        }
+
+        _timeoutSeenAt = OutranReported;
+        return true;
+    }
 
     /// <summary>True exactly once for an entry built holding one of the registry's permits, so every exit may call it.</summary>
     public bool ReleasePermit() => Interlocked.Exchange(ref _permit, 0) == 1;

@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Xunit;
@@ -342,6 +343,64 @@ public sealed class WorkerHeartbeatLeaseRunwayTests
         Assert.False(entry.AttemptToken.IsCancellationRequested);
     }
 
+    // The runway of a two-millisecond beat, whose derived lease rounds to nothing: one millisecond, so a fact about a
+    // handler outrunning it waits a timer tick and no longer.
+    private static readonly IOptions<JobsOptions> TinyRunway = Options(TimeSpan.FromMilliseconds(2), leaseTtlSeconds: 0);
+
+    // Past the one-millisecond runway by any timer's reckoning.
+    private static readonly TimeSpan TinyWait = TimeSpan.FromMilliseconds(5);
+
+    [Fact]
+    public async Task A_handler_still_running_a_runway_after_a_beat_saw_its_timeout_is_named_once_and_stays_renewed()
+    {
+        using var entry = Held(Entry(1, leaseRunway: ClaimRunway, state: InFlightJobState.Executing));
+        var held = new LockToken("orders.held", Guid.NewGuid());
+        entry.TrackLock(held, ClaimRunway);
+        await TimeOutAsync(entry);
+        var log = new RecordingLogger();
+        var heartbeat = Heartbeat(WorkerStore(Capture), TinyRunway, log: log);
+
+        // The beat that first sees the timeout says nothing: the handler has the runway from here to unwind.
+        Assert.True(await heartbeat.TickAsync(TestContext.Current.CancellationToken));
+        Assert.Empty(log.Errors);
+
+        // The handler runs on, so a beat after the runway names it, once, and its lease and lock are still asked for.
+        await Task.Delay(TinyWait, TestContext.Current.CancellationToken);
+        Assert.True(await heartbeat.TickAsync(TestContext.Current.CancellationToken));
+        Assert.True(await heartbeat.TickAsync(TestContext.Current.CancellationToken));
+
+        Assert.Contains("ignores cancellation", Assert.Single(log.Errors));
+        Assert.Equal("[{\"job_id\":1,\"execution_number\":0}]", _asked!.Parameters["p_executions"]);
+        Assert.Contains(held.HoldToken.ToString("D"), Assert.IsType<string>(_asked.Parameters["p_locks"]));
+    }
+
+    [Fact]
+    public async Task A_completion_still_being_written_and_a_single_shot_entry_are_not_named_past_the_timeout()
+    {
+        // Job 1's handler returned and its completion write is repeating; job 2 is a debug run with no lease source.
+        using var finalizing = Held(Entry(1, leaseRunway: ClaimRunway, state: InFlightJobState.Finalizing));
+        using var singleShot = Held(Entry(2, state: InFlightJobState.Executing));
+        await TimeOutAsync(finalizing);
+        await TimeOutAsync(singleShot);
+        var log = new RecordingLogger();
+        var heartbeat = Heartbeat(WorkerStore(Capture), TinyRunway, log: log);
+
+        Assert.True(await heartbeat.TickAsync(TestContext.Current.CancellationToken));
+        await Task.Delay(TinyWait, TestContext.Current.CancellationToken);
+        Assert.True(await heartbeat.TickAsync(TestContext.Current.CancellationToken));
+
+        Assert.Empty(log.Errors);
+    }
+
+    /// <summary>Fires the entry's execution timeout and returns once its attempt token is cancelled.</summary>
+    private static async Task TimeOutAsync(InFlightJob entry)
+    {
+        var fired = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        await using var registration = entry.AttemptToken.Register(fired.SetResult);
+        entry.ArmTimeout(TimeSpan.Zero);
+        await fired.Task.WaitAsync(HangGuard, TestContext.Current.CancellationToken);
+    }
+
     /// <summary>An entry for job <paramref name="jobId"/> at <paramref name="executionNumber"/>, unregistered.</summary>
     internal static InFlightJob Entry(
         long jobId,
@@ -378,7 +437,12 @@ public sealed class WorkerHeartbeatLeaseRunwayTests
         return entry;
     }
 
-    private WorkerHeartbeat Heartbeat(WorkersOperations workers, IOptions<JobsOptions>? options = null, ActaMetrics? metrics = null)
+    private WorkerHeartbeat Heartbeat(
+        WorkersOperations workers,
+        IOptions<JobsOptions>? options = null,
+        ActaMetrics? metrics = null,
+        ILogger? log = null
+    )
     {
         var context = new WorkerContext(null);
         context.WorkerIdByNamespace["orders"] = 1;
@@ -390,9 +454,36 @@ public sealed class WorkerHeartbeatLeaseRunwayTests
             context,
             _registry,
             recoveryPass: null!,
-            NullLogger.Instance,
+            log ?? NullLogger.Instance,
             metrics
         );
+    }
+
+    // The beat's one call, kept for a fact that reads what it asked for, and answered with no rows.
+    private BoundCall? _asked;
+
+    private object? Capture(BoundCall call)
+    {
+        _asked = call;
+        return null;
+    }
+
+    private sealed class RecordingLogger : ILogger
+    {
+        public List<string> Errors { get; } = [];
+
+        public IDisposable? BeginScope<TState>(TState state)
+            where TState : notnull => null;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(LogLevel level, EventId id, TState state, Exception? exception, Func<TState, Exception?, string> format)
+        {
+            if (level == LogLevel.Error)
+            {
+                Errors.Add(format(state, exception));
+            }
+        }
     }
 
     // The worker lifecycle over a scripted lease extend, the heartbeat's only database call.

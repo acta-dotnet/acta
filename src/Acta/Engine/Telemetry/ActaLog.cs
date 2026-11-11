@@ -296,6 +296,12 @@ internal static partial class ActaLog
     public static partial void HeldLockLost(ILogger log, long actaJobId);
 
     [LoggerMessage(
+        Level = LogLevel.Error,
+        Message = "Handler for job ({ActaJobName}) ({ActaJobRef}) is still running long after its execution timeout and ignores cancellation. The job, its concurrency slot, and its locks stay held until the handler returns or this process restarts."
+    )]
+    public static partial void HandlerIgnoredTimeout(ILogger log, string actaJobName, string actaJobRef);
+
+    [LoggerMessage(
         Level = LogLevel.Warning,
         Message = "Acta: the ({ActaDetail}) stamp failed for worker namespace ({ActaNamespace}); lease recovery will reconcile it."
     )]
