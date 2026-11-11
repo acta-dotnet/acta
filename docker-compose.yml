@@ -43,7 +43,8 @@ services:
     # https://learn.microsoft.com/sql/linux/sql-server-linux-performance-best-practices ("high
     # performance disk i/o configuration") and the forced-flush background in
     # https://support.microsoft.com/topic/5a5b3ed2-0731-2659-be13-c902652fc556 (KB4131496).
-    command: /opt/mssql/bin/sqlservr -T3979
+    # -T1222 writes every deadlock's graph to the log, which CI's deadlock report prints.
+    command: /opt/mssql/bin/sqlservr -T3979 -T1222
     ports:
       - "127.0.0.1:${ACTA_MSSQL_PORT:-1433}:1433"
     environment:

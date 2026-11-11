@@ -16,6 +16,8 @@ public sealed partial class SqliteConformanceFixture : IConformanceFixture
 
     public ValueTask<long?> ReadDeadlockCountAsync() => ValueTask.FromResult<long?>(null);
 
+    public ValueTask<IReadOnlyList<string>> ReadDeadlocksAsync(DateTime sinceUtc) => ValueTask.FromResult<IReadOnlyList<string>>([]);
+
     public async ValueTask<IReadOnlyList<(string Name, bool Nullable, int? MaxLength)>> ListColumnsAsync(
         string schemaName,
         string tableName

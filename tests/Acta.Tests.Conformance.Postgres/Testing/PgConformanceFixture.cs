@@ -45,6 +45,15 @@ public sealed partial class PgConformanceFixture : IConformanceFixture
         return await ScalarAsync(conn, "SELECT coalesce((SELECT deadlocks FROM pg_stat_database WHERE datname = @db), 0)", test.Database!);
     }
 
+    /// <summary>
+    /// PostgreSQL keeps no deadlock graph a query can read: each deadlock's processes and statements go to the server log,
+    /// which CI prints into the job summary.
+    /// </summary>
+    public ValueTask<IReadOnlyList<string>> ReadDeadlocksAsync(DateTime sinceUtc) =>
+        ValueTask.FromResult<IReadOnlyList<string>>([
+            "PostgreSQL logs each deadlock's processes and statements as 'deadlock detected' in the server log (CI: the job summary).",
+        ]);
+
     private static async Task<long> ScalarAsync(NpgsqlConnection conn, string sql, string database)
     {
         await using var cmd = new NpgsqlCommand(sql, conn);

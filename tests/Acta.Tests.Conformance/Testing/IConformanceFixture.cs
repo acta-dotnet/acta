@@ -39,6 +39,13 @@ public interface IConformanceFixture
     ValueTask<long?> ReadDeadlockCountAsync();
 
     /// <summary>
+    /// Each deadlock the server recorded since <paramref name="sinceUtc"/>, reduced to its processes' statements and the locks
+    /// they held and waited for, so the census names the lock order to fix; where the server keeps the graphs only in its
+    /// log, one line says where to read them.
+    /// </summary>
+    ValueTask<IReadOnlyList<string>> ReadDeadlocksAsync(DateTime sinceUtc);
+
+    /// <summary>
     /// Allocate a throwaway location carrying only a migration-history ledger seeded with
     /// <paramref name="history"/> as migration-name rows, or - when <paramref name="history"/>
     /// is <c>null</c> - no ledger at all, standing in for a database that was never provisioned.

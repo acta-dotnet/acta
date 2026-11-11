@@ -6,12 +6,18 @@ using Xunit;
 
 namespace Acta.Tests.Conformance.Scenarios;
 
-/// <summary>The server's deadlock count when the run starts, read before any test touches the database.</summary>
+/// <summary>The server's deadlock count when the run starts, read before any test touches the database, and the instant it was read.</summary>
 public sealed class DeadlockCensusStart : IAsyncLifetime
 {
     public long? Count { get; private set; }
 
-    public async ValueTask InitializeAsync() => Count = await new ConformanceFixture().ReadDeadlockCountAsync();
+    public DateTime StartedUtc { get; private set; }
+
+    public async ValueTask InitializeAsync()
+    {
+        StartedUtc = DateTime.UtcNow;
+        Count = await new ConformanceFixture().ReadDeadlockCountAsync();
+    }
 
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 }
@@ -40,11 +46,16 @@ public sealed class DeadlockCensusSpec(DeadlockCensusStart start)
     public async Task The_run_records_no_deadlock()
     {
         Assert.SkipWhen(start.Count is null, "SQLite runs one writer at a time, so no deadlock can form.");
-        var end = await new ConformanceFixture().ReadDeadlockCountAsync();
-        Assert.True(
-            end == start.Count,
-            $"The server recorded {end - start.Count} deadlock(s) during the run. Read the graphs in system_health's "
-                + "xml_deadlock_report events (SQL Server) or the server log (PostgreSQL), and fix the lock order."
+        var fixture = new ConformanceFixture();
+        var end = await fixture.ReadDeadlockCountAsync();
+        if (end == start.Count)
+        {
+            return;
+        }
+        // Every deadlock is read and printed, so a failing run names the lock order to fix without a rerun.
+        var graphs = await fixture.ReadDeadlocksAsync(start.StartedUtc);
+        Assert.Fail(
+            $"The server recorded {end - start.Count} deadlock(s) during the run; fix the lock order.\n" + string.Join("\n", graphs)
         );
     }
 }

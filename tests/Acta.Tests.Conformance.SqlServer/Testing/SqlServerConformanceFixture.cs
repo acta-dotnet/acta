@@ -22,17 +22,99 @@ public sealed partial class SqlServerConformanceFixture : IConformanceFixture
 
     /// <summary>
     /// The instance's deadlocks since it started, from its performance counter: server-wide, so one suite per instance. Read
-    /// through <c>master</c>, since the run starts before the test database exists.
+    /// through <c>master</c>, since the run starts before the test database exists. The read also starts
+    /// <see cref="DeadlockSession"/>, so every deadlock from here on keeps its graph for <see cref="ReadDeadlocksAsync"/>.
     /// </summary>
     public async ValueTask<long?> ReadDeadlockCountAsync()
     {
         await using var conn = new SqlConnection(new SqlConnectionStringBuilder(Conn) { InitialCatalog = "master" }.ConnectionString);
         await conn.OpenAsync();
         await using var cmd = conn.CreateCommand();
+        // system_health keeps graphs too, but writes them out only every couple of minutes; this session hands each over
+        // within a second, in memory.
         cmd.CommandText =
-            "SELECT cntr_value FROM sys.dm_os_performance_counters "
+            $"IF NOT EXISTS (SELECT 1 FROM sys.server_event_sessions WHERE name = N'{DeadlockSession}') "
+            + $"CREATE EVENT SESSION {DeadlockSession} ON SERVER ADD EVENT sqlserver.xml_deadlock_report "
+            + "ADD TARGET package0.ring_buffer WITH (MAX_DISPATCH_LATENCY = 1 SECONDS); "
+            + $"IF NOT EXISTS (SELECT 1 FROM sys.dm_xe_sessions WHERE name = N'{DeadlockSession}') "
+            + $"ALTER EVENT SESSION {DeadlockSession} ON SERVER STATE = START; "
+            + "SELECT cntr_value FROM sys.dm_os_performance_counters "
             + "WHERE counter_name LIKE N'Number of Deadlocks/sec%' AND instance_name = N'_Total'";
         return Convert.ToInt64(await cmd.ExecuteScalarAsync(), CultureInfo.InvariantCulture);
+    }
+
+    /// <summary>The Extended Events session that keeps each deadlock's graph for the census.</summary>
+    private const string DeadlockSession = "acta_test_deadlocks";
+
+    /// <summary>
+    /// The deadlock graphs <see cref="DeadlockSession"/> recorded since <paramref name="sinceUtc"/>, each reduced to one line
+    /// per process (its statement, the lock it waited for, its isolation level) and one per resource (who held and who
+    /// waited, in which mode).
+    /// </summary>
+    public async ValueTask<IReadOnlyList<string>> ReadDeadlocksAsync(DateTime sinceUtc)
+    {
+        // The session hands its events over within a second.
+        await Task.Delay(TimeSpan.FromSeconds(2));
+        await using var conn = new SqlConnection(new SqlConnectionStringBuilder(Conn) { InitialCatalog = "master" }.ConnectionString);
+        await conn.OpenAsync();
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandText =
+            "SELECT CAST(t.target_data AS nvarchar(max)) FROM sys.dm_xe_session_targets t "
+            + "JOIN sys.dm_xe_sessions s ON s.address = t.event_session_address "
+            + $"WHERE s.name = N'{DeadlockSession}' AND t.target_name = N'ring_buffer'";
+        List<string> graphs = [];
+        var buffer = await cmd.ExecuteScalarAsync() as string;
+        foreach (var report in buffer is null ? [] : System.Xml.Linq.XElement.Parse(buffer).Elements("event"))
+        {
+            var at = DateTime.Parse(
+                (string?)report.Attribute("timestamp") ?? "",
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal
+            );
+            if (at >= sinceUtc && report.Descendants("deadlock").FirstOrDefault() is { } deadlock)
+            {
+                graphs.Add(DeadlockSummary(at, deadlock));
+            }
+        }
+        return graphs;
+    }
+
+    private static string DeadlockSummary(DateTime at, System.Xml.Linq.XElement deadlock)
+    {
+        static string Squash(string? text) => string.Join(' ', (text ?? "").Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+        static string Short(string? text) => Squash(text) is { Length: > 240 } s ? s[..240] + "..." : Squash(text);
+        var lines = new List<string>
+        {
+            $"deadlock at {at:HH:mm:ss.fff}Z, victim {(string?)deadlock.Element("victim-list")?.Element("victimProcess")?.Attribute("id")}",
+        };
+        foreach (var process in deadlock.Descendants("process"))
+        {
+            // system_health often keeps "unknown" as a frame's text; the input buffer then carries the statement.
+            var frame = process.Descendants("frame").FirstOrDefault(f => Squash(f.Value) is { Length: > 0 } and not "unknown");
+            lines.Add(
+                $"  process {(string?)process.Attribute("id")} ({(string?)process.Attribute("isolationlevel")}) waits {(string?)process.Attribute("lockMode")} on {(string?)process.Attribute("waitresource")}: "
+                    + (
+                        frame is null
+                            ? Short(process.Element("inputbuf")?.Value)
+                            : $"{(string?)frame.Attribute("procname")} {Short(frame.Value)}"
+                    )
+            );
+        }
+        foreach (var resource in deadlock.Element("resource-list")?.Elements() ?? [])
+        {
+            var owners = string.Join(
+                ", ",
+                resource.Descendants("owner").Select(o => $"{(string?)o.Attribute("id")} {(string?)o.Attribute("mode")}")
+            );
+            var waiters = string.Join(
+                ", ",
+                resource.Descendants("waiter").Select(w => $"{(string?)w.Attribute("id")} {(string?)w.Attribute("mode")}")
+            );
+            lines.Add(
+                $"  {resource.Name.LocalName} {(string?)resource.Attribute("objectname") ?? (string?)resource.Attribute("resource_description")} {(string?)resource.Attribute("indexname")}: held by {owners}; wanted by {waiters}"
+            );
+        }
+        return string.Join('\n', lines);
     }
 
     /// <summary>
