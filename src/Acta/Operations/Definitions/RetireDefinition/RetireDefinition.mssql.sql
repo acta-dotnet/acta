@@ -274,7 +274,7 @@ BEGIN TRY
             details_format_id,
             details)
         VALUES (
-            31 /* EventCode.JobDefinitionRetired */,
+            31 /* EventCode.DefinitionRetired */,
             @now,
             @ns,
             30 /* EntityCode.Definition */,

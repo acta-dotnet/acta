@@ -17,7 +17,7 @@ namespace Acta.Tests.Conformance.Operations.Definitions;
     "definitions.retire",
     "Retire flips a definition and cancels its parked jobs",
     Area = "Catalog",
-    Contract = "Retiring a definition cancels its parked jobs with reason JobDefinitionRetired, refuses enqueue, and lets a running attempt finish but never re-arms its job."
+    Contract = "Retiring a definition cancels its parked jobs with reason definition-retired, refuses enqueue, and lets a running attempt finish but never re-arms its job."
 )]
 public sealed class RetireDefinitionSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsManifest>
 {
@@ -83,7 +83,7 @@ public sealed class RetireDefinitionSpec : ActaRuntimeTestBase<ConformanceFixtur
         Assert.Equal(after.Version, retired.Version);
 
         var evt = await Db.From<EventEntity>()
-            .Where(e => e.DefinitionId == before.DefinitionId && e.EventCode == EventCode.JobDefinitionRetired)
+            .Where(e => e.DefinitionId == before.DefinitionId && e.EventCode == EventCode.DefinitionRetired)
             .SingleOrDefaultAsync(ct);
         Assert.NotNull(evt);
         Assert.Equal(EntityCode.Definition, evt!.EntityCode);

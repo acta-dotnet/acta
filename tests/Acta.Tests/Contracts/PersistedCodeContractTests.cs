@@ -45,8 +45,8 @@ public sealed class PersistedCodeContractTests
         EventCode.NamespaceResumed=21|namespace.resumed
         EventCode.NamespaceUpdated=22|namespace.updated
         EventCode.NamespaceDeployed=23|namespace.deployed
-        EventCode.JobDefinitionOverridesUpdated=30|definition.overrides-updated
-        EventCode.JobDefinitionRetired=31|definition.retired
+        EventCode.DefinitionOverridesUpdated=30|definition.overrides-updated
+        EventCode.DefinitionRetired=31|definition.retired
         EventCode.JobExecutionSucceeded=40|job.execution-succeeded
         EventCode.JobExecutionFailed=41|job.execution-failed
         EventCode.JobExecutionOrphaned=42|job.execution-orphaned
@@ -205,7 +205,7 @@ public sealed class PersistedCodeContractTests
         WorkerStatusCode.Dead=200|dead
         """;
 
-    private const string ExpectedDescriptionHash = "849843E2D48C329BEA64ECFFB0F1B4B5D0AC271DFF3F05C1B51DFFE56320311D";
+    private const string ExpectedDescriptionHash = "A10759B4E98CD7DAE636C00F4391AEB3B0D9A5D1ACEE5B2F82261572D474D220";
 
     [Fact]
     public void Frozen_contract_covers_all_32_families_and_194_values()

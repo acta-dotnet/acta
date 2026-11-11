@@ -670,9 +670,9 @@ enum Acta.EventCode : System.Byte
     CalendarArchived = 112
     CalendarDraftSaved = 110
     CalendarPublished = 111
+    DefinitionOverridesUpdated = 30
+    DefinitionRetired = 31
     JobCancelled = 70
-    JobDefinitionOverridesUpdated = 30
-    JobDefinitionRetired = 31
     JobExecutionFailed = 41
     JobExecutionOrphaned = 42
     JobExecutionSucceeded = 40

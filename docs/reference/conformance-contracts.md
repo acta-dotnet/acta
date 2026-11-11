@@ -314,7 +314,7 @@
   - Clearing all overrides reverts each effective to its base value
 
 ### Retire flips a definition and cancels its parked jobs
-- **Contract:** Retiring a definition cancels its parked jobs with reason JobDefinitionRetired, refuses enqueue, and lets a running attempt finish but never re-arms its job.
+- **Contract:** Retiring a definition cancels its parked jobs with reason definition-retired, refuses enqueue, and lets a running attempt finish but never re-arms its job.
 - **Guarantees:**
   - Every parked job of the retired definition is cancelled with retention, no lease, and one audited event
   - The retire writes one definition-scoped retired event, leaves the definition Retired, and answers its new version

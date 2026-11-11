@@ -34,6 +34,8 @@ Not tagged yet.
 
 **Rename `StepExhaustedException` to `StepFailedException`, and `StepStatusCode.Exhausted` to `Failed`**: a step has no retry budget of its own to exhaust, since an ordinary step that throws fails its job's attempt and the job's `MaxAttempts` and `Backoff` decide what follows. An at-most-once step whose body threw is therefore `failed`, and left uncaught its exception still ends the job at once. The stored id is unchanged (200), the code reads `failed` in `steps_view`, over HTTP, and in the CLI, and the `acta.steps` metric counts it under `outcome=failed` with every other body that threw, where it had its own `exhausted`.
 
+**Rename `EventCode.JobDefinitionRetired` and `EventCode.JobDefinitionOverridesUpdated`**: they are `DefinitionRetired` and `DefinitionOverridesUpdated`, as their codes `definition.retired` and `definition.overrides-updated` already read. The codes and their ids are unchanged, so nothing stored or sent over HTTP changes.
+
 ### Fixes
 
 - On SQL Server, two definition overrides updates in different namespaces could deadlock, and one failed as the victim: the update that carries a rate override to the definitions sharing its meter read every definition row under update locks before filtering by namespace, and waited on another namespace's row that its own update held. It now seeks its own namespace's rows.

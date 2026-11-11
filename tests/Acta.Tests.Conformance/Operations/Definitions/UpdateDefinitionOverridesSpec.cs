@@ -53,7 +53,7 @@ public sealed class UpdateDefinitionOverridesSpec : ActaStorageTestBase<Conforma
         Assert.Equal(7, outcomes.Count(o => o.Action == ControlAction.VersionConflict));
         Assert.Equal(before.Version + 1, (await ReadAsync(name, ct)).Version);
         var events = await Db.From<EventEntity>()
-            .Where(e => e.DefinitionId == id && e.EventCode == EventCode.JobDefinitionOverridesUpdated)
+            .Where(e => e.DefinitionId == id && e.EventCode == EventCode.DefinitionOverridesUpdated)
             .ToListAsync(ct);
         Assert.Single(events);
     }
@@ -506,7 +506,7 @@ public sealed class UpdateDefinitionOverridesSpec : ActaStorageTestBase<Conforma
         );
 
         var evt = await Db.From<EventEntity>()
-            .Where(e => e.DefinitionId == id && e.EventCode == EventCode.JobDefinitionOverridesUpdated)
+            .Where(e => e.DefinitionId == id && e.EventCode == EventCode.DefinitionOverridesUpdated)
             .SingleOrDefaultAsync(ct);
 
         Assert.NotNull(evt);

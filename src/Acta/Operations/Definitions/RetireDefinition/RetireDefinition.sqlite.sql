@@ -199,7 +199,7 @@ INSERT INTO {{schema}}.events (
     details_format_id,
     details)
 SELECT
-    31 /* EventCode.JobDefinitionRetired */,
+    31 /* EventCode.DefinitionRetired */,
     {{now}},
     s.namespace_id,
     30 /* EntityCode.Definition */,

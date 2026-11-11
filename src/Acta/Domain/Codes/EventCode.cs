@@ -49,14 +49,14 @@ public enum EventCode : byte
     /// The definition is the subject. Always emitted regardless of event recording: config governance is low-volume.
     /// </summary>
     [Code("definition.overrides-updated", "An operator changed a job definition's policy overrides; the message summarizes the change.")]
-    JobDefinitionOverridesUpdated = 30,
+    DefinitionOverridesUpdated = 30,
 
     /// <summary>
     /// The definition is the subject; each job the retire cancelled carries its own job.cancelled event with the
     /// <c>definition-retired</c> reason. Always emitted regardless of event recording: config governance is low-volume.
     /// </summary>
     [Code("definition.retired", "An operator retired a job definition; enqueues are rejected and its waiting jobs were cancelled.")]
-    JobDefinitionRetired = 31,
+    DefinitionRetired = 31,
 
     [Code(
         "job.execution-succeeded",

@@ -126,13 +126,13 @@ public sealed class DashboardApiEndpointTests
         Assert.Equal("acme", fakes.Ledger.LastEventsQuery.TenantName);
         Assert.Null(fakes.Ledger.LastEventsQuery.TenantId);
 
-        // A divergent wire code (member JobDefinitionOverridesUpdated) binds via its [Code] string, not the member name.
+        // A wire code binds via its [Code] string, which is dotted where the member name is not.
         var divergent = await client.GetAsync(
             "/acta/api/v1/events?eventCode=definition.overrides-updated",
             TestContext.Current.CancellationToken
         );
         Assert.Equal(HttpStatusCode.OK, divergent.StatusCode);
-        Assert.Equal(Acta.EventCode.JobDefinitionOverridesUpdated, fakes.Ledger.LastEventsQuery!.EventCode);
+        Assert.Equal(Acta.EventCode.DefinitionOverridesUpdated, fakes.Ledger.LastEventsQuery!.EventCode);
 
         var badCode = await client.GetAsync("/acta/api/v1/events?eventCode=nope", TestContext.Current.CancellationToken);
         var badJobRef = await client.GetAsync("/acta/api/v1/events?jobRef=abc", TestContext.Current.CancellationToken);
@@ -292,7 +292,7 @@ public sealed class DashboardApiEndpointTests
         // definition_id alone would also match every execution event for the definition's jobs
         // (deliberate, per ListEventsFilterMatrixSpec); the dashboard's Change history panel
         // narrows to the one definition-change event code so it doesn't flood with job noise.
-        Assert.Equal(Acta.EventCode.JobDefinitionOverridesUpdated, fakes.Ledger.LastEventsQuery.EventCode);
+        Assert.Equal(Acta.EventCode.DefinitionOverridesUpdated, fakes.Ledger.LastEventsQuery.EventCode);
 
         var unknown = await client.GetAsync("/acta/api/v1/definitions/billing/no-such-job/events", ct);
         var detail = await client.GetAsync("/acta/api/v1/definitions/billing/no-such-job", ct);

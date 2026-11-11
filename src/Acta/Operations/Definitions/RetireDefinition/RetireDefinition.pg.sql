@@ -221,7 +221,7 @@ definition_event AS (
         details_format_id,
         details)
     SELECT
-        31 /* EventCode.JobDefinitionRetired */,
+        31 /* EventCode.DefinitionRetired */,
         now(),
         d.namespace_id,
         30 /* EntityCode.Definition */,
