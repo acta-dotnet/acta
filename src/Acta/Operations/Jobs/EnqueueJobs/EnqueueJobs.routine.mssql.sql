@@ -114,7 +114,7 @@ BEGIN
                     END;
             END;
 
-        -- Missing lanes are inserted in name order without a range lock, then every lane is locked one row
+        -- Missing lanes are inserted in namespace and name order without a range lock, then every lane is locked one row
         -- at a time in id order (docs/sql-internals.md, "Lane lock order").
         DECLARE @lanes TABLE (
             ns_id INT NOT NULL,
@@ -151,7 +151,7 @@ BEGIN
                             l.namespace_id = e.ns_id
                             AND l.lane_name = e.lane_name
                     )
-                    ORDER BY e.lane_name;
+                    ORDER BY e.ns_id, e.lane_name;
                 END TRY
                 BEGIN CATCH
                     SET XACT_ABORT ON;

@@ -57,7 +57,7 @@ GO
 -- ===== refuse a database a newer release already upgraded =====
 IF EXISTS (
     SELECT 1 FROM acta.migrations
-    WHERE name NOT IN ('M20261111123108_init')
+    WHERE name NOT IN ('M20261111123419_init')
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -65,7 +65,7 @@ BEGIN
     SET NOEXEC ON;
 END
 GO
--- ===== BEGIN M20261111123108_init =====
+-- ===== BEGIN M20261111123419_init =====
 SET QUOTED_IDENTIFIER ON;
 SET ANSI_NULLS ON;
 GO
@@ -2543,7 +2543,7 @@ BEGIN
                     END;
             END;
 
-        -- Missing lanes are inserted in name order without a range lock, then every lane is locked one row
+        -- Missing lanes are inserted in namespace and name order without a range lock, then every lane is locked one row
         -- at a time in id order (docs/sql-internals.md, "Lane lock order").
         DECLARE @lanes TABLE (
             ns_id INT NOT NULL,
@@ -2580,7 +2580,7 @@ BEGIN
                             l.namespace_id = e.ns_id
                             AND l.lane_name = e.lane_name
                     )
-                    ORDER BY e.lane_name;
+                    ORDER BY e.ns_id, e.lane_name;
                 END TRY
                 BEGIN CATCH
                     SET XACT_ABORT ON;
@@ -5089,11 +5089,11 @@ JOIN acta.namespaces AS ns ON ns.namespace_id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261111123108_init')
+IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261111123419_init')
 INSERT INTO acta.migrations (name)
-VALUES ('M20261111123108_init');
+VALUES ('M20261111123419_init');
 GO
--- ===== END M20261111123108_init =====
+-- ===== END M20261111123419_init =====
 GO
 COMMIT TRANSACTION;
 GO

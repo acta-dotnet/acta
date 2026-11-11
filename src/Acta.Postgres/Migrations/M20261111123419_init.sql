@@ -2086,7 +2086,7 @@ BEGIN
             USING ERRCODE = 'P0001';
     END IF;
 
-    -- Missing lanes are inserted in name order, then the whole set is locked in id order
+    -- Missing lanes are inserted in namespace and name order, then the whole set is locked in id order
     -- (docs/sql-internals.md, "Lane lock order"). An unlaned batch skips all of it, the
     -- lane table's per-call temp-table create included.
     lane_count := 0;
@@ -2123,7 +2123,7 @@ BEGIN
                 FROM {{schema}}.lanes l
                 WHERE l.namespace_id = e.namespace_id AND l.lane_name = e.lane_name
             )
-            ORDER BY e.lane_name
+            ORDER BY e.namespace_id, e.lane_name
             ON CONFLICT (namespace_id, lane_name) DO NOTHING;
 
             -- Only a row this loop locked records its id, so a lane that another transaction creates
@@ -4375,5 +4375,5 @@ JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261111123108_init')
+VALUES ('M20261111123419_init')
 ON CONFLICT (name) DO NOTHING;

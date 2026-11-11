@@ -477,7 +477,7 @@ the lock.
 - Enqueue resolves the effective lane (the request's, else the definition's) and locks it before the
   parent row, so a parent enqueuing a child into a lane cannot hold the parent while a completing
   sibling in that lane holds the lane and waits for the parent.
-- An enqueue batch first inserts the missing lane names, sorted by name, without locking existing
+- An enqueue batch first inserts the missing lane names, sorted by namespace and name, without locking existing
   rows, then locks the whole set in id order. A lane inserted by an uncommitted transaction is
   invisible to every other transaction, so no settle can contend for it.
 - The completion batch (`CompleteExecutions`) takes the schedule lock of each namespace it settles a firing in, a

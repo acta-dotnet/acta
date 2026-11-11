@@ -2475,7 +2475,7 @@ BEGIN
                     END;
             END;
 
-        -- Missing lanes are inserted in name order without a range lock, then every lane is locked one row
+        -- Missing lanes are inserted in namespace and name order without a range lock, then every lane is locked one row
         -- at a time in id order (docs/sql-internals.md, "Lane lock order").
         DECLARE @lanes TABLE (
             ns_id INT NOT NULL,
@@ -2512,7 +2512,7 @@ BEGIN
                             l.namespace_id = e.ns_id
                             AND l.lane_name = e.lane_name
                     )
-                    ORDER BY e.lane_name;
+                    ORDER BY e.ns_id, e.lane_name;
                 END TRY
                 BEGIN CATCH
                     SET XACT_ABORT ON;
@@ -5021,7 +5021,7 @@ JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE name = 'M20261111123108_init')
+IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE name = 'M20261111123419_init')
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261111123108_init');
+VALUES ('M20261111123419_init');
 GO
