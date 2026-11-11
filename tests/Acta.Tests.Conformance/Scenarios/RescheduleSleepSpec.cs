@@ -246,7 +246,7 @@ public sealed class RescheduleSleepSpec : ActaRuntimeTestBase<ConformanceFixture
     private static Task SetTimerDueAsync(IDbSession db, long jobId, string name, DateTime due, CancellationToken ct) =>
         db.ExecuteRawAsync(
             "UPDATE {schema}.checkpoints SET due_at_utc = @p_due"
-                + " WHERE job_id = @p_id AND checkpoint_kind_code = 30 AND checkpoint_name = @p_name",
+                + " WHERE job_id = @p_id AND checkpoint_kind_code = 30 /* CheckpointKindCode.Timer */ AND checkpoint_name = @p_name",
             ct,
             ("@p_due", due),
             ("@p_id", jobId),

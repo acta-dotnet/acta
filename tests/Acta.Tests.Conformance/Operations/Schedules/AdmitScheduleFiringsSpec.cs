@@ -217,7 +217,7 @@ public sealed class AdmitScheduleFiringsSpec : ActaStorageTestBase<ConformanceFi
         {
             cmd.Transaction = suspension;
             cmd.CommandText =
-                $"UPDATE {Db.Schema}.namespaces SET namespace_status_code = {(int)NamespaceStatusCode.Suspended} WHERE namespace_id = {TestNamespaceId}";
+                $"UPDATE {Db.Schema}.namespaces SET namespace_status_code = 20 /* NamespaceStatusCode.Suspended */ WHERE namespace_id = {TestNamespaceId}";
             Assert.Equal(1, await cmd.ExecuteNonQueryAsync(ct));
         }
 
@@ -276,7 +276,7 @@ public sealed class AdmitScheduleFiringsSpec : ActaStorageTestBase<ConformanceFi
         {
             cmd.Transaction = suspension;
             cmd.CommandText =
-                $"UPDATE {Db.Schema}.namespaces SET namespace_status_code = {(int)NamespaceStatusCode.Suspended} WHERE namespace_id = {TestNamespaceId}";
+                $"UPDATE {Db.Schema}.namespaces SET namespace_status_code = 20 /* NamespaceStatusCode.Suspended */ WHERE namespace_id = {TestNamespaceId}";
             Assert.Equal(1, await cmd.ExecuteNonQueryAsync(ct));
         }
 

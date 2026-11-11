@@ -114,7 +114,7 @@ public sealed class LaneRepairSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
         await JobStateStaging.UpdateAsync(
             Db,
             enqueued.Where((_, i) => i % 2 == 0).Select(head => head.JobId),
-            $"job_status_code = {(int)JobStatusCode.Succeeded}",
+            "job_status_code = 100 /* JobStatusCode.Succeeded */",
             ct
         );
 

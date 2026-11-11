@@ -1,10 +1,14 @@
+using System.Text.RegularExpressions;
 using Acta.Verify;
 using Microsoft.Data.Sqlite;
 using Xunit;
 
 namespace Acta.Verify.Tests;
 
-/// <summary>Negative controls for certify.sql: each plants the breach a check exists to catch and expects the check to name it.</summary>
+/// <summary>
+/// certify.sql held to Acta: negative controls that plant the breach a check exists to catch and expect the check to
+/// name it, and its code literals checked against the enums.
+/// </summary>
 public sealed class CertificationTests
 {
     [Fact]
@@ -37,15 +41,36 @@ public sealed class CertificationTests
         Assert.Equal([101L], jobs);
     }
 
-    /// <summary>The certify.sql statement named <paramref name="name"/>, its comments dropped and its schema prefix empty.</summary>
-    private static string Check(string name)
+    [Fact]
+    public void Every_code_literal_names_its_member_and_holds_its_value()
+    {
+        var sql = CertifySql();
+        Assert.Empty(Regex.Matches(sql, @"[a-z_]+_code\s*(?:=|<>|(?:NOT\s+)?IN\s*\(|BETWEEN)\s*\d+(?!\d)(?!\s*/\*)").Select(m => m.Value));
+
+        var named = Regex.Matches(sql, @"(\d+) /\* ([A-Za-z]+)\.([A-Za-z]+) \*/");
+        Assert.NotEmpty(named);
+        foreach (Match m in named)
+        {
+            var type = typeof(JobStatusCode).Assembly.GetType("Acta." + m.Groups[2].Value, throwOnError: true)!;
+            var value = Convert.ToInt64(Enum.Parse(type, m.Groups[3].Value), System.Globalization.CultureInfo.InvariantCulture);
+            Assert.True(
+                value == long.Parse(m.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture),
+                $"{m.Value}: the member is {value}"
+            );
+        }
+    }
+
+    private static string CertifySql()
     {
         using var stream = typeof(FixtureValueV1).Assembly.GetManifestResourceStream("Acta.Verify.Certification.certify.sql")!;
         using var file = new StreamReader(stream);
-        var statement = file.ReadToEnd()
-            .ReplaceLineEndings("\n")
-            .Split(";\n")
-            .Single(chunk => chunk.Contains($"'{name}' AS check_name", StringComparison.Ordinal));
+        return file.ReadToEnd().ReplaceLineEndings("\n");
+    }
+
+    /// <summary>The certify.sql statement named <paramref name="name"/>, its comments dropped and its schema prefix empty.</summary>
+    private static string Check(string name)
+    {
+        var statement = CertifySql().Split(";\n").Single(chunk => chunk.Contains($"'{name}' AS check_name", StringComparison.Ordinal));
         return string.Join('\n', statement.Split('\n').Where(line => !line.TrimStart().StartsWith("--", StringComparison.Ordinal)))
             .Replace("{s}", "", StringComparison.Ordinal);
     }

@@ -75,7 +75,7 @@ public sealed class ListStaleJobChildLatchesSpec : ActaRuntimeTestBase<Conforman
         Assert.Equal(
             1,
             await Db.ExecuteRawAsync(
-                "UPDATE {schema}.checkpoints SET checkpoint_name = @p_name WHERE job_id = @p_job AND checkpoint_kind_code = 50",
+                "UPDATE {schema}.checkpoints SET checkpoint_name = @p_name WHERE job_id = @p_job AND checkpoint_kind_code = 50 /* CheckpointKindCode.ChildLatch */",
                 ct,
                 ("@p_name", $"sys.child.{stranger.JobId}"),
                 ("@p_job", parent)

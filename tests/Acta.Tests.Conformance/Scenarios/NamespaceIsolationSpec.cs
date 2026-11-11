@@ -723,9 +723,9 @@ public sealed class NamespaceIsolationSpec : ActaRuntimeTestBase<ConformanceFixt
             );
         }
         updates.Add(
-            $"UPDATE {Target("tags")} SET tag_value = tag_value WHERE (entity_code = {(int)EntityCode.Namespace} AND entity_id = {namespaceId})"
-                + $" OR (entity_code = {(int)EntityCode.Definition} AND entity_id IN (SELECT d.definition_id FROM {schema}.definitions d WHERE d.namespace_id = {namespaceId}))"
-                + $" OR (entity_code = {(int)EntityCode.Job} AND entity_id IN {ofNamespace})"
+            $"UPDATE {Target("tags")} SET tag_value = tag_value WHERE (entity_code = 80 /* EntityCode.Namespace */ AND entity_id = {namespaceId})"
+                + $" OR (entity_code = 30 /* EntityCode.Definition */ AND entity_id IN (SELECT d.definition_id FROM {schema}.definitions d WHERE d.namespace_id = {namespaceId}))"
+                + $" OR (entity_code = 50 /* EntityCode.Job */ AND entity_id IN {ofNamespace})"
         );
 
         var held = 0;

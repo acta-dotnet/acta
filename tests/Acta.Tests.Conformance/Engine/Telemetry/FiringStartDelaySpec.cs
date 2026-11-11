@@ -114,7 +114,7 @@ public sealed class FiringStartDelaySpec : ActaRuntimeTestBase<ConformanceFixtur
             ("@p_id", slotId)
         );
         await Db.ExecuteRawAsync(
-            "UPDATE {schema}.checkpoints SET due_at_utc = @p_due WHERE job_id = @p_id AND checkpoint_kind_code = 30",
+            "UPDATE {schema}.checkpoints SET due_at_utc = @p_due WHERE job_id = @p_id AND checkpoint_kind_code = 30 /* CheckpointKindCode.Timer */",
             ct,
             ("@p_due", continued),
             ("@p_id", slotId)

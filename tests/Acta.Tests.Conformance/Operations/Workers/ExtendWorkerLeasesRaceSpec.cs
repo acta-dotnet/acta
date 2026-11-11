@@ -82,7 +82,7 @@ public sealed class ExtendWorkerLeasesRaceSpec : ActaRuntimeTestBase<Conformance
         cmd.Transaction = tx;
         cmd.CommandText =
             $"UPDATE {Db.Schema}.checkpoints SET version = version + 1"
-            + " WHERE job_id = @p_id AND checkpoint_kind_code = 50 AND checkpoint_name = @p_name";
+            + " WHERE job_id = @p_id AND checkpoint_kind_code = 50 /* CheckpointKindCode.ChildLatch */ AND checkpoint_name = @p_name";
         var id = cmd.CreateParameter();
         id.ParameterName = "@p_id";
         id.Value = jobId;

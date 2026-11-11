@@ -467,7 +467,7 @@ public static class ChaosCase
         await connection.OpenAsync(ct);
         await using var command = connection.CreateCommand();
         command.CommandText =
-            $"SELECT SUM(CASE WHEN status_code <> {(int)OutboxStatusCode.Quarantined} THEN 1 ELSE 0 END), SUM(CASE WHEN status_code = {(int)OutboxStatusCode.Quarantined} THEN 1 ELSE 0 END) FROM acta_outbox; SELECT business_key FROM domain_obligations ORDER BY business_key;";
+            $"SELECT SUM(CASE WHEN status_code <> 90 /* OutboxStatusCode.Quarantined */ THEN 1 ELSE 0 END), SUM(CASE WHEN status_code = 90 /* OutboxStatusCode.Quarantined */ THEN 1 ELSE 0 END) FROM acta_outbox; SELECT business_key FROM domain_obligations ORDER BY business_key;";
         await using var reader = await command.ExecuteReaderAsync(ct);
         await reader.ReadAsync(ct);
         var pending = reader.IsDBNull(0) ? 0 : reader.GetInt64(0);
@@ -488,7 +488,7 @@ public static class ChaosCase
         var prefix = state.Provider == "sqlite" ? "main" : state.Schema;
         command.CommandTimeout = 300;
         command.CommandText =
-            $"SELECT r.job_id, r.execution_number FROM {prefix}.jobs_state r JOIN {prefix}.workers w ON w.worker_id=r.leased_by_worker_id JOIN {prefix}.jobs j ON j.job_id=r.job_id JOIN {prefix}.definitions d ON d.definition_id=j.definition_id WHERE w.process_id={pid} AND r.job_status_code=50 AND d.definition_name NOT LIKE 'sys.%'";
+            $"SELECT r.job_id, r.execution_number FROM {prefix}.jobs_state r JOIN {prefix}.workers w ON w.worker_id=r.leased_by_worker_id JOIN {prefix}.jobs j ON j.job_id=r.job_id JOIN {prefix}.definitions d ON d.definition_id=j.definition_id WHERE w.process_id={pid} AND r.job_status_code=50 /* JobStatusCode.Executing */ AND d.definition_name NOT LIKE 'sys.%'";
         List<(long, int)> jobs = [];
         await using var reader = await command.ExecuteReaderAsync(ct);
         while (await reader.ReadAsync(ct))
@@ -512,7 +512,7 @@ public static class ChaosCase
         // A count over a million rows on a saturated server outlasts the driver's 30 s default.
         command.CommandTimeout = 300;
         command.CommandText =
-            $"SELECT COUNT(*), SUM(CASE WHEN r.job_status_code IN (100, 200, 220) THEN 1 ELSE 0 END) FROM {prefix}.jobs_state r JOIN {prefix}.jobs j ON j.job_id=r.job_id JOIN {prefix}.definitions d ON d.definition_id=j.definition_id WHERE d.definition_name NOT LIKE 'sys.%'";
+            $"SELECT COUNT(*), SUM(CASE WHEN r.job_status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) THEN 1 ELSE 0 END) FROM {prefix}.jobs_state r JOIN {prefix}.jobs j ON j.job_id=r.job_id JOIN {prefix}.definitions d ON d.definition_id=j.definition_id WHERE d.definition_name NOT LIKE 'sys.%'";
         await using var reader = await command.ExecuteReaderAsync(ct);
         await reader.ReadAsync(ct);
         return (

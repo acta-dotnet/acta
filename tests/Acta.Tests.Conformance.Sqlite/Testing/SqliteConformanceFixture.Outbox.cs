@@ -184,7 +184,7 @@ public sealed partial class SqliteConformanceFixture
         await c.OpenAsync();
         await using var cmd = c.CreateCommand();
         cmd.CommandText =
-            $"UPDATE main.{table} SET next_attempt_at_utc = strftime('%Y-%m-%d %H:%M:%f', 'now', '-1 hour') WHERE status_code = 10;";
+            $"UPDATE main.{table} SET next_attempt_at_utc = strftime('%Y-%m-%d %H:%M:%f', 'now', '-1 hour') WHERE status_code = 10 /* OutboxStatusCode.Pending */;";
         await cmd.ExecuteNonQueryAsync();
     }
 

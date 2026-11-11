@@ -181,7 +181,7 @@ public sealed class WaitJobSignalSpec : ActaRuntimeTestBase<ConformanceFixture, 
             cmd.Transaction = waiter;
             cmd.CommandText =
                 $"SELECT outcome_code FROM {Db.Schema}.wait_job_signal({jobId}::bigint, 1, {JobStateStaging.StagedWorkerId}, "
-                + $"{(int)CheckpointKindCode.Signal}::smallint, 'go'::varchar, NULL::int, now() - interval '1 minute')";
+                + "20 /* CheckpointKindCode.Signal */::smallint, 'go'::varchar, NULL::int, now() - interval '1 minute')";
             Assert.Equal((short)WaitJobSignalOutcomeCode.TimedOut, Convert.ToInt16(await cmd.ExecuteScalarAsync(ct)));
         }
 

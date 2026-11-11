@@ -229,7 +229,7 @@ internal static partial class LedgerValidation
             SELECT d.definition_id, d.definition_name, d.rate_limit_effective, e.created_at_utc
             FROM   {prefix}events e
             JOIN   {prefix}definitions d ON d.definition_id = e.definition_id
-            WHERE  e.event_code = 90
+            WHERE  e.event_code = 90 /* EventCode.JobNoteRecorded */
               AND  e.event_message = 'metered-admitted'
               AND  d.rate_limit_effective IS NOT NULL
             ORDER  BY d.definition_id, e.created_at_utc

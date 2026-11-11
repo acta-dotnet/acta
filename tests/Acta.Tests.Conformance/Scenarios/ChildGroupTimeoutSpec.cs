@@ -506,7 +506,7 @@ public sealed class ChildGroupTimeoutSpec : ActaRuntimeTestBase<ConformanceFixtu
         {
             await Db.ExecuteRawAsync(
                 "UPDATE {schema}.checkpoints SET value = @p_value"
-                    + " WHERE job_id = @p_id AND checkpoint_kind_code = 10 AND checkpoint_name = @p_name",
+                    + " WHERE job_id = @p_id AND checkpoint_kind_code = 10 /* CheckpointKindCode.Variable */ AND checkpoint_name = @p_name",
                 ct,
                 ("@p_value", Encoding.UTF8.GetBytes(deadlineAtUtc.Ticks.ToString(CultureInfo.InvariantCulture))),
                 ("@p_id", parentId),
@@ -520,7 +520,7 @@ public sealed class ChildGroupTimeoutSpec : ActaRuntimeTestBase<ConformanceFixtu
         var past = DateTime.UtcNow.AddMinutes(-1);
         await Db.ExecuteRawAsync(
             "UPDATE {schema}.checkpoints SET due_at_utc = @p_due"
-                + " WHERE job_id = @p_id AND checkpoint_kind_code = 50 AND checkpoint_name = @p_name",
+                + " WHERE job_id = @p_id AND checkpoint_kind_code = 50 /* CheckpointKindCode.ChildLatch */ AND checkpoint_name = @p_name",
             ct,
             ("@p_due", past),
             ("@p_id", parentId),

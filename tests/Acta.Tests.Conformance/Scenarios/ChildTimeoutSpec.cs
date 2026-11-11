@@ -365,7 +365,7 @@ public sealed class ChildTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, T
         var past = DateTime.UtcNow.AddMinutes(-1);
         await db.ExecuteRawAsync(
             "UPDATE {schema}.checkpoints SET due_at_utc = @p_due"
-                + " WHERE job_id = @p_id AND checkpoint_kind_code = 50 AND checkpoint_name = @p_name",
+                + " WHERE job_id = @p_id AND checkpoint_kind_code = 50 /* CheckpointKindCode.ChildLatch */ AND checkpoint_name = @p_name",
             ct,
             ("@p_due", past),
             ("@p_id", parentId),
@@ -387,7 +387,7 @@ public sealed class ChildTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, T
         var past = DateTime.UtcNow.AddMinutes(-1);
         await db.ExecuteRawAsync(
             "UPDATE {schema}.checkpoints SET checkpoint_status_code = @p_status, due_at_utc = @p_due "
-                + "WHERE job_id = @p_id AND checkpoint_kind_code = 50 AND checkpoint_name = @p_name",
+                + "WHERE job_id = @p_id AND checkpoint_kind_code = 50 /* CheckpointKindCode.ChildLatch */ AND checkpoint_name = @p_name",
             ct,
             ("@p_status", (byte)CheckpointStatusCode.Expired),
             ("@p_due", past),

@@ -40,8 +40,8 @@ internal sealed class DurableReader(OwnedProvider provider)
     /// <summary>The predicates of the claim and in-flight partial indexes: ready or timed, and executing.</summary>
     private static readonly string[] IndexedLiveStates =
     [
-        "cs.job_status_code IN (10, 20) AND cs.next_run_at_utc IS NOT NULL",
-        "cs.job_status_code = 50 AND cs.leased_by_worker_id IS NOT NULL",
+        "cs.job_status_code IN (10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */) AND cs.next_run_at_utc IS NOT NULL",
+        "cs.job_status_code = 50 /* JobStatusCode.Executing */ AND cs.leased_by_worker_id IS NOT NULL",
     ];
 
     private string Table(string name) => provider.Provider == "sqlite" ? $"main.{name}" : $"{provider.Schema}.{name}";
@@ -90,9 +90,9 @@ internal sealed class DurableReader(OwnedProvider provider)
         var definitions = Table("definitions");
         var steps = Table("steps");
         command.CommandText = $"""
-            SELECT COUNT(*), COALESCE(SUM(CASE WHEN r.job_status_code = 100 THEN 1 ELSE 0 END), 0),
+            SELECT COUNT(*), COALESCE(SUM(CASE WHEN r.job_status_code = 100 /* JobStatusCode.Succeeded */ THEN 1 ELSE 0 END), 0),
                    (SELECT COUNT(*) FROM {steps} s JOIN {jobs} sj ON sj.job_id = s.job_id JOIN {definitions} sd ON sd.definition_id = sj.definition_id
-                    WHERE sj.job_id > @after AND sd.definition_name NOT LIKE 'sys.%' AND s.step_status_code = 100
+                    WHERE sj.job_id > @after AND sd.definition_name NOT LIKE 'sys.%' AND s.step_status_code = 100 /* StepStatusCode.Succeeded */
                       AND (s.step_name LIKE 'step-%' OR s.step_name = 'effect'))
             FROM {jobs} j JOIN {definitions} d ON d.definition_id = j.definition_id LEFT JOIN {states} r ON r.job_id = j.job_id
             WHERE j.job_id > @after AND j.parent_job_id IS NOT NULL AND d.definition_name NOT LIKE 'sys.%'
@@ -301,7 +301,7 @@ internal sealed class DurableReader(OwnedProvider provider)
         await using var connection = await provider.OpenAsync(ct);
         await using var command = connection.CreateCommand();
         command.CommandText =
-            $"SELECT COUNT(*), MIN(j.job_id) FROM {Table("jobs")} j JOIN {Table("jobs_state")} r ON r.job_id=j.job_id JOIN {Table("definitions")} d ON d.definition_id=j.definition_id WHERE j.job_id >= {Add(command, "@from", from)} AND j.parent_job_id IS NULL AND r.job_status_code NOT IN (100, 200, 220) AND d.definition_name NOT LIKE 'sys.%'";
+            $"SELECT COUNT(*), MIN(j.job_id) FROM {Table("jobs")} j JOIN {Table("jobs_state")} r ON r.job_id=j.job_id JOIN {Table("definitions")} d ON d.definition_id=j.definition_id WHERE j.job_id >= {Add(command, "@from", from)} AND j.parent_job_id IS NULL AND r.job_status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) AND d.definition_name NOT LIKE 'sys.%'";
         await using var reader = await command.ExecuteReaderAsync(ct);
         await reader.ReadAsync(ct);
         return (
@@ -339,7 +339,7 @@ internal sealed class DurableReader(OwnedProvider provider)
         command.CommandText = string.Join(
             " UNION ALL ",
             IndexedLiveStates.Select(state =>
-                $"SELECT r.job_id, r.deduplication_key, c.job_id FROM {Table("jobs_state")} cs JOIN {Table("jobs")} c ON c.job_id = cs.job_id JOIN {Table("jobs_state")} rs ON rs.job_id = c.lineage_root_job_id JOIN {Table("jobs")} r ON r.job_id = rs.job_id WHERE {state} AND cs.job_id > @after AND c.parent_job_id IS NOT NULL AND rs.job_status_code IN (100, 200, 220)"
+                $"SELECT r.job_id, r.deduplication_key, c.job_id FROM {Table("jobs_state")} cs JOIN {Table("jobs")} c ON c.job_id = cs.job_id JOIN {Table("jobs_state")} rs ON rs.job_id = c.lineage_root_job_id JOIN {Table("jobs")} r ON r.job_id = rs.job_id WHERE {state} AND cs.job_id > @after AND c.parent_job_id IS NOT NULL AND rs.job_status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)"
             )
         );
         List<(long, string, long)> found = [];
@@ -371,9 +371,9 @@ internal sealed class DurableReader(OwnedProvider provider)
         Add(command, "@last", last);
         command.CommandText = $"""
             SELECT (SELECT COUNT(*) FROM {Table("jobs_state")}
-                    WHERE job_status_code IN (10, 20) AND next_run_at_utc IS NOT NULL AND job_id BETWEEN @first AND @last)
+                    WHERE job_status_code IN (10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */) AND next_run_at_utc IS NOT NULL AND job_id BETWEEN @first AND @last)
                  + (SELECT COUNT(*) FROM {Table("jobs_state")}
-                    WHERE job_status_code = 50 AND leased_by_worker_id IS NOT NULL AND job_id BETWEEN @first AND @last)
+                    WHERE job_status_code = 50 /* JobStatusCode.Executing */ AND leased_by_worker_id IS NOT NULL AND job_id BETWEEN @first AND @last)
             """;
         return Convert.ToInt64(await command.ExecuteScalarAsync(ct), CultureInfo.InvariantCulture);
     }

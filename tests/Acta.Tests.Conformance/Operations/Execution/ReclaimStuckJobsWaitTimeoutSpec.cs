@@ -216,7 +216,7 @@ public sealed class ReclaimStuckJobsWaitTimeoutSpec : ActaRuntimeTestBase<Confor
         var past = DateTime.UtcNow.AddMinutes(-1);
         await db.ExecuteRawAsync(
             "UPDATE {schema}.checkpoints SET due_at_utc = @p_due"
-                + " WHERE job_id = @p_id AND checkpoint_kind_code = 20 AND checkpoint_name = @p_name",
+                + " WHERE job_id = @p_id AND checkpoint_kind_code = 20 /* CheckpointKindCode.Signal */ AND checkpoint_name = @p_name",
             ct,
             ("@p_due", past),
             ("@p_id", jobId),

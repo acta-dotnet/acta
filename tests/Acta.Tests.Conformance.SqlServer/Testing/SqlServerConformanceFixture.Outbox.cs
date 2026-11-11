@@ -188,7 +188,8 @@ public sealed partial class SqlServerConformanceFixture
         await using var c = new SqlConnection(Conn);
         await c.OpenAsync();
         await using var cmd = c.CreateCommand();
-        cmd.CommandText = $"UPDATE {Schema}.{table} SET next_attempt_at_utc = DATEADD(hour, -1, SYSUTCDATETIME()) WHERE status_code = 10;";
+        cmd.CommandText =
+            $"UPDATE {Schema}.{table} SET next_attempt_at_utc = DATEADD(hour, -1, SYSUTCDATETIME()) WHERE status_code = 10 /* OutboxStatusCode.Pending */;";
         await cmd.ExecuteNonQueryAsync();
     }
 

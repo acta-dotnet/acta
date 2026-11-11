@@ -195,7 +195,8 @@ public sealed partial class PgConformanceFixture
         await using var c = new NpgsqlConnection(Conn);
         await c.OpenAsync();
         await using var cmd = c.CreateCommand();
-        cmd.CommandText = $"UPDATE {Schema}.{table} SET next_attempt_at_utc = now() - INTERVAL '1 hour' WHERE status_code = 10;";
+        cmd.CommandText =
+            $"UPDATE {Schema}.{table} SET next_attempt_at_utc = now() - INTERVAL '1 hour' WHERE status_code = 10 /* OutboxStatusCode.Pending */;";
         await cmd.ExecuteNonQueryAsync();
     }
 
