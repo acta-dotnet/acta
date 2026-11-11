@@ -836,7 +836,7 @@ An ambient `TransactionScope` is rejected: Acta connections never enlist. Use on
 ### Relay behaviour
 
 - `sys.outbox` runs every five seconds, which is the pickup floor; change it through the `sys.outbox/default` schedule. A tick drains 1,000-row batches until the source runs dry or 30 seconds pass.
-- Due rows are claimed in staging order. A row staged with a `lane` waits while an older row of its lane is Pending or Claimed, so rows staged into a lane in sequence, in one transaction or in transactions that each commit before the next stages, reach the ledger in that order; a quarantined row leaves the lane.
+- Due rows are claimed in staging order. A row staged with a `lane` waits while an older row of its lane is Pending or Claimed, so rows staged into a lane in sequence, in one transaction or in transactions that each commit before the next stages, reach the ledger in that order; a quarantined row leaves the lane. A row staged without a `lane` has no staging order even when its definition declares a lane: that lane applies only when the relay enqueues the row, so a row rejected and retried later lands behind rows staged after it. Set `lane` on every staged row whose order matters.
 - Producer transactions open at the same time have no order between them. The relay sees a row only once its transaction commits, so a row whose transaction commits first can be relayed ahead of an older row of its lane whose transaction is still open. To keep one lane's producers in order, serialize them in the business transaction, for example by locking the row the lane stands for before staging. SQLite runs one writer at a time, so its producers always stage in sequence.
 - An open producer transaction never stops the relay, so a SQL Server business database needs no `READ_COMMITTED_SNAPSHOT`. The exception is a producer statement that locks a page or the whole table, such as a `TABLOCK` or `PAGLOCK` bulk load: it holds the relay until it commits.
 - A delivered row (inserted or deduplicated) is deleted from the outbox.
@@ -1085,8 +1085,8 @@ Assert.Equal(ActaRunStatus.Completed, await host.RunOnceAsync(job));
 
 A forced occurrence is admitted under the schedule's own misfire policy, a paused schedule stays
 paused, and a per-occurrence schedule admits a fresh root rather than a permanent job. A schedule bound to a
-calendar cannot be forced, since the admitter admits only the instants the calendar produces: give
-the host a clock and advance it to one of them, or fire the permanent job with `TriggerAsync`.
+calendar cannot be forced, since the admitter admits only the instants the calendar produces: fire
+the permanent job with `TriggerAsync`.
 
 ### Testing orchestration: signals
 

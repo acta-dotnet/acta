@@ -338,7 +338,7 @@ public sealed class ActaTestHostOptions
     /// </summary>
     public string? Schema { get; set; }
 
-    /// <summary>Extra DI registrations (fakes, a deterministic <c>IActaClock</c>, …) applied after <c>UseActa</c>.</summary>
+    /// <summary>Extra DI registrations (fakes and the handlers' own dependencies) applied after <c>UseActa</c>.</summary>
     public Action<IServiceCollection>? ConfigureServices { get; set; }
 }
 
