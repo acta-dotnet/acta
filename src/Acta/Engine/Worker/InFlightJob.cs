@@ -84,11 +84,13 @@ internal sealed class InFlightJob : IDisposable
     /// </summary>
     public void ArmLease(TimeSpan delay)
     {
+        bool spent;
         lock (_deadlineGate)
         {
             _executionDeadline = DeadlineAfter(delay);
-            ArmEarliest();
+            spent = ArmEarliest();
         }
+        CancelIf(spent);
     }
 
     /// <summary>
@@ -97,6 +99,7 @@ internal sealed class InFlightJob : IDisposable
     /// </summary>
     public void ConfirmLocks(IEnumerable<LockToken> renewed, TimeSpan delay)
     {
+        bool spent;
         lock (_deadlineGate)
         {
             var deadline = DeadlineAfter(delay);
@@ -107,14 +110,19 @@ internal sealed class InFlightJob : IDisposable
                     _heldLocks[token] = deadline;
                 }
             }
-            ArmEarliest();
+            spent = ArmEarliest();
         }
+        CancelIf(spent);
     }
 
     private static long DeadlineAfter(TimeSpan delay) => Stopwatch.GetTimestamp() + (long)(delay.TotalSeconds * Stopwatch.Frequency);
 
-    // Call under _deadlineGate.
-    private void ArmEarliest()
+    /// <summary>
+    /// Under <c>_deadlineGate</c>: records the earliest deadline and arms the lease source's timer for it, or answers
+    /// true when no runway is left, for the caller to cancel once out of the gate, since a cancel runs the attempt
+    /// token's callbacks on the calling thread.
+    /// </summary>
+    private bool ArmEarliest()
     {
         var deadline = _executionDeadline;
         foreach (var (_, lockDeadline) in _heldLocks)
@@ -124,15 +132,26 @@ internal sealed class InFlightJob : IDisposable
 
         Volatile.Write(ref _leaseDeadline, deadline);
         var delay = Stopwatch.GetElapsedTime(Stopwatch.GetTimestamp(), deadline);
+        if (delay <= TimeSpan.Zero)
+        {
+            return true;
+        }
+
         try
         {
-            if (delay <= TimeSpan.Zero)
+            _lease?.CancelAfter(delay);
+        }
+        catch (ObjectDisposedException) { }
+        return false;
+    }
+
+    private void CancelIf(bool spent)
+    {
+        try
+        {
+            if (spent)
             {
                 _lease?.Cancel();
-            }
-            else
-            {
-                _lease?.CancelAfter(delay);
             }
         }
         catch (ObjectDisposedException) { }
@@ -155,11 +174,13 @@ internal sealed class InFlightJob : IDisposable
     /// </summary>
     public void TrackLock(LockToken token, TimeSpan? runway)
     {
+        bool spent;
         lock (_deadlineGate)
         {
             _heldLocks[token] = runway is { } left ? DeadlineAfter(left) : long.MaxValue;
-            ArmEarliest();
+            spent = ArmEarliest();
         }
+        CancelIf(spent);
     }
 
     /// <summary>
@@ -168,13 +189,15 @@ internal sealed class InFlightJob : IDisposable
     /// </summary>
     public void UntrackLock(LockToken token)
     {
+        var spent = false;
         lock (_deadlineGate)
         {
             if (_heldLocks.TryRemove(token, out _))
             {
-                ArmEarliest();
+                spent = ArmEarliest();
             }
         }
+        CancelIf(spent);
     }
 
     /// <summary>
