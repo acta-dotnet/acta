@@ -93,7 +93,7 @@ internal sealed class FakeOutbox : IOutbox
     private static readonly ListOutboxSourcesItem Billing = new(
         "billing",
         new JobRef(Guid.Parse("00000000-0000-0000-0000-000000000044")),
-        "claimed=2 relayed=2 dedup=0 backlog=5 quarantine=1",
+        new DateTime(2026, 1, 2, 3, 4, 5, DateTimeKind.Utc),
         5,
         1,
         IsLocal: true

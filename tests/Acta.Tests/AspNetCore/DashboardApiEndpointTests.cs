@@ -483,7 +483,7 @@ public sealed class DashboardApiEndpointTests
         var body = await client.GetStringAsync("/acta/api/v1/outbox/sources", TestContext.Current.CancellationToken);
 
         Assert.Contains("\"jobNamespace\":\"billing\"", body);
-        Assert.Contains("claimed=2", body);
+        Assert.Contains("\"lastTickAtUtc\":\"2026-01-02T03:04:05Z\"", body);
         Assert.Contains("\"backlog\":5", body);
         Assert.Contains("\"quarantineTotal\":1", body);
         Assert.Contains("\"isLocal\":true", body);

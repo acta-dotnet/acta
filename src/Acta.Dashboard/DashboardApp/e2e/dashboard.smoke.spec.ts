@@ -179,7 +179,7 @@ async function mockDashboard(
       const source = {
         jobNamespace: 'billing',
         jobRef,
-        lastTickSummary: 'claimed=0 relayed=0 dedup=0 backlog=0 quarantine=3',
+        lastTickAtUtc: new Date(Date.now() - 42_000).toISOString(),
         backlog: 0,
         quarantineTotal: 3,
         isLocal: true
@@ -678,6 +678,8 @@ test('the outbox panel keeps its actions inside the panel, and a discard says al
 
   const panel = page.locator('.panel').filter({ has: page.getByRole('heading', { name: 'Outbox relays' }) });
   const discard = panel.getByRole('button', { name: 'Discard', exact: true });
+  // The last tick reads as an age, as every other instant on the page does.
+  await expect(panel.locator('td.tick')).toContainText('ago');
   // Narrow, the table sizes itself; wide, the Overview's shared column grid applies to the other panels.
   for (const width of [1280, 1800]) {
     await page.setViewportSize({ width, height: 720 });

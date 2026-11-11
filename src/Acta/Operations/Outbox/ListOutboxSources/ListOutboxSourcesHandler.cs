@@ -54,17 +54,18 @@ internal sealed class ListOutboxSourcesHandler(
 
         // The tick summary is a variable, and variables sort first: the relay slot's first page always holds it.
         var checkpoints = await jobs.ListCheckpointsAsync(new ListJobCheckpointsQuery(JobLookup.ById(slot.JobId)), ct);
-        var status = checkpoints.Items.FirstOrDefault(c =>
+        var written = checkpoints.Items.FirstOrDefault(c =>
             c.Kind == CheckpointKindCode.Variable && string.Equals(c.Name, OutboxTickSummary.VariableName, StringComparison.Ordinal)
-        )
-            is { Value: { } value }
+        );
+        var status = written is { Value: { } value }
             ? JsonSerializer.Deserialize(value.Data.Span, OutboxTickSummaryJsonContext.Default.OutboxTickSummary)
             : null;
 
+        // Only a successful pass writes the variable, so its last write is that pass's end.
         return new ListOutboxSourcesItem(
             jobNamespace,
             slot.JobRef,
-            status?.ToString(),
+            status is null ? null : written!.ModifiedAtUtc,
             status?.Backlog,
             status?.QuarantineTotal,
             registry?.HasRelay(jobNamespace) == true

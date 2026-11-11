@@ -11552,7 +11552,7 @@
                         {
                           "jobNamespace": "billing",
                           "jobRef": "job_00000000000000000000000000000044",
-                          "lastTickSummary": "claimed=2 relayed=2 dedup=0 backlog=5 quarantine=1",
+                          "lastTickAtUtc": "2026-01-02T03:04:05Z",
                           "backlog": 5,
                           "quarantineTotal": 1,
                           "isLocal": true
@@ -19407,7 +19407,7 @@
         "required": [
           "jobNamespace",
           "jobRef",
-          "lastTickSummary",
+          "lastTickAtUtc",
           "backlog",
           "quarantineTotal",
           "isLocal"
@@ -19422,12 +19422,13 @@
             "description": "The ref of the permanent job that runs the namespace's outbox relay.",
             "$ref": "#/components/schemas/JobRef"
           },
-          "lastTickSummary": {
+          "lastTickAtUtc": {
             "type": [
               "null",
               "string"
             ],
-            "description": "A summary of the relay's last pass; null until its first successful pass."
+            "description": "When the relay last finished a successful pass, in UTC; null until its first.",
+            "format": "date-time"
           },
           "backlog": {
             "type": [

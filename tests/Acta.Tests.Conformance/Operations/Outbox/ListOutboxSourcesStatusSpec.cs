@@ -1,10 +1,11 @@
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
+using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace Acta.Tests.Conformance.Operations.Outbox;
 
-/// <summary>Conformance for the source line's counters: they come from the slot's status variable, which only a successful tick writes.</summary>
+/// <summary>Conformance for the source line's counters and its last tick instant: they come from the slot's status variable, which only a successful tick writes.</summary>
 [ConformanceSpec(
     "outbox-operator.sources-status",
     "Outbox source counters come from the last successful tick",
@@ -19,12 +20,14 @@ public sealed class ListOutboxSourcesStatusSpec : OutboxRelayHostBase
         var ct = TestContext.Current.CancellationToken;
         await SeedQuarantinedAsync(Unique("status-q"));
 
+        var clock = Services.GetRequiredService<IActaClock>();
+        var before = await clock.GetUtcNowAsync(ct);
         var slotId = await RunRelayPassAsync(ct);
 
         var settled = Assert.Single((await Outbox.ListSourcesAsync(new ListOutboxSourcesQuery(JobNamespace: TestNamespace), ct)).Items);
         Assert.Equal(0, settled.Backlog);
         Assert.Equal(1, settled.QuarantineTotal);
-        Assert.Equal("claimed=0 relayed=0 dedup=0 backlog=0 quarantine=1", settled.LastTickSummary);
+        Assert.InRange(settled.LastTickAtUtc!.Value, before.AddSeconds(-1), (await clock.GetUtcNowAsync(ct)).AddSeconds(1));
         Assert.True(settled.IsLocal);
 
         // A reserved input format quarantines on contact, and a quarantine fails the tick.

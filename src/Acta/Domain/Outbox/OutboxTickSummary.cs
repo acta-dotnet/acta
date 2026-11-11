@@ -17,9 +17,4 @@ internal sealed record OutboxTickSummary(
 )
 {
     public const string VariableName = "outbox-status";
-
-    public override string ToString() =>
-        $"claimed={Claimed} relayed={Relayed} dedup={Deduplicated} backlog={Backlog} quarantine={QuarantineTotal}"
-        + (Requeued > 0 ? $" requeued={Requeued}" : "")
-        + (Discarded > 0 ? $" discarded={Discarded}" : "");
 }

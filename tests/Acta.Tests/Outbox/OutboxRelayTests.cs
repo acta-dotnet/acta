@@ -79,7 +79,6 @@ public sealed class OutboxRelayTests
         Assert.Equal([early.OutboxId, late.OutboxId], store.Deleted.ToHashSet());
         // Two rows claimed, one job inserted, one coalesced member absorbed as a dedup.
         Assert.Equal(new OutboxTickSummary(2, 1, 1, 0, 0), summary);
-        Assert.Equal("claimed=2 relayed=1 dedup=1 backlog=0 quarantine=0", summary.ToString());
     }
 
     [Theory]

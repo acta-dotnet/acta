@@ -1977,13 +1977,13 @@ sealed record Acta.ListNamespacesResponse : Acta.IPagedResponse<Acta.ListNamespa
     System.Nullable<System.Int64> TotalCount { get;init; }
     System.String NextCursor { get;init; }
 sealed record Acta.ListOutboxSourcesItem
-    .ctor(System.String JobNamespace, Acta.JobRef JobRef, System.String LastTickSummary, System.Nullable<System.Int64> Backlog, System.Nullable<System.Int64> QuarantineTotal, System.Boolean IsLocal)
+    .ctor(System.String JobNamespace, Acta.JobRef JobRef, System.Nullable<System.DateTime> LastTickAtUtc, System.Nullable<System.Int64> Backlog, System.Nullable<System.Int64> QuarantineTotal, System.Boolean IsLocal)
     Acta.JobRef JobRef { get;init; }
     System.Boolean IsLocal { get;init; }
+    System.Nullable<System.DateTime> LastTickAtUtc { get;init; }
     System.Nullable<System.Int64> Backlog { get;init; }
     System.Nullable<System.Int64> QuarantineTotal { get;init; }
     System.String JobNamespace { get;init; }
-    System.String LastTickSummary { get;init; }
 sealed record Acta.ListOutboxSourcesQuery
     .ctor(System.String JobNamespace = null, System.Nullable<System.Int32> PageSize = null, System.String Cursor = null)
     System.Nullable<System.Int32> PageSize { get;init; }

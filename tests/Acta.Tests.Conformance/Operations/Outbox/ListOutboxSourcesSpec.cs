@@ -73,7 +73,7 @@ public sealed class ListOutboxSourcesSpec : OutboxRelayIntegrationBase
 
         // No successful tick has persisted a summary, so the counters read unknown rather than zero,
         // and this host registered no relay, so the source is not locally readable.
-        Assert.Null(item.LastTickSummary);
+        Assert.Null(item.LastTickAtUtc);
         Assert.Null(item.Backlog);
         Assert.Null(item.QuarantineTotal);
         Assert.False(item.IsLocal);

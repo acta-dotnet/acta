@@ -6,13 +6,14 @@
   import { outboxControlMessage } from '../lib/controlMessages.ts';
   import ConfirmAction from './ConfirmAction.svelte';
   import DataTable from './DataTable.svelte';
+  import RelativeTime from './RelativeTime.svelte';
 
-  // One relay source line from outbox/sources: the sys.outbox slot's parsed tick accounting.
-  // backlog/quarantineTotal are null before the slot's first successful tick, never zero-faked.
+  // One relay source line from outbox/sources: what the sys.outbox slot's last successful tick left.
+  // backlog, quarantineTotal and lastTickAtUtc are null before that first tick, never zero-faked.
   interface OutboxSourceView {
     jobNamespace: string;
     jobRef: string;
-    lastTickSummary: string | null;
+    lastTickAtUtc: string | null;
     backlog: number | null;
     quarantineTotal: number | null;
     isLocal: boolean;
@@ -93,7 +94,7 @@
           <td>{source.jobNamespace}</td>
           <td>{source.backlog === null ? '-' : displayFormatter.number(source.backlog)}</td>
           <td>{source.quarantineTotal === null ? '-' : displayFormatter.number(source.quarantineTotal)}</td>
-          <td class="mono tick" title={source.lastTickSummary ?? undefined}>{source.lastTickSummary ?? 'no successful tick yet'}</td>
+          <td class="tick">{#if source.lastTickAtUtc}<RelativeTime value={source.lastTickAtUtc} />{:else}<span class="dim">no successful tick yet</span>{/if}</td>
           {#if canActNow}
             <td class="actions-col">
               <!-- Both verbs target every quarantined row of the source (the API also takes explicit
@@ -147,16 +148,9 @@
 {/if}
 
 <style>
-  /* The one column that gives way: it takes what the others leave and truncates, so the Actions column stays inside
-     the panel at any width. max-width: 0 is what lets a nowrap cell shrink in a table that sizes itself. */
+  /* The one column that takes what the others leave, so the Actions column sits at the panel's edge at any width. */
   .tick {
-    font-size: var(--text-sm);
-    color: var(--muted);
     width: 100%;
-    max-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
   }
   .actions-col {
     text-align: right;
