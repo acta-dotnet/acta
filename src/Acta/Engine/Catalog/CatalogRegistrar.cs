@@ -119,6 +119,7 @@ internal sealed class CatalogRegistrar(
         ValidateUniqueJobNames(allDescriptors);
         ValidateScheduleTimeZones(allDescriptors);
         ValidateScheduleBounds(allDescriptors);
+        ValidateScheduleDeclarations(allDescriptors);
         ValidateTenantRequirements(allDescriptors);
         ValidateDeadlineRequirements(allDescriptors);
         foreach (var descriptor in allDescriptors)
@@ -185,11 +186,12 @@ internal sealed class CatalogRegistrar(
 
     /// <summary>
     /// Fail fast on an unresolvable schedule timezone before any catalog write. A bad identifier
-    /// would otherwise surface deep in the claim and fire path. This applies to cron schedules
-    /// only; interval schedules ignore zones by design. Operator overrides applied through SQL
+    /// would otherwise surface deep in the claim and fire path. This applies to every schedule that
+    /// reads its zone: a cron, and any schedule held to an availability calendar's windows. An
+    /// interval on its own ignores zones by design. Operator overrides applied through SQL
     /// templates remain the operator's responsibility.
     /// </summary>
-    private static void ValidateScheduleTimeZones(ImmutableArray<JobDescriptor> descriptors)
+    internal static void ValidateScheduleTimeZones(ImmutableArray<JobDescriptor> descriptors)
     {
         foreach (var descriptor in descriptors)
         {
@@ -200,7 +202,8 @@ internal sealed class CatalogRegistrar(
 
             foreach (var schedule in descriptor.Schedules)
             {
-                if (schedule.ExpressionKind != ScheduleExpressionKindCode.Cron || string.IsNullOrWhiteSpace(schedule.TimeZoneId))
+                var readsZone = schedule.ExpressionKind == ScheduleExpressionKindCode.Cron || schedule.AvailabilityCalendarName is not null;
+                if (!readsZone || string.IsNullOrWhiteSpace(schedule.TimeZoneId))
                 {
                     continue;
                 }
@@ -218,6 +221,62 @@ internal sealed class CatalogRegistrar(
                         ex
                     );
                 }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Fail fast on a schedule the engine could never run: a kind, strategy, full behavior, or expire action that is
+    /// no member of its family, which is stored as a code no admission pass lists, or an interval the parser refuses.
+    /// The generator writes none of these; this check is for a descriptor built by hand.
+    /// </summary>
+    internal static void ValidateScheduleDeclarations(ImmutableArray<JobDescriptor> descriptors)
+    {
+        foreach (var descriptor in descriptors)
+        {
+            if (descriptor.Schedules.IsDefaultOrEmpty)
+            {
+                continue;
+            }
+
+            foreach (var schedule in descriptor.Schedules)
+            {
+                RequireKnown(descriptor, schedule, nameof(ScheduleDescriptor.ExpressionKind), schedule.ExpressionKind);
+                RequireKnown(descriptor, schedule, nameof(ScheduleDescriptor.MisfireStrategy), schedule.MisfireStrategy);
+                RequireKnown(descriptor, schedule, nameof(ScheduleDescriptor.FullBehavior), schedule.FullBehavior);
+                // Without an expiry the action is not stored, so only a schedule that expires must name one.
+                if (schedule.ExpireAfterSeconds is not null)
+                {
+                    RequireKnown(descriptor, schedule, nameof(ScheduleDescriptor.ExpireAction), schedule.ExpireAction);
+                }
+
+                if (schedule.ExpressionKind == ScheduleExpressionKindCode.Interval)
+                {
+                    try
+                    {
+                        _ = NextOccurrenceCalculator.ParseInterval(schedule.Expression);
+                    }
+                    catch (Exception ex) when (ex is FormatException or ArgumentException or OverflowException)
+                    {
+                        throw new InvalidOperationException(
+                            $"Job '{descriptor.JobName}' schedule '{schedule.ScheduleName}' declares the interval "
+                                + $"'{schedule.Expression}', which does not parse: {ex.Message}",
+                            ex
+                        );
+                    }
+                }
+            }
+        }
+
+        static void RequireKnown<T>(JobDescriptor descriptor, ScheduleDescriptor schedule, string member, T code)
+            where T : struct, Enum
+        {
+            if (!Enum.IsDefined(code) || code.Equals(default(T)))
+            {
+                throw new InvalidOperationException(
+                    $"Job '{descriptor.JobName}' schedule '{schedule.ScheduleName}' declares {member} {code}, which is "
+                        + $"no {typeof(T).Name} a schedule can run under."
+                );
             }
         }
     }

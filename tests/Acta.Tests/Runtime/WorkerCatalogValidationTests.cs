@@ -131,6 +131,68 @@ public sealed class WorkerCatalogValidationTests
         CatalogRegistrar.ValidateDeadlineRequirements([oneShot, scheduled]);
     }
 
+    [Theory]
+    [InlineData("ExpressionKind")]
+    [InlineData("MisfireStrategy")]
+    [InlineData("FullBehavior")]
+    [InlineData("ExpireAction")]
+    public void A_hand_built_schedule_with_a_code_outside_its_family_fails_startup(string member)
+    {
+        // Each would be stored as a code no admission pass lists, so the schedule would never fire and nothing would say so.
+        var hourly = Hourly("year-end", "push");
+        var schedule = member switch
+        {
+            "ExpressionKind" => hourly with { ExpressionKind = ScheduleExpressionKindCode.Unspecified },
+            "MisfireStrategy" => hourly with { MisfireStrategy = (MisfireStrategyCode)250 },
+            "FullBehavior" => hourly with { FullBehavior = ScheduleFullBehaviorCode.Unspecified },
+            _ => hourly with { ExpireAfterSeconds = 3600, ExpireAction = ScheduleExpireActionCode.Unspecified },
+        };
+        var built = Descriptor("year-end", typeof(HandlerA)) with { Schedules = [schedule] };
+
+        var ex = Assert.Throws<InvalidOperationException>(() => CatalogRegistrar.ValidateScheduleDeclarations([built]));
+
+        Assert.Contains("'push'", ex.Message);
+        Assert.Contains(member, ex.Message);
+    }
+
+    [Fact]
+    public void A_hand_built_schedule_without_an_expiry_needs_no_expire_action()
+    {
+        var built = Descriptor("year-end", typeof(HandlerA)) with { Schedules = [Hourly("year-end", "push")] };
+
+        CatalogRegistrar.ValidateScheduleDeclarations([built]);
+    }
+
+    [Fact]
+    public void A_hand_built_interval_that_does_not_parse_fails_startup_naming_its_schedule()
+    {
+        var every = Hourly("year-end", "push") with { ExpressionKind = ScheduleExpressionKindCode.Interval, Expression = "P1M" };
+        var built = Descriptor("year-end", typeof(HandlerA)) with { Schedules = [every] };
+
+        var ex = Assert.Throws<InvalidOperationException>(() => CatalogRegistrar.ValidateScheduleDeclarations([built]));
+
+        Assert.Contains("'push'", ex.Message);
+        Assert.Contains("'P1M'", ex.Message);
+    }
+
+    [Fact]
+    public void A_hand_built_interval_under_an_availability_calendar_in_an_unknown_zone_fails_startup()
+    {
+        var every = Hourly("year-end", "push") with
+        {
+            ExpressionKind = ScheduleExpressionKindCode.Interval,
+            Expression = "PT5M",
+            TimeZoneId = "Nowhere/Unknown",
+            AvailabilityCalendarName = "office-hours",
+        };
+        var built = Descriptor("year-end", typeof(HandlerA)) with { Schedules = [every] };
+
+        var ex = Assert.Throws<InvalidOperationException>(() => CatalogRegistrar.ValidateScheduleTimeZones([built]));
+
+        Assert.Contains("'push'", ex.Message);
+        Assert.Contains("Nowhere/Unknown", ex.Message);
+    }
+
     [Fact]
     public void A_hand_built_schedule_bound_that_is_not_utc_fails_startup()
     {

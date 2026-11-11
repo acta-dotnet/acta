@@ -202,7 +202,7 @@ internal static class ScheduleEvaluator
                     ? NextOccurrenceCalculator.Next(source, next)
                     : NextOccurrenceCalculator.FirstAfter(source, source.Timing.IntervalAnchorAtUtc ?? Latest(), now);
         }
-        catch (Exception ex) when (ex is FormatException or ArgumentException or InvalidOperationException or TimeZoneNotFoundException)
+        catch (Exception ex) when (IsSourceFailure(ex))
         {
             return Unchanged(cursor, ScheduleEvaluationStatusCode.EvaluationError, now + ErrorRetryDelay, pauseEnded) with
             {
@@ -212,6 +212,10 @@ internal static class ScheduleEvaluator
 
         return Moved(following, pauseEnded, pausedByExpiry, admit, skippedFrom, skippedThrough, expiredFrom, expiredThrough);
     }
+
+    // What a schedule's own source throws when it cannot be read: an expression, a zone, or a calendar.
+    private static bool IsSourceFailure(Exception ex) =>
+        ex is FormatException or ArgumentException or InvalidOperationException or TimeZoneNotFoundException or InvalidTimeZoneException;
 
     private static ScheduleEvaluation Unchanged(
         ScheduleCursor cursor,
