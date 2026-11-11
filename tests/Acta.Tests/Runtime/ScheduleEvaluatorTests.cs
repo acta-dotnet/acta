@@ -480,6 +480,25 @@ public class ScheduleEvaluatorTests
     }
 
     [Fact]
+    public void A_parked_schedule_whose_expiry_only_discards_waits_for_the_slot()
+    {
+        // Waking for each occurrence would record one expiry per occurrence while the slot stays busy; the settlement
+        // decides the aged ones as one range instead.
+        var parked = Evaluate(
+            EveryMinute,
+            Active(Utc(10, 5)),
+            Utc(10, 6),
+            MisfireStrategyCode.Skip,
+            AdmissionCapacity.Full,
+            TimeSpan.FromMinutes(2),
+            ScheduleExpireActionCode.Discard
+        );
+
+        Assert.Equal(ScheduleEvaluationStatusCode.WaitingForCapacity, parked.Status);
+        Assert.Null(parked.NextEvaluationAtUtc);
+    }
+
+    [Fact]
     public void A_parked_schedule_whose_backlog_expired_under_Pause_pauses_without_waiting_for_the_slot()
     {
         var d = Evaluate(
