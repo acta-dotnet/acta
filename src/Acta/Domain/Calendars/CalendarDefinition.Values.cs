@@ -269,8 +269,17 @@ internal static partial class CalendarDefinition
         // A kind's members: its own, and the two every kind has.
         private void Known(JsonElement e, string path, params string[] names)
         {
-            Only(e, path, "this kind", [.. CommonProperties, .. names]);
-            if (Optional(e, "description") is { } d && (d.ValueKind != JsonValueKind.String || d.GetString()!.Length > 512))
+            // The root alone may name the schema its file is written against.
+            Only(e, path, "this kind", path == "$" ? [.. CommonProperties, SchemaProperty, .. names] : [.. CommonProperties, .. names]);
+            if (path == "$" && Optional(e, SchemaProperty) is { ValueKind: not JsonValueKind.String })
+            {
+                Problem($"{path}.{SchemaProperty}", "a string naming the schema this file is written against.");
+            }
+
+            if (
+                Optional(e, "description") is { } d
+                && (d.ValueKind != JsonValueKind.String || d.GetString()!.EnumerateRunes().Count() > 512)
+            )
             {
                 Problem($"{path}.description", "a string of at most 512 characters.");
             }

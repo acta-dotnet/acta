@@ -81,17 +81,31 @@ internal static partial class CalendarDefinition
         }
     }
 
-    /// <summary>The definition without insignificant whitespace, the one form the content hash is taken over.</summary>
+    /// <summary>
+    /// The definition without insignificant whitespace and without the root's <c>$schema</c>, the one form the content
+    /// hash is taken over: the schema a file names is an editor's aid and no part of the calendar.
+    /// </summary>
     private static byte[] Canonical(JsonElement root)
     {
         var buffer = new MemoryStream();
         using (var writer = new Utf8JsonWriter(buffer, new JsonWriterOptions { Indented = false, SkipValidation = true }))
         {
-            root.WriteTo(writer);
+            writer.WriteStartObject();
+            foreach (var member in root.EnumerateObject())
+            {
+                if (!member.NameEquals(SchemaProperty))
+                {
+                    member.WriteTo(writer);
+                }
+            }
+
+            writer.WriteEndObject();
         }
 
         return buffer.ToArray();
     }
+
+    private const string SchemaProperty = "$schema";
 
     /// <summary>Walks one definition, collecting every problem with its path, and builds the calendars of the kinds it finds.</summary>
     private sealed partial class DefinitionReader
@@ -345,9 +359,20 @@ internal static partial class CalendarDefinition
             var nth = 1;
             if (Optional(e, "nth") is { } n)
             {
-                if (n.ValueKind != JsonValueKind.Number || !n.TryGetInt32(out nth) || nth < 1 || nth > 31)
+                // A whole number however JSON spells it, 2 and 2.0 alike, as a schema's integer is.
+                if (
+                    n.ValueKind != JsonValueKind.Number
+                    || !n.TryGetDouble(out var whole)
+                    || whole < 1
+                    || whole > 31
+                    || whole != Math.Floor(whole)
+                )
                 {
                     Problem($"{path}.nth", "nth is a whole number from 1 to 31.");
+                }
+                else
+                {
+                    nth = (int)whole;
                 }
             }
 

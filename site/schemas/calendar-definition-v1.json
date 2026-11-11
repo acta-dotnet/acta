@@ -1,0 +1,253 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://useacta.net/schemas/calendar-definition-v1.json",
+  "title": "Acta calendar definition, version 1",
+  "description": "A calendar's definition as Acta's catalog takes it: a JSON object whose kind names its shape. An availability family takes weekly-availability, union, intersection, or subtraction; an occurrence family takes explicit-instants, daily-local-time, business-day, at-opening, or union. This schema checks a definition's shape. The rules that need more than shape are the compiler's, and the API answers them by path: a window ends after it starts, a range's end is not before its start, a date exists, a zone is one the host knows, and a definition holds at most 64 KB, 8 levels of JSON, and 5000 list items.",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "The schema this file is written against, for an editor. Taken at the root only, and not stored with the calendar."
+    }
+  },
+  "anyOf": [{ "$ref": "#/$defs/occurrenceKinds" }, { "$ref": "#/$defs/availabilityKinds" }],
+  "unevaluatedProperties": false,
+  "$defs": {
+    "occurrence": {
+      "description": "An occurrence source written inline: the instants a schedule fires at.",
+      "$ref": "#/$defs/occurrenceKinds",
+      "unevaluatedProperties": false
+    },
+    "availability": {
+      "description": "An availability calendar written inline: the windows during which firing is allowed.",
+      "$ref": "#/$defs/availabilityKinds",
+      "unevaluatedProperties": false
+    },
+    "occurrenceKinds": {
+      "type": "object",
+      "required": ["kind"],
+      "oneOf": [
+        { "$ref": "#/$defs/explicitInstants" },
+        { "$ref": "#/$defs/dailyLocalTime" },
+        { "$ref": "#/$defs/businessDay" },
+        { "$ref": "#/$defs/atOpening" },
+        { "$ref": "#/$defs/occurrenceUnion" }
+      ]
+    },
+    "availabilityKinds": {
+      "type": "object",
+      "required": ["kind"],
+      "oneOf": [
+        { "$ref": "#/$defs/weeklyAvailability" },
+        { "$ref": "#/$defs/availabilityUnion" },
+        { "$ref": "#/$defs/intersection" },
+        { "$ref": "#/$defs/subtraction" }
+      ]
+    },
+    "explicitInstants": {
+      "description": "A fixed list of instants; exhausted after the last.",
+      "required": ["kind", "instants"],
+      "properties": {
+        "kind": { "const": "explicit-instants" },
+        "description": { "$ref": "#/$defs/note" },
+        "timeZone": { "$ref": "#/$defs/timeZone" },
+        "instants": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/instant" },
+          "description": "The instants to fire at, each a UTC instant or a local date-time read in the zone."
+        }
+      }
+    },
+    "dailyLocalTime": {
+      "description": "The listed local times on the listed weekdays, minus the excluded dates.",
+      "required": ["kind", "times"],
+      "properties": {
+        "kind": { "const": "daily-local-time" },
+        "description": { "$ref": "#/$defs/note" },
+        "timeZone": { "$ref": "#/$defs/timeZone" },
+        "times": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/time" },
+          "description": "The local times to fire at on each listed day."
+        },
+        "days": { "$ref": "#/$defs/weekdays", "description": "The weekdays to fire on; every day when left out." },
+        "excludedDates": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/date" },
+          "description": "The dates to skip."
+        }
+      }
+    },
+    "businessDay": {
+      "description": "The nth first or last business day of each week, month, quarter, or year, at a local time.",
+      "required": ["kind", "select", "period", "time"],
+      "properties": {
+        "kind": { "const": "business-day" },
+        "description": { "$ref": "#/$defs/note" },
+        "timeZone": { "$ref": "#/$defs/timeZone" },
+        "select": { "enum": ["first", "last"], "description": "Which end of the period to count from." },
+        "period": { "enum": ["week", "month", "quarter", "year"], "description": "The period to count in; a week starts on Monday." },
+        "nth": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 31,
+          "description": "Which business day, counted from the end that select names; 1 when left out. A period with fewer has no occurrence."
+        },
+        "businessDays": { "$ref": "#/$defs/weekdays", "description": "The weekdays that count as business days; Monday to Friday when left out." },
+        "holidays": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/date" },
+          "description": "The dates that count as no business days."
+        },
+        "time": { "$ref": "#/$defs/time", "description": "The local time to fire at." }
+      }
+    },
+    "atOpening": {
+      "description": "An occurrence at the start of each window of an availability calendar.",
+      "required": ["kind", "availability"],
+      "properties": {
+        "kind": { "const": "at-opening" },
+        "description": { "$ref": "#/$defs/note" },
+        "availability": { "$ref": "#/$defs/availability" }
+      }
+    },
+    "occurrenceUnion": {
+      "description": "Fires whenever one of its sources does.",
+      "required": ["kind", "of"],
+      "properties": {
+        "kind": { "const": "union" },
+        "description": { "$ref": "#/$defs/note" },
+        "of": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/occurrence" }, "description": "The sources." }
+      }
+    },
+    "weeklyAvailability": {
+      "description": "Local windows by weekday, replaced on listed dates, with ranges cut out after everything else.",
+      "required": ["kind"],
+      "properties": {
+        "kind": { "const": "weekly-availability" },
+        "description": { "$ref": "#/$defs/note" },
+        "timeZone": { "$ref": "#/$defs/timeZone" },
+        "weekly": {
+          "type": "array",
+          "description": "The rules: the windows that are open on the listed weekdays.",
+          "items": {
+            "type": "object",
+            "required": ["days", "windows"],
+            "properties": {
+              "days": { "$ref": "#/$defs/weekdays" },
+              "windows": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/window" } }
+            },
+            "additionalProperties": false
+          }
+        },
+        "dateOverrides": {
+          "type": "object",
+          "description": "A date and the windows that replace its weekday's on that date; an empty list closes the date.",
+          "propertyNames": { "$ref": "#/$defs/date" },
+          "additionalProperties": { "type": "array", "items": { "$ref": "#/$defs/window" } }
+        },
+        "excludedRanges": {
+          "type": "array",
+          "description": "Ranges cut out of the windows: whole local dates, or UTC instants.",
+          "items": {
+            "type": "object",
+            "oneOf": [
+              {
+                "required": ["from", "to"],
+                "properties": { "from": { "$ref": "#/$defs/date" }, "to": { "$ref": "#/$defs/date" } },
+                "additionalProperties": false
+              },
+              {
+                "required": ["fromUtc", "toUtc"],
+                "properties": { "fromUtc": { "$ref": "#/$defs/utcInstant" }, "toUtc": { "$ref": "#/$defs/utcInstant" } },
+                "additionalProperties": false
+              }
+            ]
+          }
+        }
+      },
+      "anyOf": [
+        { "required": ["weekly"], "properties": { "weekly": { "minItems": 1 } } },
+        { "required": ["dateOverrides"], "properties": { "dateOverrides": { "minProperties": 1 } } }
+      ]
+    },
+    "availabilityUnion": {
+      "description": "Open while any operand is.",
+      "required": ["kind", "of"],
+      "properties": {
+        "kind": { "const": "union" },
+        "description": { "$ref": "#/$defs/note" },
+        "of": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/availability" }, "description": "The operands." }
+      }
+    },
+    "intersection": {
+      "description": "Open only while every operand is.",
+      "required": ["kind", "of"],
+      "properties": {
+        "kind": { "const": "intersection" },
+        "description": { "$ref": "#/$defs/note" },
+        "of": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/availability" }, "description": "The operands." }
+      }
+    },
+    "subtraction": {
+      "description": "Open while from is open and minus is not.",
+      "required": ["kind", "from", "minus"],
+      "properties": {
+        "kind": { "const": "subtraction" },
+        "description": { "$ref": "#/$defs/note" },
+        "from": { "$ref": "#/$defs/availability" },
+        "minus": { "$ref": "#/$defs/availability" }
+      }
+    },
+    "note": {
+      "type": "string",
+      "maxLength": 512,
+      "description": "A note for operators; it changes nothing the calendar computes."
+    },
+    "timeZone": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The zone local times are read in: an IANA or Windows zone id, or \"schedule\" for the zone of the schedule that uses the calendar, which is also what leaving it out means."
+    },
+    "time": {
+      "type": "string",
+      "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$",
+      "description": "A local time, HH:mm or HH:mm:ss."
+    },
+    "window": {
+      "type": "array",
+      "description": "A local window as a pair, [\"09:00\", \"17:00\"]. It ends at \"24:00\" for the end of the day, and one whose end is not after its start ends on the next date.",
+      "prefixItems": [{ "$ref": "#/$defs/time" }, { "anyOf": [{ "$ref": "#/$defs/time" }, { "const": "24:00" }] }],
+      "items": false,
+      "minItems": 2
+    },
+    "date": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$",
+      "description": "A date, yyyy-MM-dd."
+    },
+    "weekday": {
+      "type": "string",
+      "anyOf": [
+        { "enum": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"] },
+        {
+          "pattern": "^([Mm][Oo][Nn]|[Tt][Uu][Ee][Ss]|[Ww][Ee][Dd][Nn][Ee][Ss]|[Tt][Hh][Uu][Rr][Ss]|[Ff][Rr][Ii]|[Ss][Aa][Tt][Uu][Rr]|[Ss][Uu][Nn])[Dd][Aa][Yy]$"
+        }
+      ],
+      "description": "A weekday by its English name, case ignored."
+    },
+    "weekdays": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/weekday" } },
+    "instant": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2}(Z|[+-][0-9]{2}:[0-9]{2})?)?$",
+      "description": "A UTC instant with a Z or an offset, 2027-01-15T16:00:00Z, or a local date-time read in the zone, 2027-01-15T16:00."
+    },
+    "utcInstant": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$",
+      "description": "A UTC instant with its Z, yyyy-MM-ddTHH:mm:ssZ."
+    }
+  }
+}

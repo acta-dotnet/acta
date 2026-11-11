@@ -173,7 +173,9 @@ public sealed class CalendarDefinitionTests
         var lastOfMonth = Occurrence(
             """{"kind":"business-day","timeZone":"UTC","select":"last","period":"month","holidays":["2027-01-29"],"time":"16:00"}"""
         );
-        var secondOfWeek = Occurrence("""{"kind":"business-day","timeZone":"UTC","select":"first","period":"week","nth":2,"time":"09:00"}""");
+        var secondOfWeek = Occurrence(
+            """{"kind":"business-day","timeZone":"UTC","select":"first","period":"week","nth":2,"time":"09:00"}"""
+        );
 
         // January 2027 ends on a Sunday; the 29th is a holiday, so the last business day is Thursday the 28th.
         Assert.Equal(Utc(1, 28, 16), NextAfter(lastOfMonth, Utc(1, 1, 0)));
@@ -210,6 +212,34 @@ public sealed class CalendarDefinitionTests
         Assert.Equal(a.ContentHash, b.ContentHash);
         Assert.Equal("weekly-availability", a.Kind);
         Assert.DoesNotContain((byte)'\n', a.CanonicalJson.ToArray());
+    }
+
+    // A file may name the schema it is written against, for an editor. It is no part of the definition: the stored form
+    // and the hash are those of the same definition without it, so adding it makes no new version.
+    [Fact]
+    public void A_root_schema_member_is_read_and_left_out_of_the_stored_definition()
+    {
+        var plain = CalendarDefinition.Compile(CalendarRoleCode.Availability, OfficeHours);
+        var bound = CalendarDefinition.Compile(
+            CalendarRoleCode.Availability,
+            OfficeHours.Insert(OfficeHours.IndexOf('{') + 1, """ "$schema": "https://useacta.net/schemas/calendar-definition-v1.json", """)
+        );
+
+        Assert.Equal(plain.ContentHash, bound.ContentHash);
+        Assert.Equal(plain.CanonicalJson.ToArray(), bound.CanonicalJson.ToArray());
+    }
+
+    [Theory]
+    [InlineData("""{"$schema":5,"kind":"daily-local-time","times":["09:00"]}""", "$.$schema: a string")]
+    [InlineData(
+        """{"kind":"union","of":[{"$schema":"x","kind":"daily-local-time","times":["09:00"]}]}""",
+        "$.of[0].$schema: not a property of this kind."
+    )]
+    public void A_schema_member_is_a_string_and_only_the_root_takes_one(string json, string problem)
+    {
+        var ex = Assert.Throws<CalendarDefinitionException>(() => CalendarDefinition.Compile(CalendarRoleCode.Occurrence, json));
+
+        Assert.Contains(ex.Problems, p => p.StartsWith(problem, StringComparison.Ordinal));
     }
 
     // A weekday is one English name. An enum parse also took a number, a padded name, and a comma-separated list, and
