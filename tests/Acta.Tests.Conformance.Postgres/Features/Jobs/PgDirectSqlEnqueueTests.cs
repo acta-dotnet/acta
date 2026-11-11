@@ -141,17 +141,20 @@ public sealed class PgDirectSqlEnqueueTests : ActaRuntimeTestBase<PgConformanceF
         Assert.Contains((await Operations.Ledger.ListJobsAsync(filter, ct)).Items, j => j.JobId == jobId);
     }
 
-    [Theory(DisplayName = "An empty key is refused, since every later enqueue would share it")]
-    [InlineData("p_deduplication_key")]
-    [InlineData("p_correlation_key")]
-    [InlineData("p_concurrency_key")]
-    public async Task An_empty_key_is_refused(string parameter)
+    [Theory(DisplayName = "A key that is empty or only spaces is refused, since every later enqueue would share it")]
+    [InlineData("p_deduplication_key", "")]
+    [InlineData("p_correlation_key", "")]
+    [InlineData("p_concurrency_key", "")]
+    [InlineData("p_deduplication_key", "  ")]
+    [InlineData("p_correlation_key", "  ")]
+    [InlineData("p_concurrency_key", "  ")]
+    public async Task A_blank_key_is_refused(string parameter, string key)
     {
         var ct = TestContext.Current.CancellationToken;
 
-        var refused = await Assert.ThrowsAsync<Npgsql.PostgresException>(() => EnqueueAsync($"{parameter} => ''", ct));
+        var refused = await Assert.ThrowsAsync<Npgsql.PostgresException>(() => EnqueueAsync($"{parameter} => '{key}'", ct));
 
-        Assert.Contains("a key is empty", refused.MessageText, StringComparison.Ordinal);
+        Assert.Contains("a key is blank", refused.MessageText, StringComparison.Ordinal);
     }
 
     [Fact(DisplayName = "p_parent_job_id, p_tenant_name and p_tenant_override place a child under its parent and tenant")]

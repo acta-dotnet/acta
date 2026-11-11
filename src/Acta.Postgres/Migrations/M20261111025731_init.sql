@@ -1702,9 +1702,10 @@ BEGIN
             USING ERRCODE = 'P0001';
     END IF;
 
-    -- An empty key is a key: every later enqueue with it would deduplicate onto the first job, or share its slot.
-    IF p_deduplication_key = '' OR p_correlation_key = '' OR p_concurrency_key = '' THEN
-        RAISE EXCEPTION 'Enqueue rejected: a key is empty. Pass NULL for no key.'
+    -- A blank key is a key: every later enqueue with it would deduplicate onto the first job, or share its slot.
+    -- Spaces are trimmed because SQL Server compares strings padded, so both servers refuse the same keys.
+    IF btrim(p_deduplication_key, ' ') = '' OR btrim(p_correlation_key, ' ') = '' OR btrim(p_concurrency_key, ' ') = '' THEN
+        RAISE EXCEPTION 'Enqueue rejected: a key is blank. Pass NULL for no key.'
             USING ERRCODE = 'P0001';
     END IF;
 
@@ -4371,5 +4372,5 @@ JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261111025445_init')
+VALUES ('M20261111025731_init')
 ON CONFLICT (name) DO NOTHING;
