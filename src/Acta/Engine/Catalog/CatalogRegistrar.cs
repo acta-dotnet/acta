@@ -520,6 +520,13 @@ internal sealed class CatalogRegistrar(
             );
         }
 
+        // No declared job has a schedule here or a stored one: every statement of the registration is keyed on the
+        // definitions it is given, so with none it would write nothing.
+        if (definitions.Count == 0)
+        {
+            return;
+        }
+
         // A C#-allocated public ref per slot, consumed only when the slot job row is freshly
         // inserted; an existing slot keeps its stored ref (the upsert never overwrites job_ref).
         var slotRefs = new Guid[definitions.Count];
