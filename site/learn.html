@@ -36,13 +36,13 @@
   <script src="assets/theme.js"></script>
   <style>
     /* ---- long-form article ---- */
-    /* The same frame as every other page (.wrap): code, figures, and screenshots take the full column,
-       while prose keeps a readable measure. */
-    .article { max-width: 1560px; margin: 0 auto; padding: 0 clamp(20px, 4vw, 64px) 2rem; }
+    /* The same frame as every other page (.wrap), so the title and every section share one left edge: code,
+       figures, and screenshots take the full column, while prose keeps a readable measure. */
+    .article { max-width: 1328px; margin: 0 auto; padding: 0 var(--page-gutter) 2rem; }
     .article p, .article ul.plain { max-width: 50rem; }
     .byline { font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--faint); margin: 1.1rem 0 0; }
 
-    .contents { margin: 2.4rem 0 1rem; padding: 1.2rem 1.4rem; background: var(--panel); border: 1px solid var(--hair); border-radius: var(--r-panel); }
+    .contents { max-width: 50rem; margin: 2.4rem 0 1rem; padding: 1.2rem 1.4rem; background: var(--panel); border: 1px solid var(--hair); border-radius: var(--r-panel); }
     .article .contents h2 { font-family: var(--mono); line-height: 1.4; font-size: 0.72rem; font-weight: 400; letter-spacing: 0.18em; text-transform: uppercase; color: var(--faint); margin: 0 0 0.8rem; }
     .contents ol { margin: 0; padding-left: 1.4rem; columns: 2; column-gap: 2.2rem; font-size: 0.95rem; }
     .contents li { margin: 0 0 0.35rem; break-inside: avoid; color: var(--faint); }
@@ -50,18 +50,12 @@
     .contents a:hover { color: var(--verdi); text-decoration: underline; }
     @media (max-width: 640px) { .contents ol { columns: 1; } }
 
-    /* wide screens: the contents ride beside the article instead of above it */
-    @media (min-width: 1180px) {
-      .article {
-        display: grid; align-items: start;
-        grid-template-columns: minmax(14rem, 17rem) minmax(0, 1fr);
-        column-gap: clamp(3rem, 5vw, 6rem);
-      }
-      .article > * { grid-column: 2; }
+    /* The contents never shape the page. Where the screen has room beside the frame they become a rail in the left
+       margin that follows the reader; the article keeps the frame it has without them. */
+    @media (min-width: 1840px) {
       .article > .contents {
-        grid-column: 1; grid-row: 1 / span 40; align-self: start;
-        position: sticky; top: 4.2rem; margin: 1.4rem 0 0;
-        max-height: calc(100vh - 5.5rem); overflow-y: auto;
+        float: left; width: 14rem; max-width: none; margin: 1.4rem 0 0 calc(-14rem - var(--page-gutter));
+        position: sticky; top: 4.2rem; max-height: calc(100vh - 5.5rem); overflow-y: auto;
         background: none; border: 0; border-left: 1px solid var(--hair); border-radius: 0; padding: 0.2rem 0 0.2rem 1.2rem;
       }
       .contents ol { columns: 1; padding-left: 1.2rem; }
