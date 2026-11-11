@@ -8,7 +8,8 @@ namespace Acta;
 /// transport, sends or suppresses, and settles the row against the version it carried at selection on the pass's
 /// settlement clock, at least once, so a crash after the send may resend. One batch per invocation, never a drain:
 /// ten thousand webhooks in one tick would turn protecting the database into an outage on the operator's own channel.
-/// Each send has a limit and the pass a budget, so one endpoint that never answers costs the others one pass at most.
+/// Each send has a limit, a channel that misses it is not asked again in the pass, and the pass has a budget, so an
+/// endpoint that never answers costs a pass one limit however many alerts it has queued.
 /// </summary>
 internal sealed class AlertDelivery(
     AlertsOperations alerts,
@@ -37,6 +38,7 @@ internal sealed class AlertDelivery(
     {
         var due = (await _alerts.ListDeliverableAlertsAsync(ctx.NamespaceId, DeliverBatchSize, ct)).Alerts;
         var elapsed = Stopwatch.StartNew();
+        HashSet<string>? unanswered = null;
         foreach (var a in due)
         {
             // A pass that spent its budget leaves the rest due for the next one, a minute on.
@@ -67,12 +69,24 @@ internal sealed class AlertDelivery(
                     continue;
             }
 
-            var outcome = await SendAsync(ctx, a, channel!, transport!, budget.Send, ct);
+            // A channel that missed its limit once is not asked again this pass: its other alerts stay due, uncharged,
+            // and the alerts of every other channel are reached.
+            if (unanswered?.Contains(channel!.Name) == true)
+            {
+                continue;
+            }
+
+            var (outcome, answered) = await SendAsync(ctx, a, channel!, transport!, budget.Send, ct);
+            if (!answered)
+            {
+                (unanswered ??= new HashSet<string>(StringComparer.Ordinal)).Add(channel!.Name);
+            }
+
             await SettleAsync(a, outcome, settlement, ct);
         }
     }
 
-    private async Task<AlertSendStatus> SendAsync(
+    private async Task<(AlertSendStatus Outcome, bool Answered)> SendAsync(
         JobContext ctx,
         DeliverableAlert a,
         AlertChannelDeclaration channel,
@@ -101,13 +115,15 @@ internal sealed class AlertDelivery(
             Config: ReadOnlyMemory<byte>.Empty
         );
 
-        // A transport is anyone's code. The send is cancelled at its limit, and the wait for it ends there too, since a
-        // transport that ignores its token would otherwise hold every alert behind it; the timeout is a retryable failure.
+        // A transport is anyone's code. The wait for a send ends at its limit, since a transport that ignores its token
+        // would otherwise hold every alert behind it, and its token is cancelled as the wait ends, whichever way, before
+        // the source is disposed: a send that outlives its limit then holds a cancelled token, not a dead one.
         using var limited = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        limited.CancelAfter(limit);
+        Task<AlertSendStatus>? send = null;
         try
         {
-            return await transport.SendAsync(notification, target, limited.Token).WaitAsync(limit, ct);
+            send = transport.SendAsync(notification, target, limited.Token);
+            return (await send.WaitAsync(limit, ct), Answered: true);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
@@ -119,7 +135,19 @@ internal sealed class AlertDelivery(
             {
                 ActaLog.AlertTransportThrew(_log, ex, channel.TransportKind, AlertsJob.RenderRef(a.AlertRef));
             }
-            return AlertSendStatus.Retryable;
+
+            return (AlertSendStatus.Retryable, Answered: ex is not TimeoutException);
+        }
+        finally
+        {
+            await limited.CancelAsync();
+            // A send given up at its limit may still fault; that fault is read here, so it is not left unobserved.
+            _ = send?.ContinueWith(
+                static late => _ = late.Exception,
+                CancellationToken.None,
+                TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously,
+                TaskScheduler.Default
+            );
         }
     }
 

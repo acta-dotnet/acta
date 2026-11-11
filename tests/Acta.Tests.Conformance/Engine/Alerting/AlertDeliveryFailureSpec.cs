@@ -121,6 +121,30 @@ public sealed class AlertDeliveryFailureSpec : ActaStorageTestBase<ConformanceFi
         Assert.Equal(AlertDeliveryStatusCode.Delivered, Assert.Single(second, a => a.ChannelName == "ch-log").DeliveryStatusCode);
     }
 
+    [Fact(DisplayName = "A channel that misses its limit is asked once a pass, and the alerts of another channel still deliver")]
+    public async Task A_channel_that_never_answers_costs_a_pass_one_limit()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await SeedChannelAsync(Db, "ch-hang", HangingKind, ct);
+        await SeedChannelAsync(Db, "ch-log", "log", ct);
+        await RaiseAlertAsync(Db, "ch-hang", jobId: null, ct);
+        await RaiseAlertAsync(Db, "ch-hang", jobId: null, ct);
+        await RaiseAlertAsync(Db, "ch-log", jobId: null, ct);
+
+        await RunDeliveryAsync(
+            maxRetries: 5,
+            ct,
+            new AlertDeliveryBudget(Send: TimeSpan.FromMilliseconds(20), Pass: TimeSpan.FromMinutes(1))
+        );
+
+        // One limit is spent on the dead endpoint, not one per alert queued for it: the second is left due and uncharged.
+        var hung = (await ReadAlertsAsync(TestNamespaceId, ct)).Where(a => a.ChannelName == "ch-hang").OrderBy(a => a.Id).ToList();
+        Assert.Equal((AlertDeliveryStatusCode.RetryAfter, 1), (hung[0].DeliveryStatusCode, hung[0].RetryCount));
+        Assert.Equal((AlertDeliveryStatusCode.Pending, 0), (hung[1].DeliveryStatusCode, hung[1].RetryCount));
+        var delivered = Assert.Single(await ReadAlertsAsync(TestNamespaceId, ct), a => a.ChannelName == "ch-log");
+        Assert.Equal(AlertDeliveryStatusCode.Delivered, delivered.DeliveryStatusCode);
+    }
+
     [Fact(DisplayName = "Transport throws at max retries and marks the alert terminal Failed")]
     public async Task Transport_throws_at_max_retries_marks_alert_terminal_failed()
     {
