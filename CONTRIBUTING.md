@@ -832,6 +832,16 @@ push the packages to nuget.org through Trusted Publishing (the `publish-nuget` j
 - A completion write that keeps failing while the heartbeat renews the lease settles on the same worker once the database returns: `CompleteAndClockChaosSpec`, `WorkerCrashRecoveryChaosSpec`, and `WorkerFinalizerTests`.
 - A completion that commits and loses its response is reconciled, not rerun, and never advances a permanent job twice: `CompleteAndClockChaosSpec`.
 - Recovery runs while every executor is busy, and one heartbeat takes each due pass: `RecoveryPassSpec`.
+- A worker that lost a completion's reply repeats the completion, runs the work enqueued since, and stops clean: Acta Verify's `lost-completion-reply`.
+- One admission plan applied twice, by two admitters at once or again after a lost answer, admits its occurrence once, and one planned before a publication retimed its schedule applies nothing: `AdmitScheduleFiringsSpec`, `PublishCalendarSpec`.
+- An expiry deployed while a schedule is parked takes effect without a settlement: `RegisterSchedulesPerOccurrenceSpec`, `MisfirePolicySpec`.
+- A charged occurrence that is reclaimed, cancelled, restarted, or retired releases and takes its capacity once: `PerOccurrenceSchedulingSpec`.
+- An operator reads each of these from Acta's own surfaces and has the documented next step:
+  - A job whose worker died says its lease expired and that recovery reclaims it: `JobExplainerTests`, `WorkerCrashRecoveryChaosSpec`.
+  - A schedule at its capacity reads as waiting for capacity until a settlement wakes it: `ScheduleAdmitterSpec`, `PerOccurrenceSchedulingSpec`.
+  - A quarantined outbox row names what refused it, and is requeued or discarded: `OutboxRelayQuarantineSpec`, `ListQuarantinedOutboxSpec`, `RequeueQuarantinedOutboxSpec`, `DiscardQuarantinedOutboxSpec`.
+  - A stopped worker leaves one `worker.stopped` event and its unfinished work to recovery: `StopWorkerSpec`, `WorkerFinalizerTests`.
+  - Over HTTP each permission passes exactly the routes that name it, a control needs its confirmation header, and a missing credential is challenged: `PermissionTests`, `ControlEndpointTests`, `DashboardAuthorizationTests`.
 - Incidents at the failures-only recording level close on the success that answers the failure, and only that one: `FailuresAuditFailureEventSpec`.
 - A build refuses a database it cannot run on, and a script-provisioned database runs and re-runs: `MigrationHistoryPreflightTests`, `MigrationHistoryPreflightSpec`, and the `*ProvisionScriptSpec` classes.
 - The packed packages build as an external consumer would, and their metadata is complete: `tests/PackageSmoke/run.ps1`, which CI runs on every push.
@@ -870,6 +880,7 @@ dotnet run -c Release --project tools/Acta.Verify -- release --db all --output a
 
 ### After publishing
 
+- Keep the released packages with the release's evidence: the next release runs this release's worker, built from those packages, against a database its own migrations brought forward, before it ships.
 - Create the GitHub release from the tag (`gh release create v<version> --verify-tag`, adding `--prerelease` only for a pre-release), titled with the bare version and carrying the notes' summary, upgrade paragraph, highlights, evidence, and a link to the notes at the tag.
 - Clear the NuGet HTTP cache (`dotnet nuget locals http-cache --clear`), bump the Acta versions in `demos/Directory.Packages.props`, build both demos, and run one end to end: the demos consume the published packages.
 - When the demos move to 1.0.0-rc.9, a demo that calls `MapActa` adds the package `Acta.Dashboard` and `using Acta.Dashboard;`.
