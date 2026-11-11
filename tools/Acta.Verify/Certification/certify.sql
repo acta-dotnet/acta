@@ -73,7 +73,7 @@ HAVING COUNT(*) > 1;
 -- ---------------------------------------------------------------------------------------------
 -- No attempt ever ran on a worker of another namespace than the job's, and none was recorded under
 -- another namespace. A worker claiming work it does not own is the worst failure this model can have,
--- and it is silent without an explicit check. Each ended attempt's event names the attempt's worker;
+-- and it is silent without an explicit check. Each ended attempt's event names the attempt's worker, and
 -- the event's own namespace is the job's, written from the job, so only the worker can show the breach.
 SELECT 'namespace-isolation' AS check_name, e.entity_id AS job_id, j.namespace_id AS job_ns,
        e.namespace_id AS event_ns, e.worker_id, w.namespace_id AS worker_ns

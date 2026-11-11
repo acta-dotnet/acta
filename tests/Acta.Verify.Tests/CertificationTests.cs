@@ -42,6 +42,14 @@ public sealed class CertificationTests
     }
 
     [Fact]
+    public void The_runner_parses_every_check()
+    {
+        // The runner reads certify.sql once, in its type initializer, and a statement it cannot place throws there.
+        var runner = typeof(FixtureValueV1).Assembly.GetType("Acta.Verify.LedgerValidation", throwOnError: true)!;
+        System.Runtime.CompilerServices.RuntimeHelpers.RunClassConstructor(runner.TypeHandle);
+    }
+
+    [Fact]
     public void Every_code_literal_names_its_member_and_holds_its_value()
     {
         var sql = CertifySql();
