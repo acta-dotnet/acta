@@ -121,6 +121,13 @@ internal sealed class EventEntity : IEntity<long>
     public string? EventMessage { get; init; }
 
     /// <summary>
+    /// Who performed the action: the operator principal an operator verb was given, as display text, or the job id on
+    /// a handler's state reset; null on an event the engine or a worker writes, and when the operator is unknown.
+    /// </summary>
+    [DbColumn("actor", DbKind.UnicodeString, Size = 128)]
+    public string? Actor { get; init; }
+
+    /// <summary>
     /// Format id of <see cref="Details"/>; <c>0</c> means no payload. <c>ck_events_details_pair</c> enforces
     /// <c>(details_format_id = 0) = (details IS NULL)</c>; operator views decode format 1 (json) as UTF-8 text,
     /// while other formats stay opaque.
@@ -129,8 +136,8 @@ internal sealed class EventEntity : IEntity<long>
     public byte DetailsFormatId { get; init; }
 
     /// <summary>
-    /// The facts the code does not imply, encoded by the writer: JSON by default, with keys such as
-    /// <c>reason</c>, <c>actor</c>, <c>to</c>, and <c>schedule</c>. Small and rare; never job payload bytes.
+    /// The machine-readable facts the code does not imply, encoded by the writer: JSON by default, with keys such as
+    /// <c>reason</c>, <c>to</c>, and <c>schedule</c>. Small and rare; never job payload bytes.
     /// </summary>
     [DbColumn("details", DbKind.BinaryPayload)]
     public byte[]? Details { get; init; }

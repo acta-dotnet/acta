@@ -17,5 +17,5 @@ test('eventFacts reads no facts from a missing, non-JSON, or non-object payload'
 });
 
 test('eventFacts skips a fact whose value is not text', () => {
-  assert.deepEqual(eventFacts('{"actor":"marko","count":3,"nested":{"a":"b"}}'), { actor: 'marko' });
+  assert.deepEqual(eventFacts('{"reason":"lease-expired","count":3,"nested":{"a":"b"}}'), { reason: 'lease-expired' });
 });

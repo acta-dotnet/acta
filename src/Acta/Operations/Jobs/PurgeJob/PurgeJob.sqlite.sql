@@ -116,6 +116,7 @@ INSERT INTO {{schema}}.events (
     tenant_id,
     lineage_root_job_id,
     event_message,
+    actor,
     details_format_id,
     details)
 SELECT
@@ -128,6 +129,7 @@ SELECT
     s.tenant_id,
     COALESCE(s.lineage_root_job_id, s.job_id),
     @p_event_message,
+    @p_actor,
     @p_details_format_id,
     @p_details
 FROM temp._purge_job s

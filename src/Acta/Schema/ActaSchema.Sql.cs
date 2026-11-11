@@ -368,8 +368,8 @@ internal static partial class ActaSchema
         public static readonly DbValueSpec<byte[]> PlannedValue = new("p_planned_value", DbKind.BinaryPayload);
 
         /// <summary>
-        /// retire_definition's details for each job.cancelled event it writes: the operator and the definition-retired
-        /// reason, beside p_details, which the definition.retired event carries.
+        /// retire_definition's details for each job.cancelled event it writes: the definition-retired reason, beside
+        /// p_details, which the definition.retired event carries. Both events take the operator as their actor.
         /// </summary>
         public static readonly DbValueSpec<byte[]?> RetiredJobDetails = new("p_job_details", DbKind.BinaryPayload);
 

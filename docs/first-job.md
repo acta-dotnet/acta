@@ -281,7 +281,7 @@ shows and the CLI's `jobs explain` prints.
 `jobs.CancelAsync(lookup, reasonMessage: ...)` is applied while the job has not finished: a queued or
 delayed job never runs, a running handler sees its `CancellationToken` cancelled. A finished job answers
 `Rejected` and keeps its outcome. The reason is the message of the job's `job.cancelled` event, and
-an `actor:` argument, when given, goes into that event's details; the event is written at the default
+an `actor:` argument, when given, is that event's `actor`; the event is written at the default
 `Audit` recording level.
 
 ### A wait timeout is not a cancellation
@@ -306,8 +306,8 @@ On SQLite the views show their `_utc` columns as ISO 8601 UTC text, such as `202
 
 `events_view` holds each job's append-only timeline: at the default `Audit` recording level, an event
 for each attempt's outcome and each control, such as a cancel; a definition at `Failures` keeps its
-failures and the controls a caller applied. `event_message` carries a control's reason and `details_text` its JSON details, the
-actor among them when the call named one. The enqueue writes no event.
+failures and the controls a caller applied. `event_message` carries a control's reason, `actor` the operator when the call
+named one, and `details_text` its JSON details. The enqueue writes no event.
 
 ## The first test
 

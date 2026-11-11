@@ -37,6 +37,7 @@ public sealed class TenantUnicodeActorSpec : ActaStorageTestBase<ConformanceFixt
             .Where(e => e.EntityCode == EntityCode.Tenant && e.EntityId == id && e.EventCode == EventCode.TenantSuspended)
             .SingleOrDefaultAsync(ct);
         Assert.NotNull(ev);
-        Assert.Equal(OperatorName, EventDetail(ev, "actor"));
+        Assert.Equal(OperatorName, ev.Actor);
+        Assert.Null(EventDetail(ev, "actor"));
     }
 }

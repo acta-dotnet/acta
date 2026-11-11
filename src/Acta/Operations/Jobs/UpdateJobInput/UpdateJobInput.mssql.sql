@@ -83,14 +83,14 @@ BEGIN TRY
         entity_code, entity_id,
         definition_id, tenant_id, lineage_root_job_id,
         execution_number,
-        event_message, details_format_id, details
+        event_message, actor, details_format_id, details
     )
     VALUES (
         76 /* EventCode.JobInputAmended */, @now, @namespace_id,
         50 /* EntityCode.Job */, @p_job_id,
         @definition_id, @tenant_id, COALESCE(@lineage_root_job_id, @p_job_id),
         @execution_number,
-        @p_event_message, @details_format_id, @details
+        @p_event_message, @p_actor, @details_format_id, @details
     );
 
     SELECT

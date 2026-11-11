@@ -43,7 +43,8 @@ public sealed class SuspendTenantSpec : ActaStorageTestBase<ConformanceFixture>
             .SingleOrDefaultAsync(ct);
         Assert.Equal(1, ev!.NamespaceId);
         Assert.Equal((EntityCode.Tenant, (long)id), (ev.EntityCode, ev.EntityId));
-        Assert.Equal("op-1", EventDetail(ev, "actor"));
+        Assert.Equal("op-1", ev.Actor);
+        Assert.Null(EventDetail(ev, "actor"));
         Assert.Equal("hold", ev.EventMessage);
     }
 

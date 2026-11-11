@@ -34,6 +34,7 @@ INSERT INTO {{schema}}.events (
     lineage_root_job_id,
     execution_number,
     event_message,
+    actor,
     details_format_id,
     details)
 SELECT
@@ -47,6 +48,7 @@ SELECT
     COALESCE(j.lineage_root_job_id, j.job_id),
     r.execution_number,
     @p_event_message,
+    @p_actor,
     CASE WHEN o.members IS NULL THEN @p_details_format_id ELSE 1 /* JobPayloadFormat.Json */ END,
     CASE
         WHEN o.members IS NULL THEN @p_details

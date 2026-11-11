@@ -10,7 +10,7 @@ namespace Acta.Tests.Conformance.Scenarios;
 /// Conformance for the <see cref="IJobs"/> control verbs (Cancel / Pause / Resume / Restart) against
 /// a provider. Exercises the legal transitions, the rejected and not-found paths, the reason-message
 /// persistence rule (row only for the reason-bearing states Paused/Cancelled; the event always), and
-/// the audit stamping (<c>actor = Operator</c>, causal <c>reason = ControlManual</c>, past-tense event
+/// the audit stamping (the operator as the event's actor, causal <c>reason = ControlManual</c>, past-tense event
 /// code, captured from/to status). Verbs operate on a specific id, so no worker loop runs - the spec
 /// never contends for claims with sibling tests on the shared schema.
 /// </summary>
@@ -78,8 +78,9 @@ public sealed class ControlVerbsSpec : ActaRuntimeTestBase<ConformanceFixture, T
         // The operator's code implies the reason, so none is written; the message is the operator's.
         Assert.Null(EventDetail(cancelEvent, "reason"));
         Assert.Equal("no longer needed", cancelEvent.EventMessage);
-        // The caller-supplied actor id (e.g. an authenticated principal name) persists in the event's details.
-        Assert.Equal("spec-actor", EventDetail(cancelEvent, "actor"));
+        // The caller-supplied actor id (e.g. an authenticated principal name) persists as the event's actor.
+        Assert.Equal("spec-actor", cancelEvent.Actor);
+        Assert.Null(EventDetail(cancelEvent, "actor"));
     }
 
     [Fact(DisplayName = "Restart resets the failure budget and clears retention while keeping execution_number")]

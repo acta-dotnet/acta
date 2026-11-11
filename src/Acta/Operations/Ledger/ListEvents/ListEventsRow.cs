@@ -27,6 +27,7 @@ internal sealed record ListEventsRow(
     long? ExecutionNumber,
     int? DurationMs,
     string? EventMessage,
+    string? Actor,
     byte DetailsFormatId,
     byte[]? Details
 )
@@ -51,6 +52,7 @@ internal sealed record ListEventsRow(
             ExecutionNumber,
             DurationMs,
             EventMessage,
+            Actor,
             Details is not null && DetailsFormatId == JobPayloadFormat.Json.Id ? Encoding.UTF8.GetString(Details) : null
         );
 }

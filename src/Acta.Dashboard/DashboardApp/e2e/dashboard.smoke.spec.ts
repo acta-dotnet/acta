@@ -44,6 +44,7 @@ const event = {
   executionNumber: 1,
   durationMs: 125,
   message: 'Invoice provider timed out.',
+  actor: null,
   detailsText: '{"reason":"unhandled-exception"}'
 };
 

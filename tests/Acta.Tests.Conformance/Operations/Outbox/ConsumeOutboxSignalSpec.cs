@@ -118,7 +118,8 @@ public sealed class ConsumeOutboxSignalSpec : ActaStorageTestBase<ConformanceFix
             await Db.From<EventEntity>().Where(e => e.EntityCode == EntityCode.Job && e.EntityId == jobId).ToListAsync(ct)
         );
         Assert.Equal(EventCode.OutboxDiscarded, evidence.EventCode);
-        Assert.Equal("marko", EventDetail(evidence, "actor"));
+        Assert.Equal("marko", evidence.Actor);
+        Assert.Null(EventDetail(evidence, "actor"));
         Assert.Equal(Reason, evidence.EventMessage);
         Assert.Equal(1, evidence.ExecutionNumber);
     }

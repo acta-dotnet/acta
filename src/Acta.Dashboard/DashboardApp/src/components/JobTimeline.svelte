@@ -125,9 +125,9 @@
                   {p.title}
                   {#if evt.durationMs != null}<span class="rail-chip">{displayFormatter.milliseconds(evt.durationMs)}</span>{/if}
                 </div>
-                {#if evt.message || facts.reason || facts.actor}
+                {#if evt.message || facts.reason || evt.actor}
                   <div class="rail-reason">
-                    {#if facts.reason}<span class="mono">{facts.reason}</span>{/if}{#if facts.reason && evt.message}&nbsp;·&nbsp;{/if}{evt.message ?? ''}{#if facts.actor}{#if facts.reason || evt.message}&nbsp;·&nbsp;{/if}by {facts.actor}{/if}
+                    {#if facts.reason}<span class="mono">{facts.reason}</span>{/if}{#if facts.reason && evt.message}&nbsp;·&nbsp;{/if}{evt.message ?? ''}{#if evt.actor}{#if facts.reason || evt.message}&nbsp;·&nbsp;{/if}by {evt.actor}{/if}
                   </div>
                 {/if}
                 <div class="rail-code">{evt.eventCode}</div>

@@ -109,10 +109,10 @@ WHERE job_id = @p_job_id AND EXISTS (SELECT 1 FROM _purge_job_action a WHERE a.a
 -- The tombstone keeps the deleted job's id as its subject; its details snapshot what no surviving event carries.
 INSERT INTO {{schema}}.events (
     event_code, created_at_utc, namespace_id, entity_code, entity_id, definition_id, tenant_id, lineage_root_job_id,
-    event_message, details_format_id, details)
+    event_message, actor, details_format_id, details)
 SELECT
     75 /* EventCode.JobPurged */, now(), s.namespace_id, 50 /* EntityCode.Job */, @p_job_id, s.definition_id, s.tenant_id,
-    COALESCE(s.lineage_root_job_id, @p_job_id), @p_event_message, @p_details_format_id, @p_details
+    COALESCE(s.lineage_root_job_id, @p_job_id), @p_event_message, @p_actor, @p_details_format_id, @p_details
 FROM _purge_job s
 WHERE EXISTS (SELECT 1 FROM _purge_job_action a WHERE a.action = 1 /* ControlAction.Applied */);
 

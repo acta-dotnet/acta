@@ -50,7 +50,8 @@ internal sealed class ArchiveCalendarHandler(IDbSession session, ISqlDialect dia
                 cmd.AddEventFields(
                     dialect,
                     command.ReasonMessage.Truncate(ActaTextLimits.EventMessage),
-                    CalendarControl.Details(calendarName, expected, null, command.Actor)
+                    JobControlActor.Operator(command.Actor),
+                    CalendarControl.Details(calendarName, expected, null)
                 );
             },
             DbProjectionResolver.Resolve<ArchiveCalendarResponse>(),

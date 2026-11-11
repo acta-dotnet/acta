@@ -48,7 +48,8 @@ public sealed class OutboxRelaySignalApplySpec : OutboxRelayIntegrationBase
             await Db.From<EventEntity>().Where(e => e.EntityCode == EntityCode.Job && e.EntityId == slotJobId).ToListAsync(ct)
         );
         Assert.Equal(EventCode.OutboxRequeued, evidence.EventCode);
-        Assert.Equal("marko", EventDetail(evidence, "actor"));
+        Assert.Equal("marko", evidence.Actor);
+        Assert.Null(EventDetail(evidence, "actor"));
         Assert.Contains("fixed the target route", evidence.EventMessage);
         Assert.Contains(row.OutboxId.ToString(), evidence.EventMessage);
 

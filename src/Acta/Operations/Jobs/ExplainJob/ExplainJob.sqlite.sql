@@ -4,7 +4,7 @@
 SELECT
     x.row_kind, x.job_id, x.job_ref, x.job_namespace, x.job_name, x.kind, x.status, x.failure_count,
     x.max_attempts_effective, x.next_run_at_utc, x.leased_by_worker_id, x.lease_expires_at_utc,
-    x.worker_deployment_version, x.worker_status, x.worker_last_seen_at_utc, x.latest_reason_message,
+    x.worker_deployment_version, x.worker_status, x.worker_last_seen_at_utc, x.latest_reason_message, x.latest_reason_actor,
     x.latest_reason_details_format_id, x.latest_reason_details, x.last_executed_by_worker_version, x.leased_by_worker_ref,
     x.last_executed_by_worker_ref, x.definition_status, x.step_name, x.step_status, x.failure_message,
     x.checkpoint_kind, x.checkpoint_name, x.checkpoint_status, x.due_at_utc
@@ -32,6 +32,7 @@ FROM (
         w.worker_status_code AS worker_status,
         w.last_seen_at_utc AS worker_last_seen_at_utc,
         le.event_message AS latest_reason_message,
+        le.actor AS latest_reason_actor,
         le.details_format_id AS latest_reason_details_format_id,
         le.details AS latest_reason_details,
         lxw.deployment_version AS last_executed_by_worker_version,
@@ -92,7 +93,7 @@ FROM (
         2, s.created_at_utc, NULL, s.step_name,
         NULL, NULL, NULL, NULL, NULL, NULL, NULL,
         NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-        NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+        NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
         s.step_name, s.step_status_code, s.failure_message,
         NULL, NULL, NULL, NULL
     FROM (
@@ -110,7 +111,7 @@ FROM (
         3, NULL, c.checkpoint_kind_code, c.checkpoint_name,
         NULL, NULL, NULL, NULL, NULL, NULL, NULL,
         NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-        NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+        NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
         NULL, NULL, NULL,
         c.checkpoint_kind_code, c.checkpoint_name, c.checkpoint_status_code, c.due_at_utc
     FROM {{schema}}.checkpoints c

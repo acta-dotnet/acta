@@ -70,13 +70,13 @@ BEGIN TRY
         event_code, created_at_utc, namespace_id,
         entity_code, entity_id,
         definition_id, tenant_id, lineage_root_job_id,
-        event_message, details_format_id, details
+        event_message, actor, details_format_id, details
     )
     VALUES (
         141 /* EventCode.AlertResolved */, @now, @namespace_id,
         10 /* EntityCode.Alert */, @alert_id,
         @definition_id, @tenant_id, COALESCE(@lineage_root_job_id, @job_id),
-        @p_event_message, @p_details_format_id, @p_details
+        @p_event_message, @p_actor, @p_details_format_id, @p_details
     );
 
     SELECT

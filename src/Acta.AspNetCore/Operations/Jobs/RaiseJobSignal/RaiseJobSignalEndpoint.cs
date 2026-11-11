@@ -66,8 +66,7 @@ internal static class RaiseJobSignalEndpoint
                         return ControlEndpointValidation.Problem(StatusCodes.Status400BadRequest, "Invalid signal value.", ex.Message);
                     }
 
-                    // Operator identity for the audit trail comes from the authenticated principal, never the
-                    // body; the verb stamps actor = Operator.
+                    // Operator identity for the audit trail comes from the authenticated principal, never the body.
                     var actor = http.User?.Identity?.Name;
 
                     try

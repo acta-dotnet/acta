@@ -247,13 +247,13 @@ internal sealed class ExplainJobHandler(GetJobIdHandler getJobId, IDbSession ses
         h.Status == JobStatusCode.Failed || (h.Status is JobStatusCode.Ready or JobStatusCode.Idle && h.FailureCount > 0);
 
     /// <summary>
-    /// The reason event's message, else its reason code, followed by the operator its details name, which only a cancel's
-    /// do: "duplicate order (by alice)", or "Cancelled by alice." for a cancel with no message.
+    /// The reason event's message, else its reason code, followed by its actor, which only a cancel names:
+    /// "duplicate order (by alice)", or "Cancelled by alice." for a cancel with no message.
     /// </summary>
     private static string? Reason(ExplainJobHeaderRow h)
     {
         var text = h.LatestReasonMessage ?? EventDetails.Read(h.LatestReasonDetailsFormatId ?? 0, h.LatestReasonDetails, "reason");
-        return EventDetails.Read(h.LatestReasonDetailsFormatId ?? 0, h.LatestReasonDetails, "actor") is not { } actor ? text
+        return h.LatestReasonActor is not { } actor ? text
             : text is null ? $"Cancelled by {actor}."
             : $"{text} (by {actor})";
     }

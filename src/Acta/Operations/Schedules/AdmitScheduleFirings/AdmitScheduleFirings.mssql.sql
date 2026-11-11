@@ -21,6 +21,7 @@ BEGIN TRY
         job_ref UNIQUEIDENTIFIER NULL,
         deduplication_key VARCHAR(128) COLLATE Latin1_General_100_BIN2_UTF8 NULL,
         trigger_message NVARCHAR(512) NULL,
+        trigger_actor NVARCHAR(128) NULL,
         trigger_details NVARCHAR(MAX) NULL);
     DECLARE @rows TABLE (
         schedule_id INT NOT NULL PRIMARY KEY,
@@ -44,15 +45,16 @@ BEGIN TRY
 
     INSERT INTO @groups (
         ordinal, job_id, expected_job_version, schedule_id, expected_state_version, admit, envelope,
-        job_ref, deduplication_key, trigger_message, trigger_details)
+        job_ref, deduplication_key, trigger_message, trigger_actor, trigger_details)
     SELECT
         ordinal, job_id, expected_job_version, schedule_id, expected_state_version, admit, envelope,
-        job_ref, deduplication_key, trigger_message, trigger_details
+        job_ref, deduplication_key, trigger_message, trigger_actor, trigger_details
     FROM OPENJSON(@p_groups) WITH (
         ordinal INT '$.ordinal', job_id BIGINT '$.job_id', expected_job_version BIGINT '$.expected_job_version',
         schedule_id INT '$.schedule_id', expected_state_version INT '$.expected_state_version', admit BIT '$.admit',
         envelope NVARCHAR(MAX) '$.envelope', job_ref UNIQUEIDENTIFIER '$.job_ref', deduplication_key VARCHAR(128) '$.deduplication_key',
-        trigger_message NVARCHAR(512) '$.trigger_message', trigger_details NVARCHAR(MAX) '$.trigger_details');
+        trigger_message NVARCHAR(512) '$.trigger_message', trigger_actor NVARCHAR(128) '$.trigger_actor',
+        trigger_details NVARCHAR(MAX) '$.trigger_details');
 
     INSERT INTO @rows (
         schedule_id, group_ordinal, schedule_name, expected_version, expected_schedule_version,
@@ -285,13 +287,13 @@ BEGIN TRY
 
     -- Decision evidence: an expired or skipped range and an admission at Audit, and from ordinal 4 on, at every level, a
     -- pause that ends, an expiry pause, a manual trigger, a failing evaluation. A slot's decisions hang on the slot, a
-    -- per-occurrence admission or trigger on its root, the rest on the definition. The cast is UTF-8, for a trigger's actor.
+    -- per-occurrence admission or trigger on its root, the rest on the definition. The cast stores the details as UTF-8.
     INSERT INTO {{schema}}.events (
         event_code, created_at_utc, namespace_id,
         entity_code, entity_id,
         definition_id, tenant_id, lineage_root_job_id,
         execution_number,
-        event_message, details_format_id, details
+        event_message, actor, details_format_id, details
     )
     SELECT
         k.event_code, @now, @p_namespace_id,
@@ -299,11 +301,12 @@ BEGIN TRY
         COALESCE(k.on_job, k.definition_id),
         k.definition_id, k.tenant_id, k.lineage_root_job_id,
         k.execution_number,
-        k.event_message, 1 /* JobPayloadFormat.Json */,
+        k.event_message, k.actor, 1 /* JobPayloadFormat.Json */,
         CAST(CAST(k.details COLLATE Latin1_General_100_BIN2_UTF8 AS VARCHAR(MAX)) AS VARBINARY(MAX))
     FROM (
         SELECT
             x.schedule_id, x.ord, x.event_code, x.details, x.event_message,
+            CASE WHEN x.ord = 6 THEN g.trigger_actor END AS actor,
             CASE WHEN g.job_id IS NOT NULL THEN g.job_id WHEN x.ord IN (3, 6) THEN root.job_id END AS on_job,
             js.definition_id, j.tenant_id,
             COALESCE(j.lineage_root_job_id, j.job_id, root.job_id) AS lineage_root_job_id,

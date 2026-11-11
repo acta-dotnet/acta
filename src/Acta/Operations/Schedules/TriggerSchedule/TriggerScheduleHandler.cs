@@ -79,7 +79,8 @@ internal sealed class TriggerScheduleHandler(
             JobRef: root.Value,
             DeduplicationKey: string.Create(CultureInfo.InvariantCulture, $"sys.manual.{target.ScheduleId}.{firingId:N}"),
             TriggerMessage: command.ReasonMessage.Truncate(ActaTextLimits.EventMessage),
-            TriggerDetails: ScheduleControl.DetailsText(target.ScheduleName, command.Actor)
+            TriggerActor: JobControlActor.Operator(command.Actor),
+            TriggerDetails: ScheduleControl.DetailsText(target.ScheduleName)
         );
         var read = AdmitScheduleFiringsValues.Check(0, target.ScheduleId, target.ScheduleName, target.StateVersion, target.Version);
         var outcome = await admitScheduleFirings.HandleAsync(new AdmitScheduleFiringsCommand(target.NamespaceId, [group], [read]), ct);
@@ -105,7 +106,8 @@ internal sealed class TriggerScheduleHandler(
                 cmd.AddEventFields(
                     dialect,
                     command.ReasonMessage.Truncate(ActaTextLimits.EventMessage),
-                    ScheduleControl.Details(name, command.Actor)
+                    JobControlActor.Operator(command.Actor),
+                    ScheduleControl.Details(name)
                 );
             },
             DbProjectionResolver.Resolve<TriggerScheduleRow>(),

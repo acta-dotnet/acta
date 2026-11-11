@@ -58,10 +58,8 @@ public sealed class ArchiveCalendarSpec : ActaStorageTestBase<ConformanceFixture
         );
         Assert.Equal((EntityCode.Calendar, (long)row!.Id), (ev.EntityCode, ev.EntityId));
         Assert.Equal("retired", ev.EventMessage);
-        Assert.Equal(
-            (calendar.CalendarName, "1", "op-1"),
-            (EventDetail(ev, "calendar"), EventDetail(ev, "version"), EventDetail(ev, "actor"))
-        );
+        Assert.Equal((calendar.CalendarName, "1", "op-1"), (EventDetail(ev, "calendar"), EventDetail(ev, "version"), ev.Actor));
+        Assert.Null(EventDetail(ev, "actor"));
     }
 
     [Fact(DisplayName = "An archive with no expected version archives whatever version is current, and audits that version")]
@@ -85,7 +83,8 @@ public sealed class ArchiveCalendarSpec : ActaStorageTestBase<ConformanceFixture
                 .Where(e => e.NamespaceId == TestNamespaceId && e.EventCode == EventCode.CalendarArchived)
                 .ToListAsync(ct)
         );
-        Assert.Equal(("2", "op-1"), (EventDetail(ev, "version"), EventDetail(ev, "actor")));
+        Assert.Equal(("2", "op-1"), (EventDetail(ev, "version"), ev.Actor));
+        Assert.Null(EventDetail(ev, "actor"));
         Assert.Equal(CalendarStatusCode.Archived, (await Calendars.GetAsync(calendar, 2, ct))!.ShownStatus);
     }
 

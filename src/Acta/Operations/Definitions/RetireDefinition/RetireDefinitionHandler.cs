@@ -33,10 +33,7 @@ internal sealed class RetireDefinitionHandler(
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Definition.Version, DbParams.Int32Version(command.ExpectedVersion)));
                 cmd.AddOperatorAudit(dialect, command.Actor, command.ReasonMessage);
                 cmd.Parameters.Add(
-                    dialect.CreateParameter(
-                        ActaSchema.Sql.RetiredJobDetails,
-                        EventDetails.Write(("actor", JobControlActor.Operator(command.Actor)), ("reason", EventReason.DefinitionRetired))
-                    )
+                    dialect.CreateParameter(ActaSchema.Sql.RetiredJobDetails, EventDetails.Write(("reason", EventReason.DefinitionRetired)))
                 );
             },
             DbProjectionResolver.Resolve<RetireDefinitionRow>(),

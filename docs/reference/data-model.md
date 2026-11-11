@@ -2,7 +2,7 @@
 
 # Data model reference
 
-Structural reference for the Acta persistence model: **17 entities**, **246 columns**, **39 indexes**, **35 check constraints**, **4 foreign keys**. Names render with the default `acta` schema prefix; substitute the configured schema if different. Code families resolve into [`code-families.md`](./code-families.md). The foreign-key enforcement policy (which references are CASCADE, RESTRICT, or deliberately unenforced) is in [SQL recipes](../operator-guide.md#foreign-key-policy).
+Structural reference for the Acta persistence model: **17 entities**, **247 columns**, **39 indexes**, **35 check constraints**, **4 foreign keys**. Names render with the default `acta` schema prefix; substitute the configured schema if different. Code families resolve into [`code-families.md`](./code-families.md). The foreign-key enforcement policy (which references are CASCADE, RESTRICT, or deliberately unenforced) is in [SQL recipes](../operator-guide.md#foreign-key-policy).
 
 ## Schema inventory
 
@@ -299,8 +299,9 @@ The append-only ledger: what happened to an entity, named by `EventCode` and the
 | `execution_number`<a id="column-acta-events--execution-number"></a> | `Int64` | · | yes | · | · | The attempt an attempt fact or note belongs to, copied from `jobs_state.execution_number`. |
 | `duration_ms`<a id="column-acta-events--duration-ms"></a> | `Int32` | · | yes | · | · | Wall-clock duration of a succeeded, failed, or yielded attempt in milliseconds, measured in code from start to finish; null otherwise, and on an orphaned attempt, which has no measured end. Registration caps the execution timeout and the worker clamps the measurement, so a duration always fits this int column. |
 | `event_message`<a id="column-acta-events--event-message"></a> | `UnicodeString` | 512 | yes | · | · | Human text only, never a classification channel: a failure's message, an operator's note. |
+| `actor`<a id="column-acta-events--actor"></a> | `UnicodeString` | 128 | yes | · | · | Who performed the action: the operator principal an operator verb was given, as display text, or the job id on a handler's state reset; null on an event the engine or a worker writes, and when the operator is unknown. |
 | `details_format_id`<a id="column-acta-events--details-format-id"></a> | `Byte` | · | no | `0` | [`JobPayloadFormat`](./code-families.md#code-family-jobpayloadformat) | Format id of `Details`; `0` means no payload. `ck_events_details_pair` enforces `(details_format_id = 0) = (details IS NULL)`; operator views decode format 1 (json) as UTF-8 text, while other formats stay opaque. |
-| `details`<a id="column-acta-events--details"></a> | `BinaryPayload` | max | yes | · | · | The facts the code does not imply, encoded by the writer: JSON by default, with keys such as `reason`, `actor`, `to`, and `schedule`. Small and rare; never job payload bytes. |
+| `details`<a id="column-acta-events--details"></a> | `BinaryPayload` | max | yes | · | · | The machine-readable facts the code does not imply, encoded by the writer: JSON by default, with keys such as `reason`, `to`, and `schedule`. Small and rare; never job payload bytes. |
 
 **Indexes**
 

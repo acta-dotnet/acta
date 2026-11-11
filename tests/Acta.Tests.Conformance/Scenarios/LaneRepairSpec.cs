@@ -44,7 +44,7 @@ public sealed class LaneRepairSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
         Assert.Equal(JobStatusCode.Blocked, await StatusAsync(last, ct));
         var repaired = await ReadSingleEventAsync(follower.JobId, EventCode.JobResumed, ct);
         Assert.Equal(EventReason.LaneRepaired, EventDetail(repaired, "reason"));
-        Assert.Null(EventDetail(repaired, "actor"));
+        Assert.Null(repaired.Actor);
         Assert.Contains(_wakeups.Published.Skip(before), c => c.Kind == WorkerWakeupChannelKind.WorkerNamespace);
     }
 

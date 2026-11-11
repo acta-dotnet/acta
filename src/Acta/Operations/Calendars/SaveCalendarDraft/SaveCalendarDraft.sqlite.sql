@@ -90,6 +90,7 @@ INSERT INTO {{schema}}.events (
     entity_code,
     entity_id,
     event_message,
+    actor,
     details_format_id,
     details)
 SELECT
@@ -99,6 +100,7 @@ SELECT
     15 /* EntityCode.Calendar */,
     c.calendar_id,
     @p_event_message,
+    @p_actor,
     @p_details_format_id,
     @p_details
 FROM temp._save_calendar_draft f

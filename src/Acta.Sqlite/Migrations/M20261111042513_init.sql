@@ -159,6 +159,7 @@ CREATE TABLE IF NOT EXISTS {{schema}}.events (
     execution_number integer NULL,
     duration_ms integer NULL,
     event_message text NULL,
+    actor text NULL,
     details_format_id integer DEFAULT 0 NOT NULL,
     details blob NULL
     , CONSTRAINT ck_events_details_pair CHECK ((details_format_id = 0 AND details IS NULL) OR (details_format_id <> 0 AND details IS NOT NULL))
@@ -591,6 +592,7 @@ SELECT
     e.execution_number,
     e.duration_ms,
     e.event_message,
+    e.actor,
     CASE e.details_format_id
         WHEN 0 /* JobPayloadFormat.None */ THEN 'none'
         WHEN 1 /* JobPayloadFormat.Json */ THEN 'json'
@@ -768,5 +770,5 @@ JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261111034628_init')
+VALUES ('M20261111042513_init')
 ON CONFLICT (name) DO NOTHING;

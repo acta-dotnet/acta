@@ -168,7 +168,7 @@
     {#snippet nameCell(evt)}
       {#if evt.jobName}<a href={routes.jobs({ jobName: evt.jobName, namespace: evt.jobNamespace })}>{evt.jobName}</a>{:else}<span class="dim">·</span>{/if}
     {/snippet}
-    {#snippet detailsCell(evt)}{#if evt.message || evt.detailsText}<EventDetails message={evt.message} details={evt.detailsText} />{:else}<span class="dim">·</span>{/if}{/snippet}
+    {#snippet detailsCell(evt)}{#if evt.message || evt.actor || evt.detailsText}<EventDetails message={evt.message} actor={evt.actor} details={evt.detailsText} />{:else}<span class="dim">·</span>{/if}{/snippet}
     {#snippet attemptCell(evt)}{evt.executionNumber == null ? '·' : displayFormatter.number(evt.executionNumber)}{/snippet}
 
     <ActaGrid

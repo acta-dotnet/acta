@@ -21,6 +21,7 @@ function event(overrides: Partial<EventItem>): EventItem {
     executionNumber: 1,
     durationMs: null,
     message: null,
+    actor: null,
     detailsText: null,
     ...overrides,
   };

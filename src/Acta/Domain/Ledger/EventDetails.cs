@@ -5,9 +5,9 @@ using System.Text.Json;
 namespace Acta;
 
 /// <summary>
-/// An event's <c>details</c> payload as Acta writes it: one flat JSON object of named text facts (<c>actor</c>,
-/// <c>reason</c>, <c>schedule</c>, and the like), stored with the JSON format id. A fact with no value is left out,
-/// and an event with no facts stores no payload at all.
+/// An event's <c>details</c> payload as Acta writes it: one flat JSON object of named machine-readable text facts
+/// (<c>reason</c>, <c>schedule</c>, and the like), stored with the JSON format id. A fact with no value is left out,
+/// and an event with no facts stores no payload at all. Who acted is the event's <c>actor</c> column, never a fact.
 /// </summary>
 internal static class EventDetails
 {

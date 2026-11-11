@@ -9,7 +9,7 @@ public interface ISchedules
     /// <summary>Point-read the schedule identified by <paramref name="schedule"/>, in any status, with the members its <see cref="ListSchedulesItem"/> carries; null when the path names no schedule. A malformed name throws <see cref="ArgumentException"/>.</summary>
     ValueTask<GetScheduleResponse?> GetAsync(ScheduleLookup schedule, CancellationToken ct = default);
 
-    /// <summary>Pause the schedule identified by <paramref name="schedule"/>. Null <paramref name="untilUtc"/> pauses indefinitely; a timestamp auto-resumes. Stamps actor=Operator and records <paramref name="reasonMessage"/>. <paramref name="actor"/> is recorded on the audit event as the operator identity (e.g. the authenticated principal name); null when unknown. A missing or orphaned schedule is NotFound; a past untilUtc is Rejected.</summary>
+    /// <summary>Pause the schedule identified by <paramref name="schedule"/>. Null <paramref name="untilUtc"/> pauses indefinitely; a timestamp auto-resumes. Records <paramref name="reasonMessage"/> on the audit event, and <paramref name="actor"/> as its actor: the operator identity (e.g. the authenticated principal name), null when unknown. A missing or orphaned schedule is NotFound; a past untilUtc is Rejected.</summary>
     ValueTask<PauseScheduleResponse> PauseAsync(
         ScheduleLookup schedule,
         DateTime? untilUtc = null,

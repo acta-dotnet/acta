@@ -107,7 +107,9 @@ public sealed class RescheduleSlotFiringSpec : ActaRuntimeTestBase<ConformanceFi
         Assert.Equal(CheckpointStatusCode.Pending, status);
         Assert.Equal(FiringEnvelope.ManualKind, firing.Kind);
         Assert.Empty(firing.Contributors);
-        Assert.Equal("ops", EventDetail(await ReadSingleEventAsync(slotId, EventCode.JobRescheduled, ct), "actor"));
+        var rescheduled = await ReadSingleEventAsync(slotId, EventCode.JobRescheduled, ct);
+        Assert.Equal("ops", rescheduled.Actor);
+        Assert.Null(EventDetail(rescheduled, "actor"));
 
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(slotId, ct));
         Assert.Equal(JobStatusCode.Idle, (await ReadJobAsync(slotId, ct)).Status);

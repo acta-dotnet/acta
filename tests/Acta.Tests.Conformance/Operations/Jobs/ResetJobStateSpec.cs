@@ -69,8 +69,8 @@ public sealed class ResetJobStateSpec : ActaRuntimeTestBase<ConformanceFixture, 
         await Services.GetRequiredService<ResetJobStateHandler>().HandleAsync(new ResetJobStateCommand(job), ct);
 
         var ev = await ReadSingleEventAsync(job.JobId, EventCode.JobStateReset, ct);
-        Assert.Equal(job.JobId.ToString(CultureInfo.InvariantCulture), EventDetail(ev, "actor"));
-        Assert.Null(EventDetail(ev, "reason"));
+        Assert.Equal(job.JobId.ToString(CultureInfo.InvariantCulture), ev.Actor);
+        Assert.Null(ev.Details);
         Assert.Equal(0, ev.WorkerId);
     }
 

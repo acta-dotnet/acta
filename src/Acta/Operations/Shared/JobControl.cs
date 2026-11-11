@@ -12,9 +12,9 @@ internal static class JobControl
     public static JobControlInput Operator(string? reasonMessage, string? actor, long? expectedVersion = null) =>
         new(JobControlActor.Operator(actor), null, reasonMessage.Truncate(ActaTextLimits.EventMessage), expectedVersion);
 
-    /// <summary>Binds the transition's event: its message as <c>event_message</c> and its actor and reason as details.</summary>
+    /// <summary>Binds the transition's event: its message as <c>event_message</c>, its actor, and its reason as details.</summary>
     public static void BindEvent(DbCommand cmd, ISqlDialect dialect, JobControlInput input) =>
-        cmd.AddEventFields(dialect, input.Message, input.Details);
+        cmd.AddEventFields(dialect, input.Message, input.Actor, input.Details);
 
     public static void BindExpectedVersion(DbCommand cmd, ISqlDialect dialect, JobControlInput input) =>
         cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.ExpectedRowVersionOptional, input.ExpectedVersion));

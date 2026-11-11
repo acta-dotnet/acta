@@ -58,7 +58,8 @@ internal sealed class SaveCalendarDraftHandler(IDbSession session, ISqlDialect d
                 cmd.AddEventFields(
                     dialect,
                     command.ReasonMessage.Truncate(ActaTextLimits.EventMessage),
-                    CalendarControl.Details(calendarName, expected + 1, command.Role, command.Actor)
+                    JobControlActor.Operator(command.Actor),
+                    CalendarControl.Details(calendarName, expected + 1, command.Role)
                 );
             },
             DbProjectionResolver.Resolve<SaveCalendarDraftRow>(),

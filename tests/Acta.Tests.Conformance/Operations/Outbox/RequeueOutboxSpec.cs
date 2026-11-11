@@ -66,7 +66,7 @@ public sealed class RequeueOutboxSpec : OutboxRelayIntegrationBase
         await Fixture.SeedOutboxRowAsync(SourceTable, row);
         var (slotJobId, _) = await SeedSlotJobAsync("sys.outbox", ct);
 
-        var accepted = await Outbox.RequeueAsync(TestNamespace, null, "fixed the target route", "marko", ct);
+        var accepted = await Outbox.RequeueAsync(TestNamespace, null, "fixed the target route", "Jože Kovač", ct);
         Assert.Equal(ControlAction.Accepted, accepted.Action);
         Assert.Null(accepted.PendingSinceUtc);
 
@@ -87,7 +87,8 @@ public sealed class RequeueOutboxSpec : OutboxRelayIntegrationBase
         var evidence = Assert.Single(
             await Db.From<EventEntity>().Where(e => e.EntityCode == EntityCode.Job && e.EntityId == slotJobId).ToListAsync(ct)
         );
-        Assert.Equal("marko", EventDetail(evidence, "actor"));
+        Assert.Equal("Jože Kovač", evidence.Actor);
+        Assert.Null(EventDetail(evidence, "actor"));
         Assert.Contains("fixed the target route", evidence.EventMessage);
 
         var again = await Outbox.RequeueAsync(TestNamespace, null, null, null, ct);

@@ -18,6 +18,7 @@ SELECT TOP (@p_take)
     e.execution_number,
     e.duration_ms,
     e.event_message,
+    e.actor,
     e.details_format_id,
     e.details
 FROM {{schema}}.events e

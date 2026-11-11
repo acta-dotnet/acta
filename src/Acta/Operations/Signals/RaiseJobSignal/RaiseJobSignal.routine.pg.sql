@@ -5,6 +5,7 @@ CREATE OR REPLACE FUNCTION {{schema}}.raise_job_signal(
     p_value_format_id SMALLINT,
     p_value BYTEA,
     p_event_message VARCHAR,
+    p_actor VARCHAR,
     p_details_format_id SMALLINT,
     p_details BYTEA,
     p_child_job_id BIGINT,
@@ -132,6 +133,7 @@ BEGIN
             lineage_root_job_id,
             execution_number,
             event_message,
+            actor,
             details_format_id,
             details)
         VALUES (
@@ -145,6 +147,7 @@ BEGIN
             COALESCE(v_lineage_root_job_id, p_job_id),
             v_execution_number,
             v_message,
+            p_actor,
             p_details_format_id,
             p_details);
     END IF;
@@ -171,6 +174,7 @@ BEGIN
                 lineage_root_job_id,
                 execution_number,
                 event_message,
+                actor,
                 details_format_id,
                 details)
             VALUES (
@@ -184,6 +188,7 @@ BEGIN
                 COALESCE(v_lineage_root_job_id, p_job_id),
                 v_execution_number,
                 p_event_message,
+                p_actor,
                 p_details_format_id,
                 p_details);
         END IF;

@@ -69,7 +69,8 @@ public sealed class AcknowledgeAlertSpec : ActaRuntimeTestBase<ConformanceFixtur
             .SingleOrDefaultAsync(ct);
         Assert.NotNull(evt);
         Assert.Equal(EntityCode.Alert, evt!.EntityCode);
-        Assert.Equal("spec-actor", EventDetail(evt, "actor"));
+        Assert.Equal("spec-actor", evt.Actor);
+        Assert.Null(EventDetail(evt, "actor"));
         Assert.Contains($"alert {alertRef}", evt.EventMessage);
         Assert.Contains("looks fine", evt.EventMessage);
 

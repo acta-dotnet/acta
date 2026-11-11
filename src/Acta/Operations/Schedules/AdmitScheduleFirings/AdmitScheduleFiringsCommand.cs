@@ -15,7 +15,7 @@ internal sealed record AdmitScheduleFiringsCommand(
 /// <summary>
 /// One group of a plan. A slot group names the slot and the version it read. A per-occurrence group names its schedule
 /// and the state version its capacity was read under, and when it admits, the root the firing becomes: a ref minted
-/// here, the key no occurrence is admitted under twice, and for a manual firing the operator's note and key.
+/// here, the key no occurrence is admitted under twice, and for a manual firing the operator's note, name, and key.
 /// </summary>
 internal sealed record AdmitScheduleFiringsGroup(
     int Ordinal,
@@ -28,6 +28,7 @@ internal sealed record AdmitScheduleFiringsGroup(
     Guid? JobRef = null,
     string? DeduplicationKey = null,
     string? TriggerMessage = null,
+    string? TriggerActor = null,
     string? TriggerDetails = null
 );
 

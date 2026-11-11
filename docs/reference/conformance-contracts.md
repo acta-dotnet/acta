@@ -17,6 +17,11 @@
   - A suspended tenant still resolves its name
   - An id no tenant has reads null
 
+### A namespace verb records its operator as the event's actor
+- **Contract:** The operator a namespace verb names is its event's actor, byte-identical on every provider, and the event carries no details.
+- **Guarantees:**
+  - The operator who applied a namespace verb is the event's actor, and the event carries no details
+
 ### Namespace resume flips status back, emits one 15xx event, and rejects sys
 - **Contract:** Resume flips a suspended namespace back to Active and emits namespace.resumed, while sys is rejected at the facade.
 - **Guarantees:**
@@ -50,6 +55,11 @@
   - Suspending an active tenant applies, bumps version, and emits one tenant.suspended to sys
   - Re-suspending is AlreadyInState with no second event
   - Suspending an unknown key is NotFound
+
+### A tenant verb records its operator as the event's actor
+- **Contract:** The operator a tenant verb names is its event's actor, byte-identical on every provider, and the event carries no details.
+- **Guarantees:**
+  - The operator who applied a tenant verb is the event's actor, and the event carries no details
 
 ### Namespace update writes owner_team/description under a version CAS
 - **Contract:** Update writes owner_team/description under a version CAS, clears fields on null, emits namespace.updated, and guards sys.
@@ -691,6 +701,11 @@
   - Restart resets the failure budget and clears retention while keeping execution_number
   - Illegal control is Rejected with the current status
   - Control on a missing job is NotFound
+
+### A job verb records its operator as the event's actor
+- **Contract:** The operator a job verb names is its event's actor, byte-identical on every provider, and the event's details name no actor.
+- **Guarantees:**
+  - The operator who applied a job verb is the event's actor, and the details name no actor
 
 ### Control verbs record their event at every recording level
 - **Contract:** A control verb that applies writes its event at every recording level, while a cascaded cancel and a raised signal write theirs only at Audit.
@@ -1763,7 +1778,7 @@
   - DefinitionId filter partitions events and applies uniformly to the row count
   - TenantId filter returns only events for that tenant and excludes other tenants
   - The subject filters select exactly one subject's events, and a kind alone selects that kind
-  - An operator verb's event carries the operator's message and the principal in its details
+  - An operator verb's event carries the operator's message and the principal as its actor
   - CreatedFromUtc and CreatedToUtc split the timeline at a boundary instant
 
 ### ListJobEvents pages a job timeline newest first and scopes totals to a job
@@ -1979,6 +1994,11 @@
 
 ## Scheduling
 
+### A calendar verb records its operator as the event's actor
+- **Contract:** The operator a calendar verb names is its event's actor, byte-identical on every provider, and the event's details name no actor.
+- **Guarantees:**
+  - The operator who applied a calendar verb is the event's actor, and the details name no actor
+
 ### A calendar family's current version archives when nothing live depends on it
 - **Contract:** Archive retires the current version, the expected one if given, records calendar.archived, and is Rejected while a live schedule binds the family.
 - **Guarantees:**
@@ -2138,6 +2158,11 @@
   - Sleep validation rejects invalid names, reserved names and negative delay
   - A second distinct pending sleep is rejected and re-arms without touching the existing timer
   - Unknown control exception fails the attempt like a handler exception, not a reschedule or suspend
+
+### A schedule verb records its operator as the event's actor
+- **Contract:** The operator a schedule verb names is its event's actor, byte-identical on every provider, and the event's details name no actor.
+- **Guarantees:**
+  - The operator who applied a schedule verb is the event's actor, and the details name no actor
 
 ### An admission plan applies whole per slot, or not at all when stale
 - **Contract:** A planned group applies whole at the versions it read, making the slot Ready with its envelope, and a moved group or a suspended namespace's applies nothing.

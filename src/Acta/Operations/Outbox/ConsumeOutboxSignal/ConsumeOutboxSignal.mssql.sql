@@ -30,6 +30,7 @@ BEGIN TRY
             lineage_root_job_id,
             execution_number,
             event_message,
+            actor,
             details_format_id,
             details
         )
@@ -44,6 +45,7 @@ BEGIN TRY
             COALESCE(j.lineage_root_job_id, j.job_id),
             r.execution_number,
             @p_event_message,
+            @p_actor,
             @p_details_format_id,
             @p_details
         FROM {{schema}}.jobs j

@@ -81,7 +81,8 @@ public sealed class PurgeJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
         Assert.Equal(EventCode.JobPurged, tombstone.EventCode);
         Assert.Equal(before.DefinitionId, tombstone.DefinitionId);
         Assert.Equal(completed.JobRef.ToString(), EventDetail(tombstone, "jobRef"));
-        Assert.Equal("spec-actor", EventDetail(tombstone, "actor"));
+        Assert.Equal("spec-actor", tombstone.Actor);
+        Assert.Null(EventDetail(tombstone, "actor"));
         Assert.Equal("duplicate of an earlier import", tombstone.EventMessage);
     }
 

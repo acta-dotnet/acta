@@ -512,7 +512,8 @@ public sealed class UpdateDefinitionOverridesSpec : ActaStorageTestBase<Conforma
         Assert.NotNull(evt);
         Assert.Equal(EntityCode.Definition, evt!.EntityCode);
         Assert.Equal(id, evt.EntityId);
-        Assert.Equal("tester", EventDetail(evt, "actor"));
+        Assert.Equal("tester", evt.Actor);
+        Assert.Null(EventDetail(evt, "actor"));
         Assert.Equal("audited edit", evt.EventMessage);
     }
 }

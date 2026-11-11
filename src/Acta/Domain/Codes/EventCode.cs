@@ -96,7 +96,7 @@ public enum EventCode : byte
 
     [Code(
         "job.rescheduled",
-        "The job became ready with a new nextRunAtUtc: its handler rescheduled it, a failed attempt retries within budget, or an operator rescheduled it. The details carry the key actor or reason."
+        "The job became ready with a new nextRunAtUtc: its handler rescheduled it, a failed attempt retries within budget, or an operator rescheduled it, who is then the event's actor. The details carry the reason when there is one."
     )]
     JobRescheduled = 61,
 
@@ -123,13 +123,13 @@ public enum EventCode : byte
 
     [Code(
         "job.purged",
-        "An operator deleted a finished job's record; the event is about the deleted job's id, and its details keep the job's jobRef, correlationKey, and actor. Recorded whatever the event recording level."
+        "An operator deleted a finished job's record; the event is about the deleted job's id, its details keep the job's jobRef and correlationKey, and its actor is the operator. Recorded whatever the event recording level."
     )]
     JobPurged = 75,
 
     [Code(
         "job.input-amended",
-        "An operator replaced a job's stored input; the details carry the actor and the format name and byte count of the previous input, and the message carries the reason."
+        "An operator replaced a job's stored input; the operator is the event's actor, the details carry the format name and byte count of the previous input, and the message carries the reason."
     )]
     JobInputAmended = 76,
 

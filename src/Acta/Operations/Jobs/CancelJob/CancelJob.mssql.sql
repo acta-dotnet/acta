@@ -226,7 +226,7 @@ BEGIN TRY
                 entity_code, entity_id,
                 definition_id, tenant_id, lineage_root_job_id,
                 execution_number,
-                event_message, details_format_id, details
+                event_message, actor, details_format_id, details
             )
             VALUES (
                 43 /* EventCode.JobExecutionYielded */, @now, @namespace_id,
@@ -234,7 +234,7 @@ BEGIN TRY
                 50 /* EntityCode.Job */, @p_job_id,
                 @definition_id, @tenant_id, COALESCE(@lineage_root_job_id, @p_job_id),
                 @execution_number,
-                @p_event_message, 1 /* JobPayloadFormat.Json */,
+                @p_event_message, @p_actor, 1 /* JobPayloadFormat.Json */,
                 CASE
                     WHEN @p_details IS NULL THEN CONVERT(VARBINARY(MAX), '{"outcome":"cancelled"}')
                     ELSE
@@ -252,14 +252,14 @@ BEGIN TRY
                 entity_code, entity_id,
                 definition_id, tenant_id, lineage_root_job_id,
                 execution_number,
-                event_message, details_format_id, details
+                event_message, actor, details_format_id, details
             )
             VALUES (
                 70 /* EventCode.JobCancelled */, @now, @namespace_id,
                 50 /* EntityCode.Job */, @p_job_id,
                 @definition_id, @tenant_id, COALESCE(@lineage_root_job_id, @p_job_id),
                 @execution_number,
-                @p_event_message, @p_details_format_id, @p_details
+                @p_event_message, @p_actor, @p_details_format_id, @p_details
             );
         END
 

@@ -180,6 +180,7 @@ CREATE TABLE {{schema}}.events (
     execution_number bigint NULL,
     duration_ms int NULL,
     event_message nvarchar(512) NULL,
+    actor nvarchar(128) NULL,
     details_format_id tinyint DEFAULT 0 NOT NULL,
     details varbinary(max) NULL
     , CONSTRAINT pk_events PRIMARY KEY (worker_id, event_id) WITH (OPTIMIZE_FOR_SEQUENTIAL_KEY = ON)
@@ -3532,6 +3533,7 @@ CREATE OR ALTER PROCEDURE {{schema}}.raise_job_signal
     @p_value_format_id TINYINT,
     @p_value VARBINARY(MAX),
     @p_event_message NVARCHAR(512),
+    @p_actor NVARCHAR(128),
     @p_details_format_id TINYINT,
     @p_details VARBINARY(MAX),
     @p_child_job_id BIGINT,
@@ -3649,14 +3651,14 @@ BEGIN
                 entity_code, entity_id,
                 definition_id, tenant_id, lineage_root_job_id,
                 execution_number,
-                event_message, details_format_id, details
+                event_message, actor, details_format_id, details
             )
             VALUES (
                 80 /* EventCode.JobSignalRaised */, @now, @namespace_id,
                 50 /* EntityCode.Job */, @p_job_id,
                 @definition_id, @tenant_id, COALESCE(@lineage_root_job_id, @p_job_id),
                 @execution_number,
-                @message, @p_details_format_id, @p_details
+                @message, @p_actor, @p_details_format_id, @p_details
             );
 
         -- Only the checkpoint the job waits on releases it; any other raise is stored for the wait that will read it.
@@ -3676,14 +3678,14 @@ BEGIN
                         entity_code, entity_id,
                         definition_id, tenant_id, lineage_root_job_id,
                         execution_number,
-                        event_message, details_format_id, details
+                        event_message, actor, details_format_id, details
                     )
                     VALUES (
                         72 /* EventCode.JobResumed */, @now, @namespace_id,
                         50 /* EntityCode.Job */, @p_job_id,
                         @definition_id, @tenant_id, COALESCE(@lineage_root_job_id, @p_job_id),
                         @execution_number,
-                        @p_event_message, @p_details_format_id, @p_details
+                        @p_event_message, @p_actor, @p_details_format_id, @p_details
                     );
 
                 SELECT
@@ -4814,6 +4816,7 @@ SELECT
     e.execution_number,
     e.duration_ms,
     e.event_message,
+    e.actor,
     CASE e.details_format_id
         WHEN 0 /* JobPayloadFormat.None */ THEN 'none'
         WHEN 1 /* JobPayloadFormat.Json */ THEN 'json'
@@ -5007,7 +5010,7 @@ JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE name = 'M20261111034628_init')
+IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE name = 'M20261111042513_init')
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261111034628_init');
+VALUES ('M20261111042513_init');
 GO

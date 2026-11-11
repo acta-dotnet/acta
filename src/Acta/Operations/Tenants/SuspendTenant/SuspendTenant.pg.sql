@@ -17,12 +17,12 @@ audit AS (
     INSERT INTO {{schema}}.events (
         event_code, created_at_utc, namespace_id,
         entity_code, entity_id,
-        event_message, details_format_id, details
+        event_message, actor, details_format_id, details
     )
     SELECT
         10 /* EventCode.TenantSuspended */, now(), 1,
         120 /* EntityCode.Tenant */, c.tenant_id,
-        @p_event_message, @p_details_format_id, @p_details
+        @p_event_message, @p_actor, @p_details_format_id, @p_details
     FROM changed c
 )
 SELECT 1 /* ControlAction.Applied */::SMALLINT AS action, c.version AS version

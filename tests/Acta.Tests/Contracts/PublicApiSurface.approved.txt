@@ -1819,7 +1819,7 @@ sealed record Acta.ListDefinitionsResponse : Acta.IPagedResponse<Acta.ListDefini
     System.Nullable<System.Int64> TotalCount { get;init; }
     System.String NextCursor { get;init; }
 sealed record Acta.ListEventsItem
-    .ctor(System.Int64 EventId, Acta.EventCode EventCode, System.DateTime CreatedAtUtc, System.String JobNamespace, Acta.EntityCode EntityKind, System.Int64 EntityId, System.String JobName, System.Nullable<Acta.JobRef> JobRef, System.Nullable<System.Int64> LineageRootJobId, System.Nullable<Acta.JobRef> LineageRootJobRef, System.Nullable<System.Int32> DefinitionId, System.Nullable<System.Int32> TenantId, System.String TenantName, System.Nullable<System.Int32> WorkerId, System.Nullable<Acta.WorkerRef> WorkerRef, System.Nullable<System.Int64> ExecutionNumber, System.Nullable<System.Int32> DurationMs, System.String Message, System.String DetailsText)
+    .ctor(System.Int64 EventId, Acta.EventCode EventCode, System.DateTime CreatedAtUtc, System.String JobNamespace, Acta.EntityCode EntityKind, System.Int64 EntityId, System.String JobName, System.Nullable<Acta.JobRef> JobRef, System.Nullable<System.Int64> LineageRootJobId, System.Nullable<Acta.JobRef> LineageRootJobRef, System.Nullable<System.Int32> DefinitionId, System.Nullable<System.Int32> TenantId, System.String TenantName, System.Nullable<System.Int32> WorkerId, System.Nullable<Acta.WorkerRef> WorkerRef, System.Nullable<System.Int64> ExecutionNumber, System.Nullable<System.Int32> DurationMs, System.String Message, System.String Actor, System.String DetailsText)
     Acta.EntityCode EntityKind { get;init; }
     Acta.EventCode EventCode { get;init; }
     System.DateTime CreatedAtUtc { get;init; }
@@ -1834,6 +1834,7 @@ sealed record Acta.ListEventsItem
     System.Nullable<System.Int32> WorkerId { get;init; }
     System.Nullable<System.Int64> ExecutionNumber { get;init; }
     System.Nullable<System.Int64> LineageRootJobId { get;init; }
+    System.String Actor { get;init; }
     System.String DetailsText { get;init; }
     System.String JobName { get;init; }
     System.String JobNamespace { get;init; }

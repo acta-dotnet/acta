@@ -26,6 +26,8 @@ namespace Acta;
 /// <param name="ExecutionNumber">The attempt the event belongs to, when it belongs to one.</param>
 /// <param name="DurationMs">How long the recorded work took, in milliseconds, when the event measures it.</param>
 /// <param name="Message">The event's message, when it has one.</param>
+/// <param name="Actor">Who performed the action: the operator an operator verb was given, as text, or the job's own id on a state reset its
+/// handler asked for; null on an event the engine or a worker wrote, and when the operator was unknown.</param>
 /// <param name="DetailsText">The event's details as text, when it has any.</param>
 public sealed record ListEventsItem(
     long EventId,
@@ -46,5 +48,6 @@ public sealed record ListEventsItem(
     long? ExecutionNumber,
     int? DurationMs,
     string? Message,
+    string? Actor,
     string? DetailsText
 );

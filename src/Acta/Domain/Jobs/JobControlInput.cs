@@ -7,6 +7,6 @@ namespace Acta;
 /// </summary>
 internal sealed record JobControlInput(string? Actor, string? Reason, string? Message, long? ExpectedVersion = null)
 {
-    /// <summary>The event's JSON details: the actor and the reason, or null when it has neither.</summary>
-    public byte[]? Details => EventDetails.Write(("actor", Actor), ("reason", Reason));
+    /// <summary>The event's JSON details: the reason, or null when it has none.</summary>
+    public byte[]? Details => EventDetails.Write(("reason", Reason));
 }

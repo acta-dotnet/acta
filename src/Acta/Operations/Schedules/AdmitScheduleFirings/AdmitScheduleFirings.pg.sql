@@ -10,10 +10,10 @@ DROP TABLE IF EXISTS pg_temp._adm_lock;
 CREATE TEMP TABLE _adm_groups ON COMMIT DROP AS
 SELECT
     g.ordinal, g.job_id, g.expected_job_version, g.schedule_id, g.expected_state_version, g.admit, g.envelope,
-    g.job_ref, g.deduplication_key, g.trigger_message, g.trigger_details
+    g.job_ref, g.deduplication_key, g.trigger_message, g.trigger_actor, g.trigger_details
 FROM json_to_recordset(@p_groups::json) AS g (
     ordinal INT, job_id BIGINT, expected_job_version BIGINT, schedule_id INT, expected_state_version INT, admit BOOLEAN,
-    envelope TEXT, job_ref UUID, deduplication_key VARCHAR, trigger_message VARCHAR, trigger_details TEXT);
+    envelope TEXT, job_ref UUID, deduplication_key VARCHAR, trigger_message VARCHAR, trigger_actor VARCHAR, trigger_details TEXT);
 CREATE TEMP TABLE _adm_rows ON COMMIT DROP AS
 SELECT
     a.group_ordinal, a.schedule_id, a.schedule_name, a.expected_version, a.expected_schedule_version,
@@ -220,7 +220,7 @@ INSERT INTO {{schema}}.events (
     entity_code, entity_id,
     definition_id, tenant_id, lineage_root_job_id,
     execution_number,
-    event_message, details_format_id, details
+    event_message, actor, details_format_id, details
 )
 SELECT
     k.event_code, now(), @p_namespace_id,
@@ -228,10 +228,11 @@ SELECT
     COALESCE(k.on_job, k.definition_id),
     k.definition_id, k.tenant_id, k.lineage_root_job_id,
     k.execution_number,
-    k.event_message, 1 /* JobPayloadFormat.Json */, convert_to(k.details, 'UTF8')
+    k.event_message, k.actor, 1 /* JobPayloadFormat.Json */, convert_to(k.details, 'UTF8')
 FROM (
     SELECT
         x.schedule_id, x.ord, x.event_code, x.details, x.event_message,
+        CASE WHEN x.ord = 6 THEN g.trigger_actor END AS actor,
         CASE WHEN g.job_id IS NOT NULL THEN g.job_id WHEN x.ord IN (3, 6) THEN root.job_id END AS on_job,
         js.definition_id, j.tenant_id,
         COALESCE(j.lineage_root_job_id, j.job_id, root.job_id) AS lineage_root_job_id,

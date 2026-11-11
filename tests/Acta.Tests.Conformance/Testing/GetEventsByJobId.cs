@@ -5,7 +5,7 @@ namespace Acta.Tests.Conformance.Testing;
 
 /// <summary>
 /// One job-subject <c>events</c> row projected for timeline verification. The details facts (<see cref="Reason"/>,
-/// <see cref="To"/>, <see cref="Outcome"/>, <see cref="Actor"/>, <see cref="Schedule"/>) read the JSON details text.
+/// <see cref="To"/>, <see cref="Outcome"/>, <see cref="Schedule"/>) read the JSON details text.
 /// </summary>
 internal sealed record JobEventRecord(
     long Id,
@@ -15,6 +15,7 @@ internal sealed record JobEventRecord(
     int? DurationMs,
     int? WorkerId,
     string? Message,
+    string? Actor,
     string? DetailsText
 )
 {
@@ -23,8 +24,6 @@ internal sealed record JobEventRecord(
     public string? To => Detail("to");
 
     public string? Outcome => Detail("outcome");
-
-    public string? Actor => Detail("actor");
 
     public string? Schedule => Detail("schedule");
 
@@ -80,6 +79,7 @@ internal static class GetEventsByJobId
                     r.DurationMs,
                     r.WorkerId,
                     r.Message,
+                    r.Actor,
                     r.DetailsText
                 )
             );

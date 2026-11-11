@@ -187,6 +187,7 @@ cancel_events AS (
         lineage_root_job_id,
         execution_number,
         event_message,
+        actor,
         details_format_id,
         details)
     SELECT
@@ -200,6 +201,7 @@ cancel_events AS (
         p.lineage_root_job_id,
         p.execution_number,
         @p_event_message,
+        @p_actor,
         1 /* JobPayloadFormat.Json */,
         @p_job_details
     FROM parked p
@@ -215,6 +217,7 @@ definition_event AS (
         entity_id,
         definition_id,
         event_message,
+        actor,
         details_format_id,
         details)
     SELECT
@@ -225,6 +228,7 @@ definition_event AS (
         d.definition_id,
         d.definition_id,
         @p_event_message,
+        @p_actor,
         @p_details_format_id,
         @p_details
     FROM retired d

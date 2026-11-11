@@ -51,6 +51,7 @@ function failed(executionNumber: number): EventItem {
     executionNumber,
     durationMs: 125,
     message: 'Invoice provider timed out.',
+    actor: null,
     detailsText: '{"reason":"unhandled-exception","to":"ready"}'
   };
 }

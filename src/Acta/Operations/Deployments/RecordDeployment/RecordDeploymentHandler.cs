@@ -17,9 +17,11 @@ internal sealed class RecordDeploymentHandler(IDbSession session, ISqlDialect di
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Namespace.DeploymentVersion, command.DeploymentVersion));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Namespace.OwnerTeam, command.OwnerTeam));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Namespace.Description, command.Description));
-                cmd.AddEventFields(
+                cmd.Parameters.Add(
+                    dialect.CreateParameter(ActaSchema.Event.EventMessage, Message(command).Truncate(ActaTextLimits.EventMessage))
+                );
+                cmd.AddEventDetails(
                     dialect,
-                    Message(command).Truncate(ActaTextLimits.EventMessage),
                     command.DeploymentVersion is null
                         ? null
                         : EventDetails.Write(

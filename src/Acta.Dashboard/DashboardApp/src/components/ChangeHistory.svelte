@@ -4,7 +4,6 @@
   import RelativeTime from './RelativeTime.svelte';
   import StateView from './StateView.svelte';
   import type { HistoryEvent } from './changeHistory.ts';
-  import { eventFacts } from '../lib/eventFacts.ts';
 
   let {
     history,
@@ -12,9 +11,9 @@
     emptyText = 'No recorded changes.'
   }: { history: HistoryEvent[]; loading?: boolean; emptyText?: string } = $props();
 
-  // Only an operator verb records who acted (details.actor); a system or worker event names no one, so
+  // Only an operator verb records who acted (the event's actor); a system or worker event names no one, so
   // the column shows only when some row has an actor.
-  let actors = $derived(history.map((ev) => eventFacts(ev.detailsText).actor ?? null));
+  let actors = $derived(history.map((ev) => ev.actor ?? null));
   let showWho = $derived(actors.some((actor) => actor !== null));
 </script>
 

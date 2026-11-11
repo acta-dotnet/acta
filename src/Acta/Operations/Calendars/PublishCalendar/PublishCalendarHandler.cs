@@ -177,13 +177,13 @@ internal sealed class PublishCalendarHandler(
                     cmd.AddEventFields(
                         dialect,
                         command.ReasonMessage.Truncate(ActaTextLimits.EventMessage),
+                        JobControlActor.Operator(command.Actor),
                         EventDetails.Write(
                             ("calendar", calendarName),
                             ("version", candidate.Version.ToString(CultureInfo.InvariantCulture)),
                             ("fromVersion", (current?.Version ?? 0).ToString(CultureInfo.InvariantCulture)),
                             ("overdue", command.Overdue.Code),
-                            ("affected", retimed.Count.ToString(CultureInfo.InvariantCulture)),
-                            ("actor", JobControlActor.Operator(command.Actor))
+                            ("affected", retimed.Count.ToString(CultureInfo.InvariantCulture))
                         )
                     );
                     dialect.BindPublishCalendar(cmd, plan);

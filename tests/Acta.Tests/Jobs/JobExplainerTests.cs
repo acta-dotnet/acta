@@ -45,8 +45,9 @@ public class JobExplainerTests
             WorkerStatus: workerStatus,
             WorkerLastSeenAtUtc: workerLastSeenAtUtc,
             LatestReasonMessage: latestReasonMessage,
-            LatestReasonDetailsFormatId: latestReason is null && latestReasonActor is null ? null : JobPayloadFormat.Json.Id,
-            LatestReasonDetails: EventDetails.Write(("actor", latestReasonActor), ("reason", latestReason)),
+            LatestReasonActor: latestReasonActor,
+            LatestReasonDetailsFormatId: latestReason is null ? null : JobPayloadFormat.Json.Id,
+            LatestReasonDetails: EventDetails.Write(("reason", latestReason)),
             LastExecutedByWorkerVersion: workerRowPurged ? null : lastExecutedByWorkerVersion,
             // The SQL LEFT JOINs produce a ref exactly when the id is present and its row still exists,
             // so the fixture mirrors that.
@@ -493,7 +494,7 @@ public class JobExplainerTests
         Assert.Equal("unhandled-exception", idle.Reason);
     }
 
-    // A Cancelled job's reason event is its cancel: the message, then the operator its details name.
+    // A Cancelled job's reason event is its cancel: the message, then its actor.
     [Theory]
     [InlineData("duplicate order", "alice", null, "duplicate order (by alice)")]
     [InlineData(null, "alice", null, "Cancelled by alice.")]

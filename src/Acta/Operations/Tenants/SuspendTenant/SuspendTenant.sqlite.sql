@@ -12,6 +12,7 @@ INSERT INTO {{schema}}.events (
     entity_code,
     entity_id,
     event_message,
+    actor,
     details_format_id,
     details)
 -- namespace_id 1 is the sys namespace the baseline seeds.
@@ -22,6 +23,7 @@ SELECT
     120 /* EntityCode.Tenant */,
     s.tenant_id,
     @p_event_message,
+    @p_actor,
     @p_details_format_id,
     @p_details
 FROM temp._suspend_tenant s

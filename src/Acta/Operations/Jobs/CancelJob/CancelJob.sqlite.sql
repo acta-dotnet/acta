@@ -46,6 +46,7 @@ INSERT INTO {{schema}}.events (
     lineage_root_job_id,
     execution_number,
     event_message,
+    actor,
     details_format_id,
     details)
 SELECT
@@ -60,6 +61,7 @@ SELECT
     COALESCE(j.lineage_root_job_id, j.job_id),
     r.execution_number,
     @p_event_message,
+    @p_actor,
     1 /* JobPayloadFormat.Json */,
     CAST(CASE
         WHEN @p_details IS NULL THEN '{"outcome":"cancelled"}'
@@ -85,6 +87,7 @@ INSERT INTO {{schema}}.events (
     lineage_root_job_id,
     execution_number,
     event_message,
+    actor,
     details_format_id,
     details)
 SELECT
@@ -98,6 +101,7 @@ SELECT
     COALESCE(j.lineage_root_job_id, j.job_id),
     r.execution_number,
     @p_event_message,
+    @p_actor,
     @p_details_format_id,
     @p_details
 FROM {{schema}}.jobs j

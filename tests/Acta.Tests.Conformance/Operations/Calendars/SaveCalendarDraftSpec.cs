@@ -57,7 +57,8 @@ public sealed class SaveCalendarDraftSpec : ActaStorageTestBase<ConformanceFixtu
         Assert.Equal(name, EventDetail(ev, "calendar"));
         Assert.Equal("1", EventDetail(ev, "version"));
         Assert.Equal("availability", EventDetail(ev, "role"));
-        Assert.Equal("op-1", EventDetail(ev, "actor"));
+        Assert.Equal("op-1", ev.Actor);
+        Assert.Null(EventDetail(ev, "actor"));
     }
 
     [Fact(DisplayName = "A draft against the latest version saves the next one; a stale expected version is a conflict naming the latest")]

@@ -88,7 +88,8 @@ function definitionEvent(overrides: Record<string, unknown>) {
     executionNumber: null,
     durationMs: null,
     message: null,
-    detailsText: '{"actor":"marko"}',
+    actor: 'marko',
+    detailsText: null,
     ...overrides
   };
 }

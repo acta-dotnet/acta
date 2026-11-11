@@ -87,13 +87,13 @@
       <summary>Raw events ({displayFormatter.number(events.length)} loaded) <span class="dim">· {displayFormatter.zoneNote($now)}</span></summary>
       <DataTable>
         <caption class="sr-only">Loaded raw job events</caption>
-        <thead><tr><th>Time</th><th>Event</th><th class="col-num">{permanent ? 'Execution' : 'Attempt'}</th><th class="col-num">Duration</th><th>Message</th><th>Details</th></tr></thead>
+        <thead><tr><th>Time</th><th>Event</th><th class="col-num">{permanent ? 'Execution' : 'Attempt'}</th><th class="col-num">Duration</th><th>Message</th><th>Actor</th><th>Details</th></tr></thead>
         <tbody>
           {#each events as event (event.eventId)}
             <tr>
               <td><TimeCell value={event.createdAtUtc} /></td><td>{event.eventCode}</td><td class="col-num">{event.executionNumber == null ? '·' : displayFormatter.number(event.executionNumber)}</td>
               <td class="col-num">{event.durationMs != null ? displayFormatter.milliseconds(event.durationMs) : '·'}</td>
-              <td class="wrap">{event.message ?? '·'}</td><td class="wrap mono">{event.detailsText ?? '·'}</td>
+              <td class="wrap">{event.message ?? '·'}</td><td class="wrap">{event.actor ?? '·'}</td><td class="wrap mono">{event.detailsText ?? '·'}</td>
             </tr>
           {/each}
         </tbody>

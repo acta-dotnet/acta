@@ -77,6 +77,7 @@ INSERT INTO {{schema}}.events (
     lineage_root_job_id,
     execution_number,
     event_message,
+    actor,
     details_format_id,
     details
 )
@@ -95,6 +96,7 @@ SELECT
             THEN substr(COALESCE(@p_event_message || ' ', '') || 'Signal not applied: the wait had already expired.', 1, 512)
         ELSE @p_event_message
     END,
+    @p_actor,
     @p_details_format_id,
     @p_details
 FROM {{schema}}.jobs j
@@ -119,6 +121,7 @@ INSERT INTO {{schema}}.events (
     lineage_root_job_id,
     execution_number,
     event_message,
+    actor,
     details_format_id,
     details
 )
@@ -133,6 +136,7 @@ SELECT
     COALESCE(j.lineage_root_job_id, j.job_id),
     r.execution_number,
     @p_event_message,
+    @p_actor,
     @p_details_format_id,
     @p_details
 FROM {{schema}}.jobs j

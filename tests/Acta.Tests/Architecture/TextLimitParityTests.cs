@@ -36,6 +36,7 @@ public sealed class TextLimitParityTests
         Assert.Equal(ActaSchema.Namespace.OwnerTeam.Size, TextLimits.NamespaceOwnerTeam);
         Assert.Equal(ActaSchema.Namespace.Description.Size, TextLimits.NamespaceDescription);
         Assert.Equal(ActaSchema.Event.EventMessage.Size, ActaTextLimits.EventMessage);
+        Assert.Equal(ActaSchema.Event.Actor.Size, ActaTextLimits.Actor);
         Assert.Equal(ActaSchema.Step.FailureMessage.Size, ActaTextLimits.StepFailureMessage);
         Assert.Equal(ActaSchema.Alert.ChannelName.Size, ActaTextLimits.AlertChannelName);
         Assert.Equal(ActaSchema.Alert.DeduplicationKey.Size, ActaTextLimits.AlertDeduplicationKey);

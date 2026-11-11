@@ -324,7 +324,8 @@ public sealed class PerOccurrenceSchedulingSpec : ActaRuntimeTestBase<Conformanc
         var triggered = await ReadSingleEventAsync(root.Id, EventCode.ScheduleTriggered, ct);
         Assert.Equal("now", triggered.EventMessage);
         Assert.Equal(PerOccurrenceManifest.ScheduleName, EventDetail(triggered, "schedule"));
-        Assert.Equal(Operator, EventDetail(triggered, "actor"));
+        Assert.Equal(Operator, triggered.Actor);
+        Assert.Null(EventDetail(triggered, "actor"));
 
         Assert.Equal(ControlAction.Rejected, (await Schedules.TriggerAsync(lookup, ct: ct)).Action);
         Assert.Single(await RootsAsync(schedule.Id, ct));

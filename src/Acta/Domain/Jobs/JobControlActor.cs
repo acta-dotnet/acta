@@ -1,7 +1,7 @@
 namespace Acta;
 
 /// <summary>
-/// The operator principal an operator verb stamps into its event's <c>details.actor</c>. The public verbs never
+/// The operator principal an operator verb stamps into its event's <c>actor</c> column. The public verbs never
 /// take an actor kind from the caller: the system and worker paths write no actor, since the event code and
 /// <c>worker_id</c> already say who acted.
 /// </summary>

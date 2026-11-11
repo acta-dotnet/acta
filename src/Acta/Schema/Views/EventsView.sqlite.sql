@@ -19,6 +19,7 @@ SELECT
     e.execution_number,
     e.duration_ms,
     e.event_message,
+    e.actor,
     CASE e.details_format_id
         WHEN 0 /* JobPayloadFormat.None */ THEN 'none'
         WHEN 1 /* JobPayloadFormat.Json */ THEN 'json'

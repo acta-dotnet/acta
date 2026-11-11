@@ -84,8 +84,7 @@ internal static class UpdateJobInputEndpoint
                         payload = JobPayload.CopyBytes(stored.Format, payload.Data.Span);
                     }
 
-                    // Operator identity for the audit trail comes from the authenticated principal, never the
-                    // body; the verb stamps actor = Operator.
+                    // Operator identity for the audit trail comes from the authenticated principal, never the body.
                     var actor = http.User?.Identity?.Name;
                     try
                     {

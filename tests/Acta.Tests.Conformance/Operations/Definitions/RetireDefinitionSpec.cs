@@ -55,7 +55,8 @@ public sealed class RetireDefinitionSpec : ActaRuntimeTestBase<ConformanceFixtur
             Assert.Equal(1, await CountEventsAsync(cancelled.JobId, EventCode.JobCancelled, ct));
             var evt = await ReadSingleEventAsync(cancelled.JobId, EventCode.JobCancelled, ct);
             Assert.Equal(EventReason.DefinitionRetired, EventDetail(evt, "reason"));
-            Assert.Equal(Actor, EventDetail(evt, "actor"));
+            Assert.Equal(Actor, evt.Actor);
+            Assert.Null(EventDetail(evt, "actor"));
             Assert.Equal(Reason, evt.EventMessage);
             Assert.Equal(0, evt.WorkerId);
         }
@@ -87,7 +88,8 @@ public sealed class RetireDefinitionSpec : ActaRuntimeTestBase<ConformanceFixtur
         Assert.NotNull(evt);
         Assert.Equal(EntityCode.Definition, evt!.EntityCode);
         Assert.Equal(before.DefinitionId, evt.EntityId);
-        Assert.Equal(Actor, EventDetail(evt, "actor"));
+        Assert.Equal(Actor, evt.Actor);
+        Assert.Null(EventDetail(evt, "actor"));
         Assert.Equal(Reason, evt.EventMessage);
     }
 
@@ -347,7 +349,7 @@ public sealed class RetireDefinitionSpec : ActaRuntimeTestBase<ConformanceFixtur
         var evt = await ReadSingleEventAsync(jobId, EventCode.JobCancelled, ct);
         Assert.Equal(EventReason.DefinitionRetired, EventDetail(evt, "reason"));
         Assert.NotEqual(0, evt.WorkerId);
-        Assert.Null(EventDetail(evt, "actor"));
+        Assert.Null(evt.Actor);
     }
 
     private async Task<int> CountDefinitionEventsAsync(int definitionId, CancellationToken ct) =>

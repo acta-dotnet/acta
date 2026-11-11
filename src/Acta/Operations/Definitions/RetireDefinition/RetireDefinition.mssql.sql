@@ -241,6 +241,7 @@ BEGIN TRY
             lineage_root_job_id,
             execution_number,
             event_message,
+            actor,
             details_format_id,
             details)
         SELECT
@@ -254,6 +255,7 @@ BEGIN TRY
             p.lineage_root_job_id,
             c.execution_number,
             @p_event_message,
+            @p_actor,
             1 /* JobPayloadFormat.Json */,
             @p_job_details
         FROM @cancelled c
@@ -268,6 +270,7 @@ BEGIN TRY
             entity_id,
             definition_id,
             event_message,
+            actor,
             details_format_id,
             details)
         VALUES (
@@ -278,6 +281,7 @@ BEGIN TRY
             @p_definition_id,
             @p_definition_id,
             @p_event_message,
+            @p_actor,
             @p_details_format_id,
             @p_details);
 

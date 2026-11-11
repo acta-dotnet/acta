@@ -663,6 +663,10 @@
           "Signature": "UnicodeString|512|0|0|True|None||coded=False|codeKind=|caseExact=False"
         },
         {
+          "Name": "actor",
+          "Signature": "UnicodeString|128|0|0|True|None||coded=False|codeKind=|caseExact=False"
+        },
+        {
           "Name": "details_format_id",
           "Signature": "Byte|0|0|0|False|Zero||coded=False|codeKind=|caseExact=False"
         },
@@ -1496,11 +1500,11 @@
       "deployments_view": "96fc0284fb1f47ce344419e633b8f89ade24ded7c4a118d0a514015548affa63",
       "enqueue_job": "31a61b7d397876118bff6c0b281c1f31d9d8055a2be26e7aa8798a4646833dc9",
       "enqueue_jobs": "9751449e005027e31e96f4dcd205c445ccbbeab1f804b71acb22297dd2c71b1b",
-      "events_view": "1ef24a5f6f0396d31001d587af08c5a8a6e1facad9d76b6a5b62cc2874097478",
+      "events_view": "657e0c4ab8d397ff409570187af431bbad5aa42f149447e4101dd0b34300b755",
       "extend_worker_leases": "bd11a1466107868428f4215f36594fb28a20aab206d2db9908c6f625495c05c8",
       "jobs_view": "458bc42c8710bb0e53f7c875e2f52f77deb2e100d36b1a2a6a969008ae3cd277",
       "purge_expired_data": "b2cc8ca43a0b2a8b3fcf766f151b24d198bcb6ad08c23a7a7764916bb625ebb7",
-      "raise_job_signal": "78925aa13e26f38dd65cf082dc474b9c5638c31c6bdd932a05c42e7de2dadee2",
+      "raise_job_signal": "ecd28ffa4af3f5c0f53a4aea9509e598d8bda4ea863bf579d5d6835869d1f41f",
       "reclaim_stuck_jobs": "d968bf564c4979f3d225efd03f03222d6f45be4ecd4f7ac27b6df62cf221ff89",
       "reserve_rate": "6c670647c61105bf54f710e21222010bc21c5fb74db62825cce3495dd902fa22",
       "schedules_view": "8e8053b4bbbe7d1d36775ffcf01431a6f8e24644c9b13728bd467440394ddf59",
@@ -1523,11 +1527,11 @@
       "deployments_view": "6c8ab23e15969f1ec2d9116019d27f88d713c0b218d13ddd68390e04d74c513a",
       "enqueue_job": "053d9a00b0a26c721f54754d2f6672cc1a162dc5e38f693e02bd7211429e3ae7",
       "enqueue_jobs": "6013b3d92dd2e32c562b60067ada971b2d8aeba9f84fff61dc53dde9b6f09036",
-      "events_view": "09b910d334922ed549dc649f5c0f56bd91b016aed0ca4471fc414832396eadeb",
+      "events_view": "f9c94a95a24b51cd1abda5a80b3d6209491cb9d1a05a62de14c5cb4d2cfa0be5",
       "extend_worker_leases": "8a5afc7d8da253ef2c6cccebb8609473b1f37afd827b979a526d76222d8c4c51",
       "jobs_view": "c6a9ceaa8fbb38e8b0630f44f07489ddffa6aad5d17b4b7075f7680bd3785341",
       "purge_expired_data": "c9182d7dd6b40620bd3a9fe40ebcc8d9efb6cbb73989ab7d190a83e9cbd9598c",
-      "raise_job_signal": "e15475d5160905820d8913b2304049fdd44df3d619a19837eef90fbe4e0ec55d",
+      "raise_job_signal": "2a955f585ac86935aa91fe12a387c84248617b7117e47790dfc9639e5e4cc12f",
       "reclaim_stuck_jobs": "d929a6dd50a4cc635d7505725ef7a97023895b847343f9bbbdada6bbe4ec334f",
       "reserve_rate": "147eb58a9780d3a3a0f0660d4d0301c93a2a310dfbff598c2996b88d71eb6543",
       "schedules_view": "4a5dcb63974cf00da2f8ece71fc01965c3882db7a35f2bbe660722eed4f989d1",
@@ -1543,7 +1547,7 @@
       "checkpoints_view": "51ec3b286c5fa5170b687dd137a98fc54ed3711c0401bd1be552da78a522452e",
       "definitions_view": "fbfe0602f88cce3877583826e8b31c93c02029a9401c568e2b7c065e018ae5c3",
       "deployments_view": "0dedc9b2b0447dacab93f35b0cd4ab2341d51288d237257af8ba54b03b682ec1",
-      "events_view": "576e944fc943d5d8b22ae73de55d8cd219f68a77b7ba54298814072a70d782d8",
+      "events_view": "1bb48c1e60ce85418b5980d772ef6913093f2290776a7a1fc3f5d547755358e1",
       "jobs_view": "5ddc386528a729f31cbbeb277f1239fe88823a2b8ba586ed44d6d4f6d1796df7",
       "schedules_view": "1d609e2b1a39e5f9db24f000276e0a6fac7c444a0d62201689d443d26a0bb48f",
       "steps_view": "b80a5e553ef24cde91b653873df7973cb86631e63fb8ccda386af79eedbfd74e",

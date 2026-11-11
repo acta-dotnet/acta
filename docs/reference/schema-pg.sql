@@ -41,14 +41,14 @@ DO $$
 BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
-        WHERE name NOT IN ('M20261111034628_init')
+        WHERE name NOT IN ('M20261111042513_init')
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
 END
 $$;
 
--- ===== BEGIN M20261111034628_init =====
+-- ===== BEGIN M20261111042513_init =====
 CREATE SCHEMA IF NOT EXISTS acta;
 
 -- alerts
@@ -212,6 +212,7 @@ CREATE TABLE IF NOT EXISTS acta.events (
     execution_number bigint NULL,
     duration_ms integer NULL,
     event_message varchar(512) NULL,
+    actor varchar(128) NULL,
     details_format_id smallint DEFAULT 0 NOT NULL,
     details bytea NULL
     , CONSTRAINT pk_events PRIMARY KEY (worker_id, event_id)
@@ -3004,6 +3005,7 @@ CREATE OR REPLACE FUNCTION acta.raise_job_signal(
     p_value_format_id SMALLINT,
     p_value BYTEA,
     p_event_message VARCHAR,
+    p_actor VARCHAR,
     p_details_format_id SMALLINT,
     p_details BYTEA,
     p_child_job_id BIGINT,
@@ -3131,6 +3133,7 @@ BEGIN
             lineage_root_job_id,
             execution_number,
             event_message,
+            actor,
             details_format_id,
             details)
         VALUES (
@@ -3144,6 +3147,7 @@ BEGIN
             COALESCE(v_lineage_root_job_id, p_job_id),
             v_execution_number,
             v_message,
+            p_actor,
             p_details_format_id,
             p_details);
     END IF;
@@ -3170,6 +3174,7 @@ BEGIN
                 lineage_root_job_id,
                 execution_number,
                 event_message,
+                actor,
                 details_format_id,
                 details)
             VALUES (
@@ -3183,6 +3188,7 @@ BEGIN
                 COALESCE(v_lineage_root_job_id, p_job_id),
                 v_execution_number,
                 p_event_message,
+                p_actor,
                 p_details_format_id,
                 p_details);
         END IF;
@@ -4247,6 +4253,7 @@ SELECT
     e.execution_number,
     e.duration_ms,
     e.event_message,
+    e.actor,
     CASE e.details_format_id
         WHEN 0 /* JobPayloadFormat.None */ THEN 'none'
         WHEN 1 /* JobPayloadFormat.Json */ THEN 'json'
@@ -4419,10 +4426,10 @@ JOIN acta.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO acta.migrations (name)
-VALUES ('M20261111034628_init')
+VALUES ('M20261111042513_init')
 ON CONFLICT (name) DO NOTHING;
 
--- ===== END M20261111034628_init =====
+-- ===== END M20261111042513_init =====
 
 COMMIT;
 

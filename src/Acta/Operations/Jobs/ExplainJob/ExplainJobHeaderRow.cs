@@ -3,7 +3,7 @@ namespace Acta;
 /// <summary>
 /// Header row of the explain read: the job/jobs_state snapshot plus the leasing worker's liveness (via a
 /// LEFT JOIN on <c>jobs_state.leased_by_worker_id</c>) and the newest reason on the timeline (the job's latest
-/// failed, orphaned, or terminally failed attempt, or a Cancelled job's cancel: its message and details). Worker and
+/// failed, orphaned, or terminally failed attempt, or a Cancelled job's cancel: its message, actor, and details). Worker and
 /// reason columns are null when the Job holds no lease / has no recorded reason. Bound by name from the explain read's
 /// row_kind 1 row.
 /// </summary>
@@ -24,6 +24,7 @@ internal sealed record ExplainJobHeaderRow(
     WorkerStatusCode? WorkerStatus,
     DateTime? WorkerLastSeenAtUtc,
     string? LatestReasonMessage,
+    string? LatestReasonActor,
     byte? LatestReasonDetailsFormatId,
     byte[]? LatestReasonDetails,
     string? LastExecutedByWorkerVersion,

@@ -46,7 +46,8 @@ public sealed class DiscardOutboxSpec : OutboxRelayHostBase
         Assert.True((await Fixture.ReadOutboxRowAsync(SourceTable, spared)).Exists);
 
         var evidence = await ReadSingleEventAsync(slotId, EventCode.OutboxDiscarded, ct);
-        Assert.Equal("op-1", EventDetail(evidence, "actor"));
+        Assert.Equal("op-1", evidence.Actor);
+        Assert.Null(EventDetail(evidence, "actor"));
         Assert.Contains("poison payload", evidence.EventMessage);
         Assert.Contains(named.ToString(), evidence.EventMessage);
 

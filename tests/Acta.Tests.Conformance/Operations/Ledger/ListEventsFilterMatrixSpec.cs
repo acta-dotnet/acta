@@ -334,7 +334,7 @@ public sealed class ListEventsFilterMatrixSpec : ActaRuntimeTestBase<Conformance
         Assert.Contains(byKind, e => e.EntityId == j2);
     }
 
-    [Fact(DisplayName = "An operator verb's event carries the operator's message and the principal in its details")]
+    [Fact(DisplayName = "An operator verb's event carries the operator's message and the principal as its actor")]
     public async Task Operator_event_carries_message_and_actor()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -350,7 +350,8 @@ public sealed class ListEventsFilterMatrixSpec : ActaRuntimeTestBase<Conformance
         );
         var cancelled = Assert.Single(page.Items);
         Assert.Equal("spec cancel", cancelled.Message);
-        Assert.Equal("""{"actor":"op"}""", cancelled.DetailsText);
+        Assert.Equal("op", cancelled.Actor);
+        Assert.Null(cancelled.DetailsText);
     }
 
     [Fact(DisplayName = "CreatedFromUtc and CreatedToUtc split the timeline at a boundary instant")]

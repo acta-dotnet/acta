@@ -28,7 +28,7 @@ public sealed class RaiseJobSignalSpec : ActaRuntimeTestBase<ConformanceFixture,
         var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-wait-signal-typed", JobPayload.None), ct);
         var payload = JobPayload.Json(new ReviewDecision(true, "ship it"));
 
-        var raise = await Jobs.RaiseSignalAsync(enqueued, "review", payload, actor: "op-1", ct: ct);
+        var raise = await Jobs.RaiseSignalAsync(enqueued, "review", payload, actor: "Jože Kovač", ct: ct);
 
         Assert.Equal(ControlAction.Applied, raise.Action);
         Assert.Equal(JobStatusCode.Ready, raise.Status);
@@ -40,7 +40,8 @@ public sealed class RaiseJobSignalSpec : ActaRuntimeTestBase<ConformanceFixture,
         Assert.Equal(payload.Data.ToArray(), checkpoint.Value);
 
         var evt = await ReadSingleEventAsync(enqueued.JobId, EventCode.JobSignalRaised, ct);
-        Assert.Equal("op-1", EventDetail(evt, "actor"));
+        Assert.Equal("Jože Kovač", evt.Actor);
+        Assert.Null(EventDetail(evt, "actor"));
         Assert.Equal(EventReason.SignalReleased, EventDetail(evt, "reason"));
     }
 

@@ -41,8 +41,7 @@ BEGIN TRY
     DELETE FROM {{schema}}.steps
     WHERE job_id = @p_job_id;
 
-    -- The job's own handler asked for the reset, so the job id is the actor. Digits need no JSON escaping, and
-    -- pure ASCII makes VARCHAR -> VARBINARY UTF-8.
+    -- The job's own handler asked for the reset, so the job id is the actor.
     IF @event_recording = 20 /* EventRecordingCode.Audit */
         BEGIN
             INSERT INTO {{schema}}.events (
@@ -50,14 +49,14 @@ BEGIN TRY
                 entity_code, entity_id,
                 definition_id, tenant_id, lineage_root_job_id,
                 execution_number,
-                details_format_id, details
+                actor
             )
             VALUES (
                 81 /* EventCode.JobStateReset */, @now, @namespace_id,
                 50 /* EntityCode.Job */, @p_job_id,
                 @definition_id, @tenant_id, COALESCE(@lineage_root_job_id, @p_job_id),
                 @execution_number,
-                1 /* JobPayloadFormat.Json */, CONVERT(VARBINARY(MAX), '{"actor":"' + CONVERT(VARCHAR(20), @p_job_id) + '"}')
+                CONVERT(NVARCHAR(20), @p_job_id)
             );
         END
 

@@ -293,6 +293,7 @@ internal static class StagedFakes
         ExecutionNumber: 2,
         DurationMs: 1520,
         Message: "Invoice provider timed out.",
+        Actor: null,
         DetailsText: """{"to":"ready","reason":"unhandled-exception"}"""
     );
 

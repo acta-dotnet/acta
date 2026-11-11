@@ -15,6 +15,7 @@ const event = (eventId: number, createdAtUtc: string, message: string | null = n
   eventId,
   createdAtUtc,
   message,
+  actor: null,
   detailsText,
   eventCode: `event-${eventId}`,
   jobNamespace: 'billing',

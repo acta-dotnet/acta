@@ -97,14 +97,14 @@ BEGIN TRY
                 entity_code, entity_id,
                 definition_id, lineage_root_job_id,
                 execution_number,
-                event_message, details_format_id, details
+                event_message, actor, details_format_id, details
             )
             VALUES (
                 101 /* EventCode.ScheduleResumed */, @now, @ns,
                 CASE WHEN @slot IS NULL THEN 30 /* EntityCode.Definition */ ELSE 50 /* EntityCode.Job */ END, COALESCE(@slot, @def),
                 @def, COALESCE(@lineage, @slot),
                 @en,
-                @p_event_message, @p_details_format_id, @p_details
+                @p_event_message, @p_actor, @p_details_format_id, @p_details
             );
         END
 

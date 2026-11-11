@@ -57,7 +57,7 @@ GO
 -- ===== refuse a database a newer release already upgraded =====
 IF EXISTS (
     SELECT 1 FROM acta.migrations
-    WHERE name NOT IN ('M20261111034628_init')
+    WHERE name NOT IN ('M20261111042513_init')
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -65,7 +65,7 @@ BEGIN
     SET NOEXEC ON;
 END
 GO
--- ===== BEGIN M20261111034628_init =====
+-- ===== BEGIN M20261111042513_init =====
 SET QUOTED_IDENTIFIER ON;
 SET ANSI_NULLS ON;
 GO
@@ -248,6 +248,7 @@ CREATE TABLE acta.events (
     execution_number bigint NULL,
     duration_ms int NULL,
     event_message nvarchar(512) NULL,
+    actor nvarchar(128) NULL,
     details_format_id tinyint DEFAULT 0 NOT NULL,
     details varbinary(max) NULL
     , CONSTRAINT pk_events PRIMARY KEY (worker_id, event_id) WITH (OPTIMIZE_FOR_SEQUENTIAL_KEY = ON)
@@ -3600,6 +3601,7 @@ CREATE OR ALTER PROCEDURE acta.raise_job_signal
     @p_value_format_id TINYINT,
     @p_value VARBINARY(MAX),
     @p_event_message NVARCHAR(512),
+    @p_actor NVARCHAR(128),
     @p_details_format_id TINYINT,
     @p_details VARBINARY(MAX),
     @p_child_job_id BIGINT,
@@ -3717,14 +3719,14 @@ BEGIN
                 entity_code, entity_id,
                 definition_id, tenant_id, lineage_root_job_id,
                 execution_number,
-                event_message, details_format_id, details
+                event_message, actor, details_format_id, details
             )
             VALUES (
                 80 /* EventCode.JobSignalRaised */, @now, @namespace_id,
                 50 /* EntityCode.Job */, @p_job_id,
                 @definition_id, @tenant_id, COALESCE(@lineage_root_job_id, @p_job_id),
                 @execution_number,
-                @message, @p_details_format_id, @p_details
+                @message, @p_actor, @p_details_format_id, @p_details
             );
 
         -- Only the checkpoint the job waits on releases it; any other raise is stored for the wait that will read it.
@@ -3744,14 +3746,14 @@ BEGIN
                         entity_code, entity_id,
                         definition_id, tenant_id, lineage_root_job_id,
                         execution_number,
-                        event_message, details_format_id, details
+                        event_message, actor, details_format_id, details
                     )
                     VALUES (
                         72 /* EventCode.JobResumed */, @now, @namespace_id,
                         50 /* EntityCode.Job */, @p_job_id,
                         @definition_id, @tenant_id, COALESCE(@lineage_root_job_id, @p_job_id),
                         @execution_number,
-                        @p_event_message, @p_details_format_id, @p_details
+                        @p_event_message, @p_actor, @p_details_format_id, @p_details
                     );
 
                 SELECT
@@ -4882,6 +4884,7 @@ SELECT
     e.execution_number,
     e.duration_ms,
     e.event_message,
+    e.actor,
     CASE e.details_format_id
         WHEN 0 /* JobPayloadFormat.None */ THEN 'none'
         WHEN 1 /* JobPayloadFormat.Json */ THEN 'json'
@@ -5075,11 +5078,11 @@ JOIN acta.namespaces AS ns ON ns.namespace_id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261111034628_init')
+IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261111042513_init')
 INSERT INTO acta.migrations (name)
-VALUES ('M20261111034628_init');
+VALUES ('M20261111042513_init');
 GO
--- ===== END M20261111034628_init =====
+-- ===== END M20261111042513_init =====
 GO
 COMMIT TRANSACTION;
 GO

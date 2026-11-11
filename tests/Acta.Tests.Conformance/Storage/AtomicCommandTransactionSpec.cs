@@ -25,9 +25,10 @@ public sealed class AtomicCommandTransactionSpec : ActaStorageTestBase<Conforman
             cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Namespace.Description, "inline-description"));
             cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.ExpectedRowVersion, version));
             cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.EventMessage, "inline-transaction"));
+            cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.Actor, "inline-test"));
             cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.DetailsFormatId, JobPayloadFormat.Json.Id));
             cmd.Parameters.Add(
-                dialect.CreateParameter(ActaSchema.Event.Details, validDetails ? EventDetails.Write(("actor", "inline-test")) : null)
+                dialect.CreateParameter(ActaSchema.Event.Details, validDetails ? EventDetails.Write(("reason", "inline-test")) : null)
             );
         };
 

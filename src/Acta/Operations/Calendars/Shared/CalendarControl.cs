@@ -15,12 +15,11 @@ internal static class CalendarControl
         );
     }
 
-    /// <summary>A calendar event's details: the calendar by name, the version, the role when the event records one, and the operator.</summary>
-    public static byte[]? Details(string calendarName, long version, CalendarRoleCode? role, string? actor) =>
+    /// <summary>A calendar event's details: the calendar by name, the version, and the role when the event records one.</summary>
+    public static byte[]? Details(string calendarName, long version, CalendarRoleCode? role) =>
         EventDetails.Write(
             ("calendar", calendarName),
             ("version", version.ToString(CultureInfo.InvariantCulture)),
-            ("role", role is { } r ? r.Code : null),
-            ("actor", JobControlActor.Operator(actor))
+            ("role", role is { } r ? r.Code : null)
         );
 }

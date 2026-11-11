@@ -24,6 +24,7 @@ internal static class AdmitScheduleFiringsJson
                 JsonRows.Text(writer, "job_ref", g.JobRef?.ToString());
                 JsonRows.Text(writer, "deduplication_key", g.DeduplicationKey);
                 JsonRows.Text(writer, "trigger_message", g.TriggerMessage);
+                JsonRows.Text(writer, "trigger_actor", g.TriggerActor);
                 JsonRows.Text(writer, "trigger_details", g.TriggerDetails);
             }
         );

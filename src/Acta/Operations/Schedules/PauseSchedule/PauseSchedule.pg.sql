@@ -54,7 +54,7 @@ INSERT INTO {{schema}}.events (
     entity_code, entity_id,
     definition_id, lineage_root_job_id,
     execution_number,
-    event_message, details_format_id, details
+    event_message, actor, details_format_id, details
 )
 SELECT
     100 /* EventCode.SchedulePaused */, now(), js.namespace_id,
@@ -62,7 +62,7 @@ SELECT
     COALESCE(js.job_id, js.definition_id),
     js.definition_id, COALESCE(j.lineage_root_job_id, j.job_id),
     s.execution_number,
-    @p_event_message, @p_details_format_id, @p_details
+    @p_event_message, @p_actor, @p_details_format_id, @p_details
 FROM _pause_schedule_target t
 INNER JOIN {{schema}}.schedules js ON js.schedule_id = t.schedule_id
 INNER JOIN {{schema}}.definitions d ON d.definition_id = js.definition_id

@@ -167,6 +167,7 @@ INSERT INTO {{schema}}.events (
     lineage_root_job_id,
     execution_number,
     event_message,
+    actor,
     details_format_id,
     details)
 SELECT
@@ -180,6 +181,7 @@ SELECT
     p.lineage_root_job_id,
     p.execution_number,
     @p_event_message,
+    @p_actor,
     1 /* JobPayloadFormat.Json */,
     @p_job_details
 FROM temp._retire_parked_jobs p
@@ -193,6 +195,7 @@ INSERT INTO {{schema}}.events (
     entity_id,
     definition_id,
     event_message,
+    actor,
     details_format_id,
     details)
 SELECT
@@ -203,6 +206,7 @@ SELECT
     s.definition_id,
     s.definition_id,
     @p_event_message,
+    @p_actor,
     @p_details_format_id,
     @p_details
 FROM temp._retire_definition s

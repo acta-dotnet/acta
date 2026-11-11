@@ -24,11 +24,7 @@ internal sealed class PurgeJobHandler(
         }
 
         // The ref and correlation key never change, so the snapshot read before the purge is the one it deletes.
-        var details = EventDetails.Write(
-            ("jobRef", job.JobRef.ToString()),
-            ("correlationKey", job.CorrelationKey),
-            ("actor", JobControlActor.Operator(command.Actor))
-        );
+        var details = EventDetails.Write(("jobRef", job.JobRef.ToString()), ("correlationKey", job.CorrelationKey));
         var floor = await getAlertFloor.HandleAsync(new GetAlertFloorQuery(JobId: jobId), ct);
         var (floorUtc, floorEventId) = floor.Floor(DateTime.MaxValue);
         var row = await session.ExecuteOneAsync(
@@ -36,7 +32,12 @@ internal sealed class PurgeJobHandler(
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.JobId, jobId));
-                cmd.AddEventFields(dialect, command.ReasonMessage.Truncate(ActaTextLimits.EventMessage), details);
+                cmd.AddEventFields(
+                    dialect,
+                    command.ReasonMessage.Truncate(ActaTextLimits.EventMessage),
+                    JobControlActor.Operator(command.Actor),
+                    details
+                );
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.AlertFloorUtc, floorUtc));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.AlertFloorEventId, floorEventId));
             },

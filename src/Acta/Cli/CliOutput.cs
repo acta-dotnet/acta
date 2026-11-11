@@ -275,7 +275,7 @@ internal static class CliOutput
 
     /// <summary>
     /// Writes a page of audit events newest first in plain or JSON format. Each event prints its
-    /// instant, code, worker, and attempt on one line; its message and details, when present,
+    /// instant, code, worker, and attempt on one line; its message, actor, and details, when present,
     /// follow on indented lines. A trailing hint surfaces the cursor for the next page.
     /// </summary>
     public static void WriteEvents(TextWriter writer, JobRef jobRef, IPagedResponse<ListEventsItem> page, bool json)
@@ -294,6 +294,7 @@ internal static class CliOutput
                         w.WriteString("createdAtUtc", e.CreatedAtUtc);
                         w.WriteString("event", e.EventCode.Code);
                         WriteJsonStringOrNull(w, "message", e.Message);
+                        WriteJsonStringOrNull(w, "actor", e.Actor);
                         WriteJsonStringOrNull(w, "detailsText", e.DetailsText);
                         if (e.WorkerRef is { } workerRef)
                         {
@@ -328,6 +329,10 @@ internal static class CliOutput
             if (e.Message is { } message)
             {
                 writer.WriteLine($"  message: {message}");
+            }
+            if (e.Actor is { } actor)
+            {
+                writer.WriteLine($"  actor: {actor}");
             }
             if (e.DetailsText is { } details)
             {

@@ -7,7 +7,7 @@ const events = [
   { executionNumber: 3, eventCode: 'job.execution-failed', detailsText: '{"reason":"unhandled-exception","to":"ready"}' },
   { executionNumber: 2, eventCode: 'job.signal-raised', detailsText: null },
   { executionNumber: 1, eventCode: 'schedule.triggered', detailsText: '{"schedule":"nightly"}' },
-  { executionNumber: null, eventCode: 'job.paused', detailsText: '{"actor":"marko"}' }
+  { executionNumber: null, eventCode: 'job.paused', detailsText: null }
 ];
 
 test('timeline attempts are unique and newest first with lifecycle represented as zero', () => {

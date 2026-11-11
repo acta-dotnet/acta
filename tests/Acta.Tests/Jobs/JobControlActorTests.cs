@@ -3,8 +3,8 @@ using Xunit;
 namespace Acta.Tests.Jobs;
 
 /// <summary>
-/// The actor is the operator's name in the audit event's details: it must survive intact, so the only
-/// transformations are whitespace-to-null and a pair-safe cut to the details cap.
+/// The actor is the operator's name on the audit event: it must survive intact, so the only
+/// transformations are whitespace-to-null and a pair-safe cut to the column's cap.
 /// </summary>
 public class JobControlActorTests
 {
@@ -38,13 +38,5 @@ public class JobControlActorTests
     public void An_operator_name_past_the_cap_is_cut_rather_than_rejected()
     {
         Assert.Equal(128, JobControlActor.Operator(new string('a', 300))!.Length);
-    }
-
-    [Fact]
-    public void The_operator_lands_in_the_event_details_as_actor()
-    {
-        var details = EventDetails.Write(("actor", JobControlActor.Operator("Žiga Novak")));
-
-        Assert.Equal("Žiga Novak", EventDetails.Read(JobPayloadFormat.Json.Id, details, "actor"));
     }
 }

@@ -14,7 +14,7 @@ internal sealed class ConsumeOutboxSignalHandler(IDbSession session, ISqlDialect
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Checkpoint.Value, command.Value));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.EventCode, command.EventCode));
                 // Written as stored: ParkOutboxSignalHandler.ParkAsync validated the actor.
-                cmd.AddEventFields(dialect, command.ReasonMessage, EventDetails.Write(("actor", command.Actor)));
+                cmd.AddEventFields(dialect, command.ReasonMessage, command.Actor, null);
             },
             DbProjectionResolver.Resolve<ConsumeOutboxSignalRow>(),
             ct

@@ -229,7 +229,7 @@ public class CliOutputTests
         Assert.Contains("\"status\":null", json.ToString());
     }
 
-    private static ListEventsItem Event(EventCode code, string? message = null, string? details = null) =>
+    private static ListEventsItem Event(EventCode code, string? message = null, string? details = null, string? actor = null) =>
         new(
             EventId: 1,
             EventCode: code,
@@ -249,15 +249,19 @@ public class CliOutputTests
             ExecutionNumber: 1,
             DurationMs: null,
             Message: message,
+            Actor: actor,
             DetailsText: details
         );
 
     [Fact]
-    public void Events_plain_writes_one_line_per_event_with_message_and_details()
+    public void Events_plain_writes_one_line_per_event_with_message_actor_and_details()
     {
         var w = new StringWriter();
         var page = new ListEventsResponse(
-            [Event(EventCode.JobResumed), Event(EventCode.JobFailed, "boom in handler", """{"reason":"unhandled-exception"}""")],
+            [
+                Event(EventCode.JobResumed, actor: "Jože Kovač"),
+                Event(EventCode.JobFailed, "boom in handler", """{"reason":"unhandled-exception"}"""),
+            ],
             NextCursor: null,
             HasMore: false,
             PageSize: 50,
@@ -272,6 +276,7 @@ public class CliOutputTests
         Assert.Contains("job.failed", text);
         Assert.Contains("""details: {"reason":"unhandled-exception"}""", text);
         Assert.Contains("message: boom in handler", text);
+        Assert.Contains("actor: Jože Kovač", text);
     }
 
     [Fact]
@@ -302,6 +307,7 @@ public class CliOutputTests
         Assert.Contains("\"createdAtUtc\":\"2026-06-21T12:30:01Z\"", text);
         Assert.Contains("\"event\":\"job.failed\"", text);
         Assert.Contains("\"message\":\"boom\"", text);
+        Assert.Contains("\"actor\":null", text);
         Assert.Contains("\"detailsText\":", text);
         Assert.Contains("unhandled-exception", text);
         Assert.Contains("\"nextCursor\":\"next-cur\"", text);
@@ -908,6 +914,7 @@ public class CliOutputTests
                     ExecutionNumber: 2,
                     DurationMs: 12,
                     Message: "boom",
+                    Actor: null,
                     DetailsText: """{"reason":"unhandled-exception"}"""
                 ),
             ],

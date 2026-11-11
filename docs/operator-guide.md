@@ -131,7 +131,7 @@ SELECT job_id, job_status, leased_by_worker_id, leased_by_worker_host_name, leas
  WHERE job_status = 'executing';
 
 -- The whole timeline for a job tree (parents + children share lineage_root_job_id).
-SELECT created_at_utc, entity_id, event, execution_number, duration_ms, event_message, details_text
+SELECT created_at_utc, entity_id, event, execution_number, duration_ms, event_message, actor, details_text
   FROM acta.events_view
  WHERE lineage_root_job_id = :root_job_id
  ORDER BY created_at_utc, event_id;
@@ -493,7 +493,7 @@ In production a deploy step applies Acta's migrations, never application startup
 
 ```
 $ ConnectionStrings__acta="<DDL login>" dotnet MyApp.dll jobs migrate
-applied M20261111034628_init to schema acta
+applied M20261111042513_init to schema acta
 namespace billing: 1.6.1+b81d04e (Production)
   added    sys.alerts
   added    sys.retention
@@ -1336,7 +1336,7 @@ within one more lease.
 ### Event Timeline
 
 ```sql
-SELECT e.event_id, e.created_at_utc, e.event, e.execution_number, e.duration_ms, e.event_message, e.details_format, e.details_text
+SELECT e.event_id, e.created_at_utc, e.event, e.execution_number, e.duration_ms, e.event_message, e.actor, e.details_format, e.details_text
   FROM acta.events_view e
   JOIN acta.jobs_view j ON j.job_id = e.entity_id
  WHERE e.entity = 'job' AND j.job_ref = :job_ref
@@ -1349,14 +1349,15 @@ remaining events by its internal id, which its event rows (`entity_id`) and its 
 (`ActaJobId`) carry.
 
 ```sql
-SELECT e.event_id, e.created_at_utc, e.event, e.execution_number, e.duration_ms, e.event_message, e.details_format, e.details_text
+SELECT e.event_id, e.created_at_utc, e.event, e.execution_number, e.duration_ms, e.event_message, e.actor, e.details_format, e.details_text
   FROM acta.events_view e
  WHERE e.entity = 'job' AND e.entity_id = :job_id
  ORDER BY e.created_at_utc, e.event_id;
 ```
 
 `events_view` is a readable ledger, not a rollup. The `jobs_view` row tells you where work is now;
-events tell you why it moved. `details_text` decodes `json` event details; binary
+events tell you why it moved. `actor` names who performed an operator action, and is null on what the
+engine or a worker did. `details_text` decodes `json` event details, the machine-readable facts; binary
 and custom details payloads stay opaque.
 
 ### Recent Terminal Failures
