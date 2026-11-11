@@ -32,7 +32,7 @@ public sealed class SchedulePauseFiringSpec : ActaRuntimeTestBase<ConformanceFix
 
     protected override void ConfigureServices(IServiceCollection services, string testNamespace)
     {
-        Clock = new FakeClock(new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+        Clock = FakeClock.AtRealMinute();
         services.AddSingleton<IActaClock>(Clock);
         base.ConfigureServices(services, testNamespace);
     }
@@ -62,7 +62,7 @@ public sealed class SchedulePauseFiringSpec : ActaRuntimeTestBase<ConformanceFix
         RecurringPingHandler.Reset(TestNamespace);
         var slotId = await SlotIdAsync(ct);
 
-        var until = await ScheduleCursorAsync(slotId, ct); // the schedule's next occurrence (fake-clock future)
+        var until = await ScheduleCursorAsync(slotId, ct);
         var paused = await Schedules.PauseAsync(Lookup(), untilUtc: until, ct: ct);
         Assert.Equal(ControlAction.Applied, paused.Action);
 
@@ -90,7 +90,8 @@ public sealed class SchedulePauseFiringSpec : ActaRuntimeTestBase<ConformanceFix
         var slotId = await SlotIdAsync(ct);
 
         var occurrence = await ScheduleCursorAsync(slotId, ct);
-        var until = occurrence.AddMinutes(-2);
+        // The occurrence is at least a minute ahead of the clock, so thirty seconds before it is still ahead.
+        var until = occurrence.AddSeconds(-30);
         Assert.Equal(ControlAction.Applied, (await Schedules.PauseAsync(Lookup(), untilUtc: until, ct: ct)).Action);
 
         await AdmitAtAsync(until, ct);
@@ -115,18 +116,49 @@ public sealed class SchedulePauseFiringSpec : ActaRuntimeTestBase<ConformanceFix
         RecurringPingHandler.Reset(TestNamespace);
         var slotId = await SlotIdAsync(ct);
 
+        // The pause ends thirty seconds after the occurrence, inside the grace: only the pause can skip it.
         var missed = await ScheduleCursorAsync(slotId, ct);
-        var until = missed.AddMinutes(2);
+        var until = missed.AddSeconds(30);
         Assert.Equal(ControlAction.Applied, (await Schedules.PauseAsync(Lookup(), untilUtc: until, ct: ct)).Action);
 
         await AdmitAtAsync(until, ct);
         Assert.Equal(JobStatusCode.Idle, (await ReadJobAsync(slotId, ct)).Status);
         Assert.Empty(RecurringPingHandler.TriggersFor(TestNamespace));
+        Assert.Equal(1, await CountEventsAsync(slotId, EventCode.ScheduleSkipped, ct));
         var next = missed.AddMinutes(5);
         Assert.Equal(next, (await ScheduleAsync(Db, slotId, ct)).NextOccurrenceAtUtc);
 
         await AdmitAtAsync(next, ct);
         Assert.NotEqual(RunOnceStatus.NothingClaimed, await Runtime.RunOnceAsync(slotId, ct));
+        Assert.Single(RecurringPingHandler.TriggersFor(TestNamespace));
+    }
+
+    [Fact(
+        DisplayName = "Under Skip an occurrence inside a timed pause stays skipped when the pause ends on a busy job that frees inside the grace"
+    )]
+    public async Task Timed_pause_ending_on_a_busy_job_skips_its_window()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        RecurringPingHandler.Reset(TestNamespace);
+        var slotId = await SlotIdAsync(ct);
+
+        // The first occurrence is admitted and left outstanding, so the job is busy when the pause ends.
+        var first = await ScheduleCursorAsync(slotId, ct);
+        await AdmitAtAsync(first, ct);
+        Assert.Equal(JobStatusCode.Ready, (await ReadJobAsync(slotId, ct)).Status);
+        var missed = first.AddMinutes(5);
+        var until = missed.AddSeconds(30);
+        Assert.Equal(ControlAction.Applied, (await Schedules.PauseAsync(Lookup(), untilUtc: until, ct: ct)).Action);
+
+        await AdmitAtAsync(until, ct);
+        Assert.Equal(1, await CountEventsAsync(slotId, EventCode.ScheduleSkipped, ct));
+        Assert.Equal(missed.AddMinutes(5), (await ScheduleAsync(Db, slotId, ct)).NextOccurrenceAtUtc);
+
+        // The outstanding firing runs and the job frees fifteen seconds on, with the skipped occurrence still in its grace.
+        Assert.NotEqual(RunOnceStatus.NothingClaimed, await Runtime.RunOnceAsync(slotId, ct));
+        await AdmitAtAsync(until.AddSeconds(15), ct);
+
+        Assert.Equal(JobStatusCode.Idle, (await ReadJobAsync(slotId, ct)).Status);
         Assert.Single(RecurringPingHandler.TriggersFor(TestNamespace));
     }
 

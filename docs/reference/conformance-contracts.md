@@ -2222,6 +2222,7 @@
   - A timed pause ends at its expiry, admits the occurrence due by then, returns to Active, and emits pause-expired
   - A timed pause whose window holds no occurrence ends at its expiry without admitting anything
   - Under Skip an occurrence inside a timed pause is skipped at its expiry, not admitted late
+  - Under Skip an occurrence inside a timed pause stays skipped when the pause ends on a busy job that frees inside the grace
 
 ### A PerOccurrence schedule admits roots charged to it and settles them once
 - **Contract:** A PerOccurrence schedule admits each occurrence as a root charged to it, releases the charge once per terminalization, and waits or drops when full.

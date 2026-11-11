@@ -85,7 +85,9 @@ internal static class ScheduleEvaluator
                 var still = NextOccurrenceCalculator.Next(source, next.AddTicks(-1));
                 if (still != next)
                 {
-                    return Moved(still, pauseEnded, pausedByExpiry: false, skippedFrom: next, skippedThrough: next, sourceChanged: true);
+                    // A cursor moved into a timed pause's window keeps the pause, so the pass that decides it has the window.
+                    var ended = pauseEnded && !(still < downtimeEndUtc);
+                    return Moved(still, ended, pausedByExpiry: false, skippedFrom: next, skippedThrough: next, sourceChanged: true);
                 }
             }
 
@@ -108,6 +110,19 @@ internal static class ScheduleEvaluator
                 }
 
                 next = remaining.Value;
+            }
+
+            // Under Skip a timed pause whose window holds everything due skips it at the pass that ends it, whatever the
+            // slot can take: a schedule parked below is evaluated again as Active, with the pause gone and only the grace
+            // to judge by. With an occurrence since the pause due as well, that one is the latest and Skip fires no other.
+            if (pauseEnded && policy.Misfire == MisfireStrategyCode.Skip && next < downtimeEndUtc)
+            {
+                var through = LatestDue(source, next, downtimeEndUtc.AddTicks(-1)).Latest;
+                var resumed = NextOccurrenceCalculator.Next(source, through);
+                if (resumed is null || resumed > now)
+                {
+                    return Moved(resumed, pauseEnded, pausedByExpiry, null, next, through, expiredFrom, expiredThrough);
+                }
             }
 
             // Parked, the schedule keeps what the expiry decided and waits for the settlement or the operator that
@@ -161,9 +176,9 @@ internal static class ScheduleEvaluator
                     admit = new AdmittedOccurrence(next, next);
                     break;
                 case MisfireStrategyCode.Skip:
-                    // The window a pause or downtime covered holds missed occurrences; a due one since then is on time
-                    // within the grace, and the grace is what keeps a slow pass from counting as a misfire.
-                    var onTime = Latest() >= downtimeEndUtc && Latest() >= now - policy.Grace;
+                    // The latest due occurrence is on time within the grace, which is what keeps a slow pass from
+                    // counting as a misfire; every earlier one is missed, as the latest is when it is late.
+                    var onTime = Latest() >= now - policy.Grace;
                     admit = onTime ? new AdmittedOccurrence(Latest(), Latest()) : null;
                     if (next < Latest() || !onTime)
                     {

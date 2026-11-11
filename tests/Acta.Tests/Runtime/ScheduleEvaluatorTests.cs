@@ -160,6 +160,113 @@ public class ScheduleEvaluatorTests
         Assert.Equal(Utc(10, 21), d.NextEvaluationAtUtc);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Under_Skip_a_timed_pause_ending_on_a_slot_that_takes_nothing_skips_its_window_at_that_pass(bool jobUnavailable)
+    {
+        // Paused at 10:05 until 10:05:30. The pass at 10:05:40 ends the pause on a slot that takes nothing, and the slot
+        // frees at 10:05:50, with 10:05 still inside its grace.
+        var paused = new ScheduleCursor(Utc(10, 5), ScheduleStatusCode.Paused, Utc(10, 5, 30));
+
+        var capacity = jobUnavailable ? AdmissionCapacity.Unavailable : AdmissionCapacity.Full;
+        var ended = Evaluate(EveryMinute, paused, Utc(10, 5, 40), capacity: capacity);
+        var freed = Evaluate(EveryMinute, Active(ended.NextOccurrenceAtUtc), Utc(10, 5, 50));
+
+        Assert.True(ended.PauseEnded);
+        Assert.Null(ended.Admit);
+        Assert.Equal((Utc(10, 5), Utc(10, 5)), (ended.SkippedFromUtc, ended.SkippedThroughUtc));
+        Assert.Equal(Utc(10, 6), ended.NextOccurrenceAtUtc);
+        Assert.Equal(ScheduleEvaluationStatusCode.Scheduled, ended.Status);
+        Assert.Null(freed.Admit);
+        Assert.Equal(Utc(10, 6), freed.NextOccurrenceAtUtc);
+    }
+
+    [Fact]
+    public void Under_Skip_a_pause_ending_on_a_busy_slot_with_an_occurrence_since_due_fires_that_one_alone()
+    {
+        // Paused at 10:05 until 10:05:30. The pass at 10:06:00 ends the pause with 10:06 due as well and parks; the slot
+        // frees at that instant, where 10:05 is still inside its grace.
+        var paused = new ScheduleCursor(Utc(10, 5), ScheduleStatusCode.Paused, Utc(10, 5, 30));
+
+        var ended = Evaluate(EveryMinute, paused, Utc(10, 6), capacity: AdmissionCapacity.Full);
+        var freed = Evaluate(EveryMinute, Active(ended.NextOccurrenceAtUtc), Utc(10, 6));
+
+        Assert.True(ended.PauseEnded);
+        Assert.Equal(ScheduleEvaluationStatusCode.WaitingForCapacity, ended.Status);
+        Assert.Equal(Utc(10, 5), ended.NextOccurrenceAtUtc);
+        Assert.Equal(new AdmittedOccurrence(Utc(10, 6), Utc(10, 6)), freed.Admit);
+        Assert.Equal((Utc(10, 5), Utc(10, 5)), (freed.SkippedFromUtc, freed.SkippedThroughUtc));
+    }
+
+    [Fact]
+    public void Under_Skip_a_pause_ending_expires_the_stale_part_of_its_window_and_skips_the_rest()
+    {
+        // Paused at 10:01 until 10:05:30 with a two-minute expiry. At 10:05:40, 10:01 through 10:03 are expired and
+        // 10:04 and 10:05, inside the window, are skipped.
+        var paused = new ScheduleCursor(Utc(10, 1), ScheduleStatusCode.Paused, Utc(10, 5, 30));
+
+        var d = Evaluate(
+            EveryMinute,
+            paused,
+            Utc(10, 5, 40),
+            capacity: AdmissionCapacity.Full,
+            expireAfter: TimeSpan.FromMinutes(2),
+            expireAction: ScheduleExpireActionCode.Discard
+        );
+
+        Assert.Null(d.Admit);
+        Assert.Equal((Utc(10, 1), Utc(10, 3)), (d.ExpiredFromUtc, d.ExpiredThroughUtc));
+        Assert.Equal((Utc(10, 4), Utc(10, 5)), (d.SkippedFromUtc, d.SkippedThroughUtc));
+        Assert.Equal(Utc(10, 6), d.NextOccurrenceAtUtc);
+        Assert.True(d.PauseEnded);
+    }
+
+    [Fact]
+    public void A_cursor_the_source_moves_into_a_pause_window_keeps_the_pause_for_the_pass_that_decides_it()
+    {
+        // The cursor names 10:05, which the calendar no longer produces, and the pause runs until 10:10:30. The pass at
+        // 10:10:31 moves the cursor to 10:10, inside the window, so the pause stays for the next pass to skip it by.
+        var tenMinutes = new ScheduleTiming("ten-minutes", ScheduleExpressionKindCode.Calendar, "UTC", null);
+        var paused = new ScheduleCursor(Utc(10, 5), ScheduleStatusCode.Paused, Utc(10, 10, 30));
+
+        var moved = Evaluate(tenMinutes, paused, Utc(10, 10, 31), calendar: new EveryTenMinutes());
+        var atMoved = paused with { NextOccurrenceAtUtc = moved.NextOccurrenceAtUtc };
+        var decided = Evaluate(tenMinutes, atMoved, Utc(10, 10, 32), calendar: new EveryTenMinutes());
+
+        Assert.True(moved.SourceChanged);
+        Assert.False(moved.PauseEnded);
+        Assert.Equal(Utc(10, 10), moved.NextOccurrenceAtUtc);
+        Assert.True(decided.PauseEnded);
+        Assert.Null(decided.Admit);
+        Assert.Equal((Utc(10, 10), Utc(10, 10)), (decided.SkippedFromUtc, decided.SkippedThroughUtc));
+        Assert.Equal(Utc(10, 20), decided.NextOccurrenceAtUtc);
+    }
+
+    [Fact]
+    public void A_cursor_moved_into_a_pause_window_expires_at_the_pause_end_without_pausing_again()
+    {
+        // The pass at 10:20:31 moved the cursor to 10:10, inside the pause that ran until 10:20:30. The next pass ends the
+        // pause, so 10:10, past the two-minute expiry, expires as any stale backlog does at a pause's end.
+        var tenMinutes = new ScheduleTiming("ten-minutes", ScheduleExpressionKindCode.Calendar, "UTC", null);
+        var paused = new ScheduleCursor(Utc(10, 10), ScheduleStatusCode.Paused, Utc(10, 20, 30));
+
+        var d = Evaluate(
+            tenMinutes,
+            paused,
+            Utc(10, 20, 32),
+            MisfireStrategyCode.CatchUpAll,
+            expireAfter: TimeSpan.FromMinutes(2),
+            expireAction: ScheduleExpireActionCode.Pause,
+            calendar: new EveryTenMinutes()
+        );
+
+        Assert.True(d.PauseEnded);
+        Assert.False(d.PausedByExpiry);
+        Assert.Equal((Utc(10, 10), Utc(10, 10)), (d.ExpiredFromUtc, d.ExpiredThroughUtc));
+        Assert.Equal(new AdmittedOccurrence(Utc(10, 20), Utc(10, 20)), d.Admit);
+    }
+
     [Fact]
     public void An_elapsed_timed_pause_catches_up_once_on_the_occurrences_inside_its_window()
     {
