@@ -31,9 +31,9 @@ internal sealed class LockEntity : IEntity
 
     /// <summary>
     /// Instant the current hold expires: held while ahead of now, stealable once at or before it. On the rate
-    /// meter's rows it is shifted to when the row stops mattering: a bucket expires when an idle meter equals a
-    /// missing one, a reservation once its job cannot still be alive (its turn plus a grace past any lease). The sweep
-    /// thus refills an idle meter without disturbing a busy one; a job whose swept turn returns is simply re-metered.
+    /// meter's rows it is shifted: a bucket expires when an idle meter equals a missing one, a reservation a fixed
+    /// fifteen minutes past its turn. The sweep thus refills an idle meter without disturbing a busy one. A job can come
+    /// back after that, as one still waiting for a worker does, and then finds its turn swept and is metered again.
     /// </summary>
     [DbColumn("expires_at_utc", DbKind.UtcInstant)]
     public DateTime ExpiresAtUtc { get; set; }

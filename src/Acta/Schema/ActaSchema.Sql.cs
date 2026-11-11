@@ -53,8 +53,9 @@ internal static partial class ActaSchema
         public static readonly DbValueSpec<int> RateBurst = new("p_rate_burst", DbKind.Int32);
 
         /// <summary>
-        /// How long past its turn a rate reservation stays sweepable-proof. The caller passes the
-        /// worker lease TTL, which bounds how late a live job can come back for a turn it holds.
+        /// How long past its turn a rate reservation is kept from the sweep. The caller passes
+        /// <c>RuntimeJobContext.RateReservationGraceSeconds</c>, a constant, since the turn is decoded as the
+        /// expiry less this grace; a job back after it finds its turn swept and is metered again.
         /// </summary>
         public static readonly DbValueSpec<int> RateGraceSeconds = new("p_grace_seconds", DbKind.Int32);
 

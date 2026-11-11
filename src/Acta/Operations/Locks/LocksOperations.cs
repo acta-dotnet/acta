@@ -37,8 +37,8 @@ internal sealed class LocksOperations(
     /// time one interval on, and an idle meter admits exactly <paramref name="burst"/> back to back.
     /// Admitted means run now; otherwise the turn is booked at the returned instant, measured on the
     /// store's clock so a caller sleeps or re-arms to it without racing the meter. The bucket lapses once
-    /// an idle meter equals a missing one, and a reservation lapses <paramref name="graceSeconds"/> past
-    /// its turn; a turn stale by more than a second (or one interval) is re-metered rather than released.
+    /// an idle meter equals a missing one, a reservation <paramref name="graceSeconds"/> past its turn; a
+    /// turn stale by over a second (or one interval), or swept, is re-metered rather than released.
     /// </summary>
     public Task<ReserveRateResponse> ReserveRateAsync(
         string bucketKey,
