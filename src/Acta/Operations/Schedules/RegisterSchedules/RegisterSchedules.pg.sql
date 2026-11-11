@@ -187,8 +187,9 @@ WHERE
         OR s.schedule_status_code = 230 /* ScheduleStatusCode.Orphaned */
     );
 
--- A schedule parked at its declared capacity waits for a settlement; a declaration that changes the capacity wakes it
--- instead, so the admitter re-plans against the new one. Written before the declaration overwrites the capacity.
+-- A parked schedule waits for a settlement, or for the wake its pausing expiry set. A declaration that changes its
+-- capacity or its expiry wakes it instead, so the admitter decides it under the new one; its cursor and an operator's
+-- pause are left alone. Written before the declaration overwrites what this compares.
 UPDATE {{schema}}.schedules_state AS st
 SET
     next_evaluation_at_utc = now(),
@@ -199,11 +200,13 @@ FROM _reg_schedules AS src
 INNER JOIN {{schema}}.schedules AS s ON s.definition_id = src.definition_id AND s.schedule_name = src.schedule_name
 WHERE
     st.schedule_id = s.schedule_id
-    AND st.evaluation_status_code = 20 /* ScheduleEvaluationStatusCode.WaitingForCapacity */
+    AND st.evaluation_status_code IN (20 /* ScheduleEvaluationStatusCode.WaitingForCapacity */, 50 /* ScheduleEvaluationStatusCode.JobUnavailable */)
     AND s.schedule_status_code = 10 /* ScheduleStatusCode.Active */
     AND (
         s.max_outstanding <> src.max_outstanding
         OR s.full_behavior_code <> src.full_behavior_code
+        OR s.expire_after_seconds IS DISTINCT FROM src.expire_after_seconds
+        OR s.expire_action_code IS DISTINCT FROM src.expire_action_code
     );
 
 UPDATE {{schema}}.schedules AS tgt

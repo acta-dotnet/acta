@@ -175,8 +175,9 @@ BEGIN TRY
         s.timing_fingerprint <> src.timing_fingerprint
         OR s.schedule_status_code = 230 /* ScheduleStatusCode.Orphaned */;
 
-    -- A schedule parked at its declared capacity waits for a settlement; a declaration that changes the capacity wakes it
-    -- instead, so the admitter re-plans against the new one. Written before the declaration overwrites the capacity.
+    -- A parked schedule waits for a settlement, or for the wake its pausing expiry set. A declaration that changes its
+    -- capacity or its expiry wakes it instead, so the admitter decides it under the new one; its cursor and an operator's
+    -- pause are left alone. Written before the declaration overwrites what this compares.
     UPDATE st
     SET
         next_evaluation_at_utc = @now,
@@ -190,9 +191,12 @@ BEGIN TRY
             src.definition_id = s.definition_id
             AND src.schedule_name = s.schedule_name
     WHERE
-        st.evaluation_status_code = 20 /* ScheduleEvaluationStatusCode.WaitingForCapacity */
+        st.evaluation_status_code IN (20 /* ScheduleEvaluationStatusCode.WaitingForCapacity */, 50 /* ScheduleEvaluationStatusCode.JobUnavailable */)
         AND s.schedule_status_code = 10 /* ScheduleStatusCode.Active */
-        AND (s.max_outstanding <> src.max_outstanding OR s.full_behavior_code <> src.full_behavior_code);
+        AND EXISTS (
+            SELECT s.max_outstanding, s.full_behavior_code, s.expire_after_seconds, s.expire_action_code
+            EXCEPT
+            SELECT src.max_outstanding, src.full_behavior_code, src.expire_after_seconds, src.expire_action_code);
 
     UPDATE tgt
     SET

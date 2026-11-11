@@ -242,6 +242,66 @@ public sealed class MisfirePolicySpec : ActaRuntimeTestBase<ConformanceFixture, 
         Assert.Equal(1, await CountEventsAsync(slotId, EventCode.SchedulePaused, ct));
     }
 
+    [Fact(
+        DisplayName = "A pausing expiry deployed while a schedule is full pauses it once its waiting occurrence ages out, its roots still outstanding"
+    )]
+    public async Task A_pausing_expiry_deployed_over_a_full_schedule_takes_effect()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await IsolateAsync(MisfirePolicyManifest.BacklogRootsJobName, ct);
+        var (schedule, state) = await ScheduleAsync(MisfirePolicyManifest.BacklogRootsJobName, ct);
+        var first = state.NextOccurrenceAtUtc!.Value;
+        Clock.AdvanceTo(first.AddMinutes(2).AddSeconds(30));
+        await Runtime.AdmitOnceAsync(TestNamespace, ct);
+        await Runtime.AdmitOnceAsync(TestNamespace, ct);
+        await Runtime.AdmitOnceAsync(TestNamespace, ct);
+        (_, state) = await ScheduleAsync(MisfirePolicyManifest.BacklogRootsJobName, ct);
+        Assert.Equal(ScheduleEvaluationStatusCode.WaitingForCapacity, state.EvaluationStatus);
+        Assert.Null(state.NextEvaluationAtUtc);
+
+        // The deploy an owner makes because work is stuck: the same timing, and an expiry that pauses after a minute.
+        await ScheduleTestOps.RegisterAsync(
+            Services,
+            [
+                new DefinitionSchedules(
+                    NamespaceId: Runtime.RegisteredNamespaceIds[TestNamespace],
+                    DefinitionId: schedule.DefinitionId,
+                    InputFormatId: 0,
+                    Input: ReadOnlyMemory<byte>.Empty,
+                    ScheduledDelivery: ScheduledDeliveryCode.PerOccurrence,
+                    Schedules:
+                    [
+                        new SlotSchedule(
+                            MisfirePolicyManifest.ScheduleName,
+                            schedule.Expression,
+                            schedule.TimeZoneId,
+                            schedule.MisfireStrategy,
+                            schedule.ExpressionKind,
+                            schedule.Description,
+                            state.NextOccurrenceAtUtc,
+                            schedule.IntervalAnchorAtUtc,
+                            schedule.MaxOutstanding,
+                            schedule.FullBehavior,
+                            ExpireAfterSeconds: 60,
+                            ExpireAction: ScheduleExpireActionCode.Pause
+                        ),
+                    ]
+                ),
+            ],
+            ct
+        );
+
+        // Nothing settled: both roots are outstanding, and the occurrence that waits behind them is two minutes old.
+        Clock.AdvanceTo(first.AddMinutes(4));
+        await Runtime.AdmitOnceAsync(TestNamespace, ct);
+
+        (schedule, state) = await ScheduleAsync(MisfirePolicyManifest.BacklogRootsJobName, ct);
+        Assert.Equal(ScheduleStatusCode.Paused, schedule.Status);
+        Assert.Equal("Paused by the expiration policy: an occurrence expired unadmitted.", schedule.PauseMessage);
+        Assert.Equal(2, state.OutstandingCount);
+        Assert.Equal(2, (await RootsAsync(schedule.Id, ct)).Count);
+    }
+
     [Fact(DisplayName = "A cron with seconds a month behind is decided in one pass: its latest occurrence fires and the rest are skipped")]
     public async Task A_backlog_past_a_million_occurrences_is_decided_in_one_pass()
     {

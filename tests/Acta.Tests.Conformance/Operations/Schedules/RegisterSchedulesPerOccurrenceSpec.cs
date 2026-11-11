@@ -211,6 +211,77 @@ public sealed class RegisterSchedulesPerOccurrenceSpec : ActaStorageTestBase<Con
         Assert.Equal(1, state.OutstandingCount);
     }
 
+    [Theory(
+        DisplayName = "A declaration that changes the expiry wakes a schedule parked under the old one, cursor kept; one an operator paused stays asleep"
+    )]
+    [InlineData(ScheduleEvaluationStatusCode.WaitingForCapacity)]
+    [InlineData(ScheduleEvaluationStatusCode.JobUnavailable)]
+    public async Task A_changed_expiry_wakes_a_parked_schedule(ScheduleEvaluationStatusCode parked)
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var defId = await CreateDefinitionAsync(Unique("roots"), ct);
+        var cursor = FloorSeconds(DateTime.UtcNow.AddMinutes(-5));
+        var hourly = Slot("timed", cursor) with { ExpireAfterSeconds = 3600, ExpireAction = ScheduleExpireActionCode.Pause };
+        await RegisterAsync(defId, [Slot("plain", cursor), hourly, Slot("held", cursor)], ct);
+
+        // Parked with nothing to wake it, parked with the wake its hour-long expiry set, and parked under an operator's pause.
+        await ParkAsync("plain", wakeAtUtc: null);
+        await ParkAsync("timed", wakeAtUtc: cursor.AddHours(1));
+        await ParkAsync("held", wakeAtUtc: null);
+        var held = (await ScheduleAsync(defId, "held", ct)).Config.Id;
+        Assert.Equal(
+            1,
+            await Db.From<ScheduleEntity>()
+                .Where(s => s.Id == held)
+                .UpdateOnlyAsync(() => new ScheduleEntity { Status = ScheduleStatusCode.Paused }, ct)
+        );
+        var before = (await ScheduleAsync(defId, "held", ct)).State.Version;
+
+        // The same declaration again wakes nothing.
+        await RegisterAsync(defId, [Slot("plain", cursor), hourly, Slot("held", cursor)], ct);
+        Assert.Null((await ScheduleAsync(defId, "plain", ct)).State.NextEvaluationAtUtc);
+
+        var minute = Slot("plain", cursor) with { ExpireAfterSeconds = 60, ExpireAction = ScheduleExpireActionCode.Pause };
+        await RegisterAsync(defId, [minute, hourly with { ExpireAfterSeconds = 60 }, minute with { ScheduleName = "held" }], ct);
+
+        foreach (var name in new[] { "plain", "timed" })
+        {
+            var (_, woken) = await ScheduleAsync(defId, name, ct);
+            Assert.Equal(ScheduleEvaluationStatusCode.Scheduled, woken.EvaluationStatus);
+            Assert.NotNull(woken.NextEvaluationAtUtc);
+            Assert.True(woken.NextEvaluationAtUtc < cursor.AddHours(1), $"{name} kept a wake an hour past its cursor.");
+            Assert.Equal(cursor, woken.NextOccurrenceAtUtc);
+            Assert.Equal(1, woken.OutstandingCount);
+        }
+
+        var (config, asleep) = await ScheduleAsync(defId, "held", ct);
+        Assert.Equal(60, config.ExpireAfterSeconds);
+        Assert.Equal(ScheduleStatusCode.Paused, config.Status);
+        Assert.Equal(parked, asleep.EvaluationStatus);
+        Assert.Null(asleep.NextEvaluationAtUtc);
+        Assert.Equal(before, asleep.Version);
+
+        async Task ParkAsync(string name, DateTime? wakeAtUtc)
+        {
+            var id = (await ScheduleAsync(defId, name, ct)).Config.Id;
+            Assert.Equal(
+                1,
+                await Db.From<ScheduleStateEntity>()
+                    .Where(s => s.Id == id)
+                    .UpdateOnlyAsync(
+                        () =>
+                            new ScheduleStateEntity
+                            {
+                                NextEvaluationAtUtc = wakeAtUtc,
+                                EvaluationStatus = parked,
+                                OutstandingCount = 1,
+                            },
+                        ct
+                    )
+            );
+        }
+    }
+
     [Fact(
         DisplayName = "A schedule's availability calendar registers and reads back, a changed name re-registers in place, and a plain restart writes nothing"
     )]
