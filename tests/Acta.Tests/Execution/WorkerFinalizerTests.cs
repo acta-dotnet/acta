@@ -815,6 +815,8 @@ public sealed class WorkerFinalizerTests
                 "ListChildJobIds" => call.Get(ActaSchema.Job.ParentJobId) == 1 ? new long[] { 2, 3 } : Array.Empty<long>(),
                 "CancelJob" when call.Get(ActaSchema.Job.JobId) == 3 && Interlocked.Increment(ref refused) == 1 => throw new ProviderDown(),
                 "CancelJob" => new CancelJobRow(ControlAction.Applied, JobStatusCode.Cancelled, null, 1, false),
+                // The walk leaves each cancel on the cancelled job's parent, which is finished and is not woken.
+                "RaiseJobSignal" => new RaiseJobSignalRow(ControlAction.Applied, JobStatusCode.Cancelled),
                 _ => throw new NotSupportedException(call.Stem),
             }
         );

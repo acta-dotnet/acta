@@ -1410,7 +1410,7 @@ BEGIN
 
         /* No revival: an Expired latch already resolved the parent's wait TimedOut under this same checkpoint lock, so a
            child landing afterwards writes no latch and releases no parent. The audit event still records that it
-           happened. A parent already finished takes nothing. */
+           happened. A parent already finished takes the latch too, for a restart to read, and is not woken. */
         WITH settled AS (
             SELECT
                 j.parent_job_id,
@@ -1441,7 +1441,6 @@ BEGIN
             WHERE
                 c.job_id = ANY (v_children)
                 AND r.job_status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
-                AND pr.job_status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
         ),
         latched AS (
             INSERT INTO {{schema}}.checkpoints (
@@ -2938,7 +2937,11 @@ BEGIN
         RETURN;
     END IF;
 
-    IF v_from_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) THEN
+    -- A finished job takes no signal. It still takes a child's latch, which a restart of it reads, and is not woken.
+    IF
+        v_from_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
+        AND p_checkpoint_kind_code <> 50 /* CheckpointKindCode.ChildLatch */
+    THEN
         RETURN QUERY SELECT 3 /* ControlAction.Rejected */::SMALLINT, v_from_status;
         RETURN;
     END IF;
@@ -4310,5 +4313,5 @@ JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261110205022_init')
+VALUES ('M20261110213509_init')
 ON CONFLICT (name) DO NOTHING;

@@ -548,7 +548,7 @@ BEGIN
 
                     /* No revival: an Expired latch already timed the parent's wait out under this same checkpoint lock, so a later
                        child writes no latch and wakes no one, though the audit event records it. A finished parent takes
-                       nothing. */
+                       the latch too, for a restart to read, and is not woken; a parent that is gone has no status. */
                     UPDATE s
                     SET
                         checkpoint_status_code = 20 /* CheckpointStatusCode.Set */,
@@ -559,9 +559,7 @@ BEGIN
                     FROM #parents p
                     INNER JOIN {{schema}}.checkpoints s WITH (FORCESEEK)
                         ON s.job_id = p.parent_job_id AND s.checkpoint_kind_code = 50 /* CheckpointKindCode.ChildLatch */ AND s.checkpoint_name = p.latch_name
-                    WHERE
-                        p.latch_state <> 30 /* CheckpointStatusCode.Expired */
-                        AND p.parent_status NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */);
+                    WHERE p.latch_state <> 30 /* CheckpointStatusCode.Expired */;
 
                     INSERT INTO {{schema}}.checkpoints (
                         job_id, checkpoint_kind_code, checkpoint_name, checkpoint_status_code, value_format_id, value,
@@ -572,9 +570,7 @@ BEGIN
                         20 /* CheckpointStatusCode.Set */, 1 /* JobPayloadFormat.Json */, p.envelope,
                         @now, @now, 0
                     FROM #parents p
-                    WHERE
-                        p.latch_state IS NULL
-                        AND p.parent_status NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
+                    WHERE p.latch_state IS NULL AND p.parent_status IS NOT NULL
                     OPTION (LOOP JOIN);
 
                     -- The child's reason and message ride the parent's event, the message capped because it can already sit at the column width.
@@ -602,9 +598,7 @@ BEGIN
                         CAST('{"reason":"' + p.reason + '"}' AS VARBINARY(MAX))
                     FROM #parents p
                     INNER JOIN {{schema}}.jobs pj ON pj.job_id = p.parent_job_id
-                    WHERE
-                        pj.event_recording_code = 20 /* EventRecordingCode.Audit */
-                        AND p.parent_status NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
+                    WHERE pj.event_recording_code = 20 /* EventRecordingCode.Audit */ AND p.parent_status IS NOT NULL
                     ORDER BY p.parent_job_id, p.child_job_id;
 
                     UPDATE pr

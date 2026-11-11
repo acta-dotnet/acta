@@ -377,7 +377,8 @@ ORDER BY k.job_id, k.ord;
 
 -- begin children
 /* A terminal child sets its latch on the parent and wakes a Suspended parent. An Expired latch already timed the wait
-   out, so a later child writes no latch and wakes no one, though the audit event records it; a finished parent takes nothing. */
+   out, so a later child writes no latch and wakes no one, though the audit event records it. A finished parent takes
+   the latch too, for a restart to read; parent_status is set only for a terminal child whose parent still exists. */
 UPDATE temp._ces_done
 SET
     parent_status = (SELECT pr.job_status_code FROM {{schema}}.jobs_state pr WHERE pr.job_id = temp._ces_done.parent_job_id),
@@ -406,7 +407,7 @@ SELECT
     0
 FROM temp._ces_done d
 WHERE
-    d.parent_status NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
+    d.parent_status IS NOT NULL
     AND (d.latch_state IS NULL OR d.latch_state <> 30 /* CheckpointStatusCode.Expired */)
 ON CONFLICT (job_id, checkpoint_kind_code, checkpoint_name) DO UPDATE SET
     checkpoint_status_code = 20 /* CheckpointStatusCode.Set */,
@@ -435,7 +436,7 @@ FROM temp._ces_done d
 INNER JOIN {{schema}}.jobs pj ON pj.job_id = d.parent_job_id
 INNER JOIN {{schema}}.jobs_state pr ON pr.job_id = d.parent_job_id
 WHERE
-    d.parent_status NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
+    d.parent_status IS NOT NULL
     AND pj.event_recording_code = 20 /* EventRecordingCode.Audit */
 UNION ALL
 SELECT DISTINCT

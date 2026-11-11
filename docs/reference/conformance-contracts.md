@@ -499,6 +499,14 @@
   - A bounded Map reports the timeout while keeping its item keying
   - A lineage map shows the child wait a parent is parked on, with its deadline when bounded
 
+### A finished parent still records what its child did afterwards
+- **Contract:** A child that lands again or is cancelled after its parent finished records its newer outcome on the parent, which a restart of the parent reads.
+- **Guarantees:**
+  - A child that runs again while its parent is finished replaces its outcome on the parent
+  - A restarted parent reads the outcome its child took after the parent had finished
+  - A child cancelled while its parent is finished records the cancel on a parent that never waited for it
+  - A child cancelled by an ancestor's cancel records the cancel on its finished parent
+
 ### A completed child outlives its retention deadline while its parent is live
 - **Contract:** Retention and manual purge keep a completed child whose parent is not terminal, and release it, leaves first, once the parent is.
 - **Guarantees:**
@@ -516,7 +524,7 @@
   - WaitChildrenAsync joins all children regardless of completion order
   - Operator cancel cascades to the non-terminal descendant subtree with reason ParentCancelled
   - A handler self-cancel cascades to its children with reason ParentCancelled
-  - Parent completion never cascades and a raise to a terminal parent is a no-op
+  - Parent completion never cascades, and a child that lands afterwards records its outcome on the finished parent
   - A terminal parent rejects new children
   - User signals cannot use the reserved sys.child latch namespace
   - Reclaim exhausting a child's budget reports the pair whose latch raise releases the waiting parent

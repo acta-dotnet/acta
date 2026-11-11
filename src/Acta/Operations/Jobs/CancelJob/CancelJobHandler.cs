@@ -114,11 +114,11 @@ internal sealed class CancelJobHandler(
 
     /// <summary>
     /// Cancels the non-terminal descendant subtree top-down, one transaction per node: a crash mid-walk leaves
-    /// repairable stragglers, and terminal children are recursed through too, so a re-run reaches live
-    /// descendants behind them. In-subtree latches are skipped, since each node's parent is already terminal.
-    /// Each cancel lands only while the root is still Cancelled, so a walk that outlives a restart of the root ends
-    /// there and leaves the restarted job's new children alone. Wakes every worker namespace once if a cancel
-    /// promoted a lane member.
+    /// repairable stragglers, and terminal children are recursed through too, so a re-run reaches live descendants
+    /// behind them. Each descendant it cancels has its latch raised on its parent, which is finished by then and is not
+    /// woken: a restart of that parent reads the cancel, not an outcome the child held before. Each cancel lands only
+    /// while the root is still Cancelled, so a walk that outlives a restart of the root ends there and leaves the
+    /// restarted job's new children alone. Wakes every worker namespace once if a cancel promoted a lane member.
     /// </summary>
     internal async Task CancelDescendantsAsync(long rootJobId, JobControlInput input, CancellationToken ct) =>
         await JobControl.WakeWorkersIfAsync(wakeup, (await WalkAsync(rootJobId, rootJobId, input, fence: null, ct)).Promoted, ct);
@@ -147,7 +147,13 @@ internal sealed class CancelJobHandler(
                 return (promoted, true);
             }
 
-            promoted |= row.Action == ControlAction.Applied && row.LanePromoted;
+            if (row.Action == ControlAction.Applied)
+            {
+                // A parent the raise released needs a worker as a promoted lane member does.
+                var released = await RaiseChildLatch.Run(signals, childId, parentJobId, JobStatusCode.Cancelled, ct);
+                promoted |= released || row.LanePromoted;
+            }
+
             var below = await WalkAsync(walkRootJobId, childId, input, fence, ct);
             promoted |= below.Promoted;
             if (below.Ended)

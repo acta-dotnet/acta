@@ -54,7 +54,11 @@ BEGIN
         RETURN;
     END IF;
 
-    IF v_from_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) THEN
+    -- A finished job takes no signal. It still takes a child's latch, which a restart of it reads, and is not woken.
+    IF
+        v_from_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
+        AND p_checkpoint_kind_code <> 50 /* CheckpointKindCode.ChildLatch */
+    THEN
         RETURN QUERY SELECT 3 /* ControlAction.Rejected */::SMALLINT, v_from_status;
         RETURN;
     END IF;

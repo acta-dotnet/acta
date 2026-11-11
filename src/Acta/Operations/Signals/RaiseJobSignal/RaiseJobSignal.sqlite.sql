@@ -38,7 +38,11 @@ WHERE
         JOIN {{schema}}.jobs_state r ON r.job_id = j.job_id
         WHERE
             j.job_id = @p_job_id
-            AND r.job_status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
+            -- A finished job takes no signal, but still a child's latch, which a restart of it reads.
+            AND (
+                r.job_status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
+                OR @p_checkpoint_kind_code = 50 /* CheckpointKindCode.ChildLatch */
+            )
     )
     AND NOT EXISTS (SELECT 1 FROM temp._raise_expired)
     AND NOT EXISTS (SELECT 1 FROM temp._raise_stale)
@@ -85,7 +89,10 @@ FROM {{schema}}.jobs j
 JOIN {{schema}}.jobs_state r ON r.job_id = j.job_id
 WHERE
     j.job_id = @p_job_id
-    AND r.job_status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
+    AND (
+        r.job_status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
+        OR @p_checkpoint_kind_code = 50 /* CheckpointKindCode.ChildLatch */
+    )
     AND j.event_recording_code = 20 /* EventRecordingCode.Audit */
     AND NOT EXISTS (SELECT 1 FROM temp._raise_stale);
 
@@ -143,6 +150,7 @@ SELECT
         WHEN EXISTS (SELECT 1 FROM temp._raise_stale) THEN 3 /* ControlAction.Rejected */
         WHEN
             r.job_status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
+            AND @p_checkpoint_kind_code <> 50 /* CheckpointKindCode.ChildLatch */
             THEN 3 /* ControlAction.Rejected */
         ELSE 1 /* ControlAction.Applied */
     END AS action,

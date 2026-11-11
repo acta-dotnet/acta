@@ -551,7 +551,7 @@ BEGIN
 
         /* No revival: an Expired latch already resolved the parent's wait TimedOut under this same checkpoint lock, so a
            child landing afterwards writes no latch and releases no parent. The audit event still records that it
-           happened. A parent already finished takes nothing. */
+           happened. A parent already finished takes the latch too, for a restart to read, and is not woken. */
         WITH settled AS (
             SELECT
                 j.parent_job_id,
@@ -582,7 +582,6 @@ BEGIN
             WHERE
                 c.job_id = ANY (v_children)
                 AND r.job_status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
-                AND pr.job_status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
         ),
         latched AS (
             INSERT INTO {{schema}}.checkpoints (

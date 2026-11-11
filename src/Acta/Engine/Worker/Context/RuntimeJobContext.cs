@@ -321,8 +321,8 @@ internal sealed partial class RuntimeJobContext(
 
         var input = new JobControlInput(null, EventReason.WaitTimedOut, "Parent's child wait timed out.");
 
-        // The child's own latch on this job is Expired, so no raise is needed or possible here; the
-        // descendants' latches sit on parents this walk has already made terminal.
+        // The child's own latch on this job is Expired, so no raise is needed or possible here; the walk raises
+        // each descendant's latch on its parent, which it has already made terminal.
         await FencedAsync(() => _jobOperations.CancelTreeAsync(childJobId, input, Fence, ct));
     }
 

@@ -225,8 +225,8 @@ public sealed class ChildJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
         Assert.Equal(EventReason.ParentCancelled, EventDetail(childCancelEvent, "reason"));
     }
 
-    [Fact(DisplayName = "Parent completion never cascades and a raise to a terminal parent is a no-op")]
-    public async Task Parent_completion_never_cascades_and_late_raise_noops()
+    [Fact(DisplayName = "Parent completion never cascades, and a child that lands afterwards records its outcome on the finished parent")]
+    public async Task Parent_completion_never_cascades_and_a_late_child_records_its_outcome()
     {
         var ct = TestContext.Current.CancellationToken;
         var parent = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-parent-fire-and-forget", JobPayload.None), ct);
@@ -237,11 +237,18 @@ public sealed class ChildJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
         var child = Assert.Single(await ReadChildrenAsync(parent.JobId, ct));
         Assert.Equal(JobStatusCode.Ready, child.Status);
 
-        // The orphaned child still runs; its raise hits a terminal parent and writes nothing.
+        // The orphaned child still runs. Its outcome is recorded on the finished parent, which a restart would read,
+        // and the parent stays as it is.
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(child.Id, ct));
         Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(child.Id, ct)).Status);
-        Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(parent.JobId, ct)).Status);
-        Assert.Empty(await ReadSignalsAsync(parent.JobId, ct));
+        var finished = await ReadJobAsync(parent.JobId, ct);
+        Assert.Equal(JobStatusCode.Succeeded, finished.Status);
+        Assert.Equal(1, finished.JobState.ExecutionNumber);
+        var latch = Assert.Single(await ReadSignalsAsync(parent.JobId, ct));
+        Assert.Equal($"sys.child.{child.Id}", latch.CheckpointName);
+        Assert.Equal(CheckpointStatusCode.Set, latch.Status);
+        Assert.Equal(1, await CountEventsAsync(parent.JobId, EventCode.JobSignalRaised, ct));
+        Assert.Equal(0, await CountEventsAsync(parent.JobId, EventCode.JobResumed, ct));
     }
 
     [Fact(DisplayName = "A terminal parent rejects new children")]
