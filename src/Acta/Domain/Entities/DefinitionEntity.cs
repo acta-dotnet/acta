@@ -77,7 +77,8 @@ internal sealed class DefinitionEntity : IEntity<int>
 
     /// <summary>
     /// CLR full type name of the <c>[Job]</c> handler's input contract, generic arguments without assembly
-    /// versions; the type-driven dispatch key for <c>IJobs.EnqueueAsync&lt;TIn&gt;</c>.
+    /// versions, as its code spells it: shown to operators and compared at deploy to warn of a contract change.
+    /// Dispatch reads the handler's type in memory, never this column.
     /// </summary>
     [DbColumn("input_type_name", DbKind.AsciiString, Size = 512)]
     public string InputTypeName { get; internal set; } = default!;
