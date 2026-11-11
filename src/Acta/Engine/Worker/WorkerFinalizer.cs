@@ -370,16 +370,17 @@ internal sealed partial class WorkerFinalizer(
 
         var job = entry.Claim;
         var descriptor = entry.Descriptor!;
+        var jobRef = new JobRef(job.JobRef).ToString();
         using var scope = ActaLog.BeginJobScope(
             _log,
             job.JobId,
+            jobRef,
             descriptor.JobName,
             context.WorkerRegistration!.NamespaceName,
             job.ExecutionNumber,
             WorkerId,
             job.CorrelationKey
         );
-        var jobRef = new JobRef(job.JobRef).ToString();
         var attempt = $"{NextFailureCount(job.FailureCount)} of {descriptor.MaxAttempts}";
         if (write is not { } planned)
         {

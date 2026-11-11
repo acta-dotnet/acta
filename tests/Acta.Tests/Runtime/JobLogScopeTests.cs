@@ -12,9 +12,12 @@ public sealed class JobLogScopeTests
     [Fact]
     public void Scope_carries_job_identity_fields()
     {
-        var fields = Fields(ActaLog.JobScopeState(42, "send-receipt", "billing", 3, 7, actaCorrelationKey: null));
+        var jobRef = JobRef.New().ToString();
+        var fields = Fields(ActaLog.JobScopeState(42, jobRef, "send-receipt", "billing", 3, 7, actaCorrelationKey: null));
 
         Assert.Equal(42L, fields["ActaJobId"]);
+        // The ref as the dashboard and the API show it, so a line found by it and a job opened by it are the same job.
+        Assert.Equal(jobRef, fields["ActaJobRef"]);
         Assert.Equal("send-receipt", fields["ActaJobName"]);
         Assert.Equal("billing", fields["ActaNamespace"]);
         Assert.Equal(3L, fields["ActaExecutionNumber"]);
@@ -24,7 +27,7 @@ public sealed class JobLogScopeTests
     [Fact]
     public void Scope_omits_correlation_key_when_absent()
     {
-        var fields = Fields(ActaLog.JobScopeState(1, "j", "ns", 1, 1, actaCorrelationKey: null));
+        var fields = Fields(ActaLog.JobScopeState(1, "ref", "j", "ns", 1, 1, actaCorrelationKey: null));
 
         Assert.DoesNotContain("ActaCorrelationKey", fields.Keys);
     }
@@ -32,7 +35,7 @@ public sealed class JobLogScopeTests
     [Fact]
     public void Scope_includes_correlation_key_when_present()
     {
-        var fields = Fields(ActaLog.JobScopeState(1, "j", "ns", 1, 1, actaCorrelationKey: "order-abc-123"));
+        var fields = Fields(ActaLog.JobScopeState(1, "ref", "j", "ns", 1, 1, actaCorrelationKey: "order-abc-123"));
 
         Assert.Equal("order-abc-123", fields["ActaCorrelationKey"]);
     }

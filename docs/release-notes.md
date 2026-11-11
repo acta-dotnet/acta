@@ -68,6 +68,8 @@ Not tagged yet.
 
 - **A handler starts a child by its generated call.** `ctx.StartChildAsync("ship", ShippingJobs.Ship(order), ct)` and `ctx.ExecuteChildAsync("ship", ShippingJobs.Ship(order), ct)` take the call `IJobs` takes: the child is the job the call names, so nothing is inferred from the input's type and two jobs may share one, and a call of a job with a result answers `JobOutcome<TResult>` with the result type inferred. Every shape the input-typed forms have exists for a call: with `configure`, with `ct` in the next position, and bounded by a timeout.
 
+- **Every line of an attempt carries the job's public ref.** The per-attempt log scope stamps `ActaJobRef` beside `ActaJobId`, on Acta's lines and the handler's own, so a line found in the logs opens the job in the dashboard or the API by the ref it carries, with no lookup of the internal id.
+
 ### Fixes
 
 - A deploy that changed only a schedule's expiry left a schedule parked behind a busy permanent job or at its `MaxOutstanding` asleep: the new `ExpireAfter` and `ExpireAction` were stored, and nothing evaluated the schedule again until a settlement or an operator woke it, so a `Pause` expiry added because work was stuck did not pause it. A deploy that changes a parked schedule's expiry now wakes it as one that changes its capacity does, with the cursor and an operator's pause left alone.

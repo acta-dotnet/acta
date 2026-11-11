@@ -746,7 +746,7 @@ startup.
 ### Logs
 
 - Acta logs failures, misconfigurations and rare events, never a line per successful job, and it writes no Debug lines.
-- Every field Acta adds to a line starts with `Acta`, so none clashes with your own fields. Every line of an attempt, your handler's included, carries `ActaJobId`, `ActaJobName`, `ActaNamespace`, `ActaExecutionNumber`, `ActaWorkerId`, and `ActaCorrelationKey` when the job has one.
+- Every field Acta adds to a line starts with `Acta`, so none clashes with your own fields. Every line of an attempt, your handler's included, carries `ActaJobId`, `ActaJobRef` (the ref the dashboard and the API show), `ActaJobName`, `ActaNamespace`, `ActaExecutionNumber`, `ActaWorkerId`, and `ActaCorrelationKey` when the job has one.
 - With no Slack channel, alerts arrive as `Acta alert` lines carrying `ActaAlertRef`, `ActaJobRef`, and `ActaAlertKind`, so log-based alert rules can route on them.
 - An outage downstream of your handlers logs one Warning, with its stack trace, per failed attempt. To quiet a storm without losing Acta's own errors, raise the category:
 

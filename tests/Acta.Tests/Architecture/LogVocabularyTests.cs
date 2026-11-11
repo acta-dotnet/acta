@@ -117,7 +117,7 @@ public sealed partial class LogVocabularyTests
     public void The_job_scope_carries_only_vocabulary_fields_of_their_declared_type()
     {
         var violations = ActaLog
-            .JobScopeState(1, "job", "namespace", 1, 1, "correlation")
+            .JobScopeState(1, "ref", "job", "namespace", 1, 1, "correlation")
             .Where(field => !Vocabulary.TryGetValue(field.Key, out var declared) || declared != field.Value.GetType())
             .Select(field => (field.Key, (string?)field.Value.GetType().Name));
 

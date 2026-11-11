@@ -193,6 +193,7 @@ internal sealed class WorkerExecutor(
             using var logScope = ActaLog.BeginJobScope(
                 _log,
                 job.JobId,
+                new JobRef(job.JobRef).ToString(),
                 descriptor.JobName,
                 namespaceName,
                 job.ExecutionNumber,

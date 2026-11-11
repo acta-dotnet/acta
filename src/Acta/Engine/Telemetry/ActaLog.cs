@@ -16,15 +16,20 @@ internal static partial class ActaLog
     public static IDisposable? BeginJobScope(
         ILogger log,
         long actaJobId,
+        string actaJobRef,
         string actaJobName,
         string actaNamespace,
         long actaExecutionNumber,
         long actaWorkerId,
         string? actaCorrelationKey
-    ) => log.BeginScope(JobScopeState(actaJobId, actaJobName, actaNamespace, actaExecutionNumber, actaWorkerId, actaCorrelationKey));
+    ) =>
+        log.BeginScope(
+            JobScopeState(actaJobId, actaJobRef, actaJobName, actaNamespace, actaExecutionNumber, actaWorkerId, actaCorrelationKey)
+        );
 
     internal static IReadOnlyList<KeyValuePair<string, object>> JobScopeState(
         long actaJobId,
+        string actaJobRef,
         string actaJobName,
         string actaNamespace,
         long actaExecutionNumber,
@@ -32,9 +37,10 @@ internal static partial class ActaLog
         string? actaCorrelationKey
     )
     {
-        var state = new List<KeyValuePair<string, object>>(6)
+        var state = new List<KeyValuePair<string, object>>(7)
         {
             new("ActaJobId", actaJobId),
+            new("ActaJobRef", actaJobRef),
             new("ActaJobName", actaJobName),
             new("ActaNamespace", actaNamespace),
             new("ActaExecutionNumber", actaExecutionNumber),

@@ -668,12 +668,12 @@ Every field Acta logs is a mapped field in an operator's index for as long as th
 | `ActaCorrelationKey` | string | the caller's business key, joining handler lines to the request that enqueued the job |
 | `ActaAlertRef` | string | one alert's delivery story |
 | `ActaAlertKind` | string | what fired, in its wire code (`first-failure`), on the `Acta alert` log-transport line, so log-based alert rules can route |
-| `ActaJobRef` | string | the job a line is about, as the dashboard shows it: an alert's job, or the job whose attempt failed |
+| `ActaJobRef` | string | the job a line is about, as the dashboard and the API show it: every line of an attempt, and an alert's job |
 | `ActaDurationMs` | long | a span in milliseconds (clock skew, a drain) |
 | `ActaDetail` | string | the line's human-read value; one shared name, so a one-off value never becomes a new index field |
 
 - src logs only through `ActaLog` (in Acta, also used by Acta.Redis) and `ActaAspNetCoreLog`, as `[LoggerMessage]` methods: a disabled level costs one check and no formatting. `LogVocabularyTests` holds the list above, each method's parameter names and types against it, and bans a log call anywhere else in src.
-- `ActaLog.BeginJobScope` stamps `ActaJobId`, `ActaJobName`, `ActaNamespace`, `ActaExecutionNumber`, `ActaWorkerId`, and `ActaCorrelationKey` on every line of an attempt, the handler's own lines included; `JobLogScopeTests` pins them.
+- `ActaLog.BeginJobScope` stamps `ActaJobId`, `ActaJobRef`, `ActaJobName`, `ActaNamespace`, `ActaExecutionNumber`, `ActaWorkerId`, and `ActaCorrelationKey` on every line of an attempt, the handler's own lines included; `JobLogScopeTests` pins them.
 - The success path logs nothing per job. Failures, misconfigurations and rare events log, even where the ledger also records them; Acta writes no Debug lines.
 - A value an operator would not filter or chart by goes into the message text or `ActaDetail`. A new field needs the one thing an operator does with it, written in the table.
 - A call site that computes an argument (an interpolation, a `ToString`) computes it into a local inside an `IsEnabled` guard; CA1873 fails the build otherwise.
