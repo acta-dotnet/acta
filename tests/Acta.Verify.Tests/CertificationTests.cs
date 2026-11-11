@@ -1,0 +1,59 @@
+using Acta.Verify;
+using Microsoft.Data.Sqlite;
+using Xunit;
+
+namespace Acta.Verify.Tests;
+
+/// <summary>Negative controls for certify.sql: each plants the breach a check exists to catch and expects the check to name it.</summary>
+public sealed class CertificationTests
+{
+    [Fact]
+    public void Namespace_isolation_names_an_attempt_that_ran_on_another_namespaces_worker()
+    {
+        using var db = new SqliteConnection("Data Source=:memory:");
+        db.Open();
+        // Only the columns the check reads. Job 101 ran on worker 202 of namespace 2; job 102 on its own namespace's worker.
+        Execute(
+            db,
+            """
+            CREATE TABLE jobs (job_id INTEGER, namespace_id INTEGER);
+            CREATE TABLE workers (worker_id INTEGER, namespace_id INTEGER);
+            CREATE TABLE events (entity_code INTEGER, entity_id INTEGER, event_code INTEGER, namespace_id INTEGER, worker_id INTEGER);
+            INSERT INTO jobs VALUES (101, 1), (102, 1);
+            INSERT INTO workers VALUES (201, 1), (202, 2);
+            INSERT INTO events VALUES (50, 101, 40, 1, 202), (50, 102, 40, 1, 201);
+            """
+        );
+
+        using var command = db.CreateCommand();
+        command.CommandText = Check("namespace-isolation");
+        using var reader = command.ExecuteReader();
+        List<long> jobs = [];
+        while (reader.Read())
+        {
+            jobs.Add(reader.GetInt64(reader.GetOrdinal("job_id")));
+        }
+
+        Assert.Equal([101L], jobs);
+    }
+
+    /// <summary>The certify.sql statement named <paramref name="name"/>, its comments dropped and its schema prefix empty.</summary>
+    private static string Check(string name)
+    {
+        using var stream = typeof(FixtureValueV1).Assembly.GetManifestResourceStream("Acta.Verify.Certification.certify.sql")!;
+        using var file = new StreamReader(stream);
+        var statement = file.ReadToEnd()
+            .ReplaceLineEndings("\n")
+            .Split(";\n")
+            .Single(chunk => chunk.Contains($"'{name}' AS check_name", StringComparison.Ordinal));
+        return string.Join('\n', statement.Split('\n').Where(line => !line.TrimStart().StartsWith("--", StringComparison.Ordinal)))
+            .Replace("{s}", "", StringComparison.Ordinal);
+    }
+
+    private static void Execute(SqliteConnection db, string sql)
+    {
+        using var command = db.CreateCommand();
+        command.CommandText = sql;
+        command.ExecuteNonQuery();
+    }
+}

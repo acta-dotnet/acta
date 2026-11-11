@@ -76,14 +76,17 @@ HAVING COUNT(*) > 1;
 -- ---------------------------------------------------------------------------------------------
 -- 3. namespace isolation                                 [any time]
 -- ---------------------------------------------------------------------------------------------
--- No execution event was ever recorded under a namespace other than the owning job's. A worker
--- claiming work it does not own is the worst failure this model can have, and it is silent without
--- an explicit check.
-SELECT 'namespace-isolation' AS check_name, e.entity_id AS job_id, e.namespace_id AS event_ns, j.namespace_id AS job_ns
+-- No attempt ever ran on a worker of another namespace than the job's, and none was recorded under
+-- another namespace. A worker claiming work it does not own is the worst failure this model can have,
+-- and it is silent without an explicit check. Each ended attempt's event names the attempt's worker;
+-- the event's own namespace is the job's, written from the job, so only the worker can show the breach.
+SELECT 'namespace-isolation' AS check_name, e.entity_id AS job_id, j.namespace_id AS job_ns,
+       e.namespace_id AS event_ns, e.worker_id, w.namespace_id AS worker_ns
 FROM   {s}events e
 JOIN   {s}jobs j ON j.job_id = e.entity_id
+LEFT JOIN {s}workers w ON w.worker_id = e.worker_id
 WHERE  e.entity_code = 50 AND e.event_code BETWEEN 40 AND 44
-  AND  e.namespace_id <> j.namespace_id;
+  AND  (e.namespace_id <> j.namespace_id OR w.namespace_id <> j.namespace_id);
 
 -- ---------------------------------------------------------------------------------------------
 -- 4. no stranded work                                    [QUIESCED ONLY]
