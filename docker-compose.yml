@@ -35,7 +35,8 @@ services:
       retries: 10
 
   sqlserver:
-    image: mcr.microsoft.com/mssql/server:2022-latest
+    # CI runs every supported major through ACTA_MSSQL_IMAGE (2019, 2022, 2025); 2022 is everyone's default.
+    image: ${ACTA_MSSQL_IMAGE:-mcr.microsoft.com/mssql/server:2022-latest}
     # -T3979 disables the Linux-only "forced flush" (an extra fsync per log write); commits still
     # flush via writethrough, matching Windows SQL Server and Postgres fsync-on-commit semantics.
     # Appropriate for this dev/CI container (the Docker VM disk is the durability boundary anyway);
