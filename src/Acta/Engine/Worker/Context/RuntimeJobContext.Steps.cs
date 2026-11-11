@@ -104,16 +104,19 @@ internal sealed partial class RuntimeJobContext
         {
             payload =
                 !storeResult ? JobPayload.None
-                : value is null ? throw Unrecorded("it returned null for a non-null result type")
+                : value is null ? throw Unrecorded("it returned null for a non-null result type", cause: null)
                 : SerializeStepResult(value);
         }
         catch (PayloadTooLargeException ex)
         {
-            throw Unrecorded(ex.Message.TrimEnd('.'));
+            throw Unrecorded(ex.Message.TrimEnd('.'), ex);
         }
-        catch (Exception ex) when (ex is not (OperationCanceledException or JobControlException or StepExhaustedException))
+        catch (Exception ex)
+            when (ex is not (JobControlException or StepExhaustedException)
+                && (ex is not OperationCanceledException || !ct.IsCancellationRequested)
+            )
         {
-            throw Unrecorded($"it could not be serialized: {ex.Message.TrimEnd('.')}");
+            throw Unrecorded($"it could not be serialized: {ex.Message.TrimEnd('.')}", ex);
         }
 
         var success = await CompleteJobStepAsync(
@@ -138,10 +141,10 @@ internal sealed partial class RuntimeJobContext
         RecordStep(name, "succeeded");
         return value;
 
-        StepExhaustedException Unrecorded(string why)
+        StepExhaustedException Unrecorded(string why, Exception? cause)
         {
             RecordStep(name, "failed");
-            return new StepExhaustedException(name, null, $"its body ran, and its result was not recorded: {why}");
+            return new StepExhaustedException(name, null, $"its body ran, and its result was not recorded: {why}", cause);
         }
     }
 

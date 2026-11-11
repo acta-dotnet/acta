@@ -8,15 +8,28 @@ namespace Acta;
 /// run a finished body twice, or a handler catches it to run compensation and continue. A replay of an exhausted step
 /// re-throws at once, until an operator restart clears it. Carries the step name and the failure.
 /// </summary>
-public sealed class StepExhaustedException(string stepName, StepFailureCode? lastReasonCode, string? lastReasonMessage)
-    : Exception($"Step '{stepName}' failed for good: {lastReasonMessage ?? lastReasonCode?.ToString() ?? "no reason recorded"}.")
+public sealed class StepExhaustedException : Exception
 {
+    public StepExhaustedException(string stepName, StepFailureCode? lastReasonCode, string? lastReasonMessage)
+        : this(stepName, lastReasonCode, lastReasonMessage, innerException: null) { }
+
+    internal StepExhaustedException(string stepName, StepFailureCode? lastReasonCode, string? lastReasonMessage, Exception? innerException)
+        : base(
+            $"Step '{stepName}' failed for good: {lastReasonMessage ?? lastReasonCode?.ToString() ?? "no reason recorded"}.",
+            innerException
+        )
+    {
+        StepName = stepName;
+        LastReasonCode = lastReasonCode;
+        LastReasonMessage = lastReasonMessage;
+    }
+
     /// <summary>The name of the step that exhausted.</summary>
-    public string StepName { get; } = stepName;
+    public string StepName { get; }
 
     /// <summary>Reason code of the body's failure, or <c>null</c> when none was recorded.</summary>
-    public StepFailureCode? LastReasonCode { get; } = lastReasonCode;
+    public StepFailureCode? LastReasonCode { get; }
 
     /// <summary>Operator-readable message of the body's failure.</summary>
-    public string? LastReasonMessage { get; } = lastReasonMessage;
+    public string? LastReasonMessage { get; }
 }

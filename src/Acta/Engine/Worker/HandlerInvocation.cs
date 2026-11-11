@@ -39,7 +39,8 @@ internal sealed class HandlerInvocation(
             jobContext.CancellationToken.ThrowIfCancellationRequested();
             var requestObject = DeserializeInput(descriptor, job);
             inputDeserialized = true;
-            completion = Succeeded(descriptor, job, await InvokeHandlerAsync(attemptServices, descriptor, requestObject, jobContext));
+            var output = await InvokeHandlerAsync(attemptServices, descriptor, requestObject, jobContext);
+            completion = Succeeded(descriptor, job, output, jobContext.CancellationToken);
         }
         catch (Exception) when (jobContext.Fenced)
         {
@@ -148,7 +149,7 @@ internal sealed class HandlerInvocation(
         return chain();
     }
 
-    private ExecutionCompletion Succeeded(JobDescriptor descriptor, ClaimedJob job, JobHandlerOutput invocation)
+    private ExecutionCompletion Succeeded(JobDescriptor descriptor, ClaimedJob job, JobHandlerOutput invocation, CancellationToken attempt)
     {
         var succeeded = new ExecutionCompletion(CompletionKind.Succeeded);
         if (!invocation.HasResult)
@@ -177,7 +178,8 @@ internal sealed class HandlerInvocation(
         {
             payload = serializeResult(serializers.Resolve(resultFormat.Id), invocation.Result);
         }
-        catch (Exception ex) when (ex is not (OperationCanceledException or JobControlException))
+        catch (Exception ex)
+            when (ex is not JobControlException && (ex is not OperationCanceledException || !attempt.IsCancellationRequested))
         {
             throw new ResultNotRecordedException($"The handler's result could not be serialized: {ex.Message}", ex);
         }
