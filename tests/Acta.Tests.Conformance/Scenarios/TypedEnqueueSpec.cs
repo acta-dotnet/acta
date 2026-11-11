@@ -121,12 +121,13 @@ public sealed class TypedEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, T
         var ct = TestContext.Current.CancellationToken;
 
         var outcome = await Jobs.EnqueueAsync(new NullResultInput(1), ct: ct);
-        // Null contract: a null Task<T> return is a handler bug -> terminal Failed (MaxAttempts = 1),
-        // never stored as a result.
+        // Null contract: a null Task<T> return is a handler bug. The handler ran, so the job fails for good on that
+        // attempt with its other attempts unspent, and nothing is stored as a result.
         Assert.Equal(RunOnceStatus.Failed, await Runtime.RunOnceAsync(outcome, ct));
 
         var snapshot = await Jobs.GetAsync(outcome, ct);
         Assert.Equal(JobStatusCode.Failed, snapshot!.Status);
+        Assert.Equal(0, snapshot.FailureCount);
 
         var result = await Jobs.GetResultAsync<NullResultOutput>(outcome, ct);
         Assert.Null(result);

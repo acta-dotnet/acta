@@ -158,11 +158,11 @@ internal sealed class HandlerInvocation(
 
         // Null contract: a payload value is never null. A handler returning null from Task<T> is a
         // bug, surfaced loudly as Failed; "no result" is expressed by a Task/void handler, not by
-        // returning null. Thrown inside the invocation's try so it flows through the normal handler-fault path.
+        // returning null. The handler has run, so the failure is not retried.
         if (invocation.Result is null)
         {
-            throw new InvalidOperationException(
-                "Handler returned null for a non-null result type. Acta results cannot be null: "
+            throw new ResultNotRecordedException(
+                "The handler ran and returned null for a non-null result type. Acta results cannot be null: "
                     + "use Task for no result, or wrap optional data in a non-null object."
             );
         }
@@ -172,7 +172,16 @@ internal sealed class HandlerInvocation(
             return succeeded;
         }
 
-        var payload = serializeResult(serializers.Resolve(resultFormat.Id), invocation.Result);
+        JobPayload payload;
+        try
+        {
+            payload = serializeResult(serializers.Resolve(resultFormat.Id), invocation.Result);
+        }
+        catch (Exception ex)
+        {
+            throw new ResultNotRecordedException($"The handler ran, and its result could not be serialized: {ex.Message}", ex);
+        }
+
         if (payload.Data.Length <= maxInlinePayloadBytes)
         {
             return succeeded with { ResultFormatId = payload.Format.Id, Result = payload.Data };
@@ -319,9 +328,16 @@ internal sealed class HandlerInvocation(
     private ExecutionCompletion Faulted(Exception ex, bool inputDeserialized, JobDescriptor descriptor, ClaimedJob job)
     {
         // A failure retrying cannot change, a programming error, an exhausted at-most-once step that throws again on
-        // every replay, or a handler DI cannot build from the same registrations, lands terminal Failed through the
-        // same completion branch as ctx.FailAsync, leaving the retry budget untouched.
-        var nonRetryable = ex is NotImplementedException or NotSupportedException or StepExhaustedException or HandlerActivationException;
+        // every replay, a handler DI cannot build from the same registrations, or a finished body whose result could
+        // not be recorded, lands terminal Failed through the same completion branch as ctx.FailAsync, leaving the retry
+        // budget untouched.
+        var nonRetryable =
+            ex
+            is NotImplementedException
+                or NotSupportedException
+                or StepExhaustedException
+                or HandlerActivationException
+                or ResultNotRecordedException;
         if (!inputDeserialized && log.IsEnabled(LogLevel.Warning))
         {
             ActaLog.InputDeserializationFailed(log, ex, descriptor.JobName, new JobRef(job.JobRef).ToString());

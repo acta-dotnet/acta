@@ -132,6 +132,26 @@ public static class JobStepProbes
         );
     }
 
+    // A body that finishes and returns what cannot be recorded: null, or a string past the cap a spec sets. The default
+    // budget has attempts left, so the body running once proves the failure is not retried.
+    [Job("job-step-null-result")]
+    public static Task<string> StepNullResult(JobContext ctx, CancellationToken ct) =>
+        ctx.RunStepAsync("unrecorded", _ => UnrecordedAsync(ctx, null!), ct);
+
+    [Job("job-step-null-result-at-most-once")]
+    public static Task<string> StepNullResultAtMostOnce(JobContext ctx, CancellationToken ct) =>
+        ctx.RunStepAsync("unrecorded", _ => UnrecordedAsync(ctx, null!), options => options.AtMostOnce(), ct);
+
+    [Job("job-step-oversize-result")]
+    public static Task<string> StepOversizeResult(JobContext ctx, CancellationToken ct) =>
+        ctx.RunStepAsync("unrecorded", _ => UnrecordedAsync(ctx, new string('x', 4096)), ct);
+
+    private static Task<string> UnrecordedAsync(JobContext ctx, string result)
+    {
+        RecordInvocation(ctx.JobId);
+        return Task.FromResult(result);
+    }
+
     // An at-most-once body that throws exhausts the step. The parent's default budget has attempts left, so the job
     // failing at once proves the uncaught StepExhaustedException is not retried.
     [Job("job-step-exhaust")]

@@ -2,10 +2,10 @@ namespace Acta;
 
 /// <summary>
 /// Thrown when a payload exceeds <see cref="JobsOptions.MaxInlinePayloadBytes"/>: a caller-controlled inline write
-/// (enqueue input, a job variable or progress payload, a raised signal value, a step result), where the write never
-/// reached storage; one cap, one exception. Also raised by an oversized HTTP request body, and by a typed read of a
-/// result whose body was dropped for exceeding the cap. Handler results never throw on the write path: the job
-/// already ran, so its body is dropped and recorded as <c>job.result-oversized</c> instead of stranding it. Names the
+/// (enqueue input, a job variable or progress payload, a raised signal value), where the write never reached
+/// storage; one cap, one exception. Also raised by an oversized HTTP request body, and by a typed read of a result
+/// whose body was dropped for exceeding the cap. A result never throws it on the write path, since its body already
+/// ran: a handler's is dropped and recorded as <c>job.result-oversized</c>, and a step's fails the job for good. Names the
 /// <paramref name="entryPoint"/> whose payload of <paramref name="actualBytes"/> exceeded <paramref name="maxBytes"/>.
 /// </summary>
 public sealed class PayloadTooLargeException(string entryPoint, int actualBytes, int maxBytes)

@@ -289,7 +289,8 @@ one re-arm per job.
 
 Inline payloads (inputs, step results, variables) are capped at 1 MiB (`MaxInlinePayloadBytes`).
 Caller-supplied oversized writes throw `PayloadTooLargeException`; an oversized handler RESULT is
-dropped with a `job.result-oversized` event while the job still succeeds. Big artifacts belong in
+dropped with a `job.result-oversized` event while the job still succeeds, and an oversized step result
+fails the job for good, since a retry would run the step again. Big artifacts belong in
 blob storage with the job carrying a reference: URI, checksum, size.
 
 By default an input with no data uses the `none` format, `byte[]`/`ReadOnlyMemory<byte>` use `bytes`, and every

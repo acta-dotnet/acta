@@ -538,7 +538,7 @@ Task<string> Handle(Lookup request, CancellationToken ct);
 
 ### Large payloads
 
-Durable job instructions are stored inline, capped by `JobsOptions.MaxInlinePayloadBytes` (1 MiB default). Caller-controlled inline writes that exceed the cap (enqueue input, signal values, handler variable and progress writes, and step results) throw `PayloadTooLargeException` and never reach storage. Handler results are measured against the same cap but are dropped instead of throwing, because the handler has already run: the job still succeeds and the events carry `job.result-oversized`.
+Durable job instructions are stored inline, capped by `JobsOptions.MaxInlinePayloadBytes` (1 MiB default). Caller-controlled inline writes that exceed the cap (enqueue input, signal values, and handler variable and progress writes) throw `PayloadTooLargeException` and never reach storage. Results are measured against the same cap after their body has run, so neither is retried: a handler result past it is dropped, the job still succeeds, and the events carry `job.result-oversized`; a step result past it fails the job for good, as does a handler or step result that is null or cannot be serialized, because a retry would run the finished body again.
 
 For large files, exports, media, archives, reports, or model inputs, store the bytes in file/blob/object storage and enqueue a reference (URI, checksum, size, content type). The handler opens, verifies, processes, and returns a small durable result. The job input is the durable pointer and verification contract, not the file. See `concepts/000-fundamentals/025-large-payload-reference`.
 
