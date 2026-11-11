@@ -256,32 +256,39 @@ public sealed class FaultInjectors(
             new ParallelOptions { MaxDegreeOfParallelism = PressureCallers, CancellationToken = ct },
             async (index, token) =>
             {
-                using var scope = scopes.CreateScope();
-                var jobs = scope.ServiceProvider.GetRequiredService<IJobs>();
-                await using var connection = await database.OpenAsync(token);
-                await using var transaction = await connection.BeginTransactionAsync(token);
-                await jobs.EnqueueAsync(
-                    transaction,
-                    AnvilSeeder.Request(
-                        session.NamespaceName,
-                        session.RunId,
-                        batch,
-                        "noop",
-                        index,
-                        AnvilPayloads.Json(new NoOp($"pressure-{batch}-{index}")),
-                        AnvilWorkloadCode.NoOp
-                    ) with
-                    {
-                        Tags = null,
-                    },
-                    token
-                );
-                await HoldAppWorkAsync(transaction, token);
-                await transaction.CommitAsync(token);
-                lock (_gate)
+                try
                 {
-                    _pressureJobsAdded++;
+                    using var scope = scopes.CreateScope();
+                    var jobs = scope.ServiceProvider.GetRequiredService<IJobs>();
+                    await using var connection = await database.OpenAsync(token);
+                    await using var transaction = await connection.BeginTransactionAsync(token);
+                    await jobs.EnqueueAsync(
+                        transaction,
+                        AnvilSeeder.Request(
+                            session.NamespaceName,
+                            session.RunId,
+                            batch,
+                            "noop",
+                            index,
+                            AnvilPayloads.Json(new NoOp($"pressure-{batch}-{index}")),
+                            AnvilWorkloadCode.NoOp
+                        ) with
+                        {
+                            Tags = null,
+                        },
+                        token
+                    );
+                    await HoldAppWorkAsync(transaction, token);
+                    await transaction.CommitAsync(token);
+                    lock (_gate)
+                    {
+                        _pressureJobsAdded++;
+                    }
                 }
+                // A stop caught this caller mid-enqueue, and its transaction rolls back with its connection. Caught here
+                // because SqlClient reports a cancelled command as its own exception, which the loop would record as an
+                // error, and because a cancel that leaves this body unhandled stops a debugger on every stop.
+                catch (Exception ex) when (token.IsCancellationRequested && ex is OperationCanceledException or DbException) { }
             }
         );
     }
