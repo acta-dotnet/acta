@@ -1,9 +1,9 @@
 /* useacta.net shared base: tokens, chrome, the record line, type scale, buttons, panels, code,
    ruled rows, callouts, and the footer. Every page links this; page-specific rules stay inline. */
 :root {
-  --bg: #0B0E15;
-  --panel: #10151F;
-  --panel-2: #151B28;
+  --bg: #0e1625;
+  --panel: #19263a;
+  --panel-2: #142034;
   --text: #E8EDF5;
   --muted: #9BA7BA;
   --faint: #7A899F;
@@ -15,17 +15,19 @@
   --leaf: #93D9AE;
   --code: #D3DCEA;
   --code-inline: #CBD6E5;
-  --hair: rgba(232, 237, 245, 0.10);
-  --hair-soft: rgba(232, 237, 245, 0.06);
+  --hair: #2c3b50;
+  --hair-soft: #243349;
   --verdi-wash: rgba(47, 214, 168, 0.07);
   --verdi-tint: rgba(47, 214, 168, 0.035);
   --sky-wash: rgba(124, 184, 242, 0.10);
   --oxide-wash: rgba(208, 138, 69, 0.08);
   --bad-wash: rgba(232, 131, 123, 0.08);
   --verdi-hover: #43E4BA;
-  --chrome: rgba(11, 14, 21, 0.88);
-  --wash-top: rgba(47, 214, 168, 0.15);
-  --wash-bottom: rgba(124, 184, 242, 0.13);
+  --chrome: #0e1625;
+  --pastel-mint: rgba(99, 230, 190, 0.08);
+  --pastel-lilac: rgba(158, 143, 219, 0.11);
+  --pastel-blue: rgba(127, 168, 221, 0.07);
+  --warm-wash: rgba(211, 163, 133, 0.025);
   --serif: "Fraunces", Georgia, serif;
   --sans: "IBM Plex Sans", system-ui, sans-serif;
   --mono: "IBM Plex Mono", Consolas, monospace;
@@ -40,9 +42,9 @@
 }
 /* day: the same type, rules, and verdi accent on light surfaces; assets/theme.js sets the attribute before the first paint */
 :root[data-theme="light"] {
-  --bg: #F4F6F8;
-  --panel: #FFFFFF;
-  --panel-2: #EDF1F5;
+  --bg: #f7f9fc;
+  --panel: #ffffff;
+  --panel-2: #f5f7fb;
   --text: #121823;
   --muted: #46526A;
   --faint: #66728A;
@@ -54,17 +56,19 @@
   --leaf: #2C7F4F;
   --code: #1F2835;
   --code-inline: #1F2835;
-  --hair: rgba(18, 24, 35, 0.13);
-  --hair-soft: rgba(18, 24, 35, 0.07);
+  --hair: #dfe5ee;
+  --hair-soft: #edf0f5;
   --verdi-wash: rgba(11, 127, 98, 0.08);
   --verdi-tint: rgba(11, 127, 98, 0.045);
   --sky-wash: rgba(42, 102, 174, 0.10);
   --oxide-wash: rgba(176, 101, 31, 0.09);
   --bad-wash: rgba(194, 69, 59, 0.08);
   --verdi-hover: #0A6E55;
-  --chrome: rgba(244, 246, 248, 0.86);
-  --wash-top: rgba(11, 127, 98, 0.15);
-  --wash-bottom: rgba(42, 102, 174, 0.13);
+  --chrome: #f7f9fc;
+  --pastel-mint: rgba(177, 231, 208, 0.29);
+  --pastel-lilac: rgba(205, 193, 240, 0.30);
+  --pastel-blue: rgba(199, 218, 242, 0.22);
+  --warm-wash: rgba(243, 218, 205, 0.06);
 }
 * { box-sizing: border-box; }
 html { background: var(--bg); color-scheme: dark; scroll-behavior: smooth; scroll-padding-top: 4rem; }
@@ -78,12 +82,12 @@ body {
   -webkit-font-smoothing: antialiased;
   position: relative; isolation: isolate;
 }
-/* the page blends into a verdi wash at the top and a sky wash at the bottom, behind everything */
+/* every page glows mint and lilac behind its top and blue behind its bottom; a page shorter than the top glow clips it */
 body::before, body::after {
   content: ""; position: absolute; left: 0; right: 0; height: min(60vh, 640px); z-index: -1; pointer-events: none;
 }
-body::before { top: 0; background: radial-gradient(75% 70% at 50% 0%, var(--wash-top), transparent 70%); }
-body::after { bottom: 0; background: radial-gradient(75% 70% at 50% 100%, var(--wash-bottom), transparent 70%); }
+body::before { top: 0; height: min(920px, 100%); background: radial-gradient(ellipse at 85% 22%, var(--pastel-lilac), transparent 54%), radial-gradient(ellipse at 32% 5%, var(--pastel-mint), transparent 50%), radial-gradient(ellipse at 0% 65%, var(--warm-wash), transparent 50%); }
+body::after { bottom: 0; background: radial-gradient(ellipse at 50% 100%, var(--pastel-blue), transparent 70%); }
 ::selection { background: rgba(47, 214, 168, 0.3); color: inherit; }
 :focus-visible { outline: 2px solid var(--verdi); outline-offset: 3px; border-radius: 2px; }
 a { color: inherit; }

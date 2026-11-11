@@ -1,50 +1,35 @@
-/* Homepage design tokens. The content and controls share one structure in both themes. */
+/* Homepage design tokens. The content and controls share one structure in both themes; the background, its surfaces
+   and its glows are the whole site's, in site.css. */
 :root {
-  --bg: #0e1625;
-  --panel: #19263a;
-  --panel-2: #142034;
   --text: #f0f4fa;
   --muted: #b0bdcf;
   --faint: #94a5bd;
   --verdi: #63e6be;
   --verdi-hover: #87edcd;
   --verdi-deep: #11291f;
-  --hair: #2c3b50;
-  --hair-soft: #243349;
   --verdi-wash: #203f3c;
   --verdi-tint: #1a3335;
-  --chrome: #0e1625;
   --code: #dce5f4;
   --code-inline: #dce5f4;
   --sky: #b2bff6;
   --leaf: #98dac5;
   --lavender: #c2bbf1;
-  --pastel-mint: rgba(99, 230, 190, 0.08);
-  --pastel-lilac: rgba(158, 143, 219, 0.11);
-  --pastel-blue: rgba(127, 168, 221, 0.07);
   --status-bg: #203c37;
   --status-text: #93e8c9;
-  --warm-wash: rgba(211, 163, 133, 0.025);
   --serif: var(--sans);
   --r-panel: 12px;
   --r-card: 10px;
   --section: clamp(64px, 7vw, 104px);
 }
 :root[data-theme="light"] {
-  --bg: #f7f9fc;
-  --panel: #ffffff;
-  --panel-2: #f5f7fb;
   --text: #101827;
   --muted: #242d3b;
   --faint: #3a4555;
   --verdi: #21745e;
   --verdi-hover: #2c826a;
   --verdi-deep: #ffffff;
-  --hair: #dfe5ee;
-  --hair-soft: #edf0f5;
   --verdi-wash: #e8f5ee;
   --verdi-tint: #f1f8f5;
-  --chrome: #f7f9fc;
   --code: #000000;
   --code-inline: #000000;
   --code-surface: #ffffff;
@@ -55,17 +40,11 @@
   --sky: #685aa6;
   --leaf: #30725f;
   --lavender: #7264a7;
-  --pastel-mint: rgba(177, 231, 208, 0.29);
-  --pastel-lilac: rgba(205, 193, 240, 0.30);
-  --pastel-blue: rgba(199, 218, 242, 0.22);
   --status-bg: #e9f5ee;
   --status-text: #32705a;
-  --warm-wash: rgba(243, 218, 205, 0.06);
 }
 html { scroll-padding-top: 96px; }
 body { font-size: 16px; line-height: 1.65; }
-body::before { height: 920px; background: radial-gradient(ellipse at 85% 22%, var(--pastel-lilac), transparent 54%), radial-gradient(ellipse at 32% 5%, var(--pastel-mint), transparent 50%), radial-gradient(ellipse at 0% 65%, var(--warm-wash), transparent 50%); }
-body::after { background: radial-gradient(ellipse at 50% 100%, var(--pastel-blue), transparent 70%); }
 .hero { padding-top: 72px; padding-bottom: 0; }
 .hero-grid { display: grid; grid-template-columns: minmax(0, 1.12fr) minmax(0, 1fr); gap: 64px; align-items: center; }
 .hero-copy { min-width: 0; }
