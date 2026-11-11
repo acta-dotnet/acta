@@ -371,7 +371,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 |---|---:|---|---|---|
 | `Unspecified` | 0 | `unspecified` | Evaluation status not recognized by this build; the row was written by a newer Acta. | Active |
 | `Scheduled` | 10 | `scheduled` | The next evaluation is the next nominal occurrence, or the end of a timed pause. | Active |
-| `WaitingForCapacity` | 20 | `waiting-for-capacity` | An occurrence is due but the permanent job is busy or the schedule is at its limit of outstanding occurrences; it fires when one of them ends. | Active |
+| `WaitingForCapacity` | 20 | `waiting-for-capacity` | An occurrence is due but the permanent job is busy or the schedule is at its limit of outstanding occurrences; it fires when one of them ends, or expires once it ages past the schedule's expiry. | Active |
 | `Exhausted` | 30 | `exhausted` | The schedule has no further occurrence; a change to its declaration or to its calendar reactivates it. | Active |
 | `EvaluationError` | 40 | `evaluation-error` | The schedule's expression or calendar could not be evaluated; the schedule keeps its place and the evaluation retries after a bounded delay. | Active |
 | `JobUnavailable` | 50 | `job-unavailable` | An occurrence is due but the permanent job is held, cancelled, or failed terminally; a job resume or restart wakes it. | Active |

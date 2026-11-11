@@ -429,7 +429,7 @@ public class ScheduleEvaluatorTests
         Assert.Equal(Utc(10, 8), d.ExpiredThroughUtc);
         Assert.False(d.PausedByExpiry);
         Assert.Equal(ScheduleEvaluationStatusCode.WaitingForCapacity, d.Status);
-        Assert.Null(d.NextEvaluationAtUtc);
+        Assert.Equal(Utc(10, 11), d.NextEvaluationAtUtc);
         Assert.Equal(Utc(10, 9), d.NextOccurrenceAtUtc);
 
         // Woken by a settlement half a minute later, nothing stale is left, so the backlog is admitted, not paused.
@@ -444,6 +444,39 @@ public class ScheduleEvaluatorTests
         );
         Assert.Equal(new AdmittedOccurrence(Utc(10, 9), Utc(10, 9)), after.Admit);
         Assert.False(after.PausedByExpiry);
+    }
+
+    [Fact]
+    public void A_parked_schedule_wakes_when_its_waiting_occurrence_expires_whatever_the_slot_holds()
+    {
+        // Parked on a young 10:05 under a two-minute expiry, the schedule wakes at 10:07, when 10:05 expires, rather
+        // than waiting for a settlement that may never come.
+        var parked = Evaluate(
+            EveryMinute,
+            Active(Utc(10, 5)),
+            Utc(10, 6),
+            MisfireStrategyCode.Skip,
+            AdmissionCapacity.Full,
+            TimeSpan.FromMinutes(2),
+            ScheduleExpireActionCode.Pause
+        );
+        Assert.Equal(ScheduleEvaluationStatusCode.WaitingForCapacity, parked.Status);
+        Assert.Equal(Utc(10, 7), parked.NextEvaluationAtUtc);
+
+        // That wake finds the slot still busy, expires 10:05, and pauses the schedule for an operator.
+        var woken = new ScheduleCursor(Utc(10, 5), ScheduleStatusCode.Active, null, ScheduleEvaluationStatusCode.WaitingForCapacity);
+        var d = Evaluate(
+            EveryMinute,
+            woken,
+            Utc(10, 7),
+            MisfireStrategyCode.Skip,
+            AdmissionCapacity.Full,
+            TimeSpan.FromMinutes(2),
+            ScheduleExpireActionCode.Pause
+        );
+        Assert.Equal(Utc(10, 5), d.ExpiredFromUtc);
+        Assert.True(d.PausedByExpiry);
+        Assert.Null(d.NextEvaluationAtUtc);
     }
 
     [Fact]

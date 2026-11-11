@@ -17,9 +17,9 @@ namespace Acta;
     Filter = "next_occurrence_at_utc IS NOT NULL",
     Usage = "dashboard"
 )]
-// The admission loop's seek: a namespace's schedules in the order they next need the engine, a timed pause's end and
-// an evaluation retry included; a schedule with no wake (indefinitely paused, parked on a busy slot, exhausted) is
-// out of the index and reached only by the event that ends its wait.
+// The admission loop's seek: a namespace's schedules in the order they next need the engine, a timed pause's end, an
+// evaluation retry, and a parked occurrence's expiry included; a schedule with no wake (indefinitely paused, parked on
+// a busy slot without an expiry, exhausted) is out of the index and reached only by the event that ends its wait.
 [DbIndex(
     Name = "ix_schedules_state_due",
     Columns = ["namespace_id", "next_evaluation_at_utc", "schedule_id"],
