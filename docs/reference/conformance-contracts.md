@@ -2578,7 +2578,8 @@
   - A wait inside an ordinary step charges nothing, so a later failure keeps the job's whole budget
   - A throwing ordinary step fails the attempt, spends the job's budget, and the retry replays the steps that succeeded
   - A failed at-most-once step throws StepFailedException and fails the parent at once when uncaught
-  - CompleteJobStep loses the CAS and reports StaleVersion when the step advanced under another execution
+  - A state reset inside a step's body aborts the attempt, and the failure names the step
+  - A step started twice at one version completes once, and the later completion reports StaleVersion
   - CompleteJobStep reports StaleVersion rather than throwing when the step row is absent
 
 ## Storage

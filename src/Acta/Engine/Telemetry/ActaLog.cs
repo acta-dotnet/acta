@@ -140,7 +140,7 @@ internal static partial class ActaLog
 
     [LoggerMessage(
         Level = LogLevel.Information,
-        Message = "WorkerRuntime: job {ActaJobId} lost ownership of step ({ActaDetail}) mid-flight; aborting the attempt cooperatively."
+        Message = "WorkerRuntime: job {ActaJobId} changed its step ({ActaDetail}) before the step completed; the attempt fails as aborted."
     )]
     public static partial void StepOwnershipLost(ILogger log, long actaJobId, string actaDetail);
 

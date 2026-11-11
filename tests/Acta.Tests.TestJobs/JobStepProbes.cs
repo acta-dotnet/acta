@@ -171,6 +171,11 @@ public static class JobStepProbes
         return Task.FromResult(result);
     }
 
+    // A body that resets the job's state deletes its own step's row, so the step's completion finds nothing to complete.
+    [Job("job-step-reset-inside", MaxAttempts = 1)]
+    public static Task StepResetInside(JobContext ctx, CancellationToken ct) =>
+        ctx.RunStepAsync("resets", stepCt => ctx.ResetStateAsync(stepCt), ct);
+
     // An at-most-once body that throws fails the step. The parent's default budget has attempts left, so the job
     // failing at once proves the uncaught StepFailedException is not retried.
     [Job("job-step-fail")]

@@ -70,14 +70,12 @@ internal sealed class HandlerInvocation(
         }
         catch (StepOwnershipLostException ownershipLost)
         {
-            // A step completion CAS matched no row: a concurrent execution re-claimed this job, so this
-            // attempt is a zombie (StepOwnershipLostException says why the failure is retryable).
+            // A step's completion matched no row, and nothing was recorded for it (StepOwnershipLostException says how
+            // that happens): the attempt fails under its budget with the step named.
             completion = new ExecutionCompletion(CompletionKind.Failed)
             {
                 Reason = EventReason.AttemptAborted,
-                ReasonMessage = $"Step '{ownershipLost.StepName}' ownership could not be confirmed; attempt aborted.".Truncate(
-                    ActaTextLimits.EventMessage
-                ),
+                ReasonMessage = ownershipLost.Message.Truncate(ActaTextLimits.EventMessage),
             };
             ActaLog.StepOwnershipLost(log, job.JobId, ownershipLost.StepName);
         }

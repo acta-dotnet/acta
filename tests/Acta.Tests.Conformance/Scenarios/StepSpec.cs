@@ -155,8 +155,24 @@ public sealed class StepSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.
         Assert.Equal(1, JobStepProbes.BodyInvocations[enqueued.JobId]);
     }
 
-    [Fact(DisplayName = "CompleteJobStep loses the CAS and reports StaleVersion when the step advanced under another execution")]
-    public async Task CompleteJobStep_returns_stale_version_when_the_step_advanced_under_another_execution()
+    [Fact(DisplayName = "A state reset inside a step's body aborts the attempt, and the failure names the step")]
+    public async Task A_reset_inside_a_step_body_aborts_the_attempt()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-step-reset-inside", JobPayload.None), ct);
+
+        // The reset deleted the step's row, so its completion wrote nothing: the attempt is charged, never reported done.
+        Assert.Equal(RunOnceStatus.Failed, await Runtime.RunOnceAsync(enqueued, ct));
+
+        Assert.Equal(JobStatusCode.Failed, (await ReadJobAsync(enqueued.JobId, ct)).Status);
+        Assert.Empty(await ReadStepsAsync(enqueued.JobId, ct));
+        var failed = await ReadLatestEventAsync(enqueued.JobId, EventCode.JobFailed, ct);
+        Assert.Equal(EventReason.AttemptAborted, EventDetail(failed, "reason"));
+        Assert.Contains("'resets'", failed.EventMessage, StringComparison.Ordinal);
+    }
+
+    [Fact(DisplayName = "A step started twice at one version completes once, and the later completion reports StaleVersion")]
+    public async Task CompleteJobStep_returns_stale_version_when_the_step_was_started_twice()
     {
         var ct = TestContext.Current.CancellationToken;
         var store = Services.GetRequiredService<ExecutionOperations>();

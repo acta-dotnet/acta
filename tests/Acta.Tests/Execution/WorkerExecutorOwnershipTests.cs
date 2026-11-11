@@ -42,7 +42,7 @@ public sealed class WorkerExecutorOwnershipTests
         // The other half of the ownership pair: the at-most-once step body threw, and the CAS that would have
         // RECORDED that failure found a stale version. Nothing durable was written, so the business failure is
         // not this attempt's to report - reporting it here would attribute a failure the ledger never accepted.
-        // The abort must win over exhaustion.
+        // The abort must win over the step's failure.
         var harness = new WorkerExecutorHarness(stepOutcome: CompleteJobStepOutcomeCode.StaleVersion);
 
         var outcome = await harness.RunAsync(

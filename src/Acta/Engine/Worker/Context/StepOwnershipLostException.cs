@@ -1,14 +1,16 @@
 namespace Acta;
 
 /// <summary>
-/// Thrown when <c>complete_job_step</c> returns <c>StaleVersion</c>: the step's version CAS matched no row, so this
-/// attempt can no longer prove it owns the step. A framework-internal fault, not a handler control signal: a
-/// concurrent execution re-claimed the job and advanced the step. The runner treats it as a retryable attempt abort
-/// rather than a verdict: a row another execution owns no-ops at the <c>complete_executions</c> CAS, and a row this
-/// attempt still owns re-arms under the failure budget instead of landing Failed with no recorded reason.
+/// Thrown when <c>complete_job_step</c> returns <c>StaleVersion</c>: the step's row changed, or went, between this
+/// attempt's start of the step and its completion, so the completion wrote nothing. The fence refuses another attempt
+/// before the version is read, so the change is this attempt's own: the step's name was started twice at once, or the
+/// handler reset the job's state inside the step's body. Not a control signal: the runner fails the attempt as
+/// <c>attempt-aborted</c> under the failure budget, with the step named, instead of reporting a step nothing recorded.
 /// </summary>
 internal sealed class StepOwnershipLostException(string stepName)
-    : Exception($"Step '{stepName}' completion lost its version CAS; the job is owned by another execution.")
+    : Exception(
+        $"Step '{stepName}' changed under its own attempt before it completed: its name was started twice at once, or the job's state was reset inside its body."
+    )
 {
     public string StepName { get; } = stepName;
 }
