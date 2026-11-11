@@ -24,8 +24,8 @@ SELECT
     CASE
         WHEN f.namespace_id = 1 /* NameSyntax.SystemNamespaceId */ THEN (
             SELECT COUNT(*)
-            FROM {{schema}}.schedules s WITH (READCOMMITTEDLOCK, READPAST)
-            INNER JOIN {{schema}}.definitions d WITH (READCOMMITTEDLOCK, READPAST) ON d.definition_id = s.definition_id
+            FROM {{schema}}.schedules s WITH (READCOMMITTEDLOCK, READPAST, ROWLOCK)
+            INNER JOIN {{schema}}.definitions d WITH (READCOMMITTEDLOCK, READPAST, ROWLOCK) ON d.definition_id = s.definition_id
             WHERE
                 s.schedule_status_code <> 230 /* ScheduleStatusCode.Orphaned */
                 AND d.definition_status_code <> 240 /* DefinitionStatusCode.Retired */

@@ -19,7 +19,7 @@ WITH named AS (
     -- A shared family's schedules are every namespace's, which no index finds, so the scan skips a row another
     -- transaction holds; the publication's own check under its schedule lock rejects a plan that missed one.
     SELECT ss.schedule_id
-    FROM {{schema}}.schedules ss WITH (READCOMMITTEDLOCK, READPAST)
+    FROM {{schema}}.schedules ss WITH (READCOMMITTEDLOCK, READPAST, ROWLOCK)
     WHERE
         @p_namespace_id = 1 /* NameSyntax.SystemNamespaceId */
         AND (

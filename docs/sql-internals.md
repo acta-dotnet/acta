@@ -277,7 +277,11 @@ Acta itself is changing at that instant: a page or count can briefly miss it, in
 reads until it commits. That is why `jobs` and `jobs_state` take row locks only (`ALLOW_PAGE_LOCKS = OFF`):
 every new job lands on their last pages, which every writer changes, and a locking read that scanned
 them with page locks queued behind those writers and they behind it, in convoys and deadlocks. The
-enqueue routines only seek, since they run in the caller's transaction, where `READPAST` raises error
+reads in rule 2 that scan a table whole name `ROWLOCK` for the same reason: the namespaces list, the
+calendar dependents list with its total, the calendar list's count of a shared calendar's dependents, a
+shared calendar's plan read, and the job lists' lane probe. On a large table the engine can lock pages
+for such a scan, and a page with one uncommitted row in it stops the read.
+The enqueue routines only seek, since they run in the caller's transaction, where `READPAST` raises error
 650 under SERIALIZABLE. Retire can leave a job another transaction holds at that instant unfinished
 under the retired definition. A tree cancel lists each node's children without skipping, since a
 skipped child would keep running, so with the option off it waits for a transaction that is enqueuing a

@@ -11,7 +11,8 @@ namespace Acta.Tests.Conformance.SqlServer.Features.Jobs;
 /// A laned enqueue decides Ready or Blocked from what it reads after taking the lane lock. Under SNAPSHOT
 /// that read comes from the transaction's first snapshot, which can miss a member committed while it
 /// waited, so a laned enqueue in a SNAPSHOT caller transaction is refused. Every other level reads
-/// committed data per statement or under its locks and is accepted.
+/// committed data per statement or under its locks and is accepted. A lane an open enqueue created is skipped by the
+/// job list's lane filter, which tells only once lanes is large enough for the engine to lock pages for a scan.
 /// </summary>
 public sealed class SqlServerLaneIsolationTests : ActaRuntimeTestBase<SqlServerConformanceFixture, TestJobsManifest>
 {
@@ -101,6 +102,22 @@ public sealed class SqlServerLaneIsolationTests : ActaRuntimeTestBase<SqlServerC
     }
 
     // Allowing SNAPSHOT only makes it available to a session that asks for it; it changes no default.
+    [Fact(DisplayName = "The job list filtered by a lane answers past a lane an open enqueue created")]
+    public async Task Job_list_by_lane_skips_an_uncommitted_lane()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var lane = Unique("open");
+        await using var connection = await Db.OpenConnectionAsync(ct);
+        await using var application = await connection.BeginTransactionAsync(ct);
+        await Jobs.EnqueueAsync(application, Step(lane), ct);
+
+        // Across every namespace: with one named, the list reaches lanes by key and never scans the table.
+        var list = Operations.Ledger.ListJobsAsync(new ListJobsQuery(IncludeTotal: true, Lane: lane), ct).AsTask();
+        var first = await Task.WhenAny(list, Task.Delay(SpecWaits.Gate, ct));
+        Assert.True(first == list, "the job list waited on an uncommitted lane");
+        Assert.Empty((await list).Items);
+    }
+
     private static Task AllowSnapshotAsync(SqlConnection conn, CancellationToken ct) =>
         TestDdl.RunAsync(async () =>
         {
