@@ -65,6 +65,35 @@ public sealed class PurgeExpiredDataJobsWalkSpec : ActaRuntimeTestBase<Conforman
         Assert.Equal([oldest], await JobsOfAsync(ns, ct));
     }
 
+    [Fact(DisplayName = "A cycle passes a job an undelivered alert keeps and deletes the expired one behind it")]
+    public async Task A_cycle_passes_a_job_an_undelivered_alert_keeps()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var now = await NowAsync(ct);
+        var (ns, definition) = await SeedNamespaceAsync(retention: Hour, ct);
+        var kept = await SeedFinishedAsync(ns, definition, now - (2 * Hour), now - Hour, ct);
+        await AlertTestOps.RaiseAsync(
+            Services,
+            (await Db.From<NamespaceEntity>().Where(n => n.Id == ns).SingleOrDefaultAsync(ct))!.NamespaceName,
+            kept,
+            AlertSeverityCode.Error,
+            AlertKindCode.FinalFailure,
+            title: "walk",
+            message: "walk",
+            channelName: "default",
+            AlertDeliveryStatusCode.Pending,
+            deduplicationKey: null,
+            ct
+        );
+        await SeedFinishedAsync(ns, definition, now - (3 * Hour), now - Hour, ct);
+
+        // One job a batch: SQL Server reads a batch's alerts once the batch is taken, so the kept job fills the first one.
+        var (purged, _) = await WalkCycleAsync(ns, batchSize: 1, ct);
+
+        Assert.Equal(1, purged);
+        Assert.Equal([kept], await JobsOfAsync(ns, ct));
+    }
+
     [Fact(DisplayName = "Jobs created at one instant, more of them than a slice, are all deleted")]
     public async Task Jobs_that_share_an_instant_are_all_deleted()
     {

@@ -95,7 +95,9 @@ The jobs section is the exception: no index finds expired jobs, so each call wal
 jobs from newer to older through `ix_jobs_namespace_created`, from the cursor the previous pass stored
 on the slot (`p_before_created_utc` and `p_before_job_id`, the `retention-cursor` job variable), reads
 ten batches' worth of them, deletes a batch of the expired ones among them, and answers where it stopped:
-at its last delete when the batch was full, so the walk moves on past what it deleted. A cycle starts at the newest
+at its last delete when the batch was full, so the walk moves on past what it deleted. On SQL Server the batch is
+taken before its jobs' undelivered alerts are read ("Alert lock order"), so a full batch can delete fewer jobs than
+it holds, and it answers at its last job. A cycle starts at the newest
 job old enough to have expired, which is the cutoff less the shortest retention any definition of the
 namespace has, the framework's own `sys.` definitions aside, and ends at the namespace's oldest job. A
 pass walks until the cycle ends, a delete budget's worth of jobs is gone, or its time is spent, and
@@ -437,9 +439,12 @@ so no alert outlives its job.
   relocking, and on `jobs` it adds a conflict only with `UpdateJobInput`'s update.
 
 - `ix_alerts_job` (`job_id, alert_id`, filtered to rows with a job) holds a job's alerts. On SQL Server,
-  purge, retention's job sweep, and resolve seek it without locks and then lock each row by primary key.
-  The held job row keeps an alert from joining the job meanwhile, but a deduplicated raise moves an open
-  alert to its own job under that job's row alone, so each write rechecks the job on the row it locked.
+  purge, retention's job sweep, and resolve take the alert ids from it alone, and a second statement reads or
+  locks each row by primary key. One statement that seeks the index and then reaches the row holds the index
+  key while it waits for the row, as a lookup or as a join, once `READ_COMMITTED_SNAPSHOT` is off, and a
+  statement that moves or deletes an alert holds the row and then wants that key. Every alert delete seeks
+  `pk_alerts`. The held job row keeps an alert from joining the job meanwhile, but a deduplicated raise moves
+  an open alert to its own job under that job's row alone, so each write rechecks the job on the row it locked.
   On PostgreSQL and SQLite, their equality on `job_id` seeks it directly. Before that index,
   each SQL Server path scanned `pk_alerts` under update locks, and scans for different jobs deadlocked.
 - On SQL Server a row that has a deduplication identity is locked through its

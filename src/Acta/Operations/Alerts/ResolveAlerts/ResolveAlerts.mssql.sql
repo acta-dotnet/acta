@@ -6,9 +6,8 @@ BEGIN TRY
     IF @entry_trancount = 0
         BEGIN TRANSACTION;
 
-    -- The job row first, then its alert rows (docs/sql-internals.md, "Alert lock order").
-    -- The candidates are read through ix_alerts_job without locks and each is then locked by primary key
-    -- and re-checked; the held job row keeps a raise from adding one meanwhile.
+    -- The job row first, then its alert rows (docs/sql-internals.md, "Alert lock order"). The candidates are every alert
+    -- id ix_alerts_job holds for the job, read from the index alone, and each is then locked by primary key and checked.
     DECLARE @job_locked BIGINT;
     SELECT @job_locked = j.job_id
     FROM {{schema}}.jobs j WITH (UPDLOCK, ROWLOCK)
@@ -18,10 +17,7 @@ BEGIN TRY
     INSERT INTO @candidates (alert_id)
     SELECT a.alert_id
     FROM {{schema}}.alerts a WITH (FORCESEEK (ix_alerts_job (job_id)))
-    WHERE
-        a.namespace_id = @p_namespace_id
-        AND a.job_id = @p_job_id
-        AND a.resolved_at_utc IS NULL;
+    WHERE a.job_id = @p_job_id;
 
     UPDATE a
     SET
@@ -38,7 +34,7 @@ BEGIN TRY
         retry_after_utc = NULL,
         modified_at_utc = SYSUTCDATETIME(),
         version = a.version + 1
-    FROM {{schema}}.alerts a WITH (FORCESEEK)
+    FROM {{schema}}.alerts a WITH (FORCESEEK (pk_alerts (alert_id)))
     INNER JOIN @candidates c ON c.alert_id = a.alert_id
     WHERE
         a.namespace_id = @p_namespace_id

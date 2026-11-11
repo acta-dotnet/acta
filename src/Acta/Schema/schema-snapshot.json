@@ -1503,7 +1503,7 @@
       "events_view": "657e0c4ab8d397ff409570187af431bbad5aa42f149447e4101dd0b34300b755",
       "extend_worker_leases": "bd11a1466107868428f4215f36594fb28a20aab206d2db9908c6f625495c05c8",
       "jobs_view": "458bc42c8710bb0e53f7c875e2f52f77deb2e100d36b1a2a6a969008ae3cd277",
-      "purge_expired_data": "b2cc8ca43a0b2a8b3fcf766f151b24d198bcb6ad08c23a7a7764916bb625ebb7",
+      "purge_expired_data": "b1b3fdffb6439c084ae2a0d18b17def11879ee29bd9e9b83962dc394ad7c11e4",
       "raise_job_signal": "ecd28ffa4af3f5c0f53a4aea9509e598d8bda4ea863bf579d5d6835869d1f41f",
       "reclaim_stuck_jobs": "8fa7e3e4fe39c0a9904ea18eae311e044ae0f09f2531ec1121ab225f4942ba6f",
       "reserve_rate": "6c670647c61105bf54f710e21222010bc21c5fb74db62825cce3495dd902fa22",

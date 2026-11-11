@@ -127,12 +127,18 @@ BEGIN TRY
         INNER JOIN {{schema}}.schedules s ON s.schedule_id = st.schedule_id
         WHERE s.job_id = @p_job_id
     );
-    -- The job's alerts are read through ix_alerts_job without locks, which the held job row makes safe, then
-    -- each identity row is locked through its identity key before the row and the delete locks the rest
-    -- (docs/sql-internals.md, "Alert lock order").
+    -- The job's alert ids come from ix_alerts_job alone, and their rows are then read by primary key in a statement of
+    -- their own. Each identity row is then locked through its identity key before the row, and the delete locks the
+    -- rest (docs/sql-internals.md, "Alert lock order").
+    DECLARE @alert_seen TABLE (alert_id BIGINT NOT NULL PRIMARY KEY);
+    INSERT @alert_seen (alert_id)
+    SELECT k.alert_id FROM {{schema}}.alerts k WITH (FORCESEEK (ix_alerts_job (job_id)))
+    WHERE k.job_id = @p_job_id;
     INSERT @alert_ids (alert_id, namespace_id, deduplication_key)
-    SELECT alert_id, namespace_id, deduplication_key FROM {{schema}}.alerts WITH (FORCESEEK (ix_alerts_job (job_id)))
-    WHERE job_id = @p_job_id;
+    SELECT a.alert_id, a.namespace_id, a.deduplication_key
+    FROM @alert_seen s
+    INNER JOIN {{schema}}.alerts a WITH (FORCESEEK (pk_alerts (alert_id))) ON a.alert_id = s.alert_id
+    WHERE a.job_id = @p_job_id;
     DECLARE @identity_locked INT = (
         SELECT COUNT(*)
         FROM @alert_ids i
@@ -149,7 +155,7 @@ BEGIN TRY
 
     DELETE e FROM {{schema}}.events e WITH (FORCESEEK)
     WHERE e.entity_code = 50 /* EntityCode.Job */ AND e.entity_id = @p_job_id;
-    DELETE a FROM {{schema}}.alerts a WITH (FORCESEEK) INNER JOIN @alert_ids i ON i.alert_id = a.alert_id
+    DELETE a FROM {{schema}}.alerts a WITH (FORCESEEK (pk_alerts (alert_id))) INNER JOIN @alert_ids i ON i.alert_id = a.alert_id
     WHERE a.job_id = @p_job_id;
     DELETE c FROM {{schema}}.checkpoints c WITH (FORCESEEK)
     WHERE c.job_id = @p_job_id;

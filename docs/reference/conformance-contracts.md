@@ -1963,6 +1963,7 @@
 - **Guarantees:**
   - A cycle passes the jobs still kept, deletes the expired ones behind them, and ends at its oldest job
   - A full batch ends its slice at its last delete, and the next call reads on from there
+  - A cycle passes a job an undelivered alert keeps and deletes the expired one behind it
   - Jobs created at one instant, more of them than a slice, are all deleted
   - An expired job is deleted by the first slice however many newer jobs other namespaces hold
   - A cycle starts at the shortest retention any definition has, a retired one included, and a younger job waits
