@@ -84,7 +84,7 @@
               <li><span class="step-mark waiting" aria-hidden="true">↻</span><div><code>send-receipt</code><span>Same invoice, same delivery key</span></div><span class="step-badge">Retrying</span></li>
             </ol>
           </div>
-          <figcaption id="workflow-caption"><span class="record-symbol" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="12" cy="5" rx="7" ry="3"/><path d="M5 5v14c0 4 14 4 14 0V5M5 12c0 4 14 4 14 0"/></svg></span><div><strong>The worker can stop. The record stays.</strong><span>Finished steps return their saved results on replay.</span></div><a href="#flagship" aria-label="Explore the example workflow">↗</a></figcaption>
+          <figcaption id="workflow-caption"><span class="record-symbol" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="12" cy="5" rx="7" ry="3"/><path d="M5 5v14c0 4 14 4 14 0V5M5 12c0 4 14 4 14 0"/></svg></span><div><strong>The worker can stop. The record stays.</strong><span>Finished steps return their saved results on replay.</span></div><a href="#ex-workflow" aria-label="Explore the example workflow">↗</a></figcaption>
         </figure>
       </div>
       <div class="database-strip" aria-label="Supported databases"><span>Runs on the database you already trust</span><div><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="12" cy="5" rx="7" ry="3"/><path d="M5 5v14c0 4 14 4 14 0V5M5 12c0 4 14 4 14 0"/></svg>PostgreSQL</span><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="3"/><path d="M8 8h8M8 12h8M8 16h4"/></svg>SQL Server</span><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 19 4-12 11-3-3 11-12 4Zm0 0 9-9"/></svg>SQLite</span></div></div>
@@ -104,12 +104,42 @@
     <section class="wrap" id="flagship">
       <p class="record">Code that keeps its progress</p>
       <h2>Ordinary code.<br />Extraordinary staying power.</h2>
-      <p class="lede flagship-intro">Four examples: order completion, recurring synchronization, PDF approvals, and a video pipeline with parallel child jobs.</p>
+      <p class="lede flagship-intro">Four examples: a plain background job, order completion, recurring synchronization, and PDF approvals with parallel child jobs.</p>
       <div class="tabs" role="tablist" aria-label="Example handlers" hidden>
-        <button type="button" role="tab" id="tab-workflow" aria-controls="ex-workflow" aria-selected="true">A · Order &amp; receipt</button>
-        <button type="button" role="tab" id="tab-sync" aria-controls="ex-sync" aria-selected="false" tabindex="-1">B · Recurring sync</button>
-        <button type="button" role="tab" id="tab-proof" aria-controls="ex-proof" aria-selected="false" tabindex="-1">C · PDF approvals</button>
-        <button type="button" role="tab" id="tab-video" aria-controls="ex-video" aria-selected="false" tabindex="-1">D · Video pipeline</button>
+        <button type="button" role="tab" id="tab-job" aria-controls="ex-job" aria-selected="true">A · Background job</button>
+        <button type="button" role="tab" id="tab-workflow" aria-controls="ex-workflow" aria-selected="false" tabindex="-1">B · Order &amp; receipt</button>
+        <button type="button" role="tab" id="tab-sync" aria-controls="ex-sync" aria-selected="false" tabindex="-1">C · Recurring sync</button>
+        <button type="button" role="tab" id="tab-proof" aria-controls="ex-proof" aria-selected="false" tabindex="-1">D · PDF approvals</button>
+      </div>
+
+      <div class="example" id="ex-job" role="tabpanel" aria-labelledby="tab-job">
+        <p class="lede">The smallest job is a method: an attribute, its input, and a cancellation token. One line enqueues it, and from that line on the job is a row you can read.</p>
+        <div class="flow">
+          <div class="panel solo">
+            <div class="panel-tab">C# · the job, and the line that enqueues it</div>
+            <pre><code><span class="a">[Job(<span class="s">"send-welcome-email"</span>)]</span>
+<span class="k">public</span> Task Send(WelcomeEmail email, CancellationToken ct) =&gt;
+    mail.SendWelcomeAsync(email.To, email.Name, ct);
+
+<span class="c">// From a controller, a handler, anywhere in the app:</span>
+<span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> WelcomeEmail(user.Email, user.Name));</code></pre>
+            <div class="panel-tab output">SQL · the row that line wrote</div>
+            <pre><code><span class="k">SELECT</span> job_status, failure_count, next_run_at_utc
+<span class="k">FROM</span> acta.jobs_view
+<span class="k">WHERE</span> definition_name = <span class="s">'send-welcome-email'</span>;</code></pre>
+          </div>
+          <ol class="flow-rows" aria-label="What the query answers as the job runs">
+            <li><b>ready</b><span class="v">job_status</span><span class="d">Right after the enqueue. The row is there before any worker runs, with the input stored on it.</span></li>
+            <li><b>executing</b><span class="v">job_status</span><span class="d">A worker claimed the job and holds a lease on it. If that worker stops, the lease lapses and another worker takes the job.</span></li>
+            <li><b>succeeded</b><span class="v">job_status</span><span class="d">The method returned. The row stays as the record of what ran.</span></li>
+            <li><b>ready</b><span class="v">failure_count 1</span><span class="d">The send threw instead. The row is ready again, and next_run_at_utc says when it is tried, after a backoff, up to the job's MaxAttempts.</span></li>
+          </ol>
+        </div>
+        <p class="hint"><b>At least once.</b> A retry or a takeover runs the method again, so make the send safe to repeat: give the mail provider a key it deduplicates on.</p>
+        <div class="actions">
+          <a class="button primary" href="/start">Get started</a>
+          <a class="button" href="https://github.com/acta-dotnet/acta/blob/main/docs/first-job.md">Write your first job</a>
+        </div>
       </div>
 
       <div class="example" id="ex-workflow" role="tabpanel" aria-labelledby="tab-workflow">
@@ -231,56 +261,6 @@
         <div class="actions">
           <a class="button primary" href="/how-it-works#steps">Explore durable workflows</a>
           <a class="button" href="https://github.com/acta-dotnet/acta/tree/main/concepts/200-durable-execution/215-map-parallel-join">Run the fan-out lab</a>
-        </div>
-      </div>
-      <div class="example" id="ex-video" role="tabpanel" aria-labelledby="tab-video">
-        <p class="lede">Encode HD and Full HD renditions and create a thumbnail in parallel. Once all three child jobs succeed, start a separate packaging child, wait durably for its result, and publish the finished release.</p>
-        <div class="flow">
-          <div class="panel solo">
-            <div class="panel-tab">C# · parallel video processing and an explicit child wait</div>
-            <pre><code><span class="a">[Job</span>(<span class="s">"publish-video"</span>)]
-<span class="k">public</span> <span class="k">async</span> Task Publish(
-    VideoUpload video, JobContext ctx, CancellationToken ct)
-{
-    <span class="k">var</span> releaseId = <span class="k">await</span> ctx.GetOrSetVariableAsync(
-        <span class="s">"release-id"</span>, Guid.NewGuid, ct);
-
-    <span class="k">var</span> prepared = <span class="k">await</span> ctx.ParallelAsync(<span class="s">"prepare-video"</span>, p =&gt; p
-        .Child(<span class="s">"hd"</span>, <span class="k">new</span> EncodeVideo(video.SourceKey, releaseId, 720))
-        .Child(<span class="s">"full-hd"</span>, <span class="k">new</span> EncodeVideo(video.SourceKey, releaseId, 1080))
-        .Child(<span class="s">"thumbnail"</span>, <span class="k">new</span> CreateThumbnail(video.SourceKey, releaseId)),
-        TimeSpan.FromHours(2), ct);
-
-    prepared.ThrowIfAnyFailed();
-
-    <span class="k">var</span> package = <span class="k">await</span> ctx.StartChildAsync(
-        <span class="s">"package"</span>, <span class="k">new</span> PackageVideo(releaseId), ct);
-    <span class="k">var</span> ready = <span class="k">await</span> ctx.TryWaitChildAsync(
-        package.JobId, TimeSpan.FromMinutes(30), ct);
-
-    <span class="k">if</span> (!ready.Succeeded)
-    {
-        <span class="k">await</span> ctx.FailAsync(ready.TimedOut
-            ? <span class="s">"Packaging timed out"</span> : <span class="s">"Packaging did not succeed"</span>, ct);
-        <span class="k">return</span>;
-    }
-
-    <span class="k">await</span> ctx.RunStepAsync(<span class="s">"publish"</span>,
-        c =&gt; catalog.PublishAsync(releaseId, c), ct);
-}</code></pre>
-          </div>
-          <ol class="flow-rows" aria-label="Video pipeline and child job dependencies">
-            <li><b>release-id</b><span class="v">variable</span><span class="d">One stored release identity ties every rendition, thumbnail, package, and publication to this job across replays.</span></li>
-            <li><b>prepare-video</b><span class="v">parallel children</span><span class="d">Three independent child jobs read the original upload. The group waits for all three; a failure or timeout prevents packaging from starting.</span></li>
-            <li><b>package</b><span class="v">StartChildAsync</span><span class="d">A dependent child starts only when all assets are ready. Its stable name resolves to the same child when the parent replays.</span></li>
-            <li><b>ready</b><span class="v">TryWaitChildAsync</span><span class="d">The parent releases its worker while packaging runs. A 30-minute timeout cancels the unfinished child and returns an outcome; this handler then fails without publishing.</span></li>
-            <li><b>publish</b><span class="v">step</span><span class="d">Publishes only a successfully packaged release. The catalog adapter must deduplicate publication by release ID, including after an ambiguous crash.</span></li>
-          </ol>
-        </div>
-        <p class="hint"><b>Application contract.</b> The source key identifies an immutable, already uploaded video. Each child stores complete outputs in shared durable storage before succeeding, under stable paths derived from the release ID. Packaging reads those stored assets; publication uses the finished package. Repeated child work and catalog writes must be idempotent. The two-hour preparation and 30-minute packaging budgets are illustrative policies; retries and restarts do not extend the stored wait deadlines.</p>
-        <div class="actions">
-          <a class="button primary" href="https://github.com/acta-dotnet/acta/tree/main/concepts/200-durable-execution/215-map-parallel-join">Run the fan-out lab</a>
-          <a class="button" href="/capabilities#children">Explore child jobs</a>
         </div>
       </div>
     </section>
@@ -537,8 +517,14 @@
         document.getElementById(t.getAttribute('aria-controls')).hidden = !on;
       }
     };
+    // A link to one example, such as the hero's to the order workflow, opens that example's tab.
+    const linked = () => tabs.find((t) => '#' + t.getAttribute('aria-controls') === location.hash);
     tablist.hidden = false;
-    select(tabs[0]);
+    select(linked() ?? tabs[0]);
+    addEventListener('hashchange', () => {
+      const tab = linked();
+      if (tab) select(tab);
+    });
     for (const tab of tabs) {
       tab.addEventListener('click', () => select(tab));
       tab.addEventListener('keydown', (e) => {
