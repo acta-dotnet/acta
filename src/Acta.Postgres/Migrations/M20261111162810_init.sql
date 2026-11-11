@@ -2330,9 +2330,10 @@ BEGIN
         COALESCE(b.correlation_key, pj.correlation_key),
         ns.namespace_id,
         jd.definition_id,
+        -- A named tenant passed the Forbidden check above; a definition that turned Forbidden since must not drop it.
         CASE
-            WHEN jd.tenant_requirement_code = 20 /* DefinitionTenantRequirementCode.Forbidden */ THEN NULL
             WHEN b.tenant_name IS NOT NULL THEN t.tenant_id
+            WHEN jd.tenant_requirement_code = 20 /* DefinitionTenantRequirementCode.Forbidden */ THEN NULL
             ELSE pj.tenant_id
         END,
         b.input_format_id,
@@ -4375,5 +4376,5 @@ JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261111123419_init')
+VALUES ('M20261111162810_init')
 ON CONFLICT (name) DO NOTHING;

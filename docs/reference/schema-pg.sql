@@ -41,14 +41,14 @@ DO $$
 BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
-        WHERE name NOT IN ('M20261111123419_init')
+        WHERE name NOT IN ('M20261111162810_init')
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
 END
 $$;
 
--- ===== BEGIN M20261111123419_init =====
+-- ===== BEGIN M20261111162810_init =====
 CREATE SCHEMA IF NOT EXISTS acta;
 
 -- alerts
@@ -2381,9 +2381,10 @@ BEGIN
         COALESCE(b.correlation_key, pj.correlation_key),
         ns.namespace_id,
         jd.definition_id,
+        -- A named tenant passed the Forbidden check above; a definition that turned Forbidden since must not drop it.
         CASE
-            WHEN jd.tenant_requirement_code = 20 /* DefinitionTenantRequirementCode.Forbidden */ THEN NULL
             WHEN b.tenant_name IS NOT NULL THEN t.tenant_id
+            WHEN jd.tenant_requirement_code = 20 /* DefinitionTenantRequirementCode.Forbidden */ THEN NULL
             ELSE pj.tenant_id
         END,
         b.input_format_id,
@@ -4426,10 +4427,10 @@ JOIN acta.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO acta.migrations (name)
-VALUES ('M20261111123419_init')
+VALUES ('M20261111162810_init')
 ON CONFLICT (name) DO NOTHING;
 
--- ===== END M20261111123419_init =====
+-- ===== END M20261111162810_init =====
 
 COMMIT;
 

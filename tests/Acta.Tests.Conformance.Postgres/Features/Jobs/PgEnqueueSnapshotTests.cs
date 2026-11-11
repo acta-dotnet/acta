@@ -70,4 +70,66 @@ public sealed class PgEnqueueSnapshotTests : ActaRuntimeTestBase<PgConformanceFi
         );
         Assert.Equal("40001", Assert.IsType<Npgsql.PostgresException>(failed).SqlState);
     }
+
+    [Fact(
+        DisplayName = "A batch that passed a definition's tenant policy keeps its named tenant when a deploy forbids one before it stages"
+    )]
+    public async Task A_batch_keeps_its_named_tenant_when_the_policy_turns_forbidden_mid_call()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var tenant = Unique("tenant");
+        await Operations.Tenants.RegisterAsync(tenant, null, null, ct);
+        var namespaceId = await ChaosSpecHelpers.NamespaceIdAsync(Db, TestNamespace, ct);
+        EnqueueJobRequest[] named =
+        [
+            new(TestNamespace, "add-numbers", Payload, TenantName: tenant),
+            new(TestNamespace, "add-numbers", Payload, TenantName: tenant),
+        ];
+
+        // A first batch creates the routine's staging table in this transaction; the trigger then holds the next batch
+        // where the routine empties that table, after its policy checks and before the statement that stages the rows.
+        await using var connection = await Db.OpenConnectionAsync(ct);
+        await using var transaction = await connection.BeginTransactionAsync(ct);
+        await Jobs.EnqueueJobsAsync(transaction, [named[0] with { TenantName = null }, named[1] with { TenantName = null }], ct);
+        var barrier = $"hashtext('{Db.Schema}.enqueue-barrier'), {namespaceId}";
+        await using (var cmd = connection.CreateCommand())
+        {
+            cmd.Transaction = transaction;
+            cmd.CommandText =
+                $"CREATE FUNCTION pg_temp.hold_staging() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN PERFORM pg_advisory_xact_lock({barrier}); RETURN NULL; END $$; "
+                + "CREATE TRIGGER hold_staging BEFORE TRUNCATE ON _enq_batch FOR EACH STATEMENT EXECUTE FUNCTION pg_temp.hold_staging()";
+            await cmd.ExecuteNonQueryAsync(ct);
+        }
+
+        await using var holder = await Db.OpenConnectionAsync(ct);
+        await using var hold = await holder.BeginTransactionAsync(ct);
+        await using (var cmd = holder.CreateCommand())
+        {
+            cmd.Transaction = hold;
+            cmd.CommandText = $"SELECT pg_advisory_xact_lock({barrier})";
+            await cmd.ExecuteNonQueryAsync(ct);
+        }
+
+        var batch = Jobs.EnqueueJobsAsync(transaction, named, ct).AsTask();
+        await LockWaitProbe.WaitAsync(Db, "enqueue_jobs", LockWait.ApplicationLock, batch, hold, ct);
+
+        // What a deploy of the definition with a Forbidden requirement writes, committed while the batch is held.
+        Assert.Equal(
+            1,
+            await Db.From<DefinitionEntity>()
+                .Where(d => d.NamespaceId == namespaceId && d.DefinitionName == "add-numbers")
+                .UpdateOnlyAsync(() => new DefinitionEntity { TenantRequirement = DefinitionTenantRequirementCode.Forbidden }, ct)
+        );
+        await hold.CommitAsync(ct);
+
+        // The batch was valid when it was judged, so it lands as it was judged: before the deploy, tenant and all.
+        var landed = await batch;
+        await transaction.CommitAsync(ct);
+        var tenantId = (await Db.From<TenantEntity>().Where(t => t.TenantName == tenant).SingleOrDefaultAsync(ct))!.Id;
+        Assert.All(landed.Jobs, job => Assert.Equal(EnqueueJobAction.Inserted, job.Action));
+        foreach (var job in landed.Jobs)
+        {
+            Assert.Equal(tenantId, (await ReadJobAsync(job.JobId, ct)).TenantId);
+        }
+    }
 }
