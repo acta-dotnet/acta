@@ -290,6 +290,7 @@ public sealed class SendReceiptJob
 * `[Job]` goes on the handler method.
 * Constructor injection is the dependency mechanism; instance handlers resolve through DI.
 * `JobContext` and `CancellationToken` are optional parameters (see the method matrix below).
+* Every parameter is by value and each framework parameter appears at most once; `ref`, `out`, `in`, `ref readonly`, or a second `JobContext` or `CancellationToken` is ACTA0103.
 
 ### Pipeline behaviors
 
@@ -609,7 +610,7 @@ The generator reports these at build time. All are errors unless noted, and an e
 | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `ACTA0101` | Duplicate `[Job]` name within the manifest.                                                                                                                                                                       |
 | `ACTA0102` | Invalid `[Job]` name; dotted kebab-case, at most 128 chars, `sys` and the `sys.` prefix reserved for system jobs.                                                                                          |
-| `ACTA0103` | Invalid handler signature; the message names the exact violation (parameter order, `async void`, nested awaitable, an input parameter after `JobContext` or `CancellationToken`, forbidden `TIn`, a non-collection interface among several input parameters, open generic, private method or type, `JobContext` pairing, an input or result type whose name is not ASCII). |
+| `ACTA0103` | Invalid handler signature; the message names the exact violation (parameter order, a second `JobContext` or `CancellationToken`, a `ref`, `out`, `in`, or `ref readonly` parameter, `async void`, nested awaitable, an input parameter after `JobContext` or `CancellationToken`, forbidden `TIn`, a non-collection interface among several input parameters, open generic, private method or type, `JobContext` pairing, an input or result type whose name is not ASCII). |
 | `ACTA0104` | Duplicate input type within the manifest (warning); typed enqueue cannot resolve a unique route.                                                                                                                  |
 | `ACTA0105` | Invalid `[Job]` policy value (malformed duration, out-of-bounds retry knobs, undefined code, invalid lane, rate, or concurrency value).                                                                                                            |
 | `ACTA0106` | A job's generated member name (its call factory, or the argument record of a job taking several parameters) collides with another job's, or with `Descriptors`, the manifest type name, or an `object` member, once separators and case are ignored, such as `send-mail` and `sendmail` (warning); the colliding members are left out and dispatch is unaffected. |

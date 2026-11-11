@@ -46,6 +46,9 @@ The variants and their fixes:
 
 - Parameters out of order, or a parameter after `JobContext` or `CancellationToken`: input first,
   then the two optional ones. Dependencies come through the constructor, not the method.
+- A second `JobContext` or `CancellationToken`: a handler takes at most one of each.
+- A `ref`, `out`, `in`, or `ref readonly` parameter: the generated manifest passes every argument
+  by value, so drop the modifier.
 - `async void`: return `Task` or `ValueTask`, so the engine can await the attempt.
 - A nested awaitable such as `Task<Task<T>>`: return the inner shape, `Task<T>`.
 - An interface parameter among several inputs: the generated argument record serializes every

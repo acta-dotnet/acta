@@ -14,6 +14,14 @@ internal static class JobSignatureReader
     {
         var parameters = method.Parameters;
 
+        foreach (var p in parameters)
+        {
+            if (ByReferenceModifier(p.RefKind) is { } modifier)
+            {
+                diagnostics.Add(ManifestDiagnostics.ByReferenceParameter(method, p, modifier, location));
+            }
+        }
+
         // The input is the parameters before the first framework parameter (JobContext / CancellationToken): none for a
         // zero-input handler, one for TIn, several for the argument record the manifest generates. Any type, including a
         // forbidden one (IServiceProvider, Task, ref-like), is an input candidate that CheckInputParameters rejects.
@@ -38,7 +46,11 @@ internal static class JobSignatureReader
             switch (name)
             {
                 case JobContextMetadataName:
-                    if (hasJobContext || hasCancellationToken)
+                    if (hasJobContext)
+                    {
+                        diagnostics.Add(ManifestDiagnostics.DuplicateFrameworkParameter(method, p, location));
+                    }
+                    else if (hasCancellationToken)
                     {
                         diagnostics.Add(ManifestDiagnostics.InvalidParameterOrder(method, location));
                         validOrder = false;
@@ -47,6 +59,10 @@ internal static class JobSignatureReader
                     break;
 
                 case CancellationTokenMetadataName:
+                    if (hasCancellationToken)
+                    {
+                        diagnostics.Add(ManifestDiagnostics.DuplicateFrameworkParameter(method, p, location));
+                    }
                     hasCancellationToken = true;
                     break;
 
@@ -69,6 +85,16 @@ internal static class JobSignatureReader
             hasCancellationToken
         );
     }
+
+    private static string? ByReferenceModifier(RefKind refKind) =>
+        refKind switch
+        {
+            RefKind.Ref => "ref",
+            RefKind.Out => "out",
+            RefKind.In => "in",
+            RefKind.RefReadOnlyParameter => "ref readonly",
+            _ => null,
+        };
 
     /// <summary>
     /// ACTA0103 for an input parameter no input can be: a forbidden framework type, or, among several parameters that

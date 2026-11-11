@@ -410,6 +410,72 @@ public class ManifestGeneratorDiagnosticTests
         Assert.Single(Of(result, "ACTA0103"));
     }
 
+    // ACTA0103: the manifest calls the handler by name with by-value arguments, so a by-reference parameter would bind
+    // an unannotated by-value overload instead.
+    [Theory]
+    [InlineData("public static int Run(ref Input input) => 1;", "`ref GenTests.Input input`")]
+    [InlineData("public static int Run(out Input input) { input = null!; return 1; }", "`out GenTests.Input input`")]
+    [InlineData("public static int Run(in Input input) => 1;", "`in GenTests.Input input`")]
+    [InlineData("public static int Run(ref readonly Input input) => 1;", "`ref readonly GenTests.Input input`")]
+    [InlineData(
+        "public static Task Run(Input input, JobContext ctx, ref CancellationToken ct) => Task.CompletedTask;",
+        "`ref System.Threading.CancellationToken ct`"
+    )]
+    [InlineData(
+        "public static Task Run(Input input, JobContext ctx, in CancellationToken ct) => Task.CompletedTask;",
+        "`in System.Threading.CancellationToken ct`"
+    )]
+    [InlineData(
+        "public static Task Run(Input input, ref JobContext ctx, CancellationToken ct) => Task.CompletedTask;",
+        "`ref Acta.JobContext ctx`"
+    )]
+    [InlineData(
+        "public static Task Run(Input input, in JobContext ctx, CancellationToken ct) => Task.CompletedTask;",
+        "`in Acta.JobContext ctx`"
+    )]
+    public void By_reference_parameter_errors_ACTA0103(string handler, string parameter)
+    {
+        var result = RunGenerator(SignatureSource(handler));
+
+        var diagnostic = Assert.Single(Of(result, "ACTA0103"));
+        Assert.Contains($"declares parameter {parameter} by reference", diagnostic.GetMessage());
+    }
+
+    [Theory]
+    [InlineData(
+        "public static Task Run(Input input, CancellationToken first, CancellationToken second) => Task.CompletedTask;",
+        "a second `CancellationToken` parameter, `second`"
+    )]
+    [InlineData(
+        "public static Task Run(Input input, JobContext first, JobContext second, CancellationToken ct) => Task.CompletedTask;",
+        "a second `JobContext` parameter, `second`"
+    )]
+    public void Duplicate_framework_parameter_errors_ACTA0103(string handler, string violation)
+    {
+        var result = RunGenerator(SignatureSource(handler));
+
+        var diagnostic = Assert.Single(Of(result, "ACTA0103"));
+        Assert.Contains(violation, diagnostic.GetMessage());
+    }
+
+    private static string SignatureSource(string handler) =>
+        $$"""
+            using Acta;
+            using System.Threading;
+            using System.Threading.Tasks;
+
+            namespace GenTests;
+
+            public sealed record Input(int Value);
+
+            public static class Handler
+            {
+                [Job("review-signature")]
+                {{handler}}
+                public static int Run(Input input) => 2;
+            }
+            """;
+
     // ACTA0103: the runtime stores a contract type's name in an ASCII column, so every part of it must be ASCII.
     [Theory]
     [InlineData("public static void Run(Größe input) { }")]

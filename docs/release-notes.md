@@ -19,6 +19,7 @@ Not tagged yet.
 - On SQL Server, the retention sweep deleted an expired job's tags by reading every job tag under update locks. It now seeks each job's tags.
 - On SQL Server with READ_COMMITTED_SNAPSHOT off, alert delivery, a job lookup by deduplication key, a schedule read, the tags listing, and the calendar reads (a calendar, one of its versions, the listing, an archive, and the published calendars that admission and deploy load) each read other namespaces' rows and waited on their open transactions. Each now seeks its own namespace's rows. The overview now reads its alert and worker counts without locks, as it already read its job and schedule counts.
 - A calendar listing counts a shared calendar's dependents as that calendar's dependents list reads them, skipping a schedule another transaction holds.
+- A `[Job]` method with a `ref`, `out`, `in`, or `ref readonly` parameter passed the generator, which calls the handler with by-value arguments, so a by-value overload of the same name ran in its place and its result was stored as the job's. A second `CancellationToken` likewise passed, and the call supplied one token. Each is now ACTA0103, and a second `JobContext` names itself rather than reporting a parameter order.
 - On PostgreSQL, the crash-recovery pass could read a stuck job's lanes through `ix_jobs_state_lane_member`, every live laned row, when the table's statistics priced it the same as `ix_jobs_state_worker_inflight`. It now reads them through the in-flight index alone.
 
 ## 1.0.0-rc.9

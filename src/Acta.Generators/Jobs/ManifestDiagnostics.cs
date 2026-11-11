@@ -277,6 +277,20 @@ internal static class ManifestDiagnostics
             location
         );
 
+    public static DiagnosticRecord ByReferenceParameter(IMethodSymbol method, IParameterSymbol p, string modifier, Location location) =>
+        new(
+            "ACTA0103",
+            $"`[Job]` method `{method.Name}` declares parameter `{modifier} {p.Type.ToDisplayString()} {p.Name}` by reference. The generated manifest passes every argument by value; remove the `{modifier}` modifier.",
+            location
+        );
+
+    public static DiagnosticRecord DuplicateFrameworkParameter(IMethodSymbol method, IParameterSymbol p, Location location) =>
+        new(
+            "ACTA0103",
+            $"`[Job]` method `{method.Name}` declares a second `{p.Type.Name}` parameter, `{p.Name}`. A handler takes at most one `JobContext` and one `CancellationToken`; canonical shape is `Handle(TIn, JobContext, CancellationToken)`.",
+            location
+        );
+
     public static DiagnosticRecord InterfaceArgument(IMethodSymbol method, IParameterSymbol p, Location location) =>
         new(
             "ACTA0103",
