@@ -144,18 +144,35 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
             diagnostics.Add(ManifestDiagnostics.AsyncVoid(method, location));
         }
 
-        if (method.DeclaredAccessibility == Accessibility.Private)
+        // The manifest calls the handler from a class of its own in this assembly, so it reaches what the assembly does.
+        if (!ReachableInAssembly(method.DeclaredAccessibility))
         {
-            diagnostics.Add(ManifestDiagnostics.PrivateHandler(method, location));
+            diagnostics.Add(ManifestDiagnostics.InaccessibleHandler(method, location));
         }
 
         for (var container = method.ContainingType; container is not null; container = container.ContainingType)
         {
-            if (container.DeclaredAccessibility == Accessibility.Private)
+            if (!ReachableInAssembly(container.DeclaredAccessibility))
             {
-                diagnostics.Add(ManifestDiagnostics.PrivateContainingType(method, container, location));
+                diagnostics.Add(ManifestDiagnostics.InaccessibleContainingType(method, container, location));
                 break;
             }
+        }
+
+        // The manifest names one closed handler type per job, and an open one has no name to write.
+        for (var container = method.ContainingType; container is not null; container = container.ContainingType)
+        {
+            if (container.IsGenericType)
+            {
+                diagnostics.Add(ManifestDiagnostics.GenericContainingType(method, container, location));
+                break;
+            }
+        }
+
+        // A handler instance is resolved from DI or constructed for the attempt, and neither gives a struct.
+        if (!method.IsStatic && method.ContainingType.IsValueType)
+        {
+            diagnostics.Add(ManifestDiagnostics.ValueTypeHandler(method, location));
         }
 
         var parameterModel = AnalyzeParameters(method, location, diagnostics);
@@ -164,6 +181,9 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
 
         return BuildDiscoveredJob(method, jobName, attr, diagnostics, parameterModel, returnModel, schedules);
     }
+
+    private static bool ReachableInAssembly(Accessibility accessibility) =>
+        accessibility is not (Accessibility.Private or Accessibility.Protected or Accessibility.ProtectedAndInternal);
 
     internal static DiscoveredJob BuildDiscoveredJob(
         IMethodSymbol method,

@@ -319,17 +319,31 @@ internal static class ManifestDiagnostics
             location
         );
 
-    public static DiagnosticRecord PrivateHandler(IMethodSymbol method, Location location) =>
+    public static DiagnosticRecord InaccessibleHandler(IMethodSymbol method, Location location) =>
         new(
             "ACTA0103",
-            $"`[Job]` method `{method.Name}` is private. Job handlers must be at least `internal`; the source-generated manifest cannot reference a private method.",
+            $"`[Job]` method `{method.Name}` is {Microsoft.CodeAnalysis.CSharp.SyntaxFacts.GetText(method.DeclaredAccessibility)}. The source-generated manifest calls it from a class of its own, so a job handler is `public`, `internal`, or `protected internal`.",
             location
         );
 
-    public static DiagnosticRecord PrivateContainingType(IMethodSymbol method, INamedTypeSymbol container, Location location) =>
+    public static DiagnosticRecord InaccessibleContainingType(IMethodSymbol method, INamedTypeSymbol container, Location location) =>
         new(
             "ACTA0103",
-            $"`[Job]` method `{method.Name}`'s containing type `{container.Name}` is private. Job handlers must live on a non-private type.",
+            $"`[Job]` method `{method.Name}`'s containing type `{container.Name}` is {Microsoft.CodeAnalysis.CSharp.SyntaxFacts.GetText(container.DeclaredAccessibility)}. The source-generated manifest names the type, so a job handler lives on a `public`, `internal`, or `protected internal` type.",
+            location
+        );
+
+    public static DiagnosticRecord GenericContainingType(IMethodSymbol method, INamedTypeSymbol container, Location location) =>
+        new(
+            "ACTA0103",
+            $"`[Job]` method `{method.Name}` is declared in the generic type `{container.Name}`. The manifest names one closed handler type per job; declare the handler in a type with no type parameters.",
+            location
+        );
+
+    public static DiagnosticRecord ValueTypeHandler(IMethodSymbol method, Location location) =>
+        new(
+            "ACTA0103",
+            $"`[Job]` method `{method.Name}` is an instance method of the struct `{method.ContainingType.Name}`. A handler instance is resolved from DI or constructed for the attempt, which takes a class; make the method `static` or the type a class.",
             location
         );
 

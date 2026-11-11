@@ -366,6 +366,49 @@ public class ManifestGeneratorDiagnosticTests
         Assert.Single(Of(result, "ACTA0103"));
     }
 
+    // The manifest names the handler's type and calls its method from a file-local class, so a declaration it cannot
+    // name, build, or reach is refused where it is written rather than by a compile error inside the generated file.
+    [Theory]
+    [InlineData("public sealed class Handler<T> { [Job(\"in-generic-class\")] public void Run(Input input) { } }")]
+    [InlineData("public struct Handler { [Job(\"on-a-struct\")] public void Run(Input input) { } }")]
+    [InlineData("public class Handler { [Job(\"protected-handler\")] protected void Run(Input input) { } }")]
+    [InlineData("public class Handler { [Job(\"private-protected-handler\")] private protected void Run(Input input) { } }")]
+    [InlineData("public class Outer { protected class Handler { [Job(\"in-protected-type\")] public void Run(Input input) { } } }")]
+    public void A_handler_the_manifest_cannot_name_build_or_reach_errors_ACTA0103(string handler)
+    {
+        var result = RunGenerator(HandlerShapeSource(handler), "GenTests", out var output);
+
+        Assert.True(Of(result, "ACTA0103").Length == 1, "no ACTA0103; the compilation says: " + CompileErrors(output));
+        Assert.Equal("", CompileErrors(output));
+    }
+
+    [Theory]
+    [InlineData("public struct Handler { [Job(\"static-on-a-struct\")] public static void Run(Input input) { } }")]
+    [InlineData("public class Handler { [Job(\"protected-internal-handler\")] protected internal void Run(Input input) { } }")]
+    public void A_handler_the_manifest_can_reach_compiles(string handler)
+    {
+        var result = RunGenerator(HandlerShapeSource(handler), "GenTests", out var output);
+
+        Assert.Empty(Of(result, "ACTA0103"));
+        Assert.Equal("", CompileErrors(output));
+    }
+
+    private static string HandlerShapeSource(string handler) =>
+        $$"""
+            using Acta;
+            namespace GenTests;
+
+            public sealed record Input(int Value);
+
+            {{handler}}
+            """;
+
+    private static string CompileErrors(Compilation output) =>
+        string.Join(
+            "; ",
+            output.GetDiagnostics().Where(d => d.Severity == DiagnosticSeverity.Error).Select(d => d.Id + " " + d.GetMessage())
+        );
+
     [Fact]
     public void Nested_awaitable_return_errors_ACTA0103()
     {
