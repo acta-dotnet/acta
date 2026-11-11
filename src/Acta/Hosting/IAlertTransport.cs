@@ -14,7 +14,8 @@ public interface IAlertTransport
     /// Deliver <paramref name="notification"/> to <paramref name="target"/>. Never throws for an expected
     /// transport failure; returns <see cref="AlertSendStatus.Retryable"/> or
     /// <see cref="AlertSendStatus.Permanent"/> instead. A send has ten seconds: <paramref name="ct"/> is cancelled then,
-    /// and a send still running is given up as retryable, so honor the token.
+    /// and a send still running is given up as retryable, so honor the token. Return the task without blocking: a
+    /// transport that blocks its caller and ignores the token holds every alert behind it.
     /// </summary>
     Task<AlertSendStatus> SendAsync(AlertNotification notification, AlertTarget target, CancellationToken ct);
 }

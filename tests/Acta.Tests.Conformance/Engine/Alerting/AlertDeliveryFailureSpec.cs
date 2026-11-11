@@ -30,6 +30,7 @@ public sealed class AlertDeliveryFailureSpec : ActaStorageTestBase<ConformanceFi
     private const string ResolvingKind = "spy-resolve-mid-send";
     private const string PausingKind = "spy-pause-mid-send";
     private const string HangingKind = "spy-hang";
+    private const string BlockingKind = "spy-block";
 
     // Long enough that the pause survives the coarsest instant the three providers store (whole
     // milliseconds), short enough to be beneath notice in a suite. Only its lower bound is relied on.
@@ -64,6 +65,7 @@ public sealed class AlertDeliveryFailureSpec : ActaStorageTestBase<ConformanceFi
         services.AddSingleton<IAlertTransport>(new ThrowingTransport());
         services.AddSingleton<IAlertTransport>(new PausingTransport());
         services.AddSingleton<IAlertTransport>(new HangingTransport());
+        services.AddSingleton<IAlertTransport>(new BlockingTransport());
         services.AddSingleton<IAlertTransport>(Resolver);
         base.ConfigureServices(services, testNamespace);
     }
@@ -121,11 +123,13 @@ public sealed class AlertDeliveryFailureSpec : ActaStorageTestBase<ConformanceFi
         Assert.Equal(AlertDeliveryStatusCode.Delivered, Assert.Single(second, a => a.ChannelName == "ch-log").DeliveryStatusCode);
     }
 
-    [Fact(DisplayName = "A channel that misses its limit is asked once a pass, and the alerts of another channel still deliver")]
-    public async Task A_channel_that_never_answers_costs_a_pass_one_limit()
+    [Theory(DisplayName = "A channel that misses its limit is asked once a pass, and the alerts of another channel still deliver")]
+    [InlineData(HangingKind)]
+    [InlineData(BlockingKind)]
+    public async Task A_channel_that_never_answers_costs_a_pass_one_limit(string transportKind)
     {
         var ct = TestContext.Current.CancellationToken;
-        await SeedChannelAsync(Db, "ch-hang", HangingKind, ct);
+        await SeedChannelAsync(Db, "ch-hang", transportKind, ct);
         await SeedChannelAsync(Db, "ch-log", "log", ct);
         await RaiseAlertAsync(Db, "ch-hang", jobId: null, ct);
         await RaiseAlertAsync(Db, "ch-hang", jobId: null, ct);
@@ -654,6 +658,18 @@ public sealed class AlertDeliveryFailureSpec : ActaStorageTestBase<ConformanceFi
 
         public Task<AlertSendStatus> SendAsync(AlertNotification n, AlertTarget t, CancellationToken ct) =>
             new TaskCompletionSource<AlertSendStatus>().Task;
+    }
+
+    /// <summary>A transport that blocks its caller until its token is cancelled, as a synchronous client under a timeout does.</summary>
+    private sealed class BlockingTransport : IAlertTransport
+    {
+        public string TransportKind => BlockingKind;
+
+        public Task<AlertSendStatus> SendAsync(AlertNotification n, AlertTarget t, CancellationToken ct)
+        {
+            ct.WaitHandle.WaitOne();
+            return Task.FromCanceled<AlertSendStatus>(ct);
+        }
     }
 
     private sealed class ThrowingTransport : IAlertTransport

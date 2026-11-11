@@ -116,13 +116,10 @@ internal sealed class AlertDelivery(
         );
 
         // A transport is anyone's code. The wait for a send ends at its limit, since a transport that ignores its token
-        // would otherwise hold every alert behind it, and its token is cancelled as the wait ends, whichever way, before
-        // the source is disposed: a send that outlives its limit then holds a cancelled token, not a dead one.
-        using var limited = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        Task<AlertSendStatus>? send = null;
+        // would otherwise hold every alert behind it; the pass waits on nothing else of the transport's.
+        var send = SendWithinAsync(transport, notification, target, limit, ct);
         try
         {
-            send = transport.SendAsync(notification, target, limited.Token);
             return (await send.WaitAsync(limit, ct), Answered: true);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
@@ -136,19 +133,37 @@ internal sealed class AlertDelivery(
                 ActaLog.AlertTransportThrew(_log, ex, channel.TransportKind, AlertsJob.RenderRef(a.AlertRef));
             }
 
-            return (AlertSendStatus.Retryable, Answered: ex is not TimeoutException);
+            // The limit reaches the pass as the wait's timeout or as the send's own cancellation, whichever comes first.
+            return (AlertSendStatus.Retryable, Answered: ex is not (TimeoutException or OperationCanceledException));
         }
         finally
         {
-            await limited.CancelAsync();
             // A send given up at its limit may still fault; that fault is read here, so it is not left unobserved.
-            _ = send?.ContinueWith(
+            _ = send.ContinueWith(
                 static late => _ = late.Exception,
                 CancellationToken.None,
                 TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously,
                 TaskScheduler.Default
             );
         }
+    }
+
+    /// <summary>
+    /// One send under a token its own timer cancels at <paramref name="limit"/>. The token lives as long as the send, so
+    /// a send that outlives the wait for it still sees the cancellation, and whatever the transport registered on the
+    /// token runs on the timer's thread, never on the pass.
+    /// </summary>
+    private static async Task<AlertSendStatus> SendWithinAsync(
+        IAlertTransport transport,
+        AlertNotification notification,
+        AlertTarget target,
+        TimeSpan limit,
+        CancellationToken ct
+    )
+    {
+        using var limited = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        limited.CancelAfter(limit);
+        return await transport.SendAsync(notification, target, limited.Token).ConfigureAwait(false);
     }
 
     private void LogFailedDecision(
