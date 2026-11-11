@@ -42,13 +42,10 @@ public sealed class ExtendWorkerLeasesSpec : ActaRuntimeTestBase<ConformanceFixt
         var claimedRow = Assert.Single(claim);
         var leaseAfterClaim = (await ReadJobAsync(enqueued.JobId, ct))!.LeaseExpiresAtUtc;
 
-        // lease_expires_at_utc is DATETIME2(3): claim and extend re-stamp it as now + the same TTL, so the
-        // heartbeat only moves it forward if its now lands in a later millisecond. Ensure that gap so the
-        // strictly-greater assertion below is deterministic under load (claim->extend can be sub-ms).
-        await Task.Delay(5, ct);
-
-        var answer = await ExtendUntilRenewedAsync(
+        var answer = await ExtendUntilLaterAsync(
             new ExtendWorkerLeasesCommand(workerId, leaseTtl, false, [(enqueued.JobId, claimedRow.ExecutionNumber)], []),
+            enqueued.JobId,
+            leaseAfterClaim,
             ct
         );
         Assert.Equal(new ExtendWorkerLeasesLease(enqueued.JobId, claimedRow.ExecutionNumber, Renewed: true), Assert.Single(answer.Leases));
@@ -148,13 +145,14 @@ public sealed class ExtendWorkerLeasesSpec : ActaRuntimeTestBase<ConformanceFixt
         var lost = await ChaosSpecHelpers.EnqueueNoPayloadAsync(Jobs, TestNamespace, "chaos-counting", ct);
         var heldClaim = Assert.Single(await execution.ClaimJobAsync(ns, workerId, leaseTtl, held, ct));
         var lostClaim = Assert.Single(await execution.ClaimJobAsync(ns, workerId, leaseTtl, lost, ct));
+        var heldLease = (await ReadJobAsync(held.JobId, ct)).LeaseExpiresAtUtc;
         var lostLease = (await ReadJobAsync(lost.JobId, ct)).LeaseExpiresAtUtc;
-        await Task.Delay(5, ct);
 
         // The process holds the first row at its execution, beside an older execution of the same job, and the
         // second only at an execution the row has moved past: an attempt still unwinding after its job was claimed again.
+        // The beat repeats until the held lease has moved, so a lost lease that had moved with it would show.
         var extended = (
-            await ExtendUntilRenewedAsync(
+            await ExtendUntilLaterAsync(
                 new ExtendWorkerLeasesCommand(
                     workerId,
                     leaseTtl,
@@ -166,6 +164,8 @@ public sealed class ExtendWorkerLeasesSpec : ActaRuntimeTestBase<ConformanceFixt
                     ],
                     []
                 ),
+                held.JobId,
+                heldLease,
                 ct
             )
         ).Leases;
@@ -192,4 +192,27 @@ public sealed class ExtendWorkerLeasesSpec : ActaRuntimeTestBase<ConformanceFixt
             answer => answer.Leases.Any(lease => lease.Renewed),
             ct
         );
+
+    /// <summary>
+    /// Repeats the heartbeat until it renews a lease and <paramref name="jobId"/>'s lease is later than
+    /// <paramref name="lease"/>. A lease is stamped now plus its TTL on the database clock, which ticks every few
+    /// milliseconds on SQL Server, so a beat in the claim's own tick stamps the instant the claim did.
+    /// </summary>
+    private async Task<ExtendWorkerLeasesResponse> ExtendUntilLaterAsync(
+        ExtendWorkerLeasesCommand command,
+        long jobId,
+        DateTime? lease,
+        CancellationToken ct
+    ) =>
+        (
+            await SpecWaits.RepeatUntilAsync(
+                async () =>
+                    (
+                        Answer: await Services.GetRequiredService<WorkersOperations>().ExtendWorkerLeasesAsync(command, ct),
+                        Lease: (await ReadJobAsync(jobId, ct)).LeaseExpiresAtUtc
+                    ),
+                beat => beat.Answer.Leases.Any(renewal => renewal.Renewed) && beat.Lease > lease,
+                ct
+            )
+        ).Answer;
 }
