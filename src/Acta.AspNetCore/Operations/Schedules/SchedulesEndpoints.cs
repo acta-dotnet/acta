@@ -18,7 +18,6 @@ internal static class SchedulesEndpoints
             static query => new ListSchedulesQuery(
                 JobNamespace: query.Text("jobNamespace"),
                 JobName: query.Text("jobName"),
-                Origin: query.Code("origin", ScheduleOriginCodeExtensions.FromCode),
                 LiveOnly: query.Bool("liveOnly") ?? true,
                 PageSize: query.Int("pageSize"),
                 Cursor: query.Text("cursor"),
@@ -28,12 +27,6 @@ internal static class SchedulesEndpoints
             [
                 new QueryParameterDoc("jobNamespace", QueryParameterKind.String, "Only schedules in this namespace."),
                 new QueryParameterDoc("jobName", QueryParameterKind.String, "Only schedules on this job name."),
-                new QueryParameterDoc(
-                    "origin",
-                    QueryParameterKind.String,
-                    "Exact schedule origin as a kebab code.",
-                    CodeKind: "schedule-origin"
-                ),
                 new QueryParameterDoc(
                     "liveOnly",
                     QueryParameterKind.Bool,

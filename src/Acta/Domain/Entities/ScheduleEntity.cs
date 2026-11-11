@@ -21,7 +21,6 @@ namespace Acta;
     OnDelete = DbForeignKeyAction.NoAction
 )]
 [DbCheck(Name = "ck_schedules_paused_pair", Sql = "schedule_status_code = 30 OR paused_until_utc IS NULL")]
-[DbCheck(Name = "ck_schedules_orphan_origin", Sql = "schedule_origin_code = 40 OR schedule_status_code <> 230")]
 [DbCheck(Name = "ck_schedules_max_outstanding", Sql = "max_outstanding >= 1")]
 [DbCheck(
     Name = "ck_schedules_expire_pair",
@@ -59,19 +58,12 @@ internal sealed class ScheduleEntity : IEntity<int>
     public int DefinitionId { get; init; }
 
     /// <summary>
-    /// Operator-readable schedule name, unique within its definition. For Definition-origin it matches the
-    /// <c>[Schedule(name)]</c> attribute parameter. Kebab-case ASCII. The <c>sys.</c> prefix is reserved for
-    /// system-owned schedule names, for parity with the other Name columns.
+    /// Operator-readable schedule name, unique within its definition. It matches the <c>[Schedule(name)]</c>
+    /// attribute parameter. Kebab-case ASCII. The <c>sys.</c> prefix is reserved for system-owned schedule names, for
+    /// parity with the other Name columns.
     /// </summary>
     [DbColumn("schedule_name", DbKind.AsciiString, Size = 128)]
     public string ScheduleName { get; init; } = default!;
-
-    /// <summary>
-    /// Origin of the row's existence: <c>Definition</c> (declared in a <c>[Schedule]</c> attribute,
-    /// refreshed by catalog upsert) or <c>Operator</c>.
-    /// </summary>
-    [DbColumn("schedule_origin_code")]
-    public ScheduleOriginCode Origin { get; init; }
 
     // ---------- Schedule expression (code-owned, refreshed by catalog upsert) ----------
 
@@ -166,7 +158,7 @@ internal sealed class ScheduleEntity : IEntity<int>
 
     /// <summary>
     /// Lifecycle state. <c>Active</c> schedules fire; <c>Paused</c> ones do not, and keep their cursor;
-    /// <c>Orphaned</c> marks a <c>Definition</c>-origin row whose declaration disappeared, which admission ignores. A
+    /// <c>Orphaned</c> marks a row whose declaration disappeared, which admission ignores. A
     /// re-declared orphan resets to <c>Active</c>, dropping any pause: a schedule that came back warrants a fresh
     /// operator decision.
     /// </summary>

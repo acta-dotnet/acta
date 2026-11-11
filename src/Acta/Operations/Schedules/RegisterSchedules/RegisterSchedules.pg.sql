@@ -252,7 +252,6 @@ INSERT INTO {{schema}}.schedules (
     job_id,
     definition_id,
     schedule_name,
-    schedule_origin_code,
     expression,
     time_zone_id,
     expression_kind_code,
@@ -277,7 +276,6 @@ SELECT
     src.job_id,
     src.definition_id,
     src.schedule_name,
-    40 /* ScheduleOriginCode.Definition */,
     src.expression,
     src.time_zone_id,
     src.expression_kind_code,
@@ -333,7 +331,6 @@ WITH orphaned AS (
     WHERE
         js.definition_id = ANY(@p_d_definition_id)
         AND js.schedule_status_code <> 230 /* ScheduleStatusCode.Orphaned */
-        AND js.schedule_origin_code = 40 /* ScheduleOriginCode.Definition */
         AND NOT EXISTS (
             SELECT 1
             FROM _reg_schedules AS src

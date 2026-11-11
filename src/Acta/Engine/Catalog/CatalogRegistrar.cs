@@ -112,7 +112,7 @@ internal sealed class CatalogRegistrar(
         // A deploy registers every manifest's descriptors in ONE batch (system + all user manifests): one round
         // trip, one set for the shape checks below, and every definition arrives with its complete
         // schedule set, which register_schedules needs because it orphans, on each slot it is
-        // given, the definition-origin schedules that slot's batch omits. Registration touches nothing
+        // given, the schedules that slot's batch omits. Registration touches nothing
         // the batch does not name, so a definition absent from it keeps running.
         ImmutableArray<JobDescriptor> allDescriptors = [.. manifests.SelectMany(m => m.Descriptors)];
         ValidateHasDescriptors(ns, allDescriptors);

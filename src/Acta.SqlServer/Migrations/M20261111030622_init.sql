@@ -357,7 +357,6 @@ CREATE TABLE {{schema}}.schedules (
     job_id bigint NULL,
     definition_id int NOT NULL,
     schedule_name varchar(128) NOT NULL,
-    schedule_origin_code tinyint NOT NULL,
     expression varchar(128) NOT NULL,
     time_zone_id varchar(128) NOT NULL,
     expression_kind_code tinyint NOT NULL,
@@ -380,7 +379,6 @@ CREATE TABLE {{schema}}.schedules (
     version int DEFAULT 0 NOT NULL
     , CONSTRAINT pk_schedules PRIMARY KEY (schedule_id)
     , CONSTRAINT ck_schedules_paused_pair CHECK (schedule_status_code = 30 OR paused_until_utc IS NULL)
-    , CONSTRAINT ck_schedules_orphan_origin CHECK (schedule_origin_code = 40 OR schedule_status_code <> 230)
     , CONSTRAINT ck_schedules_max_outstanding CHECK (max_outstanding >= 1)
     , CONSTRAINT ck_schedules_expire_pair CHECK ((expire_after_seconds IS NULL AND expire_action_code IS NULL) OR (expire_after_seconds IS NOT NULL AND expire_action_code IS NOT NULL))
     , CONSTRAINT ck_schedules_expire_after CHECK (expire_after_seconds IS NULL OR expire_after_seconds > 0)
@@ -4909,8 +4907,6 @@ SELECT
     s.definition_id,
     d.definition_name,
     s.schedule_name,
-    CASE s.schedule_origin_code WHEN 0 THEN 'unspecified' WHEN 20 THEN 'operator' WHEN 40 THEN 'definition' END AS schedule_origin,
-    s.schedule_origin_code,
     CASE s.schedule_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'active' WHEN 30 THEN 'paused' WHEN 230 THEN 'orphaned' END AS schedule_status,
     s.schedule_status_code,
     s.expression,
@@ -5011,7 +5007,7 @@ JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE name = 'M20261111025731_init')
+IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE name = 'M20261111030622_init')
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261111025731_init');
+VALUES ('M20261111030622_init');
 GO

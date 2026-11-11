@@ -10,7 +10,6 @@ namespace Acta;
 public sealed record ListSchedulesQuery(
     string? JobNamespace = null,
     string? JobName = null,
-    ScheduleOriginCode? Origin = null,
     bool? LiveOnly = true,
     int? PageSize = null,
     string? Cursor = null,

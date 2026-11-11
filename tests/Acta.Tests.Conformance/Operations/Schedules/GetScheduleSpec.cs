@@ -85,7 +85,6 @@ public sealed class GetScheduleSpec : ActaRuntimeTestBase<ConformanceFixture, Te
             s.JobNamespace,
             s.JobName,
             s.ScheduleName,
-            s.Origin,
             s.ExpressionKind,
             s.Expression,
             s.TimeZoneId,

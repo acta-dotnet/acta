@@ -12,7 +12,6 @@ namespace Acta;
 /// <param name="JobNamespace">The namespace of the schedule's definition.</param>
 /// <param name="JobName">The name of the schedule's definition.</param>
 /// <param name="ScheduleName">The schedule's name within its definition.</param>
-/// <param name="Origin">Whether the schedule is declared by the definition's code or was added by an operator.</param>
 /// <param name="ExpressionKind">Whether expression is a cron expression, an interval, or a calendar's name.</param>
 /// <param name="Expression">The cron expression, the interval such as 5m or PT5M, or the calendar's name.</param>
 /// <param name="TimeZoneId">The IANA time zone the schedule's expression is evaluated in.</param>
@@ -49,7 +48,6 @@ public sealed record GetScheduleResponse(
     string JobNamespace,
     string JobName,
     string ScheduleName,
-    ScheduleOriginCode Origin,
     ScheduleExpressionKindCode ExpressionKind,
     string Expression,
     string TimeZoneId,

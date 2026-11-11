@@ -493,7 +493,7 @@ In production a deploy step applies Acta's migrations, never application startup
 
 ```
 $ ConnectionStrings__acta="<DDL login>" dotnet MyApp.dll jobs migrate
-applied M20261111025731_init to schema acta
+applied M20261111030622_init to schema acta
 namespace billing: 1.6.1+b81d04e (Production)
   added    sys.alerts
   added    sys.retention
@@ -1413,7 +1413,7 @@ ends `exhausted` or `interrupted`, with the failure on its row.
 ### Recurring Schedules
 
 ```sql
-SELECT namespace_name, definition_name, schedule_name, schedule_status, schedule_origin, expression, expression_kind, time_zone_id, misfire_strategy, next_occurrence_at_utc, next_evaluation_at_utc, evaluation_status, max_outstanding, outstanding_count, full_behavior, expire_after_seconds, expire_action, availability_calendar_name, start_at_utc, end_before_utc, paused_until_utc, description, pause_message
+SELECT namespace_name, definition_name, schedule_name, schedule_status, expression, expression_kind, time_zone_id, misfire_strategy, next_occurrence_at_utc, next_evaluation_at_utc, evaluation_status, max_outstanding, outstanding_count, full_behavior, expire_after_seconds, expire_action, availability_calendar_name, start_at_utc, end_before_utc, paused_until_utc, description, pause_message
   FROM acta.schedules_view
  ORDER BY namespace_name, next_occurrence_at_utc NULLS LAST, schedule_name;
 ```

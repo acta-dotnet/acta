@@ -1763,7 +1763,6 @@
 - **Contract:** ListSchedules filters partition the schedule rows to exactly the matching ids and exclude all non-matching ids for each filter dimension.
 - **Guarantees:**
   - JobName filter returns only that job's schedules and excludes all other jobs' schedules
-  - Origin filter returns only definition-sourced schedules with the filter-wide total matching
   - The live list holds schedules with an upcoming occurrence; liveOnly=false lists orphaned, paused, and exhausted ones too, paged by key
   - JobNamespace filter scopes schedules to exactly one namespace and excludes all other namespaces
 

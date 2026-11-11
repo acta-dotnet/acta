@@ -12,6 +12,6 @@ test('paused: paused true, trigger still available (an operator override)', () =
   assert.deepEqual(scheduleControlState('paused'), { paused: true, canTrigger: true });
 });
 
-test('orphaned: not paused, trigger hidden (no origin declaration to fire)', () => {
+test('orphaned: not paused, trigger hidden (no declaration to fire)', () => {
   assert.deepEqual(scheduleControlState('orphaned'), { paused: false, canTrigger: false });
 });

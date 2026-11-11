@@ -12,7 +12,6 @@ FROM (
             ns.namespace_name AS job_namespace,
             jd.definition_name AS job_name,
             s.schedule_name,
-            s.schedule_origin_code AS origin,
             s.expression_kind_code AS expression_kind,
             s.expression,
             s.time_zone_id,
@@ -50,7 +49,6 @@ FROM (
                 OR st.namespace_id = (SELECT n.namespace_id FROM {{schema}}.namespaces n WHERE n.namespace_name = @p_namespace_name)
             )
             AND (@p_job_name IS NULL OR jd.definition_name = @p_job_name)
-            AND (@p_schedule_origin_code IS NULL OR s.schedule_origin_code = @p_schedule_origin_code)
             AND (
                 @p_cursor_next_occurrence_at_utc IS NULL
                 OR st.next_occurrence_at_utc > @p_cursor_next_occurrence_at_utc
@@ -69,7 +67,6 @@ FROM (
             ns.namespace_name AS job_namespace,
             jd.definition_name AS job_name,
             s.schedule_name,
-            s.schedule_origin_code AS origin,
             s.expression_kind_code AS expression_kind,
             s.expression,
             s.time_zone_id,
@@ -104,7 +101,6 @@ FROM (
                 OR s.namespace_id = (SELECT n.namespace_id FROM {{schema}}.namespaces n WHERE n.namespace_name = @p_namespace_name)
             )
             AND (@p_job_name IS NULL OR jd.definition_name = @p_job_name)
-            AND (@p_schedule_origin_code IS NULL OR s.schedule_origin_code = @p_schedule_origin_code)
             AND (@p_cursor_id IS NULL OR s.schedule_id > @p_cursor_id)
         ORDER BY s.schedule_id ASC
         LIMIT @p_take
@@ -127,7 +123,6 @@ SELECT CASE WHEN @p_include_total IS NOT NULL THEN (
                 OR st.namespace_id = (SELECT n.namespace_id FROM {{schema}}.namespaces n WHERE n.namespace_name = @p_namespace_name)
             )
             AND (@p_job_name IS NULL OR jd.definition_name = @p_job_name)
-            AND (@p_schedule_origin_code IS NULL OR s.schedule_origin_code = @p_schedule_origin_code)
     ) ELSE (
         SELECT COUNT(*)
         FROM {{schema}}.schedules s
@@ -138,6 +133,5 @@ SELECT CASE WHEN @p_include_total IS NOT NULL THEN (
                 OR s.namespace_id = (SELECT n.namespace_id FROM {{schema}}.namespaces n WHERE n.namespace_name = @p_namespace_name)
             )
             AND (@p_job_name IS NULL OR jd.definition_name = @p_job_name)
-            AND (@p_schedule_origin_code IS NULL OR s.schedule_origin_code = @p_schedule_origin_code)
     ) END
 ) END;

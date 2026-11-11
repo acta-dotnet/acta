@@ -5,7 +5,7 @@
 > Generated reference for Acta code families and the payload-format registry.
 > Every persisted code is documented here exactly once; the data-model reference [`data-model.md`](./data-model.md) links into this file from every code-bearing column.
 
-This release: **34 families**, **200 values**.
+This release: **33 families**, **197 values**.
 
 > Numeric IDs are stable family-local persistence identifiers. Enum members carry programmatic meaning; textual codes carry operator-facing meaning.
 > Numeric grouping is a readability convention, not a runtime schema. Canonical failure states use `200`.
@@ -62,7 +62,6 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | [`ScheduleExpireActionCode`](#code-family-scheduleexpireactioncode) | `schedule-expire-action` | `byte` |
 | [`ScheduleExpressionKindCode`](#code-family-scheduleexpressionkindcode) | `schedule-expression-kind` | `byte` |
 | [`ScheduleFullBehaviorCode`](#code-family-schedulefullbehaviorcode) | `schedule-full-behavior` | `byte` |
-| [`ScheduleOriginCode`](#code-family-scheduleorigincode) | `schedule-origin` | `byte` |
 | [`ScheduleStatusCode`](#code-family-schedulestatuscode) | `schedule-status` | `byte` |
 | [`ScheduledDeliveryCode`](#code-family-scheduleddeliverycode) | `scheduled-delivery` | `byte` |
 | [`StepStatusCode`](#code-family-stepstatuscode) | `job-step-status` | `byte` |
@@ -393,14 +392,6 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `Unspecified` | 0 | `unspecified` | Schedule full behavior not recognized by this build; the row was written by a newer Acta. | Active |
 | `Wait` | 10 | `wait` | Default. An occurrence of a full schedule stays undecided until a settlement frees capacity. | Active |
 | `Drop` | 20 | `drop` | An occurrence of a full schedule is skipped, audited, and the schedule moves on. | Active |
-
-### `ScheduleOriginCode` · `schedule-origin` <a id="code-family-scheduleorigincode"></a>
-
-| Member | Id | Code | Description | Lifecycle |
-|---|---:|---|---|---|
-| `Unspecified` | 0 | `unspecified` | Schedule origin not recognized by this build; the row was written by a newer Acta. | Active |
-| `Operator` | 20 | `operator` | Added by an operator. Nothing creates a schedule of this origin today. | Active |
-| `Definition` | 40 | `definition` | Declared in the application's code, and written again by each deploy. | Active |
 
 ### `ScheduleStatusCode` · `schedule-status` <a id="code-family-schedulestatuscode"></a>
 

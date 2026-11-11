@@ -41,14 +41,14 @@ DO $$
 BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
-        WHERE name NOT IN ('M20261111025731_init')
+        WHERE name NOT IN ('M20261111030622_init')
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
 END
 $$;
 
--- ===== BEGIN M20261111025731_init =====
+-- ===== BEGIN M20261111030622_init =====
 CREATE SCHEMA IF NOT EXISTS acta;
 
 -- alerts
@@ -360,7 +360,6 @@ CREATE TABLE IF NOT EXISTS acta.schedules (
     job_id bigint NULL,
     definition_id integer NOT NULL,
     schedule_name varchar(128) NOT NULL,
-    schedule_origin_code smallint NOT NULL,
     expression varchar(128) NOT NULL,
     time_zone_id varchar(128) NOT NULL,
     expression_kind_code smallint NOT NULL,
@@ -383,7 +382,6 @@ CREATE TABLE IF NOT EXISTS acta.schedules (
     version integer DEFAULT 0 NOT NULL
     , CONSTRAINT pk_schedules PRIMARY KEY (schedule_id)
     , CONSTRAINT ck_schedules_paused_pair CHECK (schedule_status_code = 30 OR paused_until_utc IS NULL)
-    , CONSTRAINT ck_schedules_orphan_origin CHECK (schedule_origin_code = 40 OR schedule_status_code <> 230)
     , CONSTRAINT ck_schedules_max_outstanding CHECK (max_outstanding >= 1)
     , CONSTRAINT ck_schedules_expire_pair CHECK ((expire_after_seconds IS NULL AND expire_action_code IS NULL) OR (expire_after_seconds IS NOT NULL AND expire_action_code IS NOT NULL))
     , CONSTRAINT ck_schedules_expire_after CHECK (expire_after_seconds IS NULL OR expire_after_seconds > 0)
@@ -4328,8 +4326,6 @@ SELECT
     s.definition_id,
     d.definition_name,
     s.schedule_name,
-    CASE s.schedule_origin_code WHEN 0 THEN 'unspecified' WHEN 20 THEN 'operator' WHEN 40 THEN 'definition' END AS schedule_origin,
-    s.schedule_origin_code,
     CASE s.schedule_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'active' WHEN 30 THEN 'paused' WHEN 230 THEN 'orphaned' END AS schedule_status,
     s.schedule_status_code,
     s.expression,
@@ -4423,10 +4419,10 @@ JOIN acta.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO acta.migrations (name)
-VALUES ('M20261111025731_init')
+VALUES ('M20261111030622_init')
 ON CONFLICT (name) DO NOTHING;
 
--- ===== END M20261111025731_init =====
+-- ===== END M20261111030622_init =====
 
 COMMIT;
 

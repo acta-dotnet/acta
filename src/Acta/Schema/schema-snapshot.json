@@ -1077,10 +1077,6 @@
           "Signature": "AsciiString|128|0|0|False|None||coded=False|codeKind=|caseExact=False"
         },
         {
-          "Name": "schedule_origin_code",
-          "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=schedule-origin|caseExact=False"
-        },
-        {
           "Name": "expression",
           "Signature": "AsciiString|128|0|0|False|None||coded=False|codeKind=|caseExact=False"
         },
@@ -1187,10 +1183,6 @@
         {
           "Name": "ck_schedules_max_outstanding",
           "Sql": "max_outstanding \u003E= 1"
-        },
-        {
-          "Name": "ck_schedules_orphan_origin",
-          "Sql": "schedule_origin_code = 40 OR schedule_status_code \u003C\u003E 230"
         },
         {
           "Name": "ck_schedules_paused_pair",
@@ -1511,7 +1503,7 @@
       "raise_job_signal": "4e6c313e93875ad403a1f35de153ea19cdc3e96cef338ea4c41f9b9d2ef5c7ad",
       "reclaim_stuck_jobs": "d538c2c649d8856bf7c6f87954fc07114aed934ccfe2af6c3c27dc6f7ad284a1",
       "reserve_rate": "6c670647c61105bf54f710e21222010bc21c5fb74db62825cce3495dd902fa22",
-      "schedules_view": "1379cf3da2e40586de1832cc3976cc3fc566ad16e47ee62e7bd49bf0d750f8ce",
+      "schedules_view": "8e8053b4bbbe7d1d36775ffcf01431a6f8e24644c9b13728bd467440394ddf59",
       "start_job_step": "05aefd2763e29290a1ca9a30b3b0f3ea70478b63ffb7e5ce5bed14488a5e608d",
       "steps_view": "280be02643bee69af85cee0f0c69e6fad0a8be5722ee0331380550479da4c64f",
       "tags_view": "55d18a02036ad23fbf32bbcbeef0bac99a881b9adf9e80e61711b33ca46717bb",
@@ -1538,7 +1530,7 @@
       "raise_job_signal": "58ddb5b532a7f2ad1c2c169e395dee6997beb730e9119263cc4af571fed08789",
       "reclaim_stuck_jobs": "d929a6dd50a4cc635d7505725ef7a97023895b847343f9bbbdada6bbe4ec334f",
       "reserve_rate": "147eb58a9780d3a3a0f0660d4d0301c93a2a310dfbff598c2996b88d71eb6543",
-      "schedules_view": "37a7b274470248c050b6174f972e1d63e33b33420612b9a1f7b6691063f9c5b8",
+      "schedules_view": "4a5dcb63974cf00da2f8ece71fc01965c3882db7a35f2bbe660722eed4f989d1",
       "start_job_step": "9657b898650d15c6583d7862d107b3725fc8d0ca3feb2d79e401797c480420bb",
       "steps_view": "71c58f98e5d0c15c2086c85934c301633841e9036ee7d4ad44823bd2753d1f9b",
       "tags_view": "7c53250b8389ffff268b2c675dd929aa2bc434b34921753d649a49487c6b4d2f",
@@ -1553,7 +1545,7 @@
       "deployments_view": "0dedc9b2b0447dacab93f35b0cd4ab2341d51288d237257af8ba54b03b682ec1",
       "events_view": "576e944fc943d5d8b22ae73de55d8cd219f68a77b7ba54298814072a70d782d8",
       "jobs_view": "5ddc386528a729f31cbbeb277f1239fe88823a2b8ba586ed44d6d4f6d1796df7",
-      "schedules_view": "d4da79996579b2778198906f5b5e6f938d276e2c10f81f298262d00c36702a33",
+      "schedules_view": "1d609e2b1a39e5f9db24f000276e0a6fac7c444a0d62201689d443d26a0bb48f",
       "steps_view": "b80a5e553ef24cde91b653873df7973cb86631e63fb8ccda386af79eedbfd74e",
       "tags_view": "84970713035f1acde44c1f17c583898d95edc633e25f162dee142655daffd9cd",
       "workers_view": "8c78976802433bc1cb0c5f94453e3d7a3f5d1cd041716809ccb6da84f5688873"

@@ -6,8 +6,6 @@ SELECT
     s.definition_id,
     d.definition_name,
     s.schedule_name,
-    {{decode:schedule-origin:s.schedule_origin_code}} AS schedule_origin,
-    s.schedule_origin_code,
     {{decode:schedule-status:s.schedule_status_code}} AS schedule_status,
     s.schedule_status_code,
     s.expression,

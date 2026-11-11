@@ -1419,7 +1419,7 @@ test('going back to an execution link shows its timeline again', async ({ page }
 
 test('a schedule past its evaluation envelope reads as overdue, a just-due one as active', async ({ page }) => {
   const row = (evaluatedAgoMs: number) => ({
-    jobNamespace: 'billing', jobName: 'send-invoice', jobRef: null, scheduleName: 'nightly', origin: 'code', expressionKind: 'cron',
+    jobNamespace: 'billing', jobName: 'send-invoice', jobRef: null, scheduleName: 'nightly', expressionKind: 'cron',
     expression: '0 2 * * *', timeZoneId: 'UTC', misfireStrategy: 'catch-up-once', nextOccurrenceAtUtc: new Date(Date.now() - evaluatedAgoMs).toISOString(),
     nextEvaluationAtUtc: new Date(Date.now() - evaluatedAgoMs).toISOString(), evaluationStatus: 'scheduled', status: 'active', pausedUntilUtc: null,
     createdAtUtc: '2026-07-01T00:00:00Z', modifiedAtUtc: '2026-07-01T00:00:00Z', version: 1, maxOutstanding: 1, outstandingCount: 0, fullBehavior: 'skip',

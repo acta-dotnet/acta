@@ -7,7 +7,6 @@ IF @p_live_only IS NOT NULL
             ns.namespace_name AS job_namespace,
             jd.definition_name AS job_name,
             s.schedule_name,
-            s.schedule_origin_code AS origin,
             s.expression_kind_code AS expression_kind,
             s.expression,
             s.time_zone_id,
@@ -41,7 +40,6 @@ IF @p_live_only IS NOT NULL
             AND jd.definition_status_code <> 240 /* DefinitionStatusCode.Retired */
             AND (@p_namespace_name IS NULL OR ns.namespace_name = @p_namespace_name)
             AND (@p_job_name IS NULL OR jd.definition_name = @p_job_name)
-            AND (@p_schedule_origin_code IS NULL OR s.schedule_origin_code = @p_schedule_origin_code)
             AND (
                 @p_cursor_next_occurrence_at_utc IS NULL
                 OR st.next_occurrence_at_utc > @p_cursor_next_occurrence_at_utc
@@ -63,7 +61,6 @@ IF @p_live_only IS NOT NULL
                     AND jd.definition_status_code <> 240 /* DefinitionStatusCode.Retired */
                     AND (@p_namespace_name IS NULL OR ns.namespace_name = @p_namespace_name)
                     AND (@p_job_name IS NULL OR jd.definition_name = @p_job_name)
-                    AND (@p_schedule_origin_code IS NULL OR s.schedule_origin_code = @p_schedule_origin_code)
             ) END
         OPTION (RECOMPILE);
     END
@@ -77,7 +74,6 @@ ELSE
             ns.namespace_name AS job_namespace,
             jd.definition_name AS job_name,
             s.schedule_name,
-            s.schedule_origin_code AS origin,
             s.expression_kind_code AS expression_kind,
             s.expression,
             s.time_zone_id,
@@ -110,7 +106,6 @@ ELSE
         WHERE
             (@p_namespace_name IS NULL OR ns.namespace_name = @p_namespace_name)
             AND (@p_job_name IS NULL OR jd.definition_name = @p_job_name)
-            AND (@p_schedule_origin_code IS NULL OR s.schedule_origin_code = @p_schedule_origin_code)
             AND (@p_cursor_id IS NULL OR s.schedule_id > @p_cursor_id)
         ORDER BY s.schedule_id ASC
         OPTION (RECOMPILE);
@@ -126,7 +121,6 @@ ELSE
                 WHERE
                     (@p_namespace_name IS NULL OR ns.namespace_name = @p_namespace_name)
                     AND (@p_job_name IS NULL OR jd.definition_name = @p_job_name)
-                    AND (@p_schedule_origin_code IS NULL OR s.schedule_origin_code = @p_schedule_origin_code)
             ) END
         OPTION (RECOMPILE);
     END;

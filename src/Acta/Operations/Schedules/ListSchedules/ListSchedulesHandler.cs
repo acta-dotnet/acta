@@ -1,5 +1,3 @@
-using System.Globalization;
-
 namespace Acta;
 
 /// <summary>
@@ -13,16 +11,9 @@ internal sealed class ListSchedulesHandler(IDbSession session, ISqlDialect diale
         ArgumentNullException.ThrowIfNull(query);
         var jobNamespace = QueryValidation.ValidateNamespace(query.JobNamespace, nameof(query.JobNamespace));
         var jobName = QueryValidation.ValidateJobName(query.JobName, jobNamespace, nameof(query.JobName));
-        QueryValidation.ValidateEnum(query.Origin, nameof(query.Origin));
 
         var liveOnly = query.LiveOnly is null or true ? true : (bool?)null;
-        ReadOnlySpan<(string, string?)> filters =
-        [
-            ("ns", jobNamespace),
-            ("name", jobName),
-            ("origin", ((byte?)query.Origin)?.ToString(CultureInfo.InvariantCulture)),
-            ("live", liveOnly?.ToString()),
-        ];
+        ReadOnlySpan<(string, string?)> filters = [("ns", jobNamespace), ("name", jobName), ("live", liveOnly?.ToString())];
         var paging = liveOnly is true
             ? Paging.Start(
                 "ListSchedules",
@@ -42,7 +33,6 @@ internal sealed class ListSchedulesHandler(IDbSession session, ISqlDialect diale
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.NamespaceFilter, jobNamespace));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.JobNameFilter, jobName));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Schedule.ScheduleOriginCode, query.Origin));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.LiveOnlyFlag, liveOnly));
                 cmd.Parameters.Add(
                     dialect.CreateParameter(ActaSchema.Sql.CursorNextOccurrenceAtUtc, liveOnly is true ? (DateTime?)after?[0] : null)

@@ -236,7 +236,7 @@ BEGIN TRY
                 src.start_at_utc, src.end_before_utc);
 
     INSERT INTO {{schema}}.schedules (
-        namespace_id, job_id, definition_id, schedule_name, schedule_origin_code,
+        namespace_id, job_id, definition_id, schedule_name,
         expression, time_zone_id, expression_kind_code, misfire_strategy_code,
         interval_anchor_at_utc, timing_fingerprint,
         max_outstanding, full_behavior_code, expire_after_seconds, expire_action_code,
@@ -249,7 +249,6 @@ BEGIN TRY
         sl.slot_id,
         src.definition_id,
         src.schedule_name,
-        40 /* ScheduleOriginCode.Definition */,
         src.expression,
         src.time_zone_id,
         src.expression_kind_code,
@@ -310,7 +309,6 @@ BEGIN TRY
     INNER JOIN @p_definitions AS d ON d.definition_id = js.definition_id
     WHERE
         js.schedule_status_code <> 230 /* ScheduleStatusCode.Orphaned */
-        AND js.schedule_origin_code = 40 /* ScheduleOriginCode.Definition */
         AND NOT EXISTS (
             SELECT 1
             FROM @p_schedules AS src

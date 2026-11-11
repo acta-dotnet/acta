@@ -88,7 +88,6 @@ internal sealed class FakeSchedules : ISchedules
             JobNamespace: schedule.JobNamespace,
             JobName: schedule.JobName,
             ScheduleName: schedule.ScheduleName,
-            Origin: ScheduleOriginCode.Definition,
             ExpressionKind: ScheduleExpressionKindCode.Cron,
             Expression: "0 9 * * *",
             TimeZoneId: "UTC",

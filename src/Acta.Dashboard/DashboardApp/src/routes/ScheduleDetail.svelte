@@ -29,7 +29,6 @@
     // The permanent slot job this schedule fires; null for a per-occurrence definition, which has no slot.
     jobRef: string | null;
     scheduleName: string;
-    origin: string;
     expressionKind: string;
     expression: string;
     timeZoneId: string;
@@ -165,7 +164,7 @@
     {@const currentSchedule = schedule}
     <section class="focus-state" style={'--tone:var(--' + (currentSchedule.status === 'active' && !overdue ? 'ok' : 'warn') + ')'} aria-label="Schedule status">
       <div class="focus-state-content">
-        <h2><Icon name="calendar" />{currentSchedule.status === 'paused' ? 'Schedule paused' : currentSchedule.status === 'orphaned' ? 'Origin declaration removed' : overdue ? 'Overdue for evaluation' : 'Active and eligible to fire'}</h2>
+        <h2><Icon name="calendar" />{currentSchedule.status === 'paused' ? 'Schedule paused' : currentSchedule.status === 'orphaned' ? 'Declaration removed' : overdue ? 'Overdue for evaluation' : 'Active and eligible to fire'}</h2>
         {#if overdue}<p>No live worker in this namespace has evaluated it since it fell due. When one does, its misfire strategy decides what fires.</p>{/if}
         <div class="focus-facts"><span>Next occurrence <strong><RelativeTime value={currentSchedule.nextOccurrenceAtUtc} /></strong></span>{#if currentSchedule.pausedUntilUtc}<span>Resumes <RelativeTime value={currentSchedule.pausedUntilUtc} /></span>{/if}</div>
       </div>
@@ -201,7 +200,6 @@
       <FocusDisclosure title="Technical details" hint="Source, version and dates">
         <DetailFacts facts={[
           { label: 'Source kind', value: currentSchedule.expressionKind },
-          { label: 'Origin', value: currentSchedule.origin },
           { label: 'Version', value: currentSchedule.version },
           { label: 'Created', value: currentSchedule.createdAtUtc, kind: 'time' },
           { label: 'Modified', value: currentSchedule.modifiedAtUtc, kind: 'time' },

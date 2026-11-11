@@ -20,6 +20,8 @@ Not tagged yet.
 
 **Read whether the engine or a handler raised an alert from its kind**: `alerts.alert_origin_code`, the `alert_origin` and `alert_origin_code` columns of `alerts_view`, `AlertOriginCode`, and the `origin` field of the alert responses are gone. The kind `manual` is a handler's alert and every other kind is the engine's, so the origin restated the kind.
 
+**Stop reading or filtering on a schedule's origin**: `schedules.schedule_origin_code`, the `schedule_origin` and `schedule_origin_code` columns of `schedules_view`, `ScheduleOriginCode`, the `origin` field of the schedule responses, and the `origin` filter of the schedule list (`ListSchedulesQuery.Origin` and `origin` on `GET /schedules`) are gone. Every schedule comes from a `[Schedule]` declaration, so the origin was always `definition`.
+
 ### Fixes
 
 - On SQL Server, two definition overrides updates in different namespaces could deadlock, and one failed as the victim: the update that carries a rate override to the definitions sharing its meter read every definition row under update locks before filtering by namespace, and waited on another namespace's row that its own update held. It now seeks its own namespace's rows.

@@ -6,7 +6,6 @@ SELECT
     ns.namespace_name AS job_namespace,
     jd.definition_name AS job_name,
     s.schedule_name,
-    s.schedule_origin_code AS origin,
     s.expression_kind_code AS expression_kind,
     s.expression,
     s.time_zone_id,

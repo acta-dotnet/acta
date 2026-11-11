@@ -80,7 +80,6 @@ internal sealed record ScheduleRow(ScheduleEntity Config, ScheduleStateEntity Cu
 {
     public string ScheduleName => Config.ScheduleName;
     public int DefinitionId => Config.DefinitionId;
-    public ScheduleOriginCode Origin => Config.Origin;
     public ScheduleStatusCode Status => Config.Status;
     public DateTime? PausedUntilUtc => Config.PausedUntilUtc;
     public ScheduleExpressionKindCode ExpressionKind => Config.ExpressionKind;

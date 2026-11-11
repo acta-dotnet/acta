@@ -30,7 +30,7 @@
     <span class="release dim">until resumed</span>
   {/if}
 {:else if status === 'orphaned'}
-  <span class="badge retired" title="The origin declaration was removed from the catalog."><Icon name="minus-circle" />orphaned</span>
+  <span class="badge retired" title="The declaration was removed from the catalog."><Icon name="minus-circle" />orphaned</span>
 {:else}
   <span class="badge ok"><Icon name="check-circle" />{status}</span>
 {/if}

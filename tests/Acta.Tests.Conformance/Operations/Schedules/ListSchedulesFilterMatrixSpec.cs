@@ -101,33 +101,6 @@ public sealed class ListSchedulesFilterMatrixSpec : ActaRuntimeTestBase<Conforma
         Assert.Empty(bPage.Items.Select(Key).Intersect(aKeys));
     }
 
-    [Fact(DisplayName = "Origin filter returns only definition-sourced schedules with the filter-wide total matching")]
-    public async Task Source_filter_returns_definition_sourced_schedules()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        var nsId = NsId;
-        var soon = DateTime.UtcNow.AddMinutes(10);
-
-        // Add a second schedule so the namespace has a non-trivial set (all with Origin=Definition)
-        var jobBName = Unique("sched-src");
-        var defBId = await CreateDefinitionAsync(nsId, jobBName, ct);
-        await RegisterSchedulesAsync(nsId, defBId, jobBName, [Slot("tick", soon)], ct);
-
-        // Capture all schedule keys via namespace read (independent of origin filter)
-        var all = (await Queries.Schedules.ListAsync(new ListSchedulesQuery(JobNamespace: TestNamespace, PageSize: 100), ct)).Items;
-        var defKeys = all.Select(Key).ToHashSet();
-        Assert.True(defKeys.Count >= 2);
-        Assert.All(all, s => Assert.Equal(ScheduleOriginCode.Definition, s.Origin));
-
-        // Origin=Definition returns exactly all namespace schedules + total
-        var page = await Queries.Schedules.ListAsync(
-            new ListSchedulesQuery(JobNamespace: TestNamespace, Origin: ScheduleOriginCode.Definition, PageSize: 100, IncludeTotal: true),
-            ct
-        );
-        Assert.Equal(defKeys, [.. page.Items.Select(Key)]);
-        Assert.Equal((long)defKeys.Count, page.TotalCount);
-    }
-
     [Fact(
         DisplayName = "The live list holds schedules with an upcoming occurrence; liveOnly=false lists orphaned, paused, and exhausted ones too, paged by key"
     )]

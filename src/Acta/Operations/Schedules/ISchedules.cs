@@ -34,7 +34,7 @@ public interface ISchedules
         CancellationToken ct = default
     );
 
-    /// <summary>List schedules next-run first, optionally filtered by namespace, name, origin, and liveness.</summary>
+    /// <summary>List schedules next-run first, optionally filtered by namespace, name, and liveness.</summary>
     ValueTask<ListSchedulesResponse> ListAsync(ListSchedulesQuery query, CancellationToken ct = default);
 
     /// <summary>

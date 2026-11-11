@@ -9,7 +9,7 @@ export interface ScheduleControlState {
 export function scheduleControlState(status: string): ScheduleControlState {
   return {
     paused: status === 'paused',
-    // Orphaned means the origin declaration is gone, so trigger is meaningless; every other status
+    // Orphaned means the declaration is gone, so trigger is meaningless; every other status
     // (including paused - trigger-now is an operator override of the schedule's own cadence) stays
     // offered. The real legality (e.g. a terminal owning-job slot) is enforced server-side and comes
     // back as a Rejected result, rendered as a warning rather than hidden here.

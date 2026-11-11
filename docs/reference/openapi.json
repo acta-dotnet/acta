@@ -9696,7 +9696,6 @@
                           "jobNamespace": "billing",
                           "jobName": "send-invoice",
                           "scheduleName": "morning-run",
-                          "origin": "definition",
                           "expressionKind": "cron",
                           "expression": "0 10 * * 1-5",
                           "timeZoneId": "UTC",
@@ -12628,14 +12627,6 @@
             }
           },
           {
-            "name": "origin",
-            "in": "query",
-            "description": "Exact schedule origin as a kebab code.",
-            "schema": {
-              "$ref": "#/components/schemas/ScheduleOriginCode"
-            }
-          },
-          {
             "name": "liveOnly",
             "in": "query",
             "description": "Left out or true, only live schedules, next run first; false also lists orphaned ones, oldest first.",
@@ -12687,7 +12678,6 @@
                           "jobNamespace": "billing",
                           "jobName": "send-invoice",
                           "scheduleName": "morning-run",
-                          "origin": "definition",
                           "expressionKind": "cron",
                           "expression": "0 10 * * 1-5",
                           "timeZoneId": "UTC",
@@ -12866,7 +12856,6 @@
                       "jobNamespace": "billing",
                       "jobName": "send-invoice",
                       "scheduleName": "morning-run",
-                      "origin": "definition",
                       "expressionKind": "cron",
                       "expression": "0 10 * * 1-5",
                       "timeZoneId": "UTC",
@@ -17791,7 +17780,6 @@
           "jobNamespace",
           "jobName",
           "scheduleName",
-          "origin",
           "expressionKind",
           "expression",
           "timeZoneId",
@@ -17828,10 +17816,6 @@
           "scheduleName": {
             "type": "string",
             "description": "The schedule's name within its definition."
-          },
-          "origin": {
-            "description": "Whether the schedule is declared by the definition's code or was added by an operator.",
-            "$ref": "#/components/schemas/ScheduleOriginCode"
           },
           "expressionKind": {
             "description": "Whether expression is a cron expression, an interval, or a calendar's name.",
@@ -19594,7 +19578,6 @@
           "jobNamespace",
           "jobName",
           "scheduleName",
-          "origin",
           "expressionKind",
           "expression",
           "timeZoneId",
@@ -19631,10 +19614,6 @@
           "scheduleName": {
             "type": "string",
             "description": "The schedule's name within its definition."
-          },
-          "origin": {
-            "description": "Whether the schedule is declared by the definition's code or was added by an operator.",
-            "$ref": "#/components/schemas/ScheduleOriginCode"
           },
           "expressionKind": {
             "description": "Whether expression is a cron expression, an interval, or a calendar's name.",
@@ -21314,18 +21293,6 @@
           "unspecified",
           "wait",
           "drop"
-        ]
-      },
-      "ScheduleOriginCode": {
-        "examples": [
-          "operator"
-        ],
-        "type": "string",
-        "description": "Where a schedule came from.\n\nKnown values:\n- unspecified: Schedule origin not recognized by this build; the row was written by a newer Acta.\n- operator: Added by an operator. Nothing creates a schedule of this origin today.\n- definition: Declared in the application's code, and written again by each deploy.\n\nOther values may appear: keep a value this client does not know as it is.",
-        "x-acta-known-values": [
-          "unspecified",
-          "operator",
-          "definition"
         ]
       },
       "ScheduleStatusCode": {
