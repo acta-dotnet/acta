@@ -12,11 +12,17 @@ export function detailRefetchInterval(active: boolean, paused: boolean): number 
   return active && !paused ? DETAIL_REFETCH_MS : false;
 }
 
-// Refetch interval for a polled list: the base cadence plus a little jitter so a fleet of grids does
-// not stampede the backend in lockstep, backing off exponentially while a query keeps failing (so a
-// down backend is probed ~10s, 20s, 40s… rather than hammered every 10s). Capped at two minutes.
-export function listRefetchInterval(query: { state: { fetchFailureCount: number } }): number {
-  const fails = query.state.fetchFailureCount;
-  const base = fails > 0 ? Math.min(LIST_REFETCH_MS * 2 ** fails, 120_000) : LIST_REFETCH_MS;
-  return base + Math.floor(Math.random() * 1500);
+const LIST_JITTER_MS = 1500;
+
+// The wait before a polled list refetches: the base cadence plus a little jitter, so a fleet of grids does not
+// stampede the backend in lockstep, backing off exponentially while a query keeps failing (so a down backend is
+// probed ~10s, 20s, 40s… rather than hammered every 10s). Capped at two minutes. The jitter is read off the data's
+// own timestamp rather than rolled, so the freshness meter drains over exactly the interval the query waits.
+export function listRefetchDelay(dataUpdatedAt: number, failures = 0): number {
+  const base = failures > 0 ? Math.min(LIST_REFETCH_MS * 2 ** failures, 120_000) : LIST_REFETCH_MS;
+  return base + (dataUpdatedAt % LIST_JITTER_MS);
+}
+
+export function listRefetchInterval(query: { state: { fetchFailureCount: number; dataUpdatedAt: number } }): number {
+  return listRefetchDelay(query.state.dataUpdatedAt, query.state.fetchFailureCount);
 }

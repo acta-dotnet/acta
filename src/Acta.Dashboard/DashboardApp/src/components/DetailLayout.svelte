@@ -2,11 +2,12 @@
   import type { Snippet } from 'svelte';
   import FocusDisclosure from './FocusDisclosure.svelte';
 
-  let { children, related, relatedNote, supporting }: {
+  let { children, related, relatedNote, supporting, supportingHint = 'Supporting details' }: {
     children: Snippet;
     related?: Snippet;
     relatedNote?: Snippet;
     supporting?: Snippet;
+    supportingHint?: string;
   } = $props();
 </script>
 
@@ -14,7 +15,7 @@
 
   <div class="detail-main">{@render children()}</div>
   {#if supporting}
-    <FocusDisclosure title="Metadata" hint="Tags and supporting details">
+    <FocusDisclosure title="Metadata" hint={supportingHint}>
       <div class="detail-supporting">{@render supporting()}</div>
     </FocusDisclosure>
   {/if}

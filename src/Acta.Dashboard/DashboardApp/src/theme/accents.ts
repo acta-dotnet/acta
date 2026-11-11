@@ -73,9 +73,12 @@ const ACCENT_SCALES: Record<AccentId, ScalePair> = {
  * good answer. So each accent id maps to the warm equivalent of that hue instead, and four of
  * them are simply paper's own status colours, which is what keeps the family coherent: teal is
  * the moss of --ok, amber the ochre of --warn, crimson the seal red of --bad, violet the plum of
- * --held. Every value sits at or below 0.12 relative luminance so it clears 4.5:1 against both
- * paper surfaces (#faf7f1 and the #fffdfa panel), which accents.test.ts verifies.
+ * --held. Every value sits at or below 0.12 relative luminance so it clears 4.5:1 against the
+ * sepia desk (#eee5d2) and its sheets (#f3ebdb), which accents.test.ts verifies.
  */
+/** Paper's sheet tone (--panel), which a filled control's text takes instead of white. */
+const PAPER_SHEET = '#f3ebdb';
+
 const PAPER_ACCENTS: Record<AccentId, string> = {
   teal: '#315d43',     // moss
   green: '#4a6b2f',    // olive
@@ -150,7 +153,22 @@ function readableForeground(background: string): string {
     : dark;
 }
 
-function contrastSafeSolid(accentScale: Scale): { solid: string; foreground: string } {
+/**
+ * The filled control and its text. A mid-tone hue, one whose Radix solid step reaches 3:1 against white so it reads as
+ * colour rather than as a light tint, carries white text, as paper's accents do: on that step, or on the nearest
+ * deeper one that gives white AA contrast. A light tint, the default mint or amber, keeps its solid step with dark text,
+ * since a deeper step would no longer read as that accent.
+ */
+function contrastSafeSolid(accentScale: Scale, surface: AccentSurface): { solid: string; foreground: string } {
+  const white = '#ffffff';
+  if (contrastRatio(accentScale[8], white) >= 3) {
+    for (const index of surface === 'dark' ? [8, 7, 6] : [8, 9, 10]) {
+      if (contrastRatio(accentScale[index], white) >= 4.5) {
+        return { solid: accentScale[index], foreground: white };
+      }
+    }
+  }
+
   // Step 9 is the Radix solid-control step. Adjacent steps are considered if a future scale ever
   // makes neither supported foreground meet WCAG AA.
   for (const index of [8, 9, 7, 10, 6, 11]) {
@@ -216,7 +234,9 @@ export function buildAccentTokens(accent: AccentId, theme: ThemeId): AccentToken
     return {
       '--accent': solid,
       '--accent-solid': solid,
-      '--on-accent': readableForeground(solid),
+      // Nothing on paper is pure white: a filled control's text is the sheet tone, which every paper
+      // accent carries at better than 5:1.
+      '--on-accent': PAPER_SHEET,
       '--nav-active-bg': rgba(solid, 0.13),
       '--badge-run-bg': rgba(solid, 0.16),
       '--grid': rgba(solid, 0.05),
@@ -226,7 +246,7 @@ export function buildAccentTokens(accent: AccentId, theme: ThemeId): AccentToken
 
   const surface = accentSurface(theme);
   const accentScale = ACCENT_SCALES[accent][surface];
-  const { solid, foreground } = contrastSafeSolid(accentScale);
+  const { solid, foreground } = contrastSafeSolid(accentScale, surface);
   const tint = surface === 'dark' ? accentScale[7] : accentScale[8];
 
   return {

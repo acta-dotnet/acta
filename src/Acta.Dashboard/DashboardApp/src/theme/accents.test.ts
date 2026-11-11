@@ -65,6 +65,19 @@ test('solid accent foregrounds meet WCAG AA contrast', () => {
   }
 });
 
+test('a mid-tone accent carries white text on a filled control, a light tint dark text', () => {
+  // Blue's own solid step gives white only 3.3:1, so its filled control takes the deeper step that gives AA.
+  assert.deepEqual(
+    [buildAccentTokens('blue', 'acta')['--accent-solid'], buildAccentTokens('blue', 'acta')['--on-accent']],
+    ['#2870bd', '#ffffff'],
+  );
+  assert.equal(buildAccentTokens('crimson', 'acta')['--on-accent'], '#ffffff');
+  assert.equal(buildAccentTokens('blue', 'light')['--on-accent'], '#ffffff');
+  // Amber and the default mint stay bright, with dark text, since a deeper step would not read as the accent.
+  assert.equal(buildAccentTokens('amber', 'acta')['--on-accent'], '#0a0a0a');
+  assert.equal(buildAccentTokens('teal', 'acta')['--on-accent'], '#10251e');
+});
+
 test('accent text and focus colors meet WCAG AA on every theme surface', () => {
   for (const theme of THEMES) {
     const surfaces = THEME_METADATA[theme.id];

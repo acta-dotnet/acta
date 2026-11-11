@@ -24,17 +24,21 @@ Acta should feel calm, technically precise, modern, and readable. Focus is the d
 - The dashboard supports coordinated light, dark, and paper themes with the same component structure.
 - Light uses `#F7F9FC` backgrounds, white surfaces, and dark navy text around `#172033`.
 - Dark uses `#0E1625` backgrounds, elevated navy surfaces around `#19263A`, and high-contrast pale text.
-- Paper uses warm ivory around `#FAF7F1`, warm-white surfaces, and deep charcoal text.
+- Paper is a reading mode, easy on the eyes at night, that reads like a book's pages laid on a desk: a dimmed sepia desk around `#EEE5D2`, sections on sheets of a lighter paper around `#F3EBDB` with hairline edges and a small radius, warm brown ink around `#3A2E22` a little short of black, and a reading serif for all but code and identifiers. Nothing on it is pure white: fields, menus, and dialogs take the lightest paper, `#F8F2E6`.
+- Paper's status is coloured words with their mark, never a pill, and its links are ink with a quiet accent underline. It draws no ambient gradients or glow, and keeps a soft shadow only on menus and dialogs.
 - Light and paper body text, code, labels, and technical values must remain dark enough to read comfortably.
+- Dark text on a light ground reads thinner than light text on a dark one, so the light theme sets running text at weight 450 where the face has it.
 - Website light code samples follow the readability of a Visual Studio light palette.
 - Use mint, lavender, and related low-saturation colors sparingly. Ambient gradients belong near page edges and selected navigation.
-- Keep the accepted broad, subtle background arc at the top-right edge.
+- Keep the subtle background arc small, a curve tucked into the top-right corner, never a band across the page. The background carries no other art: shapes, ribbons, sweeps, colour pools, and translucent panels were tried and read as distracting behind operational data.
 - Use semantic status colors alongside text and icons.
+- A filled control in a mid-tone accent carries white text, as paper's do, on the accent's solid step or the nearest deeper one that gives white 4.5:1. A light-tint accent, the default mint or amber, keeps its bright fill with dark text.
 - Anvil uses the same visual refinement with a white-only theme.
 
 ## Typography and brand
 
-- Use a modern sans-serif stack led by Inter or Geist, with system fallbacks.
+- Use a modern sans-serif stack led by Inter or Geist, with system fallbacks. On Windows 11 the fallback is the variable reading face, `Segoe UI Variable Text`.
+- Paper sets text in a reading serif (Iowan Old Style or Charter on macOS, Sitka Text or Cambria on Windows) with lining figures, since a serif's old-style zero reads as the letter o.
 - Reserve monospaced typography for identifiers, expressions, code, and payloads.
 - Use tabular numbers where values are compared.
 - Keep the Acta mark aligned optically with the wordmark's capital height.
@@ -64,7 +68,8 @@ Acta should feel calm, technically precise, modern, and readable. Focus is the d
 - A control rendered in two places, beside the state and in the menu, shares one in-flight guard: a pending request disables both.
 - The menu leaves out only the action the state panel actually shows. When the panel holds something else, such as a failed child or a signal sender, the menu keeps every control.
 - Keep a confirmation's own clicks and Escape inside it, so the menu that opened it stays open and focus returns to the opener.
-- Use named disclosures for activity, stored data, policy editing, metadata, and technical details.
+- Use named disclosures for activity, stored data, tags, policy editing, metadata, and technical details.
+- Tags are a disclosure of their own on every entity page, just before the technical details, with the tag count as its hint. Operators label and find work by them, so they never hide among identifiers. Leave the disclosure out when the entity has no tags and the operator cannot add one.
 - Render schedules, checkpoints, lineage, and bindings only when relevant data exists.
 - Keep related links as a compact footer row.
 - Keep explanatory copy close to the control or fact it explains.
@@ -73,15 +78,16 @@ Acta should feel calm, technically precise, modern, and readable. Focus is the d
 ## References and dates
 
 - Use one compact display format consisting of the type without its underscore, an ellipsis, and the final eight hexadecimal digits. Examples include `job…72c9e1a4`, `wrk…72c9e1a4`, and `alr…72c9e1a4`.
-- Keep full references available through hover text, accessible labels, full-value inspection, and copy controls.
+- Keep full references available on hover, through accessible labels, full-value inspection, and copy controls.
 - Copy the complete stored reference, including its original underscore. Use the full reference in navigation, API calls, and search.
 - Treat the condensed text as a display label. Eight trailing hexadecimal digits can collide. Keep the complete identifier available to inspect.
 - Show copy controls on hover and keyboard focus, and keep them visible on touch screens.
-- Use a small, light-outline copy glyph. Keep its visual weight below the reference text.
+- Use a small, light-outline copy glyph. Keep its visual weight below the reference text, and centre it on the reference's digits, beside the compact reference and in the full-reference popover alike.
 - Schedules currently use readable namespace, job, and schedule names as their public keys.
 - Put Created, Modified, row versions, correlation keys, and other audit metadata in technical details.
 - Show operationally relevant times such as deadlines, heartbeats, and next runs near their context.
 - Show relative times by default. Make the exact timestamp available on hover and through keyboard-accessible inspection.
+- A compact reference or time opens its full value in a small card just below itself, never in the middle of the screen. Resting the mouse shows the card, and leaving both hides it; a click, a tap, or Enter pins it until Escape or a click elsewhere.
 - Inspectable references and times grow their hit area to the 24px target floor without changing the line they sit on, and add no space before the punctuation that follows them.
 
 ## Job detail
@@ -124,9 +130,12 @@ Acta should feel calm, technically precise, modern, and readable. Focus is the d
 - Preserve filtering, sorting, paging, selection, virtualization, bulk controls, export, and navigation behavior.
 - Use low-contrast row separators and clear column headings.
 - Keep technical references consistent and long text safely inspectable.
+- A table never scrolls sideways for one long value. The value ends in an ellipsis on its row and opens in full in its card.
+- A list's row actions stay in view at a 1440px window. Its prose cell gives way first: an alert's title and message share one cell that ends in an ellipsis, and the alert page shows both whole.
 - Use compact empty-state rows with an icon, heading, and short message.
 - Use small section icons for Workers and Outbox relays.
 - Give operational problems prominence while keeping healthy and empty states compact.
+- Freshness is one framed indicator of equal cells: a small vertical meter, then reload, then pause. It is never a ticking counter. On a view that polls, the meter drains to the bottom as the next refresh approaches and refills when data arrives. The meter takes the status colour, and words join it only for a state worth reading: paused, failed, offline, or session ended. A view that does not refresh itself shows a still meter and its data's age to the minute.
 - Links inside a warning or failure banner use the text colour with an underline. The accent reads as healthy there.
 
 ## Verification

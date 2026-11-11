@@ -7,6 +7,7 @@
   import Page from '../components/Page.svelte';
   import ActaGrid from '../components/grid/ActaGrid.svelte';
   import TimeCell from '../components/TimeCell.svelte';
+  import EventDetails from '../components/EventDetails.svelte';
   import FilterBar from '../components/FilterBar.svelte';
   import ActiveFilters from '../components/ActiveFilters.svelte';
   import CopyButton from '../components/CopyButton.svelte';
@@ -105,8 +106,7 @@
     { key: 'jobName', header: 'Name', dimRepeats: true },
     { key: 'jobNamespace', header: 'Namespace', dimRepeats: true },
     { key: 'executionNumber', header: 'Attempt', align: 'right' },
-    { key: 'message', header: 'Message' },
-    { key: 'detailsText', header: 'Details', class: 'mono' }
+    { key: 'detailsText', header: 'Details', class: 'grow' }
   ];
 </script>
 
@@ -168,6 +168,7 @@
     {#snippet nameCell(evt)}
       {#if evt.jobName}<a href={routes.jobs({ jobName: evt.jobName, namespace: evt.jobNamespace })}>{evt.jobName}</a>{:else}<span class="dim">·</span>{/if}
     {/snippet}
+    {#snippet detailsCell(evt)}{#if evt.message || evt.detailsText}<EventDetails message={evt.message} details={evt.detailsText} />{:else}<span class="dim">·</span>{/if}{/snippet}
     {#snippet attemptCell(evt)}{evt.executionNumber == null ? '·' : displayFormatter.number(evt.executionNumber)}{/snippet}
 
     <ActaGrid
@@ -182,7 +183,7 @@
       emptyText={activeChips.length > 0
         ? 'No events match these ' + displayFormatter.number(activeChips.length) + ' filters. Remove a chip above to widen the search.'
         : 'No events retained for this scope.'}
-      cells={{ createdAtUtc: timeCell, subject: subjectCell, jobName: nameCell, executionNumber: attemptCell }} />
+      cells={{ createdAtUtc: timeCell, subject: subjectCell, jobName: nameCell, executionNumber: attemptCell, detailsText: detailsCell }} />
   </div>
 </Page>
 

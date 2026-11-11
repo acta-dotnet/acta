@@ -213,14 +213,12 @@
     </div>
   {:else}
     <section class="entity-summary" aria-label="Definition identity">
-      <div class="entity-meta mono">{def.jobNamespace}</div>
       <StatusBadge status={def.status} />
+      <a href={routes.namespace(def.jobNamespace, { namespace: def.jobNamespace })}>{def.jobNamespace}</a>
     </section>
     {#if retireMessage}<div class="control-message {retireMessageKind}" role="status">{retireMessage}</div>{/if}
 
-    <DetailLayout>
-
-
+    <DetailLayout supportingHint="Contract and version">
       {#snippet related()}
         <a href={jobsHref(def)}>Jobs</a>
       {/snippet}
@@ -239,8 +237,6 @@
             <div><dt>Failed firing</dt><dd>{def.firingFailurePolicy}</dd></div>
           </dl>
         </section>
-
-        <TagEditor path={definitionPath + '/tags'} permission={Permission.admin} />
       {/snippet}
 
       <section class="detail-panel" aria-label="Effective policy">
@@ -298,6 +294,7 @@
       </section>
       </FocusDisclosure>
 
+      <TagEditor path={definitionPath + '/tags'} permission={Permission.admin} />
       <ChangeHistory {history} emptyText="No recorded policy changes." />
     </DetailLayout>
   {/if}

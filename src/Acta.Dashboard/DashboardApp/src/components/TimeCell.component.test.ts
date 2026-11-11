@@ -10,7 +10,7 @@ describe('TimeCell', () => {
     const button = screen.getByRole('button', { name: /Show exact date and time/ });
     expect(button.textContent).not.toContain('[');
     expect(button.getAttribute('popovertarget')).toBeTruthy();
-    expect(document.querySelector(`[title="${displayFormatter.timestamp(iso)}"]`)).toBeTruthy();
+    expect(document.getElementById(button.getAttribute('popovertarget')!)?.textContent).toContain(displayFormatter.timestamp(iso));
   });
 
   it('renders a dash for missing values', () => {

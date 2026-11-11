@@ -1,9 +1,10 @@
 <script lang="ts">
-  // A compact "is what I'm looking at current?" strip for a query. Visual timestamps use the shared
-  // opt-in second clock; the live region below only reports meaningful state transitions.
-  import { secondNow } from '../time';
+  // A compact "is what I'm looking at current?" strip for a query. A polled view shows a meter that drains to the
+  // bottom as its next refresh approaches, and words only for a state worth reading; the live region below reports
+  // meaningful state transitions.
+  import { now } from '../time';
   import { online, sessionExpired } from '../api';
-  import { livePaused } from '../polling';
+  import { livePaused, listRefetchDelay } from '../polling';
   import { displayFormatter } from '../format';
   import Icon from './Icon.svelte';
 
@@ -12,17 +13,26 @@
     isFetching = false,
     isError = false,
     polling = true,
+    intervalMs,
     onRefresh = () => {}
   }: {
     dataUpdatedAt?: number;
     isFetching?: boolean;
     isError?: boolean;
     polling?: boolean;
+    /** The polling interval, where it is not the list cadence. */
+    intervalMs?: number;
     onRefresh?: () => void;
   } = $props();
 
   let stampIso = $derived(dataUpdatedAt ? new Date(dataUpdatedAt).toISOString() : '');
-  let displayedNow = $derived(Math.max($secondNow, dataUpdatedAt));
+  let paused = $derived(polling && $livePaused);
+  let failed = $derived(!$online || isError || $sessionExpired);
+  // A query restarts its refetch timer when its data arrives, so a meter that restarts with the data runs out as
+  // the next refetch fires.
+  let counting = $derived(polling && !paused && !failed && dataUpdatedAt > 0);
+  let drainMs = $derived(intervalMs ?? listRefetchDelay(dataUpdatedAt));
+  let exact = $derived(stampIso ? 'Updated ' + displayFormatter.timestamp(stampIso) : '');
   let announcement = $state('');
   let initialized = false;
   let previousOnline = true;
@@ -33,19 +43,21 @@
   let label = $derived.by(() => {
     if ($sessionExpired) return 'Session ended';
     if (!$online) return stampIso ? 'Offline, showing data from ' + displayFormatter.timestamp(stampIso) : 'Offline';
-    if (polling && $livePaused) return 'Live updates paused';
-    if (isFetching) return 'Updating…';
+    if (paused) return 'Live updates paused';
     if (isError) return polling ? 'Update failed, retrying' : 'Update failed';
-    if (stampIso) return 'Updated ' + displayFormatter.relativeTime(stampIso, displayedNow);
-    return '';
+    if (polling) return '';
+    if (isFetching) return 'Updating…';
+    if (!stampIso) return '';
+    // A view that does not refresh itself states its data's age to the minute, so the words rarely change.
+    return $now - dataUpdatedAt < 60_000 ? 'Updated just now' : 'Updated ' + displayFormatter.relativeTime(stampIso, $now);
   });
 
-  // Dot color tracks the worst active condition so the status reads at a glance.
-  let dotKind = $derived(!$online || isError || $sessionExpired ? 'bad' : polling && $livePaused ? 'paused' : isFetching ? 'live' : 'ok');
+  // The meter's colour tracks the worst active condition so the status reads at a glance.
+  let tone = $derived(failed ? 'bad' : paused || !dataUpdatedAt ? 'idle' : 'ok');
 
   $effect(() => {
     const currentOnline = $online;
-    const currentPaused = polling && $livePaused;
+    const currentPaused = paused;
 
     if (initialized) {
       if (previousOnline !== currentOnline) {
@@ -68,8 +80,16 @@
 </script>
 
 <div class="freshness">
-  <span class="freshness-dot {dotKind}" aria-hidden="true"></span>
-  <span class="freshness-label">{label}</span>
+  <span class="freshness-meter {tone}" title={exact ? exact + (counting ? '. Refreshes when the bar runs out.' : '') : undefined} aria-hidden="true">
+    <span class="freshness-track">
+      {#if counting}
+        {#key dataUpdatedAt}<span class="freshness-level draining" style:animation-duration="{drainMs}ms"></span>{/key}
+      {:else}
+        <span class="freshness-level"></span>
+      {/if}
+    </span>
+  </span>
+  {#if label}<span class="freshness-label">{label}</span>{:else if exact}<span class="sr-only">{exact}</span>{/if}
   <button class="iconly" title="Refresh now" aria-label="Refresh now" disabled={$sessionExpired} onclick={() => onRefresh()}>
     <Icon name="reload" />
   </button>
@@ -88,24 +108,55 @@
 </div>
 
 <style>
+  /* The meter, reload, and pause are one instrument: one frame around equal cells, so they sit evenly spaced. */
   .freshness {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    padding: 2px;
+    border: 1px solid var(--line-strong, var(--line));
+    border-radius: var(--radius-control);
+    background: var(--panel);
     color: var(--muted);
     font-size: var(--text-xs);
   }
-  .freshness-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
+  .freshness-meter,
+  .freshness .iconly {
+    display: inline-flex;
     flex: none;
-    background: var(--muted);
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 22px;
   }
-  .freshness-dot.ok { background: var(--ok); }
-  .freshness-dot.live { background: var(--accent); }
-  .freshness-dot.paused { background: var(--muted); }
-  .freshness-dot.bad { background: var(--bad); }
-  .freshness-label { white-space: nowrap; }
-  .freshness .iconly { padding: 3px 4px; }
+  .freshness .iconly {
+    padding: 0;
+    border: 0;
+    border-radius: calc(var(--radius-control) - 2px);
+    background: none;
+  }
+  .freshness .iconly:hover:not(:disabled) { background: var(--panel-subtle); }
+  .freshness-meter { color: var(--ok); }
+  .freshness-meter.idle { color: var(--muted); }
+  .freshness-meter.bad { color: var(--bad); }
+  .freshness-track {
+    width: 4px;
+    height: 14px;
+    border-radius: 2px;
+    overflow: hidden;
+    background: color-mix(in srgb, currentColor 24%, transparent);
+  }
+  .freshness-level {
+    display: block;
+    height: 100%;
+    background: currentColor;
+  }
+  .draining { animation: freshness-drain linear forwards; }
+  @keyframes freshness-drain {
+    to { transform: translateY(100%); }
+  }
+  /* A still, full meter stands in for the countdown; the global rule would otherwise empty it at once. */
+  @media (prefers-reduced-motion: reduce) {
+    .draining { animation: none; }
+  }
+  .freshness-label { padding: 0 6px 0 2px; white-space: nowrap; }
 </style>

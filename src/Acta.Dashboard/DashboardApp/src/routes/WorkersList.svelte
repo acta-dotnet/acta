@@ -24,9 +24,6 @@
     jobNamespace: string;
     hostName: string;
     deploymentVersion: string;
-    engineVersion: string | null;
-    dotnetVersion: string | null;
-    processId: number | null;
     maxConcurrentExecutors: number;
     lastSeenAtUtc: string;
     stale: boolean;
@@ -54,9 +51,6 @@
     { key: 'jobNamespace', header: 'Namespace', dimRepeats: true },
     { key: 'hostName', header: 'Host' },
     { key: 'deploymentVersion', header: 'Version', class: 'mobile-hide' },
-    { key: 'engineVersion', header: 'Engine', class: 'mobile-hide' },
-    { key: 'dotnetVersion', header: '.NET', class: 'mono mobile-hide' },
-    { key: 'processId', header: 'PID', class: 'mono mobile-hide', align: 'right' },
     { key: 'maxConcurrentExecutors', header: 'Executors', class: 'mono mobile-hide', align: 'right' },
     { key: 'lastSeenAtUtc', header: 'Last heartbeat' },
     { key: 'startedAtUtc', header: 'Started', class: 'mobile-hide' }

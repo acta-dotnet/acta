@@ -117,12 +117,12 @@
         <input type="checkbox" checked={$filters.live !== '0'} onchange={(event) => filters.patch({ live: event.currentTarget.checked ? '1' : '0' })} />
         Live only
       </label>
+      <CopyButton value={copySql} label="Copy SQL" title={COPY_SQL_TITLE} />
       <span class="dim schedule-help">
         Schedules aren't created here - they're declared in code with a <span class="mono">[Schedule]</span> attribute on a
         <span class="mono">[Job]</span> handler and written by <span class="mono">jobs deploy</span> or
         <span class="mono">jobs migrate</span>; a MigrateOnStartup start writes them only in a namespace neither has deployed.
       </span>
-      <CopyButton value={copySql} label="Copy SQL" title={COPY_SQL_TITLE} />
     </FilterBar>
 
     <ActiveFilters chips={activeChips} onClearAll={clearAllFilters} />

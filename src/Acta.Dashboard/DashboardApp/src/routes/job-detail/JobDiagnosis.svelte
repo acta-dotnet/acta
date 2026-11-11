@@ -29,7 +29,9 @@
         <dd id="job-worker-evidence">{#if explanation.lease.workerRef}<JobRef value={explanation.lease.workerRef} href={routes.worker(explanation.lease.workerRef, { namespace: jobNamespace })} />{#if explanation.lease.workerVersion}{' '}<span class="dim">· version {explanation.lease.workerVersion}</span>{/if}{:else}<span class="dim">worker is no longer registered</span>{/if}{#if explanation.lease.expired}{' '}<span class="dim">· lease expired <RelativeTime value={explanation.lease.expiresAtUtc} /></span>{/if}{#if explanation.lease.workerLastSeenAtUtc}{' '}<span class="dim">· last heartbeat <RelativeTime value={explanation.lease.workerLastSeenAtUtc} /></span>{/if}
           {#if explanation.lease.expired}<div class="dim">{explanation.lease.recoveryExpectation}</div>{/if}</dd>
       {:else if explanation.lastExecutedBy}
-        <dt>Worker</dt><dd class="dim">last executed on <JobRef value={explanation.lastExecutedBy} /></dd>
+        <!-- The explanation words it as the worker's ref, then "(version x)" when one is recorded. -->
+        {@const [workerRef, version] = explanation.lastExecutedBy.split(/ (version (.*))$/)}
+        <dt>Worker</dt><dd class="dim">last executed on <JobRef value={workerRef} href={routes.worker(workerRef, { namespace: jobNamespace })} />{#if version}{' '}· version {version}{/if}</dd>
       {/if}
       {#if explanation.steps.length > 0}
         <dt>Steps</dt>

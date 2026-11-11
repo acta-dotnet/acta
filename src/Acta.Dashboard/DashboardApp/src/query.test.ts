@@ -1,9 +1,9 @@
 // Run with Node's built-in test runner + native type-stripping (see "npm test").
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { can, canWriteAny, capabilitiesQuery, keys, listPage, Permission, retryOnce } from './query.ts';
+import { can, canWriteAny, capabilitiesQuery, keys, LIST_REFETCH_MS, listPage, Permission, retryOnce } from './query.ts';
 import { ApiError } from './api.ts';
-import { DETAIL_REFETCH_MS, detailRefetchInterval } from './polling.ts';
+import { DETAIL_REFETCH_MS, detailRefetchInterval, listRefetchDelay, listRefetchInterval } from './polling.ts';
 
 test('list keys drop blank filter values so blank and missing agree', () => {
   assert.deepEqual(keys.list('jobs', { status: '', tenantName: null, jobName: undefined }), ['jobs', {}]);
@@ -62,6 +62,14 @@ test('detail polling stops when live updates are paused or the entity is inactiv
   assert.equal(detailRefetchInterval(true, false), DETAIL_REFETCH_MS);
   assert.equal(detailRefetchInterval(true, true), false);
   assert.equal(detailRefetchInterval(false, false), false);
+});
+
+test('a polled list waits its cadence plus a jitter that its data timestamp fixes', () => {
+  const updatedAt = 1_500_000_000_700;
+  assert.equal(listRefetchDelay(updatedAt), LIST_REFETCH_MS + 700);
+  assert.equal(listRefetchInterval({ state: { fetchFailureCount: 0, dataUpdatedAt: updatedAt } }), listRefetchDelay(updatedAt));
+  assert.equal(listRefetchDelay(updatedAt, 1), 2 * LIST_REFETCH_MS + 700);
+  assert.equal(listRefetchDelay(updatedAt, 10), 120_000 + 700);
 });
 
 test('a query retries once, but never a 401', () => {

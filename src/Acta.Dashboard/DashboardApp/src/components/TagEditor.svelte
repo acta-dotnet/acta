@@ -2,6 +2,7 @@
   import { createQuery, useQueryClient } from '@tanstack/svelte-query';
   import { api, controlRequest, sessionExpired, type Paged, type TagMutationResponse } from '../api.ts';
   import { capabilitiesQuery, can, type PermissionName } from '../query.ts';
+  import FocusDisclosure from './FocusDisclosure.svelte';
   import Icon from './Icon.svelte';
 
   interface Tag {
@@ -27,6 +28,8 @@
   const capabilities = createQuery(() => capabilitiesQuery());
   let canEdit = $derived(can(capabilities.data, permission));
   let collapsed = $derived(!canEdit && !tags.isPending && !tags.error && (tags.data ?? []).length === 0);
+  // The closed disclosure says whether there is anything inside.
+  let hint = $derived(tags.data ? (tags.data.length === 0 ? 'None' : tags.data.length + (tags.data.length === 1 ? ' tag' : ' tags')) : '');
 
   let input = $state('');
   let busy = $state(false);
@@ -89,38 +92,39 @@
 </script>
 
 {#if !collapsed}
-  <section class="detail-panel" aria-labelledby="tag-editor-heading">
-    <h2 id="tag-editor-heading">Tags</h2>
-    {#if tags.isPending}
-      <p class="detail-help">Loading tags...</p>
-    {:else if tags.error && $sessionExpired}
-      <!-- The session banner says what happened. -->
-    {:else if tags.error}
-      <p class="control-message bad" role="status">{tags.error instanceof Error ? tags.error.message : String(tags.error)}</p>
-    {:else}
-      <div class="tag-list">
-        {#each tags.data ?? [] as tag (tag.name)}
-          <span class="chip tag-chip">
-            <span class="mono">{tag.name}{tag.value == null ? '' : ': ' + tag.value}</span>
-            {#if canEdit}
-              <button type="button" class="tag-remove" title={'Remove ' + tag.name} aria-label={'Remove ' + tag.name} disabled={busy} onclick={() => remove(tag.name)}>
-                <Icon name="x" />
-              </button>
-            {/if}
-          </span>
-        {:else}
-          <p class="detail-help">No tags.</p>
-        {/each}
-      </div>
-      {#if canEdit}
-        <form class="tag-add" onsubmit={(event) => { event.preventDefault(); add(); }}>
-          <input bind:value={input} placeholder="name or name:value" disabled={busy} aria-label="New tag" />
-          <button class="primary" type="submit" disabled={busy || !input.trim()}>Add</button>
-        </form>
+  <FocusDisclosure title="Tags" {hint} id="tags">
+    <section class="detail-panel" aria-label="Tags">
+      {#if tags.isPending}
+        <p class="detail-help">Loading tags...</p>
+      {:else if tags.error && $sessionExpired}
+        <!-- The session banner says what happened. -->
+      {:else if tags.error}
+        <p class="control-message bad" role="status">{tags.error instanceof Error ? tags.error.message : String(tags.error)}</p>
+      {:else}
+        <div class="tag-list">
+          {#each tags.data ?? [] as tag (tag.name)}
+            <span class="chip tag-chip">
+              <span class="mono">{tag.name}{tag.value == null ? '' : ': ' + tag.value}</span>
+              {#if canEdit}
+                <button type="button" class="tag-remove" title={'Remove ' + tag.name} aria-label={'Remove ' + tag.name} disabled={busy} onclick={() => remove(tag.name)}>
+                  <Icon name="x" />
+                </button>
+              {/if}
+            </span>
+          {:else}
+            <p class="detail-help">No tags.</p>
+          {/each}
+        </div>
+        {#if canEdit}
+          <form class="tag-add" onsubmit={(event) => { event.preventDefault(); add(); }}>
+            <input bind:value={input} placeholder="name or name:value" disabled={busy} aria-label="New tag" />
+            <button class="primary" type="submit" disabled={busy || !input.trim()}>Add</button>
+          </form>
+        {/if}
+        {#if message}<div class="control-message bad" role="status">{message}</div>{/if}
       {/if}
-      {#if message}<div class="control-message bad" role="status">{message}</div>{/if}
-    {/if}
-  </section>
+    </section>
+  </FocusDisclosure>
 {/if}
 
 <style>

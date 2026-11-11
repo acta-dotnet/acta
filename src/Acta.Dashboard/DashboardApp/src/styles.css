@@ -10,10 +10,15 @@
   --grid: rgba(99, 230, 190, 0.05);
   --glow: rgba(99, 230, 190, 0.1);
 
-  --font-ui: 'Inter', 'Geist', 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif;
+  /* Windows 11 names its variable reading face 'Segoe UI Variable Text'; 'Segoe UI Variable' alone matches nothing,
+     and the static 'Segoe UI' has no weight between regular and semibold. */
+  --font-ui: 'Inter', 'Geist', 'Segoe UI Variable Text', 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif;
   --font-mono: Consolas, 'Cascadia Code', ui-monospace, SFMono-Regular, monospace;
   --mono: var(--font-mono);
   --font-display: var(--font-ui);
+  /* Running text's weight. Dark text on a light ground reads thinner than light text on a dark one, so the light
+     theme sets it a little heavier where the face has the weight. */
+  --weight-text: 400;
   --side-w: 264px;
   font-family: var(--font-ui);
 }
@@ -89,44 +94,54 @@
   --ambient-arc: rgba(190, 175, 235, 0.05);
   --radius-panel: 12px;
   --radius-control: 8px;
+  --weight-text: 450;
 }
 
+/* Paper is a reading mode: a book's pages laid on a desk, easy on the eyes at night. A dimmed sepia desk, sheets of a
+   lighter paper with hairline edges, warm brown ink a little short of black, and a reading serif. No glow, and
+   nothing on it is pure white. */
 :root[data-theme='paper'] {
   color-scheme: light;
 
   --accent: #315d43;
   --accent-solid: #315d43;
-  --on-accent: #ffffff;
+  --on-accent: #f3ebdb;
 
-  --bg: #faf7f1;
-  --panel: #fffdfa;
-  --panel-subtle: #f4f0e8;
-  --sidebar: #fffdfa;
-  --ink: #292824;
-  --muted: #565248;
-  --line: #e4ded3;
-  --badge-bg: #eeeae2;
+  --font-ui: 'Iowan Old Style', Charter, 'Bitstream Charter', 'Sitka Text', Cambria, Georgia, serif;
+  --font-display: var(--font-ui);
+
+  --bg: #eee5d2;
+  --panel: #f3ebdb;
+  --panel-subtle: #e9dfca;
+  --sidebar: #eee5d2;
+  /* The lightest paper, for what lies on a sheet: fields to write in, menus, and dialogs. */
+  --paper-lift: #f8f2e6;
+  --ink: #3a2e22;
+  --muted: #66574a;
+  --line: #d3c4a6;
+  --line-strong: #b3a184;
+  --badge-bg: #e5dac4;
 
   --ok: #315d43;
   --warn: #7d5310;
   --bad: #a03a2f;
   --held: #655279;
-  --on-ok: #ffffff;
-  --on-warn: #ffffff;
-  --on-bad: #ffffff;
-  --on-held: #ffffff;
-  --badge-ok-bg: #edf3e9;
-  --badge-warn-bg: #faf0df;
-  --badge-bad-bg: #f9eae5;
-  --badge-held-bg: #f2edf6;
+  --on-ok: #f3ebdb;
+  --on-warn: #f3ebdb;
+  --on-bad: #f3ebdb;
+  --on-held: #f3ebdb;
+  --badge-ok-bg: #d7d5c1;
+  --badge-warn-bg: #e4d8c1;
+  --badge-bad-bg: #e7d6c3;
+  --badge-held-bg: #ded3c7;
 
-  --overlay: rgba(43, 36, 25, 0.34);
-  --shadow: rgba(74, 58, 38, 0.1);
-  --ambient-mint: rgba(206, 221, 197, 0.16);
-  --ambient-lilac: rgba(235, 209, 190, 0.19);
-  --ambient-arc: rgba(187, 174, 210, 0.06);
-  --radius-panel: 12px;
-  --radius-control: 8px;
+  --overlay: rgba(58, 46, 34, 0.35);
+  --shadow: rgba(58, 46, 34, 0.14);
+  --ambient-mint: transparent;
+  --ambient-lilac: transparent;
+  --ambient-arc: transparent;
+  --radius-panel: 6px;
+  --radius-control: 4px;
 }
 
 /* OS-default chunky scrollbars (Windows stepper arrows) break the panel look; every scroller in
@@ -293,16 +308,18 @@ body {
   background: var(--bg);
   color: var(--ink);
   font-family: var(--font-ui);
+  font-weight: var(--weight-text);
   font-size: var(--text-base);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
 
-/* Atmosphere stays at the page edges. Operational surfaces remain flat. */
+/* Atmosphere stays at the page edges and stays small: the arc is a curve tucked into the top-right corner, with its
+   lilac pool behind it, never a band across the page. Operational surfaces remain flat. */
 body {
   background:
-    radial-gradient(ellipse clamp(480px, 56vw, 920px) 340px at 100% -220px, var(--ambient-arc) 99.6%, transparent 100%),
-    radial-gradient(ellipse at 100% 0%, var(--ambient-lilac), transparent 44%),
+    radial-gradient(ellipse clamp(260px, 28vw, 440px) 230px at 100% -130px, var(--ambient-arc) 99.6%, transparent 100%),
+    radial-gradient(clamp(320px, 36vw, 560px) 320px at 100% 0%, var(--ambient-lilac), transparent 72%),
     radial-gradient(ellipse at 15% 100%, var(--ambient-mint), transparent 46%),
     var(--bg);
   line-height: 1.5;
@@ -698,8 +715,8 @@ table.data tbody td { border-bottom: 1px solid color-mix(in srgb, var(--line) 60
 :root[data-text-size='small'] table.data td { padding-top: 7px; padding-bottom: 7px; }
 :root[data-text-size='large'] table.data td { padding-top: 12px; padding-bottom: 12px; }
 /* In-row action buttons must not grow the row: compact, so an Actions cell reads at the same height
-   as a plain text cell. */
-table.data td button { padding: 2px 10px; font-size: var(--text-sm); }
+   as a plain text cell. A copy glyph and an inspectable value are text, not action buttons. */
+table.data td button:not(.copy):not(.value-detail) { padding: 2px 10px; font-size: var(--text-sm); }
 /* Shrink-to-content column (the jobs list ref): stops the auto table layout from handing it the
    row's slack, which pushed the neighbouring name column far right on wide screens. */
 table.data th.shrink,
@@ -1307,14 +1324,80 @@ button.copy:hover { color: var(--accent); }
 }
 
 /* Exact values stay available on hover, keyboard focus and click. */
-/* Inline padding grows the target to the 24px floor without moving the line it sits on. */
-button.value-detail { display: inline; min-height: 0; padding: 4px 0; border: 0; border-radius: 3px; background: none; color: inherit; font: inherit; text-align: inherit; cursor: pointer; }
+/* The padding grows the target to the 24px floor. A button is laid out as a box even when inline, so the matching
+   negative margin keeps the padding from growing the line it sits on. */
+button.value-detail { display: inline; min-height: 0; padding: 4px 0; margin: -4px 0; border: 0; border-radius: 3px; background: none; color: inherit; font: inherit; text-align: inherit; cursor: pointer; }
 button.value-detail:hover:not(:disabled) { color: var(--accent); background: none; border-color: transparent; }
 .technical-popover { margin: auto; width: max-content; max-width: min(560px, calc(100vw - 40px)); padding: 20px; border: 1px solid var(--line); border-radius: var(--radius-panel); background: var(--panel); color: var(--ink); overflow-wrap: anywhere; white-space: normal; line-height: 1.7; box-shadow: 0 8px 24px var(--shadow); font-size: var(--text-sm); }
 .technical-popover::backdrop { background: color-mix(in srgb, var(--overlay) 30%, transparent); }
+/* Where anchors are supported the card opens beside its trigger, as a hover card: below it and aligned to its start,
+   flipped above or to the other side where the screen runs out, with no dimmed backdrop. Elsewhere it stays centred. */
+@supports (position-area: bottom) {
+  .technical-popover {
+    inset: auto;
+    margin: 6px 0 0;
+    padding: 12px 16px;
+    position-area: bottom span-right;
+    position-try-fallbacks: flip-block, flip-inline, flip-block flip-inline;
+  }
+  .technical-popover::backdrop { background: none; }
+}
 
 .detail-actions[open] > summary > .ic { transform: rotate(90deg); }
 
 .copy .ic { width: 14px; height: 14px; }
 .focus-state + .detail-workspace { margin-top: 16px; }
 .focus-disclosure.hide-heading > .focus-disclosure-body > .detail-panel > h2:first-child { display: none; }
+
+/* ---------- Paper: a book's pages laid on a desk ----------
+   Sections are sheets of a lighter paper with a hairline edge, as the other themes' panels are; what makes the theme
+   is the type and the ink. A status is coloured words with their mark, a link is ink with a quiet accent underline,
+   and only menus and dialogs keep a soft shadow. */
+/* Lining figures: a reading serif's old-style figures set a lone zero as a small o. */
+:root[data-theme='paper'] body { line-height: 1.6; font-variant-numeric: lining-nums; }
+:root[data-theme='paper'] table.data,
+:root[data-theme='paper'] .metric { font-variant-numeric: lining-nums tabular-nums; }
+/* A figure set large: the serif's round zero reads as the letter O, so it takes the slashed one. */
+:root[data-theme='paper'] .metric-value { font-variant-numeric: lining-nums tabular-nums slashed-zero; }
+
+/* A ledger's columns: a firmer rule under the heads, hairlines between rows. */
+:root[data-theme='paper'] table.data thead th { box-shadow: 0 1px 0 var(--line-strong); }
+:root[data-theme='paper'] table.data tbody tr:hover td { background: var(--panel-subtle); }
+
+:root[data-theme='paper'] a:not(.primary-action) { color: color-mix(in srgb, var(--accent) 55%, var(--ink)); }
+:root[data-theme='paper'] .detail-related a,
+:root[data-theme='paper'] p a {
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  text-underline-offset: 3px;
+}
+:root[data-theme='paper'] nav.side a { color: var(--muted); }
+:root[data-theme='paper'] nav.side a.brand { color: var(--ink); }
+:root[data-theme='paper'] nav.side a.active {
+  color: var(--ink);
+  background: none;
+  border-radius: 0;
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+/* A status is its coloured words and mark, as a margin note would be, never a pill. */
+:root[data-theme='paper'] .badge,
+:root[data-theme='paper'] .badge.ok,
+:root[data-theme='paper'] .badge.warn,
+:root[data-theme='paper'] .badge.bad,
+:root[data-theme='paper'] .badge.run,
+:root[data-theme='paper'] .badge.held,
+:root[data-theme='paper'] .badge.retired { background: none; padding-inline: 0; border-radius: 0; }
+:root[data-theme='paper'] .chip { background: none; border: 1px solid var(--line); }
+
+/* The colour alone: the namespace picker draws its caret as a background image. */
+:root[data-theme='paper'] button:not(.primary):not(.copy):not(.jobref):not(.value-detail) { background-color: transparent; border-color: var(--line-strong); }
+:root[data-theme='paper'] button:not(.primary):hover:not(:disabled) { border-color: var(--ink); color: var(--ink); }
+:root[data-theme='paper'] input:not([type='checkbox']):not([type='radio']),
+:root[data-theme='paper'] select,
+:root[data-theme='paper'] textarea { background-color: var(--paper-lift); }
+
+:root[data-theme='paper'] .detail-action-content,
+:root[data-theme='paper'] .confirm-box,
+:root[data-theme='paper'] .technical-popover,
+:root[data-theme='paper'] .palette { background: var(--paper-lift); border-color: var(--line-strong); }

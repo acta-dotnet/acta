@@ -5,6 +5,12 @@ import type { JobDetail } from './types.ts';
 import { routes } from '../../routes.ts';
 import { displayFormatter } from '../../format.ts';
 
+// Whether a relative time on the page carries this instant as the exact time in its card.
+function showsTime(container: Element, iso: string): boolean {
+  const exact = displayFormatter.timestamp(iso);
+  return [...container.querySelectorAll('.technical-popover')].some((card) => card.textContent?.includes(exact));
+}
+
 
 function job(overrides: Partial<JobDetail>): JobDetail {
   return {
@@ -75,7 +81,7 @@ describe('JobNextRun', () => {
     ];
     const { container, getByText } = render(JobNextRun, { job: job({ kind: 'permanent', status: 'idle' }), schedules, total: 2 });
     expect(getByText(/from/).textContent).toBe('from hourly');
-    expect(container.querySelector(`span[title="${displayFormatter.timestamp('2099-01-01T10:05:00Z')}"]`)).not.toBeNull();
+    expect(showsTime(container, '2099-01-01T10:05:00Z')).toBe(true);
   });
 
   // Under Skip the hourly schedule drops 09:05 and fires at 10:05; under a catch-up policy it fires at 10:00. The
@@ -87,8 +93,8 @@ describe('JobNextRun', () => {
     ];
     const { container, getByText } = render(JobNextRun, { job: job({ kind: 'permanent', status: 'idle' }), schedules, total: 2 });
     expect(getByText(/from/).textContent).toBe('from ten-past. Schedule hourly may fire first once it resumes');
-    expect(container.querySelector(`span[title="${displayFormatter.timestamp('2099-01-01T10:02:00Z')}"]`)).not.toBeNull();
-    expect(container.querySelector(`span[title="${displayFormatter.timestamp('2099-01-01T10:00:00Z')}"]`)).not.toBeNull();
+    expect(showsTime(container, '2099-01-01T10:02:00Z')).toBe(true);
+    expect(showsTime(container, '2099-01-01T10:00:00Z')).toBe(true);
   });
 
   it('leaves out a timed pause that resumes at or after the known firing', () => {
@@ -99,7 +105,7 @@ describe('JobNextRun', () => {
     ];
     const { container, getByText, queryByText } = render(JobNextRun, { job: job({ kind: 'permanent', status: 'idle' }), schedules, total: 3 });
     expect(getByText(/from/).textContent).toBe('from ten-past');
-    expect(container.querySelector(`span[title="${displayFormatter.timestamp('2099-01-01T10:02:00Z')}"]`)).not.toBeNull();
+    expect(showsTime(container, '2099-01-01T10:02:00Z')).toBe(true);
     expect(queryByText(/resumes/)).toBeNull();
   });
 
@@ -111,7 +117,7 @@ describe('JobNextRun', () => {
     ];
     const { container, getByText, queryByText } = render(JobNextRun, { job: job({ kind: 'permanent', status: 'idle' }), schedules, total: 3 });
     expect(getByText(/^Schedule/).textContent).toBe('Schedule hourly resumes');
-    expect(container.querySelector(`span[title="${displayFormatter.timestamp('2099-01-01T10:00:00Z')}"]`)).not.toBeNull();
+    expect(showsTime(container, '2099-01-01T10:00:00Z')).toBe(true);
     expect(queryByText(/from/)).toBeNull();
     expect(queryByText('No schedule is set to fire it.')).toBeNull();
   });

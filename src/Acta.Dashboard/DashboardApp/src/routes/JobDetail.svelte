@@ -254,10 +254,10 @@
           <JobSchedulesPanel schedules={detail.schedules} total={detail.schedulesTotal} onChanged={reload} />
         </FocusDisclosure>
       {/if}
+      <TagEditor path={'jobs/' + job.jobRef + '/tags'} permission={Permission.control} />
       <FocusDisclosure title="Technical details" hint="Identifiers, dates and policy">
         <JobSummary {job} maxAttempts={detail.maxAttemptsEffective ?? null} />
         <JobDiagnosis jobNamespace={job.jobNamespace} {explanation} />
-        <TagEditor path={'jobs/' + job.jobRef + '/tags'} permission={Permission.control} />
         <div class="support-row"><CopyButton value={JSON.stringify(job, null, 2)} label="Copy raw snapshot" showLabel={true} />{#if incidentSummary}<CopyButton value={incidentSummary} label="Copy incident summary" showLabel={true} />{/if}</div>
       </FocusDisclosure>
     </DetailLayout>

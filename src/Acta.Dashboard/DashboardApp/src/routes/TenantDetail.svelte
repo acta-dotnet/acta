@@ -293,21 +293,15 @@
     </div>
   {:else}
     <section class="entity-summary" aria-label="Tenant identity">
-      {#if tenant.tenantName !== tenant.displayName}<span class="entity-meta mono">{tenant.tenantName}</span>{/if}
       <StatusBadge status={tenant.status} />
+      {#if tenant.tenantName !== tenant.displayName}<span class="entity-meta mono">{tenant.tenantName}</span>{/if}
     </section>
 
     {@const currentTenant = tenant}
     <DetailLayout>
-
-
       {#snippet related()}
         <a href={jobsHref}>Jobs</a>
         <a href={eventsHref}>Events</a>
-      {/snippet}
-
-      {#snippet supporting()}
-        <TagEditor path={`tenants/${encodeURIComponent(currentTenant.tenantName)}/tags`} permission={Permission.admin} />
       {/snippet}
 
       <section class="focus-state" style={'--tone:var(--' + (currentTenant.status === 'active' ? 'ok' : 'warn') + ')'} aria-label="Current availability">
@@ -348,6 +342,7 @@
       </section>
       </FocusDisclosure>
 
+      <TagEditor path={`tenants/${encodeURIComponent(currentTenant.tenantName)}/tags`} permission={Permission.admin} />
       <FocusDisclosure title="Technical details" hint="Version and dates">
         <dl class="detail-readonly detail-readonly-grid"><div><dt>Version</dt><dd>{currentTenant.version}</dd></div><div><dt>Created</dt><dd><RelativeTime value={currentTenant.createdAtUtc} /></dd></div><div><dt>Modified</dt><dd><RelativeTime value={currentTenant.modifiedAtUtc} /></dd></div></dl>
       </FocusDisclosure>

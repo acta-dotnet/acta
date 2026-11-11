@@ -1,5 +1,6 @@
 <script lang="ts">
   import FreshnessIndicator from './FreshnessIndicator.svelte';
+  import { DETAIL_REFETCH_MS } from '../polling';
 
   let {
     dataUpdatedAt = 0,
@@ -16,4 +17,4 @@
   } = $props();
 </script>
 
-<FreshnessIndicator {dataUpdatedAt} {isFetching} {isError} {polling} {onRefresh} />
+<FreshnessIndicator {dataUpdatedAt} {isFetching} {isError} {polling} intervalMs={DETAIL_REFETCH_MS} {onRefresh} />

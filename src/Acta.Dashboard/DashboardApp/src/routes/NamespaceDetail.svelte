@@ -203,35 +203,16 @@
     </div>
   {:else}
     <section class="entity-summary" aria-label="Namespace identity">
-      <span class="entity-meta">Namespace</span>
       <StatusBadge status={namespace.status} />
+      <span class="entity-meta">Namespace</span>
     </section>
 
     {@const currentNamespace = namespace}
     <DetailLayout>
-
-
       {#snippet related()}
         <a href={jobsHref}>Jobs</a>
         <a href={routes.workers({ namespace: currentNamespace.jobNamespace })}>Workers</a>
         <a href={routes.alerts({ namespace: currentNamespace.jobNamespace })}>Alerts</a>
-      {/snippet}
-
-      {#snippet supporting()}
-        {#if !systemNamespace}
-          <section class="detail-panel">
-            <h2>Deployment</h2>
-            {#if currentNamespace.deploymentVersion}
-              <p class="mono">{currentNamespace.deploymentVersion}</p>
-              <p class="detail-help">The version a deploy last recorded here. A worker starts only on a version that has deployed in this namespace.</p>
-            {:else}
-              <p>No deploy recorded.</p>
-              <p class="detail-help">A development start wrote the jobs here, so a worker of any build can start. Running <span class="mono">jobs deploy</span> records a version.</p>
-            {/if}
-          </section>
-        {/if}
-
-        <TagEditor path={`namespaces/${encodeURIComponent(currentNamespace.jobNamespace)}/tags`} permission={Permission.admin} />
       {/snippet}
 
       <section class="focus-state" style={'--tone:var(--' + (currentNamespace.status === 'active' ? 'ok' : 'warn') + ')'} aria-label="Current availability">
@@ -281,7 +262,20 @@
       </section>
       </FocusDisclosure>
 
-      <FocusDisclosure title="Technical details" hint="Version">
+      <TagEditor path={`namespaces/${encodeURIComponent(currentNamespace.jobNamespace)}/tags`} permission={Permission.admin} />
+      <FocusDisclosure title="Technical details" hint={systemNamespace ? 'Version' : 'Deployment and version'}>
+        {#if !systemNamespace}
+          <section class="detail-panel">
+            <h2>Deployment</h2>
+            {#if currentNamespace.deploymentVersion}
+              <p class="mono">{currentNamespace.deploymentVersion}</p>
+              <p class="detail-help">The version a deploy last recorded here. A worker starts only on a version that has deployed in this namespace.</p>
+            {:else}
+              <p>No deploy recorded.</p>
+              <p class="detail-help">A development start wrote the jobs here, so a worker of any build can start. Running <span class="mono">jobs deploy</span> records a version.</p>
+            {/if}
+          </section>
+        {/if}
         <dl class="detail-readonly detail-readonly-grid"><div><dt>Version</dt><dd>{currentNamespace.version}</dd></div></dl>
       </FocusDisclosure>
       <ChangeHistory history={history.data ?? []} loading={history.isPending} emptyText="No recorded namespace changes." />

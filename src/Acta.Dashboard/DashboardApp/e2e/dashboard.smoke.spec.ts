@@ -436,8 +436,11 @@ test('events feed reads a linked job\'s events and shows their subject, message,
   await page.goto(`/#/events?ns=billing&jobRef=${jobRef}`);
 
   expect(new URL((await feedRequest).url()).searchParams.get('jobRef')).toBe(jobRef);
-  await expect(page.getByText('Invoice provider timed out.')).toBeVisible();
-  await expect(page.getByText('{"reason":"unhandled-exception"}')).toBeVisible();
+  // The message and the details share one cell, which ends in an ellipsis and opens in full in its card.
+  const details = page.locator('table.data').getByRole('button', { name: /^Show full details/ });
+  await expect(details).toContainText('Invoice provider timed out. {"reason":"unhandled-exception"}');
+  await details.click();
+  await expect(page.locator('.technical-popover:popover-open').getByRole('button', { name: 'Copy details' })).toBeVisible();
   await expect(page.getByRole('link', { name: jobRef })).toBeVisible();
 });
 
@@ -1138,13 +1141,14 @@ test('appearance defaults, themes, accents, text sizing, persistence, and reset 
       ruledBackground: getComputedStyle(document.body, '::before').backgroundImage,
     };
   });
+  // Paper is sheets of a lighter paper on a sepia desk, set in a reading serif.
   expect(paper).toEqual({
     colorScheme: 'light',
-    background: '#faf7f1',
-    panel: '#fffdfa',
-    radius: '12px',
+    background: '#eee5d2',
+    panel: '#f3ebdb',
+    radius: '6px',
     rowHeight: '38px',
-    headingFont: expect.stringContaining('Inter'),
+    headingFont: expect.stringContaining('serif'),
     ruledBackground: 'none',
   });
 
@@ -1251,7 +1255,77 @@ test('compact references and relative dates expose complete values through keybo
   const created = page.locator('dl > div').filter({ has: page.locator('dt', { hasText: /^Created$/ }) });
   await created.getByRole('button', { name: /Show exact date and time/ }).click();
   await expect(page.locator('.technical-popover:popover-open')).toContainText(job.createdAtUtc);
-  expect(await reference.getAttribute('title')).toBe(jobRef);
+  await page.keyboard.press('Escape');
+
+  // A resting mouse shows the card just below its own reference, leaving hides it, and a click pins it.
+  await reference.hover();
+  const card = page.locator('.technical-popover:popover-open');
+  await expect(card).toContainText(jobRef);
+  const refBox = (await reference.boundingBox())!;
+  const cardBox = (await card.boundingBox())!;
+  expect(Math.abs(cardBox.x - refBox.x)).toBeLessThan(2);
+  expect(cardBox.y - (refBox.y + refBox.height)).toBeGreaterThanOrEqual(0);
+  expect(cardBox.y - (refBox.y + refBox.height)).toBeLessThan(12);
+  await page.mouse.move(0, 0);
+  await expect(card).toHaveCount(0);
+  await reference.hover();
+  await expect(card).toBeVisible();
+  await reference.click();
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(300);
+  await expect(card).toContainText(jobRef);
+});
+
+test('a date in a table sits under its column heading at the text size of its row', async ({ page }) => {
+  await mockDashboard(page, { controls: false });
+  await page.goto('/#/jobs');
+  const time = page.locator('table.data tbody tr').first().getByRole('button', { name: /Show exact date and time/ }).first();
+  const facts = await time.evaluate((button) => {
+    const cell = button.closest('td')!;
+    const heading = cell.closest('table')!.querySelectorAll('thead th')[(cell as HTMLTableCellElement).cellIndex];
+    const textLeft = (element: Element) => {
+      const range = document.createRange();
+      range.selectNodeContents(element);
+      return range.getBoundingClientRect().left;
+    };
+    return { offset: textLeft(button) - textLeft(heading), size: getComputedStyle(button).fontSize, cellSize: getComputedStyle(cell).fontSize };
+  });
+  expect(Math.abs(facts.offset)).toBeLessThan(1);
+  expect(facts.size).toBe(facts.cellSize);
+});
+
+test('the freshness meter, reload, and pause sit evenly spaced in one frame', async ({ page }) => {
+  await mockDashboard(page, { controls: false });
+  await page.goto('/');
+  const strip = page.locator('.freshness').first();
+  await expect(strip.getByRole('button', { name: 'Pause live updates' })).toBeVisible();
+  const centres = await strip.evaluate((frame) =>
+    [frame.querySelector('.freshness-track')!, ...frame.querySelectorAll('button svg')].map((glyph) => {
+      const box = glyph.getBoundingClientRect();
+      return (box.left + box.right) / 2;
+    }));
+  expect(centres).toHaveLength(3);
+  expect(Math.abs((centres[1] - centres[0]) - (centres[2] - centres[1]))).toBeLessThan(0.5);
+});
+
+test('the Alerts table keeps its actions in view at a 1440 px viewport', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await mockDashboard(page, { controls: true });
+  const alert = {
+    alertRef: 'alr_019f9b3509487d1b911f2020158384a3', severity: 'error', title: "Job 'send-invoice' failed",
+    message: 'Terminal failure: the invoice provider refused the request after every attempt in its budget was spent.',
+    jobNamespace: 'billing', jobRef, channelName: 'default', occurrenceCount: 1, deliveryStatus: 'delivered',
+    createdAtUtc: job.createdAtUtc, acknowledgedAtUtc: null, resolvedAtUtc: null
+  };
+  await page.route('**/api/v1/alerts?*', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(paged([alert])) }));
+  await page.goto('/#/alerts?ns=billing');
+
+  // The title and the message share the one cell that gives way, so the row's actions stay on screen.
+  const wrap = page.locator('.table-wrap');
+  const row = wrap.getByRole('row').filter({ has: page.getByRole('link', { name: alert.title }) });
+  await expect(row).toContainText('Terminal failure');
+  await expect(row.getByRole('button', { name: 'Resolve' })).toBeInViewport({ ratio: 1 });
+  expect(await wrap.evaluate((element) => element.scrollWidth - element.clientWidth)).toBeLessThanOrEqual(1);
 });
 
 test('a paused job waiting on a signal keeps Resume in the Actions menu', async ({ page }) => {

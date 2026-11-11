@@ -48,6 +48,16 @@ describe('TagEditor', () => {
     expect(screen.getByText('team')).toBeTruthy();
   });
 
+  it('is its own closed disclosure that counts the tags inside', async () => {
+    stubFetch();
+    const { container } = render(TagEditorHarness, { path: 'jobs/job_1/tags' });
+
+    await screen.findByText('env: prod');
+    const disclosure = container.querySelector('details#tags');
+    expect(disclosure?.hasAttribute('open')).toBe(false);
+    expect(disclosure?.querySelector('summary')?.textContent).toBe('Tags2 tags');
+  });
+
   it('reads the tag page in one request large enough for every tag a target may carry', async () => {
     const calls = stubFetch();
     render(TagEditorHarness, { path: 'jobs/job_1/tags' });

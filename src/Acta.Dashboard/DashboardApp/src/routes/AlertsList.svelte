@@ -29,7 +29,6 @@
     message: string;
     jobNamespace: string;
     jobRef: string | null;
-    channelName: string;
     occurrenceCount: number;
     deliveryStatus: string;
     createdAtUtc: string;
@@ -53,11 +52,8 @@
   const columns: ColumnDef<AlertRow>[] = [
     { key: 'severity', header: 'Severity' },
     { key: 'state', header: 'State' },
-    { key: 'title', header: 'Title' },
-    { key: 'alertRef', header: 'Alert', class: 'shrink mobile-hide' },
-    { key: 'message', header: 'Message', class: 'dim' },
+    { key: 'title', header: 'Alert', class: 'grow' },
     { key: 'job', header: 'Job' },
-    { key: 'channelName', header: 'Channel', class: 'mobile-hide' },
     { key: 'occurrenceCount', header: 'Count', class: 'mobile-hide', align: 'right' },
     { key: 'deliveryStatus', header: 'Delivery', class: 'mobile-hide' },
     { key: 'latest', header: 'Latest', class: 'mobile-hide' },
@@ -151,11 +147,9 @@
         {bucket === 'resolved' ? 'Resolved' : bucket === 'acknowledged' ? 'Acknowledged' : 'Open'}
       </span>
     {/snippet}
+    <!-- The title, then the message, on one line that ends in an ellipsis; the alert page shows both whole. -->
     {#snippet titleCell(alert: AlertRow)}
-      <a href={routes.alert(alert.alertRef, { namespace: alert.jobNamespace })}>{alert.title}</a>
-    {/snippet}
-    {#snippet alertCell(alert: AlertRow)}
-      <JobRef value={alert.alertRef} href={routes.alert(alert.alertRef, { namespace: alert.jobNamespace })} copy />
+      <a href={routes.alert(alert.alertRef, { namespace: alert.jobNamespace })}>{alert.title}</a> <span class="dim">{alert.message}</span>
     {/snippet}
     {#snippet jobCell(alert: AlertRow)}
       {#if alert.jobRef}<JobRef value={alert.jobRef} href={routes.job(alert.jobRef, { namespace: alert.jobNamespace })} copy />{:else}<span class="dim">·</span>{/if}
@@ -193,7 +187,6 @@
         severity: severityCell,
         state: stateCell,
         title: titleCell,
-        alertRef: alertCell,
         job: jobCell,
         deliveryStatus: deliveryCell,
         latest: latestCell,
