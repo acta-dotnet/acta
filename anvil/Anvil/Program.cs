@@ -126,13 +126,20 @@ static async Task RunDashboardAsync(string[] args, string provider)
 
     var app = builder.Build();
     // Serve wwwroot from disk in dev so UI edits show on refresh (no rebuild); fall back to the embedded
-    // manifest when there is no on-disk wwwroot (the published single-file AOT artifact).
+    // manifest when there is no on-disk wwwroot (the published single-file AOT artifact). Every file is
+    // revalidated on each load: without a Cache-Control the browser reuses a stale stylesheet under a newer page.
     var diskRoot = Path.Combine(builder.Environment.ContentRootPath, "wwwroot");
     Microsoft.Extensions.FileProviders.IFileProvider webRoot = Directory.Exists(diskRoot)
         ? new Microsoft.Extensions.FileProviders.PhysicalFileProvider(diskRoot)
         : new Microsoft.Extensions.FileProviders.ManifestEmbeddedFileProvider(typeof(AnvilSession).Assembly, "wwwroot");
     app.UseDefaultFiles(new DefaultFilesOptions { FileProvider = webRoot });
-    app.UseStaticFiles(new StaticFileOptions { FileProvider = webRoot });
+    app.UseStaticFiles(
+        new StaticFileOptions
+        {
+            FileProvider = webRoot,
+            OnPrepareResponse = context => context.Context.Response.Headers.CacheControl = "no-cache",
+        }
+    );
     app.MapActa("/acta", o => o.EnableControls = true);
     app.MapAnvil();
     app.Lifetime.ApplicationStopping.Register(() => app.Services.GetRequiredService<WorkerProcessLauncher>().Dispose());
