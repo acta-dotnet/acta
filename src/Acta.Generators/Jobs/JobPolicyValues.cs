@@ -415,24 +415,12 @@ internal static class BackoffExpressionValidator
 
     private static bool IsJitter(string text)
     {
-        string number;
-        if (text.StartsWith("±", StringComparison.Ordinal))
-        {
-            number = text.Substring(1);
-        }
-        else if (text.StartsWith("+-", StringComparison.Ordinal))
-        {
-            number = text.Substring(2);
-        }
-        else if (text.StartsWith("~", StringComparison.Ordinal))
-        {
-            number = text.Substring(1);
-        }
-        else
+        if (!text.StartsWith("~", StringComparison.Ordinal))
         {
             return false;
         }
 
+        var number = text.Substring(1);
         return number.EndsWith("%", StringComparison.Ordinal)
             && TryNumber(number.Substring(0, number.Length - 1), out var percent)
             && percent >= 0.0

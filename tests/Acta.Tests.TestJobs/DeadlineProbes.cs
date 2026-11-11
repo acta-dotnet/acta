@@ -23,6 +23,6 @@ public sealed class DeadlineProbes
     /// Strict 1s deadline, 60s backoff, throws so a retry is attempted. The next retry (now+60s)
     /// overshoots the 1s deadline and the engine refuses to re-arm.
     /// </summary>
-    [Job("deadline-retry-probe", Deadline = "1s", Backoff = "1m..8h x2 ±10%", MaxAttempts = 5)]
+    [Job("deadline-retry-probe", Deadline = "1s", Backoff = "1m..8h x2 ~10%", MaxAttempts = 5)]
     public static Task Retry(JobContext ctx, CancellationToken ct) => throw new InvalidOperationException("boom");
 }

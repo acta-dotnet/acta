@@ -994,7 +994,7 @@ public sealed partial class OpenApiContractTests
     public async Task A_definitions_overrides_read_back_and_sent_back_change_nothing()
     {
         const string stored = """
-            {"priority":"high","maxAttempts":7,"concurrencyLimit":4,"rateLimit":"10/s","backoff":"5s..9m x4 +-20%",
+            {"priority":"high","maxAttempts":7,"concurrencyLimit":4,"rateLimit":"10/s","backoff":"5s..9m x4 ~20%",
             "executionTimeoutSeconds":33,"deadlineSeconds":444,"deadlineBehavior":"advisory","jobRetentionSeconds":555,
             "eventRecording":"audit","alertProfile":"on-terminal","alertChannelName":"ops-pager",
             "runbookUrl":"https://runbooks.example.com/add-numbers","displayName":"Add numbers","description":"Adds two numbers."}

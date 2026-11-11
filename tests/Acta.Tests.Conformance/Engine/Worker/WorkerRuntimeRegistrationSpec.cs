@@ -80,7 +80,7 @@ public sealed class WorkerRuntimeRegistrationSpec : ActaRuntimeTestBase<Conforma
         // Attribute-supplied policy lands verbatim (durations resolved to whole seconds).
         Assert.Equal(7, def!.MaxAttempts);
         Assert.Equal(JobPriorityCode.High, def.Priority);
-        Assert.Equal("30s..2h x3 ±25%", def.Backoff);
+        Assert.Equal("30s..2h x3 ~25%", def.Backoff);
         Assert.Equal(45, def.ExecutionTimeoutSeconds);
         Assert.Equal(7 * 24 * 60 * 60, def.JobRetentionSeconds);
         Assert.Equal(EventRecordingCode.Failures, def.EventRecording);

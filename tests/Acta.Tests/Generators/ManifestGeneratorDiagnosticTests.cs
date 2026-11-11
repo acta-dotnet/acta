@@ -708,7 +708,7 @@ public class ManifestGeneratorDiagnosticTests
 
             public static class Handler
             {
-                [Job("bad-jitter", Backoff = "1s..2s ±101%")]
+                [Job("bad-jitter", Backoff = "1s..2s ~101%")]
                 public static void Run() { }
             }
             """
@@ -897,7 +897,7 @@ public class ManifestGeneratorDiagnosticTests
 
             public static class Handler
             {
-                [Job("good-policy", MaxAttempts = 3, Backoff = "1s..2m x2 ±20%",
+                [Job("good-policy", MaxAttempts = 3, Backoff = "1s..2m x2 ~20%",
                     ExecutionTimeout = "10m", Priority = JobPriorityCode.High)]
                 public static void Run() { }
             }

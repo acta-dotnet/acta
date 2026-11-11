@@ -49,14 +49,23 @@ public sealed class BackoffTests
         Assert.Equal(Backoff.Default, Backoff.Parse("1m..1d x2 ~10%"));
     }
 
+    [Theory(DisplayName = "A jitter is spelled with a tilde and no other way")]
+    [InlineData("1m..8h x2 ±10%")]
+    [InlineData("1m..8h x2 +-10%")]
+    [InlineData("1m..8h x2 10%")]
+    public void Only_a_tilde_spells_a_jitter(string expression)
+    {
+        Assert.Throws<FormatException>(() => Backoff.Parse(expression));
+    }
+
     [Theory]
     [InlineData("30s", 30, 30, 1.0, 0.0, "30s")]
-    [InlineData("1m..8h", 60, 28800, 2.0, 0.1, "1m..8h x2 ±10%")]
-    [InlineData("1m..8h x3", 60, 28800, 3.0, 0.1, "1m..8h x3 ±10%")]
-    [InlineData("1m..8h x2 ±20%", 60, 28800, 2.0, 0.2, "1m..8h x2 ±20%")]
+    [InlineData("1m..8h", 60, 28800, 2.0, 0.1, "1m..8h x2 ~10%")]
+    [InlineData("1m..8h x3", 60, 28800, 3.0, 0.1, "1m..8h x3 ~10%")]
+    [InlineData("1m..8h x2 ~20%", 60, 28800, 2.0, 0.2, "1m..8h x2 ~20%")]
     [InlineData("1m..8h exact", 60, 28800, 2.0, 0.0, "1m..8h x2 exact")]
-    [InlineData("PT1M..PT8H x2 ~10%", 60, 28800, 2.0, 0.1, "1m..8h x2 ±10%")]
-    [InlineData("30d..90d", 2592000, 7776000, 2.0, 0.1, "30d..90d x2 ±10%")]
+    [InlineData("PT1M..PT8H x2 ~10%", 60, 28800, 2.0, 0.1, "1m..8h x2 ~10%")]
+    [InlineData("30d..90d", 2592000, 7776000, 2.0, 0.1, "30d..90d x2 ~10%")]
     public void Parse_reads_the_backoff_dsl(
         string expression,
         int initialSeconds,

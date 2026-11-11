@@ -81,7 +81,7 @@ public sealed class UpdateDefinitionOverridesBindMatrixSpec : ActaStorageTestBas
         var written = new DefinitionPolicyOverrides(
             Priority: JobPriorityCode.High, // ≠ Bulk base
             MaxAttempts: 7, // ≠ 3 base
-            Backoff: "5s..9m x4 +-20%", // distinct expression
+            Backoff: "5s..9m x4 ~20%", // distinct expression
             ExecutionTimeoutSeconds: 33, // distinct int 3
             DeadlineSeconds: 444, // distinct int 4
             DeadlineBehavior: DeadlineBehaviorCode.Advisory, // ≠ Strict base
@@ -114,7 +114,7 @@ public sealed class UpdateDefinitionOverridesBindMatrixSpec : ActaStorageTestBas
         // --- Override columns: exactly what was written ---
         Assert.Equal(JobPriorityCode.High, after.PriorityOverride);
         Assert.Equal(7, after.MaxAttemptsOverride);
-        Assert.Equal("5s..9m x4 +-20%", after.BackoffOverride);
+        Assert.Equal("5s..9m x4 ~20%", after.BackoffOverride);
         Assert.Equal(33, after.ExecutionTimeoutSecondsOverride);
         Assert.Equal(444, after.DeadlineSecondsOverride);
         Assert.Equal(DeadlineBehaviorCode.Advisory, after.DeadlineBehaviorOverride);
@@ -129,7 +129,7 @@ public sealed class UpdateDefinitionOverridesBindMatrixSpec : ActaStorageTestBas
         // --- Effective columns: COALESCE(override, base) = override when set ---
         Assert.Equal(JobPriorityCode.High, after.PriorityEffective);
         Assert.Equal(7, after.MaxAttemptsEffective);
-        Assert.Equal("5s..9m x4 +-20%", after.BackoffEffective);
+        Assert.Equal("5s..9m x4 ~20%", after.BackoffEffective);
         Assert.Equal(33, after.ExecutionTimeoutSecondsEffective);
         Assert.Equal(444, after.DeadlineSecondsEffective);
         Assert.Equal(DeadlineBehaviorCode.Advisory, after.DeadlineBehaviorEffective);
@@ -163,7 +163,7 @@ public sealed class UpdateDefinitionOverridesBindMatrixSpec : ActaStorageTestBas
             new DefinitionPolicyOverrides(
                 Priority: JobPriorityCode.High,
                 MaxAttempts: 7,
-                Backoff: "5s..9m x4 +-20%",
+                Backoff: "5s..9m x4 ~20%",
                 ExecutionTimeoutSeconds: 33,
                 DeadlineSeconds: 444,
                 DeadlineBehavior: DeadlineBehaviorCode.Advisory,

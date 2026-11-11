@@ -66,7 +66,7 @@ public sealed class JobAttribute(string name) : Attribute
     public JobPriorityCode Priority { get; init; } = JobPriorityCode.Normal;
 
     /// <summary>
-    /// Retry backoff policy, e.g. <c>"1m..8h x2 +-10%"</c>. Null = framework default.
+    /// Retry backoff policy, e.g. <c>"1m..8h x2 ~10%"</c>. Null = framework default.
     /// </summary>
     public string? Backoff { get; init; }
 

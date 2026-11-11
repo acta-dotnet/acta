@@ -80,7 +80,7 @@ public readonly record struct Backoff
             : new Backoff(InitialDelay, MaxDelay, Multiplier, fraction);
     }
 
-    /// <summary>Parses Acta's backoff DSL, e.g. <c>1m..8h x2 +-10%</c>.</summary>
+    /// <summary>Parses Acta's backoff DSL, e.g. <c>1m..8h x2 ~10%</c>.</summary>
     public static Backoff Parse(string expression)
     {
         ArgumentNullException.ThrowIfNull(expression);
@@ -162,7 +162,7 @@ public readonly record struct Backoff
         }
         if (Jitter > 0)
         {
-            text += $" ±{FormatNumber(Jitter * 100)}%";
+            text += $" ~{FormatNumber(Jitter * 100)}%";
         }
         else if (ranged)
         {
@@ -186,19 +186,7 @@ public readonly record struct Backoff
 
     private static double ParseJitter(string text)
     {
-        string number;
-        if (text.StartsWith('±'))
-        {
-            number = text[1..];
-        }
-        else if (text.StartsWith("+-", StringComparison.Ordinal))
-        {
-            number = text[2..];
-        }
-        else
-        {
-            number = text.StartsWith('~') ? text[1..] : throw new FormatException($"'{text}' is not a valid backoff clause.");
-        }
+        var number = text.StartsWith('~') ? text[1..] : throw new FormatException($"'{text}' is not a valid backoff clause.");
 
         if (!number.EndsWith('%'))
         {

@@ -48,6 +48,8 @@ Not tagged yet.
 
 **Drop the `schema` argument from SQLite's `AddToActaOutboxAsync`**: SQLite has no schema to name, the create script never took one, and the relay reads the table from `main`, so a row staged under any other name was never relayed. Staging now names `main` itself, so a temporary table of the same name cannot take the row.
 
+**Write a backoff's jitter with `~`**: `"1m..8h x2 ~10%"`. The spellings `±10%` and `+-10%` are refused, in a `[Job]` at build time (ACTA0105) and in a definition override at the call, and `Backoff.ToString()` writes `~`. One spelling that every keyboard and every shell can type is the one that stays.
+
 ### Fixes
 
 - On SQL Server, two definition overrides updates in different namespaces could deadlock, and one failed as the victim: the update that carries a rate override to the definitions sharing its meter read every definition row under update locks before filtering by namespace, and waited on another namespace's row that its own update held. It now seeks its own namespace's rows.

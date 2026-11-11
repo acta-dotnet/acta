@@ -25,7 +25,7 @@ public static class LastAttemptProbes
 
     // An hour of backoff jittered by half against a Strict deadline an hour out: a second, independent draw would decide
     // against the first about half the time.
-    [Job("last-attempt-jitter", MaxAttempts = 5, Backoff = "1h..4h ±50%", Deadline = "1h")]
+    [Job("last-attempt-jitter", MaxAttempts = 5, Backoff = "1h..4h ~50%", Deadline = "1h")]
     public static Task Jitter(JobContext ctx, CancellationToken ct)
     {
         JitterReads[ctx.JobId] = (ctx.IsLastAttempt, ctx.TimeUntilDeadline, ctx);

@@ -12,7 +12,7 @@ public static class PolicyProbeHandler
         "policy-probe",
         MaxAttempts = 7,
         Priority = JobPriorityCode.High,
-        Backoff = "30s..2h x3 ±25%",
+        Backoff = "30s..2h x3 ~25%",
         ExecutionTimeout = "45s",
         JobRetention = "7d",
         EventRecording = EventRecordingCode.Failures,
