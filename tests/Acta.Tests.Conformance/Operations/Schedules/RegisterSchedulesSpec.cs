@@ -264,47 +264,6 @@ public sealed class RegisterSchedulesSpec : ActaRuntimeTestBase<ConformanceFixtu
         Assert.Equal(ScheduleStatusCode.Active, Assert.Single(schedules, s => s.ScheduleName == "dropped").Status);
     }
 
-    [Fact(DisplayName = "Registration clears a cursor a racing fire left on an orphaned schedule or a retired definition's schedule")]
-    public async Task Registration_clears_a_stale_cursor_on_an_orphaned_or_retired_schedule()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        var cursor = FloorSeconds(DateTime.UtcNow.AddHours(6));
-
-        var orphanJob = $"heal-orphan-{Guid.NewGuid():N}";
-        var orphanDef = await CreateDefinitionAsync(orphanJob, ct);
-        await RegisterAsync(orphanDef, orphanJob, [Slot("only", cursor)], ct);
-        var orphanSlot = await SlotIdAsync(orphanJob, ct);
-        await RegisterAsync(orphanDef, orphanJob, [], ct);
-
-        var retiredJob = $"heal-retired-{Guid.NewGuid():N}";
-        var retiredDef = await CreateDefinitionAsync(retiredJob, ct);
-        await RegisterAsync(retiredDef, retiredJob, [Slot("only", cursor)], ct);
-        var retiredSlot = await SlotIdAsync(retiredJob, ct);
-        var definition = await Operations.Definitions.GetAsync(TestNamespace, retiredJob, ct);
-        Assert.Equal(
-            ControlAction.Applied,
-            (await Operations.Definitions.RetireAsync(TestNamespace, retiredJob, definition!.Version, ct: ct)).Action
-        );
-
-        // The cursor an advance writes when it lands after the orphaning or the retire it raced.
-        foreach (var slotId in new[] { orphanSlot, retiredSlot })
-        {
-            await Db.ExecuteRawAsync(
-                "UPDATE {schema}.schedules_state SET next_occurrence_at_utc = @p_next WHERE schedule_id IN (SELECT s.schedule_id FROM {schema}.schedules s WHERE s.job_id = @p_id)",
-                ct,
-                ("@p_next", DbValueCoercion.Coerce(cursor, typeof(DateTime), Db.Provider)),
-                ("@p_id", slotId)
-            );
-        }
-
-        // The next registration in the namespace, for any definition, clears both.
-        var otherJob = $"heal-other-{Guid.NewGuid():N}";
-        await RegisterAsync(await CreateDefinitionAsync(otherJob, ct), otherJob, [Slot("only", cursor)], ct);
-
-        Assert.Null(Assert.Single(await ScheduleTestOps.ReadAsync(Db, orphanSlot, ct)).NextOccurrenceAtUtc);
-        Assert.Null(Assert.Single(await ScheduleTestOps.ReadAsync(Db, retiredSlot, ct)).NextOccurrenceAtUtc);
-    }
-
     [Fact(DisplayName = "A slot input with a format and no bytes registers and re-registers as a zero-length input, not NULL")]
     public async Task A_slot_input_with_a_format_and_no_bytes_registers_as_a_zero_length_input()
     {

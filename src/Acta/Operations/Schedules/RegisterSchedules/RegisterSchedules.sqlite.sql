@@ -334,41 +334,4 @@ JOIN {{schema}}.schedules js ON js.schedule_id = o.schedule_id
 LEFT JOIN {{schema}}.jobs j ON j.job_id = js.job_id
 LEFT JOIN {{schema}}.jobs_state r ON r.job_id = js.job_id;
 
--- A retire that commits after the worker read its stored schedules leaves this call writing cursors for the
--- retired definition's schedules; the heal clears every orphaned or retired schedule's cursor in the namespace.
-UPDATE {{schema}}.schedules_state AS st
-SET
-    next_occurrence_at_utc = NULL,
-
-    next_evaluation_at_utc = NULL,
-
-    evaluation_status_code = 30 /* ScheduleEvaluationStatusCode.Exhausted */,
-
-    version = st.version + 1,
-    modified_at_utc = {{now}}
-FROM {{schema}}.schedules s
-JOIN {{schema}}.definitions d ON d.definition_id = s.definition_id
-WHERE
-    st.schedule_id = s.schedule_id
-    AND st.namespace_id = @p_namespace_id
-    AND st.next_occurrence_at_utc IS NOT NULL
-    AND (
-        s.schedule_status_code = 230 /* ScheduleStatusCode.Orphaned */
-        OR d.definition_status_code = 240 /* DefinitionStatusCode.Retired */
-    );
-
--- The same race wrote the declaration's fingerprint over the one the retire cleared; put it back, so the comeback
--- still retimes.
-UPDATE {{schema}}.schedules AS s
-SET
-    timing_fingerprint = 'retired',
-    modified_at_utc = {{now}},
-    version = s.version + 1
-FROM {{schema}}.definitions d
-WHERE
-    d.definition_id = s.definition_id
-    AND s.namespace_id = @p_namespace_id
-    AND d.definition_status_code = 240 /* DefinitionStatusCode.Retired */
-    AND s.timing_fingerprint <> 'retired';
-
 SELECT definition_id, slot_id FROM temp._reg_slots;

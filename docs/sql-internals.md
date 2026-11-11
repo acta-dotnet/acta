@@ -187,8 +187,7 @@ child table, but it locks only the batch's own keys.
   index filter, so the hint always compiles.
 - `register_schedules` stays unhinted outside its schedule writes. It runs under its namespace's exclusive schedule lock
   ("Schedule lock"), so two calls in one namespace never race, and its set is one manifest's recurring definitions, which
-  stays small. Its updates of `schedules` and `schedules_state` seek by key ("Locking reads seek"), and the heal seeks
-  the namespace's cursors through `ix_schedules_state_namespace_next` by name.
+  stays small. Its updates of `schedules` and `schedules_state` seek by key ("Locking reads seek").
 - Row-at-a-time writes, updates that leave foreign-key columns alone, and writes to `tags`, `events`,
   and `alerts`, which carry no foreign key, validate nothing.
 - PostgreSQL checks each foreign key with a per-row key lookup in a trigger and needs no hint. SQLite

@@ -2409,7 +2409,6 @@
   - A deploy leaves an attempt in flight its due cursor, so a reclaim or re-arm of it still sees its occurrence
   - A deploy that changes a schedule's timing reseeds its cursor after now and audits the retime; an edit of its text does not
   - A deploy that drops a schedule records schedule.orphaned, and one that brings it back schedule.retimed, below Audit too
-  - Registration clears a cursor a racing fire left on an orphaned schedule or a retired definition's schedule
   - A slot input with a format and no bytes registers and re-registers as a zero-length input, not NULL
 
 ### A permanent slot that re-arms itself runs again within the same firing
