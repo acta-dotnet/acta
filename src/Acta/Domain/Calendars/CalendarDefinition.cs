@@ -335,10 +335,10 @@ internal static class CalendarDefinition
 
         private BusinessDayCalendar? Business(JsonElement e, string path)
         {
-            Known(e, path, "timeZone", "select", "of", "nth", "businessDays", "holidays", "time");
+            Known(e, path, "timeZone", "select", "period", "nth", "businessDays", "holidays", "time");
             var zone = Zone(e, path);
             var select = Choice(Required(e, path, "select"), $"{path}.select", "first", "last");
-            var of = Choice(Required(e, path, "of"), $"{path}.of", "week", "month", "quarter", "year");
+            var period = Choice(Required(e, path, "period"), $"{path}.period", "week", "month", "quarter", "year");
             var nth = 1;
             if (Optional(e, "nth") is { } n)
             {
@@ -358,7 +358,7 @@ internal static class CalendarDefinition
                 : new BusinessDayCalendar(
                     zone,
                     select == "last",
-                    Enum.Parse<BusinessPeriod>(of!, ignoreCase: true),
+                    Enum.Parse<BusinessPeriod>(period!, ignoreCase: true),
                     nth,
                     businessDays.ToHashSet(),
                     holidays.ToHashSet(),

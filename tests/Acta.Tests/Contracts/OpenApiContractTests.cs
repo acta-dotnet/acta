@@ -504,19 +504,13 @@ public sealed partial class OpenApiContractTests
 
     /// <summary>
     /// A schema with no type says "any value"; only the members no one type describes may say it: a JSON payload's json
-    /// in a request and in a response, the signal body, which sits in its operation, and a calendar definition's of, a
-    /// list of definitions in a union or an intersection and a period in a business-day calendar. A code or a ref rendered
-    /// empty would type as <c>any</c> in every generated client.
+    /// in a request and in a response, and the signal body, which sits in its operation. A code or a ref rendered empty
+    /// would type as <c>any</c> in every generated client.
     /// </summary>
     [Fact]
     public async Task No_empty_schema_outside_the_any_json_members()
     {
-        string[] anyJson =
-        [
-            "components.schemas.JobPayloadBody.json",
-            "components.schemas.StoredJobPayload.json",
-            "components.schemas.CalendarDefinition.of",
-        ];
+        string[] anyJson = ["components.schemas.JobPayloadBody.json", "components.schemas.StoredJobPayload.json"];
         var schemas = AllSchemas(JsonNode.Parse(await ActaOpenApiDocument.GenerateAsync())!);
         var empty = schemas.Where(entry => entry.Schema.AsObject().All(p => p.Key is "description")).Select(entry => entry.Where).ToList();
 

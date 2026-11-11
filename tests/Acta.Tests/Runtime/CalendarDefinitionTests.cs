@@ -171,9 +171,9 @@ public sealed class CalendarDefinitionTests
     public void A_business_day_source_selects_the_nth_eligible_date_of_each_period()
     {
         var lastOfMonth = Occurrence(
-            """{"kind":"business-day","timeZone":"UTC","select":"last","of":"month","holidays":["2027-01-29"],"time":"16:00"}"""
+            """{"kind":"business-day","timeZone":"UTC","select":"last","period":"month","holidays":["2027-01-29"],"time":"16:00"}"""
         );
-        var secondOfWeek = Occurrence("""{"kind":"business-day","timeZone":"UTC","select":"first","of":"week","nth":2,"time":"09:00"}""");
+        var secondOfWeek = Occurrence("""{"kind":"business-day","timeZone":"UTC","select":"first","period":"week","nth":2,"time":"09:00"}""");
 
         // January 2027 ends on a Sunday; the 29th is a holiday, so the last business day is Thursday the 28th.
         Assert.Equal(Utc(1, 28, 16), NextAfter(lastOfMonth, Utc(1, 1, 0)));
@@ -301,8 +301,10 @@ public sealed class CalendarDefinitionTests
     [Theory]
     [InlineData("""{"kind":"weekly-availability","weekly":[]}""", "$.kind: 'weekly-availability' is an availability calendar")]
     [InlineData("""{"kind":"explicit-instants","instants":["yesterday"]}""", "$.instants[0]: 'yesterday' is neither")]
-    [InlineData("""{"kind":"business-day","select":"middle","of":"month","time":"16:00"}""", "$.select: one of first, last.")]
-    [InlineData("""{"kind":"business-day","select":"first","of":"month","nth":0,"time":"16:00"}""", "$.nth: nth is a whole number")]
+    [InlineData("""{"kind":"business-day","select":"middle","period":"month","time":"16:00"}""", "$.select: one of first, last.")]
+    [InlineData("""{"kind":"business-day","select":"first","period":"month","nth":0,"time":"16:00"}""", "$.nth: nth is a whole number")]
+    [InlineData("""{"kind":"business-day","select":"last","of":"month","time":"16:00"}""", "$.period: required.")]
+    [InlineData("""{"kind":"business-day","select":"last","of":"month","time":"16:00"}""", "$.of: ")]
     [InlineData("""{"kind":"daily-local-time","times":["25:00"]}""", "$.times[0]: a time is HH:mm")]
     [InlineData("""{"kind":"daily-local-time"}""", "$.times: required.")]
     public void A_bad_occurrence_definition_names_each_problem_by_its_path(string json, string problem)

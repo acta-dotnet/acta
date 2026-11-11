@@ -93,13 +93,12 @@ internal static partial class ActaOpenApiDocument
             ),
             (
                 "of",
-                new OpenApiSchema
-                {
-                    Description =
-                        "In a union or an intersection, the operands: a list of at least one definition written inline, each of the "
-                        + "family's role in a union and each an availability definition in an intersection. In a business-day calendar, "
-                        + "the period to count in: week, month, quarter, or year. Required.",
-                }
+                List(
+                    "The operands of a union or an intersection: at least one definition written inline, each of the family's role "
+                        + "in a union and each an availability definition in an intersection. Required.",
+                    Ref(CalendarDefinitionSchema),
+                    minItems: 1
+                )
             ),
             (
                 "from",
@@ -135,6 +134,7 @@ internal static partial class ActaOpenApiDocument
             ),
             ("excludedDates", List("The dates a daily-local-time calendar skips.", Text("A date, yyyy-MM-dd."))),
             ("select", Text("Which end of the period a business-day calendar counts from: first or last. Required.")),
+            ("period", Text("The period a business-day calendar counts in: week, month, quarter, or year. Required.")),
             (
                 "nth",
                 new OpenApiSchema

@@ -65,7 +65,7 @@ public sealed partial class CalendarDefinitionSchemaTests
             "business-day",
             CalendarRoleCode.Occurrence,
             """
-            {"kind":"business-day","description":"Month end.","timeZone":"UTC","select":"last","of":"month","nth":2,
+            {"kind":"business-day","description":"Month end.","timeZone":"UTC","select":"last","period":"month","nth":2,
              "businessDays":["Monday","Tuesday","Wednesday"],"holidays":["2027-12-27"],"time":"08:00"}
             """
         ),

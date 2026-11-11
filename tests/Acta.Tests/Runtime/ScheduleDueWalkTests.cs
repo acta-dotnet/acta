@@ -66,7 +66,7 @@ public sealed class ScheduleDueWalkTests
         ),
         ["calendar daily in the gap"] = Calendar("""{"kind":"daily-local-time","times":["02:30","14:15"]}""", Ljubljana),
         ["calendar second business day of the week"] = Calendar(
-            """{"kind":"business-day","timeZone":"UTC","select":"first","of":"week","nth":2,"holidays":["2027-01-05"],"time":"09:00"}""",
+            """{"kind":"business-day","timeZone":"UTC","select":"first","period":"week","nth":2,"holidays":["2027-01-05"],"time":"09:00"}""",
             "UTC"
         ),
         ["calendar instants"] = Calendar(

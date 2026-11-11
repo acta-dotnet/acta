@@ -211,11 +211,11 @@ The step runs again as it is: a file nobody changed saves nothing, and its versi
 | `subtraction` | Availability | `from` and `minus`: inline availability definitions |
 | `explicit-instants` | Occurrence | `instants`: UTC instants (`2027-01-15T16:00:00Z`) or local date-times (`2027-01-15T16:00`) |
 | `daily-local-time` | Occurrence | `times` on `days` (every day when absent), minus `excludedDates` |
-| `business-day` | Occurrence | the `nth` (1 when absent) `first` or `last` business day (`select`) of each `week`, `month`, `quarter`, or `year` (`of`), over `businessDays` (Monday to Friday when absent) minus `holidays`, at a local `time` |
+| `business-day` | Occurrence | the `nth` (1 when absent) `first` or `last` business day (`select`) of each `week`, `month`, `quarter`, or `year` (`period`), over `businessDays` (Monday to Friday when absent) minus `holidays`, at a local `time` |
 | `at-opening` | Occurrence | `availability`: an inline availability definition, each of whose window starts is an occurrence |
 | `union` | Either | `of`: inline definitions of the calendar's role |
 
-- The `settlement-days` family above could be `{"kind":"business-day","select":"last","of":"month","time":"16:00"}`: the last weekday of each month at 16:00 in the schedule's zone.
+- The `settlement-days` family above could be `{"kind":"business-day","select":"last","period":"month","time":"16:00"}`: the last weekday of each month at 16:00 in the schedule's zone.
 - `timeZone`, on the kinds that read local times, is a zone id; `"schedule"`, or no `timeZone`, means the schedule's zone. A kind that combines other definitions takes none, since each operand names its own.
 - A local time in a DST gap resolves to the instant time resumes; an ambiguous one to its earlier instant.
 - A rule the kinds cannot express is a cron, an interval, or a list of `explicit-instants` that a job or a deploy step generates and publishes.

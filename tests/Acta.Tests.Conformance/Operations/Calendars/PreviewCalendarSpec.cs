@@ -48,7 +48,7 @@ public sealed class PreviewCalendarSpec : ActaStorageTestBase<ConformanceFixture
         var ct = TestContext.Current.CancellationToken;
         var calendar = new CalendarLookup(TestNamespace, Unique("eighth-of-week"));
         // It compiles, and no week has an eighth business day.
-        var never = """{"kind":"business-day","select":"first","of":"week","nth":8,"time":"09:00"}""";
+        var never = """{"kind":"business-day","select":"first","period":"week","nth":8,"time":"09:00"}""";
         Assert.Equal(
             ControlAction.Applied,
             (await Calendars.SaveDraftAsync(calendar, CalendarRoleCode.Occurrence, never, 0, ct: ct)).Action

@@ -24,6 +24,8 @@ Not tagged yet.
 
 **Stop reading or filtering on a schedule's origin**: `schedules.schedule_origin_code`, the `schedule_origin` and `schedule_origin_code` columns of `schedules_view`, `ScheduleOriginCode`, the `origin` field of the schedule responses, and the `origin` filter of the schedule list (`ListSchedulesQuery.Origin` and `origin` on `GET /schedules`) are gone. Every schedule comes from a `[Schedule]` declaration, so the origin was always `definition`.
 
+**Write a `business-day` calendar's period as `period`**: `{"kind":"business-day","select":"last","period":"month","time":"16:00"}`, where the member was `of`. `of` now names one thing in a calendar definition, the operands of a `union` or an `intersection`, and the OpenAPI document types it as a list of definitions; a `business-day` definition that still says `of` is refused with `$.of: not a property of this kind.` and `$.period: required.`
+
 **Read `jobs_view` by column name, or move one position**: `lane_name` follows `concurrency_key`, with the job's other keys, where it was the last column. A reader that takes columns by name sees no change.
 
 **Read who performed an operator action from `events.actor`, not from `details`**: an operator verb's event names its operator in the `actor` column, which `events_view` shows beside `event_message` and an event over HTTP carries as `actor`, and `ListEventsItem` gains `Actor` after `Message`. The `actor` fact of `details` no longer exists: `details` holds only machine-readable facts, so a verb whose only fact was its operator now writes no details. A handler's state reset names its job's id as the actor, as its details did.
