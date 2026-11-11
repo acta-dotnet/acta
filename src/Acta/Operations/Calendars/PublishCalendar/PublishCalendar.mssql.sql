@@ -143,13 +143,12 @@ BEGIN TRY
         INNER JOIN @rows r ON r.schedule_id = s.schedule_id
         WHERE r.retimed_details IS NOT NULL;
 
-        -- The control state stays: a paused schedule wakes at its pause's end, an orphaned one not at all.
+        -- A paused schedule stays paused and wakes at its pause's end. An orphaned one carries no retime and is not written.
         UPDATE st
         SET
             next_occurrence_at_utc = r.next_occurrence_at_utc,
             next_evaluation_at_utc = CASE
                 WHEN s.schedule_status_code = 30 /* ScheduleStatusCode.Paused */ THEN s.paused_until_utc
-                WHEN s.schedule_status_code = 230 /* ScheduleStatusCode.Orphaned */ THEN NULL
                 ELSE r.next_occurrence_at_utc END,
             evaluation_status_code = CASE WHEN r.next_occurrence_at_utc IS NULL THEN 30 /* ScheduleEvaluationStatusCode.Exhausted */ ELSE 10 /* ScheduleEvaluationStatusCode.Scheduled */ END,
             version = st.version + 1,

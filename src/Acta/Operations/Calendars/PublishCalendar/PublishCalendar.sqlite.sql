@@ -118,14 +118,13 @@ SET
     version = version + 1
 WHERE schedule_id IN (SELECT r.schedule_id FROM _pub_rows r WHERE r.retimed_details IS NOT NULL) AND EXISTS (SELECT 1 FROM _pub_valid);
 
--- The control state stays: a paused schedule wakes at its pause's end, an orphaned one not at all.
+-- A paused schedule stays paused and wakes at its pause's end. An orphaned one carries no retime and is not written.
 UPDATE {{schema}}.schedules_state
 SET
     next_occurrence_at_utc = (SELECT r.next_occurrence_at_utc FROM _pub_rows r WHERE r.schedule_id = schedules_state.schedule_id),
     next_evaluation_at_utc = (
         SELECT CASE
             WHEN s.schedule_status_code = 30 /* ScheduleStatusCode.Paused */ THEN s.paused_until_utc
-            WHEN s.schedule_status_code = 230 /* ScheduleStatusCode.Orphaned */ THEN NULL
             ELSE r.next_occurrence_at_utc END
         FROM _pub_rows r
         INNER JOIN {{schema}}.schedules s ON s.schedule_id = r.schedule_id
