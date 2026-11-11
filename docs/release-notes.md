@@ -50,6 +50,8 @@ Not tagged yet.
 
 **Write a backoff's jitter with `~`**: `"1m..8h x2 ~10%"`. The spellings `±10%` and `+-10%` are refused, in a `[Job]` at build time (ACTA0105) and in a definition override at the call, and `Backoff.ToString()` writes `~`. One spelling that every keyboard and every shell can type is the one that stays.
 
+**Read a stale calendar archive as a version conflict**: `ICalendars.ArchiveAsync` with an `expectedCurrentVersion` that is no longer current answers `VersionConflict`, as a draft and a publication do. It answered `Rejected`, which is also the answer while a live schedule binds the family, so a caller could not tell whether to read again or to unbind. Over HTTP the 409 carries `version-conflict`, and the dashboard says the calendar changed where it said that zero live schedules still bind it.
+
 ### Fixes
 
 - A deploy that brought a retired definition back, because the build declares it again, did not check its schedules' calendars with the rest. A calendar archived while the definition was retired then failed the deploy during registration with one schedule's error, where the calendar check lists every schedule and what its calendar lacks before anything is written. A returning definition's calendars are checked with the others.

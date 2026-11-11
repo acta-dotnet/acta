@@ -2025,7 +2025,7 @@
   - Archiving a family with no current version, or an unknown family, is NotFound
   - Archiving the current version applies, leaves the family without one, and records calendar.archived
   - An archive with no expected version archives whatever version is current, and audits that version
-  - A stale expected version, or a live schedule naming the family, rejects the archive until the schedule is orphaned
+  - A stale expected version is a VersionConflict, and a live schedule naming the family rejects the archive
 
 ### A family's bound schedules read back, across namespaces when shared
 - **Contract:** The schedules naming a family read back with timing and cursor, the namespace's own for a local family and every namespace's when shared.

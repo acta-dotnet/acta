@@ -68,8 +68,9 @@ audit AS (
 SELECT
     CASE
         WHEN t.calendar_id IS NULL THEN 2 /* ControlAction.NotFound */
-        WHEN a.calendar_id IS NULL THEN 3 /* ControlAction.Rejected */
-        ELSE 1 /* ControlAction.Applied */
+        WHEN a.calendar_id IS NOT NULL THEN 1 /* ControlAction.Applied */
+        WHEN t.version <> @p_expected_current_version THEN 5 /* ControlAction.VersionConflict */
+        ELSE 3 /* ControlAction.Rejected */
     END::SMALLINT AS action,
     t.version,
     COALESCE(t.dependent_count, 0) AS dependent_count

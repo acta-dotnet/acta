@@ -85,9 +85,9 @@ public interface ICalendars
 
     /// <summary>
     /// Archives the family's current version, after which the family has no current version until another is published.
-    /// NotFound when the family has no current version; Rejected when <paramref name="expectedCurrentVersion"/> is given and the
-    /// current version is another, or while a live schedule of an active definition names the family in its scope, answering how
-    /// many do. Applied records <c>calendar.archived</c> with <paramref name="reasonMessage"/> and <paramref name="actor"/>.
+    /// NotFound when the family has no current version; VersionConflict when <paramref name="expectedCurrentVersion"/> is given
+    /// and the current version is another; Rejected while a live schedule of an active definition names the family in its scope,
+    /// answering how many do. Applied records <c>calendar.archived</c> with <paramref name="reasonMessage"/> and <paramref name="actor"/>.
     /// </summary>
     ValueTask<ArchiveCalendarResponse> ArchiveAsync(
         CalendarLookup calendar,

@@ -88,10 +88,8 @@ public sealed class ArchiveCalendarSpec : ActaStorageTestBase<ConformanceFixture
         Assert.Equal(CalendarStatusCode.Archived, (await Calendars.GetAsync(calendar, 2, ct))!.ShownStatus);
     }
 
-    [Fact(
-        DisplayName = "A stale expected version, or a live schedule naming the family, rejects the archive until the schedule is orphaned"
-    )]
-    public async Task A_stale_version_or_a_live_dependent_rejects_the_archive()
+    [Fact(DisplayName = "A stale expected version is a VersionConflict, and a live schedule naming the family rejects the archive")]
+    public async Task A_stale_version_conflicts_and_a_live_dependent_rejects_the_archive()
     {
         var ct = TestContext.Current.CancellationToken;
         var calendar = new CalendarLookup(TestNamespace, Unique("office-hours"));
@@ -112,7 +110,8 @@ public sealed class ArchiveCalendarSpec : ActaStorageTestBase<ConformanceFixture
         await CalendarTestOps.RegisterAsync(Services, TestNamespaceId, defId, Unique("other-hours"), ["other"], ct);
         var orphaned = await Calendars.ArchiveAsync(calendar, 1, ct: ct);
 
-        Assert.Equal((ControlAction.Rejected, 1), (stale.Action, stale.Version));
+        // A stale version answers first, as on a draft and a publication: the caller reads again before it learns the rest.
+        Assert.Equal((ControlAction.VersionConflict, 1), (stale.Action, stale.Version));
         Assert.Equal((ControlAction.Rejected, 1, 1), (bound.Action, bound.Version, bound.DependentCount));
         Assert.Equal((ControlAction.Rejected, 1, 1), (anyVersion.Action, anyVersion.Version, anyVersion.DependentCount));
         Assert.Equal((ControlAction.Applied, 0), (orphaned.Action, orphaned.DependentCount));

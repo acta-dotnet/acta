@@ -68,6 +68,7 @@ SELECT
     CASE
         WHEN t.calendar_id IS NULL THEN 2 /* ControlAction.NotFound */
         WHEN t.applies = 1 THEN 1 /* ControlAction.Applied */
+        WHEN t.version <> @p_expected_current_version THEN 5 /* ControlAction.VersionConflict */
         ELSE 3 /* ControlAction.Rejected */
     END AS action,
     t.version,

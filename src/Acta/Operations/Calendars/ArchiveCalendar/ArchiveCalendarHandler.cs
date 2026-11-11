@@ -14,15 +14,14 @@ internal sealed class ArchiveCalendarHandler(IDbSession session, ISqlDialect dia
         var (jobNamespace, calendarName) = CalendarControl.Names(command.Calendar);
 
         // The event names the version the archive retires, so the batch is sent against a version: the caller's, or else
-        // the current version a refusal answers.
+        // the current version a conflict answers.
         var expected = command.ExpectedCurrentVersion ?? 0;
         for (var attempt = 0; ; attempt++)
         {
             var response = await ArchiveAsync(jobNamespace, calendarName, expected, command, ct);
             if (
                 command.ExpectedCurrentVersion is not null
-                || response is not { Action: ControlAction.Rejected, Version: { } current }
-                || current == expected
+                || response is not { Action: ControlAction.VersionConflict, Version: { } current }
                 || attempt == MaxReplans
             )
             {

@@ -94,8 +94,9 @@ BEGIN TRY
         CAST(
             CASE
                 WHEN @calendar_id IS NULL THEN 2 /* ControlAction.NotFound */
-                WHEN @archived = 0 THEN 3 /* ControlAction.Rejected */
-                ELSE 1 /* ControlAction.Applied */
+                WHEN @archived = 1 THEN 1 /* ControlAction.Applied */
+                WHEN @version <> @p_expected_current_version THEN 5 /* ControlAction.VersionConflict */
+                ELSE 3 /* ControlAction.Rejected */
             END AS SMALLINT
         ) AS action,
         @version AS version,

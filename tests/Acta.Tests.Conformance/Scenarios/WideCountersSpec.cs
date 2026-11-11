@@ -460,7 +460,7 @@ public sealed class WideCountersSpec : ActaRuntimeTestBase<ConformanceFixture, T
                 );
                 break;
             default:
-                Assert.Equal(ControlAction.Rejected, (await calendars.ArchiveAsync(calendar, wide, ct: ct)).Action);
+                Assert.Equal(ControlAction.VersionConflict, (await calendars.ArchiveAsync(calendar, wide, ct: ct)).Action);
                 break;
         }
 
