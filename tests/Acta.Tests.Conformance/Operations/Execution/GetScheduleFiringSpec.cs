@@ -40,7 +40,6 @@ public sealed class GetScheduleFiringSpec : ActaStorageTestBase<ConformanceFixtu
         Assert.NotNull(read);
         Assert.Equal(FiringEnvelope.ManualKind, read.Firing.Kind);
         Assert.Empty(read.Firing.Contributors);
-        Assert.Empty(read.Firing.TriggeringSchedules);
 
         // Another attempt's number, or another worker's lease, is no longer this attempt's job.
         Assert.Null(await ReadAsync(fence with { ExecutionNumber = fence.ExecutionNumber + 1 }, ct));

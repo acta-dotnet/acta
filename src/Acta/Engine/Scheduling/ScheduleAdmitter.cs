@@ -211,7 +211,7 @@ internal sealed class ScheduleAdmitter(
 
         var ordinal = groups.Count;
         var capacity = Capacity(slotStatus, first.FiringStatus);
-        var contributors = new List<FiringContributor>();
+        var contributors = new List<TriggeringSchedule>();
         var slotRows = new List<AdmitScheduleFiringsValues>();
         var checks = new List<AdmitScheduleFiringsValues>();
         var firingId = Guid.CreateVersion7();
@@ -395,8 +395,8 @@ internal sealed class ScheduleAdmitter(
     private static bool StartedFailing(DueSchedule s, ScheduleEvaluation e) =>
         e.Error is not null && s.EvaluationStatus != ScheduleEvaluationStatusCode.EvaluationError;
 
-    private static FiringContributor Contributor(DueSchedule s, AdmittedOccurrence admit) =>
-        new(s.ScheduleId, s.ScheduleName, admit.OccurrenceAtUtc, s.TimeZoneId ?? "UTC", admit.CoveredThroughUtc, s.TimingFingerprint);
+    private static TriggeringSchedule Contributor(DueSchedule s, AdmittedOccurrence admit) =>
+        new(s.ScheduleName, admit.OccurrenceAtUtc, s.TimeZoneId ?? "UTC", admit.CoveredThroughUtc);
 
     private static AdmitScheduleFiringsValues Row(
         int ordinal,

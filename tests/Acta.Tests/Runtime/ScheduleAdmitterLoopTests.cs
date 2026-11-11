@@ -82,7 +82,6 @@ public sealed class ScheduleAdmitterLoopTests
             ExpressionKind: ScheduleExpressionKindCode.Interval,
             MisfireStrategy: MisfireStrategyCode.CatchUpAll,
             IntervalAnchorAtUtc: null,
-            TimingFingerprint: "fingerprint",
             AvailabilityCalendarName: null,
             StartAtUtc: null,
             EndBeforeUtc: null,

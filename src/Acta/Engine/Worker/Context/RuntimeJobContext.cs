@@ -122,7 +122,7 @@ internal sealed partial class RuntimeJobContext(
     public override long ExecutionNumber { get; } = job.ExecutionNumber;
     public override int WorkerId { get; } = workerId;
     public override CancellationToken CancellationToken { get; } = cancellationToken;
-    public override IReadOnlyList<TriggeringSchedule> TriggeringSchedules { get; } = firing?.TriggeringSchedules ?? [];
+    public override IReadOnlyList<TriggeringSchedule> TriggeringSchedules { get; } = firing?.Contributors ?? [];
     public override Guid? FiringId { get; } = firing?.FiringId;
     public override DateTime? DeadlineAtUtc { get; } = deadlineAtUtc;
 

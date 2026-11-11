@@ -18,7 +18,6 @@ internal sealed record DueSchedule(
     ScheduleExpressionKindCode ExpressionKind,
     MisfireStrategyCode MisfireStrategy,
     DateTime? IntervalAnchorAtUtc,
-    string TimingFingerprint,
     string? AvailabilityCalendarName,
     DateTime? StartAtUtc,
     DateTime? EndBeforeUtc,
@@ -39,7 +38,6 @@ internal sealed record DueSchedule(
     CheckpointStatusCode? FiringStatus
 )
 {
-    /// <summary>The schedule's timing as stored.</summary>
     /// <summary>
     /// Whether this build knows every code the schedule holds. A newer build can store one this build does not have
     /// while both serve the namespace; the admitter's reads leave such a schedule out, and a publication leaves it be.
@@ -54,6 +52,7 @@ internal sealed record DueSchedule(
     private static bool Known<T>(T code)
         where T : struct, Enum => Enum.IsDefined(code) && !code.Equals(default(T));
 
+    /// <summary>The schedule's timing as stored.</summary>
     public ScheduleTiming Timing() =>
         new(Expression, ExpressionKind, TimeZoneId, IntervalAnchorAtUtc, AvailabilityCalendarName, StartAtUtc, EndBeforeUtc);
 }

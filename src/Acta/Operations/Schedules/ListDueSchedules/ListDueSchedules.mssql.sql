@@ -53,7 +53,6 @@ SELECT
     s.expression_kind_code AS expression_kind,
     s.misfire_strategy_code AS misfire_strategy,
     s.interval_anchor_at_utc,
-    s.timing_fingerprint,
     s.availability_calendar_name,
     s.start_at_utc,
     s.end_before_utc,
