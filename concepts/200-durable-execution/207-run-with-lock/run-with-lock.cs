@@ -36,10 +36,10 @@ namespace Acta.Concepts.RunWithLock
             // Named lock held for the action; same key serializes both concurrently-running jobs. To exclude the whole job instead, set ConcurrencyKey on enqueue (see 209-concurrency-key).
             await context.RunWithLockAsync(
                 "inventory",
-                async () =>
+                async token =>
                 {
                     Console.WriteLine($"[{input.Sku}] acquired lock, updating inventory...");
-                    await Task.Delay(1000, ct);
+                    await Task.Delay(1000, token);
                     Console.WriteLine($"[{input.Sku}] done, releasing lock");
                 },
                 ct: ct

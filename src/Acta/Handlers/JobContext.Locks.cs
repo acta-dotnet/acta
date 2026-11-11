@@ -8,19 +8,20 @@ public abstract partial class JobContext
 
     /// <summary>
     /// Runs <paramref name="action"/> while holding a mutual-exclusion lock on <paramref name="key"/>, an opaque user
-    /// key scoped to the job's namespace, so two namespaces hold the same key without contending. Acquisition is
-    /// immediate-then-retry with exponential backoff until the <paramref name="timeout"/> budget is spent (null is
-    /// about 30 s, <see cref="TimeSpan.Zero"/> one attempt); the lock is released when the action returns or throws.
+    /// key scoped to the job's namespace. Acquisition retries with exponential backoff until the
+    /// <paramref name="timeout"/> budget is spent (null is about 30 s, <see cref="TimeSpan.Zero"/> one attempt); the lock
+    /// is released when the action returns or throws. The action's token is cancelled with <paramref name="ct"/> and
+    /// with the attempt, which also ends when the hold may have lapsed.
     /// </summary>
     /// <exception cref="LockAcquisitionTimeoutException">The lock was not acquired within the budget.</exception>
-    public Task RunWithLockAsync(string key, Func<Task> action, TimeSpan? timeout = null, CancellationToken ct = default)
+    public Task RunWithLockAsync(string key, Func<CancellationToken, Task> action, TimeSpan? timeout = null, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(action);
         return RunWithLockAsync(
             key,
-            async () =>
+            async token =>
             {
-                await action();
+                await action(token);
                 return true;
             },
             timeout,
@@ -29,11 +30,12 @@ public abstract partial class JobContext
     }
 
     /// <summary>
-    /// Result-returning overload of <see cref="RunWithLockAsync(string, Func{Task}, TimeSpan?, CancellationToken)"/>.
+    /// Result-returning overload of
+    /// <see cref="RunWithLockAsync(string, Func{CancellationToken, Task}, TimeSpan?, CancellationToken)"/>.
     /// </summary>
     public async Task<TResult> RunWithLockAsync<TResult>(
         string key,
-        Func<Task<TResult>> action,
+        Func<CancellationToken, Task<TResult>> action,
         TimeSpan? timeout = null,
         CancellationToken ct = default
     )
@@ -62,7 +64,7 @@ public abstract partial class JobContext
                 {
                     // An acquire whose answer came too late to trust the hold cancels the attempt; the action never runs.
                     lct.ThrowIfCancellationRequested();
-                    return await action();
+                    return await action(lct);
                 }
                 finally
                 {

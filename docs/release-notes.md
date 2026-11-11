@@ -24,6 +24,8 @@ Not tagged yet.
 
 **Stop reading or filtering on a schedule's origin**: `schedules.schedule_origin_code`, the `schedule_origin` and `schedule_origin_code` columns of `schedules_view`, `ScheduleOriginCode`, the `origin` field of the schedule responses, and the `origin` filter of the schedule list (`ListSchedulesQuery.Origin` and `origin` on `GET /schedules`) are gone. Every schedule comes from a `[Schedule]` declaration, so the origin was always `definition`.
 
+**Give a `RunWithLockAsync` action a token parameter**: the action is `Func<CancellationToken, Task>` or `Func<CancellationToken, Task<TResult>>`, as a step's body is, so `() => ...` becomes `token => ...`. The token is cancelled with the call's own `ct` and with the attempt, which also ends when the lock's hold may have lapsed; an action that passes it on stops then.
+
 **Write a `business-day` calendar's period as `period`**: `{"kind":"business-day","select":"last","period":"month","time":"16:00"}`, where the member was `of`. `of` now names one thing in a calendar definition, the operands of a `union` or an `intersection`, and the OpenAPI document types it as a list of definitions; a `business-day` definition that still says `of` is refused with `$.of: not a property of this kind.` and `$.period: required.`
 
 **Read `jobs_view` by column name, or move one position**: `lane_name` follows `concurrency_key`, with the job's other keys, where it was the last column. A reader that takes columns by name sees no change.

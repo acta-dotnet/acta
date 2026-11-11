@@ -10,11 +10,42 @@ public sealed class JobContextLockReleaseTests
         var releaseFailure = new TimeoutException("release failed");
         var ctx = new RecordingJobContext { LockReleaseException = releaseFailure };
 
-        var result = await ctx.RunWithLockAsync("key", () => Task.FromResult(42), ct: TestContext.Current.CancellationToken);
+        var result = await ctx.RunWithLockAsync("key", _ => Task.FromResult(42), ct: TestContext.Current.CancellationToken);
 
         Assert.Equal(42, result);
         Assert.Equal(1, ctx.LockReleaseCalls);
         Assert.Same(releaseFailure, Assert.Single(ctx.LockReleaseFailures));
+    }
+
+    [Fact]
+    public async Task The_action_takes_a_token_the_attempt_and_the_caller_both_cancel()
+    {
+        using var attempt = new CancellationTokenSource();
+        using var caller = new CancellationTokenSource();
+        var ctx = new RecordingJobContext { Attempt = attempt };
+
+        var byAttempt = await ctx.RunWithLockAsync(
+            "key",
+            async token =>
+            {
+                await attempt.CancelAsync();
+                return token.IsCancellationRequested;
+            },
+            ct: caller.Token
+        );
+        Assert.True(byAttempt);
+
+        using var second = new CancellationTokenSource();
+        var byCaller = await new RecordingJobContext { Attempt = second }.RunWithLockAsync(
+            "key",
+            async token =>
+            {
+                await caller.CancelAsync();
+                return token.IsCancellationRequested;
+            },
+            ct: caller.Token
+        );
+        Assert.True(byCaller);
     }
 
     [Fact]
@@ -24,7 +55,7 @@ public sealed class JobContextLockReleaseTests
         var ctx = new RecordingJobContext { LockReleaseException = new TimeoutException("release failed") };
 
         var thrown = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            ctx.RunWithLockAsync<int>("key", () => Task.FromException<int>(actionFailure), ct: TestContext.Current.CancellationToken)
+            ctx.RunWithLockAsync<int>("key", _ => Task.FromException<int>(actionFailure), ct: TestContext.Current.CancellationToken)
         );
 
         Assert.Same(actionFailure, thrown);
@@ -44,7 +75,7 @@ public sealed class JobContextLockReleaseTests
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
             ctx.RunWithLockAsync(
                 "key",
-                () =>
+                _ =>
                 {
                     ran = true;
                     return Task.CompletedTask;
@@ -65,7 +96,7 @@ public sealed class JobContextLockReleaseTests
         var ctx = new RecordingJobContext { LockReleaseException = new TimeoutException("release failed") };
 
         var thrown = await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
-            ctx.RunWithLockAsync<int>("key", () => Task.FromCanceled<int>(cts.Token), ct: TestContext.Current.CancellationToken)
+            ctx.RunWithLockAsync<int>("key", _ => Task.FromCanceled<int>(cts.Token), ct: TestContext.Current.CancellationToken)
         );
 
         Assert.Equal(cts.Token, thrown.CancellationToken);

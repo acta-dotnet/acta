@@ -17,15 +17,15 @@ public static class LockContender
     public static Task Run(LockContention input, JobContext ctx, CancellationToken ct) =>
         ctx.RunWithLockAsync(
             LockHolder.LockName,
-            async () =>
+            async token =>
             {
-                await ctx.NoteAsync(InsideNote, ct);
+                await ctx.NoteAsync(InsideNote, token);
                 switch (input.Inside)
                 {
                     case "throw":
                         throw new InvalidOperationException("the locked action failed");
                     case "wait":
-                        await ctx.WaitSignalAsync("go", ct);
+                        await ctx.WaitSignalAsync("go", token);
                         break;
                 }
             },

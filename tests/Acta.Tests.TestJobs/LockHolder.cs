@@ -4,7 +4,7 @@ using Acta;
 namespace TestJobs;
 
 /// <summary>
-/// A handler that acquires a <see cref="JobContext.RunWithLockAsync(string, Func{Task}, TimeSpan?, CancellationToken)"/>
+/// A handler that acquires a <see cref="JobContext.RunWithLockAsync(string, Func{CancellationToken, Task}, TimeSpan?, CancellationToken)"/>
 /// lock and holds it inside the critical section until the test releases it (happy path) or the
 /// attempt token is cancelled (lost-lock path). Per-namespace signals keep parallel runs isolated.
 /// Used to prove the worker heartbeat extends handler-acquired locks and cancels the attempt when one
@@ -39,12 +39,12 @@ public static class LockHolder
     public static Task Run(JobContext ctx, CancellationToken ct) =>
         ctx.RunWithLockAsync(
             LockName,
-            async () =>
+            async token =>
             {
                 _entered[ctx.JobNamespace].SetResult();
                 try
                 {
-                    await _release[ctx.JobNamespace].Task.WaitAsync(ct);
+                    await _release[ctx.JobNamespace].Task.WaitAsync(token);
                 }
                 catch (OperationCanceledException)
                 {
