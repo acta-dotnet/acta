@@ -212,6 +212,21 @@ public sealed class CalendarDefinitionTests
         Assert.DoesNotContain((byte)'\n', a.CanonicalJson.ToArray());
     }
 
+    // A weekday is one English name. An enum parse also took a number, a padded name, and a comma-separated list, and
+    // read each as some day or as none.
+    [Theory]
+    [InlineData("\"1\"")]
+    [InlineData("\"Monday,Tuesday\"")]
+    [InlineData("\" Monday\"")]
+    public void A_weekday_that_is_no_name_is_refused(string day)
+    {
+        var json = $$"""{"kind":"daily-local-time","times":["09:00"],"days":[{{day}}]}""";
+
+        var ex = Assert.Throws<CalendarDefinitionException>(() => CalendarDefinition.Compile(CalendarRoleCode.Occurrence, json));
+
+        Assert.Contains("$.days[0]: a weekday is Monday to Sunday.", ex.Problems);
+    }
+
     // A week that never closes is answered as far as its scan goes, and the next answer starts inside that window: an
     // opening read from it would be an instant nothing opened at, alone or through a union.
     [Theory]
