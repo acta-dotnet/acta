@@ -99,6 +99,48 @@ public sealed class CalendarDefinitionTests
     }
 
     [Fact]
+    public void A_union_with_an_always_open_week_answers_without_following_it_for_ever()
+    {
+        // The weekly calendar answers an always-open week as one window to the end of its scan, so the union kept
+        // asking again past each end, until the date arithmetic overflowed the calendar.
+        var always =
+            """{"kind":"weekly-availability","timeZone":"UTC","weekly":[{"days":["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"],"windows":[["00:00","24:00"]]}]}""";
+        var mornings = """{"kind":"weekly-availability","timeZone":"UTC","weekly":[{"days":["Monday"],"windows":[["08:00","12:00"]]}]}""";
+        var union = Availability($$"""{"kind":"union","of":[{{always}},{{mornings}}]}""");
+        var at = Utc(1, 4, 13);
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+
+        var window = WindowAt(union, at);
+
+        Assert.NotNull(window);
+        Assert.True(window.Value.StartUtc <= at);
+        Assert.True(window.Value.EndUtc > at.AddDays(365), $"the window ended at {window.Value.EndUtc:O}");
+        Assert.True(watch.Elapsed < TimeSpan.FromSeconds(1), $"the answer took {watch.Elapsed}");
+    }
+
+    [Fact]
+    public void At_opening_over_a_union_open_for_two_months_opens_once()
+    {
+        // Two calendars open on alternate days for ten weeks make one open run, which the union answers whole, so its
+        // only opening is its start.
+        static string Days(int parity) =>
+            string.Join(
+                ',',
+                Enumerable
+                    .Range(0, 70)
+                    .Where(day => day % 2 == parity)
+                    .Select(day => $"\"{new DateOnly(2027, 1, 1).AddDays(day):yyyy-MM-dd}\":[[\"00:00\",\"24:00\"]]")
+            );
+        static string Operand(int parity) =>
+            """{"kind":"weekly-availability","timeZone":"UTC","weekly":[],"dateOverrides":{""" + Days(parity) + "}}";
+        var union = """{"kind":"union","of":[""" + Operand(0) + "," + Operand(1) + "]}";
+        var openings = Occurrence("""{"kind":"at-opening","availability":""" + union + "}");
+
+        Assert.Equal(Utc(1, 1, 0), NextAfter(openings, Utc(12, 31, 0, year: 2026)));
+        Assert.Null(NextAfter(openings, Utc(1, 1, 0)));
+    }
+
+    [Fact]
     public void Explicit_instants_resolve_locals_in_the_zone_and_exhaust()
     {
         var fixedDates = Occurrence(

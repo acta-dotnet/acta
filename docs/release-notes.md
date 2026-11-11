@@ -26,6 +26,7 @@ Not tagged yet.
 - On PostgreSQL, a batch enqueue that waited on a lane or a parent while one of its namespaces was suspended committed the other rows and then threw, so a retry without deduplication keys enqueued those rows twice: the staging dropped the rows of a namespace whose status changed after the batch's check. A batch that passed the check now lands whole.
 - On PostgreSQL and SQL Server, a batch enqueue naming a tenant that was suspended or resumed at the same moment could store its jobs without that tenant, or with the parent's: the tenant was resolved only while Active, a statement apart from its check. A named tenant now resolves by name, and a child takes its parent's tenant only when it names none.
 - A schedule with an expiry, parked as `waiting-for-capacity` on an occurrence that had not aged past it yet, had no wake of its own, so the occurrence never expired while the slot stayed busy, and an `ExpireAction = Pause` schedule never paused. It now wakes when the waiting occurrence expires, as `waiting-for-capacity` describes.
+- A `union` availability calendar with an always-open week among its operands threw on every evaluation, preview, and deploy: it followed the week's touching windows until the date passed year 9999. A union now follows touching windows as far ahead as a weekly calendar scans, so a run that ends is answered whole, and up to a month back.
 
 ## 1.0.0-rc.9
 
