@@ -33,6 +33,19 @@ public static class JobSignalProbes
         }
     }
 
+    // Reads one signal twice in a pass, then waits on another, so a replay reads the first again. It answers what its
+    // first pass read, then what the pass that finished read.
+    [Job("job-wait-signal-twice")]
+    public static async Task<string> WaitSignalTwice(JobContext ctx, CancellationToken ct)
+    {
+        var first = await ctx.WaitSignalAsync<ReviewDecision>("review", ct);
+        var second = await ctx.WaitSignalAsync<ReviewDecision>("review", ct);
+        var read = $"{first!.Comment}|{second!.Comment}";
+        var firstPass = await ctx.GetOrSetVariableAsync("first-pass", () => read, ct);
+        await ctx.WaitSignalAsync("go", ct);
+        return $"{firstPass} then {read}";
+    }
+
     [Job("job-wait-signal-typed")]
     public static async Task<ReviewDecision> WaitSignalTyped(JobContext ctx, CancellationToken ct)
     {

@@ -14,6 +14,17 @@ public sealed class DeadlineProbes
     public static async Task Strict(JobContext ctx, CancellationToken ct) => await ctx.SetVariableAsync("ran", true, ct);
 
     /// <summary>
+    /// Strict one-minute deadline around an unbounded wait: long enough to reach the wait, and overdue once a spec
+    /// back-dates the job. Records "ran-after" so a spec can assert the handler did not resume.
+    /// </summary>
+    [Job("deadline-strict-wait-probe", Deadline = "PT1M")]
+    public static async Task StrictWait(JobContext ctx, CancellationToken ct)
+    {
+        await ctx.WaitSignalAsync("go", ct);
+        await ctx.SetVariableAsync("ran-after", true, ct);
+    }
+
+    /// <summary>
     /// Advisory 1s deadline. Records ctx.IsOverdue; returns normally so the job lands Succeeded.
     /// </summary>
     [Job("deadline-advisory-probe", Deadline = "PT1S", DeadlineBehavior = DeadlineBehaviorCode.Advisory)]

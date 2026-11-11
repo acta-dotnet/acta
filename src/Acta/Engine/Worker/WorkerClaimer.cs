@@ -63,7 +63,7 @@ internal sealed class WorkerClaimer(
                     permits = await TakeFreePermitsAsync(1, settle: handedOff, stop.Token);
 
                     var claimedAt = Stopwatch.GetTimestamp();
-                    if (claimFrom is null || Stopwatch.GetElapsedTime(headClaimedAt, claimedAt) >= HeadClaimInterval)
+                    if (ClaimsFromHead(claimFrom, Stopwatch.GetElapsedTime(headClaimedAt, claimedAt)))
                     {
                         claimFrom = null;
                         headClaimedAt = claimedAt;
@@ -160,6 +160,12 @@ internal sealed class WorkerClaimer(
         } while (settle && permits > before && permits < _maxClaim);
         return permits;
     }
+
+    /// <summary>
+    /// Whether a claim seeks each band from its head: the claim before it left no watermark, or a head claim is due.
+    /// </summary>
+    internal static bool ClaimsFromHead(DateTime? claimFrom, TimeSpan sinceHeadClaim) =>
+        claimFrom is null || sinceHeadClaim >= HeadClaimInterval;
 
     /// <summary>
     /// Where the next claim starts: a full claim's latest due instant less the margin. A short claim means the queue

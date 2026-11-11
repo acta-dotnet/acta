@@ -118,6 +118,25 @@ public sealed class WorkerClaimerTests
         Assert.Null(WorkerClaimer.NextClaimFrom([Claimed(DateTime.MinValue)], asked: 1));
     }
 
+    [Theory(
+        DisplayName = "While claims come back full, a claim starts at each band's head once a second has passed since the last that did"
+    )]
+    [InlineData(999, false)]
+    [InlineData(1000, true)]
+    [InlineData(5000, true)]
+    public void A_claim_behind_a_full_one_returns_to_the_head_each_second(int sinceHeadClaimMs, bool fromHead)
+    {
+        var watermark = new DateTime(2026, 10, 16, 12, 0, 0, DateTimeKind.Utc);
+
+        Assert.Equal(fromHead, WorkerClaimer.ClaimsFromHead(watermark, TimeSpan.FromMilliseconds(sinceHeadClaimMs)));
+    }
+
+    [Fact(DisplayName = "A claim with no watermark starts at each band's head however recently one did")]
+    public void A_claim_with_no_watermark_starts_at_the_head()
+    {
+        Assert.True(WorkerClaimer.ClaimsFromHead(null, TimeSpan.Zero));
+    }
+
     private static ClaimedJob Claimed(DateTime due) =>
         new(
             JobId: 1,

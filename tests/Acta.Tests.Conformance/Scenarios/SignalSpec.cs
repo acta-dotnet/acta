@@ -174,6 +174,25 @@ public sealed class SignalSpec : ActaRuntimeTestBase<ConformanceFixture, TestJob
         Assert.Equal(decision, await Jobs.GetResultAsync<ReviewDecision>(enqueued, ct));
     }
 
+    [Fact(DisplayName = "A wait on a signal already set reads its value each time, and a later raise replaces what a replay reads")]
+    public async Task Set_signal_is_read_not_consumed()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-wait-signal-twice", JobPayload.None), ct);
+        await Jobs.RaiseSignalAsync(enqueued, "review", new ReviewDecision(true, "one"), ct: ct);
+
+        // Both waits of the pass read the value that was set, and the job then waits on another name.
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
+        var second = await Jobs.RaiseSignalAsync(enqueued, "review", new ReviewDecision(false, "two"), ct: ct);
+        Assert.Equal(JobStatusCode.Suspended, second.Status);
+
+        await Jobs.RaiseSignalAsync(enqueued, "go", JobPayload.None, ct: ct);
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
+
+        // A set signal stays set: the replay's waits read what the later raise stored.
+        Assert.Equal("one|one then two|two", await Jobs.GetResultAsync<string>(enqueued, ct));
+    }
+
     [Fact(DisplayName = "A presence signal sets the checkpoint with a null payload")]
     public async Task Presence_signal_has_null_payload()
     {

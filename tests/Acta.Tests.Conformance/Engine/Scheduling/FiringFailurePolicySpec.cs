@@ -17,12 +17,19 @@ internal static class UnsupportedPingHandler
     public static Task Run(JobContext ctx, CancellationToken ct) => throw new NotSupportedException("the firing cannot run");
 }
 
-/// <summary>Scheduled definitions that always fail: one under each firing failure policy, and one that fails without a retry.</summary>
+/// <summary>Ends its own job with ctx.FailAsync, the handler's verdict on the job rather than a firing that failed.</summary>
+internal static class SelfFailingPingHandler
+{
+    public static Task Run(JobContext ctx, CancellationToken ct) => ctx.FailAsync("the handler gave up", ct);
+}
+
+/// <summary>Scheduled definitions that always fail: one under each firing failure policy, one that fails without a retry, and one whose handler fails its own job.</summary>
 public sealed class FiringFailurePolicyManifest : IJobManifest
 {
     public const string PausingJobName = "policy-pause";
     public const string ContinuingJobName = "policy-continue";
     public const string NonRetryableJobName = "policy-non-retryable";
+    public const string SelfFailingJobName = "policy-handler-fail";
     public const string ScheduleName = "every-5-minutes";
 
     public static JobDescriptorManifest Descriptors { get; } =
@@ -36,6 +43,15 @@ public sealed class FiringFailurePolicyManifest : IJobManifest
                 Invoker = static async (_, _, ctx, ct) =>
                 {
                     await UnsupportedPingHandler.Run(ctx, ct);
+                    return new JobHandlerOutput(false, null);
+                },
+            },
+            Descriptor(SelfFailingJobName, FiringFailurePolicyCode.PauseScheduling) with
+            {
+                HandlerType = typeof(SelfFailingPingHandler),
+                Invoker = static async (_, _, ctx, ct) =>
+                {
+                    await SelfFailingPingHandler.Run(ctx, ct);
                     return new JobHandlerOutput(false, null);
                 },
             },
@@ -190,6 +206,25 @@ public sealed class FiringFailurePolicySpec : ActaRuntimeTestBase<ConformanceFix
         await AdmitAtAsync(slotId, occurrence.AddMinutes(5), ct);
         Assert.Equal(RunOnceStatus.Failed, await Runtime.RunOnceAsync(slotId, ct));
         Assert.Equal(2, (await ReadJobAsync(slotId, ct)).ExecutionNumber);
+    }
+
+    [Fact(DisplayName = "A handler's own fail lands the permanent job Failed and pauses no schedule, even under PauseScheduling")]
+    public async Task A_handlers_own_fail_stops_the_job_and_pauses_nothing()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var slotId = await ScheduleTestOps.SlotIdAsync(Db, TestNamespace, FiringFailurePolicyManifest.SelfFailingJobName, ct);
+        var occurrence = await CursorAsync(slotId, ct);
+
+        await AdmitAtAsync(slotId, occurrence, ct);
+        Assert.Equal(RunOnceStatus.Failed, await Runtime.RunOnceAsync(slotId, ct));
+
+        // The handler ended the job, which is its verdict on the job and not a firing that failed: the job stops until an
+        // operator restarts it, and the policy, which answers a failed firing, pauses nothing.
+        Assert.Equal(JobStatusCode.Failed, (await ReadJobAsync(slotId, ct)).Status);
+        var schedule = Assert.Single(await ScheduleTestOps.ReadAsync(Db, slotId, ct));
+        Assert.Equal(ScheduleStatusCode.Active, schedule.Status);
+        Assert.Null(schedule.PauseMessage);
+        Assert.Equal(0, await CountEventsAsync(slotId, EventCode.SchedulePaused, ct));
     }
 
     [Fact(DisplayName = "A lost attempt that spends the budget applies the policy on reclaim as a completion would")]

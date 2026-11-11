@@ -715,6 +715,12 @@
   - A caller's cancel of an executing job below Audit records the cancel and not the attempt's yield
   - A raised signal sets its checkpoint at every recording level and writes its event only at Audit
 
+### Each control verb applies or is rejected by the job's status
+- **Contract:** A control verb applies from each status the operator guide's table marks applied and is rejected from every other, for an ordinary and an Idle permanent job.
+- **Guarantees:**
+  - A verb applies (A) or is rejected (-) from each status of an ordinary job as the table says
+  - A verb applies or is rejected from an Idle permanent job as the table says
+
 ### Handler Fail Cancel Pause finalize the attempt without returning to user code
 - **Contract:** Handler control verbs and non-retryable exceptions finalize the attempt without returning to user code, budget untouched and no result written.
 - **Guarantees:**
@@ -1014,6 +1020,8 @@
 - **Guarantees:**
   - Strict admission cancels without running the handler
   - Strict blocks a retry past the deadline
+  - Strict leaves a job suspended on an unbounded wait alone and cancels it when it is next claimed
+  - A restart of a job past its Strict deadline is cancelled again at admission
   - Advisory never auto-terminates
 
 ### A handler exceeding its timeout fails with the timeout reason
@@ -1106,6 +1114,12 @@
 - **Contract:** A registered job enqueued through IJobs is claimed, executed and lands Succeeded with the canonical claim/start/finish timeline and a deserializable result.
 - **Guarantees:**
   - Job completes Succeeded with a Started then Finished(Succeeded, Executing to Succeeded) timeline and a result that deserializes to what the handler returned
+
+### A handler lock admits one job's action at a time and is free when it ends
+- **Contract:** RunWithLockAsync runs one job's action at a time, throws when its wait budget is spent, and frees the lock when the action returns, throws or suspends.
+- **Guarantees:**
+  - A job that asks for a lock another job is inside never runs its action and fails with the timeout
+  - The lock is free for the next job when the action inside it throws or suspends
 
 ### Input deserialization failures settle the attempt and stay on the timeline
 - **Contract:** A payload deserialization exception follows normal failure and retry semantics and records an operator-readable reason on JobExecutionFinished.
@@ -1559,6 +1573,11 @@
   - Rows of a transaction that commits second relay after a younger transaction's rows that committed first
   - A rolled-back producer's row never relays and holds nothing behind it
   - An open producer on one lane holds no other lane
+
+### A staged delay counts from the relay's ingest
+- **Contract:** A staged DelaySeconds is resolved on the ledger's clock when the relay enqueues the job, not from when the row was staged.
+- **Guarantees:**
+  - A row staged two hours ago with an hour's delay runs an hour after the relay ingests it
 
 ### AddOutboxRelay dispatches sys.outbox and a broken source fails only it
 - **Contract:** A worker with AddOutboxRelay registers and dispatches sys.outbox, and an unavailable source fails only that tick, which retries within a minute.
@@ -2065,12 +2084,15 @@
   - A publication with no expected version retimes every bound schedule from the new version and audits the retime
   - A publication leaves a bound schedule this build cannot read as it is
   - An overdue occurrence refuses a publication until the caller discards it as a skipped range
+  - An admission planned before a publication discarded its overdue occurrence applies nothing, and the cursor is the publication's
   - An apply whose plan misses a schedule naming the family rejects, and the publication plans it again
   - A publication is a conflict on a stale expected version and rejected for a version that is no draft
   - Publishing the current version again is AlreadyInState and leaves every bound schedule as it was, an overdue one under Refuse included
   - Two publications of one draft at the same moment publish it once: the other answers AlreadyInState, and the bound schedule is retimed once
   - A preview shows the candidate beside the current version and the bound schedules with their totals
   - An availability publication moves a cron schedule's next tick into the new window
+  - A publication retimes a paused schedule, which stays paused, and leaves an orphaned one as it is
+  - A publication is refused, with the count, when more schedules bind the family than one publication retimes
 
 ### A calendar draft saves as the family's next version under its expected latest
 - **Contract:** A draft saves as the next version only against the family's latest and role and with new content, writes nothing otherwise, and records calendar.draft-saved.
@@ -2173,6 +2195,7 @@
   - A cursor-only group parks a member on a busy slot without touching the slot
   - A slot group applies nothing when a member it left unchanged had its declaration changed after the plan read it
   - A per-occurrence plan read before its capacity was lowered admits nothing, and the outstanding count stays
+  - One plan applied by two admitters at once, and again after its answer was lost, admits its occurrence once: one root, one charge
   - A slot plan read before a suspension committed admits nothing
   - A per-occurrence plan read before a suspension committed inserts no root and charges nothing
   - An admission waits for a suspension that holds the schedule lock, then admits nothing
@@ -2229,6 +2252,7 @@
   - Under PauseScheduling the failed firing pauses the schedule with the reason, and a resume puts it back in front of the admitter
   - Under Continue the failed firing leaves the schedule scheduled, and the next occurrence fires
   - An exception no retry can change fails the firing at once and leaves the permanent job for its next occurrence
+  - A handler's own fail lands the permanent job Failed and pauses no schedule, even under PauseScheduling
   - A lost attempt that spends the budget applies the policy on reclaim as a completion would
   - The policy's pause is recorded below Audit, on a completion and on a reclaim
 
@@ -2440,6 +2464,11 @@
   - Inside the migration transaction it reads the history table that transaction just created
   - Without a history table the read fails with the provider's error
 
+### Operator views return the same columns in the same order on every provider
+- **Contract:** Each operator view returns exactly its pinned columns, in order, on every provider.
+- **Guarantees:**
+  - An operator view returns its pinned columns in order
+
 ### The baseline installs exactly the modelled entity tables
 - **Contract:** Applying the baseline to a fresh schema installs exactly the modelled entity tables.
 - **Guarantees:**
@@ -2502,6 +2531,7 @@
   - Raise sets the checkpoint and releases a Suspended job to Ready, then it completes
   - A signal raised before the wait is observed without suspending the job
   - A typed signal round-trips its payload to the handler
+  - A wait on a signal already set reads its value each time, and a later raise replaces what a replay reads
   - A presence signal sets the checkpoint with a null payload
   - A duplicate raise is last-writer-wins
   - Raise sets the checkpoint but does not reactivate a paused job

@@ -435,17 +435,19 @@ public sealed class WideCountersSpec : ActaRuntimeTestBase<ConformanceFixture, T
         );
         Assert.Equal(ControlAction.Applied, first.Action);
         Assert.Equal(ControlAction.Applied, (await calendars.PublishAsync(calendar, first.Version!.Value, ct: ct)).Action);
+        // Cut to 32 bits, this is the version just published: a narrowed carrier would find the family's own version.
+        var wide = (1L << 32) + first.Version.Value;
 
         switch (verb)
         {
             case "read":
-                Assert.Null(await calendars.GetAsync(calendar, PlantedVersion, ct));
+                Assert.Null(await calendars.GetAsync(calendar, wide, ct));
                 break;
             case "preview":
-                Assert.Null(await calendars.PreviewAsync(calendar, PlantedVersion, ct: ct));
+                Assert.Null(await calendars.PreviewAsync(calendar, wide, ct: ct));
                 break;
             case "publish":
-                Assert.Equal(ControlAction.NotFound, (await calendars.PublishAsync(calendar, PlantedVersion, ct: ct)).Action);
+                Assert.Equal(ControlAction.NotFound, (await calendars.PublishAsync(calendar, wide, ct: ct)).Action);
                 break;
             case "publish-expected":
                 // A real candidate, published against a current version nobody saw.
@@ -454,11 +456,11 @@ public sealed class WideCountersSpec : ActaRuntimeTestBase<ConformanceFixture, T
                 Assert.Equal(ControlAction.Applied, second.Action);
                 Assert.Equal(
                     ControlAction.VersionConflict,
-                    (await calendars.PublishAsync(calendar, second.Version!.Value, PlantedVersion, ct: ct)).Action
+                    (await calendars.PublishAsync(calendar, second.Version!.Value, wide, ct: ct)).Action
                 );
                 break;
             default:
-                Assert.Equal(ControlAction.Rejected, (await calendars.ArchiveAsync(calendar, PlantedVersion, ct: ct)).Action);
+                Assert.Equal(ControlAction.Rejected, (await calendars.ArchiveAsync(calendar, wide, ct: ct)).Action);
                 break;
         }
 

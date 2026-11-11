@@ -26,8 +26,8 @@ internal static class EventReason
     public const string DeadlineExceeded = "deadline-exceeded";
 
     /// <summary>
-    /// The worker aborted the attempt mid-flight (lease renewal at risk, a held lock lost, or a step's ownership
-    /// unconfirmed); retried under the failure budget, and no alert of its own.
+    /// The worker aborted the attempt mid-flight (lease renewal at risk, a held lock lost, or a step its own attempt
+    /// changed before it completed); retried under the failure budget, and no alert of its own.
     /// </summary>
     public const string AttemptAborted = "attempt-aborted";
 

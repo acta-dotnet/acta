@@ -66,6 +66,52 @@ public sealed class DeadlineSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
         Assert.Equal(EventReason.DeadlineExceeded, yielded.Reason);
     }
 
+    [Fact(DisplayName = "Strict leaves a job suspended on an unbounded wait alone and cancels it when it is next claimed")]
+    public async Task Strict_does_not_end_a_suspended_job_until_it_is_claimed()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "deadline-strict-wait-probe", JobPayload.None), ct);
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
+        await MakeOverdueAsync(enqueued.JobId, ct);
+
+        // A deadline is read at admission, and a job that waits is not claimed: nothing ends it while it waits.
+        Assert.Equal(RunOnceStatus.NothingClaimed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(JobStatusCode.Suspended, (await Jobs.GetAsync(enqueued, ct))!.Status);
+
+        // The raise only releases the job: it is the claim that follows that reads the deadline.
+        Assert.Equal(JobStatusCode.Ready, (await Jobs.RaiseSignalAsync(enqueued, "go", JobPayload.None, ct: ct)).Status);
+        await Runtime.RunOnceAsync(enqueued, ct).WaitAsync(SpecWaits.Gate, ct);
+
+        var snapshot = await Jobs.GetAsync(enqueued, ct);
+        Assert.Equal(JobStatusCode.Cancelled, snapshot!.Status);
+        Assert.Equal(0, snapshot.FailureCount);
+        Assert.Equal(2, snapshot.ExecutionNumber);
+        Assert.False(await HasVariableAsync(enqueued.JobId, "ran-after", ct));
+    }
+
+    [Fact(DisplayName = "A restart of a job past its Strict deadline is cancelled again at admission")]
+    public async Task Restart_past_a_strict_deadline_cancels_at_admission()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        // A minute's deadline: were a restart to count the deadline afresh, the handler would run and suspend on its wait.
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "deadline-strict-wait-probe", JobPayload.None), ct);
+        await MakeOverdueAsync(enqueued.JobId, ct);
+        await Runtime.RunOnceAsync(enqueued, ct).WaitAsync(SpecWaits.Gate, ct);
+        Assert.Equal(JobStatusCode.Cancelled, (await Jobs.GetAsync(enqueued, ct))!.Status);
+
+        // A restart resets the failure budget and retention, not the deadline, which counts from the job's creation.
+        var restarted = await Jobs.RestartAsync(enqueued, ct: ct);
+        Assert.Equal((ControlAction.Applied, JobStatusCode.Ready), (restarted.Action, restarted.Status));
+        await Runtime.RunOnceAsync(enqueued, ct).WaitAsync(SpecWaits.Gate, ct);
+
+        var snapshot = await Jobs.GetAsync(enqueued, ct);
+        Assert.Equal(JobStatusCode.Cancelled, snapshot!.Status);
+        Assert.Equal(0, snapshot.FailureCount);
+        Assert.Equal(2, snapshot.ExecutionNumber);
+        var events = await GetEventsByJobId.Run(Services, enqueued.JobId, ct);
+        Assert.Equal(2, events.Count(e => e.EventCode == EventCode.JobExecutionYielded && e.Reason == EventReason.DeadlineExceeded));
+    }
+
     [Fact(DisplayName = "Advisory never auto-terminates")]
     public async Task Advisory_runs_handler_even_when_overdue()
     {
@@ -92,6 +138,17 @@ public sealed class DeadlineSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
         var events = await GetEventsByJobId.Run(Services, enqueued.JobId, ct);
         Assert.DoesNotContain(events, e => e.Reason == EventReason.DeadlineExceeded);
     }
+
+    // A read checks no fence, so any execution of the job reads its slot.
+    private async Task<bool> HasVariableAsync(long jobId, string name, CancellationToken ct) =>
+        await CheckpointAccess.GetAsync(
+            Services.GetRequiredService<ExecutionOperations>(),
+            new ExecutionFence(jobId, 0, 0),
+            CheckpointKindCode.Variable,
+            name,
+            ct
+        )
+            is not null;
 
     /// <summary>
     /// Puts the job's deadline instant in the past. A whole-job deadline is

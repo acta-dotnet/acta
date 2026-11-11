@@ -224,6 +224,48 @@ public sealed class PublishCalendarSpec : ActaRuntimeTestBase<ConformanceFixture
         Assert.Equal("retimed", EventDetail(skipped, "reason"));
     }
 
+    [Fact(
+        DisplayName = "An admission planned before a publication discarded its overdue occurrence applies nothing, and the cursor is the publication's"
+    )]
+    public async Task An_admission_planned_before_a_publication_applies_nothing()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await PauseAsync(PublishCalendarManifest.OfficeJobName, ct);
+        var slotId = await ScheduleTestOps.SlotIdAsync(Db, TestNamespace, PublishCalendarManifest.DaysJobName, ct);
+        var namespaceId = Runtime.RegisteredNamespaceIds[TestNamespace];
+        Clock.AdvanceTo(Start.AddMinutes(2).AddSeconds(30));
+
+        // An admitter reads the overdue occurrence and plans to fire it.
+        var due = await Services
+            .GetRequiredService<ListDueSchedulesHandler>()
+            .HandleAsync(new ListDueSchedulesQuery(namespaceId, Clock.UtcNow, 100), ct);
+        var resolve = await Services
+            .GetRequiredService<CalendarsOperations>()
+            .PreloadAsync(namespaceId, due.Schedules.SelectMany(s => s.Timing().CalendarNames()), ct);
+        var plan = ScheduleAdmitter.Plan(namespaceId, due.Schedules, Clock.UtcNow, resolve);
+        Assert.True(Assert.Single(plan.Groups).Admit);
+
+        // The publication lands first: it discards the occurrence and moves the cursor to the new version's instant.
+        Assert.Equal(
+            ControlAction.Applied,
+            (await Calendars.SaveDraftAsync(Days, CalendarRoleCode.Occurrence, Instants(20), 1, ct: ct)).Action
+        );
+        Assert.Equal(
+            ControlAction.Applied,
+            (await Calendars.PublishAsync(Days, 2, expectedCurrentVersion: 1, OverdueDecisionCode.Discard, ct: ct)).Action
+        );
+
+        var late = await Services.GetRequiredService<AdmitScheduleFiringsHandler>().HandleAsync(plan, ct);
+
+        Assert.False(Assert.Single(late.Groups).Applied);
+        Assert.Equal(JobStatusCode.Idle, (await ReadJobAsync(slotId, ct)).Status);
+        Assert.Empty(
+            await Db.From<CheckpointEntity>().Where(c => c.JobId == slotId && c.Kind == CheckpointKindCode.Firing).ToListAsync(ct)
+        );
+        Assert.Equal(Start.AddMinutes(20), Assert.Single(await ScheduleTestOps.ReadAsync(Db, slotId, ct)).NextOccurrenceAtUtc);
+        Assert.Empty(await EventsAsync(slotId, EventCode.ScheduleAdmitted, ct));
+    }
+
     [Fact(DisplayName = "An apply whose plan misses a schedule naming the family rejects, and the publication plans it again")]
     public async Task A_schedule_the_plan_never_read_rejects_the_apply()
     {
@@ -382,6 +424,76 @@ public sealed class PublishCalendarSpec : ActaRuntimeTestBase<ConformanceFixture
         var schedule = Assert.Single(await ScheduleTestOps.ReadAsync(Db, slotId, ct));
         Assert.Equal(Start.AddMinutes(6), schedule.NextOccurrenceAtUtc);
         Assert.Equal(1, await CountEventsAsync(slotId, EventCode.ScheduleRetimed, ct));
+    }
+
+    [Fact(DisplayName = "A publication retimes a paused schedule, which stays paused, and leaves an orphaned one as it is")]
+    public async Task A_publication_retimes_a_paused_schedule_and_leaves_an_orphaned_one()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var nsId = Runtime.RegisteredNamespaceIds[TestNamespace];
+        var slotId = await ScheduleTestOps.SlotIdAsync(Db, TestNamespace, PublishCalendarManifest.OfficeJobName, ct);
+        await PauseAsync(PublishCalendarManifest.OfficeJobName, ct);
+        // Two more schedules bind the family, and a later registration drops one of them, which orphans it.
+        var defId = await CalendarTestOps.BindAvailabilityAsync(Services, nsId, "bound-job", Hours.CalendarName, ["kept", "dropped"], ct);
+        await CalendarTestOps.RegisterAsync(Services, nsId, defId, Hours.CalendarName, ["kept"], ct);
+        var orphaned = Assert.Single(
+            await Db.From<ScheduleEntity>().Where(s => s.DefinitionId == defId && s.ScheduleName == "dropped").ToListAsync(ct)
+        );
+        Assert.Equal(ScheduleStatusCode.Orphaned, orphaned.Status);
+        var orphanedState = await OrphanStateAsync(orphaned.Id, ct);
+        Clock.AdvanceTo(Start.AddSeconds(30));
+
+        var published = await PublishAsync(Hours, CalendarRoleCode.Availability, Window(6, 8), ct);
+
+        // Paused, the schedule still follows the family: its cursor moves with the new version, and only a resume fires it.
+        var paused = Assert.Single(await ScheduleTestOps.ReadAsync(Db, slotId, ct));
+        Assert.Equal(ScheduleStatusCode.Paused, paused.Status);
+        Assert.Equal(Start.AddMinutes(6), paused.NextOccurrenceAtUtc);
+        Assert.Contains(
+            $"{TestNamespace}/{PublishCalendarManifest.OfficeJobName}/{PublishCalendarManifest.ScheduleName}",
+            published.RetimedSchedules
+        );
+        Assert.DoesNotContain(published.RetimedSchedules, name => name.EndsWith("/dropped", StringComparison.Ordinal));
+        var after = Assert.Single(await Db.From<ScheduleEntity>().Where(s => s.Id == orphaned.Id).ToListAsync(ct));
+        Assert.Equal((ScheduleStatusCode.Orphaned, orphaned.Version), (after.Status, after.Version));
+        // Its cursor lives on the state row, which a publication must not move either.
+        Assert.Equal(orphanedState, await OrphanStateAsync(orphaned.Id, ct));
+    }
+
+    private async Task<(DateTime? Next, DateTime? Evaluation, ScheduleEvaluationStatusCode Status, int Version)> OrphanStateAsync(
+        int scheduleId,
+        CancellationToken ct
+    )
+    {
+        var state = Assert.Single(await Db.From<ScheduleStateEntity>().Where(s => s.Id == scheduleId).ToListAsync(ct));
+        return (state.NextOccurrenceAtUtc, state.NextEvaluationAtUtc, state.EvaluationStatus, state.Version);
+    }
+
+    [Fact(DisplayName = "A publication is refused, with the count, when more schedules bind the family than one publication retimes")]
+    public async Task A_family_too_many_schedules_bind_is_refused()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var nsId = Runtime.RegisteredNamespaceIds[TestNamespace];
+        var bound = PublishCalendarHandler.MaxDependents + 1;
+        await CalendarTestOps.BindAvailabilityAsync(
+            Services,
+            nsId,
+            "crowd-job",
+            Hours.CalendarName,
+            [.. Enumerable.Range(0, bound).Select(i => $"s{i}")],
+            ct
+        );
+        Clock.AdvanceTo(Start.AddSeconds(30));
+
+        var draft = await Calendars.SaveDraftAsync(Hours, CalendarRoleCode.Availability, Window(6, 8), ct: ct);
+        var refused = await Calendars.PublishAsync(Hours, draft.Version!.Value, ct: ct);
+
+        Assert.Equal(ControlAction.Rejected, refused.Action);
+        // The manifest's own office schedule binds the family beside the ones registered here.
+        Assert.Contains($"{bound + 1} schedules bind", refused.Reason, StringComparison.Ordinal);
+        Assert.Contains($"at most {PublishCalendarHandler.MaxDependents}", refused.Reason, StringComparison.Ordinal);
+        Assert.Empty(refused.RetimedSchedules);
+        Assert.Equal(1, (await Calendars.GetAsync(Hours, ct: ct))!.CurrentVersion);
     }
 
     // A deploy step's form: no expected version on either call.

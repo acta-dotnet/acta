@@ -160,6 +160,50 @@ public sealed class AdmitScheduleFiringsSpec : ActaStorageTestBase<ConformanceFi
         Assert.Equal(0, await Db.From<JobEntity>().Where(j => j.DefinitionId == defId).CountAsync(ct));
     }
 
+    [Fact(
+        DisplayName = "One plan applied by two admitters at once, and again after its answer was lost, admits its occurrence once: one root, one charge"
+    )]
+    public async Task One_plan_applied_more_than_once_admits_once()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var now = FloorSeconds(DateTime.UtcNow);
+        // Room for three, so capacity would take every apply: only the versions the plan was read at stop the others.
+        var roomy = Schedule("only", now.AddMinutes(-1)) with
+        {
+            MaxOutstanding = 3,
+        };
+        var (defId, _) = await RegisterAsync(Unique("twice"), ScheduledDeliveryCode.PerOccurrence, [roomy], ct);
+        var scheduleId = (await Db.From<ScheduleEntity>().Where(s => s.DefinitionId == defId).SingleOrDefaultAsync(ct))!.Id;
+        var before = await Db.From<ScheduleStateEntity>().Where(s => s.Id == scheduleId).SingleOrDefaultAsync(ct);
+        var plan = await PlanAsync(now, ct);
+        Assert.True(Assert.Single(plan.Groups).Admit);
+
+        // Both admitters are stopped at the namespace's schedule lock and let go together, so they run side by side with
+        // the lock shared between them. SQLite has one writer and no such lock: there they run one after the other.
+        Task<AdmitScheduleFiringsResponse>[] admitters;
+        await using (await ScheduleLockGate.OpenAsync(Db, TestNamespaceId, exclusive: true, ct))
+        {
+            admitters = [Task.Run(() => Admit(plan, ct), ct), Task.Run(() => Admit(plan, ct), ct)];
+            if (Db.Provider != DbProvider.Sqlite)
+            {
+                var admissionSql = Db.Provider == DbProvider.SqlServer ? "@p_groups" : "_adm_lock";
+                await LockWaitProbe.WaitAsync(Db, admissionSql, LockWait.ApplicationLock, 2, Task.WhenAny(admitters), ct);
+            }
+        }
+
+        var raced = await Task.WhenAll(admitters);
+        Assert.Single(raced, r => Assert.Single(r.Groups).Applied);
+
+        // The admitter whose answer never arrived applies the same plan again.
+        Assert.False(Assert.Single((await Admit(plan, ct)).Groups).Applied);
+
+        Assert.Equal(1, await Db.From<JobEntity>().Where(j => j.DefinitionId == defId).CountAsync(ct));
+        var after = await Db.From<ScheduleStateEntity>().Where(s => s.Id == scheduleId).SingleOrDefaultAsync(ct);
+        Assert.Equal(1, after!.OutstandingCount);
+        Assert.Equal(before!.Version + 1, after.Version);
+        Assert.True(after.NextOccurrenceAtUtc > now, "the admitted occurrence was not decided");
+    }
+
     [Fact(DisplayName = "A slot plan read before a suspension committed admits nothing")]
     public async Task A_slot_plan_across_a_suspension_admits_nothing()
     {
