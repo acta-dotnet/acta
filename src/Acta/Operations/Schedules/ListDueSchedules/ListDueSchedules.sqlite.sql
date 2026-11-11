@@ -12,7 +12,23 @@ WITH due AS (
         AND dn.namespace_status_code = 10 /* NamespaceStatusCode.Active */
         AND dst.next_evaluation_at_utc IS NOT NULL
         AND dst.next_evaluation_at_utc <= @p_now_utc
-        AND ds.schedule_status_code <> 230 /* ScheduleStatusCode.Orphaned */
+        -- An orphaned schedule is left out, and so is one whose status, kind, strategy, full behavior, or expire action
+        -- is not listed here: a newer build stored that code and evaluates the schedule, and this one leaves its row alone.
+        AND ds.schedule_status_code IN (10 /* ScheduleStatusCode.Active */, 30 /* ScheduleStatusCode.Paused */)
+        AND ds.expression_kind_code IN (
+            10 /* ScheduleExpressionKindCode.Cron */,
+            20 /* ScheduleExpressionKindCode.Interval */,
+            30 /* ScheduleExpressionKindCode.Calendar */
+        )
+        AND ds.misfire_strategy_code IN (
+            10 /* MisfireStrategyCode.CatchUpOnce */, 20 /* MisfireStrategyCode.Skip */,
+            30 /* MisfireStrategyCode.CatchUpLatest */, 40 /* MisfireStrategyCode.CatchUpAll */
+        )
+        AND ds.full_behavior_code IN (10 /* ScheduleFullBehaviorCode.Wait */, 20 /* ScheduleFullBehaviorCode.Drop */)
+        AND (
+            ds.expire_action_code IS NULL
+            OR ds.expire_action_code IN (10 /* ScheduleExpireActionCode.Discard */, 20 /* ScheduleExpireActionCode.Pause */)
+        )
         AND dd.definition_status_code <> 240 /* DefinitionStatusCode.Retired */
     ORDER BY dst.next_evaluation_at_utc, dst.schedule_id
     LIMIT @p_take
@@ -58,6 +74,20 @@ LEFT JOIN {{schema}}.checkpoints cp
     ON cp.job_id = s.job_id AND cp.checkpoint_kind_code = 60 /* CheckpointKindCode.Firing */ AND cp.checkpoint_name = 'sys.firing'
 WHERE
     (s.job_id IN (SELECT due.job_id FROM due) OR s.schedule_id IN (SELECT due.schedule_id FROM due))
-    AND s.schedule_status_code <> 230 /* ScheduleStatusCode.Orphaned */
+    AND s.schedule_status_code IN (10 /* ScheduleStatusCode.Active */, 30 /* ScheduleStatusCode.Paused */)
+    AND s.expression_kind_code IN (
+        10 /* ScheduleExpressionKindCode.Cron */,
+        20 /* ScheduleExpressionKindCode.Interval */,
+        30 /* ScheduleExpressionKindCode.Calendar */
+    )
+    AND s.misfire_strategy_code IN (
+        10 /* MisfireStrategyCode.CatchUpOnce */, 20 /* MisfireStrategyCode.Skip */,
+        30 /* MisfireStrategyCode.CatchUpLatest */, 40 /* MisfireStrategyCode.CatchUpAll */
+    )
+    AND s.full_behavior_code IN (10 /* ScheduleFullBehaviorCode.Wait */, 20 /* ScheduleFullBehaviorCode.Drop */)
+    AND (
+        s.expire_action_code IS NULL
+        OR s.expire_action_code IN (10 /* ScheduleExpireActionCode.Discard */, 20 /* ScheduleExpireActionCode.Pause */)
+    )
     AND d.definition_status_code <> 240 /* DefinitionStatusCode.Retired */
 ORDER BY s.job_id, s.schedule_name;

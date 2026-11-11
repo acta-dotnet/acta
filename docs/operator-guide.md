@@ -567,6 +567,7 @@ Deploy: run `<app> jobs migrate`, start the new workers, stop the old ones once 
 - A deploy never retires a definition, so the old fleet finishes its jobs and a rollback finds nothing missing.
 - Definitions and schedules are the current deployment's, and an older build cannot overwrite them: its workers write nothing, and its deploy changes nothing unless forced. Where an older build's own declaration of a job differs, its worker runs the job under the deployed values of the policy an operator can override (priority, attempts, limits and the rate meter they spend from, timeouts, retention, alert routing); the rest is that build's own.
 - A schedule the new build dropped is orphaned, and comes back, without its pause, when a build that declares it deploys. Pause the job, not the schedule, to hold it across a rollback.
+- A schedule that holds a status, expression kind, misfire strategy, full behavior, or expire action the older build does not know is not that build's to admit: its workers leave the row alone and admit every other schedule. After a rollback no worker admits it, and it shows as overdue; the older build's `jobs deploy --force` puts its own declaration back, and `resume` clears a status it cannot read.
 - Under `PayloadContractDriftMode.Fail` a deploy stops while a stored contract differs from the build's own. A worker start does not check it.
 - Migrations are forward-only and additive, and an older build never rewrites what a newer one migrated.
 

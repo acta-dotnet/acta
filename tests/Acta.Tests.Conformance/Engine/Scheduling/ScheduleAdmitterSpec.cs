@@ -147,6 +147,33 @@ public sealed class ScheduleAdmitterSpec : ActaRuntimeTestBase<ConformanceFixtur
         Assert.Contains(seen, m => m.Instrument == "acta.schedule.pass" && m.Value >= 0);
     }
 
+    // A newer build can store a code this one cannot read while both serve the namespace.
+    [Theory(DisplayName = "A schedule that holds a code this build does not know is left alone: not due, no wake, no write")]
+    [InlineData("schedule_status_code = 250")]
+    [InlineData("expression_kind_code = 250")]
+    [InlineData("misfire_strategy_code = 250")]
+    [InlineData("full_behavior_code = 250")]
+    [InlineData("expire_action_code = 250, expire_after_seconds = 60")]
+    public async Task A_schedule_this_build_cannot_read_is_left_for_one_that_can(string unknown)
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var slotId = await SlotIdAsync(ct);
+        var occurrence = await ScheduleCursorAsync(slotId, ct);
+        await Db.ExecuteRawAsync($"UPDATE {{schema}}.schedules SET {unknown} WHERE job_id = @p_id", ct, ("@p_id", slotId));
+        var before = await ScheduleAsync(slotId, ct);
+
+        Clock.AdvanceTo(occurrence.AddMinutes(1));
+        var pass = await Runtime.AdmitOnceAsync(TestNamespace, ct);
+
+        Assert.Equal(JobStatusCode.Idle, (await ReadJobAsync(slotId, ct)).Status);
+        var after = await ScheduleAsync(slotId, ct);
+        Assert.Equal(occurrence, after.NextOccurrenceAtUtc);
+        Assert.Equal(before.Cursor.Version, after.Cursor.Version);
+        Assert.Equal(before.Version, after.Version);
+        // Its overdue wake is not the namespace's horizon, so the admitter does not poll on a row it will never move.
+        Assert.True(pass.NextWakeUtc is null || pass.NextWakeUtc > before.NextEvaluationAtUtc, $"horizon {pass.NextWakeUtc:O}");
+    }
+
     private Task<long> SlotIdAsync(CancellationToken ct) => ScheduleTestOps.SlotIdAsync(Db, TestNamespace, JobName, ct);
 
     private async Task<ScheduleRow> ScheduleAsync(long slotId, CancellationToken ct) =>

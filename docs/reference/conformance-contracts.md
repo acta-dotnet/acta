@@ -2113,6 +2113,7 @@
   - A pass with nothing due admits nothing and reports the earliest next evaluation as its horizon
   - An outstanding firing fills the slot: a later occurrence waits for capacity until settlement wakes it
   - A pass reports its decision, lag, overdue frontier, and wall time on the meter
+  - A schedule that holds a code this build does not know is left alone: not due, no wake, no write
 
 ### A published calendar sources a schedule, an availability calendar filters one
 - **Contract:** A published calendar fires its instants in order and exhausts, an availability calendar omits ticks outside its windows.
@@ -2129,10 +2130,11 @@
   - A deploy that meets a version this build cannot read names that calendar alone, with the compiler's reason
 
 ### The due read returns whole slots in evaluation order and leaves out the dead
-- **Contract:** A due read returns every member of each slot with a schedule due by now, in slot then name order, at most Take due schedules, less the orphaned and retired.
+- **Contract:** A due read returns the members of each slot with a schedule due by now, in slot then name order, at most Take, less the orphaned, retired, and unreadable.
 - **Guarantees:**
   - A slot with one due schedule is read whole, every member carrying the slot's state, in name order
   - A slot with nothing due, an orphaned schedule, and a retired definition's schedule are left out
+  - A member that holds a code this build does not know is left out, due or not, and its siblings are read
   - The read pages by evaluation instant then id, at most Take due schedules per pass
 
 ### A permanent slot fires repeatedly on one stable id and returns to Idle

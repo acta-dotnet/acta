@@ -7,14 +7,14 @@ namespace Acta.Tests.Conformance.Operations.Schedules;
 
 /// <summary>
 /// The admitter's read: every member of each slot that has a schedule due for evaluation, carrying the slot's state
-/// so a plan sees the whole slot, paged by evaluation instant, and never an orphaned schedule or a retired
-/// definition's.
+/// so a plan sees the whole slot, paged by evaluation instant, and never an orphaned schedule, a retired
+/// definition's, or one that holds a code this build does not know.
 /// </summary>
 [ConformanceSpec(
     "schedule.due-schedules",
     "The due read returns whole slots in evaluation order and leaves out the dead",
     Area = "Scheduling",
-    Contract = "A due read returns every member of each slot with a schedule due by now, in slot then name order, at most Take due schedules, less the orphaned and retired."
+    Contract = "A due read returns the members of each slot with a schedule due by now, in slot then name order, at most Take, less the orphaned, retired, and unreadable."
 )]
 public sealed class ListDueSchedulesSpec : ActaStorageTestBase<ConformanceFixture>
 {
@@ -68,6 +68,38 @@ public sealed class ListDueSchedulesSpec : ActaStorageTestBase<ConformanceFixtur
 
         Assert.DoesNotContain(due, s => s.JobId == futureSlot || s.JobId == orphanSlot || s.JobId == retiredSlot);
     }
+
+    // A newer build shares the namespace during a rolling upgrade, and a slot can hold its schedules beside this one's.
+    [Theory(DisplayName = "A member that holds a code this build does not know is left out, due or not, and its siblings are read")]
+    [InlineData("schedule_status_code = 250")]
+    [InlineData("expression_kind_code = 250")]
+    [InlineData("misfire_strategy_code = 250")]
+    [InlineData("full_behavior_code = 250")]
+    [InlineData("expire_action_code = 250, expire_after_seconds = 60")]
+    public async Task A_member_this_build_cannot_read_is_left_out(string unknown)
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var now = FloorSeconds(DateTime.UtcNow);
+
+        var siblingJob = Unique("sibling");
+        var siblingSlot = await RegisterAsync(siblingJob, [("soon", now.AddMinutes(-1)), ("late", now.AddHours(1))], ct);
+        await PlantAsync(siblingSlot, "late", unknown, ct);
+        var aloneSlot = await RegisterAsync(Unique("alone"), [("soon", now.AddMinutes(-1))], ct);
+        await PlantAsync(aloneSlot, "soon", unknown, ct);
+
+        var due = (await ReadAsync(now, 100, ct)).Schedules;
+
+        Assert.Equal(["soon"], due.Where(s => s.JobId == siblingSlot).Select(s => s.ScheduleName));
+        Assert.DoesNotContain(due, s => s.JobId == aloneSlot);
+    }
+
+    private Task PlantAsync(long slotId, string scheduleName, string unknown, CancellationToken ct) =>
+        Db.ExecuteRawAsync(
+            $"UPDATE {{schema}}.schedules SET {unknown} WHERE job_id = @p_id AND schedule_name = @p_name",
+            ct,
+            ("@p_id", slotId),
+            ("@p_name", scheduleName)
+        );
 
     [Fact(DisplayName = "The read pages by evaluation instant then id, at most Take due schedules per pass")]
     public async Task The_read_pages_by_evaluation_instant()
