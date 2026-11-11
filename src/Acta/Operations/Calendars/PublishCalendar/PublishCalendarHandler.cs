@@ -82,7 +82,9 @@ internal sealed class PublishCalendarHandler(
             var nowUtc = await clock.GetUtcNowAsync(ct);
             var compiled = CalendarDefinition.Compile(candidate.Role, candidate.Definition);
             var resolvers = new Dictionary<int, Func<ScheduleTiming, ScheduleSource>>();
-            foreach (var ns in bound.GroupBy(s => s.NamespaceId))
+            // Only the schedules this publication retimes have their calendars read: one it sets aside may name a
+            // calendar this build cannot read either.
+            foreach (var ns in bound.Where(Retimes).GroupBy(s => s.NamespaceId))
             {
                 resolvers[ns.Key] = await sources.PreloadAsync(ns.Key, ns.SelectMany(s => s.Timing().CalendarNames()), ct);
             }
@@ -92,11 +94,10 @@ internal sealed class PublishCalendarHandler(
             var overdue = new List<string>();
             foreach (var s in bound)
             {
-                // An orphaned schedule has no cursor to move; its declaration comes back with its definition. One that
-                // holds a code this build does not know is a newer build's to retime. The apply still checks neither
-                // has moved, as it does every schedule that names the family.
+                // A schedule set aside keeps its row; the apply still checks it has not moved, as it does every schedule
+                // that names the family. An orphaned one's declaration comes back with its definition.
                 var unchanged = new PublishCalendarValues(s.ScheduleId, s.ScheduleVersion, s.StateVersion, null, null, null);
-                if (s.Status == ScheduleStatusCode.Orphaned || !s.Readable)
+                if (!Retimes(s))
                 {
                     plan.Add(unchanged);
                     continue;
@@ -211,6 +212,12 @@ internal sealed class PublishCalendarHandler(
 
         static PublishCalendarResponse Rejected(string reason) => new(ControlAction.Rejected, null, [], [], reason);
     }
+
+    /// <summary>
+    /// Whether the publication moves the schedule's cursor: an orphaned schedule has none to move, and one this build
+    /// cannot read is a newer build's to retime.
+    /// </summary>
+    private static bool Retimes(DueSchedule s) => s.Status != ScheduleStatusCode.Orphaned && s.Readable;
 
     /// <summary>A bound schedule's path, the way <see cref="ScheduleLookup"/> addresses it.</summary>
     internal static string Path(DueSchedule s) => $"{s.NamespaceName}/{s.DefinitionName}/{s.ScheduleName}";
