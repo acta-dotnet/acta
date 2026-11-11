@@ -167,8 +167,8 @@ public sealed class WorkerClaimerTests
     )
     {
         var context = new WorkerContext(new WorkerRegistration(Namespace, null, null, [], []));
-        context.NamespaceIds[Namespace] = 1;
-        context.WorkerIdByNamespace[Namespace] = 1;
+        context.NamespaceId = 1;
+        context.WorkerId = 1;
         var options = new JobsOptions { SafetyPollInterval = safetyPoll, MaxConcurrentExecutors = executors };
         var registry = new InFlightJobRegistry(options);
         return (new WorkerClaimer(store.Execution(), options, context, registry, new IdleWakeup(), log), registry);

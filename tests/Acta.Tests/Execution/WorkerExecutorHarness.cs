@@ -212,8 +212,8 @@ internal sealed class WorkerExecutorHarness(
     private WorkerExecutor Executor(JobDescriptor? descriptor, out InFlightJobRegistry registry)
     {
         var context = _context;
-        context.NamespaceIds["harness"] = 1;
-        context.WorkerIdByNamespace["harness"] = WorkerId;
+        context.NamespaceId = 1;
+        context.WorkerId = WorkerId;
         if (descriptor is not null)
         {
             context.DescriptorByDefinitionId[1] = descriptor;

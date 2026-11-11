@@ -175,7 +175,7 @@ internal sealed class WorkerHeartbeat(
             {
                 // A draining worker takes no new pass: it is about to stop, and the pass would hold up its exit.
                 int? recoveryInterval = takeRecovery && _context.RunsRecovery && !_draining ? _leaseTtlSeconds : null;
-                foreach (var (namespaceName, workerId) in _context.WorkerIdByNamespace)
+                if (_context.WorkerId is { } workerId)
                 {
                     var answer = await _workers.ExtendWorkerLeasesAsync(
                         new ExtendWorkerLeasesCommand(workerId, _leaseTtlSeconds, _draining, held, heldLocks, recoveryInterval),
@@ -183,7 +183,7 @@ internal sealed class WorkerHeartbeat(
                     );
                     if (answer.RecoveryClaimed)
                     {
-                        RunRecovery(namespaceName, ct);
+                        RunRecovery(ct);
                     }
                     renewedHolds.UnionWith(answer.RenewedHoldTokens);
                     definitionsModifiedAtUtc = answer.DefinitionsModifiedAtUtc;
@@ -269,9 +269,9 @@ internal sealed class WorkerHeartbeat(
     /// the interval its call already moved, like any worker's; a hard stop cancels it, and the next pass falls to
     /// whichever worker takes it when it comes due.
     /// </summary>
-    private void RunRecovery(string namespaceName, CancellationToken ct)
+    private void RunRecovery(CancellationToken ct)
     {
-        if (!_context.NamespaceIds.TryGetValue(namespaceName, out var namespaceId))
+        if (_workerRegistration is not { NamespaceName: var namespaceName } || _context.NamespaceId is not { } namespaceId)
         {
             return;
         }
@@ -313,7 +313,7 @@ internal sealed class WorkerHeartbeat(
     /// </summary>
     private async Task OverlayDefinitionsAsync(CancellationToken ct)
     {
-        if (_workerRegistration is not { NamespaceName: var ns } || !_context.NamespaceIds.TryGetValue(ns, out var namespaceId))
+        if (_workerRegistration is not { NamespaceName: var ns } || _context.NamespaceId is not { } namespaceId)
         {
             return;
         }

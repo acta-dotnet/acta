@@ -69,7 +69,7 @@ internal sealed class WorkerRuntimeInitializer(
         await StartWorkerAsync(ns, debug, ct);
         try
         {
-            await LoadCatalogAsync(ns, _context.NamespaceIds[ns], descriptors, debug, ct);
+            await LoadCatalogAsync(ns, _context.Worker.NamespaceId, descriptors, debug, ct);
         }
         catch
         {
@@ -85,7 +85,7 @@ internal sealed class WorkerRuntimeInitializer(
                 // The refusal is what the caller needs; the row then waits for the sweep.
                 ActaLog.WorkerStampFailed(_log, stopFailure, "stop", ns);
             }
-            _context.WorkerIdByNamespace.Remove(ns);
+            _context.WorkerId = null;
             throw;
         }
     }
@@ -146,7 +146,7 @@ internal sealed class WorkerRuntimeInitializer(
     {
         // The in-process guard (worker already in context) makes a second InitializeAsync on the same instance append
         // no second worker row.
-        if (_context.WorkerIdByNamespace.ContainsKey(ns))
+        if (_context.WorkerId is not null)
         {
             return;
         }
@@ -189,8 +189,8 @@ internal sealed class WorkerRuntimeInitializer(
             );
         }
 
-        _context.NamespaceIds[ns] = started.NamespaceId;
-        _context.WorkerIdByNamespace[ns] = workerId;
+        _context.NamespaceId = started.NamespaceId;
+        _context.WorkerId = workerId;
 
         // An earlier build during a rolling deploy, or a rollback: say whose definitions it runs.
         if (
@@ -240,13 +240,7 @@ internal sealed class WorkerRuntimeInitializer(
     /// </summary>
     public async Task StopAsync(CancellationToken ct)
     {
-        if (_workerRegistration is null)
-        {
-            return;
-        }
-
-        var ns = _workerRegistration.NamespaceName;
-        if (_context.NamespaceIds.TryGetValue(ns, out var namespaceId) && _context.WorkerIdByNamespace.TryGetValue(ns, out var workerId))
+        if (_context is { NamespaceId: { } namespaceId, WorkerId: { } workerId })
         {
             await _workers.StopWorkerAsync(namespaceId, workerId, ct);
         }

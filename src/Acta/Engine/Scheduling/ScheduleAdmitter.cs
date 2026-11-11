@@ -45,7 +45,7 @@ internal sealed class ScheduleAdmitter(
             try
             {
                 // The horizon read is the idle loop's one statement; a pass runs only when something is due.
-                var horizon = await schedules.GetScheduleHorizonAsync(context.NamespaceIds[namespaceName], ct);
+                var horizon = await schedules.GetScheduleHorizonAsync(context.Worker.NamespaceId, ct);
                 var (now, next) = (horizon.DbNowUtc, horizon.NextEvaluationAtUtc);
                 // A pass that admitted and left more due is followed at once, on the horizon that pass read. One that
                 // admitted nothing, its groups stale or unchanged, sleeps by the rule below, so lost races back off at the floor.
@@ -96,7 +96,7 @@ internal sealed class ScheduleAdmitter(
     /// </summary>
     public async Task<AdmissionPass> AdmitOnceAsync(string namespaceName, CancellationToken ct)
     {
-        var namespaceId = context.NamespaceIds[namespaceName];
+        var namespaceId = context.ResolveWorker(namespaceName).NamespaceId;
         var started = Stopwatch.GetTimestamp();
         var admitted = 0;
         var stale = 0;

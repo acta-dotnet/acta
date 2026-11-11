@@ -36,8 +36,8 @@ public sealed class WorkerHeartbeatDefinitionReloadTests
     private static WorkerHeartbeat Heartbeat(ScriptedSession session)
     {
         var context = new WorkerContext(null);
-        context.NamespaceIds["orders"] = 1;
-        context.WorkerIdByNamespace["orders"] = 1;
+        context.NamespaceId = 1;
+        context.WorkerId = 1;
         var services = session.Services();
         return new WorkerHeartbeat(
             services.GetRequiredService<WorkersOperations>(),

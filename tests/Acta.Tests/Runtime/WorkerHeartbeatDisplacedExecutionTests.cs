@@ -17,7 +17,7 @@ public sealed class WorkerHeartbeatDisplacedExecutionTests
     public async Task A_renewal_of_a_newer_execution_cancels_the_older_attempt()
     {
         var context = new WorkerContext(null);
-        context.WorkerIdByNamespace["orders"] = 1;
+        context.WorkerId = 1;
         var registry = new InFlightJobRegistry(new JobsOptions());
         using var stale = Entry(7, executionNumber: 1, state: InFlightJobState.Executing);
         using var newer = Entry(7, executionNumber: 2);

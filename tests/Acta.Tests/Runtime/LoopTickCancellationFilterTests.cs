@@ -28,7 +28,7 @@ public sealed class LoopTickCancellationFilterTests
         var failure = new OperationCanceledException("synthetic provider timeout", NeverCancelled);
         var logger = new RecordingLogger();
         var context = new WorkerContext(null);
-        context.WorkerIdByNamespace["orders"] = 1;
+        context.WorkerId = 1;
         var registration = new WorkerRegistration("orders", null, null, [], []);
         var options = Options.Create(new JobsOptions { HeartbeatInterval = TimeSpan.FromMilliseconds(20) });
 
@@ -66,8 +66,8 @@ public sealed class LoopTickCancellationFilterTests
         var failure = new OperationCanceledException("synthetic provider timeout", NeverCancelled);
         var logger = new RecordingLogger();
         var context = new WorkerContext(null);
-        context.NamespaceIds["orders"] = 1;
-        context.WorkerIdByNamespace["orders"] = 1;
+        context.NamespaceId = 1;
+        context.WorkerId = 1;
         var registration = new WorkerRegistration("orders", null, null, [], []);
         var options = Options.Create(new JobsOptions { HeartbeatInterval = TimeSpan.FromMilliseconds(20) });
         var services = new ScriptedSession(call =>
@@ -107,7 +107,7 @@ public sealed class LoopTickCancellationFilterTests
         var db = CancelThenThrowWorkers(cts, new InvalidOperationException("synthetic connection torn down"));
         var logger = new RecordingLogger();
         var context = new WorkerContext(null);
-        context.WorkerIdByNamespace["orders"] = 1;
+        context.WorkerId = 1;
         var registration = new WorkerRegistration("orders", null, null, [], []);
         var options = Options.Create(new JobsOptions { HeartbeatInterval = TimeSpan.FromMilliseconds(20) });
 

@@ -68,6 +68,27 @@ public sealed class ScheduleAdmitterLoopTests
         Assert.Equal([options.MinPollFloor], script.Waits);
     }
 
+    [Fact]
+    public async Task A_pass_asked_for_a_namespace_that_is_not_the_runtimes_is_refused_before_any_read()
+    {
+        using var script = new Script(
+            horizons: [Now],
+            dueLists:
+            [
+                [Due()],
+            ],
+            applied: true
+        );
+
+        // A host of one runtime hands it every call, so the pass itself refuses a name that is not its own.
+        var refused = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            script.Admitter(new JobsOptions()).AdmitOnceAsync("billing", TestContext.Current.CancellationToken)
+        );
+
+        Assert.Contains("'orders', not 'billing'", refused.Message, StringComparison.Ordinal);
+        Assert.Empty(script.Steps);
+    }
+
     // A per-occurrence schedule one second overdue, which a pass admits under CatchUpAll.
     private static DueSchedule Due() =>
         new(
@@ -118,13 +139,17 @@ public sealed class ScheduleAdmitterLoopTests
 
         public List<TimeSpan> Waits { get; } = [];
 
-        public async Task RunAsync(JobsOptions options)
+        public Task RunAsync(JobsOptions options) =>
+            Admitter(options).RunAsync(Namespace, _stop.Token).WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
+
+        public ScheduleAdmitter Admitter(JobsOptions options)
         {
             var session = new ScriptedSession(Answer);
             var services = session.Services();
             var context = new WorkerContext(new WorkerRegistration(Namespace, null, null, [], []));
-            context.NamespaceIds[Namespace] = 1;
-            var admitter = new ScheduleAdmitter(
+            context.NamespaceId = 1;
+            context.WorkerId = 1;
+            return new ScheduleAdmitter(
                 services.GetRequiredService<SchedulesOperations>(),
                 this,
                 context,
@@ -135,8 +160,6 @@ public sealed class ScheduleAdmitterLoopTests
                 NullLogger.Instance,
                 metrics: null
             );
-
-            await admitter.RunAsync(Namespace, _stop.Token).WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
         }
 
         private object? Answer(BoundCall call)

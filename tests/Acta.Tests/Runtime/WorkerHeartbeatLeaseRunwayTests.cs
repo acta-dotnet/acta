@@ -444,7 +444,7 @@ public sealed class WorkerHeartbeatLeaseRunwayTests
     )
     {
         var context = new WorkerContext(null);
-        context.WorkerIdByNamespace["orders"] = 1;
+        context.WorkerId = 1;
         return new WorkerHeartbeat(
             workers,
             ScriptedSession.Unreachable.GetRequiredService<DefinitionsOperations>(),

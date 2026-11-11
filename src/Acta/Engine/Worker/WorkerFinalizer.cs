@@ -76,7 +76,7 @@ internal sealed partial class WorkerFinalizer(
 
     private readonly ActaLog.NonThrowingLogger _log = new(log);
 
-    private int WorkerId => context.ResolveWorker(context.WorkerRegistration!.NamespaceName).WorkerId;
+    private int WorkerId => context.Worker.WorkerId;
 
     /// <summary>
     /// The worker's one finalizer loop: finalizes each completion together with whatever else is already waiting,

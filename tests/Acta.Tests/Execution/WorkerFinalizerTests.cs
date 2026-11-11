@@ -172,8 +172,8 @@ public sealed class WorkerFinalizerTests
         var services = session.Services();
         var options = new JobsOptions();
         var context = new WorkerContext(new WorkerRegistration("orders", null, null, [], []));
-        context.NamespaceIds["orders"] = 1;
-        context.WorkerIdByNamespace["orders"] = 1;
+        context.NamespaceId = 1;
+        context.WorkerId = 1;
         var registry = new InFlightJobRegistry(options);
         var finalizer = new WorkerFinalizer(
             services.GetRequiredService<ExecutionOperations>(),
@@ -243,8 +243,8 @@ public sealed class WorkerFinalizerTests
         );
         var options = new JobsOptions();
         var context = new WorkerContext(new WorkerRegistration("orders", null, null, [], []));
-        context.NamespaceIds["orders"] = 1;
-        context.WorkerIdByNamespace["orders"] = 1;
+        context.NamespaceId = 1;
+        context.WorkerId = 1;
         var registry = new InFlightJobRegistry(options);
         var finalizer = new WorkerFinalizer(
             session.Services().GetRequiredService<ExecutionOperations>(),
@@ -294,8 +294,8 @@ public sealed class WorkerFinalizerTests
         using var logging = new LoggerFactory([new ThrowingLoggerProvider()]);
         var options = new JobsOptions();
         var context = new WorkerContext(new WorkerRegistration("orders", null, null, [], []));
-        context.NamespaceIds["orders"] = 1;
-        context.WorkerIdByNamespace["orders"] = 1;
+        context.NamespaceId = 1;
+        context.WorkerId = 1;
         var registry = new InFlightJobRegistry(options);
         var finalizer = new WorkerFinalizer(
             session.Services().GetRequiredService<ExecutionOperations>(),
@@ -462,8 +462,8 @@ public sealed class WorkerFinalizerTests
         });
         var options = new JobsOptions();
         var context = new WorkerContext(new WorkerRegistration("orders", null, null, [], []));
-        context.NamespaceIds["orders"] = 1;
-        context.WorkerIdByNamespace["orders"] = 1;
+        context.NamespaceId = 1;
+        context.WorkerId = 1;
         var registry = new InFlightJobRegistry(options);
         var finalizer = new WorkerFinalizer(
             session.Services().GetRequiredService<ExecutionOperations>(),
@@ -509,8 +509,8 @@ public sealed class WorkerFinalizerTests
         );
         var options = new JobsOptions();
         var context = new WorkerContext(new WorkerRegistration("orders", null, null, [], []));
-        context.NamespaceIds["orders"] = 1;
-        context.WorkerIdByNamespace["orders"] = 1;
+        context.NamespaceId = 1;
+        context.WorkerId = 1;
         var registry = new InFlightJobRegistry(options);
         var wakeup = new RecordingWakeup();
         var finalizer = new WorkerFinalizer(
@@ -573,8 +573,8 @@ public sealed class WorkerFinalizerTests
         );
         var options = new JobsOptions();
         var context = new WorkerContext(new WorkerRegistration("orders", null, null, [], []));
-        context.NamespaceIds["orders"] = 1;
-        context.WorkerIdByNamespace["orders"] = 1;
+        context.NamespaceId = 1;
+        context.WorkerId = 1;
         var registry = new InFlightJobRegistry(options);
         var wakeup = new RecordingWakeup();
         var finalizer = new WorkerFinalizer(
@@ -649,8 +649,8 @@ public sealed class WorkerFinalizerTests
         );
         var options = new JobsOptions();
         var context = new WorkerContext(new WorkerRegistration("orders", null, null, [], []));
-        context.NamespaceIds["orders"] = 1;
-        context.WorkerIdByNamespace["orders"] = 1;
+        context.NamespaceId = 1;
+        context.WorkerId = 1;
         var registry = new InFlightJobRegistry(options);
         var finalizer = new WorkerFinalizer(
             session.Services().GetRequiredService<ExecutionOperations>(),
@@ -749,8 +749,8 @@ public sealed class WorkerFinalizerTests
         var services = session.Services();
         var options = new JobsOptions();
         var context = new WorkerContext(new WorkerRegistration("orders", null, null, [], []));
-        context.NamespaceIds["orders"] = 1;
-        context.WorkerIdByNamespace["orders"] = 1;
+        context.NamespaceId = 1;
+        context.WorkerId = 1;
         var registry = new InFlightJobRegistry(options);
         var finalizer = new WorkerFinalizer(
             services.GetRequiredService<ExecutionOperations>(),
@@ -823,8 +823,8 @@ public sealed class WorkerFinalizerTests
         var services = session.Services();
         var options = new JobsOptions();
         var context = new WorkerContext(new WorkerRegistration("orders", null, null, [], []));
-        context.NamespaceIds["orders"] = 1;
-        context.WorkerIdByNamespace["orders"] = 1;
+        context.NamespaceId = 1;
+        context.WorkerId = 1;
         var registry = new InFlightJobRegistry(options);
         var finalizer = new WorkerFinalizer(
             services.GetRequiredService<ExecutionOperations>(),
@@ -880,8 +880,8 @@ public sealed class WorkerFinalizerTests
     {
         var options = new JobsOptions();
         var context = new WorkerContext(new WorkerRegistration("orders", null, null, [], []));
-        context.NamespaceIds["orders"] = 1;
-        context.WorkerIdByNamespace["orders"] = 1;
+        context.NamespaceId = 1;
+        context.WorkerId = 1;
         var registry = new InFlightJobRegistry(options);
         var finalizer = new WorkerFinalizer(
             session.Services().GetRequiredService<ExecutionOperations>(),

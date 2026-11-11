@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Collections.Frozen;
 
 namespace Acta;
 
@@ -12,8 +13,11 @@ internal sealed class WorkerContext(WorkerRegistration? workerRegistration)
 {
     public WorkerRegistration? WorkerRegistration { get; } = workerRegistration;
 
-    public Dictionary<string, int> NamespaceIds { get; } = new(StringComparer.Ordinal);
-    public Dictionary<string, int> WorkerIdByNamespace { get; } = new(StringComparer.Ordinal);
+    /// <summary>The worker namespace's id, set when the worker starts.</summary>
+    public int? NamespaceId { get; set; }
+
+    /// <summary>This process's row in <c>workers</c>, set when the worker starts and cleared when its catalog is refused.</summary>
+    public int? WorkerId { get; set; }
 
     /// <summary>
     /// definitions.definition_id to JobDescriptor for hot-path claim dispatch. Built in InitializeAsync from the
@@ -92,30 +96,30 @@ internal sealed class WorkerContext(WorkerRegistration? workerRegistration)
     /// <summary>Whether this worker runs crash recovery for its namespace, decided at registration.</summary>
     public bool RunsRecovery { get; set; }
 
-    public IReadOnlyDictionary<string, int> RegisteredNamespaceIds => NamespaceIds;
+    /// <summary>The started worker's namespace with its id: how a test and the testing host address a runtime.</summary>
+    public IReadOnlyDictionary<string, int> RegisteredNamespaceIds =>
+        WorkerRegistration is { NamespaceName: var name } && NamespaceId is { } id
+            ? new Dictionary<string, int>(StringComparer.Ordinal) { [name] = id }
+            : FrozenDictionary<string, int>.Empty;
+
+    /// <summary>The started worker's namespace id and worker id.</summary>
+    public (int NamespaceId, int WorkerId) Worker =>
+        this is { NamespaceId: { } namespaceId, WorkerId: { } workerId }
+            ? (namespaceId, workerId)
+            : throw new InvalidOperationException(
+                WorkerRegistration is null
+                    ? "Worker mode required. Call j.Run<TManifest>(jobNamespace, ...) inside UseActa."
+                    : $"The worker for namespace '{WorkerRegistration.NamespaceName}' has not started. Call InitializeAsync first."
+            );
 
     /// <summary>
-    /// Resolves and validates the (namespaceId, workerId) pair for the registered worker namespace.
-    /// Shared by RunOnceAsync and the production claim loop.
+    /// <see cref="Worker"/> for a caller that names the namespace, the single-shot path: a name that is not this
+    /// runtime's is refused, so a host of several runtimes never runs one for another.
     /// </summary>
-    public (int NamespaceId, int WorkerId) ResolveWorker(string namespaceName)
-    {
-        if (WorkerRegistration is null)
-        {
-            throw new InvalidOperationException("Worker mode required. Call j.Run<TManifest>(jobNamespace, ...) inside UseActa.");
-        }
-        if (namespaceName != WorkerRegistration.NamespaceName)
-        {
-            throw new InvalidOperationException(
-                $"Namespace mismatch: this runtime is registered as the worker for '{WorkerRegistration.NamespaceName}', not '{namespaceName}'."
-            );
-        }
-        if (!NamespaceIds.TryGetValue(namespaceName, out var namespaceId))
-        {
-            throw new InvalidOperationException($"Namespace '{namespaceName}' has no id yet. Call InitializeAsync before claiming.");
-        }
-        return !WorkerIdByNamespace.TryGetValue(namespaceName, out var workerId)
-            ? throw new InvalidOperationException($"Worker id for namespace '{namespaceName}' not assigned. Call InitializeAsync first.")
-            : ((int NamespaceId, int WorkerId))(namespaceId, workerId);
-    }
+    public (int NamespaceId, int WorkerId) ResolveWorker(string namespaceName) =>
+        WorkerRegistration is { NamespaceName: var own } && own != namespaceName
+            ? throw new InvalidOperationException(
+                $"Namespace mismatch: this runtime is registered as the worker for '{own}', not '{namespaceName}'."
+            )
+            : Worker;
 }

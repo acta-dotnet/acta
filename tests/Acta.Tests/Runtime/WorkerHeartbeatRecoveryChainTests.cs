@@ -43,8 +43,8 @@ public sealed class WorkerHeartbeatRecoveryChainTests
         listener.Start();
 
         var context = new WorkerContext(null) { RunsRecovery = true };
-        context.NamespaceIds["orders"] = 1;
-        context.WorkerIdByNamespace["orders"] = 1;
+        context.NamespaceId = 1;
+        context.WorkerId = 1;
         var heartbeat = new WorkerHeartbeat(
             services.GetRequiredService<WorkersOperations>(),
             services.GetRequiredService<DefinitionsOperations>(),

@@ -147,7 +147,7 @@ internal sealed class WorkerExecutor(
         try
         {
             var namespaceName = context.WorkerRegistration!.NamespaceName;
-            var (namespaceId, workerId) = context.ResolveWorker(namespaceName);
+            var (namespaceId, workerId) = context.Worker;
             // The heartbeat found the row gone, or the lease lapsed while the claim waited for an executor: the
             // row is no longer this worker's to run.
             if (entry.AttemptToken.IsCancellationRequested)

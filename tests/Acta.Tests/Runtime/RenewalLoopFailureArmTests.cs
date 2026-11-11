@@ -138,7 +138,7 @@ public sealed class RenewalLoopFailureArmTests
     private static WorkerContext HeartbeatContext()
     {
         var context = new WorkerContext(Registration);
-        context.WorkerIdByNamespace["orders"] = 1;
+        context.WorkerId = 1;
         return context;
     }
 

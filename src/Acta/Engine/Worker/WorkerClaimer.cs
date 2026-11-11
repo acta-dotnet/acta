@@ -42,7 +42,7 @@ internal sealed class WorkerClaimer(
         try
         {
             var ns = context.WorkerRegistration!.NamespaceName;
-            var (namespaceId, workerId) = context.ResolveWorker(ns);
+            var (namespaceId, workerId) = context.Worker;
             var handedOff = false;
             DateTime? claimFrom = null;
             var headClaimedAt = Stopwatch.GetTimestamp();
