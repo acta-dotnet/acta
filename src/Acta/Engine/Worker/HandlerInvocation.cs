@@ -189,7 +189,7 @@ internal sealed class HandlerInvocation(
 
         // The job succeeded, so it is not failed over the size of what it returned. But the
         // cap is a cap: the body is dropped rather than persisted, leaving the row in the
-        // existing "no result" shape (format 0, NULL) with job.result-oversized recording
+        // existing "no result" shape (format 0, NULL) with result-oversized recording
         // why. A typed read of the missing result throws rather than handing back a default.
         if (log.IsEnabled(LogLevel.Warning))
         {

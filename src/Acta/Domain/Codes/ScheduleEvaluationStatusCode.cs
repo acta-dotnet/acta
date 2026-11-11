@@ -18,7 +18,7 @@ public enum ScheduleEvaluationStatusCode : byte
 
     [Code(
         "waiting-for-capacity",
-        "An occurrence is due but the permanent job is busy or the schedule is at its limit of outstanding occurrences; it fires when one of them ends, or expires once it ages past the schedule's expiry."
+        "An occurrence is due but the permanent job is busy or the schedule is at its limit of outstanding occurrences; it fires when one of them ends, and under a pausing expiry it expires once it ages past the schedule's expiry."
     )]
     WaitingForCapacity = 20,
 

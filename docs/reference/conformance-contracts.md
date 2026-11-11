@@ -22,13 +22,13 @@
 - **Guarantees:**
   - The operator who applied a namespace verb is the event's actor, and the event carries no details
 
-### Namespace resume flips status back, emits one 15xx event, and rejects sys
+### Namespace resume flips status back, emits namespace.resumed, and rejects sys
 - **Contract:** Resume flips a suspended namespace back to Active and emits namespace.resumed, while sys is rejected at the facade.
 - **Guarantees:**
   - Resuming a suspended namespace applies and emits namespace.resumed
   - A rejected sys resume leaves the seeded row untouched
 
-### Tenant resume flips status back and emits one 15xx event to sys namespace
+### Tenant resume flips status back and emits tenant.resumed to the sys namespace
 - **Contract:** Resume flips a suspended tenant back to Active with one tenant.resumed to sys namespace 1, and resuming an active tenant writes nothing.
 - **Guarantees:**
   - Resuming a suspended tenant applies and emits one tenant.resumed
@@ -41,7 +41,7 @@
   - A suspended namespace's system schedules hold, and a resume hands them back to the admitter
   - A running job's child start into its suspended namespace is rejected and fails the attempt
 
-### Namespace suspend flips status, emits one 15xx event, and rejects sys
+### Namespace suspend flips status, emits namespace.suspended, and rejects sys
 - **Contract:** Suspend flips a namespace to Suspended once with a version bump and namespace.suspended, reports NotFound for unknown names, and rejects sys.
 - **Guarantees:**
   - Suspending an active namespace applies, bumps version, and emits one namespace.suspended to itself
@@ -49,7 +49,7 @@
   - An unknown namespace name is NotFound
   - A rejected sys suspend leaves the seeded row untouched and still listed
 
-### Tenant suspend flips status and emits one 15xx event to sys namespace
+### Tenant suspend flips status and emits tenant.suspended to the sys namespace
 - **Contract:** Suspend flips a tenant to Suspended once with a version bump and one tenant.suspended to sys namespace 1, and an unknown key is NotFound.
 - **Guarantees:**
   - Suspending an active tenant applies, bumps version, and emits one tenant.suspended to sys
@@ -484,7 +484,7 @@
 ### Signals, a failed step, and lost wakes converge without timing assumptions
 - **Contract:** Signals raised before or after waiter creation, a failed step, and lost wake notifications each produce one legal final state.
 - **Guarantees:**
-  - Signal raised before a waiter exists is consumed without suspending
+  - Signal raised before a waiter exists is read without suspending
   - Signal raised after a waiter exists resumes the suspended job
   - A failed at-most-once step fails the parent exactly once
   - Lost wake notification is recovered by the safety poll path
@@ -1351,7 +1351,7 @@
 - **Guarantees:**
   - Simultaneous acquisitions of a new key return exactly one live token
   - First acquire returns a token and lands a lease row, and a competing acquire on a live key returns null
-  - A competing acquire steals an expired lease and bumps the version
+  - A competing acquire steals an expired lease under a new hold token, and the old token releases nothing
 
 ### One heartbeat renews a handler-held lock and a lost lock cancels the attempt
 - **Contract:** The heartbeat renews every lock an attempt holds with its job lease, and a lost held lock aborts the attempt into a retryable failure within one heartbeat.
@@ -2766,7 +2766,7 @@
 ### Stop flips an active worker to Stopped once and is idempotent
 - **Contract:** Stopping an active worker flips it to Stopped and emits one worker.stopped event, and a second stop on the terminal worker is a no-op.
 - **Guarantees:**
-  - Active worker flips to Stopped with exactly one WorkerStopped event from the Worker actor and clean-shutdown reason
+  - An active worker flips to Stopped with exactly one worker.stopped event, whose code is the whole reason
   - A second stop on a terminal worker is a no-op and writes no further event
 
 ### An enqueue flood leaves the worker its turn

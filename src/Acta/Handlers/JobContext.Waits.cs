@@ -85,7 +85,7 @@ public abstract partial class JobContext
     /// <c>db_now + timeout</c> (whole seconds, rounded up, positive) as the wait's expiration; a replay reuses that
     /// instant and never extends it, so restarts cannot lengthen the wait. A raise landing before the replayed wait
     /// settles the wait is still taken; once it settles <c>Expired</c>, Acta ends the Job <c>Cancelled</c> with reason
-    /// <c>job.wait-timed-out</c> and this call does not return. Use
+    /// <c>wait-timed-out</c> and this call does not return. Use
     /// <see cref="TryWaitSignalAsync(string, TimeSpan, CancellationToken)"/> to resume the handler instead.
     /// </summary>
     public async Task WaitSignalAsync(string name, TimeSpan timeout, CancellationToken ct = default)

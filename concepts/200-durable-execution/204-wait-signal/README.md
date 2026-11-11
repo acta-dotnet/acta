@@ -22,7 +22,7 @@ still loses the continuation when the process stops.
 ## Why this design
 
 `WaitSignalAsync` writes a named checkpoint and ends the execution. The worker lease is cleared. Raising
-the signal stores its payload and re-arms the same job; the handler re-enters and consumes the latch.
+the signal stores its payload and re-arms the same job; the handler re-enters and reads the latch, which stays set for any later replay.
 
 ## Trade-offs
 

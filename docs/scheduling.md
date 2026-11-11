@@ -34,7 +34,7 @@ public Task Reconcile(JobContext ctx, CancellationToken ct) => ...;
 
 - A schedule's name is kebab-case, stable for operators, and unique within the definition; several `[Schedule]` may decorate one handler, each with its own cursor.
 - The expression is a cron with five fields, or six for seconds (`Cron.Hourly` and its siblings name the common ones), an ISO 8601 duration (`"PT5M"`), or a plain one (`"5m"`, `"1h"`). A duration's largest unit is the day: a month or a year has no fixed length, so write it as a cron. An interval steps on the grid of its anchor, the deploy that introduced it, and never drifts.
-- `TimeZoneId` is an IANA or Windows id, UTC by default, and is ignored for intervals.
+- `TimeZoneId` is an IANA or Windows id, UTC by default. An interval on its own ignores it; one held to an availability calendar reads the calendar's windows in it.
 - `Environments` names the environments the schedule registers in, matched against `JobsOptions.EnvironmentName` by the deploy; a schedule with no list registers everywhere.
 - `Description` is persisted on the schedule row, apart from the note an operator writes when pausing or resuming.
 - The remaining members are each a section below: `MisfireStrategy`, `ExpireAfter` and `ExpireAction` ([catch-up, misfire, and expiration](#catch-up-misfire-and-expiration)), `MaxOutstanding` and `FullBehavior` ([delivery and capacity](#delivery-and-capacity)), `StartAtUtc` and `EndBeforeUtc` ([finite schedules](#finite-schedules)), and `Calendar` and `Availability` ([calendars](#calendars)).
@@ -240,7 +240,7 @@ The workflow keeps a calendar's definition beside the code that names it:
 - A definition that does not compile throws `CalendarDefinitionException`, whose message and `Problems` list every problem with its JSON path, and writes nothing; over HTTP the draft answers 409 `rejected` with the same `problems`.
 - A role other than the family's, or a name the other scope holds, answers `Rejected` with the reason.
 - `PreviewAsync` forecasts a version beside the current one and lists up to 100 bound schedules with an overdue flag, overdue ones first, with `SchedulesTotal` and `OverdueTotal` counting them all; `ListDependentsAsync` pages every one.
-- `PublishAsync` makes a draft current and retimes every schedule that names the family in its scope, in one transaction: each cursor seeds from the new version's first occurrence after now, and `schedule.retimed` is recorded. Paused and orphaned schedules keep their state. A family that more than 200 schedules bind is refused.
+- `PublishAsync` makes a draft current and retimes every schedule that names the family in its scope, in one transaction: each cursor seeds from the new version's first occurrence after now, and `schedule.retimed` is recorded. A paused schedule is retimed and stays paused, and an orphaned one is left as it is. A family that more than 200 schedules bind is refused.
 - Publishing the version already current answers `AlreadyInState` and changes nothing: no schedule is retimed, no event is recorded, and an overdue occurrence does not refuse it. Two publications of one draft at once publish it once, and the second answers `AlreadyInState`.
 - A schedule holding an undecided overdue occurrence refuses the publication (`OverdueDecisionCode.Refuse`, the default) until it is drained; under `OverdueDecisionCode.Discard` the occurrence is audited as `schedule.skipped` with the reason `retimed`.
 - `ArchiveAsync` retires the current version of a family no live schedule names.

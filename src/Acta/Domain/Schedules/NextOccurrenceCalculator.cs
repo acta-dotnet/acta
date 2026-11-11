@@ -6,8 +6,9 @@ namespace Acta;
 /// <summary>
 /// Pure next-occurrence math for recurring schedules: every entry point takes an explicit UTC instant and answers exact
 /// UTC instants. Cron is parsed with Cronos (6 fields enables seconds), an interval by <see cref="ParseInterval"/>, and a
-/// calendar source asks its <see cref="IActaCalendar"/>; zones resolve through <see cref="ResolveTimeZone"/> for cron and
-/// calendars, an interval is absolute. An availability calendar omits an occurrence outside its windows, never shifts it.
+/// calendar source asks its <see cref="IActaCalendar"/>; zones resolve through <see cref="ResolveTimeZone"/> for cron,
+/// calendars and an availability's windows, and an interval on its own is absolute. An availability calendar omits an
+/// occurrence outside its windows, never shifts it.
 /// The timing's bounds hold every answer to [start, end) on the nominal instant; past the end the source is exhausted.
 /// </summary>
 internal static class NextOccurrenceCalculator

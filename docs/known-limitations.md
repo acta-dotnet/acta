@@ -34,7 +34,7 @@ Execution is at-least-once, and a handler re-enters from the top with its comple
 - **One rate meter is one row lock**, about a thousand admissions a second cluster-wide. A turn under a quarter second away is waited out holding the executor, and a worker that dies in that wait costs the job one attempt.
 - **A handler lock stops at the namespace.** `RunWithLockAsync` keys are scoped to the job's namespace, as concurrency slots and rate meters are, so two namespaces never serialize on one key. Jobs that share one external single-writer resource belong in one namespace.
 - **A meter can run at two rates** when a deploy moves a definition onto another meter or a retune races a worker start. Workers warn, and one override on any participant fixes it.
-- **A provider error at admission bounces the attempt** with `job.unclassified`, spending no budget and raising no alert; a concurrency slot it took without an answer stays taken for up to one lease.
+- **A provider error at admission bounces the attempt**: it is rescheduled with a message that says so and no reason, spends no budget, and raises no alert; a concurrency slot it took without an answer stays taken for up to one lease.
 - **A wait deadline added in a code upgrade arms at the job's next claim**, so a job already suspended under the old code needs a reschedule.
 - **A wait inside a step runs the step's body again up to the wait** on every resume, so what the body does before the wait must be idempotent. An at-most-once body cannot wait at all: the call throws.
 - **Compensating on `ctx.IsLastAttempt` is best effort.** A worker crash or a lost lease on the last attempt skips the catch block, and a reclaim can spend the budget and fail the job with no handler code running. Make the compensation an idempotent step, and run work whose compensation must happen as a child job: the parent compensates when the child lands Failed, since `WaitChildAsync` survives crashes.
@@ -72,7 +72,7 @@ Execution is at-least-once, and a handler re-enters from the top with its comple
 
 - **The drift guard checks type names and payload formats, not JSON compatibility.** Wire compatibility is the application's.
 - **Retiring a definition cancels its parked jobs but not their descendants.**
-- **A recurring firing still running when its definition is retired is cancelled** unless it succeeds or spends its failure budget, which return the permanent job to `Idle` as usual. A cancelled permanent job stays cancelled after a deploy reactivates the definition, so restart it; once its retention runs out, purge removes it and the next deploy that declares the definition writes a fresh permanent job.
+- **A recurring firing still running when its definition is retired is cancelled** unless it succeeds or spends its failure budget, which return the permanent job to `Idle` as usual. A cancelled permanent job stays cancelled after a deploy reactivates the definition, so restart it. While the definition stays retired, retention removes the job once its retention runs out, and the next deploy that declares the definition writes a fresh permanent job.
 - **A worker learns of a retire on its next heartbeat**, so an attempt that starts in that gap still runs once. A job its handler paused stays Paused until it is resumed or cancelled.
 
 ## Dashboard and API exposure

@@ -10,7 +10,8 @@ Postgres-flavored against the `acta` schema; on SQL Server bracket the identifie
 interval arithmetic (`DATEADD`), and on SQLite drop the `acta.` prefix, since the views live in the
 database file itself. A SQLite view shows its `_utc` columns as ISO 8601 UTC text (`2026-11-08T09:30:00.123Z`),
 which sorts in time order and compares against `strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '-1 hour')`; the ledger
-tables keep Unix epoch milliseconds.
+tables keep Unix epoch milliseconds. A stored instant holds microseconds on PostgreSQL and milliseconds on SQL
+Server and SQLite.
 
 The job's `jobs_state` row stores current state. Job events explain transitions. Use the CLI, API,
 dashboard, or a SQL query over the events timeline to find why.
@@ -41,10 +42,17 @@ Workers use the same bands: `Active = 10`, `Draining = 80` (stopped polling, fin
 
 There are exactly two ways a worker process ends, and the terminal status names which one:
 
-| Status | What happened | Event and reason |
+| Status | What happened | Event |
 |---|---|---|
-| `Stopped = 100` | Exited cleanly through SIGTERM / `IHostedService.StopAsync` | `121 worker.stopped` / `100 worker.clean-shutdown` |
-| `Dead = 200` | Heartbeat went stale past the liveness window; crash recovery flipped it | `122 worker.died` / `101 worker.heartbeat-stale` |
+| `Stopped = 100` | Exited cleanly through SIGTERM / `IHostedService.StopAsync` | `worker.stopped` (121) |
+| `Dead = 200` | Heartbeat went stale past the liveness window; crash recovery flipped it | `worker.died` (122) |
+
+A clean stop drains. The worker stops claiming, is stamped `Draining`, and lets its running handlers
+finish; when the last one lands it is stamped `Stopped`. The host bounds that wait with
+`HostOptions.ShutdownTimeout`. A handler still running when it passes has its token cancelled and the
+process exits without a completion for it, so the job keeps its lease until the lease lapses, and crash
+recovery then reclaims it and charges the attempt (`lease-expired`). Give a host whose handlers run
+longer than the shutdown timeout a longer one, and have such handlers honour their token.
 
 On a terminal worker, `modified_at_utc` is the instant it ended: both transitions stamp it. Crash
 recovery stamps it again when it reclaims a job the worker still leased, because that writes an event
@@ -169,8 +177,9 @@ The reason for a transition lives on the `events` timeline (and per-step on `ste
 
 ## Control verbs
 
-All per-job actions go through `IJobs` (or your own endpoint that wraps it); the framework stamps
-the actor and reason, so callers cannot forge the audit trail.
+All per-job actions go through `IJobs` (or your own endpoint that wraps it), which records the
+actor and reason on the verb's event. Over HTTP the actor is the authenticated caller's name, never a
+request field; a C# caller passes it.
 
 ```csharp
 // Address the job by its public ref (what dashboards and clients hold), by deduplication key,
@@ -189,7 +198,7 @@ await jobs.PurgeAsync(job);                              // hard-delete a termin
 ```
 
 Cancel of a parent cancels the whole non-terminal subtree (descendants carry reason
-`job.parent-cancelled`). Restart leaves a terminal row's history intact and re-arms the same id; there
+`parent-cancelled`). Restart leaves a terminal row's history intact and re-arms the same id; there
 is never a replacement row. Reschedule applies to Paused/Suspended/Ready/Blocked rows and re-arms them
 Ready, or Blocked behind their lane, and gives an Idle permanent job a manual firing; purge refuses a non-terminal job, a job that has child jobs, and a child whose parent is not
 terminal (finish or cancel the tree, then purge the leaves first).
@@ -585,7 +594,7 @@ Deploy: run `<app> jobs migrate`, start the new workers, stop the old ones once 
 - Under `PayloadContractDriftMode.Fail` a deploy stops while a stored contract differs from the build's own. A worker start does not check it.
 - Migrations are forward-only and additive, and an older build never rewrites what a newer one migrated.
 
-Jobs of a definition only the withdrawn build carried stay `Ready` until a build with the handler returns or an operator retires the definition (`IActaOperations.Definitions.RetireAsync`, `POST /definitions/{namespace}/{name}/retire`, or the dashboard). Retiring cancels the definition's parked jobs with `job.definition-retired`, lets running attempts finish, and rejects new enqueues. A retired definition stays retired while workers that still carry it start; the next deploy by a build that declares it reactivates it. Until then, a long run of such jobs slows the claims of every worker that lacks the handler.
+Jobs of a definition only the withdrawn build carried stay `Ready` until a build with the handler returns or an operator retires the definition (`IActaOperations.Definitions.RetireAsync`, `POST /definitions/{namespace}/{name}/retire`, or the dashboard). Retiring cancels the definition's parked jobs with `definition-retired`, lets running attempts finish, and rejects new enqueues. A retired definition stays retired while workers that still carry it start; the next deploy by a build that declares it reactivates it. Until then, a long run of such jobs slows the claims of every worker that lacks the handler.
 
 ### Coexisting with your application's packages
 
@@ -677,7 +686,7 @@ Inline payloads are for durable instructions and small results, not file storage
 `MaxInlinePayloadBytes` is 1 MiB. It is the hard cap for caller-controlled inline writes such as
 enqueue inputs, variables, progress, and signal values. Handler results are measured
 against the same cap, but one past it is dropped rather than thrown, because the handler has already
-run: the job still succeeds, a warning is logged, and its events carry `job.result-oversized`. A step
+run: the job still succeeds, a warning is logged, and its events carry `result-oversized`. A step
 result past it fails the step: uncaught, the job fails for good with `non-retryable-exception`, since its
 body has run too and a retry would run it again. A restart runs an ordinary step again and finds an
 at-most-once one interrupted.
@@ -895,7 +904,8 @@ recovery also reversed external effects.
 ### …a signal arrives before the handler starts waiting?
 
 The signal value is stored in the named checkpoint. When the handler later calls
-`WaitSignalAsync` with the same name, it consumes the stored value without suspending. A signal sent
+`WaitSignalAsync` with the same name, it reads the stored value without suspending, and the value stays
+set: a replay or a later wait on that name reads it again, until a later raise replaces it. A signal sent
 to a terminal job is rejected; a signal sent to a paused job is stored but does not resume the job
 until the job itself is resumed.
 
@@ -904,7 +914,7 @@ until the job itself is resumed.
 An unbounded `WaitSignalAsync` suspends the job indefinitely, and retention never touches a
 suspended job, only terminal ones. When "never" is a real possibility, bound the wait:
 `WaitSignalAsync(name, timeout)` cancels the job on expiry, budget-neutral, with reason
-`job.wait-timed-out`, so the row lands terminal and ages out normally; `TryWaitSignalAsync`
+`wait-timed-out`, so the row lands terminal and ages out normally; `TryWaitSignalAsync`
 resumes the handler with a `TimedOut` result instead, for workflows that expire or compensate
 explicitly. The deadline is stamped on the checkpoint when the wait first arms and is never extended:
 worker downtime, restarts, and replays all count against it.
@@ -940,7 +950,7 @@ what a process can run, so during a rolling deploy either version can claim eith
 A worker with no handler for a claimed job returns it to `Ready` with the lease cleared, no failure
 charged and no retry consumed, due again one safety-poll interval later, and stops claiming that
 definition for the rest of its process life; the first hand-back logs a warning naming the job ref
-and definition id, the rest of the same claimed batch log at debug. Under `Audit` recording the
+and definition id, and the rest of the same claimed batch log nothing. Under `Audit` recording the
 hand-back writes one `job.execution-yielded` row whose message names the definition; under
 `Failures` it writes nothing, because nothing failed. A job whose definition
 no live worker carries sits `Ready` without progressing, and its definition page shows it `Active`
@@ -1043,7 +1053,7 @@ Sample outputs for a suspended, an expired-lease, a failed, and a succeeded job 
 
 Start with `acta.jobs_view` so names and status values are decoded:
 
-- `job_status`: only `ready` jobs are claimable. A `blocked` job waits behind the earlier unfinished job in
+- `job_status`: a claim takes `ready` jobs, and a `suspended` job whose `next_run_at_utc`, its wait's timeout, is due. A `blocked` job waits behind the earlier unfinished job in
   its `lane_name` and goes `ready` when that one settles.
 - `next_run_at_utc`: delayed, slept, rescheduled, and permanent jobs may be ready but not due yet.
 - `namespace_name`: workers only claim inside their own namespace.
@@ -1192,7 +1202,7 @@ and keep authorization on the mapped endpoint group.
 When an Acta host starts with `jobs` as the first argument after any host switches, it runs the built-in
 CLI verb and exits. No worker loop starts. This is intentional.
 
-Every verb but `migrate` expects a provisioned schema, and the normal worker owns catalog setup.
+Every verb but `migrate` expects a provisioned schema, and only `deploy` writes the catalog: a worker start writes no definition or schedule.
 
 ### The Generated Manifest Type Does Not Resolve
 
@@ -1235,15 +1245,15 @@ rows (schedules → definitions; workers → namespaces; jobs_state → lanes). 
 have no delete surface, and retention deletes a lane only once no job references it.
 
 A job's own rows carry no key to it: purge and retention delete `jobs_state`, `checkpoints`,
-`steps`, `schedules`, and the job's `tags` with the job, and conformance checks that nothing is left.
+`steps`, `schedules`, and the job's `tags` and `alerts` with the job, and conformance checks that nothing is left.
 Nor does `jobs` reference `namespaces`, `tenants`, or `definitions` by key; enqueue resolves those in
 its own transaction. A key on `jobs_state` checked, on every enqueue, the new job row on the hottest page
 of `jobs`, and dropping it raised SQL Server's single enqueues by about a sixth.
 
 Never enforced, by design:
 
-- Audit/history rows (`events`, `alerts`): audit outlives its subjects. Queries against them must
-  use their denormalized columns (e.g. `alerts.job_ref`), never joins to possibly-purged rows.
+- Audit rows (`events`): audit outlives its subjects. Queries against them must use the event's own
+  columns, never an inner join to a possibly-purged row.
 - Ephemeral/operational references (`locks.job_id`, `jobs_state.leased_by_worker_id`): reaped by
   their own lifecycles.
 - Lineage self-references (`jobs.parent_job_id`, `jobs.lineage_root_job_id`): retention deletes parents in
@@ -1291,7 +1301,7 @@ With the default json format, `p_input` must be exactly one strict JSON value. T
 malformed row stores, fails its handler's deserialization, and reads back over HTTP as `base64` with `malformed: true`.
 Postgres takes tags as the three arrays `p_tag_name`, `p_tag_value`, and `p_tag_value_search`.
 
-The routine stores what it is given, where the API canonicalizes first. Pass every name (namespace, job, tenant, lane, tag) as it is stored, which is lowercase, and every key as the API would take it: printable ASCII with no whitespace, within its column's width, since SQL Server cuts a longer value to the width without an error, and for a deduplication key not starting with `sys.`, which the engine's own keys use. A key outside that rule is stored, deduplicates, runs, and reads back as stored, but the API cannot look it up or filter by it. A key that is empty or only spaces is refused: pass `NULL` for no key. A priority must be one of the bands 0, 50, 70, 85, and 100; any other is refused, since a job between two bands would never be claimed. `p_tag_value_search` is the tag's value trimmed and upper-cased, which is what the API's tag filters compare. On PostgreSQL the two small integers need a cast, as in `p_job_priority_code_override => 70::smallint`.
+The routine stores what it is given, where the API canonicalizes first. Pass every name (namespace, job, tenant, lane, tag) as it is stored, which is lowercase, and every key as the API would take it: printable ASCII with no whitespace, within its column's width, since SQL Server cuts a longer value to the width without an error, and for a deduplication key not starting with `sys.`, which the engine's own keys use. A key with whitespace or a character outside printable ASCII is stored, deduplicates, runs, and reads back as stored, but the API cannot look it up or filter by it. A key that is empty or only spaces is refused: pass `NULL` for no key. A priority must be one of the bands 0, 50, 70, 85, and 100; any other is refused, since a job between two bands would never be claimed. `p_tag_value_search` is the tag's value trimmed and upper-cased, which is what the API's tag filters compare. On PostgreSQL the two small integers need a cast, as in `p_job_priority_code_override => 70::smallint`.
 
 SQLite has no callable enqueue routine; enqueue through the application (`IJobs.EnqueueAsync`).
 
@@ -1595,7 +1605,7 @@ scoping to Quarantined makes the intent explicit and the statement idempotent.
 
 Names (namespace, job, schedule, signal, channel, lane, tenant, rate meter) are stored lowercase: Acta
 trims and lowercases them on input, so a name compares equal under any collation. Keys (deduplication,
-concurrency, lock, correlation) are stored exactly as the caller gave them and compared bytewise; on
+concurrency, lock, correlation) are stored as the caller gave them, case included, with surrounding whitespace trimmed, and compared bytewise; on
 SQL Server the compared key columns carry a binary collation for that, on PostgreSQL and SQLite equality
 is already exact. Display text (`display_name`, `alert_message`, `actor`) is stored verbatim and never compared.
 

@@ -28,8 +28,8 @@ public sealed class SignalStepWakeChaosSpec : ActaRuntimeTestBase<ConformanceFix
         });
     }
 
-    [Fact(DisplayName = "Signal raised before a waiter exists is consumed without suspending")]
-    public async Task Signal_before_waiter_exists_is_consumed_without_suspend()
+    [Fact(DisplayName = "Signal raised before a waiter exists is read without suspending")]
+    public async Task Signal_before_waiter_exists_is_read_without_suspend()
     {
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await ChaosSpecHelpers.EnqueueNoPayloadAsync(Jobs, TestNamespace, "job-wait-signal", ct);
@@ -39,7 +39,7 @@ public sealed class SignalStepWakeChaosSpec : ActaRuntimeTestBase<ConformanceFix
         Assert.Equal(ControlAction.Applied, raise.Action);
         Assert.Equal(JobStatusCode.Ready, raise.Status);
 
-        // --- 2. One tick consumes the pre-set signal and completes without suspending.
+        // --- 2. One tick reads the pre-set signal and completes without suspending.
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
         Assert.Equal(JobStatusCode.Succeeded, (await Jobs.GetStatusAsync(enqueued, ct))?.Status);
 

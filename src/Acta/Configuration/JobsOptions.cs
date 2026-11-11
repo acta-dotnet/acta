@@ -155,7 +155,7 @@ public sealed class JobsOptions
     /// <c>checkpoints.value</c>, <c>steps.result</c>) and the largest HTTP request body, so a body the ledger
     /// would refuse is refused at the edge with the same number. Caller-controlled writes (enqueue, variables,
     /// progress, signals) throw <c>PayloadTooLargeException</c> past it; a handler result past it is dropped, the job
-    /// still succeeds, and the events carry <c>job.result-oversized</c>; a step result past it fails the step. An HTTP body is a JSON
+    /// still succeeds, and the events carry <c>result-oversized</c>; a step result past it fails the step. An HTTP body is a JSON
     /// envelope around its payload, so a payload of exactly this size does not fit a request of this size, on purpose.
     /// </summary>
     public int MaxInlinePayloadBytes { get; set; } = 1024 * 1024;

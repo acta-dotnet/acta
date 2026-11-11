@@ -4,10 +4,10 @@ using Xunit;
 
 namespace Acta.Tests.Conformance.Operations.Namespaces;
 
-/// <summary>Conformance for namespace resume: the status flips back with one 15xx event, and the facade rejects sys.</summary>
+/// <summary>Conformance for namespace resume: the status flips back with one namespace.resumed event, and the facade rejects sys.</summary>
 [ConformanceSpec(
     "resume-namespace.status-flip",
-    "Namespace resume flips status back, emits one 15xx event, and rejects sys",
+    "Namespace resume flips status back, emits namespace.resumed, and rejects sys",
     Area = "Admin",
     Contract = "Resume flips a suspended namespace back to Active and emits namespace.resumed, while sys is rejected at the facade."
 )]

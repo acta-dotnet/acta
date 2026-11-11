@@ -66,8 +66,8 @@ public sealed class AcquireLockSpec : ActaStorageTestBase<ConformanceFixture>
         await locks.ReleaseLockAsync(token!.Value, ct);
     }
 
-    [Fact(DisplayName = "A competing acquire steals an expired lease and bumps the version")]
-    public async Task Competing_acquire_steals_expired_lease_and_bumps_version()
+    [Fact(DisplayName = "A competing acquire steals an expired lease under a new hold token, and the old token releases nothing")]
+    public async Task Competing_acquire_steals_expired_lease_under_a_new_token()
     {
         var ct = TestContext.Current.CancellationToken;
         var locks = Services.GetRequiredService<LocksOperations>();
@@ -98,25 +98,19 @@ public sealed class AcquireLockSpec : ActaStorageTestBase<ConformanceFixture>
         ).Token;
         Assert.NotNull(tokenB);
 
-        // Post-steal: the new owner is the stealer. We do NOT assert the version strictly
-        // increased: a concurrent PurgeExpiredData can reap the back-dated (expired) lease before the
-        // steal, in which case AcquireLockAsync re-inserts a fresh lease (version resets) rather than
-        // updating it in place.
+        // Post-steal: the new owner is the stealer, whether the acquire took the expired row over in place or a
+        // concurrent retention sweep reaped it first and the acquire inserted a fresh one.
         {
             var postSteal = await Db.From<Acta.LockEntity>().Where(l => l.LockKey == key).SingleOrDefaultAsync(ct);
             Assert.NotNull(postSteal);
             Assert.Equal(-2L, postSteal!.JobId);
         }
 
-        // Token A is stale only when the row was updated in place and the version bumped. If the
-        // retention sweep reaped the expired row between the back-date and the competing acquire, the
-        // fresh insert can reuse version 1, making token A indistinguishable from token B.
-        if (tokenA!.Value.HoldToken != tokenB!.Value.HoldToken)
-        {
-            Assert.False((await locks.ReleaseLockAsync(tokenA.Value, ct)).Released);
-        }
+        // Every acquire mints its own hold token, so the first holder's token names a hold that is gone either way.
+        Assert.NotEqual(tokenA!.Value.HoldToken, tokenB!.Value.HoldToken);
+        Assert.False((await locks.ReleaseLockAsync(tokenA.Value, ct)).Released);
 
         // Clean up: release the stealer's token.
-        await locks.ReleaseLockAsync(tokenB!.Value, ct);
+        await locks.ReleaseLockAsync(tokenB.Value, ct);
     }
 }

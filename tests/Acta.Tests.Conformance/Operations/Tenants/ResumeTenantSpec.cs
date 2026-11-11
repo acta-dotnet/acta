@@ -5,10 +5,10 @@ using Xunit;
 
 namespace Acta.Tests.Conformance.Operations.Tenants;
 
-/// <summary>Conformance for tenant resume: the status flips back with one 15xx event, and resuming an active tenant writes nothing.</summary>
+/// <summary>Conformance for tenant resume: the status flips back with one tenant.resumed event, and resuming an active tenant writes nothing.</summary>
 [ConformanceSpec(
     "resume-tenant.status-flip",
-    "Tenant resume flips status back and emits one 15xx event to sys namespace",
+    "Tenant resume flips status back and emits tenant.resumed to the sys namespace",
     Area = "Admin",
     Contract = "Resume flips a suspended tenant back to Active with one tenant.resumed to sys namespace 1, and resuming an active tenant writes nothing."
 )]

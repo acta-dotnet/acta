@@ -18,9 +18,7 @@ namespace Acta.Tests.Conformance.Operations.Workers;
 )]
 public sealed class StopWorkerSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
-    [Fact(
-        DisplayName = "Active worker flips to Stopped with exactly one WorkerStopped event from the Worker actor and clean-shutdown reason"
-    )]
+    [Fact(DisplayName = "An active worker flips to Stopped with exactly one worker.stopped event, whose code is the whole reason")]
     public async Task Stops_an_active_worker_and_emits_the_event()
     {
         var ct = TestContext.Current.CancellationToken;

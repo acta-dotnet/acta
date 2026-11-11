@@ -66,7 +66,7 @@ public abstract partial class JobContext
                 }
                 finally
                 {
-                    // Best-effort release: version-CAS makes it a no-op if the lease was already stolen.
+                    // Best-effort release: the hold token makes it a no-op if the lease was already stolen.
                     // Use None so a cancelled action still releases. Cleanup failure must never replace
                     // the action outcome; the runtime reports it and the lease TTL provides recovery.
                     try

@@ -4,10 +4,10 @@ using Xunit;
 
 namespace Acta.Tests.Conformance.Operations.Namespaces;
 
-/// <summary>Conformance for namespace suspend: idempotent status flip, version bump, one 15xx event to the namespace itself, NotFound, and the facade sys guardrail.</summary>
+/// <summary>Conformance for namespace suspend: idempotent status flip, version bump, one namespace.suspended event to the namespace itself, NotFound, and the facade sys guardrail.</summary>
 [ConformanceSpec(
     "suspend-namespace.status-flip",
-    "Namespace suspend flips status, emits one 15xx event, and rejects sys",
+    "Namespace suspend flips status, emits namespace.suspended, and rejects sys",
     Area = "Admin",
     Contract = "Suspend flips a namespace to Suspended once with a version bump and namespace.suspended, reports NotFound for unknown names, and rejects sys."
 )]

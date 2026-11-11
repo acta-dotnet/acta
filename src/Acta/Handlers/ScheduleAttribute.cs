@@ -76,7 +76,8 @@ public sealed class ScheduleAttribute : Attribute
 
     /// <summary>
     /// IANA or Windows time-zone id resolved via <c>TimeZoneInfo.FindSystemTimeZoneById</c>. Defaults
-    /// to UTC. Null or empty is also normalized to UTC. Ignored for ISO 8601 interval expressions.
+    /// to UTC. Null or empty is also normalized to UTC. An interval on its own ignores it; one held to an
+    /// availability calendar reads the calendar's windows in it.
     /// </summary>
     public string? TimeZoneId { get; init; } = "UTC";
 

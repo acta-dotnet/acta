@@ -84,10 +84,10 @@
     <!-- The only Random use is retry backoff and claim-poll jitter, where spreading load is the point
          and unpredictability is not a security property; CA5394 reads it as a cryptographic concern. -->
     <NoWarn>$(NoWarn);CA5394</NoWarn>
-    <!-- Six sites in three shapes. Two are not a nested type anyone wrote: they are the container
-         Roslyn synthesizes for a C# extension block, which is why the diagnostic names no type at all
-         - the message reads "Do not nest type ." with the name blank. Those blocks are the IsTerminal
-         / GetBehavior members on ExecutionStatusCode and JobStatusCode, and the flagged type has no
+    <!-- Sites in three shapes. One is not a nested type anyone wrote: it is the container Roslyn
+         synthesizes for a C# extension block, which is why the diagnostic names no type at all
+         - the message reads "Do not nest type ." with the name blank. That block is the members on
+         JobStatusCode, and the flagged type has no
          name to rename, no accessibility to set and no file to move to; the rule fires on the
          language feature itself, wherever it is used. Two are
          AttemptIdentity and NoteDetail, the note payload of one [Job] handler each, nested in the

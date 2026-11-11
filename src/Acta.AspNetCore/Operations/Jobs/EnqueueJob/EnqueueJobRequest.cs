@@ -8,7 +8,7 @@ namespace Acta.AspNetCore;
 /// <param name="Input">The job's input as a payload envelope; omitted or null enqueues a job without input.</param>
 /// <param name="DeduplicationKey">A key that makes the enqueue repeat-safe within the namespace: a second enqueue with the same key
 /// matches the first job and enqueues nothing.</param>
-/// <param name="CorrelationKey">A key of the caller's that ties this job to related work; kept exactly as given and copied onto the job's
+/// <param name="CorrelationKey">A key of the caller's that ties this job to related work; kept with its case and copied onto the job's
 /// events.</param>
 /// <param name="TenantName">The tenant the job is about; it must be registered and not suspended.</param>
 /// <param name="Priority">The job's priority; omitted, the job takes its definition's.</param>

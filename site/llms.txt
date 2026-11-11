@@ -281,17 +281,18 @@ A meter belongs to one namespace: definitions in different namespaces never shar
 quota shared by two services needs its rate split between them. Definitions on one meter must
 declare the same rate. A job that arrives early is BOOKED the next free instant: under a quarter second away
 the executor sleeps it out and takes it, farther away the job re-arms Ready at exactly that instant
-without spending retry budget (reason `rate-limited`, never a failure and never an alert), and a
-booked turn stays valid for a second, so a backlog drains in arrival order at the rate with at most
-one re-arm per job.
+without spending retry budget (reason `rate-limited`, never a failure and never an alert). A booked
+turn stays valid for a second, or for the rate's interval when that is longer, so a backlog drains
+in arrival order at the rate with one re-arm per job; a job picked up later than that is metered
+again.
 
 ## Payloads
 
 Inline payloads (inputs, step results, variables) are capped at 1 MiB (`MaxInlinePayloadBytes`).
 Caller-supplied oversized writes throw `PayloadTooLargeException`; an oversized handler RESULT is
-dropped with a `job.result-oversized` event while the job still succeeds, and an oversized step result
-fails the job for good, since a retry would run the step again. Big artifacts belong in
-blob storage with the job carrying a reference: URI, checksum, size.
+dropped while the job still succeeds, its success event carrying reason `result-oversized`, and an
+oversized step result fails the job for good, since a retry would run the step again. Big artifacts
+belong in blob storage with the job carrying a reference: URI, checksum, size.
 
 By default an input with no data uses the `none` format, `byte[]`/`ReadOnlyMemory<byte>` use `bytes`, and every
 other input, scalars included, is JSON (`"hello"`, `42`); an explicit or custom format overrides that. A raw or
@@ -302,8 +303,9 @@ HTTP enqueue in the json format sends strict JSON (one value, no comments or tra
 - A `Suspended` job is healthy, not stuck: it is waiting on a signal, a child, or a timer. A wait
   armed with a timeout resolves itself when the deadline passes; an unbounded wait parks until
   raised.
-- Deduplication keys are kept exactly as given (printable ASCII, no whitespace): `Order-1` and `order-1`
-  are two keys, so lowercase an id yourself when its source is case-insensitive.
+- Deduplication keys keep their case (printable ASCII, no whitespace, surrounding whitespace
+  trimmed): `Order-1` and `order-1` are two keys, so lowercase an id yourself when its source is
+  case-insensitive.
 - The enqueue `deduplicationKey` prevents a second job ROW, not a second side effect; execution
   stays at-least-once either way.
 - Tags are for finding jobs, not for carrying data: input is typed and versioned, tags are

@@ -1,6 +1,6 @@
--- Every schedule naming the family, as the admitter's row, so a publication plans it as a pass evaluates it; orphaned
--- ones included, as their cursors move too, a retired definition's left out, as its reactivating start retimes them.
--- A shared family in sys binds the name in every namespace. No locks; the apply validates the versions it carries.
+-- Every schedule naming the family, as the admitter's row, so a publication plans it as a pass evaluates it. An orphaned
+-- one is listed for the apply to check and is not retimed; a retired definition's is left out, as its reactivating start
+-- retimes it. A shared family in sys binds the name in every namespace. No locks; the apply validates the versions.
 WITH named AS (
     -- A namespace's family binds its own schedules only, which the namespace's definitions reach by key, so with
     -- read-committed snapshot off the read waits on no other namespace's rows.

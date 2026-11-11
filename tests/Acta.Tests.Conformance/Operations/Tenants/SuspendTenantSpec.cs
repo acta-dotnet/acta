@@ -5,10 +5,10 @@ using Xunit;
 
 namespace Acta.Tests.Conformance.Operations.Tenants;
 
-/// <summary>Conformance for tenant suspend: idempotent status flip, version bump, one 15xx event to the sys namespace, and NotFound for unknown keys.</summary>
+/// <summary>Conformance for tenant suspend: idempotent status flip, version bump, one tenant.suspended event to the sys namespace, and NotFound for unknown keys.</summary>
 [ConformanceSpec(
     "suspend-tenant.status-flip",
-    "Tenant suspend flips status and emits one 15xx event to sys namespace",
+    "Tenant suspend flips status and emits tenant.suspended to the sys namespace",
     Area = "Admin",
     Contract = "Suspend flips a tenant to Suspended once with a version bump and one tenant.suspended to sys namespace 1, and an unknown key is NotFound."
 )]

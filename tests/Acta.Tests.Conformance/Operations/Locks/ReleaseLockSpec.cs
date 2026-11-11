@@ -6,7 +6,7 @@ using Xunit;
 namespace Acta.Tests.Conformance.Operations.Locks;
 
 /// <summary>
-/// Conformance for <c>ReleaseLock</c> - the version-CAS DELETE that backs
+/// Conformance for <c>ReleaseLock</c> - the hold-token DELETE that backs
 /// <c>LocksOperations.ReleaseLockAsync</c>. Releasing a held lock removes the lease row and makes the key
 /// re-acquirable; releasing an already-released token is a token-CAS miss that returns false.
 /// </summary>
@@ -16,10 +16,9 @@ namespace Acta.Tests.Conformance.Operations.Locks;
 /// that keeps the row turns this table from O(currently held) into O(keys used per retention
 /// window) - the order of the jobs table itself under a concurrency-key workload, bloating a
 /// claim-path table until the reap catches up. Near-emptiness by construction is the table's
-/// design property, and deletion is what provides it. The accepted cost: the row's version
-/// restarts on re-acquire after a delete, so version-CAS alone cannot fence a stale holder
-/// across a full steal, release, re-acquire cycle - closing that window is the hold token's
-/// job, never a reason to stop deleting.
+/// design property, and deletion is what provides it. A stale holder is fenced by the hold token
+/// every acquire mints, across a steal, a release and a re-acquire alike, so nothing about fencing
+/// is a reason to stop deleting.
 /// </remarks>
 [ConformanceSpec(
     "release-lock.cas-delete",

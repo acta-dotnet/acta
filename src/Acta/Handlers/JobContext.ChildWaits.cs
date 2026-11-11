@@ -27,7 +27,7 @@ public abstract partial class JobContext
     /// rounded up, positive) as the latch's expiration; a replay reuses that instant and never extends it. A child
     /// landing before the replayed wait settles the latch is still taken. A timeout never cancels this Job: the handler
     /// resumes with <see cref="ChildJobOutcome.TimedOut"/> after Acta cancels the unfinished child and its subtree
-    /// (<c>job.wait-timed-out</c>), free to compensate, start a replacement, or cancel itself. There is no non-Try twin:
+    /// (<c>wait-timed-out</c>), free to compensate, start a replacement, or cancel itself. There is no non-Try twin:
     /// a child timeout resolves in the parent's favour, so a non-returning overload would mean nothing.
     /// </summary>
     public async Task<ChildJobOutcome> TryWaitChildAsync(long childJobId, TimeSpan timeout, CancellationToken ct = default)
@@ -101,7 +101,7 @@ public abstract partial class JobContext
     /// once as the group's deadline (whole seconds, positive, for the group rather than per child), and every child on
     /// every replay waits toward that one instant: the budget never restarts, except after <see cref="ResetStateAsync"/>,
     /// which clears the stored deadline with every other checkpoint. Children that landed keep their outcome; on expiry
-    /// Acta cancels only the unfinished ones and their subtrees (<c>job.wait-timed-out</c>) and this Job resumes with
+    /// Acta cancels only the unfinished ones and their subtrees (<c>wait-timed-out</c>) and this Job resumes with
     /// the result. There is no non-Try twin, for the reason <see cref="TryWaitChildAsync"/> has none.
     /// </summary>
     public async Task<ChildrenWaitOutcome> TryWaitChildrenAsync(

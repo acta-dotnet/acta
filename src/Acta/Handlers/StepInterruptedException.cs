@@ -6,7 +6,7 @@ namespace Acta;
 /// terminal <c>Interrupted</c>. The body may have run zero or one times, and Acta cannot tell which, since the start
 /// marker and the external side effect cannot share a transaction; a handler that catches this must reconcile
 /// against the external system by a stable reference, not blindly compensate. Left uncaught, the parent lands terminal
-/// <c>Failed</c> at once (<c>job.step-interrupted</c>, no retry, budget untouched), never replayed into the same step.
+/// <c>Failed</c> at once (<c>step-interrupted</c>, no retry, budget untouched), never replayed into the same step.
 /// </summary>
 public sealed class StepInterruptedException(string stepName)
     : Exception(

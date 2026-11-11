@@ -55,8 +55,8 @@ permanent job through a real worker crash.
 
 ### Three identities
 
-- `JobId`: the internal numeric id, for joins, logs, and SQL debugging; never in HTTP routes or dashboard JSON.
-- `JobRef`: the public handle, `job_` plus the 32 hex digits of a UUIDv7, such as `job_01a14f4e954e7bf68ac609f3fcad8e3d`, so a ref copies and searches as one word and refs sort by creation time. Parsing takes exactly that form, with the hex in any casing; a dashed or bare Guid does not parse. Once retention removes a job's row, a lookup by its ref finds nothing; its alerts still carry the ref and its events the numeric `JobId`, each until their own retention runs out. An explicit purge removes the job's events and alerts with it and leaves one `job.purged` event whose details carry the ref.
+- `JobId`: the internal numeric id, for joins, logs, and SQL debugging. A job's own JSON never carries it; an event names its subject by it (`entityId`), and a route takes one only as `/jobs/id:{n}` on reads once the host sets `EnableNumericIdLookup`.
+- `JobRef`: the public handle, `job_` plus the 32 hex digits of a UUID, such as `job_01a14f4e954e7bf68ac609f3fcad8e3d`, so a ref copies and searches as one word. A ref Acta creates is a UUIDv7, so those sort by creation time; a job enqueued from SQL with no ref gets a random one. Parsing takes exactly that form, with the hex in any casing; a dashed or bare Guid does not parse. Once retention removes a job's row, a lookup by its ref finds nothing: its alerts go with it, and its events carry the numeric `JobId` until their own retention runs out. An explicit purge removes the job's events and alerts with it and leaves one `job.purged` event whose details carry the ref.
 - `DeduplicationKey`: the caller's key for a root job, unique within the namespace while the job holding it exists; retention frees it.
 
 `JobRequestBuilder.Deduplicate(businessKey)` composes `<job-name>:<business-key>`. The static `DeduplicationKey` helpers (`ForDefinition`, `PerHour`, `PerDay`, `PerTimeBucket`, `ForTenant`, `AcrossDefinitions`) compose a final key for `JobEnqueueOptionsBuilder.DeduplicationKey(key)`. Keys are case-exact, so `Order-1` and `order-1` are two keys, and namespace-scoped, never tenant-scoped: compose a tenant-relative key with `DeduplicationKey.ForTenant(tenantName, businessKey)`. A key shared across definitions returns the job that holds it, whatever its definition, and a typed wait on that job throws when its definition, as this process registers it, produces a different result type.
@@ -127,7 +127,7 @@ visibility. Use a step when work is part of one parent job's internal state mach
 
 ### Wait deadlines
 
-A signal or child wait can take a timeout (`WaitSignalAsync(name, timeout)`, `TryWaitSignalAsync`, `TryWaitChildAsync`). The deadline is database time, armed once at the first wait and never extended by replays. On expiry the wait is expired for good: a `Try` overload resumes with `TimedOut`, a plain overload cancels the job budget-neutrally with `job.wait-timed-out`, and a late signal or child outcome never revives the wait. A child group waited with a timeout shares one deadline, and expiry cancels only the members still running.
+A signal or child wait can take a timeout (`WaitSignalAsync(name, timeout)`, `TryWaitSignalAsync`, `TryWaitChildAsync`). The deadline is database time, armed once at the first wait and never extended by replays. On expiry the wait is expired for good: a `Try` overload resumes with `TimedOut`, a plain overload cancels the job budget-neutrally with `wait-timed-out`, and a late signal or child outcome never revives the wait. A child group waited with a timeout shares one deadline, and expiry cancels only the members still running.
 
 ### Schedules, workers, and providers
 
@@ -215,7 +215,7 @@ catch (StepInterruptedException)
 }
 ```
 
-If the worker dies after the step's start is recorded but before its outcome, the step becomes `Interrupted` and `RunStepAsync` throws `StepInterruptedException`: the body ran zero or one times, and Acta cannot tell which. Reconcile against the external system; never assume the effect happened. Uncaught, the exception fails the job terminally (`job.step-interrupted`).
+If the worker dies after the step's start is recorded but before its outcome, the step becomes `Interrupted` and `RunStepAsync` throws `StepInterruptedException`: the body ran zero or one times, and Acta cannot tell which. Reconcile against the external system; never assume the effect happened. Uncaught, the exception fails the job terminally (`step-interrupted`).
 
 A body that throws leaves the step `Failed`, and `RunStepAsync` throws `StepFailedException` then and on every replay without running the body; catch it where the job can go on. Uncaught, it fails the job at once instead of retrying it, since every retry would throw again. Restarting the job runs the step again.
 
@@ -525,7 +525,7 @@ ValueTask<TResult>
 
 A job stores at most one result, on its `jobs_state` row, written by a successful completion: a one-shot job's terminal success, or a permanent job's successful occurrence, which replaces the previous one. Every claim and every restart clears it, so while an attempt runs the job has no result, and a failed occurrence of a permanent job leaves none. A handler that wants more history keeps it itself, in a variable, its own table, or object storage.
 
-The result value is non-null by contract: a handler that returns `null` from a declared result type fails the job for good on that attempt, since a retry would run the finished handler again, and `null` is never persisted as a result. A succeeded job has no result when it declares none, or when its result was larger than `MaxInlinePayloadBytes` and was dropped (reason `job.result-oversized`).
+The result value is non-null by contract: a handler that returns `null` from a declared result type fails the job for good on that attempt, since a retry would run the finished handler again, and `null` is never persisted as a result. A succeeded job has no result when it declares none, or when its result was larger than `MaxInlinePayloadBytes` and was dropped (reason `result-oversized`).
 
 Failed, cancelled, or abandoned attempts store no result (timeouts record failed with reason `execution-timeout`). The job's `jobs_state` row stores current state; job events explain transitions. Failure detail belongs in status and events, not in `TResult`.
 
@@ -538,7 +538,7 @@ Task<string> Handle(Lookup request, CancellationToken ct);
 
 ### Large payloads
 
-Durable job instructions are stored inline, capped by `JobsOptions.MaxInlinePayloadBytes` (1 MiB default). Caller-controlled inline writes that exceed the cap (enqueue input, signal values, and handler variable and progress writes) throw `PayloadTooLargeException` and never reach storage. Results are measured against the same cap after their body has run, so neither is retried: a handler result past it is dropped, the job still succeeds, and the events carry `job.result-oversized`; a step result past it, or one that is null or cannot be serialized, throws `StepFailedException` from `RunStepAsync`, which fails the job for good when uncaught, because a retry would run the finished body again.
+Durable job instructions are stored inline, capped by `JobsOptions.MaxInlinePayloadBytes` (1 MiB default). Caller-controlled inline writes that exceed the cap (enqueue input, signal values, and handler variable and progress writes) throw `PayloadTooLargeException` and never reach storage. Results are measured against the same cap after their body has run, so neither is retried: a handler result past it is dropped, the job still succeeds, and the events carry `result-oversized`; a step result past it, or one that is null or cannot be serialized, throws `StepFailedException` from `RunStepAsync`, which fails the job for good when uncaught, because a retry would run the finished body again.
 
 For large files, exports, media, archives, reports, or model inputs, store the bytes in file/blob/object storage and enqueue a reference (URI, checksum, size, content type). The handler opens, verifies, processes, and returns a small durable result. The job input is the durable pointer and verification contract, not the file. See `concepts/000-fundamentals/025-large-payload-reference`.
 
@@ -589,7 +589,7 @@ The token passed to a handler is the current attempt token, not a logical-job to
 | external cancel      | `Cancelled`                          |
 | execution timeout    | retry or fail per policy             |
 | worker shutdown      | retry / reclaim                      |
-| lease lost / revoked | retry (`job.attempt-aborted`), or reclaim (`job.lease-expired`) once the lease lapses |
+| lease lost / revoked | retry (`attempt-aborted`), or reclaim (`lease-expired`) once the lease lapses |
 | write refused        | nothing for this attempt: the write changed nothing, and the execution that holds the job decides |
 
 The handler honors the token; the framework records the cause and chooses the final transition. A handler that runs on past its execution timeout cannot be stopped from outside: it keeps its lease and its locks until it returns, and the worker logs an error naming the job once it has run more than half a lease past the timeout ([known limitations](./known-limitations.md#execution-model)).
@@ -864,7 +864,7 @@ Names passed to durable handler APIs are keys into persisted state. Once a name 
 | Handler API | On re-entry |
 | --- | --- |
 | `RunStepAsync("charge-card", ...)` | A succeeded step returns its stored outcome without running the body. |
-| `WaitSignalAsync("approval")` | A raised value is consumed, otherwise the job suspends; a bounded wait keeps its original deadline. |
+| `WaitSignalAsync("approval")` | A raised value is read and stays set, otherwise the job suspends; a bounded wait keeps its original deadline. |
 | `SleepAsync("cooldown", ...)` | The same timer is observed, not extended. |
 | `SetVariableAsync("quote.id", ...)` | Later executions read the same value. |
 | `StartChildAsync("capture-payment", ...)` | The existing child is resolved, not created again. |
