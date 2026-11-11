@@ -1,7 +1,7 @@
 # Acta for coding agents
 
-Describes Acta 1.0.0-rc.9: the packages Acta.Sqlite, Acta.Postgres, Acta.SqlServer, Acta.Dashboard, and
-Acta.AspNetCore at that version. Verified 2026-11-09. When this file and an installed package disagree, the
+Describes Acta 1.0.0-rc.10: the packages Acta.Sqlite, Acta.Postgres, Acta.SqlServer, Acta.Dashboard, and
+Acta.AspNetCore at that version. Verified 2026-11-11. When this file and an installed package disagree, the
 package wins: the compiler and `<app> jobs help` outrank this file. In an existing app, read its resolved Acta
 version first and follow the docs at that tag, github.com/acta-dotnet/acta/tree/v<version>; do not upgrade
 the app to match an example.
