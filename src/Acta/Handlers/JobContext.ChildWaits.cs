@@ -150,7 +150,13 @@ public abstract partial class JobContext
             return await WaitChildrenAsync(childJobIds, ct);
         }
 
-        var deadlineAtUtc = await GetOrSetWaitDeadlineCoreAsync(GroupDeadlineName(childJobIds), bound, ct);
+        // Whole seconds, rounded up, as a single child's bound is: a fraction of a second would be spent by the round
+        // trip that stores it.
+        var deadlineAtUtc = await GetOrSetWaitDeadlineCoreAsync(
+            GroupDeadlineName(childJobIds),
+            TimeSpan.FromSeconds(ToWaitTimeoutSeconds(bound)),
+            ct
+        );
 
         var outcomes = new ChildJobOutcome[childJobIds.Count];
         for (var i = 0; i < childJobIds.Count; i++)

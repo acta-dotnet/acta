@@ -187,6 +187,22 @@ public sealed class JobContextWaitTimeoutTests
         Assert.Equal([$"until:sys.child.7@{due}", $"until:sys.child.9@{due}", $"until:sys.child.11@{due}"], ctx.Events);
     }
 
+    [Theory]
+    [InlineData(1, 1)]
+    [InlineData(1001, 2)]
+    [InlineData(5000, 5)]
+    public async Task A_group_bound_reaches_its_deadline_in_whole_seconds_rounded_up(int milliseconds, int seconds)
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var ctx = new FixedDeadlineContext();
+
+        await ctx.TryWaitChildrenAsync([7, 9], TimeSpan.FromMilliseconds(milliseconds), ct);
+
+        // A single child's bound rounds up to whole seconds, and a group's is documented the same: a millisecond
+        // passed through as written would be spent by the round trip that stores it.
+        Assert.Equal([TimeSpan.FromSeconds(seconds)], ctx.Bounds);
+    }
+
     [Fact]
     public void The_group_deadline_name_is_a_property_of_the_child_set()
     {
@@ -248,13 +264,21 @@ public sealed class JobContextWaitTimeoutTests
         }
     }
 
-    /// <summary>A context whose group deadline is one known instant and whose instant-bounded wait records what it was given.</summary>
+    /// <summary>
+    /// A context whose group deadline is one known instant, that records the bound it was asked to store, and whose
+    /// instant-bounded wait records what it was given.
+    /// </summary>
     private sealed class FixedDeadlineContext : RecordingJobContext
     {
         public static readonly DateTime GroupDeadlineUtc = new(2026, 8, 21, 12, 0, 0, DateTimeKind.Utc);
 
-        private protected override Task<DateTime> GetOrSetWaitDeadlineCoreAsync(string name, TimeSpan timeout, CancellationToken ct) =>
-            Task.FromResult(GroupDeadlineUtc);
+        public List<TimeSpan> Bounds { get; } = [];
+
+        private protected override Task<DateTime> GetOrSetWaitDeadlineCoreAsync(string name, TimeSpan timeout, CancellationToken ct)
+        {
+            Bounds.Add(timeout);
+            return Task.FromResult(GroupDeadlineUtc);
+        }
 
         private protected override Task<SignalCheckpointState> WaitSignalUntilCoreAsync(
             string name,
