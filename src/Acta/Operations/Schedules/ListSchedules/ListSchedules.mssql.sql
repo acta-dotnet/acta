@@ -30,11 +30,11 @@ IF @p_live_only IS NOT NULL
             s.availability_calendar_name,
             s.start_at_utc,
             s.end_before_utc
-        FROM {{schema}}.schedules_state st
-        JOIN {{schema}}.schedules s ON s.schedule_id = st.schedule_id
+        FROM {{schema}}.schedules_state st WITH (FORCESEEK (ix_schedules_state_namespace_next (namespace_id)))
+        JOIN {{schema}}.schedules s WITH (FORCESEEK) ON s.schedule_id = st.schedule_id
         JOIN {{schema}}.namespaces ns ON ns.namespace_id = st.namespace_id
-        JOIN {{schema}}.definitions jd ON jd.definition_id = s.definition_id
-        LEFT JOIN {{schema}}.jobs sj ON sj.job_id = s.job_id
+        JOIN {{schema}}.definitions jd WITH (FORCESEEK) ON jd.definition_id = s.definition_id
+        LEFT JOIN {{schema}}.jobs sj WITH (FORCESEEK) ON sj.job_id = s.job_id
         WHERE
             st.next_occurrence_at_utc IS NOT NULL
             AND s.schedule_status_code <> 230 /* ScheduleStatusCode.Orphaned */
@@ -53,10 +53,10 @@ IF @p_live_only IS NOT NULL
         SELECT
             CASE WHEN @p_include_total IS NOT NULL THEN (
                 SELECT COUNT(*)
-                FROM {{schema}}.schedules_state st
-                JOIN {{schema}}.schedules s ON s.schedule_id = st.schedule_id
+                FROM {{schema}}.schedules_state st WITH (FORCESEEK (ix_schedules_state_namespace_next (namespace_id)))
+                JOIN {{schema}}.schedules s WITH (FORCESEEK) ON s.schedule_id = st.schedule_id
                 JOIN {{schema}}.namespaces ns ON ns.namespace_id = st.namespace_id
-                JOIN {{schema}}.definitions jd ON jd.definition_id = s.definition_id
+                JOIN {{schema}}.definitions jd WITH (FORCESEEK) ON jd.definition_id = s.definition_id
                 WHERE
                     st.next_occurrence_at_utc IS NOT NULL
                     AND s.schedule_status_code <> 230 /* ScheduleStatusCode.Orphaned */
@@ -100,11 +100,13 @@ ELSE
             s.availability_calendar_name,
             s.start_at_utc,
             s.end_before_utc
-        FROM {{schema}}.schedules s
-        JOIN {{schema}}.namespaces ns ON ns.namespace_id = s.namespace_id
-        JOIN {{schema}}.definitions jd ON jd.definition_id = s.definition_id
-        LEFT JOIN {{schema}}.schedules_state st ON st.schedule_id = s.schedule_id
-        LEFT JOIN {{schema}}.jobs sj ON sj.job_id = s.job_id
+        FROM {{schema}}.namespaces ns
+        JOIN {{schema}}.definitions jd WITH (FORCESEEK (ux_definitions_namespace_name (namespace_id)))
+            ON jd.namespace_id = ns.namespace_id
+        JOIN {{schema}}.schedules s WITH (FORCESEEK (ux_schedules_definition_name (definition_id)))
+            ON s.definition_id = jd.definition_id
+        LEFT JOIN {{schema}}.schedules_state st WITH (FORCESEEK) ON st.schedule_id = s.schedule_id
+        LEFT JOIN {{schema}}.jobs sj WITH (FORCESEEK) ON sj.job_id = s.job_id
         WHERE
             (@p_namespace_name IS NULL OR ns.namespace_name = @p_namespace_name)
             AND (@p_job_name IS NULL OR jd.definition_name = @p_job_name)
@@ -116,9 +118,11 @@ ELSE
         SELECT
             CASE WHEN @p_include_total IS NOT NULL THEN (
                 SELECT COUNT(*)
-                FROM {{schema}}.schedules s
-                JOIN {{schema}}.namespaces ns ON ns.namespace_id = s.namespace_id
-                JOIN {{schema}}.definitions jd ON jd.definition_id = s.definition_id
+                FROM {{schema}}.namespaces ns
+                JOIN {{schema}}.definitions jd WITH (FORCESEEK (ux_definitions_namespace_name (namespace_id)))
+                    ON jd.namespace_id = ns.namespace_id
+                JOIN {{schema}}.schedules s WITH (FORCESEEK (ux_schedules_definition_name (definition_id)))
+                    ON s.definition_id = jd.definition_id
                 WHERE
                     (@p_namespace_name IS NULL OR ns.namespace_name = @p_namespace_name)
                     AND (@p_job_name IS NULL OR jd.definition_name = @p_job_name)

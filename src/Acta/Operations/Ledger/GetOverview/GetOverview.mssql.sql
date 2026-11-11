@@ -8,7 +8,7 @@ DECLARE @ns_id INT = NULL;
 IF @p_namespace_name IS NOT NULL
     BEGIN
         SELECT @ns_id = namespace_id
-        FROM {{schema}}.namespaces
+        FROM {{schema}}.namespaces WITH (FORCESEEK (ux_namespaces_name (namespace_name)))
         WHERE namespace_name = @p_namespace_name;
     END;
 
@@ -17,8 +17,8 @@ IF @p_namespace_name IS NOT NULL
    a queue of long approval waits would read as backlog that no worker is behind on. */
 /* Not shared text - claim_jobs is an installed routine and this is an inline command - so the two
    are must-stay-in-sync twins; change one, change the other. */
--- The job and schedule counts read dirty: an operator's overview takes no lock and never waits on an open enqueue or
--- deploy, and it may count a row another transaction has not committed yet.
+-- Every count reads dirty: an operator's overview takes no lock and never waits on an open enqueue, deploy, or another
+-- namespace's writes, and it may count a row another transaction has not committed yet.
 SELECT
     (
         SELECT COUNT_BIG(*)
@@ -58,14 +58,14 @@ SELECT
     ) AS failed_count,
     (
         SELECT COUNT_BIG(*)
-        FROM {{schema}}.alerts a
+        FROM {{schema}}.alerts a WITH (NOLOCK)
         WHERE
             a.resolved_at_utc IS NULL
             AND (@p_namespace_name IS NULL OR a.namespace_id = @ns_id)
     ) AS unresolved_alert_count,
     (
         SELECT COUNT_BIG(*)
-        FROM {{schema}}.alerts a
+        FROM {{schema}}.alerts a WITH (NOLOCK)
         WHERE
             a.resolved_at_utc IS NULL
             AND a.alert_severity_code = 40 /* AlertSeverityCode.Critical */
@@ -73,14 +73,14 @@ SELECT
     ) AS unresolved_critical_alert_count,
     (
         SELECT COUNT_BIG(*)
-        FROM {{schema}}.workers w
+        FROM {{schema}}.workers w WITH (NOLOCK)
         WHERE
             w.worker_status_code = 200 /* WorkerStatusCode.Dead */
             AND (@p_namespace_name IS NULL OR w.namespace_id = @ns_id)
     ) AS dead_worker_count,
     (
         SELECT COUNT_BIG(*)
-        FROM {{schema}}.workers w
+        FROM {{schema}}.workers w WITH (NOLOCK)
         WHERE
             w.worker_status_code IN (10 /* WorkerStatusCode.Active */, 80 /* WorkerStatusCode.Draining */)
             AND w.last_seen_at_utc < DATEADD(SECOND, -@p_stale_after_seconds, @now)
@@ -100,7 +100,7 @@ SELECT
     ) AS due_soon_schedule_count,
     (
         SELECT COALESCE(SUM(CAST(w.max_concurrent_executors AS BIGINT)), 0)
-        FROM {{schema}}.workers w
+        FROM {{schema}}.workers w WITH (NOLOCK)
         WHERE
             w.worker_status_code IN (10 /* WorkerStatusCode.Active */, 80 /* WorkerStatusCode.Draining */)
             AND w.last_seen_at_utc >= DATEADD(SECOND, -@p_stale_after_seconds, @now)

@@ -1,3 +1,4 @@
+-- Both reads seek the definitions by namespace, so a namespace's listing reads that namespace's rows alone.
 SELECT TOP (@p_take)
     jd.definition_id,
     ns.namespace_name AS job_namespace,
@@ -17,7 +18,7 @@ SELECT TOP (@p_take)
     jd.lane_name AS lane,
     jd.modified_at_utc,
     jd.version
-FROM {{schema}}.definitions jd
+FROM {{schema}}.definitions jd WITH (FORCESEEK (ux_definitions_namespace_name (namespace_id)))
 JOIN {{schema}}.namespaces ns ON ns.namespace_id = jd.namespace_id
 WHERE
     (@p_namespace_name IS NULL OR ns.namespace_name = @p_namespace_name)
@@ -52,7 +53,7 @@ OPTION (RECOMPILE);
 SELECT
     CASE WHEN @p_include_total IS NOT NULL THEN (
         SELECT COUNT(*)
-        FROM {{schema}}.definitions jd
+        FROM {{schema}}.definitions jd WITH (FORCESEEK (ux_definitions_namespace_name (namespace_id)))
         JOIN {{schema}}.namespaces ns ON ns.namespace_id = jd.namespace_id
         WHERE
             (@p_namespace_name IS NULL OR ns.namespace_name = @p_namespace_name)

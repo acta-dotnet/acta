@@ -22,7 +22,8 @@ SELECT TOP (@p_take)
     tg.tag_name AS name,
     tg.tag_value AS value
 FROM target x
-INNER JOIN {{schema}}.tags tg ON tg.entity_code = @p_entity_code AND tg.entity_id = x.entity_id
+INNER JOIN {{schema}}.tags tg WITH (FORCESEEK (pk_tags (entity_code, entity_id)))
+    ON tg.entity_code = @p_entity_code AND tg.entity_id = x.entity_id
 WHERE @p_cursor_tag_name IS NULL OR tg.tag_name COLLATE Latin1_General_100_BIN2_UTF8 > @p_cursor_tag_name
 ORDER BY tg.tag_name COLLATE Latin1_General_100_BIN2_UTF8;
 
@@ -47,5 +48,6 @@ WITH target (entity_id) AS (
 SELECT CASE WHEN @p_include_total IS NOT NULL THEN (
     SELECT COUNT(*)
     FROM target x
-    INNER JOIN {{schema}}.tags tg ON tg.entity_code = @p_entity_code AND tg.entity_id = x.entity_id
+    INNER JOIN {{schema}}.tags tg WITH (FORCESEEK (pk_tags (entity_code, entity_id)))
+        ON tg.entity_code = @p_entity_code AND tg.entity_id = x.entity_id
 ) END;

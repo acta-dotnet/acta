@@ -222,12 +222,13 @@ BEGIN TRY
 
         -- The schedules lose their timing fingerprint, so a build that registers the definition again retimes them
         -- from now, as it would a changed declaration.
-        UPDATE {{schema}}.schedules
+        UPDATE s
         SET
             timing_fingerprint = 'retired',
             modified_at_utc = @now,
-            version = version + 1
-        WHERE definition_id = @p_definition_id;
+            version = s.version + 1
+        FROM {{schema}}.schedules s WITH (FORCESEEK (ux_schedules_definition_name (definition_id)))
+        WHERE s.definition_id = @p_definition_id;
 
         INSERT INTO {{schema}}.events (
             event_code,

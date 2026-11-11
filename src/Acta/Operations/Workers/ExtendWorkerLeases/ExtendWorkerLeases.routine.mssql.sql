@@ -59,7 +59,7 @@ BEGIN
         UPDATE k
         SET expires_at_utc = @new_expiry
         OUTPUT INSERTED.lock_key INTO @lock_renewed (lock_key)
-        FROM {{schema}}.locks k
+        FROM {{schema}}.locks k WITH (FORCESEEK)
         INNER JOIN @lock_held h ON h.lock_key = k.lock_key AND h.hold_token = k.hold_token;
 
         /* Push the held executions' leases forward. Only a row this worker still leases at the execution the

@@ -91,7 +91,7 @@ BEGIN TRY
     IF
         EXISTS (
             SELECT 1
-            FROM {{schema}}.events e
+            FROM {{schema}}.events e WITH (FORCESEEK (ix_events_entity_timeline (entity_code, entity_id)))
             INNER JOIN {{schema}}.definitions d ON d.definition_id = e.definition_id
             WHERE
                 e.entity_code = 50 /* EntityCode.Job */

@@ -1302,6 +1302,16 @@
   - A meter idle past its arrival time admits a whole burst again
   - On a meter faster than one a second, a turn up to a second late is honoured and a later one is metered afresh
 
+## Namespaces
+
+### Work in one namespace never waits on another namespace's rows
+- **Contract:** With every row of another namespace held by an open transaction, each per-namespace operation completes without waiting on it.
+- **Guarantees:**
+  - A worker's execution paths complete while another namespace's rows are held
+  - Job controls complete while another namespace's rows are held
+  - Operator verbs complete while another namespace's rows are held
+  - Reads and lookups complete while another namespace's rows are held
+
 ## Outbox
 
 ### Consume deletes only the command the tick read and writes its one evidence event

@@ -20,10 +20,12 @@ SELECT
     t.availability_calendar_name,
     t.start_at_utc,
     t.end_before_utc
-FROM {{schema}}.namespaces n
-INNER JOIN {{schema}}.definitions d ON d.namespace_id = n.namespace_id AND d.definition_name = @p_job_name
-INNER JOIN {{schema}}.schedules t ON t.definition_id = d.definition_id AND t.schedule_name = @p_schedule_name
-INNER JOIN {{schema}}.schedules_state st ON st.schedule_id = t.schedule_id
+FROM {{schema}}.namespaces n WITH (FORCESEEK (ux_namespaces_name (namespace_name)))
+INNER JOIN {{schema}}.definitions d WITH (FORCESEEK (ux_definitions_namespace_name (namespace_id, definition_name)))
+    ON d.namespace_id = n.namespace_id AND d.definition_name = @p_job_name
+INNER JOIN {{schema}}.schedules t WITH (FORCESEEK (ux_schedules_definition_name (definition_id, schedule_name)))
+    ON t.definition_id = d.definition_id AND t.schedule_name = @p_schedule_name
+INNER JOIN {{schema}}.schedules_state st WITH (FORCESEEK) ON st.schedule_id = t.schedule_id
 WHERE
     n.namespace_name = @p_namespace_name
     AND t.schedule_status_code <> 230 /* ScheduleStatusCode.Orphaned */

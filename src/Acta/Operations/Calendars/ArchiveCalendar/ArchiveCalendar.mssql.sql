@@ -24,7 +24,7 @@ BEGIN TRY
                 THROW 51205, 'ACTA:SCHEDULE_LOCK:The namespace schedule lock was not granted (deadlock victim or cancelled).', 1;
 
             SELECT @calendar_id = c.calendar_id, @version = c.version
-            FROM {{schema}}.calendars c
+            FROM {{schema}}.calendars c WITH (FORCESEEK (ux_calendars_namespace_name_version (namespace_id, calendar_name)))
             WHERE
                 c.namespace_id = @namespace_id
                 AND c.calendar_name = @p_calendar_name

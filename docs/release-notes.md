@@ -11,6 +11,14 @@ Not tagged yet.
 ### Fixes
 
 - On SQL Server, two definition overrides updates in different namespaces could deadlock, and one failed as the victim: the update that carries a rate override to the definitions sharing its meter read every definition row under update locks before filtering by namespace, and waited on another namespace's row that its own update held. It now seeks its own namespace's rows.
+- On SQL Server, a definition overrides update read every job row under update locks to find the definition's permanent job, so it waited on any other namespace's open work. It now seeks the definition's permanent job.
+- On SQL Server with READ_COMMITTED_SNAPSHOT off, a job purge, the jobs listing, and the events listing read every row of `events`, `lanes`, or `workers` respectively, so each waited on another namespace's open transaction. Each now reads only the rows it joins.
+- On SQL Server, retiring a definition read every schedule row under update locks, so it waited on any other namespace's open work. It now seeks the definition's schedules. With READ_COMMITTED_SNAPSHOT off, a schedule's trigger, pause, and resume, and the definitions listing, likewise waited on another namespace's open work; they now read only their own rows.
+- On SQL Server, the worker heartbeat renewed its concurrency slots and named locks by reading every row of `locks` under update locks, so it waited on another namespace's open work. It now seeks the locks it holds.
+- On SQL Server, the crash-recovery pass applied the firing failure policy by reading every schedule row under update locks, so it waited on another namespace's open work. It now seeks the definition's schedules, and a recurring job's completion, which runs the same update, seeks them too.
+- On SQL Server, the retention sweep deleted an expired job's tags by reading every job tag under update locks. It now seeks each job's tags.
+- On SQL Server with READ_COMMITTED_SNAPSHOT off, alert delivery, a job lookup by deduplication key, a schedule read, the tags listing, and the calendar reads (a calendar, one of its versions, the listing, an archive, and the published calendars that admission and deploy load) each read other namespaces' rows and waited on their open transactions. Each now seeks its own namespace's rows. The overview now reads its alert and worker counts without locks, as it already read its job and schedule counts.
+- A calendar listing counts a shared calendar's dependents as that calendar's dependents list reads them, skipping a schedule another transaction holds.
 - On PostgreSQL, the crash-recovery pass could read a stuck job's lanes through `ix_jobs_state_lane_member`, every live laned row, when the table's statistics priced it the same as `ix_jobs_state_worker_inflight`. It now reads them through the in-flight index alone.
 
 ## 1.0.0-rc.9

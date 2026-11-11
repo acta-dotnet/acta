@@ -192,8 +192,13 @@ child table, but it locks only the batch's own keys.
 
 ### Locking reads seek
 
-On SQL Server a read under `UPDLOCK`, `HOLDLOCK`, or `XLOCK` takes a lock on every row it reads, so a scan
-under those hints locks the table a row at a time and escalates. Statistics compiled while a table was
+On SQL Server a read under `UPDLOCK`, `HOLDLOCK`, or `XLOCK` takes a lock on every row it reads, and so does
+the read inside a plain `UPDATE` or `DELETE`, which update-locks each row before its filter rejects it; without
+read-committed snapshot every read shares a lock the same way. So a scan locks the table a row at a time and escalates,
+and waits on every other namespace's open work.
+A worker serves one namespace and every operation acts on one, so no statement of one may read another namespace's
+rows: `NamespaceIsolationSpec` holds every row of another namespace in an open transaction, runs each per-namespace
+operation with a deadline, and names any statement that waits. Statistics compiled while a table was
 small price a scan below a seek per row, and a retained table only grows, so every locking read that
 could scan a permanent table carries `FORCESEEK` (a primary-key equality already seeks), naming the index when the predicate restates a filtered index's
 filter so the hint always compiles:
@@ -228,6 +233,9 @@ filter so the hint always compiles:
   family's schedules start from the namespace's definitions. A draft's name check seeks the sys namespace's family. A
   shared family's schedules span every namespace, which no index reaches: its publication and archive hold the sys
   schedule lock every deploy takes shared, and its plan read skips a row another transaction holds.
+- A forced seek compiles only when every call has a seek predicate, so a read whose namespace filter is optional seeks
+  through a join from the namespace and compiles per call (`ListDefinitions`), or reads one range of namespace ids,
+  the named one or every one (`ListCalendars`). A list of values on the leading column names that column alone.
 
 The claim and the completion read `jobs` and `jobs_state` without locks, through joins from a table
 variable, and pin those joins with `FORCESEEK` too: the same stale estimate turns them into a scan whose
@@ -257,9 +265,10 @@ so three rules decide every read on SQL Server:
    re-checked under the reader's own lock or used only for display. That covers the claim's horizon,
    the recovery walks and stale-latch read, the retention walks, the heartbeat, retire's two reads, the
    outbox lane check and backlog count ("Outbox lock"), the dashboard's job lists and their
-   totals and lane probes, the namespaces list and the calendar dependents list with their totals, and a shared
+   totals and lane probes, the namespaces list and the calendar dependents list with their totals, the calendar
+   list's count of a shared calendar's dependents, and a shared
    calendar's plan read, which its publication's check re-reads under the sys schedule lock.
-3. The overview's job and schedule counts and the lineage map read dirty with `NOLOCK`: they are for display, so
+3. The overview's counts and the lineage map read dirty with `NOLOCK`: they are for display, so
    they take no lock and never wait, and they can include a row a transaction has not committed yet.
 
 A skipped row is one an application has not committed, which read-committed snapshot hides too, or one

@@ -1524,8 +1524,8 @@ BEGIN
                         modified_at_utc = @now,
                         version = js.version + 1
                     OUTPUT INSERTED.schedule_id, INSERTED.schedule_name, f.job_id INTO @policy_paused (schedule_id, schedule_name, job_id)
-                    FROM {{schema}}.schedules js
-                    INNER JOIN {{schema}}.definitions jd ON jd.definition_id = js.definition_id
+                    FROM {{schema}}.schedules js WITH (FORCESEEK (ux_schedules_definition_name (definition_id)))
+                    INNER JOIN {{schema}}.definitions jd WITH (FORCESEEK) ON jd.definition_id = js.definition_id
                     INNER JOIN (
                         SELECT j.job_id, j.definition_id, j.job_kind_code, j.schedule_id, d.job_status_code, c.succeeded
                         FROM @done d
@@ -3022,7 +3022,7 @@ BEGIN
         UPDATE k
         SET expires_at_utc = @new_expiry
         OUTPUT INSERTED.lock_key INTO @lock_renewed (lock_key)
-        FROM {{schema}}.locks k
+        FROM {{schema}}.locks k WITH (FORCESEEK)
         INNER JOIN @lock_held h ON h.lock_key = k.lock_key AND h.hold_token = k.hold_token;
 
         /* Push the held executions' leases forward. Only a row this worker still leases at the execution the
@@ -3188,14 +3188,14 @@ BEGIN
                     -- exist would orphan their lineage (same rule as the manual purge_job). Only leaves
                     -- delete; a fully-expired subtree drains bottom-up across iterations.
                     AND NOT EXISTS (
-                        SELECT 1 FROM {{schema}}.jobs c
-                        WHERE c.parent_job_id = j.job_id
+                        SELECT 1 FROM {{schema}}.jobs c WITH (FORCESEEK (ix_jobs_parent (parent_job_id)))
+                        WHERE c.parent_job_id = j.job_id AND c.parent_job_id IS NOT NULL
                     )
                     -- A completed child of a live parent is kept: the parent's replay dedupes onto its row
                     -- and reads its result, so purging it would run the child again. The tree drains once
                     -- the parent is terminal.
                     AND NOT EXISTS (
-                        SELECT 1 FROM {{schema}}.jobs_state p
+                        SELECT 1 FROM {{schema}}.jobs_state p WITH (FORCESEEK)
                         WHERE p.job_id = j.parent_job_id
                             AND p.job_status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
                     )
@@ -3203,15 +3203,18 @@ BEGIN
                     -- its declaration as a new job and undo the cancel or failure. Retiring the definition lets
                     -- it drain.
                     AND NOT EXISTS (
-                        SELECT 1 FROM {{schema}}.schedules s
-                        INNER JOIN {{schema}}.definitions d ON d.definition_id = j.definition_id
-                        WHERE s.job_id = j.job_id AND d.definition_status_code <> 240 /* DefinitionStatusCode.Retired */
+                        SELECT 1 FROM {{schema}}.schedules s WITH (FORCESEEK (ix_schedules_job (job_id)))
+                        INNER JOIN {{schema}}.definitions d WITH (FORCESEEK) ON d.definition_id = j.definition_id
+                        WHERE
+                            s.job_id = j.job_id
+                            AND s.job_id IS NOT NULL
+                            AND d.definition_status_code <> 240 /* DefinitionStatusCode.Retired */
                     )
                     -- A job stays while the projector still owes one of its events, since raising an alert reads the job row.
                     AND NOT EXISTS (
                         SELECT 1
-                        FROM {{schema}}.events e
-                        INNER JOIN {{schema}}.definitions d ON d.definition_id = e.definition_id
+                        FROM {{schema}}.events e WITH (FORCESEEK (ix_events_entity_timeline (entity_code, entity_id)))
+                        INNER JOIN {{schema}}.definitions d WITH (FORCESEEK) ON d.definition_id = e.definition_id
                         WHERE
                             e.entity_code = 50 /* EntityCode.Job */
                             AND e.entity_id = j.job_id
@@ -3231,17 +3234,16 @@ BEGIN
                     ELSE @slice_end
                 END;
 
-                DELETE FROM {{schema}}.tags
-                WHERE entity_code = 50 /* EntityCode.Job */ AND entity_id IN (SELECT d.job_id FROM @job_del d);
-
                 -- Each delete below seeks its rows by job id: an unhinted plan can scan
                 -- the whole child table under update locks
                 -- (docs/sql-internals.md, "Foreign keys in set-based writes").
+                DELETE t FROM {{schema}}.tags t WITH (FORCESEEK (pk_tags (entity_code, entity_id)))
+                INNER JOIN @job_del d ON t.entity_code = 50 /* EntityCode.Job */ AND t.entity_id = d.job_id;
                 DELETE c FROM {{schema}}.checkpoints c WITH (FORCESEEK) INNER JOIN @job_del d ON d.job_id = c.job_id;
                 DELETE r FROM {{schema}}.jobs_state r WITH (FORCESEEK) INNER JOIN @job_del d ON d.job_id = r.job_id;
                 DELETE s FROM {{schema}}.steps s WITH (FORCESEEK) INNER JOIN @job_del d ON d.job_id = s.job_id;
-                DELETE st FROM {{schema}}.schedules_state st WITH (FORCESEEK)
-                INNER JOIN {{schema}}.schedules s ON s.schedule_id = st.schedule_id
+                DELETE st FROM {{schema}}.schedules_state st WITH (FORCESEEK (pk_schedules_state (schedule_id)))
+                INNER JOIN {{schema}}.schedules s WITH (FORCESEEK (ix_schedules_job (job_id))) ON s.schedule_id = st.schedule_id
                 INNER JOIN @job_del d ON d.job_id = s.job_id;
                 DELETE s FROM {{schema}}.schedules s WITH (FORCESEEK) INNER JOIN @job_del d ON d.job_id = s.job_id;
                 DELETE j FROM {{schema}}.jobs j WITH (FORCESEEK) INNER JOIN @job_del d ON d.job_id = j.job_id;
@@ -4060,8 +4062,8 @@ BEGIN
             modified_at_utc = @now,
             version = js.version + 1
         OUTPUT INSERTED.schedule_id, INSERTED.schedule_name, r.job_id INTO @policy_paused (schedule_id, schedule_name, job_id)
-        FROM {{schema}}.schedules js
-        INNER JOIN {{schema}}.definitions jd ON jd.definition_id = js.definition_id
+        FROM {{schema}}.schedules js WITH (FORCESEEK (ux_schedules_definition_name (definition_id)))
+        INNER JOIN {{schema}}.definitions jd WITH (FORCESEEK) ON jd.definition_id = js.definition_id
         INNER JOIN @reclaimed r ON r.definition_id = jd.definition_id
         WHERE
             js.schedule_status_code = 10 /* ScheduleStatusCode.Active */
@@ -4957,7 +4959,7 @@ JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE name = 'M20261109062128_init')
+IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE name = 'M20261110071552_init')
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261109062128_init');
+VALUES ('M20261110071552_init');
 GO

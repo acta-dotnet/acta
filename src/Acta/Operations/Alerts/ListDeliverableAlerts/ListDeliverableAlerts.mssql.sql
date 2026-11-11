@@ -13,10 +13,10 @@ SELECT TOP (@p_alert_batch_size)
     a.job_ref,
     a.version,
     a.alert_origin_code AS origin
-FROM {{schema}}.alerts a
-LEFT JOIN {{schema}}.jobs j
+FROM {{schema}}.alerts a WITH (FORCESEEK (ix_alerts_delivery_due (namespace_id)))
+LEFT JOIN {{schema}}.jobs j WITH (FORCESEEK)
     ON j.job_id = a.job_id
-LEFT JOIN {{schema}}.definitions jd
+LEFT JOIN {{schema}}.definitions jd WITH (FORCESEEK)
     ON jd.definition_id = j.definition_id
 WHERE
     a.namespace_id = @p_namespace_id

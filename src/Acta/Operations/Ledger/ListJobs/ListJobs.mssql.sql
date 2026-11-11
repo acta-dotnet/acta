@@ -37,7 +37,7 @@ JOIN {{schema}}.definitions jd ON jd.definition_id = j.definition_id
 LEFT JOIN {{schema}}.jobs pjob ON pjob.job_id = j.parent_job_id
 LEFT JOIN {{schema}}.jobs rjob ON rjob.job_id = j.lineage_root_job_id
 LEFT JOIN {{schema}}.tenants t ON t.tenant_id = j.tenant_id
-LEFT JOIN {{schema}}.lanes lane ON lane.lane_id = r.lane_id
+LEFT JOIN {{schema}}.lanes lane WITH (FORCESEEK) ON lane.lane_id = r.lane_id
 WHERE
     (@p_namespace_name IS NULL OR j.namespace_id = @ns_id)
     AND (@p_job_status_code IS NULL OR r.job_status_code = @p_job_status_code)

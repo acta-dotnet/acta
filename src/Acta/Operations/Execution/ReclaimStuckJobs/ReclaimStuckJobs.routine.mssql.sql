@@ -414,8 +414,8 @@ BEGIN
             modified_at_utc = @now,
             version = js.version + 1
         OUTPUT INSERTED.schedule_id, INSERTED.schedule_name, r.job_id INTO @policy_paused (schedule_id, schedule_name, job_id)
-        FROM {{schema}}.schedules js
-        INNER JOIN {{schema}}.definitions jd ON jd.definition_id = js.definition_id
+        FROM {{schema}}.schedules js WITH (FORCESEEK (ux_schedules_definition_name (definition_id)))
+        INNER JOIN {{schema}}.definitions jd WITH (FORCESEEK) ON jd.definition_id = js.definition_id
         INNER JOIN @reclaimed r ON r.definition_id = jd.definition_id
         WHERE
             js.schedule_status_code = 10 /* ScheduleStatusCode.Active */

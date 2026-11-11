@@ -29,9 +29,11 @@ SELECT
     s.availability_calendar_name,
     s.start_at_utc,
     s.end_before_utc
-FROM {{schema}}.namespaces ns
-JOIN {{schema}}.definitions jd ON jd.namespace_id = ns.namespace_id AND jd.definition_name = @p_job_name
-JOIN {{schema}}.schedules s ON s.definition_id = jd.definition_id AND s.schedule_name = @p_schedule_name
-LEFT JOIN {{schema}}.schedules_state st ON st.schedule_id = s.schedule_id
-LEFT JOIN {{schema}}.jobs sj ON sj.job_id = s.job_id
+FROM {{schema}}.namespaces ns WITH (FORCESEEK (ux_namespaces_name (namespace_name)))
+JOIN {{schema}}.definitions jd WITH (FORCESEEK (ux_definitions_namespace_name (namespace_id, definition_name)))
+    ON jd.namespace_id = ns.namespace_id AND jd.definition_name = @p_job_name
+JOIN {{schema}}.schedules s WITH (FORCESEEK (ux_schedules_definition_name (definition_id, schedule_name)))
+    ON s.definition_id = jd.definition_id AND s.schedule_name = @p_schedule_name
+LEFT JOIN {{schema}}.schedules_state st WITH (FORCESEEK) ON st.schedule_id = s.schedule_id
+LEFT JOIN {{schema}}.jobs sj WITH (FORCESEEK) ON sj.job_id = s.job_id
 WHERE ns.namespace_name = @p_namespace_name;

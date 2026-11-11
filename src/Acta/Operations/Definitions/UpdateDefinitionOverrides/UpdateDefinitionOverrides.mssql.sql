@@ -91,7 +91,7 @@ BEGIN TRY
     -- the next deploy's registration; an ordinary job keeps the recording it was enqueued with.
     UPDATE j
     SET event_recording_code = jd.event_recording_code_effective
-    FROM {{schema}}.jobs j
+    FROM {{schema}}.jobs j WITH (FORCESEEK (ux_jobs_slot (definition_id)))
     INNER JOIN {{schema}}.definitions jd ON jd.definition_id = j.definition_id
     WHERE
         j.definition_id = @p_definition_id
@@ -106,7 +106,7 @@ BEGIN TRY
         job_priority_code = jd.job_priority_code_effective,
         modified_at_utc = @now,
         version = js.version + 1
-    FROM {{schema}}.jobs j
+    FROM {{schema}}.jobs j WITH (FORCESEEK (ux_jobs_slot (definition_id)))
     INNER JOIN {{schema}}.jobs_state js WITH (FORCESEEK) ON js.job_id = j.job_id
     INNER JOIN {{schema}}.definitions jd ON jd.definition_id = j.definition_id
     WHERE
