@@ -88,7 +88,7 @@ Acta should feel calm, technically precise, modern, and readable. Focus is the d
 - Show operationally relevant times such as deadlines, heartbeats, and next runs near their context.
 - Show relative times by default. Make the exact timestamp available on hover and through keyboard-accessible inspection.
 - A compact reference or time opens its full value in a small card just below itself, never in the middle of the screen. Resting the mouse shows the card, and leaving both hides it; a click, a tap, or Enter pins it until Escape or a click elsewhere.
-- Inspectable references and times grow their hit area to the 24px target floor without changing the line they sit on, and add no space before the punctuation that follows them.
+- Inspectable references and times grow their hit area to the 24px target floor without changing the line they sit on, and add no space before the punctuation that follows them. A copy control does the same around its glyph.
 
 ## Job detail
 
@@ -140,13 +140,24 @@ Acta should feel calm, technically precise, modern, and readable. Focus is the d
 - Freshness is one framed indicator of equal cells: a small vertical meter, then reload, then pause. It is never a ticking counter. On a view that polls, the meter drains to the bottom as the next refresh approaches and refills when data arrives. The meter takes the status colour, and words join it only for a state worth reading: paused, failed, offline, or session ended. A view that does not refresh itself shows a still meter and its data's age to the minute.
 - Links inside a warning or failure banner use the text colour with an underline. The accent reads as healthy there.
 
+## Accessibility
+
+- The target is WCAG 2.2 AA in every theme.
+- A control's accessible name contains the words shown on it. A label never replaces a control's own text, and a dropdown is named by its label and its value, as in "Namespace: billing". A compact reference is the one exception: it is named with the whole reference.
+- A labelled element that is not a control has a role: a drawn bar is an image, a set of cards a group.
+- Every control shows keyboard focus as the same two-pixel accent ring, a form field included. The quick-search field, alone in its palette, shows its caret.
+- Placeholder text takes the muted text colour: it often carries a field's only hint.
+- A link that shares a line with plain text, as in an action's message, is underlined in every theme. Colour alone never marks a link.
+- On a narrow screen a list row becomes a card, and every cell takes the card's whole width with its label beside it. Two cells never share a line: a wide one squeezes its neighbour to nothing.
+
 ## Verification
 
 - Check every registered screen and each changed detail disclosure.
 - Exercise light, dark, and paper dashboard themes, narrow screens, larger text, and keyboard navigation.
 - Verify authorized mutations through their existing endpoints and confirmation flows.
 - Keep browser and component tests aligned with the chosen navigation and disclosure structure.
-- Run an accessibility scan (WCAG 2.2 AA) over every screen in each theme with all disclosures open, and walk menus, dialogs, and popovers by keyboard.
+- The smoke suite scans the states its fixtures stage with the WCAG 2.2 A and AA rules, in each theme, and a violation fails it. A new screen or overlay joins its table. An exception names one rule and one element, with its reason.
+- The scan finds what a machine can decide and does not establish conformance. Before a release, by hand: walk every menu, dialog, and popover by keyboard; see the focus ring on each control, and focus return to what opened an overlay; read the job investigation path with a screen reader; check each list and detail screen at 200% and 400% zoom and at phone width.
 - Exercise controls, lineage, and catalog workflows against a real backend as well as the fixture-backed browser tests.
 - Website screenshots of the dashboard come from the final build, with fixture text taken from what the server actually returns.
 - Verify that loading, missing, empty, error, permission-limited, and partial-data states remain understandable.

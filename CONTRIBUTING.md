@@ -210,7 +210,8 @@ npm run size             # holds the bundle to its budget; CI runs this after th
 ```
 
 `npm run test:smoke` runs the Playwright smoke against a Vite dev server it starts itself, with the API
-mocked; run `npx playwright install chromium` once first. The .NET build of `Acta.Dashboard` runs the
+mocked; run `npx playwright install chromium` once first. It also scans the states it stages for
+accessibility; `src/Acta.Dashboard/DESIGN.md` holds the rules. The .NET build of `Acta.Dashboard` runs the
 npm build automatically; pass `-p:ActaDashboardSkipNpm=true` to skip it when you have not touched the
 dashboard. Restart any running host after `npm run build` to pick up new assets.
 
@@ -845,6 +846,7 @@ push the packages to nuget.org through Trusted Publishing (the `publish-nuget` j
 - Incidents at the failures-only recording level close on the success that answers the failure, and only that one: `FailuresAuditFailureEventSpec`.
 - A build refuses a database it cannot run on, and a script-provisioned database runs and re-runs: `MigrationHistoryPreflightTests`, `MigrationHistoryPreflightSpec`, and the `*ProvisionScriptSpec` classes.
 - Every runnable concept shows its idea: `dotnet run -c Release --project tools/Acta.Verify -- concepts`. Keep its `result.md` with the release's evidence.
+- The dashboard's manual accessibility pass is done: keyboard, focus, a screen reader, and zoom, as `src/Acta.Dashboard/DESIGN.md`, "Verification", lists them. The smoke suite's scan covers only what a machine can decide.
 - The packed packages build as an external consumer would, and their metadata is complete: `tests/PackageSmoke/run.ps1`, which CI runs on every push.
 
 ### Two commits

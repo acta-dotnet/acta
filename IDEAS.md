@@ -131,16 +131,15 @@ rule for which response wins.
 
 ## An accessible and responsive dashboard
 
-The target is WCAG 2.2 AA. The dashboard's rules for keyboard use, focus, reduced motion, narrow
-screens, and larger text are in [DESIGN.md](src/Acta.Dashboard/DESIGN.md), and the smoke suite checks
-narrow viewports, large text, and keyboard inspection. Two things are missing:
+The target is WCAG 2.2 AA. The dashboard's rules and its manual release pass are in
+[DESIGN.md](src/Acta.Dashboard/DESIGN.md), and the smoke suite scans the states its fixtures stage in
+every theme. Two things are missing:
 
-- An automated accessibility scan of every screen in each theme, run with the smoke suite.
+- Fixtures for the screens the scan cannot stage: definition, worker, namespace, tenant, and alert detail.
 - Styles for forced colours and high-contrast preferences.
 
 A chart or a flow diagram, when the dashboard gains one, carries the same values as a table or as
-structured text. Manual passes with a screen reader, zoom, and touch stay necessary, because automation
-cannot judge whether an operator workflow makes sense.
+structured text.
 
 ## Pipeline counts the overview lacks
 

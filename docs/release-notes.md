@@ -12,6 +12,7 @@ Not tagged yet. The schema is rc.10's: nothing is reprovisioned.
 
 - `414-dashboard-sign-in`, a concept rung that puts the dashboard and the API behind the host's own cookie sign-in, with the host's three roles behind the four permission policies. It signs in as each role through the form on start and prints what the server answered.
 - `acta-verify concepts` runs every concept rung, one at a time, and checks that each prints the lines `concepts/concept-runs.json` says show its idea. It runs before a release, not in CI.
+- The dashboard's smoke suite scans the states it stages for accessibility: axe-core reads each one in the three themes with the WCAG 2.2 A and AA rules, and a violation fails the suite. The scan finds what a machine can decide; `src/Acta.Dashboard/DESIGN.md` lists the manual pass a release still takes.
 
 ### Fixes
 
@@ -25,6 +26,7 @@ Not tagged yet. The schema is rc.10's: nothing is reprovisioned.
 - The conformance reference described the result read as returning null before completion, which is the raw read alone. Its contract and guarantees state the three reads, none of which waits: with no result, or no job, the raw `GetResultAsync` answers null, the typed `TryGetResultAsync` answers not found, and the typed `GetResultAsync` throws, saying which it was.
 - A job cancelled while its attempt ran, whose handler then threw, was still announced as retrying: `threw on attempt (3 of 10); the job retries in 0ms`. The job stayed cancelled, and no line said so. One now follows: `Job (process-report) (job_...) was cancelled, so its failed attempt leads to no retry.`
 - A rejected restart, reschedule or schedule trigger in the dashboard said the status did not allow it, which is one cause of several. Each sentence names what can refuse its verb: a restart also the outstanding firing and the schedule, a purge the outstanding firing, a reschedule the retired definition and the suspended namespace, a schedule pause its end, a trigger what holds the schedule.
+- Accessibility fixes in the dashboard, from a scan of its screens in the three themes. On a phone, or at 400% zoom, the Alerts, Schedules and Workers lists overlapped their labels and printed a value one letter per line; every cell of a stacked row now takes its card's whole width. A dropdown is named by its label and its value, and its list holds options only. A calendar version chip and a lineage child card are named by their own text, so a child's status is read out. Placeholder text and the timeline's event codes take the muted text colour; they fell below 4.5:1 in some themes. A link inside an action's message is underlined. The copy button beside a reference is a 24 px target, and a form field shows the same focus ring as every other control.
 - Two concept rungs had fallen behind the engine. `202-durable-step` selected a column `steps_view` no longer has and threw after printing its lines, in rc.10 too. `406-automatic-failure-alerts` waited 75 seconds for an alert that arrives one to two minutes after the failure, and usually reported none.
 
 ## 1.0.0-rc.10

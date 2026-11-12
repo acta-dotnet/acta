@@ -1,3 +1,4 @@
+import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page, type Route } from '@playwright/test';
 
 const jobRef = 'job_019f9b3509487d1b911f2020158384a3';
@@ -102,6 +103,31 @@ const officeHoursPreview = (version: number) => ({
   overdueTotal: 0
 });
 
+// An open alert about the failed job, as the Alerts list reads it.
+const alertRow = {
+  alertRef: 'alr_019f9b3508007e4dbfd13d9d20bc81f4', jobNamespace: 'billing', jobRef, severity: 'error', kind: 'final-failure',
+  title: "Job 'send-invoice' failed", message: 'Terminal failure: Invoice provider timed out.', channelName: 'default', occurrenceCount: 3,
+  resolvedAtUtc: null, deliveryStatus: 'delivered', retryCount: 0, retryAfterUtc: null, createdAtUtc: timestamp, modifiedAtUtc: timestamp, acknowledgedAtUtc: null
+};
+
+// A nightly schedule whose next evaluation was due the given time ago.
+const scheduleRow = (evaluatedAgoMs: number) => ({
+  jobNamespace: 'billing', jobName: 'send-invoice', jobRef: null, scheduleName: 'nightly', expressionKind: 'cron',
+  expression: '0 2 * * *', timeZoneId: 'UTC', misfireStrategy: 'catch-up-once', nextOccurrenceAtUtc: new Date(Date.now() - evaluatedAgoMs).toISOString(),
+  nextEvaluationAtUtc: new Date(Date.now() - evaluatedAgoMs).toISOString(), evaluationStatus: 'scheduled', status: 'active', pausedUntilUtc: null,
+  createdAtUtc: '2026-07-01T00:00:00Z', modifiedAtUtc: '2026-07-01T00:00:00Z', version: 1, maxOutstanding: 1, outstandingCount: 0, fullBehavior: 'skip',
+  scheduledDelivery: 'per-occurrence', expireAfterSeconds: null, expireAction: null, availabilityCalendarName: null, startAtUtc: null, endBeforeUtc: null
+});
+
+// A worker seen just now, on the given build.
+const workerRow = (workerRef: string, deploymentVersion: string, status: string) => {
+  const seen = new Date().toISOString();
+  return {
+    workerRef, status, jobNamespace: 'billing', hostName: 'host-1', deploymentVersion, engineVersion: '1.0.0', dotnetVersion: '.NET 10.0',
+    processId: 4242, maxConcurrentExecutors: 8, lastSeenAtUtc: seen, startedAtUtc: seen
+  };
+};
+
 async function mockDashboard(
   page: Page,
   options: {
@@ -114,6 +140,10 @@ async function mockDashboard(
     onDiscard?: (body: unknown) => void;
     // The rows the Workers list reads; none unless a test names them.
     workers?: unknown[];
+    // The rows the Alerts list reads; none unless a test names them.
+    alerts?: unknown[];
+    // The rows the Schedules list and a schedule's page read; none unless a test names them.
+    schedules?: unknown[];
     // The rows the Jobs list reads; the one failed job unless a test names them.
     jobs?: unknown[];
     // The rows the Definitions list reads; send-invoice alone unless a test names them.
@@ -190,9 +220,9 @@ async function mockDashboard(
       options.onDiscard?.(request.postDataJSON());
       return json({ action: 'accepted', pendingSinceUtc: null }, 202);
     }
-    if (path === 'alerts') return json(paged([]));
+    if (path === 'alerts') return json(paged(options.alerts ?? []));
     if (path === 'workers') return json(paged(options.workers ?? []));
-    if (path === 'schedules') return json(paged([]));
+    if (path === 'schedules') return json(paged(options.schedules ?? []));
     if (path === 'definitions') {
       const definition = (jobName: string) => ({
         jobNamespace: 'billing',
@@ -580,27 +610,13 @@ test('quick search finds definitions by fragment and jumps to a pasted job ref',
 });
 
 test('the workers list says which live worker is not on the namespace\'s deployed version', async ({ page }) => {
-  const seen = new Date().toISOString();
-  const worker = (workerRef: string, deploymentVersion: string, status: string) => ({
-    workerRef,
-    status,
-    jobNamespace: 'billing',
-    hostName: 'host-1',
-    deploymentVersion,
-    engineVersion: '1.0.0',
-    dotnetVersion: '.NET 10.0',
-    processId: 4242,
-    maxConcurrentExecutors: 8,
-    lastSeenAtUtc: seen,
-    startedAtUtc: seen
-  });
   // One worker on the deployed version, one live on an earlier build, and one of that build already stopped.
   await mockDashboard(page, {
     controls: false,
     workers: [
-      worker('wrk_01a1b27e82e87edfb219e2785be47301', '1.6.2+5c0ffee', 'active'),
-      worker('wrk_01a1b27e82e87edfb219e2785be47302', '1.6.1+b81d04e', 'active'),
-      worker('wrk_01a1b27e82e87edfb219e2785be47303', '1.6.1+b81d04e', 'stopped')
+      workerRow('wrk_01a1b27e82e87edfb219e2785be47301', '1.6.2+5c0ffee', 'active'),
+      workerRow('wrk_01a1b27e82e87edfb219e2785be47302', '1.6.1+b81d04e', 'active'),
+      workerRow('wrk_01a1b27e82e87edfb219e2785be47303', '1.6.1+b81d04e', 'stopped')
     ]
   });
   await page.goto('/#/workers?ns=billing');
@@ -928,6 +944,28 @@ test('Jobs and Job Detail fit a mobile viewport without page overflow', async ({
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 
+test('a stacked list row gives every cell the whole width of its card on a phone', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await mockDashboard(page, {
+    controls: true,
+    alerts: [alertRow],
+    schedules: [scheduleRow(30_000)],
+    workers: [workerRow('wrk_01a1b27e82e87edfb219e2785be47301', '1.6.2+5c0ffee', 'active')]
+  });
+  for (const list of ['alerts', 'schedules', 'workers']) {
+    await page.goto(`/#/${list}?ns=billing`);
+    const row = page.locator('table.data tbody tr').first();
+    await expect(row).toBeVisible();
+    // Each cell's share of its card, in percent; the drill-in chevron is the one cell that docks beside another.
+    const shares = await row.evaluate((card) =>
+      [...card.children]
+        .filter((cell) => getComputedStyle(cell).display !== 'none' && !cell.classList.contains('col-open'))
+        .map((cell) => Math.round((cell.getBoundingClientRect().width / card.clientWidth) * 100))
+    );
+    expect(Math.min(...shares), list).toBeGreaterThan(80);
+  }
+});
+
 // A first look across namespaces: the system jobs, a permanent job many firings in, a tenant's job, and a failed one.
 const firstLookJobs = [
   { ...job, jobRef: 'job_019f9b3509487d1b911f2020158384b1', jobNamespace: 'quickstart', jobName: 'sys.retention', status: 'idle', executionNumber: 28, failureCount: 0, deduplicationKey: null },
@@ -1240,6 +1278,7 @@ test('Focus lineage loads selected children on demand and explores descendants i
   await page.getByRole('button', { name: 'Inspect failed child' }).click();
   await expect(page.getByRole('navigation', { name: 'Lineage path' })).toHaveCount(0);
   await expect(inspector).toContainText('96 DPI');
+  expect(await violations(page)).toEqual([]);
 });
 
 test('compact references and relative dates expose complete values through keyboard inspection', async ({ page }) => {
@@ -1421,17 +1460,10 @@ test('going back to an execution link shows its timeline again', async ({ page }
 });
 
 test('a schedule past its evaluation envelope reads as overdue, a just-due one as active', async ({ page }) => {
-  const row = (evaluatedAgoMs: number) => ({
-    jobNamespace: 'billing', jobName: 'send-invoice', jobRef: null, scheduleName: 'nightly', expressionKind: 'cron',
-    expression: '0 2 * * *', timeZoneId: 'UTC', misfireStrategy: 'catch-up-once', nextOccurrenceAtUtc: new Date(Date.now() - evaluatedAgoMs).toISOString(),
-    nextEvaluationAtUtc: new Date(Date.now() - evaluatedAgoMs).toISOString(), evaluationStatus: 'scheduled', status: 'active', pausedUntilUtc: null,
-    createdAtUtc: '2026-07-01T00:00:00Z', modifiedAtUtc: '2026-07-01T00:00:00Z', version: 1, maxOutstanding: 1, outstandingCount: 0, fullBehavior: 'skip',
-    scheduledDelivery: 'per-occurrence', expireAfterSeconds: null, expireAction: null, availabilityCalendarName: null, startAtUtc: null, endBeforeUtc: null
-  });
   let agoMs = 10 * 60_000;
   await mockDashboard(page, { controls: false });
   await page.route('**/api/v1/schedules?*', (route) => route.fulfill({
-    status: 200, contentType: 'application/json', body: JSON.stringify({ items: [row(agoMs)], nextCursor: null, hasMore: false, pageSize: 100, totalCount: 1 })
+    status: 200, contentType: 'application/json', body: JSON.stringify({ items: [scheduleRow(agoMs)], nextCursor: null, hasMore: false, pageSize: 100, totalCount: 1 })
   }));
   await page.goto('/#/schedules/billing/send-invoice/nightly?ns=billing');
   const status = page.getByRole('region', { name: 'Schedule status' });
@@ -1441,3 +1473,174 @@ test('a schedule past its evaluation envelope reads as overdue, a just-due one a
   await page.reload();
   await expect(status.getByRole('heading')).toHaveText('Active and eligible to fire');
 });
+
+// Accessibility. axe-core reads each state below in each theme with the WCAG 2.2 A and AA rules, and a violation fails
+// the suite. It finds what a machine can decide; the manual pass in DESIGN.md, "Verification", covers the rest.
+const wcagRules = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
+
+// What the scan may report and the suite lets through, each with its reason.
+const allowed = [
+  // A compact reference shows its type and last digits and is named with the whole reference, as DESIGN.md asks.
+  // axe passes or fails it by theme, as it counts the clipped digits as shown or not.
+  { rule: 'label-content-name-mismatch', target: '.jobref' }
+];
+
+async function violations(page: Page): Promise<string[]> {
+  // An overlay fades in, and a colour read partway is neither end: every animation that has an end is taken to it.
+  await page.evaluate(() => {
+    for (const animation of document.getAnimations()) {
+      if (Number.isFinite(animation.effect?.getComputedTiming().endTime)) animation.finish();
+    }
+  });
+  const result = await new AxeBuilder({ page }).withTags(wcagRules).analyze();
+  return result.violations.flatMap((violation) =>
+    violation.nodes
+      .map((node) => node.target.join(' '))
+      .filter((target) => !allowed.some((entry) => entry.rule === violation.id && target.includes(entry.target)))
+      .map((target) => `${violation.id}: ${target}`)
+  );
+}
+
+const openJob = async (page: Page, options: Parameters<typeof mockDashboard>[1] = { controls: true }) => {
+  await mockDashboard(page, options);
+  await page.goto(`/#/jobs/${jobRef}?ns=billing`);
+  await expect(page.getByRole('region', { name: 'Job status' })).toBeVisible();
+};
+
+const scanned: Array<[string, (page: Page) => Promise<void>]> = [
+  ['the overview with an outbox relay', async (page) => {
+    await mockDashboard(page, { controls: true, onDiscard: () => {} });
+    await page.goto('/');
+    await expect(page.getByRole('heading', { name: 'Outbox relays' })).toBeVisible();
+  }],
+  ['the jobs list', async (page) => {
+    await mockDashboard(page, { controls: true });
+    await page.goto('/#/jobs');
+    await expect(page.getByRole('link', { name: jobRef }).first()).toBeVisible();
+  }],
+  ['a job with its activity open', async (page) => {
+    await openJob(page);
+    await page.locator('#job-activity > summary').click();
+    await expect(page.locator('.rail-code')).toHaveText('job.failed');
+  }],
+  ['a job\'s Actions menu', async (page) => {
+    await openJob(page);
+    await page.locator('.detail-actions > summary').click();
+    await expect(page.getByRole('button', { name: 'Delete record', exact: true })).toBeVisible();
+  }],
+  ['a confirmation', async (page) => {
+    await openJob(page);
+    await page.getByRole('button', { name: 'Run again', exact: true }).click();
+    await expect(page.getByRole('dialog')).toBeVisible();
+  }],
+  ['the signal form', async (page) => {
+    await openJob(page);
+    await page.locator('.detail-actions > summary').click();
+    await page.getByRole('button', { name: 'Raise signal' }).click();
+    await expect(page.getByLabel('Signal name')).toBeVisible();
+  }],
+  ['a job read by a reader', async (page) => {
+    await openJob(page, { controls: true, permissions: ['acta.read'] });
+    await expect(page.locator('.mode-chip')).toBeVisible();
+  }],
+  ['a job that is not found', async (page) => {
+    await mockDashboard(page, { controls: false });
+    await page.goto('/#/jobs/not-a-ref');
+    await expect(page.getByText('Job not-a-ref not found.')).toBeVisible();
+  }],
+  ['quick search', async (page) => {
+    await mockDashboard(page, { controls: true });
+    await page.goto('/');
+    await page.keyboard.press('Control+k');
+    await page.getByRole('combobox', { name: 'Quick search' }).fill('send');
+    await expect(page.getByRole('option', { name: /send-invoice/ })).toBeVisible();
+  }],
+  ['the appearance dialog', async (page) => {
+    await mockDashboard(page, { controls: false });
+    await page.goto('/#/jobs');
+    await expect(page.getByRole('link', { name: jobRef }).first()).toBeVisible();
+    await page.getByRole('button', { name: 'Appearance', exact: true }).click();
+    await expect(page.getByRole('dialog', { name: 'Appearance' })).toBeVisible();
+  }],
+  ['the enqueue form with its job picker open', async (page) => {
+    await mockDashboard(page, { controls: true, catalogPages: true });
+    await page.goto('/#/enqueue?ns=billing');
+    await page.getByRole('button', { name: 'Job name' }).click();
+    await expect(page.getByRole('option', { name: 'send-invoice' })).toBeVisible();
+  }],
+  ['the enqueue form after a send', async (page) => {
+    await mockDashboard(page, { controls: true });
+    await page.goto('/#/enqueue?ns=billing&jobName=send-invoice');
+    await page.getByRole('button', { name: 'Enqueue job' }).click();
+    await expect(page.locator('.control-message')).toContainText('Job enqueued.');
+  }],
+  ['the calendars list', async (page) => {
+    await mockDashboard(page, { controls: true });
+    await page.goto('/#/calendars?ns=billing');
+    await expect(page.getByRole('link', { name: 'office-hours', exact: true })).toBeVisible();
+  }],
+  ['a draft calendar version', async (page) => {
+    await mockDashboard(page, { controls: true });
+    await page.goto('/#/calendars/sys/office-hours?ns=billing&v=3');
+    await expect(page.getByRole('heading', { name: 'Version 3 definition' })).toBeVisible();
+  }],
+  ['a calendar publication', async (page) => {
+    await mockDashboard(page, { controls: true });
+    await page.goto('/#/calendars/sys/office-hours?ns=billing&v=3');
+    await page.getByRole('button', { name: 'Publish version 3' }).click();
+    await expect(page.getByRole('dialog')).toBeVisible();
+  }],
+  ['a new calendar', async (page) => {
+    await mockDashboard(page, { controls: true });
+    await page.goto('/#/calendars/sys/new-hours?role=availability');
+    await expect(page.getByRole('button', { name: /Save as version/ })).toBeVisible();
+  }],
+  ['the alerts list', async (page) => {
+    await mockDashboard(page, { controls: true, alerts: [alertRow] });
+    await page.goto('/#/alerts?ns=billing');
+    await expect(page.getByRole('link', { name: alertRow.title })).toBeVisible();
+  }],
+  ['the schedules list', async (page) => {
+    await mockDashboard(page, { controls: true, schedules: [scheduleRow(30_000)] });
+    await page.goto('/#/schedules?ns=billing');
+    await expect(page.getByRole('link', { name: 'nightly', exact: true })).toBeVisible();
+  }],
+  ['a schedule', async (page) => {
+    await mockDashboard(page, { controls: true, schedules: [scheduleRow(30_000)] });
+    await page.goto('/#/schedules/billing/send-invoice/nightly?ns=billing');
+    await expect(page.getByRole('region', { name: 'Schedule status' })).toBeVisible();
+  }],
+  ['the workers list', async (page) => {
+    await mockDashboard(page, { controls: false, workers: [workerRow('wrk_01a1b27e82e87edfb219e2785be47301', '1.6.2+5c0ffee', 'active')] });
+    await page.goto('/#/workers?ns=billing');
+    await expect(page.getByText('host-1')).toBeVisible();
+  }],
+  ['an ended session', async (page) => {
+    let ended = false;
+    await mockDashboard(page, { controls: true, sessionEnded: () => ended });
+    await page.goto('/#/jobs');
+    await expect(page.getByRole('link', { name: jobRef }).first()).toBeVisible();
+    ended = true;
+    await page.getByRole('button', { name: 'Refresh now' }).first().click();
+    await expect(page.locator('.session-banner')).toBeVisible();
+  }],
+  ['the jobs list on a phone', async (page) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await mockDashboard(page, { controls: true });
+    await page.goto('/#/jobs?ns=billing');
+    await expect(page.getByRole('link', { name: /send-invoice/ })).toBeVisible();
+  }]
+];
+
+for (const [state, stage] of scanned) {
+  for (const theme of ['acta', 'light', 'paper']) {
+    test(`${state} passes the accessibility scan in the ${theme} theme`, async ({ page }) => {
+      await page.addInitScript(
+        (chosen) => localStorage.setItem('acta-appearance-v1', JSON.stringify({ version: 1, theme: chosen, accent: 'teal', textSize: 'default' })),
+        theme
+      );
+      await stage(page);
+      expect(await violations(page)).toEqual([]);
+    });
+  }
+}
