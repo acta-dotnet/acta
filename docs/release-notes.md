@@ -2,9 +2,11 @@
 
 ## 1.0.0-rc.11
 
-Not tagged yet. The schema is rc.10's: nothing is reprovisioned.
+Not tagged yet. The schema changes by one migration on rc.10's baseline, the first a release candidate ships: an rc.10 database is migrated, not reprovisioned.
 
 ### What a consumer must change
+
+**Apply the migration to every database an rc.10 build provisioned, before an rc.11 worker starts**: `<app> jobs migrate`, `{Provider}Migrations.ApplyAsync` or the provider's schema script applies `M20261112231452_index_lanes_by_namespace`, and `MigrateOnStartup` does in development ([migration ownership](./operator-guide.md#migration-ownership)). It adds one index and changes no row, and an rc.10 worker runs on against the migrated database, so the deploy can roll. A database from rc.9 or earlier is dropped and provisioned again, as before. 1.0.0 may still fold the release candidates' migrations into one baseline, which would ask that of every release-candidate database once more.
 
 **Build a draft's definition as `CalendarDefinitionDocument` in a client generated from the OpenAPI document**: `definition` on the calendar draft save is that schema, where it was `CalendarDefinition`, which the calendar reads keep. It holds the same members and, at the root, `"$schema"`. Nothing on the wire changed, so a client generated from an earlier document keeps working.
 

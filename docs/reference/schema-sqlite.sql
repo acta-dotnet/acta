@@ -14,8 +14,8 @@
 -- present and leaves the data in place. Over a database a newer release upgraded, the script stops
 -- before changing anything, in a client that halts on an error (sqlite3 -bail). A later 1.x
 -- release upgrades a 1.x database with
--- its own migrations, carried in its own copy of this script. A database provisioned before
--- 1.0.0 has no upgrade path: provision a new one.
+-- its own migrations, carried in its own copy of this script. A database provisioned from an
+-- init migration other than M20261111163142_init has no upgrade path: provision a new one.
 --
 -- Run it with a client that stops at the first error, which is what makes the transaction below a
 -- guarantee: sqlite3 -bail. A client that runs on past a failed statement would reach the history
@@ -53,7 +53,7 @@ CREATE TEMP TABLE release_guard (
 INSERT INTO release_guard
 SELECT EXISTS (
     SELECT 1 FROM main.migrations
-    WHERE name NOT IN ('M20261111163142_init')
+    WHERE name NOT IN ('M20261111163142_init', 'M20261112231452_index_lanes_by_namespace')
 );
 DROP TABLE release_guard;
 
@@ -831,6 +831,15 @@ VALUES ('M20261111163142_init')
 ON CONFLICT (name) DO NOTHING;
 
 -- ===== END M20261111163142_init =====
+
+-- ===== BEGIN M20261112231452_index_lanes_by_namespace =====
+CREATE INDEX IF NOT EXISTS main.ix_lanes_namespace ON lanes (namespace_id, lane_id);
+
+INSERT INTO main.migrations (name)
+VALUES ('M20261112231452_index_lanes_by_namespace')
+ON CONFLICT (name) DO NOTHING;
+
+-- ===== END M20261112231452_index_lanes_by_namespace =====
 
 COMMIT;
 

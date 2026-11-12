@@ -13,8 +13,8 @@
 -- provisioned: every statement is guarded or idempotent, so a re-run changes nothing that is
 -- present and leaves the data in place. Over a database a newer release upgraded, the script stops
 -- before changing anything. A later 1.x release upgrades a 1.x database with
--- its own migrations, carried in its own copy of this script. A database provisioned before
--- 1.0.0 has no upgrade path: provision a new one.
+-- its own migrations, carried in its own copy of this script. A database provisioned from an
+-- init migration other than M20261111163142_init has no upgrade path: provision a new one.
 --
 -- Run it with a client that stops at the first error, which is what makes the transaction below a
 -- guarantee: sqlcmd -b, or SQLCMD mode with stop-on-error in SSMS. A client that runs on past a failed
@@ -57,7 +57,7 @@ GO
 -- ===== refuse a database a newer release already upgraded =====
 IF EXISTS (
     SELECT 1 FROM acta.migrations
-    WHERE name NOT IN ('M20261111163142_init')
+    WHERE name NOT IN ('M20261111163142_init', 'M20261112231452_index_lanes_by_namespace')
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -5094,6 +5094,20 @@ INSERT INTO acta.migrations (name)
 VALUES ('M20261111163142_init');
 GO
 -- ===== END M20261111163142_init =====
+GO
+-- ===== BEGIN M20261112231452_index_lanes_by_namespace =====
+SET QUOTED_IDENTIFIER ON;
+SET ANSI_NULLS ON;
+GO
+
+IF INDEXPROPERTY(OBJECT_ID(N'acta.lanes'), N'ix_lanes_namespace', 'IndexID') IS NULL
+    CREATE INDEX ix_lanes_namespace ON acta.lanes (namespace_id, lane_id);
+
+IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261112231452_index_lanes_by_namespace')
+INSERT INTO acta.migrations (name)
+VALUES ('M20261112231452_index_lanes_by_namespace');
+GO
+-- ===== END M20261112231452_index_lanes_by_namespace =====
 GO
 COMMIT TRANSACTION;
 GO

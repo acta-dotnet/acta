@@ -4,9 +4,10 @@ Known boundaries to review before using Acta in production-like environments.
 
 ## Stability status
 
-Acta 1.0 is in release candidates, and a release candidate may re-cut the schema ([release notes](./release-notes.md)).
-A database an earlier release candidate provisioned under another baseline is dropped and provisioned again: no
-migration translates one baseline into another. From 1.0.0 the public API,
+Acta 1.0 is in release candidates. Since rc.11 a release candidate changes the schema with a migration on
+rc.10's baseline, the way every 1.x release will on 1.0.0's, and 1.0.0 itself may still re-cut the baseline
+([release notes](./release-notes.md)). A database provisioned under another baseline is dropped and provisioned
+again: no migration translates one baseline into another. From 1.0.0 the public API,
 schema, and persisted codes are frozen, and the migration history with them: schema changes ship only
 as additive migrations and the baseline is never re-cut, so a database provisioned by a 1.x build
 upgrades by migration alone.

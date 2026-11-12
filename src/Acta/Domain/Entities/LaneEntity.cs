@@ -10,6 +10,8 @@ namespace Acta;
 [DbTable("lanes")]
 [DbPrimaryKey(Name = "pk_lanes", Columns = ["lane_id"])]
 [DbUniqueIndex(Name = "ux_lanes_namespace_name", Columns = ["namespace_id", "lane_name"], Usage = "uniqueness")]
+// A namespace's lanes in id order: recovery's lane repair walks them from a random id.
+[DbIndex(Name = "ix_lanes_namespace", Columns = ["namespace_id", "lane_id"], Usage = "maintenance")]
 internal sealed class LaneEntity : IEntity<long>
 {
     /// <summary>

@@ -11,8 +11,8 @@
 -- provisioned: every statement is guarded or idempotent, so a re-run changes nothing that is
 -- present and leaves the data in place. Over a database a newer release upgraded, the script stops
 -- before changing anything. A later 1.x release upgrades a 1.x database with
--- its own migrations, carried in its own copy of this script. A database provisioned before
--- 1.0.0 has no upgrade path: provision a new one.
+-- its own migrations, carried in its own copy of this script. A database provisioned from an
+-- init migration other than M20261111163142_init has no upgrade path: provision a new one.
 --
 -- Run it with a client that stops at the first error, which is what makes the transaction below a
 -- guarantee: psql -v ON_ERROR_STOP=1. A client that runs on past a failed statement would reach the
@@ -41,7 +41,7 @@ DO $$
 BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
-        WHERE name NOT IN ('M20261111163142_init')
+        WHERE name NOT IN ('M20261111163142_init', 'M20261112231452_index_lanes_by_namespace')
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
@@ -4431,6 +4431,15 @@ VALUES ('M20261111163142_init')
 ON CONFLICT (name) DO NOTHING;
 
 -- ===== END M20261111163142_init =====
+
+-- ===== BEGIN M20261112231452_index_lanes_by_namespace =====
+CREATE INDEX IF NOT EXISTS ix_lanes_namespace ON acta.lanes (namespace_id, lane_id);
+
+INSERT INTO acta.migrations (name)
+VALUES ('M20261112231452_index_lanes_by_namespace')
+ON CONFLICT (name) DO NOTHING;
+
+-- ===== END M20261112231452_index_lanes_by_namespace =====
 
 COMMIT;
 

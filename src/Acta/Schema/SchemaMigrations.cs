@@ -156,8 +156,8 @@ internal static partial class SchemaMigrations
     }
 
     /// <summary>
-    /// Fails when the history names a baseline this build does not ship. Each release candidate before 1.0 re-cut the
-    /// baseline under a new name, and every baseline statement is existence-guarded, so this build's baseline applied
+    /// Fails when the history names a baseline this build does not ship. Release candidates before 1.0 re-cut the
+    /// baseline under new names, and every baseline statement is existence-guarded, so this build's baseline applied
     /// over another's would change nothing and leave that cut's schema in place.
     /// </summary>
     internal static void RefuseForeignBaseline(IReadOnlyList<SchemaMigration> shipped, IReadOnlySet<string> applied, string dialectToken)

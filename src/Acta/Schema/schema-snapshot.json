@@ -965,6 +965,10 @@
       ],
       "Indexes": [
         {
+          "Name": "ix_lanes_namespace",
+          "Signature": "I|cols=namespace_id,lane_id|inc=|desc=|filter=|seq=False"
+        },
+        {
           "Name": "ux_lanes_namespace_name",
           "Signature": "U|cols=namespace_id,lane_name|inc=|desc=|filter=|seq=False"
         }

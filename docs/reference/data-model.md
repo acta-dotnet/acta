@@ -2,7 +2,7 @@
 
 # Data model reference
 
-Structural reference for the Acta persistence model: **17 entities**, **247 columns**, **39 indexes**, **35 check constraints**, **4 foreign keys**. Names render with the default `acta` schema prefix; substitute the configured schema if different. Code families resolve into [`code-families.md`](./code-families.md). The foreign-key enforcement policy (which references are CASCADE, RESTRICT, or deliberately unenforced) is in [SQL recipes](../operator-guide.md#foreign-key-policy).
+Structural reference for the Acta persistence model: **17 entities**, **247 columns**, **40 indexes**, **35 check constraints**, **4 foreign keys**. Names render with the default `acta` schema prefix; substitute the configured schema if different. Code families resolve into [`code-families.md`](./code-families.md). The foreign-key enforcement policy (which references are CASCADE, RESTRICT, or deliberately unenforced) is in [SQL recipes](../operator-guide.md#foreign-key-policy).
 
 ## Schema inventory
 
@@ -444,6 +444,7 @@ One lane in one namespace: the Jobs that reference it run one at a time, in job-
 
 | Name | Columns | Uniqueness | Filter | Usage |
 |---|---|---|---|---|
+| `ix_lanes_namespace` | `namespace_id`, `lane_id` | not unique | none | `maintenance` |
 | `ux_lanes_namespace_name` | `namespace_id`, `lane_name` | unique | none | `uniqueness` |
 
 ---

@@ -504,6 +504,7 @@ In production a deploy step applies Acta's migrations, never application startup
 ```
 $ ConnectionStrings__acta="<DDL login>" dotnet MyApp.dll jobs migrate
 applied M20261111163142_init to schema acta
+applied M20261112231452_index_lanes_by_namespace to schema acta
 namespace billing: 1.6.1+b81d04e (Production)
   added    sys.alerts
   added    sys.retention
