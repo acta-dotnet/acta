@@ -15692,6 +15692,149 @@
         "additionalProperties": false,
         "description": "A calendar's definition: a JSON object whose kind names its shape. An availability family takes weekly-availability, union, intersection, or subtraction; an occurrence family takes explicit-instants, daily-local-time, business-day, at-opening, or union. Each member names the kinds that take it, and the server refuses it on any other kind. At most 64 KB, 8 levels of JSON, and 5000 list items."
       },
+      "CalendarDefinitionDocument": {
+        "required": [
+          "kind"
+        ],
+        "type": "object",
+        "properties": {
+          "$schema": {
+            "type": "string",
+            "description": "The JSON Schema the definition is written against, https://useacta.net/schemas/calendar-definition-v1.json, which an editor reads to check and complete a file. The server reads it and does not store it, so it changes no content hash and makes no version."
+          },
+          "kind": {
+            "type": "string",
+            "description": "The definition's kind: weekly-availability, union, intersection, subtraction, explicit-instants, daily-local-time, business-day, or at-opening. A union is open while any operand is, or fires whenever one does, and an intersection is open only while every operand is; the other kinds' members say what each computes. A later version of Acta may add kinds."
+          },
+          "description": {
+            "maxLength": 512,
+            "type": "string",
+            "description": "A note for operators, which every kind takes; it changes nothing the calendar computes."
+          },
+          "timeZone": {
+            "type": "string",
+            "description": "The zone a weekly-availability, explicit-instants, daily-local-time, or business-day calendar reads its local dates and times in: a time zone id the host knows, such as Europe/Ljubljana, or schedule for the zone of the schedule that uses the calendar, which is also what leaving it out means."
+          },
+          "weekly": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CalendarWeeklyRule"
+            },
+            "description": "The weekly rules of a weekly-availability calendar, which needs at least one weekly rule or date override; the windows of every rule that names a weekday apply on it."
+          },
+          "dateOverrides": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/CalendarLocalWindow"
+              },
+              "description": "The date's windows."
+            },
+            "description": "The dates of a weekly-availability calendar whose windows replace the weekly ones, keyed by the date as yyyy-MM-dd; an empty list closes the date."
+          },
+          "excludedRanges": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CalendarExcludedRange"
+            },
+            "description": "The ranges a weekly-availability calendar cuts out of its windows after everything else is applied."
+          },
+          "of": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CalendarDefinition"
+            },
+            "description": "The operands of a union or an intersection: at least one definition written inline, each of the family's role in a union and each an availability definition in an intersection. Required."
+          },
+          "from": {
+            "description": "The calendar a subtraction requires to be open: an availability definition, written inline. Required.",
+            "$ref": "#/components/schemas/CalendarDefinition"
+          },
+          "minus": {
+            "description": "The calendar a subtraction requires not to be open: an availability definition, written inline. Required.",
+            "$ref": "#/components/schemas/CalendarDefinition"
+          },
+          "instants": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "An instant with its offset, such as 2027-01-15T16:00:00Z, or a local date-time in the calendar's zone, such as 2027-01-15T16:00."
+            },
+            "description": "The instants an explicit-instants calendar fires at. Required."
+          },
+          "times": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "A local time, HH:mm or HH:mm:ss."
+            },
+            "description": "The local times a daily-local-time calendar fires at. Required."
+          },
+          "days": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "A weekday, Monday to Sunday."
+            },
+            "description": "The weekdays a daily-local-time calendar fires on, each Monday to Sunday, case ignored; every weekday when left out."
+          },
+          "excludedDates": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "A date, yyyy-MM-dd."
+            },
+            "description": "The dates a daily-local-time calendar skips."
+          },
+          "select": {
+            "type": "string",
+            "description": "Which end of the period a business-day calendar counts from: first or last. Required."
+          },
+          "period": {
+            "type": "string",
+            "description": "The period a business-day calendar counts in: week, month, quarter, or year. Required."
+          },
+          "nth": {
+            "maximum": 31,
+            "minimum": 1,
+            "type": "integer",
+            "description": "Which business day a business-day calendar fires on, counted from the end of the period that select names, 1 to 31; 1 when left out.",
+            "format": "int32"
+          },
+          "businessDays": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "A weekday, Monday to Sunday."
+            },
+            "description": "The weekdays a business-day calendar counts as business days, case ignored; Monday to Friday when left out."
+          },
+          "holidays": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "A date, yyyy-MM-dd."
+            },
+            "description": "The dates a business-day calendar counts as no business days."
+          },
+          "time": {
+            "type": "string",
+            "description": "The local time a business-day calendar fires at, HH:mm or HH:mm:ss. Required."
+          },
+          "availability": {
+            "description": "The availability calendar whose openings an at-opening calendar fires at, written inline. Required.",
+            "$ref": "#/components/schemas/CalendarDefinition"
+          }
+        },
+        "additionalProperties": false,
+        "description": "A calendar's definition as a draft takes it: every member of a calendar definition, read as there, and at the root alone the $schema a definition kept in a file may name. A definition written inline as an operand takes no $schema, and a read answers the definition without it."
+      },
       "CalendarExcludedRange": {
         "type": "object",
         "properties": {
@@ -21254,7 +21397,7 @@
           },
           "definition": {
             "description": "The calendar's definition, as a JSON object.",
-            "$ref": "#/components/schemas/CalendarDefinition"
+            "$ref": "#/components/schemas/CalendarDefinitionDocument"
           },
           "expectedLatestVersion": {
             "type": [

@@ -1031,14 +1031,16 @@ public sealed partial class OpenApiContractTests
 
     /// <summary>
     /// A calendar read embeds its definition as the JSON object the draft took, its text the stored bytes: compact, the keys
-    /// in the order sent, each escape as the store wrote it. Both reads carry it, the document types it as a calendar definition, and
-    /// the read's definition, sent back as it is, is the same content: the draft answers already-in-state with that version.
+    /// in the order sent, each escape as the store wrote it, and without the $schema the draft named. Both reads carry it,
+    /// the document types it as a calendar definition, and the read's definition, sent back as it is, is the same content:
+    /// the draft answers already-in-state with that version.
     /// </summary>
     [Fact]
     public async Task A_calendar_read_embeds_its_stored_definition_which_a_draft_takes_back()
     {
-        const string sent = """
-            { "timeZone" : "UTC", "kind" : "daily-local-time", "description" : "Caf\u00e9 <closed>", "times" : [ "09:00" ] }
+        const string named = """ "$schema" : "https://useacta.net/schemas/calendar-definition-v1.json", """;
+        const string sent = $$"""
+            { {{named}} "timeZone" : "UTC", "kind" : "daily-local-time", "description" : "Caf\u00e9 <closed>", "times" : [ "09:00" ] }
             """;
         var compiled = CalendarDefinition.Compile(CalendarRoleCode.Occurrence, sent);
         var stored = Encoding.UTF8.GetString(compiled.CanonicalJson.Span);
@@ -1073,7 +1075,10 @@ public sealed partial class OpenApiContractTests
             await DraftAsync(definitions[0], head.GetProperty("latestVersion").GetInt32());
         });
         Assert.Equal([stored, stored], definitions);
-        Assert.True(JsonNode.DeepEquals(JsonNode.Parse(sent), JsonNode.Parse(definitions[0])), definitions[0]);
+        Assert.True(
+            JsonNode.DeepEquals(JsonNode.Parse(sent.Replace(named, "", StringComparison.Ordinal)), JsonNode.Parse(definitions[0])),
+            definitions[0]
+        );
         Assert.Equal("#/components/schemas/CalendarDefinition", schema["properties"]!["definition"]!["$ref"]!.GetValue<string>());
         Assert.Equal(
             [

@@ -1,5 +1,17 @@
 # Release notes
 
+## 1.0.0-rc.11
+
+Not tagged yet. The schema is rc.10's: nothing is reprovisioned.
+
+### What a consumer must change
+
+**Build a draft's definition as `CalendarDefinitionDocument` in a client generated from the OpenAPI document**: `definition` on the calendar draft save is that schema, where it was `CalendarDefinition`, which the calendar reads keep. It holds the same members and, at the root, `"$schema"`. Nothing on the wire changed, so a client generated from an earlier document keeps working.
+
+### Fixes
+
+- The OpenAPI document refused a calendar draft the server takes. A definition kept in a file may name its JSON Schema in a root `"$schema"` member, which the server reads and does not store, and the document typed the draft's `definition` as `CalendarDefinition`, which declares no such member, so a client that checks its request against the document could not send the file as it stood. The draft's `definition` is `CalendarDefinitionDocument`: every member of a definition and, at the root alone, `$schema`. An operand written inline takes none, and a read answers the stored definition without it. A test holds one set of accepted definitions to the compiler, the published schema file, and the draft request.
+
 ## 1.0.0-rc.10
 
 Tagged 2026-11-12. rc.10 widens a job's counters to 64 bits, removes the columns and codes that carried no information, decides a schedule any distance behind, records operator actions at every level, and gives the typed result read a form that returns the result and a form that says whether one exists. The schema changes: reprovision, as every pre-1.0 release asks.

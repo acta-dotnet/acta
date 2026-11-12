@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Acta.Tests.Docs;
 using Json.Schema;
 using Xunit;
@@ -7,12 +8,24 @@ namespace Acta.Tests.Contracts;
 
 // The published JSON Schema of a calendar definition is a second description of what CalendarDefinition compiles. These
 // facts hold the two together over one set of definitions: what compiles passes the schema, what the schema refuses does
-// not compile, and the rules that need more than shape are listed, so the schema's stated limit is a tested one.
+// not compile, and the rules that need more than shape are listed, so the schema's stated limit is a tested one. The
+// draft request of the HTTP API is a third description, held to the same accepted definitions.
 public sealed partial class CalendarDefinitionSchemaTests
 {
     private const string Daily = """{"kind":"daily-local-time","times":["09:00"]}""";
 
     private static readonly Lazy<JsonSchema> Published = new(() => JsonSchema.FromText(File.ReadAllText(SchemaFile("docs", "reference"))));
+
+    // The draft request as a JSON Schema of its own: the document's component schemas under $defs and every reference
+    // pointed there, so the validator that reads the published file reads the request too.
+    private static readonly Lazy<Task<JsonSchema>> DraftRequest = new(async () =>
+        JsonSchema.FromText(
+            $$"""
+            {"$schema":"https://json-schema.org/draft/2020-12/schema","$ref":"#/$defs/SaveCalendarDraftRequest",
+             "$defs":{{(await Schemas.Value).ToJsonString().Replace("#/components/schemas/", "#/$defs/", StringComparison.Ordinal)}}}
+            """
+        )
+    );
 
     public static TheoryData<string> Accepted() =>
         [
@@ -101,10 +114,47 @@ public sealed partial class CalendarDefinitionSchemaTests
 
     [Theory]
     [MemberData(nameof(Accepted))]
-    public void A_definition_the_compiler_takes_passes_the_published_schema(string json)
+    public async Task A_definition_the_compiler_takes_passes_the_published_schema_and_the_draft_request(string json)
     {
         Assert.True(Compiles(json), "The compiler refuses this definition in both roles; it is no example of an accepted one.");
         Assert.True(PassesSchema(json), "The compiler takes this definition and the published schema refuses it.");
+        Assert.True(await PassesDraftRequestAsync(json), "The compiler takes this definition and the draft request's schema refuses it.");
+    }
+
+    /// <summary>
+    /// A draft takes a definition as a file holds it: every member of a definition and, at its root alone, the $schema the
+    /// file names. A read answers the stored definition, which holds none, so the read's schema and an operand's take none.
+    /// </summary>
+    [Fact]
+    public async Task Only_the_root_of_a_draft_definition_takes_a_schema_member()
+    {
+        var schemas = await Schemas.Value;
+        var stored = schemas[ActaOpenApiDocument.CalendarDefinitionSchema]!.AsObject();
+        var drafted = schemas[ActaOpenApiDocument.CalendarDefinitionDocumentSchema]!.AsObject();
+        string Reference(string owner) => schemas[owner]!["properties"]!["definition"]!["$ref"]!.GetValue<string>();
+
+        Assert.Equal("#/components/schemas/" + ActaOpenApiDocument.CalendarDefinitionDocumentSchema, Reference("SaveCalendarDraftRequest"));
+        Assert.Equal("#/components/schemas/" + ActaOpenApiDocument.CalendarDefinitionSchema, Reference("GetCalendarResponse"));
+
+        // Apart from its description and the one member, the drafted definition is the stored one, member for member.
+        var expected = stored.DeepClone().AsObject();
+        expected["description"] = drafted["description"]!.DeepClone();
+        var members = new JsonObject { ["$schema"] = drafted["properties"]!["$schema"]!.DeepClone() };
+        foreach (var (name, member) in stored["properties"]!.AsObject())
+        {
+            members[name] = member!.DeepClone();
+        }
+        expected["properties"] = members;
+        Assert.True(JsonNode.DeepEquals(expected, drafted), drafted.ToJsonString());
+        Assert.Equal("string", drafted["properties"]!["$schema"]!["type"]!.GetValue<string>());
+        Assert.NotEqual(stored["description"]!.GetValue<string>(), drafted["description"]!.GetValue<string>());
+
+        Assert.True(
+            await PassesDraftRequestAsync($$"""{"$schema":"https://useacta.net/schemas/calendar-definition-v1.json",{{Daily[1..]}}""")
+        );
+        Assert.False(await PassesDraftRequestAsync($$"""{"$schema":5,{{Daily[1..]}}"""));
+        Assert.False(await PassesDraftRequestAsync($$"""{"kind":"union","of":[{"$schema":"x",{{Daily[1..]}}]}"""));
+        Assert.False(await PassesDraftRequestAsync($$"""{"kind":"at-opening","availability":{"$schema":"x",{{Weekly.Trim()[1..]}}}"""));
     }
 
     [Theory]
@@ -143,6 +193,12 @@ public sealed partial class CalendarDefinitionSchemaTests
     {
         using var document = JsonDocument.Parse(json);
         return Published.Value.Evaluate(document.RootElement).IsValid;
+    }
+
+    private static async Task<bool> PassesDraftRequestAsync(string definition)
+    {
+        using var body = JsonDocument.Parse($$"""{"role":"occurrence","definition":{{definition}}}""");
+        return (await DraftRequest.Value).Evaluate(body.RootElement).IsValid;
     }
 
     private static bool Compiles(string json)
