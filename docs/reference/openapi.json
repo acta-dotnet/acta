@@ -16316,24 +16316,6 @@
           "jobName"
         ],
         "type": "object",
-        "not": {
-          "required": [
-            "delaySeconds",
-            "nextRunAtUtc"
-          ],
-          "properties": {
-            "delaySeconds": {
-              "not": {
-                "type": "null"
-              }
-            },
-            "nextRunAtUtc": {
-              "not": {
-                "type": "null"
-              }
-            }
-          }
-        },
         "properties": {
           "jobNamespace": {
             "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,64}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)(?![Ss][Yy][Ss](?:\\.|[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$))[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",

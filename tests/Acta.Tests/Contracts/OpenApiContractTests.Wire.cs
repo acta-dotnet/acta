@@ -556,13 +556,13 @@ public sealed partial class OpenApiContractTests
     }
 
     // Adds to wrong what a served value breaks of its schema: a type the schema does not allow, a bound or pattern it
-    // breaks, a schema its not refuses that it matches, an absent required member, or, when strict, a member it does not
-    // declare. A reference is followed, and a oneOf holds when exactly one of its branches does, as JSON Schema reads it.
-    private static void Describe(JsonNode? value, JsonNode schema, JsonObject schemas, string where, List<string> wrong, bool strict = true)
+    // breaks, an absent required member, or a member it does not declare. A reference is followed, and a oneOf holds
+    // when exactly one of its branches does, as JSON Schema reads it.
+    private static void Describe(JsonNode? value, JsonNode schema, JsonObject schemas, string where, List<string> wrong)
     {
         if (schema["$ref"]?.GetValue<string>() is { } reference)
         {
-            Describe(value, schemas[reference.Split('/')[^1]]!, schemas, where, wrong, strict);
+            Describe(value, schemas[reference.Split('/')[^1]]!, schemas, where, wrong);
             return;
         }
 
@@ -575,7 +575,7 @@ public sealed partial class OpenApiContractTests
         if (schema["oneOf"] is JsonArray branches)
         {
             var held = branches
-                .Where(branch => Breaks(value, branch!, schemas, where, strict).Count == 0)
+                .Where(branch => Breaks(value, branch!, schemas, where).Count == 0)
                 .Select(branch => branch!["$ref"]?.GetValue<string>().Split('/')[^1] ?? branch.ToJsonString())
                 .ToList();
             if (held.Count == 0)
@@ -603,13 +603,6 @@ public sealed partial class OpenApiContractTests
             return;
         }
 
-        // Inside a not, the schema is JSON Schema's own: a member it does not name is any member.
-        if (schema["not"] is { } refused && Breaks(value, refused, schemas, where, strict: false).Count == 0)
-        {
-            wrong.Add($"{where}: the value matches {refused.ToJsonString()}, which its schema refuses.");
-            return;
-        }
-
         // An object schema that declares no members takes any.
         if (value is JsonObject members && (schema["properties"] is not null || schema["additionalProperties"] is not null))
         {
@@ -625,13 +618,13 @@ public sealed partial class OpenApiContractTests
             {
                 if (schema["properties"]?[name] is { } declared)
                 {
-                    Describe(member, declared, schemas, $"{where}.{name}", wrong, strict);
+                    Describe(member, declared, schemas, $"{where}.{name}", wrong);
                 }
                 else if (schema["additionalProperties"] is JsonObject additional)
                 {
-                    Describe(member, additional, schemas, $"{where}.{name}", wrong, strict);
+                    Describe(member, additional, schemas, $"{where}.{name}", wrong);
                 }
-                else if (strict)
+                else
                 {
                     wrong.Add($"{where}: member '{name}' is not declared.");
                 }
@@ -641,15 +634,15 @@ public sealed partial class OpenApiContractTests
         {
             for (var i = 0; i < items.Count; i++)
             {
-                Describe(items[i], itemSchema, schemas, $"{where}[{i}]", wrong, strict);
+                Describe(items[i], itemSchema, schemas, $"{where}[{i}]", wrong);
             }
         }
     }
 
-    internal static List<string> Breaks(JsonNode? value, JsonNode schema, JsonObject schemas, string where, bool strict = true)
+    internal static List<string> Breaks(JsonNode? value, JsonNode schema, JsonObject schemas, string where)
     {
         var wrong = new List<string>();
-        Describe(value, schema, schemas, where, wrong, strict);
+        Describe(value, schema, schemas, where, wrong);
         return wrong;
     }
 

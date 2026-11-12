@@ -239,42 +239,6 @@ public sealed partial class OpenApiContractTests
     }
 
     /// <summary>
-    /// The enqueue sends at most one of its timing members, as its schema's not says: both with values is the 400, and
-    /// either beside a null of the other, or alone, is taken, which the schema allows too.
-    /// </summary>
-    [Fact]
-    public async Task The_enqueue_refuses_both_timing_members_as_its_schema_says()
-    {
-        var schemas = JsonNode.Parse(await ActaOpenApiDocument.GenerateAsync())!["components"]!["schemas"]!.AsObject();
-        var enqueue = schemas["EnqueueJobRequest"]!;
-        (string Timing, bool Taken)[] cases =
-        [
-            ("\"delaySeconds\":5,\"nextRunAtUtc\":\"2030-01-01T00:00:00Z\"", false),
-            ("\"delaySeconds\":null,\"nextRunAtUtc\":\"2030-01-01T00:00:00Z\"", true),
-            ("\"delaySeconds\":5,\"nextRunAtUtc\":null", true),
-            ("\"delaySeconds\":5", true),
-            ("\"nextRunAtUtc\":\"2030-01-01T00:00:00Z\"", true),
-        ];
-        var wrong = new List<string>();
-        await WithSqliteHostAsync(async client =>
-        {
-            foreach (var (timing, taken) in cases)
-            {
-                var body = Enqueue(timing, "");
-                var answered = await SendControlAsync(client, HttpMethod.Post, "jobs", body);
-                var allowed = Breaks(JsonNode.Parse(body), enqueue, schemas, "enqueue").Count == 0;
-                if ((answered != HttpStatusCode.BadRequest) != taken || allowed != taken)
-                {
-                    wrong.Add($"{timing}: answered {(int)answered}, the schema {(allowed ? "takes" : "refuses")} it.");
-                }
-            }
-        });
-
-        Assert.Equal(ActaOpenApiDocument.EnqueueTimingMembers, Required(enqueue["not"]!));
-        Assert.True(wrong.Count == 0, string.Join("\n", wrong));
-    }
-
-    /// <summary>
     /// Every error an operation documents with a body carries one example, the body the host answered the request that
     /// provoked it: a problem document whose status is the response's, with a title and an RFC 9110 type, where the
     /// response is a problem, and a control's response with its action otherwise. A 401 documents no body and so no

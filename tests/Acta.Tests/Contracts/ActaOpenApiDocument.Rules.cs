@@ -129,9 +129,6 @@ internal static partial class ActaOpenApiDocument
         new("PublishCalendarRequest", "candidateVersion", Minimum: 1),
     ];
 
-    /// <summary>The members of the enqueue that name when the job first runs, of which a request sends at most one.</summary>
-    public static readonly string[] EnqueueTimingMembers = ["delaySeconds", "nextRunAtUtc"];
-
     /// <summary>
     /// The pattern of a path parameter: a ref's for a ref, the debug lookup beside the job ref on a route that takes it, and
     /// the name syntax for every name under its kind's cap, which every route holds it to: a namespace's 64 characters, and
@@ -198,7 +195,7 @@ internal static partial class ActaOpenApiDocument
         }
     }
 
-    // Writes each member rule into its schema, and the enqueue's one-timing rule as a not over both timing members.
+    // Writes each member rule into its schema.
     private static void ApplyRequestRules(IDictionary<string, IOpenApiSchema> schemas)
     {
         foreach (var rule in RequestMemberRules)
@@ -218,20 +215,6 @@ internal static partial class ActaOpenApiDocument
             schema.MaxLength = rule.MaxLength;
             schema.MaxItems = rule.MaxItems;
             schema.Pattern = rule.Pattern;
-        }
-
-        if (schemas.TryGetValue("EnqueueJobRequest", out var enqueue) && enqueue is OpenApiSchema request)
-        {
-            // Present with null counts as left out, so the rule refuses both only when neither is null.
-            request.Not = new OpenApiSchema
-            {
-                Required = EnqueueTimingMembers.ToHashSet(StringComparer.Ordinal),
-                Properties = EnqueueTimingMembers.ToDictionary(
-                    member => member,
-                    IOpenApiSchema (_) => new OpenApiSchema { Not = new OpenApiSchema { Type = JsonSchemaType.Null } },
-                    StringComparer.Ordinal
-                ),
-            };
         }
     }
 }
