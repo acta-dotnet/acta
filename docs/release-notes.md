@@ -2,7 +2,7 @@
 
 ## 1.0.0-rc.10
 
-Not tagged yet.
+Tagged 2026-11-12. rc.10 widens a job's counters to 64 bits, removes the columns and codes that carried no information, decides a schedule any distance behind, records operator actions at every level, and gives the typed result read a form that returns the result and a form that says whether one exists. The schema changes: reprovision, as every pre-1.0 release asks.
 
 ### What a consumer must change
 
@@ -134,6 +134,16 @@ Not tagged yet.
 - Under `Skip`, a timed schedule pause that ended while its permanent job was busy or unavailable, or while the schedule was full, could still fire an occurrence from inside the pause: the pass that ended the pause parked the schedule, and when the job freed within the minute of grace, the next pass saw an active schedule with an occurrence less than a minute old. The pause's window is now skipped at the pass that ends the pause, whatever the job or the schedule can take. The same held for a cursor that a changed calendar moved into the pause's window at that pass, and the pause now stays until the pass that decides it.
 - A failed `sys.outbox`, `sys.alerts`, or `sys.retention` pass retried on a job's default curve, one minute doubling to a day, so after a few failures in a row the relay's five-second pickup, alert delivery, and retention waited minutes to hours behind one failed pass. The three jobs now retry after fifteen seconds, doubling to a minute, so three failures in a row, which raise the critical alert, come within a minute where they took three.
 - A `union` availability calendar with an always-open week among its operands threw on every evaluation, preview, and deploy: it followed the week's touching windows until the date passed year 9999. A union now follows touching windows as far ahead as a weekly calendar scans, so a run that ends is answered whole, and up to a month back.
+
+### Evidence
+
+The engine was certified with the Acta Verify release suite on PostgreSQL, SQL Server, and SQLite, reported in [`docs/reference/benchmark.md`](./reference/benchmark.md) and on [useacta.net/benchmark](https://useacta.net/benchmark), in one run with no rerun. The run's commit, `d20e7c77e`, had its commit messages reworded afterwards, which changes its hash and no file: its tree, `9e26a491cc435c700c72939852f3c75c2e718784`, is the tree of the commit "Name 1.0.0-rc.10 in the prose" at the tag. The commits after it change documentation, the site, and two queries of the at-most-once lab, which read a column this release dropped, so the evidence stands for the tag.
+- **Result.** Every correctness, fault, and chaos scenario passed on every database, every trial's ledger passed the certification checks, and every performance floor held in the run.
+- **Chaos certification.** On the shipped lease timings, 1,000,000 jobs on PostgreSQL and on SQL Server with a worker killed every 5 s: 84 busy kills reclaimed on PostgreSQL and 81 on SQL Server. SQLite passed at 10,000 jobs, with 35 busy kills reclaimed.
+- **Throughput.** Four PostgreSQL workers polling held 15,000/s offered in three 30 s passes and the 120 s confirmation, completing 14,857 fully executed, durably completed jobs per second with p99 1.6 s. One worker, woken in process, completed 7,500 a second with p99 61 ms. SQL Server held 5,000 a second on four workers (5,001, p99 931 ms) and on one (4,999); SQLite held 250 on one, with p99 109 ms.
+- **Drain.** Eight workers drained a backlog of 1,000,000 jobs at 83,966 a second on PostgreSQL and 50,774 on SQL Server (the steady rate on the database clock, median of three passes); one SQLite worker drained its backlog at 8,290.
+- **Compared with rc.9.** `acta-verify compare` sets no scenario beside rc.9's run, because the PostgreSQL container image differs. Side by side, PostgreSQL's confirmation at 15,000/s offered held where rc.9's missed and stepped down to 12,500, and the sixteen-worker SQL Server cell rc.9 reran held in the run, at p99 1.3 s over two namespaces and 1.9 s over one against the 2.0 s target.
+- **useacta.net.** The homepage states 14,857 fully executed, durably completed jobs per second on four PostgreSQL workers. The benchmark report is a page of the site.
 
 ## 1.0.0-rc.9
 
