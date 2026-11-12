@@ -237,7 +237,8 @@ public sealed partial class PgConformanceFixture : IConformanceFixture
     {
         var connString =
             IntegrationConfig.PostgresConnectionString ?? throw new InvalidOperationException("Postgres tests require ACTA_TEST_PG.");
-        var sb = new NpgsqlConnectionStringBuilder(connString);
+        // A host's wait for a pooled connection is a guarded wait: every test starts at once on one pool.
+        var sb = new NpgsqlConnectionStringBuilder(connString) { Timeout = (int)SpecWaits.Gate.TotalSeconds };
         if (string.IsNullOrWhiteSpace(sb.Database))
         {
             throw new InvalidOperationException(
