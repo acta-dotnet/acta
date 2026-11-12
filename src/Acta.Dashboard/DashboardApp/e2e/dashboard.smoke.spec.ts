@@ -1,5 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page, type Route } from '@playwright/test';
+import { routeMetadata, type RouteName } from '../src/routes';
 
 const jobRef = 'job_019f9b3509487d1b911f2020158384a3';
 const timestamp = '2026-07-14T08:00:00Z';
@@ -124,8 +125,75 @@ const workerRow = (workerRef: string, deploymentVersion: string, status: string)
   const seen = new Date().toISOString();
   return {
     workerRef, status, jobNamespace: 'billing', hostName: 'host-1', deploymentVersion, engineVersion: '1.0.0', dotnetVersion: '.NET 10.0',
-    processId: 4242, maxConcurrentExecutors: 8, lastSeenAtUtc: seen, startedAtUtc: seen
+    processId: 4242, maxConcurrentExecutors: 8, lastSeenAtUtc: seen, startedAtUtc: seen, modifiedAtUtc: seen
   };
+};
+
+// Two registered tenants, one of them suspended.
+const tenantRows = [
+  {
+    tenantName: 'acme-industries', displayName: 'Acme Industries', description: 'Enterprise plan, invoiced monthly.', status: 'active',
+    createdAtUtc: '2026-06-01T08:00:00Z', modifiedAtUtc: timestamp, version: 2
+  },
+  { tenantName: 'globex', displayName: 'Globex', description: null, status: 'suspended', createdAtUtc: '2026-06-03T08:00:00Z', modifiedAtUtc: timestamp, version: 3 }
+];
+
+// The send-invoice definition as its page reads it: the code's policy, an operator override of the attempt budget, and
+// the policy in force.
+const sendInvoiceDefinition = {
+  jobNamespace: 'billing',
+  jobName: 'send-invoice',
+  status: 'active',
+  definitionHash: '6f1c2a9e4b7d03f58e2a1c9b7d4f6e0a3b5c8d1e2f4a6b8c0d2e4f6a8b0c2d4e',
+  createdDeploymentVersion: '1.6.1+b81d04e',
+  inputTypeName: 'Billing.SendInvoice',
+  inputFormatId: 1,
+  inputFormatName: 'json',
+  resultTypeName: 'Billing.InvoiceReceipt',
+  resultFormatId: 1,
+  resultFormatName: 'json',
+  priority: 'normal',
+  priorityEffective: 'normal',
+  maxAttempts: 3,
+  maxAttemptsEffective: 5,
+  concurrencyLimit: 4,
+  concurrencyLimitEffective: 4,
+  rateLimit: '100/m',
+  rateLimitEffective: '100/m',
+  rateName: 'stripe',
+  lane: null,
+  backoff: '1m..1d x2 ~10%',
+  backoffEffective: '1m..1d x2 ~10%',
+  executionTimeoutSeconds: 300,
+  executionTimeoutSecondsEffective: 300,
+  deadlineSeconds: 0,
+  deadlineSecondsEffective: 0,
+  deadlineBehavior: 'strict',
+  deadlineBehaviorEffective: 'strict',
+  jobRetentionSeconds: 7_776_000,
+  jobRetentionSecondsEffective: 7_776_000,
+  eventRecording: 'audit',
+  eventRecordingEffective: 'audit',
+  alertProfile: 'on-failure',
+  alertProfileEffective: 'on-failure',
+  firingFailurePolicy: 'continue',
+  scheduledDelivery: 'per-occurrence',
+  alertChannelName: null,
+  alertChannelNameEffective: null,
+  runbookUrl: null,
+  runbookUrlEffective: null,
+  displayName: null,
+  displayNameEffective: null,
+  description: 'Sends the invoice for a closed order.',
+  descriptionEffective: 'Sends the invoice for a closed order.',
+  overrides: {
+    priority: null, maxAttempts: 5, concurrencyLimit: null, rateLimit: null, backoff: null, executionTimeoutSeconds: null, deadlineSeconds: null,
+    deadlineBehavior: null, jobRetentionSeconds: null, eventRecording: null, alertProfile: null, alertChannelName: null, runbookUrl: null,
+    displayName: null, description: null
+  },
+  createdAtUtc: '2026-07-01T00:00:00Z',
+  modifiedAtUtc: timestamp,
+  version: 2
 };
 
 async function mockDashboard(
@@ -138,10 +206,12 @@ async function mockDashboard(
     onEnqueue?: (body: unknown) => void;
     // Set, the Overview lists one outbox source with quarantined rows, and its discard reports the body it sent.
     onDiscard?: (body: unknown) => void;
-    // The rows the Workers list reads; none unless a test names them.
+    // The rows the Workers list and a worker's page read; none unless a test names them.
     workers?: unknown[];
-    // The rows the Alerts list reads; none unless a test names them.
+    // The rows the Alerts list and an alert's page read; none unless a test names them.
     alerts?: unknown[];
+    // The rows the Tenants list and a tenant's page read; none unless a test names them.
+    tenants?: unknown[];
     // The rows the Schedules list and a schedule's page read; none unless a test names them.
     schedules?: unknown[];
     // The rows the Jobs list reads; the one failed job unless a test names them.
@@ -179,10 +249,11 @@ async function mockDashboard(
         permissions: options.permissions ?? ['acta.read', 'acta.enqueue', 'acta.control', 'acta.admin']
       });
     }
-    if (path === 'namespaces') {
-      const names = options.namespaces ?? ['billing'];
-      return json(paged(names.map((jobNamespace) => ({ jobNamespace, status: 'active', ownerTeam: null, description: null, deploymentVersion: '1.6.2+5c0ffee', version: 1 }))));
-    }
+    const namespaceRow = (jobNamespace: string) => ({ jobNamespace, status: 'active', ownerTeam: null, description: null, deploymentVersion: '1.6.2+5c0ffee', version: 1 });
+    const namespaces = options.namespaces ?? ['billing'];
+    if (path === 'namespaces') return json(paged(namespaces.map(namespaceRow)));
+    const namespace = namespaces.find((name) => path === `namespaces/${name}`);
+    if (namespace) return json(namespaceRow(namespace));
     if (path === 'overview') {
       return json({
         readyCount: 0,
@@ -223,6 +294,13 @@ async function mockDashboard(
     if (path === 'alerts') return json(paged(options.alerts ?? []));
     if (path === 'workers') return json(paged(options.workers ?? []));
     if (path === 'schedules') return json(paged(options.schedules ?? []));
+    if (path === 'tenants') return json(paged(options.tenants ?? []));
+    // A worker's, an alert's, or a tenant's page reads the listed row its path names; any other is not found.
+    const named = (rows: unknown[] | undefined, collection: string, key: string) =>
+      rows?.find((row) => path === `${collection}/${(row as Record<string, unknown>)[key]}`);
+    const row = named(options.workers, 'workers', 'workerRef') ?? named(options.alerts, 'alerts', 'alertRef') ?? named(options.tenants, 'tenants', 'tenantName');
+    if (row) return json(row);
+    if (/^(definitions|namespaces|tenants)\/.+\/tags$/.test(path)) return json(paged([{ name: 'team', value: 'payments' }]));
     if (path === 'definitions') {
       const definition = (jobName: string) => ({
         jobNamespace: 'billing',
@@ -247,7 +325,7 @@ async function mockDashboard(
       }
       return json(paged(options.definitions ?? [definition('send-invoice')]));
     }
-    if (path === 'tenants') return json(paged([]));
+    if (path === 'definitions/billing/send-invoice') return json(sendInvoiceDefinition);
     if (path === 'calendars') {
       const families = [
         {
@@ -1153,7 +1231,8 @@ test('appearance defaults, themes, accents, text sizing, persistence, and reset 
     textSize: 'large',
     colorScheme: 'light',
     background: '#f7f9fc',
-    panel: '#ffffff',
+    // The build writes a token in its shortest form.
+    panel: '#fff',
     accentToken: '#6550b9',
     rowHeight: '48px',
     stored: { version: 1, theme: 'light', accent: 'violet', textSize: 'large' },
@@ -1164,7 +1243,7 @@ test('appearance defaults, themes, accents, text sizing, persistence, and reset 
     const styles = getComputedStyle(document.documentElement);
     return [styles.getPropertyValue('--bg').trim(), styles.getPropertyValue('--panel').trim()];
   });
-  expect(neutralsAfterAccentSwitch).toEqual(['#f7f9fc', '#ffffff']);
+  expect(neutralsAfterAccentSwitch).toEqual(['#f7f9fc', '#fff']);
 
   await page.getByText('Paper', { exact: true }).click();
   await page.getByText('Crimson', { exact: true }).click();
@@ -1475,7 +1554,8 @@ test('a schedule past its evaluation envelope reads as overdue, a just-due one a
 });
 
 // Accessibility. axe-core reads each state below in each theme with the WCAG 2.2 A and AA rules, and a violation fails
-// the suite. It finds what a machine can decide; the manual pass in DESIGN.md, "Verification", covers the rest.
+// the suite. It finds what a machine can decide; the manual pass in DESIGN.md, "Verification", covers the rest. Each
+// state names the route it is on, and a route with no state fails the suite.
 const wcagRules = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
 
 // What the scan may report and the suite lets through, each with its reason.
@@ -1507,115 +1587,173 @@ const openJob = async (page: Page, options: Parameters<typeof mockDashboard>[1] 
   await expect(page.getByRole('region', { name: 'Job status' })).toBeVisible();
 };
 
-const scanned: Array<[string, (page: Page) => Promise<void>]> = [
-  ['the overview with an outbox relay', async (page) => {
+const scanned: Array<[RouteName, string, (page: Page) => Promise<void>]> = [
+  ['overview', 'the overview with an outbox relay', async (page) => {
     await mockDashboard(page, { controls: true, onDiscard: () => {} });
     await page.goto('/');
     await expect(page.getByRole('heading', { name: 'Outbox relays' })).toBeVisible();
   }],
-  ['the jobs list', async (page) => {
+  ['jobs', 'the jobs list', async (page) => {
     await mockDashboard(page, { controls: true });
     await page.goto('/#/jobs');
     await expect(page.getByRole('link', { name: jobRef }).first()).toBeVisible();
   }],
-  ['a job with its activity open', async (page) => {
+  ['job-detail', 'a job with its activity open', async (page) => {
     await openJob(page);
     await page.locator('#job-activity > summary').click();
     await expect(page.locator('.rail-code')).toHaveText('job.failed');
   }],
-  ['a job\'s Actions menu', async (page) => {
+  ['job-detail', 'a job\'s Actions menu', async (page) => {
     await openJob(page);
     await page.locator('.detail-actions > summary').click();
     await expect(page.getByRole('button', { name: 'Delete record', exact: true })).toBeVisible();
   }],
-  ['a confirmation', async (page) => {
+  ['job-detail', 'a confirmation', async (page) => {
     await openJob(page);
     await page.getByRole('button', { name: 'Run again', exact: true }).click();
     await expect(page.getByRole('dialog')).toBeVisible();
   }],
-  ['the signal form', async (page) => {
+  ['job-detail', 'the signal form', async (page) => {
     await openJob(page);
     await page.locator('.detail-actions > summary').click();
     await page.getByRole('button', { name: 'Raise signal' }).click();
     await expect(page.getByLabel('Signal name')).toBeVisible();
   }],
-  ['a job read by a reader', async (page) => {
+  ['job-detail', 'a job read by a reader', async (page) => {
     await openJob(page, { controls: true, permissions: ['acta.read'] });
     await expect(page.locator('.mode-chip')).toBeVisible();
   }],
-  ['a job that is not found', async (page) => {
+  ['job-detail', 'a job that is not found', async (page) => {
     await mockDashboard(page, { controls: false });
     await page.goto('/#/jobs/not-a-ref');
     await expect(page.getByText('Job not-a-ref not found.')).toBeVisible();
   }],
-  ['quick search', async (page) => {
+  ['not-found', 'a route that is not found', async (page) => {
+    await mockDashboard(page, { controls: false });
+    await page.goto('/#/reports');
+    await expect(page.getByText('The dashboard route in this URL does not exist.')).toBeVisible();
+    // The screen reads nothing; the read-only chip shows the shell's own read has answered.
+    await expect(page.locator('.mode-chip')).toBeVisible();
+  }],
+  ['overview', 'quick search', async (page) => {
     await mockDashboard(page, { controls: true });
     await page.goto('/');
     await page.keyboard.press('Control+k');
     await page.getByRole('combobox', { name: 'Quick search' }).fill('send');
     await expect(page.getByRole('option', { name: /send-invoice/ })).toBeVisible();
   }],
-  ['the appearance dialog', async (page) => {
+  ['jobs', 'the appearance dialog', async (page) => {
     await mockDashboard(page, { controls: false });
     await page.goto('/#/jobs');
     await expect(page.getByRole('link', { name: jobRef }).first()).toBeVisible();
     await page.getByRole('button', { name: 'Appearance', exact: true }).click();
     await expect(page.getByRole('dialog', { name: 'Appearance' })).toBeVisible();
   }],
-  ['the enqueue form with its job picker open', async (page) => {
+  ['enqueue', 'the enqueue form with its job picker open', async (page) => {
     await mockDashboard(page, { controls: true, catalogPages: true });
     await page.goto('/#/enqueue?ns=billing');
     await page.getByRole('button', { name: 'Job name' }).click();
     await expect(page.getByRole('option', { name: 'send-invoice' })).toBeVisible();
   }],
-  ['the enqueue form after a send', async (page) => {
+  ['enqueue', 'the enqueue form after a send', async (page) => {
     await mockDashboard(page, { controls: true });
     await page.goto('/#/enqueue?ns=billing&jobName=send-invoice');
     await page.getByRole('button', { name: 'Enqueue job' }).click();
     await expect(page.locator('.control-message')).toContainText('Job enqueued.');
   }],
-  ['the calendars list', async (page) => {
+  ['events', 'the events feed', async (page) => {
+    await mockDashboard(page, { controls: true });
+    await page.goto('/#/events?ns=billing');
+    await expect(page.locator('table.data').getByRole('button', { name: /^Show full details/ })).toContainText('Invoice provider timed out.');
+  }],
+  ['definitions', 'the definitions list', async (page) => {
+    await mockDashboard(page, { controls: true, definitions: firstLookDefinitions });
+    await page.goto('/#/definitions');
+    await expect(page.getByRole('link', { name: 'ship-order', exact: true })).toBeVisible();
+  }],
+  ['definition-detail', 'a definition', async (page) => {
+    await mockDashboard(page, { controls: true });
+    await page.goto('/#/definitions/billing/send-invoice?ns=billing');
+    await expect(page.getByRole('region', { name: 'Effective policy' })).toBeVisible();
+  }],
+  ['calendars', 'the calendars list', async (page) => {
     await mockDashboard(page, { controls: true });
     await page.goto('/#/calendars?ns=billing');
     await expect(page.getByRole('link', { name: 'office-hours', exact: true })).toBeVisible();
   }],
-  ['a draft calendar version', async (page) => {
+  ['calendar-detail', 'a draft calendar version', async (page) => {
     await mockDashboard(page, { controls: true });
     await page.goto('/#/calendars/sys/office-hours?ns=billing&v=3');
     await expect(page.getByRole('heading', { name: 'Version 3 definition' })).toBeVisible();
   }],
-  ['a calendar publication', async (page) => {
+  ['calendar-detail', 'a calendar publication', async (page) => {
     await mockDashboard(page, { controls: true });
     await page.goto('/#/calendars/sys/office-hours?ns=billing&v=3');
     await page.getByRole('button', { name: 'Publish version 3' }).click();
     await expect(page.getByRole('dialog')).toBeVisible();
   }],
-  ['a new calendar', async (page) => {
+  ['calendar-detail', 'a new calendar', async (page) => {
     await mockDashboard(page, { controls: true });
     await page.goto('/#/calendars/sys/new-hours?role=availability');
     await expect(page.getByRole('button', { name: /Save as version/ })).toBeVisible();
   }],
-  ['the alerts list', async (page) => {
+  ['alerts', 'the alerts list', async (page) => {
     await mockDashboard(page, { controls: true, alerts: [alertRow] });
     await page.goto('/#/alerts?ns=billing');
     await expect(page.getByRole('link', { name: alertRow.title })).toBeVisible();
   }],
-  ['the schedules list', async (page) => {
+  ['alert-detail', 'an alert', async (page) => {
+    await mockDashboard(page, { controls: true, alerts: [alertRow] });
+    await page.goto(`/#/alerts/${alertRow.alertRef}?ns=billing`);
+    await expect(page.getByRole('region', { name: 'What happened' })).toBeVisible();
+  }],
+  ['schedules', 'the schedules list', async (page) => {
     await mockDashboard(page, { controls: true, schedules: [scheduleRow(30_000)] });
     await page.goto('/#/schedules?ns=billing');
     await expect(page.getByRole('link', { name: 'nightly', exact: true })).toBeVisible();
   }],
-  ['a schedule', async (page) => {
+  ['schedule-detail', 'a schedule', async (page) => {
     await mockDashboard(page, { controls: true, schedules: [scheduleRow(30_000)] });
     await page.goto('/#/schedules/billing/send-invoice/nightly?ns=billing');
     await expect(page.getByRole('region', { name: 'Schedule status' })).toBeVisible();
   }],
-  ['the workers list', async (page) => {
+  ['workers', 'the workers list', async (page) => {
     await mockDashboard(page, { controls: false, workers: [workerRow('wrk_01a1b27e82e87edfb219e2785be47301', '1.6.2+5c0ffee', 'active')] });
     await page.goto('/#/workers?ns=billing');
     await expect(page.getByText('host-1')).toBeVisible();
   }],
-  ['an ended session', async (page) => {
+  ['worker-detail', 'a worker', async (page) => {
+    const worker = workerRow('wrk_01a1b27e82e87edfb219e2785be47301', '1.6.2+5c0ffee', 'active');
+    await mockDashboard(page, { controls: false, workers: [worker] });
+    await page.goto(`/#/workers/${worker.workerRef}?ns=billing`);
+    await expect(page.getByRole('region', { name: 'Worker health' })).toBeVisible();
+  }],
+  ['namespaces', 'the namespaces list', async (page) => {
+    await mockDashboard(page, { controls: true, namespaces: ['billing', 'shipping', 'sys'] });
+    await page.goto('/#/namespaces');
+    await expect(page.getByRole('link', { name: 'sys', exact: true })).toBeVisible();
+  }],
+  ['namespace-detail', 'a namespace', async (page) => {
+    await mockDashboard(page, { controls: true });
+    await page.goto('/#/namespaces/billing?ns=billing');
+    await expect(page.getByRole('region', { name: 'Current availability' })).toBeVisible();
+  }],
+  ['tenants', 'the tenants list', async (page) => {
+    await mockDashboard(page, { controls: true, tenants: tenantRows });
+    await page.goto('/#/tenants');
+    await expect(page.getByRole('link', { name: 'acme-industries', exact: true })).toBeVisible();
+  }],
+  ['tenant-detail', 'a tenant', async (page) => {
+    await mockDashboard(page, { controls: true, tenants: tenantRows });
+    await page.goto('/#/tenants/acme-industries');
+    await expect(page.getByRole('region', { name: 'Current availability' })).toBeVisible();
+  }],
+  ['tenant-new', 'the tenant registration form', async (page) => {
+    await mockDashboard(page, { controls: true });
+    await page.goto('/#/tenants/new');
+    await expect(page.getByLabel('Tenant name')).toBeEnabled();
+  }],
+  ['jobs', 'an ended session', async (page) => {
     let ended = false;
     await mockDashboard(page, { controls: true, sessionEnded: () => ended });
     await page.goto('/#/jobs');
@@ -1624,7 +1762,7 @@ const scanned: Array<[string, (page: Page) => Promise<void>]> = [
     await page.getByRole('button', { name: 'Refresh now' }).first().click();
     await expect(page.locator('.session-banner')).toBeVisible();
   }],
-  ['the jobs list on a phone', async (page) => {
+  ['jobs', 'the jobs list on a phone', async (page) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await mockDashboard(page, { controls: true });
     await page.goto('/#/jobs?ns=billing');
@@ -1632,7 +1770,12 @@ const scanned: Array<[string, (page: Page) => Promise<void>]> = [
   }]
 ];
 
-for (const [state, stage] of scanned) {
+test('every screen has an accessibility scan', () => {
+  const screens = Object.values(routeMetadata).filter((route) => !route.navQuery).map((route) => route.name);
+  expect(screens.filter((name) => !scanned.some(([route]) => route === name))).toEqual([]);
+});
+
+for (const [, state, stage] of scanned) {
   for (const theme of ['acta', 'light', 'paper']) {
     test(`${state} passes the accessibility scan in the ${theme} theme`, async ({ page }) => {
       await page.addInitScript(

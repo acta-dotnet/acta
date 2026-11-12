@@ -156,7 +156,7 @@ Acta should feel calm, technically precise, modern, and readable. Focus is the d
 - Exercise light, dark, and paper dashboard themes, narrow screens, larger text, and keyboard navigation.
 - Verify authorized mutations through their existing endpoints and confirmation flows.
 - Keep browser and component tests aligned with the chosen navigation and disclosure structure.
-- The smoke suite scans the states its fixtures stage with the WCAG 2.2 A and AA rules, in each theme, and a violation fails it. A new screen or overlay joins its table. An exception names one rule and one element, with its reason.
+- The smoke suite scans the states its fixtures stage with the WCAG 2.2 A and AA rules, in each theme, and a violation fails it. Each state names the screen it is on, and a screen with no state fails the suite; a new overlay joins the table. An exception names one rule and one element, with its reason.
 - The scan finds what a machine can decide and does not establish conformance. Before a release, by hand: walk every menu, dialog, and popover by keyboard; see the focus ring on each control, and focus return to what opened an overlay; read the job investigation path with a screen reader; check each list and detail screen at 200% and 400% zoom and at phone width.
 - Exercise controls, lineage, and catalog workflows against a real backend as well as the fixture-backed browser tests.
 - Website screenshots of the dashboard come from the final build, with fixture text taken from what the server actually returns.

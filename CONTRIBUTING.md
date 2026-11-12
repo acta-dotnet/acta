@@ -209,11 +209,11 @@ npm run build            # emits the hashed assets the .NET build embeds
 npm run size             # holds the bundle to its budget; CI runs this after the build
 ```
 
-`npm run test:smoke` runs the Playwright smoke against a Vite dev server it starts itself, with the API
-mocked; run `npx playwright install chromium` once first. It also scans the states it stages for
-accessibility; `src/Acta.Dashboard/DESIGN.md` holds the rules. The .NET build of `Acta.Dashboard` runs the
-npm build automatically; pass `-p:ActaDashboardSkipNpm=true` to skip it when you have not touched the
-dashboard. Restart any running host after `npm run build` to pick up new assets.
+`npm run test:smoke` builds the dashboard and runs the Playwright smoke against that bundle, which it serves
+itself, with the API mocked; run `npx playwright install chromium` once first. It also scans the states it
+stages for accessibility; `src/Acta.Dashboard/DESIGN.md` holds the rules. The .NET build of `Acta.Dashboard`
+runs the npm build automatically; pass `-p:ActaDashboardSkipNpm=true` to skip it when you have not touched
+the dashboard. Restart any running host after `npm run build` to pick up new assets.
 
 The dist is embedded in the `Acta.Dashboard` package, so bundle size is package size, and the dashboard ships
 as one JS file on purpose. `npm run size` fails when the bundle grows past its budget;
