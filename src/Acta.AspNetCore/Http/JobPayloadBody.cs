@@ -10,7 +10,8 @@ namespace Acta.AspNetCore;
 /// </summary>
 /// <param name="Json">A JSON payload, embedded as the JSON value itself: any JSON value, null included. Beside base64 a null here
 /// counts as left out.</param>
-/// <param name="Base64">A payload in any other format, base64-encoded.</param>
+/// <param name="Base64">A payload in any other format, base64-encoded. The request body's size limit counts the encoded text, a
+/// third longer than the payload.</param>
 /// <param name="FormatId">The payload format's id. Beside base64 it is required: 2 for bytes, or 128 to 255 for an application's own.
 /// Beside json it is left out, or is 1.</param>
 internal sealed record JobPayloadBody(

@@ -152,11 +152,11 @@ public sealed class JobsOptions
 
     /// <summary>
     /// The one payload ceiling, 1 MiB by default: the largest inline value (<c>jobs.input</c>, <c>jobs_state.result</c>,
-    /// <c>checkpoints.value</c>, <c>steps.result</c>) and the largest HTTP request body, so a body the ledger
-    /// would refuse is refused at the edge with the same number. Caller-controlled writes (enqueue, variables,
-    /// progress, signals) throw <c>PayloadTooLargeException</c> past it; a handler result past it is dropped, the job
-    /// still succeeds, and the events carry <c>result-oversized</c>; a step result past it fails the step. An HTTP body is a JSON
-    /// envelope around its payload, so a payload of exactly this size does not fit a request of this size, on purpose.
+    /// <c>checkpoints.value</c>, <c>steps.result</c>) and the largest HTTP request body, so a body the ledger would refuse is
+    /// refused at the edge with the same number. Caller-controlled writes (enqueue, variables, progress, signals) throw
+    /// <c>PayloadTooLargeException</c> past it; a handler result past it is dropped, the job still succeeds, and the events
+    /// carry <c>result-oversized</c>; a step result past it fails the step. An HTTP body is a JSON envelope around its payload,
+    /// so on purpose a payload of this size does not fit a request, and one sent as base64 fits up to about three quarters of it.
     /// </summary>
     public int MaxInlinePayloadBytes { get; set; } = 1024 * 1024;
 

@@ -18311,7 +18311,7 @@
               "null",
               "string"
             ],
-            "description": "A payload in any other format, base64-encoded."
+            "description": "A payload in any other format, base64-encoded. The request body's size limit counts the encoded text, a third longer than the payload."
           },
           "formatId": {
             "maximum": 255,
