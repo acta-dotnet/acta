@@ -495,8 +495,9 @@ the lock.
 - The upsert retries when retention deleted the lane between the lookup and the lock: the lock finds
   no row, and the next pass inserts the lane again.
 - On SQL Server every lane lock is an `UPDLOCK` seek by `lane_id` on the clustered key. A lookup by name
-  resolves the id first without a lock, because `ux_lanes_namespace_name` covers `lane_id`, so a lock taken
-  through it would land on that index's key alone and never meet a lock taken by id.
+  and a walk of a namespace's lanes resolve the ids first without a lock, because `ux_lanes_namespace_name`
+  and `ix_lanes_namespace` cover `lane_id`, so a lock taken through either would land on that index's key
+  alone and never meet a lock taken by id.
 - A lane runs at most one member at a time: Ready, Suspended, and Executing are the running statuses. A restarted member is older than the members already waiting, so it can wait Blocked below
   the running one.
 - Promotion re-reads under the lock: it takes the lowest-id unfinished member of the lane, promotes it
@@ -521,9 +522,13 @@ the lock.
   no member runs.
   Each pass visits at most 1,000 of its namespace's lanes, starting at a random lane id and wrapping,
   seeks each one's head through `ix_jobs_state_lane`, and repairs at most 100 of the stranded lanes it
-  finds, in visiting order, so the cost is bounded and stateless and every lane is visited
-  eventually. Repair is a safety net for hand edits, so the cap trades a large backlog's drain time
-  for a pass that stays short. The walk reads without locks. The pass then locks the stranded lanes
+  finds, in visiting order, so a pass is stateless and every lane is visited eventually. The start is
+  drawn between the table's lowest and highest lane id, one seek at each end of the key. The walk from
+  it has `ix_lanes_namespace` to read, a namespace's lanes in id order: through it the walk reads its
+  own namespace's lanes and no other's, however many the table holds. A plan test holds SQLite's
+  statement to that index; PostgreSQL and SQL Server take no hint and choose it by cost. Repair is a
+  safety net for hand edits, so the cap trades a large backlog's drain time for a pass that stays
+  short. The walk reads without locks. The pass then locks the stranded lanes
   and the stuck rows' lanes in one id-ordered pass that skips a lane another transaction holds. On SQL
   Server it re-reads the heads under those locks and promotes them in one statement, then writes the
   `job.resumed` events (reason `lane-repaired`) in one more.

@@ -14,13 +14,13 @@ FROM (
         (SELECT MAX(lane_id) FROM {{schema}}.lanes) AS hi
 ) b;
 
--- Each window seeks the rowid from the scalar start and reads forward; the unary + keeps the planner off ux_lanes_namespace_name.
+-- Both windows read ix_lanes_namespace forward, this namespace's lanes alone in id order: from the scalar start, then up to it.
 CREATE TEMP TABLE _repair_window AS
 SELECT l.lane_id
 FROM {{schema}}.lanes l
 WHERE
-    l.lane_id >= (SELECT s.start_id FROM temp._repair_start s)
-    AND +l.namespace_id = @p_namespace_id
+    l.namespace_id = @p_namespace_id
+    AND l.lane_id >= (SELECT s.start_id FROM temp._repair_start s)
 ORDER BY l.lane_id
 LIMIT 1000;
 
@@ -28,8 +28,8 @@ INSERT INTO temp._repair_window (lane_id)
 SELECT l.lane_id
 FROM {{schema}}.lanes l
 WHERE
-    l.lane_id < (SELECT s.start_id FROM temp._repair_start s)
-    AND +l.namespace_id = @p_namespace_id
+    l.namespace_id = @p_namespace_id
+    AND l.lane_id < (SELECT s.start_id FROM temp._repair_start s)
 ORDER BY l.lane_id
 LIMIT (SELECT 1000 - COUNT(*) FROM temp._repair_window);
 

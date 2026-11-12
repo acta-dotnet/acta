@@ -7,9 +7,10 @@ using Xunit;
 namespace Acta.Tests.Conformance.Sqlite.Features.Execution;
 
 /// <summary>
-/// The query plan of ReclaimStuckJobs' read of the stuck in-flight rows, from the provider's own embedded script:
-/// it searches ix_jobs_state_worker_inflight rather than scanning jobs_state. SQLite uses a partial index only for a
-/// query that states the index's filter, so the read restates it.
+/// The query plans of ReclaimStuckJobs, from the provider's own embedded script. The read of the stuck in-flight rows
+/// searches ix_jobs_state_worker_inflight rather than scanning jobs_state: SQLite uses a partial index only for a
+/// query that states the index's filter, so the read restates it. The lane repair's two windows search
+/// ix_lanes_namespace, so the walk reads its own namespace's lanes and no other's.
 /// </summary>
 public sealed class SqliteReclaimPlanTests : ClaimSkewTestBase
 {
@@ -19,18 +20,61 @@ public sealed class SqliteReclaimPlanTests : ClaimSkewTestBase
         var ct = TestContext.Current.CancellationToken;
         var (ns, _) = await ClaimantAsync(ct);
 
+        var plan = (await PlansAsync(ns, ct, "CREATE TEMP TABLE _reclaim_jobs")).Single();
+
+        var text = "Reclaim plan:\n" + string.Join("\n", plan);
+        Assert.True(plan.Any(row => row.Contains("INDEX ix_jobs_state_worker_inflight", StringComparison.Ordinal)), text);
+        Assert.False(plan.Any(row => row.StartsWith("SCAN r", StringComparison.Ordinal)), text);
+    }
+
+    [Fact(DisplayName = "ReclaimStuckJobs walks a namespace's lanes through ix_lanes_namespace, in id order with no sort")]
+    public async Task Reclaim_walks_a_namespaces_lanes_through_their_index()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var (ns, _) = await ClaimantAsync(ct);
+
+        var windows = await PlansAsync(ns, ct, "CREATE TEMP TABLE _repair_window", "INSERT INTO temp._repair_window");
+
+        Assert.Equal(2, windows.Count);
+        Assert.All(
+            windows,
+            plan =>
+            {
+                // The index is named: a search of the key from the start id is a search too, and reads every namespace's lanes.
+                var text = "Lane window plan:\n" + string.Join("\n", plan);
+                Assert.True(
+                    plan.Any(row =>
+                        row.StartsWith("SEARCH l USING", StringComparison.Ordinal)
+                        && row.Contains("INDEX ix_lanes_namespace (namespace_id=? AND lane_id", StringComparison.Ordinal)
+                    ),
+                    text
+                );
+                Assert.False(plan.Any(row => row.Contains("TEMP B-TREE", StringComparison.Ordinal)), text);
+            }
+        );
+    }
+
+    /// <summary>
+    /// The plan of each statement that starts with one of <paramref name="explained"/>, in script order, read up to
+    /// the last of them. The temp-table setup on the way runs, an explained one included unless it is the last, so a
+    /// later statement finds its tables; every write and result statement is skipped.
+    /// </summary>
+    private static async Task<List<List<string>>> PlansAsync(int ns, CancellationToken ct, params string[] explained)
+    {
         await using var conn = new SqliteConnection(SqliteIntegrationSchema.BootstrappedConnectionString);
         await conn.OpenAsync(ct);
-        var plan = new List<string>();
+        var plans = new List<List<string>>();
         foreach (var statement in Statements())
         {
-            // The read of the stuck rows is explained; the temp-table setup before it runs, and every write and
-            // result statement is skipped.
-            if (statement.StartsWith("CREATE TEMP TABLE _reclaim_jobs", StringComparison.Ordinal))
+            if (explained.Any(prefix => statement.StartsWith(prefix, StringComparison.Ordinal)))
             {
-                plan.AddRange(await ExplainAsync(conn, statement, ns, ct));
-                break;
+                plans.Add(await ExplainAsync(conn, statement, ns, ct));
+                if (plans.Count == explained.Length)
+                {
+                    break;
+                }
             }
+
             if (
                 statement.StartsWith("CREATE TEMP TABLE", StringComparison.Ordinal)
                 || statement.StartsWith("DROP", StringComparison.Ordinal)
@@ -41,9 +85,7 @@ public sealed class SqliteReclaimPlanTests : ClaimSkewTestBase
             }
         }
 
-        var text = "Reclaim plan:\n" + string.Join("\n", plan);
-        Assert.True(plan.Any(row => row.Contains("INDEX ix_jobs_state_worker_inflight", StringComparison.Ordinal)), text);
-        Assert.False(plan.Any(row => row.StartsWith("SCAN r", StringComparison.Ordinal)), text);
+        return plans;
     }
 
     private static IEnumerable<string> Statements()
