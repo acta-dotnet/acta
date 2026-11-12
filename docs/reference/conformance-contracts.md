@@ -1938,13 +1938,13 @@
 
 ## Results
 
-### GetJobResult returns null before completion and the typed result after
-- **Contract:** GetJobResult is a non-blocking read that returns null before the job produces a result and the typed and raw payload after a successful run.
+### GetJobResult never waits: raw answers null, Try answers not found, Get throws
+- **Contract:** No result read waits, and with no result the raw read answers null, the typed TryGetResultAsync answers not found, and the typed GetResultAsync throws.
 - **Guarantees:**
-  - Returns null before a result exists without blocking
-  - A read that expects a result throws, naming the job and its status, when the job has stored none
-  - A lookup that matches no job reads as not found, and a read that expects a result says no job matches
-  - The typed result deserializes and the raw payload is returned after completion
+  - Before a result exists the raw read answers null and the typed Try read not found, neither waiting
+  - The typed Get read throws, naming the job and its status, when the job has stored no result
+  - For a lookup that matches no job the raw read answers null, the typed Try read not found, and the typed Get read throws, saying no job matches
+  - After a successful run the raw read answers the stored payload and both typed reads the deserialized result
 
 ## Retention
 
@@ -2205,6 +2205,7 @@
   - A cursor-only group parks a member on a busy slot without touching the slot
   - A slot group applies nothing when a member it left unchanged had its declaration changed after the plan read it
   - A per-occurrence plan read before its capacity was lowered admits nothing, and the outstanding count stays
+  - A per-occurrence plan that parks a full schedule applies nothing once a release committed, and a fresh plan admits the occurrence
   - One plan applied by two admitters at once, and again after its answer was lost, admits its occurrence once: one root, one charge
   - A slot plan read before a suspension committed admits nothing
   - A per-occurrence plan read before a suspension committed inserts no root and charges nothing
@@ -2356,6 +2357,15 @@
   - A cancel releases nothing for a root whose firing was already settled and released
   - A restart charges nothing for a finished root whose firing is already outstanding
   - An occurrence whose root already exists is passed over without a root or a charge, and the pass admits the rest
+
+### A charged root holds its schedule's capacity until it finishes
+- **Contract:** A root keeps its charge while it can run again, releases it once when it finishes, waking a waiting schedule, and restarts only into a live schedule.
+- **Guarantees:**
+  - A charged root reclaimed with attempts left keeps its charge and its schedule parked, and its next attempt releases the charge once, replayed or not
+  - A charged root reclaimed with its attempts spent releases the charge and wakes a schedule waiting for capacity
+  - A cancel of a charged root releases the charge and wakes a schedule waiting for capacity
+  - A finished charged root is not restarted into an orphaned schedule, though the schedule has capacity free
+  - A finished charged root is not restarted into a retired definition's schedule, though the schedule has capacity free
 
 ### PerOccurrence schedules register without a slot and are addressed by path
 - **Contract:** PerOccurrence schedules register with no slot and their capacity, expiry, and availability, and the verbs address them by path and audit the definition.

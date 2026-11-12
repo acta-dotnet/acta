@@ -73,6 +73,37 @@ internal static class ScheduleTestOps
         var cursors = await db.From<ScheduleStateEntity>().Where(s => ids.Contains(s.Id)).ToListAsync(ct);
         return [.. configs.Select(c => new ScheduleRow(c, cursors.Single(s => s.Id == c.Id)))];
     }
+
+    /// <summary>
+    /// The rule every writer keeps on a per-occurrence schedule: its outstanding count is both the number of its roots
+    /// whose firing envelope is Pending and the number of its unfinished roots, and no finished root keeps a Pending envelope.
+    /// </summary>
+    public static async Task AssertChargeIsPendingEnvelopesAsync(IDbSession db, int scheduleId, CancellationToken ct)
+    {
+        var state = await db.From<ScheduleStateEntity>().Where(s => s.Id == scheduleId).SingleOrDefaultAsync(ct);
+        Assert.NotNull(state);
+        var (pending, unfinished) = (0, 0);
+        foreach (var root in await db.From<JobEntity>().Where(j => j.ScheduleId == scheduleId).ToListAsync(ct))
+        {
+            var envelope = await db.From<CheckpointEntity>()
+                .Where(c => c.JobId == root.Id && c.Kind == CheckpointKindCode.Firing)
+                .SingleOrDefaultAsync(ct);
+            var job = await db.From<JobStateEntity>().Where(r => r.Id == root.Id).SingleOrDefaultAsync(ct);
+            Assert.NotNull(envelope);
+            Assert.NotNull(job);
+            var finished = job.Status is JobStatusCode.Succeeded or JobStatusCode.Failed or JobStatusCode.Cancelled;
+            if (envelope.Status == CheckpointStatusCode.Pending)
+            {
+                pending++;
+                Assert.False(finished, $"Root {new JobRef(root.JobRef)} is {job.Status} with its firing envelope still Pending.");
+            }
+
+            unfinished += finished ? 0 : 1;
+        }
+
+        Assert.Equal(pending, state.OutstandingCount);
+        Assert.Equal(unfinished, state.OutstandingCount);
+    }
 }
 
 /// <summary>One schedule as the specs assert on it: the config row and its cursor row.</summary>

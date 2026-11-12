@@ -339,12 +339,14 @@ public sealed partial class SqlServerConformanceFixture : IConformanceFixture
             );
         }
 
-        // A test never retries a deadlock: the census fails the run on any, and the lock order is fixed instead.
+        // A test never retries a deadlock: the census fails the run on any, and the lock order is fixed instead. A
+        // statement waits behind the suite's first wave as an open does, so the same gate bounds it.
         builder.UseSqlServer(opts =>
         {
             opts.ConnectionString = sb.ConnectionString;
             opts.Schema = schemaName;
             opts.DeadlockRetryAttempts = 1;
+            opts.CommandTimeout = SpecWaits.Gate;
         });
     }
 

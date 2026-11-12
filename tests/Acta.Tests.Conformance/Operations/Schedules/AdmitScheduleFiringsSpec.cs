@@ -161,6 +161,40 @@ public sealed class AdmitScheduleFiringsSpec : ActaStorageTestBase<ConformanceFi
     }
 
     [Fact(
+        DisplayName = "A per-occurrence plan that parks a full schedule applies nothing once a release committed, and a fresh plan admits the occurrence"
+    )]
+    public async Task A_park_planned_before_a_release_applies_nothing()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var now = FloorSeconds(DateTime.UtcNow);
+        var jobName = Unique("released");
+        var (defId, _) = await RegisterAsync(jobName, ScheduledDeliveryCode.PerOccurrence, [Schedule("only", now.AddMinutes(-1))], ct);
+        var scheduleId = (await Db.From<ScheduleEntity>().Where(s => s.DefinitionId == defId).SingleOrDefaultAsync(ct))!.Id;
+        var schedules = Services.GetRequiredService<IActaOperations>().Schedules;
+        var triggered = await schedules.TriggerAsync(new ScheduleLookup(TestNamespace, jobName, "only"), ct: ct);
+        Assert.Equal(ControlAction.Applied, triggered.Action);
+
+        var plan = await PlanAsync(now, ct);
+        Assert.False(Assert.Single(plan.Groups).Admit);
+        Assert.Equal(ScheduleEvaluationStatusCode.WaitingForCapacity, Assert.Single(plan.Rows).EvaluationStatus);
+        Assert.Equal(ControlAction.Applied, (await Jobs.CancelAsync(triggered.JobRef!.Value, ct: ct)).Action);
+        var released = await Db.From<ScheduleStateEntity>().Where(s => s.Id == scheduleId).SingleOrDefaultAsync(ct);
+
+        // The release moved the state version, so the park cannot land on a schedule nothing is left to wake.
+        Assert.False(Assert.Single((await Admit(plan, ct)).Groups).Applied);
+        var state = await Db.From<ScheduleStateEntity>().Where(s => s.Id == scheduleId).SingleOrDefaultAsync(ct);
+        Assert.Equal(released!.Version, state!.Version);
+        Assert.Equal(0, state.OutstandingCount);
+        Assert.Equal(ScheduleEvaluationStatusCode.Scheduled, state.EvaluationStatus);
+        Assert.NotNull(state.NextEvaluationAtUtc);
+
+        Assert.True(Assert.Single((await Admit(await PlanAsync(now, ct), ct)).Groups).Applied);
+        Assert.Equal(2, await Db.From<JobEntity>().Where(j => j.DefinitionId == defId).CountAsync(ct));
+        Assert.Equal(1, (await Db.From<ScheduleStateEntity>().Where(s => s.Id == scheduleId).SingleOrDefaultAsync(ct))!.OutstandingCount);
+        await ScheduleTestOps.AssertChargeIsPendingEnvelopesAsync(Db, scheduleId, ct);
+    }
+
+    [Fact(
         DisplayName = "One plan applied by two admitters at once, and again after its answer was lost, admits its occurrence once: one root, one charge"
     )]
     public async Task One_plan_applied_more_than_once_admits_once()

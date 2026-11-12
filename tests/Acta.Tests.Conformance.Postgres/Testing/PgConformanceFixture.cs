@@ -249,12 +249,14 @@ public sealed partial class PgConformanceFixture : IConformanceFixture
         // Don't set SearchPath here - MSSQL has no analogue, and tests always qualify identifiers
         // with the schema. Quiet divergence trap if one provider auto-resolves unqualified names.
 
-        // A test never retries a deadlock: the census fails the run on any, and the lock order is fixed instead.
+        // A test never retries a deadlock: the census fails the run on any, and the lock order is fixed instead. A
+        // statement waits behind the suite's first wave as an open does, so the same gate bounds it.
         builder.UsePostgres(opts =>
         {
             opts.ConnectionString = sb.ConnectionString;
             opts.Schema = schemaName;
             opts.DeadlockRetryAttempts = 1;
+            opts.CommandTimeout = SpecWaits.Gate;
         });
     }
 

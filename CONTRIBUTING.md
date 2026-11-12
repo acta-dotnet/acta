@@ -835,7 +835,7 @@ push the packages to nuget.org through Trusted Publishing (the `publish-nuget` j
 - A worker that lost a completion's reply repeats the completion, runs the work enqueued since, and stops clean: Acta Verify's `lost-completion-reply`.
 - One admission plan applied twice, by two admitters at once or again after a lost answer, admits its occurrence once, and one planned before a publication retimed its schedule applies nothing: `AdmitScheduleFiringsSpec`, `PublishCalendarSpec`.
 - An expiry deployed while a schedule is parked takes effect without a settlement: `RegisterSchedulesPerOccurrenceSpec`, `MisfirePolicySpec`.
-- A charged occurrence that is reclaimed, cancelled, restarted, or retired releases and takes its capacity once: `PerOccurrenceSchedulingSpec`.
+- A charged occurrence that is reclaimed, cancelled, restarted, or retired releases and takes its capacity once: `PerOccurrenceSchedulingSpec`, `PerOccurrenceChargeSpec`.
 - An operator reads each of these from Acta's own surfaces and has the documented next step:
   - A job whose worker died says its lease expired and that recovery reclaims it: `JobExplainerTests`, `WorkerCrashRecoveryChaosSpec`.
   - A schedule at its capacity reads as waiting for capacity until a settlement wakes it: `ScheduleAdmitterSpec`, `PerOccurrenceSchedulingSpec`.

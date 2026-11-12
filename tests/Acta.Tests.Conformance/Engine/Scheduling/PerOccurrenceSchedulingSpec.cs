@@ -195,7 +195,7 @@ public sealed class PerOccurrenceSchedulingSpec : ActaRuntimeTestBase<Conformanc
         Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(root.Id, ct)).Status);
         Assert.Equal(CheckpointStatusCode.Succeeded, (await EnvelopeAsync(root.Id, ct)).Status);
         Assert.Equal(0, (await ScheduleAsync(PerOccurrenceManifest.WaitingJobName, ct)).State.OutstandingCount);
-        await AssertChargeIsPendingEnvelopesAsync(PerOccurrenceManifest.WaitingJobName, ct);
+        await ScheduleTestOps.AssertChargeIsPendingEnvelopesAsync(Db, schedule.Id, ct);
     }
 
     [Fact(DisplayName = "A per-occurrence root past its Strict deadline is cancelled at admission and releases its charge")]
@@ -224,7 +224,7 @@ public sealed class PerOccurrenceSchedulingSpec : ActaRuntimeTestBase<Conformanc
         Assert.Equal(EventReason.DeadlineExceeded, yielded.Reason);
         Assert.Equal(CheckpointStatusCode.Cancelled, (await EnvelopeAsync(root.Id, ct)).Status);
         Assert.Equal(0, (await ScheduleAsync(PerOccurrenceManifest.DeadlineJobName, ct)).State.OutstandingCount);
-        await AssertChargeIsPendingEnvelopesAsync(PerOccurrenceManifest.DeadlineJobName, ct);
+        await ScheduleTestOps.AssertChargeIsPendingEnvelopesAsync(Db, schedule.Id, ct);
     }
 
     [Fact(DisplayName = "At MaxOutstanding a Wait schedule parks until a settlement wakes it, then admits the waiting occurrence")]
@@ -252,7 +252,7 @@ public sealed class PerOccurrenceSchedulingSpec : ActaRuntimeTestBase<Conformanc
         await Runtime.AdmitOnceAsync(TestNamespace, ct);
         Assert.Equal(2, (await RootsAsync(schedule.Id, ct)).Count);
         Assert.Equal(1, (await ScheduleAsync(PerOccurrenceManifest.WaitingJobName, ct)).State.OutstandingCount);
-        await AssertChargeIsPendingEnvelopesAsync(PerOccurrenceManifest.WaitingJobName, ct);
+        await ScheduleTestOps.AssertChargeIsPendingEnvelopesAsync(Db, schedule.Id, ct);
     }
 
     [Fact(DisplayName = "At MaxOutstanding a Drop schedule skips the occurrence with the reason capacity and moves on")]
@@ -272,7 +272,7 @@ public sealed class PerOccurrenceSchedulingSpec : ActaRuntimeTestBase<Conformanc
         Assert.Equal(1, state.OutstandingCount);
         var skipped = Assert.Single(await DefinitionEventsAsync(schedule.DefinitionId, EventCode.ScheduleSkipped, ct));
         Assert.Equal("capacity", EventDetail(skipped, "reason"));
-        await AssertChargeIsPendingEnvelopesAsync(PerOccurrenceManifest.DroppingJobName, ct);
+        await ScheduleTestOps.AssertChargeIsPendingEnvelopesAsync(Db, schedule.Id, ct);
     }
 
     [Fact(DisplayName = "A cancel releases the charge, a restart takes it again, and a restart into a full schedule is Rejected")]
@@ -301,7 +301,7 @@ public sealed class PerOccurrenceSchedulingSpec : ActaRuntimeTestBase<Conformanc
         Assert.Equal(ControlAction.Rejected, (await Jobs.RestartAsync(JobLookup.ById(first.Id), ct: ct)).Action);
         Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(first.Id, ct)).Status);
         Assert.Equal(1, (await ScheduleAsync(PerOccurrenceManifest.ControlledJobName, ct)).State.OutstandingCount);
-        await AssertChargeIsPendingEnvelopesAsync(PerOccurrenceManifest.ControlledJobName, ct);
+        await ScheduleTestOps.AssertChargeIsPendingEnvelopesAsync(Db, schedule.Id, ct);
     }
 
     [Fact(DisplayName = "A manual trigger admits a charged root with an empty envelope, and a full schedule rejects it")]
@@ -329,7 +329,7 @@ public sealed class PerOccurrenceSchedulingSpec : ActaRuntimeTestBase<Conformanc
 
         Assert.Equal(ControlAction.Rejected, (await Schedules.TriggerAsync(lookup, ct: ct)).Action);
         Assert.Single(await RootsAsync(schedule.Id, ct));
-        await AssertChargeIsPendingEnvelopesAsync(PerOccurrenceManifest.TriggeredJobName, ct);
+        await ScheduleTestOps.AssertChargeIsPendingEnvelopesAsync(Db, schedule.Id, ct);
     }
 
     [Fact(
@@ -352,7 +352,7 @@ public sealed class PerOccurrenceSchedulingSpec : ActaRuntimeTestBase<Conformanc
         Assert.Equal("Paused by the firing failure policy: the last firing failed for good.", schedule.PauseMessage);
         Assert.Null(state.NextEvaluationAtUtc);
         Assert.Equal("firing-failed", EventDetail(await ReadSingleEventAsync(root.Id, EventCode.SchedulePaused, ct), "reason"));
-        await AssertChargeIsPendingEnvelopesAsync(PerOccurrenceManifest.FailingJobName, ct);
+        await ScheduleTestOps.AssertChargeIsPendingEnvelopesAsync(Db, schedule.Id, ct);
     }
 
     [Fact(
@@ -413,7 +413,7 @@ public sealed class PerOccurrenceSchedulingSpec : ActaRuntimeTestBase<Conformanc
             .Where(e => e.NamespaceId == ns && e.EventCode == EventCode.SchedulePaused)
             .ToListAsync(ct);
         Assert.Single(paused, e => e.DefinitionId == schedule.DefinitionId);
-        await AssertChargeIsPendingEnvelopesAsync(PerOccurrenceManifest.LostJobName, ct);
+        await ScheduleTestOps.AssertChargeIsPendingEnvelopesAsync(Db, schedule.Id, ct);
     }
 
     [Fact(
@@ -443,7 +443,7 @@ public sealed class PerOccurrenceSchedulingSpec : ActaRuntimeTestBase<Conformanc
         await Runtime.AdmitOnceAsync(TestNamespace, ct);
         Assert.Single(await RootsAsync(schedule.Id, ct));
         Assert.Equal(occurrence.AddMinutes(5), (await ScheduleAsync(PerOccurrenceManifest.HeldJobName, ct)).State.NextOccurrenceAtUtc);
-        await AssertChargeIsPendingEnvelopesAsync(PerOccurrenceManifest.HeldJobName, ct);
+        await ScheduleTestOps.AssertChargeIsPendingEnvelopesAsync(Db, schedule.Id, ct);
     }
 
     [Fact(
@@ -477,7 +477,7 @@ public sealed class PerOccurrenceSchedulingSpec : ActaRuntimeTestBase<Conformanc
         Assert.Equal(CompleteExecutionsAction.Completed, Assert.Single(rows, r => r.ExecutionNumber == current.ExecutionNumber).Action);
         Assert.Equal(1, (await ScheduleAsync(PerOccurrenceManifest.StaleJobName, ct)).State.OutstandingCount);
         Assert.Equal(CheckpointStatusCode.Succeeded, (await EnvelopeAsync(root.Id, ct)).Status);
-        await AssertChargeIsPendingEnvelopesAsync(PerOccurrenceManifest.StaleJobName, ct);
+        await ScheduleTestOps.AssertChargeIsPendingEnvelopesAsync(Db, schedule.Id, ct);
     }
 
     [Fact(
@@ -503,7 +503,7 @@ public sealed class PerOccurrenceSchedulingSpec : ActaRuntimeTestBase<Conformanc
         );
         Assert.Equal(CheckpointStatusCode.Cancelled, (await EnvelopeAsync(root.Id, ct)).Status);
         Assert.Equal(1, (await ScheduleAsync(PerOccurrenceManifest.CancelledJobName, ct)).State.OutstandingCount);
-        await AssertChargeIsPendingEnvelopesAsync(PerOccurrenceManifest.CancelledJobName, ct);
+        await ScheduleTestOps.AssertChargeIsPendingEnvelopesAsync(Db, schedule.Id, ct);
     }
 
     [Fact(
@@ -542,7 +542,7 @@ public sealed class PerOccurrenceSchedulingSpec : ActaRuntimeTestBase<Conformanc
         Assert.Equal(JobStatusCode.Cancelled, (await ReadJobAsync(suspended.Id, ct)).Status);
         Assert.Equal(JobStatusCode.Executing, (await ReadJobAsync(executing.Id, ct)).Status);
         Assert.Equal(1, (await ScheduleAsync(PerOccurrenceManifest.RetiredJobName, ct)).State.OutstandingCount);
-        await AssertChargeIsPendingEnvelopesAsync(PerOccurrenceManifest.RetiredJobName, ct);
+        await ScheduleTestOps.AssertChargeIsPendingEnvelopesAsync(Db, schedule.Id, ct);
 
         Assert.Equal(
             CompleteExecutionsAction.Completed,
@@ -550,7 +550,7 @@ public sealed class PerOccurrenceSchedulingSpec : ActaRuntimeTestBase<Conformanc
         );
         Assert.Equal(CheckpointStatusCode.Succeeded, (await EnvelopeAsync(executing.Id, ct)).Status);
         Assert.Equal(0, (await ScheduleAsync(PerOccurrenceManifest.RetiredJobName, ct)).State.OutstandingCount);
-        await AssertChargeIsPendingEnvelopesAsync(PerOccurrenceManifest.RetiredJobName, ct);
+        await ScheduleTestOps.AssertChargeIsPendingEnvelopesAsync(Db, schedule.Id, ct);
 
         await DefinitionTestOps.RegisterAsync(
             Services,
@@ -561,7 +561,7 @@ public sealed class PerOccurrenceSchedulingSpec : ActaRuntimeTestBase<Conformanc
         Assert.Equal(ControlAction.Applied, (await Jobs.RestartAsync(new JobRef(ready.JobRef), ct: ct)).Action);
         Assert.Equal(CheckpointStatusCode.Pending, (await EnvelopeAsync(ready.Id, ct)).Status);
         Assert.Equal(1, (await ScheduleAsync(PerOccurrenceManifest.RetiredJobName, ct)).State.OutstandingCount);
-        await AssertChargeIsPendingEnvelopesAsync(PerOccurrenceManifest.RetiredJobName, ct);
+        await ScheduleTestOps.AssertChargeIsPendingEnvelopesAsync(Db, schedule.Id, ct);
     }
 
     [Fact(DisplayName = "A retire releases nothing for a root whose firing another settlement already settled and released")]
@@ -588,7 +588,7 @@ public sealed class PerOccurrenceSchedulingSpec : ActaRuntimeTestBase<Conformanc
 
         Assert.Equal(ControlAction.Applied, retired.Action);
         Assert.Equal(0, (await ScheduleAsync(PerOccurrenceManifest.SettledRetireJobName, ct)).State.OutstandingCount);
-        await AssertChargeIsPendingEnvelopesAsync(PerOccurrenceManifest.SettledRetireJobName, ct);
+        await ScheduleTestOps.AssertChargeIsPendingEnvelopesAsync(Db, schedule.Id, ct);
     }
 
     [Fact(DisplayName = "A cancel releases nothing for a root whose firing was already settled and released")]
@@ -605,7 +605,7 @@ public sealed class PerOccurrenceSchedulingSpec : ActaRuntimeTestBase<Conformanc
         Assert.Equal(ControlAction.Applied, (await Jobs.CancelAsync(new JobRef(root.JobRef), ct: ct)).Action);
 
         Assert.Equal(1, (await ScheduleAsync(PerOccurrenceManifest.SettledCancelJobName, ct)).State.OutstandingCount);
-        await AssertChargeIsPendingEnvelopesAsync(PerOccurrenceManifest.SettledCancelJobName, ct);
+        await ScheduleTestOps.AssertChargeIsPendingEnvelopesAsync(Db, schedule.Id, ct);
     }
 
     [Fact(DisplayName = "A restart charges nothing for a finished root whose firing is already outstanding")]
@@ -622,7 +622,7 @@ public sealed class PerOccurrenceSchedulingSpec : ActaRuntimeTestBase<Conformanc
 
         Assert.Equal(JobStatusCode.Ready, (await ReadJobAsync(root.Id, ct)).Status);
         Assert.Equal(1, (await ScheduleAsync(PerOccurrenceManifest.PendingRestartJobName, ct)).State.OutstandingCount);
-        await AssertChargeIsPendingEnvelopesAsync(PerOccurrenceManifest.PendingRestartJobName, ct);
+        await ScheduleTestOps.AssertChargeIsPendingEnvelopesAsync(Db, schedule.Id, ct);
     }
 
     [Fact(DisplayName = "An occurrence whose root already exists is passed over without a root or a charge, and the pass admits the rest")]
@@ -665,37 +665,12 @@ public sealed class PerOccurrenceSchedulingSpec : ActaRuntimeTestBase<Conformanc
         Assert.Empty(await DefinitionEventsAsync(readmitted.DefinitionId, EventCode.ScheduleAdmitted, ct));
         Assert.Single(await RootsAsync(beside.Id, ct), r => r.DeduplicationKey == ScheduleAdmitter.OccurrenceKey(beside.Id, second));
         Assert.Equal(1, (await ScheduleAsync(PerOccurrenceManifest.BesideJobName, ct)).State.OutstandingCount);
-        await AssertChargeIsPendingEnvelopesAsync(PerOccurrenceManifest.ReadmittedJobName, ct);
-        await AssertChargeIsPendingEnvelopesAsync(PerOccurrenceManifest.BesideJobName, ct);
+        await ScheduleTestOps.AssertChargeIsPendingEnvelopesAsync(Db, readmitted.Id, ct);
+        await ScheduleTestOps.AssertChargeIsPendingEnvelopesAsync(Db, beside.Id, ct);
     }
 
     private async Task<ClaimedJob> ClaimAsync(long jobId, int workerId, CancellationToken ct) =>
         Assert.Single(await Execution.ClaimJobAsync(Runtime.RegisteredNamespaceIds[TestNamespace], workerId, LeaseTtlSeconds, jobId, ct));
-
-    /// <summary>
-    /// The rule every writer keeps: a schedule's outstanding count is its roots whose firing envelope is Pending, and no
-    /// finished root keeps a Pending envelope.
-    /// </summary>
-    private async Task AssertChargeIsPendingEnvelopesAsync(string jobName, CancellationToken ct)
-    {
-        var (schedule, state) = await ScheduleAsync(jobName, ct);
-        var pending = 0;
-        foreach (var root in await RootsAsync(schedule.Id, ct))
-        {
-            if ((await EnvelopeAsync(root.Id, ct)).Status != CheckpointStatusCode.Pending)
-            {
-                continue;
-            }
-
-            pending++;
-            var status = (await ReadJobAsync(root.Id, ct)).Status;
-            Assert.False(
-                status is JobStatusCode.Succeeded or JobStatusCode.Failed or JobStatusCode.Cancelled,
-                $"Root {new JobRef(root.JobRef)} is {status} with its firing envelope still Pending."
-            );
-        }
-        Assert.Equal(pending, state.OutstandingCount);
-    }
 
     /// <summary>Writes a root's envelope status and moves its schedule's count by <paramref name="charge"/>, around the engine.</summary>
     private async Task ForceEnvelopeAsync(string jobName, long rootId, CheckpointStatusCode status, int charge, CancellationToken ct)

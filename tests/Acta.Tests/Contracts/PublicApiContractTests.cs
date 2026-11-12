@@ -20,7 +20,7 @@ namespace Acta.Tests.Contracts;
 /// <c>ACTA_EMIT_API=1 dotnet test tests/Acta.Tests --filter PublicApiContractTests</c>, then read the
 /// diff before committing it - that diff is the point of the gate.
 /// </remarks>
-public sealed class PublicApiContractTests
+public sealed partial class PublicApiContractTests
 {
     // The packable assemblies a consumer compiles against.
     private static readonly string[] ShippedAssemblies =
@@ -151,7 +151,7 @@ public sealed class PublicApiContractTests
         bases.AddRange(
             interfaces
                 .Where(i => !interfaces.Any(other => other != i && i.IsAssignableFrom(other)))
-                .Select(Name)
+                .Select(i => Name(i))
                 .Order(StringComparer.Ordinal)
         );
 
@@ -185,7 +185,7 @@ public sealed class PublicApiContractTests
                 + (field.IsLiteral ? "const " : (field.IsStatic ? "static " : "") + (field.IsInitOnly ? "readonly " : ""));
             // A const's value is baked into consumers, so it is part of the contract, not just its type.
             var constant = field.IsLiteral ? $" = {Literal(field.GetRawConstantValue(), field.FieldType)}" : "";
-            lines.Add($"{modifiers}{Name(field.FieldType)} {field.Name}{constant}");
+            lines.Add($"{modifiers}{Name(field.FieldType, new Annotations(field, field))} {field.Name}{constant}");
         }
 
         foreach (var ctor in type.GetConstructors(flags).Where(Visible))
@@ -213,16 +213,20 @@ public sealed class PublicApiContractTests
                             )
                         : ""
                 );
-            var indexer = property.GetIndexParameters();
-            var name = indexer.Length == 0 ? property.Name : $"this[{string.Join(", ", indexer.Select(p => Name(p.ParameterType)))}]";
-            var modifier = (property.GetMethod ?? property.SetMethod)!.IsStatic ? "static " : "";
-            lines.Add($"{modifier}{Name(property.PropertyType)} {name} {{ {accessors} }}");
+            var accessor = (property.GetMethod ?? property.SetMethod)!;
+            var indexer = accessor.GetParameters().Take(property.GetIndexParameters().Length).ToList();
+            var name =
+                indexer.Count == 0
+                    ? property.Name
+                    : $"this[{string.Join(", ", indexer.Select(p => Name(p.ParameterType, new Annotations(p, accessor))))}]";
+            var modifier = accessor.IsStatic ? "static " : "";
+            lines.Add($"{modifier}{Name(property.PropertyType, new Annotations(property, property))} {name} {{ {accessors} }}");
         }
 
         foreach (var evt in type.GetEvents(flags).Where(e => e.AddMethod is { } a && Visible(a)))
         {
             lines.Add(
-                $"{Access(evt.AddMethod!)}{(evt.AddMethod!.IsStatic ? "static " : "")}event {Name(evt.EventHandlerType!)} {evt.Name}"
+                $"{Access(evt.AddMethod!)}{(evt.AddMethod!.IsStatic ? "static " : "")}event {Name(evt.EventHandlerType!, new Annotations(evt, evt))} {evt.Name}"
             );
         }
 
@@ -247,8 +251,9 @@ public sealed class PublicApiContractTests
         {
             var modifiers = Access(method) + (method.IsStatic ? "static " : "");
             var typeParameters = method.IsGenericMethodDefinition ? method.GetGenericArguments() : [];
+            var result = Name(method.ReturnType, new Annotations(method.ReturnParameter, method));
             lines.Add(
-                $"{modifiers}{Name(method.ReturnType)} {method.Name}{TypeParameters(typeParameters)}({Parameters(method)}){Constraints(typeParameters)}"
+                $"{modifiers}{result} {method.Name}{TypeParameters(typeParameters)}({Parameters(method)}){Constraints(typeParameters)}"
             );
         }
 
@@ -321,7 +326,8 @@ public sealed class PublicApiContractTests
                 : "ref "
             );
         var element = type.IsByRef ? type.GetElementType()! : type;
-        return $"{modifiers}{Name(element)} {parameter.Name}{(parameter.HasDefaultValue ? " = " + Default(parameter.RawDefaultValue, element) : "")}";
+        var annotated = Name(element, new Annotations(parameter, parameter.Member));
+        return $"{modifiers}{annotated} {parameter.Name}{(parameter.HasDefaultValue ? " = " + Default(parameter.RawDefaultValue, element) : "")}";
     }
 
     /// <summary>Renders a parameter default; metadata records <c>= default</c> on a non-nullable struct as null.</summary>
@@ -347,23 +353,22 @@ public sealed class PublicApiContractTests
     {
         var attributes = parameter.GenericParameterAttributes;
         var valueType = attributes.HasFlag(GenericParameterAttributes.NotNullableValueTypeConstraint);
+        var types = parameter.GetGenericParameterConstraints();
         var clauses = new List<string>();
         if (attributes.HasFlag(GenericParameterAttributes.ReferenceTypeConstraint))
         {
-            clauses.Add("class");
+            clauses.Add(Nullability(parameter) == 2 ? "class?" : "class");
+        }
+        else if (Nullability(parameter) == 1)
+        {
+            clauses.Add("notnull");
         }
         // Metadata encodes `struct` as a ValueType constraint plus new(); source writes neither.
         if (valueType)
         {
             clauses.Add("struct");
         }
-        clauses.AddRange(
-            parameter
-                .GetGenericParameterConstraints()
-                .Where(c => !(valueType && c == typeof(ValueType)))
-                .Select(Name)
-                .Order(StringComparer.Ordinal)
-        );
+        clauses.AddRange(types.Where(c => !(valueType && c == typeof(ValueType))).Select(c => Name(c)).Order(StringComparer.Ordinal));
         if (attributes.HasFlag(GenericParameterAttributes.DefaultConstructorConstraint) && !valueType)
         {
             clauses.Add("new()");
@@ -375,21 +380,85 @@ public sealed class PublicApiContractTests
         return clauses.Count == 0 ? "" : $" where {parameter.Name} : {string.Join(", ", clauses)}";
     }
 
-    private static string Name(Type type)
+    /// <summary>
+    /// How a type parameter's declaration reads null, as the compiler records it: 1 for notnull or class, 2 for class? or
+    /// no constraint, and 0 for a struct, for a type constraint with no notnull beside it, and outside a nullable context.
+    /// </summary>
+    private static byte Nullability(Type parameter) =>
+        Attribute<NullableAttribute>(parameter)?.NullableFlags[0]
+        ?? Context(parameter.DeclaringMethod ?? (MemberInfo?)parameter.DeclaringType);
+
+    /// <summary>The flag of the nearest scope that states one, which stands for every annotation the scope leaves out.</summary>
+    private static byte Context(MemberInfo? scope)
+    {
+        for (; scope is not null; scope = scope.DeclaringType)
+        {
+            if (Attribute<NullableContextAttribute>(scope) is { } context)
+            {
+                return context.Flag;
+            }
+        }
+        return 0;
+    }
+
+    private static T? Attribute<T>(ICustomAttributeProvider owner)
+        where T : Attribute => owner.GetCustomAttributes(typeof(T), inherit: false) is [T found] ? found : null;
+
+    /// <summary>
+    /// What source says of a member's type and the type itself does not hold: which references take null, and what each
+    /// tuple element is called. The compiler writes both in attributes beside the member, in the order a walk of the
+    /// type meets them, so a rendering of the type alone reads the same before and after either changes.
+    /// </summary>
+    private sealed class Annotations(ICustomAttributeProvider member, MemberInfo scope)
+    {
+        private readonly byte[] _flags = Attribute<NullableAttribute>(member)?.NullableFlags ?? [Context(scope)];
+        private readonly IList<string?>? _names = Attribute<TupleElementNamesAttribute>(member)?.TransformNames;
+        private int _flag;
+        private int _name;
+
+        /// <summary>The next flag, 2 for a reference that takes null; a lone flag stands for every position.</summary>
+        public bool TakesNull() => (_flags.Length == 1 ? _flags[0] : _flags[_flag++]) == 2;
+
+        public string? ElementName() => _names?[_name++];
+    }
+
+    private static string Name(Type type, Annotations? annotations = null)
     {
         if (type.IsByRef)
         {
-            return "ref " + Name(type.GetElementType()!);
+            return "ref " + Name(type.GetElementType()!, annotations);
         }
+        // A pointer has no flag of its own and a function pointer's follow its signature; nothing here reads either.
+        if (annotations is not null && (type.IsPointer || type.IsFunctionPointer))
+        {
+            throw new NotSupportedException($"The annotations of the pointer type {type} are not rendered.");
+        }
+        // A flag stands for each array, type parameter, reference type and generic value type, written before those of
+        // its arguments. A nullable value type has none of its own: it is the type it wraps.
+        var flagged = type.IsGenericParameter || !type.IsValueType || (type.IsGenericType && Nullable.GetUnderlyingType(type) is null);
+        var mark = annotations is not null && flagged && annotations.TakesNull() ? "?" : "";
         if (type.IsArray)
         {
-            return Name(type.GetElementType()!) + "[]";
+            return Name(type.GetElementType()!, annotations) + "[]" + mark;
         }
         if (!type.IsGenericType)
         {
-            return type.FullName ?? type.Name;
+            return (type.FullName ?? type.Name) + mark;
         }
-        return $"{Bare(type)}<{string.Join(", ", type.GetGenericArguments().Select(Name))}>";
+        var arguments = type.GetGenericArguments();
+        string?[]? names = null;
+        if (annotations is not null && Bare(type) == "System.ValueTuple")
+        {
+            // A tuple's element names come before those of the tuples among its elements. Past seven elements the
+            // order changes, and nothing here reads it.
+            if (arguments.Length > 7)
+            {
+                throw new NotSupportedException("A tuple of more than seven elements is not rendered.");
+            }
+            names = [.. arguments.Select(_ => annotations.ElementName())];
+        }
+        var rendered = arguments.Select((argument, i) => Name(argument, annotations) + (names?[i] is { } name ? " " + name : ""));
+        return $"{Bare(type)}<{string.Join(", ", rendered)}>{mark}";
     }
 
     /// <summary>A generic type's full name without its arity suffix.</summary>

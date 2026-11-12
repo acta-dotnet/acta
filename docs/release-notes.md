@@ -11,6 +11,8 @@ Not tagged yet. The schema is rc.10's: nothing is reprovisioned.
 ### Fixes
 
 - The OpenAPI document refused a calendar draft the server takes. A definition kept in a file may name its JSON Schema in a root `"$schema"` member, which the server reads and does not store, and the document typed the draft's `definition` as `CalendarDefinition`, which declares no such member, so a client that checks its request against the document could not send the file as it stood. The draft's `definition` is `CalendarDefinitionDocument`: every member of a definition and, at the root alone, `$schema`. An operand written inline takes none, and a read answers the stored definition without it. A test holds one set of accepted definitions to the compiler, the published schema file, and the draft request.
+- The public API baseline now records what a signature's types do not hold: each tuple element's name, each nullable reference, and a `notnull` or `class?` constraint. It printed `TryGetResultAsync<T>` as a `ValueTuple<Boolean, TResult>` and `GetResultAsync<T>` with no constraint, so renaming `Found`, making a result nullable, or dropping `notnull` moved no approved line. No signature changed; the baseline says more of each.
+- The conformance reference described the result read as returning null before completion, which is the raw read alone. Its contract and guarantees state the three reads, none of which waits: with no result, or no job, the raw `GetResultAsync` answers null, the typed `TryGetResultAsync` answers not found, and the typed `GetResultAsync` throws, saying which it was.
 
 ## 1.0.0-rc.10
 
