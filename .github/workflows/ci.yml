@@ -95,6 +95,8 @@ jobs:
   build-test:
     name: Build + test (all providers)
     runs-on: ubuntu-latest
+    # The job takes about ten minutes; a hang must not run to the six-hour default.
+    timeout-minutes: 45
     needs: [quality, dashboard]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -127,19 +129,19 @@ jobs:
       - name: Build
         run: dotnet build Acta.slnx -c Release --no-restore /p:ActaDashboardSkipNpm=true
       - name: Test
-        run: dotnet test Acta.slnx -c Release --no-build --settings tests/Acta.runsettings --logger trx
+        run: dotnet test Acta.slnx -c Release --no-build --settings tests/Acta.runsettings --logger trx --blame-hang-timeout 5m
       # The SQL Server suite again with READ_COMMITTED_SNAPSHOT off, against its own -rcsioff catalog: Acta must run
       # in a database whose owner left the option off.
       - name: Test SQL Server without RCSI
         env:
           ACTA_TEST_MSSQL_RCSI: 'off'
-        run: dotnet test tests/Acta.Tests.Conformance.SqlServer -c Release --no-build --settings tests/Acta.runsettings --logger trx
+        run: dotnet test tests/Acta.Tests.Conformance.SqlServer -c Release --no-build --settings tests/Acta.runsettings --logger trx --blame-hang-timeout 5m
       # The concept samples have their own solution so a solution build covers only the product; they still
       # compile and run here, against the src projects built above.
       - name: Build concepts
         run: dotnet build concepts/Concepts.slnx -c Release /p:ActaDashboardSkipNpm=true
       - name: Test concepts
-        run: dotnet test concepts/Concepts.slnx -c Release --no-build --settings tests/Acta.runsettings --logger trx
+        run: dotnet test concepts/Concepts.slnx -c Release --no-build --settings tests/Acta.runsettings --logger trx --blame-hang-timeout 5m
       - name: Deadlock report
         if: always()
         run: bash .github/scripts/deadlock-report.sh
@@ -152,7 +154,10 @@ jobs:
         if: always()
         with:
           name: test-results
-          path: '**/*.trx'
+          # The sequence file names the tests a hang interrupted.
+          path: |
+            **/*.trx
+            **/Sequence_*.xml
           # warn (not error): on a build failure the Test step is skipped and produces no .trx;
           # an always() upload must not turn that into a second, misleading failure.
           if-no-files-found: warn
@@ -165,6 +170,7 @@ jobs:
   sqlserver-majors:
     name: SQL Server ${{ matrix.version }} (RCSI on and off)
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     needs: [quality, dashboard]
     strategy:
       fail-fast: false
@@ -195,11 +201,11 @@ jobs:
       - name: Build
         run: dotnet build tests/Acta.Tests.Conformance.SqlServer -c Release /p:ActaDashboardSkipNpm=true
       - name: Test
-        run: dotnet test tests/Acta.Tests.Conformance.SqlServer -c Release --no-build --settings tests/Acta.runsettings --logger trx
+        run: dotnet test tests/Acta.Tests.Conformance.SqlServer -c Release --no-build --settings tests/Acta.runsettings --logger trx --blame-hang-timeout 5m
       - name: Test without RCSI
         env:
           ACTA_TEST_MSSQL_RCSI: 'off'
-        run: dotnet test tests/Acta.Tests.Conformance.SqlServer -c Release --no-build --settings tests/Acta.runsettings --logger trx
+        run: dotnet test tests/Acta.Tests.Conformance.SqlServer -c Release --no-build --settings tests/Acta.runsettings --logger trx --blame-hang-timeout 5m
       - name: Deadlock report
         if: always()
         run: bash .github/scripts/deadlock-report.sh
