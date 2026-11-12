@@ -1,0 +1,241 @@
+{
+  "001-hello-acta": ["Hello, World!"],
+  "002-job-input": ["Printed name tag: Ada (workshop)"],
+  "003-job-result": ["2 + 3 = 5"],
+  "004-no-input-job": ["Heartbeat tick (no input needed)."],
+  "005-scalar-input": ["DURABLE JOBS ARE SIMPLE"],
+  "006-many-jobs-one-class": ["ACTA", "42"],
+  "007-dependency-injection": ["[email] to=sam@example.com subject=\"Welcome, Sam!\""],
+  "008-cancellation-token": ["Imported batch 3/3"],
+  "009-typed-enqueue": ["(Inserted)", "Hi, Sam!"],
+  "010-deduplication-key": ["Same job - deduplicated.", "Sent welcome email to Sam <sam@example.com>"],
+  "011-delayed-job": ["Reminder fired for Sam at"],
+  "012-read-status": ["status=Succeeded"],
+  "013-read-result": ["right away:        no result yet", "after it finishes: 42"],
+  "014-read-by-deduplication-key": ["by deduplication key 'send-welcome-email:welcome:sam'", "Sent welcome email to Sam <sam@example.com>"],
+  "015-execute-vs-enqueue": ["EnqueueAsync returned right away", "RunAndWaitAsync waited and returned", ", result 4"],
+  "016-max-attempts": ["status=Failed failureCount=3"],
+  "017-priority": ["running URGENT"],
+  "018-tags": ["with tags campaign=spring, channel=email.", "Sent welcome email to Sam <sam@example.com>"],
+  "019-batch-enqueue": ["Enqueued 500 jobs in one round-trip"],
+  "020-raw-enqueue": ["by name.", "Sent welcome email to Sam <sam@example.com>"],
+  "021-jobs-cli": ["[contract-42] indexed; waiting for legal approval", "| suspended"],
+  "022-dashboard": [
+    "[invoice-42] waiting for approval",
+    "Seeded success, failure, retry, signal, recurring, parent, and child states for inspection.",
+    "Dashboard: http://127.0.0.1:"
+  ],
+  "023-job-call": ["Hello, World!", "Greetings, Ada!"],
+  "024-aspnet-enqueue-api": ["Then poll GET /imports/{jobRef}"],
+  "025-large-payload-reference": ["enqueued with a 21-byte reference (not the bytes).", ": 2 rows, 21 bytes (text/csv)"],
+  "026-first-job": ["Acta worker started in namespace (shipping)", "Now listening on: http://127.0.0.1:"],
+  "028-deduplication-time-buckets": [
+    "Deduplicated - same bucket, same job.",
+    "Inserted - new bucket, new job.",
+    "Two distinct jobs across buckets - done."
+  ],
+  "101-recurring-job": ["[every-15-seconds] purged"],
+  "102-interval-schedule": [" heartbeat"],
+  "103-multiple-schedules": ["fired by [faster]", "fired by [fast, faster]"],
+  "104-timezone-schedule": ["fired by [demo-tick]"],
+  "105-schedule-control": [
+    "After indefinite pause: status=Paused",
+    "After timed pause: status=Paused paused-until=",
+    "After resume: status=Active",
+    "Query confirms: status=Active"
+  ],
+  "106-schedule-misfire": [
+    "cursor kept: True",
+    "of them (at most the latest); the rest were skipped",
+    "catch-up-once-report   ran 1 firing, covering",
+    "one per missed occurrence, in order: True"
+  ],
+  "108-calendar-catalog": [
+    "Published: Applied, version 1 is current",
+    " UTC tick",
+    "Published: Applied; retimed [calendar-catalog/tick/every-10s-in-hours]",
+    "Watching 15s for a tick that must not come..."
+  ],
+  "109-continuous-synchronization": [
+    "[sync-orders] execution 1: 40 changes applied, watermark 40",
+    "[sync-orders] execution 3: 40 changes applied, watermark 120",
+    "feed head: change 120; local orders: 40 (newest change 120)"
+  ],
+  "110-per-occurrence-delivery": [
+    "different jobs, one per occurrence",
+    "at most 2 were unfinished at once",
+    "were dropped while full, each audited as schedule.skipped with the reason capacity"
+  ],
+  "111-firing-failure-policy": ["then its schedule paused", "and is still scheduled", "sync-prices-continuing | active"],
+  "201-durable-checkout": [
+    "fraud-review raised: approved",
+    "approval observed by handler; reviewer=alice",
+    "receipt request for ch_order-",
+    "4. Done - one identity completed through three handler entries"
+  ],
+  "202-durable-step": ["[box-1] thermostat hiccup - retrying...", "[box-1] box frozen"],
+  "203-durable-variable": ["[crm] transient failure - retrying...", "[crm] sync complete (window pinned at"],
+  "204-wait-signal": [
+    "Brief/non-interactive run: raising the approval signal automatically.",
+    "approved - the job resumes.",
+    "[exp-1] expense for 4200.00 EUR APPROVED by alice"
+  ],
+  "205-durable-sleep": [
+    "preserving the cool-down in a durable timer",
+    "follow-up is due; delivery still needs its own idempotency policy"
+  ],
+  "206-step-chain": ["[guide.pdf] done -> 4096 bytes, 600 words, summary \"600-word digest\""],
+  "207-run-with-lock": ["[sku-A] done, releasing lock", "[sku-B] done, releasing lock"],
+  "208-progress": ["[customers.csv] [##########] 100%", "[customers.csv] import complete"],
+  "209-concurrency-key": ["[acme] rebuild #2 finished", "shard 2 finished", "shard 3 finished"],
+  "210-step-retry": ["[Ljubljana] forecast stored", "[Atlantis] report slot released; the job fails for good"],
+  "211-child-jobs": [
+    "[Frosty] stacked 60 + 40 + 20 = 120cm tall",
+    "snowman finished: FinishedSnowman { Name = Frosty, HeightCm = 120 }"
+  ],
+  "212-fan-out-join": ["sum 1..1000 = 500500"],
+  "213-execute-child": ["published: EpisodePublished { EpisodeId = ep-42, StreamUrl = hls/ep-42.m3u8 }"],
+  "214-reset-state": ["cycle start - 0 readings carried over (0 means last cycle reset)", "cycle done  - 3 readings, avg"],
+  "215-map-parallel-join": ["photo asset-42: 4 renditions ready, published=True"],
+  "216-variable-lifecycle": [
+    "get-or-set: v1=42 v2=42 factory-calls=1",
+    "exists before delete: True",
+    "exists after delete: False",
+    "default fallback: missing",
+    "raw payload round-trip: raw-value"
+  ],
+  "217-absolute-time-controls": [
+    "[poll-external] batch batch-42 is ready; processing complete",
+    "report for q1 sent",
+    "GenerateReport final status: Succeeded",
+    "PollExternal final status:   Succeeded"
+  ],
+  "219-child-failure-outcomes": [
+    "item item-b failed (status=Failed); continuing without it",
+    "parent: Succeeded, report: 2/3 items succeeded",
+    "parent: Failed (expected Failed)"
+  ],
+  "220-at-most-once-step": {
+    "skip": "Needs two processes in turn, one that dies inside the at-most-once step and one that recovers it; Verify's faults/at-most-once scenario and StepAtMostOnceSpec prove the same behaviour."
+  },
+  "301-fail-job": ["status=Failed, failureCount=0"],
+  "302-cancel-job": ["status=Cancelled"],
+  "303-pause-job": ["status=Paused", "[v042] migration applied", "status=Succeeded"],
+  "304-execution-timeout": ["[q3] generating report (this runs too long)...", "status=Failed"],
+  "305-operator-cancel": ["[export-1] export started", "cancel result: Applied", "final status: Cancelled"],
+  "306-reschedule": ["[api.example.com/report] not ready, rescheduling...", "[api.example.com/report] ready - processed"],
+  "307-deadline-strict": ["enqueued; 2s deadline, but the first run is held 4s.", "] status=Cancelled failureCount=0"],
+  "308-deadline-advisory": ["emitting a quick q3 summary.", "] status=Succeeded"],
+  "309-operator-resume": [
+    "PauseAsync -> action=Applied status=Paused",
+    "ResumeAsync -> action=Applied status=Ready",
+    "Job finished with status=Succeeded",
+    "PauseAsync on terminal -> action=Rejected blocking-status=Succeeded"
+  ],
+  "310-operator-restart": [
+    "terminal: status=Failed failureCount=3 executionNumber=3",
+    "restart result: Applied status=Ready",
+    "immediately observed after restart: status=Ready failureCount=0",
+    "[report-1] report generated after operator restart",
+    "re-run complete: status=Succeeded executionNumber=4"
+  ],
+  "311-execute-outcome-timeout": [
+    "IsTimedOut: True",
+    "IsFailed: True",
+    "ThrowIfFailed threw: JobFailedException",
+    "TryGetValue: False",
+    "ValueOrThrow: all clear"
+  ],
+  "312-backoff-curve": ["failure #3: next retry at", "job ended: status=Failed failureCount=4"],
+  "401-pipeline-behavior": ["-> greet-user #", "  Hi, Sam!", "<- greet-user #"],
+  "402-alerts": ["[photos] backup is bad - alert raised", "alert [Error] Backup verification failed: photos -> channel 'default'"],
+  "403-alert-channel": ["[db-server] low disk - alerted ops (4% free)", "alert [Error] Low disk space on db-server -> channel 'ops'"],
+  "404-read-event-timeline": ["parent finished with status: Failed", "] JobResumed", "(data collection failed for q4-2024)", "(data origin unavailable)"],
+  "405-real-alert-routing": ["alert [Error] Queue backlog: orders -> 'ops-slack' x2"],
+  "406-automatic-failure-alerts": ["Cancelling job to stay in the FirstFailure stage...", "alert kind=FirstFailure severity=Warning occurrences=2 channel='default'"],
+  "407-event-recording": ["Audit level  -> event count: 1", "Failures level -> event count: 0"],
+  "408-correlation-id": [
+    "same ActaCorrelationKey in Scopes",
+    "\"ActaCorrelationKey\":\"trace-",
+    "pipeline done",
+    "job=process-step correlation_key=trace-",
+    "job=run-pipeline correlation_key=trace-"
+  ],
+  "409-operator-queries": [
+    "[q3] report generated",
+    "[n2] notification sent",
+    "Page 1: 3 items, total=7, hasMore=True",
+    "Cancelled jobs: 1",
+    "Page 2: 3 items, hasMore=True",
+    "TotalCount across namespace: 7"
+  ],
+  "410-http-api-controls": ["  -> 400 BadRequest", "  -> 200 OK", "job status after pause: Paused"],
+  "411-alert-escalation": ["job reached Failed", "] FirstFailure x", "] ThresholdReached x", "] FinalFailure x"],
+  "412-tenant-scope": [
+    "wrote account export for acme",
+    "returned 2 current-run Acme job(s): parent and inherited child.",
+    "enqueue for 'missing-customer' rejected: TenantUnknown",
+    "enqueue for 'held-customer' rejected: TenantSuspended"
+  ],
+  "413-http-api-authorization": [
+    "GET /acta/api/v1/jobs -> 401 Unauthorized",
+    "GET /acta/api/v1/jobs -> 200 OK",
+    "/pause -> 403 Forbidden: This operation needs the acta.control permission.",
+    "POST /acta/api/v1/jobs -> 201 Created",
+    "/pause -> 200 OK",
+    "/purge -> 403 Forbidden: This operation needs the acta.admin permission.",
+    "/suspend -> 403 Forbidden: This operation needs the acta.admin permission.",
+    "/suspend -> 200 OK",
+    "/resume -> 200 OK"
+  ],
+  "414-dashboard-sign-in": [
+    "GET /acta/ -> 302 http://",
+    "/sign-in?ReturnUrl=%2Facta%2F",
+    "GET /acta/api/v1/jobs -> 401",
+    "POST /sign-in -> 400",
+    "POST /sign-in -> 302 /acta/",
+    "holds acta.read",
+    "/pause -> 403 This operation needs the acta.control permission.",
+    "the job is Ready",
+    "/pause -> 200 applied",
+    "the job is Paused",
+    "/suspend -> 403 This operation needs the acta.admin permission.",
+    "/suspend -> 200 applied",
+    "the namespace is Suspended",
+    "/resume -> 200 applied",
+    "the namespace is Active",
+    "POST /sign-out -> 302 /sign-in",
+    "GET /acta/api/v1/capabilities -> 401"
+  ],
+  "501-payload-formats": ["echo-json      [250/250]", "echo-scalar    [250/250]", "echo-gzip      [250/250]"],
+  "601-fan-out": [
+    "fanning out 5 thumbnail jobs",
+    "made thumbnail for photo #1",
+    "made thumbnail for photo #2",
+    "made thumbnail for photo #3",
+    "made thumbnail for photo #4",
+    "made thumbnail for photo #5"
+  ],
+  "602-chained-jobs": ["ingested report.md", "rendered report.md -> PDF", "archived report.md - pipeline done"],
+  "701-enqueue-only-reference": ["[worker] executed welcome-user for alice", "Job status after worker drain: Succeeded"],
+  "703-multi-worker-process": [
+    "processed EU-1",
+    "processed EU-2",
+    "processed EU-3",
+    "processed US-1",
+    "processed US-2",
+    "processed US-3"
+  ],
+  "704-cross-namespace-child": [
+    "EUR for order-7",
+    "order finished: OrderConfirmation { OrderId = order-7, TransactionId = tx-order-7 }"
+  ],
+  "705-worker-crash-recovery": {
+    "skip": "Needs PostgreSQL or SQL Server and two worker processes, one killed mid-job while the other reclaims its work; Verify's chaos scenario and WorkerCrashRecoveryChaosSpec prove the same behaviour."
+  },
+  "901-native-aot-json": ["Processed order ORD-001 x3", "Status: Succeeded"],
+  "903-redis-wakeup": {
+    "skip": "Needs a Redis server and a second process that enqueues while this one waits; RedisWakeupTests and Verify's throughput-redis rate ladder prove the same behaviour."
+  },
+  "904-worker-tuning": ["Peak observed concurrency: 3 (cap=3).", "Concurrency cap respected: True"]
+}

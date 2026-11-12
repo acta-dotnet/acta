@@ -10,6 +10,7 @@ dotnet run --project concepts/000-fundamentals/001-hello-acta
 
 - Most rungs enqueue work and keep their worker running until Ctrl+C.
 - The `800-testing` band runs with `dotnet test`.
+- Before a release, `dotnet run -c Release --project tools/Acta.Verify -- concepts` runs the whole ladder, one rung at a time, and checks that each rung prints the lines `concept-runs.json` says show its idea.
 - The state is one SQLite file under the temp folder; delete it to start over.
 - To run a rung on PostgreSQL or SQL Server, set `ACTA_LOCAL_PROVIDER` and the connection string as [CONTRIBUTING.md](../CONTRIBUTING.md#postgresql--sql-server-setup) describes.
 

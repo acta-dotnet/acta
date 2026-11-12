@@ -241,6 +241,20 @@ public sealed class PolicyTests
     }
 
     [Fact]
+    public void Every_runnable_concept_rung_has_one_entry_awaiting_lines_or_saying_why_it_is_not_run()
+    {
+        var root = AppContext.BaseDirectory;
+        while (!File.Exists(Path.Combine(root, "Acta.slnx")))
+        {
+            root = Path.GetDirectoryName(root) ?? throw new InvalidOperationException("No repository root above the test binaries.");
+        }
+        var concepts = Path.Combine(root, "concepts");
+        var entries = ConceptRuns.Load(concepts);
+        Assert.Equal(ConceptRuns.Rungs(concepts).Keys, entries.Keys.Order(StringComparer.Ordinal));
+        Assert.All(entries.Values, entry => Assert.True(entry.Lines.Length > 0 || entry.Skip is not null));
+    }
+
+    [Fact]
     public void Chaos_owes_its_written_busy_kills_with_reclaim_over_every_job()
     {
         var plan = Protocol.Plan("release", ["pg"], 1729, ["chaos"]);

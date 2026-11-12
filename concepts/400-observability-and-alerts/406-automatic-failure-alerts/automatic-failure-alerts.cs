@@ -37,19 +37,20 @@ var outcome = await jobs.EnqueueAsync(new ProcessReport("monthly-2024-06"));
 
 // Let the job fail twice (well under the default AlertFailureThreshold of 3).
 // The handler delays 2 s per attempt so two failures take ~4 s; at 5 s the third
-// attempt is still Executing, and CancelAsync trips its CancellationToken.
+// attempt is still Executing.
 await Task.Delay(5000);
 
 // Cancel during the third attempt to keep the lesson to the FirstFailure stage only.
-// (Three or more retryable failures would trigger a separate ThresholdReached alert; a
-// cancel mid-execution trips the handler's CancellationToken and ends the job as Cancelled.)
+// (Three or more retryable failures would trigger a separate ThresholdReached alert. The cancel
+// ends the job as Cancelled at once; the third attempt's own throw lands after it and changes nothing.)
 Console.WriteLine("Cancelling job to stay in the FirstFailure stage...");
 await jobs.CancelAsync(outcome, "demo cancelled after two failures");
 
 // Automatic alerts are NOT raised at failure time. The sys.alerts permanent job on a
-// Cron.EveryMinute sweep generates them. Wait up to ~75s for the row to appear.
-Console.WriteLine("waiting for the sys.alerts sweep...");
-var deadline = DateTime.UtcNow.AddSeconds(75);
+// Cron.EveryMinute sweep generates them, and a sweep reads only events older than two command
+// timeouts (60 s by default), so the row appears one to two minutes after the failure.
+Console.WriteLine("waiting for the sys.alerts sweep, one to two minutes...");
+var deadline = DateTime.UtcNow.AddSeconds(130);
 ListAlertsResponse? alertPage = null;
 while (DateTime.UtcNow < deadline)
 {

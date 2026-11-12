@@ -52,7 +52,7 @@ await lab.ShowAsync(
 await lab.ShowAsync(
     "The durable step stores the completed outcome",
     """
-    SELECT step_name, step_status, failure
+    SELECT step_name, step_status, failure_message
     FROM steps_view
     WHERE job_id = @jobId
     """,

@@ -844,6 +844,7 @@ push the packages to nuget.org through Trusted Publishing (the `publish-nuget` j
   - Over HTTP each permission passes exactly the routes that name it, a control needs its confirmation header, and a missing credential is challenged: `PermissionTests`, `ControlEndpointTests`, `DashboardAuthorizationTests`.
 - Incidents at the failures-only recording level close on the success that answers the failure, and only that one: `FailuresAuditFailureEventSpec`.
 - A build refuses a database it cannot run on, and a script-provisioned database runs and re-runs: `MigrationHistoryPreflightTests`, `MigrationHistoryPreflightSpec`, and the `*ProvisionScriptSpec` classes.
+- Every runnable concept shows its idea: `dotnet run -c Release --project tools/Acta.Verify -- concepts`. Keep its `result.md` with the release's evidence.
 - The packed packages build as an external consumer would, and their metadata is complete: `tests/PackageSmoke/run.ps1`, which CI runs on every push.
 
 ### Two commits

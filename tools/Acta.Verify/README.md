@@ -77,6 +77,7 @@ acta-verify compare ./artifacts/verify/<before> ./artifacts/verify/<after>
 acta-verify publish ./artifacts/verify/<run-id> [--rerun ./artifacts/verify/<rerun-id>]... --to docs/reference/benchmark.md
 acta-verify cleanup [--yes]
 acta-verify list
+acta-verify concepts
 ```
 
 - `replay` reruns a frozen plan and refuses one this build would not plan the same way.
@@ -87,6 +88,7 @@ acta-verify list
   - It exits 1 when a scenario no longer passes or is slower, 0 when none is, and 2 when nothing compared.
 - `publish` renders a bundle's report into the file named and, beside a `docs/` folder, the site's `site/benchmark.html` with the header and footer the site's pages share; a test keeps the two equal. Each `--rerun` adds a bundle that reran a missed floor on the same commit under the same protocol: the missed cell's section lists every rerun trial, and the verdict reads PASS after reruns when every failure was a missed performance floor that its latest rerun held. Normal runs never touch tracked documentation, and no command uploads results.
 - `cleanup` lists the containers labelled `acta.verify.owner` and the `b_` databases carrying the ownership marker. With `--yes` it removes them, but refuses while another Acta Verify process runs.
+- `concepts` builds `concepts/Concepts.slnx` in Release and runs each rung outside `800-testing` in turn, in a fresh folder under `artifacts/concepts/<run-id>/` that is its working and temp directory. A rung passes when its output shows every line `concepts/concept-runs.json` awaits for it and it then exits 0 or is still running 5 s later, when it is stopped; exit code 0 alone never passes it, and a rung the file gives a `skip` reason is not run. `result.md` holds each rung's verdict; the command exits 0 when every rung that ran passed, 1 when one failed, and 3 when the build failed, the file is invalid, or a rung has no entry.
 
 ## Databases and resources
 
