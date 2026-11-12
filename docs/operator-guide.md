@@ -701,7 +701,7 @@ operator-visible SQL state.
 
 ### Dashboard exposure and auth
 
-The rules are in [HTTP API and dashboard](#http-api-and-dashboard). A typical remote setup, with controls for one role:
+The rules are in [HTTP API and dashboard](#http-api-and-dashboard), and [`414-dashboard-sign-in`](../concepts/400-observability-and-alerts/414-dashboard-sign-in/) is a runnable host with a cookie sign-in and three roles. A typical remote setup, with controls for one role:
 
 ```csharp
 builder.Services.AddAuthorization(options =>

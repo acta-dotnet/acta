@@ -1,0 +1,12 @@
+{
+  "profiles": {
+    "414-dashboard-sign-in": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "applicationUrl": "https://localhost:53586;http://localhost:53587"
+    }
+  }
+}
