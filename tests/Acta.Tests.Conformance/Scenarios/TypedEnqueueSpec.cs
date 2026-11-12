@@ -283,7 +283,7 @@ public sealed class TypedEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, J
 
         // Each status read sees a success, and each result read finds it restarted, as if restarts kept landing between them.
         using var stuck = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        stuck.CancelAfter(TimeSpan.FromSeconds(10));
+        stuck.CancelAfter(SpecWaits.Gate);
         var outcome = await JobRunAndWait.WaitAsync<AddNumbersResult>(
             StaleReads.Wrap(Jobs, seen!, alternate: true),
             Services.GetRequiredService<IWorkerWakeup>(),
