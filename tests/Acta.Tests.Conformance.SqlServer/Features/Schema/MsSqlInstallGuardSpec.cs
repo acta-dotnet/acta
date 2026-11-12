@@ -1,5 +1,6 @@
 using Acta.SqlServer;
 using Acta.Tests.Conformance.SqlServer.Testing;
+using Acta.Tests.Conformance.Testing;
 using Microsoft.Data.SqlClient;
 using Xunit;
 using static Acta.Tests.Conformance.SqlServer.Testing.ScratchDatabase;
@@ -29,6 +30,52 @@ public sealed class MsSqlInstallGuardSpec
 
         await Task.WhenAll(Enumerable.Range(0, 2).Select(_ => Task.Run(() => Startup(database.ConnectionString).RunAsync(ct), ct)));
 
+        Assert.True(await ScalarAsync<bool>(database.ConnectionString, ReadCommittedSnapshot, ct));
+        Assert.Equal(Shipped.Count, await ScalarAsync<int>(database.ConnectionString, $"SELECT COUNT(*) FROM {Schema}.migrations;", ct));
+    }
+
+    /// <summary>
+    /// Two CREATE DATABASE statements for one name do not answer the later one that the database exists: SQL Server ends
+    /// its command with a severe error. So a start creates under a lock, and one that finds the lock held waits and then
+    /// finds the database made. The session here holds that lock as another installer would.
+    /// </summary>
+    [Fact(DisplayName = "A development start waits for an installer that is creating the database, then finds it created")]
+    public async Task A_development_start_waits_for_the_installer_that_is_creating_the_database()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await using var database = ScratchDatabase.Named();
+        var name = new SqlConnectionStringBuilder(database.ConnectionString).InitialCatalog;
+        await using var installer = new SqlConnection(new SqlConnectionStringBuilder(Master) { Pooling = false }.ConnectionString);
+        await installer.OpenAsync(ct);
+        async Task<T> AskAsync<T>(string sql)
+        {
+            await using var cmd = installer.CreateCommand();
+            cmd.CommandText = sql;
+            return (T)(await cmd.ExecuteScalarAsync(ct))!;
+        }
+        var lockName = SqlServerSchemaMigrator.CreationLock(name);
+        Assert.Equal(
+            0,
+            await AskAsync<int>($"DECLARE @rc INT; EXEC @rc = sp_getapplock N'{lockName}', 'Exclusive', 'Session', 0; SELECT @rc;")
+        );
+
+        var start = Task.Run(() => Startup(database.ConnectionString).RunAsync(ct), ct);
+        // The start is waiting once its request is blocked by this session; without the lock it would run to its end.
+        var waiting = await SpecWaits.RepeatUntilAsync(
+            () => AskAsync<int>("SELECT COUNT(*) FROM sys.dm_exec_requests WHERE blocking_session_id = @@SPID;"),
+            waiting => waiting > 0 || start.IsCompleted,
+            ct
+        );
+
+        // Read both before the lock is released and judged after the start has ended, so no start outlives the fact.
+        var ended = start.IsCompleted;
+        var created = await AskAsync<object>($"SELECT DB_ID(N'{name}');");
+        Assert.Equal(0, await AskAsync<int>($"DECLARE @rc INT; EXEC @rc = sp_releaseapplock N'{lockName}', 'Session'; SELECT @rc;"));
+        await start.WaitAsync(SpecWaits.Gate, ct);
+
+        Assert.False(ended, "The start ran to its end while another installer held the creation lock.");
+        Assert.True(waiting > 0, "The start was never seen waiting on the creation lock.");
+        Assert.IsType<DBNull>(created);
         Assert.True(await ScalarAsync<bool>(database.ConnectionString, ReadCommittedSnapshot, ct));
         Assert.Equal(Shipped.Count, await ScalarAsync<int>(database.ConnectionString, $"SELECT COUNT(*) FROM {Schema}.migrations;", ct));
     }

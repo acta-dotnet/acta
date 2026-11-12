@@ -66,17 +66,24 @@ internal sealed class SqlServerSchemaMigrator(SqlProviderOptions options, ILogge
         SqlIdentifierSyntax.ValidateBareIdentifier(schemaName, nameof(schemaName));
         SqlIdentifierSyntax.ValidateDatabaseName(databaseName, nameof(databaseName));
 
-        var masterBuilder = new SqlConnectionStringBuilder(connectionString) { InitialCatalog = "master" };
+        // Unpooled, so the session ends with the connection and its creation lock with it, however the batch ends.
+        var masterBuilder = new SqlConnectionStringBuilder(connectionString) { InitialCatalog = "master", Pooling = false };
         await using (var master = new SqlConnection(masterBuilder.ConnectionString))
         {
             await master.OpenAsync(ct);
             await using var cmd = master.CreateCommand();
             // databaseName is interpolated into string literals (N'...') and identifiers ([...]); ValidateDatabaseName
-            // rejects ' and ], so none can break out. The switch follows CREATE DATABASE in the same batch, sooner than
-            // another installer that sees the new database can log in to it, and XACT_ABORT ends the batch at a lost race's
-            // 1801 before it switches another installer's database.
+            // rejects ' and ], so none can break out. One installer at a time creates the database and switches it, under
+            // a session lock since CREATE DATABASE runs in no transaction: two that create one name at once do not leave
+            // the later one a 1801 to catch, SQL Server ends its command with a severe error. The next installer takes
+            // the lock once the switch is done and finds the database there. XACT_ABORT ends the batch at a failed
+            // CREATE, before it switches a database it did not make.
             cmd.CommandText = $"""
                 SET XACT_ABORT ON;
+                DECLARE @rc INT;
+                EXEC @rc = sp_getapplock N'{CreationLock(databaseName)}', 'Exclusive', 'Session', -1;
+                IF @rc < 0
+                    THROW 50000, 'sp_getapplock failed acquiring the Acta database creation lock', 1;
                 IF DB_ID(N'{databaseName}') IS NULL
                 BEGIN
                     CREATE DATABASE [{databaseName}];
@@ -85,19 +92,11 @@ internal sealed class SqlServerSchemaMigrator(SqlProviderOptions options, ILogge
                 END
                 """;
             cmd.CommandTimeout = SchemaMigrations.CommandTimeoutSeconds;
-            try
-            {
-                await cmd.ExecuteNonQueryAsync(ct);
-            }
-            catch (SqlException ex) when (ex.Number == 1801)
-            {
-                // 1801: database already exists - a concurrent bootstrapper won the IF-free
-                // window between DB_ID and CREATE DATABASE. The database is there; proceed.
-            }
+            await cmd.ExecuteNonQueryAsync(ct);
         }
 
-        // master proved the login, so a refused one here is another installer still creating or switching the database: wait it
-        // out. Both numbers are login errors, so nothing has run when they fire.
+        // master proved the login, so a refused one here is the new database still closed to logins: wait it out. Both
+        // numbers are login errors, so nothing has run when they fire.
         for (var attempt = 1; ; attempt++)
         {
             try
@@ -110,6 +109,9 @@ internal sealed class SqlServerSchemaMigrator(SqlProviderOptions options, ILogge
             }
         }
     }
+
+    /// <summary>The application lock, taken in master, under which one installer at a time creates <paramref name="databaseName"/>.</summary>
+    internal static string CreationLock(string databaseName) => $"acta.create-database.{databaseName}";
 
     /// <summary>The database the connection string names, refused before anything opens when it names none.</summary>
     internal static string RequireDatabase(string connectionString)
