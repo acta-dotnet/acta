@@ -353,7 +353,7 @@ internal static class BackoffExpressionValidator
             return false;
         }
 
-        var whole = Math.Ceiling(span.TotalSeconds);
+        var whole = span.Ticks / TimeSpan.TicksPerSecond + (span.Ticks % TimeSpan.TicksPerSecond == 0 ? 0 : 1);
         if (whole > int.MaxValue)
         {
             return false;

@@ -170,11 +170,7 @@ public sealed class JobRequestBuilder
     /// </summary>
     public JobRequestBuilder Delayed(TimeSpan delay)
     {
-        if (delay < TimeSpan.Zero)
-        {
-            throw new ArgumentOutOfRangeException(nameof(delay), delay, "Delay must be non-negative.");
-        }
-        _delaySeconds = checked((int)Math.Ceiling(delay.TotalSeconds));
+        _delaySeconds = DurationSyntax.ToWholeSeconds(delay, nameof(delay));
         _nextRunAtUtc = null;
         return this;
     }

@@ -132,6 +132,16 @@ public sealed class BackoffTests
         Assert.False(Backoff.TryParse("1s..2s x100000", out _));
     }
 
+    // The same parity at the seconds ceiling: what a retry would refuse when it computes the delay is a build error.
+    [Fact]
+    public void The_seconds_ceiling_matches_the_generator_to_the_tick()
+    {
+        const string expression = "PT2147483647.0000001S";
+
+        Assert.False(Acta.Generators.BackoffExpressionValidator.TryParseBackoff(expression, out _));
+        Assert.Throws<ArgumentOutOfRangeException>(() => BackoffSchedule.ComputeDelaySeconds(1, Backoff.Parse(expression)));
+    }
+
     [Fact]
     public void WithJitter_sets_the_fraction()
     {
@@ -146,6 +156,25 @@ public sealed class BackoffTests
         var backoff = Backoff.Fixed(TimeSpan.FromMilliseconds(500));
 
         Assert.Equal(1, BackoffSchedule.ComputeDelaySeconds(1, backoff));
+    }
+
+    [Theory]
+    [InlineData(1, "1ms")]
+    [InlineData(10_000_400, "1001ms")]
+    public void A_delay_finer_than_a_millisecond_is_written_rounded_up_and_retries_after_the_same_seconds(long ticks, string written)
+    {
+        var backoff = Backoff.Fixed(TimeSpan.FromTicks(ticks));
+
+        Assert.Equal(written, backoff.ToString());
+        Assert.Equal(BackoffSchedule.ComputeDelaySeconds(1, backoff), BackoffSchedule.ComputeDelaySeconds(1, Backoff.Parse(written)));
+    }
+
+    [Fact]
+    public void A_fraction_of_a_second_rounds_up_on_a_delay_too_long_for_a_double_to_hold_it()
+    {
+        var delay = TimeSpan.FromTicks(912_979_033 * TimeSpan.TicksPerSecond + 1);
+
+        Assert.Equal(912_979_034, DurationSyntax.ToWholeSeconds(delay, nameof(delay)));
     }
 
     [Theory]

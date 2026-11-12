@@ -223,9 +223,9 @@ public readonly record struct Backoff
         {
             return FormatNumber(value.TotalSeconds) + "s";
         }
-        return value.Ticks % TimeSpan.TicksPerMillisecond == 0
-            ? FormatNumber(value.TotalMilliseconds) + "ms"
-            : FormatNumber(value.TotalSeconds) + "s";
+        // A delay finer than a millisecond is written rounded up to one, so read back it retries after the same whole seconds.
+        var milliseconds = value.Ticks / TimeSpan.TicksPerMillisecond + (value.Ticks % TimeSpan.TicksPerMillisecond == 0 ? 0 : 1);
+        return milliseconds.ToString(CultureInfo.InvariantCulture) + "ms";
     }
 
     private static string FormatNumber(double value) => value.ToString("0.####", CultureInfo.InvariantCulture);

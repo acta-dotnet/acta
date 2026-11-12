@@ -79,7 +79,8 @@ internal static class DurationSyntax
             throw new ArgumentOutOfRangeException(paramName, delay, "Delay must not be negative.");
         }
 
-        var seconds = Math.Ceiling(delay.TotalSeconds);
+        // Whole ticks: on a delay of decades a double drops the fraction of a second, and the rounding up with it.
+        var seconds = delay.Ticks / TimeSpan.TicksPerSecond + (delay.Ticks % TimeSpan.TicksPerSecond == 0 ? 0 : 1);
         return seconds > int.MaxValue
             ? throw new ArgumentOutOfRangeException(paramName, delay, $"Delay must not exceed {int.MaxValue} seconds.")
             : (int)seconds;
