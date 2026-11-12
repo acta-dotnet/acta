@@ -467,6 +467,12 @@ internal sealed partial class WorkerFinalizer(
                 var action = complete.Action.ToString();
                 ActaLog.CompletionSkipped(_log, ns, job.JobId, action);
             }
+
+            // A retry never cancels a job: one cancelled meanwhile takes back the retry its failure line announced.
+            if (completion.HandlerException is not null && write.Row.RescheduleDelaySeconds is not null && complete.IsCancelled)
+            {
+                ActaLog.RetryTakenBack(_log, entry.Descriptor!.JobName, new JobRef(job.JobRef).ToString());
+            }
         }
 
         if (entry.Descriptor is not null || retired)
@@ -479,11 +485,7 @@ internal sealed partial class WorkerFinalizer(
                 // above already raised this job's own latch in-routine). A first try that committed and lost its
                 // answer reads back Cancelled, and the walk is idempotent, so it runs then too; a crash before the
                 // walk leaves the descendants to an operator cancel of this job, which walks them again.
-                if (
-                    completion.HandlerStatusCode == JobStatusCode.Cancelled
-                    && !retired
-                    && (landed || complete.FinalJobStatusCode == (byte)JobStatusCode.Cancelled)
-                )
+                if (completion.HandlerStatusCode == JobStatusCode.Cancelled && !retired && (landed || complete.IsCancelled))
                 {
                     if (apart)
                     {

@@ -17,4 +17,8 @@ internal sealed record CompleteExecutionsRow(
     DateTime DbNowUtc,
     bool ParentReleased,
     bool LanePromoted
-);
+)
+{
+    /// <summary>True when the row after the call is Cancelled.</summary>
+    public bool IsCancelled => FinalJobStatusCode == (byte)JobStatusCode.Cancelled;
+}

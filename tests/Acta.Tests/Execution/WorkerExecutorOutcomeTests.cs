@@ -75,6 +75,29 @@ public sealed class WorkerExecutorOutcomeTests
         Assert.Same(thrown, line.Exception);
     }
 
+    // A cancel ends the job while its attempt runs, and the handler then throws with budget left. A row that matches
+    // no more and executes or has succeeded is the job's next attempt, which is the retry itself: this attempt's
+    // write landed and lost its answer.
+    [Theory]
+    [InlineData(JobStatusCode.Cancelled, true)]
+    [InlineData(JobStatusCode.Executing, false)]
+    [InlineData(JobStatusCode.Succeeded, false)]
+    public async Task A_retry_announced_for_a_job_cancelled_meanwhile_is_taken_back(JobStatusCode rowStatus, bool takenBack)
+    {
+        var harness = new WorkerExecutorHarness(
+            maxAttempts: 3,
+            failureCount: 1,
+            completionAction: CompleteExecutionsAction.AlreadyTerminal,
+            unmatchedRowStatus: rowStatus
+        );
+
+        await harness.RunAsync(static (_, _) => throw new InvalidOperationException("503 from the carrier"));
+
+        Assert.Contains(harness.Log, entry => entry.Message.Contains("the job retries in", StringComparison.Ordinal));
+        var line = $"Job (harness-job) ({harness.JobRef}) was cancelled, so its failed attempt leads to no retry.";
+        Assert.Equal(takenBack, harness.Log.Any(entry => entry.Message == line));
+    }
+
     [Theory]
     [InlineData(2, "attempt 3 of 3 spent the budget, so the job failed for good")]
     [InlineData(0, "NotImplementedException is never retried, so the job failed for good")]

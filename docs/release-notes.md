@@ -18,6 +18,7 @@ Not tagged yet. The schema is rc.10's: nothing is reprovisioned.
 - The dashboard's job timeline is drawn as the website draws its execution record: a soft round mark for each event, a hairline between two marks, plain attempt labels, and the event's code beside its time. The marks no longer carry rings, and the labels are no longer capitals.
 - In the dashboard's lists a system job is told by its `sys.` prefix in the muted tone. The badge after the name sat at a different place on each row and was the first thing a narrow column cut off.
 - The conformance reference described the result read as returning null before completion, which is the raw read alone. Its contract and guarantees state the three reads, none of which waits: with no result, or no job, the raw `GetResultAsync` answers null, the typed `TryGetResultAsync` answers not found, and the typed `GetResultAsync` throws, saying which it was.
+- A job cancelled while its attempt ran, whose handler then threw, was still announced as retrying: `threw on attempt (3 of 10); the job retries in 0ms`. The job stayed cancelled, and no line said so. One now follows: `Job (process-report) (job_...) was cancelled, so its failed attempt leads to no retry.`
 
 ## 1.0.0-rc.10
 

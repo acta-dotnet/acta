@@ -198,6 +198,12 @@ internal static partial class ActaLog
 
     [LoggerMessage(
         Level = LogLevel.Warning,
+        Message = "Job ({ActaJobName}) ({ActaJobRef}) was cancelled, so its failed attempt leads to no retry."
+    )]
+    public static partial void RetryTakenBack(ILogger log, string actaJobName, string actaJobRef);
+
+    [LoggerMessage(
+        Level = LogLevel.Warning,
         Message = "Handler for job ({ActaJobName}) ({ActaJobRef}) threw, and the job does not retry ({ActaDetail})."
     )]
     public static partial void HandlerThrewFinal(

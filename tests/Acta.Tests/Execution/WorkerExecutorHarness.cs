@@ -39,7 +39,8 @@ internal sealed class WorkerExecutorHarness(
     TimeSpan scopeDisposalTime = default,
     string? backoff = null,
     bool inputDeserializationThrows = false,
-    string jobName = "harness-job"
+    string jobName = "harness-job",
+    JobStatusCode unmatchedRowStatus = JobStatusCode.Executing
 )
 {
     /// <summary>The step the default handler runs; asserted on by name in the ownership pins.</summary>
@@ -55,7 +56,7 @@ internal sealed class WorkerExecutorHarness(
 
     // The worker state the executor and finalizer read, held here so a fact can retire the definition mid-attempt.
     private readonly WorkerContext _context = new(new WorkerRegistration("harness", null, null, [], []));
-    private readonly ScriptedExecutionStore _store = new(stepOutcome, completionAction);
+    private readonly ScriptedExecutionStore _store = new(stepOutcome, completionAction, unmatchedRowStatus);
     private readonly ScriptedLockStore _locks = new(
         slotGranted,
         slotRacesLost,
@@ -314,7 +315,11 @@ internal sealed class WorkerExecutorHarness(
     // The real execution group over a scripted session. Only the calls one attempt makes are
     // answered; everything else throws so a future change that starts leaning on another call is
     // visible rather than silent.
-    private sealed class ScriptedExecutionStore(CompleteJobStepOutcomeCode stepOutcome, CompleteExecutionsAction completionAction)
+    private sealed class ScriptedExecutionStore(
+        CompleteJobStepOutcomeCode stepOutcome,
+        CompleteExecutionsAction completionAction,
+        JobStatusCode unmatchedRowStatus
+    )
     {
         private readonly List<BoundCompletion> _submitted = [];
         private readonly List<BoundCompletion> _applied = [];
@@ -376,7 +381,7 @@ internal sealed class WorkerExecutorHarness(
                     completion.JobId,
                     completion.ExecutionNumber,
                     (CompleteExecutionsAction)completionAction,
-                    (byte)JobStatusCode.Executing,
+                    (byte)unmatchedRowStatus,
                     FinalNextRunAtUtc: null,
                     DateTime.UtcNow,
                     ParentReleased: false,
