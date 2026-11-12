@@ -55,7 +55,7 @@
 </header>
 <div class="wrap benchmark">
 <ul>
-<li>The run&#39;s commit is not in the tagged history under that hash: its commit messages were reworded afterwards, which changes every hash and no file. Its tree is <code>9e26a491cc435c700c72939852f3c75c2e718784</code>, the tree of the commit &quot;Name 1.0.0-rc.10 in the prose&quot; at the tag. The commits after it change documentation, the site, and two queries of one lab, not the engine, so this evidence stands for the tag.</li>
+<li>The run&#39;s commit is not in the tagged history under that hash: its commit messages were reworded afterwards, which changes every hash and no file. Its tree is <code>9e26a491cc435c700c72939852f3c75c2e718784</code>, the tree of the commit &quot;Name 1.0.0-rc.10 in the prose&quot; at the tag. The commits after it change documentation, the site, two queries of one lab, the connection timeout of the conformance suites&#39; test hosts, and the CI workflow, not the engine, so this evidence stands for the tag.</li>
 <li>This is measurement version 3, as in rc.9. <code>acta-verify compare</code> sets no scenario beside rc.9&#39;s run, because the PostgreSQL container image differs. Read side by side: PostgreSQL held 15,000 jobs a second offered through its 120 s confirmation, which rc.9 missed, and completed 14,857 a second against 12,527; its drain is 83,966 against 73,864. SQL Server completed 5,001 against 4,999, its drain is 50,774 against 42,768, and the sixteen-worker cell rc.9 reran held in the run.</li>
 </ul>
 <h1 class="">Acta Verify: PASS</h1>
