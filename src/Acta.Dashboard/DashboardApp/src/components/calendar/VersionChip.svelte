@@ -13,7 +13,7 @@
   }: { version: number; status: string; at: string; href: string; shown?: boolean } = $props();
 </script>
 
-<a class="version-chip {status}" class:shown aria-current={shown ? 'true' : undefined} {href} aria-label={`Version ${version}, ${status}`}>
+<a class="version-chip {status}" class:shown aria-current={shown ? 'true' : undefined} {href}>
   <VersionMark {status} />
   <span class="version-num">v{version}</span>
   <span class="version-status">{status}</span>

@@ -112,7 +112,7 @@
     {#each attempts as [attempt, steps]}
       <div class="timeline-attempt" id={'attempt-' + attempt}>
         <div class="timeline-eyebrow">
-          <span class:flag={failedAttempts.includes(attempt)}>{attempt === 0 ? 'Lifecycle' : unit + ' ' + displayFormatter.number(attempt)}</span>
+          <span>{attempt === 0 ? 'Lifecycle' : unit + ' ' + displayFormatter.number(attempt)}</span>
         </div>
         <ol class="rail">
           {#each steps as evt (evt.eventId)}
@@ -130,9 +130,8 @@
                     {#if facts.reason}<span class="mono">{facts.reason}</span>{/if}{#if facts.reason && evt.message}&nbsp;·&nbsp;{/if}{evt.message ?? ''}{#if evt.actor}{#if facts.reason || evt.message}&nbsp;·&nbsp;{/if}by {evt.actor}{/if}
                   </div>
                 {/if}
-                <div class="rail-code">{evt.eventCode}</div>
               </div>
-              <span class="rail-when"><RelativeTime value={evt.createdAtUtc} /></span>
+              <span class="rail-when"><RelativeTime value={evt.createdAtUtc} /><span class="rail-code">{evt.eventCode}</span></span>
             </li>
           {/each}
           {#if nextRunAtUtc && attempt === attempts[attempts.length - 1][0]}

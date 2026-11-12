@@ -125,9 +125,9 @@
     {/if}
     <div class="lineage-root"><span>{branchRef ? currentJob.jobName : 'This job'}</span><StatusBadge status={currentJob.status} /></div>
     {#if children.length}
-      <div class="lineage-children" class:unconnected={shown.length > 4} style={'--children:' + Math.max(shown.length, 1)} aria-label="Child jobs">
+      <div class="lineage-children" class:unconnected={shown.length > 4} style={'--children:' + Math.max(shown.length, 1)} role="group" aria-label="Child jobs">
         {#each shown as child (child.jobRef)}
-          <button class="lineage-child" class:failed={child.status === 'failed'} class:selected={selectedRef === child.jobRef} aria-pressed={selectedRef === child.jobRef} aria-label={'Inspect ' + child.jobName + ' ending ' + child.jobRef.slice(-8)} title={child.jobRef} onclick={() => inspect(child.jobRef)}>
+          <button class="lineage-child" class:failed={child.status === 'failed'} class:selected={selectedRef === child.jobRef} aria-pressed={selectedRef === child.jobRef} title={child.jobRef} onclick={() => inspect(child.jobRef)}>
             <span class="child-name">{child.jobName}</span><span class="child-ref mono">{compactRef(child.jobRef)}</span><StatusBadge status={child.status} />
           </button>
         {/each}

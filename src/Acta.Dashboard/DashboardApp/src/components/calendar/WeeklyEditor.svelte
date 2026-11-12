@@ -105,7 +105,7 @@
     {@const windows = model.days[day]}
     <div class="week-row" class:closed={windows.length === 0}>
       <span class="week-day">{day.slice(0, 3)}</span>
-      <div class="week-bar" aria-label={`${day}: ${hoursText(windows)}`}>
+      <div class="week-bar" role="img" aria-label={`${day}: ${hoursText(windows)}`}>
         {#each windows as window, index (index)}
           {#each windowSpans(window) as span}
             <span class="week-span" style:left={`${span.left}%`} style:width={`${span.width}%`}></span>

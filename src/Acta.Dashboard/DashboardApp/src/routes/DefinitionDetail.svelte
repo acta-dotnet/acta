@@ -324,6 +324,4 @@
     font: inherit;
   }
   .ovr-in:hover { border-color: var(--accent); }
-  .ovr-in:focus { outline: none; border-color: var(--accent); }
-  .ovr-in::placeholder { color: var(--muted); }
 </style>

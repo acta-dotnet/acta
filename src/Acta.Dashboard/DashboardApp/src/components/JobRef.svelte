@@ -31,7 +31,7 @@
   .ref-group, .ref-line { display: inline-flex; align-items: center; }
   .ref-line { gap: 6px; }
   .ref-group :global(.copy .ic), .ref-line :global(.copy .ic) { top: 0; }
-  .jobref { white-space: nowrap; font-family: var(--mono); }
+  .jobref { white-space: nowrap; font-family: var(--mono); padding: 4px 0; margin: -4px 0; }
   .ref-head { color: var(--muted); }
   /* The hidden digits sit behind an ellipsis one digit wide. The ellipsis is drawn, not written, so a copy or a
      screen reader gets the digits alone. */
@@ -50,7 +50,7 @@
   }
   /* Quiet until the row is under the pointer (or the button holds focus), so a refs column
      doesn't become a strip of glyph buttons. */
-  .ref-copy { display: inline-flex; margin-left: 4px; opacity: 0; transition: opacity 0.12s ease; }
+  .ref-copy { display: inline-flex; margin-left: 5px; opacity: 0; transition: opacity 0.12s ease; }
   :global(tr:hover) .ref-copy,
   .ref-group:hover .ref-copy,
   .ref-group:focus-within .ref-copy,

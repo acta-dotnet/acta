@@ -70,7 +70,7 @@
     { key: 'tenant', header: 'Tenant', class: 'mobile-hide' },
     { key: 'createdAtUtc', header: 'Age' },
     { key: 'nextRunAtUtc', header: 'Next run', class: 'mobile-hide' },
-    { key: 'attempts', header: 'Attempts', align: 'right', class: 'mobile-wide' }
+    { key: 'attempts', header: 'Attempts', align: 'right' }
   ];
 
   function clearTenant() {
@@ -218,9 +218,11 @@
       <JobRef value={job.jobRef} href={routes.job(job.jobRef, { namespace: $scope })} />
     {/snippet}
     {#snippet jobCell(job: JobRow)}
-      <a href={routes.job(job.jobRef, { namespace: $scope })} title={job.jobName}>
-        {job.jobName} {#if job.jobName?.startsWith('sys.')}<span class="badge held" title="Framework (sys.-prefixed) job">system</span>{/if}
-      </a>
+      {#if job.jobName?.startsWith('sys.')}
+        <a href={routes.job(job.jobRef, { namespace: $scope })} title={job.jobName + ', a system job Acta runs itself'}><span class="sys-prefix">sys.</span>{job.jobName.slice(4)}</a>
+      {:else}
+        <a href={routes.job(job.jobRef, { namespace: $scope })} title={job.jobName}>{job.jobName}</a>
+      {/if}
     {/snippet}
     {#snippet statusCell(job: JobRow)}<StatusBadge status={job.status} />{/snippet}
     {#snippet tenantCell(job: JobRow)}

@@ -70,11 +70,11 @@
 
   const columns: ColumnDef<CalendarListItem>[] = [
     { key: 'calendarName', header: 'Calendar' },
-    { key: 'role', header: 'Role', class: 'mobile-wide' },
-    { key: 'jobNamespace', header: 'Scope', dimRepeats: true, class: 'mobile-wide' },
-    { key: 'currentVersion', header: 'Current', class: 'mobile-wide' },
-    { key: 'latestVersion', header: 'Latest', class: 'mobile-wide' },
-    { key: 'dependentCount', header: 'Schedules', align: 'right', class: 'mobile-wide' },
+    { key: 'role', header: 'Role' },
+    { key: 'jobNamespace', header: 'Scope', dimRepeats: true },
+    { key: 'currentVersion', header: 'Current' },
+    { key: 'latestVersion', header: 'Latest' },
+    { key: 'dependentCount', header: 'Schedules', align: 'right' },
     { key: 'publishedAtUtc', header: 'Published', class: 'mobile-hide' },
     { key: 'modifiedAtUtc', header: 'Modified', class: 'mobile-hide' },
     { key: 'actions', header: '', class: 'col-open' }

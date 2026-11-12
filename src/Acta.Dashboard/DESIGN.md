@@ -97,6 +97,7 @@ Acta should feel calm, technically precise, modern, and readable. Focus is the d
 - Show a successful result prominently when one exists.
 - Collapse Activity, stored input and checkpoints, attached schedules, and technical details independently.
 - Keep execution history and timeline filters available within Activity.
+- Draw the activity timeline as the website draws its execution record: a soft round mark for each event, a hairline between two marks that touches neither, the event's title in the running weight with its reason beneath, and the time with the event's code at the right. Name each attempt in a plain line above its events. The mark alone carries the tone, and only the newest settled outcome takes a solid mark.
 - Showing execution history puts the attempt summaries in focus. Walking an execution returns to its filtered event timeline.
 - Preserve existing section and execution deep links by opening their matching disclosures.
 - Keep input amendment, signals, clone, tags, incident copying, and all existing job controls available under their permissions.
@@ -130,6 +131,7 @@ Acta should feel calm, technically precise, modern, and readable. Focus is the d
 - Preserve filtering, sorting, paging, selection, virtualization, bulk controls, export, and navigation behavior.
 - Use low-contrast row separators and clear column headings.
 - Keep technical references consistent and long text safely inspectable.
+- Tell a system job by its reserved `sys.` prefix, set in the muted tone before the rest of the name, as a reference's type is. Put no mark after a name in its cell: text of varying length gives it a different place on each row, and the column's ellipsis hides it first.
 - A table never scrolls sideways for one long value. The value ends in an ellipsis on its row and opens in full in its card.
 - A list's row actions stay in view at a 1440px window. Its prose cell gives way first: an alert's title and message share one cell that ends in an ellipsis, and the alert page shows both whole.
 - Use compact empty-state rows with an icon, heading, and short message.

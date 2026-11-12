@@ -95,6 +95,9 @@
     } else if (event.key === 'Enter' && matches.length > 0) {
       event.preventDefault();
       choose(matches[0].value);
+    } else {
+      // Home and End reach the first and last option from the filter too.
+      onListKeyDown(event);
     }
   }
 
@@ -131,13 +134,13 @@
     aria-haspopup="listbox"
     aria-expanded={open}
     aria-controls={listId}
-    aria-label={label}
+    aria-label={`${label}: ${selectedLabel}`}
     title={selectedLabel}
     onclick={() => (open ? close(true) : openList())}>
     {selectedLabel}
   </button>
   {#if open}
-    <div id={listId} class="listbox" role="listbox" tabindex="-1" aria-label={label} onkeydown={onListKeyDown}>
+    <div class="listbox">
       {#if typeahead}
         <input
           class="filter"
@@ -148,18 +151,22 @@
           aria-label={label + ' filter'}
           onkeydown={onInputKeyDown} />
       {/if}
-      {#each matches as option, index (option.value)}
-        <button
-          type="button"
-          role="option"
-          class="option"
-          class:selected={value === option.value}
-          bind:this={optionEls[index]}
-          aria-selected={value === option.value}
-          onclick={() => choose(option.value)}>
-          {option.label}
-        </button>
-      {/each}
+      <!-- A listbox owns options only, so the filter above and the empty line below sit beside it. It stays
+           while the list is open, matches or none, since the button names it as what it controls. -->
+      <div id={listId} class="options" role="listbox" tabindex="-1" aria-label={label} onkeydown={onListKeyDown}>
+        {#each matches as option, index (option.value)}
+          <button
+            type="button"
+            role="option"
+            class="option"
+            class:selected={value === option.value}
+            bind:this={optionEls[index]}
+            aria-selected={value === option.value}
+            onclick={() => choose(option.value)}>
+            {option.label}
+          </button>
+        {/each}
+      </div>
       {#if matches.length === 0}
         <div class="empty">No matches</div>
       {/if}
@@ -180,13 +187,13 @@
     overflow-y: auto;
     overscroll-behavior: contain;
     padding: 4px;
-    display: flex;
-    flex-direction: column;
     background: var(--panel);
     border: 1px solid var(--line);
     border-radius: var(--radius-panel);
     box-shadow: 0 8px 30px var(--shadow);
   }
+
+  .listbox, .options { display: flex; flex-direction: column; }
 
   .filter {
     margin: 2px 2px 6px;

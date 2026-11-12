@@ -142,5 +142,4 @@
     min-height: 180px;
   }
   .payload-edit textarea:hover { border-color: var(--accent); }
-  .payload-edit textarea:focus { outline: none; border-color: var(--accent); }
 </style>

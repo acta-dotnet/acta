@@ -716,7 +716,7 @@ test('calendar catalog: list to a draft version, the week bars and the forecast 
   await expect(definition.locator('input, select, textarea')).toHaveCount(0);
   await expect(page.getByRole('button', { name: /Publish version/ })).toHaveCount(0);
 
-  await page.getByRole('link', { name: 'Version 3, draft' }).click();
+  await page.getByRole('link', { name: 'v3 draft' }).click();
   await expect(page.getByRole('heading', { name: 'Version 3 definition' })).toBeVisible();
   await expect(page.getByLabel('Saturday: 3h')).toBeVisible();
   await expect(page.getByText('Version 3 beside current version 2')).toBeVisible();
@@ -1217,7 +1217,7 @@ test('Focus lineage loads selected children on demand and explores descendants i
   });
   await page.goto('/#/jobs/' + jobRef + '?ns=billing');
   await expect(page.getByRole('heading', { name: 'publish-manuscript' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Inspect validate-assets' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'validate-assets' })).toBeVisible();
   expect(reads).toEqual([jobRef]);
   await expect(page.locator('#job-data')).toHaveCount(0);
   await expect(page.locator('#job-schedules')).toHaveCount(0);
@@ -1225,18 +1225,18 @@ test('Focus lineage loads selected children on demand and explores descendants i
   const inspector = page.getByRole('region', { name: 'Selected child' });
   await expect(inspector).toContainText('96 DPI');
   expect(reads).toContain(failedRef);
-  await page.getByRole('button', { name: 'Inspect typeset-pdf' }).click();
+  await page.getByRole('button', { name: 'typeset-pdf' }).click();
   await inspector.getByRole('button', { name: '1 child' }).click();
   await expect(page.getByRole('navigation', { name: 'Lineage path' })).toHaveText(/^\s*This job\s*typeset-pdf\s*$/);
-  await expect(page.getByRole('button', { name: 'Inspect render-chapter' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'render-chapter' })).toBeVisible();
   await page.getByRole('navigation', { name: 'Lineage path' }).getByRole('button', { name: 'This job' }).click();
-  await expect(page.getByRole('button', { name: 'Inspect validate-assets' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'validate-assets' })).toBeVisible();
   expect(page.url()).toContain('/jobs/' + jobRef);
 
   // The status panel's failed child belongs to this job, so inspecting it leaves an explored branch.
-  await page.getByRole('button', { name: 'Inspect typeset-pdf' }).click();
+  await page.getByRole('button', { name: 'typeset-pdf' }).click();
   await inspector.getByRole('button', { name: '1 child' }).click();
-  await expect(page.getByRole('button', { name: 'Inspect render-chapter' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'render-chapter' })).toBeVisible();
   await page.getByRole('button', { name: 'Inspect failed child' }).click();
   await expect(page.getByRole('navigation', { name: 'Lineage path' })).toHaveCount(0);
   await expect(inspector).toContainText('96 DPI');

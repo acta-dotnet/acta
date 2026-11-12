@@ -12,7 +12,7 @@ describe('version chips and badges', () => {
   it('give every status the same parts in the same order, its mark first', () => {
     for (const status of STATUSES) {
       const chip = render(VersionChip, { version: 12, status, at: '2026-07-14T08:00:00Z', href: '#/calendars/sys/office-hours' });
-      const link = chip.getByRole('link', { name: `Version 12, ${status}` });
+      const link = chip.getByRole('link', { name: new RegExp(`^v12 ${status}`) });
       expect(parts(link)).toEqual(['version-mark', 'version-num', 'version-status', 'version-when']);
       expect(link.querySelector('.version-mark')?.children).toHaveLength(1);
       chip.unmount();

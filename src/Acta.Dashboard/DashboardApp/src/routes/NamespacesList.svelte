@@ -6,7 +6,6 @@
   import StatusBadge from '../components/StatusBadge.svelte';
   import FilterBar from '../components/FilterBar.svelte';
   import { scope } from '../scope.ts';
-  import { isSysNamespace } from './namespaceAdmin.ts';
   import type { NamespaceListItem } from '../api.ts';
   import ActiveFilters from '../components/ActiveFilters.svelte';
   import { createUrlFilters } from '../urlFilters.ts';
@@ -62,10 +61,7 @@
     </FilterBar>
     <ActiveFilters chips={activeChips} onClearAll={() => filters.clear()} />
 
-    {#snippet nameCell(namespace: NamespaceListItem)}
-      <a href={detailHref(namespace)}>{namespace.jobNamespace}</a>
-      {#if isSysNamespace(namespace.jobNamespace)}<span class="badge held ns-sys-badge" title="Seeded system namespace">sys</span>{/if}
-    {/snippet}
+    {#snippet nameCell(namespace: NamespaceListItem)}<a href={detailHref(namespace)}>{namespace.jobNamespace}</a>{/snippet}
     {#snippet statusCell(namespace: NamespaceListItem)}<StatusBadge status={namespace.status} />{/snippet}
     {#snippet actionsCell(namespace: NamespaceListItem)}
       <a
@@ -87,7 +83,3 @@
       cells={{ jobNamespace: nameCell, status: statusCell, actions: actionsCell }} />
   </div>
 </Page>
-
-<style>
-  .ns-sys-badge { margin-left: 8px; }
-</style>
