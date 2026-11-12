@@ -206,7 +206,7 @@ internal static partial class CalendarDefinition
             }
 
             var id = z.ValueKind == JsonValueKind.String ? z.GetString() : null;
-            if (id is null || id.Length == 0)
+            if (string.IsNullOrWhiteSpace(id))
             {
                 Problem($"{path}.timeZone", "\"schedule\" for the schedule's zone, or a zone id.");
                 return null;
@@ -219,7 +219,7 @@ internal static partial class CalendarDefinition
 
             try
             {
-                return TimeZoneInfo.FindSystemTimeZoneById(id);
+                return NextOccurrenceCalculator.ResolveTimeZone(id);
             }
             catch (TimeZoneNotFoundException)
             {

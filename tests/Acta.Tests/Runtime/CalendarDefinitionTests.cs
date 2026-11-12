@@ -352,6 +352,8 @@ public sealed class CalendarDefinitionTests
     [InlineData("""{"kind":"business-day","select":"last","of":"month","time":"16:00"}""", "$.of: ")]
     [InlineData("""{"kind":"daily-local-time","times":["25:00"]}""", "$.times[0]: a time is HH:mm")]
     [InlineData("""{"kind":"daily-local-time"}""", "$.times: required.")]
+    [InlineData("""{"kind":"daily-local-time","timeZone":" ","times":["09:00"]}""", "$.timeZone: \"schedule\" for the schedule's zone")]
+    [InlineData("""{"kind":"daily-local-time","timeZone":"Mars/Olympus","times":["09:00"]}""", "$.timeZone: 'Mars/Olympus' is not a zone")]
     public void A_bad_occurrence_definition_names_each_problem_by_its_path(string json, string problem)
     {
         var ex = Assert.Throws<CalendarDefinitionException>(() => CalendarDefinition.Compile(CalendarRoleCode.Occurrence, json));

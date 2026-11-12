@@ -89,11 +89,6 @@ public sealed class ScheduleDueWalkTests
     public void One_walk_answers_what_the_two_walks_answered(string name)
     {
         var source = SourceByName[name];
-        Assert.SkipWhen(
-            HasNegativeDaylightTime(source.Timing.TimeZoneId),
-            "The host's zone data gives this zone negative daylight time, where .NET misreports its skipped and repeated "
-                + "hours and a cron does not advance: docs/known-limitations.md, under Execution model."
-        );
         var ranges = 0;
         foreach (var seed in Seeds)
         {
@@ -337,18 +332,6 @@ public sealed class ScheduleDueWalkTests
 
         return current;
     }
-
-    /// <summary>
-    /// True on zone data that gives the zone negative daylight time, as Ubuntu 26.04's gives Europe/Dublin. There
-    /// TimeZoneInfo misreports the zone's skipped and repeated hours (dotnet/runtime#120915), and the cron calculation
-    /// rests on its answers.
-    /// </summary>
-    private static bool HasNegativeDaylightTime(string? zone) =>
-        zone is not null
-        && TimeZoneInfo
-            .FindSystemTimeZoneById(zone)
-            .GetAdjustmentRules()
-            .Any(rule => rule.DaylightDelta < TimeSpan.Zero && rule.DateEnd.Year >= Seeds[0].Year);
 
     /// <summary>The next occurrence, refused when it is not after the one before it: such a walk would never end.</summary>
     private static DateTime Advanced(ScheduleSource source, DateTime current, DateTime candidate)

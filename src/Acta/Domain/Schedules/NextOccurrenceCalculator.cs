@@ -311,5 +311,7 @@ internal static class NextOccurrenceCalculator
 
     /// <summary>The zone a timing names, UTC when it names none.</summary>
     internal static TimeZoneInfo ResolveTimeZone(string? timeZone) =>
-        string.IsNullOrWhiteSpace(timeZone) ? TimeZoneInfo.Utc : TimeZoneInfo.FindSystemTimeZoneById(timeZone);
+        string.IsNullOrWhiteSpace(timeZone)
+            ? TimeZoneInfo.Utc
+            : NegativeDaylightTime.Corrected(TimeZoneInfo.FindSystemTimeZoneById(timeZone));
 }
