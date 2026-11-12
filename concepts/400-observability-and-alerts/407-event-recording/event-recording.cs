@@ -1,6 +1,6 @@
 // Concept: EventRecording gates which job events are written. Audit records every event; Failures records the failed,
-// orphaned, and finally failed attempts, the success that recovers from a failure (which closes the incident), and
-// what an enabled alert profile reads.
+// orphaned, and finally failed attempts, the success that recovers from a failure (which closes the incident), what
+// an enabled alert profile reads, a caller's controls of the job, and a schedule's pauses and manual triggers.
 using Acta;
 using Acta.Concepts.EventRecording;
 using Microsoft.Extensions.DependencyInjection;
