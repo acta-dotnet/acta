@@ -54,8 +54,9 @@ produced by the project, on the project's machine, and published in this reposit
 
 - The test suites: a fast unit gate and a conformance suite run against PostgreSQL, SQL Server, and
   SQLite on every change ([CONTRIBUTING.md](../CONTRIBUTING.md)).
-- The release validation: chaos runs that kill a worker every five seconds and then judge the ledger with
-  SQL; each release's notes record the scale that ran and the verdicts
+- The release validation: chaos runs that kill a worker every five seconds, then reconcile every job with
+  its expected outcome and judge the database's own ledger; each release's notes record the scale that ran
+  and the verdicts
   ([release notes](./release-notes.md)).
 - The benchmark round: an [Acta Verify](../tools/Acta.Verify/README.md) run on one machine, the latest
   kept in [benchmark.md](./reference/benchmark.md).

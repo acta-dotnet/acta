@@ -282,8 +282,8 @@ shows and the CLI's `jobs explain` prints.
 `jobs.CancelAsync(lookup, reasonMessage: ...)` is applied while the job has not finished: a queued or
 delayed job never runs, a running handler sees its `CancellationToken` cancelled. A finished job answers
 `Rejected` and keeps its outcome. The reason is the message of the job's `job.cancelled` event, and
-an `actor:` argument, when given, is that event's `actor`; the event is written at the default
-`Audit` recording level.
+an `actor:` argument, when given, is that event's `actor`; the event is written at every recording
+level.
 
 ### A wait timeout is not a cancellation
 

@@ -56,9 +56,12 @@ The variants and their fixes:
 - A framework type as the input (`JobContext`, `CancellationToken`, a task): the first parameter is
   `TIn`; a payload-less job takes a parameterless record such as `record Reconcile;`.
 - A non-ASCII type name on the input or the result: contract type names are stored in ASCII columns.
-- A generic method: every handler resolves to one closed `TIn` and optional `TResult`.
-- A private method or a private containing type: the generated manifest must reference the handler,
-  so both are at least `internal`.
+- A generic method, or a method in a generic type: every handler resolves to one closed handler type,
+  `TIn`, and optional `TResult`.
+- A `private`, `protected`, or `private protected` method or containing type: the generated manifest
+  calls the handler from a class of its own, so both are `public`, `internal`, or `protected internal`.
+- An instance method of a struct: a handler instance comes from DI or is built for the attempt, so
+  make the method `static` or the type a class.
 - `(TIn, JobContext)` without `CancellationToken`, or `JobContext` on a synchronous handler: the
   context is paired with the per-attempt token and an awaitable return.
 

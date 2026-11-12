@@ -117,7 +117,7 @@
         </div>
         <div>
           <b>Chaos-tested before each release</b>
-          <p>The project's release run kills a worker every five seconds while laned jobs run, then checks from the database's own ledger that in every lane each member's first recorded start comes after the member before it finished for the last time, and that every lane drained. A start is the first note a handler writes, so the check cannot see a handler that began early and had not written one yet. The same run checks that three rate meters, at 10, 50 and 100 a second, started no more work in any window than their published budget allows. <a class="golink" href="/benchmark">Release validation record</a></p>
+          <p>The project's release run kills a worker every five seconds while laned jobs run, then checks from the database's own ledger that in every lane each member's first recorded start comes after the member before it finished for the last time, and that every lane drained. A start is the first note a handler writes, so the check cannot see a handler that began early and had not written one yet. The same run checks that three rate meters, at 10, 50 and 100 a second, started no more work in any one-second or ten-second window than their published budget allows. <a class="golink" href="/benchmark">Release validation record</a></p>
         </div>
       </div>
     </section>

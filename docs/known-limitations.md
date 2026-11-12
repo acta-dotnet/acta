@@ -12,9 +12,10 @@ as additive migrations and the baseline is never re-cut, so a database provision
 upgrades by migration alone.
 
 Every baseline statement is existence-guarded, so a later build's re-cut baseline applied over a pre-1.0
-database would change nothing and keep, for example, `events.actor` as `varchar(128)` on SQL Server,
-folding an operator's non-ASCII name to `?`. Startup and migration apply refuse such a database instead,
-naming the baseline its history holds. A history row is still only a migration name and when it was
+database would change nothing and keep, for example, an rc.9 database's 32-bit
+`jobs_state.execution_number` and its `events` table without the `actor` column this build writes.
+Startup and migration apply refuse such a database instead, naming the baseline its history holds. A
+history row is still only a migration name and when it was
 applied, never a fingerprint of the schema, so an operator who adapts the applied script keeps the
 recorded row and carries the difference themselves.
 
@@ -43,7 +44,7 @@ Execution is at-least-once, and a handler re-enters from the top with its comple
 - **A `PerOccurrence` definition declares no lane**; the generator refuses one on any scheduled definition (ACTA0121). A permanent job declares no deadline either, which the deploy refuses.
 - **An orphaned per-occurrence schedule's row stays for good**, after its definition is retired too: a schedule row is deleted only with its permanent job, a per-occurrence schedule has none, and no verb deletes a schedule.
 - **A time-zone rule change misplaces one occurrence of a zoned cron.** After a host's time-zone data changes a zone's rules (a tzdata or Windows update), a cron schedule in that zone whose next occurrence was computed under the old rules fires that occurrence at the old instant, an hour off or twice; later occurrences follow the new rules. A schedule with a calendar, an availability calendar, or a bound skips such an occurrence as `source-changed` instead ([scheduling](./scheduling.md#catch-up-misfire-and-expiration)).
-- **On SQL Server, a child enqueued in a transaction still open when its parent is cancelled escapes the cancel.** The cancel does not wait for the uncommitted child, which runs once the transaction commits. Cancelling the parent again walks it. On PostgreSQL the cancel waits for that transaction, and only a child enqueued in a REPEATABLE READ or SERIALIZABLE transaction that began before the cancel escapes it.
+- **On SQL Server with READ_COMMITTED_SNAPSHOT on, a child enqueued in a transaction still open when its parent is cancelled escapes the cancel.** The cancel does not wait for the uncommitted child, which runs once the transaction commits; with the option off the cancel waits for that transaction. Cancelling the parent again walks it. On PostgreSQL the cancel waits for that transaction, and only a child enqueued in a REPEATABLE READ or SERIALIZABLE transaction that began before the cancel escapes it.
 - **A worker that crashes on every replay of a timed-out wait loops without spending budget.** The job re-alerts on every reminder, and an operator cancel ends it.
 - **`OnTerminal` and `Info` never alert on a permanent job's ordinary failures**, which return it to `Idle` instead of landing Failed. Use `OnFailure` for recurring work.
 - **A permanent job whose firing fails for good keeps its automatic alert open at `Failures`** after its next healthy firing, restarted or not: admission resets the failure count that marks a success as a recovery. A firing that recovers on a retry within its budget does resolve. Otherwise resolve the alert by hand, or run the definition at `Audit`, where every success is recorded. One-shot jobs auto-resolve at every level.
@@ -117,7 +118,7 @@ genuinely new namespace name (a repeated deploy of an existing namespace allocat
 nothing), and namespaces are created deliberately, one per bounded context, not per request.
 SQLite's `namespaces.namespace_id` is a 64-bit `AUTOINCREMENT`; 2,147,483,647 is the portable limit.
 
-Microsoft.Data.Sqlite (verified in 10.0.11 and on its `main`) carries an unsynchronized enumeration
+Microsoft.Data.Sqlite (verified in 10.0.13, the version Acta pins) carries an unsynchronized enumeration
 in `SqliteConnection.Deactivate`: returning a pooled connection walks the custom-function dictionary
 with no lock, so a concurrent reclaim can fault inside the driver. A plain user never sees it (the
 dictionary is empty unless `CreateFunction` was called), but Acta registers its `acta_blob` and
