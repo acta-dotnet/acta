@@ -72,6 +72,7 @@ static class Acta.SqlServer.SqlServerOutboxStagingExtensions
 ## Acta.Sqlite
 static class Acta.Sqlite.SqliteActaExtensions
     static Acta.IActaBuilder UseSqlite(this Acta.IActaBuilder builder, System.Action<Acta.SqlProviderOptions> configure)
+    static Acta.IActaBuilder UseSqliteEphemeral(this Acta.IActaBuilder builder)
     static Acta.IOutboxSourceBuilder UseSqlite(this Acta.IOutboxSourceBuilder source, System.String connectionString)
 static class Acta.Sqlite.SqliteMigrations
     static System.String CreateOutboxScript(System.String table = "acta_outbox")

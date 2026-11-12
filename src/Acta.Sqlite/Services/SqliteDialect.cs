@@ -59,6 +59,12 @@ internal sealed partial class SqliteDialect : ISqlDialect
     public SemaphoreSlim OwnedWriteQueue(string connectionString) =>
         WriteQueues.GetOrAdd(DatabaseIdentity(connectionString), static _ => new SemaphoreSlim(1, 1));
 
+    /// <summary>
+    /// Removes the queue of a database that no longer exists, so a process does not keep one for each database it has
+    /// ended. A session that holds the queue goes on using it.
+    /// </summary>
+    internal static void RemoveWriteQueue(string connectionString) => WriteQueues.TryRemove(DatabaseIdentity(connectionString), out _);
+
     /// <summary>A file database is its full path however the connection string spells it; any other is its string.</summary>
     private static string DatabaseIdentity(string connectionString)
     {

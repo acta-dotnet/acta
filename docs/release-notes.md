@@ -13,6 +13,7 @@ Not tagged yet. The schema is rc.10's: nothing is reprovisioned.
 - `414-dashboard-sign-in`, a concept rung that puts the dashboard and the API behind the host's own cookie sign-in, with the host's three roles behind the four permission policies. It signs in as each role through the form on start and prints what the server answered.
 - `acta-verify concepts` runs every concept rung, one at a time, and checks that each prints the lines `concepts/concept-runs.json` says show its idea. It runs before a release, not in CI.
 - The dashboard's smoke suite scans the states it stages for accessibility: axe-core reads each one in the three themes with the WCAG 2.2 A and AA rules, and a violation fails the suite. The scan finds what a machine can decide; `src/Acta.Dashboard/DESIGN.md` lists the manual pass a release still takes.
+- `UseSqliteEphemeral()` starts Acta on a SQLite database held in the process's memory, with no connection string. The schema and the jobs are applied at start, and every job is lost when the host is disposed or the process ends.
 
 ### Fixes
 
