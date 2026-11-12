@@ -7,7 +7,7 @@ using Xunit;
 namespace Acta.Tests.AspNetCore;
 
 /// <summary>
-/// The aggregate request-body ceiling (<see cref="ActaEndpointOptions.MaxRequestBodyBytes"/>):
+/// The aggregate request-body ceiling (<see cref="JobsOptions.MaxInlinePayloadBytes"/>):
 /// a declared over-limit length rejects before the body is read, a chunked body without a declared
 /// length trips the counting stream mid-read, and both surface as 413 without reaching the store.
 /// </summary>

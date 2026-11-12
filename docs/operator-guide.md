@@ -1134,7 +1134,7 @@ execution outcome codes.
 
 Check the signal name and target identity:
 
-- Signal names are kebab-case and scoped to one job.
+- A signal name is a name like any other: dotted kebab-case, trimmed and lowercased, so `Payment.Received` and `payment.received` are one signal. It is scoped to one job.
 - A terminal job rejects new signals.
 - A paused job records the signal but stays paused.
 - A raise that arrives after a bounded wait timed out releases nothing; its event reads "Signal not

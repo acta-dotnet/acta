@@ -38,7 +38,7 @@ dotnet run -c Release --project tools/Acta.Verify -- run throughput --db pg
 
 ## What a run checks
 
-- **Ledger:** once a trial is over, its schema is checked against `Certification/certify.sql`. Any returned row is a safety failure naming the check. Each trial's checks are kept in `histories/<trial>-ledger.json`.
+- **Ledger:** once a trial is over, its schema is checked against `Certification/certify.sql`. A row a check returns is a safety failure naming the check, with the two exceptions the file marks: the inverted check must return rows, which show the fault landed in the cases that kill a busy worker, and a measured check reports its row and never fails. Each trial's checks are kept in `histories/<trial>-ledger.json`.
 - **Rate ladders:**
   - Arrivals are open-loop: a dispatcher thread hands each scheduled arrival to the enqueue calls the scenario allows, never drops one, and records a pickup more than 100 ms late as harness lateness.
   - A stream to one worker in one namespace runs that worker in the controller's own host, as a single Acta host does: each enqueue wakes it in process, and it shares the controller's heap, thread pool and enqueue pool. Every other worker runs as a process that claims again while its claims return jobs and, after an empty claim, waits up to the 1 s safety poll or until Redis wakes it in a scenario that sets `wakeup`.

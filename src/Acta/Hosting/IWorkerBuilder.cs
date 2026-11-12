@@ -9,9 +9,8 @@ namespace Acta;
 public interface IWorkerBuilder
 {
     /// <summary>
-    /// Add <typeparamref name="TManifest"/> to this worker's catalog. At initialization the worker upserts
-    /// every declared manifest's <c>definitions</c> rows under its namespace. Adding the same manifest
-    /// twice is a no-op.
+    /// Add <typeparamref name="TManifest"/> to this worker's catalog. A deploy writes every declared manifest's
+    /// <c>definitions</c> rows under the worker's namespace. Adding the same manifest twice is a no-op.
     /// </summary>
     IWorkerBuilder AddManifest<TManifest>()
         where TManifest : class, IJobManifest;

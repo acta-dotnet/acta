@@ -100,8 +100,9 @@ public sealed class JobAttribute(string name) : Attribute
 
     /// <summary>
     /// Which per-job <c>events</c> are recorded: <c>Audit</c>, the framework default when left unset, records every
-    /// one, and <c>Failures</c> records the failures, the successes that answer them, and what an enabled alert
-    /// profile reads. Sub-minute recurring definitions should consider <c>Failures</c> to keep <c>events</c> lean.
+    /// one, and <c>Failures</c> records the failures, the successes that answer them, an operator's changes to the
+    /// job and its schedules, and what an enabled alert profile reads. Sub-minute recurring definitions should
+    /// consider <c>Failures</c> to keep <c>events</c> lean.
     /// </summary>
     public EventRecordingCode EventRecording { get; init; } = EventRecordingCode.Audit;
 

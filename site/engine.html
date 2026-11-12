@@ -249,7 +249,7 @@
             <tr><td>Batch size</td><td class="v">128</td><td>Completions in one <code>complete_executions</code> call.</td></tr>
             <tr><td>Batch bytes</td><td class="v">4 MiB</td><td>Result bytes in one call; a larger single result is written alone.</td></tr>
             <tr><td>Batch window</td><td class="v">50 ms</td><td>Extra wait to fill a batch, only when its first read found a backlog.</td></tr>
-            <tr><td>Write repeat</td><td class="v">1 s → 30 s, ±25 %</td><td>Back-off between tries of a failed completion: Warning for three tries, then Error, until it lands or the worker stops.</td></tr>
+            <tr><td>Write repeat</td><td class="v">1s..30s x2 ~25%</td><td>Back-off between tries of a failed completion: Warning for three tries, then Error, until it lands or the worker stops.</td></tr>
             <tr><th class="grp" scope="rowgroup" colspan="3">Leases and recovery</th></tr>
             <tr><td><code>HeartbeatInterval</code></td><td class="v">45 s</td><td>Renewal cadence, and the one timing value an operator sets.</td></tr>
             <tr><td>Lease</td><td class="v">180 s, 4 beats</td><td>How long a row stays this worker's without a renewal.</td></tr>

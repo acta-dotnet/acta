@@ -57,7 +57,7 @@ public abstract partial class JobContext
     /// waits toward one stored absolute deadline (whole seconds, positive, for the group rather than per branch) that
     /// a replay reuses and never extends. A branch that did not land by then reports
     /// <see cref="ChildJobOutcome.TimedOut"/> and is cancelled along with its subtree; the branch keying is unchanged,
-    /// and this Job resumes either way. Each branch child is named <c>groupName-branchName</c>.
+    /// and this Job resumes either way. Each branch child is named <c>groupName/branchName</c>.
     /// </summary>
     public Task<ParallelOutcome> ParallelAsync(
         string groupName,

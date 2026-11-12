@@ -36,10 +36,11 @@ public interface IActaBuilder
 
     /// <summary>
     /// Declare a worker that claims <paramref name="jobNamespace"/> and hosts the manifests declared on the
-    /// <see cref="IWorkerBuilder"/>. At initialization the framework upserts the <c>namespaces</c> row (with the
-    /// owner team and description when supplied), upserts every declared manifest's <c>definitions</c> rows under
-    /// it, and inserts a <c>workers</c> row. A process may host several workers, each owning a distinct namespace;
-    /// two workers for the same namespace throw at DI build.
+    /// <see cref="IWorkerBuilder"/>. A deploy, <c>jobs deploy</c> or a development start, writes the
+    /// <c>namespaces</c> row (with the owner team and description when supplied) and every declared manifest's
+    /// <c>definitions</c> and schedules under it; the worker's start writes its <c>workers</c> row alone, and refuses
+    /// a namespace nothing has deployed. A process may host several workers, each owning a distinct namespace; two
+    /// workers for the same namespace throw at DI build.
     /// </summary>
     IActaBuilder Run(string jobNamespace, Action<IWorkerBuilder> configure);
 
@@ -47,8 +48,8 @@ public interface IActaBuilder
     /// Make <typeparamref name="TManifest"/>'s jobs typed-enqueueable under <paramref name="jobNamespace"/> without
     /// running a worker in this process: the enqueue-only counterpart of <c>Run</c>, which feeds the typed
     /// <c>IJobs.EnqueueAsync</c> route index but registers no worker, writes no catalog rows, and never claims jobs.
-    /// The namespace's worker owns migrations and definition registration, so start it once before the first
-    /// enqueue. <c>Run</c> implies Reference for its own namespace.
+    /// A deploy of the application that runs the namespace's worker writes its definitions, so deploy that one
+    /// before the first enqueue. <c>Run</c> implies Reference for its own namespace.
     /// </summary>
     IActaBuilder Reference<TManifest>(string jobNamespace)
         where TManifest : class, IJobManifest;

@@ -156,10 +156,9 @@ internal sealed class JobEntity : IEntity<long>
 
     /// <summary>
     /// Per-job snapshot of the definition's event recording policy, copied from <c>definitions</c> at
-    /// enqueue. Gates recording-filtered per-job <c>events</c> emission on the hot path
-    /// (claim / start / complete / control) without a join: <c>Failures</c> emits the failed, orphaned, and terminal
-    /// attempts, a recovery, and under an enabled alert profile a one-shot's success past its first attempt;
-    /// <c>Audit</c> emits all. Always-on system / catalog events ignore this column.
+    /// enqueue, so a statement that writes per-job <c>events</c> reads the policy without a join: <c>Audit</c>
+    /// writes all, and <c>Failures</c> what the <c>failures</c> code of the event-recording family lists. A system
+    /// or catalog event is written whatever this column says.
     /// </summary>
     [DbColumn("event_recording_code")]
     public EventRecordingCode EventRecording { get; init; }
