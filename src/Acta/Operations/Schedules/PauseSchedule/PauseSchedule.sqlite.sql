@@ -9,7 +9,7 @@ WHERE
     AND js.schedule_status_code <> 230 /* ScheduleStatusCode.Orphaned */
     AND d.definition_status_code <> 240 /* DefinitionStatusCode.Retired */;
 
--- Audited against the slot, or against the definition when the schedule has none.
+-- Recorded against the slot, or against the definition when the schedule has none.
 INSERT INTO {{schema}}.events (
     event_code,
     created_at_utc,
@@ -38,10 +38,8 @@ SELECT
     @p_details
 FROM temp._ps_target t
 JOIN {{schema}}.schedules js ON js.schedule_id = t.schedule_id
-JOIN {{schema}}.definitions d ON d.definition_id = js.definition_id
 LEFT JOIN {{schema}}.jobs j ON j.job_id = js.job_id
-LEFT JOIN {{schema}}.jobs_state r ON r.job_id = js.job_id
-WHERE COALESCE(j.event_recording_code, d.event_recording_code_effective) = 20 /* EventRecordingCode.Audit */;
+LEFT JOIN {{schema}}.jobs_state r ON r.job_id = js.job_id;
 
 UPDATE {{schema}}.schedules
 SET

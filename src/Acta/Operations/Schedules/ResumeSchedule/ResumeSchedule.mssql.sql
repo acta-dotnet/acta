@@ -8,7 +8,7 @@ BEGIN TRY
 
     DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
     DECLARE @found BIT = 0, @status TINYINT, @paused DATETIME2(7), @next DATETIME2(7), @version INT;
-    DECLARE @ns INT, @def INT, @slot BIGINT, @lineage BIGINT, @en BIGINT, @event_recording TINYINT;
+    DECLARE @ns INT, @def INT, @slot BIGINT, @lineage BIGINT, @en BIGINT;
     DECLARE @lock_result INT, @lock_resource NVARCHAR(255);
 
     /* The namespace's schedule lock, shared, before any row lock (docs/sql-internals.md, "Schedule lock"), so
@@ -54,10 +54,8 @@ BEGIN TRY
     SELECT
         @ns = js.namespace_id,
         @def = js.definition_id,
-        @lineage = j.lineage_root_job_id,
-        @event_recording = COALESCE(j.event_recording_code, d.event_recording_code_effective)
+        @lineage = j.lineage_root_job_id
     FROM {{schema}}.schedules js
-    INNER JOIN {{schema}}.definitions d ON d.definition_id = js.definition_id
     LEFT JOIN {{schema}}.jobs j ON j.job_id = js.job_id
     WHERE js.schedule_id = @p_schedule_id;
 
@@ -89,24 +87,21 @@ BEGIN TRY
     WHERE js.schedule_id = @p_schedule_id;
 
 
-    -- Audited against the slot, or against the definition when the schedule has none.
-    IF @event_recording = 20 /* EventRecordingCode.Audit */
-        BEGIN
-            INSERT INTO {{schema}}.events (
-                event_code, created_at_utc, namespace_id,
-                entity_code, entity_id,
-                definition_id, lineage_root_job_id,
-                execution_number,
-                event_message, actor, details_format_id, details
-            )
-            VALUES (
-                101 /* EventCode.ScheduleResumed */, @now, @ns,
-                CASE WHEN @slot IS NULL THEN 30 /* EntityCode.Definition */ ELSE 50 /* EntityCode.Job */ END, COALESCE(@slot, @def),
-                @def, COALESCE(@lineage, @slot),
-                @en,
-                @p_event_message, @p_actor, @p_details_format_id, @p_details
-            );
-        END
+    -- Recorded against the slot, or against the definition when the schedule has none.
+    INSERT INTO {{schema}}.events (
+        event_code, created_at_utc, namespace_id,
+        entity_code, entity_id,
+        definition_id, lineage_root_job_id,
+        execution_number,
+        event_message, actor, details_format_id, details
+    )
+    VALUES (
+        101 /* EventCode.ScheduleResumed */, @now, @ns,
+        CASE WHEN @slot IS NULL THEN 30 /* EntityCode.Definition */ ELSE 50 /* EntityCode.Job */ END, COALESCE(@slot, @def),
+        @def, COALESCE(@lineage, @slot),
+        @en,
+        @p_event_message, @p_actor, @p_details_format_id, @p_details
+    );
 
     SELECT
         CAST(1 /* ControlAction.Applied */ AS TINYINT) AS action,

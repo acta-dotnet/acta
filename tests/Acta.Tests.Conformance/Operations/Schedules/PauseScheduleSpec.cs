@@ -35,9 +35,15 @@ public sealed class PauseScheduleSpec : ActaStorageTestBase<ConformanceFixture>
         string? description = null
     ) => new(name, Cron5, null, misfire, ScheduleExpressionKindCode.Cron, description, cursor);
 
-    private async Task<int> CreateDefinitionAsync(IDbSession db, ISqlDialect dialect, string jobName, CancellationToken ct)
+    private async Task<int> CreateDefinitionAsync(
+        IDbSession db,
+        ISqlDialect dialect,
+        string jobName,
+        CancellationToken ct,
+        EventRecordingCode recording = EventRecordingCode.Audit
+    )
     {
-        var map = await DefinitionTestOps.RegisterAsync(Services, TestNamespaceId, [Def(jobName)], ct);
+        var map = await DefinitionTestOps.RegisterAsync(Services, TestNamespaceId, [Def(jobName) with { EventRecording = recording }], ct);
         return map[jobName];
     }
 
@@ -306,14 +312,17 @@ public sealed class PauseScheduleSpec : ActaStorageTestBase<ConformanceFixture>
         Assert.Null(schedule.NextEvaluationAtUtc);
     }
 
-    [Fact(DisplayName = "Pause and resume emit audit events against the slot job")]
-    public async Task Pause_and_resume_emit_audit_events_against_the_slot_job()
+    // An operator's pause changes what runs, so it leaves its event whatever the definition records.
+    [Theory(DisplayName = "Pause and resume are recorded against the slot job at every recording level")]
+    [InlineData(EventRecordingCode.Audit)]
+    [InlineData(EventRecordingCode.Failures)]
+    public async Task Pause_and_resume_are_recorded_against_the_slot_job_at_every_recording_level(EventRecordingCode recording)
     {
         var ct = TestContext.Current.CancellationToken;
         var (db, dialect) = Store();
         var now = FloorSeconds(await NowAsync(ct));
-        var jobName = Unique("audit");
-        var defId = await CreateDefinitionAsync(db, dialect, jobName, ct);
+        var jobName = Unique("recorded");
+        var defId = await CreateDefinitionAsync(db, dialect, jobName, ct, recording);
         await RegisterAsync(db, dialect, defId, jobName, [Slot("only", now.AddMinutes(5))], ct);
 
         await Schedules.PauseAsync(Lookup(jobName, "only"), reasonMessage: "maintenance", ct: ct);

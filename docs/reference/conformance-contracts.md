@@ -2321,7 +2321,7 @@
   - An orphaned schedule cannot be paused or resumed
   - Catalog re-registration preserves operator pause state
   - Orphaning a timed-paused schedule clears the pause deadline along with the status
-  - Pause and resume emit audit events against the slot job
+  - Pause and resume are recorded against the slot job at every recording level
 
 ### An operator pause landing inside a firing keeps the schedule paused
 - **Contract:** A pause applied while a firing is in flight survives its completion: settlement never wakes a paused schedule.

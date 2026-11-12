@@ -48,7 +48,7 @@ SET
     modified_at_utc = now()
 WHERE schedule_id IN (SELECT t.schedule_id FROM _pause_schedule_target t);
 
--- Audited against the slot, or against the definition when the schedule has none.
+-- Recorded against the slot, or against the definition when the schedule has none.
 INSERT INTO {{schema}}.events (
     event_code, created_at_utc, namespace_id,
     entity_code, entity_id,
@@ -65,10 +65,8 @@ SELECT
     @p_event_message, @p_actor, @p_details_format_id, @p_details
 FROM _pause_schedule_target t
 INNER JOIN {{schema}}.schedules js ON js.schedule_id = t.schedule_id
-INNER JOIN {{schema}}.definitions d ON d.definition_id = js.definition_id
 LEFT JOIN {{schema}}.jobs j ON j.job_id = js.job_id
-LEFT JOIN _pause_schedule_slot s ON s.job_id = js.job_id
-WHERE COALESCE(j.event_recording_code, d.event_recording_code_effective) = 20 /* EventRecordingCode.Audit */;
+LEFT JOIN _pause_schedule_slot s ON s.job_id = js.job_id;
 
 SELECT
     CASE WHEN t.schedule_id IS NULL THEN 2 /* ControlAction.NotFound */ ELSE 1 /* ControlAction.Applied */ END::SMALLINT AS action,
