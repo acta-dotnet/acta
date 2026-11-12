@@ -92,6 +92,72 @@ Cron, retries, dashboards, and SQL storage exist everywhere. What Acta offers is
 
 Each row describes the project as its own documentation did in November 2026: Quartz.NET at 4.x, and TickerQ at 5.x, then a preview.
 
+## The same six questions, asked of each
+
+The table above says when each tool is the right one. Here the same six questions are asked of Acta and of six of them, and each answer is the one the project's own documentation gives, with the page it comes from, as it read in November 2026. Where a project's documentation is silent, the answer says so.
+
+### Waiting hours or days, for something outside the job
+
+- **Acta**: The handler awaits `ctx.WaitSignalAsync<Approval>("approval")`, and `jobs.RaiseSignalAsync` releases it; `SleepAsync` and `SleepUntilAsync` are durable timers. The job holds no worker while it waits. ([guide](./developer-guide.md#steps-variables-signals-and-timers))
+- **Hangfire**: A job is one method call. A later stage is another job, started by `BackgroundJob.ContinueJobWith` or delayed with `BackgroundJob.Schedule`; its documentation does not describe a wait for an outside event inside a running job. ([docs](https://docs.hangfire.io/en/latest/background-methods/calling-methods-with-delay.html))
+- **Quartz.NET**: A continuation trigger (`StartAfter`) waits in the job store for its parent firing to end, and a trigger can be stored paused with a reason until someone resumes it. The wait is between jobs, not inside one. ([docs](https://www.quartz-scheduler.net/documentation/quartz-4.x/how-tos/job-continuations.html))
+- **Workflow Core**: The workflow definition calls `.WaitFor("event", ...)`, released by `host.PublishEvent`; `.Schedule` and `.Recur` cover time. ([docs](https://workflow-core.readthedocs.io/en/latest/external-events/))
+- **Elsa**: A blocking activity (`Delay`, `Timer`, `Event`, `UserTask`) or `context.CreateBookmark` leaves a bookmark, and the workflow resumes when the bookmark is triggered. ([docs](https://docs.elsaworkflows.io/guides/running-workflows/long-running-workflows))
+- **Temporal**: A `[WorkflowSignal]` method sets state and the workflow awaits `Workflow.WaitConditionAsync`; `Workflow.DelayAsync` is the durable timer. ([docs](https://docs.temporal.io/develop/dotnet/message-passing))
+- **Durable Task**: The orchestrator awaits `context.WaitForExternalEvent<T>("Approval")`, raised by a client, and `context.CreateTimer` is the durable timer. ([docs](https://learn.microsoft.com/azure/durable-task/common/durable-task-external-events))
+
+### A finished step's output, where it lives, and what a restart does with it
+
+- **Acta**: A row in `steps`, in the application's database, readable through `steps_view`. After a crash the handler runs again from its first line, and a step that succeeded returns its stored result without running its body. ([guide](./developer-guide.md#steps-variables-signals-and-timers))
+- **Hangfire**: A job's return value is kept with its succeeded state in the job storage, and since 1.8 a continuation can take its parent's result. An interrupted job is retried from the start. ([docs](https://docs.hangfire.io/en/latest/background-processing/processing-background-jobs.html))
+- **Quartz.NET**: The job's `JobDataMap` in the job store, saved after a run when the job asks for it; 4.x adds a run report to the execution history. ([docs](https://www.quartz-scheduler.net/documentation/quartz-4.x/tutorial/job-data-map.html))
+- **Workflow Core**: Steps map their output into the workflow's data object, which is persisted with the instance between steps in the configured provider. ([docs](https://workflow-core.readthedocs.io/en/latest/getting-started/))
+- **Elsa**: In the instance's persisted workflow state and execution log, in the configured store; interrupted instances are requeued on startup. ([docs](https://docs.elsaworkflows.io/operate/workflow-state-and-journal))
+- **Temporal**: An event in the workflow's event history, held by the Temporal Service. A worker replays the workflow code against that history, and a completed activity returns its recorded result. ([docs](https://docs.temporal.io/workflow-execution/event))
+- **Durable Task**: An event in the orchestration's history in the backend: the Durable Task Scheduler, or for Durable Functions also Azure Storage or SQL Server. The orchestrator replays against it. ([docs](https://learn.microsoft.com/azure/durable-task/common/durable-task-orchestrations))
+
+### Changing the code, while work is outstanding
+
+- **Acta**: New code takes effect the next time a job is entered, since the handler always runs from the top. Step, signal, timer, and child names are keys into stored state and keep their meaning, and stored payloads must stay readable. There is no recorded history the code has to replay consistently. ([guide](./developer-guide.md#contract-evolution))
+- **Hangfire**: A queued job names its method. Its documentation pages do not cover changing one; a post on hangfire.io advises adding a new method over changing the parameters, name, or type of one a queued job names. ([post](https://www.hangfire.io/blog/2014/05/10/are-your-methods-ready-to-run-in-background.html))
+- **Quartz.NET**: A job type that can no longer be loaded puts its trigger in an error state until the stored class name is corrected, and stored job data must stay readable by the new code. ([docs](https://www.quartz-scheduler.net/documentation/troubleshooting.html))
+- **Workflow Core**: A definition has an id and a version, and an instance is started for one version. Its documentation does not describe changing a definition under running instances. ([docs](https://workflow-core.readthedocs.io/en/latest/getting-started/))
+- **Elsa**: Definitions are versioned: publishing makes a new version and a running instance keeps its own. An alteration moves instances to a newer version. ([docs](https://docs.elsaworkflows.io/guides/running-workflows/workflow-definition-lifecycle))
+- **Temporal**: Workflow code must stay deterministic against the recorded history. A change that running executions would replay needs patching (`Workflow.Patched`), worker versioning, or a new workflow type. ([docs](https://docs.temporal.io/develop/dotnet/versioning))
+- **Durable Task**: Adding, removing, or reordering an orchestrator's calls breaks instances in flight. Orchestration versioning stamps each instance with a version the code branches on. ([docs](https://learn.microsoft.com/azure/durable-task/common/durable-orchestration-versioning))
+
+### A limit, shared by every worker, or one process's own
+
+- **Acta**: A concurrency key and its limit, a rate limit, and a lane are held in the database, so each one holds across every worker. ([guide](./developer-guide.md#ordering-and-exclusion))
+- **Hangfire**: The worker count is per server. Mutexes, semaphores, and rate windows are in the paid Hangfire Ace package, which keeps their state in the job storage. ([docs](https://docs.hangfire.io/en/latest/background-processing/throttling.html))
+- **Quartz.NET**: The thread count is per node. An execution group caps a category of work per node, or across the cluster when given a cluster limit; a start rate is a limiter added as job middleware. ([docs](https://www.quartz-scheduler.net/documentation/quartz-4.x/tutorial/execution-groups.html))
+- **Workflow Core**: Its documentation describes no concurrency or rate setting. ([docs](https://workflow-core.readthedocs.io/en/latest/multi-node-clusters/))
+- **Elsa**: Its documentation describes no cluster-wide cap on workflow concurrency; a distributed lock coordinates access to one instance across nodes. ([docs](https://docs.elsaworkflows.io/hosting/distributed-hosting))
+- **Temporal**: A worker's concurrency and rate options are its own. `MaxTaskQueueActivitiesPerSecond` is enforced by the service across every worker of a task queue. ([docs](https://docs.temporal.io/guides/rate-limit-downstream-apis))
+- **Durable Task**: Durable Functions' concurrency throttles apply to each worker. A Durable Task Scheduler task queue, a preview, has a throughput limit the scheduler enforces. ([docs](https://learn.microsoft.com/azure/durable-task/scheduler/durable-task-scheduler-task-queues))
+
+### Why work is not moving, how an operator finds out
+
+- **Acta**: `jobs.ExplainAsync`, `<app> jobs explain`, or the job's dashboard page says what the status means, what the job waits on, why the last attempt failed, and what an operator can do next. `jobs_view` and `events_view` answer the same from SQL. ([guide](./operator-guide.md#start-with-jobs-explain))
+- **Hangfire**: The dashboard shows a job's state history and its exception, and the monitoring API returns each state with its reason. ([docs](https://docs.hangfire.io/en/latest/configuration/using-dashboard.html))
+- **Quartz.NET**: The 4.x dashboard counts triggers by state, blocked, paused, and in error among them, and shows what is executing and the execution history. ([docs](https://www.quartz-scheduler.net/documentation/quartz-4.x/packages/dashboard.html))
+- **Workflow Core**: Its documentation describes no UI. A step's error reaches the host's `OnStepError` event and the logs, and an Elasticsearch index can be searched by status. ([docs](https://workflow-core.readthedocs.io/en/latest/error-handling/))
+- **Elsa**: Elsa Studio's instance viewer shows the status, incidents, and journal of an instance, and the REST API returns the same. ([docs](https://docs.elsaworkflows.io/operate/workflow-state-and-journal))
+- **Temporal**: The Web UI shows a workflow's event history, pending activities, and call stack, and `temporal workflow describe` and `show` give them from the CLI. ([docs](https://docs.temporal.io/web-ui))
+- **Durable Task**: The Durable Task Scheduler dashboard shows an instance's timeline and history; Durable Functions adds an HTTP status API. ([docs](https://learn.microsoft.com/azure/durable-task/scheduler/durable-task-scheduler-dashboard))
+
+### What runs beside the application, for more than one node
+
+- **Acta**: The application's own PostgreSQL or SQL Server database, and nothing else; one process can run on SQLite. ([support](./compatibility-and-support.md))
+- **Hangfire**: A job storage: SQL Server, or Redis with the paid Pro package. ([docs](https://docs.hangfire.io/en/latest/configuration/using-sql-server.html))
+- **Quartz.NET**: A shared database behind its ADO.NET job store, with clustering on and the nodes' clocks within a second of each other. ([docs](https://www.quartz-scheduler.net/documentation/quartz-4.x/tutorial/advanced-enterprise-features.html))
+- **Workflow Core**: A persistence database, plus a queue provider and a distributed lock manager. ([docs](https://workflow-core.readthedocs.io/en/latest/multi-node-clusters/))
+- **Elsa**: A database, plus a distributed lock provider, a message bus for cache invalidation, and clustered scheduling. Its designer is optional. ([docs](https://docs.elsaworkflows.io/guides/clustering))
+- **Temporal**: A Temporal Service: self-hosted with its persistence and visibility stores, or Temporal Cloud. ([docs](https://docs.temporal.io/temporal-service/persistence))
+- **Durable Task**: Durable Functions runs on Azure Functions with a storage account and a state backend. The standalone SDKs run anywhere and keep their state in the Durable Task Scheduler, a managed Azure service. ([docs](https://learn.microsoft.com/azure/durable-task/common/durable-task-storage-providers))
+
+If an answer here is wrong or has gone out of date, that is a defect in this page: open an issue.
+
 Teams usually move for one of these reasons:
 - We have several competing ways to run background work.
 - Nobody can explain what happened to last night's job.

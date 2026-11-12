@@ -71,6 +71,7 @@
       <nav class="groups" aria-label="Sections on this page">
         <a href="#kind">By kind of work</a>
         <a href="#tools">If you already run one</a>
+        <a href="#questions">Six questions</a>
         <a href="#fit">Signs it fits</a>
       </nav>
     </header>
@@ -153,6 +154,84 @@
         </div>
       </div>
       <p class="hint">Each row describes the project as its own documentation did in November 2026: Quartz.NET at 4.x, and TickerQ at 5.x, then a preview.</p>
+
+      <h2 class="ref-group" id="questions">The same six questions, asked of each</h2>
+      <p class="hint">The table above says when each tool is the right one. Here the same six questions are asked of Acta and of six of them, and each answer is the one the project's own documentation gives, with the page it comes from, as it read in November 2026. Where a project's documentation is silent, the answer says so.</p>
+      <div class="vs">
+        <div class="vs-row" id="q-wait">
+          <div class="who"><b>Waiting hours or days</b><span>for something outside the job</span></div>
+          <div class="why">
+            <p><b>Acta</b> The handler awaits <code>ctx.WaitSignalAsync&lt;Approval&gt;("approval")</code>, and <code>jobs.RaiseSignalAsync</code> releases it; <code>SleepAsync</code> and <code>SleepUntilAsync</code> are durable timers. The job holds no worker while it waits. <a href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#steps-variables-signals-and-timers">guide</a></p>
+            <p><b>Hangfire</b> A job is one method call. A later stage is another job, started by <code>BackgroundJob.ContinueJobWith</code> or delayed with <code>BackgroundJob.Schedule</code>; its documentation does not describe a wait for an outside event inside a running job. <a href="https://docs.hangfire.io/en/latest/background-methods/calling-methods-with-delay.html">docs</a></p>
+            <p><b>Quartz.NET</b> A continuation trigger (<code>StartAfter</code>) waits in the job store for its parent firing to end, and a trigger can be stored paused with a reason until someone resumes it. The wait is between jobs, not inside one. <a href="https://www.quartz-scheduler.net/documentation/quartz-4.x/how-tos/job-continuations.html">docs</a></p>
+            <p><b>Workflow Core</b> The workflow definition calls <code>.WaitFor("event", ...)</code>, released by <code>host.PublishEvent</code>; <code>.Schedule</code> and <code>.Recur</code> cover time. <a href="https://workflow-core.readthedocs.io/en/latest/external-events/">docs</a></p>
+            <p><b>Elsa</b> A blocking activity (<code>Delay</code>, <code>Timer</code>, <code>Event</code>, <code>UserTask</code>) or <code>context.CreateBookmark</code> leaves a bookmark, and the workflow resumes when the bookmark is triggered. <a href="https://docs.elsaworkflows.io/guides/running-workflows/long-running-workflows">docs</a></p>
+            <p><b>Temporal</b> A <code>[WorkflowSignal]</code> method sets state and the workflow awaits <code>Workflow.WaitConditionAsync</code>; <code>Workflow.DelayAsync</code> is the durable timer. <a href="https://docs.temporal.io/develop/dotnet/message-passing">docs</a></p>
+            <p><b>Durable Task</b> The orchestrator awaits <code>context.WaitForExternalEvent&lt;T&gt;("Approval")</code>, raised by a client, and <code>context.CreateTimer</code> is the durable timer. <a href="https://learn.microsoft.com/azure/durable-task/common/durable-task-external-events">docs</a></p>
+          </div>
+        </div>
+        <div class="vs-row" id="q-output">
+          <div class="who"><b>A finished step's output</b><span>where it lives, and what a restart does with it</span></div>
+          <div class="why">
+            <p><b>Acta</b> A row in <code>steps</code>, in the application's database, readable through <code>steps_view</code>. After a crash the handler runs again from its first line, and a step that succeeded returns its stored result without running its body. <a href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#steps-variables-signals-and-timers">guide</a></p>
+            <p><b>Hangfire</b> A job's return value is kept with its succeeded state in the job storage, and since 1.8 a continuation can take its parent's result. An interrupted job is retried from the start. <a href="https://docs.hangfire.io/en/latest/background-processing/processing-background-jobs.html">docs</a></p>
+            <p><b>Quartz.NET</b> The job's <code>JobDataMap</code> in the job store, saved after a run when the job asks for it; 4.x adds a run report to the execution history. <a href="https://www.quartz-scheduler.net/documentation/quartz-4.x/tutorial/job-data-map.html">docs</a></p>
+            <p><b>Workflow Core</b> Steps map their output into the workflow's data object, which is persisted with the instance between steps in the configured provider. <a href="https://workflow-core.readthedocs.io/en/latest/getting-started/">docs</a></p>
+            <p><b>Elsa</b> In the instance's persisted workflow state and execution log, in the configured store; interrupted instances are requeued on startup. <a href="https://docs.elsaworkflows.io/operate/workflow-state-and-journal">docs</a></p>
+            <p><b>Temporal</b> An event in the workflow's event history, held by the Temporal Service. A worker replays the workflow code against that history, and a completed activity returns its recorded result. <a href="https://docs.temporal.io/workflow-execution/event">docs</a></p>
+            <p><b>Durable Task</b> An event in the orchestration's history in the backend: the Durable Task Scheduler, or for Durable Functions also Azure Storage or SQL Server. The orchestrator replays against it. <a href="https://learn.microsoft.com/azure/durable-task/common/durable-task-orchestrations">docs</a></p>
+          </div>
+        </div>
+        <div class="vs-row" id="q-change">
+          <div class="who"><b>Changing the code</b><span>while work is outstanding</span></div>
+          <div class="why">
+            <p><b>Acta</b> New code takes effect the next time a job is entered, since the handler always runs from the top. Step, signal, timer, and child names are keys into stored state and keep their meaning, and stored payloads must stay readable. There is no recorded history the code has to replay consistently. <a href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#contract-evolution">guide</a></p>
+            <p><b>Hangfire</b> A queued job names its method. Its documentation pages do not cover changing one; a post on hangfire.io advises adding a new method over changing the parameters, name, or type of one a queued job names. <a href="https://www.hangfire.io/blog/2014/05/10/are-your-methods-ready-to-run-in-background.html">post</a></p>
+            <p><b>Quartz.NET</b> A job type that can no longer be loaded puts its trigger in an error state until the stored class name is corrected, and stored job data must stay readable by the new code. <a href="https://www.quartz-scheduler.net/documentation/troubleshooting.html">docs</a></p>
+            <p><b>Workflow Core</b> A definition has an id and a version, and an instance is started for one version. Its documentation does not describe changing a definition under running instances. <a href="https://workflow-core.readthedocs.io/en/latest/getting-started/">docs</a></p>
+            <p><b>Elsa</b> Definitions are versioned: publishing makes a new version and a running instance keeps its own. An alteration moves instances to a newer version. <a href="https://docs.elsaworkflows.io/guides/running-workflows/workflow-definition-lifecycle">docs</a></p>
+            <p><b>Temporal</b> Workflow code must stay deterministic against the recorded history. A change that running executions would replay needs patching (<code>Workflow.Patched</code>), worker versioning, or a new workflow type. <a href="https://docs.temporal.io/develop/dotnet/versioning">docs</a></p>
+            <p><b>Durable Task</b> Adding, removing, or reordering an orchestrator's calls breaks instances in flight. Orchestration versioning stamps each instance with a version the code branches on. <a href="https://learn.microsoft.com/azure/durable-task/common/durable-orchestration-versioning">docs</a></p>
+          </div>
+        </div>
+        <div class="vs-row" id="q-limit">
+          <div class="who"><b>A limit</b><span>shared by every worker, or one process's own</span></div>
+          <div class="why">
+            <p><b>Acta</b> A concurrency key and its limit, a rate limit, and a lane are held in the database, so each one holds across every worker. <a href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#ordering-and-exclusion">guide</a></p>
+            <p><b>Hangfire</b> The worker count is per server. Mutexes, semaphores, and rate windows are in the paid Hangfire Ace package, which keeps their state in the job storage. <a href="https://docs.hangfire.io/en/latest/background-processing/throttling.html">docs</a></p>
+            <p><b>Quartz.NET</b> The thread count is per node. An execution group caps a category of work per node, or across the cluster when given a cluster limit; a start rate is a limiter added as job middleware. <a href="https://www.quartz-scheduler.net/documentation/quartz-4.x/tutorial/execution-groups.html">docs</a></p>
+            <p><b>Workflow Core</b> Its documentation describes no concurrency or rate setting. <a href="https://workflow-core.readthedocs.io/en/latest/multi-node-clusters/">docs</a></p>
+            <p><b>Elsa</b> Its documentation describes no cluster-wide cap on workflow concurrency; a distributed lock coordinates access to one instance across nodes. <a href="https://docs.elsaworkflows.io/hosting/distributed-hosting">docs</a></p>
+            <p><b>Temporal</b> A worker's concurrency and rate options are its own. <code>MaxTaskQueueActivitiesPerSecond</code> is enforced by the service across every worker of a task queue. <a href="https://docs.temporal.io/guides/rate-limit-downstream-apis">docs</a></p>
+            <p><b>Durable Task</b> Durable Functions' concurrency throttles apply to each worker. A Durable Task Scheduler task queue, a preview, has a throughput limit the scheduler enforces. <a href="https://learn.microsoft.com/azure/durable-task/scheduler/durable-task-scheduler-task-queues">docs</a></p>
+          </div>
+        </div>
+        <div class="vs-row" id="q-blocked">
+          <div class="who"><b>Why work is not moving</b><span>how an operator finds out</span></div>
+          <div class="why">
+            <p><b>Acta</b> <code>jobs.ExplainAsync</code>, <code>&lt;app&gt; jobs explain</code>, or the job's dashboard page says what the status means, what the job waits on, why the last attempt failed, and what an operator can do next. <code>jobs_view</code> and <code>events_view</code> answer the same from SQL. <a href="https://github.com/acta-dotnet/acta/blob/main/docs/operator-guide.md#start-with-jobs-explain">guide</a></p>
+            <p><b>Hangfire</b> The dashboard shows a job's state history and its exception, and the monitoring API returns each state with its reason. <a href="https://docs.hangfire.io/en/latest/configuration/using-dashboard.html">docs</a></p>
+            <p><b>Quartz.NET</b> The 4.x dashboard counts triggers by state, blocked, paused, and in error among them, and shows what is executing and the execution history. <a href="https://www.quartz-scheduler.net/documentation/quartz-4.x/packages/dashboard.html">docs</a></p>
+            <p><b>Workflow Core</b> Its documentation describes no UI. A step's error reaches the host's <code>OnStepError</code> event and the logs, and an Elasticsearch index can be searched by status. <a href="https://workflow-core.readthedocs.io/en/latest/error-handling/">docs</a></p>
+            <p><b>Elsa</b> Elsa Studio's instance viewer shows the status, incidents, and journal of an instance, and the REST API returns the same. <a href="https://docs.elsaworkflows.io/operate/workflow-state-and-journal">docs</a></p>
+            <p><b>Temporal</b> The Web UI shows a workflow's event history, pending activities, and call stack, and <code>temporal workflow describe</code> and <code>show</code> give them from the CLI. <a href="https://docs.temporal.io/web-ui">docs</a></p>
+            <p><b>Durable Task</b> The Durable Task Scheduler dashboard shows an instance's timeline and history; Durable Functions adds an HTTP status API. <a href="https://learn.microsoft.com/azure/durable-task/scheduler/durable-task-scheduler-dashboard">docs</a></p>
+          </div>
+        </div>
+        <div class="vs-row" id="q-infra">
+          <div class="who"><b>What runs beside the application</b><span>for more than one node</span></div>
+          <div class="why">
+            <p><b>Acta</b> The application's own PostgreSQL or SQL Server database, and nothing else; one process can run on SQLite. <a href="https://github.com/acta-dotnet/acta/blob/main/docs/compatibility-and-support.md">support</a></p>
+            <p><b>Hangfire</b> A job storage: SQL Server, or Redis with the paid Pro package. <a href="https://docs.hangfire.io/en/latest/configuration/using-sql-server.html">docs</a></p>
+            <p><b>Quartz.NET</b> A shared database behind its ADO.NET job store, with clustering on and the nodes' clocks within a second of each other. <a href="https://www.quartz-scheduler.net/documentation/quartz-4.x/tutorial/advanced-enterprise-features.html">docs</a></p>
+            <p><b>Workflow Core</b> A persistence database, plus a queue provider and a distributed lock manager. <a href="https://workflow-core.readthedocs.io/en/latest/multi-node-clusters/">docs</a></p>
+            <p><b>Elsa</b> A database, plus a distributed lock provider, a message bus for cache invalidation, and clustered scheduling. Its designer is optional. <a href="https://docs.elsaworkflows.io/guides/clustering">docs</a></p>
+            <p><b>Temporal</b> A Temporal Service: self-hosted with its persistence and visibility stores, or Temporal Cloud. <a href="https://docs.temporal.io/temporal-service/persistence">docs</a></p>
+            <p><b>Durable Task</b> Durable Functions runs on Azure Functions with a storage account and a state backend. The standalone SDKs run anywhere and keep their state in the Durable Task Scheduler, a managed Azure service. <a href="https://learn.microsoft.com/azure/durable-task/common/durable-task-storage-providers">docs</a></p>
+          </div>
+        </div>
+      </div>
+      <p class="hint">If an answer here is wrong or has gone out of date, that is a defect in this page: <a href="https://github.com/acta-dotnet/acta/issues">open an issue</a>.</p>
 
       <h2 class="ref-group" id="fit">Signs that Acta fits, and signs that it does not</h2>
       <div class="facts two">

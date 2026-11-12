@@ -257,6 +257,7 @@ h2 { font-size: clamp(1.9rem, 3vw, 2.75rem); max-width: 32ch; }
 .vs-row .who span { font-family: var(--mono); font-size: var(--label); letter-spacing: 0.14em; text-transform: uppercase; color: var(--faint); }
 .vs-row .why { color: var(--muted); font-size: 1.02rem; align-self: center; max-width: 78ch; }
 .vs-row .why b { color: var(--text); font-weight: 600; }
+.vs-row .why a { color: var(--verdi); text-underline-offset: 3px; }
 @media (max-width: 860px) { .vs-row { grid-template-columns: 1fr; gap: 0.4rem; } }
 .ref { margin-top: 2.4rem; }
 .ref-group { display: flex; align-items: center; gap: 1.1rem; margin: 2.6rem 0 0.4rem; font-family: var(--serif); font-weight: 500; font-size: 1.45rem; }
