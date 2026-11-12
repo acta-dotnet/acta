@@ -109,10 +109,17 @@ public sealed class AlertDeliveryFailureSpec : ActaStorageTestBase<ConformanceFi
         await RaiseAlertAsync(Db, "ch-log", jobId: null, ct);
 
         // The send is given up at its limit, which is already more than this pass may spend, so the pass ends there.
+        // A pass that spent its millisecond before its first send sent nothing, and is run again.
         var budget = new AlertDeliveryBudget(Send: TimeSpan.FromMilliseconds(20), Pass: TimeSpan.FromMilliseconds(1));
-        await RunDeliveryAsync(maxRetries: 5, ct, budget);
-
-        var first = await ReadAlertsAsync(TestNamespaceId, ct);
+        var first = await SpecWaits.RepeatUntilAsync(
+            async () =>
+            {
+                await RunDeliveryAsync(maxRetries: 5, ct, budget);
+                return await ReadAlertsAsync(TestNamespaceId, ct);
+            },
+            alerts => alerts.Any(a => a.ChannelName == "ch-hang" && a.RetryCount > 0),
+            ct
+        );
         var hung = Assert.Single(first, a => a.ChannelName == "ch-hang");
         Assert.Equal((AlertDeliveryStatusCode.RetryAfter, 1), (hung.DeliveryStatusCode, hung.RetryCount));
         Assert.Equal(AlertDeliveryStatusCode.Pending, Assert.Single(first, a => a.ChannelName == "ch-log").DeliveryStatusCode);
