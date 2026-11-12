@@ -74,18 +74,17 @@ A short way to describe the feature might be: **Replay the plan, reuse the work.
 
 ## Contract-evolution checks
 
-Acta could add a CI and command-line tool that compares the current generated manifest with a
-committed baseline or a deployed database. Instead of merely reporting that something changed, it
-would explain whether the change is compatible, risky, or breaking. It could show how many queued or
-waiting jobs still depend on the old contract and recommend keeping the old handler or introducing a
-new job version.
+`jobs deploy` records a build's version in a namespace, and a worker refuses to start in a namespace
+its build has not deployed in. Neither answers the real deployment question: "Can the work already in
+this database still run after this release?"
 
-This would fill the gap between the current definition-level drift guard and the real deployment
-question: "Can the work already in this database still run after this release?" Declarative flows
-would make the report even more useful because the tool could compare their node names, branches,
-signals, delays, and data connections.
+A dry run of the deploy, on the command line and in CI, could compare the build's manifest with the
+deployed definitions and say whether each change is compatible, risky, or breaking. It could count the
+queued and waiting jobs that still depend on the old contract and recommend keeping the old handler or
+introducing a new job version. Declarative flows would make the report more useful, because the tool
+could compare their node names, branches, signals, delays, and data connections.
 
-## More precise authorization and payload redaction
+## A read policy for payloads
 
 At the moment, access to the read surface effectively means access to every inline job input, result,
 and checkpoint payload. That is simple, but it will be too broad for some production environments.
@@ -98,7 +97,10 @@ The typed operations API, HTTP API, and dashboard would all follow the same deci
 
 ## Schedules created by operators
 
-Deferred beyond rc7; see [runtime/operator-created schedules](PLAN.md#runtimeoperator-created-schedules). The rc7 identity/usability proposal is specified in [SCHEDULING.md](SCHEDULING.md).
+Every schedule is declared in code and written by a deploy. An operator can pause, resume, trigger,
+and preview a schedule, and cannot create one. A create operation would let an operator add a schedule
+to a deployed job at runtime. It needs a rule for the next deploy, which today orphans a schedule the
+build does not declare.
 
 ## Application actions over HTTP
 
@@ -120,22 +122,6 @@ handle for a repeat, reject the same key used for different work, and require an
 a failed operation. It promises a stable operation identity, never that an external side effect
 happens exactly once.
 
-## A durability-aware development loop
-
-The development tools could make durability visible instead of only described: run a `[Job]`
-handler from the editor with an input form generated from its contract, stop the worker after a
-named step and restart it to show which step results were reused, and turn that run into a test
-skeleton with the input and the interruption already in place. The test host and the dashboard
-hold most of the pieces; the work is connecting them.
-
-## Durable debounce
-
-"After edits stop arriving for five seconds, reindex this document" is a common need that today
-takes delayed jobs, deduplication keys, and care. A `DebounceAsync(key, call, quietFor)` could fold
-repeated requests into one pending job, let a running execution keep its input while one successor
-waits, and survive restarts with its due time. It is new persistence behavior, not a renamed
-`ScheduleAsync`.
-
 ## Typed human interaction
 
 An approval step could be one call, `ctx.RequestAsync<Approval>("approve-export", request, timeout)`,
@@ -145,108 +131,29 @@ rule for which response wins.
 
 ## An accessible and responsive dashboard
 
-The dashboard should work well for operators regardless of how they navigate it or how large their
-screen is. Accessibility and responsiveness should be treated as part of every dashboard feature,
-not as a polish pass after the screens are finished.
+The target is WCAG 2.2 AA. The dashboard's rules for keyboard use, focus, reduced motion, narrow
+screens, and larger text are in [DESIGN.md](src/Acta.Dashboard/DESIGN.md), and the smoke suite checks
+narrow viewports, large text, and keyboard inspection. Two things are missing:
 
-The accessibility target should be WCAG 2.2 AA. Every page and control should be usable from the
-keyboard, with a logical tab order, visible focus, skip links, semantic headings, and clear labels.
-Dialogs need reliable focus trapping and restoration. Status, severity, and job outcomes must never
-be communicated by colour alone. Live updates should not unexpectedly move focus or cause a screen
-reader to announce a constantly changing page.
+- An automated accessibility scan of every screen in each theme, run with the smoke suite.
+- Styles for forced colours and high-contrast preferences.
 
-Tables, timelines, charts, and flow diagrams need accessible alternatives. Charts should include
-exact values, useful labels, and an equivalent table or list. The flow diagram should expose the
-same nodes, connections, and runtime states as structured text. Tooltips must also work through focus
-and touch rather than requiring a mouse hover. The interface should respect reduced-motion and
-high-contrast preferences and remain usable when text is enlarged or the page is zoomed substantially.
+A chart or a flow diagram, when the dashboard gains one, carries the same values as a table or as
+structured text. Manual passes with a screen reader, zoom, and touch stay necessary, because automation
+cannot judge whether an operator workflow makes sense.
 
-Responsive design should support phones and tablets as well as wide operator screens. On narrow
-screens, dense tables can keep the primary identity and status visible while moving secondary fields
-into an expandable row or detail sheet. Filters can become a drawer, navigation can collapse without
-hiding the current location, and actions need touch-friendly targets. Important confirmations should
-remain deliberate on mobile, especially for cancel, restart, purge, and batch operations.
+## Pipeline counts the overview lacks
 
-Responsiveness also means handling content rather than only viewport width. Long job names, actor
-keys, error messages, translated labels, and large counts should wrap or truncate predictably without
-hiding the underlying value. The dashboard should remain understandable at 200% and 400% zoom and
-should avoid horizontal scrolling at the page level; a genuinely wide data table can have its own
-contained scroll area.
+The overview counts Ready, Executing, and Failed jobs, and each count opens the job list with that
+filter applied. Three additions would show the whole live population:
 
-This work needs repeatable checks. Automated accessibility scans, keyboard-driven browser tests,
-responsive viewport tests, and visual contrast checks can catch common regressions in CI. Periodic
-manual testing with screen readers, zoom, forced colours, reduced motion, and touch devices is still
-necessary because automation cannot judge whether an operator workflow actually makes sense.
+- Counts for Blocked, Suspended, and Paused jobs, each opening its filtered list.
+- Ready split into work that is due now and work scheduled for later, so a healthy collection of delayed jobs does not look like a backlog that workers failed to drain.
+- A breakdown by job definition that shows the largest contributors, groups the remainder, and opens each definition's page.
 
-## Keep the dashboard build small
-
-The dashboard is embedded in `Acta.Dashboard`, so its size affects more than the first page load. It
-also contributes to the assembly and NuGet package carried by every application that references the
-dashboard. The production build should therefore have an explicit goal of staying small rather than
-being allowed to grow unnoticed as new screens, charts, and flow diagrams arrive.
-
-Vite already minifies the production build, but the current output is mostly one JavaScript file.
-Larger features can be loaded only when their route or panel is opened. A definition chart, flow
-renderer, or payload editor does not need to be part of the initial
-Overview download. Tree shaking, small dependency choices, and route-level splitting should keep the
-common path light while still allowing richer operator screens.
-
-Network compression and package size need to be measured separately. Brotli or gzip can make assets
-much smaller over HTTP, but embedding both compressed and uncompressed copies can make the shipped
-assembly larger. Acta should either cooperate cleanly with ASP.NET Core response compression or serve
-carefully chosen pre-compressed assets with the correct content encoding, cache, and `Vary` headers.
-It should not keep several copies merely to make one size number look better.
-
-The dashboard should remain self-contained. It should not move scripts, fonts, icons, or chart code
-to a public CDN just to reduce the package measurement. Local operation, strict security headers,
-and the ability to use the dashboard without internet access are more important than an artificially
-small embedded bundle.
-
-A CI size budget could report the raw, Brotli, and gzip sizes of each asset, the total embedded
-dashboard contribution, and the JavaScript needed for the first route. It should fail on a meaningful
-regression unless the increase is reviewed. Source maps and test-only code should never enter the
-package, and long-lived hashed assets should keep their existing immutable caching behavior.
-
-The size target must not work against accessibility. Semantic markup, keyboard behavior, readable
-labels, reduced-motion support, and accessible chart alternatives are product behavior, not optional
-bytes to remove. The goal is a minimal implementation of the complete dashboard, not a smaller but
-less usable dashboard.
-
-## An interactive view of the job pipeline
-
-The dashboard could show how many jobs are currently moving through the pipeline in one compact,
-interactive view. A pie or doughnut chart could divide the live population into Ready, Blocked,
-Suspended, Paused, and Executing jobs, with the total number of non-terminal jobs in the middle.
-
-Every section should lead somewhere useful. Clicking the Ready section would open the jobs page with
-the Ready filter already applied. Clicking Suspended would show the jobs waiting on signals, children,
-or timers. Executing would open the in-flight jobs so an operator can see their workers and leases.
-The chart should behave as navigation into the existing job list, not as a decorative summary.
-
-A second breakdown could show which job definitions make up the pipeline. Selecting a definition
-would open its definition page, where the operator could see its configuration and performance
-history, with another action to open all live jobs for that definition. When there are many
-definitions, the chart should show the largest contributors and group the remainder under "Other"
-rather than producing dozens of unreadable slices.
-
-The view should follow the dashboard's current namespace and tenant filters, and those filters should
-carry through when the user drills into a slice. It would also be useful to split Ready jobs into
-work that is due now and work deliberately scheduled for later. Otherwise a healthy collection of
-delayed jobs can look like a backlog that workers have failed to drain.
-
-Recurring slots and `sys.*` jobs need explicit treatment because a small number of permanent system
-or recurring rows can distort the meaning of the pipeline. They could be excluded by default with a
-visible toggle, or shown as their own category. Whatever rule is chosen should be stated next to the
-chart so the total is understandable.
-
-The graphical view should have an equivalent count table and should not rely on colour alone. That
-makes the information accessible, gives exact values on small screens, and still leaves the chart as
-the fast visual entry point.
-
-The first version can be a current snapshot read from the jobs and jobs_state tables. A later version
-could add a pipeline-depth graph over time, but that is a different feature: it would need to derive
-historical counts from events or maintain disposable rollups rather than pretending the current rows
-contain history.
+Permanent and `sys.*` jobs need an explicit rule, stated beside the counts, because a few permanent rows
+distort the total. A pipeline-depth graph over time is a different feature: it would derive historical
+counts from events or keep disposable rollups, because the current rows hold no history.
 
 ## Performance history for every job definition
 
@@ -298,36 +205,6 @@ execution attempt should be represented separately, with links back to the enque
 and any earlier attempt. That would give operators an accurate trace while still showing the complete
 relationship between the pieces of work. A live flow diagram could then link directly to the relevant
 external traces.
-
-## Hardening the SQL-coordinated model
-
-Marko (2026-10-04): Acta's advantage is that durable execution and business data share one
-transactional database. The next step is to make that model boringly reliable under real production
-failures, not to grow it toward Temporal: fewer moving parts, transactional job creation, predictable
-recovery, and confidence that worker crashes, database failovers, rolling deploys, and ambiguous
-commits cannot corrupt execution state.
-
-Five strands:
-
-- Self-healing recovery: every state a crash can strand has a check that repairs it without an operator.
-- Strict lease fencing: a worker whose lease expired cannot complete, checkpoint, or re-arm the execution it lost.
-- Frozen storage contracts: the 1.0 schema, routine signatures, and persisted vocabulary change only through a deliberate migration.
-- Deterministic crash and failover tests: each critical transition (claim, complete, retry, re-arm, signal, child latch, outbox relay) runs with a crash injected before and after its commit, and with the commit's outcome unknown to the caller.
-- Load protection: retries, reclaims, and polling back off and stay capped, so a slow database does not turn into a retry storm, and a worker never claims more than it can run.
-
-Some of this exists already: the rolling-deploy rules, forward-only migrations, completion retries that
-act as backpressure, and the conformance suites on three providers. The first step is an audit that
-maps each strand to what already holds and the test that proves it, and lists the gaps. The ambiguous
-commit, where a completion's commit succeeded but its acknowledgement was lost, is the case most likely
-to need new tests.
-
-## Verify the migration recipe for consumers
-
-Verify, end to end, the recipe an application team follows to manage Acta's migrations in their own app:
-how the emitted `M..._init` and later scripts reach their database, who applies them (the app at start,
-a DBA, a pipeline), how a rolling deploy stays safe, and how the team tells a pending migration from an
-applied one. Write it so an LLM reading llms.txt or the docs gets it right on the first try: one path,
-exact commands, no choices left implicit.
 
 ## Registration that writes declarations only
 

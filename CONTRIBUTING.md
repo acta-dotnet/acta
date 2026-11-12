@@ -304,7 +304,7 @@ hand-written page goes in `docs/`. A stale contract test names its own regenerat
 | `docs/reference/operations.md` | `ACTA_EMIT_DOCS=1 dotnet test tests/Acta.Tests --filter OperationsIndexTests` |
 | `docs/reference/openapi.json` | `ACTA_EMIT_OPENAPI=1 dotnet test tests/Acta.Tests --filter OpenApiContractTests` |
 | `tests/Acta.Tests/Contracts/PublicApiSurface.approved.txt` | `ACTA_EMIT_API=1 dotnet test tests/Acta.Tests --filter PublicApiContractTests` |
-| `docs/reference/benchmark.md` and `site/benchmark.html` | `acta-verify publish <run-directory> --to docs/reference/benchmark.md` |
+| `docs/reference/benchmark.md` and `site/benchmark.html` | `acta-verify publish <run-directory> --to docs/reference/benchmark.md`; the title and the lines above the verdict are then written by hand, and publishing the record onto itself renders the site page again |
 | The persisted-code hash in `PersistedCodeContractTests` | re-pin by hand |
 
 `dotnet run --project tools/Acta.Emit -- check` verifies the Emit-owned files. A regenerated baseline
@@ -868,6 +868,7 @@ dotnet run -c Release --project tools/Acta.Verify -- release --db all --output a
 - `dotnet run` gives the managed build, which covers SQL Server; a native publish covers only PostgreSQL and SQLite.
 - The run passes when it exits 0 for the requested scope. Every trial's ledger is checked against the certification checks, and the chaos scenario is the certification run under the shipped lease timings. A `quick` or `check` verdict rests on correctness (safety, liveness, coverage, the ledger checks, and chaos) and reports performance as information; `release` also gates on measurement.
 - The release notes' evidence paragraph names the suite and the scope that ran, and any resume.
+- It ends with the release record, so a reader can follow a claim back to what ran: the tag commit; the tree the run and the gates ran on, when its commit is not the tag's; each gate with its result and the CI runs; the bundle's run id and the `result.json` line of its `checksums.sha256`; each database server's version, the `version` in the bundle's `histories/*-settings.json`; and that each package's nuspec names the tag commit. It carries no machine name, no local path, and no package hash: nuget.org signs a package on arrival, so the bytes it serves are not the bytes that were packed.
 - Compare with the previous tag's bundle from the same machine: `acta-verify compare <previous> <candidate>`. Rerun a scenario that reads as a regression on both trees, back to back, twice, and report only a gap that survives.
 - Publish the report in B with `acta-verify publish <run-directory> --to docs/reference/benchmark.md`, then remove the run's leftovers with `acta-verify cleanup --yes`.
 

@@ -8,6 +8,11 @@ Not tagged yet. The schema is rc.10's: nothing is reprovisioned.
 
 **Build a draft's definition as `CalendarDefinitionDocument` in a client generated from the OpenAPI document**: `definition` on the calendar draft save is that schema, where it was `CalendarDefinition`, which the calendar reads keep. It holds the same members and, at the root, `"$schema"`. Nothing on the wire changed, so a client generated from an earlier document keeps working.
 
+### Additions
+
+- `414-dashboard-sign-in`, a concept rung that puts the dashboard and the API behind the host's own cookie sign-in, with the host's three roles behind the four permission policies. It signs in as each role through the form on start and prints what the server answered.
+- `acta-verify concepts` runs every concept rung, one at a time, and checks that each prints the lines `concepts/concept-runs.json` says show its idea. It runs before a release, not in CI.
+
 ### Fixes
 
 - The OpenAPI document refused a calendar draft the server takes. A definition kept in a file may name its JSON Schema in a root `"$schema"` member, which the server reads and does not store, and the document typed the draft's `definition` as `CalendarDefinition`, which declares no such member, so a client that checks its request against the document could not send the file as it stood. The draft's `definition` is `CalendarDefinitionDocument`: every member of a definition and, at the root alone, `$schema`. An operand written inline takes none, and a read answers the stored definition without it. A test holds one set of accepted definitions to the compiler, the published schema file, and the draft request.
@@ -19,6 +24,8 @@ Not tagged yet. The schema is rc.10's: nothing is reprovisioned.
 - In the dashboard's lists a system job is told by its `sys.` prefix in the muted tone. The badge after the name sat at a different place on each row and was the first thing a narrow column cut off.
 - The conformance reference described the result read as returning null before completion, which is the raw read alone. Its contract and guarantees state the three reads, none of which waits: with no result, or no job, the raw `GetResultAsync` answers null, the typed `TryGetResultAsync` answers not found, and the typed `GetResultAsync` throws, saying which it was.
 - A job cancelled while its attempt ran, whose handler then threw, was still announced as retrying: `threw on attempt (3 of 10); the job retries in 0ms`. The job stayed cancelled, and no line said so. One now follows: `Job (process-report) (job_...) was cancelled, so its failed attempt leads to no retry.`
+- A rejected restart, reschedule or schedule trigger in the dashboard said the status did not allow it, which is one cause of several. Each sentence names what can refuse its verb: a restart also the outstanding firing and the schedule, a purge the outstanding firing, a reschedule the retired definition and the suspended namespace, a schedule pause its end, a trigger what holds the schedule.
+- Two concept rungs had fallen behind the engine. `202-durable-step` selected a column `steps_view` no longer has and threw after printing its lines, in rc.10 too. `406-automatic-failure-alerts` waited 75 seconds for an alert that arrives one to two minutes after the failure, and usually reported none.
 
 ## 1.0.0-rc.10
 
