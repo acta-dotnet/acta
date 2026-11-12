@@ -306,7 +306,7 @@ internal sealed class CliCommandRunner(
                 var restart = await jobs.RestartAsync(JobLookup.ById(jobId), "cli debug", ct: ct);
                 if (restart.Action != ControlAction.Applied)
                 {
-                    var why = restart.Action == ControlAction.Rejected ? " Its status or its lane does not allow a restart." : "";
+                    var why = restart.Action == ControlAction.Rejected ? " Its status, lane, firing or schedule refuses a restart." : "";
                     var status = restart.Status is { } s ? s.Code : "(none)";
                     await error.WriteLineAsync(
                         $"could not make job {jobRef} ready: {CliOutput.Code(restart.Action)} (status {status}).{why}"

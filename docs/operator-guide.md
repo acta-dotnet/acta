@@ -259,7 +259,7 @@ Five rules the table cannot show:
   failed job, then `restart` it. Only Executing rejects, because that is the state where a worker
   may already have read the payload. A job that stored no input has nothing to
   amend and answers `409` from the endpoint before the routine is reached.
-- **`restart` and `resume` have three more refusals.** A finished laned job is not restarted while an
+- **`restart` has three more refusals.** A finished laned job is not restarted while an
   unfinished ancestor or descendant sits in its lane, a permanent job whose firing is still
   outstanding is not restarted around it, and a finished per-occurrence root is not restarted into a
   schedule that is full or gone. A restarted or resumed permanent job with no firing outstanding

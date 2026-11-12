@@ -10,9 +10,12 @@ export function jobControlMessage(verb: string, action: string): string {
     case 'applied':
       return `${title(verb)} applied.`;
     case 'rejected':
-      if (verb === 'restart') return "Restart rejected: the job's status or its lane does not allow it.";
+      if (verb === 'restart')
+        return 'Restart rejected: the job is executing, a firing is still outstanding, an unfinished ancestor or descendant sits in its lane, or its schedule is full, orphaned or retired.';
       if (verb === 'purge')
-        return "Purge rejected: the job's status, its parent or child jobs, or a live schedule keeps it, or sys.alerts has not processed its latest events yet.";
+        return "Purge rejected: the job's status, its parent or child jobs, a live schedule or an outstanding firing keeps it, or sys.alerts has not processed its latest events yet.";
+      if (verb === 'reschedule')
+        return "Reschedule rejected: the job's status does not allow it, its definition is retired, or its namespace is suspended.";
       return `${title(verb)} rejected: the job's current status does not allow it.`;
     default:
       return 'Job not found.';
@@ -20,15 +23,14 @@ export function jobControlMessage(verb: string, action: string): string {
 }
 
 // Schedule verbs at schedules/{ns}/{job}/{schedule}/{verb}: pause, resume, trigger. None is version-guarded,
-// so version-conflict is wording kept for a verb that gains a token.
+// a resume is never rejected, and a pause is rejected only for its end.
 export function scheduleControlMessage(verb: string, action: string): string {
   switch (action) {
     case 'applied':
       return `Schedule ${verb} applied.`;
     case 'rejected':
-      return `Schedule ${verb} rejected: the schedule's current state does not allow it.`;
-    case 'version-conflict':
-      return `Schedule ${verb} rejected: the schedule changed since you loaded it (version conflict).`;
+      if (verb === 'pause') return 'Schedule pause rejected: the time to pause until has already passed.';
+      return 'Schedule trigger rejected: its namespace is suspended, the schedule is paused or at its capacity, or its job is not idle or has a firing outstanding.';
     default:
       return 'Schedule not found.';
   }
