@@ -99,7 +99,8 @@ internal static class ScheduleEvaluator
                 || source.Timing.EndBeforeUtc is not null
             )
             {
-                var still = NextOccurrenceCalculator.Next(source, next.AddTicks(-1));
+                // An interval with no anchor grids from its cursor: gridded from the tick before, it never answers the cursor.
+                var still = NextOccurrenceCalculator.FirstAfter(source, source.Timing.IntervalAnchorAtUtc ?? next, next.AddTicks(-1));
                 if (still != next)
                 {
                     // A cursor moved into a timed pause's window keeps the pause, so the pass that decides it has the window.

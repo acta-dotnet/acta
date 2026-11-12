@@ -98,6 +98,17 @@ public sealed class ScheduleBoundsTests
     }
 
     [Fact]
+    public void A_bounded_interval_without_an_anchor_steps_on_its_cursors_grid()
+    {
+        var timing = new ScheduleTiming("1s", ScheduleExpressionKindCode.Interval, null, null, EndBeforeUtc: Utc(13, 0));
+
+        var actual = Evaluate(timing, Utc(12, 0), Utc(12, 0), MisfireStrategyCode.CatchUpAll);
+
+        Assert.Equal(new AdmittedOccurrence(Utc(12, 0), Utc(12, 0)), actual.Admit);
+        Assert.Equal(Utc(12, 0, 1), actual.NextOccurrenceAtUtc);
+    }
+
+    [Fact]
     public void A_first_interval_anchor_is_a_whole_millisecond_so_the_stored_anchor_keeps_its_fingerprint()
     {
         // SQL Server stores the anchor as datetime2(3). Hashed at the clock's full precision, the anchor read back at the
