@@ -10,6 +10,8 @@ Not tagged yet. The schema changes by one migration on rc.10's baseline, the fir
 
 **Build a draft's definition as `CalendarDefinitionDocument` in a client generated from the OpenAPI document**: `definition` on the calendar draft save is that schema, where it was `CalendarDefinition`, which the calendar reads keep. It holds the same members and, at the root, `"$schema"`. Nothing on the wire changed, so a client generated from an earlier document keeps working.
 
+**Call `ctx.GetVariableAsync<T>(name)` where a handler called `GetRequiredVariableAsync<T>(name)`**: a typed `Get` expects its value and throws when there is none, as `GetResultAsync<T>` and `GetChildResultAsync<T>` do, so the variable read takes the same form. It behaves as before, and `GetVariableOrDefaultAsync` is unchanged.
+
 ### Additions
 
 - `414-dashboard-sign-in`, a concept rung that puts the dashboard and the API behind the host's own cookie sign-in, with the host's three roles behind the four permission policies. It signs in as each role through the form on start and prints what the server answered.
@@ -19,6 +21,7 @@ Not tagged yet. The schema changes by one migration on rc.10's baseline, the fir
 - The dashboard's Ready and Oldest ready cards say which way their value is moving. An arrow takes the card's icon once the value has moved by ten or more, jobs or seconds, between two polls at least a minute apart, and the card's hint says how far and over how long, as `Down 1200 in 5 minutes`. The page compares the polls it already makes, over the last five minutes and for each namespace, and stores nothing.
 - A definition's page in the dashboard shows how its executions perform. Over the last hour, day, week or month it gives how many ended in success and in failure, the failure rate, and the p50, p95 and p99 of their durations, as a histogram and as a trend across the window with a mark where the namespace's deployment version changed. `GET /definitions/{jobNamespace}/{jobName}/performance` answers the numbers, and `IDefinitions.GetPerformanceAsync` in code. They are computed from retained events on each read: no telemetry store, and nothing added to the execution path. The [operator guide](./operator-guide.md#http-api-and-dashboard) says what is counted.
 - .NET 11 is a supported runtime. The packages target `net10.0` alone, and a `net11.0` application takes them as they are. CI runs the test suites on the .NET 11 runtime, and runs a job in a `net11.0` application the .NET 11 SDK builds from the packed packages. The release validation, the benchmark, and Native AOT stay on .NET 10; [compatibility and support](./compatibility-and-support.md) states each tier.
+- `IJobs.RaiseSignalAsync(job, name, value, ct)` takes the token in fourth place, for the typed value and for a `JobPayload`. The actor stands between the value and the token, so a raise that records no actor had to name the token, `ct: ct`.
 
 ### Fixes
 
@@ -45,6 +48,7 @@ Not tagged yet. The schema changes by one migration on rc.10's baseline, the fir
 - `ActaTestHost.StartAsync` disposes the services it built when the start fails. A start that threw, from a bootstrap that could not reach its database or a deploy the catalog refused, returned no host to dispose, and its service provider was abandoned with whatever it had opened.
 - Acta Verify no longer refuses a run because of the shell that launched it. Its clean-start check took every process whose command line names a run's DLL for another run's leftover, so a run started as `bash -lc "dotnet Acta.Verify.dll ..."` found its own shell and ran nothing. A command line counts only where the program it starts is dotnet, by its bare name or a path to it.
 - `acta-verify cleanup --yes` holds back for a run started as `dotnet Acta.Verify.dll`. It looked for another run by process image alone, and that run's image is `dotnet`, so it removed the containers and databases of a run in progress. It reads the command lines the clean-start check reads.
+- ACTA0105 on a malformed rate limit shows how an interval is written: one every four seconds is `"15/m"`. A rate is a count per second, minute or hour, and the message gave the grammar but not the conversion.
 
 ### Dependencies
 
