@@ -51,11 +51,11 @@ public sealed class RaiseJobSignalSpec : ActaRuntimeTestBase<ConformanceFixture,
     {
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-wait-signal-typed", JobPayload.None), ct);
-        await Jobs.RaiseSignalAsync(enqueued, "review", new ReviewDecision(false, "first"), ct: ct);
+        await Jobs.RaiseSignalAsync(enqueued, "review", new ReviewDecision(false, "first"), ct);
         var first = await ReadCheckpointAsync(enqueued.JobId, "review", ct);
 
         var second = JobPayload.Json(new ReviewDecision(true, "second"));
-        Assert.Equal(ControlAction.Applied, (await Jobs.RaiseSignalAsync(enqueued, "review", second, ct: ct)).Action);
+        Assert.Equal(ControlAction.Applied, (await Jobs.RaiseSignalAsync(enqueued, "review", second, ct)).Action);
 
         var checkpoint = await ReadCheckpointAsync(enqueued.JobId, "review", ct);
         Assert.Equal(first.Version + 1, checkpoint.Version);

@@ -459,4 +459,20 @@ public interface IJobs
         string? actor = null,
         CancellationToken ct = default
     );
+
+    /// <summary>
+    /// Convenience overload of <see cref="RaiseSignalAsync{T}(JobLookup, string, T, string?, CancellationToken)"/>:
+    /// <paramref name="ct"/> takes the fourth position when no <c>actor</c> is recorded, instead of requiring the named
+    /// <c>ct: ct</c> form. Equivalent to <c>actor: null</c>.
+    /// </summary>
+    ValueTask<RaiseJobSignalResponse> RaiseSignalAsync<T>(JobLookup job, string name, T value, CancellationToken ct) =>
+        RaiseSignalAsync(job, name, value, actor: null, ct);
+
+    /// <summary>
+    /// Convenience overload of <see cref="RaiseSignalAsync(JobLookup, string, JobPayload, string?, CancellationToken)"/>:
+    /// <paramref name="ct"/> takes the fourth position when no <c>actor</c> is recorded, instead of requiring the named
+    /// <c>ct: ct</c> form. Equivalent to <c>actor: null</c>.
+    /// </summary>
+    ValueTask<RaiseJobSignalResponse> RaiseSignalAsync(JobLookup job, string name, JobPayload value, CancellationToken ct) =>
+        RaiseSignalAsync(job, name, value, actor: null, ct);
 }

@@ -21,7 +21,7 @@ public sealed class OrderTests(ActaHostFixture acta) : ActaTestBase(acta)
         Assert.Equal(JobStatusCode.Suspended, (await enqueued.GetStatusAsync(Ct))?.Status);
 
         // The approval API raises a typed decision; the job moves to Ready.
-        var raise = await Jobs.RaiseSignalAsync(enqueued, "approval", new ApprovalDecision(true, "alice"), ct: Ct);
+        var raise = await Jobs.RaiseSignalAsync(enqueued, "approval", new ApprovalDecision(true, "alice"), Ct);
         Assert.Equal(ControlAction.Applied, raise.Action);
 
         // Second tick: the job replays (reserve is NOT re-run), the signal is Set, charge runs, Done.
@@ -41,7 +41,7 @@ public sealed class OrderTests(ActaHostFixture acta) : ActaTestBase(acta)
 
         Assert.Equal(ActaRunStatus.Rearmed, await Host.RunOnceAsync(enqueued, Ct));
 
-        await Jobs.RaiseSignalAsync(enqueued, "approval", new ApprovalDecision(false, "bob"), ct: Ct);
+        await Jobs.RaiseSignalAsync(enqueued, "approval", new ApprovalDecision(false, "bob"), Ct);
 
         Assert.Equal(ActaRunStatus.Completed, await Host.RunOnceAsync(enqueued, Ct));
         var result = await enqueued.GetResultAsync<OrderResult>(Ct);

@@ -95,7 +95,7 @@ internal sealed class Primer(IJobs jobs, ConceptLab lab, CheckoutLabScenario sce
         );
 
         var decision = new FraudDecision(!scenario.RejectFraudReview, "alice");
-        await jobs.RaiseSignalAsync(checkout, "fraud-review", decision, ct: ct);
+        await jobs.RaiseSignalAsync(checkout, "fraud-review", decision, ct);
         Console.WriteLine($"[{scenario.OrderId}] fraud-review raised: {(decision.Approved ? "approved" : "rejected")}");
 
         if (scenario.RejectFraudReview)
