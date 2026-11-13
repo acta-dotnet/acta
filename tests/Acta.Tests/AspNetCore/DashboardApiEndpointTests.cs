@@ -302,6 +302,89 @@ public sealed class DashboardApiEndpointTests
     }
 
     [Fact]
+    public async Task Definition_performance_is_addressed_by_its_natural_key_and_404s_for_an_unknown_one()
+    {
+        var (app, client) = await TestDashboardHost.StartAsync();
+        await using var _ = app;
+        var ct = TestContext.Current.CancellationToken;
+        const string range = "?fromUtc=2026-06-12T00:00:00Z&toUtc=2026-06-12T00:02:00Z&intervalSeconds=60";
+
+        var known = await client.GetAsync("/acta/api/v1/definitions/billing/send-invoice/performance" + range, ct);
+        var body = await known.Content.ReadAsStringAsync(ct);
+        var unknown = await client.GetAsync("/acta/api/v1/definitions/billing/no-such-job/performance" + range, ct);
+
+        Assert.Equal(HttpStatusCode.OK, known.StatusCode);
+        Assert.Equal("no-store", known.Headers.CacheControl?.ToString());
+        Assert.Contains("\"fromUtc\":\"2026-06-12T00:00:00Z\"", body);
+        Assert.Contains("\"toUtc\":\"2026-06-12T00:02:00Z\"", body);
+        Assert.Contains("\"intervalSeconds\":60", body);
+        Assert.Contains("\"executionsHasMore\":false", body);
+        Assert.Contains("\"oldestAtUtc\":\"2026-06-12T00:00:00Z\"", body);
+        Assert.Contains("\"succeeded\":{\"executionCount\":3,\"p50Ms\":240,\"p95Ms\":240,\"p99Ms\":240}", body);
+        Assert.Contains("\"failed\":{\"executionCount\":1,\"p50Ms\":1800,\"p95Ms\":1800,\"p99Ms\":1800}", body);
+        Assert.Contains("\"succeededBins\":[{\"fromMs\":200,\"toMs\":250,\"executionCount\":3}]", body);
+        Assert.Contains("\"failedBins\":[{\"fromMs\":1600,\"toMs\":2000,\"executionCount\":1}]", body);
+        Assert.Contains("\"intervals\":[{\"startAtUtc\":\"2026-06-12T00:00:00Z\"", body);
+        Assert.Contains(
+            "{\"startAtUtc\":\"2026-06-12T00:01:00Z\",\"succeeded\":{\"executionCount\":0,\"p50Ms\":null,\"p95Ms\":null,\"p99Ms\":null}",
+            body
+        );
+        Assert.DoesNotContain("definitionId", body, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(HttpStatusCode.NotFound, unknown.StatusCode);
+        Assert.Contains("Definition not found.", await unknown.Content.ReadAsStringAsync(ct), StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("toUtc=2026-06-12T00:02:00Z&intervalSeconds=60")]
+    [InlineData("fromUtc=2026-06-12T00:00:00Z&intervalSeconds=60")]
+    [InlineData("fromUtc=2026-06-12T00:00:00Z&toUtc=2026-06-12T00:02:00Z")]
+    [InlineData("fromUtc=yesterday&toUtc=2026-06-12T00:02:00Z&intervalSeconds=60")]
+    [InlineData("fromUtc=2026-06-12T00:00:00Z&toUtc=2026-06-12T00:02:00Z&intervalSeconds=abc")]
+    public async Task Definition_performance_answers_a_missing_or_malformed_query_value_with_400(string query)
+    {
+        var fakes = new FakeOperations();
+        List<GetDefinitionPerformanceQuery> reads = [];
+        fakes.Definitions.GetPerformance = (read, _) =>
+        {
+            reads.Add(read);
+            return ValueTask.FromResult<GetDefinitionPerformanceResponse?>(null);
+        };
+        var (app, client) = await TestDashboardHost.StartAsync(fakes: fakes);
+        await using var _ = app;
+
+        var response = await client.GetAsync(
+            $"/acta/api/v1/definitions/billing/send-invoice/performance?{query}",
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Empty(reads);
+    }
+
+    [Fact]
+    public async Task Definition_performance_answers_a_range_the_read_refuses_with_400_saying_why()
+    {
+        var fakes = new FakeOperations();
+        fakes.Definitions.GetPerformance = static (_, _) =>
+            throw new InvalidQueryException("The range holds more than 60 intervals; raise intervalSeconds or shorten the range.");
+        var (app, client) = await TestDashboardHost.StartAsync(fakes: fakes);
+        await using var _ = app;
+        var ct = TestContext.Current.CancellationToken;
+
+        var response = await client.GetAsync(
+            "/acta/api/v1/definitions/billing/send-invoice/performance?fromUtc=2026-06-12T00:00:00Z&toUtc=2026-06-14T00:00:00Z&intervalSeconds=60",
+            ct
+        );
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains(
+            "raise intervalSeconds or shorten the range",
+            await response.Content.ReadAsStringAsync(ct),
+            StringComparison.Ordinal
+        );
+    }
+
+    [Fact]
     public async Task Job_detail_returns_snapshot_or_404()
     {
         var (app, client) = await TestDashboardHost.StartAsync();

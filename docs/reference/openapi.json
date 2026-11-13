@@ -12427,6 +12427,255 @@
         "x-acta-permission": "acta.read"
       }
     },
+    "/v1/definitions/{jobNamespace}/{jobName}/performance": {
+      "get": {
+        "tags": [
+          "Definitions"
+        ],
+        "summary": "Read how long the definition's executions took and how many failed.",
+        "description": "Needs the acta.read permission.",
+        "operationId": "getDefinitionPerformance",
+        "parameters": [
+          {
+            "name": "jobNamespace",
+            "in": "path",
+            "description": "The namespace's name: the namespace itself, or the one that holds the route's definition, schedule, calendar, or outbox.",
+            "required": true,
+            "schema": {
+              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,64}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
+              "type": "string"
+            },
+            "example": "billing"
+          },
+          {
+            "name": "jobName",
+            "in": "path",
+            "description": "The job's name, which with jobNamespace names a definition.",
+            "required": true,
+            "schema": {
+              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,128}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
+              "type": "string"
+            },
+            "example": "send-invoice"
+          },
+          {
+            "name": "fromUtc",
+            "in": "query",
+            "description": "The range's start, inclusive.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "toUtc",
+            "in": "query",
+            "description": "The range's end, exclusive.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "intervalSeconds",
+            "in": "query",
+            "description": "The length of one interval in seconds. The range may hold at most 60 intervals.",
+            "required": true,
+            "schema": {
+              "minimum": 60,
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The resource the route reads.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetDefinitionPerformanceResponse"
+                },
+                "examples": {
+                  "getDefinitionPerformance": {
+                    "value": {
+                      "fromUtc": "2026-06-12T00:00:00Z",
+                      "toUtc": "2026-06-13T00:00:00Z",
+                      "intervalSeconds": 43200,
+                      "executionsHasMore": false,
+                      "oldestAtUtc": "2026-06-12T00:00:00Z",
+                      "succeeded": {
+                        "executionCount": 3,
+                        "p50Ms": 240,
+                        "p95Ms": 240,
+                        "p99Ms": 240
+                      },
+                      "failed": {
+                        "executionCount": 1,
+                        "p50Ms": 1800,
+                        "p95Ms": 1800,
+                        "p99Ms": 1800
+                      },
+                      "succeededBins": [
+                        {
+                          "fromMs": 200,
+                          "toMs": 250,
+                          "executionCount": 3
+                        }
+                      ],
+                      "failedBins": [
+                        {
+                          "fromMs": 1600,
+                          "toMs": 2000,
+                          "executionCount": 1
+                        }
+                      ],
+                      "intervals": [
+                        {
+                          "startAtUtc": "2026-06-12T00:00:00Z",
+                          "succeeded": {
+                            "executionCount": 3,
+                            "p50Ms": 240,
+                            "p95Ms": 240,
+                            "p99Ms": 240
+                          },
+                          "failed": {
+                            "executionCount": 1,
+                            "p50Ms": 1800,
+                            "p95Ms": 1800,
+                            "p99Ms": 1800
+                          }
+                        },
+                        {
+                          "startAtUtc": "2026-06-12T12:00:00Z",
+                          "succeeded": {
+                            "executionCount": 0,
+                            "p50Ms": null,
+                            "p95Ms": null,
+                            "p99Ms": null
+                          },
+                          "failed": {
+                            "executionCount": 0,
+                            "p50Ms": null,
+                            "p95Ms": null,
+                            "p99Ms": null
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A path or query parameter is malformed or missing; the problem's detail names it.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "getDefinitionPerformance": {
+                    "value": {
+                      "type": "https://tools.ietf.org/html/rfc9110#section-15.5.1",
+                      "title": "Invalid request.",
+                      "status": 400,
+                      "detail": "Identifier 'bad key' is not kebab-case or dotted-kebab (each segment must match `[a-z][a-z0-9-]*`). (Parameter 'jobNamespace')"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The call carries no credential the host accepts."
+          },
+          "403": {
+            "description": "The call was refused before it ran: by the local-only guard, or because the caller lacks the operation's permission.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "getDefinitionPerformance": {
+                    "value": {
+                      "type": "https://tools.ietf.org/html/rfc9110#section-15.5.4",
+                      "title": "Permission denied.",
+                      "status": 403,
+                      "detail": "This operation needs the acta.read permission."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The target the path names, or one a filter names, does not exist.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "getDefinitionPerformance": {
+                    "value": {
+                      "type": "https://tools.ietf.org/html/rfc9110#section-15.5.5",
+                      "title": "Definition not found.",
+                      "status": 404
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The server failed unexpectedly; the problem document leaves the cause to the host's log.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "getDefinitionPerformance": {
+                    "value": {
+                      "type": "https://tools.ietf.org/html/rfc9110#section-15.6.1",
+                      "title": "Internal server error.",
+                      "status": 500,
+                      "detail": "The Acta API failed to process the request; see the host log for detail."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The database could not be reached or refused the call; retry later.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "getDefinitionPerformance": {
+                    "value": {
+                      "type": "https://tools.ietf.org/html/rfc9110#section-15.6.4",
+                      "title": "Service unavailable.",
+                      "status": 503,
+                      "detail": "The Acta API is temporarily unavailable: the database is unreachable or rejected the request."
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "x-acta-permission": "acta.read"
+      }
+    },
     "/v1/definitions/{jobNamespace}/{jobName}/tags": {
       "get": {
         "tags": [
@@ -17054,6 +17303,171 @@
           }
         },
         "description": "A definition's input contract: the name of the type its handler takes, the format its input is stored in, and, for a JSON input, a template the enqueue form can start its editor from. The template comes from the deployed code and shows the input's shape; it is no contract and no default value."
+      },
+      "GetDefinitionPerformanceBin": {
+        "required": [
+          "fromMs",
+          "toMs",
+          "executionCount"
+        ],
+        "type": "object",
+        "properties": {
+          "fromMs": {
+            "type": "integer",
+            "description": "The shortest duration the bin holds, in milliseconds.",
+            "format": "int64"
+          },
+          "toMs": {
+            "type": "integer",
+            "description": "The duration the bin ends before, in milliseconds, which is the next bin's fromMs.",
+            "format": "int64"
+          },
+          "executionCount": {
+            "type": "integer",
+            "description": "How many executions fell in the bin.",
+            "format": "int64"
+          }
+        },
+        "description": "One bin of a duration histogram. Bins are one millisecond wide below 10 ms and ten to a decade above it, from 10, 13, 16, 20, 25, 32, 40, 50, 63 and 80 ms."
+      },
+      "GetDefinitionPerformanceExecutions": {
+        "required": [
+          "executionCount",
+          "p50Ms",
+          "p95Ms",
+          "p99Ms"
+        ],
+        "type": "object",
+        "properties": {
+          "executionCount": {
+            "type": "integer",
+            "description": "How many executions were counted.",
+            "format": "int64"
+          },
+          "p50Ms": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "description": "The duration half of the executions finished within, in milliseconds; null when none was counted.",
+            "format": "int32"
+          },
+          "p95Ms": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "description": "The duration 95 in 100 executions finished within, in milliseconds; null when none was counted.",
+            "format": "int32"
+          },
+          "p99Ms": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "description": "The duration 99 in 100 executions finished within, in milliseconds; with fewer than 100 it is the slowest one. Null when none was counted.",
+            "format": "int32"
+          }
+        },
+        "description": "The executions of one outcome in a range or an interval: how many, and their duration percentiles. A percentile is truncated to two significant figures, so 2099 ms reads 2000."
+      },
+      "GetDefinitionPerformanceInterval": {
+        "required": [
+          "startAtUtc",
+          "succeeded",
+          "failed"
+        ],
+        "type": "object",
+        "properties": {
+          "startAtUtc": {
+            "type": "string",
+            "description": "The interval's start, inclusive; it ends where the next one starts, or at the range's toUtc.",
+            "format": "date-time"
+          },
+          "succeeded": {
+            "description": "The succeeded executions that finished in the interval.",
+            "$ref": "#/components/schemas/GetDefinitionPerformanceExecutions"
+          },
+          "failed": {
+            "description": "The failed executions that finished in the interval.",
+            "$ref": "#/components/schemas/GetDefinitionPerformanceExecutions"
+          }
+        },
+        "description": "One interval of the range, with the executions that finished in it."
+      },
+      "GetDefinitionPerformanceResponse": {
+        "required": [
+          "fromUtc",
+          "toUtc",
+          "intervalSeconds",
+          "executionsHasMore",
+          "oldestAtUtc",
+          "succeeded",
+          "failed",
+          "succeededBins",
+          "failedBins",
+          "intervals"
+        ],
+        "type": "object",
+        "properties": {
+          "fromUtc": {
+            "type": "string",
+            "description": "The range's start, inclusive, truncated to the millisecond.",
+            "format": "date-time"
+          },
+          "toUtc": {
+            "type": "string",
+            "description": "The range's end, exclusive, truncated to the millisecond.",
+            "format": "date-time"
+          },
+          "intervalSeconds": {
+            "type": "integer",
+            "description": "The length of one interval in seconds.",
+            "format": "int32"
+          },
+          "executionsHasMore": {
+            "type": "boolean",
+            "description": "Whether the read reached its limit of 500,000 executions. It then counted only the newest ones, back to oldestAtUtc, and an interval that starts at or before oldestAtUtc is cut short or was not read, which its counts do not say. A range that holds exactly the limit sets it too."
+          },
+          "oldestAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "When the oldest execution counted finished; null when none was counted.",
+            "format": "date-time"
+          },
+          "succeeded": {
+            "description": "The succeeded executions of the whole range.",
+            "$ref": "#/components/schemas/GetDefinitionPerformanceExecutions"
+          },
+          "failed": {
+            "description": "The failed executions of the whole range, whether or not the job ran again.",
+            "$ref": "#/components/schemas/GetDefinitionPerformanceExecutions"
+          },
+          "succeededBins": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GetDefinitionPerformanceBin"
+            },
+            "description": "The succeeded executions by duration, from the first bin that holds one to the last, empty bins between them included; at most 94."
+          },
+          "failedBins": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GetDefinitionPerformanceBin"
+            },
+            "description": "The failed executions by duration, from the first bin that holds one to the last, empty bins between them included; at most 94."
+          },
+          "intervals": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GetDefinitionPerformanceInterval"
+            },
+            "description": "Every interval of the range, oldest first, at most 60."
+          }
+        },
+        "description": "How long a definition's executions took over a range and how many failed, from the events the ledger still holds. It counts an execution that ended in success or failure and was recorded; a yielded or orphaned one is not counted. A duration is one handler invocation as its worker timed it, truncated to two significant figures."
       },
       "GetDefinitionResponse": {
         "required": [

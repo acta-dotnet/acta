@@ -432,6 +432,18 @@ public sealed class NamespaceIsolationSpec : ActaRuntimeTestBase<ConformanceFixt
             "list the namespace's definitions",
             t => definitions.ListAsync(new ListDefinitionsQuery(JobNamespace: TestNamespace, IncludeTotal: true), t).AsTask()
         );
+        // A day either side of the clock holds the execution that finished moments ago.
+        var performance = new GetDefinitionPerformanceQuery(
+            TestNamespace,
+            "add-numbers",
+            DateTime.UtcNow.AddDays(-1),
+            DateTime.UtcNow.AddDays(1),
+            86_400
+        );
+        await other.Check(
+            "read a definition's performance",
+            async t => Assert.NotNull(await definitions.GetPerformanceAsync(performance, t))
+        );
         var schedules = Services.GetRequiredService<ISchedules>();
         await other.Check(
             "read a schedule",

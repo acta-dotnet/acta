@@ -274,8 +274,9 @@ so three rules decide every read on SQL Server:
    totals and lane probes, the namespaces list and the calendar dependents list with their totals, the calendar
    list's count of a shared calendar's dependents, and a shared
    calendar's plan read, which its publication's check re-reads under the sys schedule lock.
-3. The overview's counts and the lineage map read dirty with `NOLOCK`: they are for display, so
-   they take no lock and never wait, and they can include a row a transaction has not committed yet.
+3. The overview's counts, the lineage map and a definition's performance read dirty with `NOLOCK`:
+   they are for display, so they take no lock and never wait, and they can include a row a
+   transaction has not committed yet.
 
 A skipped row is one an application has not committed, which read-committed snapshot hides too, or one
 Acta itself is changing at that instant: a page or count can briefly miss it, in both modes.

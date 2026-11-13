@@ -22,6 +22,9 @@ public sealed class ResponseCollectionTests
         ["ExplainJobResponse.Steps"] = nameof(ExplainJobHandler.StepLimit),
         // At most the four permissions there are.
         ["GetCapabilitiesResponse.Permissions"] = "the ActaPermissions values",
+        ["GetDefinitionPerformanceResponse.FailedBins"] = nameof(GetDefinitionPerformanceHandler.BinLimit),
+        ["GetDefinitionPerformanceResponse.Intervals"] = nameof(GetDefinitionPerformanceHandler.IntervalLimit),
+        ["GetDefinitionPerformanceResponse.SucceededBins"] = nameof(GetDefinitionPerformanceHandler.BinLimit),
         ["GetJobDetailResponse.Schedules"] = nameof(GetJobDetailResponse.SchedulePageSize),
         ["GetJobDetailResponse.Workers"] = nameof(GetJobDetailResponse.WorkerPageSize),
         ["GetJobLineageMapResponse.Ancestors"] = nameof(GetJobLineageMapHandler.AncestorLimit),

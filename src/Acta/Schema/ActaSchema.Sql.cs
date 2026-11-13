@@ -181,6 +181,12 @@ internal static partial class ActaSchema
         /// <summary>Ancestors the lineage read walks: its limit plus one, so the tail row says more exist.</summary>
         public static readonly DbValueSpec<int> AncestorFetchLimit = new("p_ancestor_limit", DbKind.Int32);
 
+        /// <summary>Executions a definition's performance read counts, newest first.</summary>
+        public static readonly DbValueSpec<int> ExecutionFetchLimit = new("p_execution_limit", DbKind.Int32);
+
+        /// <summary>The length of the intervals a definition's performance read cuts its range into.</summary>
+        public static readonly DbValueSpec<int> IntervalSeconds = new("p_interval_seconds", DbKind.Int32);
+
         /// <summary>
         /// purge_expired_data batch parameters.
         /// </summary>
@@ -258,7 +264,7 @@ internal static partial class ActaSchema
         public static readonly DbValueSpec<DateTime?> CursorLastSeenAtUtc = new("p_cursor_last_seen_at_utc", DbKind.UtcInstant);
 
         /// <summary>
-        /// ListEvents created-instant range: inclusive lower bound / exclusive upper bound; NULL skips each.
+        /// A range of event created instants: inclusive lower bound / exclusive upper bound. ListEvents binds NULL to leave a bound open.
         /// </summary>
         public static readonly DbValueSpec<DateTime?> EventCreatedFromUtc = new("p_created_from_utc", DbKind.UtcInstant);
 

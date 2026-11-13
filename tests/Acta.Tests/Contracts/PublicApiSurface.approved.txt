@@ -835,6 +835,41 @@ sealed record Acta.GetDefinitionInputTemplateResponse
     System.String JobName { get;init; }
     System.String JobNamespace { get;init; }
     System.String? TemplateJson { get;init; }
+sealed record Acta.GetDefinitionPerformanceBin
+    .ctor(System.Int64 FromMs, System.Int64 ToMs, System.Int64 ExecutionCount)
+    System.Int64 ExecutionCount { get;init; }
+    System.Int64 FromMs { get;init; }
+    System.Int64 ToMs { get;init; }
+sealed record Acta.GetDefinitionPerformanceExecutions
+    .ctor(System.Int64 ExecutionCount, System.Nullable<System.Int32> P50Ms, System.Nullable<System.Int32> P95Ms, System.Nullable<System.Int32> P99Ms)
+    System.Int64 ExecutionCount { get;init; }
+    System.Nullable<System.Int32> P50Ms { get;init; }
+    System.Nullable<System.Int32> P95Ms { get;init; }
+    System.Nullable<System.Int32> P99Ms { get;init; }
+sealed record Acta.GetDefinitionPerformanceInterval
+    .ctor(System.DateTime StartAtUtc, Acta.GetDefinitionPerformanceExecutions Succeeded, Acta.GetDefinitionPerformanceExecutions Failed)
+    Acta.GetDefinitionPerformanceExecutions Failed { get;init; }
+    Acta.GetDefinitionPerformanceExecutions Succeeded { get;init; }
+    System.DateTime StartAtUtc { get;init; }
+sealed record Acta.GetDefinitionPerformanceQuery
+    .ctor(System.String JobNamespace, System.String JobName, System.DateTime FromUtc, System.DateTime ToUtc, System.Int32 IntervalSeconds)
+    System.DateTime FromUtc { get;init; }
+    System.DateTime ToUtc { get;init; }
+    System.Int32 IntervalSeconds { get;init; }
+    System.String JobName { get;init; }
+    System.String JobNamespace { get;init; }
+sealed record Acta.GetDefinitionPerformanceResponse
+    .ctor(System.DateTime FromUtc, System.DateTime ToUtc, System.Int32 IntervalSeconds, System.Boolean ExecutionsHasMore, System.Nullable<System.DateTime> OldestAtUtc, Acta.GetDefinitionPerformanceExecutions Succeeded, Acta.GetDefinitionPerformanceExecutions Failed, System.Collections.Generic.IReadOnlyList<Acta.GetDefinitionPerformanceBin> SucceededBins, System.Collections.Generic.IReadOnlyList<Acta.GetDefinitionPerformanceBin> FailedBins, System.Collections.Generic.IReadOnlyList<Acta.GetDefinitionPerformanceInterval> Intervals)
+    Acta.GetDefinitionPerformanceExecutions Failed { get;init; }
+    Acta.GetDefinitionPerformanceExecutions Succeeded { get;init; }
+    System.Boolean ExecutionsHasMore { get;init; }
+    System.Collections.Generic.IReadOnlyList<Acta.GetDefinitionPerformanceBin> FailedBins { get;init; }
+    System.Collections.Generic.IReadOnlyList<Acta.GetDefinitionPerformanceBin> SucceededBins { get;init; }
+    System.Collections.Generic.IReadOnlyList<Acta.GetDefinitionPerformanceInterval> Intervals { get;init; }
+    System.DateTime FromUtc { get;init; }
+    System.DateTime ToUtc { get;init; }
+    System.Int32 IntervalSeconds { get;init; }
+    System.Nullable<System.DateTime> OldestAtUtc { get;init; }
 sealed record Acta.GetDefinitionResponse
     .ctor(System.Int32 DefinitionId, System.String JobNamespace, System.String JobName, Acta.DefinitionStatusCode Status, System.String DefinitionHash, System.String CreatedDeploymentVersion, System.String InputTypeName, System.Byte InputFormatId, System.String InputFormatName, System.String? ResultTypeName, System.Byte ResultFormatId, System.String ResultFormatName, Acta.JobPriorityCode Priority, Acta.JobPriorityCode PriorityEffective, System.Int32 MaxAttempts, System.Int32 MaxAttemptsEffective, System.Nullable<System.Int32> ConcurrencyLimit, System.Nullable<System.Int32> ConcurrencyLimitEffective, System.String? RateLimit, System.String? RateLimitEffective, System.String? RateName, System.String? Lane, System.String Backoff, System.String BackoffEffective, System.Int32 ExecutionTimeoutSeconds, System.Int32 ExecutionTimeoutSecondsEffective, System.Int32 DeadlineSeconds, System.Int32 DeadlineSecondsEffective, Acta.DeadlineBehaviorCode DeadlineBehavior, Acta.DeadlineBehaviorCode DeadlineBehaviorEffective, System.Int32 JobRetentionSeconds, System.Int32 JobRetentionSecondsEffective, Acta.EventRecordingCode EventRecording, Acta.EventRecordingCode EventRecordingEffective, Acta.AlertProfileCode AlertProfile, Acta.AlertProfileCode AlertProfileEffective, Acta.FiringFailurePolicyCode FiringFailurePolicy, Acta.ScheduledDeliveryCode ScheduledDelivery, System.String? AlertChannelName, System.String? AlertChannelNameEffective, System.String? RunbookUrl, System.String? RunbookUrlEffective, System.String? DisplayName, System.String? DisplayNameEffective, System.String? Description, System.String? DescriptionEffective, Acta.DefinitionPolicyOverrides Overrides, System.DateTime CreatedAtUtc, System.DateTime ModifiedAtUtc, System.Int64 Version)
     Acta.AlertProfileCode AlertProfile { get;init; }
@@ -1118,6 +1153,7 @@ interface Acta.IControlResponse
 interface Acta.IDefinitionControlResponse : Acta.IControlResponse
 interface Acta.IDefinitions
     System.Threading.Tasks.ValueTask<Acta.GetDefinitionInputTemplateResponse?> GetInputTemplateAsync(System.String jobNamespace, System.String jobName, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.ValueTask<Acta.GetDefinitionPerformanceResponse?> GetPerformanceAsync(Acta.GetDefinitionPerformanceQuery query, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.GetDefinitionResponse?> GetAsync(System.String jobNamespace, System.String jobName, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.ListDefinitionsResponse> ListAsync(Acta.ListDefinitionsQuery query, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.RetireDefinitionResponse> RetireAsync(System.String jobNamespace, System.String jobName, System.Int64 expectedVersion, System.String? reasonMessage = null, System.String? actor = null, System.Threading.CancellationToken ct = default)

@@ -4,8 +4,9 @@ using Microsoft.AspNetCore.Routing;
 namespace Acta.AspNetCore;
 
 /// <summary>
-/// The Definitions routes: the list, one definition, its input template, its tags, the overrides update, and retire. A
-/// definition is addressed by its natural key (namespace and name); an invalid override throws ArgumentException, the 400.
+/// The Definitions routes: the list, one definition, its input template, its performance, its tags, the overrides update,
+/// and retire. A definition is addressed by its natural key (namespace and name); an invalid override throws
+/// ArgumentException, the 400.
 /// </summary>
 internal static class DefinitionsEndpoints
 {
@@ -57,6 +58,41 @@ internal static class DefinitionsEndpoints
             ActaApiJsonContext.Relaxed.GetDefinitionInputTemplateResponse,
             static (http, call) => call.Operations.Definitions.GetInputTemplateAsync(Key(http).Namespace, Key(http).Name, call.Ct)
         );
+        reads
+            .MapDetail(
+                "/definitions/{jobNamespace}/{jobName}/performance",
+                new("getDefinitionPerformance", ActaPermissions.Read),
+                "Read how long the definition's executions took and how many failed.",
+                "Definition",
+                ActaApiJsonContext.Relaxed.GetDefinitionPerformanceResponse,
+                static (http, call) =>
+                    QueryReader.Bind(
+                        http.Request,
+                        static query =>
+                            (
+                                FromUtc: query.DateTime("fromUtc"),
+                                ToUtc: query.DateTime("toUtc"),
+                                IntervalSeconds: query.Int("intervalSeconds")
+                            )
+                    )
+                        is { FromUtc: { } fromUtc, ToUtc: { } toUtc, IntervalSeconds: { } intervalSeconds }
+                        ? call.Operations.Definitions.GetPerformanceAsync(
+                            new GetDefinitionPerformanceQuery(Key(http).Namespace, Key(http).Name, fromUtc, toUtc, intervalSeconds),
+                            call.Ct
+                        )
+                        : throw new InvalidQueryException("fromUtc, toUtc and intervalSeconds are required.")
+            )
+            .WithQueryParameters([
+                new QueryParameterDoc("fromUtc", QueryParameterKind.Instant, "The range's start, inclusive.", Required: true),
+                new QueryParameterDoc("toUtc", QueryParameterKind.Instant, "The range's end, exclusive.", Required: true),
+                new QueryParameterDoc(
+                    "intervalSeconds",
+                    QueryParameterKind.Int,
+                    "The length of one interval in seconds. The range may hold at most 60 intervals.",
+                    Required: true,
+                    Minimum: 60
+                ),
+            ]);
         reads.MapTags(
             controls,
             "/definitions/{jobNamespace}/{jobName}/tags",

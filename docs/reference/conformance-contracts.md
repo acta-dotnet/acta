@@ -1683,6 +1683,17 @@
   - An unknown job or a namespace this host did not register reads null
   - A definition stored by another host but absent from this manifest reads null
 
+### GetDefinitionPerformance counts executions by interval, outcome and duration
+- **Contract:** GetDefinitionPerformance counts a range's succeeded and failed executions with a duration, by interval and two-figure duration, newest first up to its limit.
+- **Guarantees:**
+  - Succeeded and failed executions are counted with their percentiles: a terminal failure is a failed one, and a yielded, an orphaned and an untimed one are not counted
+  - The range takes an execution that finished at fromUtc and leaves one that finished at toUtc
+  - Every interval of the range is answered, an empty one and a last one the range cuts short included, from a start truncated to the millisecond
+  - A read that fills its limit counted the newest executions only, and a range that holds exactly the limit reads as filled too
+  - A range of 31 days in one interval answers
+  - A definition with no finished execution in the range answers every interval empty, and an unknown one answers null
+  - A range that ends at or before its start, an interval under a minute, and a range of more than 60 intervals are caller errors
+
 ### GetAsync reads one alert by its public ref as it stands now
 - **Contract:** Alerts.GetAsync returns the alert row its ref names, as it stands, with the namespace name and job ref, and null for a ref no alert carries.
 - **Guarantees:**
@@ -2873,6 +2884,7 @@
 | `GetCalendarPublication` | yes | yes | yes |
 | `GetCalendarVersion` | yes | yes | yes |
 | `GetDefinition` | yes | yes | yes |
+| `GetDefinitionPerformance` | yes | yes | yes |
 | `GetJob` | yes | yes | yes |
 | `GetJobIdByDeduplicationKey` | yes | yes | yes |
 | `GetJobIdByRef` | yes | yes | yes |

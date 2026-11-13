@@ -108,6 +108,7 @@ namespace Acta.AspNetCore;
 [JsonSerializable(typeof(EnqueueJobRequest))]
 [JsonSerializable(typeof(EnqueueJobResponse))]
 [JsonSerializable(typeof(GetDefinitionInputTemplateResponse))]
+[JsonSerializable(typeof(GetDefinitionPerformanceResponse))]
 [JsonSerializable(typeof(ProblemDetails))]
 internal sealed partial class ActaApiJsonContext : JsonSerializerContext
 {

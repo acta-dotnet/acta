@@ -37,6 +37,10 @@ internal static partial class OpenApiExamples
         ["version"] = "2",
         ["signalName"] = "approval",
         ["tagName"] = "env",
+        // One day in two intervals, so the performance example shows an interval with executions beside an empty one.
+        ["fromUtc"] = "2026-06-12T00:00:00Z",
+        ["toUtc"] = "2026-06-13T00:00:00Z",
+        ["intervalSeconds"] = "43200",
     };
 
     /// <summary>One request body each control accepts, keyed as <c>METHOD /path</c> below the version segment.</summary>

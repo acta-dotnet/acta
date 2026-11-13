@@ -7,6 +7,7 @@ internal sealed class DefinitionsOperations(
     UpdateDefinitionOverridesHandler updateDefinitionOverrides,
     RetireDefinitionHandler retireDefinition,
     GetDefinitionHandler getDefinition,
+    GetDefinitionPerformanceHandler getDefinitionPerformance,
     ListDefinitionsHandler listDefinitions,
     GetDefinitionInputTemplateHandler getDefinitionInputTemplate,
     RegisterDefinitionsHandler registerDefinitions,
@@ -38,6 +39,11 @@ internal sealed class DefinitionsOperations(
 
     public ValueTask<GetDefinitionResponse?> GetAsync(string jobNamespace, string jobName, CancellationToken ct = default) =>
         getDefinition.HandleAsync(new GetDefinitionQuery(jobNamespace, jobName), ct);
+
+    public ValueTask<GetDefinitionPerformanceResponse?> GetPerformanceAsync(
+        GetDefinitionPerformanceQuery query,
+        CancellationToken ct = default
+    ) => getDefinitionPerformance.HandleAsync(query, ct);
 
     public ValueTask<ListDefinitionsResponse> ListAsync(ListDefinitionsQuery query, CancellationToken ct = default) =>
         listDefinitions.HandleAsync(query, ct);

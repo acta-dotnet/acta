@@ -78,6 +78,7 @@ public sealed partial class OpenApiContractTests
         // names it), so no ref can stand in for it.
         "entityId",
         "occurrenceCount",
+        "executionCount",
         "failureCount",
         "retryCount",
         "outstandingCount",
@@ -103,8 +104,14 @@ public sealed partial class OpenApiContractTests
         // Durations, byte sizes, and policy numbers, including their override/effective pairs.
         "byteLength",
         "durationMs",
+        "fromMs",
+        "toMs",
+        "p50Ms",
+        "p95Ms",
+        "p99Ms",
         "deadlineSeconds",
         "delaySeconds",
+        "intervalSeconds",
         "deadlineSecondsEffective",
         "executionTimeoutSeconds",
         "executionTimeoutSecondsEffective",

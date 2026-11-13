@@ -117,6 +117,7 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<ListDefinitionContractsHandler>();
         services.TryAddSingleton<GetDefinitionHandler>();
         services.TryAddSingleton<GetDefinitionInputTemplateHandler>();
+        services.TryAddSingleton<GetDefinitionPerformanceHandler>();
         services.TryAddSingleton<ListDefinitionsHandler>();
         services.TryAddSingleton<RegisterDefinitionsHandler>();
         services.TryAddSingleton<GetDefinitionIdHandler>();

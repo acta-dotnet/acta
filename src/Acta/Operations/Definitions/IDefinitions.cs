@@ -37,6 +37,14 @@ public interface IDefinitions
     /// <summary>Read a single job definition's full detail by its natural key, or null when none matches.</summary>
     ValueTask<GetDefinitionResponse?> GetAsync(string jobNamespace, string jobName, CancellationToken ct = default);
 
+    /// <summary>
+    /// Read how long a definition's executions took over a range and how many failed, per interval and as a duration
+    /// histogram, or null when no definition matches. It counts the events the ledger still holds, so a range whose
+    /// events retention has removed reads empty, and a definition that records failures only shows few successes. A
+    /// range outside the query's bounds throws <see cref="InvalidQueryException"/>.
+    /// </summary>
+    ValueTask<GetDefinitionPerformanceResponse?> GetPerformanceAsync(GetDefinitionPerformanceQuery query, CancellationToken ct = default);
+
     /// <summary>List job definitions ordered by namespace then name, optionally filtered by namespace and status.</summary>
     ValueTask<ListDefinitionsResponse> ListAsync(ListDefinitionsQuery query, CancellationToken ct = default);
 

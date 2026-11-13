@@ -28,6 +28,7 @@ internal sealed class FakeDefinitions : IDefinitions
             return ValueTask.FromResult(new RetireDefinitionResponse(action, version));
         };
         Get = static (jobNamespace, jobName, _) => ValueTask.FromResult(Detail(jobNamespace, jobName));
+        GetPerformance = static (query, _) => ValueTask.FromResult(Performance(query));
         List = static (query, _) =>
             ValueTask.FromResult(new ListDefinitionsResponse(query.JobNamespace == "billing" ? [Item] : [], null, false, 50, null));
         GetInputTemplate = InputTemplate;
@@ -47,6 +48,8 @@ internal sealed class FakeDefinitions : IDefinitions
     public Func<string, string, long, string?, string?, CancellationToken, ValueTask<RetireDefinitionResponse>> Retire { get; set; }
 
     public Func<string, string, CancellationToken, ValueTask<GetDefinitionResponse?>> Get { get; set; }
+
+    public Func<GetDefinitionPerformanceQuery, CancellationToken, ValueTask<GetDefinitionPerformanceResponse?>> GetPerformance { get; set; }
 
     public Func<ListDefinitionsQuery, CancellationToken, ValueTask<ListDefinitionsResponse>> List { get; set; }
 
@@ -74,6 +77,11 @@ internal sealed class FakeDefinitions : IDefinitions
     ValueTask<GetDefinitionResponse?> IDefinitions.GetAsync(string jobNamespace, string jobName, CancellationToken ct) =>
         Get(jobNamespace, jobName, ct);
 
+    ValueTask<GetDefinitionPerformanceResponse?> IDefinitions.GetPerformanceAsync(
+        GetDefinitionPerformanceQuery query,
+        CancellationToken ct
+    ) => GetPerformance(query, ct);
+
     ValueTask<ListDefinitionsResponse> IDefinitions.ListAsync(ListDefinitionsQuery query, CancellationToken ct) => List(query, ct);
 
     ValueTask<GetDefinitionInputTemplateResponse?> IDefinitions.GetInputTemplateAsync(
@@ -90,6 +98,19 @@ internal sealed class FakeDefinitions : IDefinitions
 
     private static GetDefinitionResponse? Detail(string jobNamespace, string jobName) =>
         IsSendInvoice(jobNamespace, jobName) ? SendInvoice : null;
+
+    /// <summary>Three successes and the failure that ended a job, all in the range's first interval, mapped as the handler maps them.</summary>
+    private static GetDefinitionPerformanceResponse? Performance(GetDefinitionPerformanceQuery query) =>
+        IsSendInvoice(query.JobNamespace, query.JobName)
+            ? GetDefinitionPerformanceHandler.Map(
+                query,
+                [
+                    new GetDefinitionPerformanceRow(0, EventCode.JobExecutionSucceeded, 240, 3, query.FromUtc),
+                    new GetDefinitionPerformanceRow(0, EventCode.JobFailed, 1800, 1, query.FromUtc),
+                ],
+                GetDefinitionPerformanceHandler.ExecutionLimit
+            )
+            : null;
 
     /// <summary>Only ("billing", "send-invoice") is known to this fake host; anything else is unregistered.</summary>
     private static GetDefinitionInputTemplateResponse? InputTemplate(string jobNamespace, string jobName) =>
