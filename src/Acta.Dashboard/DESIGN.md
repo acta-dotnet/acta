@@ -137,6 +137,7 @@ Acta should feel calm, technically precise, modern, and readable. Focus is the d
 - Use compact empty-state rows with an icon, heading, and short message.
 - Use small section icons for Workers and Outbox relays.
 - Give operational problems prominence while keeping healthy and empty states compact.
+- A metric card says which way its value is moving with an arrow in its icon's place, and how far in its hint. A screen reader reads a link's hint as its description; a card that is no link carries the same words hidden in its label. The direction puts nothing beside the value: words there wrap under a long value and lift it off the line its neighbours share. The arrow takes the card's tone as the icon does and no colour of its own, and a value that only jitters shows none.
 - Freshness is one framed indicator of equal cells: a small vertical meter, then reload, then pause. It is never a ticking counter. On a view that polls, the meter drains to the bottom as the next refresh approaches and refills when data arrives. The meter takes the status colour, and words join it only for a state worth reading: paused, failed, offline, or session ended. A view that does not refresh itself shows a still meter and its data's age to the minute.
 - Links inside a warning or failure banner use the text colour with an underline. The accent reads as healthy there.
 

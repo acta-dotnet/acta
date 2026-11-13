@@ -18,6 +18,7 @@
   import JobRef from '../components/JobRef.svelte';
   import OutboxPanel from '../components/OutboxPanel.svelte';
   import { SCHEDULE_LAG_ENVELOPE_SECONDS } from '../components/scheduleControlState';
+  import { direction, keepSamples } from './overviewState';
 
   // One composite snapshot query: the six reads land together so the verdict, metric cards, and
   // panels always describe the same instant. Scope changes swap the key, so caching is per-scope.
@@ -25,7 +26,7 @@
     const ns = $scope;
     return {
       queryKey: keys.list('overview', { jobNamespace: ns }),
-      queryFn: async ({ signal }) => {
+      queryFn: async ({ queryKey, signal, client }) => {
         const [overview, failedJobs, criticalAlerts, workers, schedules, outbox] = await Promise.all([
           api('overview', { jobNamespace: ns }, { signal }),
           api('jobs', { status: 'failed', pageSize: 10, jobNamespace: ns }, { signal }),
@@ -34,7 +35,15 @@
           api('schedules', { pageSize: 10, jobNamespace: ns }, { signal }),
           api('outbox/sources', { jobNamespace: ns }, { signal })
         ]);
-        return { overview, failedJobs, criticalAlerts, workers, schedules, outbox };
+        // Each poll that answers joins the samples of its scope, kept with the snapshot they describe: a pause
+        // or a failed poll adds none, and another scope has its own.
+        const samples = keepSamples(client.getQueryData(queryKey)?.samples ?? [], {
+          atMs: Date.now(),
+          readyCount: overview.readyCount,
+          // No ready job is a wait of zero, so a queue that empties points down and one that fills points up.
+          oldestReadyAgeSeconds: overview.oldestReadyAgeSeconds ?? 0
+        });
+        return { overview, failedJobs, criticalAlerts, workers, schedules, outbox, samples };
       },
       refetchInterval: $livePaused ? false : listRefetchInterval,
       placeholderData: keepPreviousData
@@ -47,6 +56,9 @@
   let workers = $derived(snapshot.data?.workers ?? null);
   let schedules = $derived(snapshot.data?.schedules ?? null);
   let outboxSources = $derived(snapshot.data?.outbox?.items ?? []);
+  let samples = $derived(snapshot.data?.samples ?? []);
+  let readyDirection = $derived(direction(samples, 'readyCount', displayFormatter.number));
+  let oldestReadyDirection = $derived(direction(samples, 'oldestReadyAgeSeconds', displayFormatter.duration));
   let error = $derived(snapshot.error ? snapshot.error.message : null);
   let loading = $derived(snapshot.isPending);
 
@@ -157,12 +169,17 @@
     {/if}
 
     <div class="metrics">
-      <MetricCard label="Ready" icon="clock" value={overview.readyCount} href={routes.jobs({ namespace: $scope, status: 'ready' })} />
+      <MetricCard
+        label="Ready" icon="clock"
+        value={overview.readyCount}
+        direction={readyDirection}
+        href={routes.jobs({ namespace: $scope, status: 'ready' })} />
       <MetricCard
         label="Oldest ready" icon="stopwatch"
         value={displayFormatter.duration(overview.oldestReadyAgeSeconds)}
         tone={overview.oldestReadyAgeSeconds > 300 ? 'warn' : ''}
-        hint="How long the oldest due job has been waiting for a worker" />
+        hint="How long the oldest due job has been waiting for a worker"
+        direction={oldestReadyDirection} />
       <MetricCard
         label="Executing" icon="lightning-bolt"
         value={overview.executingCount}
