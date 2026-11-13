@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/svelte';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import DefinitionPerformancePanelHarness from '../../test/DefinitionPerformancePanelHarness.svelte';
-import type { DefinitionPerformance, DefinitionPerformanceExecutions } from '../../api.ts';
+import type { DefinitionPerformance, DefinitionPerformanceExecutions, EventItem } from '../../api.ts';
 
 const none: DefinitionPerformanceExecutions = { executionCount: 0, p50Ms: null, p95Ms: null, p99Ms: null };
 const executions = (executionCount: number, p50Ms: number, p95Ms = p50Ms, p99Ms = p95Ms): DefinitionPerformanceExecutions => ({
@@ -61,12 +61,38 @@ function answer(url: URL, read: Read): DefinitionPerformance {
   };
 }
 
-function serve(read: Read | ((url: URL) => Read)): URL[] {
+const page = (items: EventItem[], hasMore = false) =>
+  new Response(JSON.stringify({ items, nextCursor: hasMore ? 'next' : null, hasMore, pageSize: 100, totalCount: null }), { status: 200 });
+
+// A namespace.deployed event, the given time after the start of the range the deployments read asked for.
+const deployed = (url: URL, afterMs: number, deploymentVersion: string, previousDeploymentVersion: string): EventItem => ({
+  eventId: afterMs,
+  eventCode: 'namespace.deployed',
+  createdAtUtc: new Date(Date.parse(url.searchParams.get('createdFromUtc')!) + afterMs).toISOString(),
+  jobNamespace: 'billing',
+  entityKind: 'namespace',
+  entityId: 1,
+  jobName: null,
+  jobRef: null,
+  lineageRootJobRef: null,
+  tenantName: null,
+  workerRef: null,
+  executionNumber: null,
+  durationMs: null,
+  message: null,
+  actor: null,
+  detailsText: JSON.stringify({ deploymentVersion, previousDeploymentVersion })
+});
+
+// Answers the performance read with the fixture, and the deployments read with what `deployments` gives; the URLs it
+// returns are the performance reads'.
+function serve(read: Read | ((url: URL) => Read), deployments: (url: URL) => Response = () => page([])): URL[] {
   const calls: URL[] = [];
   vi.stubGlobal(
     'fetch',
     vi.fn(async (input: RequestInfo | URL) => {
       const url = new URL(input as string | URL);
+      if (url.pathname.endsWith('/events')) return deployments(url);
       calls.push(url);
       return new Response(JSON.stringify(answer(url, typeof read === 'function' ? read(url) : read)), { status: 200 });
     })
@@ -151,6 +177,7 @@ describe('DefinitionPerformancePanel', () => {
       'fetch',
       vi.fn(async (input: RequestInfo | URL) => {
         const url = new URL(input as string | URL);
+        if (url.pathname.endsWith('/events')) return page([]);
         if (failing) {
           failing = false;
           return new Response(JSON.stringify({ title: 'Service unavailable.', detail: 'The database is unreachable.' }), { status: 503 });
@@ -178,6 +205,52 @@ describe('DefinitionPerformancePanel', () => {
     // Twelve failures draw each interval on its own.
     expect(screen.getByText('p95 and, above it, p99')).toBeTruthy();
     expect(calls).toHaveLength(1);
+  });
+
+  it('marks the deployments that changed the version over the read\'s range and lists them in the values', async () => {
+    const calls = serve(typical, (url) =>
+      page([
+        // The same version again, then a change in the latest interval, which the readout names at rest.
+        deployed(url, 10 * 3_600_000, '2.4.1', '2.4.1'),
+        deployed(url, 47 * 1_800_000 + 600_000, '2.4.1', '2.4.0')
+      ])
+    );
+    const { container } = render(DefinitionPerformancePanelHarness, { eventRecording: 'audit' });
+
+    await screen.findByText('Deployments in this window');
+    const query = new URL(String(vi.mocked(fetch).mock.calls.find(([input]) => String(input).includes('/events'))![0])).searchParams;
+    expect(Object.fromEntries(query)).toEqual({
+      jobNamespace: 'billing',
+      eventCode: 'namespace.deployed',
+      createdFromUtc: new Date(Date.parse(calls[0].searchParams.get('fromUtc')!)).toISOString(),
+      createdToUtc: new Date(Date.parse(calls[0].searchParams.get('toUtc')!)).toISOString(),
+      pageSize: '100'
+    });
+    // A hairline over the plot and one over the count strip, and its version above the plot.
+    expect(container.querySelectorAll('.deploy')).toHaveLength(2);
+    expect(container.querySelector('.deploy-name')?.textContent).toBe('2.4.1');
+    expect(screen.getByText('deployment', { selector: 'li' })).toBeTruthy();
+    expect(container.querySelector('.version')?.parentElement?.textContent).toContain('2.4.1 deployed.');
+    expect(screen.getByRole('img', { name: /1 deployment is marked/ })).toBeTruthy();
+    const rows = screen.getByText('Deployments in this window').closest('table')!.querySelectorAll('tbody tr');
+    expect([...rows].map((row) => [...row.querySelectorAll('td')].slice(1).map((cell) => cell.textContent))).toEqual([['2.4.1', '2.4.0']]);
+  });
+
+  it('says when the window holds more deployments than it read', async () => {
+    serve(typical, (url) => page([deployed(url, 3_600_000, '2.4.1', '2.4.0')], true));
+    render(DefinitionPerformancePanelHarness, { eventRecording: 'audit' });
+
+    expect(await screen.findByText('Deployments before the newest 100 in this window are not marked.')).toBeTruthy();
+  });
+
+  it('keeps the charts standing when the deployments cannot be read, and says why', async () => {
+    serve(typical, () => new Response(JSON.stringify({ title: 'Service unavailable.', detail: 'The database is unreachable.' }), { status: 503 }));
+    render(DefinitionPerformancePanelHarness, { eventRecording: 'audit' });
+
+    expect(await screen.findByText('Deployments could not be read: The database is unreachable.')).toBeTruthy();
+    expect(screen.getByRole('img', { name: /^Histogram of succeeded/ })).toBeTruthy();
+    expect(screen.getByRole('img', { name: /^Trend of succeeded/ })).toBeTruthy();
+    expect(screen.queryByText('Deployments in this window')).toBeNull();
   });
 
   it('keeps the window in the URL and reads the range it names', async () => {

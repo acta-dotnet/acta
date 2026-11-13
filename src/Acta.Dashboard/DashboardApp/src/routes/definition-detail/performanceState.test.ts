@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import type { DefinitionPerformance, DefinitionPerformanceExecutions } from '../../api.ts';
+import type { DefinitionPerformance, DefinitionPerformanceExecutions, EventItem } from '../../api.ts';
 import {
   axisLabel,
   binLabel,
   countCeiling,
+  deploymentMarkers,
   durationAt,
   histogram,
   instantLabel,
@@ -214,6 +215,97 @@ test('a small sample says which percentiles are the slowest execution', () => {
   assert.equal(smallSampleNote(19, 'succeeded'), 'With 19 succeeded executions, p95 and p99 are both the slowest one.');
   assert.equal(smallSampleNote(20, 'succeeded'), 'With 20 succeeded executions, p99 is the slowest one.');
   assert.equal(smallSampleNote(100, 'succeeded'), null);
+});
+
+// A namespace.deployed event with the details a deploy writes; null is one that set no version.
+const deployed = (createdAtUtc: string, details: Record<string, string> | null): EventItem => ({
+  eventId: Date.parse(createdAtUtc),
+  eventCode: 'namespace.deployed',
+  createdAtUtc,
+  jobNamespace: 'billing',
+  entityKind: 'namespace',
+  entityId: 1,
+  jobName: null,
+  jobRef: null,
+  lineageRootJobRef: null,
+  tenantName: null,
+  workerRef: null,
+  executionNumber: null,
+  durationMs: null,
+  message: null,
+  actor: null,
+  detailsText: details && JSON.stringify(details)
+});
+// A day from 2026-11-12T10:30Z, the range every deployment test reads.
+const day = dayRead(Array(48).fill(null));
+
+test('a deployment that changed the version is marked at its instant, oldest first', () => {
+  // The older one 24 minutes into its interval, a tenth of the way through the day.
+  const [older, newer] = ['2026-11-12T12:54:00Z', '2026-11-13T04:30:00Z'];
+  const markers = deploymentMarkers(
+    [
+      deployed(newer, { deploymentVersion: '2.4.1', previousDeploymentVersion: '2.4.0' }),
+      deployed(older, { deploymentVersion: '2.4.0', previousDeploymentVersion: '2.3.7' })
+    ],
+    day
+  );
+
+  assert.deepEqual(markers, [
+    { eventId: Date.parse(older), atUtc: older, at: 10, interval: 4, version: '2.4.0', previous: '2.3.7', edge: 'start', room: 65 },
+    { eventId: Date.parse(newer), atUtc: newer, at: 75, interval: 36, version: '2.4.1', previous: '2.4.0', edge: 'start', room: 25 }
+  ]);
+});
+
+test('deployments at one instant are marked in the order of their ids', () => {
+  const at = '2026-11-12T16:30:00Z';
+  const markers = deploymentMarkers(
+    [
+      { ...deployed(at, { deploymentVersion: '2.4.1', previousDeploymentVersion: '2.4.0' }), eventId: 8 },
+      { ...deployed(at, { deploymentVersion: '2.4.0', previousDeploymentVersion: '2.3.7' }), eventId: 7 }
+    ],
+    day
+  );
+
+  assert.deepEqual(markers.map(({ eventId, version }) => [eventId, version]), [[7, '2.4.0'], [8, '2.4.1']]);
+});
+
+test('a first deployment is marked, and the same version deployed again or a deploy with no version is not', () => {
+  const markers = deploymentMarkers(
+    [
+      deployed('2026-11-12T12:00:00Z', { deploymentVersion: '1.0.0' }),
+      deployed('2026-11-12T18:00:00Z', { deploymentVersion: '1.0.0', previousDeploymentVersion: '1.0.0' }),
+      deployed('2026-11-12T20:00:00Z', null)
+    ],
+    day
+  );
+
+  assert.deepEqual(markers.map(({ version, previous }) => [version, previous]), [['1.0.0', null]]);
+});
+
+test('a deployment outside the range is not marked, one at its start is', () => {
+  const change = { deploymentVersion: '2.4.1', previousDeploymentVersion: '2.4.0' };
+  const markers = deploymentMarkers(
+    [deployed('2026-11-12T10:29:59Z', change), deployed('2026-11-12T10:30:00Z', change), deployed('2026-11-13T10:30:00Z', change)],
+    day
+  );
+
+  assert.deepEqual(markers.map(({ at, interval, edge }) => ({ at, interval, edge })), [{ at: 0, interval: 0, edge: 'start' }]);
+});
+
+test('versions take their room from the newest back, and one with too little is left to the readout and the table', () => {
+  const change = { deploymentVersion: '2.4.1', previousDeploymentVersion: '2.4.0' };
+  // At 50%, 55%, 70%, 90% and 98% of the day.
+  const markers = deploymentMarkers(
+    ['2026-11-12T22:30:00Z', '2026-11-12T23:42:00Z', '2026-11-13T03:18:00Z', '2026-11-13T08:06:00Z', '2026-11-13T10:01:12Z'].map((at) =>
+      deployed(at, change)
+    ),
+    day
+  );
+
+  // The newest ends at its hairline and takes the room before it, which the one at 90% would need. Each older one
+  // runs to the hairline after it, and the oldest has too little room before the next.
+  assert.deepEqual(markers.map(({ edge }) => edge), ['start', 'start', 'start', 'end', 'end']);
+  assert.deepEqual(markers.map(({ room }) => Math.round(room)), [0, 15, 12, 0, 16]);
 });
 
 test('times read as the window\'s axis names them', () => {

@@ -257,8 +257,12 @@
         </dl>
       </section>
 
-      <FocusDisclosure title="Performance" hint="Durations and failure rate" open={true} lazy={true}>
-        <DefinitionPerformancePanel bind:this={performancePanel} {definitionPath} eventRecording={def.eventRecordingEffective} />
+      <FocusDisclosure title="Performance" hint="Durations, failure rate and deployments" open={true} lazy={true}>
+        <DefinitionPerformancePanel
+          bind:this={performancePanel}
+          {definitionPath}
+          jobNamespace={def.jobNamespace}
+          eventRecording={def.eventRecordingEffective} />
       </FocusDisclosure>
 
       <FocusDisclosure hideHeading={true} title="Policy overrides" hint="Defaults, overrides and effective values">

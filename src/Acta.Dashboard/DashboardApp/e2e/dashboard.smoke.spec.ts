@@ -390,6 +390,28 @@ async function mockDashboard(
       return json({ action: 'applied', version: 3, retimedSchedules: ['billing/send-invoice/nightly'], overdueSchedules: [], reason: null });
     }
     if (path === 'jobs/by-deduplication-key') return json(job);
+    // The namespace's deployments over the range the performance panel asks for, newest first: the same version deployed
+    // again, and before it a deploy that changed the version.
+    if (path === 'events' && url.searchParams.get('eventCode') === 'namespace.deployed' && url.searchParams.has('createdFromUtc')) {
+      const fromMs = Date.parse(url.searchParams.get('createdFromUtc')!);
+      const spanMs = Date.parse(url.searchParams.get('createdToUtc')!) - fromMs;
+      const deployed = (share: number, deploymentVersion: string, previousDeploymentVersion: string) => ({
+        ...event,
+        eventId: 100 + share * 100,
+        eventCode: 'namespace.deployed',
+        createdAtUtc: new Date(fromMs + share * spanMs).toISOString(),
+        entityKind: 'namespace',
+        entityId: 1,
+        jobName: null,
+        jobRef: null,
+        workerRef: null,
+        executionNumber: null,
+        durationMs: null,
+        message: null,
+        detailsText: JSON.stringify({ deploymentVersion, previousDeploymentVersion })
+      });
+      return json(paged([deployed(0.8, '1.6.2+5c0ffee', '1.6.2+5c0ffee'), deployed(0.55, '1.6.2+5c0ffee', '1.6.1+b81d04e')]));
+    }
     if (path === `jobs/${jobRef}/events` || path === 'events') return json(paged([event]));
     // The aggregate the detail page actually reads (JobDetailView in api.ts). Without it the
     // page rendered its title and nothing else, so three tests failed at their first assertion
@@ -1627,13 +1649,15 @@ const openJob = async (page: Page, options: Parameters<typeof mockDashboard>[1] 
   await expect(page.getByRole('region', { name: 'Job status' })).toBeVisible();
 };
 
-// A definition with its performance read and the Values tables open, so one scan covers the charts and the tables.
+// A definition with its performance read, a deployment marked, and the Values tables open, so one scan covers the charts
+// and the tables.
 const openDefinition = async (page: Page) => {
   await mockDashboard(page, { controls: true });
   await page.goto('/#/definitions/billing/send-invoice?ns=billing');
   await expect(page.getByRole('img', { name: /^Histogram of succeeded/ })).toBeVisible();
   await page.locator('.perf-values > summary').click();
   await expect(page.getByRole('table', { name: 'Succeeded execution durations per interval' })).toBeVisible();
+  await expect(page.getByRole('table', { name: 'Deployments in this window' })).toBeVisible();
 };
 
 const scanned: Array<[RouteName, string, (page: Page) => Promise<void>]> = [

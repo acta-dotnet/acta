@@ -1,6 +1,6 @@
 <script lang="ts">
   import { createQuery, keepPreviousData } from '@tanstack/svelte-query';
-  import { api, sessionExpired, type DefinitionPerformance } from '../../api.ts';
+  import { api, sessionExpired, type DefinitionPerformance, type EventItem, type Paged } from '../../api.ts';
   import { displayFormatter, statusClass } from '../../format.ts';
   import { keys } from '../../query.ts';
   import { now } from '../../time.ts';
@@ -11,6 +11,7 @@
   import DefinitionPercentileTrend from './DefinitionPercentileTrend.svelte';
   import {
     binLabel,
+    deploymentMarkers,
     instantLabel,
     intervalLabel,
     notReadThrough,
@@ -24,10 +25,12 @@
     type PerformanceWindow
   } from './performanceState.ts';
 
-  let { definitionPath, eventRecording }: { definitionPath: string; eventRecording: string } = $props();
+  let { definitionPath, jobNamespace, eventRecording }: { definitionPath: string; jobNamespace: string; eventRecording: string } =
+    $props();
 
   const id = $props.id();
   const { number, durationMs, percent } = displayFormatter;
+  const DEPLOYMENT_PAGE_SIZE = 100;
 
   // The window lives in the URL, so a link or a reload opens the same one.
   const filters = createUrlFilters({ window: 'window' }, { window: 'day' });
@@ -46,6 +49,7 @@
 
   export function refresh(): void {
     void performance.refetch();
+    if (marking) void deploymentRead.refetch();
   }
 
   let read = $derived(performance.data);
@@ -60,6 +64,36 @@
   let bins = $derived(read ? (outcome === 'succeeded' ? read.succeededBins : read.failedBins) : []);
   let through = $derived(read ? notReadThrough(read) : -1);
   let sampleNote = $derived(read ? smallSampleNote(read[outcome].executionCount, outcome) : null);
+
+  // The namespace's deployments over the shown read's range, read only while the trend is drawn. Keyed on that range,
+  // the markers follow the read; a marker is placed by its own instant, so the page held over from the previous range
+  // never misplaces one.
+  let marking = $derived(!!read && read[outcome].executionCount > 0);
+  const deploymentRead = createQuery(() => {
+    const query = {
+      jobNamespace,
+      eventCode: 'namespace.deployed',
+      createdFromUtc: read?.fromUtc,
+      createdToUtc: read?.toUtc,
+      pageSize: DEPLOYMENT_PAGE_SIZE
+    };
+    return {
+      queryKey: keys.list('events', query),
+      queryFn: ({ signal }: { signal: AbortSignal }) => api<Paged<EventItem>>('events', query, { signal }),
+      enabled: marking,
+      placeholderData: keepPreviousData,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false
+    };
+  });
+  let markers = $derived(read && deploymentRead.data ? deploymentMarkers(deploymentRead.data.items, read) : []);
+  let deploymentNote = $derived(
+    deploymentRead.error && !$sessionExpired
+      ? `Deployments could not be read: ${deploymentRead.error.message}`
+      : deploymentRead.data?.hasMore
+        ? `Deployments before the newest ${DEPLOYMENT_PAGE_SIZE} in this window are not marked.`
+        : null
+  );
 </script>
 
 <div class="perf">
@@ -135,7 +169,7 @@
       {:else}
         <div class="perf-charts t-{statusClass(outcome)}">
           <DefinitionDurationHistogram {bins} executions={read[outcome]} {outcome} />
-          <DefinitionPercentileTrend {read} {outcome} window={shownWindow} />
+          <DefinitionPercentileTrend {read} {outcome} window={shownWindow} deployments={markers} note={deploymentNote} />
         </div>
         <details class="perf-values">
           <summary>Values <span class="dim">· {displayFormatter.zoneNote($now)}</span></summary>
@@ -185,6 +219,18 @@
                   {/each}
                 </tbody>
               </DataTable>
+              {#if markers.length}
+                <h4>Deployments</h4>
+                <DataTable>
+                  <caption class="sr-only">Deployments in this window</caption>
+                  <thead><tr><th>Time</th><th>Version</th><th>Replaced</th></tr></thead>
+                  <tbody>
+                    {#each markers as marker (marker.eventId)}
+                      <tr><td>{instantLabel(marker.atUtc, shownWindow)}</td><td>{marker.version}</td><td>{marker.previous ?? '·'}</td></tr>
+                    {/each}
+                  </tbody>
+                </DataTable>
+              {/if}
             </section>
           </div>
         </details>
@@ -243,6 +289,7 @@
   .perf-values-body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr); gap: 20px 32px; padding-top: 14px; }
   .perf-values-body section { min-width: 0; }
   .perf-values-body h4 { margin: 0 0 6px; font-size: var(--text-sm); font-weight: 600; }
+  .perf-values-body h4:not(:first-child) { margin-top: 14px; }
   /* The tables run their full length: a box that scrolled them inside would need a tab stop of its own to be read by
      keyboard, where the page's own scroll needs none. */
   .perf-values-body :global(.table-wrap) { max-height: none; }

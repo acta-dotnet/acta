@@ -1,5 +1,6 @@
-import type { DefinitionPerformance, DefinitionPerformanceBin, DefinitionPerformanceExecutions } from '../../api.ts';
+import type { DefinitionPerformance, DefinitionPerformanceBin, DefinitionPerformanceExecutions, EventItem } from '../../api.ts';
 import { displayFormatter } from '../../format.ts';
+import { eventFacts } from '../../lib/eventFacts.ts';
 
 export type PerformanceWindow = 'hour' | 'day' | 'week' | 'month';
 export type Outcome = 'succeeded' | 'failed';
@@ -95,6 +96,66 @@ export function mergeLabels(items: { name: string; at: number }[], gap: number):
     text: group.names.join(', '),
     at: group.positions.reduce((sum, at) => sum + at, 0) / group.positions.length
   }));
+}
+
+// The share of the trend's plot a deployment's version takes when it ends at its hairline, as one too near the right
+// edge to start there does, and the least room a version is drawn in.
+const NAME_END_ROOM = 16;
+const NAME_LEAST_ROOM = 8;
+
+export interface DeploymentMarker {
+  eventId: number;
+  atUtc: string;
+  // Its place in percent of the range, and the interval it fell in.
+  at: number;
+  interval: number;
+  version: string;
+  previous: string | null;
+  // How its version stands above the plot: starting at its hairline, or ending there, in at most `room` percent of
+  // the plot. With no room it is not drawn there, and the readout and the Values table name it.
+  edge: 'start' | 'end';
+  room: number;
+}
+
+// The deployments a trend marks, oldest first and by id within one instant: those inside the read's range that changed
+// the namespace's version, a first one included. The same version deployed again changes nothing the trend could show.
+export function deploymentMarkers(events: EventItem[], read: DefinitionPerformance): DeploymentMarker[] {
+  const fromMs = Date.parse(read.fromUtc);
+  const spanMs = Date.parse(read.toUtc) - fromMs;
+  const markers: DeploymentMarker[] = [];
+  const oldestFirst = (a: EventItem, b: EventItem) => Date.parse(a.createdAtUtc) - Date.parse(b.createdAtUtc) || a.eventId - b.eventId;
+  for (const event of [...events].sort(oldestFirst)) {
+    const { deploymentVersion: version, previousDeploymentVersion: previous } = eventFacts(event.detailsText);
+    const sinceMs = Date.parse(event.createdAtUtc) - fromMs;
+    if (!version || version === previous || sinceMs < 0 || sinceMs >= spanMs) continue;
+    markers.push({
+      eventId: event.eventId,
+      atUtc: event.createdAtUtc,
+      at: (sinceMs / spanMs) * 100,
+      interval: Math.floor(sinceMs / (read.intervalSeconds * 1000)),
+      version,
+      previous: previous ?? null,
+      edge: 'start',
+      room: 0
+    });
+  }
+
+  // Room is given from the newest back, so the version now running is named first. A version runs from its hairline
+  // to the next hairline or to the version that ends at one, and never over either.
+  let free = 100;
+  for (const marker of [...markers].reverse()) {
+    if (marker.at > 100 - NAME_END_ROOM) {
+      marker.edge = 'end';
+      if (marker.at <= free) {
+        marker.room = NAME_END_ROOM;
+        free = marker.at - NAME_END_ROOM;
+      }
+    } else {
+      if (free - marker.at >= NAME_LEAST_ROOM) marker.room = free - marker.at;
+      free = Math.min(free, marker.at);
+    }
+  }
+  return markers;
 }
 
 interface Histogram {

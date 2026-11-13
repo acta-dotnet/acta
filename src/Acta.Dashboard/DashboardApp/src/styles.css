@@ -1243,6 +1243,10 @@ button.copy:hover { color: var(--accent); }
 /* Gridlines are furniture, below the 3:1 a mark that carries a value needs: no value is read from them alone. */
 .chart-gridline { position: absolute; left: 0; right: 0; border-top: 1px solid var(--line); pointer-events: none; }
 .chart-label { position: absolute; color: var(--ink); font-size: var(--text-micro); font-weight: 600; white-space: nowrap; line-height: 1; }
+/* A label above the plot stands centred over its rule, or starts or ends at it, so it stays over the plot. */
+.chart-labels .chart-label { bottom: 3px; transform: translateX(-50%); }
+.chart-labels .chart-label.start { transform: none; }
+.chart-labels .chart-label.end { transform: translateX(-100%); }
 /* A bar is the slot of its bin or interval, and draws its column inside it. */
 .chart-bar { position: absolute; top: 0; bottom: 0; }
 .chart-bar span { position: absolute; bottom: 0; left: 1px; right: 1px; max-width: 24px; margin: 0 auto; min-height: 2px; background: var(--tone); border-radius: 2px 2px 0 0; }

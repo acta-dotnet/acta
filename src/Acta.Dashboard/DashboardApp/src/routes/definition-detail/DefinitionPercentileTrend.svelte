@@ -15,11 +15,19 @@
     trendPoints,
     trendScale,
     WINDOWS,
+    type DeploymentMarker,
     type Outcome,
     type PerformanceWindow
   } from './performanceState.ts';
 
-  let { read, outcome, window }: { read: DefinitionPerformance; outcome: Outcome; window: PerformanceWindow } = $props();
+  let {
+    read,
+    outcome,
+    window,
+    deployments,
+    note
+  }: { read: DefinitionPerformance; outcome: Outcome; window: PerformanceWindow; deployments: DeploymentMarker[]; note: string | null } =
+    $props();
 
   const { number, durationMs } = displayFormatter;
   let other = $derived<Outcome>(outcome === 'succeeded' ? 'failed' : 'succeeded');
@@ -39,11 +47,15 @@
   let hot = $derived(pointed !== null && pointed < count ? pointed : null);
   let shown = $derived(hot ?? (latest >= 0 ? latest : count - 1));
   let interval = $derived(read.intervals[shown]);
+  // The newest deployment in the interval read, which the readout's second line names in place of the hint.
+  let deployed = $derived(deployments.filter((deployment) => deployment.interval === shown).at(-1));
+  let hint = $derived(!deployed && hot === null ? 'The latest interval. Point at the chart to read another.' : '');
   let step = $derived(read.intervalSeconds < 3600 ? `${read.intervalSeconds / 60} min` : `${read.intervalSeconds / 3600} h`);
   let sentence = $derived(
     `Trend of ${outcome} execution durations over the last ${window} in ${count} intervals: ` +
       `${PERCENTILES.map(({ name, key }) => `${name} ${durationMs(read[outcome][key]!)}`).join(', ')} over the window` +
       (latest >= 0 ? `, and p50 ${durationMs(points[latest]!.p50Ms!)}, p99 ${durationMs(points[latest]!.p99Ms!)} in the latest interval` : '') +
+      (deployments.length ? `. ${deployments.length} ${deployments.length === 1 ? 'deployment is' : 'deployments are'} marked` : '') +
       '. The Values tables below list every interval.'
   );
 
@@ -75,6 +87,7 @@
       <li><span class="key mark"></span>p95 and, above it, p99</li>
     {/if}
     <li><span class="key count"></span>executions</li>
+    {#if deployments.length}<li><span class="key deployment"></span>deployment</li>{/if}
   </ul>
   <p class="chart-readout">
     <b>{intervalLabel(interval.startAtUtc, window)}</b>:
@@ -84,12 +97,15 @@
       no {outcome} executions{#if interval[other].executionCount > 0}, {number(interval[other].executionCount)} {other}{/if}
     {:else}
       p50 <b>{durationMs(interval[outcome].p50Ms!)}</b>, p95 <b>{durationMs(interval[outcome].p95Ms!)}</b>, p99
-      <b>{durationMs(interval[outcome].p99Ms!)}</b><br />{number(interval[outcome].executionCount)} {outcome},
-      {number(interval[other].executionCount)} {other}{/if}{#if hot === null}{#if shown <= through || interval[outcome].executionCount === 0}<br />{:else}{'. '}{/if}The
-      latest interval. Point at the chart to read another.{/if}
+      <b>{durationMs(interval[outcome].p99Ms!)}</b>{/if}<br />{#if shown > through && interval[outcome].executionCount > 0}{number(interval[outcome].executionCount)}
+      {outcome}, {number(interval[other].executionCount)} {other}{deployed || hint ? '. ' : ''}{/if}{#if deployed}<span class="version">{deployed.version}</span> deployed.{/if}{hint}
   </p>
-  <!-- The first row keeps the top duration tick clear of the readout, as the histogram's label row does. -->
   <div class="chart-frame trend">
+    <div class="chart-labels" aria-hidden="true">
+      {#each deployments.filter((deployment) => deployment.room > 0) as deployment (deployment.eventId)}
+        <span class="chart-label deploy-name {deployment.edge}" style:left="{deployment.at}%" style:max-width="{deployment.room}%">{deployment.version}</span>
+      {/each}
+    </div>
     <div class="chart-axis y" aria-hidden="true">
       {#each scale.ticks as tick (tick.label)}<span class="tick" style:bottom="{tick.at}%">{tick.label}</span>{/each}
     </div>
@@ -119,6 +135,7 @@
           {/if}
         {/each}
       {/if}
+      {#each deployments as deployment (deployment.eventId)}<div class="deploy" style:left="{deployment.at}%"></div>{/each}
       {#if hot !== null}<div class="cross" style:left="{middle(hot)}%"></div>{/if}
     </div>
     <div class="ends" aria-hidden="true">
@@ -132,6 +149,7 @@
           {#if point}<span style:height="{(point.executionCount / countTop) * 100}%"></span>{/if}
         </div>
       {/each}
+      {#each deployments as deployment (deployment.eventId)}<div class="deploy" style:left="{deployment.at}%"></div>{/each}
     </div>
     <div class="chart-axis x" aria-hidden="true">
       {#each read.intervals as { startAtUtc }, index (startAtUtc)}
@@ -141,6 +159,7 @@
       {/each}
     </div>
   </div>
+  {#if note}<p class="chart-note">{note}</p>{/if}
 </figure>
 
 <style>
@@ -157,6 +176,15 @@
   .key.dot { width: 7px; height: 7px; border: 0; border-radius: 50%; background: var(--tone); }
   .key.mark { width: 8px; }
   .key.count { width: 8px; height: 10px; border: 0; border-radius: 2px 2px 0 0; background: var(--muted); }
+  .key.deployment { width: 0; height: 12px; border: 0; border-left: 1px solid var(--ink); }
+
+  /* A deployment is an ink hairline at its instant, never a status colour or the accent, which name other things. */
+  .deploy { position: absolute; top: 0; bottom: 0; border-left: 1px solid var(--ink); pointer-events: none; }
+  /* A version stands beside its hairline in the room it was given, and ends in an ellipsis past it. */
+  .deploy-name { box-sizing: border-box; padding: 0 4px; overflow: hidden; text-overflow: ellipsis; line-height: 1.3; color: var(--muted); font-weight: var(--weight-text); }
+  /* A version that ends in a commit hash is cut short in the readout, so its second line stays one line. */
+  .version { display: inline-block; max-width: 20ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; }
+  .chart-note { margin: 0; color: var(--muted); font-size: var(--text-sm); }
 
   /* p50 is the strong line; p95 dashed and p99 fine above it, with a wash from p50 to p99, so a tail that climbs while
      the median holds shows as the band widening. */

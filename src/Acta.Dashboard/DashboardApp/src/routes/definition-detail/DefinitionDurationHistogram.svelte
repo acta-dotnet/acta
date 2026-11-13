@@ -71,10 +71,6 @@
 
 <style>
   .histogram { grid-template-rows: 20px 190px 24px; grid-template-areas: '. labels' 'y plot' '. x'; }
-  /* A label stands centred over its rule, or starts or ends at it near an edge, so it stays over the plot. */
-  .chart-label { bottom: 3px; transform: translateX(-50%); }
-  .chart-label.start { transform: none; }
-  .chart-label.end { transform: translateX(-100%); }
   /* The percentiles stand as ink rules over the bars, p50 the stronger, edged in the panel's colour to stay apart from them. */
   .rule { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--ink); box-shadow: 0 0 0 1px var(--panel); pointer-events: none; }
   .rule.p50 { width: 2px; margin-left: -0.5px; }

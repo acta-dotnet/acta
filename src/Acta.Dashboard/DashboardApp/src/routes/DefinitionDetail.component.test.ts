@@ -146,12 +146,21 @@ const adminCapabilities = () =>
     { status: 200 }
   );
 
+// The open Performance panel's reads: its performance, and the namespace's deployments, none, so an override event is
+// never read as one.
+const panelResponse = (url: URL) =>
+  url.pathname.endsWith('/performance')
+    ? performanceResponse()
+    : url.searchParams.get('eventCode') === 'namespace.deployed'
+      ? pagedResponse([])
+      : null;
+
 function stubFetch(handler: (url: URL) => Response) {
   vi.stubGlobal(
     'fetch',
     vi.fn(async (input: RequestInfo | URL) => {
       const url = new URL(input as string | URL);
-      return url.pathname.endsWith('/performance') ? performanceResponse() : handler(url);
+      return panelResponse(url) ?? handler(url);
     })
   );
 }
@@ -234,7 +243,8 @@ describe('DefinitionDetail retire', () => {
             { status: 200 }
           );
         }
-        if (url.pathname.endsWith('/performance')) return performanceResponse();
+        const panel = panelResponse(url);
+        if (panel) return panel;
         if (url.pathname.endsWith('/events')) return pagedResponse([]);
         return new Response(JSON.stringify(row), { status: 200 });
       })
@@ -311,7 +321,8 @@ describe('DefinitionDetail overrides', () => {
         calls.push({ url, init });
         if (url.pathname.endsWith('/capabilities')) return adminCapabilities();
         if (url.pathname.endsWith('/overrides')) return new Response(JSON.stringify({ action: 'applied', version: 4 }), { status: 200 });
-        if (url.pathname.endsWith('/performance')) return performanceResponse();
+        const panel = panelResponse(url);
+        if (panel) return panel;
         if (url.pathname.endsWith('/events')) return pagedResponse([]);
         return new Response(JSON.stringify({ ...definition, maxAttemptsEffective: 7, overrides }), { status: 200 });
       })

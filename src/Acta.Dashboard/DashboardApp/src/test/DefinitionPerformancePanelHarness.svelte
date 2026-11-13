@@ -8,5 +8,5 @@
 </script>
 
 <QueryClientProvider {client}>
-  {#snippet children()}<DefinitionPerformancePanel definitionPath="definitions/billing/send-invoice" {eventRecording} />{/snippet}
+  {#snippet children()}<DefinitionPerformancePanel definitionPath="definitions/billing/send-invoice" jobNamespace="billing" {eventRecording} />{/snippet}
 </QueryClientProvider>
