@@ -154,43 +154,24 @@ Permanent and `sys.*` jobs need an explicit rule, stated beside the counts, beca
 distort the total. A pipeline-depth graph over time is a different feature: it would derive historical
 counts from events or keep disposable rollups, because the current rows hold no history.
 
-## Performance history for every job definition
+## More of a definition's performance history
 
-Each job definition could have a performance view calculated directly from its retained event
-history. The `job.execution-finished` events already carry the definition, outcome, timestamp, and
-attempt duration, so Acta can show useful numbers without adding another telemetry store or changing
-the execution path.
+A definition's page shows how long its executions took, computed from retained events: the count and
+the failure rate, p50, p95 and p99 for each outcome, a histogram, and the trend over the last hour,
+day, week or month with the namespace's deployments marked. The
+[operator guide](docs/operator-guide.md#http-api-and-dashboard) says what it counts. What it leaves out:
 
-The definition page could show p50, p95, and p99 execution time over a chosen window, together with a
-histogram and a graph of those percentiles over time. Seeing the trend matters as much as seeing the
-latest value: an operator should be able to notice that the median stayed flat while the slowest one
-percent became much worse after a deployment. The view could also show the number of attempts and the
-failure rate so that a percentile based on twelve runs is not mistaken for one based on twelve
-million.
+Filters by tenant and by worker deployment version. A tenant's executions can be slow where the
+definition's as a whole are not, and comparing two versions side by side says more about a regression
+than a mark on the trend does. An event row holds its tenant and its worker, and the index the read
+uses holds neither.
 
-The first version should be very clear about what it measures. Handler execution time, time waiting
-to be claimed, and total time from enqueue to completion answer different questions and should not be
-mixed into one number. Execution time is the simplest sound starting point because `duration_ms` is
-already the canonical per-attempt measurement. Successes and failures should be filterable and shown
-separately, since a job that fails quickly can otherwise make a definition look deceptively fast.
-Retries count as separate attempts; recurring jobs naturally contribute one measurement for each
-finished execution.
+Time waiting to be claimed and total time from enqueue to completion, as numbers of their own. They
+answer different questions from handler execution time and should never be mixed into it.
 
-Useful filters would include time window, outcome, tenant, worker deployment version, and execution
-profile. A marker for deployment versions on the trend graph would make performance regressions much
-easier to spot. Common windows such as the last hour, day, week, and month are probably enough at
-first, with the available range limited by event retention.
-
-The dashboard also needs to state when its sample is incomplete. The default `Audit` recording level
-records every execution outcome, but quieter levels suppress some or all of those events. In that
-case, Acta should say that the numbers cover failures only or that no complete distribution is
-available, rather than presenting a misleading percentile.
-
-These queries should initially be bounded and run against the event ledger on demand. If very large
-installations make that too expensive, Acta could later add disposable rollups or caching, while
-keeping the event history as the source of truth. This would complement live OpenTelemetry metrics:
-metrics are best for alerting now, while the durable event view explains how a particular job
-definition has behaved across deployments and over its retained history.
+Disposable rollups or caching for very large ledgers. The read is bounded and runs against the event
+ledger on demand, taking the newest executions of a window up to a limit. If large installations
+outgrow that, a rollup can stand in front of it while the event history stays the source of truth.
 
 ## Distributed tracing
 
