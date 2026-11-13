@@ -201,6 +201,20 @@ public sealed class ScheduleDueWalkTests
         Assert.True(thrown is null or InvalidOperationException, $"{thrown}");
     }
 
+    // CatchUpAll steps from its cursor with no walk to refuse the answer for it. Past the skipped day a host's zone data
+    // can answer the midnight it was asked from, and a cursor left on it would be admitted again on every pass.
+    [Fact]
+    public void CatchUpAll_moves_its_cursor_forward_or_refuses_the_step()
+    {
+        var source = Cron("0 0 * * *", "Pacific/Apia");
+        var cursor = new DateTime(2011, 12, 31, 10, 0, 0, DateTimeKind.Utc);
+
+        var e = Evaluate(source, MisfireStrategyCode.CatchUpAll, cursor, cursor.AddHours(1));
+
+        Assert.True(e.Error is not null || e.NextOccurrenceAtUtc > cursor, $"The cursor stayed at {e.NextOccurrenceAtUtc:O}.");
+        Assert.Equal(e.Error is null, e.Admit is not null);
+    }
+
     // The steps hand over to the search at any depth: exactly as many due as steps, one more, one fewer.
     [Theory]
     [InlineData(1)]

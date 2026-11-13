@@ -210,7 +210,7 @@ internal static class ScheduleEvaluator
 
             following =
                 policy.Misfire == MisfireStrategyCode.CatchUpAll
-                    ? NextOccurrenceCalculator.Next(source, next)
+                    ? After(source, source.Timing.IntervalAnchorAtUtc ?? next, next)
                     : NextOccurrenceCalculator.FirstAfter(source, source.Timing.IntervalAnchorAtUtc ?? Latest(), now);
         }
         catch (Exception ex) when (IsSourceFailure(ex))
@@ -369,7 +369,8 @@ internal static class ScheduleEvaluator
 
     /// <summary>
     /// The first occurrence after <paramref name="afterUtc"/>, refused when it does not advance: a cron in a zone that
-    /// skipped a calendar day can answer the seek instant or one before it, and a search on such answers never ends.
+    /// skipped a calendar day can answer the seek instant or one before it. A search on such answers never ends, and a
+    /// cursor stepped onto one is admitted again on every pass.
     /// </summary>
     private static DateTime? After(ScheduleSource source, DateTime anchorUtc, DateTime afterUtc)
     {
