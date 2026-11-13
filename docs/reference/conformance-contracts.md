@@ -2245,6 +2245,7 @@
   - A slot with nothing due, an orphaned schedule, and a retired definition's schedule are left out
   - A member that holds a code this build does not know is left out, due or not, and its siblings are read
   - The read pages by evaluation instant then id, at most Take due schedules per pass
+  - A backlogged schedule a pass decided is read behind the schedules with an earlier instant, so the page turns over
 
 ### A permanent slot fires repeatedly on one stable id and returns to Idle
 - **Contract:** A permanent slot fires on one stable id: admission advances the cursor, the attempt runs the firing, and the slot returns to Idle with one result per firing.

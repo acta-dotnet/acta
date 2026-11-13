@@ -49,9 +49,9 @@ internal sealed class ScheduleStateEntity : IEntity<int>
     public DateTime? NextOccurrenceAtUtc { get; set; }
 
     /// <summary>
-    /// When the engine next looks at this schedule: the next occurrence, a timed pause's end, or an evaluation retry.
-    /// NULL while nothing timed ends the wait, which keeps the row out of <c>ix_schedules_state_due</c>; settlement,
-    /// a resume, or a restart writes it back.
+    /// When the engine next looks at this schedule: the next occurrence, the instant of the pass that left it when it
+    /// was already due, a timed pause's end, or an evaluation retry. NULL while nothing timed ends the wait, which
+    /// keeps the row out of <c>ix_schedules_state_due</c>; settlement, a resume, or a restart writes it back.
     /// </summary>
     [DbColumn("next_evaluation_at_utc", DbKind.UtcInstant)]
     public DateTime? NextEvaluationAtUtc { get; set; }

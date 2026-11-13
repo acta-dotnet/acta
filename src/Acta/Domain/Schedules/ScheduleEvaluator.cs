@@ -105,7 +105,7 @@ internal static class ScheduleEvaluator
                 {
                     // A cursor moved into a timed pause's window keeps the pause, so the pass that decides it has the window.
                     var ended = pauseEnded && !(still < downtimeEndUtc);
-                    return Moved(still, ended, pausedByExpiry: false, skippedFrom: next, skippedThrough: next, sourceChanged: true);
+                    return Moved(still, now, ended, pausedByExpiry: false, skippedFrom: next, skippedThrough: next, sourceChanged: true);
                 }
             }
 
@@ -124,7 +124,7 @@ internal static class ScheduleEvaluator
                 var remaining = NextOccurrenceCalculator.Next(source, expiredThrough.Value);
                 if (remaining is null || remaining > now)
                 {
-                    return Moved(remaining, pauseEnded, pausedByExpiry, expiredFrom: expiredFrom, expiredThrough: expiredThrough);
+                    return Moved(remaining, now, pauseEnded, pausedByExpiry, expiredFrom: expiredFrom, expiredThrough: expiredThrough);
                 }
 
                 next = remaining.Value;
@@ -139,7 +139,7 @@ internal static class ScheduleEvaluator
                 var resumed = NextOccurrenceCalculator.Next(source, through);
                 if (resumed is null || resumed > now)
                 {
-                    return Moved(resumed, pauseEnded, pausedByExpiry, null, next, through, expiredFrom, expiredThrough);
+                    return Moved(resumed, now, pauseEnded, pausedByExpiry, null, next, through, expiredFrom, expiredThrough);
                 }
             }
 
@@ -221,7 +221,7 @@ internal static class ScheduleEvaluator
             };
         }
 
-        return Moved(following, pauseEnded, pausedByExpiry, admit, skippedFrom, skippedThrough, expiredFrom, expiredThrough);
+        return Moved(following, now, pauseEnded, pausedByExpiry, admit, skippedFrom, skippedThrough, expiredFrom, expiredThrough);
     }
 
     // What a schedule's own source throws when it cannot be read: an expression, a zone, or a calendar.
@@ -254,10 +254,13 @@ internal static class ScheduleEvaluator
 
     /// <summary>
     /// A cursor moved to <paramref name="next"/>: Exhausted when nothing follows, evaluated again at the occurrence
-    /// unless an expiry pause holds the schedule for an operator.
+    /// unless an expiry pause holds the schedule for an operator. An occurrence already due is evaluated as of
+    /// <paramref name="now"/>, never as of its own instant: the due read pages by the evaluation instant, oldest first,
+    /// and a backlog that kept its overdue instants would fill the page ahead of every schedule that came due since.
     /// </summary>
     private static ScheduleEvaluation Moved(
         DateTime? next,
+        DateTime now,
         bool pauseEnded,
         bool pausedByExpiry,
         AdmittedOccurrence? admit = null,
@@ -274,7 +277,9 @@ internal static class ScheduleEvaluator
             expiredFrom,
             expiredThrough,
             next,
-            pausedByExpiry ? null : next,
+            pausedByExpiry ? null
+                : next < now ? now
+                : next,
             next is null ? ScheduleEvaluationStatusCode.Exhausted : ScheduleEvaluationStatusCode.Scheduled,
             pauseEnded,
             pausedByExpiry,

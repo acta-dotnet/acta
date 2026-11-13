@@ -117,8 +117,74 @@ public sealed class ListDueSchedulesSpec : ActaStorageTestBase<ConformanceFixtur
         Assert.DoesNotContain(latest, page);
     }
 
+    [Fact(
+        DisplayName = "A backlogged schedule a pass decided is read behind the schedules with an earlier instant, so the page turns over"
+    )]
+    public async Task A_backlog_a_pass_decided_is_read_behind_the_schedules_with_an_earlier_instant()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var now = FloorSeconds(DateTime.UtcNow);
+        // Two backlogs an hour deep fill the page. A pass drops one occurrence of each and leaves the next, still an
+        // hour due; the third schedule came due a minute ago, later than anything the two have left.
+        var backlogs = new[]
+        {
+            await RegisterBacklogAsync(Unique("backlog-a"), now.AddHours(-1), ct),
+            await RegisterBacklogAsync(Unique("backlog-b"), now.AddHours(-1), ct),
+        };
+        var behind = await RegisterAsync(Unique("behind"), [("only", now.AddMinutes(-1))], ct);
+
+        var page = (await ReadAsync(now, 2, ct)).Schedules;
+        Assert.Equal(backlogs.Order(), page.Select(s => s.ScheduleId).Order());
+        var resolve = await Services.GetRequiredService<CalendarsOperations>().PreloadAsync(TestNamespaceId, [], ct);
+        var plan = ScheduleAdmitter.Plan(TestNamespaceId, page, now, resolve);
+        var outcomes = (await Services.GetRequiredService<AdmitScheduleFiringsHandler>().HandleAsync(plan, ct)).Groups;
+
+        Assert.Equal(2, outcomes.Count);
+        Assert.All(outcomes, o => Assert.True(o.Applied));
+        Assert.DoesNotContain(plan.Groups, g => g.Admit);
+        Assert.Contains((await ReadAsync(now, 2, ct)).Schedules, s => s.JobId == behind);
+    }
+
     private Task<ListDueSchedulesResponse> ReadAsync(DateTime nowUtc, int take, CancellationToken ct) =>
         Services.GetRequiredService<ListDueSchedulesHandler>().HandleAsync(new ListDueSchedulesQuery(TestNamespaceId, nowUtc, take), ct);
+
+    /// <summary>
+    /// Registers a per-occurrence definition whose one per-minute CatchUpAll schedule sits at <paramref name="cursor"/>,
+    /// full and dropping, so a pass decides one occurrence of it and admits nothing; returns the schedule's id.
+    /// </summary>
+    private async Task<int> RegisterBacklogAsync(string jobName, DateTime cursor, CancellationToken ct)
+    {
+        var descriptor = Def(jobName) with { ScheduledDelivery = ScheduledDeliveryCode.PerOccurrence };
+        var defId = (await DefinitionTestOps.RegisterAsync(Services, TestNamespaceId, [descriptor], ct))[jobName];
+        var schedule = new SlotSchedule(
+            "only",
+            "* * * * *",
+            null,
+            MisfireStrategyCode.CatchUpAll,
+            ScheduleExpressionKindCode.Cron,
+            null,
+            cursor,
+            FullBehavior: ScheduleFullBehaviorCode.Drop
+        );
+        var definition = new DefinitionSchedules(
+            NamespaceId: TestNamespaceId,
+            DefinitionId: defId,
+            InputFormatId: 0,
+            Input: ReadOnlyMemory<byte>.Empty,
+            ScheduledDelivery: ScheduledDeliveryCode.PerOccurrence,
+            Schedules: [schedule]
+        );
+        await ScheduleTestOps.RegisterAsync(Services, [definition], ct);
+        var scheduleId = (await Db.From<ScheduleEntity>().Where(s => s.DefinitionId == defId).SingleOrDefaultAsync(ct))!.Id;
+        // One root is outstanding, which is the schedule's whole capacity.
+        Assert.Equal(
+            1,
+            await Db.From<ScheduleStateEntity>()
+                .Where(s => s.Id == scheduleId)
+                .UpdateOnlyAsync(() => new ScheduleStateEntity { OutstandingCount = 1 }, ct)
+        );
+        return scheduleId;
+    }
 
     /// <summary>Registers (or re-registers) one definition's schedules at the given cursors; returns its slot.</summary>
     private async Task<long> RegisterAsync(string jobName, IReadOnlyList<(string Name, DateTime Cursor)> schedules, CancellationToken ct)

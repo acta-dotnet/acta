@@ -416,7 +416,8 @@ public class ScheduleEvaluatorTests
         Assert.Equal(new AdmittedOccurrence(Utc(10, 5), Utc(10, 5)), d.Admit);
         Assert.Null(d.SkippedFromUtc);
         Assert.Equal(Utc(10, 6), d.NextOccurrenceAtUtc);
-        Assert.Equal(Utc(10, 6), d.NextEvaluationAtUtc);
+        // As of this pass and not of 10:06: the due read pages oldest first, and the backlog takes its turn in it.
+        Assert.Equal(Utc(10, 9, 30), d.NextEvaluationAtUtc);
         Assert.Equal(ScheduleEvaluationStatusCode.Scheduled, d.Status);
     }
 
@@ -635,7 +636,7 @@ public class ScheduleEvaluatorTests
 
         Assert.Equal(new AdmittedOccurrence(Utc(10, 5), Utc(10, 5)), d.Admit);
         Assert.Equal(Utc(10, 5, 1), d.NextOccurrenceAtUtc);
-        Assert.Equal(Utc(10, 5, 1), d.NextEvaluationAtUtc);
+        Assert.Equal(Utc(10, 5).AddDays(20), d.NextEvaluationAtUtc);
         Assert.Equal(ScheduleEvaluationStatusCode.Scheduled, d.Status);
     }
 
@@ -678,6 +679,20 @@ public class ScheduleEvaluatorTests
         Assert.True(d.SourceChanged);
         Assert.Equal((Utc(10, 5), Utc(10, 5)), (d.SkippedFromUtc, d.SkippedThroughUtc));
         Assert.Equal(Utc(10, 10), d.NextOccurrenceAtUtc);
+        Assert.Equal(Utc(10, 10), d.NextEvaluationAtUtc);
+    }
+
+    [Fact]
+    public void A_cursor_the_source_moves_to_an_occurrence_already_due_is_evaluated_as_of_the_pass()
+    {
+        // The pass comes at 10:31, and the calendar's first instant after the stored 10:05 is 10:10, long due.
+        var tenMinutes = new ScheduleTiming("ten-minutes", ScheduleExpressionKindCode.Calendar, "UTC", null);
+
+        var d = Evaluate(tenMinutes, Active(Utc(10, 5)), Utc(10, 31), MisfireStrategyCode.CatchUpAll, calendar: new EveryTenMinutes());
+
+        Assert.True(d.SourceChanged);
+        Assert.Equal(Utc(10, 10), d.NextOccurrenceAtUtc);
+        Assert.Equal(Utc(10, 31), d.NextEvaluationAtUtc);
     }
 
     private sealed class EveryTenMinutes : IActaCalendar

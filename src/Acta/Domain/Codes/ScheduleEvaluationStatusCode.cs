@@ -13,7 +13,10 @@ public enum ScheduleEvaluationStatusCode : byte
     [Code("unspecified", "Evaluation status not recognized by this build; the row was written by a newer Acta.")]
     Unspecified = 0,
 
-    [Code("scheduled", "The next evaluation is the next nominal occurrence, or the end of a timed pause.")]
+    [Code(
+        "scheduled",
+        "The next evaluation is at the next nominal occurrence, at once when that is already due, or at the end of a timed pause."
+    )]
     Scheduled = 10,
 
     [Code(

@@ -121,18 +121,20 @@ public sealed class MisfirePolicySpec : ActaRuntimeTestBase<ConformanceFixture, 
         await IsolateAsync(MisfirePolicyManifest.BacklogSlotJobName, ct);
         var slotId = await ScheduleTestOps.SlotIdAsync(Db, TestNamespace, MisfirePolicyManifest.BacklogSlotJobName, ct);
         var first = Assert.Single(await ScheduleTestOps.ReadAsync(Db, slotId, ct)).NextOccurrenceAtUtc!.Value;
-        Clock.AdvanceTo(first.AddMinutes(2).AddSeconds(30));
+        var now = first.AddMinutes(2).AddSeconds(30);
+        Clock.AdvanceTo(now);
 
         for (var i = 0; i < 3; i++)
         {
             await Runtime.AdmitOnceAsync(TestNamespace, ct);
             Assert.Equal(JobStatusCode.Ready, (await ReadJobAsync(slotId, ct)).Status);
             Assert.Equal(first.AddMinutes(i), (await OccurrenceAsync(slotId, ct)));
-            // The rest of the backlog is due at once, so the next pass comes straight back, finds the slot busy, and
-            // parks the schedule until the firing settles; after the last missed occurrence the next one is ahead.
+            // The rest of the backlog is due at once, as of this pass, so the next pass comes straight back, finds the
+            // slot busy, and parks the schedule until the firing settles; after the last missed occurrence the next one
+            // is ahead and is evaluated at its own instant.
             var admitted = Assert.Single(await ScheduleTestOps.ReadAsync(Db, slotId, ct));
             Assert.Equal(first.AddMinutes(i + 1), admitted.NextOccurrenceAtUtc);
-            Assert.Equal(first.AddMinutes(i + 1), admitted.NextEvaluationAtUtc);
+            Assert.Equal(i < 2 ? now : first.AddMinutes(3), admitted.NextEvaluationAtUtc);
             var parked = await Runtime.AdmitOnceAsync(TestNamespace, ct);
             Assert.Equal((0, 0), (parked.Admitted, parked.Stale));
             Assert.Equal(
