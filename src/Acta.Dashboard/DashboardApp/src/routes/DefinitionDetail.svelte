@@ -16,6 +16,7 @@
   import { definitionControlMessage } from '../lib/controlMessages.ts';
   import PageFreshness from '../components/PageFreshness.svelte';
   import TagEditor from '../components/TagEditor.svelte';
+  import DefinitionPerformancePanel from './definition-detail/DefinitionPerformancePanel.svelte';
   import { routes } from '../routes';
   import { scope } from '../scope.ts';
   import { displayFormatter } from '../format';
@@ -82,6 +83,13 @@
   let history = $derived(detail.data?.history ?? []);
   let loading = $derived(detail.isPending);
   let error = $derived(detail.error ? (detail.error instanceof Error ? detail.error.message : String(detail.error)) : '');
+  // The performance panel owns its reads; set only while its disclosure is open.
+  let performancePanel = $state();
+
+  function reload() {
+    void detail.refetch();
+    performancePanel?.refresh();
+  }
 
   let saving = $state(false);
   let message = $state('');
@@ -191,7 +199,7 @@
       dataUpdatedAt={detail.dataUpdatedAt}
       isFetching={detail.isFetching}
       isError={!!detail.error}
-      onRefresh={() => detail.refetch()} />
+      onRefresh={reload} />
 
     {#if def && canAdminNow && def.status !== 'retired'}
       <DetailActions>
@@ -248,6 +256,10 @@
           {/each}
         </dl>
       </section>
+
+      <FocusDisclosure title="Performance" hint="Durations and failure rate" open={true} lazy={true}>
+        <DefinitionPerformancePanel bind:this={performancePanel} {definitionPath} eventRecording={def.eventRecordingEffective} />
+      </FocusDisclosure>
 
       <FocusDisclosure hideHeading={true} title="Policy overrides" hint="Defaults, overrides and effective values">
       <section class="detail-panel">

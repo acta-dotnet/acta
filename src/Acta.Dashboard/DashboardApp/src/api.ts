@@ -432,6 +432,46 @@ export async function retireDefinition(
   );
 }
 
+// GET definitions/{ns}/{name}/performance: how long the definition's recorded executions took over a range and how
+// many failed. Durations are whole milliseconds cut to two significant figures. When `executionsHasMore` is set the
+// read counted only the newest executions, back to `oldestAtUtc`, and an interval that starts at or before it was cut
+// short or not read, which its counts do not say.
+export interface DefinitionPerformance {
+  fromUtc: string;
+  toUtc: string;
+  intervalSeconds: number;
+  executionsHasMore: boolean;
+  oldestAtUtc: string | null;
+  succeeded: DefinitionPerformanceExecutions;
+  failed: DefinitionPerformanceExecutions;
+  // From the first bin that holds an execution to the last, empty ones between included; none when nothing was counted.
+  succeededBins: DefinitionPerformanceBin[];
+  failedBins: DefinitionPerformanceBin[];
+  // Every interval of the range, oldest first.
+  intervals: DefinitionPerformanceInterval[];
+}
+
+// The executions of one outcome; the percentiles are null when none was counted.
+export interface DefinitionPerformanceExecutions {
+  executionCount: number;
+  p50Ms: number | null;
+  p95Ms: number | null;
+  p99Ms: number | null;
+}
+
+// One histogram bin: durations from `fromMs` up to, not including, `toMs`.
+export interface DefinitionPerformanceBin {
+  fromMs: number;
+  toMs: number;
+  executionCount: number;
+}
+
+export interface DefinitionPerformanceInterval {
+  startAtUtc: string;
+  succeeded: DefinitionPerformanceExecutions;
+  failed: DefinitionPerformanceExecutions;
+}
+
 export interface ScheduleControlResponse {
   action: ControlAction;
 }

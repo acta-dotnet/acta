@@ -5,6 +5,8 @@ export interface DisplayFormatter {
   number(value: number): string;
   duration(seconds: number | null | undefined): string;
   milliseconds(value: number): string;
+  durationMs(milliseconds: number): string;
+  percent(part: number, whole: number): string;
   bytes(value: number | null | undefined): string;
   relativeTime(iso: string | null | undefined, nowMs: number): string;
   timestamp(iso: string | null | undefined): string;
@@ -209,6 +211,23 @@ function formatMilliseconds(milliseconds: number): string {
   return `${formatNumber(milliseconds)} ms`;
 }
 
+// An execution's duration in the unit that reads it best. The server sends whole milliseconds already cut to two
+// significant figures, so nothing here rounds them again.
+function formatDurationMs(milliseconds: number): string {
+  if (milliseconds < 1) return '<1 ms';
+  if (milliseconds < 1000) return formatMilliseconds(milliseconds);
+  if (milliseconds < 60_000) return `${formatNumber(milliseconds / 1000)} s`;
+  return formatDuration(milliseconds / 1000);
+}
+
+// A share of a whole, cut as durations are: to a tenth under 10%, so it reads 0% or 100% only when it is.
+function formatPercent(part: number, whole: number): string {
+  if (part === 0) return '0%';
+  const tenths = Math.floor((part * 1000) / whole);
+  if (tenths === 0) return '<0.1%';
+  return `${tenths < 100 ? oneDecimalNumberFormatter.format(tenths / 10) : formatNumber(Math.floor(tenths / 10))}%`;
+}
+
 // Acta.NoInput stands in for the input of a handler that takes none, so it reads none, as the job page does.
 function formatTypeName(typeName: string | null | undefined): string {
   if (!typeName || typeName === 'Acta.NoInput') return 'none';
@@ -223,6 +242,8 @@ export const displayFormatter: DisplayFormatter = Object.freeze({
   number: formatNumber,
   duration: formatDuration,
   milliseconds: formatMilliseconds,
+  durationMs: formatDurationMs,
+  percent: formatPercent,
   bytes: formatBytes,
   relativeTime: formatRelativeTime,
   timestamp: formatTimestamp,

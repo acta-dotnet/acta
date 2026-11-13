@@ -65,6 +65,24 @@ const definition = {
   }
 };
 
+// The open Performance panel's read: a range with no executions.
+const performanceResponse = () =>
+  new Response(
+    JSON.stringify({
+      fromUtc: '2026-07-14T08:00:00Z',
+      toUtc: '2026-07-14T08:30:00Z',
+      intervalSeconds: 1800,
+      executionsHasMore: false,
+      oldestAtUtc: null,
+      succeeded: { executionCount: 0, p50Ms: null, p95Ms: null, p99Ms: null },
+      failed: { executionCount: 0, p50Ms: null, p95Ms: null, p99Ms: null },
+      succeededBins: [],
+      failedBins: [],
+      intervals: []
+    }),
+    { status: 200 }
+  );
+
 function pagedResponse(items: unknown[]) {
   return new Response(
     JSON.stringify({ items, nextCursor: null, hasMore: false, pageSize: 20, totalCount: items.length }),
@@ -131,8 +149,11 @@ const adminCapabilities = () =>
 function stubFetch(handler: (url: URL) => Response) {
   vi.stubGlobal(
     'fetch',
-    vi.fn(async (input: RequestInfo | URL) => handler(new URL(input as string | URL))
-  ));
+    vi.fn(async (input: RequestInfo | URL) => {
+      const url = new URL(input as string | URL);
+      return url.pathname.endsWith('/performance') ? performanceResponse() : handler(url);
+    })
+  );
 }
 
 describe('DefinitionDetail change history', () => {
@@ -186,6 +207,19 @@ describe('DefinitionDetail change history', () => {
   });
 });
 
+describe('DefinitionDetail performance', () => {
+  it('opens the performance panel, and the page refresh reads it again', async () => {
+    stubFetch((url) => (url.pathname.endsWith('/events') ? pagedResponse([]) : new Response(JSON.stringify(definition), { status: 200 })));
+    render(DefinitionDetailHarness, { jobNamespace, jobName });
+
+    expect(await screen.findByText('No finished executions in this window.')).toBeTruthy();
+    const reads = () => vi.mocked(fetch).mock.calls.filter(([input]) => String(input).includes('/performance')).length;
+    expect(reads()).toBe(1);
+    await fireEvent.click(screen.getByRole('button', { name: 'Refresh now' }));
+    await vi.waitFor(() => expect(reads()).toBe(2));
+  });
+});
+
 describe('DefinitionDetail retire', () => {
   function stubDetail(row: Record<string, unknown>, calls: { url: URL; init?: RequestInit }[] = []) {
     vi.stubGlobal(
@@ -200,6 +234,7 @@ describe('DefinitionDetail retire', () => {
             { status: 200 }
           );
         }
+        if (url.pathname.endsWith('/performance')) return performanceResponse();
         if (url.pathname.endsWith('/events')) return pagedResponse([]);
         return new Response(JSON.stringify(row), { status: 200 });
       })
@@ -276,6 +311,7 @@ describe('DefinitionDetail overrides', () => {
         calls.push({ url, init });
         if (url.pathname.endsWith('/capabilities')) return adminCapabilities();
         if (url.pathname.endsWith('/overrides')) return new Response(JSON.stringify({ action: 'applied', version: 4 }), { status: 200 });
+        if (url.pathname.endsWith('/performance')) return performanceResponse();
         if (url.pathname.endsWith('/events')) return pagedResponse([]);
         return new Response(JSON.stringify({ ...definition, maxAttemptsEffective: 7, overrides }), { status: 200 });
       })

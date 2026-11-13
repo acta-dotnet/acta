@@ -196,6 +196,33 @@ const sendInvoiceDefinition = {
   version: 2
 };
 
+// The send-invoice definition's performance over the range the page asks for: thirty successes in every interval, whose
+// tail grows late in the range, and a failure in every fifth interval.
+const performanceRead = (url: URL) => {
+  const fromMs = Date.parse(url.searchParams.get('fromUtc')!);
+  const toMs = Date.parse(url.searchParams.get('toUtc')!);
+  const intervalSeconds = Number(url.searchParams.get('intervalSeconds'));
+  const count = (toMs - fromMs) / (intervalSeconds * 1000);
+  const executions = (executionCount: number, p50Ms: number | null, p95Ms = p50Ms, p99Ms = p95Ms) => ({ executionCount, p50Ms, p95Ms, p99Ms });
+  const bins = (edges: number[], counts: number[]) => counts.map((executionCount, i) => ({ fromMs: edges[i], toMs: edges[i + 1], executionCount }));
+  return {
+    fromUtc: new Date(fromMs).toISOString(),
+    toUtc: new Date(toMs).toISOString(),
+    intervalSeconds,
+    executionsHasMore: false,
+    oldestAtUtc: new Date(fromMs).toISOString(),
+    succeeded: executions(30 * count, 240, 450, 1800),
+    failed: executions(Math.ceil(count / 5), 35, 900, 900),
+    succeededBins: bins([160, 200, 250, 320, 400, 500, 630, 800, 1000, 1300, 1600, 2000, 2500, 3200], [180, 610, 420, 150, 30, 6, 2, 0, 12, 14, 9, 6, 1]),
+    failedBins: bins([32, 40, 50, 63, 80, 100, 130, 160, 200, 250, 320, 400, 500, 630, 800, 1000], [5, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2]),
+    intervals: Array.from({ length: count }, (_, index) => ({
+      startAtUtc: new Date(fromMs + index * intervalSeconds * 1000).toISOString(),
+      succeeded: index > count * 0.6 ? executions(30, 230, 1600, 3200) : executions(30, 220 + (index % 3) * 10, 1000, 2000),
+      failed: index % 5 === 0 ? executions(1, 35) : executions(0, null)
+    }))
+  };
+};
+
 async function mockDashboard(
   page: Page,
   options: {
@@ -326,6 +353,7 @@ async function mockDashboard(
       return json(paged(options.definitions ?? [definition('send-invoice')]));
     }
     if (path === 'definitions/billing/send-invoice') return json(sendInvoiceDefinition);
+    if (path === 'definitions/billing/send-invoice/performance') return json(performanceRead(url));
     if (path === 'calendars') {
       const families = [
         {
@@ -1022,6 +1050,18 @@ test('Jobs and Job Detail fit a mobile viewport without page overflow', async ({
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 
+test('a definition\'s performance fits a phone without sideways scroll, its values tables open', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await mockDashboard(page, { controls: false });
+  await page.goto('/#/definitions/billing/send-invoice?ns=billing');
+
+  await expect(page.getByRole('img', { name: /^Trend of succeeded/ })).toBeVisible();
+  await page.locator('.perf-values > summary').click();
+  await expect(page.getByRole('table', { name: 'Succeeded execution durations per interval' })).toBeVisible();
+  // At this width main clips what overflows it, so main's own width is the one that shows an overflow.
+  expect(await page.locator('main').evaluate((main) => main.scrollWidth <= main.clientWidth)).toBe(true);
+});
+
 test('a stacked list row gives every cell the whole width of its card on a phone', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await mockDashboard(page, {
@@ -1587,6 +1627,15 @@ const openJob = async (page: Page, options: Parameters<typeof mockDashboard>[1] 
   await expect(page.getByRole('region', { name: 'Job status' })).toBeVisible();
 };
 
+// A definition with its performance read and the Values tables open, so one scan covers the charts and the tables.
+const openDefinition = async (page: Page) => {
+  await mockDashboard(page, { controls: true });
+  await page.goto('/#/definitions/billing/send-invoice?ns=billing');
+  await expect(page.getByRole('img', { name: /^Histogram of succeeded/ })).toBeVisible();
+  await page.locator('.perf-values > summary').click();
+  await expect(page.getByRole('table', { name: 'Succeeded execution durations per interval' })).toBeVisible();
+};
+
 const scanned: Array<[RouteName, string, (page: Page) => Promise<void>]> = [
   ['overview', 'the overview with an outbox relay', async (page) => {
     await mockDashboard(page, { controls: true, onDiscard: () => {} });
@@ -1671,10 +1720,11 @@ const scanned: Array<[RouteName, string, (page: Page) => Promise<void>]> = [
     await page.goto('/#/definitions');
     await expect(page.getByRole('link', { name: 'ship-order', exact: true })).toBeVisible();
   }],
-  ['definition-detail', 'a definition', async (page) => {
-    await mockDashboard(page, { controls: true });
-    await page.goto('/#/definitions/billing/send-invoice?ns=billing');
-    await expect(page.getByRole('region', { name: 'Effective policy' })).toBeVisible();
+  ['definition-detail', 'a definition and its performance', openDefinition],
+  ['definition-detail', 'a definition\'s failed executions', async (page) => {
+    await openDefinition(page);
+    await page.getByRole('radio', { name: 'Failed' }).check();
+    await expect(page.getByRole('img', { name: /^Histogram of failed/ })).toBeVisible();
   }],
   ['calendars', 'the calendars list', async (page) => {
     await mockDashboard(page, { controls: true });

@@ -27,6 +27,28 @@ test('human measurements retain invariant numeric formatting', () => {
   assert.equal(displayFormatter.milliseconds(1234567), '1234567 ms');
 });
 
+test('an execution duration reads in milliseconds, then seconds, then the duration form', () => {
+  assert.equal(displayFormatter.durationMs(0), '<1 ms');
+  assert.equal(displayFormatter.durationMs(7), '7 ms');
+  assert.equal(displayFormatter.durationMs(240), '240 ms');
+  assert.equal(displayFormatter.durationMs(1000), '1 s');
+  assert.equal(displayFormatter.durationMs(1800), '1.8 s');
+  assert.equal(displayFormatter.durationMs(59_000), '59 s');
+  assert.equal(displayFormatter.durationMs(90_000), '1m 30s');
+  assert.equal(displayFormatter.durationMs(2_100_000_000), '24d 7h');
+});
+
+test('a share is cut, never rounded, so only a whole reads 100% and only nothing reads 0%', () => {
+  assert.equal(displayFormatter.percent(0, 5000), '0%');
+  assert.equal(displayFormatter.percent(1, 5000), '<0.1%');
+  assert.equal(displayFormatter.percent(1, 1000), '0.1%');
+  assert.equal(displayFormatter.percent(24, 1000), '2.4%');
+  assert.equal(displayFormatter.percent(2, 100), '2.0%');
+  assert.equal(displayFormatter.percent(57, 100), '57%');
+  assert.equal(displayFormatter.percent(4999, 5000), '99%');
+  assert.equal(displayFormatter.percent(3, 3), '100%');
+});
+
 test('zoned timestamps use fixed ISO order with DST offset and IANA zone', () => {
   assert.equal(
     displayFormatter.timestampInZone('2026-07-15T06:26:52Z', 'Europe/Ljubljana'),

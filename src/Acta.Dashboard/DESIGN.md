@@ -73,6 +73,7 @@ Acta should feel calm, technically precise, modern, and readable. Focus is the d
 - Render schedules, checkpoints, lineage, and bindings only when relevant data exists.
 - Keep related links as a compact footer row.
 - Keep explanatory copy close to the control or fact it explains.
+- A choice among a few views is a row of native radio inputs drawn as one joined, bordered control and named by its visible label. The chosen one carries weight, a tint, and an underline, so the choice never rests on colour alone.
 - Avoid large circular status emblems and repeated status panels.
 
 ## References and dates
@@ -121,7 +122,7 @@ Acta should feel calm, technically precise, modern, and readable. Focus is the d
 
 - Schedules emphasize their expression, time zone, current state, and next occurrence. Advanced delivery policy and editing use disclosures. An active schedule whose evaluation is past due by more than the Overview's schedule-lag envelope leads with "Overdue for evaluation".
 - Calendars emphasize the shown definition and forecast. Keep version navigation compact and show bound schedules when present.
-- Definitions emphasize effective policy. Place the full override editor, contract, and supporting metadata behind disclosures.
+- Definitions emphasize effective policy and recent performance. Place the full override editor, contract, and supporting metadata behind disclosures.
 - Workers emphasize health, heartbeat, and execution capacity. Keep process identity, exact audit times, and runtime versions in technical details.
 - Alerts emphasize the incident and acknowledgment or resolution. Show delivery problems clearly and keep routine delivery metadata secondary.
 - Namespaces and tenants emphasize current availability and human context. Use disclosures for editing and supporting metadata.
@@ -140,6 +141,18 @@ Acta should feel calm, technically precise, modern, and readable. Focus is the d
 - A metric card says which way its value is moving with an arrow in its icon's place, and how far in its hint. A screen reader reads a link's hint as its description; a card that is no link carries the same words hidden in its label. The direction puts nothing beside the value: words there wrap under a long value and lift it off the line its neighbours share. The arrow takes the card's tone as the icon does and no colour of its own, and a value that only jitters shows none.
 - Freshness is one framed indicator of equal cells: a small vertical meter, then reload, then pause. It is never a ticking counter. On a view that polls, the meter drains to the bottom as the next refresh approaches and refills when data arrives. The meter takes the status colour, and words join it only for a state worth reading: paused, failed, offline, or session ended. A view that does not refresh itself shows a still meter and its data's age to the minute.
 - Links inside a warning or failure banner use the text colour with an underline. The accent reads as healthy there.
+
+## Charts
+
+- Draw charts by hand from the design tokens: bars, rules, and marks are HTML placed by percentage, lines are one SVG stretched over the plot with strokes that keep their width, and every word is HTML, so a chart follows the theme, the text size, and the zoom.
+- Colour names the outcome: succeeded marks take the ok colour and failed marks the bad colour, never both in one distribution. Execution counts are neutral.
+- Every mark that carries a value, a bar, column, line, percentile rule, or marker, reads at 3:1 or better against the panel in each theme. Gridlines, washes, and stems are furniture below that, and no value is read from them alone.
+- Durations share one scale across charts: linear from 0 to 10 ms and logarithmic above, which lays the duration bins side by side at equal width and gives a zero-millisecond execution a place. Ticks come from the 1-2-5 series of each unit, and a narrow chart keeps every other one.
+- A trend joins its intervals into lines, p50 strong and p95 and p99 fine above it with a wash up to p99, when its outcome has 100 executions or more in the window. Under that each interval stands alone as a range mark, a dot at p50 and ticks at p95 and p99, since lines through intervals of one or two executions read as scribble.
+- Labels that would sit on each other merge into one that names them all.
+- A readout of two fixed lines above each plot names what the pointer is on, and pointer events drive it, so touch reads it too. With nothing pointed at it names a resting value, so it is never empty and the plot never moves. Nothing floats over a chart.
+- A chart is a figure whose plot is an image named by a sentence of its main values. A Values disclosure holds the same numbers in tables, the keyboard and screen-reader path; they run their full length rather than scroll inside a box.
+- Tabular figures in a chart are for its axis ticks only.
 
 ## Accessibility
 

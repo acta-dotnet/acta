@@ -1220,6 +1220,35 @@ button.copy:hover { color: var(--accent); }
 /* A system job's reserved prefix, set quieter than the rest of its name: the prefix is the mark. */
 .sys-prefix { color: var(--muted); }
 
+/* ---- Charts. Drawn by hand: bars, rules and marks are HTML placed by percentage, lines one stretched SVG, and every
+   word is HTML, so a chart follows the theme, the text size and the zoom, and nothing measures its container. A chart
+   draws its values in its --tone (DESIGN.md, Charts). ---- */
+.chart { margin: 0; min-width: 0; display: grid; gap: 6px; container-type: inline-size; --axis-width: 56px; }
+.chart h3 { margin: 0; font-size: var(--text-section); font-weight: 600; }
+.chart-sub { margin: 0; color: var(--muted); font-size: var(--text-supporting); }
+/* The readout keeps its two lines whether or not anything is pointed at, so the plot under it never moves. */
+.chart-readout { margin: 0; min-height: 3em; color: var(--muted); font-size: var(--text-sm); }
+.chart-readout b { color: var(--ink); font-weight: 600; }
+.chart-frame { display: grid; grid-template-columns: var(--axis-width) minmax(0, 1fr); }
+.chart-labels { grid-area: labels; position: relative; }
+.chart-axis { position: relative; }
+.chart-axis.y { grid-area: y; }
+.chart-axis.x { grid-area: x; }
+.chart-plot { grid-area: plot; position: relative; border-bottom: 1px solid var(--muted); cursor: crosshair; touch-action: pan-y; }
+.chart .tick { position: absolute; color: var(--muted); font-size: var(--text-micro); font-variant-numeric: lining-nums tabular-nums; white-space: nowrap; line-height: 1; }
+.chart-axis.y .tick { right: 8px; transform: translateY(50%); }
+.chart-axis.x .tick { top: 7px; transform: translateX(-50%); }
+.chart-axis.x .tick.first { transform: none; }
+.chart-axis.x .tick.last { transform: translateX(-100%); }
+/* Gridlines are furniture, below the 3:1 a mark that carries a value needs: no value is read from them alone. */
+.chart-gridline { position: absolute; left: 0; right: 0; border-top: 1px solid var(--line); pointer-events: none; }
+.chart-label { position: absolute; color: var(--ink); font-size: var(--text-micro); font-weight: 600; white-space: nowrap; line-height: 1; }
+/* A bar is the slot of its bin or interval, and draws its column inside it. */
+.chart-bar { position: absolute; top: 0; bottom: 0; }
+.chart-bar span { position: absolute; bottom: 0; left: 1px; right: 1px; max-width: 24px; margin: 0 auto; min-height: 2px; background: var(--tone); border-radius: 2px 2px 0 0; }
+/* While one bar is pointed at, the others step back. */
+.chart .pointing .chart-bar:not(.hot) span { opacity: 0.45; }
+
 @media (max-width: 800px) {
   body { font-size: var(--text-mobile-base); }
   .brand { font-size: var(--text-mobile-brand); }
@@ -1357,6 +1386,7 @@ button.value-detail:hover:not(:disabled) { color: var(--accent); background: non
 :root[data-theme='paper'] .metric { font-variant-numeric: lining-nums tabular-nums; }
 /* A figure set large: the serif's round zero reads as the letter O, so it takes the slashed one. */
 :root[data-theme='paper'] .metric-value { font-variant-numeric: lining-nums tabular-nums slashed-zero; }
+:root[data-theme='paper'] .perf-facts dd { font-variant-numeric: lining-nums slashed-zero; }
 
 /* A ledger's columns: a firmer rule under the heads, hairlines between rows. */
 :root[data-theme='paper'] table.data thead th { box-shadow: 0 1px 0 var(--line-strong); }

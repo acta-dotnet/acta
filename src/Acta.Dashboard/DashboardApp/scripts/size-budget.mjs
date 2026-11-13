@@ -29,8 +29,8 @@ import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-/** Bundle bytes measured on 2026-10-29, the build that added the calendar catalog pages and their week editor. */
-const BASELINE = { raw: 500_800, gzip: 148_030 };
+/** Bundle bytes measured on 2026-11-13, the build that added the definition performance panel. */
+const BASELINE = { raw: 585_970, gzip: 170_500 };
 
 /** The ceiling. Over this, the build fails. */
 const BUDGET = { raw: 1_000_000, gzip: 296_000 };
