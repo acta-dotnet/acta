@@ -20,6 +20,7 @@ For concrete migration patterns from Hangfire, Quartz, TickerQ, platform schedul
 
 | Kind of work | Use |
 | --- | --- |
+| A call that must answer now, to a service that may fail for a moment | An in-process resilience library such as Polly: retries, timeouts, and circuit breakers that live in memory for the length of the call. Nothing has to outlive the request. |
 | A local loop where a missed tick is harmless | `BackgroundService` or `PeriodicTimer`. Nothing needs to be stored, so nothing more is needed. |
 | A script or container the platform starts on a calendar | cron, systemd timers, Windows Task Scheduler, a Kubernetes CronJob, or a cloud timer. The platform owns the clock and the process. |
 | Messages between services | A message broker or a streaming platform, for pub/sub, fan-out, and streams you replay. Acta can run the work a message starts, with the message id as its deduplication key. |
@@ -89,6 +90,7 @@ Cron, retries, dashboards, and SQL storage exist everywhere. What Acta offers is
 | Durable Task (Durable Functions and its SDKs), an orchestration framework | You host on Azure Functions, or want a managed Azure service to hold your orchestrations' state. Durable Functions can also keep it in SQL Server. | The state belongs in the application's own PostgreSQL, SQL Server, or SQLite database, wherever the application runs, and you want checkpoints you place yourself rather than orchestrator code that replays. |
 | Wolverine, a messaging framework | Your background work is message handling: a durable inbox and outbox, durable local queues, and scheduled messages, on a database you already run. | The unit is a job with a life of its own: steps, waits, child jobs, a schedule, a history, and an operator who can pause, restart, or signal it. |
 | RabbitMQ, Kafka, Service Bus, or SQS, a message broker | You need messaging between services, those in other languages included, with whatever pub/sub, fan-out, or replay your broker or streaming platform offers. | Add Acta beside it when the work a message starts needs retries, steps, and a history: the broker carries the message, and Acta runs the work. Without a broker, Acta runs background work on the database alone. |
+| Polly, a resilience library | The caller is waiting: retries, timeouts, circuit breakers, hedging, fallbacks, and rate limiters around one call, held in memory in one process. | Add Acta around it when a retry has to outlive the process: the attempt count and the backoff are a row, a finished step is not repeated, a limit holds across every worker, and a job that ran out of attempts can be read and restarted weeks later. Polly inside a step makes the quick retries, and Acta makes the long ones. |
 
 Each row describes the project as its own documentation did in November 2026: Quartz.NET at 4.x, and TickerQ at 5.x, then a preview.
 

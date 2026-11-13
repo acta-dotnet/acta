@@ -79,6 +79,7 @@
     <section class="wrap">
       <h2 class="ref-group" id="kind">Start from the kind of work</h2>
       <dl class="ref">
+        <div class="ref-row"><dt>A call that must answer now, to a service that may fail for a moment</dt><dd>An in-process resilience library such as Polly: retries, timeouts, and circuit breakers that live in memory for the length of the call. Nothing has to outlive the request.</dd></div>
         <div class="ref-row"><dt>A local loop where a missed tick is harmless</dt><dd><code>BackgroundService</code> or <code>PeriodicTimer</code>. Nothing needs to be stored, so nothing more is needed.</dd></div>
         <div class="ref-row"><dt>A script or container the platform starts on a calendar</dt><dd>cron, systemd timers, Windows Task Scheduler, a Kubernetes CronJob, or a cloud timer. The platform owns the clock and the process.</dd></div>
         <div class="ref-row"><dt>Messages between services</dt><dd>A message broker or a streaming platform, for pub/sub, fan-out, and streams you replay. Acta can run the work a message starts, with the message id as its deduplication key.</dd></div>
@@ -150,6 +151,13 @@
           <div class="why">
             <p><b>Keep it</b> for messaging between services, those in other languages included, with whatever pub/sub, fan-out, or replay your broker or streaming platform offers.</p>
             <p><b>Add Acta beside it</b> when the work a message starts needs retries, steps, and a history: the broker carries the message, and Acta runs the work. Without a broker, Acta runs background work on the database alone.</p>
+          </div>
+        </div>
+        <div class="vs-row" id="polly">
+          <div class="who"><b>Polly</b><span>resilience library</span></div>
+          <div class="why">
+            <p><b>Keep it</b> while the caller is waiting: retries, timeouts, circuit breakers, hedging, fallbacks, and rate limiters around one call, held in memory in one process.</p>
+            <p><b>Add Acta around it</b> when a retry has to outlive the process: the attempt count and the backoff are a row, a finished step is not repeated, a limit holds across every worker, and a job that ran out of attempts can be read and restarted weeks later. Polly inside a step makes the quick retries, and Acta makes the long ones.</p>
           </div>
         </div>
       </div>
@@ -292,7 +300,7 @@
           </nav>
           <div class="footer-release">
             <p class="footer-head">Release</p>
-            <p class="footer-version"><span class="release-dot" aria-hidden="true"></span><a href="https://github.com/acta-dotnet/acta/releases">1.0.0-rc.10 <span aria-hidden="true">↗</span></a><span>a release candidate</span></p>
+            <p class="footer-version"><span class="release-dot" aria-hidden="true"></span><a href="https://github.com/acta-dotnet/acta/releases">1.0.0-rc.11 <span aria-hidden="true">↗</span></a><span>a release candidate</span></p>
             <a href="https://github.com/acta-dotnet/acta/blob/main/docs/compatibility-and-support.md">Compatibility and support</a>
             <a href="https://github.com/acta-dotnet/acta/blob/main/docs/known-limitations.md#stability-status">Stability status</a>
             <a href="https://github.com/acta-dotnet/acta">Source on GitHub <span aria-hidden="true">↗</span></a>
