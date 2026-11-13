@@ -25,6 +25,7 @@ public static class ActaTestHost
     /// provisioned a throwaway schema, so without it the bootstrap's migration-history preflight throws
     /// instead of migrating.
     /// </para>
+    /// <para>A start that fails disposes the services it built before it throws: there is no host to dispose after it.</para>
     /// </summary>
     public static async Task<IActaTestHost> StartAsync(
         Action<IActaBuilder, string> configureJobs,
@@ -40,28 +41,36 @@ public static class ActaTestHost
         services.UseActa(j => configureJobs(j, schema));
         options.ConfigureServices?.Invoke(services);
         var provider = services.BuildServiceProvider(validateScopes: true);
-
-        var runtimes = provider.GetServices<WorkerRuntime>().ToArray();
-        // A test host deploys its jobs as a development start does, whatever MigrateOnStartup says: a schema another
-        // step provisioned still has none of this host's definitions, and a test has no deploy step of its own. A
-        // namespace a deploy verb has recorded is left alone here too, and admits only the versions deployed there.
-        await WorkerRuntimeStartup.RunAsync(
-            provider.GetServices<IProviderBootstrap>(),
-            provider.GetRequiredService<CatalogDeployer>(),
-            runtimes,
-            ct
-        );
-
-        // Lets the run-once helper stop retrying an empty claim as soon as the row can no longer be
-        // claimed, instead of waiting out its budget to say so.
-        var jobs = provider.GetRequiredService<IJobs>();
-        foreach (var runtime in runtimes)
+        try
         {
-            runtime.AttachClaimabilityProbe(jobs);
-        }
+            var runtimes = provider.GetServices<WorkerRuntime>().ToArray();
+            // A test host deploys its jobs as a development start does, whatever MigrateOnStartup says: a schema another
+            // step provisioned still has none of this host's definitions, and a test has no deploy step of its own. A
+            // namespace a deploy verb has recorded is left alone here too, and admits only the versions deployed there.
+            await WorkerRuntimeStartup.RunAsync(
+                provider.GetServices<IProviderBootstrap>(),
+                provider.GetRequiredService<CatalogDeployer>(),
+                runtimes,
+                ct
+            );
 
-        // The schema the session resolved, so a provider that fixes its own (SQLite's main) is named as it is.
-        return new HostImpl(provider, runtimes, provider.GetRequiredService<IDbSession>().Schema);
+            // Lets the run-once helper stop retrying an empty claim as soon as the row can no longer be
+            // claimed, instead of waiting out its budget to say so.
+            var jobs = provider.GetRequiredService<IJobs>();
+            foreach (var runtime in runtimes)
+            {
+                runtime.AttachClaimabilityProbe(jobs);
+            }
+
+            // The schema the session resolved, so a provider that fixes its own (SQLite's main) is named as it is.
+            return new HostImpl(provider, runtimes, provider.GetRequiredService<IDbSession>().Schema);
+        }
+        catch
+        {
+            // No host reaches the caller, so nothing else disposes what the provider built.
+            await provider.DisposeAsync();
+            throw;
+        }
     }
 
     private sealed class HostImpl(ServiceProvider provider, WorkerRuntime[] runtimes, string schema) : IActaTestHost
