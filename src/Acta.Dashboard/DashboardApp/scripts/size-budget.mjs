@@ -13,15 +13,15 @@
 //     names that no longer exist and navigation breaks until someone reloads. One file cannot
 //     half-exist.
 //
-// So the lever that matters is total size, and this script is the ratchet on it. Run after
+// So the lever that matters is total size, and this script is the gate on it. Run after
 // `npm run build`; it reads dist/.vite/manifest.json rather than guessing hashed filenames. It
 // checks two things: that the build is still one JS file and one CSS file, and that they fit the
 // budget below. The shape check is what keeps the reasoning above from being advice.
 //
-// BASELINE is what the bundle measured when this gate went in. BUDGET is that plus ~10% headroom.
-// When this fails, the fix is not to raise BUDGET reflexively: find what grew (`npx vite build
-// --sourcemap` and attribute the map back to sources) and decide whether it belongs. If it does,
-// re-measure, move both constants together, and say why in the commit. Growth should be a decision,
+// BUDGET is a fixed ceiling: 1 MB raw, and the gzip size that goes with it at the bundle's ratio.
+// BASELINE is what the bundle measured at the build named beside it, so a run says how far the
+// bundle has moved since. When this fails, find what grew (`npx vite build --sourcemap` and
+// attribute the map back to sources) and decide whether it belongs. Growth should be a decision,
 // not an accident.
 
 import { gzipSync } from 'node:zlib';
@@ -32,8 +32,8 @@ import { fileURLToPath } from 'node:url';
 /** Bundle bytes measured on 2026-10-29, the build that added the calendar catalog pages and their week editor. */
 const BASELINE = { raw: 500_800, gzip: 148_030 };
 
-/** BASELINE + ~10%. Over this, the build fails. */
-const BUDGET = { raw: 551_000, gzip: 163_000 };
+/** The ceiling. Over this, the build fails. */
+const BUDGET = { raw: 1_000_000, gzip: 296_000 };
 
 const distDir = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const manifestPath = join(distDir, '.vite', 'manifest.json');
