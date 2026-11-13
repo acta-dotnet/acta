@@ -307,19 +307,25 @@ internal static partial class CalendarDefinition
                 }
 
                 var text = item.GetString()!;
+                var hour24 = Hour24(text, 11);
                 if (
-                    DateTimeOffset.TryParseExact(
+                    !hour24
+                    && DateTimeOffset.TryParseExact(
                         text,
                         "yyyy-MM-dd'T'HH:mm:ssK",
                         CultureInfo.InvariantCulture,
                         DateTimeStyles.None,
                         out var offset
-                    ) && (text.EndsWith('Z') || text[^6] is '+' or '-')
+                    )
+                    && (text.EndsWith('Z') || text[^6] is '+' or '-')
                 )
                 {
                     utc.Add(offset.UtcDateTime);
                 }
-                else if (DateTime.TryParseExact(text, LocalInstantFormats, CultureInfo.InvariantCulture, DateTimeStyles.None, out var at))
+                else if (
+                    !hour24
+                    && DateTime.TryParseExact(text, LocalInstantFormats, CultureInfo.InvariantCulture, DateTimeStyles.None, out var at)
+                )
                 {
                     local.Add(DateTime.SpecifyKind(at, DateTimeKind.Unspecified));
                 }

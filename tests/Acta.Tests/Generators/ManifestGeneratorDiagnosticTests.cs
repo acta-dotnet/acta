@@ -31,7 +31,11 @@ public class ManifestGeneratorDiagnosticTests
             "GeneratorDiagnosticTests",
             [CSharpSyntaxTree.ParseText(source)],
             referencePaths.Select(p => MetadataReference.CreateFromFile(p)),
-            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary)
+            // The two warnings every SDK build turns off: a reference built against an older framework assembly
+            // unifies with the newer one in hand, as Acta's does when these tests run on a later runtime.
+            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary).WithSpecificDiagnosticOptions(
+                new Dictionary<string, ReportDiagnostic> { ["CS1701"] = ReportDiagnostic.Suppress, ["CS1702"] = ReportDiagnostic.Suppress }
+            )
         );
 
         var driver = CSharpGeneratorDriver.Create(
@@ -1522,6 +1526,7 @@ public class ManifestGeneratorDiagnosticTests
     [InlineData("StartAtUtc = \"2027-12-01\"")]
     [InlineData("StartAtUtc = \"2027-12-01T00:00:00\"")]
     [InlineData("EndBeforeUtc = \"2027-12-01T00:00:00+01:00\"")]
+    [InlineData("StartAtUtc = \"2027-12-01T24:00:00Z\"")]
     [InlineData("StartAtUtc = \"2028-01-01T00:00:00Z\", EndBeforeUtc = \"2027-12-01T00:00:00Z\"")]
     [InlineData("StartAtUtc = \"2027-12-01T00:00:00Z\", EndBeforeUtc = \"2027-12-01T00:00:00Z\"")]
     public void An_incomplete_schedule_bound_errors_ACTA0129(string bounds)

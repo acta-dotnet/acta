@@ -4,7 +4,9 @@
        from the same feed, in the same loop shape, right after the plain consumer. -->
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net10.0</TargetFramework>
+    <!-- The consumer's framework, as in Smoke.csproj. -->
+    <ConsumerFramework Condition="'$(ConsumerFramework)' == ''">net10.0</ConsumerFramework>
+    <TargetFramework>$(ConsumerFramework)</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <!-- The generated manifest type is named from the root namespace's last segment, and the shared

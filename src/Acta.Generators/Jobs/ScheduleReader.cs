@@ -132,7 +132,8 @@ internal static class ScheduleReader
 
     /// <summary>
     /// Parses a <c>[Schedule]</c> bound: a UTC instant written <c>yyyy-MM-ddTHH:mm:ssZ</c>, read as a
-    /// <see cref="DateTimeKind.Utc"/> value.
+    /// <see cref="DateTimeKind.Utc"/> value. Hour 24 is no bound: the compiler's runtime reads it as the next
+    /// midnight from .NET 11 on and refuses it before, and a build must not depend on the runtime that compiled it.
     /// </summary>
     internal static bool TryParseBound(string text, out DateTime utc) =>
         DateTime.TryParseExact(
@@ -141,7 +142,7 @@ internal static class ScheduleReader
             CultureInfo.InvariantCulture,
             DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal,
             out utc
-        );
+        ) && !(text[11] == '2' && text[12] == '4');
 
     /// <summary>
     /// A single-token expression starting with a digit (human form, e.g. `5m`) or `P`/`p` (ISO 8601, e.g.

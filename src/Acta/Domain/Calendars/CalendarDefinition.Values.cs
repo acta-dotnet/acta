@@ -117,6 +117,7 @@ internal static partial class CalendarDefinition
         {
             if (
                 e is { ValueKind: JsonValueKind.String } s
+                && !Hour24(s.GetString()!, 0)
                 && TimeOnly.TryParseExact(s.GetString(), TimeFormats, CultureInfo.InvariantCulture, DateTimeStyles.None, out var time)
             )
             {
@@ -163,6 +164,7 @@ internal static partial class CalendarDefinition
             // be right.
             if (
                 e is { ValueKind: JsonValueKind.String } s
+                && !Hour24(s.GetString()!, 11)
                 && DateTime.TryParseExact(
                     s.GetString(),
                     "yyyy-MM-dd'T'HH:mm:ss'Z'",
@@ -182,6 +184,10 @@ internal static partial class CalendarDefinition
 
             return null;
         }
+
+        // Hour 24 is a window's end and nothing else. The runtime's parsers read it as midnight from .NET 11 on and
+        // refuse it before, and the runtime a host runs on must not decide whether a stored definition compiles.
+        private static bool Hour24(string text, int at) => text.Length > at + 1 && text[at] == '2' && text[at + 1] == '4';
 
         private string? Choice(JsonElement? e, string path, params string[] choices)
         {

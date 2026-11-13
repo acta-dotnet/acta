@@ -13,7 +13,7 @@ Acta is for background work that has to survive a crash and be explained afterwa
 
 ## Run a job
 
-From an empty folder, with the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) and nothing else. It runs on embedded SQLite.
+From an empty folder, with the [.NET 10](https://dotnet.microsoft.com/download/dotnet/10.0) or [.NET 11](https://dotnet.microsoft.com/download/dotnet/11.0) SDK and nothing else. It runs on embedded SQLite.
 
 ```bash
 dotnet new web -n Shipping && cd Shipping

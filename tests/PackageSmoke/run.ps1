@@ -1,5 +1,6 @@
 param(
-    [string]$ExistingFeed = ''
+    [string]$ExistingFeed = '',
+    [string]$Framework = 'net10.0'
 )
 
 # Pack-and-consume smoke: builds and runs the standalone Smoke consumer from packages only. By
@@ -7,12 +8,13 @@ param(
 # packages already produced by the preceding pack step. Proves a single provider PackageReference
 # delivers the runtime, the [Job] source generator, and the ACTA analyzers - no project references.
 # Repeats the consume for every provider so each shippable provider package is proven self-contained.
+# -Framework builds the consumer for a later framework than the packages target, on an SDK that has it.
 $ErrorActionPreference = 'Stop'
 $root = Resolve-Path "$PSScriptRoot/../.."
 $feed = Join-Path $PSScriptRoot 'feed'
 
-# Sqlite is the easiest to consume (no server), so it runs first; the providers differ only in their
-# native data-access dependency, and the consumer never opens a connection.
+# The providers differ only in their native data-access dependency, and a provider leg never opens a
+# connection. The Acta.Testing leg further down is the one that runs a job, on a SQLite file.
 $providers = @('Acta.Postgres', 'Acta.Sqlite', 'Acta.SqlServer')
 
 foreach ($stale in @(
@@ -166,7 +168,7 @@ try {
 
         Write-Host "PackageSmoke: consuming $provider $version"
         dotnet run --project "$PSScriptRoot/Smoke/Smoke.csproj" -c Release --nologo `
-            -p:ActaPackageVersion=$version -p:ActaProvider=$provider
+            -p:ActaPackageVersion=$version -p:ActaProvider=$provider -p:ConsumerFramework=$Framework
         if ($LASTEXITCODE -ne 0) { throw "package smoke failed: $provider" }
     }
 
@@ -185,7 +187,7 @@ try {
 
         Write-Host "PackageSmoke: consuming $provider $version under central package management"
         dotnet run --project "$PSScriptRoot/SmokeCpm/SmokeCpm.csproj" -c Release --nologo `
-            -p:ActaPackageVersion=$version -p:ActaProvider=$provider
+            -p:ActaPackageVersion=$version -p:ActaProvider=$provider -p:ConsumerFramework=$Framework
         if ($LASTEXITCODE -ne 0) { throw "package smoke (central package management) failed: $provider" }
     }
 
@@ -204,7 +206,7 @@ try {
 
         Write-Host "PackageSmoke: consuming $extra $version (on Acta.Sqlite)"
         dotnet run --project "$PSScriptRoot/Smoke/Smoke.csproj" -c Release --nologo `
-            -p:ActaPackageVersion=$version -p:ActaProvider=Acta.Sqlite -p:ActaExtra=$extra
+            -p:ActaPackageVersion=$version -p:ActaProvider=Acta.Sqlite -p:ActaExtra=$extra -p:ConsumerFramework=$Framework
         if ($LASTEXITCODE -ne 0) { throw "package smoke failed: $extra" }
     }
 }

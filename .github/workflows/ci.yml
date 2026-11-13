@@ -224,6 +224,86 @@ jobs:
         if: always()
         run: docker compose down -v
 
+  # Acta ships net10.0 only. This job holds the claim that those packages run on .NET 11: the suites again with every
+  # test host rolled forward to the 11 runtime, then a net11.0 consumer built by the 11 SDK from the packed feed.
+  # build-test keeps the axes that do not change with the runtime: RCSI off, the concept samples.
+  net11:
+    name: .NET 11 (suites on the runtime, consumer on the SDK)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    needs: [quality, dashboard, pack-smoke]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      # global.json still picks the SDK that builds. The second version adds the 11 runtime for the test hosts and
+      # the 11 SDK for the consumer.
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        with:
+          global-json-file: global.json
+          dotnet-version: 11.0.x
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: dashboard-dist
+          path: src/Acta.Dashboard/DashboardApp/dist
+      - name: Verify dashboard assets
+        run: test -f src/Acta.Dashboard/DashboardApp/dist/index.html
+      - name: Cache NuGet packages
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('Directory.Packages.props', 'Directory.Build.props', 'global.json') }}
+          restore-keys: |
+            nuget-${{ runner.os }}-
+      - name: Start databases
+        run: docker compose up -d --wait --wait-timeout 300
+      # RollForward goes into each runtimeconfig.json, so a net10.0 test host starts on the newest runtime installed.
+      - name: Build
+        run: dotnet build Acta.slnx -c Release /p:ActaDashboardSkipNpm=true /p:RollForward=LatestMajor
+      - name: Every test host rolls forward
+        run: |
+          configs=$(ls tests/*/bin/Release/net10.0/*.runtimeconfig.json)
+          missing=$(grep -L '"rollForward": "LatestMajor"' $configs || true)
+          if [ -n "$missing" ]; then
+            echo "$missing"
+            echo 'These test hosts would start on the runtime they target.'
+            exit 1
+          fi
+      # RuntimeVersionTests fails the run unless the newest runtime installed is the major named here.
+      - name: Test on the .NET 11 runtime
+        env:
+          ACTA_TEST_DOTNET_MAJOR: '11'
+        run: dotnet test Acta.slnx -c Release --no-build --settings tests/Acta.runsettings --logger trx --blame-hang-timeout 5m
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: packages
+          path: artifacts
+      # Every dotnet command after this one runs on the 11 SDK, so it stays the last step but the consumer's.
+      - name: Select the .NET 11 SDK
+        run: dotnet new globaljson --sdk-version 11.0.100 --roll-forward latestFeature --force
+      - name: Package smoke as a net11.0 consumer
+        shell: pwsh
+        run: tests/PackageSmoke/run.ps1 -ExistingFeed artifacts -Framework net11.0
+      - name: Deadlock report
+        if: always()
+        run: bash .github/scripts/deadlock-report.sh
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: db-logs-net11
+          path: db-logs.txt
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: test-results-net11
+          path: |
+            **/*.trx
+            **/Sequence_*.xml
+          if-no-files-found: warn
+      - name: Stop databases
+        if: always()
+        run: docker compose down -v
+
   demos:
     name: Demos build (published packages)
     runs-on: ubuntu-latest

@@ -70,7 +70,7 @@ Docker notes (all optional):
 | `ACTA_TEST_REDIS` | Redis wakeup concept and tests | Redis endpoint |
 | `ACTA_LOCAL_PROVIDER` | concepts, demos | provider selector; SQLite default, `postgres` or `sqlserver` to opt in |
 
-Maintainer / CI variables: `ACTA_EMIT_DOCS` (regenerate conformance contract docs), `ACTA_EMIT_API` (regenerate the public API baseline), `ACTA_EMIT_OPENAPI` (regenerate `docs/reference/openapi.json`), `ACTA_AOT_PUBLISH_TEST`, `ASPNETCORE_ENVIRONMENT`. Compose binds SQL Server to IPv4 loopback only, so connection strings name `127.0.0.1`, not `localhost` (`.env.example` has the full set).
+Maintainer / CI variables: `ACTA_EMIT_DOCS` (regenerate conformance contract docs), `ACTA_EMIT_API` (regenerate the public API baseline), `ACTA_EMIT_OPENAPI` (regenerate `docs/reference/openapi.json`), `ACTA_AOT_PUBLISH_TEST`, `ACTA_TEST_DOTNET_MAJOR` (the runtime major a run that rolls its test hosts forward must start on), `ASPNETCORE_ENVIRONMENT`. Compose binds SQL Server to IPv4 loopback only, so connection strings name `127.0.0.1`, not `localhost` (`.env.example` has the full set).
 
 ## Local setup problems
 

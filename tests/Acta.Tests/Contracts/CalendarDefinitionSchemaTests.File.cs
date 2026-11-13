@@ -95,7 +95,16 @@ public sealed partial class CalendarDefinitionSchemaTests
             """{"kind":"weekly-availability","weekly":[{"days":["Monday"],"windows":[["09:00"]]}]}""",
             """{"kind":"weekly-availability","weekly":[{"days":["Monday"],"windows":[["09:00","17:00","18:00"]]}]}""",
             """{"kind":"weekly-availability","weekly":[{"days":["Monday"],"windows":[["09:00","25:00"]]}]}""",
+            // Hour 24 is a window's end, written 24:00, and stands in no other time and in no instant, whatever the
+            // runtime's own parsers take.
             """{"kind":"weekly-availability","weekly":[{"days":["Monday"],"windows":[["24:00","09:00"]]}]}""",
+            """{"kind":"weekly-availability","weekly":[{"days":["Monday"],"windows":[["09:00","24:00:00"]]}]}""",
+            """{"kind":"daily-local-time","times":["24:00"]}""",
+            """{"kind":"explicit-instants","instants":["2027-01-05T24:00:00Z"]}""",
+            """{"kind":"explicit-instants","instants":["2027-01-05T24:00:00+01:00"]}""",
+            """{"kind":"explicit-instants","instants":["2027-01-05T24:00"]}""",
+            """{"kind":"weekly-availability","weekly":[{"days":["Monday"],"windows":[["09:00","17:00"]]}],"excludedRanges":[{"fromUtc":"2027-01-05T24:00:00Z","toUtc":"2027-01-07T00:00:00Z"}]}""",
+            """{"kind":"explicit-instants","instants":["2027-01-05T10:60:00Z"]}""",
             """{"kind":"weekly-availability","weekly":[{"days":["Monday"],"windows":[["09:00","17:00"]],"note":"x"}]}""",
             """{"kind":"weekly-availability","weekly":[{"days":["Monday"],"windows":[["09:00","17:00"]]}],"excludedRanges":[{"from":"2027-08-01"}]}""",
             """{"kind":"weekly-availability","weekly":[{"days":["Monday"],"windows":[["09:00","17:00"]]}],"excludedRanges":[{"from":"2027-08-01","to":"2027-08-15","toUtc":"2027-01-05T11:00:00Z"}]}""",
