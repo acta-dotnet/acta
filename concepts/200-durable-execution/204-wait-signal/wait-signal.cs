@@ -107,7 +107,7 @@ await host.StopAsync();
 static async Task<GetJobResponse> RequireJobAsync(IJobs jobs, string jobRefText)
 {
     JobRef.TryParse(jobRefText, out var jobRef);
-    return await jobs.GetAsync(JobLookup.ByRef(jobRef))
+    return await jobs.GetAsync(jobRef)
         ?? throw new InvalidOperationException($"Job {jobRefText} was not found. Use the same configured database for every command.");
 }
 

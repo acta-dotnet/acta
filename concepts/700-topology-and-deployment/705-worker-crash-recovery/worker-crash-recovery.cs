@@ -100,7 +100,7 @@ if (!File.Exists(currentJobFile) || !JobRef.TryParse(File.ReadAllText(currentJob
     await host.StopAsync();
     return;
 }
-var probe = await jobs.GetAsync(JobLookup.ByRef(currentJobRef));
+var probe = await jobs.GetAsync(currentJobRef);
 if (probe is null)
 {
     Console.WriteLine($"The marker names {currentJobRef}, but that job is not in this database. Use the same provider for every command.");

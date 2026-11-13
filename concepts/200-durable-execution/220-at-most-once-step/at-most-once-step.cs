@@ -60,7 +60,7 @@ if (!File.Exists(currentJobFile) || !JobRef.TryParse(File.ReadAllText(currentJob
     await host.StopAsync();
     return;
 }
-var crashed = await jobs.GetAsync(JobLookup.ByRef(currentJobRef));
+var crashed = await jobs.GetAsync(currentJobRef);
 if (crashed is null)
 {
     Console.WriteLine(
