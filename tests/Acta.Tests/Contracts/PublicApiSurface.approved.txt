@@ -1214,6 +1214,7 @@ interface Acta.IJobs
     System.Threading.Tasks.ValueTask<Acta.ResumeJobResponse> ResumeAsync(Acta.JobLookup job, System.String? reasonMessage = null, System.String? actor = null, System.Nullable<System.Int64> expectedVersion = null, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.UpdateJobInputResponse> UpdateInputAsync(Acta.JobLookup job, Acta.JobPayload input, System.String? reasonMessage = null, System.String? actor = null, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<System.ValueTuple<System.Boolean Found, TResult? Value>> TryGetResultAsync<TResult>(Acta.JobLookup job, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.ValueTask<T?> GetVariableOrDefaultAsync<T>(Acta.JobLookup job, System.String name, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<TResult> GetResultAsync<TResult>(Acta.JobLookup job, System.Threading.CancellationToken ct = default) where TResult : notnull
 interface Acta.ILedger
     System.Threading.Tasks.ValueTask<Acta.GetOverviewResponse> GetOverviewAsync(Acta.GetOverviewQuery query, System.Threading.CancellationToken ct = default)

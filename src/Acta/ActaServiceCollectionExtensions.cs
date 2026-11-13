@@ -138,6 +138,7 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<GetJobLineageMapHandler>();
         services.TryAddSingleton<GetJobStatusHandler>();
         services.TryAddSingleton<GetJobResultHandler>();
+        services.TryAddSingleton<GetJobVariableOrDefaultHandler>();
         services.TryAddSingleton<PauseJobHandler>();
         services.TryAddSingleton<PurgeJobHandler>();
         services.TryAddSingleton<ReprioritizeJobHandler>();

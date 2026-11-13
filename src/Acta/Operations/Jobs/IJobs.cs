@@ -263,6 +263,15 @@ public interface IJobs
     ValueTask<ListJobCheckpointsResponse> ListCheckpointsAsync(ListJobCheckpointsQuery query, CancellationToken ct = default);
 
     /// <summary>
+    /// The variable the job's handler stored under <paramref name="name"/>, read as <typeparamref name="T"/> as
+    /// <c>ctx.GetVariableOrDefaultAsync</c> reads it: <c>await jobs.GetVariableOrDefaultAsync&lt;Stage&gt;(jobRef, "stage", ct)</c>.
+    /// Answers <c>default</c> when the variable is not set or no job matches, so read <c>int?</c> to tell a stored 0 from
+    /// none. The name is canonicalized as inside the job, and a malformed name or one under <c>sys.</c> throws
+    /// <see cref="ArgumentException"/>. Non-blocking point-in-time read.
+    /// </summary>
+    ValueTask<T?> GetVariableOrDefaultAsync<T>(JobLookup job, string name, CancellationToken ct = default);
+
+    /// <summary>
     /// One page of the steps recorded for <see cref="ListJobStepsQuery.Job"/>, newest first: name, status, and the
     /// failure that ended an at-most-once step. A job with no steps, or no job at all, answers an empty page.
     /// Non-blocking point-in-time read.

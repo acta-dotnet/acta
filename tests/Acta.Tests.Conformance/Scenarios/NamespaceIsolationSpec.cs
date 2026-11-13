@@ -338,6 +338,9 @@ public sealed class NamespaceIsolationSpec : ActaRuntimeTestBase<ConformanceFixt
         var completed = await EnqueueAndRunAsync("add-numbers", new AddNumbers(1, 2), ct);
         var parent = await Jobs.EnqueueAsync(Request("job-parent-one", null), ct);
         await RunToEndAsync(parent, ct);
+        // Sets a variable, then waits on a signal nothing raises.
+        var waiting = await Jobs.EnqueueAsync(Request("job-wait-signal", null), ct);
+        await Runtime.RunOnceAsync(TestNamespace, waiting.JobId, ct);
         var deduplicationKey = Unique("dedup");
         await Jobs.EnqueueAsync(
             Request("add-numbers", new AddNumbers(5, 6)) with
@@ -365,6 +368,9 @@ public sealed class NamespaceIsolationSpec : ActaRuntimeTestBase<ConformanceFixt
         await other.Check("explain a job", async t => Assert.NotNull(await Jobs.ExplainAsync(completed, t)));
         await other.Check("list a job's steps", t => Jobs.ListStepsAsync(new ListJobStepsQuery(completed), t).AsTask());
         await other.Check("list a job's checkpoints", t => Jobs.ListCheckpointsAsync(new ListJobCheckpointsQuery(parent), t).AsTask());
+        await other.Check("read a job's variable", async t =>
+            Assert.True(await Jobs.GetVariableOrDefaultAsync<bool>(waiting.JobRef, "ran.before", t))
+        );
         await other.Check("map a job's lineage", async t => Assert.NotNull(await Jobs.GetLineageMapAsync(parent, ct: t)));
         var definitions = Services.GetRequiredService<IDefinitions>();
         await other.Check("read a definition", async t => Assert.NotNull(await definitions.GetAsync(TestNamespace, "add-numbers", t)));

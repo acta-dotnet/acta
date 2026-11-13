@@ -19,6 +19,7 @@ internal sealed class JobsOperations(
     GetJobInputHandler getJobInput,
     GetJobResultHandler getJobResult,
     ListJobCheckpointsHandler listJobCheckpoints,
+    GetJobVariableOrDefaultHandler getJobVariableOrDefault,
     ListJobStepsHandler listJobSteps,
     CancelJobHandler cancelJob,
     PauseJobHandler pauseJob,
@@ -155,6 +156,11 @@ internal sealed class JobsOperations(
 
     public ValueTask<ListJobCheckpointsResponse> ListCheckpointsAsync(ListJobCheckpointsQuery query, CancellationToken ct = default) =>
         listJobCheckpoints.HandleAsync(query, ct);
+
+    public async ValueTask<T?> GetVariableOrDefaultAsync<T>(JobLookup job, string name, CancellationToken ct = default) =>
+        await getJobVariableOrDefault.HandleAsync(new GetJobVariableOrDefaultQuery(job, name), ct) is { } variable
+            ? routing.Decode<T>(variable.Value)
+            : default;
 
     public ValueTask<ListJobStepsResponse> ListStepsAsync(ListJobStepsQuery query, CancellationToken ct = default) =>
         listJobSteps.HandleAsync(query, ct);

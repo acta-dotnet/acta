@@ -2759,6 +2759,15 @@
 
 ## Variables
 
+### GetJobVariableOrDefault reads a job's variable from outside the job
+- **Contract:** A job's variable reads back outside the job as the type its handler stored, default when it is unset or no job matches, under a name the handler could set.
+- **Guarantees:**
+  - A variable the handler set reads back as its type, decoded by its stored format, under any casing of its name
+  - A value-type variable reads back as stored
+  - An unset variable and a lookup that matches no job both answer default, null for a reference type and 0 for an int
+  - Each job answers its own variable, never another job's variable of the same name
+  - A name under sys. or not dotted kebab is refused as the handler's own read refuses it, whether or not a job matches
+
 ### Job variables round-trip through the context API with versioning and validation
 - **Contract:** The variable context API persists set/get/get-or-set/delete/exists with last-writer-wins versioning, idempotent delete, format fidelity and payload validation.
 - **Guarantees:**
@@ -2893,6 +2902,7 @@
 | `GetJobLineageMap` | yes | yes | yes |
 | `GetJobResult` | yes | yes | yes |
 | `GetJobStatus` | yes | yes | yes |
+| `GetJobVariableOrDefault` | yes | yes | yes |
 | `GetNamespace` | yes | yes | yes |
 | `GetOutboxSignal` | yes | yes | yes |
 | `GetOutboxTable` | yes | yes | yes |
