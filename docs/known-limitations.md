@@ -120,7 +120,7 @@ genuinely new namespace name (a repeated deploy of an existing namespace allocat
 nothing), and namespaces are created deliberately, one per bounded context, not per request.
 SQLite's `namespaces.namespace_id` is a 64-bit `AUTOINCREMENT`; 2,147,483,647 is the portable limit.
 
-Microsoft.Data.Sqlite (verified in 10.0.13, the version Acta pins) carries an unsynchronized enumeration
+Microsoft.Data.Sqlite (verified in 10.0.15, the version Acta pins) carries an unsynchronized enumeration
 in `SqliteConnection.Deactivate`: returning a pooled connection walks the custom-function dictionary
 with no lock, so a concurrent reclaim can fault inside the driver. A plain user never sees it (the
 dictionary is empty unless `CreateFunction` was called), but Acta registers its `acta_blob` and

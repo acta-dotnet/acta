@@ -44,6 +44,11 @@ Not tagged yet. The schema changes by one migration on rc.10's baseline, the fir
 - Acta Verify no longer refuses a run because of the shell that launched it. Its clean-start check took every process whose command line names a run's DLL for another run's leftover, so a run started as `bash -lc "dotnet Acta.Verify.dll ..."` found its own shell and ran nothing. A command line counts only where the program it starts is dotnet, by its bare name or a path to it.
 - `acta-verify cleanup --yes` holds back for a run started as `dotnet Acta.Verify.dll`. It looked for another run by process image alone, and that run's image is `dotnet`, so it removed the containers and databases of a run in progress. It reads the command lines the clean-start check reads.
 
+### Dependencies
+
+- The packages build against the current patches: `Microsoft.Extensions.*` and `Microsoft.Data.Sqlite` 10.0.15, `Microsoft.Data.SqlClient` 7.1.2, and `StackExchange.Redis` 3.4.35. Each is a floor with no upper bound, so a host that pins one of them lower raises its pin.
+- The `System.Security.Cryptography.Pkcs` pin is gone, because `Microsoft.Data.SqlClient` 7.1.2 requires a safe version itself.
+
 ## 1.0.0-rc.10
 
 Tagged 2026-11-12. rc.10 widens a job's counters to 64 bits, removes the columns and codes that carried no information, decides a schedule any distance behind, records operator actions at every level, and gives the typed result read a form that returns the result and a form that says whether one exists. The schema changes: reprovision, as every pre-1.0 release asks.
