@@ -10,14 +10,11 @@ public class FrameworkJobPrioritySpec
         var names = ActaJobs.Descriptors.Descriptors.Select(d => d.JobName).OrderBy(static n => n, StringComparer.Ordinal).ToArray();
 
         Assert.Equal(["sys.alerts", "sys.outbox", "sys.retention"], names);
-        Assert.All(
-            names,
-            static name =>
-            {
-                Assert.StartsWith("sys.", name, StringComparison.Ordinal);
-                Assert.False(name.StartsWith("acta.", StringComparison.Ordinal));
-            }
-        );
+        Assert.All(names, static name =>
+        {
+            Assert.StartsWith("sys.", name, StringComparison.Ordinal);
+            Assert.False(name.StartsWith("acta.", StringComparison.Ordinal));
+        });
     }
 
     // Claims are in strict priority order, so a system slot below Realtime would wait out any Realtime backlog.

@@ -47,13 +47,10 @@ public sealed class SqlServerClaimPlanTests : ClaimSkewTestBase
         // Each band's seek ends at its first row not yet due, so the rows read are the due rows, not the
         // parked or delayed rows ahead of them.
         Assert.InRange(seeks.Sum(s => Counter(s, "ActualRowsRead")), DueRows, DueRows + Enum.GetValues<JobPriorityCode>().Length);
-        Assert.All(
-            seeks,
-            s =>
-                Assert.Contains(
-                    s.Descendants(Showplan + "SeekPredicates").Descendants(Showplan + "ColumnReference"),
-                    c => (string?)c.Attribute("Column") is "job_priority_code" or "[job_priority_code]"
-                )
+        Assert.All(seeks, s =>
+            Assert.Contains(s.Descendants(Showplan + "SeekPredicates").Descendants(Showplan + "ColumnReference"), c =>
+                (string?)c.Attribute("Column") is "job_priority_code" or "[job_priority_code]"
+            )
         );
 
         var heads = ClaimIndexOperators(horizonPlans, "next_ready_at_utc");

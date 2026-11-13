@@ -171,8 +171,7 @@ internal sealed partial class RuntimeJobContext(
             return Deserialize<T>(existing);
         }
 
-        var value =
-            await valueFactory(ct)
+        var value = await valueFactory(ct)
             ?? throw new InvalidOperationException("Variable factory returned null. Use DeleteVariableAsync to clear a variable.");
         var payload = JsonSerializer().Serialize(value);
         RejectTopLevelJsonNull(payload);

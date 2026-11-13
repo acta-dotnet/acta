@@ -47,16 +47,12 @@ internal sealed class ActaBuilder(IServiceCollection services) : IActaBuilder
     }
 
     public IActaBuilder Run<TManifest>(string jobNamespace, string? ownerTeam = null, string? description = null)
-        where TManifest : class, IJobManifest =>
-        Run(
-            jobNamespace,
-            w =>
-            {
-                w.OwnerTeam = ownerTeam;
-                w.Description = description;
-                w.AddManifest<TManifest>();
-            }
-        );
+        where TManifest : class, IJobManifest => Run(jobNamespace, w =>
+        {
+            w.OwnerTeam = ownerTeam;
+            w.Description = description;
+            w.AddManifest<TManifest>();
+        });
 
     public IActaBuilder Run(string jobNamespace, Action<IWorkerBuilder> configure)
     {
@@ -226,8 +222,7 @@ internal sealed class WorkerBuilder : IWorkerBuilder
             );
         }
 
-        var factory =
-            source.StoreFactory
+        var factory = source.StoreFactory
             ?? throw new InvalidOperationException(
                 $"Outbox relay source '{sourceName}' selects no provider. Call exactly one of "
                     + "source.UsePostgres/UseSqlServer/UseSqlite."

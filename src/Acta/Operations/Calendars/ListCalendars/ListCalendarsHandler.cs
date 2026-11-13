@@ -47,10 +47,8 @@ internal sealed class ListCalendarsHandler(IDbSession session, ISqlDialect diale
             DbProjectionResolver.Resolve<ListCalendarsItem>(),
             ct
         );
-        var (items, nextCursor, hasMore, pageSize, totalCount) = paging.Page(
-            rows,
-            total,
-            static item => [item.CalendarName, item.JobNamespace]
+        var (items, nextCursor, hasMore, pageSize, totalCount) = paging.Page(rows, total, static item =>
+            [item.CalendarName, item.JobNamespace]
         );
         return new ListCalendarsResponse(items, nextCursor, hasMore, pageSize, totalCount);
     }

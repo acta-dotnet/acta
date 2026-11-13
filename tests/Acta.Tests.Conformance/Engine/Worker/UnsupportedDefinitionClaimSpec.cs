@@ -197,15 +197,12 @@ public sealed class UnsupportedDefinitionClaimSpec : ActaRuntimeTestBase<Conform
         {
             rows.Add(await ReadJobAsync(jobId, ct));
         }
-        Assert.All(
-            rows,
-            row =>
-            {
-                Assert.Equal(JobStatusCode.Ready, row.Status);
-                Assert.Equal(0, row.FailureCount);
-                Assert.Null(row.LeasedByWorkerId);
-            }
-        );
+        Assert.All(rows, row =>
+        {
+            Assert.Equal(JobStatusCode.Ready, row.Status);
+            Assert.Equal(0, row.FailureCount);
+            Assert.Null(row.LeasedByWorkerId);
+        });
 
         // Two definitions, two bounces, each claimed exactly once: the claim that taught the worker
         // about the second definition is the only one the first definition's exclusion let through,

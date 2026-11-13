@@ -49,10 +49,8 @@ internal sealed class ListDefinitionsHandler(IDbSession session, ISqlDialect dia
             DbProjectionResolver.Resolve<ListDefinitionsItem>(),
             ct
         );
-        var (items, nextCursor, hasMore, pageSize, totalCount) = paging.Page(
-            rows,
-            total,
-            static item => [item.JobNamespace, item.JobName, item.DefinitionId]
+        var (items, nextCursor, hasMore, pageSize, totalCount) = paging.Page(rows, total, static item =>
+            [item.JobNamespace, item.JobName, item.DefinitionId]
         );
         return new ListDefinitionsResponse(items, nextCursor, hasMore, pageSize, totalCount);
     }

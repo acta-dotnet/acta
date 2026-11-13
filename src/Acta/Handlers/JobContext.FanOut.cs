@@ -182,8 +182,7 @@ public abstract partial class JobContext
 
         for (var i = 0; i < materialized.Count; i++)
         {
-            var key =
-                itemKey(materialized[i])
+            var key = itemKey(materialized[i])
                 ?? throw new ArgumentException($"Map group '{groupName}' produced a null item key.", nameof(itemKey));
             if (!seenKeys.Add(key))
             {

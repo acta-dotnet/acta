@@ -150,14 +150,12 @@ public sealed class ListSchedulesFilterMatrixSpec : ActaRuntimeTestBase<Conforma
         Assert.Equal((long)livePage.Items.Count, livePage.TotalCount);
 
         Assert.Contains(allPage.Items, s => s.JobName == jobAName);
-        Assert.Contains(
-            allPage.Items,
-            s => s.JobName == jobBName && s.Status == ScheduleStatusCode.Orphaned && s.NextOccurrenceAtUtc is null
+        Assert.Contains(allPage.Items, s =>
+            s.JobName == jobBName && s.Status == ScheduleStatusCode.Orphaned && s.NextOccurrenceAtUtc is null
         );
         Assert.Contains(allPage.Items, s => s.JobName == jobCName && s.Status == ScheduleStatusCode.Paused);
-        Assert.Contains(
-            allPage.Items,
-            s => s.JobName == jobDName && s.Status == ScheduleStatusCode.Active && s.NextOccurrenceAtUtc is null
+        Assert.Contains(allPage.Items, s =>
+            s.JobName == jobDName && s.Status == ScheduleStatusCode.Active && s.NextOccurrenceAtUtc is null
         );
         Assert.Equal((long)allPage.Items.Count, allPage.TotalCount);
         Assert.Subset(allPage.Items.Select(Key).ToHashSet(), livePage.Items.Select(Key).ToHashSet());

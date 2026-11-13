@@ -156,8 +156,7 @@ internal static class PermissionFilter
         string permission
     )
     {
-        var policy =
-            await http.RequestServices.GetRequiredService<IAuthorizationPolicyProvider>().GetPolicyAsync(permission)
+        var policy = await http.RequestServices.GetRequiredService<IAuthorizationPolicyProvider>().GetPolicyAsync(permission)
             ?? throw new InvalidOperationException($"The authorization policy '{permission}' is not defined.");
         var evaluator = http.RequestServices.GetRequiredService<IPolicyEvaluator>();
         var authentication = await evaluator.AuthenticateAsync(policy, http);

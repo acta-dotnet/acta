@@ -454,11 +454,10 @@ public sealed partial class OperationsIndexTests
             chain = outer;
         }
 
-        var attribute =
-            map.ArgumentList.Arguments.Select(a => a.Expression)
-                .OfType<ImplicitObjectCreationExpressionSyntax>()
-                .FirstOrDefault()
-                ?.ArgumentList
+        var attribute = map.ArgumentList.Arguments.Select(a => a.Expression)
+            .OfType<ImplicitObjectCreationExpressionSyntax>()
+            .FirstOrDefault()
+            ?.ArgumentList
             ?? chain
                 .DescendantNodes()
                 .OfType<ObjectCreationExpressionSyntax>()
@@ -513,8 +512,7 @@ public sealed partial class OperationsIndexTests
                 continue;
             }
 
-            var operation =
-                MainOperation(arm.Expression, facadeMethods)
+            var operation = MainOperation(arm.Expression, facadeMethods)
                 ?? arm.Expression.DescendantNodesAndSelf()
                     .OfType<InvocationExpressionSyntax>()
                     .Select(call =>

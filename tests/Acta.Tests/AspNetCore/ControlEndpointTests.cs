@@ -386,14 +386,8 @@ public sealed class ControlEndpointTests
                     (endpoint.Metadata.GetMetadata<IHttpMethodMetadata>()?.HttpMethods ?? []).Select(method =>
                         (
                             method,
-                            endpoint.RoutePattern.Parameters.Aggregate(
-                                endpoint.RoutePattern.RawText!,
-                                (path, parameter) =>
-                                    path.Replace(
-                                        $"{{{parameter.Name}}}",
-                                        OpenApiExamples.RouteValues[parameter.Name],
-                                        StringComparison.Ordinal
-                                    )
+                            endpoint.RoutePattern.Parameters.Aggregate(endpoint.RoutePattern.RawText!, (path, parameter) =>
+                                path.Replace($"{{{parameter.Name}}}", OpenApiExamples.RouteValues[parameter.Name], StringComparison.Ordinal)
                             )
                         )
                     )

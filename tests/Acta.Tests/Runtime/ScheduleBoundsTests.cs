@@ -171,10 +171,7 @@ public sealed class ScheduleBoundsTests
     {
         // Hourly ticks, open 13:00 to 14:00 only, and the end at 12:30: the next window starts after the end, so the seek
         // from it answers null rather than crossing closed windows up to its limit and failing the evaluation.
-        var timing = Cron("0 * * * *", end: Utc(12, 30)) with
-        {
-            AvailabilityCalendarName = "office",
-        };
+        var timing = Cron("0 * * * *", end: Utc(12, 30)) with { AvailabilityCalendarName = "office" };
         var source = new ScheduleSource(timing, null, new Windows((Utc(13, 0), Utc(14, 0))));
 
         Assert.Null(NextOccurrenceCalculator.Next(source, Utc(11, 30)));

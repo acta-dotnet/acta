@@ -42,19 +42,13 @@ internal static class TestDashboardHost
         string principalName = "test-operator",
         Action<ActaDashboardOptions>? configureDashboard = null,
         FakeOperations? fakes = null
-    ) =>
-        StartAsync(
-            configureDashboard,
-            fakes: fakes,
-            configureApp: app =>
-                app.Use(
-                    (ctx, next) =>
-                    {
-                        ctx.User = new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.Name, principalName)], "Test"));
-                        return next(ctx);
-                    }
-                )
-        );
+    ) => StartAsync(configureDashboard, fakes: fakes, configureApp: app => app.Use(
+                (ctx, next) =>
+                {
+                    ctx.User = new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.Name, principalName)], "Test"));
+                    return next(ctx);
+                }
+            ));
 
     /// <summary>
     /// Request content declaring neither a length nor a content type: the shape a <c>StreamContent</c>

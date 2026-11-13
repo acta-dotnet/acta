@@ -73,9 +73,8 @@ public sealed partial class EngineeringLabsIndexTests
                 failures.Add($"{relative}: source trail does not link to the Engineering Labs index");
             }
 
-            var views =
-                MetadataValue(metadata.Groups["body"].Value, "views")
-                    ?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            var views = MetadataValue(metadata.Groups["body"].Value, "views")
+                ?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
                 ?? [];
             if (views.Length == 0)
             {

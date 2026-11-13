@@ -14,8 +14,8 @@ builder.Services.UseActa(j =>
     // UseSqlServer, with that server's connection string, to target a real server.
     j.UseSqlite(sqlite =>
     {
-        sqlite.ConnectionString =
-            builder.Configuration.GetConnectionString("acta") ?? $"Data Source={Path.Combine(Path.GetTempPath(), "acta-local.db")}";
+        sqlite.ConnectionString = builder.Configuration.GetConnectionString("acta")
+            ?? $"Data Source={Path.Combine(Path.GetTempPath(), "acta-local.db")}";
         sqlite.MigrateOnStartup = true;
     });
     j.Run<HelloActaJobs>("hello-acta");

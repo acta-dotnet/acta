@@ -23,47 +23,36 @@ public static class AnvilEndpoints
         // default mount's relative API root, which is where Anvil mounts Acta, so try-it requests need no rewrite.
         group.MapGet("/openapi", () => Results.Text(openApiDocument ??= ReadEmbeddedOpenApi(), "application/json"));
 
-        group.MapPost(
-            "/workers",
-            (WorkerProcessLauncher launcher) =>
-            {
-                var worker = launcher.Spawn();
-                return Results.Ok(new ActionResponse($"Spawned {worker.Name}."));
-            }
+        group.MapPost("/workers", (WorkerProcessLauncher launcher) =>
+        {
+            var worker = launcher.Spawn();
+            return Results.Ok(new ActionResponse($"Spawned {worker.Name}."));
+        });
+
+        group.MapPost("/workers/{id:int}/crash", (int id, WorkerProcessLauncher launcher) =>
+            launcher.Crash(id)
+                ? Results.Ok(new ActionResponse($"Crashed worker-{id}."))
+                : Results.NotFound(new ActionResponse($"No crashable managed worker with id {id}."))
         );
 
-        group.MapPost(
-            "/workers/{id:int}/crash",
-            (int id, WorkerProcessLauncher launcher) =>
-                launcher.Crash(id)
-                    ? Results.Ok(new ActionResponse($"Crashed worker-{id}."))
-                    : Results.NotFound(new ActionResponse($"No crashable managed worker with id {id}."))
-        );
-
-        group.MapPost(
-            "/workers/{id:int}/drain",
-            (int id, WorkerProcessLauncher launcher) =>
-                launcher.Stop(id)
-                    ? Results.Ok(new ActionResponse($"worker-{id} is draining."))
-                    : Results.NotFound(new ActionResponse($"No drainable managed worker with id {id}."))
+        group.MapPost("/workers/{id:int}/drain", (int id, WorkerProcessLauncher launcher) =>
+            launcher.Stop(id)
+                ? Results.Ok(new ActionResponse($"worker-{id} is draining."))
+                : Results.NotFound(new ActionResponse($"No drainable managed worker with id {id}."))
         );
 
         group.MapPost("/faults/crashes/start", (FaultInjectors faults) => Results.Ok(new ActionResponse(faults.StartContinuousCrashes())));
         group.MapPost("/faults/crashes/stop", (FaultInjectors faults) => Results.Ok(new ActionResponse(faults.StopContinuousCrashes())));
-        group.MapPost(
-            "/faults/pressure/start",
-            (QueuePressureRequest request, FaultInjectors faults) =>
-                request.JobsPerSecond is 1_000 or 10_000
-                    ? Results.Ok(new ActionResponse(faults.StartQueuePressure(request.JobsPerSecond)))
-                    : Results.BadRequest(new ActionResponse("Queue pressure supports 1,000 or 10,000 jobs per second."))
+        group.MapPost("/faults/pressure/start", (QueuePressureRequest request, FaultInjectors faults) =>
+            request.JobsPerSecond is 1_000 or 10_000
+                ? Results.Ok(new ActionResponse(faults.StartQueuePressure(request.JobsPerSecond)))
+                : Results.BadRequest(new ActionResponse("Queue pressure supports 1,000 or 10,000 jobs per second."))
         );
         group.MapPost("/faults/pressure/stop", (FaultInjectors faults) => Results.Ok(new ActionResponse(faults.StopQueuePressure())));
-        group.MapPost(
-            "/faults/outbox/start",
-            (QueuePressureRequest request, FaultInjectors faults) =>
-                request.JobsPerSecond is 1_000 or 10_000
-                    ? Results.Ok(new ActionResponse(faults.StartOutboxPressure(request.JobsPerSecond)))
-                    : Results.BadRequest(new ActionResponse("Outbox pressure supports 1,000 or 10,000 rows per second."))
+        group.MapPost("/faults/outbox/start", (QueuePressureRequest request, FaultInjectors faults) =>
+            request.JobsPerSecond is 1_000 or 10_000
+                ? Results.Ok(new ActionResponse(faults.StartOutboxPressure(request.JobsPerSecond)))
+                : Results.BadRequest(new ActionResponse("Outbox pressure supports 1,000 or 10,000 rows per second."))
         );
         group.MapPost("/faults/outbox/stop", (FaultInjectors faults) => Results.Ok(new ActionResponse(faults.StopOutboxPressure())));
 

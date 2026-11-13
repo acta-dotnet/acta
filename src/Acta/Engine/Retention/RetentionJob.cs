@@ -162,12 +162,7 @@ internal sealed class RetentionJob(
                 if (section == RetentionSection.Events && command.SweepSystemEvents)
                 {
                     // Every namespace's pass also sweeps sys; concurrent passes skip each other's staged rows.
-                    var system = batch with
-                    {
-                        NamespaceId = NameSyntax.SystemNamespaceId,
-                        AlertFloorUtc = null,
-                        AlertFloorEventId = null,
-                    };
+                    var system = batch with { NamespaceId = NameSyntax.SystemNamespaceId, AlertFloorUtc = null, AlertFloorEventId = null };
                     budgetSpent |= await PurgeSectionAsync(system, command.MaxIterations, static _ => { }, ct);
                 }
             }

@@ -194,9 +194,8 @@ public sealed class WorkerExecutorOutcomeTests
             }
         );
 
-        Assert.Contains(
-            harness.Log,
-            entry => entry.Message == expected.Replace("{ref}", harness.JobRef.ToString(), StringComparison.Ordinal)
+        Assert.Contains(harness.Log, entry =>
+            entry.Message == expected.Replace("{ref}", harness.JobRef.ToString(), StringComparison.Ordinal)
         );
     }
 

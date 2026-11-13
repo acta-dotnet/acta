@@ -20,24 +20,12 @@ internal sealed class FakeOutbox : IOutbox
             );
         ListQuarantined = static (query, _) => ValueTask.FromResult(Quarantined(query));
         Requeue = (jobNamespace, outboxIds, reason, actor, _) =>
-            Control(
-                "requeue",
-                jobNamespace,
-                outboxIds,
-                false,
-                reason,
-                actor,
-                static (action, pendingSince) => new RequeueOutboxResponse(action, pendingSince)
+            Control("requeue", jobNamespace, outboxIds, false, reason, actor, static (action, pendingSince) =>
+                new RequeueOutboxResponse(action, pendingSince)
             );
         Discard = (jobNamespace, outboxIds, all, reason, actor, _) =>
-            Control(
-                "discard",
-                jobNamespace,
-                outboxIds,
-                all,
-                reason,
-                actor,
-                static (action, pendingSince) => new DiscardOutboxResponse(action, pendingSince)
+            Control("discard", jobNamespace, outboxIds, all, reason, actor, static (action, pendingSince) =>
+                new DiscardOutboxResponse(action, pendingSince)
             );
     }
 

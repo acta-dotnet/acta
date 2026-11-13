@@ -135,9 +135,8 @@ public sealed class PublishCalendarSpec : ActaRuntimeTestBase<ConformanceFixture
 
         Assert.Equal(JobStatusCode.Ready, (await ReadJobAsync(slotId, ct)).Status);
         Assert.Equal(Start.AddMinutes(2), Assert.Single(await ScheduleTestOps.ReadAsync(Db, slotId, ct)).NextOccurrenceAtUtc);
-        var dependent = Assert.Single(
-            (await Calendars.ListDependentsAsync(new ListCalendarDependentsQuery(Days), ct)).Items,
-            d => d.JobName == PublishCalendarManifest.DaysJobName
+        var dependent = Assert.Single((await Calendars.ListDependentsAsync(new ListCalendarDependentsQuery(Days), ct)).Items, d =>
+            d.JobName == PublishCalendarManifest.DaysJobName
         );
         Assert.Equal(CalendarRoleCode.Occurrence, dependent.Binding);
     }
@@ -349,9 +348,8 @@ public sealed class PublishCalendarSpec : ActaRuntimeTestBase<ConformanceFixture
         // The first two instants pass with no admission pass, so the schedule holds an undecided overdue occurrence; the
         // expected version is stale too.
         Clock.AdvanceTo(Start.AddMinutes(2).AddSeconds(30));
-        Assert.Contains(
-            (await Calendars.PreviewAsync(Days, 1, ct: ct))!.Schedules,
-            s => s.JobName == PublishCalendarManifest.DaysJobName && s.Overdue
+        Assert.Contains((await Calendars.PreviewAsync(Days, 1, ct: ct))!.Schedules, s =>
+            s.JobName == PublishCalendarManifest.DaysJobName && s.Overdue
         );
         var overdue = await Calendars.PublishAsync(Days, 1, expectedCurrentVersion: 0, OverdueDecisionCode.Refuse, ct: ct);
 

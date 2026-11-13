@@ -229,51 +229,33 @@ internal sealed class SqlServerDialect : ISqlDialect
     }
 
     public void BindPublishCalendar(DbCommand command, IReadOnlyList<PublishCalendarValues> rows) =>
-        AddParameter(
-            (SqlCommand)command,
-            "@p_rows",
-            SqlDbType.NVarChar,
-            PublishCalendarJson.Rows(
-                rows,
-                static (writer, name, value) =>
+        AddParameter((SqlCommand)command, "@p_rows", SqlDbType.NVarChar, PublishCalendarJson.Rows(rows, static (writer, name, value) =>
+            {
+                if (value is { } instant)
                 {
-                    if (value is { } instant)
-                    {
-                        writer.WriteString(name, DbParams.ToUtc(instant).ToString("yyyy-MM-ddTHH:mm:ss.fff", CultureInfo.InvariantCulture));
-                    }
-                    else
-                    {
-                        writer.WriteNull(name);
-                    }
+                    writer.WriteString(name, DbParams.ToUtc(instant).ToString("yyyy-MM-ddTHH:mm:ss.fff", CultureInfo.InvariantCulture));
                 }
-            ),
-            size: -1
-        );
+                else
+                {
+                    writer.WriteNull(name);
+                }
+            }), size: -1);
 
     public void BindAdmitScheduleFirings(DbCommand command, AdmitScheduleFiringsCommand request)
     {
         var sql = (SqlCommand)command;
         AddParameter(sql, "@p_groups", SqlDbType.NVarChar, AdmitScheduleFiringsJson.Groups(request), size: -1);
-        AddParameter(
-            sql,
-            "@p_rows",
-            SqlDbType.NVarChar,
-            AdmitScheduleFiringsJson.Rows(
-                request,
-                static (writer, name, value) =>
+        AddParameter(sql, "@p_rows", SqlDbType.NVarChar, AdmitScheduleFiringsJson.Rows(request, static (writer, name, value) =>
+            {
+                if (value is { } instant)
                 {
-                    if (value is { } instant)
-                    {
-                        writer.WriteString(name, DbParams.ToUtc(instant).ToString("yyyy-MM-ddTHH:mm:ss.fff", CultureInfo.InvariantCulture));
-                    }
-                    else
-                    {
-                        writer.WriteNull(name);
-                    }
+                    writer.WriteString(name, DbParams.ToUtc(instant).ToString("yyyy-MM-ddTHH:mm:ss.fff", CultureInfo.InvariantCulture));
                 }
-            ),
-            size: -1
-        );
+                else
+                {
+                    writer.WriteNull(name);
+                }
+            }), size: -1);
     }
 
     private static void AddParameter(

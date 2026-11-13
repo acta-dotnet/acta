@@ -121,23 +121,15 @@ public sealed partial class OpenApiContractTests
             Taken = [Text(512)],
             Refused = [Text(513)],
         },
-        new(
-            "UpdateNamespaceRequest",
-            "ownerTeam",
-            HttpMethod.Put,
-            $"namespaces/{SqliteNamespace}",
-            v => $$"""{"ownerTeam":{{v}},"expectedVersion":0}"""
+        new("UpdateNamespaceRequest", "ownerTeam", HttpMethod.Put, $"namespaces/{SqliteNamespace}", v =>
+            $$"""{"ownerTeam":{{v}},"expectedVersion":0}"""
         )
         {
             Taken = [Text(512)],
             Refused = [Text(513)],
         },
-        new(
-            "UpdateNamespaceRequest",
-            "description",
-            HttpMethod.Put,
-            $"namespaces/{SqliteNamespace}",
-            v => $$"""{"description":{{v}},"expectedVersion":0}"""
+        new("UpdateNamespaceRequest", "description", HttpMethod.Put, $"namespaces/{SqliteNamespace}", v =>
+            $$"""{"description":{{v}},"expectedVersion":0}"""
         )
         {
             Taken = [Text(512)],
@@ -153,12 +145,8 @@ public sealed partial class OpenApiContractTests
             ("alertChannelName", ["\" Ops-Pager \""], ["\"bad key\"", Text(129)]),
             ("runbookUrl", [$"\"https://example.com/{new string('a', 492)}\""], [Text(513), "\"https://example.com/caf\\u00E9\""])
         ),
-        new(
-            "PublishCalendarRequest",
-            "candidateVersion",
-            HttpMethod.Post,
-            $"calendars/{SqliteNamespace}/daily/publish",
-            v => $$"""{"candidateVersion":{{v}}}"""
+        new("PublishCalendarRequest", "candidateVersion", HttpMethod.Post, $"calendars/{SqliteNamespace}/daily/publish", v =>
+            $$"""{"candidateVersion":{{v}}}"""
         )
         {
             Taken = ["1"],

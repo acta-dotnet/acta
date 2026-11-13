@@ -19,8 +19,7 @@ internal static class SchedulingCases
         var operations = host.Services.GetRequiredService<IActaOperations>();
         if (scenario.Id == "rate-meters")
         {
-            var definition =
-                await operations.Definitions.GetAsync("verify", "work", ct)
+            var definition = await operations.Definitions.GetAsync("verify", "work", ct)
                 ?? throw new InvalidOperationException("Missing workload definition.");
             await operations.Definitions.UpdateOverridesAsync("verify", "work", definition.Version, new(RateLimit: "10/s"), ct: ct);
         }

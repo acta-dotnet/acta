@@ -45,10 +45,8 @@ public sealed class AlertChannelValidationSpec : ActaTestBase<ConformanceFixture
     [Fact(DisplayName = "Disabled channel counts as configured for validation")]
     public async Task Disabled_channel_counts_as_configured_for_validation()
     {
-        await InitializeWorkerAsync(
-            "acv-disabled-" + TestId,
-            AlertChannelValidationMode.Fail,
-            configureOpsChannel: w => w.AddAlertChannel("ops", "log", "ops", o => o.Status = AlertChannelStatusCode.Disabled)
+        await InitializeWorkerAsync("acv-disabled-" + TestId, AlertChannelValidationMode.Fail, configureOpsChannel: w =>
+            w.AddAlertChannel("ops", "log", "ops", o => o.Status = AlertChannelStatusCode.Disabled)
         );
     }
 
@@ -62,14 +60,11 @@ public sealed class AlertChannelValidationSpec : ActaTestBase<ConformanceFixture
         services.UseActa(j =>
         {
             Fixture.ApplyProvider(j, Schema.SchemaName);
-            j.Run(
-                namespaceName,
-                w =>
-                {
-                    w.AddManifest<JobsOf<AlertChannelValidationSpec>>();
-                    configureOpsChannel?.Invoke(w);
-                }
-            );
+            j.Run(namespaceName, w =>
+            {
+                w.AddManifest<JobsOf<AlertChannelValidationSpec>>();
+                configureOpsChannel?.Invoke(w);
+            });
         });
         services.Configure<JobsOptions>(o =>
         {

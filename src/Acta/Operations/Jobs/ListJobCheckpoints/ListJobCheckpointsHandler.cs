@@ -42,10 +42,8 @@ internal sealed class ListJobCheckpointsHandler(GetJobIdHandler getJobId, IDbSes
             DbProjectionResolver.Resolve<ListJobCheckpointsRow>(),
             ct
         );
-        var (page, nextCursor, hasMore, pageSize, totalCount) = paging.Page(
-            rows,
-            total,
-            static row => [(int)row.KindId, row.CheckpointName]
+        var (page, nextCursor, hasMore, pageSize, totalCount) = paging.Page(rows, total, static row =>
+            [(int)row.KindId, row.CheckpointName]
         );
         return new ListJobCheckpointsResponse([.. page.Select(static row => row.ToItem())], nextCursor, hasMore, pageSize, totalCount);
     }

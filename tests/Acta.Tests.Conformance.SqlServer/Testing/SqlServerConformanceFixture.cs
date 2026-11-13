@@ -322,8 +322,8 @@ public sealed partial class SqlServerConformanceFixture : IConformanceFixture
 
     public void ApplyProvider(IActaBuilder builder, string schemaName)
     {
-        var connString =
-            IntegrationConfig.SqlServerConnectionString ?? throw new InvalidOperationException("SQL Server tests require ACTA_TEST_MSSQL.");
+        var connString = IntegrationConfig.SqlServerConnectionString
+            ?? throw new InvalidOperationException("SQL Server tests require ACTA_TEST_MSSQL.");
         // A host's wait for a pooled connection is guarded as the bootstrap's is (SqlServerIntegrationSchema says why).
         var sb = new SqlConnectionStringBuilder(connString)
         {

@@ -64,18 +64,15 @@ public sealed class DbProjectionGenerator : IIncrementalGenerator
                         .ToImmutableArray()
             );
 
-        context.RegisterSourceOutput(
-            projections,
-            static (spc, items) =>
+        context.RegisterSourceOutput(projections, static (spc, items) =>
+        {
+            foreach (var diagnostic in items.SelectMany(static p => p.Diagnostics))
             {
-                foreach (var diagnostic in items.SelectMany(static p => p.Diagnostics))
-                {
-                    spc.ReportDiagnostic(diagnostic.ToDiagnostic());
-                }
-
-                Emit(spc, items);
+                spc.ReportDiagnostic(diagnostic.ToDiagnostic());
             }
-        );
+
+            Emit(spc, items);
+        });
     }
 
     internal static void Emit(SourceProductionContext spc, ImmutableArray<ProjectionInfo> projections)

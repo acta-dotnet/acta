@@ -12,84 +12,81 @@ internal static class EnqueueJobEndpoint
 {
     public static void Map(RouteGroupBuilder controls) =>
         controls
-            .MapPost(
-                "/jobs",
-                async Task<IResult> (HttpContext http, IJobs jobs, CancellationToken ct) =>
+            .MapPost("/jobs", async Task<IResult> (HttpContext http, IJobs jobs, CancellationToken ct) =>
+            {
+                var (body, error) = await ControlEndpointValidation.ReadJsonBodyAsync(
+                    http,
+                    ActaApiJsonContext.Relaxed.EnqueueJobRequest,
+                    ct
+                );
+                if (error is not null)
                 {
-                    var (body, error) = await ControlEndpointValidation.ReadJsonBodyAsync(
-                        http,
-                        ActaApiJsonContext.Relaxed.EnqueueJobRequest,
-                        ct
-                    );
-                    if (error is not null)
-                    {
-                        return error;
-                    }
-
-                    if (string.IsNullOrWhiteSpace(body!.JobNamespace) || string.IsNullOrWhiteSpace(body.JobName))
-                    {
-                        return ControlEndpointValidation.Problem(
-                            StatusCodes.Status400BadRequest,
-                            "Invalid request.",
-                            "jobNamespace and jobName are required."
-                        );
-                    }
-
-                    JobPayload input;
-                    try
-                    {
-                        input = body.Input?.ToPayload("input") ?? JobPayload.None;
-                    }
-                    catch (InvalidControlException ex)
-                    {
-                        return ControlEndpointValidation.Problem(StatusCodes.Status400BadRequest, ex.Title, ex.Message);
-                    }
-
-                    var request = new Acta.EnqueueJobRequest(
-                        JobNamespace: body.JobNamespace,
-                        JobName: body.JobName,
-                        Input: input,
-                        DeduplicationKey: body.DeduplicationKey,
-                        CorrelationKey: body.CorrelationKey,
-                        Priority: body.Priority,
-                        NextRunAtUtc: body.NextRunAtUtc,
-                        DelaySeconds: body.DelaySeconds,
-                        TenantName: body.TenantName,
-                        Lane: body.Lane,
-                        ConcurrencyKey: body.ConcurrencyKey,
-                        Tags: body.Tags
-                    );
-
-                    try
-                    {
-                        var outcome = await jobs.EnqueueAsync(request, ct);
-                        var created = outcome.Action == EnqueueJobAction.Inserted;
-
-                        // Built from this request's own path rather than a link generator: the read lives at
-                        // {this path}/{jobRef} under whatever pattern the host mounted, so appending the ref
-                        // is correct at any mount and cannot drift from the route.
-                        http.Response.Headers.Location = $"{http.Request.PathBase}{http.Request.Path}/{outcome.JobRef}";
-
-                        // 201 means "this request created it". A deduplicated enqueue matched a row that
-                        // already existed, so it is a 200 naming the row the caller now shares. Either way
-                        // the Location header points at the job, which is the one thing a client reads a
-                        // 201 for and which this endpoint previously omitted.
-                        return Results.Json(
-                            outcome,
-                            ActaApiJsonContext.Relaxed.EnqueueJobResponse,
-                            statusCode: created ? StatusCodes.Status201Created : StatusCodes.Status200OK
-                        );
-                    }
-                    catch (PayloadTooLargeException ex)
-                    {
-                        return ControlEndpointValidation.Problem(StatusCodes.Status413PayloadTooLarge, "Input too large.", ex.Message);
-                    }
-                    catch (ArgumentException ex)
-                    {
-                        return ControlEndpointValidation.Problem(StatusCodes.Status400BadRequest, "Invalid request.", ex.Message);
-                    }
+                    return error;
                 }
-            )
+
+                if (string.IsNullOrWhiteSpace(body!.JobNamespace) || string.IsNullOrWhiteSpace(body.JobName))
+                {
+                    return ControlEndpointValidation.Problem(
+                        StatusCodes.Status400BadRequest,
+                        "Invalid request.",
+                        "jobNamespace and jobName are required."
+                    );
+                }
+
+                JobPayload input;
+                try
+                {
+                    input = body.Input?.ToPayload("input") ?? JobPayload.None;
+                }
+                catch (InvalidControlException ex)
+                {
+                    return ControlEndpointValidation.Problem(StatusCodes.Status400BadRequest, ex.Title, ex.Message);
+                }
+
+                var request = new Acta.EnqueueJobRequest(
+                    JobNamespace: body.JobNamespace,
+                    JobName: body.JobName,
+                    Input: input,
+                    DeduplicationKey: body.DeduplicationKey,
+                    CorrelationKey: body.CorrelationKey,
+                    Priority: body.Priority,
+                    NextRunAtUtc: body.NextRunAtUtc,
+                    DelaySeconds: body.DelaySeconds,
+                    TenantName: body.TenantName,
+                    Lane: body.Lane,
+                    ConcurrencyKey: body.ConcurrencyKey,
+                    Tags: body.Tags
+                );
+
+                try
+                {
+                    var outcome = await jobs.EnqueueAsync(request, ct);
+                    var created = outcome.Action == EnqueueJobAction.Inserted;
+
+                    // Built from this request's own path rather than a link generator: the read lives at
+                    // {this path}/{jobRef} under whatever pattern the host mounted, so appending the ref
+                    // is correct at any mount and cannot drift from the route.
+                    http.Response.Headers.Location = $"{http.Request.PathBase}{http.Request.Path}/{outcome.JobRef}";
+
+                    // 201 means "this request created it". A deduplicated enqueue matched a row that
+                    // already existed, so it is a 200 naming the row the caller now shares. Either way
+                    // the Location header points at the job, which is the one thing a client reads a
+                    // 201 for and which this endpoint previously omitted.
+                    return Results.Json(
+                        outcome,
+                        ActaApiJsonContext.Relaxed.EnqueueJobResponse,
+                        statusCode: created ? StatusCodes.Status201Created : StatusCodes.Status200OK
+                    );
+                }
+                catch (PayloadTooLargeException ex)
+                {
+                    return ControlEndpointValidation.Problem(StatusCodes.Status413PayloadTooLarge, "Input too large.", ex.Message);
+                }
+                catch (ArgumentException ex)
+                {
+                    return ControlEndpointValidation.Problem(StatusCodes.Status400BadRequest, "Invalid request.", ex.Message);
+                }
+            })
             .WithMetadata(new ActaOperationAttribute("enqueueJob", ActaPermissions.Enqueue))
             // 201 when the enqueue inserted, 200 when a deduplication key matched an existing row.
             // Both carry Location; 409 is a namespace or tenant guard refusing the enqueue outright.

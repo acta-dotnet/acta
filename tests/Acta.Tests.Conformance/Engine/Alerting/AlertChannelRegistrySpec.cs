@@ -28,23 +28,15 @@ public sealed class AlertChannelRegistrySpec : ActaTestBase<ConformanceFixture>
         services.UseActa(j =>
         {
             Fixture.ApplyProvider(j, Schema.SchemaName);
-            j.Run(
-                PrimaryNamespace,
-                w =>
-                    w.AddManifest<JobsOf<AlertChannelRegistrySpec>>()
-                        .AddAlertChannel(
-                            "default",
-                            "slack-webhook",
-                            "https://hooks.example/default",
-                            o => o.MinSeverity = AlertSeverityCode.Warning
-                        )
-                        .AddAlertChannel("ops-oncall", "log", "ops-log")
-                        .AddAlertChannel(
-                            "ops-oncall",
-                            "slack-webhook",
-                            "https://hooks.example/ops",
-                            o => o.MinSeverity = AlertSeverityCode.Error
-                        )
+            j.Run(PrimaryNamespace, w =>
+                w.AddManifest<JobsOf<AlertChannelRegistrySpec>>()
+                    .AddAlertChannel("default", "slack-webhook", "https://hooks.example/default", o =>
+                        o.MinSeverity = AlertSeverityCode.Warning
+                    )
+                    .AddAlertChannel("ops-oncall", "log", "ops-log")
+                    .AddAlertChannel("ops-oncall", "slack-webhook", "https://hooks.example/ops", o =>
+                        o.MinSeverity = AlertSeverityCode.Error
+                    )
             );
             j.Run(OtherNamespace, w => w.AddManifest<JobsOf<AlertChannelRegistrySpec>>());
         });

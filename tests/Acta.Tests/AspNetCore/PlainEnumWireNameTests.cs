@@ -54,14 +54,11 @@ public sealed class PlainEnumWireNameTests
     public async Task A_hosts_own_endpoint_writes_the_action_as_the_api_does()
     {
         var (app, client) = await TestDashboardHost.StartAsync(configureApp: app =>
-            app.MapPost(
-                "/orders/{jobRef}/cancel",
-                async (string jobRef, IJobs jobs) =>
-                {
-                    var cancelled = await jobs.CancelAsync(JobRef.Parse(jobRef), reasonMessage: "because");
-                    return Results.Ok(new { cancelled.Action, cancelled.Status });
-                }
-            )
+            app.MapPost("/orders/{jobRef}/cancel", async (string jobRef, IJobs jobs) =>
+            {
+                var cancelled = await jobs.CancelAsync(JobRef.Parse(jobRef), reasonMessage: "because");
+                return Results.Ok(new { cancelled.Action, cancelled.Status });
+            })
         );
         await using var _ = app;
 

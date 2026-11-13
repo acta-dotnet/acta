@@ -232,8 +232,8 @@ internal static class StorageCases
         using var host = await RuntimeHost.StartAsync(state.Provider, state.ConnectionString, state.Schema, false, true, ct);
         var jobs = host.Services.GetRequiredService<IJobs>();
         var operations = host.Services.GetRequiredService<IActaOperations>();
-        var definition =
-            await operations.Definitions.GetAsync("verify", "work", ct) ?? throw new InvalidOperationException("Missing work definition.");
+        var definition = await operations.Definitions.GetAsync("verify", "work", ct)
+            ?? throw new InvalidOperationException("Missing work definition.");
         await operations.Definitions.UpdateOverridesAsync("verify", "work", definition.Version, new(JobRetentionSeconds: 0), ct: ct);
         using var worker = OwnedWorker.Start(state);
         await worker.ReadyAsync(ct);

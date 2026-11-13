@@ -95,132 +95,103 @@ public sealed class NamespaceIsolationSpec : ActaRuntimeTestBase<ConformanceFixt
 
         await other.HoldAsync(ct);
         await other.Check("enqueue", t => Jobs.EnqueueAsync(Request("add-numbers", new AddNumbers(1, 1)), t).AsTask());
-        await other.Check(
-            "enqueue with a deduplication key",
-            t => Jobs.EnqueueAsync(Request("add-numbers", new AddNumbers(1, 2)) with { DeduplicationKey = Unique("dedup") }, t).AsTask()
+        await other.Check("enqueue with a deduplication key", t =>
+            Jobs.EnqueueAsync(Request("add-numbers", new AddNumbers(1, 2)) with { DeduplicationKey = Unique("dedup") }, t).AsTask()
         );
-        await other.Check(
-            "enqueue a batch",
-            t =>
-                Jobs.EnqueueJobsAsync([Request("add-numbers", new AddNumbers(2, 2)), Request("add-numbers", new AddNumbers(2, 3))], t)
-                    .AsTask()
+        await other.Check("enqueue a batch", t =>
+            Jobs.EnqueueJobsAsync([Request("add-numbers", new AddNumbers(2, 2)), Request("add-numbers", new AddNumbers(2, 3))], t).AsTask()
         );
-        await other.Check(
-            "enqueue into a lane",
-            t => Jobs.EnqueueAsync(Request("lane-step", new LaneStep("held", "one")) with { Lane = "held" }, t).AsTask()
+        await other.Check("enqueue into a lane", t =>
+            Jobs.EnqueueAsync(Request("lane-step", new LaneStep("held", "one")) with { Lane = "held" }, t).AsTask()
         );
-        await other.Check(
-            "claim and complete",
-            async t => await Runtime.RunOnceAsync(TestNamespace, (await Jobs.EnqueueAsync(Request("echo", new Echo("hi")), t)).JobId, t)
+        await other.Check("claim and complete", async t =>
+            await Runtime.RunOnceAsync(TestNamespace, (await Jobs.EnqueueAsync(Request("echo", new Echo("hi")), t)).JobId, t)
         );
         await other.Check("run a step", t => RunToEndAsync(Request("job-step-basic", null), t));
         await other.Check("run a child and resume its parent", t => RunToEndAsync(Request("job-parent-one", null), t));
         await other.Check("fail, retry, and succeed", t => RunToEndAsync(Request("flaky-recover", null), t));
-        await other.Check(
-            "wait for a signal, raise it, and resume",
-            async t =>
-            {
-                var waiter = await Jobs.EnqueueAsync(Request("job-wait-signal", null), t);
-                await Runtime.RunOnceAsync(TestNamespace, waiter.JobId, t);
-                await Jobs.RaiseSignalAsync(waiter, "go", true, ct: t);
-                await RunToEndAsync(waiter, t);
-            }
-        );
-        await other.Check(
-            "sleep",
-            async t =>
-                Assert.Equal(
-                    RunOnceStatus.Rearmed,
-                    await Runtime.RunOnceAsync(TestNamespace, (await Jobs.EnqueueAsync(Request("job-sleep-basic", null), t)).JobId, t)
-                )
+        await other.Check("wait for a signal, raise it, and resume", async t =>
+        {
+            var waiter = await Jobs.EnqueueAsync(Request("job-wait-signal", null), t);
+            await Runtime.RunOnceAsync(TestNamespace, waiter.JobId, t);
+            await Jobs.RaiseSignalAsync(waiter, "go", true, ct: t);
+            await RunToEndAsync(waiter, t);
+        });
+        await other.Check("sleep", async t =>
+            Assert.Equal(
+                RunOnceStatus.Rearmed,
+                await Runtime.RunOnceAsync(TestNamespace, (await Jobs.EnqueueAsync(Request("job-sleep-basic", null), t)).JobId, t)
+            )
         );
         await other.Check("write notes", t => RunToEndAsync(Request("job-note", null), t));
         await other.Check("run under a concurrency limit", t => RunToEndAsync(Request("concurrency-limit-probe", null), t));
         await other.Check("run under a rate limit", t => RunToEndAsync(Request("rate-limited-probe", null), t));
-        await other.Check(
-            "run a tenant's job",
-            t => RunToEndAsync(Request("tenant-required-probe", new TenantScopedWork("w")) with { TenantName = tenant }, t)
+        await other.Check("run a tenant's job", t =>
+            RunToEndAsync(Request("tenant-required-probe", new TenantScopedWork("w")) with { TenantName = tenant }, t)
         );
-        await other.Check(
-            "fire a recurring job",
-            async t =>
-            {
-                Applied((await schedules.TriggerAsync(recurring, ct: t)).Action, "trigger");
-                Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(TestNamespace, slot, t));
-            }
-        );
+        await other.Check("fire a recurring job", async t =>
+        {
+            Applied((await schedules.TriggerAsync(recurring, ct: t)).Action, "trigger");
+            Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(TestNamespace, slot, t));
+        });
         // After the firing, while the slot is idle again: admission admits the late occurrence or skips it, and either
         // way moves the schedule past it.
-        await other.Check(
-            "admit the namespace's due occurrence",
-            async t =>
+        await other.Check("admit the namespace's due occurrence", async t =>
+        {
+            await Runtime.AdmitOnceAsync(TestNamespace, t);
+            Assert.True((await schedules.GetAsync(recurring, t))!.NextOccurrenceAtUtc > due, "admission left the occurrence due");
+        });
+        await other.Check("hold a named lock across a heartbeat", async t =>
+        {
+            LockHolder.Reset(TestNamespace);
+            var holder = await Jobs.EnqueueAsync(Request("lock-holder", null), t);
+            var run = Runtime.RunOnceAsync(TestNamespace, holder.JobId, t);
+            try
             {
-                await Runtime.AdmitOnceAsync(TestNamespace, t);
-                Assert.True((await schedules.GetAsync(recurring, t))!.NextOccurrenceAtUtc > due, "admission left the occurrence due");
+                await LockHolder.Entered(TestNamespace).WaitAsync(t);
+                Assert.True(await Runtime.RunHeartbeatOnceAsync(t), "the heartbeat pass was not answered");
             }
-        );
-        await other.Check(
-            "hold a named lock across a heartbeat",
-            async t =>
+            finally
             {
-                LockHolder.Reset(TestNamespace);
-                var holder = await Jobs.EnqueueAsync(Request("lock-holder", null), t);
-                var run = Runtime.RunOnceAsync(TestNamespace, holder.JobId, t);
-                try
-                {
-                    await LockHolder.Entered(TestNamespace).WaitAsync(t);
-                    Assert.True(await Runtime.RunHeartbeatOnceAsync(t), "the heartbeat pass was not answered");
-                }
-                finally
-                {
-                    LockHolder.Release(TestNamespace);
-                }
-                Assert.Equal(RunOnceStatus.Completed, await run);
+                LockHolder.Release(TestNamespace);
             }
+            Assert.Equal(RunOnceStatus.Completed, await run);
+        });
+        await other.Check("reset a job's state", t =>
+            Services.GetRequiredService<ResetJobStateHandler>().HandleAsync(new ResetJobStateCommand(resetFence), t)
         );
-        await other.Check(
-            "reset a job's state",
-            t => Services.GetRequiredService<ResetJobStateHandler>().HandleAsync(new ResetJobStateCommand(resetFence), t)
+        await other.Check("recover a stranded job", async t =>
+            Assert.True(
+                (await Services.GetRequiredService<RecoveryPass>().RunAsync(NamespaceId, TestNamespace, t)).ReclaimedJobs > 0,
+                "the recovery pass reclaimed nothing"
+            )
         );
-        await other.Check(
-            "recover a stranded job",
-            async t =>
-                Assert.True(
-                    (await Services.GetRequiredService<RecoveryPass>().RunAsync(NamespaceId, TestNamespace, t)).ReclaimedJobs > 0,
-                    "the recovery pass reclaimed nothing"
-                )
+        await other.Check("project and deliver alerts", t =>
+            AlertTestOps.RunAlertsJobAsync(
+                Services,
+                TestNamespace,
+                NamespaceId,
+                alertsOwner.JobId,
+                options: null,
+                drain: null,
+                t,
+                ageEventsPastHorizon: false
+            )
         );
-        await other.Check(
-            "project and deliver alerts",
-            t =>
-                AlertTestOps.RunAlertsJobAsync(
-                    Services,
-                    TestNamespace,
-                    NamespaceId,
-                    alertsOwner.JobId,
-                    options: null,
-                    drain: null,
-                    t,
-                    ageEventsPastHorizon: false
-                )
-        );
-        await other.Check(
-            "purge an expired job and its tags",
-            async t =>
-            {
-                var purged = await RetentionTestOps.PurgeAsync(
-                    Services,
-                    NamespaceId,
-                    eventsRetentionDays: 30,
-                    alertRetentionDays: 30,
-                    workerRetentionSeconds: 86400,
-                    batchSize: 100,
-                    maxIterations: 50,
-                    t
-                );
-                Assert.True(purged.Jobs > 0, "the sweep purged no job");
-            }
-        );
+        await other.Check("purge an expired job and its tags", async t =>
+        {
+            var purged = await RetentionTestOps.PurgeAsync(
+                Services,
+                NamespaceId,
+                eventsRetentionDays: 30,
+                alertRetentionDays: 30,
+                workerRetentionSeconds: 86400,
+                batchSize: 100,
+                maxIterations: 50,
+                t
+            );
+            Assert.True(purged.Jobs > 0, "the sweep purged no job");
+        });
         // Last: the worker serves nothing after it stops.
         await other.Check("stop the worker", t => Runtime.StopAsync(t));
         await other.ReleaseAsync(ct);
@@ -243,25 +214,19 @@ public sealed class NamespaceIsolationSpec : ActaRuntimeTestBase<ConformanceFixt
 
         await other.HoldAsync(ct);
         await other.Check("cancel", async t => Applied((await Jobs.CancelAsync(ready, ct: t)).Action, "cancel"));
-        await other.Check(
-            "pause and resume",
-            async t =>
-            {
-                Applied((await Jobs.PauseAsync(forPause, ct: t)).Action, "pause");
-                Applied((await Jobs.ResumeAsync(forPause, ct: t)).Action, "resume");
-            }
+        await other.Check("pause and resume", async t =>
+        {
+            Applied((await Jobs.PauseAsync(forPause, ct: t)).Action, "pause");
+            Applied((await Jobs.ResumeAsync(forPause, ct: t)).Action, "resume");
+        });
+        await other.Check("reschedule", async t =>
+            Applied((await Jobs.RescheduleAsync(forPause, DateTime.UtcNow.AddMinutes(90), ct: t)).Action, "reschedule")
         );
-        await other.Check(
-            "reschedule",
-            async t => Applied((await Jobs.RescheduleAsync(forPause, DateTime.UtcNow.AddMinutes(90), ct: t)).Action, "reschedule")
+        await other.Check("update a job's input", async t =>
+            Applied((await Jobs.UpdateInputAsync(forPause, JobPayload.Json(new AddNumbers(9, 9)), ct: t)).Action, "input update")
         );
-        await other.Check(
-            "update a job's input",
-            async t => Applied((await Jobs.UpdateInputAsync(forPause, JobPayload.Json(new AddNumbers(9, 9)), ct: t)).Action, "input update")
-        );
-        await other.Check(
-            "reprioritize",
-            async t => Applied((await Jobs.ReprioritizeAsync(forPause, JobPriorityCode.High, ct: t)).Action, "reprioritize")
+        await other.Check("reprioritize", async t =>
+            Applied((await Jobs.ReprioritizeAsync(forPause, JobPriorityCode.High, ct: t)).Action, "reprioritize")
         );
         await other.Check("restart", async t => Applied((await Jobs.RestartAsync(completed, ct: t)).Action, "restart"));
         await other.Check("purge", async t => Applied((await Jobs.PurgeAsync(forPurge, "isolation spec", ct: t)).Action, "purge"));
@@ -292,99 +257,75 @@ public sealed class NamespaceIsolationSpec : ActaRuntimeTestBase<ConformanceFixt
         );
 
         await other.HoldAsync(ct);
-        await other.Check(
-            "publish a calendar a schedule follows",
-            async t => Assert.NotEmpty((await PublishCalendarAsync(Services, followed, t, latestVersion: 1)).RetimedSchedules)
+        await other.Check("publish a calendar a schedule follows", async t =>
+            Assert.NotEmpty((await PublishCalendarAsync(Services, followed, t, latestVersion: 1)).RetimedSchedules)
         );
-        await other.Check(
-            "update a definition's overrides",
-            async t =>
-            {
-                var updated = await DefinitionTestOps.UpdateOverridesAsync(
-                    Services,
-                    TestNamespace,
-                    "add-numbers",
-                    definitionVersion,
-                    new DefinitionPolicyOverrides(MaxAttempts: 3),
-                    "test",
-                    null,
-                    t
-                );
-                Applied(updated.Action, "overrides update");
-            }
-        );
+        await other.Check("update a definition's overrides", async t =>
+        {
+            var updated = await DefinitionTestOps.UpdateOverridesAsync(
+                Services,
+                TestNamespace,
+                "add-numbers",
+                definitionVersion,
+                new DefinitionPolicyOverrides(MaxAttempts: 3),
+                "test",
+                null,
+                t
+            );
+            Applied(updated.Action, "overrides update");
+        });
         await other.Check("deploy", t => CatalogTestOps.DeployAsync(Services, t));
         var schedules = Services.GetRequiredService<ISchedules>();
         await other.Check("trigger a schedule", async t => Applied((await schedules.TriggerAsync(schedule, ct: t)).Action, "trigger"));
-        await other.Check(
-            "pause and resume a schedule",
-            async t =>
-            {
-                Applied((await schedules.PauseAsync(schedule, ct: t)).Action, "schedule pause");
-                Applied((await schedules.ResumeAsync(schedule, ct: t)).Action, "schedule resume");
-            }
+        await other.Check("pause and resume a schedule", async t =>
+        {
+            Applied((await schedules.PauseAsync(schedule, ct: t)).Action, "schedule pause");
+            Applied((await schedules.ResumeAsync(schedule, ct: t)).Action, "schedule resume");
+        });
+        await other.Check("retire a definition", async t =>
+            Applied((await definitions.RetireAsync(TestNamespace, "job-note", retireVersion, ct: t)).Action, "retire")
         );
-        await other.Check(
-            "retire a definition",
-            async t => Applied((await definitions.RetireAsync(TestNamespace, "job-note", retireVersion, ct: t)).Action, "retire")
-        );
-        await other.Check(
-            "deploy and record the version",
-            t => Services.GetRequiredService<CatalogDeployer>().DeployAsync(force: false, t)
+        await other.Check("deploy and record the version", t =>
+            Services.GetRequiredService<CatalogDeployer>().DeployAsync(force: false, t)
         );
         var namespaces = Services.GetRequiredService<INamespaces>();
-        await other.Check(
-            "update, suspend, and resume the namespace",
-            async t =>
-            {
-                var version = (await namespaces.GetAsync(TestNamespace, t))!.Version;
-                Applied((await namespaces.UpdateAsync(TestNamespace, version, "test", "isolation spec", ct: t)).Action, "namespace update");
-                Applied((await namespaces.SuspendAsync(TestNamespace, ct: t)).Action, "namespace suspend");
-                Applied((await namespaces.ResumeAsync(TestNamespace, ct: t)).Action, "namespace resume");
-            }
-        );
+        await other.Check("update, suspend, and resume the namespace", async t =>
+        {
+            var version = (await namespaces.GetAsync(TestNamespace, t))!.Version;
+            Applied((await namespaces.UpdateAsync(TestNamespace, version, "test", "isolation spec", ct: t)).Action, "namespace update");
+            Applied((await namespaces.SuspendAsync(TestNamespace, ct: t)).Action, "namespace suspend");
+            Applied((await namespaces.ResumeAsync(TestNamespace, ct: t)).Action, "namespace resume");
+        });
         var tenants = Services.GetRequiredService<ITenants>();
-        await other.Check(
-            "register, update, suspend, and resume a tenant",
-            async t =>
-            {
-                var tenant = (await tenants.RegisterAsync(Unique("tenant"), ct: t)).TenantName;
-                var version = (await tenants.GetAsync(tenant, t))!.Version;
-                Applied((await tenants.UpdateAsync(tenant, version, "Isolation", "isolation spec", ct: t)).Action, "tenant update");
-                Applied((await tenants.SuspendAsync(tenant, ct: t)).Action, "tenant suspend");
-                Applied((await tenants.ResumeAsync(tenant, ct: t)).Action, "tenant resume");
-            }
-        );
-        await other.Check(
-            "tag a job, a definition, and the namespace, and replace the namespace's tags",
-            async t =>
-            {
-                await TagAsync(Services, TestNamespace, completed, t);
-                var tags = Services.GetRequiredService<ITags>();
-                Applied(
-                    (await tags.ReplaceAsync(TagTarget.ForNamespace(TestNamespace), [new TagInput("isolation", "replaced")], t)).Action,
-                    "tag replace"
-                );
-            }
-        );
-        await other.Check(
-            "save, publish, and archive a calendar",
-            async t =>
-            {
-                var calendar = new CalendarLookup(TestNamespace, Unique("calendar"));
-                await PublishCalendarAsync(Services, calendar, t);
-                Applied((await Services.GetRequiredService<ICalendars>().ArchiveAsync(calendar, ct: t)).Action, "calendar archive");
-            }
-        );
+        await other.Check("register, update, suspend, and resume a tenant", async t =>
+        {
+            var tenant = (await tenants.RegisterAsync(Unique("tenant"), ct: t)).TenantName;
+            var version = (await tenants.GetAsync(tenant, t))!.Version;
+            Applied((await tenants.UpdateAsync(tenant, version, "Isolation", "isolation spec", ct: t)).Action, "tenant update");
+            Applied((await tenants.SuspendAsync(tenant, ct: t)).Action, "tenant suspend");
+            Applied((await tenants.ResumeAsync(tenant, ct: t)).Action, "tenant resume");
+        });
+        await other.Check("tag a job, a definition, and the namespace, and replace the namespace's tags", async t =>
+        {
+            await TagAsync(Services, TestNamespace, completed, t);
+            var tags = Services.GetRequiredService<ITags>();
+            Applied(
+                (await tags.ReplaceAsync(TagTarget.ForNamespace(TestNamespace), [new TagInput("isolation", "replaced")], t)).Action,
+                "tag replace"
+            );
+        });
+        await other.Check("save, publish, and archive a calendar", async t =>
+        {
+            var calendar = new CalendarLookup(TestNamespace, Unique("calendar"));
+            await PublishCalendarAsync(Services, calendar, t);
+            Applied((await Services.GetRequiredService<ICalendars>().ArchiveAsync(calendar, ct: t)).Action, "calendar archive");
+        });
         var alerts = Services.GetRequiredService<IAlerts>();
-        await other.Check(
-            "acknowledge and resolve an alert",
-            async t =>
-            {
-                Applied((await alerts.AcknowledgeAsync(alert, ct: t)).Action, "alert acknowledge");
-                Applied((await alerts.ResolveAsync(alert, ct: t)).Action, "alert resolve");
-            }
-        );
+        await other.Check("acknowledge and resolve an alert", async t =>
+        {
+            Applied((await alerts.AcknowledgeAsync(alert, ct: t)).Action, "alert acknowledge");
+            Applied((await alerts.ResolveAsync(alert, ct: t)).Action, "alert resolve");
+        });
         await other.ReleaseAsync(ct);
     }
 
@@ -417,9 +358,8 @@ public sealed class NamespaceIsolationSpec : ActaRuntimeTestBase<ConformanceFixt
         await other.HoldAsync(ct);
         await other.Check("read a job", async t => Assert.NotNull(await Jobs.GetAsync(completed, t)));
         await other.Check("read a job by its ref", async t => Assert.NotNull(await Jobs.GetAsync(JobLookup.ByRef(completed.JobRef), t)));
-        await other.Check(
-            "read a job by its deduplication key",
-            async t => Assert.NotNull(await Jobs.GetAsync(JobLookup.ByDeduplicationKey(TestNamespace, deduplicationKey), t))
+        await other.Check("read a job by its deduplication key", async t =>
+            Assert.NotNull(await Jobs.GetAsync(JobLookup.ByDeduplicationKey(TestNamespace, deduplicationKey), t))
         );
         await other.Check("read a job's input", async t => Assert.NotNull(await Jobs.GetInputAsync(completed, t)));
         await other.Check("explain a job", async t => Assert.NotNull(await Jobs.ExplainAsync(completed, t)));
@@ -428,9 +368,8 @@ public sealed class NamespaceIsolationSpec : ActaRuntimeTestBase<ConformanceFixt
         await other.Check("map a job's lineage", async t => Assert.NotNull(await Jobs.GetLineageMapAsync(parent, ct: t)));
         var definitions = Services.GetRequiredService<IDefinitions>();
         await other.Check("read a definition", async t => Assert.NotNull(await definitions.GetAsync(TestNamespace, "add-numbers", t)));
-        await other.Check(
-            "list the namespace's definitions",
-            t => definitions.ListAsync(new ListDefinitionsQuery(JobNamespace: TestNamespace, IncludeTotal: true), t).AsTask()
+        await other.Check("list the namespace's definitions", t =>
+            definitions.ListAsync(new ListDefinitionsQuery(JobNamespace: TestNamespace, IncludeTotal: true), t).AsTask()
         );
         // A day either side of the clock holds the execution that finished moments ago.
         var performance = new GetDefinitionPerformanceQuery(
@@ -440,68 +379,54 @@ public sealed class NamespaceIsolationSpec : ActaRuntimeTestBase<ConformanceFixt
             DateTime.UtcNow.AddDays(1),
             86_400
         );
-        await other.Check(
-            "read a definition's performance",
-            async t => Assert.NotNull(await definitions.GetPerformanceAsync(performance, t))
+        await other.Check("read a definition's performance", async t =>
+            Assert.NotNull(await definitions.GetPerformanceAsync(performance, t))
         );
         var schedules = Services.GetRequiredService<ISchedules>();
-        await other.Check(
-            "read a schedule",
-            async t => Assert.NotNull(await schedules.GetAsync(new ScheduleLookup(TestNamespace, "recurring-ping", "every-5-minutes"), t))
+        await other.Check("read a schedule", async t =>
+            Assert.NotNull(await schedules.GetAsync(new ScheduleLookup(TestNamespace, "recurring-ping", "every-5-minutes"), t))
         );
-        await other.Check(
-            "list the namespace's schedules",
-            t => schedules.ListAsync(new ListSchedulesQuery(JobNamespace: TestNamespace, IncludeTotal: true), t).AsTask()
+        await other.Check("list the namespace's schedules", t =>
+            schedules.ListAsync(new ListSchedulesQuery(JobNamespace: TestNamespace, IncludeTotal: true), t).AsTask()
         );
         var alerts = Services.GetRequiredService<IAlerts>();
         await other.Check("read an alert", async t => Assert.NotNull(await alerts.GetAsync(alert, t)));
-        await other.Check(
-            "list the namespace's alerts",
-            t => alerts.ListAsync(new ListAlertsQuery(JobNamespace: TestNamespace, IncludeTotal: true), t).AsTask()
+        await other.Check("list the namespace's alerts", t =>
+            alerts.ListAsync(new ListAlertsQuery(JobNamespace: TestNamespace, IncludeTotal: true), t).AsTask()
         );
-        await other.Check(
-            "list the namespace's jobs",
-            t => Operations.Ledger.ListJobsAsync(new ListJobsQuery(JobNamespace: TestNamespace, IncludeTotal: true), t).AsTask()
+        await other.Check("list the namespace's jobs", t =>
+            Operations.Ledger.ListJobsAsync(new ListJobsQuery(JobNamespace: TestNamespace, IncludeTotal: true), t).AsTask()
         );
-        await other.Check(
-            "list the namespace's events",
-            t => Operations.Ledger.ListEventsAsync(new ListEventsQuery(JobNamespace: TestNamespace), t).AsTask()
+        await other.Check("list the namespace's events", t =>
+            Operations.Ledger.ListEventsAsync(new ListEventsQuery(JobNamespace: TestNamespace), t).AsTask()
         );
-        await other.Check(
-            "read the namespace's overview",
-            t => Operations.Ledger.GetOverviewAsync(new GetOverviewQuery(TestNamespace), t).AsTask()
+        await other.Check("read the namespace's overview", t =>
+            Operations.Ledger.GetOverviewAsync(new GetOverviewQuery(TestNamespace), t).AsTask()
         );
-        await other.Check(
-            "list the namespace's workers",
-            t => workers.ListAsync(new ListWorkersQuery(TestNamespace, IncludeTotal: true), t).AsTask()
+        await other.Check("list the namespace's workers", t =>
+            workers.ListAsync(new ListWorkersQuery(TestNamespace, IncludeTotal: true), t).AsTask()
         );
         await other.Check("read a worker", async t => Assert.NotNull(await workers.GetAsync(worker, t)));
-        await other.Check(
-            "list the namespace's tags",
-            t =>
-                Services
-                    .GetRequiredService<ITags>()
-                    .ListAsync(new ListTagsQuery(TagTarget.ForNamespace(TestNamespace), IncludeTotal: true), t)
-                    .AsTask()
+        await other.Check("list the namespace's tags", t =>
+            Services
+                .GetRequiredService<ITags>()
+                .ListAsync(new ListTagsQuery(TagTarget.ForNamespace(TestNamespace), IncludeTotal: true), t)
+                .AsTask()
         );
         await other.Check("read a tenant", async t => Assert.NotNull(await Services.GetRequiredService<ITenants>().GetAsync(tenant, t)));
         var calendars = Services.GetRequiredService<ICalendars>();
         await other.Check("read a calendar", async t => Assert.NotNull(await calendars.GetAsync(calendar, ct: t)));
-        await other.Check(
-            "list a calendar's versions",
-            t => calendars.ListVersionsAsync(new ListCalendarVersionsQuery(calendar, IncludeTotal: true), t).AsTask()
+        await other.Check("list a calendar's versions", t =>
+            calendars.ListVersionsAsync(new ListCalendarVersionsQuery(calendar, IncludeTotal: true), t).AsTask()
         );
-        await other.Check(
-            "list a calendar's dependents",
-            t => calendars.ListDependentsAsync(new ListCalendarDependentsQuery(calendar, IncludeTotal: true), t).AsTask()
+        await other.Check("list a calendar's dependents", t =>
+            calendars.ListDependentsAsync(new ListCalendarDependentsQuery(calendar, IncludeTotal: true), t).AsTask()
         );
-        await other.Check(
-            "list the namespace's calendars",
-            t => calendars.ListAsync(new ListCalendarsQuery(TestNamespace, IncludeTotal: true), t).AsTask()
+        await other.Check("list the namespace's calendars", t =>
+            calendars.ListAsync(new ListCalendarsQuery(TestNamespace, IncludeTotal: true), t).AsTask()
         );
-        await other.Check(
-            "load the namespace's published calendars",
-            t => Services.GetRequiredService<CalendarsOperations>().ListCurrentCalendarsAsync(NamespaceId, t)
+        await other.Check("load the namespace's published calendars", t =>
+            Services.GetRequiredService<CalendarsOperations>().ListCurrentCalendarsAsync(NamespaceId, t)
         );
         await other.ReleaseAsync(ct);
     }

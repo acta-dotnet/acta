@@ -115,17 +115,12 @@ public sealed class ControlContractTests
             },
             answersNotFound: false
         ),
-        .. CalendarVerb(
-            "publish",
-            typeof(PublishCalendarResponse),
-            "version-conflict",
-            static expected => new
-            {
-                expectedCurrentVersion = expected,
-                candidateVersion = 2,
-                reasonMessage = "because",
-            }
-        ),
+        .. CalendarVerb("publish", typeof(PublishCalendarResponse), "version-conflict", static expected => new
+        {
+            expectedCurrentVersion = expected,
+            candidateVersion = 2,
+            reasonMessage = "because",
+        }),
         .. CalendarVerb(
             "archive",
             typeof(ArchiveCalendarResponse),

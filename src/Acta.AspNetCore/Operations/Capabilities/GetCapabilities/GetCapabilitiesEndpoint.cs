@@ -14,30 +14,26 @@ internal static class GetCapabilitiesEndpoint
 {
     public static void Map(RouteGroupBuilder reads, ActaEndpointOptions options) =>
         reads
-            .MapGet(
-                "/capabilities",
-                async (HttpContext http, IActaOperations operations) =>
-                {
-                    var version =
-                        typeof(IJobs).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
-                        ?? typeof(IJobs).Assembly.GetName().Version?.ToString()
-                        ?? "unknown";
-                    // The configured Acta schema qualifies the operator views the dashboard's Copy-SQL emits.
-                    // Resolved optionally so a host that maps the API without a registered provider still answers
-                    // (the provider package registers SqlProviderOptions); the default matches the option default.
-                    var schema = http.RequestServices.GetService<SqlProviderOptions>()?.Schema ?? "acta";
-                    var body = new GetCapabilitiesResponse(
-                        ControlsEnabled: options.EnableControls,
-                        EngineVersion: version,
-                        Provider: ProviderCode(operations.Provider),
-                        Schema: schema,
-                        ConfirmationHeader: options.ControlConfirmationHeaderName,
-                        // Without RequirePermissions no policy exists to ask, and every route serves whoever reaches it.
-                        Permissions: options.RequirePermissions ? await PermissionFilter.HeldAsync(http) : PermissionFilter.Permissions
-                    );
-                    return Results.Json(body, ActaApiJsonContext.Relaxed.GetCapabilitiesResponse);
-                }
-            )
+            .MapGet("/capabilities", async (HttpContext http, IActaOperations operations) =>
+            {
+                var version = typeof(IJobs).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
+                    ?? typeof(IJobs).Assembly.GetName().Version?.ToString()
+                    ?? "unknown";
+                // The configured Acta schema qualifies the operator views the dashboard's Copy-SQL emits.
+                // Resolved optionally so a host that maps the API without a registered provider still answers
+                // (the provider package registers SqlProviderOptions); the default matches the option default.
+                var schema = http.RequestServices.GetService<SqlProviderOptions>()?.Schema ?? "acta";
+                var body = new GetCapabilitiesResponse(
+                    ControlsEnabled: options.EnableControls,
+                    EngineVersion: version,
+                    Provider: ProviderCode(operations.Provider),
+                    Schema: schema,
+                    ConfirmationHeader: options.ControlConfirmationHeaderName,
+                    // Without RequirePermissions no policy exists to ask, and every route serves whoever reaches it.
+                    Permissions: options.RequirePermissions ? await PermissionFilter.HeldAsync(http) : PermissionFilter.Permissions
+                );
+                return Results.Json(body, ActaApiJsonContext.Relaxed.GetCapabilitiesResponse);
+            })
             .WithMetadata(new ActaOperationAttribute("getCapabilities", ActaPermissions.Read))
             .WithSummary("Read this host's API capabilities.")
             .Produces<GetCapabilitiesResponse>(StatusCodes.Status200OK);

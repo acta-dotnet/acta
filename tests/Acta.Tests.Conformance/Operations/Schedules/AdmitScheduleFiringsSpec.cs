@@ -202,10 +202,7 @@ public sealed class AdmitScheduleFiringsSpec : ActaStorageTestBase<ConformanceFi
         var ct = TestContext.Current.CancellationToken;
         var now = FloorSeconds(DateTime.UtcNow);
         // Room for three, so capacity would take every apply: only the versions the plan was read at stop the others.
-        var roomy = Schedule("only", now.AddMinutes(-1)) with
-        {
-            MaxOutstanding = 3,
-        };
+        var roomy = Schedule("only", now.AddMinutes(-1)) with { MaxOutstanding = 3 };
         var (defId, _) = await RegisterAsync(Unique("twice"), ScheduledDeliveryCode.PerOccurrence, [roomy], ct);
         var scheduleId = (await Db.From<ScheduleEntity>().Where(s => s.DefinitionId == defId).SingleOrDefaultAsync(ct))!.Id;
         var before = await Db.From<ScheduleStateEntity>().Where(s => s.Id == scheduleId).SingleOrDefaultAsync(ct);

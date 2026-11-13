@@ -242,8 +242,7 @@ internal sealed class DbFrom<TEntity>
 
     private static (object? Value, Type Type) ReadProperty(object entity, string propertyName)
     {
-        var pi =
-            entity.GetType().GetProperty(propertyName, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
+        var pi = entity.GetType().GetProperty(propertyName, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
             ?? throw new InvalidOperationException(
                 $"Entity '{entity.GetType().Name}' has no property '{propertyName}' for column mapping."
             );
@@ -410,8 +409,7 @@ internal sealed class WhereVisitor(
     {
         if (node.Expression == _entityParam)
         {
-            var col =
-                _entity.FindByClrProperty(node.Member.Name)
+            var col = _entity.FindByClrProperty(node.Member.Name)
                 ?? throw new InvalidOperationException(
                     $"Predicate references '{_entity.ClrType.Name}.{node.Member.Name}' which is not a [DbColumn] property."
                 );
@@ -466,8 +464,7 @@ internal sealed class WhereVisitor(
             }
             if (source is not null && item is not null && item is MemberExpression me && me.Expression == _entityParam)
             {
-                var col =
-                    _entity.FindByClrProperty(me.Member.Name)
+                var col = _entity.FindByClrProperty(me.Member.Name)
                     ?? throw new InvalidOperationException($"Predicate references '{me.Member.Name}' which is not a [DbColumn] property.");
                 var values = (System.Collections.IEnumerable)Evaluate(source)!;
                 var paramNames = new List<string>();
@@ -550,8 +547,7 @@ internal static class DbSetClauseBuilder
             {
                 sb.Append(", ");
             }
-            var col =
-                entity.FindByClrProperty(assign.Member.Name)
+            var col = entity.FindByClrProperty(assign.Member.Name)
                 ?? throw new InvalidOperationException(
                     $"Set selector references '{entity.ClrType.Name}.{assign.Member.Name}' which is not a [DbColumn] property."
                 );

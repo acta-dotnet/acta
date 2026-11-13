@@ -34,11 +34,7 @@ internal sealed class GetDefinitionPerformanceHandler(GetDefinitionIdHandler get
         ArgumentNullException.ThrowIfNull(query);
         // Whole milliseconds place an execution in the same interval on every provider: SQLite stores an instant as
         // epoch milliseconds and SQL Server counts millisecond boundaries.
-        query = query with
-        {
-            FromUtc = TruncateToMillisecond(query.FromUtc),
-            ToUtc = TruncateToMillisecond(query.ToUtc),
-        };
+        query = query with { FromUtc = TruncateToMillisecond(query.FromUtc), ToUtc = TruncateToMillisecond(query.ToUtc) };
         if (query.ToUtc <= query.FromUtc)
         {
             throw new InvalidQueryException("toUtc must be after fromUtc.");

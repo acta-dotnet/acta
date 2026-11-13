@@ -59,14 +59,8 @@ internal sealed class FakeJobs : IJobs
         Restart = (job, reason, actor, version, _) =>
             Control("restart", job, reason, actor, version, JobStatusCode.Ready, static (i, a, s, v) => new RestartJobResponse(i, a, s, v));
         Cancel = (job, reason, actor, version, _) =>
-            Control(
-                "cancel",
-                job,
-                reason,
-                actor,
-                version,
-                JobStatusCode.Cancelled,
-                static (i, a, s, v) => new CancelJobResponse(i, a, s, v)
+            Control("cancel", job, reason, actor, version, JobStatusCode.Cancelled, static (i, a, s, v) =>
+                new CancelJobResponse(i, a, s, v)
             );
         Reschedule = (job, nextRunAtUtc, reason, actor, version, _) =>
         {

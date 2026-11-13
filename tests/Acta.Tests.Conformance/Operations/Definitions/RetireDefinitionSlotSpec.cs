@@ -55,13 +55,10 @@ public sealed class RetireDefinitionSlotSpec : ActaRuntimeTestBase<ConformanceFi
 
         var schedules = await ScheduleTestOps.ReadAsync(Db, slotId, ct);
         Assert.NotEmpty(schedules);
-        Assert.All(
-            schedules,
-            s =>
-            {
-                Assert.Null(s.NextOccurrenceAtUtc);
-            }
-        );
+        Assert.All(schedules, s =>
+        {
+            Assert.Null(s.NextOccurrenceAtUtc);
+        });
     }
 
     [Fact(DisplayName = "A deploy that carries a retired definition again resumes its schedules from now on the same Idle slot")]
@@ -71,14 +68,11 @@ public sealed class RetireDefinitionSlotSpec : ActaRuntimeTestBase<ConformanceFi
         var slotId = await AlertTestOps.RecurringSlotIdAsync(Services, TestNamespace, "recurring-ping", ct);
         Assert.Equal(ControlAction.Applied, (await RetireAsync("recurring-ping", ct)).Action);
         Assert.Equal(JobStatusCode.Idle, (await ReadJobAsync(slotId, ct)).Status);
-        Assert.All(
-            await ScheduleTestOps.ReadAsync(Db, slotId, ct),
-            s =>
-            {
-                Assert.Null(s.NextOccurrenceAtUtc);
-                Assert.Equal("retired", s.Config.TimingFingerprint);
-            }
-        );
+        Assert.All(await ScheduleTestOps.ReadAsync(Db, slotId, ct), s =>
+        {
+            Assert.Null(s.NextOccurrenceAtUtc);
+            Assert.Equal("retired", s.Config.TimingFingerprint);
+        });
 
         var comeback = DateTime.UtcNow;
         await StartBuildAsync("comeback", ct);
@@ -87,15 +81,12 @@ public sealed class RetireDefinitionSlotSpec : ActaRuntimeTestBase<ConformanceFi
         Assert.Equal(slotId, await AlertTestOps.RecurringSlotIdAsync(Services, TestNamespace, "recurring-ping", ct));
         Assert.Equal(JobStatusCode.Idle, (await ReadJobAsync(slotId, ct)).Status);
         var resumed = await ScheduleTestOps.ReadAsync(Db, slotId, ct);
-        Assert.All(
-            resumed,
-            s =>
-            {
-                Assert.NotEqual("retired", s.Config.TimingFingerprint);
-                Assert.Equal(ScheduleEvaluationStatusCode.Scheduled, s.EvaluationStatus);
-                Assert.InRange(s.NextOccurrenceAtUtc!.Value, comeback.AddSeconds(-5), comeback.AddMinutes(6));
-            }
-        );
+        Assert.All(resumed, s =>
+        {
+            Assert.NotEqual("retired", s.Config.TimingFingerprint);
+            Assert.Equal(ScheduleEvaluationStatusCode.Scheduled, s.EvaluationStatus);
+            Assert.InRange(s.NextOccurrenceAtUtc!.Value, comeback.AddSeconds(-5), comeback.AddMinutes(6));
+        });
 
         // Deploying it again changes nothing, and the resumed schedules admit one firing on the slot.
         await StartBuildAsync("comeback-again", ct);

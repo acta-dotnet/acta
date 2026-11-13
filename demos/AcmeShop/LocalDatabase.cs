@@ -25,8 +25,7 @@ public static class LocalDatabase
     {
         // Empty counts as unset at every rung (a shell's VAR='' must not select a server provider by
         // producing an empty string): the zero-setup default stays SQLite.
-        var provider =
-            NullIfWhiteSpace(configuration["Acta:Provider"])
+        var provider = NullIfWhiteSpace(configuration["Acta:Provider"])
             ?? NullIfWhiteSpace(Environment.GetEnvironmentVariable("ACTA_LOCAL_PROVIDER"))
             ?? "sqlite";
         var connectionString = ResolveConnectionString(configuration, provider);

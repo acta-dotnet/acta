@@ -219,8 +219,8 @@ internal sealed class OwnedWorker : IDisposable
             info.Environment["ACTA_VERIFY_INJECT_OPERATION"] = injection.Operation;
             info.Environment["ACTA_VERIFY_INJECT_BOUNDARY"] = injection.Boundary;
             info.Environment["ACTA_VERIFY_INJECT_LOSE_REPLY"] = injection.LoseReply ? "1" : "0";
-            info.Environment["ACTA_VERIFY_INJECT_JOB_ID"] =
-                injection.JobId?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "";
+            info.Environment["ACTA_VERIFY_INJECT_JOB_ID"] = injection.JobId?.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                ?? "";
         }
         var process = Process.Start(info) ?? throw new InvalidOperationException("Could not start owned worker.");
         if (Affinity is { } mask && OperatingSystem.IsWindows())

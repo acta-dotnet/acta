@@ -66,14 +66,8 @@ internal static class DefinitionsEndpoints
                 "Definition",
                 ActaApiJsonContext.Relaxed.GetDefinitionPerformanceResponse,
                 static (http, call) =>
-                    QueryReader.Bind(
-                        http.Request,
-                        static query =>
-                            (
-                                FromUtc: query.DateTime("fromUtc"),
-                                ToUtc: query.DateTime("toUtc"),
-                                IntervalSeconds: query.Int("intervalSeconds")
-                            )
+                    QueryReader.Bind(http.Request, static query =>
+                        (FromUtc: query.DateTime("fromUtc"), ToUtc: query.DateTime("toUtc"), IntervalSeconds: query.Int("intervalSeconds"))
                     )
                         is { FromUtc: { } fromUtc, ToUtc: { } toUtc, IntervalSeconds: { } intervalSeconds }
                         ? call.Operations.Definitions.GetPerformanceAsync(

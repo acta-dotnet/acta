@@ -62,80 +62,68 @@ var roles = new Dictionary<string, string>
 };
 
 // One page signs in and out. Both forms carry an antiforgery token: a cookie alone does not show the person meant the post.
-app.MapGet(
-    "/sign-in",
-    (HttpContext http, IAntiforgery antiforgery, string? returnUrl) =>
-    {
-        var token = antiforgery.GetAndStoreTokens(http).RequestToken;
-        var who = http.User.Identity?.Name is { } name ? $"Signed in as {name}." : "Nobody is signed in.";
-        return Results.Content(
-            $"""
-            <!doctype html><title>Sign in</title>
-            <p>{who} Sign in as reader, operator or admin; the password is the name. <a href="/acta/">Dashboard</a></p>
-            <form method="post" action="/sign-in">
-              <input type="hidden" name="{tokenField}" value="{token}">
-              <input type="hidden" name="returnUrl" value="{WebUtility.HtmlEncode(returnUrl)}">
-              <input name="name" placeholder="name" autofocus> <input name="password" type="password" placeholder="password">
-              <button>Sign in</button>
-            </form>
-            <form method="post" action="/sign-out">
-              <input type="hidden" name="{tokenField}" value="{token}"><button>Sign out</button>
-            </form>
-            """,
-            "text/html"
-        );
-    }
-);
+app.MapGet("/sign-in", (HttpContext http, IAntiforgery antiforgery, string? returnUrl) =>
+{
+    var token = antiforgery.GetAndStoreTokens(http).RequestToken;
+    var who = http.User.Identity?.Name is { } name ? $"Signed in as {name}." : "Nobody is signed in.";
+    return Results.Content(
+        $"""
+        <!doctype html><title>Sign in</title>
+        <p>{who} Sign in as reader, operator or admin; the password is the name. <a href="/acta/">Dashboard</a></p>
+        <form method="post" action="/sign-in">
+          <input type="hidden" name="{tokenField}" value="{token}">
+          <input type="hidden" name="returnUrl" value="{WebUtility.HtmlEncode(returnUrl)}">
+          <input name="name" placeholder="name" autofocus> <input name="password" type="password" placeholder="password">
+          <button>Sign in</button>
+        </form>
+        <form method="post" action="/sign-out">
+          <input type="hidden" name="{tokenField}" value="{token}"><button>Sign out</button>
+        </form>
+        """,
+        "text/html"
+    );
+});
 
 // A route that binds a form is refused with 400 before it runs when the token is missing or wrong.
-app.MapPost(
-    "/sign-in",
-    async (HttpContext http, [FromForm] string name, [FromForm] string password, [FromForm] string? returnUrl) =>
+app.MapPost("/sign-in", async (HttpContext http, [FromForm] string name, [FromForm] string password, [FromForm] string? returnUrl) =>
+{
+    if (!roles.TryGetValue(name, out var role) || password != name)
     {
-        if (!roles.TryGetValue(name, out var role) || password != name)
-        {
-            return Results.Redirect("/sign-in");
-        }
-
-        var identity = new ClaimsIdentity(
-            [new Claim(ClaimTypes.Name, name), new Claim(ClaimTypes.Role, role)],
-            CookieAuthenticationDefaults.AuthenticationScheme
-        );
-        await http.SignInAsync(new ClaimsPrincipal(identity));
-
-        // Back to where the browser was headed, when that is a path on this site: a link must not send a signed-in
-        // browser away. LocalRedirect refuses whatever else is not local.
-        return Results.LocalRedirect(returnUrl is ['/', not ('/' or '\\'), ..] ? returnUrl : "/acta/");
+        return Results.Redirect("/sign-in");
     }
-);
+
+    var identity = new ClaimsIdentity(
+        [new Claim(ClaimTypes.Name, name), new Claim(ClaimTypes.Role, role)],
+        CookieAuthenticationDefaults.AuthenticationScheme
+    );
+    await http.SignInAsync(new ClaimsPrincipal(identity));
+
+    // Back to where the browser was headed, when that is a path on this site: a link must not send a signed-in
+    // browser away. LocalRedirect refuses whatever else is not local.
+    return Results.LocalRedirect(returnUrl is ['/', not ('/' or '\\'), ..] ? returnUrl : "/acta/");
+});
 
 // Signing out clears this browser's cookie. A copy of the cookie still answers until its ticket ends, which is why
 // the ticket is short.
-app.MapPost(
-    "/sign-out",
-    async (HttpContext http, IAntiforgery antiforgery) =>
+app.MapPost("/sign-out", async (HttpContext http, IAntiforgery antiforgery) =>
+{
+    if (!await antiforgery.IsRequestValidAsync(http))
     {
-        if (!await antiforgery.IsRequestValidAsync(http))
-        {
-            return Results.BadRequest();
-        }
-
-        await http.SignOutAsync();
-        return Results.Redirect("/sign-in");
+        return Results.BadRequest();
     }
-);
+
+    await http.SignOutAsync();
+    return Results.Redirect("/sign-in");
+});
 
 // RequirePermissions has Acta check every route, the dashboard's pages included, against the policy named for its
 // permission. With no session a page is sent to the sign-in above, and an API call answers 401 with no redirect,
 // which the dashboard shows as an ended session. LocalOnly and the control confirmation stay on.
-app.MapActa(
-    "/acta",
-    options =>
-    {
-        options.EnableControls = true;
-        options.RequirePermissions = true;
-    }
-);
+app.MapActa("/acta", options =>
+{
+    options.EnableControls = true;
+    options.RequirePermissions = true;
+});
 
 await app.StartAsync();
 

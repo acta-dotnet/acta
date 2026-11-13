@@ -17,10 +17,8 @@ public sealed class ActaMetricsTests
         using var metrics = new ActaMetrics();
 
         var (Value, Tags) = Assert.Single(
-            Collect<long>(
-                metrics,
-                "acta.executions",
-                () => metrics.RecordExecution("billing", "send-receipt", "succeeded", reason: null, durationMs: 12)
+            Collect<long>(metrics, "acta.executions", () =>
+                metrics.RecordExecution("billing", "send-receipt", "succeeded", reason: null, durationMs: 12)
             )
         );
 
@@ -36,10 +34,8 @@ public sealed class ActaMetricsTests
         using var metrics = new ActaMetrics();
 
         var (Value, Tags) = Assert.Single(
-            Collect<double>(
-                metrics,
-                "acta.executions.duration",
-                () => metrics.RecordExecution("billing", "send-receipt", "failed", reason: "unhandled-exception", durationMs: 42)
+            Collect<double>(metrics, "acta.executions.duration", () =>
+                metrics.RecordExecution("billing", "send-receipt", "failed", reason: "unhandled-exception", durationMs: 42)
             )
         );
 
@@ -55,10 +51,8 @@ public sealed class ActaMetricsTests
         using var metrics = new ActaMetrics();
 
         var (Value, Tags) = Assert.Single(
-            Collect<long>(
-                metrics,
-                "acta.executions",
-                () => metrics.RecordExecution("billing", "send-receipt", "failed", reason: "unhandled-exception", durationMs: 1)
+            Collect<long>(metrics, "acta.executions", () =>
+                metrics.RecordExecution("billing", "send-receipt", "failed", reason: "unhandled-exception", durationMs: 1)
             )
         );
 
@@ -71,10 +65,8 @@ public sealed class ActaMetricsTests
         using var metrics = new ActaMetrics();
 
         var (Value, Tags) = Assert.Single(
-            Collect<long>(
-                metrics,
-                "acta.executions",
-                () => metrics.RecordExecution("billing", "send-receipt", "succeeded", reason: null, durationMs: 1)
+            Collect<long>(metrics, "acta.executions", () =>
+                metrics.RecordExecution("billing", "send-receipt", "succeeded", reason: null, durationMs: 1)
             )
         );
 
@@ -125,10 +117,8 @@ public sealed class ActaMetricsTests
         using var metrics = new ActaMetrics();
 
         var (Value, Tags) = Assert.Single(
-            Collect<long>(
-                metrics,
-                "acta.wakeup.publish.attempts",
-                () => metrics.RecordWakeupPublish("billing", "worker_namespace", "work_available")
+            Collect<long>(metrics, "acta.wakeup.publish.attempts", () =>
+                metrics.RecordWakeupPublish("billing", "worker_namespace", "work_available")
             )
         );
 
@@ -144,10 +134,8 @@ public sealed class ActaMetricsTests
         using var metrics = new ActaMetrics();
 
         var (Value, Tags) = Assert.Single(
-            Collect<long>(
-                metrics,
-                "acta.wakeup.publish.attempts",
-                () => metrics.RecordWakeupPublish(@namespace: null, "job_completion", "job_finished")
+            Collect<long>(metrics, "acta.wakeup.publish.attempts", () =>
+                metrics.RecordWakeupPublish(@namespace: null, "job_completion", "job_finished")
             )
         );
 
@@ -161,10 +149,8 @@ public sealed class ActaMetricsTests
         using var metrics = new ActaMetrics();
 
         var (Value, Tags) = Assert.Single(
-            Collect<long>(
-                metrics,
-                "acta.wakeup.publish.failures",
-                () => metrics.RecordWakeupPublishFailure("*", "all_worker_namespaces", "horizon_changed", "TimeoutException")
+            Collect<long>(metrics, "acta.wakeup.publish.failures", () =>
+                metrics.RecordWakeupPublishFailure("*", "all_worker_namespaces", "horizon_changed", "TimeoutException")
             )
         );
 
@@ -195,10 +181,8 @@ public sealed class ActaMetricsTests
         using var metrics = new ActaMetrics();
 
         var (Value, Tags) = Assert.Single(
-            Collect<long>(
-                metrics,
-                "acta.lock.release.failures",
-                () => metrics.RecordLockReleaseFailure("billing", "send-receipt", "concurrency_key", "TimeoutException")
+            Collect<long>(metrics, "acta.lock.release.failures", () =>
+                metrics.RecordLockReleaseFailure("billing", "send-receipt", "concurrency_key", "TimeoutException")
             )
         );
 
@@ -284,16 +268,12 @@ public sealed class ActaMetricsTests
     public void In_flight_gauge_reports_each_registered_namespace_by_state()
     {
         using var metrics = new ActaMetrics();
-        metrics.AddInFlightSource(
-            "billing",
-            state =>
-                state switch
-                {
-                    InFlightJobState.Claimed => 2,
-                    InFlightJobState.Executing => 3,
-                    _ => 1,
-                }
-        );
+        metrics.AddInFlightSource("billing", state => state switch
+            {
+                InFlightJobState.Claimed => 2,
+                InFlightJobState.Executing => 3,
+                _ => 1,
+            });
         metrics.AddInFlightSource("shipping", _ => 0);
 
         var measurements = Collect<int>(metrics, "acta.jobs.inflight", act: null, observable: true);
@@ -362,10 +342,8 @@ public sealed class ActaMetricsTests
         var pass = Assert.Single(
             Collect<double>(metrics, "acta.schedule.pass", () => metrics.RecordSchedulePass("billing", TimeSpan.FromMilliseconds(12), 0))
         );
-        var quiet = Collect<long>(
-            metrics,
-            "acta.schedule.stale",
-            () => metrics.RecordSchedulePass("billing", TimeSpan.FromMilliseconds(12), 0)
+        var quiet = Collect<long>(metrics, "acta.schedule.stale", () =>
+            metrics.RecordSchedulePass("billing", TimeSpan.FromMilliseconds(12), 0)
         );
         var stale = Assert.Single(
             Collect<long>(metrics, "acta.schedule.stale", () => metrics.RecordSchedulePass("billing", TimeSpan.FromMilliseconds(40), 2))
@@ -385,17 +363,13 @@ public sealed class ActaMetricsTests
         using var metrics = new ActaMetrics();
 
         var delay = Assert.Single(
-            Collect<double>(
-                metrics,
-                "acta.firing.start.delay",
-                () => metrics.RecordFiringStartDelay("billing", "send-receipt", TimeSpan.FromMilliseconds(80))
+            Collect<double>(metrics, "acta.firing.start.delay", () =>
+                metrics.RecordFiringStartDelay("billing", "send-receipt", TimeSpan.FromMilliseconds(80))
             )
         );
         var skewed = Assert.Single(
-            Collect<double>(
-                metrics,
-                "acta.firing.start.delay",
-                () => metrics.RecordFiringStartDelay("billing", "send-receipt", TimeSpan.FromMilliseconds(-5))
+            Collect<double>(metrics, "acta.firing.start.delay", () =>
+                metrics.RecordFiringStartDelay("billing", "send-receipt", TimeSpan.FromMilliseconds(-5))
             )
         );
 

@@ -208,19 +208,11 @@ public sealed class RetentionJobTests
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
             Job(store.Handler, new Clock())
-                .PurgeExpiredDataAsync(
-                    Sweep with
-                    {
-                        JobsWalkBudget = TimeSpan.Zero,
-                    },
-                    null,
-                    TestContext.Current.CancellationToken,
-                    place =>
-                    {
-                        kept = place;
-                        return Task.CompletedTask;
-                    }
-                )
+                .PurgeExpiredDataAsync(Sweep with { JobsWalkBudget = TimeSpan.Zero }, null, TestContext.Current.CancellationToken, place =>
+                {
+                    kept = place;
+                    return Task.CompletedTask;
+                })
         );
 
         Assert.Equal(Older(store.Calls[0]), kept);

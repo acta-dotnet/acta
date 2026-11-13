@@ -202,11 +202,7 @@ public sealed class DefinitionRegistrationValidationTests
     {
         // One meter cannot run at two rates: whichever worker asked last would set the interval, so
         // the realized rate would depend on arrival order instead of on anything declared.
-        var left = Descriptor("left") with
-        {
-            RateLimit = "10/s",
-            RateName = "stripe",
-        };
+        var left = Descriptor("left") with { RateLimit = "10/s", RateName = "stripe" };
         var right = Descriptor("right") with { RateLimit = "5/s", RateName = "stripe" };
 
         var ex = await Assert.ThrowsAsync<ArgumentException>(() => RegisterAsync(left, right));
@@ -221,10 +217,7 @@ public sealed class DefinitionRegistrationValidationTests
     {
         // The meter is RateName ?? Name, so "stripe" and RateName = "stripe" are the same bucket even
         // though only one of them names it. Grouping on the declared key alone would miss this.
-        var named = Descriptor("stripe") with
-        {
-            RateLimit = "1/s",
-        };
+        var named = Descriptor("stripe") with { RateLimit = "1/s" };
         var keyed = Descriptor("charge-card") with { RateLimit = "100/s", RateName = "stripe" };
 
         var ex = await Assert.ThrowsAsync<ArgumentException>(() => RegisterAsync(named, keyed));

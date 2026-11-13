@@ -71,16 +71,13 @@ public sealed class ActaSchemaGenerator : IIncrementalGenerator
             .Select(static (e, _) => e!.Value);
 
         // Report diagnostics per-entity (each entity carries its own list).
-        context.RegisterSourceOutput(
-            entities,
-            static (spc, e) =>
+        context.RegisterSourceOutput(entities, static (spc, e) =>
+        {
+            foreach (var d in e.Diagnostics)
             {
-                foreach (var d in e.Diagnostics)
-                {
-                    spc.ReportDiagnostic(d.ToDiagnostic());
-                }
+                spc.ReportDiagnostic(d.ToDiagnostic());
             }
-        );
+        });
 
         context.RegisterSourceOutput(entities.Collect(), static (spc, items) => Emit(spc, items));
     }

@@ -374,13 +374,11 @@ public sealed class TypedEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, J
             requestedWaits.Count > 0,
             "RunAndWaitAsync issued no completion wait on any of 10 attempts, so the poll-interval clamp was never exercised."
         );
-        Assert.All(
-            requestedWaits,
-            requested =>
-                Assert.True(
-                    requested <= WaitTimeout,
-                    $"a completion wait asked to sleep {requested} against a {WaitTimeout} WaitTimeout: the poll interval was not clamped."
-                )
+        Assert.All(requestedWaits, requested =>
+            Assert.True(
+                requested <= WaitTimeout,
+                $"a completion wait asked to sleep {requested} against a {WaitTimeout} WaitTimeout: the poll interval was not clamped."
+            )
         );
 
         // And that call did not sleep one either, which is the same statement about the call rather

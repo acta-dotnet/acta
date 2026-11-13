@@ -70,15 +70,13 @@ public sealed class WorkerShutdownDrainSpec : ActaRuntimeTestBase<ConformanceFix
         Assert.Equal(JobStatusCode.Executing, after.Status);
         Assert.NotNull(after.LeasedByWorkerId);
         Assert.Equal(0, after.FailureCount);
-        Assert.DoesNotContain(
-            await GetEventsByJobId.Run(Services, enqueued.JobId, ct),
-            e =>
-                e.EventCode
-                    is EventCode.JobExecutionSucceeded
-                        or EventCode.JobExecutionFailed
-                        or EventCode.JobExecutionOrphaned
-                        or EventCode.JobExecutionYielded
-                        or EventCode.JobFailed
+        Assert.DoesNotContain(await GetEventsByJobId.Run(Services, enqueued.JobId, ct), e =>
+            e.EventCode
+                is EventCode.JobExecutionSucceeded
+                    or EventCode.JobExecutionFailed
+                    or EventCode.JobExecutionOrphaned
+                    or EventCode.JobExecutionYielded
+                    or EventCode.JobFailed
         );
     }
 

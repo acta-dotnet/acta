@@ -54,15 +54,12 @@ public sealed class PgReclaimPlanTests : ClaimSkewTestBase
             .Where(p => Text(p, "Query Text").Contains("r.leased_by_worker_id IS NOT NULL", StringComparison.Ordinal))
             .ToList();
         Assert.Equal(3, reads.Count);
-        Assert.All(
-            reads,
-            read =>
-            {
-                var nodes = Nodes(read.GetProperty("Plan")).ToList();
-                Assert.Contains(nodes, n => Text(n, "Index Name") == "ix_jobs_state_worker_inflight");
-                Assert.DoesNotContain(nodes, n => Text(n, "Node Type") == "Seq Scan" && Text(n, "Relation Name") == "jobs_state");
-            }
-        );
+        Assert.All(reads, read =>
+        {
+            var nodes = Nodes(read.GetProperty("Plan")).ToList();
+            Assert.Contains(nodes, n => Text(n, "Index Name") == "ix_jobs_state_worker_inflight");
+            Assert.DoesNotContain(nodes, n => Text(n, "Node Type") == "Seq Scan" && Text(n, "Relation Name") == "jobs_state");
+        });
     }
 
     private static async Task ExecuteAsync(NpgsqlConnection conn, string sql, CancellationToken ct)

@@ -398,14 +398,11 @@ public sealed class LocalOnlyTests
         RemoteAddress(Remote)(app);
         app.MapGroup("/ops")
             .RequireAuthorization()
-            .MapActaApi(
-                "/acta/api",
-                options =>
-                {
-                    options.LocalOnly = false;
-                    options.ConfigureEndpoints = _ => { };
-                }
-            );
+            .MapActaApi("/acta/api", options =>
+            {
+                options.LocalOnly = false;
+                options.ConfigureEndpoints = _ => { };
+            });
         await app.StartAsync(TestContext.Current.CancellationToken);
         await using var _ = app;
         var client = app.GetTestClient();

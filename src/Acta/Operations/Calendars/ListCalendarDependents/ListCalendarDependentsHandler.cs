@@ -32,10 +32,8 @@ internal sealed class ListCalendarDependentsHandler(IDbSession session, ISqlDial
             DbProjectionResolver.Resolve<ListCalendarDependentsItem>(),
             ct
         );
-        var (items, nextCursor, hasMore, pageSize, totalCount) = paging.Page(
-            rows,
-            total,
-            static item => [item.JobNamespace, item.JobName, item.ScheduleName, (int)item.Binding]
+        var (items, nextCursor, hasMore, pageSize, totalCount) = paging.Page(rows, total, static item =>
+            [item.JobNamespace, item.JobName, item.ScheduleName, (int)item.Binding]
         );
         return new ListCalendarDependentsResponse(items, nextCursor, hasMore, pageSize, totalCount);
     }

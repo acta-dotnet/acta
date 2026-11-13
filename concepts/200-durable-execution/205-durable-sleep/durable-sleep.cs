@@ -5,12 +5,10 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
 const string jobNamespace = "durable-sleep";
-var commandIndex = Array.FindIndex(
-    args,
-    static arg =>
-        arg.Equals("start", StringComparison.OrdinalIgnoreCase)
-        || arg.Equals("inspect", StringComparison.OrdinalIgnoreCase)
-        || arg.Equals("recover", StringComparison.OrdinalIgnoreCase)
+var commandIndex = Array.FindIndex(args, static arg =>
+    arg.Equals("start", StringComparison.OrdinalIgnoreCase)
+    || arg.Equals("inspect", StringComparison.OrdinalIgnoreCase)
+    || arg.Equals("recover", StringComparison.OrdinalIgnoreCase)
 );
 var command = commandIndex < 0 ? "run" : args[commandIndex].ToLowerInvariant();
 var jobRefIndex = command is "inspect" or "recover" ? commandIndex + 1 : -1;

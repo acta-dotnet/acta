@@ -318,9 +318,8 @@ public sealed class PersistedCodeContractTests
         // (the manifest is the assigned set) plus the architecture reserve held out of EventCode.
         Assert.Equal(46, EventCode.Manifest.Count);
         Assert.Equal(31, typeof(EventCode).GetCustomAttributes<ReservedCodeRangeAttribute>().Sum(range => range.End - range.Start + 1));
-        Assert.All(
-            CodeFamilies(),
-            family => Assert.DoesNotContain(byte.MaxValue, Enum.GetValues(family).Cast<object>().Select(Convert.ToByte))
+        Assert.All(CodeFamilies(), family =>
+            Assert.DoesNotContain(byte.MaxValue, Enum.GetValues(family).Cast<object>().Select(Convert.ToByte))
         );
 
         var custom128 = JobPayloadFormat.Custom(128, "consumer-128");

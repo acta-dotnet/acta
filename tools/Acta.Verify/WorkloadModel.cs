@@ -47,18 +47,11 @@ internal static class WorkloadModel
     /// input's shape alone, so each shape is modelled once.
     /// </summary>
     public static (long Descendants, long Succeeded, long Steps) Totals(WorkInput input) =>
-        Shapes.GetOrAdd(
-            input with
-            {
-                Key = "shape",
-                Payload = null,
-            },
-            static shape =>
-            {
-                var tree = Expected([shape]);
-                return (tree.Length - 1, tree.Count(e => e.Parent is not null && e.Status == "Succeeded"), tree.Sum(e => e.Steps!.Count));
-            }
-        );
+        Shapes.GetOrAdd(input with { Key = "shape", Payload = null }, static shape =>
+        {
+            var tree = Expected([shape]);
+            return (tree.Length - 1, tree.Count(e => e.Parent is not null && e.Status == "Succeeded"), tree.Sum(e => e.Steps!.Count));
+        });
 
     // This model intentionally does not call the handler or an Acta transition helper.
     private static ExpectedOutcome Outcome(WorkInput input, string? parent, string jobNamespace)
@@ -94,17 +87,12 @@ internal static class WorkloadModel
     }
 
     /// <summary>A seeded payload; the same seed always gives the same text.</summary>
-    internal static string Payload(int length, int seed) =>
-        string.Create(
-            length,
-            seed,
-            static (span, s) =>
+    internal static string Payload(int length, int seed) => string.Create(length, seed, static (span, s) =>
+        {
+            var random = new Random(s);
+            for (var i = 0; i < span.Length; i++)
             {
-                var random = new Random(s);
-                for (var i = 0; i < span.Length; i++)
-                {
-                    span[i] = Alphabet[random.Next(Alphabet.Length)];
-                }
+                span[i] = Alphabet[random.Next(Alphabet.Length)];
             }
-        );
+        });
 }

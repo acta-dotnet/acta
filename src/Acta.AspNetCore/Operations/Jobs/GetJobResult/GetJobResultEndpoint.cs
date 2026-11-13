@@ -9,14 +9,12 @@ internal static class GetJobResultEndpoint
 {
     public static void Map(RouteGroupBuilder reads, ActaEndpointOptions options) =>
         reads
-            .MapGet(
-                "/jobs/{jobRef}/result",
-                (HttpContext http, IJobs jobs, CancellationToken ct) =>
-                    RouteTable.Run(async () =>
-                        await jobs.StoredJobIdAsync(RouteKeys.Job(http, options), ct) is { } jobId
-                            ? RawPayload.Serve(http, (await jobs.GetResultAsync(JobLookup.ById(jobId), ct))?.Result)
-                            : RouteTable.NotFound("Job")
-                    )
+            .MapGet("/jobs/{jobRef}/result", (HttpContext http, IJobs jobs, CancellationToken ct) =>
+                RouteTable.Run(async () =>
+                    await jobs.StoredJobIdAsync(RouteKeys.Job(http, options), ct) is { } jobId
+                        ? RawPayload.Serve(http, (await jobs.GetResultAsync(JobLookup.ById(jobId), ct))?.Result)
+                        : RouteTable.NotFound("Job")
+                )
             )
             .WithMetadata(new ActaOperationAttribute("getJobResult", ActaPermissions.Read))
             .WithSummary("Read the result the job stored as the body.")

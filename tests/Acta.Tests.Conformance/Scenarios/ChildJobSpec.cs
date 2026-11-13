@@ -366,9 +366,8 @@ public sealed class ChildJobSpec : ActaRuntimeTestBase<ConformanceFixture, JobsO
             )
         );
         Assert.Equal(JobStatusCode.Ready, (await ReadJobAsync(parent.JobId, ct)).Status);
-        Assert.DoesNotContain(
-            (await Services.GetRequiredService<ExecutionOperations>().ListStaleJobChildLatchesAsync(ns, ct)).Latches,
-            l => l.ParentJobId == parent.JobId
+        Assert.DoesNotContain((await Services.GetRequiredService<ExecutionOperations>().ListStaleJobChildLatchesAsync(ns, ct)).Latches, l =>
+            l.ParentJobId == parent.JobId
         );
     }
 

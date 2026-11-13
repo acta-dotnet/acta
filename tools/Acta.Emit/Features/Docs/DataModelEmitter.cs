@@ -165,8 +165,8 @@ internal static class DataModelEmitter
         Tables.Header(sb, "Constraint", "Column → Target", "On delete");
         foreach (var fk in e.ForeignKeys)
         {
-            var targetTable =
-                (Attribute.GetCustomAttribute(fk.Target, typeof(DbTableAttribute)) as DbTableAttribute)?.Name ?? fk.Target.Name;
+            var targetTable = (Attribute.GetCustomAttribute(fk.Target, typeof(DbTableAttribute)) as DbTableAttribute)?.Name
+                ?? fk.Target.Name;
             var onDelete = fk.OnDelete switch
             {
                 DbForeignKeyAction.Cascade => "CASCADE",

@@ -18,38 +18,26 @@ public sealed class OutboxRelayWiringTests
         services.UseActa(j =>
         {
             j.UseSqlite(o => o.ConnectionString = "Data Source=ledger.db");
-            j.Run(
-                "relay-ns-a",
-                w =>
+            j.Run("relay-ns-a", w =>
+            {
+                w.AddManifest<TestManifest>();
+                w.AddOutboxRelay("src-a", s =>
                 {
-                    w.AddManifest<TestManifest>();
-                    w.AddOutboxRelay(
-                        "src-a",
-                        s =>
-                        {
-                            s.Table = "acta_outbox_a";
-                            s.QuarantineThreshold = 3;
-                            s.UseSqlite("Data Source=source-a.db");
-                        }
-                    );
-                }
-            );
-            j.Run(
-                "relay-ns-b",
-                w =>
+                    s.Table = "acta_outbox_a";
+                    s.QuarantineThreshold = 3;
+                    s.UseSqlite("Data Source=source-a.db");
+                });
+            });
+            j.Run("relay-ns-b", w =>
+            {
+                w.AddManifest<TestManifest>();
+                w.AddOutboxRelay("src-b", s =>
                 {
-                    w.AddManifest<TestManifest>();
-                    w.AddOutboxRelay(
-                        "src-b",
-                        s =>
-                        {
-                            s.Table = "acta_outbox_b";
-                            s.QuarantineThreshold = 7;
-                            s.UseSqlite("Data Source=source-b.db");
-                        }
-                    );
-                }
-            );
+                    s.Table = "acta_outbox_b";
+                    s.QuarantineThreshold = 7;
+                    s.UseSqlite("Data Source=source-b.db");
+                });
+            });
             // A third namespace with no relay must never appear in the registry.
             j.Run("plain-ns", w => w.AddManifest<TestManifest>());
         });

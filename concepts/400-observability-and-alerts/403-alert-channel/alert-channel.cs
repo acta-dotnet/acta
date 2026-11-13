@@ -11,26 +11,23 @@ builder.Services.UseActa(j =>
 
     // Use the namespace-plus-configure worker registration form so alert channels can be declared
     // through the worker builder.
-    j.Run(
-        "alert-channel",
-        w =>
-        {
-            w.AddManifest<AlertChannelJobs>();
+    j.Run("alert-channel", w =>
+    {
+        w.AddManifest<AlertChannelJobs>();
 
-            // Alert channels declare process-local delivery configuration. Alert rows persist only
-            // the selected channel name; endpoints and secrets stay in app configuration.
-            // MinSeverity = Warning suppresses lower-severity alerts at delivery.
-            w.AddAlertChannel(
-                "ops",
-                AlertTransportKinds.Log,
-                endpoint: "ops", // the log transport ignores the endpoint; a Slack channel passes its URL here
-                o =>
-                {
-                    o.MinSeverity = AlertSeverityCode.Warning;
-                }
-            );
-        }
-    );
+        // Alert channels declare process-local delivery configuration. Alert rows persist only
+        // the selected channel name; endpoints and secrets stay in app configuration.
+        // MinSeverity = Warning suppresses lower-severity alerts at delivery.
+        w.AddAlertChannel(
+            "ops",
+            AlertTransportKinds.Log,
+            endpoint: "ops", // the log transport ignores the endpoint; a Slack channel passes its URL here
+            o =>
+            {
+                o.MinSeverity = AlertSeverityCode.Warning;
+            }
+        );
+    });
 });
 
 using var host = builder.Build();

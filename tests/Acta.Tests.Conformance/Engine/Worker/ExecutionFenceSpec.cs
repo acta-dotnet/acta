@@ -162,24 +162,20 @@ public sealed class ExecutionFenceSpec : ActaRuntimeTestBase<ConformanceFixture,
 
         // Execution 1 starts the step while it holds the job and pauses in the body, before its completion: the step's
         // version is still the one it started at, so only the fence stands between that completion and the row.
-        var (old, current) = await SupersedeAsync(
-            sameWorker,
-            ct,
-            async attempt =>
-            {
-                stale = attempt.Ctx.RunStepAsync(
-                    "ship",
-                    async token =>
-                    {
-                        entered.TrySetResult();
-                        await release.Task.WaitAsync(token);
-                        return 13;
-                    },
-                    ct
-                );
-                await entered.Task.WaitAsync(SpecWaits.Gate, ct);
-            }
-        );
+        var (old, current) = await SupersedeAsync(sameWorker, ct, async attempt =>
+        {
+            stale = attempt.Ctx.RunStepAsync(
+                "ship",
+                async token =>
+                {
+                    entered.TrySetResult();
+                    await release.Task.WaitAsync(token);
+                    return 13;
+                },
+                ct
+            );
+            await entered.Task.WaitAsync(SpecWaits.Gate, ct);
+        });
         using var oldAttempt = old;
         using var currentAttempt = current;
 
@@ -264,17 +260,8 @@ public sealed class ExecutionFenceSpec : ActaRuntimeTestBase<ConformanceFixture,
     {
         var ct = TestContext.Current.CancellationToken;
         EnqueueJobResponse child = null!;
-        var (old, current) = await SupersedeAsync(
-            sameWorker,
-            ct,
-            async first =>
-                child = await first.Ctx.StartChildAsync(
-                    "child-a",
-                    TestNamespace,
-                    "add-numbers",
-                    JobPayload.Json(new AddNumbers(1, 1)),
-                    ct: ct
-                )
+        var (old, current) = await SupersedeAsync(sameWorker, ct, async first =>
+            child = await first.Ctx.StartChildAsync("child-a", TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 1)), ct: ct)
         );
         using var oldAttempt = old;
         using var currentAttempt = current;

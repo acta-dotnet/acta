@@ -21,23 +21,17 @@ public abstract class OutboxRelayHostBase : ActaRuntimeTestBase<ConformanceFixtu
         services.UseActa(j =>
         {
             Fixture.ApplyProvider(j, Schema.SchemaName);
-            j.Run(
-                testNamespace,
-                w =>
+            j.Run(testNamespace, w =>
+            {
+                w.OwnerTeam = "test";
+                w.Description = GetType().FullName;
+                w.AddManifest<JobsOf<OutboxRelayHostBase>>();
+                w.AddOutboxRelay("operator-src", source =>
                 {
-                    w.OwnerTeam = "test";
-                    w.Description = GetType().FullName;
-                    w.AddManifest<JobsOf<OutboxRelayHostBase>>();
-                    w.AddOutboxRelay(
-                        "operator-src",
-                        source =>
-                        {
-                            source.Table = SourceTable;
-                            Fixture.ApplyOutboxSource(source);
-                        }
-                    );
-                }
-            );
+                    source.Table = SourceTable;
+                    Fixture.ApplyOutboxSource(source);
+                });
+            });
         });
         services.Configure<JobsOptions>(o => o.RunSystemJobs = false);
     }

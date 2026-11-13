@@ -224,14 +224,11 @@ public sealed class ChildGroupTimeoutSpec : ActaRuntimeTestBase<ConformanceFixtu
         var latches = await ReadLatchesAsync(parent.JobId, ct);
         Assert.Equal(size, latches.Count);
         Assert.Contains(latches, l => l.CheckpointName == first.CheckpointName);
-        Assert.All(
-            latches,
-            l =>
-            {
-                Assert.Equal(CheckpointStatusCode.Expired, l.Status);
-                AssertDueAtGroupDeadline(l, deadlineAtUtc);
-            }
-        );
+        Assert.All(latches, l =>
+        {
+            Assert.Equal(CheckpointStatusCode.Expired, l.Status);
+            AssertDueAtGroupDeadline(l, deadlineAtUtc);
+        });
 
         var report = await Jobs.GetResultAsync<ChildGroupReport>(parent, ct);
         Assert.True(report.TimedOut);

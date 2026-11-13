@@ -70,16 +70,11 @@ public sealed class VariableContextSpec : ActaRuntimeTestBase<ConformanceFixture
             .ToListAsync(ct);
 
         Assert.Contains(rows, v => v.CheckpointName == "fetch.status" && v.ValueFormatId == JobPayloadFormat.Json.Id);
-        Assert.Contains(
-            rows,
-            v =>
-                v.CheckpointName == "payload.empty-string"
-                && v.ValueFormatId == JobPayloadFormat.Json.Id
-                && v.Value is [(byte)'"', (byte)'"']
+        Assert.Contains(rows, v =>
+            v.CheckpointName == "payload.empty-string" && v.ValueFormatId == JobPayloadFormat.Json.Id && v.Value is [(byte)'"', (byte)'"']
         );
-        Assert.Contains(
-            rows,
-            v => v.CheckpointName == "payload.empty-bytes" && v.ValueFormatId == JobPayloadFormat.Bytes.Id && v.Value is { Length: 0 }
+        Assert.Contains(rows, v =>
+            v.CheckpointName == "payload.empty-bytes" && v.ValueFormatId == JobPayloadFormat.Bytes.Id && v.Value is { Length: 0 }
         );
     }
 

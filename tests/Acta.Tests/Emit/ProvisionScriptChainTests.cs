@@ -43,9 +43,8 @@ public sealed class ProvisionScriptChainTests : IDisposable
     public async Task Two_migration_script_carries_ordered_banners_and_double_runs()
     {
         var ct = TestContext.Current.CancellationToken;
-        SchemaCommandsTests.CopySql(
-            _tempRoot,
-            path => path.StartsWith("src/Acta/", StringComparison.Ordinal) || path.StartsWith("src/Acta.Sqlite/", StringComparison.Ordinal)
+        SchemaCommandsTests.CopySql(_tempRoot, path =>
+            path.StartsWith("src/Acta/", StringComparison.Ordinal) || path.StartsWith("src/Acta.Sqlite/", StringComparison.Ordinal)
         );
         var shipped = MigrationFiles.Stems(_tempRoot, "sqlite");
         var baseline = shipped[0];

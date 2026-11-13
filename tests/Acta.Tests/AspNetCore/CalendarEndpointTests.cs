@@ -538,9 +538,8 @@ public sealed class CalendarEndpointTests
         Assert.Contains("\"retimedSchedules\":[\"billing/send-invoice/morning-run\"]", await applied.Content.ReadAsStringAsync(ct));
         Assert.Equal(HttpStatusCode.OK, defaulted.StatusCode);
         Assert.Equal([OverdueDecisionCode.Discard, OverdueDecisionCode.Refuse], fakes.Calendars.Publications.Select(p => p.Overdue));
-        Assert.All(
-            fakes.Calendars.Publications,
-            p => Assert.Equal(((int?)1, 2, "ops-lead"), (p.ExpectedCurrentVersion, p.CandidateVersion, p.Actor))
+        Assert.All(fakes.Calendars.Publications, p =>
+            Assert.Equal(((int?)1, 2, "ops-lead"), (p.ExpectedCurrentVersion, p.CandidateVersion, p.Actor))
         );
     }
 

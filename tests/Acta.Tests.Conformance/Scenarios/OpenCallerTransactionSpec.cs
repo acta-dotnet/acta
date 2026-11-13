@@ -54,17 +54,14 @@ public sealed class OpenCallerTransactionSpec : ActaRuntimeTestBase<ConformanceF
         await PromptlyAsync("a recovery pass", () => execution.ReclaimStuckJobsAsync(ns, ct));
         await PromptlyAsync("the stale child latch read", () => execution.ListStaleJobChildLatchesAsync(ns, ct));
         await PromptlyAsync("a retention pass", () => RetentionTestOps.PurgeAsync(Services, ns, 7, 30, 100_000_000, 1000, 50, ct));
-        await PromptlyAsync(
-            "an alerts tick",
-            () => AlertTestOps.RunAlertsJobAsync(Services, TestNamespace, ns, parent.JobId, options: null, drain: null, ct)
+        await PromptlyAsync("an alerts tick", () =>
+            AlertTestOps.RunAlertsJobAsync(Services, TestNamespace, ns, parent.JobId, options: null, drain: null, ct)
         );
-        await PromptlyAsync(
-            "a retire",
-            async () => await Operations.Definitions.RetireAsync(TestNamespace, "add-numbers", retired!.Version, ct: ct)
+        await PromptlyAsync("a retire", async () =>
+            await Operations.Definitions.RetireAsync(TestNamespace, "add-numbers", retired!.Version, ct: ct)
         );
-        await PromptlyAsync(
-            "ListJobs",
-            async () => await Operations.Ledger.ListJobsAsync(new ListJobsQuery(TestNamespace, IncludeTotal: true, Lane: lane), ct)
+        await PromptlyAsync("ListJobs", async () =>
+            await Operations.Ledger.ListJobsAsync(new ListJobsQuery(TestNamespace, IncludeTotal: true, Lane: lane), ct)
         );
         await PromptlyAsync("GetOverview", async () => await Operations.Ledger.GetOverviewAsync(new GetOverviewQuery(TestNamespace), ct));
         await PromptlyAsync("the parent's lineage map", async () => await Jobs.GetLineageMapAsync(JobLookup.ById(parent.JobId), ct: ct));

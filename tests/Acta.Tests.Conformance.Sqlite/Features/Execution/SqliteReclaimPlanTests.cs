@@ -36,22 +36,19 @@ public sealed class SqliteReclaimPlanTests : ClaimSkewTestBase
         var windows = await PlansAsync(ns, ct, "CREATE TEMP TABLE _repair_window", "INSERT INTO temp._repair_window");
 
         Assert.Equal(2, windows.Count);
-        Assert.All(
-            windows,
-            plan =>
-            {
-                // The index is named: a search of the key from the start id is a search too, and reads every namespace's lanes.
-                var text = "Lane window plan:\n" + string.Join("\n", plan);
-                Assert.True(
-                    plan.Any(row =>
-                        row.StartsWith("SEARCH l USING", StringComparison.Ordinal)
-                        && row.Contains("INDEX ix_lanes_namespace (namespace_id=? AND lane_id", StringComparison.Ordinal)
-                    ),
-                    text
-                );
-                Assert.False(plan.Any(row => row.Contains("TEMP B-TREE", StringComparison.Ordinal)), text);
-            }
-        );
+        Assert.All(windows, plan =>
+        {
+            // The index is named: a search of the key from the start id is a search too, and reads every namespace's lanes.
+            var text = "Lane window plan:\n" + string.Join("\n", plan);
+            Assert.True(
+                plan.Any(row =>
+                    row.StartsWith("SEARCH l USING", StringComparison.Ordinal)
+                    && row.Contains("INDEX ix_lanes_namespace (namespace_id=? AND lane_id", StringComparison.Ordinal)
+                ),
+                text
+            );
+            Assert.False(plan.Any(row => row.Contains("TEMP B-TREE", StringComparison.Ordinal)), text);
+        });
     }
 
     /// <summary>

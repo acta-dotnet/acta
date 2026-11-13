@@ -153,28 +153,28 @@ internal sealed class WorkerRuntimeInitializer(
 
         // Host + deployment version stamp the append-only workers row, read once at startup, not on the hot path.
         var deploymentVersion = DeploymentVersionOf(_options.Value);
-        var engineVersion =
-            typeof(WorkerRuntimeInitializer).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
+        var engineVersion = typeof(WorkerRuntimeInitializer)
+            .Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()
+            ?.InformationalVersion
             ?? "unknown";
 
         // The registration's public ref is allocated here, not by the database: the workers row is
         // append-only, so this process's ref is fixed for the lifetime of the registration. The
         // store writes address the row by its numeric id, so only the id is kept in context.
-        var started =
-            await _workers.StartWorkerAsync(
-                StartWorkerCommand.Create(
-                    ns,
-                    Environment.MachineName,
-                    deploymentVersion,
-                    engineVersion,
-                    RuntimeInformation.FrameworkDescription,
-                    Environment.ProcessId,
-                    _options.Value.MaxConcurrentExecutors,
-                    WorkerRef.New().Value,
-                    requiresDeployment: !debug
-                ),
-                ct
-            )
+        var started = await _workers.StartWorkerAsync(
+            StartWorkerCommand.Create(
+                ns,
+                Environment.MachineName,
+                deploymentVersion,
+                engineVersion,
+                RuntimeInformation.FrameworkDescription,
+                Environment.ProcessId,
+                _options.Value.MaxConcurrentExecutors,
+                WorkerRef.New().Value,
+                requiresDeployment: !debug
+            ),
+            ct
+        )
             ?? throw new InvalidOperationException(
                 $"Worker namespace '{ns}' cannot start: nothing has been deployed there. Run this app with the arguments 'jobs deploy' "
                     + "('dotnet run -- jobs deploy' from its project), or 'jobs migrate', which also applies the schema, before the workers "

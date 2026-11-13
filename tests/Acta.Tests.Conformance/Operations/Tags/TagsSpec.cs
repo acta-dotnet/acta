@@ -125,16 +125,14 @@ public sealed class TagsSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<Ta
 
         var tenants = await Operations.Tenants.ListAsync(new ListTenantsQuery(Tags: filters), ct);
         Assert.Contains(tenants.Items, x => x.TenantName == targets.TenantName);
-        Assert.DoesNotContain(
-            (await Operations.Tenants.ListAsync(new ListTenantsQuery(Tags: mismatch), ct)).Items,
-            x => x.TenantName == targets.TenantName
+        Assert.DoesNotContain((await Operations.Tenants.ListAsync(new ListTenantsQuery(Tags: mismatch), ct)).Items, x =>
+            x.TenantName == targets.TenantName
         );
 
         var namespaces = await Operations.Namespaces.ListAsync(new ListNamespacesQuery(Tags: filters), ct);
         Assert.Contains(namespaces.Items, x => x.JobNamespace == TestNamespace);
-        Assert.DoesNotContain(
-            (await Operations.Namespaces.ListAsync(new ListNamespacesQuery(Tags: mismatch), ct)).Items,
-            x => x.JobNamespace == TestNamespace
+        Assert.DoesNotContain((await Operations.Namespaces.ListAsync(new ListNamespacesQuery(Tags: mismatch), ct)).Items, x =>
+            x.JobNamespace == TestNamespace
         );
 
         var definitions = await Operations.Definitions.ListAsync(new ListDefinitionsQuery(JobNamespace: TestNamespace, Tags: filters), ct);

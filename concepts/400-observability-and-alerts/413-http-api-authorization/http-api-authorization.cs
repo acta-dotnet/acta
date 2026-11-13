@@ -49,14 +49,11 @@ Console.WriteLine("knob: EnableControls = true     (the routes that write are ma
 Console.WriteLine("knob: RequirePermissions = true (each route needs the host's policy named for its permission)");
 Console.WriteLine();
 
-app.MapActaApi(
-    "/acta/api",
-    options =>
-    {
-        options.EnableControls = true;
-        options.RequirePermissions = true;
-    }
-);
+app.MapActaApi("/acta/api", options =>
+{
+    options.EnableControls = true;
+    options.RequirePermissions = true;
+});
 
 await app.StartAsync();
 

@@ -424,8 +424,8 @@ public sealed class OperationNameTests
     // The handlers a class holds, by the name it holds them under: a primary-constructor parameter or a field.
     private static Dictionary<string, string> Handlers(ClassDeclarationSyntax type)
     {
-        var held =
-            type.ParameterList?.Parameters.Select(parameter => (Name: parameter.Identifier.Text, Type: parameter.Type?.ToString())) ?? [];
+        var held = type.ParameterList?.Parameters.Select(parameter => (Name: parameter.Identifier.Text, Type: parameter.Type?.ToString()))
+            ?? [];
         var fields = type
             .Members.OfType<FieldDeclarationSyntax>()
             .SelectMany(field =>

@@ -431,8 +431,7 @@ internal static class SuiteRunner
             ["runtime"] = RuntimeInformation.FrameworkDescription,
             ["processor_count"] = Environment.ProcessorCount.ToString(System.Globalization.CultureInfo.InvariantCulture),
             ["cpu_model"] = HardwareDescription.CpuModel(),
-            ["physical_cores"] =
-                HardwareDescription.PhysicalCores()?.ToString(System.Globalization.CultureInfo.InvariantCulture)
+            ["physical_cores"] = HardwareDescription.PhysicalCores()?.ToString(System.Globalization.CultureInfo.InvariantCulture)
                 ?? "Unavailable on this platform.",
             ["memory_available_to_runtime_bytes"] = GC.GetGCMemoryInfo()
                 .TotalAvailableMemoryBytes.ToString(System.Globalization.CultureInfo.InvariantCulture),
@@ -449,8 +448,8 @@ internal static class SuiteRunner
             ["suite"] = plan.SuiteName,
             ["measurement_version"] = plan.MeasurementVersion.ToString(System.Globalization.CultureInfo.InvariantCulture),
             ["monotonic_clock_frequency"] = Stopwatch.Frequency.ToString(System.Globalization.CultureInfo.InvariantCulture),
-            ["build_configuration"] =
-                typeof(VerifyCommand).Assembly.GetCustomAttribute<AssemblyConfigurationAttribute>()?.Configuration ?? "unknown",
+            ["build_configuration"] = typeof(VerifyCommand).Assembly.GetCustomAttribute<AssemblyConfigurationAttribute>()?.Configuration
+                ?? "unknown",
             ["missing_metrics"] =
                 "Physical disk, per-database CPU/waits, live/allocation storage and network metrics require collectors. Whole-container CPU/memory are sampled where cgroup v2 is available; unavailable values are not zero.",
         };

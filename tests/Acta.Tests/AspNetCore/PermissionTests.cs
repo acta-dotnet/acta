@@ -91,14 +91,11 @@ public sealed class PermissionTests
         {
             foreach (var permission in permissions)
             {
-                options.AddPolicy(
-                    permission,
-                    rule =>
-                    {
-                        policy?.Invoke(rule);
-                        rule.RequireClaim(PermissionClaim, permission);
-                    }
-                );
+                options.AddPolicy(permission, rule =>
+                {
+                    policy?.Invoke(rule);
+                    rule.RequireClaim(PermissionClaim, permission);
+                });
             }
         });
 
@@ -122,14 +119,12 @@ public sealed class PermissionTests
                 (endpoint.Metadata.GetMetadata<IHttpMethodMetadata>()?.HttpMethods ?? []).Select(method =>
                     (
                         method,
-                        endpoint.RoutePattern.Parameters.Aggregate(
-                            endpoint.RoutePattern.RawText!,
-                            (path, parameter) =>
-                                path.Replace(
-                                    $"{{{parameter.Name}}}",
-                                    Uri.EscapeDataString(OpenApiExamples.RouteValues[parameter.Name]),
-                                    StringComparison.Ordinal
-                                )
+                        endpoint.RoutePattern.Parameters.Aggregate(endpoint.RoutePattern.RawText!, (path, parameter) =>
+                            path.Replace(
+                                $"{{{parameter.Name}}}",
+                                Uri.EscapeDataString(OpenApiExamples.RouteValues[parameter.Name]),
+                                StringComparison.Ordinal
+                            )
                         ),
                         endpoint.Metadata.GetMetadata<ActaOperationAttribute>()!.Permission
                     )
@@ -457,15 +452,12 @@ public sealed class PermissionTests
     public async Task Capabilities_probe_each_permission_from_the_callers_own_principal()
     {
         var ct = TestContext.Current.CancellationToken;
-        var (app, client) = await StartAsync(
-            defaultScheme: CookieAuthenticationDefaults.AuthenticationScheme,
-            configureBuilder: builder =>
-                builder.Services.PostConfigure<AuthorizationOptions>(options =>
-                    options.AddPolicy(
-                        ActaPermissions.Read,
-                        rule => rule.AddAuthenticationSchemes(HeaderScheme).RequireClaim(PermissionClaim, ActaPermissions.Read)
-                    )
+        var (app, client) = await StartAsync(defaultScheme: CookieAuthenticationDefaults.AuthenticationScheme, configureBuilder: builder =>
+            builder.Services.PostConfigure<AuthorizationOptions>(options =>
+                options.AddPolicy(ActaPermissions.Read, rule =>
+                    rule.AddAuthenticationSchemes(HeaderScheme).RequireClaim(PermissionClaim, ActaPermissions.Read)
                 )
+            )
         );
         await using var _ = app;
 
@@ -487,9 +479,8 @@ public sealed class PermissionTests
     {
         var (app, client) = await StartAsync(configureBuilder: builder =>
             builder.Services.PostConfigure<AuthorizationOptions>(options =>
-                options.AddPolicy(
-                    ActaPermissions.Admin,
-                    rule => rule.AddAuthenticationSchemes("NoSuchScheme").RequireClaim(PermissionClaim, ActaPermissions.Admin)
+                options.AddPolicy(ActaPermissions.Admin, rule =>
+                    rule.AddAuthenticationSchemes("NoSuchScheme").RequireClaim(PermissionClaim, ActaPermissions.Admin)
                 )
             )
         );

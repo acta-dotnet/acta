@@ -114,10 +114,7 @@ public sealed class RegisterSchedulesPerOccurrenceSpec : ActaStorageTestBase<Con
         Assert.Equal(moved, (await ScheduleAsync(defId, "only", ct)).State.NextOccurrenceAtUtc);
 
         // A changed timing takes the plan's cursor, however the stored one stands.
-        var retimed = Slot("only", planned) with
-        {
-            Expression = "*/10 * * * *",
-        };
+        var retimed = Slot("only", planned) with { Expression = "*/10 * * * *" };
         await RegisterAsync(defId, [retimed], ct);
         Assert.Equal(planned, (await ScheduleAsync(defId, "only", ct)).State.NextOccurrenceAtUtc);
 

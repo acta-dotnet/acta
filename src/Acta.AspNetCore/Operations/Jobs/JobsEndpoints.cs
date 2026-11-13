@@ -32,9 +32,8 @@ internal static class JobsEndpoints
                 "Job",
                 ActaApiJsonContext.Relaxed.GetJobResponse,
                 static (http, call) =>
-                    QueryReader.Bind(
-                        http.Request,
-                        static query => (Namespace: query.Text("jobNamespace"), Key: query.Text("deduplicationKey"))
+                    QueryReader.Bind(http.Request, static query =>
+                        (Namespace: query.Text("jobNamespace"), Key: query.Text("deduplicationKey"))
                     )
                         is { Namespace: { } jobNamespace, Key: { } key }
                         ? call.Jobs.GetAsync(ByDeduplicationKey(jobNamespace, key), call.Ct)

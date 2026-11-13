@@ -216,8 +216,7 @@ public static class VerifyCommand
         switch (args)
         {
             case ["replay", var planFile, ..]:
-                replay =
-                    JsonSerializer.Deserialize(File.ReadAllText(planFile), VerifyJson.Default.RunPlan)
+                replay = JsonSerializer.Deserialize(File.ReadAllText(planFile), VerifyJson.Default.RunPlan)
                     ?? throw new ArgumentException("Invalid plan.");
                 if (replay.ProtocolSha256 != Protocol.StandardHash())
                 {

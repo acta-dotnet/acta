@@ -121,15 +121,13 @@ internal static class CalendarsEndpoints
                 "Calendar",
                 ActaApiJsonContext.Relaxed.PreviewCalendarResponse,
                 static (http, call) =>
-                    QueryReader.Bind(
-                        http.Request,
-                        static query =>
-                            (
-                                Version: query.Long("version"),
-                                FromUtc: query.DateTime("fromUtc"),
-                                Limit: query.PositiveInt("limit"),
-                                TimeZoneId: query.Text("timeZoneId")
-                            )
+                    QueryReader.Bind(http.Request, static query =>
+                        (
+                            Version: query.Long("version"),
+                            FromUtc: query.DateTime("fromUtc"),
+                            Limit: query.PositiveInt("limit"),
+                            TimeZoneId: query.Text("timeZoneId")
+                        )
                     )
                         is { Version: { } version } preview
                         ? call.Operations.Calendars.PreviewAsync(

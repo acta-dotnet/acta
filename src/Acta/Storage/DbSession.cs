@@ -362,40 +362,37 @@ internal sealed class DbSession : IDbSession
     )
     {
         var dataReader = await cmd.ExecuteReaderAsync(ct);
-        return await UseWriteResourceAsync(
-            dataReader,
-            async reader =>
+        return await UseWriteResourceAsync(dataReader, async reader =>
+        {
+            var rows = new List<T>();
+            if (kind == StoreExecutionKind.Inline && _dialect.ResultSetIsLast)
             {
-                var rows = new List<T>();
-                if (kind == StoreExecutionKind.Inline && _dialect.ResultSetIsLast)
+                do
                 {
-                    do
-                    {
-                        rows.Clear();
-                        while (await reader.ReadAsync(ct))
-                        {
-                            rows.Add(MapRow(reader, mapRow));
-                        }
-                    } while (await reader.NextResultAsync(ct));
-                }
-                else
-                {
+                    rows.Clear();
                     while (await reader.ReadAsync(ct))
                     {
                         rows.Add(MapRow(reader, mapRow));
                     }
-
-                    // A trailing statement can fail after the business rows arrived. Observe that failure
-                    // before reporting success, without applying the business mapper to unrelated result shapes.
-                    while (await reader.NextResultAsync(ct))
-                    {
-                        while (await reader.ReadAsync(ct)) { }
-                    }
+                } while (await reader.NextResultAsync(ct));
+            }
+            else
+            {
+                while (await reader.ReadAsync(ct))
+                {
+                    rows.Add(MapRow(reader, mapRow));
                 }
 
-                return rows;
+                // A trailing statement can fail after the business rows arrived. Observe that failure
+                // before reporting success, without applying the business mapper to unrelated result shapes.
+                while (await reader.NextResultAsync(ct))
+                {
+                    while (await reader.ReadAsync(ct)) { }
+                }
             }
-        );
+
+            return rows;
+        });
     }
 
     private static T MapRow<T>(DbDataReader reader, Func<DbDataReader, T> mapRow)

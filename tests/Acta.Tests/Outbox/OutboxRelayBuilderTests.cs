@@ -38,18 +38,11 @@ public sealed class OutboxRelayBuilderTests
     [Fact]
     public void Selecting_two_source_providers_throws()
     {
-        var ex = Assert.Throws<InvalidOperationException>(() =>
-            Register(w =>
-                w.AddOutboxRelay(
-                    "orders",
-                    s =>
-                    {
-                        s.UsePostgres("Host=db");
-                        s.UseSqlServer("Server=db");
-                    }
-                )
-            )
-        );
+        var ex = Assert.Throws<InvalidOperationException>(() => Register(w => w.AddOutboxRelay("orders", s =>
+                {
+                    s.UsePostgres("Host=db");
+                    s.UseSqlServer("Server=db");
+                })));
         Assert.Contains("more than one provider", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -84,36 +77,22 @@ public sealed class OutboxRelayBuilderTests
     [Fact]
     public void An_invalid_schema_override_throws()
     {
-        Assert.Throws<ArgumentException>(() =>
-            Register(w =>
-                w.AddOutboxRelay(
-                    "orders",
-                    s =>
-                    {
-                        s.Schema = "bad schema";
-                        s.UsePostgres("Host=db");
-                    }
-                )
-            )
-        );
+        Assert.Throws<ArgumentException>(() => Register(w => w.AddOutboxRelay("orders", s =>
+                {
+                    s.Schema = "bad schema";
+                    s.UsePostgres("Host=db");
+                })));
     }
 
     [Fact]
     public void An_uppercase_table_override_throws()
     {
         // Acta-owned names are lowercase; a mixed-case override folds under PostgreSQL and breaks shape checks.
-        Assert.Throws<ArgumentException>(() =>
-            Register(w =>
-                w.AddOutboxRelay(
-                    "orders",
-                    s =>
-                    {
-                        s.Table = "Orders";
-                        s.UsePostgres("Host=db");
-                    }
-                )
-            )
-        );
+        Assert.Throws<ArgumentException>(() => Register(w => w.AddOutboxRelay("orders", s =>
+                {
+                    s.Table = "Orders";
+                    s.UsePostgres("Host=db");
+                })));
     }
 
     [Theory]
@@ -121,18 +100,11 @@ public sealed class OutboxRelayBuilderTests
     [InlineData(-1)]
     public void A_quarantine_threshold_below_one_throws(int threshold)
     {
-        Assert.Throws<ArgumentOutOfRangeException>(() =>
-            Register(w =>
-                w.AddOutboxRelay(
-                    "orders",
-                    s =>
-                    {
-                        s.QuarantineThreshold = threshold;
-                        s.UsePostgres("Host=db");
-                    }
-                )
-            )
-        );
+        Assert.Throws<ArgumentOutOfRangeException>(() => Register(w => w.AddOutboxRelay("orders", s =>
+                {
+                    s.QuarantineThreshold = threshold;
+                    s.UsePostgres("Host=db");
+                })));
     }
 
     [Fact]

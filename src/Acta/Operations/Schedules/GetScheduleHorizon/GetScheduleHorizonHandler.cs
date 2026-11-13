@@ -8,13 +8,12 @@ internal sealed class GetScheduleHorizonHandler(IDbSession session, ISqlDialect 
 {
     public async Task<GetScheduleHorizonResponse> HandleAsync(GetScheduleHorizonQuery query, CancellationToken ct)
     {
-        var row =
-            await session.QuerySingleAsync(
-                "GetScheduleHorizon",
-                cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Namespace.NamespaceId, query.NamespaceId)),
-                DbProjectionResolver.Resolve<GetScheduleHorizonRow>(),
-                ct
-            ) ?? throw new InvalidOperationException("The schedule horizon read returned no row; an aggregate returns one.");
+        var row = await session.QuerySingleAsync(
+            "GetScheduleHorizon",
+            cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Namespace.NamespaceId, query.NamespaceId)),
+            DbProjectionResolver.Resolve<GetScheduleHorizonRow>(),
+            ct
+        ) ?? throw new InvalidOperationException("The schedule horizon read returned no row; an aggregate returns one.");
         return new(row.NextEvaluationAtUtc, row.DbNowUtc);
     }
 }

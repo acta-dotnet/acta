@@ -24,24 +24,18 @@ public sealed class OutboxRelayDispatchSpec : ActaRuntimeTestBase<ConformanceFix
         services.UseActa(j =>
         {
             Fixture.ApplyProvider(j, Schema.SchemaName);
-            j.Run(
-                testNamespace,
-                w =>
+            j.Run(testNamespace, w =>
+            {
+                w.OwnerTeam = "test";
+                w.Description = GetType().FullName;
+                w.AddManifest<JobsOf<OutboxRelayDispatchSpec>>();
+                w.AddOutboxRelay("wired-src", source =>
                 {
-                    w.OwnerTeam = "test";
-                    w.Description = GetType().FullName;
-                    w.AddManifest<JobsOf<OutboxRelayDispatchSpec>>();
-                    w.AddOutboxRelay(
-                        "wired-src",
-                        source =>
-                        {
-                            // A source table that is never created, so the relay tick fails on first contact.
-                            source.Table = "acta_outbox_absent_" + TestId;
-                            Fixture.ApplyOutboxSource(source);
-                        }
-                    );
-                }
-            );
+                    // A source table that is never created, so the relay tick fails on first contact.
+                    source.Table = "acta_outbox_absent_" + TestId;
+                    Fixture.ApplyOutboxSource(source);
+                });
+            });
         });
         services.Configure<JobsOptions>(o => o.RunSystemJobs = false);
     }

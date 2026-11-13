@@ -78,9 +78,8 @@ var jobs = host.Services.GetRequiredService<IJobs>();
 
 if (mode == "enqueue")
 {
-    var enqueued = await jobs.EnqueueAsync(
-        new CrashRecoveryProbe($"probe-{sessionId}", sessionId),
-        o => o.DeduplicationKey(DeduplicationKey.ForDefinition("crash-recovery-probe", $"crash-recovery-probe-{sessionId}"))
+    var enqueued = await jobs.EnqueueAsync(new CrashRecoveryProbe($"probe-{sessionId}", sessionId), o =>
+        o.DeduplicationKey(DeduplicationKey.ForDefinition("crash-recovery-probe", $"crash-recovery-probe-{sessionId}"))
     );
     File.WriteAllText(currentJobFile, enqueued.JobRef.ToString());
     Console.WriteLine($"Enqueued {enqueued.JobRef}. Worker A should claim it and terminate at the marked failure point.");

@@ -40,14 +40,10 @@ internal sealed class OutboxRelayRegistry(
     public OutboxOperations.Source Source(string namespaceName) => Service(namespaceName).Source;
 
     /// <summary>The relay service bound to this namespace's source; lazily created and cached per namespace.</summary>
-    public OutboxRelay Service(string namespaceName) =>
-        _services.GetOrAdd(
-            namespaceName,
-            ns =>
-            {
-                var registration = Registration(ns);
-                var source = OutboxOperations.OpenSource(registration.SourceFactory.Create(registration.Schema, registration.Table));
-                return new OutboxRelay(source, _jobs, _loggerFactory?.CreateLogger<OutboxRelay>());
-            }
-        );
+    public OutboxRelay Service(string namespaceName) => _services.GetOrAdd(namespaceName, ns =>
+        {
+            var registration = Registration(ns);
+            var source = OutboxOperations.OpenSource(registration.SourceFactory.Create(registration.Schema, registration.Table));
+            return new OutboxRelay(source, _jobs, _loggerFactory?.CreateLogger<OutboxRelay>());
+        });
 }

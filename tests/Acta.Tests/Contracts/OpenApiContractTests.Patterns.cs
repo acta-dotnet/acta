@@ -126,26 +126,17 @@ public sealed partial class OpenApiContractTests
         (string Route, string Parameter, bool Required, Action<string?> Validate)[] filters =
         [
             ("v1/jobs", "jobNamespace", false, value => QueryValidation.ValidateNamespace(value, "jobNamespace")),
-            (
-                "v1/jobs/by-deduplication-key",
-                "jobNamespace",
-                true,
-                value => JobLookup.ByDeduplicationKey(value ?? throw new InvalidQueryException("jobNamespace is required."), "ck-1")
+            ("v1/jobs/by-deduplication-key", "jobNamespace", true, value =>
+                JobLookup.ByDeduplicationKey(value ?? throw new InvalidQueryException("jobNamespace is required."), "ck-1")
             ),
             ("v1/jobs", "jobName", false, value => QueryValidation.ValidateJobName(value, "billing", "jobName")),
             ("v1/jobs", "tenantName", false, value => QueryValidation.ValidateExtendedName(value, "tenantName")),
             ("v1/jobs", "lane", false, value => QueryValidation.ValidateExtendedName(value, "lane")),
-            (
-                "v1/namespaces",
-                "nameContains",
-                false,
-                value => QueryValidation.ValidateNameFragment(value, "nameContains", NameSyntax.DefaultMaxLength)
+            ("v1/namespaces", "nameContains", false, value =>
+                QueryValidation.ValidateNameFragment(value, "nameContains", NameSyntax.DefaultMaxLength)
             ),
-            (
-                "v1/definitions",
-                "nameContains",
-                false,
-                value => QueryValidation.ValidateNameFragment(value, "nameContains", NameSyntax.ExtendedMaxLength)
+            ("v1/definitions", "nameContains", false, value =>
+                QueryValidation.ValidateNameFragment(value, "nameContains", NameSyntax.ExtendedMaxLength)
             ),
         ];
         return filters.Select(filter => new PatternCase(
@@ -588,10 +579,8 @@ public sealed partial class OpenApiContractTests
     )
     {
         var url = PathPlaceholders(path)
-            .Aggregate(
-                path,
-                (filled, key) =>
-                    filled.Replace($"{{{key}}}", Uri.EscapeDataString(key == name ? spelling : values[key]), StringComparison.Ordinal)
+            .Aggregate(path, (filled, key) =>
+                filled.Replace($"{{{key}}}", Uri.EscapeDataString(key == name ? spelling : values[key]), StringComparison.Ordinal)
             );
         var required = Elements(operation["parameters"])
             .Where(parameter => parameter?["in"]?.GetValue<string>() == "query" && parameter["required"]?.GetValue<bool>() == true)

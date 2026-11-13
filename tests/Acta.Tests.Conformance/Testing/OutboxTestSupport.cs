@@ -67,22 +67,13 @@ internal static class OutboxFixtureExtensions
 internal sealed class HookedOutboxStore
 {
     public HookedOutboxStore(OutboxSourceConnection inner) =>
-        Source = OutboxOperations.OpenSource(
-            inner with
-            {
-                Session = new HookedSession(
-                    inner.Session,
-                    stem =>
-                        stem switch
-                        {
-                            "RemoveClaimedOutbox" when BeforeRemove is { } hook => hook(),
-                            "ListQuarantinedOutboxIds" when BeforeListIds is { } hook => hook(),
-                            "RequeueQuarantinedOutbox" when BeforeRequeue is { } hook => hook(),
-                            _ => Task.CompletedTask,
-                        }
-                ),
-            }
-        );
+        Source = OutboxOperations.OpenSource(inner with { Session = new HookedSession(inner.Session, stem => stem switch
+                    {
+                        "RemoveClaimedOutbox" when BeforeRemove is { } hook => hook(),
+                        "ListQuarantinedOutboxIds" when BeforeListIds is { } hook => hook(),
+                        "RequeueQuarantinedOutbox" when BeforeRequeue is { } hook => hook(),
+                        _ => Task.CompletedTask,
+                    }) });
 
     /// <summary>When set, awaited just before the claimed rows are removed (models a crash after the target commit).</summary>
     public Func<Task>? BeforeRemove { get; set; }
@@ -105,9 +96,8 @@ internal sealed class HookedJobSubmission
 {
     public HookedJobSubmission(IServiceProvider services)
     {
-        var session = new HookedSession(
-            services.GetRequiredService<IDbSession>(),
-            stem => FailInstead is { } make && stem.StartsWith("Enqueue", StringComparison.Ordinal) ? throw make() : Task.CompletedTask
+        var session = new HookedSession(services.GetRequiredService<IDbSession>(), stem =>
+            FailInstead is { } make && stem.StartsWith("Enqueue", StringComparison.Ordinal) ? throw make() : Task.CompletedTask
         );
         var dialect = services.GetRequiredService<ISqlDialect>();
         var wakeup = services.GetRequiredService<WorkerWakeupPublisher>();

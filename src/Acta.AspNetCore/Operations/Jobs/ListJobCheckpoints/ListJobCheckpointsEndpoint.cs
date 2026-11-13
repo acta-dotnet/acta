@@ -13,36 +13,27 @@ internal static class ListJobCheckpointsEndpoint
 {
     public static void Map(RouteGroupBuilder reads, ActaEndpointOptions options) =>
         reads
-            .MapGet(
-                "/jobs/{jobRef}/checkpoints",
-                (HttpContext http, IJobs jobs, IOptions<JobsOptions> jobsOptions, CancellationToken ct) =>
-                    RouteTable.Run(async () =>
+            .MapGet("/jobs/{jobRef}/checkpoints", (HttpContext http, IJobs jobs, IOptions<JobsOptions> jobsOptions, CancellationToken ct) =>
+                RouteTable.Run(async () =>
+                {
+                    var job = RouteKeys.Job(http, options);
+                    var paging = QueryReader.Bind(http.Request, static query =>
+                        (PageSize: query.Int("pageSize"), Cursor: query.Text("cursor"), IncludeTotal: query.Bool("includeTotal"))
+                    );
+                    if (await jobs.StoredJobIdAsync(job, ct) is not { } jobId)
                     {
-                        var job = RouteKeys.Job(http, options);
-                        var paging = QueryReader.Bind(
-                            http.Request,
-                            static query =>
-                                (PageSize: query.Int("pageSize"), Cursor: query.Text("cursor"), IncludeTotal: query.Bool("includeTotal"))
-                        );
-                        if (await jobs.StoredJobIdAsync(job, ct) is not { } jobId)
-                        {
-                            return RouteTable.NotFound("Job");
-                        }
+                        return RouteTable.NotFound("Job");
+                    }
 
-                        var page = await jobs.ListCheckpointsAsync(
-                            new ListJobCheckpointsQuery(
-                                JobLookup.ById(jobId),
-                                paging.PageSize,
-                                paging.Cursor,
-                                paging.IncludeTotal ?? false
-                            ),
-                            ct
-                        );
-                        return Results.Json(
-                            ListJobCheckpointsResponse.From(page, jobsOptions.Value.MaxInlinePayloadBytes),
-                            ActaApiJsonContext.Relaxed.ListJobCheckpointsResponse
-                        );
-                    })
+                    var page = await jobs.ListCheckpointsAsync(
+                        new ListJobCheckpointsQuery(JobLookup.ById(jobId), paging.PageSize, paging.Cursor, paging.IncludeTotal ?? false),
+                        ct
+                    );
+                    return Results.Json(
+                        ListJobCheckpointsResponse.From(page, jobsOptions.Value.MaxInlinePayloadBytes),
+                        ActaApiJsonContext.Relaxed.ListJobCheckpointsResponse
+                    );
+                })
             )
             .WithMetadata(new ActaOperationAttribute("listJobCheckpoints", ActaPermissions.Read))
             .WithSummary("List one job's checkpoints.")

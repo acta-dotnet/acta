@@ -16,8 +16,7 @@ public sealed class RuntimeVersionTests
     public void The_suite_runs_on_the_runtime_major_its_run_names()
     {
         var target = typeof(RuntimeVersionTests).Assembly.GetCustomAttribute<TargetFrameworkAttribute>()!;
-        var expected =
-            Environment.GetEnvironmentVariable("ACTA_TEST_DOTNET_MAJOR")
+        var expected = Environment.GetEnvironmentVariable("ACTA_TEST_DOTNET_MAJOR")
             ?? new FrameworkName(target.FrameworkName).Version.Major.ToString(CultureInfo.InvariantCulture);
 
         Assert.Equal(expected, Environment.Version.Major.ToString(CultureInfo.InvariantCulture));

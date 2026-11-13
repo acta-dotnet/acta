@@ -6,12 +6,10 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
 const string jobNamespace = "wait-signal";
-var commandIndex = Array.FindIndex(
-    args,
-    static arg =>
-        arg.Equals("start", StringComparison.OrdinalIgnoreCase)
-        || arg.Equals("inspect", StringComparison.OrdinalIgnoreCase)
-        || arg.Equals("raise", StringComparison.OrdinalIgnoreCase)
+var commandIndex = Array.FindIndex(args, static arg =>
+    arg.Equals("start", StringComparison.OrdinalIgnoreCase)
+    || arg.Equals("inspect", StringComparison.OrdinalIgnoreCase)
+    || arg.Equals("raise", StringComparison.OrdinalIgnoreCase)
 );
 var command = commandIndex < 0 ? "run" : args[commandIndex].ToLowerInvariant();
 var jobRefIndex = command is "inspect" or "raise" ? commandIndex + 1 : -1;

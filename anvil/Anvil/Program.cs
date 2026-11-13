@@ -239,17 +239,13 @@ static void ConfigureWorker(
     });
     // Every worker in the namespace carries the relay: sys.outbox claims are namespace-wide, so
     // an unconfigured worker next to configured ones would claim the slot without a binding.
-    j.Run(
-        ns,
-        w =>
-        {
-            w.AddManifest<AnvilJobs>();
-            w.AddOutboxRelay(
-                "anvil-outbox",
-                source => source.UseSqlite(new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder { DataSource = outboxSource }.ToString())
-            );
-        }
-    );
+    j.Run(ns, w =>
+    {
+        w.AddManifest<AnvilJobs>();
+        w.AddOutboxRelay("anvil-outbox", source =>
+            source.UseSqlite(new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder { DataSource = outboxSource }.ToString())
+        );
+    });
 }
 
 static string Required(string[] args, string name) =>

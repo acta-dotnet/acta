@@ -431,49 +431,33 @@ internal sealed class PostgresDialect : ISqlDialect
     }
 
     public void BindPublishCalendar(DbCommand command, IReadOnlyList<PublishCalendarValues> rows) =>
-        AddScalar(
-            (NpgsqlCommand)command,
-            "@p_rows",
-            NpgsqlDbType.Text,
-            PublishCalendarJson.Rows(
-                rows,
-                static (writer, name, value) =>
+        AddScalar((NpgsqlCommand)command, "@p_rows", NpgsqlDbType.Text, PublishCalendarJson.Rows(rows, static (writer, name, value) =>
+            {
+                if (value is { } instant)
                 {
-                    if (value is { } instant)
-                    {
-                        writer.WriteString(name, DbParams.ToUtc(instant).ToString("O", CultureInfo.InvariantCulture));
-                    }
-                    else
-                    {
-                        writer.WriteNull(name);
-                    }
+                    writer.WriteString(name, DbParams.ToUtc(instant).ToString("O", CultureInfo.InvariantCulture));
                 }
-            )
-        );
+                else
+                {
+                    writer.WriteNull(name);
+                }
+            }));
 
     public void BindAdmitScheduleFirings(DbCommand command, AdmitScheduleFiringsCommand request)
     {
         var postgres = (NpgsqlCommand)command;
         AddScalar(postgres, "@p_groups", NpgsqlDbType.Text, AdmitScheduleFiringsJson.Groups(request));
-        AddScalar(
-            postgres,
-            "@p_rows",
-            NpgsqlDbType.Text,
-            AdmitScheduleFiringsJson.Rows(
-                request,
-                static (writer, name, value) =>
+        AddScalar(postgres, "@p_rows", NpgsqlDbType.Text, AdmitScheduleFiringsJson.Rows(request, static (writer, name, value) =>
+            {
+                if (value is { } instant)
                 {
-                    if (value is { } instant)
-                    {
-                        writer.WriteString(name, DbParams.ToUtc(instant).ToString("O", CultureInfo.InvariantCulture));
-                    }
-                    else
-                    {
-                        writer.WriteNull(name);
-                    }
+                    writer.WriteString(name, DbParams.ToUtc(instant).ToString("O", CultureInfo.InvariantCulture));
                 }
-            )
-        );
+                else
+                {
+                    writer.WriteNull(name);
+                }
+            }));
     }
 
     public void BindCompleteExecutions(DbCommand command, CompleteExecutionsCommand request, string schema)

@@ -33,9 +33,8 @@ public sealed class ListEventsWorkerSpec : ActaRuntimeTestBase<ConformanceFixtur
         var stored = await ReadSingleEventAsync(enqueued.JobId, EventCode.JobCancelled, ct);
         Assert.Equal(0, stored.WorkerId);
 
-        var listed = Assert.Single(
-            (await Operations.Ledger.ListEventsAsync(new ListEventsQuery(JobId: enqueued.JobId), ct)).Items,
-            e => e.EventCode == EventCode.JobCancelled
+        var listed = Assert.Single((await Operations.Ledger.ListEventsAsync(new ListEventsQuery(JobId: enqueued.JobId), ct)).Items, e =>
+            e.EventCode == EventCode.JobCancelled
         );
         Assert.Null(listed.WorkerId);
         Assert.Null(listed.WorkerRef);
@@ -77,9 +76,8 @@ public sealed class ListEventsWorkerSpec : ActaRuntimeTestBase<ConformanceFixtur
         var stored = await ReadSingleEventAsync(enqueued.JobId, EventCode.JobExecutionSucceeded, ct);
         Assert.Equal(workerId, stored.WorkerId);
 
-        var listed = Assert.Single(
-            (await Operations.Ledger.ListEventsAsync(new ListEventsQuery(JobId: enqueued.JobId), ct)).Items,
-            e => e.EventCode == EventCode.JobExecutionSucceeded
+        var listed = Assert.Single((await Operations.Ledger.ListEventsAsync(new ListEventsQuery(JobId: enqueued.JobId), ct)).Items, e =>
+            e.EventCode == EventCode.JobExecutionSucceeded
         );
         Assert.Equal(workerId, listed.WorkerId);
         Assert.Equal<WorkerRef?>(workerRef, listed.WorkerRef);

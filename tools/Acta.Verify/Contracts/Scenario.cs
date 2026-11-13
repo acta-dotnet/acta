@@ -162,8 +162,8 @@ public static class ScenarioFiles
             // The resource keeps the file's folder, with either separator: Acta.Verify.Scenarios.<group>/<name>.json.
             var path = resource["Acta.Verify.Scenarios.".Length..^".json".Length].Split('\\', '/');
             var (group, name) = (path[0], path[^1]);
-            var node =
-                JsonNode.Parse(Protocol.Resource(resource))?.AsObject() ?? throw new InvalidOperationException($"Empty scenario {name}.");
+            var node = JsonNode.Parse(Protocol.Resource(resource))?.AsObject()
+                ?? throw new InvalidOperationException($"Empty scenario {name}.");
             if (suite?.Overrides?.GetValueOrDefault(name) is { } overrides)
             {
                 foreach (var (field, value) in overrides)

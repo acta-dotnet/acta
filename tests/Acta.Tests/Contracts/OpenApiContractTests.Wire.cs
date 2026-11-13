@@ -355,13 +355,11 @@ public sealed partial class OpenApiContractTests
                     : null;
         });
 
-        Assert.Contains(
-            held,
-            key => key.EndsWith("/preview", StringComparison.Ordinal) && key.Contains("/schedules/", StringComparison.Ordinal)
+        Assert.Contains(held, key =>
+            key.EndsWith("/preview", StringComparison.Ordinal) && key.Contains("/schedules/", StringComparison.Ordinal)
         );
-        Assert.Contains(
-            held,
-            key => key.EndsWith("/preview", StringComparison.Ordinal) && key.Contains("/calendars/", StringComparison.Ordinal)
+        Assert.Contains(held, key =>
+            key.EndsWith("/preview", StringComparison.Ordinal) && key.Contains("/calendars/", StringComparison.Ordinal)
         );
         Assert.True(held.Count > 12, $"only {held.Count} bounded reads answered; the walk is broken.");
         Assert.True(wrong.Count == 0, string.Join("\n", wrong));
@@ -482,9 +480,8 @@ public sealed partial class OpenApiContractTests
     {
         var operations = Operations(await ActaOpenApiDocument.GenerateAsync());
         var fakes = new FakeOperations();
-        var (app, client) = await TestDashboardHost.StartAsync(
-            fakes: fakes,
-            configureBuilder: builder => builder.Services.Configure<JobsOptions>(o => o.MaxInlinePayloadBytes = 16)
+        var (app, client) = await TestDashboardHost.StartAsync(fakes: fakes, configureBuilder: builder =>
+            builder.Services.Configure<JobsOptions>(o => o.MaxInlinePayloadBytes = 16)
         );
         await using var _ = app;
         var ct = TestContext.Current.CancellationToken;
@@ -542,10 +539,8 @@ public sealed partial class OpenApiContractTests
     private static string ReadUrl(string path, JsonNode operation)
     {
         var url = PathPlaceholders(path)
-            .Aggregate(
-                path,
-                (filled, name) =>
-                    filled.Replace($"{{{name}}}", Uri.EscapeDataString(OpenApiExamples.RouteValues[name]), StringComparison.Ordinal)
+            .Aggregate(path, (filled, name) =>
+                filled.Replace($"{{{name}}}", Uri.EscapeDataString(OpenApiExamples.RouteValues[name]), StringComparison.Ordinal)
             );
         var query = Elements(operation["parameters"])
             .Where(parameter => parameter?["in"]?.GetValue<string>() == "query" && parameter["required"]?.GetValue<bool>() == true)

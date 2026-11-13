@@ -106,8 +106,8 @@ public static class Protocol
     /// <summary>An embedded resource's text with LF line ends, so its hash is the same on every platform.</summary>
     internal static string Resource(string name)
     {
-        using var stream =
-            typeof(Protocol).Assembly.GetManifestResourceStream(name) ?? throw new InvalidOperationException($"Missing resource {name}.");
+        using var stream = typeof(Protocol).Assembly.GetManifestResourceStream(name)
+            ?? throw new InvalidOperationException($"Missing resource {name}.");
         using var reader = new StreamReader(stream);
         return reader.ReadToEnd().Replace("\r\n", "\n", StringComparison.Ordinal);
     }

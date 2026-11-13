@@ -214,8 +214,7 @@ internal static class SqlSchemaEmitter
         var placed = new HashSet<string>(StringComparer.Ordinal);
         while (pending.Count > 0)
         {
-            var next =
-                pending.Find(e => e.ForeignKeys.All(fk => placed.Contains(ResolveTableName(fk.Target))))
+            var next = pending.Find(e => e.ForeignKeys.All(fk => placed.Contains(ResolveTableName(fk.Target))))
                 ?? throw new InvalidOperationException(
                     $"Foreign keys form a cycle among {string.Join(", ", pending.Select(e => e.TableName))}."
                 );

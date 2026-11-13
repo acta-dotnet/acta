@@ -196,8 +196,7 @@ internal static class LedgerEndpoints
                     ),
                 static async (call, bound) =>
                 {
-                    var definition =
-                        await call.Operations.Definitions.GetAsync(bound.Namespace, bound.Name, call.Ct)
+                    var definition = await call.Operations.Definitions.GetAsync(bound.Namespace, bound.Name, call.Ct)
                         ?? throw new TargetNotFoundException("Definition");
                     return await call.Operations.Ledger.ListEventsAsync(
                         // The namespace lets the read seek the namespace and event-code index; no index leads with the definition.

@@ -29,8 +29,8 @@ public sealed partial class NamespaceConventionTests
             }
 
             var project = XDocument.Load(projectFile);
-            var rootNamespace =
-                project.Descendants("RootNamespace").Select(e => e.Value).FirstOrDefault() ?? Path.GetFileNameWithoutExtension(projectFile);
+            var rootNamespace = project.Descendants("RootNamespace").Select(e => e.Value).FirstOrDefault()
+                ?? Path.GetFileNameWithoutExtension(projectFile);
 
             foreach (var file in Directory.EnumerateFiles(projectDirectory, "*.cs", SearchOption.AllDirectories))
             {

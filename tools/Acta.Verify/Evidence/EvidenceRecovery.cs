@@ -8,8 +8,7 @@ public static class EvidenceRecovery
     {
         var bundle = new EvidenceBundle(directory);
         using var lease = Acquire(bundle.Resolve("run.lock"));
-        var plan =
-            JsonSerializer.Deserialize(File.ReadAllText(bundle.Resolve("resolved-plan.json")), VerifyJson.Default.RunPlan)
+        var plan = JsonSerializer.Deserialize(File.ReadAllText(bundle.Resolve("resolved-plan.json")), VerifyJson.Default.RunPlan)
             ?? throw new InvalidDataException("Interrupted run has no readable plan.");
         var (cases, truncated) = EvidenceBundle.ReadCases(bundle.Resolve("cases.jsonl"));
         var owed = HarnessControls

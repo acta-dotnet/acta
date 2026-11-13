@@ -151,14 +151,11 @@ public sealed class ScheduleRetirementSpec : ActaRuntimeTestBase<ConformanceFixt
 
         // The retire leaves the running attempt alone, and its landing returns the slot to Idle, the one state a
         // trigger would otherwise admit a firing on.
-        var trigger = Verb<TriggerScheduleHandler>(
-            "TriggerSchedule",
-            async () =>
-            {
-                await RetireAsync(jobName, ct);
-                await CompleteAsync(slotId, workerId, ct);
-            }
-        );
+        var trigger = Verb<TriggerScheduleHandler>("TriggerSchedule", async () =>
+        {
+            await RetireAsync(jobName, ct);
+            await CompleteAsync(slotId, workerId, ct);
+        });
         var triggered = await trigger.HandleAsync(new TriggerScheduleCommand(Lookup(jobName), "after the retire", null), ct);
 
         Assert.Equal(ControlAction.NotFound, triggered.Action);

@@ -18,8 +18,7 @@ public sealed class JobsOf<TSpec> : IJobManifest
     private static JobDescriptorManifest Select()
     {
         var spec = typeof(TSpec);
-        var deploys =
-            spec.GetCustomAttribute<DeploysAttribute>()
+        var deploys = spec.GetCustomAttribute<DeploysAttribute>()
             ?? throw new InvalidOperationException(
                 $"{spec.Name} names no jobs to deploy. Put [Deploys(...)] on it, with no name for none."
             );

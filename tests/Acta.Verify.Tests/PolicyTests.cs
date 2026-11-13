@@ -66,9 +66,8 @@ public sealed class PolicyTests
     public void A_suite_override_replaces_a_field_for_every_database_or_per_database()
     {
         var check = Protocol.Plan("check", Protocol.AllProviders, 1729);
-        Assert.All(
-            Protocol.AllProviders,
-            p => Assert.Equal([0, 1000, 10000], check.Scenario("retained-history").SettingList("populations", p))
+        Assert.All(Protocol.AllProviders, p =>
+            Assert.Equal([0, 1000, 10000], check.Scenario("retained-history").SettingList("populations", p))
         );
         Assert.Equal(10000, check.Scenario("chaos").Jobs["mssql"]);
         Assert.Equal(8, check.Scenario("chaos").Workers["pg"]);
@@ -297,9 +296,8 @@ public sealed class PolicyTests
         ExpectedOutcome[] expected = [new("root/child-0", "CancelledOrSucceeded", "expected", "root")];
         Assert.All(OutcomeCheck.Reconcile(expected, [new("root/child-0", "Cancelled", null, "root")]), c => Assert.True(c.Passed));
         Assert.Contains(OutcomeCheck.Reconcile(expected, [new("root/child-0", "Succeeded", "wrong", "root")]), c => !c.Passed);
-        Assert.Contains(
-            OutcomeCheck.Reconcile(expected, [new("root/child-1", "Cancelled", null, "root")]),
-            c => c.Code == "missing-identity" && !c.Passed
+        Assert.Contains(OutcomeCheck.Reconcile(expected, [new("root/child-1", "Cancelled", null, "root")]), c =>
+            c.Code == "missing-identity" && !c.Passed
         );
     }
 
@@ -364,17 +362,14 @@ public sealed class PolicyTests
     public void An_interrupted_charge_may_fail_but_never_with_a_result_or_another_terminal_state()
     {
         ExpectedOutcome[] expected = [new("charge-0", "FailedOrSucceeded", "hash", Steps: ["effect=void"])];
-        Assert.All(
-            OutcomeCheck.Reconcile(expected, [new("charge-0", "Failed", null, Steps: ["effect=uncommitted"])]),
-            c => Assert.True(c.Passed)
+        Assert.All(OutcomeCheck.Reconcile(expected, [new("charge-0", "Failed", null, Steps: ["effect=uncommitted"])]), c =>
+            Assert.True(c.Passed)
         );
-        Assert.All(
-            OutcomeCheck.Reconcile(expected, [new("charge-0", "Succeeded", "hash", Steps: ["effect=void"])]),
-            c => Assert.True(c.Passed)
+        Assert.All(OutcomeCheck.Reconcile(expected, [new("charge-0", "Succeeded", "hash", Steps: ["effect=void"])]), c =>
+            Assert.True(c.Passed)
         );
-        Assert.Contains(
-            OutcomeCheck.Reconcile(expected, [new("charge-0", "Failed", "hash", Steps: ["effect=uncommitted"])]),
-            c => !c.Passed
+        Assert.Contains(OutcomeCheck.Reconcile(expected, [new("charge-0", "Failed", "hash", Steps: ["effect=uncommitted"])]), c =>
+            !c.Passed
         );
         Assert.Contains(OutcomeCheck.Reconcile(expected, [new("charge-0", "Cancelled", null)]), c => !c.Passed);
     }

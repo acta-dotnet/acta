@@ -12,16 +12,14 @@ public static class BundleVerifier
         EvidenceBundle.RejectLinks(root, Path.Combine(root, "result.json"));
         EvidenceBundle.RejectLinks(root, Path.Combine(root, "resolved-plan.json"));
         EvidenceBundle.RejectLinks(root, Path.Combine(root, "checksums.sha256"));
-        var result =
-            JsonSerializer.Deserialize(File.ReadAllText(Path.Combine(root, "result.json")), VerifyJson.Default.RunResult)
+        var result = JsonSerializer.Deserialize(File.ReadAllText(Path.Combine(root, "result.json")), VerifyJson.Default.RunResult)
             ?? throw new InvalidDataException("Missing report envelope.");
         var planPath = Path.Combine(root, "resolved-plan.json");
         if (EvidenceBundle.FileHash(planPath) != result.Provenance.PlanSha256)
         {
             throw new InvalidDataException("Resolved plan checksum mismatch.");
         }
-        var plan =
-            JsonSerializer.Deserialize(File.ReadAllText(planPath), VerifyJson.Default.RunPlan)
+        var plan = JsonSerializer.Deserialize(File.ReadAllText(planPath), VerifyJson.Default.RunPlan)
             ?? throw new InvalidDataException("Missing resolved plan.");
         var manifest = File.ReadAllLines(Path.Combine(root, "checksums.sha256"));
         if (!manifest.Contains($"{EvidenceBundle.FileHash(Path.Combine(root, "result.json"))}  result.json", StringComparer.Ordinal))

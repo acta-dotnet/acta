@@ -14,21 +14,17 @@ public static class SqliteActaExtensions
     public static IActaBuilder UseSqlite(this IActaBuilder builder, Action<SqlProviderOptions> configure)
     {
         ArgumentNullException.ThrowIfNull(configure);
-        return ActaProviderRegistration.Use<SqliteDialect, SqliteSchemaMigrator>(
-            builder,
-            DbProvider.Sqlite,
-            o =>
+        return ActaProviderRegistration.Use<SqliteDialect, SqliteSchemaMigrator>(builder, DbProvider.Sqlite, o =>
+        {
+            o.Schema = "main";
+            configure(o);
+            if (!string.Equals(o.Schema, "main", StringComparison.Ordinal))
             {
-                o.Schema = "main";
-                configure(o);
-                if (!string.Equals(o.Schema, "main", StringComparison.Ordinal))
-                {
-                    throw new InvalidOperationException(
-                        "SqlProviderOptions.Schema must be 'main' on SQLite; attached databases are not supported."
-                    );
-                }
+                throw new InvalidOperationException(
+                    "SqlProviderOptions.Schema must be 'main' on SQLite; attached databases are not supported."
+                );
             }
-        );
+        });
     }
 
     /// <summary>

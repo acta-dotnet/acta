@@ -115,9 +115,8 @@ public sealed class SaveCalendarDraftSpec : ActaStorageTestBase<ConformanceFixtu
         await CalendarTestOps.PublishAsync(Db, TestNamespaceId, calendar.CalendarName, 1, ct);
         var published = await Calendars.SaveDraftAsync(calendar, CalendarRoleCode.Availability, relaid, 7, ct: ct);
 
-        Assert.All(
-            [unchanged, current, stale, published],
-            save => Assert.Equal((ControlAction.AlreadyInState, 1, first.ContentHash), (save.Action, save.Version, save.ContentHash))
+        Assert.All([unchanged, current, stale, published], save =>
+            Assert.Equal((ControlAction.AlreadyInState, 1, first.ContentHash), (save.Action, save.Version, save.ContentHash))
         );
         Assert.All([unchanged, current, stale, published], save => Assert.Empty(save.Problems));
         Assert.Equal(1, await CountAsync(calendar.CalendarName, ct));
@@ -256,13 +255,8 @@ public sealed class SaveCalendarDraftSpec : ActaStorageTestBase<ConformanceFixtu
                 .ToListAsync(ct);
             var events = await DraftEventsAsync(calendar.CalendarName, ct);
             Assert.Equal(["1", "2", "3"], events.Select(e => EventDetail(e, "version")).Order(StringComparer.Ordinal));
-            Assert.All(
-                events,
-                e =>
-                    Assert.Equal(
-                        rows.Single(r => r.Id == e.EntityId).Version.ToString(CultureInfo.InvariantCulture),
-                        EventDetail(e, "version")
-                    )
+            Assert.All(events, e =>
+                Assert.Equal(rows.Single(r => r.Id == e.EntityId).Version.ToString(CultureInfo.InvariantCulture), EventDetail(e, "version"))
             );
         }
     }

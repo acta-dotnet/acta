@@ -117,14 +117,11 @@ internal static class RuntimeHost
                     }
                     else if (ns == "verify" && Environment.GetEnvironmentVariable("ACTA_VERIFY_OUTBOX_SOURCE") is { } source)
                     {
-                        j.Run(
-                            ns,
-                            w =>
-                            {
-                                w.AddManifest<VerifyJobs>();
-                                w.AddOutboxRelay("verify-source", o => o.UseSqlite(source));
-                            }
-                        );
+                        j.Run(ns, w =>
+                        {
+                            w.AddManifest<VerifyJobs>();
+                            w.AddOutboxRelay("verify-source", o => o.UseSqlite(source));
+                        });
                     }
                     else
                     {

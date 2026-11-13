@@ -107,8 +107,8 @@ internal static class TenantsEndpoints
             static (call, name) =>
             {
                 var body = call.Body!;
-                var expectedVersion =
-                    body.ExpectedVersion ?? throw new InvalidControlException("Invalid tenant update.", "expectedVersion is required.");
+                var expectedVersion = body.ExpectedVersion
+                    ?? throw new InvalidControlException("Invalid tenant update.", "expectedVersion is required.");
                 ControlEndpointValidation.RequireLength(body.DisplayName, "displayName", TextLimits.TenantDisplayName);
                 ControlEndpointValidation.RequireLength(body.Description, "description", TextLimits.TenantDescription);
                 return call.Operations.Tenants.UpdateAsync(

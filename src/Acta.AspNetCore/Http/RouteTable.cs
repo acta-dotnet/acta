@@ -28,12 +28,8 @@ internal static class RouteTable
     )
         where TResponse : IPagedResponse<object> =>
         group
-            .MapGet(
-                pattern,
-                (HttpContext http, IActaOperations operations, IJobs jobs, CancellationToken ct) =>
-                    Run(async () =>
-                        Results.Json(await list(new ReadCall(operations, jobs, ct), QueryReader.Bind(http.Request, bind)), json)
-                    )
+            .MapGet(pattern, (HttpContext http, IActaOperations operations, IJobs jobs, CancellationToken ct) =>
+                Run(async () => Results.Json(await list(new ReadCall(operations, jobs, ct), QueryReader.Bind(http.Request, bind)), json))
             )
             .WithMetadata(operation)
             .WithSummary(summary)
@@ -57,12 +53,10 @@ internal static class RouteTable
     )
         where TDetail : class =>
         group
-            .MapGet(
-                pattern,
-                (HttpContext http, IActaOperations operations, IJobs jobs, CancellationToken ct) =>
-                    Run(async () =>
-                        await read(http, new ReadCall(operations, jobs, ct)) is { } detail ? Results.Json(detail, json) : NotFound(entity)
-                    )
+            .MapGet(pattern, (HttpContext http, IActaOperations operations, IJobs jobs, CancellationToken ct) =>
+                Run(async () =>
+                    await read(http, new ReadCall(operations, jobs, ct)) is { } detail ? Results.Json(detail, json) : NotFound(entity)
+                )
             )
             .WithMetadata(operation)
             .WithSummary(summary)
@@ -93,10 +87,8 @@ internal static class RouteTable
         // One operation serves the tags of several owners, so each id puts the owner before the subject.
         var owner = char.ToUpperInvariant(entity[0]) + entity[1..];
         reads
-            .MapGet(
-                pattern,
-                (HttpContext http, IActaOperations operations, IJobs jobs, CancellationToken ct) =>
-                    TagRoutes.ListAsync(http, new ReadCall(operations, jobs, ct), () => target(http), exists)
+            .MapGet(pattern, (HttpContext http, IActaOperations operations, IJobs jobs, CancellationToken ct) =>
+                TagRoutes.ListAsync(http, new ReadCall(operations, jobs, ct), () => target(http), exists)
             )
             .WithMetadata(new ActaOperationAttribute($"list{owner}Tags", ActaPermissions.Read))
             .WithSummary($"List the {entity}'s tags.")
@@ -107,10 +99,8 @@ internal static class RouteTable
             .WithQueryParameters([.. QueryParameterDocExtensions.PagingCore, .. QueryParameterDocExtensions.IncludeTotal]);
 
         controls
-            .MapPut(
-                pattern + "/{tagName}",
-                (HttpContext http, IActaOperations operations, CancellationToken ct) =>
-                    TagRoutes.UpsertAsync(http, operations, () => write(http), RouteKeys.Value(http, "tagName"), ct)
+            .MapPut(pattern + "/{tagName}", (HttpContext http, IActaOperations operations, CancellationToken ct) =>
+                TagRoutes.UpsertAsync(http, operations, () => write(http), RouteKeys.Value(http, "tagName"), ct)
             )
             .WithMetadata(new ActaOperationAttribute($"upsert{owner}Tag", writePermission))
             .AcceptsJson<UpsertTagRequest>()
@@ -119,10 +109,8 @@ internal static class RouteTable
             .Produces<UpsertTagResponse>(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status503ServiceUnavailable);
         controls
-            .MapDelete(
-                pattern + "/{tagName}",
-                (HttpContext http, IActaOperations operations, CancellationToken ct) =>
-                    TagRoutes.RemoveAsync(operations, () => write(http), RouteKeys.Value(http, "tagName"), ct)
+            .MapDelete(pattern + "/{tagName}", (HttpContext http, IActaOperations operations, CancellationToken ct) =>
+                TagRoutes.RemoveAsync(operations, () => write(http), RouteKeys.Value(http, "tagName"), ct)
             )
             .WithMetadata(new ActaOperationAttribute($"remove{owner}Tag", writePermission))
             .WithSummary($"Remove one tag from the {entity}.")
@@ -154,19 +142,17 @@ internal static class RouteTable
         where TBody : class, IControlRequest
         where TResponse : notnull =>
         DeclareControl<TBody, TResponse>(
-            controls.MapPost(
-                pattern,
-                (HttpContext http, IActaOperations operations, IJobs jobs, CancellationToken ct) =>
-                    ControlAsync(
-                        new ControlCall<TBody>(http, operations, jobs, null, null, ct),
-                        options,
-                        body,
-                        bodyRequired,
-                        invalidTitle,
-                        status,
-                        key,
-                        apply
-                    )
+            controls.MapPost(pattern, (HttpContext http, IActaOperations operations, IJobs jobs, CancellationToken ct) =>
+                ControlAsync(
+                    new ControlCall<TBody>(http, operations, jobs, null, null, ct),
+                    options,
+                    body,
+                    bodyRequired,
+                    invalidTitle,
+                    status,
+                    key,
+                    apply
+                )
             ),
             operation,
             summary,
@@ -193,19 +179,17 @@ internal static class RouteTable
         where TBody : class, IControlRequest
         where TResponse : notnull =>
         DeclareControl<TBody, TResponse>(
-            controls.MapPut(
-                pattern,
-                (HttpContext http, IActaOperations operations, IJobs jobs, CancellationToken ct) =>
-                    ControlAsync(
-                        new ControlCall<TBody>(http, operations, jobs, null, null, ct),
-                        options,
-                        body,
-                        true,
-                        invalidTitle,
-                        status,
-                        key,
-                        apply
-                    )
+            controls.MapPut(pattern, (HttpContext http, IActaOperations operations, IJobs jobs, CancellationToken ct) =>
+                ControlAsync(
+                    new ControlCall<TBody>(http, operations, jobs, null, null, ct),
+                    options,
+                    body,
+                    true,
+                    invalidTitle,
+                    status,
+                    key,
+                    apply
+                )
             ),
             operation,
             summary,
@@ -406,9 +390,8 @@ internal static class TagRoutes
     ) =>
         RouteTable.Run(async () =>
         {
-            var paging = QueryReader.Bind(
-                http.Request,
-                static query => (PageSize: query.Int("pageSize"), Cursor: query.Text("cursor"), IncludeTotal: query.Bool("includeTotal"))
+            var paging = QueryReader.Bind(http.Request, static query =>
+                (PageSize: query.Int("pageSize"), Cursor: query.Text("cursor"), IncludeTotal: query.Bool("includeTotal"))
             );
             TagTarget target;
             bool found;

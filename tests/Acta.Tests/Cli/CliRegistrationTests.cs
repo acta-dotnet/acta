@@ -70,9 +70,8 @@ public sealed class CliRegistrationTests
         var path = Path.Combine(Path.GetTempPath(), $"acta-cli-cancel-{Guid.NewGuid():N}.db");
         try
         {
-            var services = BuildWith(
-                ["status", JobRef.New().ToString()],
-                j => j.UseSqlite(o => o.ConnectionString = $"Data Source={path}")
+            var services = BuildWith(["status", JobRef.New().ToString()], j =>
+                j.UseSqlite(o => o.ConnectionString = $"Data Source={path}")
             );
             await using var provider = services.AddLogging().BuildServiceProvider();
             var host = provider.GetServices<IHostedService>().OfType<CliCommandHost>().Single();

@@ -637,9 +637,8 @@ public sealed class PerOccurrenceSchedulingSpec : ActaRuntimeTestBase<Conformanc
 
         // The second occurrence becomes a root of the readmitted schedule, while the other schedule, full, waits for it.
         await AdmitAtAsync(second, ct);
-        var admitted = Assert.Single(
-            await RootsAsync(readmitted.Id, ct),
-            r => r.DeduplicationKey == ScheduleAdmitter.OccurrenceKey(readmitted.Id, second)
+        var admitted = Assert.Single(await RootsAsync(readmitted.Id, ct), r =>
+            r.DeduplicationKey == ScheduleAdmitter.OccurrenceKey(readmitted.Id, second)
         );
         Assert.Equal(
             ScheduleEvaluationStatusCode.WaitingForCapacity,

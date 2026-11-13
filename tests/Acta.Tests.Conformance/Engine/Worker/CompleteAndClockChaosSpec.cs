@@ -36,9 +36,8 @@ public sealed class CompleteAndClockChaosSpec : ActaRuntimeTestBase<ConformanceF
         await ChaosSpecHelpers.StopWorkerMidCompletionRetryAsync(Runtime, _faults, enqueued, ct);
 
         Assert.Equal(JobStatusCode.Executing, (await Jobs.GetStatusAsync(enqueued, ct))?.Status);
-        Assert.DoesNotContain(
-            await GetEventsByJobId.Run(Services, enqueued.JobId, ct),
-            e => e.EventCode == EventCode.JobExecutionSucceeded
+        Assert.DoesNotContain(await GetEventsByJobId.Run(Services, enqueued.JobId, ct), e =>
+            e.EventCode == EventCode.JobExecutionSucceeded
         );
 
         // --- 2. Reclaim and rerun converge to one Succeeded finish; the handler ran twice.

@@ -13,60 +13,54 @@ var app = builder.Build();
 
 // POST writes a durable job and returns 202; the import runs on the worker after the request ends.
 // DeduplicationKey dedupes a retry with the same tenant/import id onto the same job.
-app.MapPost(
-    "/imports",
-    async (StartImportRequest request, HttpContext http, IJobs jobs, CancellationToken ct) =>
-    {
-        var businessKey = $"import:{request.Tenant}:{request.ImportId}";
-        var deduplicationKey = DeduplicationKey.ForDefinition("import-csv", businessKey);
-        var correlationKey = http.TraceIdentifier;
+app.MapPost("/imports", async (StartImportRequest request, HttpContext http, IJobs jobs, CancellationToken ct) =>
+{
+    var businessKey = $"import:{request.Tenant}:{request.ImportId}";
+    var deduplicationKey = DeduplicationKey.ForDefinition("import-csv", businessKey);
+    var correlationKey = http.TraceIdentifier;
 
-        var job = await jobs.EnqueueAsync(
-            new ImportCsv(request.Tenant, request.ImportId, request.FileName),
-            o => o.DeduplicationKey(deduplicationKey).CorrelationKey(correlationKey).Tag("tenant", request.Tenant).Tag("kind", "csv"),
-            ct
-        );
+    var job = await jobs.EnqueueAsync(
+        new ImportCsv(request.Tenant, request.ImportId, request.FileName),
+        o => o.DeduplicationKey(deduplicationKey).CorrelationKey(correlationKey).Tag("tenant", request.Tenant).Tag("kind", "csv"),
+        ct
+    );
 
-        var statusUrl = $"/imports/{job.JobRef}";
+    var statusUrl = $"/imports/{job.JobRef}";
 
-        return Results.Accepted(statusUrl, new StartImportResponse(job.JobRef, job.Action.ToString(), statusUrl, correlationKey));
-    }
-);
+    return Results.Accepted(statusUrl, new StartImportResponse(job.JobRef, job.Action.ToString(), statusUrl, correlationKey));
+});
 
 // GET polls the public JobRef; the result is read back only once the job is terminal.
-app.MapGet(
-    "/imports/{jobRef}",
-    async (string jobRef, IJobs jobs, CancellationToken ct) =>
+app.MapGet("/imports/{jobRef}", async (string jobRef, IJobs jobs, CancellationToken ct) =>
+{
+    if (!JobRef.TryParse(jobRef, out var parsed))
     {
-        if (!JobRef.TryParse(jobRef, out var parsed))
-        {
-            return Results.BadRequest(new { error = "Invalid job ref." });
-        }
-
-        var snapshot = await jobs.GetAsync(parsed, ct);
-        if (snapshot is null)
-        {
-            return Results.NotFound();
-        }
-
-        ImportResult? result = null;
-        if (snapshot.Status.IsTerminal)
-        {
-            (_, result) = await jobs.TryGetResultAsync<ImportResult>(parsed, ct);
-        }
-
-        return Results.Ok(
-            new ImportStatusResponse(
-                snapshot.JobRef,
-                snapshot.Status.ToString(),
-                snapshot.DeduplicationKey,
-                snapshot.CreatedAtUtc,
-                snapshot.ModifiedAtUtc,
-                result
-            )
-        );
+        return Results.BadRequest(new { error = "Invalid job ref." });
     }
-);
+
+    var snapshot = await jobs.GetAsync(parsed, ct);
+    if (snapshot is null)
+    {
+        return Results.NotFound();
+    }
+
+    ImportResult? result = null;
+    if (snapshot.Status.IsTerminal)
+    {
+        (_, result) = await jobs.TryGetResultAsync<ImportResult>(parsed, ct);
+    }
+
+    return Results.Ok(
+        new ImportStatusResponse(
+            snapshot.JobRef,
+            snapshot.Status.ToString(),
+            snapshot.DeduplicationKey,
+            snapshot.CreatedAtUtc,
+            snapshot.ModifiedAtUtc,
+            result
+        )
+    );
+});
 
 Console.WriteLine("POST /imports with { \"tenant\": \"acme\", \"importId\": \"2026-06\", \"fileName\": \"customers.csv\" }");
 Console.WriteLine("Then poll GET /imports/{jobRef}");

@@ -15,8 +15,7 @@ internal static class CallerTransaction
     public static DbConnection RequireOpenConnection(DbTransaction transaction)
     {
         ArgumentNullException.ThrowIfNull(transaction);
-        var connection =
-            transaction.Connection
+        var connection = transaction.Connection
             ?? throw new ArgumentException(
                 "The supplied transaction is detached from its connection; it may have been committed, rolled back, or disposed.",
                 nameof(transaction)

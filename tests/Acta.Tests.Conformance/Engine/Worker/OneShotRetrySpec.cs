@@ -120,9 +120,8 @@ public sealed class OneShotRetrySpec : ActaRuntimeTestBase<ConformanceFixture, J
         var job = await Jobs.GetAsync(enqueued, ct);
         Assert.Equal(JobStatusCode.Succeeded, job!.Status);
         Assert.Equal(0, job.FailureCount);
-        var recovery = Assert.Single(
-            await GetEventsByJobId.Run(Services, enqueued.JobId, ct),
-            e => e.EventCode == EventCode.JobExecutionSucceeded
+        var recovery = Assert.Single(await GetEventsByJobId.Run(Services, enqueued.JobId, ct), e =>
+            e.EventCode == EventCode.JobExecutionSucceeded
         );
         Assert.Equal(3, recovery.ExecutionNumber);
     }

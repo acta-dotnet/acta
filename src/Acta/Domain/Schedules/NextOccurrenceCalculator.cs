@@ -130,15 +130,11 @@ internal static class NextOccurrenceCalculator
     // are the registered declarations and what the operator previews, so the cache stays small.
     private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, CronExpression> Crons = new(StringComparer.Ordinal);
 
-    internal static CronExpression ParseCron(string expression) =>
-        Crons.GetOrAdd(
-            expression,
-            static e =>
-            {
-                var fieldCount = e.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Length;
-                return CronExpression.Parse(e, fieldCount >= 6 ? CronFormat.IncludeSeconds : CronFormat.Standard);
-            }
-        );
+    internal static CronExpression ParseCron(string expression) => Crons.GetOrAdd(expression, static e =>
+        {
+            var fieldCount = e.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Length;
+            return CronExpression.Parse(e, fieldCount >= 6 ? CronFormat.IncludeSeconds : CronFormat.Standard);
+        });
 
     /// <summary>
     /// The bare source's first instant strictly after <paramref name="afterUtc"/> inside the timing's bounds, an interval

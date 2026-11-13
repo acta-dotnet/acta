@@ -362,8 +362,7 @@ internal static partial class LedgerValidation
 
     private static string ReadCertifySql()
     {
-        using var stream =
-            typeof(LedgerValidation).Assembly.GetManifestResourceStream("Acta.Verify.Certification.certify.sql")
+        using var stream = typeof(LedgerValidation).Assembly.GetManifestResourceStream("Acta.Verify.Certification.certify.sql")
             ?? throw new InvalidOperationException("Missing certify.sql resource.");
         using var reader = new StreamReader(stream);
         return reader.ReadToEnd().ReplaceLineEndings("\n");

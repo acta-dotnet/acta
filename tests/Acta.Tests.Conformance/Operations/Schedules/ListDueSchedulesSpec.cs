@@ -31,16 +31,13 @@ public sealed class ListDueSchedulesSpec : ActaStorageTestBase<ConformanceFixtur
         var due = (await ReadAsync(now, 100, ct)).Schedules.Where(s => s.JobId == slotId).ToList();
 
         Assert.Equal(["late", "soon"], due.Select(s => s.ScheduleName));
-        Assert.All(
-            due,
-            s =>
-            {
-                Assert.Equal(JobStatusCode.Idle, s.SlotStatus);
-                Assert.Null(s.FiringStatus);
-                Assert.Equal(jobName, s.DefinitionName);
-                Assert.Equal(ScheduleEvaluationStatusCode.Scheduled, s.EvaluationStatus);
-            }
-        );
+        Assert.All(due, s =>
+        {
+            Assert.Equal(JobStatusCode.Idle, s.SlotStatus);
+            Assert.Null(s.FiringStatus);
+            Assert.Equal(jobName, s.DefinitionName);
+            Assert.Equal(ScheduleEvaluationStatusCode.Scheduled, s.EvaluationStatus);
+        });
         Assert.Equal(now.AddMinutes(-1), due.Single(s => s.ScheduleName == "soon").NextEvaluationAtUtc);
         Assert.Equal(now.AddHours(1), due.Single(s => s.ScheduleName == "late").NextEvaluationAtUtc);
     }

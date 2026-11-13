@@ -31,8 +31,7 @@ public sealed class DatabaseSetup
 
     private static async Task ResetSchemaAsync(string schemaName, CancellationToken ct)
     {
-        var conn =
-            IntegrationConfig.SqlServerConnectionString
+        var conn = IntegrationConfig.SqlServerConnectionString
             ?? throw new InvalidOperationException("DatabaseSetup requires ACTA_TEST_MSSQL to point at the dev SQL Server.");
 
         var builder = new SqlConnectionStringBuilder(conn) { TrustServerCertificate = true, ConnectTimeout = 30 };

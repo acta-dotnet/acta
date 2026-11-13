@@ -138,15 +138,12 @@ internal static partial class ActaOpenApiDocument
         foreach (var mount in mounts)
         {
             // The API alone, at the URLs a dashboard mount gives it: the dashboard's pages are no part of the contract.
-            var acta = app.MapActaApi(
-                mount.Pattern + "/api",
-                o =>
-                {
-                    o.EnableControls = mount.Controls;
-                    o.RequireControlConfirmation = mount.RequireConfirmation;
-                    o.ControlConfirmationHeaderName = mount.ConfirmationHeaderName ?? o.ControlConfirmationHeaderName;
-                }
-            );
+            var acta = app.MapActaApi(mount.Pattern + "/api", o =>
+            {
+                o.EnableControls = mount.Controls;
+                o.RequireControlConfirmation = mount.RequireConfirmation;
+                o.ControlConfirmationHeaderName = mount.ConfirmationHeaderName ?? o.ControlConfirmationHeaderName;
+            });
             // The handlers read their JSON body through ControlEndpointValidation rather than a bound parameter, so they
             // declare it as RequestBodyDoc metadata, translated into the framework's IAcceptsMetadata here only: in a
             // serving host the routing matcher would read it and answer the missing-body and content-type cases the
@@ -163,22 +160,16 @@ internal static partial class ActaOpenApiDocument
         // generator's body declaration; a 403 from every route's permission check; and the debug lookup of a job by its
         // number.
         app.MapActaApi(OpenApiExamples.ErrorsMount + "/api", o => o.EnableControls = true);
-        app.MapActaApi(
-            OpenApiExamples.DeniedMount + "/api",
-            o =>
-            {
-                o.EnableControls = true;
-                o.RequirePermissions = true;
-            }
-        );
-        app.MapActaApi(
-            OpenApiExamples.NumericMount + "/api",
-            o =>
-            {
-                o.EnableControls = true;
-                o.EnableNumericIdLookup = true;
-            }
-        );
+        app.MapActaApi(OpenApiExamples.DeniedMount + "/api", o =>
+        {
+            o.EnableControls = true;
+            o.RequirePermissions = true;
+        });
+        app.MapActaApi(OpenApiExamples.NumericMount + "/api", o =>
+        {
+            o.EnableControls = true;
+            o.EnableNumericIdLookup = true;
+        });
         app.MapOpenApi();
         await app.StartAsync(TestContext.Current.CancellationToken);
         await using var _ = app;

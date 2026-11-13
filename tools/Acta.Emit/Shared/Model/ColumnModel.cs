@@ -28,8 +28,7 @@ internal sealed class ColumnModel(DbColumnSpec spec, Type entityType, XmlDocSour
     public bool IsGenerated => _spec.IsGenerated;
 
     public PropertyInfo Property =>
-        field ??=
-            _entityType.GetProperty(_spec.ClrPropertyName, BindingFlags.Public | BindingFlags.Instance)
+        field ??= _entityType.GetProperty(_spec.ClrPropertyName, BindingFlags.Public | BindingFlags.Instance)
             ?? throw new InvalidOperationException($"Property '{_spec.ClrPropertyName}' not found on {_entityType.Name}.");
 
     public string? Summary => _docs.ForProperty(Property);

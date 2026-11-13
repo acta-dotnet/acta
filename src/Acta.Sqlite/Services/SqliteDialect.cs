@@ -235,32 +235,25 @@ internal sealed partial class SqliteDialect : ISqlDialect
 
     public void BindEnqueueJobs(DbCommand command, IReadOnlyList<JobEnqueueValues> rows, IReadOnlyList<Guid> jobRefs, string schema)
     {
-        var jsonRows = JsonArray(
-            rows,
-            (writer, row, index) =>
-            {
-                writer.WriteNumber("ordinal", index);
-                writer.WriteString("job_ref", jobRefs[index].ToString());
-                writer.WriteString("namespace_name", row.NamespaceName);
-                writer.WriteString("job_name", row.JobName);
-                WriteStringOrNull(writer, "deduplication_key", row.DeduplicationKey);
-                WriteStringOrNull(writer, "correlation_key", row.CorrelationKey);
-                WriteNumberOrNull(
-                    writer,
-                    "job_priority_code_override",
-                    row.PriorityOverride is { } priority ? (short)priority : (short?)null
-                );
-                writer.WriteNumber("input_format_id", row.Input.Format.Id);
-                WriteBase64OrNull(writer, "input", row.Input.Format.IsNone ? (ReadOnlyMemory<byte>?)null : row.Input.Data);
-                WriteStringOrNull(writer, "concurrency_key", row.ConcurrencyKey);
-                WriteUtcOrNull(writer, "next_run_at_utc", row.NextRunAtUtc);
-                WriteNumberOrNull(writer, "delay_seconds", row.DelaySeconds);
-                WriteNumberOrNull(writer, "parent_job_id", row.ParentJobId);
-                WriteStringOrNull(writer, "tenant_name", row.TenantName);
-                writer.WriteNumber("tenant_override", row.OverrideParentTenant ? 1 : 0);
-                WriteStringOrNull(writer, "lane_name", row.Lane);
-            }
-        );
+        var jsonRows = JsonArray(rows, (writer, row, index) =>
+        {
+            writer.WriteNumber("ordinal", index);
+            writer.WriteString("job_ref", jobRefs[index].ToString());
+            writer.WriteString("namespace_name", row.NamespaceName);
+            writer.WriteString("job_name", row.JobName);
+            WriteStringOrNull(writer, "deduplication_key", row.DeduplicationKey);
+            WriteStringOrNull(writer, "correlation_key", row.CorrelationKey);
+            WriteNumberOrNull(writer, "job_priority_code_override", row.PriorityOverride is { } priority ? (short)priority : (short?)null);
+            writer.WriteNumber("input_format_id", row.Input.Format.Id);
+            WriteBase64OrNull(writer, "input", row.Input.Format.IsNone ? (ReadOnlyMemory<byte>?)null : row.Input.Data);
+            WriteStringOrNull(writer, "concurrency_key", row.ConcurrencyKey);
+            WriteUtcOrNull(writer, "next_run_at_utc", row.NextRunAtUtc);
+            WriteNumberOrNull(writer, "delay_seconds", row.DelaySeconds);
+            WriteNumberOrNull(writer, "parent_job_id", row.ParentJobId);
+            WriteStringOrNull(writer, "tenant_name", row.TenantName);
+            writer.WriteNumber("tenant_override", row.OverrideParentTenant ? 1 : 0);
+            WriteStringOrNull(writer, "lane_name", row.Lane);
+        });
 
         var tagItems = new List<(Guid JobRef, string Name, string? Value, string? ValueSearch)>();
         for (var i = 0; i < rows.Count; i++)
@@ -276,16 +269,13 @@ internal sealed partial class SqliteDialect : ISqlDialect
             }
         }
 
-        var jsonTags = JsonArray(
-            tagItems,
-            (writer, tag, _) =>
-            {
-                writer.WriteString("job_ref", tag.JobRef.ToString());
-                writer.WriteString("tag_name", tag.Name);
-                WriteStringOrNull(writer, "tag_value", tag.Value);
-                WriteStringOrNull(writer, "tag_value_search", tag.ValueSearch);
-            }
-        );
+        var jsonTags = JsonArray(tagItems, (writer, tag, _) =>
+        {
+            writer.WriteString("job_ref", tag.JobRef.ToString());
+            writer.WriteString("tag_name", tag.Name);
+            WriteStringOrNull(writer, "tag_value", tag.Value);
+            WriteStringOrNull(writer, "tag_value_search", tag.ValueSearch);
+        });
 
         AddText(command, "@p_rows", jsonRows);
         AddText(command, "@p_tags", jsonTags);
@@ -314,15 +304,12 @@ internal sealed partial class SqliteDialect : ISqlDialect
         AddInt(command, "@p_tenant_override", row.OverrideParentTenant ? 1 : 0);
         AddNullableText(command, "@p_lane_name", row.Lane);
 
-        var jsonTags = JsonArray(
-            row.Tags ?? [],
-            (writer, tag, _) =>
-            {
-                writer.WriteString("tag_name", tag.Name);
-                WriteStringOrNull(writer, "tag_value", tag.Value);
-                WriteStringOrNull(writer, "tag_value_search", TagValueSearch.Normalize(tag.Value));
-            }
-        );
+        var jsonTags = JsonArray(row.Tags ?? [], (writer, tag, _) =>
+        {
+            writer.WriteString("tag_name", tag.Name);
+            WriteStringOrNull(writer, "tag_value", tag.Value);
+            WriteStringOrNull(writer, "tag_value_search", TagValueSearch.Normalize(tag.Value));
+        });
         AddText(command, "@p_tags", jsonTags);
     }
 
@@ -389,42 +376,39 @@ internal sealed partial class SqliteDialect : ISqlDialect
     {
         AddInt(command, "@p_namespace_id", namespaceId);
 
-        var definitions = JsonArray(
-            rows,
-            (writer, row, _) =>
-            {
-                writer.WriteString("definition_name", row.DefinitionName);
-                writer.WriteNumber("job_priority_code", row.JobPriorityCode);
-                writer.WriteNumber("max_attempts", row.MaxAttempts);
-                WriteNumberOrNull(writer, "concurrency_limit", row.ConcurrencyLimit);
-                WriteStringOrNull(writer, "rate_limit", row.RateLimit);
-                WriteStringOrNull(writer, "rate_name", row.RateName);
-                WriteStringOrNull(writer, "lane_name", row.LaneName);
-                writer.WriteString("backoff", row.Backoff);
-                writer.WriteNumber("execution_timeout_seconds", row.ExecutionTimeoutSeconds);
-                writer.WriteNumber("deadline_seconds", row.DeadlineSeconds);
-                writer.WriteNumber("deadline_behavior_code", row.DeadlineBehaviorCode);
-                writer.WriteNumber("retention_seconds", row.JobRetentionSeconds);
-                writer.WriteString("input_type_name", row.InputTypeName);
-                WriteStringOrNull(writer, "result_type_name", row.ResultTypeName);
-                writer.WriteNumber("input_format_id", row.InputFormatId);
-                writer.WriteString("input_format_name", row.InputFormatName);
-                writer.WriteNumber("result_format_id", row.ResultFormatId);
-                writer.WriteString("result_format_name", row.ResultFormatName);
-                writer.WriteNumber("event_recording_code", row.EventRecordingCode);
-                writer.WriteNumber("alert_profile_code", row.AlertProfileCode);
-                writer.WriteNumber("firing_failure_policy_code", row.FiringFailurePolicyCode);
-                writer.WriteNumber("scheduled_delivery_code", row.ScheduledDeliveryCode);
-                writer.WriteNumber("default_input_format_id", row.DefaultInputFormatId);
-                WriteBase64OrNull(writer, "default_input", row.DefaultInputFormatId == 0 ? null : row.DefaultInput);
-                writer.WriteNumber("tenant_requirement_code", row.TenantRequirementCode);
-                WriteStringOrNull(writer, "alert_channel_name", row.AlertChannelName);
-                WriteStringOrNull(writer, "runbook_url", row.RunbookUrl);
-                WriteStringOrNull(writer, "display_name", row.DisplayName);
-                WriteStringOrNull(writer, "description", row.Description);
-                writer.WriteString("definition_hash", row.DefinitionHash);
-            }
-        );
+        var definitions = JsonArray(rows, (writer, row, _) =>
+        {
+            writer.WriteString("definition_name", row.DefinitionName);
+            writer.WriteNumber("job_priority_code", row.JobPriorityCode);
+            writer.WriteNumber("max_attempts", row.MaxAttempts);
+            WriteNumberOrNull(writer, "concurrency_limit", row.ConcurrencyLimit);
+            WriteStringOrNull(writer, "rate_limit", row.RateLimit);
+            WriteStringOrNull(writer, "rate_name", row.RateName);
+            WriteStringOrNull(writer, "lane_name", row.LaneName);
+            writer.WriteString("backoff", row.Backoff);
+            writer.WriteNumber("execution_timeout_seconds", row.ExecutionTimeoutSeconds);
+            writer.WriteNumber("deadline_seconds", row.DeadlineSeconds);
+            writer.WriteNumber("deadline_behavior_code", row.DeadlineBehaviorCode);
+            writer.WriteNumber("retention_seconds", row.JobRetentionSeconds);
+            writer.WriteString("input_type_name", row.InputTypeName);
+            WriteStringOrNull(writer, "result_type_name", row.ResultTypeName);
+            writer.WriteNumber("input_format_id", row.InputFormatId);
+            writer.WriteString("input_format_name", row.InputFormatName);
+            writer.WriteNumber("result_format_id", row.ResultFormatId);
+            writer.WriteString("result_format_name", row.ResultFormatName);
+            writer.WriteNumber("event_recording_code", row.EventRecordingCode);
+            writer.WriteNumber("alert_profile_code", row.AlertProfileCode);
+            writer.WriteNumber("firing_failure_policy_code", row.FiringFailurePolicyCode);
+            writer.WriteNumber("scheduled_delivery_code", row.ScheduledDeliveryCode);
+            writer.WriteNumber("default_input_format_id", row.DefaultInputFormatId);
+            WriteBase64OrNull(writer, "default_input", row.DefaultInputFormatId == 0 ? null : row.DefaultInput);
+            writer.WriteNumber("tenant_requirement_code", row.TenantRequirementCode);
+            WriteStringOrNull(writer, "alert_channel_name", row.AlertChannelName);
+            WriteStringOrNull(writer, "runbook_url", row.RunbookUrl);
+            WriteStringOrNull(writer, "display_name", row.DisplayName);
+            WriteStringOrNull(writer, "description", row.Description);
+            writer.WriteString("definition_hash", row.DefinitionHash);
+        });
 
         AddText(command, "@p_definitions", definitions);
     }
@@ -436,21 +420,18 @@ internal sealed partial class SqliteDialect : ISqlDialect
         string schema
     )
     {
-        var definitionRows = JsonArray(
-            definitions,
-            (writer, definition, index) =>
-            {
-                writer.WriteNumber("definition_id", definition.DefinitionId);
-                writer.WriteString("job_ref", slotRefs[index].ToString());
-                writer.WriteNumber("input_format_id", definition.InputFormatId);
-                WriteBase64OrNull(
-                    writer,
-                    "input",
-                    definition.InputFormatId == JobPayloadFormat.None.Id ? (ReadOnlyMemory<byte>?)null : definition.Input
-                );
-                writer.WriteNumber("scheduled_delivery_code", (short)definition.ScheduledDelivery);
-            }
-        );
+        var definitionRows = JsonArray(definitions, (writer, definition, index) =>
+        {
+            writer.WriteNumber("definition_id", definition.DefinitionId);
+            writer.WriteString("job_ref", slotRefs[index].ToString());
+            writer.WriteNumber("input_format_id", definition.InputFormatId);
+            WriteBase64OrNull(
+                writer,
+                "input",
+                definition.InputFormatId == JobPayloadFormat.None.Id ? (ReadOnlyMemory<byte>?)null : definition.Input
+            );
+            writer.WriteNumber("scheduled_delivery_code", (short)definition.ScheduledDelivery);
+        });
 
         var scheduleItems = new List<(int DefinitionId, SlotSchedule Schedule)>();
         foreach (var definition in definitions)
@@ -461,29 +442,26 @@ internal sealed partial class SqliteDialect : ISqlDialect
             }
         }
 
-        var scheduleRows = JsonArray(
-            scheduleItems,
-            (writer, item, _) =>
-            {
-                writer.WriteNumber("definition_id", item.DefinitionId);
-                writer.WriteString("schedule_name", item.Schedule.ScheduleName);
-                writer.WriteString("expression", item.Schedule.Expression);
-                writer.WriteString("time_zone_id", string.IsNullOrWhiteSpace(item.Schedule.TimeZoneId) ? "UTC" : item.Schedule.TimeZoneId);
-                writer.WriteNumber("expression_kind_code", (short)item.Schedule.ExpressionKind);
-                writer.WriteNumber("misfire_strategy_code", (short)item.Schedule.MisfireStrategy);
-                WriteUtcOrNull(writer, "next_occurrence_at_utc", item.Schedule.NextOccurrenceAtUtc);
-                WriteStringOrNull(writer, "description", item.Schedule.Description);
-                WriteUtcOrNull(writer, "interval_anchor_at_utc", item.Schedule.IntervalAnchorAtUtc);
-                writer.WriteString("timing_fingerprint", item.Schedule.TimingFingerprint);
-                writer.WriteNumber("max_outstanding", item.Schedule.MaxOutstanding);
-                writer.WriteNumber("full_behavior_code", (short)item.Schedule.FullBehavior);
-                WriteNumberOrNull(writer, "expire_after_seconds", item.Schedule.ExpireAfterSeconds);
-                WriteNumberOrNull(writer, "expire_action_code", (short?)item.Schedule.ExpireAction);
-                WriteStringOrNull(writer, "availability_calendar_name", item.Schedule.AvailabilityCalendarName);
-                WriteUtcOrNull(writer, "start_at_utc", item.Schedule.StartAtUtc);
-                WriteUtcOrNull(writer, "end_before_utc", item.Schedule.EndBeforeUtc);
-            }
-        );
+        var scheduleRows = JsonArray(scheduleItems, (writer, item, _) =>
+        {
+            writer.WriteNumber("definition_id", item.DefinitionId);
+            writer.WriteString("schedule_name", item.Schedule.ScheduleName);
+            writer.WriteString("expression", item.Schedule.Expression);
+            writer.WriteString("time_zone_id", string.IsNullOrWhiteSpace(item.Schedule.TimeZoneId) ? "UTC" : item.Schedule.TimeZoneId);
+            writer.WriteNumber("expression_kind_code", (short)item.Schedule.ExpressionKind);
+            writer.WriteNumber("misfire_strategy_code", (short)item.Schedule.MisfireStrategy);
+            WriteUtcOrNull(writer, "next_occurrence_at_utc", item.Schedule.NextOccurrenceAtUtc);
+            WriteStringOrNull(writer, "description", item.Schedule.Description);
+            WriteUtcOrNull(writer, "interval_anchor_at_utc", item.Schedule.IntervalAnchorAtUtc);
+            writer.WriteString("timing_fingerprint", item.Schedule.TimingFingerprint);
+            writer.WriteNumber("max_outstanding", item.Schedule.MaxOutstanding);
+            writer.WriteNumber("full_behavior_code", (short)item.Schedule.FullBehavior);
+            WriteNumberOrNull(writer, "expire_after_seconds", item.Schedule.ExpireAfterSeconds);
+            WriteNumberOrNull(writer, "expire_action_code", (short?)item.Schedule.ExpireAction);
+            WriteStringOrNull(writer, "availability_calendar_name", item.Schedule.AvailabilityCalendarName);
+            WriteUtcOrNull(writer, "start_at_utc", item.Schedule.StartAtUtc);
+            WriteUtcOrNull(writer, "end_before_utc", item.Schedule.EndBeforeUtc);
+        });
 
         AddText(command, "@p_definitions", definitionRows);
         AddText(command, "@p_schedules", scheduleRows);

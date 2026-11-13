@@ -390,10 +390,7 @@ public sealed class RecoveryTests : IDisposable
         Assert.StartsWith("# Acta Verify: FAIL", unsettled);
         Assert.Contains("held in 1 of 2, not the last one.", unsettled);
         // A rerun whose only case of the cell is not applicable, as a suite that does not gate on floors reports, holds nothing.
-        var skipped = Rerun(1, held: false, 0) with
-        {
-            Cases = [Trial("reconcile", "NOT_APPLICABLE", "NOT_MEASURED", "Not gated.")],
-        };
+        var skipped = Rerun(1, held: false, 0) with { Cases = [Trial("reconcile", "NOT_APPLICABLE", "NOT_MEASURED", "Not gated.")] };
         Assert.StartsWith("# Acta Verify: FAIL", Report.Markdown(bundle.DirectoryPath, round, [skipped]));
     }
 

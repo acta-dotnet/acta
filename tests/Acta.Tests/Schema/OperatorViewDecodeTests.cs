@@ -21,9 +21,8 @@ public sealed partial class OperatorViewDecodeTests
     [InlineData("Acta.Sqlite")]
     public void Every_view_decode_is_one_family_whole(string project)
     {
-        var baseline = Assert.Single(
-            ShippedCode.SourceFiles("*_init.sql"),
-            file => file.Relative.StartsWith($"src/{project}/Migrations/", StringComparison.Ordinal)
+        var baseline = Assert.Single(ShippedCode.SourceFiles("*_init.sql"), file =>
+            file.Relative.StartsWith($"src/{project}/Migrations/", StringComparison.Ordinal)
         );
         var families = CodeManifests
             .All.GroupBy(entry => entry.CodeKind, StringComparer.Ordinal)

@@ -107,14 +107,8 @@ public class CliRunnerClipboardTests
     {
         var error = new StringWriter();
         var jobs = new NothingJobs();
-        var runner = new CliCommandRunner(
-            jobs,
-            jobs,
-            [],
-            ["shop"],
-            new StringWriter(),
-            error,
-            () => throw new InvalidOperationException("clipboard must not be read")
+        var runner = new CliCommandRunner(jobs, jobs, [], ["shop"], new StringWriter(), error, () =>
+            throw new InvalidOperationException("clipboard must not be read")
         );
 
         var exit = await runner.RunAsync(
@@ -253,14 +247,8 @@ public class CliRunnerClipboardTests
         var output = new StringWriter();
         var error = new StringWriter();
         var jobs = new NothingJobs();
-        var runner = new CliCommandRunner(
-            jobs,
-            jobs,
-            [],
-            ["shop"],
-            output,
-            error,
-            () => throw new InvalidOperationException("clipboard must not be read")
+        var runner = new CliCommandRunner(jobs, jobs, [], ["shop"], output, error, () =>
+            throw new InvalidOperationException("clipboard must not be read")
         );
 
         var exitCode = await runner.RunAsync(

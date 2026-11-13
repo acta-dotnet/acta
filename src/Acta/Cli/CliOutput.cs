@@ -22,23 +22,20 @@ internal static class CliOutput
     {
         if (json)
         {
-            WriteJson(
-                writer,
-                w =>
+            WriteJson(writer, w =>
+            {
+                w.WriteString("verb", verb);
+                w.WriteString("jobRef", jobRef.ToString());
+                w.WriteString("action", Code(result.Action));
+                if (result.Status is { } status)
                 {
-                    w.WriteString("verb", verb);
-                    w.WriteString("jobRef", jobRef.ToString());
-                    w.WriteString("action", Code(result.Action));
-                    if (result.Status is { } status)
-                    {
-                        w.WriteString("status", status.Code);
-                    }
-                    else
-                    {
-                        w.WriteNull("status");
-                    }
+                    w.WriteString("status", status.Code);
                 }
-            );
+                else
+                {
+                    w.WriteNull("status");
+                }
+            });
             return;
         }
 
@@ -51,27 +48,24 @@ internal static class CliOutput
     {
         if (json)
         {
-            WriteJson(
-                writer,
-                w =>
+            WriteJson(writer, w =>
+            {
+                w.WriteString("jobRef", snapshot.JobRef.ToString());
+                w.WriteString("jobNamespace", snapshot.JobNamespace);
+                w.WriteString("jobName", snapshot.JobName);
+                WriteJsonStringOrNull(w, "tenantName", snapshot.TenantName);
+                if (snapshot.DeduplicationKey is { } key)
                 {
-                    w.WriteString("jobRef", snapshot.JobRef.ToString());
-                    w.WriteString("jobNamespace", snapshot.JobNamespace);
-                    w.WriteString("jobName", snapshot.JobName);
-                    WriteJsonStringOrNull(w, "tenantName", snapshot.TenantName);
-                    if (snapshot.DeduplicationKey is { } key)
-                    {
-                        w.WriteString("deduplicationKey", key);
-                    }
-                    else
-                    {
-                        w.WriteNull("deduplicationKey");
-                    }
-                    w.WriteString("status", snapshot.Status.Code);
-                    w.WriteString("createdAtUtc", snapshot.CreatedAtUtc);
-                    w.WriteNumber("failureCount", snapshot.FailureCount);
+                    w.WriteString("deduplicationKey", key);
                 }
-            );
+                else
+                {
+                    w.WriteNull("deduplicationKey");
+                }
+                w.WriteString("status", snapshot.Status.Code);
+                w.WriteString("createdAtUtc", snapshot.CreatedAtUtc);
+                w.WriteNumber("failureCount", snapshot.FailureCount);
+            });
             return;
         }
 
@@ -103,73 +97,70 @@ internal static class CliOutput
     {
         if (json)
         {
-            WriteJson(
-                writer,
-                w =>
+            WriteJson(writer, w =>
+            {
+                w.WriteString("jobRef", x.JobRef.ToString());
+                w.WriteString("jobNamespace", x.JobNamespace);
+                w.WriteString("jobName", x.JobName);
+                w.WriteString("status", x.Status.Code);
+                w.WriteString("statusMeaning", x.StatusMeaning);
+                w.WriteString("headline", x.Headline);
+
+                if (x.ActiveWait is { } wait)
                 {
-                    w.WriteString("jobRef", x.JobRef.ToString());
-                    w.WriteString("jobNamespace", x.JobNamespace);
-                    w.WriteString("jobName", x.JobName);
-                    w.WriteString("status", x.Status.Code);
-                    w.WriteString("statusMeaning", x.StatusMeaning);
-                    w.WriteString("headline", x.Headline);
-
-                    if (x.ActiveWait is { } wait)
-                    {
-                        w.WriteStartObject("activeWait");
-                        w.WriteString("kind", wait.Kind.Code);
-                        w.WriteString("name", wait.Name);
-                        WriteJsonInstantOrNull(w, "dueAtUtc", wait.DueAtUtc);
-                        w.WriteEndObject();
-                    }
-                    else
-                    {
-                        w.WriteNull("activeWait");
-                    }
-
-                    if (x.Lease is { } lease)
-                    {
-                        w.WriteStartObject("lease");
-                        WriteJsonStringOrNull(w, "workerRef", lease.WorkerRef?.ToString());
-                        WriteJsonStringOrNull(w, "workerVersion", lease.WorkerVersion);
-                        WriteJsonInstantOrNull(w, "expiresAtUtc", lease.ExpiresAtUtc);
-                        w.WriteBoolean("expired", lease.Expired);
-                        WriteJsonInstantOrNull(w, "workerLastSeenAtUtc", lease.WorkerLastSeenAtUtc);
-                        w.WriteBoolean("workerStale", lease.WorkerStale);
-                        w.WriteString("recoveryExpectation", lease.RecoveryExpectation);
-                        w.WriteEndObject();
-                    }
-                    else
-                    {
-                        w.WriteNull("lease");
-                    }
-
-                    w.WriteStartArray("steps");
-                    foreach (var s in x.Steps)
-                    {
-                        w.WriteStartObject();
-                        w.WriteString("name", s.Name);
-                        w.WriteString("status", s.Status.Code);
-                        w.WriteString("explanation", s.Explanation);
-                        w.WriteEndObject();
-                    }
-                    w.WriteEndArray();
-                    w.WriteBoolean("stepsHasMore", x.StepsHasMore);
-
-                    WriteJsonStringOrNull(w, "lastExecutedBy", x.LastExecutedBy);
-                    WriteJsonStringOrNull(w, "reason", x.Reason);
-
-                    w.WriteStartArray("nextActions");
-                    foreach (var a in x.NextActions)
-                    {
-                        w.WriteStartObject();
-                        w.WriteString("kind", a.Kind);
-                        w.WriteString("description", a.Description);
-                        w.WriteEndObject();
-                    }
-                    w.WriteEndArray();
+                    w.WriteStartObject("activeWait");
+                    w.WriteString("kind", wait.Kind.Code);
+                    w.WriteString("name", wait.Name);
+                    WriteJsonInstantOrNull(w, "dueAtUtc", wait.DueAtUtc);
+                    w.WriteEndObject();
                 }
-            );
+                else
+                {
+                    w.WriteNull("activeWait");
+                }
+
+                if (x.Lease is { } lease)
+                {
+                    w.WriteStartObject("lease");
+                    WriteJsonStringOrNull(w, "workerRef", lease.WorkerRef?.ToString());
+                    WriteJsonStringOrNull(w, "workerVersion", lease.WorkerVersion);
+                    WriteJsonInstantOrNull(w, "expiresAtUtc", lease.ExpiresAtUtc);
+                    w.WriteBoolean("expired", lease.Expired);
+                    WriteJsonInstantOrNull(w, "workerLastSeenAtUtc", lease.WorkerLastSeenAtUtc);
+                    w.WriteBoolean("workerStale", lease.WorkerStale);
+                    w.WriteString("recoveryExpectation", lease.RecoveryExpectation);
+                    w.WriteEndObject();
+                }
+                else
+                {
+                    w.WriteNull("lease");
+                }
+
+                w.WriteStartArray("steps");
+                foreach (var s in x.Steps)
+                {
+                    w.WriteStartObject();
+                    w.WriteString("name", s.Name);
+                    w.WriteString("status", s.Status.Code);
+                    w.WriteString("explanation", s.Explanation);
+                    w.WriteEndObject();
+                }
+                w.WriteEndArray();
+                w.WriteBoolean("stepsHasMore", x.StepsHasMore);
+
+                WriteJsonStringOrNull(w, "lastExecutedBy", x.LastExecutedBy);
+                WriteJsonStringOrNull(w, "reason", x.Reason);
+
+                w.WriteStartArray("nextActions");
+                foreach (var a in x.NextActions)
+                {
+                    w.WriteStartObject();
+                    w.WriteString("kind", a.Kind);
+                    w.WriteString("description", a.Description);
+                    w.WriteEndObject();
+                }
+                w.WriteEndArray();
+            });
             return;
         }
 
@@ -282,34 +273,31 @@ internal static class CliOutput
     {
         if (json)
         {
-            WriteJson(
-                writer,
-                w =>
+            WriteJson(writer, w =>
+            {
+                w.WriteString("jobRef", jobRef.ToString());
+                w.WriteStartArray("events");
+                foreach (var e in page.Items)
                 {
-                    w.WriteString("jobRef", jobRef.ToString());
-                    w.WriteStartArray("events");
-                    foreach (var e in page.Items)
+                    w.WriteStartObject();
+                    w.WriteString("createdAtUtc", e.CreatedAtUtc);
+                    w.WriteString("event", e.EventCode.Code);
+                    WriteJsonStringOrNull(w, "message", e.Message);
+                    WriteJsonStringOrNull(w, "actor", e.Actor);
+                    WriteJsonStringOrNull(w, "detailsText", e.DetailsText);
+                    if (e.WorkerRef is { } workerRef)
                     {
-                        w.WriteStartObject();
-                        w.WriteString("createdAtUtc", e.CreatedAtUtc);
-                        w.WriteString("event", e.EventCode.Code);
-                        WriteJsonStringOrNull(w, "message", e.Message);
-                        WriteJsonStringOrNull(w, "actor", e.Actor);
-                        WriteJsonStringOrNull(w, "detailsText", e.DetailsText);
-                        if (e.WorkerRef is { } workerRef)
-                        {
-                            w.WriteString("workerRef", workerRef.ToString());
-                        }
-                        if (e.ExecutionNumber is { } en)
-                        {
-                            w.WriteNumber("executionNumber", en);
-                        }
-                        w.WriteEndObject();
+                        w.WriteString("workerRef", workerRef.ToString());
                     }
-                    w.WriteEndArray();
-                    WriteJsonStringOrNull(w, "nextCursor", page.HasMore ? page.NextCursor : null);
+                    if (e.ExecutionNumber is { } en)
+                    {
+                        w.WriteNumber("executionNumber", en);
+                    }
+                    w.WriteEndObject();
                 }
-            );
+                w.WriteEndArray();
+                WriteJsonStringOrNull(w, "nextCursor", page.HasMore ? page.NextCursor : null);
+            });
             return;
         }
 
@@ -368,22 +356,19 @@ internal static class CliOutput
         var runCode = JsonNamingPolicy.KebabCaseLower.ConvertName(run);
         if (json)
         {
-            WriteJson(
-                writer,
-                w =>
+            WriteJson(writer, w =>
+            {
+                w.WriteString("jobRef", jobRef.ToString());
+                w.WriteString("run", runCode);
+                if (status is { } s)
                 {
-                    w.WriteString("jobRef", jobRef.ToString());
-                    w.WriteString("run", runCode);
-                    if (status is { } s)
-                    {
-                        w.WriteString("status", s.Code);
-                    }
-                    else
-                    {
-                        w.WriteNull("status");
-                    }
+                    w.WriteString("status", s.Code);
                 }
-            );
+                else
+                {
+                    w.WriteNull("status");
+                }
+            });
             return;
         }
 
@@ -406,20 +391,17 @@ internal static class CliOutput
     {
         if (json)
         {
-            WriteJson(
-                writer,
-                w =>
+            WriteJson(writer, w =>
+            {
+                w.WriteString("schema", schema);
+                w.WriteStartArray("applied");
+                foreach (var name in applied)
                 {
-                    w.WriteString("schema", schema);
-                    w.WriteStartArray("applied");
-                    foreach (var name in applied)
-                    {
-                        w.WriteStringValue(name);
-                    }
-                    w.WriteEndArray();
-                    WriteDeployments(w, deployments);
+                    w.WriteStringValue(name);
                 }
-            );
+                w.WriteEndArray();
+                WriteDeployments(w, deployments);
+            });
             return;
         }
 
@@ -517,14 +499,11 @@ internal static class CliOutput
     {
         if (json)
         {
-            WriteJson(
-                writer,
-                w =>
-                {
-                    w.WriteString("jobRef", jobRef.ToString());
-                    w.WriteString("status", status.Code);
-                }
-            );
+            WriteJson(writer, w =>
+            {
+                w.WriteString("jobRef", jobRef.ToString());
+                w.WriteString("status", status.Code);
+            });
             return;
         }
 

@@ -102,8 +102,8 @@ internal static class NamespacesEndpoints
             static (call, name) =>
             {
                 var body = call.Body!;
-                var expectedVersion =
-                    body.ExpectedVersion ?? throw new InvalidControlException("Invalid namespace update.", "expectedVersion is required.");
+                var expectedVersion = body.ExpectedVersion
+                    ?? throw new InvalidControlException("Invalid namespace update.", "expectedVersion is required.");
                 ControlEndpointValidation.RequireLength(body.OwnerTeam, "ownerTeam", TextLimits.NamespaceOwnerTeam);
                 ControlEndpointValidation.RequireLength(body.Description, "description", TextLimits.NamespaceDescription);
                 return call.Operations.Namespaces.UpdateAsync(

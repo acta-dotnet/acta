@@ -90,8 +90,7 @@ internal sealed class OwnedProvider : IAsyncDisposable
         if (useComposeServer)
         {
             var service = Provider == "pg" ? "postgres" : "sqlserver";
-            (ContainerId, ConnectionString) =
-                await FindDevServerAsync(Provider, ct)
+            (ContainerId, ConnectionString) = await FindDevServerAsync(Provider, ct)
                 ?? throw new ServerSetupException(
                     $"--use-compose-servers needs the single running acta-dev {service} service; none was found."
                 );

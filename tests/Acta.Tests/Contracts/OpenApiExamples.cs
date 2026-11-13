@@ -210,6 +210,8 @@ internal static partial class OpenApiExamples
         return body;
     }
 
-    private static readonly string BuildVersion =
-        typeof(IJobs).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? "unknown";
+    private static readonly string BuildVersion = typeof(IJobs)
+        .Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()
+        ?.InformationalVersion
+        ?? "unknown";
 }

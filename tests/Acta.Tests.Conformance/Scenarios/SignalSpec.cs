@@ -258,9 +258,8 @@ public sealed class SignalSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<
         var waiting = await ReadJobAsync(enqueued.JobId, ct);
         Assert.Equal(JobStatusCode.Suspended, waiting.Status);
         Assert.Equal(1, waiting.JobState.ExecutionNumber);
-        Assert.Contains(
-            await ReadSignalsAsync(enqueued.JobId, ct),
-            s => s.CheckpointName == "other" && s.Status == CheckpointStatusCode.Set
+        Assert.Contains(await ReadSignalsAsync(enqueued.JobId, ct), s =>
+            s.CheckpointName == "other" && s.Status == CheckpointStatusCode.Set
         );
 
         // The name it waits on still releases it.

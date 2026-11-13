@@ -30,21 +30,18 @@ Console.WriteLine("knob: LocalOnly = true        (default: non-loopback or non-l
 Console.WriteLine("knob: ConfigureEndpoints      (hook for RequireAuthorization in production)");
 Console.WriteLine();
 
-app.MapActaApi(
-    "/acta/api",
-    options =>
-    {
-        options.EnableControls = true;
+app.MapActaApi("/acta/api", options =>
+{
+    options.EnableControls = true;
 
-        // LocalOnly stays true (the default). The TestServer client is treated as local.
-        // To expose the API remotely: set LocalOnly = false and add auth through ConfigureEndpoints.
-        options.ConfigureEndpoints = group =>
-        {
-            // Production callers should require an operator authorization policy here. This demo stays
-            // open so the in-process driver can reach the controls without auth middleware.
-        };
-    }
-);
+    // LocalOnly stays true (the default). The TestServer client is treated as local.
+    // To expose the API remotely: set LocalOnly = false and add auth through ConfigureEndpoints.
+    options.ConfigureEndpoints = group =>
+    {
+        // Production callers should require an operator authorization policy here. This demo stays
+        // open so the in-process driver can reach the controls without auth middleware.
+    };
+});
 
 await app.StartAsync();
 

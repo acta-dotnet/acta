@@ -241,8 +241,7 @@ internal sealed class WorkerExecutor(
                 ExecutionCompletion? completion;
                 try
                 {
-                    completion =
-                        await _admission.AdmitAsync(descriptor, job, jobContext, hostCt)
+                    completion = await _admission.AdmitAsync(descriptor, job, jobContext, hostCt)
                         ?? await _invocation.InvokeAsync(attemptScope.ServiceProvider, descriptor, job, jobContext, hostCt);
                 }
                 finally

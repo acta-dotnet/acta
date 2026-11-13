@@ -203,9 +203,8 @@ public sealed class ListAlertsSpec : ActaRuntimeTestBase<ConformanceFixture, Job
             ct
         );
 
-        var listed = Assert.Single(
-            (await queries.Alerts.ListAsync(new ListAlertsQuery(JobNamespace: TestNamespace), ct)).Items,
-            a => a.Title == "get-spec title"
+        var listed = Assert.Single((await queries.Alerts.ListAsync(new ListAlertsQuery(JobNamespace: TestNamespace), ct)).Items, a =>
+            a.Title == "get-spec title"
         );
 
         var detail = await queries.Alerts.GetAsync(listed.AlertRef, ct);

@@ -31,8 +31,7 @@ public sealed class DatabaseSetup
 
     private static async Task ResetSchemaAsync(string schemaName, CancellationToken ct)
     {
-        var conn =
-            IntegrationConfig.PostgresConnectionString
+        var conn = IntegrationConfig.PostgresConnectionString
             ?? throw new InvalidOperationException("DatabaseSetup requires ACTA_TEST_PG to point at the dev Postgres.");
 
         var builder = new NpgsqlConnectionStringBuilder(conn) { Timeout = 30 };

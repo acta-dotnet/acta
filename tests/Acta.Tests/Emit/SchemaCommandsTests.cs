@@ -150,9 +150,8 @@ public sealed class SchemaCommandsTests : IDisposable
 
         Assert.Equal(2, SchemaAddCommand.Run(name: "extra", repoRoot: _root, now: Third, force: true));
 
-        Assert.All(
-            ProviderCatalog.All,
-            p => Assert.Equal(["M20260101000000_init", "M20260102000000_extra"], MigrationFiles.Stems(_root, p.Token))
+        Assert.All(ProviderCatalog.All, p =>
+            Assert.Equal(["M20260101000000_init", "M20260102000000_extra"], MigrationFiles.Stems(_root, p.Token))
         );
     }
 

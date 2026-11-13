@@ -1172,9 +1172,8 @@ public sealed partial class OpenApiContractTests
             ["upsertJobTag", "upsertNamespaceTag", "upsertTenantTag", "upsertDefinitionTag"],
             TagOwnerRoutes.Select(owner => operations[$"PUT /v1/{owner}/tags/{{tagName}}"]["operationId"]!.GetValue<string>())
         );
-        Assert.DoesNotContain(
-            operations.Keys,
-            key => key.StartsWith("POST ", StringComparison.Ordinal) && key.EndsWith("/tags", StringComparison.Ordinal)
+        Assert.DoesNotContain(operations.Keys, key =>
+            key.StartsWith("POST ", StringComparison.Ordinal) && key.EndsWith("/tags", StringComparison.Ordinal)
         );
     }
 
@@ -1202,10 +1201,9 @@ public sealed partial class OpenApiContractTests
         foreach (var (schema, member, method, path, absent, present) in cases)
         {
             using var without = await SendControlRequestAsync(client, method, path, absent);
-            var detail =
-                JsonNode
-                    .Parse(await without.Content.ReadAsStringAsync(TestContext.Current.CancellationToken))
-                    ?["detail"]?.GetValue<string>()
+            var detail = JsonNode
+                .Parse(await without.Content.ReadAsStringAsync(TestContext.Current.CancellationToken))
+                ?["detail"]?.GetValue<string>()
                 ?? "";
             var named = $@"\b(?:{Regex.Escape(member)}|{Regex.Escape(char.ToUpperInvariant(member[0]) + member[1..])})\b";
             if (without.StatusCode != HttpStatusCode.BadRequest || !Regex.IsMatch(detail, named))
@@ -1295,13 +1293,11 @@ public sealed partial class OpenApiContractTests
 
         Assert.True(operations.Count > 60, $"only {operations.Count} operations; the walk is broken.");
         Assert.All(operations, operation => Assert.Contains(operation.Permission, permissions));
-        Assert.All(
-            operations,
-            operation =>
-                Assert.True(
-                    operation.Key.StartsWith("GET ", StringComparison.Ordinal) == (operation.Permission == ActaPermissions.Read),
-                    $"{operation.Key} needs {operation.Permission}."
-                )
+        Assert.All(operations, operation =>
+            Assert.True(
+                operation.Key.StartsWith("GET ", StringComparison.Ordinal) == (operation.Permission == ActaPermissions.Read),
+                $"{operation.Key} needs {operation.Permission}."
+            )
         );
         Assert.Equal("enqueueJob", Assert.Single(operations, operation => operation.Permission == ActaPermissions.Enqueue).Id);
     }
@@ -1370,13 +1366,10 @@ public sealed partial class OpenApiContractTests
         {
             Assert.Null(JsonNode.Parse(document)!["components"]!["parameters"]);
             Assert.DoesNotContain("ActaControl", document, StringComparison.Ordinal);
-            Assert.All(
-                Operations(document),
-                operation =>
-                    Assert.DoesNotContain(
-                        Elements(operation.Value["parameters"]),
-                        parameter => parameter?["in"]?.GetValue<string>() == "header"
-                    )
+            Assert.All(Operations(document), operation =>
+                Assert.DoesNotContain(Elements(operation.Value["parameters"]), parameter =>
+                    parameter?["in"]?.GetValue<string>() == "header"
+                )
             );
         }
 

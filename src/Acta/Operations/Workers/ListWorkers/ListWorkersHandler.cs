@@ -39,10 +39,8 @@ internal sealed class ListWorkersHandler(IDbSession session, ISqlDialect dialect
             DbProjectionResolver.Resolve<ListWorkersItem>(),
             ct
         );
-        var (items, nextCursor, hasMore, pageSize, totalCount) = paging.Page(
-            rows,
-            total,
-            static item => [item.LastSeenAtUtc, item.WorkerId]
+        var (items, nextCursor, hasMore, pageSize, totalCount) = paging.Page(rows, total, static item =>
+            [item.LastSeenAtUtc, item.WorkerId]
         );
         return new ListWorkersResponse(items, nextCursor, hasMore, pageSize, totalCount);
     }

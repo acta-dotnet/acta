@@ -9,67 +9,64 @@ internal static class RegisterTenantEndpoint
 {
     public static void Map(RouteGroupBuilder controls) =>
         controls
-            .MapPost(
-                "/tenants",
-                async Task<IResult> (HttpContext http, IActaOperations operations, CancellationToken ct) =>
+            .MapPost("/tenants", async Task<IResult> (HttpContext http, IActaOperations operations, CancellationToken ct) =>
+            {
+                var (request, bodyError) = await ControlEndpointValidation.ReadJsonBodyAsync(
+                    http,
+                    ActaApiJsonContext.Relaxed.RegisterTenantRequest,
+                    ct
+                );
+                if (bodyError is not null)
                 {
-                    var (request, bodyError) = await ControlEndpointValidation.ReadJsonBodyAsync(
-                        http,
-                        ActaApiJsonContext.Relaxed.RegisterTenantRequest,
+                    return bodyError;
+                }
+
+                var tenantName = request?.TenantName?.Trim();
+                if (string.IsNullOrEmpty(tenantName))
+                {
+                    return ControlEndpointValidation.Problem(
+                        StatusCodes.Status400BadRequest,
+                        "Invalid tenant request.",
+                        "tenantName is required."
+                    );
+                }
+
+                if (
+                    ControlEndpointValidation.ValidateLength(request!.DisplayName, "displayName", TextLimits.TenantDisplayName) is
+                    { } displayNameError
+                )
+                {
+                    return displayNameError;
+                }
+                if (
+                    ControlEndpointValidation.ValidateLength(request.Description, "description", TextLimits.TenantDescription) is
+                    { } descriptionError
+                )
+                {
+                    return descriptionError;
+                }
+
+                try
+                {
+                    var canonicalTenantName = NameSyntax.Canonicalize(
+                        tenantName,
+                        nameof(tenantName),
+                        NameSyntax.ExtendedMaxLength,
+                        reserveSystem: true
+                    );
+                    var response = await operations.Tenants.RegisterAsync(
+                        canonicalTenantName,
+                        request.DisplayName,
+                        request.Description,
                         ct
                     );
-                    if (bodyError is not null)
-                    {
-                        return bodyError;
-                    }
-
-                    var tenantName = request?.TenantName?.Trim();
-                    if (string.IsNullOrEmpty(tenantName))
-                    {
-                        return ControlEndpointValidation.Problem(
-                            StatusCodes.Status400BadRequest,
-                            "Invalid tenant request.",
-                            "tenantName is required."
-                        );
-                    }
-
-                    if (
-                        ControlEndpointValidation.ValidateLength(request!.DisplayName, "displayName", TextLimits.TenantDisplayName) is
-                        { } displayNameError
-                    )
-                    {
-                        return displayNameError;
-                    }
-                    if (
-                        ControlEndpointValidation.ValidateLength(request.Description, "description", TextLimits.TenantDescription) is
-                        { } descriptionError
-                    )
-                    {
-                        return descriptionError;
-                    }
-
-                    try
-                    {
-                        var canonicalTenantName = NameSyntax.Canonicalize(
-                            tenantName,
-                            nameof(tenantName),
-                            NameSyntax.ExtendedMaxLength,
-                            reserveSystem: true
-                        );
-                        var response = await operations.Tenants.RegisterAsync(
-                            canonicalTenantName,
-                            request.DisplayName,
-                            request.Description,
-                            ct
-                        );
-                        return Results.Json(response, ActaApiJsonContext.Relaxed.RegisterTenantResponse);
-                    }
-                    catch (ArgumentException ex)
-                    {
-                        return ControlEndpointValidation.Problem(StatusCodes.Status400BadRequest, "Invalid tenant request.", ex.Message);
-                    }
+                    return Results.Json(response, ActaApiJsonContext.Relaxed.RegisterTenantResponse);
                 }
-            )
+                catch (ArgumentException ex)
+                {
+                    return ControlEndpointValidation.Problem(StatusCodes.Status400BadRequest, "Invalid tenant request.", ex.Message);
+                }
+            })
             .WithMetadata(new ActaOperationAttribute("registerTenant", ActaPermissions.Admin))
             // RegisterAsync is insert-or-get, and it succeeds either way without saying which, so this
             // cannot claim 201. An idempotent upsert answering 200 with the canonical key is

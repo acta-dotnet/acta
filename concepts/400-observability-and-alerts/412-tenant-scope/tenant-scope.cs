@@ -53,9 +53,8 @@ foreach (var rejectedKey in new[] { "missing-customer", "held-customer" })
 
 if (suspendActive)
 {
-    var preExisting = await jobs.EnqueueAsync(
-        new TenantLifecycleProbe("acme"),
-        options => options.TenantName("acme").CorrelationKey(runId).Delayed(TimeSpan.FromSeconds(2))
+    var preExisting = await jobs.EnqueueAsync(new TenantLifecycleProbe("acme"), options =>
+        options.TenantName("acme").CorrelationKey(runId).Delayed(TimeSpan.FromSeconds(2))
     );
     await operations.Tenants.SuspendAsync("acme", "tenant lifecycle lab", "concept-user");
     try

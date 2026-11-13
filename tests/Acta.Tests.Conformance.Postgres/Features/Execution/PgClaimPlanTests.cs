@@ -67,11 +67,9 @@ public sealed class PgClaimPlanTests : ClaimSkewTestBase
         Assert.Contains("next_run_at_utc <= now()", Text(scan, "Index Cond"), StringComparison.Ordinal);
         Assert.Equal((double)DueRows, scan.GetProperty("Actual Rows").GetDouble());
 
-        var heads = Assert.Single(
-            Nodes(routine[1].GetProperty("Plan")),
-            n =>
-                Text(n, "Index Name") == "ix_jobs_state_claim_ready"
-                && Text(n, "Index Cond").Contains("job_priority_code = band.", StringComparison.Ordinal)
+        var heads = Assert.Single(Nodes(routine[1].GetProperty("Plan")), n =>
+            Text(n, "Index Name") == "ix_jobs_state_claim_ready"
+            && Text(n, "Index Cond").Contains("job_priority_code = band.", StringComparison.Ordinal)
         );
         Assert.Equal((double)Enum.GetValues<JobPriorityCode>().Length, heads.GetProperty("Actual Loops").GetDouble());
     }

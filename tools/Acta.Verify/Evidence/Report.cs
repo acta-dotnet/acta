@@ -30,8 +30,7 @@ public static partial class Report
     private static string Write(string directory, RunResult result, bool full, IReadOnlyList<RunResult> reruns)
     {
         ArgumentNullException.ThrowIfNull(result);
-        var plan =
-            Read(directory, "resolved-plan.json", VerifyJson.Default.RunPlan)
+        var plan = Read(directory, "resolved-plan.json", VerifyJson.Default.RunPlan)
             ?? throw new InvalidDataException("The bundle has no readable plan.");
         var environment = Read(directory, "environment.json", VerifyJson.Default.DictionaryStringString) ?? [];
         var providers = Protocol.AllProviders.Where(plan.Providers.Contains).ToArray();
@@ -151,48 +150,39 @@ public static partial class Report
         }
         if (plan.Scenarios.FirstOrDefault(s => s.Runner == "chaos") is { } chaosScenario)
         {
-            Row(
-                "Crash-recovery chaos",
-                p =>
-                    cases.Where(c => c.Provider == p && c.Id == chaosScenario.Id && c.Phase != "reconcile").ToArray()
-                        is { Length: > 0 } chaos
-                        ? Grade(chaos, "trial")
-                            + (
-                                chaos[0].Status == "PASS"
-                                    ? $", {Number(Value(chaos[0], "acknowledged_roots"))} jobs, {Number(Value(chaos[0], "kills_with_reclaim"))} busy kills reclaimed"
-                                    : ""
-                            )
-                        : "not run"
+            Row("Crash-recovery chaos", p =>
+                cases.Where(c => c.Provider == p && c.Id == chaosScenario.Id && c.Phase != "reconcile").ToArray() is { Length: > 0 } chaos
+                    ? Grade(chaos, "trial")
+                        + (
+                            chaos[0].Status == "PASS"
+                                ? $", {Number(Value(chaos[0], "acknowledged_roots"))} jobs, {Number(Value(chaos[0], "kills_with_reclaim"))} busy kills reclaimed"
+                                : ""
+                        )
+                    : "not run"
             );
         }
-        Row(
-            "Ledger checks",
-            p =>
-            {
-                var checkedTrials = cases
-                    .Where(c => c.Provider == p)
-                    .Sum(c => c.Evidence.Count(e => e.EndsWith("-ledger.json", StringComparison.Ordinal)));
-                var violated = cases.Count(c =>
-                    c.Provider == p && c.Reason?.StartsWith("Ledger checks returned", StringComparison.Ordinal) == true
-                );
-                return violated > 0 ? $"fail, {violated} trials violated"
-                    : checkedTrials > 0 ? $"pass, {checkedTrials:N0} trials checked"
-                    : "not run";
-            }
-        );
+        Row("Ledger checks", p =>
+        {
+            var checkedTrials = cases
+                .Where(c => c.Provider == p)
+                .Sum(c => c.Evidence.Count(e => e.EndsWith("-ledger.json", StringComparison.Ordinal)));
+            var violated = cases.Count(c =>
+                c.Provider == p && c.Reason?.StartsWith("Ledger checks returned", StringComparison.Ordinal) == true
+            );
+            return violated > 0 ? $"fail, {violated} trials violated"
+                : checkedTrials > 0 ? $"pass, {checkedTrials:N0} trials checked"
+                : "not run";
+        });
         var measured = plan.Scenarios.Where(s => ScenarioRunner.PhaseOf(s) == "performance").ToArray();
         if (measured.Length > 0 && plan.MeasurementGatesVerdict)
         {
-            Row(
-                "Performance floors",
-                p =>
-                    cases.Where(c => c.Provider == p && c.Phase == "reconcile" && c.Status == "FAIL" && c.Measurement == "MISSED").ToArray()
-                        is { Length: > 0 } missed
-                        ? $"missed {missed.Length}" + (missed.All(c => held.Contains((c.Id, c.Provider))) ? ", held on rerun" : "")
-                    : cases.Any(c => c.Provider == p && c.Phase == "measure" && c.Status == "PASS" && measured.Any(s => s.Id == c.Id))
-                        ? "held"
-                    : "not run"
-            );
+            Row("Performance floors", p => cases
+                    .Where(c => c.Provider == p && c.Phase == "reconcile" && c.Status == "FAIL" && c.Measurement == "MISSED")
+                    .ToArray()
+                    is { Length: > 0 } missed
+                    ? $"missed {missed.Length}" + (missed.All(c => held.Contains((c.Id, c.Provider))) ? ", held on rerun" : "")
+                : cases.Any(c => c.Provider == p && c.Phase == "measure" && c.Status == "PASS" && measured.Any(s => s.Id == c.Id)) ? "held"
+                : "not run");
         }
         foreach (var scenario in measured.Where(s => s.Headline is not null))
         {

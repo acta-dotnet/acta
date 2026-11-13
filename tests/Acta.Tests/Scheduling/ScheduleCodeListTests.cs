@@ -55,14 +55,11 @@ public sealed partial class ScheduleCodeListTests
         var lists = CodeList().Matches(sql).Where(m => m.Groups["column"].Value == column).ToList();
 
         Assert.NotEmpty(lists);
-        Assert.All(
-            lists,
-            list =>
-            {
-                int[] listed = [.. Literal().Matches(list.Groups["ids"].Value).Select(id => int.Parse(id.Value)).Order()];
-                Assert.Equal(Expected[column], listed);
-            }
-        );
+        Assert.All(lists, list =>
+        {
+            int[] listed = [.. Literal().Matches(list.Groups["ids"].Value).Select(id => int.Parse(id.Value)).Order()];
+            Assert.Equal(Expected[column], listed);
+        });
     }
 
     private static int[] Ids<T>(params T[] leftOut)
