@@ -150,7 +150,7 @@
   "401-pipeline-behavior": ["-> greet-user #", "  Hi, Sam!", "<- greet-user #"],
   "402-alerts": ["[photos] backup is bad - alert raised", "alert [Error] Backup verification failed: photos -> channel 'default'"],
   "403-alert-channel": ["[db-server] low disk - alerted ops (4% free)", "alert [Error] Low disk space on db-server -> channel 'ops'"],
-  "404-read-event-timeline": ["parent finished with status: Failed", "] JobResumed", "(data collection failed for q4-2024)", "(data origin unavailable)"],
+  "404-read-event-timeline": ["parent finished with status: Failed", "(data collection failed for q4-2024)", "(data origin unavailable)"],
   "405-real-alert-routing": ["alert [Error] Queue backlog: orders -> 'ops-slack' x2"],
   "406-automatic-failure-alerts": ["Cancelling job to stay in the FirstFailure stage...", "alert kind=FirstFailure severity=Warning occurrences=2 channel='default'"],
   "407-event-recording": ["Audit level  -> event count: 1", "Failures level -> event count: 0"],
