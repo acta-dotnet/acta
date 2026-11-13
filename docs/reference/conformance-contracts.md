@@ -1759,11 +1759,15 @@
   - ListJobCheckpoints answers an empty page for a job with no checkpoints and for a missing id
   - ListJobCheckpoints pages to the end across a kind this build does not know, each checkpoint once
 
-### GetJobInput reads the stored input or null
-- **Contract:** GetJobInput returns the payload and format a job was enqueued with, and null when no job row matches.
+### GetJobInput reads the stored input, raw or as its type
+- **Contract:** GetJobInput returns a job's stored payload or null, and the typed read decodes it as its type or throws for no job, a no-input job, or another input type.
 - **Guarantees:**
   - GetJobInput returns the payload the job was enqueued with
   - GetJobInput returns null when no job row matches the id
+  - The typed read answers the input as its type, as enqueued and as amended
+  - The typed read throws, naming the lookup, when no job matches
+  - The typed read throws, naming the job, for a job that carries no input, which the raw read answers as null
+  - The typed read refuses a registered job's input read as another type, naming both types
 
 ### ListJobSteps pages a job's steps newest first
 - **Contract:** ListJobSteps pages a job's steps newest first with status and attempt, each step once across pages, and an empty page for a job without a row.

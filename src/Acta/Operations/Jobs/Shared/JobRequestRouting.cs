@@ -109,6 +109,30 @@ internal sealed class JobRequestRouting(
         }
     }
 
+    /// <summary>
+    /// A stored input read as <typeparamref name="TInput"/>, refused when the job carries none, and when this process
+    /// registers the job with another input type, for the reason <see cref="EnsureResultType{TResult}"/> gives.
+    /// </summary>
+    public TInput DecodeInput<TInput>(GetJobInputRow row)
+    {
+        if (row.Format.IsNone)
+        {
+            throw new InvalidOperationException(
+                $"Job '{row.JobNamespace}/{row.JobName}' carries no input, so there is none to read as '{typeof(TInput).FullName}'."
+            );
+        }
+        if (descriptors.Find(row.JobNamespace, row.JobName) is { } descriptor && descriptor.InputType != typeof(TInput))
+        {
+            throw new InvalidOperationException(
+                $"Job '{row.JobNamespace}/{row.JobName}' takes '{descriptor.InputType.FullName}', not '{typeof(TInput).FullName}'. "
+                    + "A deduplication key shared across definitions returns the job that already holds it; read its input "
+                    + "as its own input type."
+            );
+        }
+
+        return Decode<TInput>(row.Payload)!;
+    }
+
     private JobPayload Serialize<TInput>(JobPayloadFormat format, TInput input) =>
         format.IsNone ? JobPayload.None : serializers.Resolve(format.Id).Serialize(input);
 

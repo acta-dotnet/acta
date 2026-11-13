@@ -588,6 +588,9 @@ public class CliRunnerClipboardTests
         public ValueTask<GetJobInputResponse?> GetInputAsync(JobLookup job, CancellationToken ct = default) =>
             throw new NotSupportedException();
 
+        public ValueTask<TInput> GetInputAsync<TInput>(JobLookup job, CancellationToken ct = default)
+            where TInput : notnull => throw new NotSupportedException();
+
         /// <summary>The job produced no result; whether it still exists is the status read.</summary>
         public ValueTask<GetJobResultResponse?> GetResultAsync(JobLookup job, CancellationToken ct = default) =>
             ValueTask.FromResult<GetJobResultResponse?>(null);

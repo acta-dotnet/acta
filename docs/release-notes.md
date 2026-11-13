@@ -29,6 +29,7 @@ Not tagged yet. The schema changes by one migration on rc.10's baseline, the fir
 - .NET 11 is a supported runtime. The packages target `net10.0` alone, and a `net11.0` application takes them as they are. CI runs the test suites on the .NET 11 runtime, and runs a job in a `net11.0` application the .NET 11 SDK builds from the packed packages. The release validation, the benchmark, and Native AOT stay on .NET 10; [compatibility and support](./compatibility-and-support.md) states each tier.
 - `IJobs.RaiseSignalAsync(job, name, value, ct)` takes the token in fourth place, for the typed value and for a `JobPayload`. The actor stands between the value and the token, so a raise that records no actor had to name the token, `ct: ct`.
 - `IJobs.GetVariableOrDefaultAsync<T>(job, name)` reads a job's variable from outside the job, as the type its handler stored, and answers default when the variable is not set or no job matches. A screen that showed how far a job had come read the variable through `ListCheckpointsAsync` and decoded the payload itself.
+- `IJobs.GetInputAsync<T>(job)` reads a job's input, as enqueued or last amended, as its type through the serializer of its stored format. It throws when no job matches, when the job carries no input, and when this process registers the job with another input type. The untyped `GetInputAsync` answered the payload for the caller to decode.
 
 ### Fixes
 

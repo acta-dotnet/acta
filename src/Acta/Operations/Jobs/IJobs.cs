@@ -247,6 +247,16 @@ public interface IJobs
     ValueTask<GetJobInputResponse?> GetInputAsync(JobLookup job, CancellationToken ct = default);
 
     /// <summary>
+    /// The job's stored input, as enqueued or last amended, read as <typeparamref name="TInput"/> through the serializer
+    /// of its own format: <c>var order = await jobs.GetInputAsync&lt;ShipOrder&gt;(jobRef, ct)</c>. Throws
+    /// <see cref="InvalidOperationException"/>, naming the job, when no job matches, when it carries no input, and when this
+    /// process registers its definition with an input type other than <typeparamref name="TInput"/>; a definition it does
+    /// not register is decoded without that check. Non-blocking point-in-time read.
+    /// </summary>
+    ValueTask<TInput> GetInputAsync<TInput>(JobLookup job, CancellationToken ct = default)
+        where TInput : notnull;
+
+    /// <summary>
     /// Fetch the result payload the job identified by <paramref name="job"/> stored, or <c>null</c> when it
     /// holds none (still running, failed, restarted, or a handler with no return value). A job keeps one result: a
     /// recurring job's successful occurrence replaces the last one, and every claim and restart clears it.

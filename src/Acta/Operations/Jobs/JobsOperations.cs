@@ -144,6 +144,12 @@ internal sealed class JobsOperations(
     public ValueTask<GetJobInputResponse?> GetInputAsync(JobLookup job, CancellationToken ct = default) =>
         getJobInput.HandleAsync(new GetJobInputQuery(job), ct);
 
+    public async ValueTask<TInput> GetInputAsync<TInput>(JobLookup job, CancellationToken ct = default)
+        where TInput : notnull =>
+        await getJobInput.ReadAsync(job, ct) is { } row
+            ? routing.DecodeInput<TInput>(row)
+            : throw new InvalidOperationException($"No job matches {job}, so there is no input to read.");
+
     public ValueTask<GetJobResultResponse?> GetResultAsync(JobLookup job, CancellationToken ct = default) =>
         getJobResult.HandleAsync(new GetJobResultQuery(job), ct);
 
