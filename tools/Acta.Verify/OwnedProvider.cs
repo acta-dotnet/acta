@@ -889,8 +889,11 @@ internal sealed class OwnedProvider : IAsyncDisposable
     public static async Task<int> CleanupAsync(bool remove, CancellationToken ct)
     {
         var failed = false;
-        var running = CleanStart.Running(["acta-verify", "Acta.Verify", "acta-bench", "Acta.Bench"], new Dictionary<int, string>());
-        if (remove && running.Count > 0)
+        // Only a removal asks who else is running: a listing changes nothing.
+        Dictionary<int, string> running = remove
+            ? CleanStart.Running(["acta-verify", "Acta.Verify", "acta-bench", "Acta.Bench"], await CleanStart.CommandLinesAsync(ct))
+            : [];
+        if (running.Count > 0)
         {
             // An ownership marker cannot tell an active run's resources from an abandoned run's.
             Console.WriteLine($"Another Acta Verify process is running (PID {string.Join(", ", running.Keys)}); nothing is removed.");

@@ -108,7 +108,7 @@ public static class CleanStart
     }
 
     /// <summary>The command line of every process, where the platform tells; an empty map where it does not.</summary>
-    private static async Task<Dictionary<int, string>> CommandLinesAsync(CancellationToken ct)
+    internal static async Task<Dictionary<int, string>> CommandLinesAsync(CancellationToken ct)
     {
         Dictionary<int, string> lines = [];
         try
