@@ -7,7 +7,7 @@ namespace Acta.Verify;
 /// Refuses a run on a box that still carries another run's processes or owned containers: each writes to the drive the
 /// databases use and takes cores the run measures, and a leftover owned container also holds the Docker VM's memory.
 /// </summary>
-internal static class CleanStart
+public static class CleanStart
 {
     private static readonly string[] Leftovers = ["acta-verify", "Acta.Verify", "acta-bench", "Acta.Bench", "Anvil", "pg_test_fsync"];
 
@@ -83,13 +83,28 @@ internal static class CleanStart
             }
             foreach (var (pid, line) in lines)
             {
-                if (pid != Environment.ProcessId && line.Contains(name + ".dll", StringComparison.OrdinalIgnoreCase))
+                if (pid != Environment.ProcessId && IsDotnet(line) && line.Contains(name + ".dll", StringComparison.OrdinalIgnoreCase))
                 {
                     found[pid] = line;
                 }
             }
         }
         return found;
+    }
+
+    /// <summary>
+    /// Whether the program <paramref name="line"/> starts is dotnet itself: the file name of the line's first token,
+    /// quoted or not. A shell or wrapper whose arguments quote a dotnet command is that command's launcher: the command
+    /// it starts has a line of its own.
+    /// </summary>
+    private static bool IsDotnet(string line)
+    {
+        var quoted = line.StartsWith('"');
+        var end = quoted ? line.IndexOf('"', 1) : line.IndexOf(' ', StringComparison.Ordinal);
+        var program = line[(quoted ? 1 : 0)..(end < 0 ? line.Length : end)];
+        // Either separator on either host, so a line is judged the same wherever it is read.
+        var file = program[(program.LastIndexOfAny(['/', '\\']) + 1)..];
+        return file.Equals("dotnet", StringComparison.OrdinalIgnoreCase) || file.Equals("dotnet.exe", StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>The command line of every process, where the platform tells; an empty map where it does not.</summary>
