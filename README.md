@@ -7,7 +7,7 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](./LICENSE)
 [![Website](https://img.shields.io/badge/website-useacta.net-2fd6a8.svg)](https://useacta.net/)
 
-> **1.0.0-rc.10.** A release candidate: the public API, the schema, and the persisted codes freeze at 1.0.0, and until then a new candidate may still change them. This one re-cuts the schema, so a database an earlier candidate provisioned is dropped and reprovisioned ([release notes](./docs/release-notes.md)). Bring a real workload; the evidence behind each tag is in the repository.
+> **1.0.0-rc.11.** A release candidate: the public API, the schema, and the persisted codes freeze at 1.0.0, and until then a new candidate may still change them. This one changes the schema with a migration, so an rc.10 database is migrated where it stands and one an earlier candidate provisioned is dropped and reprovisioned. 1.0.0 may still fold the candidates' migrations into a new baseline, which would ask for a fresh database once more ([release notes](./docs/release-notes.md)). Bring a real workload; the evidence behind each tag is in the repository.
 
 Acta is for background work that has to survive a crash and be explained afterwards. Jobs, retries, schedules, durable steps, long waits, child jobs, and operator controls are rows in the PostgreSQL, SQL Server, or SQLite database your application already uses, with no broker, sidecar, or separate server to run. Execution is at-least-once: a handler can run again, so make its external effects idempotent.
 

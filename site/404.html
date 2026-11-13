@@ -29,6 +29,10 @@
     @font-face { font-family: "IBM Plex Sans"; font-style: normal; font-weight: 400 600; font-display: swap; src: url(/assets/fonts/ibm-plex-sans-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
     @font-face { font-family: "IBM Plex Mono"; font-style: normal; font-weight: 400; font-display: swap; src: url(/assets/fonts/ibm-plex-mono-400-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
     @font-face { font-family: "IBM Plex Mono"; font-style: normal; font-weight: 500; font-display: swap; src: url(/assets/fonts/ibm-plex-mono-500-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    /* The page states the miss beside what Acta's own CLI answers for it, with the address the visitor asked for. */
+    .not-found .pair { margin-top: 0; align-items: center; }
+    .not-found figure { margin: 0; }
+    .not-found .prompt { color: var(--faint); user-select: none; }
   </style>
   <link rel="stylesheet" href="/assets/site.css" />
   <script src="/assets/theme.js"></script>
@@ -51,20 +55,34 @@
   </div>
 
   <main id="content">
-    <header class="wrap page-head">
-      <p class="record">404 · not found</p>
-      <h1>There is no page here.</h1>
-      <p class="lede">The address you followed does not exist on useacta.net. Nothing moved: the site is small, and the home page and the three places below reach all of it.</p>
-    </header>
+    <section class="wrap page-head not-found">
+      <div class="pair">
+        <div>
+          <p class="record">404 · not found</p>
+          <h1>There is no page at this address.</h1>
+          <p class="lede">The link you followed does not lead to a page on useacta.net. The site is small, and the home page reaches all of it.</p>
+          <div class="actions">
+            <a class="button primary" href="/">Go to the home page</a>
+            <a class="button" href="/start">Get started</a>
+          </div>
+        </div>
+        <figure class="panel">
+          <figcaption class="panel-tab output">CLI · what Acta answers for a key it never stored</figcaption>
+          <pre><span class="prompt">$</span> dotnet run -- jobs explain <span data-path>/this-address</span>
+job not found
+<span class="prompt">$</span> echo $?
+2</pre>
+        </figure>
+      </div>
+    </section>
 
     <section class="wrap">
       <p class="record">Where to go instead</p>
-      <h2>Three places that answer most questions.</h2>
-      <dl class="ref">
-        <div class="ref-row"><dt><a href="/start">Get started</a></dt><dd>Install the packages, run one durable job on embedded SQLite, and open the dashboard. Five minutes, no Docker.</dd></div>
-        <div class="ref-row"><dt><a href="/llms.txt">llms.txt</a></dt><dd>The whole programming model on one plain-text page, written for coding agents and useful for people too.</dd></div>
-        <div class="ref-row"><dt><a href="https://github.com/acta-dotnet/acta">The repository</a></dt><dd>Source, documentation, release notes, and benchmarks.</dd></div>
-      </dl>
+      <div class="facts">
+        <div><b>Get started</b><p>Install the packages, run one durable job on embedded SQLite, and open the dashboard. Five minutes, no Docker.</p><a class="golink" href="/start">Get started</a></div>
+        <div><b>llms.txt</b><p>The whole programming model on one plain-text page, written for coding agents and useful for people too.</p><a class="golink" href="/llms.txt">Read llms.txt</a></div>
+        <div><b>The repository</b><p>Source, documentation, release notes, and benchmarks.</p><a class="golink" href="https://github.com/acta-dotnet/acta">Open the repository</a></div>
+      </div>
     </section>
 
     <footer class="site-footer">
@@ -97,7 +115,7 @@
           </nav>
           <div class="footer-release">
             <p class="footer-head">Release</p>
-            <p class="footer-version"><span class="release-dot" aria-hidden="true"></span><a href="https://github.com/acta-dotnet/acta/releases">1.0.0-rc.10 <span aria-hidden="true">↗</span></a><span>a release candidate</span></p>
+            <p class="footer-version"><span class="release-dot" aria-hidden="true"></span><a href="https://github.com/acta-dotnet/acta/releases">1.0.0-rc.11 <span aria-hidden="true">↗</span></a><span>a release candidate</span></p>
             <a href="https://github.com/acta-dotnet/acta/blob/main/docs/compatibility-and-support.md">Compatibility and support</a>
             <a href="https://github.com/acta-dotnet/acta/blob/main/docs/known-limitations.md#stability-status">Stability status</a>
             <a href="https://github.com/acta-dotnet/acta">Source on GitHub <span aria-hidden="true">↗</span></a>
@@ -110,5 +128,8 @@
       </div>
     </footer>
   </main>
+  <script>
+    for (const path of document.querySelectorAll("[data-path]")) path.textContent = location.pathname;
+  </script>
 </body>
 </html>

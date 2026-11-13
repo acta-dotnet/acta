@@ -82,12 +82,12 @@ body {
   -webkit-font-smoothing: antialiased;
   position: relative; isolation: isolate;
 }
-/* every page glows mint and lilac behind its top and blue behind its bottom; a page shorter than the top glow clips it */
-body::before, body::after {
-  content: ""; position: absolute; left: 0; right: 0; height: min(60vh, 640px); z-index: -1; pointer-events: none;
+/* every page glows mint and lilac behind its top, on the left, and blue rising from its footer, on the right; a page shorter than the top glow clips it */
+body::before {
+  content: ""; position: absolute; left: 0; right: 0; z-index: -1; pointer-events: none;
+  top: 0; height: min(920px, 100%);
+  background: radial-gradient(ellipse at 85% 22%, var(--pastel-lilac), transparent 54%), radial-gradient(ellipse at 32% 5%, var(--pastel-mint), transparent 50%), radial-gradient(ellipse at 0% 65%, var(--warm-wash), transparent 50%);
 }
-body::before { top: 0; height: min(920px, 100%); background: radial-gradient(ellipse at 85% 22%, var(--pastel-lilac), transparent 54%), radial-gradient(ellipse at 32% 5%, var(--pastel-mint), transparent 50%), radial-gradient(ellipse at 0% 65%, var(--warm-wash), transparent 50%); }
-body::after { bottom: 0; background: radial-gradient(ellipse at 50% 100%, var(--pastel-blue), transparent 70%); }
 ::selection { background: rgba(47, 214, 168, 0.3); color: inherit; }
 :focus-visible { outline: 2px solid var(--verdi); outline-offset: 3px; border-radius: 2px; }
 a { color: inherit; }
@@ -313,7 +313,12 @@ h2 { font-size: clamp(1.9rem, 3vw, 2.75rem); max-width: 32ch; }
 .also .sep { margin: 0 0.9em; opacity: 0.5; }
 
 /* the footer: the site's map in four columns on a panel, and a bottom line with the author and the theme switch */
-.site-footer { padding: 64px 0 28px; border-top: 1px solid var(--hair); background: var(--panel); color: var(--muted); font-size: 13px; line-height: 1.6; }
+.site-footer { position: relative; padding: 64px 0 28px; border-top: 1px solid var(--hair); background: var(--panel); color: var(--muted); font-size: 13px; line-height: 1.6; }
+/* the bottom glow rises from the footer's edge, where nothing covers it, and mirrors the top's mint glow onto the right */
+.site-footer::before {
+  content: ""; position: absolute; left: 0; right: 0; bottom: 100%; height: 920px; z-index: -1; pointer-events: none;
+  background: radial-gradient(ellipse at 68% 95%, var(--pastel-blue), transparent 50%);
+}
 .footer-grid { display: grid; grid-template-columns: 1.4fr 1fr 1fr 1.1fr; gap: 40px; }
 .footer-grid > * { min-width: 0; }
 .footer-about p { margin: 0.9rem 0 0; max-width: 34ch; }
@@ -347,6 +352,6 @@ h2 { font-size: clamp(1.9rem, 3vw, 2.75rem); max-width: 32ch; }
 @media print {
   :root { --text: #111; --muted: #333; --faint: #555; --panel: #fff; --panel-2: #f4f4f4; --hair: #ccc; --hair-soft: #ddd; --verdi: #0a6b52; --code: #111; --code-inline: #111; }
   html, body { background: #fff; color: #111; }
-  .chrome, .skip-link, .copy, footer, body::before, body::after { display: none; }
+  .chrome, .skip-link, .copy, footer, body::before { display: none; }
   pre { white-space: pre-wrap; }
 }

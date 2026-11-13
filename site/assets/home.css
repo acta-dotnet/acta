@@ -50,7 +50,7 @@ body { font-size: 16px; line-height: 1.65; }
 .hero-copy { min-width: 0; }
 .hero-eyebrow { display: flex; align-items: center; gap: 9px; color: var(--muted); font-size: 12px; font-weight: 500; letter-spacing: .025em; margin: 0 0 22px; }
 .hero-eyebrow > span { width: 6px; height: 6px; background: var(--verdi); border-radius: 50%; }
-.hero-title { max-width: 14ch; font-family: var(--sans); font-size: clamp(40px, 4.6vw, 66px); font-weight: 500; line-height: 1.09; letter-spacing: -.055em; margin: 0; text-wrap: initial; }
+.hero-title { max-width: 15ch; font-family: var(--sans); font-size: clamp(40px, 4.6vw, 66px); font-weight: 500; line-height: 1.09; letter-spacing: -.055em; margin: 0; text-wrap: initial; }
 .hero-title > span { color: var(--verdi); }
 .subhead { font-size: 18px; font-weight: 500; color: var(--text); margin: 24px 0 10px; letter-spacing: -.015em; }
 .hero .lede { max-width: 48ch; font-size: 16px; line-height: 1.75; }
@@ -176,7 +176,8 @@ pre { font-size: 11px; padding: 23px; line-height: 1.85; }
 .more .t { font-size: 16px; font-weight: 500; letter-spacing: -.02em; }
 .more .s { font-size: 13px; color: var(--muted); }
 .more a:hover .t { color: var(--verdi); }
-#build { position: relative; background: radial-gradient(ellipse at 20% 65%, var(--pastel-mint), transparent 65%); }
+/* the glow stays on the column and reaches nothing at each of its sides, so a screen wider than the column shows no edge */
+#build { position: relative; background: radial-gradient(closest-side at 40% 55%, var(--pastel-mint), transparent); }
 .build-pair { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 24px; align-items: start; margin-top: 32px; }
 .install { background: var(--panel); border: 1px solid var(--hair); border-radius: 12px; overflow: hidden; }
 .prompt-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 16px; padding: 24px; border-bottom: 1px solid var(--hair); }
@@ -193,7 +194,7 @@ pre { font-size: 11px; padding: 23px; line-height: 1.85; }
 @media (min-width: 1600px) { .hero-title { font-size: 68px; } }
 @media (max-width: 1100px) {
   .hero-grid { gap: 32px; }
-  .hero-title { font-size: 52px; }
+  .hero-title { font-size: clamp(44px, 5vw, 52px); }
   .preview-heading, .workflow-ledger, .preview-code { padding-inline: 20px; }
   .workflow-preview figcaption { padding-inline: 20px; }
   .fgrid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -222,7 +223,7 @@ pre { font-size: 11px; padding: 23px; line-height: 1.85; }
 @media (max-width: 640px) {
   .hero { padding-top: 40px; }
   .hero-eyebrow { font-size: 10px; margin-bottom: 20px; }
-  .hero-title { font-size: clamp(38px, 9.4vw, 54px); max-width: 15ch; letter-spacing: -.05em; }
+  .hero-title { font-size: clamp(32px, 9.4vw, 54px); max-width: 15ch; letter-spacing: -.05em; }
   .subhead { font-size: 16px; margin-top: 22px; }
   .hero .lede { font-size: 14px; }
   .hero-footnote { font-size: 10px; gap: 8px; }
