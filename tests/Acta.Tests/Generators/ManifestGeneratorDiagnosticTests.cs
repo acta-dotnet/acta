@@ -667,6 +667,26 @@ public class ManifestGeneratorDiagnosticTests
     }
 
     [Fact]
+    public void Rate_written_as_an_interval_errors_ACTA0105_and_shows_the_rate_form()
+    {
+        var result = RunGenerator(
+            """
+            using Acta;
+            namespace GenTests;
+
+            public static class Handler
+            {
+                [Job("bad-rate", RateLimit = "1/4s")]
+                public static void Run() { }
+            }
+            """
+        );
+
+        var diagnostic = Assert.Single(Of(result, "ACTA0105"));
+        Assert.Contains("one every four seconds is \"15/m\"", diagnostic.GetMessage());
+    }
+
+    [Fact]
     public void Non_positive_MaxAttempts_errors_ACTA0105()
     {
         var result = RunGenerator(

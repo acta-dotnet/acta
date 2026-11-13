@@ -50,7 +50,7 @@ internal static class JobPolicyValues
             ManifestDiagnostics.InvalidPolicyValue(
                 named.Key,
                 $"\"{text}\"",
-                "A rate limit is a positive count with no leading zero, a slash, and a period of s, m, or h (\"10/s\"), at most 1000 per second.",
+                "A rate limit is a positive count with no leading zero, a slash, and a period of s, m, or h (\"10/s\"), at most 1000 per second; one every four seconds is \"15/m\".",
                 location
             )
         );
