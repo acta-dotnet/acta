@@ -53,14 +53,10 @@ public sealed class PgListScheduleStatesPlanTests : ActaStorageTestBase<PgConfor
 
         var read = Assert.Single(plans, p => Text(p, "Query Text").Contains("timing_fingerprint", StringComparison.Ordinal));
         var nodes = Nodes(read.GetProperty("Plan")).ToList();
-        Assert.Equal(
-            "ux_definitions_namespace_name",
-            Text(Assert.Single(nodes, n => Text(n, "Relation Name") == "definitions"), "Index Name")
-        );
-        Assert.Equal(
-            "ux_schedules_definition_name",
-            Text(Assert.Single(nodes, n => Text(n, "Relation Name") == "schedules"), "Index Name")
-        );
+        // A bitmap scan names its index on a node of its own, under the node that names the table.
+        Assert.Contains(nodes, n => Text(n, "Index Name") == "ux_definitions_namespace_name");
+        Assert.Contains(nodes, n => Text(n, "Index Name") == "ux_schedules_definition_name");
+        Assert.DoesNotContain(nodes, n => Text(n, "Node Type") == "Seq Scan");
     }
 
     private static async Task ExecuteAsync(NpgsqlConnection conn, string sql, CancellationToken ct)
