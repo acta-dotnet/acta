@@ -47,13 +47,14 @@ internal sealed class ScheduleAdmitter(
                 // The horizon read is the idle loop's one statement; a pass runs only when something is due.
                 var horizon = await schedules.GetScheduleHorizonAsync(context.Worker.NamespaceId, ct);
                 var (now, next) = (horizon.DbNowUtc, horizon.NextEvaluationAtUtc);
-                // A pass that admitted and left more due is followed at once, on the horizon that pass read. One that
-                // admitted nothing, its groups stale or unchanged, sleeps by the rule below, so lost races back off at the floor.
+                // A pass that applied a group and left more due is followed at once, on the horizon that pass read: it made
+                // progress, each applied group having admitted, moved a cursor, or parked its schedule. One that applied
+                // nothing, its groups stale or unchanged, sleeps by the rule below, so lost races back off at the floor.
                 while (next <= now && !ct.IsCancellationRequested)
                 {
                     var pass = await AdmitOnceAsync(namespaceName, ct);
                     (now, next) = (pass.DbNowUtc, pass.NextWakeUtc);
-                    if (pass.Admitted == 0)
+                    if (pass.Applied == 0)
                     {
                         break;
                     }
@@ -99,6 +100,7 @@ internal sealed class ScheduleAdmitter(
         var namespaceId = context.ResolveWorker(namespaceName).NamespaceId;
         var started = Stopwatch.GetTimestamp();
         var admitted = 0;
+        var appliedTotal = 0;
         var stale = 0;
         var staleTotal = 0;
         for (var replan = 0; replan <= MaxReplans; replan++)
@@ -129,6 +131,7 @@ internal sealed class ScheduleAdmitter(
             admitted += appliedAdmissions;
             stale = outcomes.Count(o => !o.Applied);
             staleTotal += stale;
+            appliedTotal += outcomes.Count - stale;
             if (decisions is not null)
             {
                 // Only an applied group's decisions count; a stale group's replan records them when it lands.
@@ -156,7 +159,7 @@ internal sealed class ScheduleAdmitter(
 
         metrics?.RecordSchedulePass(namespaceName, Stopwatch.GetElapsedTime(started), staleTotal);
         var horizon = await schedules.GetScheduleHorizonAsync(namespaceId, ct);
-        return new AdmissionPass(admitted, stale, horizon.NextEvaluationAtUtc, horizon.DbNowUtc);
+        return new AdmissionPass(admitted, appliedTotal, stale, horizon.NextEvaluationAtUtc, horizon.DbNowUtc);
     }
 
     /// <summary>
@@ -446,8 +449,11 @@ internal sealed class ScheduleAdmitter(
         )!;
 }
 
-/// <summary>What one admission pass did, and when the namespace next needs the engine by the database's clock.</summary>
-internal sealed record AdmissionPass(int Admitted, int Stale, DateTime? NextWakeUtc, DateTime DbNowUtc);
+/// <summary>
+/// What one admission pass did, and when the namespace next needs the engine by the database's clock: the firings it
+/// admitted, the groups it applied with or without one, and the groups of the last plan it sent that another writer beat.
+/// </summary>
+internal sealed record AdmissionPass(int Admitted, int Applied, int Stale, DateTime? NextWakeUtc, DateTime DbNowUtc);
 
 /// <summary>One decision a plan's group took, for the meter once the group applies; an admitted occurrence carries its lag.</summary>
 internal sealed record PlannedMeasurement(int Ordinal, string Decision, TimeSpan? Lag);

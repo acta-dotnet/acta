@@ -5,9 +5,10 @@ using Xunit;
 namespace Acta.Tests.Runtime;
 
 /// <summary>
-/// The admission loop between passes, over a scripted database: a pass that admitted and left more due is followed at
-/// once on the horizon that pass read, and a pass that admitted nothing because another writer moved every group first
-/// sleeps before the next, so a run of lost races never spins against the database.
+/// The admission loop between passes, over a scripted database: a pass that applied a group and left more due is
+/// followed at once on the horizon that pass read, whether it admitted or only moved a cursor, and a pass that applied
+/// nothing because another writer moved every group first sleeps before the next, so a run of lost races never spins
+/// against the database.
 /// </summary>
 public sealed class ScheduleAdmitterLoopTests
 {
@@ -32,6 +33,38 @@ public sealed class ScheduleAdmitterLoopTests
         await script.RunAsync(options);
 
         // The second pass starts on the horizon the first pass read, with no read of the loop's own between them.
+        Assert.Equal(
+            [
+                "GetScheduleHorizon",
+                "ListDueSchedules",
+                "AdmitScheduleFirings",
+                "GetScheduleHorizon",
+                "ListDueSchedules",
+                "GetScheduleHorizon",
+                "wait",
+            ],
+            script.Steps
+        );
+        Assert.Equal([options.SafetyPollInterval], script.Waits);
+    }
+
+    [Fact]
+    public async Task A_pass_that_dropped_at_capacity_and_left_more_due_is_followed_at_once()
+    {
+        using var script = new Script(
+            horizons: [Now, Now, null],
+            dueLists:
+            [
+                [Due() with { OutstandingCount = 1, FullBehavior = ScheduleFullBehaviorCode.Drop }],
+                [],
+            ],
+            applied: true
+        );
+        var options = new JobsOptions();
+
+        await script.RunAsync(options);
+
+        // The pass admitted nothing and moved a cursor: the next follows as it does an admission, with no sleep between.
         Assert.Equal(
             [
                 "GetScheduleHorizon",
