@@ -41,9 +41,9 @@ public sealed class ExecutionFenceSpec : ActaRuntimeTestBase<ConformanceFixture,
 
         await AssertFencedOutAsync(old, () => old.Ctx.SetVariableAsync(Receipt, "stale", ct), ct);
 
-        Assert.Equal("current", await current.Ctx.GetRequiredVariableAsync<string>(Receipt, ct));
+        Assert.Equal("current", await current.Ctx.GetVariableAsync<string>(Receipt, ct));
         await current.Ctx.SetVariableAsync(Receipt, "current-2", ct);
-        Assert.Equal("current-2", await current.Ctx.GetRequiredVariableAsync<string>(Receipt, ct));
+        Assert.Equal("current-2", await current.Ctx.GetVariableAsync<string>(Receipt, ct));
         await AssertCompletionAcceptedAsync(current, ct);
     }
 
@@ -76,7 +76,7 @@ public sealed class ExecutionFenceSpec : ActaRuntimeTestBase<ConformanceFixture,
 
         await AssertFencedOutAsync(old, () => old.Ctx.DeleteVariableAsync(Receipt, ct), ct);
 
-        Assert.Equal("current", await current.Ctx.GetRequiredVariableAsync<string>(Receipt, ct));
+        Assert.Equal("current", await current.Ctx.GetVariableAsync<string>(Receipt, ct));
         Assert.True(await current.Ctx.DeleteVariableAsync(Receipt, ct));
         await AssertCompletionAcceptedAsync(current, ct);
     }
@@ -367,7 +367,7 @@ public sealed class ExecutionFenceSpec : ActaRuntimeTestBase<ConformanceFixture,
 
         await AssertFencedOutAsync(old, () => old.Ctx.ResetStateAsync(ct), ct);
 
-        Assert.Equal("current", await current.Ctx.GetRequiredVariableAsync<string>(Receipt, ct));
+        Assert.Equal("current", await current.Ctx.GetVariableAsync<string>(Receipt, ct));
         await current.Ctx.ResetStateAsync(ct);
         Assert.False(await current.Ctx.ExistsVariableAsync(Receipt, ct));
         await AssertCompletionAcceptedAsync(current, ct);

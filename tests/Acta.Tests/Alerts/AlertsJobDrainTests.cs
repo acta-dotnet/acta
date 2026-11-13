@@ -126,7 +126,7 @@ public sealed class AlertsJobDrainTests
         await Assert.ThrowsAsync<TimeoutException>(() => CreateJob(crashing, SmallBatches).Handle(ctx, ct));
 
         Assert.Equal([4L, 8L], ctx.CursorWrites);
-        Assert.Equal(8L, (await ctx.GetRequiredVariableAsync<AlertsCursor>(AlertsJob.CursorVariableName, ct)).EventId);
+        Assert.Equal(8L, (await ctx.GetVariableAsync<AlertsCursor>(AlertsJob.CursorVariableName, ct)).EventId);
 
         // The next invocation resumes from that cursor and re-offers nothing below it.
         var recovering = new BacklogAlertStore(backlog: 20);
@@ -134,7 +134,7 @@ public sealed class AlertsJobDrainTests
 
         Assert.Equal(8L, recovering.Reads[0].Cursor);
         Assert.Equal(12, recovering.Raises);
-        Assert.Equal(20L, (await ctx.GetRequiredVariableAsync<AlertsCursor>(AlertsJob.CursorVariableName, ct)).EventId);
+        Assert.Equal(20L, (await ctx.GetVariableAsync<AlertsCursor>(AlertsJob.CursorVariableName, ct)).EventId);
     }
 
     private static AlertsJob CreateJob(BacklogAlertStore store, AlertDrainBudget drain)

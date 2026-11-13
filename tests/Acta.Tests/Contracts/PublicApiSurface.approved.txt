@@ -1398,7 +1398,7 @@ abstract class Acta.JobContext
     System.Threading.Tasks.Task<System.ValueTuple<System.Boolean Found, TResult? Value>> TryGetChildResultAsync<TResult>(System.Int64 childJobId, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task<T> GetOrSetVariableAsync<T>(System.String name, System.Func<System.Threading.CancellationToken, System.Threading.Tasks.Task<T>> valueFactory, System.Threading.CancellationToken ct = default) where T : notnull
     System.Threading.Tasks.Task<T> GetOrSetVariableAsync<T>(System.String name, System.Func<T> valueFactory, System.Threading.CancellationToken ct = default) where T : notnull
-    System.Threading.Tasks.Task<T> GetRequiredVariableAsync<T>(System.String name, System.Threading.CancellationToken ct = default) where T : notnull
+    System.Threading.Tasks.Task<T> GetVariableAsync<T>(System.String name, System.Threading.CancellationToken ct = default) where T : notnull
     System.Threading.Tasks.Task<T> GetVariableOrDefaultAsync<T>(System.String name, T defaultValue, System.Threading.CancellationToken ct = default) where T : notnull
     System.Threading.Tasks.Task<T?> GetVariableOrDefaultAsync<T>(System.String name, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task<T?> WaitSignalAsync<T>(System.String name, System.Threading.CancellationToken ct = default)

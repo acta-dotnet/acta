@@ -82,7 +82,7 @@ public abstract partial class JobContext
     /// <summary>
     /// Get a durable per-job variable, or throw when the variable is absent.
     /// </summary>
-    public async Task<T> GetRequiredVariableAsync<T>(string name, CancellationToken ct = default)
+    public async Task<T> GetVariableAsync<T>(string name, CancellationToken ct = default)
         where T : notnull
     {
         name = ValidateUserVariableName(name);

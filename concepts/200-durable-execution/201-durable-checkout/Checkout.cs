@@ -63,7 +63,7 @@ public sealed class CheckoutJob
             "send-receipt",
             async innerCt =>
             {
-                var storedChargeId = await context.GetRequiredVariableAsync<string>("charge-id", innerCt);
+                var storedChargeId = await context.GetVariableAsync<string>("charge-id", innerCt);
                 await Task.Delay(100, innerCt);
                 Console.WriteLine($"[{order.OrderId}] receipt request for {storedChargeId}: deduplication-key=receipt:{order.OrderId}");
             },

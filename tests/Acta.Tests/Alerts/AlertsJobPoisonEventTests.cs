@@ -22,8 +22,8 @@ public sealed class AlertsJobPoisonEventTests
         await job.Handle(ctx, ct);
 
         Assert.Equal([12L], store.RaiseAttempts);
-        Assert.Equal(12L, (await ctx.GetRequiredVariableAsync<AlertsCursor>(AlertsJob.CursorVariableName, ct)).EventId);
-        var skip = await ctx.GetRequiredVariableAsync<string>("alerts-skip-11", ct);
+        Assert.Equal(12L, (await ctx.GetVariableAsync<AlertsCursor>(AlertsJob.CursorVariableName, ct)).EventId);
+        var skip = await ctx.GetVariableAsync<string>("alerts-skip-11", ct);
         Assert.Contains("namespace=test-ns", skip);
         Assert.Contains("eventId=11", skip);
         Assert.Equal(new PoisonAlertEvent(11, 101, DateTime.UnixEpoch.Ticks), PoisonAlertEvent.Parse("alerts-skip-11", skip));
@@ -47,7 +47,7 @@ public sealed class AlertsJobPoisonEventTests
 
         // Nothing can bring the job back, so a record of the event would only hold the retention floor at it for good.
         Assert.Equal([11L, 12L], store.RaiseAttempts);
-        Assert.Equal(12L, (await ctx.GetRequiredVariableAsync<AlertsCursor>(AlertsJob.CursorVariableName, ct)).EventId);
+        Assert.Equal(12L, (await ctx.GetVariableAsync<AlertsCursor>(AlertsJob.CursorVariableName, ct)).EventId);
         Assert.False(await ctx.ExistsVariableAsync("alerts-skip-11", ct));
         Assert.DoesNotContain(LogLevel.Warning, logger.Levels);
 

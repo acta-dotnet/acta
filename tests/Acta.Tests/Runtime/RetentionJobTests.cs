@@ -233,7 +233,7 @@ public sealed class RetentionJobTests
         var jobs = store.Calls.Where(c => c.Section == RetentionSection.Jobs).ToList();
         Assert.Null(jobs[0].Before);
         Assert.Equal(Older(jobs[0]), jobs[1].Before);
-        Assert.Equal(Older(jobs[1]), await ctx.GetRequiredVariableAsync<RetentionCursor>(RetentionCursor.VariableName, ct));
+        Assert.Equal(Older(jobs[1]), await ctx.GetVariableAsync<RetentionCursor>(RetentionCursor.VariableName, ct));
     }
 
     [Fact]
@@ -245,7 +245,7 @@ public sealed class RetentionJobTests
 
         await Job(store.Handler, new Clock()).Handle(ctx, ct);
 
-        Assert.Equal(RetentionCursor.None, await ctx.GetRequiredVariableAsync<RetentionCursor>(RetentionCursor.VariableName, ct));
+        Assert.Equal(RetentionCursor.None, await ctx.GetVariableAsync<RetentionCursor>(RetentionCursor.VariableName, ct));
     }
 
     // A walk that never reaches the namespace's oldest job.

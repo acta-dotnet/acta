@@ -71,7 +71,7 @@ public static class JobVariableProbes
         var requiredAbsentValueTypeThrew = false;
         try
         {
-            await ctx.GetRequiredVariableAsync<int>("never.set.count", ct);
+            await ctx.GetVariableAsync<int>("never.set.count", ct);
         }
         catch (InvalidOperationException)
         {
@@ -81,7 +81,7 @@ public static class JobVariableProbes
         var requiredAbsentMessage = "";
         try
         {
-            await ctx.GetRequiredVariableAsync<string>("never.set", ct);
+            await ctx.GetVariableAsync<string>("never.set", ct);
         }
         catch (InvalidOperationException ex)
         {
@@ -90,7 +90,7 @@ public static class JobVariableProbes
 
         await ctx.SetVariableAsync("fetch.status", "done", ct);
         var existsAfterSet = await ctx.ExistsVariableAsync("fetch.status", ct);
-        var required = await ctx.GetRequiredVariableAsync<string>("fetch.status", ct);
+        var required = await ctx.GetVariableAsync<string>("fetch.status", ct);
 
         var (inserted, existing, factoryCalls) = await GetOrSetRetryCountTwiceAsync(ctx, ct);
 
@@ -123,10 +123,10 @@ public static class JobVariableProbes
         await ctx.SetVariableAsync("fetch.status", "done", ct);
 
         await ctx.SetVariableAsync("payload.empty-string", JobPayload.Json(string.Empty), ct);
-        var emptyString = await ctx.GetRequiredVariableAsync<string>("payload.empty-string", ct);
+        var emptyString = await ctx.GetVariableAsync<string>("payload.empty-string", ct);
 
         await ctx.SetVariableAsync("payload.empty-bytes", JobPayload.Bytes([]), ct);
-        var emptyBytes = await ctx.GetRequiredVariableAsync<byte[]>("payload.empty-bytes", ct);
+        var emptyBytes = await ctx.GetVariableAsync<byte[]>("payload.empty-bytes", ct);
 
         await ctx.SetProgressAsync("stage-two", ct);
 
@@ -138,7 +138,7 @@ public static class JobVariableProbes
     {
         await ctx.SetVariableAsync("fetch.status", "v1", ct);
         await ctx.SetVariableAsync("fetch.status", "v2", ct);
-        var overwritten = await ctx.GetRequiredVariableAsync<string>("fetch.status", ct);
+        var overwritten = await ctx.GetVariableAsync<string>("fetch.status", ct);
 
         var (inserted, existing, factoryCalls) = await GetOrSetRetryCountTwiceAsync(ctx, ct);
 
@@ -171,7 +171,7 @@ public static class JobVariableProbes
         );
 
         await ctx.SetVariableAsync("payload.empty-bytes", JobPayload.Bytes([]), ct);
-        var emptyBytes = await ctx.GetRequiredVariableAsync<byte[]>("payload.empty-bytes", ct);
+        var emptyBytes = await ctx.GetVariableAsync<byte[]>("payload.empty-bytes", ct);
 
         return new VariableValidationResult(
             invalidNamesRejected,
@@ -207,7 +207,7 @@ public static class JobVariableProbes
             .ToArray();
 
         var observed = await Task.WhenAll(tasks);
-        var stored = await ctx.GetRequiredVariableAsync<int>("race.winner", ct);
+        var stored = await ctx.GetVariableAsync<int>("race.winner", ct);
         return new VariableRaceResult(stored, observed.Distinct().Count(), observed, factoryCalls);
     }
 
@@ -245,39 +245,39 @@ public static class JobVariableProbes
         await ctx.SetVariableAsync("large.value", new string('A', 10_000), ct);
 
         var primitiveValues =
-            await ctx.GetRequiredVariableAsync<bool>("primitive.true", ct)
-            && !await ctx.GetRequiredVariableAsync<bool>("primitive.false", ct)
-            && await ctx.GetRequiredVariableAsync<int>("primitive.int-max", ct) == int.MaxValue
-            && await ctx.GetRequiredVariableAsync<int>("primitive.int-min", ct) == int.MinValue
-            && await ctx.GetRequiredVariableAsync<long>("primitive.long-max", ct) == long.MaxValue
-            && await ctx.GetRequiredVariableAsync<long>("primitive.long-min", ct) == long.MinValue
-            && await ctx.GetRequiredVariableAsync<decimal>("primitive.decimal", ct) == 12345.67m
-            && await ctx.GetRequiredVariableAsync<double>("primitive.double", ct) == 123.456d
-            && await ctx.GetRequiredVariableAsync<float>("primitive.float", ct) == 123.456f
-            && await ctx.GetRequiredVariableAsync<DateTime>("primitive.datetime", ct)
+            await ctx.GetVariableAsync<bool>("primitive.true", ct)
+            && !await ctx.GetVariableAsync<bool>("primitive.false", ct)
+            && await ctx.GetVariableAsync<int>("primitive.int-max", ct) == int.MaxValue
+            && await ctx.GetVariableAsync<int>("primitive.int-min", ct) == int.MinValue
+            && await ctx.GetVariableAsync<long>("primitive.long-max", ct) == long.MaxValue
+            && await ctx.GetVariableAsync<long>("primitive.long-min", ct) == long.MinValue
+            && await ctx.GetVariableAsync<decimal>("primitive.decimal", ct) == 12345.67m
+            && await ctx.GetVariableAsync<double>("primitive.double", ct) == 123.456d
+            && await ctx.GetVariableAsync<float>("primitive.float", ct) == 123.456f
+            && await ctx.GetVariableAsync<DateTime>("primitive.datetime", ct)
                 == new DateTime(2025, 1, 1, 12, 30, 0, DateTimeKind.Unspecified);
 
         var stringValues =
-            await ctx.GetRequiredVariableAsync<string>("string.empty", ct) == string.Empty
-            && await ctx.GetRequiredVariableAsync<string>("string.whitespace", ct) == "    "
-            && await ctx.GetRequiredVariableAsync<string>("string.special", ct) == "!@#$%^&*()_+-={}[]:\";'<>?,./"
-            && await ctx.GetRequiredVariableAsync<string>("string.unicode", ct) == "你好世界"
-            && await ctx.GetRequiredVariableAsync<string>("string.emoji", ct) == "🔥❤️🚀 Individuals and interactions 福";
+            await ctx.GetVariableAsync<string>("string.empty", ct) == string.Empty
+            && await ctx.GetVariableAsync<string>("string.whitespace", ct) == "    "
+            && await ctx.GetVariableAsync<string>("string.special", ct) == "!@#$%^&*()_+-={}[]:\";'<>?,./"
+            && await ctx.GetVariableAsync<string>("string.unicode", ct) == "你好世界"
+            && await ctx.GetVariableAsync<string>("string.emoji", ct) == "🔥❤️🚀 Individuals and interactions 福";
 
-        var list = await ctx.GetRequiredVariableAsync<List<int>>("object.list", ct);
-        var array = await ctx.GetRequiredVariableAsync<string[]>("object.array", ct);
-        var dictionary = await ctx.GetRequiredVariableAsync<Dictionary<string, int>>("object.dictionary", ct);
+        var list = await ctx.GetVariableAsync<List<int>>("object.list", ct);
+        var array = await ctx.GetVariableAsync<string[]>("object.array", ct);
+        var dictionary = await ctx.GetVariableAsync<Dictionary<string, int>>("object.dictionary", ct);
         var objectValues =
-            await ctx.GetRequiredVariableAsync<VariableComplexObject>("object.complex", ct) == new VariableComplexObject("complex test")
-            && await ctx.GetRequiredVariableAsync<VariableSomeRecord>("object.record", ct) == new VariableSomeRecord("record test", 123)
+            await ctx.GetVariableAsync<VariableComplexObject>("object.complex", ct) == new VariableComplexObject("complex test")
+            && await ctx.GetVariableAsync<VariableSomeRecord>("object.record", ct) == new VariableSomeRecord("record test", 123)
             && list.SequenceEqual([1, 2, 3, 4, 5])
             && array.SequenceEqual(["apple", "banana", "cherry"])
             && dictionary.Count == 2
             && dictionary["key1"] == 100
             && dictionary["key2"] == 200;
 
-        var overwritten = await ctx.GetRequiredVariableAsync<string>("overwrite.value", ct);
-        var large = await ctx.GetRequiredVariableAsync<string>("large.value", ct);
+        var overwritten = await ctx.GetVariableAsync<string>("overwrite.value", ct);
+        var large = await ctx.GetVariableAsync<string>("large.value", ct);
 
         return new VariableRoundTripResult(primitiveValues, stringValues, objectValues, overwritten, large.Length);
     }
