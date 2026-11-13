@@ -39,7 +39,7 @@ public sealed class ChildOutcomeOnFinishedParentSpec : ActaRuntimeTestBase<Confo
     {
         var ct = TestContext.Current.CancellationToken;
         var (parent, child) = await FinishedParentOfAFailedChildAsync(ct);
-        Assert.Equal(JobStatusCode.Failed, (await Jobs.GetResultAsync<ChildJobOutcome>(parent, ct)).Status);
+        Assert.Equal(JobStatusCode.Failed, (await Jobs.GetResultAsync<ChildOutcomeEntry>(parent, ct)).Status);
 
         // The child is restarted and then cancelled: a different outcome from the one the parent finished on.
         Assert.Equal(ControlAction.Applied, (await Jobs.RestartAsync(new JobRef(child.JobRef), ct: ct)).Action);
@@ -49,7 +49,7 @@ public sealed class ChildOutcomeOnFinishedParentSpec : ActaRuntimeTestBase<Confo
         // The restarted parent replays its wait and stores what it reads as its own result.
         Assert.Equal(ControlAction.Applied, (await Jobs.RestartAsync(parent, ct: ct)).Action);
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(parent, ct));
-        Assert.Equal(JobStatusCode.Cancelled, (await Jobs.GetResultAsync<ChildJobOutcome>(parent, ct)).Status);
+        Assert.Equal(JobStatusCode.Cancelled, (await Jobs.GetResultAsync<ChildOutcomeEntry>(parent, ct)).Status);
     }
 
     [Fact(DisplayName = "A child cancelled while its parent is finished records the cancel on a parent that never waited for it")]

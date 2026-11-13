@@ -547,7 +547,7 @@ A type is `{Subject}{Role}`, one suffix per role.
 | Route table of a group / one route | `Endpoints`, `Endpoint` | `JobsEndpoints`, `EnqueueJobEndpoint` |
 | Table model, one class per table, named by the table's singular | `Entity` | `JobEntity`, `JobStateEntity` |
 | Persisted enum, options, fluent builder, error, attribute | `Code`, `Options`, `Builder`, `Exception`, `Attribute` | `JobStatusCode` |
-| How a job, an attempt, or a wait ended, for handler code only | `Outcome` | `JobOutcome`, `ChildJobOutcome`, `SignalWaitOutcome` |
+| How a job, an attempt, or a wait ended, for handler code only | `Outcome` | `JobOutcome`, `SignalWaitOutcome` |
 | An in-memory registry, built at startup or kept by a running worker | `Registry` | `JobDescriptorRegistry`, `IJobPayloadSerializerRegistry` |
 
 - A response's parts are records of their own, named `<Operation><Part>`.
@@ -615,8 +615,7 @@ The boundary has three sides, and only two of them are inside it:
   - **Write outcomes, failures, and their ids**: `EnqueueJobResponse`, `IJobControlResponse.JobId`, the other
     `Job*Outcome` records, `JobFailedException.JobId`,
     `DuplicateDeduplicationKeyInBatchException.ParentJobId` / its `ForChild` factory.
-  - **The child-job APIs**, which take or return a child's id: `WaitChildAsync`, `WaitChildrenAsync`,
-    `GetChildResultAsync`, `ChildJobOutcome.ChildJobId`, `MapItemOutcome<TKey>.ChildJobId`, and
+  - **The child-job APIs**, which take or return a child's id: `GetChildResultAsync` and
     `JobEnqueueOptionsBuilder.ParentJobId(long)`.
   - **The `int`/`long` filter members on the `List*Query` records**, which the HTTP edge resolves refs
     into and never binds from the wire.

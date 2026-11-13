@@ -122,7 +122,7 @@ public sealed class JobCallSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf
         var untypedOutcome = await DriveAsync(Jobs.RunAndWaitAsync(untyped, Wait, ct), ct);
 
         Assert.Equal("zeta-7", typedOutcome.ValueOrThrow().Text);
-        Assert.True(untypedOutcome.IsSuccess);
+        Assert.True(untypedOutcome.Succeeded);
     }
 
     [Fact(DisplayName = "A scheduled call holds its job until the delay passes")]

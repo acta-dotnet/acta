@@ -36,7 +36,7 @@ app.MapPost("/orders/{orderId:int}/ship-now", async (int orderId, IJobs jobs) =>
 {
     var job = await jobs.EnqueueAsync(ShippingJobs.ShipOrder(new ShipOrder(orderId)));
     var outcome = await job.WaitAsync(TimeSpan.FromSeconds(5));
-    if (outcome.IsTimedOut)
+    if (outcome.TimedOut)
         return Results.Accepted($"/jobs/{job.JobRef}", new { job.JobRef });
     return outcome.TryGetValue(out var label) ? Results.Ok(label) : Results.Problem($"Shipping failed; see /jobs/{job.JobRef}/explain");
 });

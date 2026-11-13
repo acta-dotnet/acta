@@ -9,7 +9,7 @@ namespace Acta.Tests.Conformance.Scenarios;
 /// <summary>
 /// Conformance for child jobs: <c>ctx.StartChildAsync</c> enqueues a name-deduped child through the
 /// shared enqueue path, a terminal child raises a durable <c>sys.child.{id}</c> latch on its parent
-/// (releasing a Suspended parent), waits return <see cref="ChildJobOutcome"/> records, and cancel
+/// (releasing a Suspended parent), waits return the child's <see cref="JobOutcome"/>, and cancel
 /// cascades to the non-terminal descendant subtree.
 /// </summary>
 [ConformanceSpec(
@@ -128,19 +128,19 @@ public sealed class ChildJobSpec : ActaRuntimeTestBase<ConformanceFixture, JobsO
         var child = Assert.Single(await ReadChildrenAsync(parent.JobId, ct));
         Assert.Equal(RunOnceStatus.Failed, await Runtime.RunOnceAsync(child.Id, ct));
 
-        // The parent's wait never throws: it returns the outcome record (terminal status only), which
-        // the parent stores as its own result, round-tripping the SQL-built JSON envelope through the parser.
+        // The parent's wait never throws: it returns the outcome (terminal status only), which the parent
+        // stores as its own result, round-tripping the SQL-built JSON envelope through the parser.
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(parent, ct));
         Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(parent.JobId, ct)).Status);
 
-        var outcome = await Jobs.GetResultAsync<ChildJobOutcome>(parent, ct);
+        var outcome = await Jobs.GetResultAsync<ChildOutcomeEntry>(parent, ct);
         Assert.Equal(child.Id, outcome.ChildJobId);
         Assert.Equal(JobStatusCode.Failed, outcome.Status);
         Assert.False(outcome.Succeeded);
     }
 
-    [Fact(DisplayName = "WaitChildrenAsync joins all children in any completion order, woken only by the child it waits on")]
-    public async Task Wait_children_joins_all_regardless_of_completion_order()
+    [Fact(DisplayName = "JoinAsync joins all children in any completion order, woken only by the child it waits on")]
+    public async Task Join_waits_for_all_children_in_any_completion_order()
     {
         var ct = TestContext.Current.CancellationToken;
         var parent = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-parent-many", JobPayload.None), ct);

@@ -13,8 +13,8 @@ namespace Acta.Tests.Conformance.Scenarios;
     Contract = "IActaTestHost makes a parked timer, bounded wait, or schedule due at once, admits a due schedule in one pass, and refuses a wait with no deadline."
 )]
 [Deploys(
+    "job-parent-join-children",
     "job-parent-try-wait-child",
-    "job-parent-try-wait-children",
     "job-sleep-basic",
     "job-try-wait-signal-timeout",
     "job-wait-signal",
@@ -111,7 +111,7 @@ public sealed class TestHostHelpersSpec : ActaTestBase<ConformanceFixture>
         await using var host = await StartHostAsync(ct);
 
         var parent = await host.Jobs.EnqueueAsync(
-            TestJobsManifest.JobParentTryWaitChildren(new ChildGroupStart(["job-wait-signal", "job-wait-signal"])),
+            TestJobsManifest.JobParentJoinChildren(new ChildGroupStart(["job-wait-signal", "job-wait-signal"])),
             ct: ct
         );
         Assert.Equal(ActaRunStatus.Rearmed, await host.RunOnceAsync(parent, ct));

@@ -25,7 +25,7 @@ await host.StartAsync();
 
 var jobs = host.Services.GetRequiredService<IJobs>();
 
-// Children dedupe by name; WaitChildrenAsync resumes from durable latches on replay.
+// Children dedupe by name; JoinAsync resumes from durable latches on replay.
 var outcome = await jobs.EnqueueAsync(new BuildSnowman("Frosty", failChild ? "head" : null));
 await WaitForAsync(
     jobs,
@@ -148,7 +148,7 @@ namespace Acta.Concepts.ChildJobs
 
     public sealed class SnowmanBuilder
     {
-        // StartChildAsync enqueues name-deduped child jobs; WaitChildrenAsync suspends the parent
+        // StartChildAsync enqueues name-deduped child jobs; JoinAsync suspends the parent
         // (holding no executor) until every child is terminal; cancelling the parent cascades to children.
         // MapAsync and ParallelAsync do this same start-then-join in one call (lab 215); it is spelled
         // out here so each latch the join arms stays visible.
@@ -159,13 +159,10 @@ namespace Acta.Concepts.ChildJobs
             var middle = await context.StartChildAsync("middle", new RollSnowball("middle", input.FailPart == "middle"), ct);
             var head = await context.StartChildAsync("head", new RollSnowball("head", input.FailPart == "head"), ct);
 
-            var outcomes = await context.WaitChildrenAsync([bottom.JobId, middle.JobId, head.JobId], ct);
-            foreach (var outcome in outcomes)
+            var joined = await context.JoinAsync([bottom, middle, head], ct);
+            foreach (var outcome in joined.Failed)
             {
-                if (!outcome.Succeeded)
-                {
-                    await context.FailAsync($"child {outcome.ChildJobId} ended {outcome.Status}; see its job events for the reason", ct);
-                }
+                await context.FailAsync($"child {outcome.JobRef} ended {outcome.Status}; see its job events for the reason", ct);
             }
 
             var b = await context.GetChildResultAsync<Snowball>(bottom.JobId, ct);

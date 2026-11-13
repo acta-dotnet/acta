@@ -140,8 +140,8 @@
     "re-run complete: status=Succeeded executionNumber=4"
   ],
   "311-execute-outcome-timeout": [
-    "IsTimedOut: True",
-    "IsFailed: True",
+    "TimedOut: True",
+    "Status: Failed",
     "ThrowIfFailed threw: JobFailedException",
     "TryGetValue: False",
     "ValueOrThrow: all clear"

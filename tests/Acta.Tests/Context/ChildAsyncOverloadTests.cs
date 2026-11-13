@@ -34,7 +34,7 @@ public sealed class ChildAsyncOverloadTests
 
         var outcome = await ctx.ExecuteChildAsync("reserve-inventory", new Probe(), TestContext.Current.CancellationToken);
 
-        Assert.True(outcome.IsSuccess);
+        Assert.True(outcome.Succeeded);
         var options = Assert.Single(ctx.StartOptions);
         Assert.Equal("reserve-inventory", options.DeduplicationKey);
         Assert.Equal(ctx.JobId, options.ParentJobId);
@@ -92,7 +92,7 @@ public sealed class ChildAsyncOverloadTests
 
         var outcome = await ctx.ExecuteChildAsync<Probe, int>("reserve-inventory", new Probe(), TestContext.Current.CancellationToken);
 
-        Assert.True(outcome.IsSuccess);
+        Assert.True(outcome.Succeeded);
         Assert.Equal(42, outcome.ValueOrThrow());
         var options = Assert.Single(ctx.StartOptions);
         Assert.Equal("reserve-inventory", options.DeduplicationKey);

@@ -404,19 +404,13 @@ sealed class Acta.CheckpointStatusCodeJsonConverter : System.Text.Json.Serializa
     Acta.CheckpointStatusCode Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
     System.Void Write(System.Text.Json.Utf8JsonWriter writer, Acta.CheckpointStatusCode value, System.Text.Json.JsonSerializerOptions options)
 sealed class Acta.ChildGroupException : System.Exception
-    .ctor(System.Collections.Generic.IReadOnlyList<Acta.ChildJobOutcome> failed)
-    System.Collections.Generic.IReadOnlyList<Acta.ChildJobOutcome> Failed { get; }
-sealed record Acta.ChildJobOutcome
-    .ctor(System.Int64 ChildJobId, Acta.JobStatusCode Status)
-    Acta.JobStatusCode Status { get;init; }
-    System.Boolean Succeeded { get; }
-    System.Boolean TimedOut { get; }
-    System.Int64 ChildJobId { get;init; }
+    .ctor(System.Collections.Generic.IReadOnlyList<Acta.JobOutcome> failed)
+    System.Collections.Generic.IReadOnlyList<Acta.JobOutcome> Failed { get; }
 sealed record Acta.ChildrenWaitOutcome
     System.Boolean Succeeded { get; }
     System.Boolean TimedOut { get; }
-    System.Collections.Generic.IReadOnlyList<Acta.ChildJobOutcome> Children { get; }
-    System.Collections.Generic.IReadOnlyList<Acta.ChildJobOutcome> Failed { get; }
+    System.Collections.Generic.IReadOnlyList<Acta.JobOutcome> Children { get; }
+    System.Collections.Generic.IReadOnlyList<Acta.JobOutcome> Failed { get; }
     System.Void ThrowIfAnyFailed()
 sealed class Acta.CodeAttribute : System.Attribute
     .ctor(System.String code, System.String description)
@@ -1359,11 +1353,8 @@ abstract class Acta.JobContext
     System.Threading.Tasks.Task SleepUntilAsync(System.String name, System.DateTimeOffset resumeAtUtc, System.String? reasonMessage = null, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task WaitSignalAsync(System.String name, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task WaitSignalAsync(System.String name, System.TimeSpan timeout, System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.Task<Acta.ChildJobOutcome> TryWaitChildAsync(System.Int64 childJobId, System.TimeSpan timeout, System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.Task<Acta.ChildJobOutcome> WaitChildAsync(System.Int64 childJobId, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task<Acta.ChildrenWaitOutcome> JoinAsync(System.Collections.Generic.IReadOnlyList<Acta.EnqueueJobResponse> children, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task<Acta.ChildrenWaitOutcome> JoinAsync(System.Collections.Generic.IReadOnlyList<Acta.EnqueueJobResponse> children, System.TimeSpan timeout, System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.Task<Acta.ChildrenWaitOutcome> TryWaitChildrenAsync(System.Collections.Generic.IReadOnlyList<System.Int64> childJobIds, System.TimeSpan timeout, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task<Acta.EnqueueJobResponse> StartChildAsync(System.String name, System.String jobNamespace, System.String jobName, Acta.JobPayload input = default, System.Action<Acta.JobEnqueueOptionsBuilder>? configure = null, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task<Acta.EnqueueJobResponse> StartChildAsync<TInput, TResult>(System.String name, Acta.JobCall<TInput, TResult> job, System.Action<Acta.JobEnqueueOptionsBuilder>? configure = null, System.Threading.CancellationToken ct = default) where TInput : notnull where TResult : notnull
     System.Threading.Tasks.Task<Acta.EnqueueJobResponse> StartChildAsync<TInput, TResult>(System.String name, Acta.JobCall<TInput, TResult> job, System.Threading.CancellationToken ct) where TInput : notnull where TResult : notnull
@@ -1387,6 +1378,8 @@ abstract class Acta.JobContext
     System.Threading.Tasks.Task<Acta.JobOutcome> ExecuteChildAsync<TInput>(System.String name, TInput input, System.Threading.CancellationToken ct) where TInput : notnull
     System.Threading.Tasks.Task<Acta.JobOutcome> ExecuteChildAsync<TInput>(System.String name, TInput input, System.TimeSpan timeout, System.Action<Acta.JobEnqueueOptionsBuilder>? configure = null, System.Threading.CancellationToken ct = default) where TInput : notnull
     System.Threading.Tasks.Task<Acta.JobOutcome> ExecuteChildAsync<TInput>(System.String name, TInput input, System.TimeSpan timeout, System.Threading.CancellationToken ct) where TInput : notnull
+    System.Threading.Tasks.Task<Acta.JobOutcome> TryWaitChildAsync(Acta.EnqueueJobResponse child, System.TimeSpan timeout, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.Task<Acta.JobOutcome> WaitChildAsync(Acta.EnqueueJobResponse child, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task<Acta.MapOutcome<TKey>> MapAsync<TItem, TKey, TInput>(System.String groupName, System.Collections.Generic.IEnumerable<TItem> items, System.Func<TItem, TKey> itemKey, System.Func<TItem, TInput> child, System.Threading.CancellationToken ct = default) where TKey : notnull where TInput : notnull
     System.Threading.Tasks.Task<Acta.MapOutcome<TKey>> MapAsync<TItem, TKey, TInput>(System.String groupName, System.Collections.Generic.IEnumerable<TItem> items, System.Func<TItem, TKey> itemKey, System.Func<TItem, TInput> child, System.TimeSpan timeout, System.Threading.CancellationToken ct = default) where TKey : notnull where TInput : notnull
     System.Threading.Tasks.Task<Acta.ParallelOutcome> ParallelAsync(System.String groupName, System.Action<Acta.ParallelBuilder> configure, System.Threading.CancellationToken ct = default)
@@ -1395,7 +1388,6 @@ abstract class Acta.JobContext
     System.Threading.Tasks.Task<Acta.SignalWaitOutcome> TryWaitSignalAsync(System.String name, System.TimeSpan timeout, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task<System.Boolean> DeleteVariableAsync(System.String name, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task<System.Boolean> ExistsVariableAsync(System.String name, System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<Acta.ChildJobOutcome>> WaitChildrenAsync(System.Collections.Generic.IReadOnlyList<System.Int64> childJobIds, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task<System.ValueTuple<System.Boolean Found, TResult? Value>> TryGetChildResultAsync<TResult>(System.Int64 childJobId, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task<T> GetOrSetVariableAsync<T>(System.String name, System.Func<System.Threading.CancellationToken, System.Threading.Tasks.Task<T>> valueFactory, System.Threading.CancellationToken ct = default) where T : notnull
     System.Threading.Tasks.Task<T> GetOrSetVariableAsync<T>(System.String name, System.Func<T> valueFactory, System.Threading.CancellationToken ct = default) where T : notnull
@@ -1558,9 +1550,8 @@ enum Acta.JobLookupKind : System.Byte
 class Acta.JobOutcome
     Acta.JobRef JobRef { get; }
     Acta.JobStatusCode Status { get; }
-    System.Boolean IsFailed { get; }
-    System.Boolean IsSuccess { get; }
-    System.Boolean IsTimedOut { get; }
+    System.Boolean Succeeded { get; }
+    System.Boolean TimedOut { get; }
     System.Int64 JobId { get; }
     System.Void ThrowIfFailed()
 sealed class Acta.JobOutcome<T> : Acta.JobOutcome where T : notnull
@@ -2187,9 +2178,8 @@ sealed class Acta.LockAcquisitionTimeoutException : System.Exception
     System.String Key { get; }
     System.TimeSpan Timeout { get; }
 sealed record Acta.MapItemOutcome<TKey> where TKey : notnull
-    .ctor(TKey Key, System.Int64 ChildJobId, Acta.ChildJobOutcome Outcome)
-    Acta.ChildJobOutcome Outcome { get;init; }
-    System.Int64 ChildJobId { get;init; }
+    .ctor(TKey Key, Acta.JobOutcome Outcome)
+    Acta.JobOutcome Outcome { get;init; }
     TKey Key { get;init; }
 sealed record Acta.MapOutcome<TKey> where TKey : notnull
     .ctor(System.Collections.Generic.IReadOnlyList<Acta.MapItemOutcome<TKey>> Items)
@@ -2286,11 +2276,11 @@ sealed class Acta.ParallelBuilder
     .ctor()
     Acta.ParallelBuilder Child<TInput>(System.String branchName, TInput input) where TInput : notnull
 sealed record Acta.ParallelOutcome
-    .ctor(System.Collections.Generic.IReadOnlyDictionary<System.String, Acta.ChildJobOutcome> Branches)
+    .ctor(System.Collections.Generic.IReadOnlyDictionary<System.String, Acta.JobOutcome> Branches)
     System.Boolean Succeeded { get; }
     System.Boolean TimedOut { get; }
-    System.Collections.Generic.IReadOnlyDictionary<System.String, Acta.ChildJobOutcome> Branches { get;init; }
-    System.Collections.Generic.IReadOnlyDictionary<System.String, Acta.ChildJobOutcome> Failed { get; }
+    System.Collections.Generic.IReadOnlyDictionary<System.String, Acta.JobOutcome> Branches { get;init; }
+    System.Collections.Generic.IReadOnlyDictionary<System.String, Acta.JobOutcome> Failed { get; }
     System.Void ThrowIfAnyFailed()
 sealed record Acta.PauseJobResponse : Acta.IJobControlResponse
     .ctor(System.Int64 JobId, Acta.ControlAction Action, System.Nullable<Acta.JobStatusCode> Status, System.Nullable<System.Int64> Version)

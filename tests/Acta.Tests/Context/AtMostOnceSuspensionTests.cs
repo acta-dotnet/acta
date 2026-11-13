@@ -10,6 +10,8 @@ public sealed class AtMostOnceSuspensionTests
 {
     private static readonly TimeSpan Timeout = TimeSpan.FromMinutes(1);
 
+    private static readonly EnqueueJobResponse Child = new(7, JobRef.New(), EnqueueJobAction.Inserted);
+
     public static TheoryData<string> Calls => [.. SuspendingCalls.Keys];
 
     private static readonly Dictionary<string, Func<JobContext, CancellationToken, Task>> SuspendingCalls = new()
@@ -22,10 +24,8 @@ public sealed class AtMostOnceSuspensionTests
         ["WaitSignalAsync<T> timeout"] = (ctx, ct) => ctx.WaitSignalAsync<string>("approval", Timeout, ct),
         ["TryWaitSignalAsync"] = (ctx, ct) => ctx.TryWaitSignalAsync("approval", Timeout, ct),
         ["TryWaitSignalAsync<T>"] = (ctx, ct) => ctx.TryWaitSignalAsync<string>("approval", Timeout, ct),
-        ["WaitChildAsync"] = (ctx, ct) => ctx.WaitChildAsync(7, ct),
-        ["TryWaitChildAsync"] = (ctx, ct) => ctx.TryWaitChildAsync(7, Timeout, ct),
-        ["WaitChildrenAsync"] = (ctx, ct) => ctx.WaitChildrenAsync([7], ct),
-        ["TryWaitChildrenAsync"] = (ctx, ct) => ctx.TryWaitChildrenAsync([7], Timeout, ct),
+        ["WaitChildAsync"] = (ctx, ct) => ctx.WaitChildAsync(Child, ct),
+        ["TryWaitChildAsync"] = (ctx, ct) => ctx.TryWaitChildAsync(Child, Timeout, ct),
         ["ExecuteChildAsync"] = (ctx, ct) => ctx.ExecuteChildAsync("ship", new NoInput(), ct),
         ["ExecuteChildAsync timeout"] = (ctx, ct) => ctx.ExecuteChildAsync("ship", new NoInput(), Timeout, ct),
         ["ExecuteChildAsync<T>"] = (ctx, ct) => ctx.ExecuteChildAsync<NoInput, string>("ship", new NoInput(), ct),

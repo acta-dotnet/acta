@@ -293,7 +293,7 @@ public sealed class ChildTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, J
             new EnqueueJobRequest(
                 TestNamespace,
                 "job-parent-try-wait-foreign-job",
-                JobPayload.Json(new TryWaitForeignStart(foreign.JobId))
+                JobPayload.Json(new TryWaitForeignStart(foreign.JobId, foreign.JobRef))
             ),
             ct
         );

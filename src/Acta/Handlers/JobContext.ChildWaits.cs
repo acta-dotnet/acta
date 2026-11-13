@@ -7,54 +7,76 @@ public abstract partial class JobContext
 {
     /// <summary>
     /// Durable, replay-safe wait for a child started by
-    /// <see cref="StartChildAsync{TInput}(string, TInput, Action{JobEnqueueOptionsBuilder}, CancellationToken)"/> to reach
-    /// a terminal status. Returns the child's terminal outcome immediately when it already finished;
-    /// otherwise suspends this Job (budget-neutral) until the child's terminal landing releases it.
-    /// Never throws on a failed or cancelled child; branch on <see cref="ChildJobOutcome.Succeeded"/>.
+    /// <see cref="StartChildAsync{TInput}(string, TInput, Action{JobEnqueueOptionsBuilder}, CancellationToken)"/>, given
+    /// what the start answered, to reach a terminal status. Returns the child's terminal outcome immediately when it
+    /// already finished; otherwise suspends this Job (budget-neutral) until the child's terminal landing releases it.
+    /// Never throws on a failed or cancelled child; branch on <see cref="JobOutcome.Succeeded"/>.
     /// The outcome latch lives on this Job and survives the child row's retention purge.
     /// </summary>
-    public async Task<ChildJobOutcome> WaitChildAsync(long childJobId, CancellationToken ct = default)
+    public async Task<JobOutcome> WaitChildAsync(EnqueueJobResponse child, CancellationToken ct = default)
     {
         ThrowIfInAtMostOnceStep(nameof(WaitChildAsync));
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(childJobId);
-        using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, CancellationToken);
-        var outcome = await WaitSignalCoreAsync(ChildLatchName(childJobId), linked.Token);
-        return ParseChildOutcome(childJobId, outcome);
+        ValidateChild(child, nameof(child));
+        return (await WaitChildCoreAsync(child, timeout: null, ct)).Outcome;
     }
 
     /// <summary>
     /// Bounded twin of <see cref="WaitChildAsync"/>. The first pass stores <c>db_now + timeout</c> (whole seconds,
     /// rounded up, positive) as the latch's expiration; a replay reuses that instant and never extends it. A child
     /// landing before the replayed wait settles the latch is still taken. A timeout never cancels this Job: the handler
-    /// resumes with <see cref="ChildJobOutcome.TimedOut"/> after Acta cancels the unfinished child and its subtree
+    /// resumes with <see cref="JobOutcome.TimedOut"/> after Acta cancels the unfinished child and its subtree
     /// (<c>wait-timed-out</c>), free to compensate, start a replacement, or cancel itself. There is no non-Try twin:
     /// a child timeout resolves in the parent's favour, so a non-returning overload would mean nothing.
     /// </summary>
-    public async Task<ChildJobOutcome> TryWaitChildAsync(long childJobId, TimeSpan timeout, CancellationToken ct = default)
+    public async Task<JobOutcome> TryWaitChildAsync(EnqueueJobResponse child, TimeSpan timeout, CancellationToken ct = default)
     {
         ThrowIfInAtMostOnceStep(nameof(TryWaitChildAsync));
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(childJobId);
-        var seconds = ToWaitTimeoutSeconds(timeout);
+        ValidateChild(child, nameof(child));
+        return (await WaitChildCoreAsync(child, timeout, ct)).Outcome;
+    }
+
+    /// <summary>
+    /// Waits one child's latch, under <paramref name="timeout"/> when one is given, and answers its outcome beside the
+    /// execution whose landing set the latch, whose result the typed wait reads; null when the latch names none or the
+    /// wait timed out.
+    /// </summary>
+    private async Task<(JobOutcome Outcome, long? ExecutionNumber)> WaitChildCoreAsync(
+        EnqueueJobResponse child,
+        TimeSpan? timeout,
+        CancellationToken ct
+    )
+    {
+        int? seconds = timeout is { } bound ? ToWaitTimeoutSeconds(bound) : null;
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, CancellationToken);
-        var outcome = await WaitSignalCoreAsync(ChildLatchName(childJobId), seconds, resumeOnTimeout: true, linked.Token);
-        return await ResolveChildWaitAsync(childJobId, outcome, linked.Token);
+        var latch = seconds is null
+            ? await WaitSignalCoreAsync(ChildLatchName(child.JobId), linked.Token)
+            : await WaitSignalCoreAsync(ChildLatchName(child.JobId), seconds, resumeOnTimeout: true, linked.Token);
+        return await ResolveChildWaitAsync(child, latch, linked.Token);
     }
 
     /// <summary>
     /// A landed child's outcome, or, for a timed-out wait, the child cancelled first. The parent has stopped waiting,
-    /// so the child's work is no longer wanted: cancelling before the result is handed back means the handler never
+    /// so the child's work is no longer wanted: cancelling before the outcome is handed back means the handler never
     /// sees TimedOut while the subtree is still burning workers, and a replay re-runs a cancel that is a no-op on
-    /// terminal rows.
+    /// terminal rows. A child that landed terminal in the same instant as the expiry keeps the status it reached, while
+    /// its outcome still reports Cancelled beside the timeout flag.
     /// </summary>
-    private async Task<ChildJobOutcome> ResolveChildWaitAsync(long childJobId, SignalCheckpointState outcome, CancellationToken ct)
+    private async Task<(JobOutcome Outcome, long? ExecutionNumber)> ResolveChildWaitAsync(
+        EnqueueJobResponse child,
+        SignalCheckpointState latch,
+        CancellationToken ct
+    )
     {
-        if (!outcome.TimedOut)
+        if (!latch.TimedOut)
         {
-            return ParseChildOutcome(childJobId, outcome);
+            var (status, executionNumber) = ChildOutcomeEnvelope.Parse(
+                latch.Value ?? throw new InvalidOperationException($"Child latch for job {child.JobId} carries no envelope.")
+            );
+            return (JobOutcome.Landed(child.JobId, child.JobRef, status), executionNumber);
         }
 
-        await CancelTimedOutChildCoreAsync(childJobId, ct);
-        return ChildJobOutcome.Expired(childJobId);
+        await CancelTimedOutChildCoreAsync(child.JobId, ct);
+        return (JobOutcome.Expired(child.JobId, child.JobRef, JobStatusCode.Cancelled), null);
     }
 
     /// <summary>
@@ -65,10 +87,11 @@ public abstract partial class JobContext
     /// </summary>
     private static string ChildLatchName(long childJobId) => ChildSignalPrefix + childJobId.ToString(CultureInfo.InvariantCulture);
 
-    private static ChildJobOutcome ParseChildOutcome(long childJobId, SignalCheckpointState outcome) =>
-        outcome.Value is null
-            ? throw new InvalidOperationException($"Child latch for job {childJobId} carries no envelope.")
-            : ChildOutcomeEnvelope.Parse(outcome.Value);
+    private static void ValidateChild(EnqueueJobResponse child, string paramName)
+    {
+        ArgumentNullException.ThrowIfNull(child, paramName);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(child.JobId, paramName);
+    }
 
     /// <summary>
     /// Subclass sink: cancel the timed-out <paramref name="childJobId"/> and its non-terminal
@@ -80,89 +103,39 @@ public abstract partial class JobContext
     private protected virtual Task CancelTimedOutChildCoreAsync(long childJobId, CancellationToken ct) => Task.CompletedTask;
 
     /// <summary>
-    /// Waits for every listed child to reach a terminal status (all-of), suspending as needed. Outcomes
-    /// are returned in the order given. Replay-safe: finished children resolve from their latches
-    /// without suspending.
+    /// The one home of the group deadline rule; every group API funnels through it, and a null timeout is the unbounded
+    /// loop. Every member's wait is bounded by the group's stored instant itself, so each latch expires at that instant
+    /// whenever it is armed, and a member first reached after the instant has passed times out in the same pass as the
+    /// rest instead of arming a fresh bound and suspending the parent once per member.
     /// </summary>
-    public async Task<IReadOnlyList<ChildJobOutcome>> WaitChildrenAsync(IReadOnlyList<long> childJobIds, CancellationToken ct = default)
-    {
-        ThrowIfInAtMostOnceStep(nameof(WaitChildrenAsync));
-        ArgumentNullException.ThrowIfNull(childJobIds);
-        var outcomes = new ChildJobOutcome[childJobIds.Count];
-        for (var i = 0; i < childJobIds.Count; i++)
-        {
-            outcomes[i] = await WaitChildAsync(childJobIds[i], ct);
-        }
-        return outcomes;
-    }
-
-    /// <summary>
-    /// Durable, replay-safe bounded wait for a whole group of children. The first pass stores <c>db_now + timeout</c>
-    /// once as the group's deadline (whole seconds, positive, for the group rather than per child), and every child on
-    /// every replay waits toward that one instant: the budget never restarts, except after <see cref="ResetStateAsync"/>,
-    /// which clears the stored deadline with every other checkpoint. Children that landed keep their outcome; on expiry
-    /// Acta cancels only the unfinished ones and their subtrees (<c>wait-timed-out</c>) and this Job resumes with
-    /// the result. There is no non-Try twin, for the reason <see cref="TryWaitChildAsync"/> has none.
-    /// </summary>
-    public async Task<ChildrenWaitOutcome> TryWaitChildrenAsync(
-        IReadOnlyList<long> childJobIds,
-        TimeSpan timeout,
-        CancellationToken ct = default
-    )
-    {
-        ThrowIfInAtMostOnceStep(nameof(TryWaitChildrenAsync));
-        ArgumentNullException.ThrowIfNull(childJobIds);
-        // Every argument is checked before the first store call, and a bad id anywhere in the list stops
-        // the whole call, so a rejected group never leaves a deadline checkpoint or a half-armed latch behind.
-        ToWaitTimeoutSeconds(timeout);
-        for (var i = 0; i < childJobIds.Count; i++)
-        {
-            if (childJobIds[i] <= 0)
-            {
-                throw new ArgumentOutOfRangeException(nameof(childJobIds), childJobIds[i], "Child job ids must be positive.");
-            }
-        }
-
-        if (childJobIds.Count == 0)
-        {
-            // No group, so no deadline to persist: an empty wait is over before it starts.
-            return ChildrenWaitOutcome.From([]);
-        }
-
-        using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, CancellationToken);
-        return ChildrenWaitOutcome.From(await WaitChildGroupAsync(childJobIds, timeout, linked.Token));
-    }
-
-    /// <summary>
-    /// The one home of the group deadline rule; every bounded group API funnels through it, and a null timeout is the
-    /// unbounded loop. Every member's wait is bounded by the group's stored instant itself, so each latch expires at
-    /// that instant whenever it is armed, and a member first reached after the instant has passed times out in the same
-    /// pass as the rest instead of arming a fresh bound and suspending the parent once per member.
-    /// </summary>
-    private async Task<IReadOnlyList<ChildJobOutcome>> WaitChildGroupAsync(
-        IReadOnlyList<long> childJobIds,
+    private async Task<IReadOnlyList<JobOutcome>> WaitChildGroupAsync(
+        IReadOnlyList<EnqueueJobResponse> children,
         TimeSpan? timeout,
         CancellationToken ct
     )
     {
+        var outcomes = new JobOutcome[children.Count];
         if (timeout is not { } bound)
         {
-            return await WaitChildrenAsync(childJobIds, ct);
+            for (var i = 0; i < children.Count; i++)
+            {
+                outcomes[i] = (await WaitChildCoreAsync(children[i], timeout: null, ct)).Outcome;
+            }
+            return outcomes;
         }
 
         // Whole seconds, rounded up, as a single child's bound is: a fraction of a second would be spent by the round
         // trip that stores it.
         var deadlineAtUtc = await GetOrSetWaitDeadlineCoreAsync(
-            GroupDeadlineName(childJobIds),
+            GroupDeadlineName([.. children.Select(child => child.JobId)]),
             TimeSpan.FromSeconds(ToWaitTimeoutSeconds(bound)),
             ct
         );
 
-        var outcomes = new ChildJobOutcome[childJobIds.Count];
-        for (var i = 0; i < childJobIds.Count; i++)
+        for (var i = 0; i < children.Count; i++)
         {
-            var latch = await WaitSignalUntilCoreAsync(ChildLatchName(childJobIds[i]), deadlineAtUtc, ct);
-            outcomes[i] = await ResolveChildWaitAsync(childJobIds[i], latch, ct);
+            var latch = await WaitSignalUntilCoreAsync(ChildLatchName(children[i].JobId), deadlineAtUtc, ct);
+            outcomes[i] = (await ResolveChildWaitAsync(children[i], latch, ct)).Outcome;
         }
         return outcomes;
     }

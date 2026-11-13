@@ -30,7 +30,7 @@ internal static class ChildOutcomeEnvelope
         return buffer.WrittenSpan.ToArray();
     }
 
-    public static ChildJobOutcome Parse(ReadOnlySpan<byte> utf8)
+    public static (JobStatusCode Status, long? ExecutionNumber) Parse(ReadOnlySpan<byte> utf8)
     {
         long childJobId = 0;
         short status = 0;
@@ -67,6 +67,6 @@ internal static class ChildOutcomeEnvelope
 
         return childJobId == 0 || status == 0
             ? throw new InvalidOperationException("Child outcome envelope is missing childJobId or status.")
-            : new ChildJobOutcome(childJobId, (JobStatusCode)status) { ExecutionNumber = executionNumber };
+            : ((JobStatusCode)status, executionNumber);
     }
 }

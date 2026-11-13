@@ -12,6 +12,12 @@ Not tagged yet. The schema changes by one migration on rc.10's baseline, the fir
 
 **Call `ctx.GetVariableAsync<T>(name)` where a handler called `GetRequiredVariableAsync<T>(name)`**: a typed `Get` expects its value and throws when there is none, as `GetResultAsync<T>` and `GetChildResultAsync<T>` do, so the variable read takes the same form. It behaves as before, and `GetVariableOrDefaultAsync` is unchanged.
 
+**Read every child's end as a `JobOutcome`**: `ChildJobOutcome` is gone. `WaitChildAsync` and `TryWaitChildAsync` take what `StartChildAsync` answered, `await ctx.WaitChildAsync(audit, ct)`, and answer the `JobOutcome` that `ExecuteChildAsync` and `IJobs.WaitAsync` answer, with the child's `JobRef` and `ThrowIfFailed()`. The members of `JoinAsync`, `ParallelAsync` and `MapAsync` and `ChildGroupException.Failed` are `JobOutcome` too, and `MapItemOutcome.ChildJobId` is gone: read `Outcome.JobId`. A job already waiting on a child resumes after the upgrade, since the names its waits are stored under are unchanged.
+
+**Call `JoinAsync` where a handler called `WaitChildrenAsync` or `TryWaitChildrenAsync`**: they were `JoinAsync(children)` and `JoinAsync(children, timeout)` over child ids, and they are gone.
+
+**Read `Succeeded` and `TimedOut` on a `JobOutcome`**: `IsSuccess` and `IsTimedOut` take the words every other outcome uses, and `IsFailed` is gone: `Status` says `Failed` or `Cancelled`.
+
 ### Additions
 
 - `414-dashboard-sign-in`, a concept rung that puts the dashboard and the API behind the host's own cookie sign-in, with the host's three roles behind the four permission policies. It signs in as each role through the form on start and prints what the server answered.

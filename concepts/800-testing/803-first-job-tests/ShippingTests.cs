@@ -89,7 +89,7 @@ public sealed class ShippingTests : IAsyncLifetime
 
         var outcome = await job.WaitAsync(TimeSpan.FromMilliseconds(50), Ct);
 
-        Assert.True(outcome.IsTimedOut);
+        Assert.True(outcome.TimedOut);
         Assert.Equal(JobStatusCode.Ready, (await job.GetStatusAsync(Ct))?.Status);
         Assert.Equal(ActaRunStatus.Completed, await _host.RunOnceAsync(job, Ct));
     }

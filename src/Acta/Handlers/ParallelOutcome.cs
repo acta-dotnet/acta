@@ -5,7 +5,7 @@ namespace Acta;
 /// group waits for every branch and returns; it never throws because a branch failed. Call
 /// <see cref="ThrowIfAnyFailed"/> to opt into escalation.
 /// </summary>
-public sealed record ParallelOutcome(IReadOnlyDictionary<string, ChildJobOutcome> Branches)
+public sealed record ParallelOutcome(IReadOnlyDictionary<string, JobOutcome> Branches)
 {
     /// <summary>
     /// True when the group deadline passed before at least one branch landed terminal. Always false
@@ -17,7 +17,7 @@ public sealed record ParallelOutcome(IReadOnlyDictionary<string, ChildJobOutcome
     public bool Succeeded => Branches.Values.All(o => o.Succeeded);
 
     /// <summary>The non-succeeded branches (failed, cancelled, or timed out), keyed by branch name.</summary>
-    public IReadOnlyDictionary<string, ChildJobOutcome> Failed =>
+    public IReadOnlyDictionary<string, JobOutcome> Failed =>
         Branches.Where(kv => !kv.Value.Succeeded).ToDictionary(kv => kv.Key, kv => kv.Value, StringComparer.Ordinal);
 
     /// <summary>

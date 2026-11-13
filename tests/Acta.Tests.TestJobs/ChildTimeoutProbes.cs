@@ -5,11 +5,11 @@ namespace TestJobs;
 /// <summary>Which job a parameterized try-wait parent probe should start as its one child.</summary>
 public sealed record TryWaitChildStart(string ChildJobName);
 
-/// <summary>The id of an unrelated job for the probe that awaits something it never started.</summary>
-public sealed record TryWaitForeignStart(long ForeignJobId);
+/// <summary>The id and ref of an unrelated job for the probe that awaits something it never started.</summary>
+public sealed record TryWaitForeignStart(long ForeignJobId, JobRef ForeignJobRef);
 
 /// <summary>What a parent handler observed after its bounded child wait resolved.</summary>
-public sealed record ChildWaitReport(bool TimedOut, bool Completed, long ChildJobId, ChildJobOutcome? Outcome);
+public sealed record ChildWaitReport(bool TimedOut, bool Completed, long ChildJobId, ChildOutcomeEntry? Outcome);
 
 /// <summary>
 /// Bounded child-wait probes. Every wait is armed far enough out that only a deliberate rewind of the
@@ -39,7 +39,7 @@ public static class ChildTimeoutProbes
     public static async Task<ChildWaitReport> ParentTryWaitChild(TryWaitChildStart input, JobContext ctx, CancellationToken ct)
     {
         var child = await ctx.StartChildAsync("only", ctx.JobNamespace, input.ChildJobName, JobPayload.None, ct: ct);
-        var result = await ctx.TryWaitChildAsync(child.JobId, LongWait, ct);
+        var result = await ctx.TryWaitChildAsync(child, LongWait, ct);
         await ctx.NoteAsync("child wait resumed", ct);
         await ctx.SetVariableAsync("ran.after", true, ct);
         return Report(result);
@@ -54,7 +54,7 @@ public static class ChildTimeoutProbes
     {
         var slow = await ctx.StartChildAsync("slow", ctx.JobNamespace, "job-child-with-grandchild", JobPayload.None, ct: ct);
         await ctx.StartChildAsync("sibling", ctx.JobNamespace, "job-wait-signal", JobPayload.None, ct: ct);
-        var result = await ctx.TryWaitChildAsync(slow.JobId, LongWait, ct);
+        var result = await ctx.TryWaitChildAsync(slow, LongWait, ct);
         await ctx.NoteAsync("child wait resumed", ct);
         await ctx.SetVariableAsync("ran.after", true, ct);
         return Report(result);
@@ -72,12 +72,12 @@ public static class ChildTimeoutProbes
         var child = await ctx.StartChildAsync("only", ctx.JobNamespace, "job-wait-signal", JobPayload.None, ct: ct);
         if (await ctx.ExistsVariableAsync("child.timed-out", ct))
         {
-            await ctx.WaitChildAsync(child.JobId, ct);
+            await ctx.WaitChildAsync(child, ct);
             await ctx.NoteAsync("unbounded child wait resumed", ct);
             return;
         }
 
-        var result = await ctx.TryWaitChildAsync(child.JobId, LongWait, ct);
+        var result = await ctx.TryWaitChildAsync(child, LongWait, ct);
         await ctx.SetVariableAsync("child.timed-out", result.TimedOut, ct);
         await ctx.WaitSignalAsync("hold", ct);
     }
@@ -89,7 +89,8 @@ public static class ChildTimeoutProbes
     [Job("job-parent-try-wait-foreign-job")]
     public static async Task<ChildWaitReport> ParentTryWaitForeignJob(TryWaitForeignStart input, JobContext ctx, CancellationToken ct)
     {
-        var result = await ctx.TryWaitChildAsync(input.ForeignJobId, LongWait, ct);
+        var foreign = new EnqueueJobResponse(input.ForeignJobId, input.ForeignJobRef, EnqueueJobAction.Deduplicated);
+        var result = await ctx.TryWaitChildAsync(foreign, LongWait, ct);
         await ctx.NoteAsync("foreign wait resumed", ct);
         return Report(result);
     }
@@ -103,19 +104,19 @@ public static class ChildTimeoutProbes
     public static async Task<ChildWaitReport> ParentTryWaitChildThenRetry(JobContext ctx, CancellationToken ct)
     {
         var first = await ctx.StartChildAsync("first", ctx.JobNamespace, "job-wait-signal", JobPayload.None, ct: ct);
-        var result = await ctx.TryWaitChildAsync(first.JobId, LongWait, ct);
+        var result = await ctx.TryWaitChildAsync(first, LongWait, ct);
         if (!result.TimedOut)
         {
             return Report(result);
         }
 
         var replacement = await ctx.StartChildAsync("second", ctx.JobNamespace, "job-child-quick", JobPayload.None, ct: ct);
-        var landed = await ctx.WaitChildAsync(replacement.JobId, ct);
+        var landed = await ctx.WaitChildAsync(replacement, ct);
         await ctx.NoteAsync("replacement child joined", ct);
-        return new ChildWaitReport(TimedOut: true, Completed: false, result.ChildJobId, landed);
+        return new ChildWaitReport(TimedOut: true, Completed: false, result.JobId, ChildOutcomeEntry.Of(landed));
     }
 
     // A timed-out wait reports no outcome: the status it carries is the one Acta drove the child to.
-    private static ChildWaitReport Report(ChildJobOutcome result) =>
-        new(result.TimedOut, !result.TimedOut, result.ChildJobId, result.TimedOut ? null : result);
+    private static ChildWaitReport Report(JobOutcome result) =>
+        new(result.TimedOut, !result.TimedOut, result.JobId, result.TimedOut ? null : ChildOutcomeEntry.Of(result));
 }

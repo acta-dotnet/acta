@@ -35,7 +35,6 @@ public sealed class TypeNamingTests
     private static readonly HashSet<string> DomainOutcomes =
     [
         "JobOutcome",
-        "ChildJobOutcome",
         "MapOutcome",
         "MapItemOutcome",
         "ParallelOutcome",

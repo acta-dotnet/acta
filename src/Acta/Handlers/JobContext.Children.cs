@@ -108,7 +108,7 @@ public abstract partial class JobContext
     /// mirror of <c>IJobs.RunAndWaitAsync</c>. Returned, never thrown; branch on the outcome or call
     /// <see cref="JobOutcome.ThrowIfFailed"/>. Waits this one child before returning: to fan out, start
     /// every child first and join with
-    /// <see cref="WaitChildrenAsync(IReadOnlyList{long}, CancellationToken)"/>.
+    /// <see cref="JoinAsync(IReadOnlyList{EnqueueJobResponse}, CancellationToken)"/>.
     /// </summary>
     public async Task<JobOutcome> ExecuteChildAsync<TInput>(
         string name,
@@ -136,7 +136,7 @@ public abstract partial class JobContext
     /// <see cref="ExecuteChildAsync{TInput}(string, TInput, Action{JobEnqueueOptionsBuilder}, CancellationToken)"/>:
     /// the child is started, then awaited under one stored expiration (<c>db_now + timeout</c>, whole seconds,
     /// positive) that a replay reuses and never extends. On expiry the outcome reports
-    /// <see cref="JobOutcome.IsTimedOut"/>, Acta cancels the child and its descendant subtree, and this Job resumes.
+    /// <see cref="JobOutcome.TimedOut"/>, Acta cancels the child and its descendant subtree, and this Job resumes.
     /// </summary>
     public async Task<JobOutcome> ExecuteChildAsync<TInput>(
         string name,
@@ -167,11 +167,8 @@ public abstract partial class JobContext
         where TInput : notnull => ExecuteChildAsync(name, input, timeout, configure: null, ct: ct);
 
     /// <summary>Waits a started child to its outcome, under <paramref name="timeout"/> when one is given.</summary>
-    private async Task<JobOutcome> SettleChildAsync(EnqueueJobResponse child, TimeSpan? timeout, CancellationToken ct)
-    {
-        var outcome = timeout is { } bound ? await TryWaitChildAsync(child.JobId, bound, ct) : await WaitChildAsync(child.JobId, ct);
-        return outcome.TimedOut ? JobOutcome.TimedOut(child.JobId, child.JobRef, TimedOutChildStatus) : ToJobOutcome(child, outcome.Status);
-    }
+    private async Task<JobOutcome> SettleChildAsync(EnqueueJobResponse child, TimeSpan? timeout, CancellationToken ct) =>
+        (await WaitChildCoreAsync(child, timeout, ct)).Outcome;
 
     /// <summary>
     /// <see cref="SettleChildAsync(EnqueueJobResponse, TimeSpan?, CancellationToken)"/> with the result a succeeded
@@ -185,38 +182,20 @@ public abstract partial class JobContext
     )
         where TResult : notnull
     {
-        var outcome = timeout is { } bound ? await TryWaitChildAsync(child.JobId, bound, ct) : await WaitChildAsync(child.JobId, ct);
+        var (outcome, executionNumber) = await WaitChildCoreAsync(child, timeout, ct);
         if (outcome.TimedOut)
         {
-            return JobOutcome<TResult>.TimedOut(child.JobId, child.JobRef, TimedOutChildStatus);
+            return JobOutcome<TResult>.Expired(child.JobId, child.JobRef, outcome.Status);
         }
 
-        return outcome.Status switch
-        {
-            JobStatusCode.Succeeded => JobOutcome<TResult>.Succeeded(
+        return outcome.Succeeded
+            ? JobOutcome<TResult>.Landed(
                 child.JobId,
                 child.JobRef,
-                await RequireChildResultAsync<TResult>(outcome, name, ct)
-            ),
-            JobStatusCode.Cancelled => JobOutcome<TResult>.Cancelled(child.JobId, child.JobRef),
-            _ => JobOutcome<TResult>.Failed(child.JobId, child.JobRef),
-        };
+                await RequireChildResultAsync<TResult>(child, executionNumber, name, ct)
+            )
+            : JobOutcome<TResult>.Landed(child.JobId, child.JobRef, outcome.Status);
     }
-
-    private static JobOutcome ToJobOutcome(EnqueueJobResponse child, JobStatusCode status) =>
-        status switch
-        {
-            JobStatusCode.Succeeded => JobOutcome.Succeeded(child.JobId, child.JobRef),
-            JobStatusCode.Cancelled => JobOutcome.Cancelled(child.JobId, child.JobRef),
-            _ => JobOutcome.Failed(child.JobId, child.JobRef),
-        };
-
-    /// <summary>
-    /// What a timed-out wait leaves the child in: Acta cancels it before the handler resumes, so
-    /// the outcome reports Cancelled beside the timeout flag rather than inventing a status of its
-    /// own.
-    /// </summary>
-    private const JobStatusCode TimedOutChildStatus = JobStatusCode.Cancelled;
 
     /// <summary>
     /// Result-returning variant of
@@ -254,7 +233,7 @@ public abstract partial class JobContext
     /// <see cref="ExecuteChildAsync{TInput, TResult}(string, TInput, Action{JobEnqueueOptionsBuilder}, CancellationToken)"/>:
     /// the child is started, then awaited under one stored expiration (<c>db_now + timeout</c>, whole seconds,
     /// positive) that a replay reuses and never extends. On expiry the outcome reports
-    /// <see cref="JobOutcome.IsTimedOut"/> with no value, Acta cancels the child and its subtree, and this Job resumes.
+    /// <see cref="JobOutcome.TimedOut"/> with no value, Acta cancels the child and its subtree, and this Job resumes.
     /// </summary>
     public async Task<JobOutcome<TResult>> ExecuteChildAsync<TInput, TResult>(
         string name,
@@ -287,15 +266,20 @@ public abstract partial class JobContext
     /// child an operator restarted after it succeeded, since the restart clears the stored result, and this job's retry
     /// then reads the child's next landing.
     /// </summary>
-    private async Task<TResult> RequireChildResultAsync<TResult>(ChildJobOutcome outcome, string name, CancellationToken ct)
+    private async Task<TResult> RequireChildResultAsync<TResult>(
+        EnqueueJobResponse child,
+        long? executionNumber,
+        string name,
+        CancellationToken ct
+    )
         where TResult : notnull
     {
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, CancellationToken);
-        var (stored, value) = await ReadChildResultCoreAsync<TResult>(outcome.ChildJobId, outcome.ExecutionNumber, linked.Token);
+        var (stored, value) = await ReadChildResultCoreAsync<TResult>(child.JobId, executionNumber, linked.Token);
         return stored
             ? value!
             : throw new InvalidOperationException(
-                $"Child job {outcome.ChildJobId} ('{name}') succeeded but stored no result. Either it is result-less, in "
+                $"Child job {child.JobRef} ('{name}') succeeded but stored no result. Either it is result-less, in "
                     + "which case use the non-result ExecuteChildAsync overload, its result exceeded "
                     + "MaxInlinePayloadBytes and was dropped, or an operator restarted it after it succeeded; the child's "
                     + "events say which."

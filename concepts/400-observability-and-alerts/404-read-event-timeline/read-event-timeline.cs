@@ -56,7 +56,7 @@ namespace Acta.Concepts.ReadEventTimeline
         {
             Console.WriteLine($"[run-report] starting data collection for {input.Period}");
             var collected = await context.ExecuteChildAsync("collect", new CollectData(input.Period), ct);
-            if (!collected.IsSuccess)
+            if (!collected.Succeeded)
             {
                 await context.FailAsync($"data collection failed for {input.Period}", ct);
             }

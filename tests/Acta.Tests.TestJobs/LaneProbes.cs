@@ -86,7 +86,7 @@ public static class LaneProbes
             options => options.Lane(input.ChildLane),
             ct
         );
-        await ctx.WaitChildAsync(child.JobId, ct);
+        await ctx.WaitChildAsync(child, ct);
     }
 
     private static async Task RecordAsync(string jobNamespace, string lane, string label, CancellationToken ct)

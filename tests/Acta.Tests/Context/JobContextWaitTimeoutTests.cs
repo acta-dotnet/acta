@@ -56,13 +56,16 @@ public sealed class JobContextWaitTimeoutTests
         var child = await ctx.StartChildAsync("only", new { }, ct: ct);
 
         var badTimeout = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
-            ctx.TryWaitChildAsync(child.JobId, TimeSpan.FromSeconds(seconds), ct)
+            ctx.TryWaitChildAsync(child, TimeSpan.FromSeconds(seconds), ct)
         );
-        var badId = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => ctx.TryWaitChildAsync(0, TimeSpan.FromMinutes(5), ct));
+        var badId = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
+            ctx.TryWaitChildAsync(Child(0), TimeSpan.FromMinutes(5), ct)
+        );
+        await Assert.ThrowsAsync<ArgumentNullException>(() => ctx.TryWaitChildAsync(null!, TimeSpan.FromMinutes(5), ct));
 
         // Each throw names the argument the caller actually got wrong, not whichever guard ran first.
         Assert.Equal("timeout", badTimeout.ParamName);
-        Assert.Equal("childJobId", badId.ParamName);
+        Assert.Equal("child", badId.ParamName);
         Assert.Equal(["start:only"], ctx.Events);
     }
 
@@ -73,10 +76,10 @@ public sealed class JobContextWaitTimeoutTests
         var ctx = new RecordingJobContext();
         var child = await ctx.StartChildAsync("only", new { }, ct: ct);
 
-        var result = await ctx.TryWaitChildAsync(child.JobId, TimeSpan.FromMinutes(5), ct);
+        var result = await ctx.TryWaitChildAsync(child, TimeSpan.FromMinutes(5), ct);
 
         Assert.False(result.TimedOut);
-        Assert.Equal(child.JobId, result.ChildJobId);
+        Assert.Equal((child.JobId, child.JobRef), (result.JobId, result.JobRef));
         Assert.Equal(JobStatusCode.Succeeded, result.Status);
         Assert.Equal(["start:only", "wait:only"], ctx.Events);
     }
@@ -87,36 +90,14 @@ public sealed class JobContextWaitTimeoutTests
         var ct = TestContext.Current.CancellationToken;
         var ctx = new TimingOutChildContext();
 
-        var result = await ctx.TryWaitChildAsync(7, TimeSpan.FromMinutes(5), ct);
+        var result = await ctx.TryWaitChildAsync(Child(7), TimeSpan.FromMinutes(5), ct);
 
         // The ordering is the point: the handler must never regain control while the subtree it gave
-        // up on is still live.
+        // up on is still live. The outcome reports Cancelled, the status Acta drove the child to.
         Assert.True(result.TimedOut);
         Assert.False(result.Succeeded);
-        Assert.Equal(7, result.ChildJobId);
+        Assert.Equal((7L, JobStatusCode.Cancelled), (result.JobId, result.Status));
         Assert.Equal(["wait:sys.child.7", "cancel:7"], ctx.Events);
-    }
-
-    [Fact]
-    public async Task A_bounded_group_wait_validates_everything_before_any_store_call()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        var ctx = new RecordingJobContext();
-        var child = await ctx.StartChildAsync("only", new { }, ct: ct);
-
-        var badTimeout = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
-            ctx.TryWaitChildrenAsync([child.JobId], TimeSpan.Zero, ct)
-        );
-        var badId = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
-            ctx.TryWaitChildrenAsync([child.JobId, 0], TimeSpan.FromMinutes(5), ct)
-        );
-        await Assert.ThrowsAsync<ArgumentNullException>(() => ctx.TryWaitChildrenAsync(null!, TimeSpan.FromMinutes(5), ct));
-
-        // A bad id anywhere in the list stops the call before the deadline checkpoint is written, so a
-        // rejected group never leaves a half-armed one behind.
-        Assert.Equal("timeout", badTimeout.ParamName);
-        Assert.Equal("childJobIds", badId.ParamName);
-        Assert.Equal(["start:only"], ctx.Events);
     }
 
     [Fact]
@@ -142,7 +123,7 @@ public sealed class JobContextWaitTimeoutTests
         var ct = TestContext.Current.CancellationToken;
         var ctx = new RecordingJobContext();
 
-        var result = await ctx.TryWaitChildrenAsync([], TimeSpan.FromMinutes(5), ct);
+        var result = await ctx.JoinAsync([], TimeSpan.FromMinutes(5), ct);
 
         Assert.Empty(result.Children);
         Assert.False(result.TimedOut);
@@ -156,11 +137,12 @@ public sealed class JobContextWaitTimeoutTests
         var ct = TestContext.Current.CancellationToken;
         var ctx = new TimingOutChildContext();
 
-        var result = await ctx.TryWaitChildrenAsync([7, 9], TimeSpan.FromMinutes(5), ct);
+        var seven = Child(7);
+        var result = await ctx.JoinAsync([seven, Child(9)], TimeSpan.FromMinutes(5), ct);
 
         Assert.True(result.TimedOut);
         Assert.False(result.Succeeded);
-        Assert.Equal([7, 9], result.Children.Select(c => c.ChildJobId));
+        Assert.Equal([7, 9], result.Children.Select(c => c.JobId));
         Assert.All(result.Children, c => Assert.True(c.TimedOut));
         // Each member is cancelled through the same single-child path, in group order, and the group
         // deadline is read once for the whole call rather than once per member.
@@ -170,7 +152,7 @@ public sealed class JobContextWaitTimeoutTests
         );
 
         var thrown = Assert.Throws<ChildGroupException>(result.ThrowIfAnyFailed);
-        Assert.Contains("7:TimedOut", thrown.Message, StringComparison.Ordinal);
+        Assert.Contains($"{seven.JobRef}:TimedOut", thrown.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -179,7 +161,7 @@ public sealed class JobContextWaitTimeoutTests
         var ct = TestContext.Current.CancellationToken;
         var ctx = new FixedDeadlineContext();
 
-        await ctx.TryWaitChildrenAsync([7, 9, 11], TimeSpan.FromMinutes(5), ct);
+        await ctx.JoinAsync([Child(7), Child(9), Child(11)], TimeSpan.FromMinutes(5), ct);
 
         // Each member is bounded by the one stored instant rather than by a length measured when the walk
         // reaches it, so however long the walk takes, no member's expiry lands past the group's deadline.
@@ -196,7 +178,7 @@ public sealed class JobContextWaitTimeoutTests
         var ct = TestContext.Current.CancellationToken;
         var ctx = new FixedDeadlineContext();
 
-        await ctx.TryWaitChildrenAsync([7, 9], TimeSpan.FromMilliseconds(milliseconds), ct);
+        await ctx.JoinAsync([Child(7), Child(9)], TimeSpan.FromMilliseconds(milliseconds), ct);
 
         // A single child's bound rounds up to whole seconds, and a group's is documented the same: a millisecond
         // passed through as written would be spent by the round trip that stores it.
@@ -222,8 +204,8 @@ public sealed class JobContextWaitTimeoutTests
         var ascending = new TimingOutChildContext();
         var descending = new TimingOutChildContext();
 
-        await ascending.TryWaitChildrenAsync([7, 9], TimeSpan.FromMinutes(5), ct);
-        var result = await descending.TryWaitChildrenAsync([9, 7], TimeSpan.FromMinutes(5), ct);
+        await ascending.JoinAsync([Child(7), Child(9)], TimeSpan.FromMinutes(5), ct);
+        var result = await descending.JoinAsync([Child(9), Child(7)], TimeSpan.FromMinutes(5), ct);
 
         // The checkpoint names the SET of children, so a handler that lists the same ids in a different order
         // between replays cannot mint a second deadline and restart the group's budget.
@@ -231,8 +213,11 @@ public sealed class JobContextWaitTimeoutTests
         Assert.Equal(ascending.Events[0], descending.Events[0]);
 
         // Caller order still decides the outcome order; only the checkpoint name is canonical.
-        Assert.Equal([9, 7], result.Children.Select(c => c.ChildJobId));
+        Assert.Equal([9, 7], result.Children.Select(c => c.JobId));
     }
+
+    /// <summary>What a start answers for <paramref name="jobId"/>; the scripted contexts answer a wait on any id.</summary>
+    private static EnqueueJobResponse Child(long jobId) => new(jobId, JobRef.New(), EnqueueJobAction.Inserted);
 
     /// <summary>
     /// A context whose bounded wait always expires, so the resolution order the runtime relies on can

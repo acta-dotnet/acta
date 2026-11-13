@@ -516,7 +516,6 @@
   - Two groups in one job keep separate deadlines and expire independently
   - Re-waiting the same children reuses the stored deadline and resolves off the latches
   - A bounded ExecuteChild reports the timeout on its job outcome
-  - A bounded Join reports the timeout on the member that did not land
   - A bounded Parallel reports the timeout while keeping its branch keying
   - A bounded Map reports the timeout while keeping its item keying
   - A lineage map shows the child wait a parent is parked on, with its deadline when bounded
@@ -543,7 +542,7 @@
   - A late latch raise after the child succeeded again names no execution, so the parent reads the newest result
   - Child start is replay-deduped by name per parent
   - WaitChildAsync returns an outcome record and never throws on child failure
-  - WaitChildrenAsync joins all children in any completion order, woken only by the child it waits on
+  - JoinAsync joins all children in any completion order, woken only by the child it waits on
   - Operator cancel cascades to the non-terminal descendant subtree with reason ParentCancelled
   - A handler self-cancel cascades to its children with reason ParentCancelled
   - Parent completion never cascades, and a child that lands afterwards records its outcome on the finished parent

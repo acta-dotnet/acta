@@ -6,11 +6,11 @@ namespace Acta.Tests.Context;
 /// <summary>
 /// In-memory JobContext double for the Map/Parallel/Join sugar and for step overload tests: records
 /// the order of child starts and child waits, hands every start a fresh sequential id, and resolves
-/// each wait from a seeded per-child-name outcome (defaulting to Succeeded); also records every step
+/// each wait from a seeded per-child-name status (defaulting to Succeeded); also records every step
 /// invocation's resolved <see cref="StepOptions"/> and runs its body inline. No database, no
 /// substrate; only the child-job and step sinks are implemented, the rest throw.
 /// </summary>
-internal class RecordingJobContext(IReadOnlyDictionary<string, ChildJobOutcome>? seeded = null) : JobContext
+internal class RecordingJobContext(IReadOnlyDictionary<string, JobStatusCode>? seeded = null) : JobContext
 {
     private readonly Dictionary<long, string> _idToName = [];
     private readonly Dictionary<string, object> _variables = new(StringComparer.Ordinal);
@@ -92,22 +92,16 @@ internal class RecordingJobContext(IReadOnlyDictionary<string, ChildJobOutcome>?
         var childName = _idToName[id];
         Events.Add($"wait:{childName}");
 
-        var outcome =
-            seeded is not null && seeded.TryGetValue(childName, out var o)
-                ? o with
-                {
-                    ChildJobId = id,
-                }
-                : new ChildJobOutcome(id, JobStatusCode.Succeeded);
-        return Task.FromResult(new SignalCheckpointState(0, EnvelopeBytes(outcome)));
+        var status = seeded is not null && seeded.TryGetValue(childName, out var s) ? s : JobStatusCode.Succeeded;
+        return Task.FromResult(new SignalCheckpointState(0, EnvelopeBytes(id, status)));
     }
 
-    private static byte[] EnvelopeBytes(ChildJobOutcome o)
+    private static byte[] EnvelopeBytes(long childJobId, JobStatusCode status)
     {
         var sb = new StringBuilder();
         sb.Append('{');
-        sb.Append(CultureInfo.InvariantCulture, $"\"childJobId\":{o.ChildJobId},");
-        sb.Append(CultureInfo.InvariantCulture, $"\"status\":{(short)o.Status}");
+        sb.Append(CultureInfo.InvariantCulture, $"\"childJobId\":{childJobId},");
+        sb.Append(CultureInfo.InvariantCulture, $"\"status\":{(short)status}");
         sb.Append('}');
         return Encoding.UTF8.GetBytes(sb.ToString());
     }

@@ -15,6 +15,15 @@ public sealed record CrossNamespaceStart(string ChildNamespace);
 public sealed record ResultlessChild(int Ignored);
 
 /// <summary>
+/// One awaited child's outcome, flattened to plain fields so it survives the JSON round trip through the result store;
+/// the computed flags are read inside the handler, where the framework type still carries them.
+/// </summary>
+public sealed record ChildOutcomeEntry(long ChildJobId, JobStatusCode Status, bool TimedOut, bool Succeeded)
+{
+    public static ChildOutcomeEntry Of(JobOutcome outcome) => new(outcome.JobId, outcome.Status, outcome.TimedOut, outcome.Succeeded);
+}
+
+/// <summary>
 /// Child-job probe handlers. Parents start named children and join on their outcome latches;
 /// handlers restart from the top on every attempt, so each step is replay-safe by construction.
 /// </summary>
@@ -56,10 +65,10 @@ public static class ChildJobProbes
         (await ctx.ExecuteChildAsync<OldThenOversizeInput, string>("restarted", new OldThenOversizeInput(0), ct)).ValueOrThrow();
 
     [Job("job-parent-of-failing-child")]
-    public static async Task<ChildJobOutcome> ParentOfFailingChild(JobContext ctx, CancellationToken ct)
+    public static async Task<ChildOutcomeEntry> ParentOfFailingChild(JobContext ctx, CancellationToken ct)
     {
         var child = await ctx.StartChildAsync("doomed", ctx.JobNamespace, "job-child-fail", JobPayload.None, ct: ct);
-        return await ctx.WaitChildAsync(child.JobId, ct);
+        return ChildOutcomeEntry.Of(await ctx.WaitChildAsync(child, ct));
     }
 
     [Job("job-parent-many")]
@@ -68,21 +77,21 @@ public static class ChildJobProbes
         var a = await ctx.StartChildAsync("a", new ChildEcho(1), ct: ct);
         var b = await ctx.StartChildAsync("b", new ChildEcho(2), ct: ct);
         var c = await ctx.StartChildAsync("c", new ChildEcho(3), ct: ct);
-        var outcomes = await ctx.WaitChildrenAsync([a.JobId, b.JobId, c.JobId], ct);
+        var joined = await ctx.JoinAsync([a, b, c], ct);
 
         var sum = 0;
-        foreach (var outcome in outcomes)
+        foreach (var outcome in joined.Children)
         {
-            sum += (await ctx.GetChildResultAsync<ChildEchoResult>(outcome.ChildJobId, ct)).Doubled;
+            sum += (await ctx.GetChildResultAsync<ChildEchoResult>(outcome.JobId, ct)).Doubled;
         }
         return new ChildEchoResult(sum);
     }
 
     [Job("job-parent-cross-namespace")]
-    public static async Task<ChildJobOutcome> ParentCrossNamespace(CrossNamespaceStart input, JobContext ctx, CancellationToken ct)
+    public static async Task<ChildOutcomeEntry> ParentCrossNamespace(CrossNamespaceStart input, JobContext ctx, CancellationToken ct)
     {
         var child = await ctx.StartChildAsync("remote", input.ChildNamespace, "job-child-echo", JobPayload.Json(new ChildEcho(4)), ct: ct);
-        return await ctx.WaitChildAsync(child.JobId, ct);
+        return ChildOutcomeEntry.Of(await ctx.WaitChildAsync(child, ct));
     }
 
     [Job("job-parent-fire-and-forget")]

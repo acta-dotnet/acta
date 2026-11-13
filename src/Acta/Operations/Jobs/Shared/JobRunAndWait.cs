@@ -115,13 +115,8 @@ internal static class JobRunAndWait
 
     private static JobOutcome Outcome(GetJobResponse snapshot, bool timedOut) =>
         timedOut
-            ? JobOutcome.TimedOut(snapshot.JobId, snapshot.JobRef, snapshot.Status)
-            : snapshot.Status switch
-            {
-                JobStatusCode.Succeeded => JobOutcome.Succeeded(snapshot.JobId, snapshot.JobRef),
-                JobStatusCode.Cancelled => JobOutcome.Cancelled(snapshot.JobId, snapshot.JobRef),
-                _ => JobOutcome.Failed(snapshot.JobId, snapshot.JobRef),
-            };
+            ? JobOutcome.Expired(snapshot.JobId, snapshot.JobRef, snapshot.Status)
+            : JobOutcome.Landed(snapshot.JobId, snapshot.JobRef, snapshot.Status);
 
     /// <summary>
     /// The outcome, with the result stored by the execution the wait saw succeed, or null when that success is no longer
@@ -142,7 +137,7 @@ internal static class JobRunAndWait
     {
         if (timedOut)
         {
-            return JobOutcome<TResult>.TimedOut(snapshot.JobId, snapshot.JobRef, snapshot.Status);
+            return JobOutcome<TResult>.Expired(snapshot.JobId, snapshot.JobRef, snapshot.Status);
         }
 
         switch (snapshot.Status)
@@ -150,13 +145,13 @@ internal static class JobRunAndWait
             case JobStatusCode.Succeeded:
                 if (await getJobResult.ReadAsync(snapshot.JobId, snapshot.ExecutionNumber, ct) is { } result)
                 {
-                    return JobOutcome<TResult>.Succeeded(snapshot.JobId, snapshot.JobRef, routing.DecodeResult<TResult>(result)!);
+                    return JobOutcome<TResult>.Landed(snapshot.JobId, snapshot.JobRef, routing.DecodeResult<TResult>(result)!);
                 }
 
                 var now = await jobs.GetAsync(JobLookup.ById(snapshot.JobId), ct) ?? throw Vanished(snapshot.JobRef);
                 if (now.Status != JobStatusCode.Succeeded || now.ExecutionNumber != snapshot.ExecutionNumber)
                 {
-                    return spent ? JobOutcome<TResult>.TimedOut(now.JobId, now.JobRef, now.Status) : null;
+                    return spent ? JobOutcome<TResult>.Expired(now.JobId, now.JobRef, now.Status) : null;
                 }
 
                 throw new InvalidOperationException(
@@ -164,10 +159,8 @@ internal static class JobRunAndWait
                         + "result-less, in which case wait without a result type, or its result exceeded "
                         + "MaxInlinePayloadBytes and was dropped; the job's events say which."
                 );
-            case JobStatusCode.Cancelled:
-                return JobOutcome<TResult>.Cancelled(snapshot.JobId, snapshot.JobRef);
             default:
-                return JobOutcome<TResult>.Failed(snapshot.JobId, snapshot.JobRef);
+                return JobOutcome<TResult>.Landed(snapshot.JobId, snapshot.JobRef, snapshot.Status);
         }
     }
 

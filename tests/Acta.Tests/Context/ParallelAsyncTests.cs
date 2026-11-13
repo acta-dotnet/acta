@@ -101,9 +101,7 @@ public sealed class ParallelAsyncTests
     [Fact]
     public async Task Parallel_returns_branch_keyed_outcomes()
     {
-        var ctx = new RecordingJobContext(
-            new Dictionary<string, ChildJobOutcome> { ["checkout/charge-card"] = new(0, JobStatusCode.Failed) }
-        );
+        var ctx = new RecordingJobContext(new Dictionary<string, JobStatusCode> { ["checkout/charge-card"] = JobStatusCode.Failed });
 
         var checkout = await ctx.ParallelAsync(
             "checkout",

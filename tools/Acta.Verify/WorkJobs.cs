@@ -116,7 +116,7 @@ public sealed class WorkHandler(EffectClient effects)
         {
             for (var first = 0; first < input.Children; first += input.ChildWindow)
             {
-                List<long> children = [];
+                List<EnqueueJobResponse> children = [];
                 for (var i = first; i < Math.Min(first + input.ChildWindow, input.Children); i++)
                 {
                     var child = new WorkInput(
@@ -134,7 +134,7 @@ public sealed class WorkHandler(EffectClient effects)
                         JobPayload.Json(child, WorkJson.Default.WorkInput),
                         ct: ct
                     );
-                    children.Add(handle.JobId);
+                    children.Add(handle);
                     if (i == 3 && input.Boundary == "children" && ctx.ExecutionNumber == 1)
                     {
                         await effects.CallAsync("barrier", input.Key, "children", false, 0, ct);
@@ -144,8 +144,8 @@ public sealed class WorkHandler(EffectClient effects)
                 {
                     await effects.CallAsync("barrier", input.Key, "join-before", false, 0, ct);
                 }
-                var outcomes = await ctx.WaitChildrenAsync(children, ct);
-                foreach (var outcome in outcomes)
+                var joined = await ctx.JoinAsync(children, ct);
+                foreach (var outcome in joined.Children)
                 {
                     if (outcome.Succeeded)
                     {

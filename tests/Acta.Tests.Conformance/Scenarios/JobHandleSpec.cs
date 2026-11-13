@@ -30,7 +30,7 @@ public sealed class JobHandleSpec : ActaRuntimeTestBase<ConformanceFixture, Jobs
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(handle, ct));
         var outcome = await handle.WaitAsync(ct: ct);
 
-        Assert.True(outcome.IsSuccess);
+        Assert.True(outcome.Succeeded);
         Assert.Equal(handle.JobRef, outcome.JobRef);
         Assert.Equal(5, outcome.ValueOrThrow().Sum);
         Assert.Equal(5, (await handle.GetResultAsync(ct)).Sum);
@@ -80,10 +80,10 @@ public sealed class JobHandleSpec : ActaRuntimeTestBase<ConformanceFixture, Jobs
 
         var outcome = await handle.WaitAsync(TimeSpan.FromMilliseconds(300), ct);
 
-        Assert.True(outcome.IsTimedOut);
+        Assert.True(outcome.TimedOut);
         Assert.Equal(JobStatusCode.Ready, outcome.Status);
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(handle, ct));
-        Assert.True((await handle.WaitAsync(ct: ct)).IsSuccess);
+        Assert.True((await handle.WaitAsync(ct: ct)).Succeeded);
     }
 
     [Fact(DisplayName = "A cancelled wait throws and never cancels the job")]
@@ -111,7 +111,7 @@ public sealed class JobHandleSpec : ActaRuntimeTestBase<ConformanceFixture, Jobs
         Assert.Equal(original.JobId, rebuilt.JobId);
         Assert.Equal(EnqueueJobAction.Deduplicated, rebuilt.Action);
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(rebuilt, ct));
-        Assert.True((await rebuilt.WaitAsync(ct: ct)).IsSuccess);
+        Assert.True((await rebuilt.WaitAsync(ct: ct)).Succeeded);
         Assert.Null(await Jobs.GetHandleAsync(JobRef.New(), ct));
 
         // Rebuilt with its result type, the handle reads and waits as the one a generated call answers.

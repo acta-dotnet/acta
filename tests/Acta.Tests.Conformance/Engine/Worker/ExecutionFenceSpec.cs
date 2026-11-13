@@ -244,9 +244,9 @@ public sealed class ExecutionFenceSpec : ActaRuntimeTestBase<ConformanceFixture,
             ct: ct
         );
 
-        await AssertFencedOutAsync(old, () => old.Ctx.WaitChildAsync(child.JobId, ct), ct);
+        await AssertFencedOutAsync(old, () => old.Ctx.WaitChildAsync(child, ct), ct);
 
-        await Assert.ThrowsAsync<SignalSuspendSignal>(() => current.Ctx.WaitChildAsync(child.JobId, ct));
+        await Assert.ThrowsAsync<SignalSuspendSignal>(() => current.Ctx.WaitChildAsync(child, ct));
         await AssertCompletionAcceptedAsync(current, ct);
     }
 
@@ -267,7 +267,7 @@ public sealed class ExecutionFenceSpec : ActaRuntimeTestBase<ConformanceFixture,
         using var currentAttempt = current;
         Assert.Equal(ControlAction.Applied, (await Jobs.RestartAsync(JobLookup.ById(child.JobId), ct: ct)).Action);
         await current.Ctx.ResetStateAsync(ct);
-        await Assert.ThrowsAsync<SignalSuspendSignal>(() => current.Ctx.TryWaitChildAsync(child.JobId, TimeSpan.FromHours(1), ct));
+        await Assert.ThrowsAsync<SignalSuspendSignal>(() => current.Ctx.TryWaitChildAsync(child, TimeSpan.FromHours(1), ct));
         var parentBefore = await DurableStateAsync(current.Claim.JobId, ct);
 
         await Assert.ThrowsAsync<ExecutionFencedException>(() =>

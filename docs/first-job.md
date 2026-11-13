@@ -124,7 +124,7 @@ app.MapPost("/orders/{orderId:int}/ship-now", async (int orderId, IJobs jobs) =>
 {
     var job = await jobs.EnqueueAsync(ShippingJobs.ShipOrder(new ShipOrder(orderId)));
     var outcome = await job.WaitAsync(TimeSpan.FromSeconds(5));
-    if (outcome.IsTimedOut)
+    if (outcome.TimedOut)
         return Results.Accepted($"/jobs/{job.JobRef}", new { job.JobRef });
     return outcome.TryGetValue(out var label) ? Results.Ok(label) : Results.Problem($"Shipping failed; see /jobs/{job.JobRef}/explain");
 });
@@ -269,7 +269,7 @@ level.
 ### A wait timeout is not a cancellation
 
 `await job.WaitAsync(TimeSpan.FromSeconds(5))` follows the job to its outcome. If the outcome does not
-arrive in time, the returned `JobOutcome<ShipmentLabel>` has `IsTimedOut` set and nothing else happened: the job is
+arrive in time, the returned `JobOutcome<ShipmentLabel>` has `TimedOut` set and nothing else happened: the job is
 still queued or running, and a later read, wait, or `GetResultAsync` sees it finish. A timeout is the
 caller giving up on waiting, never the job giving up on the work.
 
@@ -403,7 +403,7 @@ public sealed class ShippingTests : IAsyncLifetime
 
         var outcome = await job.WaitAsync(TimeSpan.FromMilliseconds(50), Ct);
 
-        Assert.True(outcome.IsTimedOut);
+        Assert.True(outcome.TimedOut);
         Assert.Equal(JobStatusCode.Ready, (await job.GetStatusAsync(Ct))?.Status);
         Assert.Equal(ActaRunStatus.Completed, await _host.RunOnceAsync(job, Ct));
     }

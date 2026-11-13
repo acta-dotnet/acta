@@ -186,7 +186,7 @@ public sealed class TypedEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, J
                 ct
             );
 
-            Assert.True(outcome.IsSuccess);
+            Assert.True(outcome.Succeeded);
             Assert.Equal(9, outcome.ValueOrThrow().Sum);
         }
         finally
@@ -268,7 +268,7 @@ public sealed class TypedEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, J
             ct
         );
 
-        Assert.True(outcome.IsTimedOut);
+        Assert.True(outcome.TimedOut);
         Assert.Equal(JobStatusCode.Ready, outcome.Status);
     }
 
@@ -294,7 +294,7 @@ public sealed class TypedEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, J
             stuck.Token
         );
 
-        Assert.True(outcome.IsTimedOut);
+        Assert.True(outcome.TimedOut);
         Assert.Equal(JobStatusCode.Ready, outcome.Status);
     }
 
@@ -362,7 +362,7 @@ public sealed class TypedEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, J
 
             // Not timing-sensitive at any load: nothing can complete this job, so timed out is the
             // only outcome the call has.
-            Assert.True(outcome.IsTimedOut);
+            Assert.True(outcome.TimedOut);
 
             requestedWaits = [.. _wakeup.RequestedTimeoutsOn(WorkerWakeupChannelKind.JobCompletion).Skip(issuedBefore)];
         }

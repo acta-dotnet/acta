@@ -26,7 +26,7 @@ Console.WriteLine($"parent: {mapOutcome.Status}, report: {mapOutcome.Value!.Summ
 
 // --- Scenario 2: ParallelAsync, ThrowIfAnyFailed escalation ---
 // The handler calls ThrowIfAnyFailed after a branch fails; ChildGroupException makes the parent
-// land Failed. The driver sees IsFailed without the exception propagating here.
+// land Failed. The driver reads the Failed status without the exception propagating here.
 Console.WriteLine("--- scenario 2: parallel with one failing branch, ThrowIfAnyFailed ---");
 var parallelOutcome = await jobs.RunAndWaitAsync<RunParallelEscalated>(new RunParallelEscalated());
 Console.WriteLine($"parent: {parallelOutcome.Status} (expected Failed)");
@@ -148,7 +148,7 @@ namespace Acta.Concepts.ChildFailureOutcomes
 
             foreach (var child in result.Failed)
             {
-                Console.WriteLine($"  child {child.ChildJobId} failed (status={child.Status})");
+                Console.WriteLine($"  child {child.JobRef} failed (status={child.Status})");
             }
 
             // ThrowIfAnyFailed throws ChildGroupException; the parent lands Failed.

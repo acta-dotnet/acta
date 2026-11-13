@@ -159,21 +159,20 @@ public static class OutboxReceiptJob
 public static class FanOutJob
 {
     // Replay-safe fan-out: each StartChildAsync name is that child's dedup key, so a suspend/resume
-    // replay of this loop returns the already-started children instead of inserting duplicates. Child
-    // ids are rebuilt from the outcomes on every replay - no static or in-process state carries them.
+    // replay of this loop returns the already-started children instead of inserting duplicates. The
+    // start answers are rebuilt on every replay - no static or in-process state carries them.
     [Job("fan-out")]
     public static async Task<string> Handle(FanOut input, JobContext ctx, CancellationToken ct)
     {
-        var childIds = new List<long>(input.ChildCount);
+        var children = new List<EnqueueJobResponse>(input.ChildCount);
         for (var i = 0; i < input.ChildCount; i++)
         {
-            var child = await ctx.StartChildAsync($"child-{i}", new SteadySuccess($"{input.Label}-child-{i}", 50), ct: ct);
-            childIds.Add(child.JobId);
+            children.Add(await ctx.StartChildAsync($"child-{i}", new SteadySuccess($"{input.Label}-child-{i}", 50), ct: ct));
         }
 
-        var outcomes = await ctx.WaitChildrenAsync(childIds, ct);
-        var succeeded = outcomes.Count(outcome => outcome.Succeeded);
-        return $"fan-out {input.Label}: {succeeded}/{outcomes.Count} children succeeded";
+        var joined = await ctx.JoinAsync(children, ct);
+        var succeeded = joined.Children.Count(outcome => outcome.Succeeded);
+        return $"fan-out {input.Label}: {succeeded}/{joined.Children.Count} children succeeded";
     }
 }
 

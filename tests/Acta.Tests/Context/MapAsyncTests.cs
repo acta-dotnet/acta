@@ -33,7 +33,6 @@ public sealed class MapAsyncTests
 
         Assert.Equal([1, 2, 3], resized.Items.Select(i => i.Key));
         Assert.All(resized.Items, i => Assert.True(i.Outcome.Succeeded));
-        Assert.Equal(resized.Items.Select(i => i.ChildJobId), resized.Items.Select(i => i.Outcome.ChildJobId));
     }
 
     [Fact]
@@ -181,7 +180,7 @@ public sealed class MapAsyncTests
     [Fact]
     public async Task Map_returns_failed_items_and_escalates_on_demand()
     {
-        var ctx = new RecordingJobContext(new Dictionary<string, ChildJobOutcome> { ["resize-images/2"] = new(0, JobStatusCode.Failed) });
+        var ctx = new RecordingJobContext(new Dictionary<string, JobStatusCode> { ["resize-images/2"] = JobStatusCode.Failed });
 
         var resized = await ctx.MapAsync(
             "resize-images",

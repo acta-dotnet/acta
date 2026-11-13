@@ -64,7 +64,7 @@ namespace Acta.Concepts.CrossNamespaceChild
                 ct: ct
             );
 
-            var outcome = await context.WaitChildAsync(charge.JobId, ct);
+            var outcome = await context.WaitChildAsync(charge, ct);
             if (!outcome.Succeeded)
             {
                 await context.FailAsync($"billing declined ({outcome.Status}); see the child's job events for the reason", ct);
