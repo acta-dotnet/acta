@@ -5,7 +5,7 @@ namespace Acta;
 /// item, in input order. The map waits for every child and returns; it never throws because a child
 /// failed. Call <see cref="ThrowIfAnyFailed"/> to opt into escalation.
 /// </summary>
-public sealed record MapOutcome<TKey>(IReadOnlyList<MapItemOutcome<TKey>> Items)
+public record MapOutcome<TKey>(IReadOnlyList<MapItemOutcome<TKey>> Items)
     where TKey : notnull
 {
     /// <summary>
@@ -32,4 +32,19 @@ public sealed record MapOutcome<TKey>(IReadOnlyList<MapItemOutcome<TKey>> Items)
             throw new ChildGroupException(failed);
         }
     }
+}
+
+/// <summary>
+/// A <see cref="MapOutcome{TKey}"/> of generated calls of a job with a result: each item's outcome carries its typed
+/// result. Construction is gated to the framework.
+/// </summary>
+public sealed record MapOutcome<TKey, TResult> : MapOutcome<TKey>
+    where TKey : notnull
+    where TResult : notnull
+{
+    internal MapOutcome(IReadOnlyList<MapItemOutcome<TKey, TResult>> items)
+        : base(items) => Items = items;
+
+    /// <summary>One typed item outcome per input item, in input order.</summary>
+    public new IReadOnlyList<MapItemOutcome<TKey, TResult>> Items { get; }
 }

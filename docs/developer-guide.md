@@ -195,7 +195,7 @@ catch (Exception ex) when (ctx.EndsJob(ex))
 }
 ```
 
-`ctx.EndsJob(ex)` answers what the worker will do with the exception: true for `ctx.FailAsync` and `CancelAsync`, an expired wait, an interrupted step, a non-retryable exception (`StepFailedException`, which an at-most-once body that threw and any step whose result could not be recorded both raise, `NotSupportedException`, `NotImplementedException`), and any other error when `IsLastAttempt` is true; false for a wait, sleep, reschedule or pause, which end only the attempt, and for the exception of a cancelled attempt.
+`ctx.EndsJob(ex)` answers what the worker will do with the exception: true for `ctx.FailAsync` and `CancelAsync`, an expired wait, an interrupted step, a non-retryable exception (`StepFailedException`, which an at-most-once body that threw and any step whose result could not be recorded both raise, `NotSupportedException`, `NotImplementedException`, and a waited job's failure or timeout rethrown by `ThrowIfFailed`, `ThrowIfAnyFailed` or `ValueOrThrow`), and any other error when `IsLastAttempt` is true; false for a wait, sleep, reschedule or pause, which end only the attempt, and for the exception of a cancelled attempt.
 
 Compensation in a catch is best effort. A worker crash or a lost lease on the last attempt skips the catch block, and a reclaim can spend the budget and fail the job with no handler code running, so the compensation is an idempotent step of its own. Work whose compensation must happen runs the risky part as a child job, and the parent compensates when the child lands `Failed`: `WaitChildAsync` survives crashes.
 
@@ -548,7 +548,7 @@ Every exception type Acta defines derives from `ActaException`, so one catch tak
 
 Unhandled exceptions escape the handler and are captured as attempt failures. The framework records the exception's `Message`, truncated to 512 characters, as the attempt's failure message, at the job's event recording level; retry policy decides whether the job retries or becomes terminal. Nothing redacts that message: it is shown on the read surface and sent to alert channels, so keep secrets and personal data out of exception messages.
 
-`NotImplementedException`, `NotSupportedException`, an uncaught `StepFailedException`, a `HandlerActivationException` for a handler DI cannot build ([Lifecycle and visibility](#lifecycle-and-visibility)), and a handler result that is null or cannot be serialized are non-retryable: the job lands terminal `Failed` immediately (reason `non-retryable-exception`) without consuming retry budget, since retrying cannot change the outcome. A permanent job instead settles that firing as failed and returns to `Idle` for its next one, as a spent budget does. For custom non-retryable types, call `ctx.FailAsync` in the handler or register a pipeline behavior that translates them.
+`NotImplementedException`, `NotSupportedException`, an uncaught `StepFailedException`, a `HandlerActivationException` for a handler DI cannot build ([Lifecycle and visibility](#lifecycle-and-visibility)), a handler result that is null or cannot be serialized, and a waited job's failure or timeout rethrown (`JobFailedException`, `ChildGroupException` and `JobWaitTimeoutException` from `ThrowIfFailed`, `ThrowIfAnyFailed` and `ValueOrThrow`) are non-retryable: the job lands terminal `Failed` immediately (reason `non-retryable-exception`) without consuming retry budget, since retrying cannot change the outcome. A permanent job instead settles that firing as failed and returns to `Idle` for its next one, as a spent budget does. The rule holds for every wait that throws them, a handler's own `IJobs.WaitAsync(...)` with a timeout included, where the waited job may still finish: `ThrowIfFailed()` after that wait timed out fails the job for good, so read the outcome's `TimedOut`, or catch `JobWaitTimeoutException`, where a later attempt should wait again. For custom non-retryable types, call `ctx.FailAsync` in the handler or register a pipeline behavior that translates them.
 
 Handlers should not return failure-as-result unless the domain considers that a successful outcome.
 
@@ -572,17 +572,16 @@ Minimum guaranteed surface categories:
 
 A child is started from its input, `ctx.CallChildAsync("ship", order, ct)`, which finds the job by the input's type, or from the manifest's generated call, `ctx.CallChildAsync("ship", ShippingJobs.Ship(order), ct)`, which names the job and, for a job with a result, answers `JobOutcome<TResult>` with no type argument. `EnqueueChildAsync` takes both forms too. Use the call when two jobs share an input type.
 
-### Child-job groups: Map, Parallel, Join
+### Child-job groups: Map and WaitChildren
 
 | Convenience | Shape |
 | --- | --- |
-| `ctx.WaitChildrenAsync(handles)` | Wait on children you started; outcomes in caller order. |
-| `ctx.ParallelAsync(group, branches)` | Named heterogeneous branches; outcomes by branch name. |
-| `ctx.MapAsync(group, items)` | Fan-out keyed by a stable item key; outcomes per item. |
+| `ctx.WaitChildrenAsync(children)` | Wait for children you enqueued; outcomes in caller order. |
+| `ctx.MapAsync(group, items)` | Fan-out keyed by a stable item key; outcomes per item, typed when each child is a generated call, and one `configure` for every child. |
 
 Each child is an ordinary job, and a group is ordinary `EnqueueChildAsync` calls plus a wait on each child, not a workflow runtime. Every child, alone or in a group, ends in a `JobOutcome`. They wait for every child and return every outcome: they never fail fast or cancel siblings, and throw only when asked (`ThrowIfAnyFailed`). A failed child stays failed on replay until restarted. Its newer outcome is recorded on the parent when it lands or is cancelled, even after the parent finished, so a parent restarted afterwards reads it; a wait that had already timed out keeps its timeout. Each also takes a `TimeSpan timeout`, one deadline for the whole group that cancels only the members still running and reports `TimedOut` in the outcome.
 
-A group's children are keyed deterministically: `{group}/{branch}` for Parallel and `{group}/{key}` (or a hash of an unsafe key) for Map. No child name holds a `/`, so a group's children never share a key with another group's or with a child you named yourself; reusing a group name with the same branch or key lands two starts on one child. Groups do not limit concurrency; use concurrency keys or worker capacity. Concept `215-map-wait-children` shows all three.
+A map's children are keyed deterministically: `{group}/{key}`, or a hash of an unsafe key. No child name holds a `/`, so a map's children never share a key with another map's or with a child you named yourself; reusing a group name with the same key lands two starts on one child. Groups do not limit concurrency; use concurrency keys or worker capacity. Concept `215-map-wait-children` shows both.
 
 ### CancellationToken semantics
 
@@ -875,7 +874,7 @@ Names passed to durable handler APIs are keys into persisted state. Once a name 
 | `SleepAsync("cooldown", ...)` | The same timer is observed, not extended. |
 | `SetVariableAsync("quote.id", ...)` | Later executions read the same value. |
 | `EnqueueChildAsync("capture-payment", ...)` | The existing child is resolved, not created again. |
-| `ParallelAsync("notify", ...)` / `MapAsync("invoice", ...)` | The same branches are found again. |
+| `EnqueueChildAsync("notify", ...)` / `MapAsync("invoice", ...)` | The same children are found again. |
 
 Renaming migrates nothing: a renamed step runs again, a renamed signal or timer is a different one, a renamed variable reads as absent, and a renamed child is new work. A step's stored result type must stay readable, or replay throws `StepResultContractMismatchException`.
 

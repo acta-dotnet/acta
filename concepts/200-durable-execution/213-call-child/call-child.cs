@@ -34,17 +34,16 @@ namespace Acta.Concepts.CallChild
     public sealed class PublishingJobs
     {
         // A child is a real job (own retry policy, queue identity, operator-visible), unlike a private
-        // idempotent step (202). CallChildAsync runs one child start-to-result; ValueOrThrow()
-        // returns its result or throws. A failed child stays failed: a parent retry dedupes onto it and
-        // throws again, so recovering means restarting the child, not retrying the parent.
+        // idempotent step (202). CallChildAsync enqueues one child and waits for its result;
+        // ValueOrThrow() returns it or throws. A failed child stays failed, so the throw fails the
+        // parent at once, with no retry; recovering means restarting the child, then the parent once
+        // the child has succeeded.
         [Job("publish-episode")]
         public async Task<EpisodePublished> Handle(PublishEpisode episode, JobContext context, CancellationToken ct)
         {
-            var transcoded = (
-                await context.CallChildAsync<TranscodeVideo, TranscodeResult>("transcode", new TranscodeVideo(episode.SourceUrl), ct)
-            ).ValueOrThrow();
-
-            return new EpisodePublished(episode.EpisodeId, transcoded.StreamUrl);
+            var transcode = CallChildJobs.TranscodeVideo(new TranscodeVideo(episode.SourceUrl));
+            var transcoded = await context.CallChildAsync("transcode", transcode, ct);
+            return new EpisodePublished(episode.EpisodeId, transcoded.ValueOrThrow().StreamUrl);
         }
 
         [Job("transcode-video")]

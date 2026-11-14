@@ -24,10 +24,9 @@ Acta children are normal jobs with their own retries, workers, results, and even
 without a lease; child terminal outcomes set checkpoints owned by the parent, which later re-enters and
 joins the results.
 
-This lab writes the group wait out by hand, with `EnqueueChildAsync` per child and one `WaitChildrenAsync`, so
-every latch is visible. In application code, `MapAsync` (one child per item) and `ParallelAsync` (named
-branches) do the same start-then-wait over the same latches in one call. Lab 215 shows both, and lab
-212 uses `MapAsync` for a map-reduce.
+This lab enqueues each child with `EnqueueChildAsync` and waits for all of them with one `WaitChildrenAsync`, so
+every latch is visible. When the children come from a list, `MapAsync` does the same over the same latches
+in one call; lab 215 shows both, and lab 212 uses `MapAsync` for a map-reduce.
 
 ## Trade-offs
 

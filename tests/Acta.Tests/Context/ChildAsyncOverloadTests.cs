@@ -86,19 +86,6 @@ public sealed class ChildAsyncOverloadTests
     }
 
     [Fact]
-    public async Task CallChildAsync_generic_positional_ct_forwards_configure_null_and_returns_the_seeded_result()
-    {
-        var ctx = new RecordingJobContext { SeededChildResult = 42 };
-
-        var outcome = await ctx.CallChildAsync<Probe, int>("reserve-inventory", new Probe(), TestContext.Current.CancellationToken);
-
-        Assert.True(outcome.Succeeded);
-        Assert.Equal(42, outcome.ValueOrThrow());
-        var options = Assert.Single(ctx.StartOptions);
-        Assert.Equal("reserve-inventory", options.DeduplicationKey);
-    }
-
-    [Fact]
     public async Task A_child_result_read_returns_the_result_or_throws_and_the_try_read_says_which()
     {
         var ct = TestContext.Current.CancellationToken;

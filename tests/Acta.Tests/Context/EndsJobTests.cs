@@ -14,6 +14,9 @@ public sealed class EndsJobTests
             new StepFailedException("charge", "declined"),
             new NotSupportedException(),
             new NotImplementedException(),
+            new JobFailedException(7, JobRef.New(), JobStatusCode.Failed),
+            new ChildGroupException([]),
+            new JobWaitTimeoutException(7, JobRef.New()),
         ];
 
     public static TheoryData<Exception> NeverEndTheJob =>

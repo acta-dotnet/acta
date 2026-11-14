@@ -132,23 +132,6 @@ public static class ChildGroupTimeoutProbes
         return ChildOutcomeEntry.Of(outcome);
     }
 
-    [Job("job-parent-parallel-bounded")]
-    public static async Task<ChildGroupReport> ParentParallelBounded(JobContext ctx, CancellationToken ct)
-    {
-        var outcome = await ctx.ParallelAsync(
-            "grp",
-            branches => branches.Child("fast", new GroupHold("fast")).Child("slow", new GroupHold("slow")),
-            LongWait,
-            ct
-        );
-        await ctx.NoteAsync("parallel resumed", ct);
-        return new ChildGroupReport(
-            outcome.TimedOut,
-            outcome.Succeeded,
-            [ChildOutcomeEntry.Of(outcome.Branches["fast"]), ChildOutcomeEntry.Of(outcome.Branches["slow"])]
-        );
-    }
-
     [Job("job-parent-map-bounded")]
     public static async Task<ChildGroupReport> ParentMapBounded(JobContext ctx, CancellationToken ct)
     {

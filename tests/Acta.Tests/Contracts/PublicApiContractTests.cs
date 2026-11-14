@@ -140,9 +140,10 @@ public sealed partial class PublicApiContractTests
         }
 
         // An interface that the base type or another listed interface already brings belongs to that
-        // contract, not this type's. A record's IEquatable<Self> comes with the record keyword the kind
-        // already names.
+        // contract, not this type's, and an internal one is no consumer's. A record's IEquatable<Self>
+        // comes with the record keyword the kind already names.
         var interfaces = type.GetInterfaces()
+            .Where(i => i.IsVisible)
             .Except(type.BaseType?.GetInterfaces() ?? [])
             .Where(i =>
                 !(record && i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IEquatable<>) && i.GenericTypeArguments[0] == type)

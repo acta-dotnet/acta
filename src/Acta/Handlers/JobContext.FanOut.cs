@@ -17,7 +17,8 @@ public abstract partial class JobContext
     {
         ThrowIfInAtMostOnceStep(nameof(WaitChildrenAsync));
         ValidateChildren(children);
-        return ChildrenWaitOutcome.From(await WaitChildGroupAsync(children, timeout: null, ct));
+        var waits = await WaitChildGroupAsync(children, timeout: null, ct);
+        return ChildrenWaitOutcome.From([.. waits.Select(wait => wait.Outcome)]);
     }
 
     /// <summary>
@@ -44,7 +45,8 @@ public abstract partial class JobContext
         }
 
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, CancellationToken);
-        return ChildrenWaitOutcome.From(await WaitChildGroupAsync(children, timeout, linked.Token));
+        var waits = await WaitChildGroupAsync(children, timeout, linked.Token);
+        return ChildrenWaitOutcome.From([.. waits.Select(wait => wait.Outcome)]);
     }
 
     /// <summary>
@@ -58,84 +60,6 @@ public abstract partial class JobContext
         {
             ValidateChild(children[i], nameof(children));
         }
-    }
-
-    /// <summary>
-    /// Starts each named branch as a child job and waits for all of them, returning branch-keyed
-    /// outcomes. The group and branch names are validated and branch names must be unique; every
-    /// branch is started before any is awaited. Does not throw on a failed branch and does not
-    /// fail-fast; branch on the outcome or call <see cref="ParallelOutcome.ThrowIfAnyFailed"/>.
-    /// </summary>
-    public Task<ParallelOutcome> ParallelAsync(string groupName, Action<ParallelBuilder> configure, CancellationToken ct = default) =>
-        ParallelCoreAsync(groupName, configure, timeout: null, ct);
-
-    /// <summary>
-    /// Bounded twin of <see cref="ParallelAsync(string, Action{ParallelBuilder}, CancellationToken)"/>: every branch
-    /// waits toward one stored absolute deadline (whole seconds, positive, for the group rather than per branch) that
-    /// a replay reuses and never extends. A branch that did not land by then reports
-    /// <see cref="JobOutcome.TimedOut"/> and is cancelled along with its subtree; the branch keying is unchanged,
-    /// and this Job resumes either way. Each branch child is named <c>groupName/branchName</c>.
-    /// </summary>
-    public Task<ParallelOutcome> ParallelAsync(
-        string groupName,
-        Action<ParallelBuilder> configure,
-        TimeSpan timeout,
-        CancellationToken ct = default
-    ) => ParallelCoreAsync(groupName, configure, timeout, ct);
-
-    [DebuggerDisableUserUnhandledExceptions]
-    private async Task<ParallelOutcome> ParallelCoreAsync(
-        string groupName,
-        Action<ParallelBuilder> configure,
-        TimeSpan? timeout,
-        CancellationToken ct
-    )
-    {
-        ThrowIfInAtMostOnceStep(nameof(ParallelAsync));
-        ArgumentNullException.ThrowIfNull(configure);
-        groupName = NameSyntax.Canonicalize(groupName, nameof(groupName), NameSyntax.ExtendedMaxLength, reserveSystem: true);
-        ValidateGroupTimeout(timeout);
-
-        var builder = new ParallelBuilder();
-        configure(builder);
-        var branches = builder.Branches;
-
-        var childNames = new string[branches.Count];
-        var seen = new HashSet<string>(StringComparer.Ordinal);
-        for (var i = 0; i < branches.Count; i++)
-        {
-            var branchName = NameSyntax.Canonicalize(
-                branches[i].BranchName,
-                "branchName",
-                NameSyntax.ExtendedMaxLength,
-                reserveSystem: true
-            );
-            // Checked whole before any branch starts, so a key too long fails the group, not its last branch.
-            childNames[i] = KeySyntax.Canonicalize($"{groupName}/{branchName}", "branchName");
-            if (!seen.Add(branchName))
-            {
-                throw new ArgumentException(
-                    $"Parallel group '{groupName}' has a duplicate branch name '{branches[i].BranchName}'.",
-                    nameof(configure)
-                );
-            }
-        }
-
-        var started = new EnqueueJobResponse[branches.Count];
-        for (var i = 0; i < branches.Count; i++)
-        {
-            started[i] = await branches[i].Start(this, childNames[i], ct);
-        }
-
-        var outcomes = await WaitChildGroupAsync(started, timeout, ct);
-
-        var byBranch = new Dictionary<string, JobOutcome>(StringComparer.Ordinal);
-        for (var i = 0; i < branches.Count; i++)
-        {
-            byBranch[branches[i].BranchName] = outcomes[i];
-        }
-
-        return new ParallelOutcome(byBranch);
     }
 
     /// <summary>
@@ -153,7 +77,22 @@ public abstract partial class JobContext
         CancellationToken ct = default
     )
         where TKey : notnull
-        where TInput : notnull => MapCoreAsync<TItem, TKey, TInput>(groupName, items, itemKey, child, timeout: null, ct);
+        where TInput : notnull => MapOutcomesAsync(groupName, items, itemKey, child, timeout: null, configure: null, ct);
+
+    /// <summary>
+    /// <see cref="MapAsync{TItem, TKey, TInput}(string, IEnumerable{TItem}, Func{TItem, TKey}, Func{TItem, TInput}, CancellationToken)"/>
+    /// with options every child of the map gets; the parent and each child's deduplication key stay the framework's.
+    /// </summary>
+    public Task<MapOutcome<TKey>> MapAsync<TItem, TKey, TInput>(
+        string groupName,
+        IEnumerable<TItem> items,
+        Func<TItem, TKey> itemKey,
+        Func<TItem, TInput> child,
+        Action<JobEnqueueOptionsBuilder> configure,
+        CancellationToken ct = default
+    )
+        where TKey : notnull
+        where TInput : notnull => MapOutcomesAsync(groupName, items, itemKey, child, timeout: null, configure, ct);
 
     /// <summary>
     /// Bounded twin of
@@ -172,15 +111,135 @@ public abstract partial class JobContext
         CancellationToken ct = default
     )
         where TKey : notnull
-        where TInput : notnull => MapCoreAsync<TItem, TKey, TInput>(groupName, items, itemKey, child, timeout, ct);
+        where TInput : notnull => MapOutcomesAsync(groupName, items, itemKey, child, timeout, configure: null, ct);
 
-    [DebuggerDisableUserUnhandledExceptions]
-    private async Task<MapOutcome<TKey>> MapCoreAsync<TItem, TKey, TInput>(
+    /// <summary>The bounded map with options every child of the map gets.</summary>
+    public Task<MapOutcome<TKey>> MapAsync<TItem, TKey, TInput>(
+        string groupName,
+        IEnumerable<TItem> items,
+        Func<TItem, TKey> itemKey,
+        Func<TItem, TInput> child,
+        TimeSpan timeout,
+        Action<JobEnqueueOptionsBuilder> configure,
+        CancellationToken ct = default
+    )
+        where TKey : notnull
+        where TInput : notnull => MapOutcomesAsync(groupName, items, itemKey, child, timeout, configure, ct);
+
+    /// <summary>
+    /// The map of generated calls of a job with a result: each item's outcome carries the child's typed result, read with
+    /// the map from the execution its wait saw; a child that succeeded without storing one throws.
+    /// </summary>
+    public Task<MapOutcome<TKey, TResult>> MapAsync<TItem, TKey, TInput, TResult>(
+        string groupName,
+        IEnumerable<TItem> items,
+        Func<TItem, TKey> itemKey,
+        Func<TItem, JobCall<TInput, TResult>> child,
+        CancellationToken ct = default
+    )
+        where TKey : notnull
+        where TInput : notnull
+        where TResult : notnull => MapResultsAsync(groupName, items, itemKey, child, timeout: null, configure: null, ct);
+
+    /// <summary>The typed map with options every child of the map gets.</summary>
+    public Task<MapOutcome<TKey, TResult>> MapAsync<TItem, TKey, TInput, TResult>(
+        string groupName,
+        IEnumerable<TItem> items,
+        Func<TItem, TKey> itemKey,
+        Func<TItem, JobCall<TInput, TResult>> child,
+        Action<JobEnqueueOptionsBuilder> configure,
+        CancellationToken ct = default
+    )
+        where TKey : notnull
+        where TInput : notnull
+        where TResult : notnull => MapResultsAsync(groupName, items, itemKey, child, timeout: null, configure, ct);
+
+    /// <summary>The bounded typed map; a child that timed out carries no result.</summary>
+    public Task<MapOutcome<TKey, TResult>> MapAsync<TItem, TKey, TInput, TResult>(
+        string groupName,
+        IEnumerable<TItem> items,
+        Func<TItem, TKey> itemKey,
+        Func<TItem, JobCall<TInput, TResult>> child,
+        TimeSpan timeout,
+        CancellationToken ct = default
+    )
+        where TKey : notnull
+        where TInput : notnull
+        where TResult : notnull => MapResultsAsync(groupName, items, itemKey, child, timeout, configure: null, ct);
+
+    /// <summary>The bounded typed map with options every child of the map gets.</summary>
+    public Task<MapOutcome<TKey, TResult>> MapAsync<TItem, TKey, TInput, TResult>(
+        string groupName,
+        IEnumerable<TItem> items,
+        Func<TItem, TKey> itemKey,
+        Func<TItem, JobCall<TInput, TResult>> child,
+        TimeSpan timeout,
+        Action<JobEnqueueOptionsBuilder> configure,
+        CancellationToken ct = default
+    )
+        where TKey : notnull
+        where TInput : notnull
+        where TResult : notnull => MapResultsAsync(groupName, items, itemKey, child, timeout, configure, ct);
+
+    private async Task<MapOutcome<TKey>> MapOutcomesAsync<TItem, TKey, TInput>(
         string groupName,
         IEnumerable<TItem> items,
         Func<TItem, TKey> itemKey,
         Func<TItem, TInput> child,
         TimeSpan? timeout,
+        Action<JobEnqueueOptionsBuilder>? configure,
+        CancellationToken ct
+    )
+        where TKey : notnull
+        where TInput : notnull
+    {
+        var (keys, _, _, waits) = await FanOutAsync(groupName, items, itemKey, child, timeout, configure, ct);
+        var outcomes = new MapItemOutcome<TKey>[keys.Length];
+        for (var i = 0; i < keys.Length; i++)
+        {
+            outcomes[i] = new MapItemOutcome<TKey>(keys[i], waits[i].Outcome);
+        }
+
+        return new MapOutcome<TKey>(outcomes);
+    }
+
+    private async Task<MapOutcome<TKey, TResult>> MapResultsAsync<TItem, TKey, TInput, TResult>(
+        string groupName,
+        IEnumerable<TItem> items,
+        Func<TItem, TKey> itemKey,
+        Func<TItem, JobCall<TInput, TResult>> child,
+        TimeSpan? timeout,
+        Action<JobEnqueueOptionsBuilder>? configure,
+        CancellationToken ct
+    )
+        where TKey : notnull
+        where TInput : notnull
+        where TResult : notnull
+    {
+        var (keys, names, started, waits) = await FanOutAsync(groupName, items, itemKey, child, timeout, configure, ct);
+        var outcomes = new MapItemOutcome<TKey, TResult>[keys.Length];
+        for (var i = 0; i < keys.Length; i++)
+        {
+            outcomes[i] = new MapItemOutcome<TKey, TResult>(keys[i], await LandAsync<TResult>(started[i], waits[i], names[i], ct));
+        }
+
+        return new MapOutcome<TKey, TResult>(outcomes);
+    }
+
+    /// <summary>The map's children, named from their keys, started in item order, and waited on as one group.</summary>
+    [DebuggerDisableUserUnhandledExceptions]
+    private async Task<(
+        TKey[] Keys,
+        string[] Names,
+        EnqueueJobResponse[] Started,
+        (JobOutcome Outcome, long? ExecutionNumber)[] Waits
+    )> FanOutAsync<TItem, TKey, TInput>(
+        string groupName,
+        IEnumerable<TItem> items,
+        Func<TItem, TKey> itemKey,
+        Func<TItem, TInput> child,
+        TimeSpan? timeout,
+        Action<JobEnqueueOptionsBuilder>? configure,
         CancellationToken ct
     )
         where TKey : notnull
@@ -224,18 +283,10 @@ public abstract partial class JobContext
         var started = new EnqueueJobResponse[materialized.Count];
         for (var i = 0; i < materialized.Count; i++)
         {
-            started[i] = await EnqueueGroupChildAsync(names[i], child(materialized[i]), ct);
+            started[i] = await EnqueueGroupChildAsync(names[i], child(materialized[i]), configure, ct);
         }
 
-        var outcomes = await WaitChildGroupAsync(started, timeout, ct);
-
-        var resultItems = new MapItemOutcome<TKey>[materialized.Count];
-        for (var i = 0; i < materialized.Count; i++)
-        {
-            resultItems[i] = new MapItemOutcome<TKey>(keys[i], outcomes[i]);
-        }
-
-        return new MapOutcome<TKey>(resultItems);
+        return (keys, names, started, await WaitChildGroupAsync(started, timeout, ct));
     }
 
     private static string ChildGroupName<TKey>(string groupName, TKey key)

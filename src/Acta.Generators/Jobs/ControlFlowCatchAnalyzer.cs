@@ -28,7 +28,6 @@ internal sealed class ControlFlowCatchAnalyzer : DiagnosticAnalyzer
         "WaitChildAsync",
         "CallChildAsync",
         "WaitChildrenAsync",
-        "ParallelAsync",
         "MapAsync",
         "RunStepAsync",
         "RunWithLockAsync",

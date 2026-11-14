@@ -30,7 +30,6 @@ namespace Acta.Tests.Conformance.Scenarios;
     "job-parent-join-children-unbounded",
     "job-parent-map-bounded",
     "job-parent-one",
-    "job-parent-parallel-bounded",
     "job-parent-re-wait-same-group",
     "job-parent-two-groups",
     "job-wait-signal"
@@ -380,9 +379,6 @@ public sealed class ChildGroupTimeoutSpec : ActaRuntimeTestBase<ConformanceFixtu
         Assert.Equal(JobStatusCode.Cancelled, (await ReadJobAsync(child, ct)).Status);
         Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(parent.JobId, ct)).Status);
     }
-
-    [Fact(DisplayName = "A bounded Parallel reports the timeout while keeping its branch keying")]
-    public async Task Bounded_parallel_surfaces_the_timeout() => await AssertWrapperTimesOutAsync("job-parent-parallel-bounded");
 
     [Fact(DisplayName = "A bounded Map reports the timeout while keeping its item keying")]
     public async Task Bounded_map_surfaces_the_timeout() => await AssertWrapperTimesOutAsync("job-parent-map-bounded");

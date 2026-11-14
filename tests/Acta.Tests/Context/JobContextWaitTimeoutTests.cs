@@ -106,8 +106,6 @@ public sealed class JobContextWaitTimeoutTests
         var zero = TimeSpan.Zero;
 
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => ctx.CallChildAsync("only", new { }, zero, ct));
-        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => ctx.CallChildAsync<object, string>("only", new { }, zero, ct));
-        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => ctx.ParallelAsync("grp", b => b.Child("a", new { }), zero, ct));
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => ctx.MapAsync("grp", (int[])[1], i => i, i => new { }, zero, ct));
 
         // Every wrapper starts its children before it waits on any of them, so a rejected timeout must

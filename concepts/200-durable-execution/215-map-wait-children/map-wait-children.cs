@@ -16,11 +16,10 @@ await host.StartAsync();
 
 var jobs = host.Services.GetRequiredService<IJobs>();
 
-// Parallel/Map/Join all compile to ordinary child jobs plus child-completion latches: replay finds
-// the same children by name and enqueues none twice; a child that had not finished runs on as its own job.
-//   Parallel - independent analyzes of the same source,
-//   Map      - one child per item, keyed by a stable key,
-//   Join     - wait on handles you started by hand.
+// Children are ordinary jobs plus child-completion latches: replay finds the same children by name and
+// enqueues none twice; a child that had not finished runs on as its own job.
+//   EnqueueChildAsync + WaitChildrenAsync - a few named children at once,
+//   MapAsync                              - one child per item, keyed by a stable key.
 var outcome = await jobs.CallAsync(
     MapWaitChildrenJobs.ProcessPhoto(new ProcessPhoto("asset-42", "https://example.com/photos/asset-42/original.jpg"))
 );
@@ -53,15 +52,11 @@ namespace Acta.Concepts.MapWaitChildren
         [Job("process-photo")]
         public async Task<PhotoResult> Process(ProcessPhoto photo, JobContext context, CancellationToken ct)
         {
-            // Parallel: independent analyzes, no branch needs another's result, so they run at once.
-            var analyze = await context.ParallelAsync(
-                "analyze",
-                p =>
-                    p.Child("exif", new ExtractExif(photo.AssetId, photo.SourceUrl))
-                        .Child("blurhash", new ComputeBlurhash(photo.AssetId, photo.SourceUrl))
-                        .Child("moderation", new ScanModeration(photo.AssetId, photo.SourceUrl)),
-                ct
-            );
+            // Independent analyzes, none needs another's result: enqueue each, and they run at once.
+            var exif = await context.EnqueueChildAsync("exif", new ExtractExif(photo.AssetId, photo.SourceUrl), ct);
+            var blurhash = await context.EnqueueChildAsync("blurhash", new ComputeBlurhash(photo.AssetId, photo.SourceUrl), ct);
+            var moderation = await context.EnqueueChildAsync("moderation", new ScanModeration(photo.AssetId, photo.SourceUrl), ct);
+            var analyze = await context.WaitChildrenAsync([exif, blurhash, moderation], ct);
 
             analyze.ThrowIfAnyFailed();
 
@@ -78,7 +73,7 @@ namespace Acta.Concepts.MapWaitChildren
             // Resizes are best effort: report how many landed rather than failing the photo.
             var renditionsReady = resized.Items.Count(i => i.Outcome.Succeeded);
 
-            // Join: start two independent side effects by hand and wait on the handles.
+            // Two independent side effects, enqueued and waited for the same way.
             var cdn = await context.EnqueueChildAsync("publish-cdn", new PublishCdn(photo.AssetId), ct);
             var index = await context.EnqueueChildAsync("update-index", new UpdateIndex(photo.AssetId), ct);
             var published = await context.WaitChildrenAsync([cdn, index], ct);

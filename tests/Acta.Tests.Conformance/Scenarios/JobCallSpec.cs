@@ -42,23 +42,22 @@ public sealed class JobCallSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf
         Assert.Equal(5, (await handle.GetResultAsync(ct)).Sum);
     }
 
-    [Fact(DisplayName = "A call passed by name as an input is refused with how to pass it, and nothing is enqueued")]
-    public async Task A_call_named_as_an_input_is_refused()
+    [Fact(DisplayName = "A call passed by name as an input is enqueued by the job it names")]
+    public async Task A_call_named_as_an_input_is_enqueued_by_its_job()
     {
         var ct = TestContext.Current.CancellationToken;
         var key = Unique("named-input");
 
-        // Naming the argument input binds the input-typed form, whose job would be found by the call's own type.
-        var refused = await Assert.ThrowsAsync<ArgumentException>(() =>
-            Jobs.EnqueueAsync(input: TestJobsManifest.AddNumbers(new AddNumbers(2, 3)), o => o.DeduplicationKey(key), ct).AsTask()
-        );
+        // Naming the argument input binds the input-typed form, which routes a call by its job, not by its type.
+        var handle = await Jobs.EnqueueAsync(input: TestJobsManifest.AddNumbers(new AddNumbers(2, 3)), o => o.DeduplicationKey(key), ct);
 
-        Assert.Contains("name its argument job", refused.Message, StringComparison.Ordinal);
-        Assert.Null(await Jobs.GetIdAsync(JobLookup.ByDeduplicationKey(TestNamespace, key), ct));
+        Assert.Equal("add-numbers", (await Jobs.GetAsync(handle, ct))!.JobName);
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(handle, ct));
+        Assert.Equal(5, (await handle.GetResultAsync<AddNumbersResult>(ct)).Sum);
     }
 
-    [Fact(DisplayName = "A handler runs a child by a generated call and reads the child's typed result from the outcome")]
-    public async Task A_handler_runs_a_child_by_its_call()
+    [Fact(DisplayName = "A handler calls a child by its generated call and reads the child's typed result from the outcome")]
+    public async Task A_handler_calls_a_child_by_its_call()
     {
         var ct = TestContext.Current.CancellationToken;
         var parent = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-parent-by-call", JobPayload.None), ct);

@@ -22,13 +22,12 @@ namespace Acta.Tests.Conformance.Scenarios;
     "echo",
     "job-child-echo",
     "job-child-fail",
-    "job-child-resultless",
     "job-parent-cancel-self",
     "job-parent-fire-and-forget",
     "job-parent-many",
+    "job-parent-map-typed",
     "job-parent-of-failing-child",
     "job-parent-of-restarted-child",
-    "job-parent-of-resultless-child",
     "job-parent-one",
     "job-wait-signal",
     "old-then-oversize-result-probe"
@@ -430,17 +429,24 @@ public sealed class ChildJobSpec : ActaRuntimeTestBase<ConformanceFixture, JobsO
         Assert.Contains("stored no result", await ExecutionFailureMessageAsync(parent.JobId, ct), StringComparison.Ordinal);
     }
 
-    [Fact(DisplayName = "The typed child wait throws on a child that stored no result rather than answering a value type's default")]
-    public async Task Typed_child_wait_throws_on_a_resultless_child()
+    [Fact(DisplayName = "A map of generated calls gives every child its configure and answers each child's typed result")]
+    public async Task A_map_of_calls_configures_children_and_answers_typed_results()
     {
         var ct = TestContext.Current.CancellationToken;
-        var parent = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-parent-of-resultless-child", JobPayload.None), ct);
-        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(parent, ct));
-        var child = Assert.Single(await ReadChildrenAsync(parent.JobId, ct));
-        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(child.Id, ct));
+        var parent = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-parent-map-typed", JobPayload.None), ct);
 
-        Assert.Equal(RunOnceStatus.Failed, await Runtime.RunOnceAsync(parent, ct));
-        Assert.Contains("stored no result", await ExecutionFailureMessageAsync(parent.JobId, ct), StringComparison.Ordinal);
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(parent, ct));
+        var children = await ReadChildrenAsync(parent.JobId, ct);
+        Assert.Equal("echo/1,echo/2,echo/3", string.Join(",", children.Select(child => child.DeduplicationKey).Order()));
+        Assert.All(children, child => Assert.Equal(JobPriorityCode.High, child.Priority));
+        foreach (var child in children)
+        {
+            Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(child.Id, ct));
+        }
+
+        Assert.Equal(JobStatusCode.Ready, (await ReadJobAsync(parent.JobId, ct)).Status);
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(parent, ct));
+        Assert.Equal(12, (await Jobs.GetResultAsync<ChildEchoResult>(parent, ct)).Doubled);
     }
 
     private async Task<string> ExecutionFailureMessageAsync(long jobId, CancellationToken ct)

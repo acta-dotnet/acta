@@ -143,10 +143,10 @@ curated-view rows.
 | 212 | [fan-out-join](../concepts/200-durable-execution/212-fan-out-join/) | Map-reduce with `MapAsync`: chunk children compute partial sums in parallel, the parent merges their results |
 | 213 | [call-child](../concepts/200-durable-execution/213-call-child/) | `CallChildAsync` delegates to an existing job and waits for its result (vs a step) |
 | 214 | [reset-state](../concepts/200-durable-execution/214-reset-state/) | A recurring monitor uses durable state, then `ctx.ResetStateAsync` so the next fire starts blank |
-| 215 | [map-wait-children](../concepts/200-durable-execution/215-map-wait-children/) | `ParallelAsync`, `MapAsync`, and `WaitChildrenAsync` fan out child jobs and wait, all over the same latches |
+| 215 | [map-wait-children](../concepts/200-durable-execution/215-map-wait-children/) | `EnqueueChildAsync` with `WaitChildrenAsync`, and `MapAsync`, fan out child jobs and wait, all over the same latches |
 | 216 | [variable-lifecycle](../concepts/200-durable-execution/216-variable-lifecycle/) | Durable-variable lifecycle: `GetOrSet` (compute-once), `Exists`, `Delete`, defaults, raw `JobPayload` |
 | 217 | [absolute-time-controls](../concepts/200-durable-execution/217-absolute-time-controls/) | Absolute-instant timing: `ScheduleAsync(input, runAt)`, `SleepUntilAsync`, `RescheduleUntilAsync` |
-| 219 | [child-failure-outcomes](../concepts/200-durable-execution/219-child-failure-outcomes/) | Child-group failure handling: `MapOutcome`/`ParallelOutcome`/`ChildrenWaitOutcome` and `ThrowIfAnyFailed` |
+| 219 | [child-failure-outcomes](../concepts/200-durable-execution/219-child-failure-outcomes/) | Child-group failure handling: `MapOutcome`/`ChildrenWaitOutcome` and `ThrowIfAnyFailed` |
 | 220 | [at-most-once-step](../concepts/200-durable-execution/220-at-most-once-step/) | **Engineering Lab.** Real process loss after a side effect: refuse body replay, surface ambiguity, reconcile |
 | 301 | [fail-job](../concepts/300-failure-and-recovery/301-fail-job/) | `ctx.FailAsync` ends the job permanently - no retries (unlike throwing) |
 | 302 | [cancel-job](../concepts/300-failure-and-recovery/302-cancel-job/) | `ctx.CancelAsync` ends the job as Cancelled |

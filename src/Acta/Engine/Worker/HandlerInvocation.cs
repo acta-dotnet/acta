@@ -329,8 +329,9 @@ internal sealed class HandlerInvocation(
     /// <summary>
     /// A failure retrying cannot change: a programming error, a failed at-most-once step that throws again on every
     /// replay, a handler DI cannot build from the same registrations, a finished body whose result could not be
-    /// recorded, or a handler that went on after its own control flow. It lands terminal Failed through the same
-    /// completion branch as ctx.FailAsync, leaving the retry budget untouched.
+    /// recorded, a handler that went on after its own control flow, or a waited job's failure or expired wait rethrown
+    /// (ThrowIfFailed, ThrowIfAnyFailed, ValueOrThrow), which a replay reads from the same latch. It lands terminal Failed
+    /// through the same completion branch as ctx.FailAsync, leaving the retry budget untouched.
     /// </summary>
     internal static bool IsNonRetryable(Exception ex) =>
         ex
@@ -339,7 +340,10 @@ internal sealed class HandlerInvocation(
                 or StepFailedException
                 or HandlerActivationException
                 or ResultNotRecordedException
-                or SwallowedControlException;
+                or SwallowedControlException
+                or JobFailedException
+                or ChildGroupException
+                or JobWaitTimeoutException;
 
     private ExecutionCompletion Faulted(Exception ex, bool inputDeserialized, JobDescriptor descriptor, ClaimedJob job)
     {

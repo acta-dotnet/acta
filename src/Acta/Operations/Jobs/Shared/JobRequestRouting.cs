@@ -13,26 +13,31 @@ internal sealed class JobRequestRouting(
     JobDescriptorRegistry descriptors
 )
 {
-    /// <summary>The request for an input whose CLR type maps to exactly one registered job.</summary>
+    /// <summary>
+    /// The request for an input whose CLR type maps to exactly one registered job. A generated call passed as the input,
+    /// as a call named <c>input:</c> or a map's child factory returns it, is enqueued by the job it names.
+    /// </summary>
     public EnqueueJobRequest FromInput<TInput>(TInput input, JobEnqueueOptions? options)
         where TInput : notnull
     {
         ArgumentNullException.ThrowIfNull(input);
-        // A call reaches here only when its argument was named input, which binds this form over the call's own.
-        if (
-            typeof(TInput).IsGenericType
-            && typeof(TInput).GetGenericTypeDefinition() is var call
-            && (call == typeof(JobCall<>) || call == typeof(JobCall<,>))
-        )
+        if (input is IJobCall call)
         {
-            throw new ArgumentException(
-                "A generated call was passed as a job's input. Pass the call positionally, or name its argument job, so it is enqueued by the job it names.",
-                nameof(input)
-            );
+            return call.Accept(new CallRoute(this, options));
         }
 
         var route = typeRegistry.Resolve(typeof(TInput), options?.JobNamespace);
         return Request(route.Namespace, route.JobName, Serialize(route.InputFormat, input), options);
+    }
+
+    private readonly struct CallRoute(JobRequestRouting routing, JobEnqueueOptions? options) : IJobCallVisitor<EnqueueJobRequest>
+    {
+        public EnqueueJobRequest Visit<TInput>(JobCall<TInput> call)
+            where TInput : notnull => routing.FromCall(call, options);
+
+        public EnqueueJobRequest Visit<TInput, TResult>(JobCall<TInput, TResult> call)
+            where TInput : notnull
+            where TResult : notnull => routing.FromCall(call, options);
     }
 
     /// <summary>

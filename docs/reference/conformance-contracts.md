@@ -516,7 +516,6 @@
   - Two groups in one job keep separate deadlines and expire independently
   - Re-waiting the same children reuses the stored deadline and resolves off the latches
   - A bounded CallChild reports the timeout on its job outcome
-  - A bounded Parallel reports the timeout while keeping its branch keying
   - A bounded Map reports the timeout while keeping its item keying
   - A lineage map shows the child wait a parent is parked on, with its deadline when bounded
 
@@ -552,7 +551,7 @@
   - The maintenance sweep re-raises a stale latch lost to a crash and releases the parent
   - Concurrent cancel and child completions converge with the whole tree terminal and no error
   - The typed child wait reads the result of the execution whose landing set the latch, so a restarted child that stored none throws rather than answering an earlier result
-  - The typed child wait throws on a child that stored no result rather than answering a value type's default
+  - A map of generated calls gives every child its configure and answers each child's typed result
 
 ### A bounded child wait expires, cancels its subtree, and leaves the parent running
 - **Contract:** A bounded child wait resolves TimedOut once, cancels the awaited child and its descendants, and leaves the parent free to continue.
@@ -928,8 +927,8 @@
 - **Contract:** Enqueue, schedule, and run-and-wait take a generated call, which names its job and its input, and several handler parameters are stored as one JSON object.
 - **Guarantees:**
   - A call resolves its route without input-type inference and round-trips the typed result
-  - A call passed by name as an input is refused with how to pass it, and nothing is enqueued
-  - A handler runs a child by a generated call and reads the child's typed result from the outcome
+  - A call passed by name as an input is enqueued by the job it names
+  - A handler calls a child by its generated call and reads the child's typed result from the outcome
   - A call of a handler taking several parameters stores them as one object and answers the typed result
   - A no-input call enqueues its own job
   - A call's configure callback applies its options

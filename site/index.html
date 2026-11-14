@@ -223,10 +223,11 @@
     <span class="k">var</span> proofId = <span class="k">await</span> ctx.GetOrSetVariableAsync(
         <span class="s">"proof-id"</span>, Guid.NewGuid, ct);
 
-    <span class="k">var</span> prepared = <span class="k">await</span> ctx.ParallelAsync(<span class="s">"prepare"</span>, p =&gt; p
-        .Child(<span class="s">"pdf"</span>, <span class="k">new</span> BuildProofPdf(manuscript.RevisionKey, proofId))
-        .Child(<span class="s">"references"</span>, <span class="k">new</span> CheckReferences(manuscript.RevisionKey)),
-        ct);
+    <span class="k">var</span> pdf = <span class="k">await</span> ctx.EnqueueChildAsync(<span class="s">"pdf"</span>,
+        <span class="k">new</span> BuildProofPdf(manuscript.RevisionKey, proofId), ct);
+    <span class="k">var</span> references = <span class="k">await</span> ctx.EnqueueChildAsync(<span class="s">"references"</span>,
+        <span class="k">new</span> CheckReferences(manuscript.RevisionKey), ct);
+    <span class="k">var</span> prepared = <span class="k">await</span> ctx.WaitChildrenAsync([pdf, references], ct);
 
     prepared.ThrowIfAnyFailed();
 
@@ -280,7 +281,7 @@
             <li><a href="/capabilities#sleeps">Durable sleeps and timers</a></li>
             <li><a href="/capabilities#signals">Signals</a></li>
             <li><a href="/capabilities#children">Child jobs with lineage</a></li>
-            <li><a href="/capabilities#fan-out">Map, Parallel, and WaitChildren</a></li>
+            <li><a href="/capabilities#fan-out">Map and WaitChildren</a></li>
             <li><a href="/capabilities#locks">Handler locks</a></li>
             <li><a href="/capabilities#plain-classes">Plain classes, constructor injection</a></li>
             <li><a href="/capabilities#behaviors">Shared behavior around every handler</a></li>

@@ -1,9 +1,9 @@
 namespace Acta;
 
 /// <summary>
-/// Thrown by the ThrowIfAnyFailed escalation on a Join, Parallel, or Map outcome when at least one
+/// Thrown by the ThrowIfAnyFailed escalation on a WaitChildrenAsync or MapAsync outcome when at least one
 /// child job did not land Succeeded. Carries the non-succeeded child outcomes (failed, cancelled, or
-/// timed out); the group wait itself never throws.
+/// timed out); the group wait itself never throws. A handler that lets it escape fails at once, with no retry.
 /// </summary>
 /// <remarks>
 /// Builds the exception from the non-succeeded child outcomes that triggered the escalation.

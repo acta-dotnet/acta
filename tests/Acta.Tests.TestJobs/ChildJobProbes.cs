@@ -11,9 +11,6 @@ public sealed record ChildEchoResult(int Doubled);
 /// <summary>Input for the cross-namespace parent probe: where to start the child.</summary>
 public sealed record CrossNamespaceStart(string ChildNamespace);
 
-/// <summary>Input for the result-less child probe.</summary>
-public sealed record ResultlessChild(int Ignored);
-
 /// <summary>
 /// One awaited child's outcome, flattened to plain fields so it survives the JSON round trip through the result store;
 /// the computed flags are read inside the handler, where the framework type still carries them.
@@ -39,22 +36,29 @@ public static class ChildJobProbes
     [Job("job-parent-one")]
     public static async Task<ChildEchoResult> ParentOne(JobContext ctx, CancellationToken ct)
     {
-        var outcome = await ctx.CallChildAsync<ChildEcho, ChildEchoResult>("echo", new ChildEcho(21), ct: ct);
+        var outcome = await ctx.CallChildAsync("echo", TestJobsManifest.JobChildEcho(new ChildEcho(21)), ct);
         return outcome.ValueOrThrow();
     }
 
-    /// <summary>Runs its child through the manifest's generated call, which names the child's job and its result type.</summary>
+    /// <summary>Maps three generated calls of a job with a result under options every child gets, and sums their results.</summary>
+    [Job("job-parent-map-typed")]
+    public static async Task<ChildEchoResult> ParentMapTyped(JobContext ctx, CancellationToken ct)
+    {
+        var echoes = await ctx.MapAsync(
+            "echo",
+            (int[])[1, 2, 3],
+            n => n,
+            n => TestJobsManifest.JobChildEcho(new ChildEcho(n)),
+            o => o.Priority(JobPriorityCode.High),
+            ct
+        );
+        return new ChildEchoResult(echoes.Items.Sum(item => item.Outcome.ValueOrThrow().Doubled));
+    }
+
+    /// <summary>Calls its child through the manifest's generated call, which names the child's job and its result type.</summary>
     [Job("job-parent-by-call")]
     public static async Task<ChildEchoResult> ParentByCall(JobContext ctx, CancellationToken ct) =>
         (await ctx.CallChildAsync("echo", TestJobsManifest.JobChildEcho(new ChildEcho(21)), ct)).ValueOrThrow();
-
-    [Job("job-child-resultless")]
-    public static Task ChildResultless(ResultlessChild input, CancellationToken ct) => Task.CompletedTask;
-
-    /// <summary>Asks a result-less child for an int; one attempt, so the typed wait's throw fails the job.</summary>
-    [Job("job-parent-of-resultless-child", MaxAttempts = 1)]
-    public static async Task<int> ParentOfResultlessChild(JobContext ctx, CancellationToken ct) =>
-        (await ctx.CallChildAsync<ResultlessChild, int>("resultless", new ResultlessChild(0), ct)).ValueOrThrow();
 
     /// <summary>
     /// Waits on a child that answers "old" from its first execution and drops an oversize result from any later one; one
@@ -62,7 +66,9 @@ public static class ChildJobProbes
     /// </summary>
     [Job("job-parent-of-restarted-child", MaxAttempts = 1)]
     public static async Task<string> ParentOfRestartedChild(JobContext ctx, CancellationToken ct) =>
-        (await ctx.CallChildAsync<OldThenOversizeInput, string>("restarted", new OldThenOversizeInput(0), ct)).ValueOrThrow();
+        (
+            await ctx.CallChildAsync("restarted", TestJobsManifest.OldThenOversizeResultProbe(new OldThenOversizeInput(0)), ct)
+        ).ValueOrThrow();
 
     [Job("job-parent-of-failing-child")]
     public static async Task<ChildOutcomeEntry> ParentOfFailingChild(JobContext ctx, CancellationToken ct)

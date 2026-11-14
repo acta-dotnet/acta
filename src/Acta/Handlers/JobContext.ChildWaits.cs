@@ -105,20 +105,21 @@ public abstract partial class JobContext
     /// The one home of the group deadline rule; every group API funnels through it, and a null timeout is the unbounded
     /// loop. Every member's wait is bounded by the group's stored instant itself, so each latch expires at that instant
     /// whenever it is armed, and a member first reached after the instant has passed times out in the same pass as the
-    /// rest instead of arming a fresh bound and suspending the parent once per member.
+    /// rest instead of arming a fresh bound and suspending the parent once per member. Each outcome comes with the
+    /// execution whose landing set its latch, so a typed caller reads the result the wait saw.
     /// </summary>
-    private async Task<IReadOnlyList<JobOutcome>> WaitChildGroupAsync(
+    private async Task<(JobOutcome Outcome, long? ExecutionNumber)[]> WaitChildGroupAsync(
         IReadOnlyList<EnqueueJobResponse> children,
         TimeSpan? timeout,
         CancellationToken ct
     )
     {
-        var outcomes = new JobOutcome[children.Count];
+        var outcomes = new (JobOutcome Outcome, long? ExecutionNumber)[children.Count];
         if (timeout is not { } bound)
         {
             for (var i = 0; i < children.Count; i++)
             {
-                outcomes[i] = (await WaitChildCoreAsync(children[i], timeout: null, ct)).Outcome;
+                outcomes[i] = await WaitChildCoreAsync(children[i], timeout: null, ct);
             }
             return outcomes;
         }
@@ -134,7 +135,7 @@ public abstract partial class JobContext
         for (var i = 0; i < children.Count; i++)
         {
             var latch = await WaitSignalUntilCoreAsync(ChildLatchName(children[i].JobId), deadlineAtUtc, ct);
-            outcomes[i] = (await ResolveChildWaitAsync(children[i], latch, ct)).Outcome;
+            outcomes[i] = await ResolveChildWaitAsync(children[i], latch, ct);
         }
         return outcomes;
     }

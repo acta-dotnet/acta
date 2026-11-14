@@ -28,7 +28,7 @@ what can run next.
 
 The existing runtime already has most of the pieces. A flow step can use `RunStepAsync`; a delay can
 use `SleepAsync`; a signal node can use `WaitSignalAsync`; and parallel work and fan-out can use
-`ParallelAsync` and `MapAsync`. Child nodes can use the existing child-job operations. The flow layer
+`EnqueueChildAsync` with `WaitChildrenAsync`, and `MapAsync`. Child nodes can use the existing child-job operations. The flow layer
 should compose those primitives instead of building a second scheduler inside Acta.
 
 A few rules would make the model safe. Every node needs a stable, explicit name. If node identities

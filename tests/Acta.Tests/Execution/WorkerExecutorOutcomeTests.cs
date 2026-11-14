@@ -118,6 +118,28 @@ public sealed class WorkerExecutorOutcomeTests
         Assert.Null(harness.Completion.RescheduleEventCode);
     }
 
+    // ThrowIfFailed, ThrowIfAnyFailed and ValueOrThrow on a waited job: a retry reads the same latch, or the same expired
+    // wait, and throws again.
+    public static TheoryData<Exception> WaitedJobFailures =>
+        [
+            new JobFailedException(7, JobRef.New(), JobStatusCode.Failed),
+            new ChildGroupException([]),
+            new JobWaitTimeoutException(7, JobRef.New()),
+        ];
+
+    [Theory]
+    [MemberData(nameof(WaitedJobFailures))]
+    public async Task A_waited_job_failure_rethrown_fails_the_job_at_once(Exception thrown)
+    {
+        var harness = new WorkerExecutorHarness(maxAttempts: 10);
+
+        var outcome = await harness.RunAsync((_, _) => throw thrown);
+
+        Assert.Equal(RunOnceStatus.Failed, outcome);
+        Assert.Equal(EventReason.NonRetryableException, harness.Completion.Reason);
+        Assert.Null(harness.Completion.RescheduleEventCode);
+    }
+
     // Every retry would build the handler from the same registrations, while the handler's own
     // InvalidOperationException, its base type, still retries.
     [Theory]

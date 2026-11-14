@@ -4,11 +4,12 @@ Describes Acta 1.0.0-rc.11: the packages Acta.Sqlite, Acta.Postgres, Acta.SqlSer
 Acta.AspNetCore at that version. Verified 2026-11-14. When this file and an installed package disagree, the
 package wins: the compiler and `<app> jobs help` outrank this file. In an existing app, read its resolved Acta
 version first and follow the docs at that tag, github.com/acta-dotnet/acta/tree/v<version>; do not upgrade
-the app to match an example.
+the app to match an example. An upgrade made on purpose applies the "What a consumer must change" items of every
+release between the two versions, in `docs/release-notes.md`.
 
 Acta is a durable job and workflow engine for .NET backed by the application's own SQL database
 (PostgreSQL, SQL Server, or embedded SQLite). One handler can record steps and variables, start
-child jobs and fan out with Map, Parallel, and WaitChildren, and wait for signals and timers without
+child jobs and fan out with Map and WaitChildren, and wait for signals and timers without
 holding a worker; lanes keep per-entity order, and concurrency and rate limits hold across every
 worker. Jobs, schedules, steps, waits, and alerts are ordinary rows. This file is the contract an agent needs to add Acta to a project correctly; the
 runnable proof lives in the repository's `concepts/` directory (compiled, one project per concept) and the
@@ -145,7 +146,7 @@ charges nothing.
 
 To compensate before a failure ends the job, catch on `ctx.EndsJob(ex)`:
 `catch (Exception ex) when (ctx.EndsJob(ex)) { await ctx.RunStepAsync("release-stock", ...); throw; }`.
-It is true for `ctx.FailAsync` and `CancelAsync`, for a non-retryable exception such as `StepFailedException`,
+It is true for `ctx.FailAsync` and `CancelAsync`, for a non-retryable exception such as `StepFailedException` or a waited child's failure rethrown,
 and for any other error on the last attempt (`ctx.IsLastAttempt` reads the budget the job has already
 spent, and a Strict deadline, never the execution number); it is false for a wait, sleep, reschedule or
 pause, which end only the attempt. That is best effort: a crash or a lost lease on the last attempt skips
@@ -214,7 +215,9 @@ only under its own key.
 | `catch { }` around the body | let it throw, or `await ctx.FailAsync(reason)` | swallowing turns a retryable failure into a silent success |
 | `catch (Exception)` around a wait, sleep or ctx call | `catch (Exception ex) when (ex is not JobControlException)`, or `when (ctx.EndsJob(ex))` to compensate | the call ends the attempt by throwing a `JobControlException` (a `finally` still runs); a handler that swallows it and returns fails at once, and `ACTA0151` warns at build time |
 | polling a flag in a loop | `await ctx.TryWaitSignalAsync("approved", timeout)` | polling burns a worker; a signal parks the job, and the timeout keeps it from parking forever |
-| starting children and looping until done | `await ctx.WaitChildrenAsync([audit, receipt], ct)` on the children you started (a `TimeSpan` before the token sets a deadline), or `MapAsync` when the children come from a list | the parent parks instead of occupying a worker |
+| enqueuing children and looping until they are done | `await ctx.WaitChildrenAsync([audit, receipt], ct)` on the children you enqueued (a `TimeSpan` before the token sets a deadline), or `MapAsync` when the children come from a list | the parent parks instead of occupying a worker |
+| `jobs.CallAsync` or `handle.WaitAsync()` on an injected `IJobs` inside a handler | `await ctx.CallChildAsync("label", ShippingJobs.PrintLabel(input), ct)`, or `EnqueueChildAsync` and a wait later | an `IJobs` wait holds the worker until the job ends or the wait times out, and each re-entry enqueues another job; a child call parks the job, and its name finds the same child |
+| `Task.WhenAll` over several `CallChildAsync` calls | `EnqueueChildAsync` each, then one `await ctx.WaitChildrenAsync([email, sms], ct)` | the group wait wakes the parent only when the child it waits on lands, where `Task.WhenAll` wakes it on every landing, and a timeout on it is one deadline for every child |
 | `DateTime.Now` | `DateTime.UtcNow`, or a value from the input | the ledger is UTC throughout |
 
 ## Waiting for an outside event
@@ -236,24 +239,35 @@ A second window is a wait under a new name (`"shipped-2"`) or a new job.
 
 ## Child jobs and fan-out
 
-A handler starts other jobs as children and parks until they end. The parent holds no worker while it
+A handler sends other jobs as children and parks until they end. The parent holds no worker while it
 waits, and each child is an ordinary job with its own row, retries, and steps. The first argument of
-every call is a name, and the name makes the start run-once: on re-entry the same name finds the child
-it already started.
+every call is a name, and the name makes the send run-once: on re-entry the same name finds the child
+it already enqueued.
+
+One rule names every call: a handler's call is the `IJobs` call with `Child` after its first verb.
+
+- *Enqueue* sends a job without waiting: `jobs.EnqueueAsync`, `ctx.EnqueueChildAsync`.
+- *Call* sends a job and waits for its outcome: `jobs.CallAsync`, `ctx.CallChildAsync`.
+- *Wait* follows a job sent earlier: `jobs.WaitAsync`, `ctx.WaitChildAsync`, and `ctx.WaitChildrenAsync` for several.
+- A result is read with `jobs.GetResultAsync<T>` or `ctx.GetChildResultAsync<T>`.
+
+*Run* is work the handler does itself (`RunStepAsync`), never a child. An `IJobs` wait holds its caller
+until the job ends or the wait times out; a handler's wait parks the job and holds no worker.
 
 | To | Call | Answers |
 | --- | --- | --- |
-| run one child and wait | `await ctx.CallChildAsync("email", new SendEmail(orderId), ct)` | `JobOutcome`: `Succeeded`, `Status`, `ThrowIfFailed()` |
-| run one child and read its result | `await ctx.CallChildAsync("label", ShippingJobs.PrintLabel(new PrintLabel(orderId)), ct)` | `JobOutcome<TResult>`: also `Value`, `ValueOrThrow()` |
-| run one child per item of a list | `await ctx.MapAsync("reserve", skus, itemKey: sku => sku, child: sku => new ReserveStock(orderId, sku), ct)` | `MapOutcome<TKey>`: `Items` (each `Key` and `Outcome`), `Failed`, `ThrowIfAnyFailed()` |
-| run different jobs at once | `await ctx.ParallelAsync("notify", p => p.Child("email", new SendEmail(orderId)).Child("sms", new SendSms(orderId)), ct)` | `ParallelOutcome`: `Branches["sms"]`, `Failed`, `ThrowIfAnyFailed()` |
-| start now, wait later | `var audit = await ctx.EnqueueChildAsync("audit", new Audit(orderId), ct);` then `await ctx.WaitChildrenAsync([audit, receipt], ct)`, for one child or several | `ChildrenWaitOutcome`: `Children`, `Succeeded`, `Failed`, `ThrowIfAnyFailed()` |
+| call one child | `await ctx.CallChildAsync("email", new SendEmail(orderId), ct)` | `JobOutcome`: `Succeeded`, `Status`, `ThrowIfFailed()` |
+| call one child and read its result | `await ctx.CallChildAsync("label", ShippingJobs.PrintLabel(new PrintLabel(orderId)), ct)` | `JobOutcome<TResult>`: also `Value`, `ValueOrThrow()` |
+| call one child per item of a list | `await ctx.MapAsync("reserve", skus, itemKey: sku => sku, child: sku => new ReserveStock(orderId, sku), ct)` | `MapOutcome<TKey>`: `Items` (each `Key` and `Outcome`), `Failed`, `ThrowIfAnyFailed()` |
+| read a result per item of a list | `await ctx.MapAsync("label", orders, o => o.Id, o => ShippingJobs.PrintLabel(new PrintLabel(o.Id)), ct)` | `MapOutcome<TKey, TResult>`: each item's `Outcome.ValueOrThrow()` |
+| call different jobs at once, or enqueue now and wait later | `var email = await ctx.EnqueueChildAsync("email", new SendEmail(orderId), ct);` and `sms` alike, then `await ctx.WaitChildrenAsync([email, sms], ct)` | `ChildrenWaitOutcome`: `Children`, `Succeeded`, `Failed`, `ThrowIfAnyFailed()` |
 
 - A failed or cancelled child never throws in the parent by itself. Every wait answers an outcome and the handler decides: `ThrowIfFailed()` or `ThrowIfAnyFailed()` to fail with it, or branch on `Failed` and compensate. A group waits for every child; it never fails fast and never cancels siblings.
-- Every child ends in a `JobOutcome`, alone or as a member of a group: `JobRef`, `Status`, `Succeeded`, `TimedOut`, and `ThrowIfFailed()`. `IJobs.WaitAsync` answers the same type outside a handler. Wait now with `CallChildAsync`; wait later for children you started, one or many, with `WaitChildrenAsync`; fan a list out with `MapAsync`.
-- `ThrowIfFailed()` and `ThrowIfAnyFailed()` fail the parent's attempt, which retries; the retry finds the same failed child unless someone restarted it. When a retry cannot change the outcome, branch on `Failed` and end the job with `await ctx.FailAsync(reason, ct)`.
-- A child's result rides on the outcome when the child was started from the manifest's call (`ShippingJobs.PrintLabel(...)`). For a group member, read it by id: `await ctx.GetChildResultAsync<string>(item.Outcome.JobId, ct)` throws when there is none, and `TryGetChildResultAsync<T>` answers `(Found, Value)`.
-- `MapAsync`, `ParallelAsync`, and `WaitChildrenAsync` take a `TimeSpan` timeout before the token: one deadline for the whole group, which cancels only the members still running and reports `TimedOut` on the outcome.
+- Every child ends in a `JobOutcome`, alone or as a member of a group: `JobRef`, `Status`, `Succeeded`, `TimedOut`, and `ThrowIfFailed()`. `IJobs.WaitAsync` answers the same type outside a handler. Wait now with `CallChildAsync`; wait later for children you enqueued, one or many, with `WaitChildrenAsync`; fan a list out with `MapAsync`.
+- `ThrowIfFailed()`, `ThrowIfAnyFailed()` and `ValueOrThrow()` in a handler fail the job at once, with no retry: a retry would find the same failed child. To recover, restart the child, then the parent once the child has succeeded.
+- A child's result rides on the outcome when the child is the manifest's call (`ShippingJobs.PrintLabel(...)`), alone with `CallChildAsync` or per item with `MapAsync`. For a child you enqueued and waited for, read it by id: `await ctx.GetChildResultAsync<string>(child.JobId, ct)` throws when there is none, and `TryGetChildResultAsync<T>` answers `(Found, Value)`.
+- `MapAsync` and `WaitChildrenAsync` take a `TimeSpan` timeout before the token: one deadline for the whole group, which cancels only the members still running and reports `TimedOut` on the outcome. `MapAsync` takes one `configure` that every child gets.
+- A generated call passed where an input is expected, a map's child included, is enqueued by the job it names.
 - A group does not limit how many of its children run at once; that is `ConcurrencyLimit` on the child's definition.
 - The runnable proof is `concepts/200-durable-execution/215-map-wait-children`; a failed child's outcomes are in `219-child-failure-outcomes`.
 

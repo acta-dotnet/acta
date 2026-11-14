@@ -83,9 +83,9 @@ public abstract partial class JobContext
         where TInput : notnull => CallChildAsync(name, job, timeout, configure: null, ct: ct);
 
     /// <summary>
-    /// <see cref="CallChildAsync{TInput, TResult}(string, TInput, Action{JobEnqueueOptionsBuilder}, CancellationToken)"/>
-    /// for a generated call, which names the result type: <c>ctx.CallChildAsync("ship", ShippingJobs.Ship(order), ct)</c>
-    /// answers the child's outcome with its result.
+    /// Enqueues the child a generated call names and waits for its outcome, typed by the job's result:
+    /// <c>ctx.CallChildAsync("ship", ShippingJobs.Ship(order), ct)</c> answers the child's outcome with its result, read
+    /// from the execution the wait saw.
     /// </summary>
     public async Task<JobOutcome<TResult>> CallChildAsync<TInput, TResult>(
         string name,
@@ -106,8 +106,9 @@ public abstract partial class JobContext
         where TResult : notnull => CallChildAsync(name, job, configure: null, ct: ct);
 
     /// <summary>
-    /// <see cref="CallChildAsync{TInput, TResult}(string, TInput, TimeSpan, Action{JobEnqueueOptionsBuilder}, CancellationToken)"/>
-    /// for a generated call, which names the result type.
+    /// Bounded twin of
+    /// <see cref="CallChildAsync{TInput, TResult}(string, JobCall{TInput, TResult}, Action{JobEnqueueOptionsBuilder}, CancellationToken)"/>:
+    /// on expiry the outcome reports <see cref="JobOutcome.TimedOut"/> with no value, and Acta cancels the child.
     /// </summary>
     public async Task<JobOutcome<TResult>> CallChildAsync<TInput, TResult>(
         string name,

@@ -4,7 +4,7 @@ using System.Text;
 namespace Acta.Tests.Context;
 
 /// <summary>
-/// In-memory JobContext double for the Map/Parallel/Join sugar and for step overload tests: records
+/// In-memory JobContext double for the Map and WaitChildren sugar and for step overload tests: records
 /// the order of child starts and child waits, hands every start a fresh sequential id, and resolves
 /// each wait from a seeded per-child-name status (defaulting to Succeeded); also records every step
 /// invocation's resolved <see cref="StepOptions"/> and runs its body inline. No database, no

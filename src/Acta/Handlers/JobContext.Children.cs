@@ -108,10 +108,10 @@ public abstract partial class JobContext
     }
 
     /// <summary>
-    /// Starts the named child and durably waits for its terminal outcome in one call, the child-level
+    /// Enqueues the named child and durably waits for its terminal outcome in one call, the child-level
     /// mirror of <c>IJobs.CallAsync</c>. Returned, never thrown; branch on the outcome or call
-    /// <see cref="JobOutcome.ThrowIfFailed"/>. Waits this one child before returning: to fan out, start
-    /// every child first and join with
+    /// <see cref="JobOutcome.ThrowIfFailed"/>. Waits this one child before returning: to fan out, enqueue
+    /// every child first and wait for them with
     /// <see cref="WaitChildrenAsync(IReadOnlyList{EnqueueJobResponse}, CancellationToken)"/>.
     /// </summary>
     public async Task<JobOutcome> CallChildAsync<TInput>(
@@ -184,85 +184,30 @@ public abstract partial class JobContext
         TimeSpan? timeout,
         CancellationToken ct
     )
+        where TResult : notnull => await LandAsync<TResult>(child, await WaitChildCoreAsync(child, timeout, ct), name, ct);
+
+    /// <summary>A waited child's outcome with the result the execution its latch names stored, on a success.</summary>
+    private async Task<JobOutcome<TResult>> LandAsync<TResult>(
+        EnqueueJobResponse child,
+        (JobOutcome Outcome, long? ExecutionNumber) wait,
+        string name,
+        CancellationToken ct
+    )
         where TResult : notnull
     {
-        var (outcome, executionNumber) = await WaitChildCoreAsync(child, timeout, ct);
-        if (outcome.TimedOut)
+        if (wait.Outcome.TimedOut)
         {
-            return JobOutcome<TResult>.Expired(child.JobId, child.JobRef, outcome.Status);
+            return JobOutcome<TResult>.Expired(child.JobId, child.JobRef, wait.Outcome.Status);
         }
 
-        return outcome.Succeeded
+        return wait.Outcome.Succeeded
             ? JobOutcome<TResult>.Landed(
                 child.JobId,
                 child.JobRef,
-                await RequireChildResultAsync<TResult>(child, executionNumber, name, ct)
+                await RequireChildResultAsync<TResult>(child, wait.ExecutionNumber, name, ct)
             )
-            : JobOutcome<TResult>.Landed(child.JobId, child.JobRef, outcome.Status);
+            : JobOutcome<TResult>.Landed(child.JobId, child.JobRef, wait.Outcome.Status);
     }
-
-    /// <summary>
-    /// Result-returning variant of
-    /// <see cref="CallChildAsync{TInput}(string, TInput, Action{JobEnqueueOptionsBuilder}, CancellationToken)"/>:
-    /// on a successful child the
-    /// outcome carries the deserialized result (<see cref="JobOutcome{T}.ValueOrThrow"/> for the terse
-    /// path). A child that succeeded without storing a result throws: the caller asked for a typed
-    /// result the child's contract does not produce.
-    /// </summary>
-    public async Task<JobOutcome<TResult>> CallChildAsync<TInput, TResult>(
-        string name,
-        TInput input,
-        Action<JobEnqueueOptionsBuilder>? configure = null,
-        CancellationToken ct = default
-    )
-        where TInput : notnull
-        where TResult : notnull
-    {
-        ThrowIfInAtMostOnceStep(nameof(CallChildAsync));
-        return await SettleChildAsync<TResult>(await EnqueueChildAsync(name, input, configure, ct), name, timeout: null, ct);
-    }
-
-    /// <summary>
-    /// Convenience overload of
-    /// <see cref="CallChildAsync{TInput, TResult}(string, TInput, Action{JobEnqueueOptionsBuilder}, CancellationToken)"/>:
-    /// <paramref name="ct"/> takes the third position when no <c>configure</c> override is
-    /// needed, instead of requiring the named <c>ct: ct</c> form. Equivalent to <c>configure: null</c>.
-    /// </summary>
-    public Task<JobOutcome<TResult>> CallChildAsync<TInput, TResult>(string name, TInput input, CancellationToken ct)
-        where TInput : notnull
-        where TResult : notnull => CallChildAsync<TInput, TResult>(name, input, configure: null, ct: ct);
-
-    /// <summary>
-    /// Bounded twin of
-    /// <see cref="CallChildAsync{TInput, TResult}(string, TInput, Action{JobEnqueueOptionsBuilder}, CancellationToken)"/>:
-    /// the child is started, then awaited under one stored expiration (<c>db_now + timeout</c>, whole seconds,
-    /// positive) that a replay reuses and never extends. On expiry the outcome reports
-    /// <see cref="JobOutcome.TimedOut"/> with no value, Acta cancels the child and its subtree, and this Job resumes.
-    /// </summary>
-    public async Task<JobOutcome<TResult>> CallChildAsync<TInput, TResult>(
-        string name,
-        TInput input,
-        TimeSpan timeout,
-        Action<JobEnqueueOptionsBuilder>? configure = null,
-        CancellationToken ct = default
-    )
-        where TInput : notnull
-        where TResult : notnull
-    {
-        ThrowIfInAtMostOnceStep(nameof(CallChildAsync));
-        ToWaitTimeoutSeconds(timeout);
-        return await SettleChildAsync<TResult>(await EnqueueChildAsync(name, input, configure, ct), name, timeout, ct);
-    }
-
-    /// <summary>
-    /// Convenience overload of
-    /// <see cref="CallChildAsync{TInput, TResult}(string, TInput, TimeSpan, Action{JobEnqueueOptionsBuilder}, CancellationToken)"/>:
-    /// <paramref name="ct"/> takes the fourth position when no <c>configure</c> override is
-    /// needed, instead of requiring the named <c>ct: ct</c> form. Equivalent to <c>configure: null</c>.
-    /// </summary>
-    public Task<JobOutcome<TResult>> CallChildAsync<TInput, TResult>(string name, TInput input, TimeSpan timeout, CancellationToken ct)
-        where TInput : notnull
-        where TResult : notnull => CallChildAsync<TInput, TResult>(name, input, timeout, configure: null, ct: ct);
 
     /// <summary>
     /// The result stored by the execution whose landing set the latch, or by the latest execution when the latch does
@@ -283,23 +228,28 @@ public abstract partial class JobContext
         return stored
             ? value!
             : throw new InvalidOperationException(
-                $"Child job {child.JobRef} ('{name}') succeeded but stored no result. Either it is result-less, in "
-                    + "which case use the non-result CallChildAsync overload, its result exceeded "
+                $"Child job {child.JobRef} ('{name}') succeeded but stored no result: its result exceeded "
                     + "MaxInlinePayloadBytes and was dropped, or an operator restarted it after it succeeded; the child's "
                     + "events say which."
             );
     }
 
     /// <summary>
-    /// Starts a fan-out group's child under <paramref name="key"/>, <c>{group}/{item}</c>. No child name holds a
-    /// <c>/</c>, so a group's children share a key with no other group's and with no child the handler named itself.
+    /// Enqueues a fan-out group's child under <paramref name="key"/>, <c>{group}/{item}</c>, with the group's options. No
+    /// child name holds a <c>/</c>, so a group's children share a key with no other group's and with no child the handler
+    /// named itself.
     /// </summary>
-    internal async Task<EnqueueJobResponse> EnqueueGroupChildAsync<TInput>(string key, TInput input, CancellationToken ct)
+    internal async Task<EnqueueJobResponse> EnqueueGroupChildAsync<TInput>(
+        string key,
+        TInput input,
+        Action<JobEnqueueOptionsBuilder>? configure,
+        CancellationToken ct
+    )
         where TInput : notnull
     {
         ArgumentNullException.ThrowIfNull(input);
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, CancellationToken);
-        return await EnqueueChildCoreAsync(input, BuildChildOptions(key, configure: null), linked.Token);
+        return await EnqueueChildCoreAsync(input, BuildChildOptions(key, configure), linked.Token);
     }
 
     private JobEnqueueOptions BuildChildOptions(string name, Action<JobEnqueueOptionsBuilder>? configure)

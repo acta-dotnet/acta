@@ -23,12 +23,20 @@ Not tagged yet.
 - `ctx.JoinAsync` → `ctx.WaitChildrenAsync`
 - `ctx.TryWaitChildAsync(child, timeout)` → `ctx.WaitChildAsync(child, timeout)`
 
+**Enqueue each child and wait for them where a handler called `ParallelAsync`**: `ParallelAsync`, `ParallelBuilder` and `ParallelOutcome` are gone. One `EnqueueChildAsync` per child and one `WaitChildrenAsync` do the same, and they take generated calls and options. Finish the parents that use `ParallelAsync` before upgrading: their children are keyed `group/branch`, a name `EnqueueChildAsync` refuses, so a replay under the new code would start them again.
+
+**Pass a generated call where a handler called `CallChildAsync<TInput, TResult>(name, input)`**: the hand-typed input forms are gone. `ctx.CallChildAsync(name, ShippingJobs.PrintLabel(input))` types the outcome by the call, as `jobs.CallAsync` does.
+
+**Expect a failed child to fail its parent at once**: in a handler, `ThrowIfFailed()`, `ThrowIfAnyFailed()` and `ValueOrThrow()` on a waited job now fail the job with no retry (reason `non-retryable-exception`), since a retry would read the same failed child. To recover, restart the child, then the parent once the child has succeeded.
+
 ### Additions
 
 - `JobContext.EndsJob(Exception)` answers whether an exception, left uncaught, ends the job with no further attempt.
 - `ACTA0151` warns at build time about a catch in handler code that can take the control flow of a wait, sleep, reschedule or pause: one that catches `Exception`, `ActaException` or `JobControlException` around such a call, a helper handed the context, or a pipeline behavior's `next()`, with a filter that can let it in.
 - An attached debugger stops on a handler's errors and no longer on its waits, sleeps, reschedules and control calls, with Acta from the packages: once per error, at the line that threw it, and for a control call the handler caught and went on from, at that call.
 - `JobControlException.ReasonMessage`, moved from `HandlerControlException`, carries the reason of every control call, so a reschedule without one records none, where its event read .NET's default exception text.
+- `MapAsync` takes a generated call per item, and for a job with a result answers `MapOutcome<TKey, TResult>`, whose items carry typed outcomes. Its `configure` gives every child of the map the same options.
+- A generated call that reaches an input parameter, as `input: call` or through a generic helper, is enqueued by the job it names, where it threw an `ArgumentException`.
 
 ## 1.0.0-rc.11
 

@@ -1,5 +1,5 @@
 // Concept: a child group never throws on its own; ThrowIfAnyFailed is the opt-in escalation.
-// A failed child surfaces in ChildrenWaitOutcome.Failed, MapOutcome.Failed, and ParallelOutcome.Failed.
+// A failed child surfaces in ChildrenWaitOutcome.Failed and MapOutcome.Failed.
 using Acta;
 using Acta.Concepts.ChildFailureOutcomes;
 using Microsoft.Extensions.DependencyInjection;
@@ -24,16 +24,11 @@ Console.WriteLine("--- scenario 1: map with one failing item, soft handling ---"
 var mapOutcome = await jobs.CallAsync(ChildFailureOutcomesJobs.RunMapSoft());
 Console.WriteLine($"parent: {mapOutcome.Status}, report: {mapOutcome.Value!.Summary}");
 
-// --- Scenario 2: ParallelAsync, ThrowIfAnyFailed escalation ---
-// The handler calls ThrowIfAnyFailed after a branch fails; ChildGroupException makes the parent
-// land Failed. The driver reads the Failed status without the exception propagating here.
-Console.WriteLine("--- scenario 2: parallel with one failing branch, ThrowIfAnyFailed ---");
-var parallelOutcome = await jobs.CallAsync<RunParallelEscalated>(new RunParallelEscalated());
-Console.WriteLine($"parent: {parallelOutcome.Status} (expected Failed)");
-
-// --- Scenario 3: WaitChildrenAsync, ThrowIfAnyFailed escalation ---
-// Same pattern for a join: the handler escalates, parent lands Failed.
-Console.WriteLine("--- scenario 3: join with one failing child, ThrowIfAnyFailed ---");
+// --- Scenario 2: WaitChildrenAsync, ThrowIfAnyFailed escalation ---
+// The handler calls ThrowIfAnyFailed after a child fails; ChildGroupException fails the parent at once,
+// since a retry would find the same failed child. The driver reads the Failed status without the
+// exception propagating here.
+Console.WriteLine("--- scenario 2: children with one failing, ThrowIfAnyFailed ---");
 var joinOutcome = await jobs.CallAsync<RunJoinEscalated>(new RunJoinEscalated());
 Console.WriteLine($"parent: {joinOutcome.Status} (expected Failed)");
 
@@ -50,12 +45,6 @@ namespace Acta.Concepts.ChildFailureOutcomes
     public sealed record MapReport(string Summary);
 
     // ---- scenario 2 inputs ----
-
-    public readonly record struct RunParallelEscalated;
-
-    public sealed record RunBranch(string Name, bool ShouldFail);
-
-    // ---- scenario 3 inputs ----
 
     public readonly record struct RunJoinEscalated;
 
@@ -101,44 +90,9 @@ namespace Acta.Concepts.ChildFailureOutcomes
             Console.WriteLine($"  item {input.Id}: done");
         }
 
-        // Scenario 2: parallel group with two branches; one branch fails. After waiting, the handler
-        // calls ThrowIfAnyFailed; ChildGroupException propagates and the parent lands Failed.
-        // MaxAttempts = 1 keeps the parent from retrying after the escalation throws.
-        [Job("run-parallel-escalated", MaxAttempts = 1)]
-        public async Task HandleParallelEscalated(RunParallelEscalated _, JobContext context, CancellationToken ct)
-        {
-            var result = await context.ParallelAsync(
-                "analyze",
-                p => p.Child("good", new RunBranch("good", ShouldFail: false)).Child("bad", new RunBranch("bad", ShouldFail: true)),
-                ct
-            );
-
-            foreach (var kv in result.Failed)
-            {
-                Console.WriteLine($"  branch {kv.Key} failed (status={kv.Value.Status})");
-            }
-
-            // ThrowIfAnyFailed throws ChildGroupException; the parent lands Failed.
-            result.ThrowIfAnyFailed();
-        }
-
-        // MaxAttempts = 1 so the failing branch terminates immediately.
-        [Job("run-branch", MaxAttempts = 1)]
-        public async Task RunBranchHandler(RunBranch input, CancellationToken ct)
-        {
-            await Task.Delay(100, ct);
-            if (input.ShouldFail)
-            {
-                Console.WriteLine($"  branch {input.Name}: failing");
-                throw new InvalidOperationException($"branch {input.Name} failed intentionally");
-            }
-            Console.WriteLine($"  branch {input.Name}: done");
-        }
-
-        // Scenario 3: two children started by hand and joined; one child fails. Handler calls
-        // ThrowIfAnyFailed on the join's outcome; the parent lands Failed.
-        // MaxAttempts = 1 keeps the parent from retrying after the escalation throws.
-        [Job("run-join-escalated", MaxAttempts = 1)]
+        // Scenario 2: two children enqueued and waited for; one child fails. The handler calls
+        // ThrowIfAnyFailed on the outcome, and the parent lands Failed at once, with no retry.
+        [Job("run-join-escalated")]
         public async Task HandleJoinEscalated(RunJoinEscalated _, JobContext context, CancellationToken ct)
         {
             var alpha = await context.EnqueueChildAsync("alpha", new RunChild("alpha", ShouldFail: false), ct);
