@@ -95,7 +95,7 @@ app.MapPost("/admin/orders/{jobRef}/fraud-decision", async (string jobRef, Fraud
         return Results.BadRequest(new { error = "Invalid job ref." });
     }
 
-    var result = await jobs.RaiseSignalAsync(parsed, "fraud-review", decision, ct: ct);
+    var result = await jobs.RaiseSignalAsync(parsed, "fraud-review", decision, ct);
     return Results.Ok(new { raised = result.ToString() });
 });
 
