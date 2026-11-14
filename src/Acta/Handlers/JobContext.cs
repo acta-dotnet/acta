@@ -79,9 +79,9 @@ public abstract partial class JobContext
     /// Whether a retryable failure of this attempt would end the job for good, or a permanent job's current firing, whose
     /// next firing has a fresh budget: the charged failures leave no <c>MaxAttempts</c> for a retry, or its backoff would pass
     /// a <c>Strict</c> deadline, which the completion reads again, so near the deadline the answer can change before it lands.
-    /// Counts charged failures, never <see cref="ExecutionNumber"/>. A non-retryable exception (<see cref="StepFailedException"/>,
-    /// <see cref="NotSupportedException"/>, <see cref="NotImplementedException"/>) ends the job on any attempt, so a compensating
-    /// catch filters on it too. Best effort: a crash or a lost lease on the last attempt skips the catch. False in test contexts.
+    /// Counts charged failures, never <see cref="ExecutionNumber"/>. A compensating catch filters on <see cref="EndsJob"/>, which
+    /// also takes the exceptions that end the job on any attempt. Best effort: a crash or a lost lease on the last attempt skips
+    /// the catch. False in test contexts.
     /// </summary>
     public virtual bool IsLastAttempt => false;
 
@@ -110,6 +110,39 @@ public abstract partial class JobContext
     public TimeSpan? TimeUntilDeadline => DeadlineAtUtc is { } due ? due - DateTime.UtcNow : null;
 
     /// <summary>
+    /// Whether <paramref name="exception"/>, left uncaught, ends this job with no further attempt: <see cref="FailAsync"/>
+    /// or <see cref="CancelAsync"/>, an expired wait, an interrupted or failed step, a non-retryable exception, or any other
+    /// error on the last attempt (<see cref="IsLastAttempt"/>). False for a wait, sleep, reschedule or pause, which end
+    /// only the attempt, and for an exception of a cancelled attempt, where a compensation step could not run. A catch
+    /// that compensates filters on it: <c>catch (Exception ex) when (ctx.EndsJob(ex)) { ...; throw; }</c>.
+    /// </summary>
+    public bool EndsJob(Exception exception)
+    {
+        ArgumentNullException.ThrowIfNull(exception);
+        return exception switch
+        {
+            HandlerFailException or HandlerCancelException or WaitTimeoutSignal or StepInterruptedException => true,
+            JobControlException or ExecutionFencedException => false,
+            OperationCanceledException when CancellationToken.IsCancellationRequested => false,
+            _ => HandlerInvocation.IsNonRetryable(exception) || IsLastAttempt,
+        };
+    }
+
+    /// <summary>
+    /// The first control-flow exception a call on this context threw in the attempt. The call ended the attempt, so a
+    /// handler that returns normally after it swallowed it, and the worker fails that attempt.
+    /// </summary>
+    internal JobControlException? ThrownControl { get; private set; }
+
+    /// <summary>Keeps the attempt's first control-flow exception and hands <paramref name="control"/> back to throw.</summary>
+    private protected TControl Thrown<TControl>(TControl control)
+        where TControl : JobControlException
+    {
+        ThrownControl ??= control;
+        return control;
+    }
+
+    /// <summary>
     /// Re-arms this Job to run again after <paramref name="delay"/> and stops the current attempt without charging the
     /// failure budget; the host computes the due instant as <c>db_now + delay</c>. Throws
     /// <see cref="RescheduleJobException"/> synchronously, so code after the call is unreachable and a forgotten
@@ -119,7 +152,7 @@ public abstract partial class JobContext
     {
         ThrowIfInAtMostOnceStep(nameof(RescheduleAsync));
         ct.ThrowIfCancellationRequested();
-        throw new RescheduleJobException(delay, reasonMessage);
+        throw Thrown(new RescheduleJobException(delay, reasonMessage));
     }
 
     /// <summary>
@@ -131,7 +164,7 @@ public abstract partial class JobContext
     {
         ThrowIfInAtMostOnceStep(nameof(RescheduleUntilAsync));
         ct.ThrowIfCancellationRequested();
-        throw new RescheduleJobException(resumeAtUtc, reasonMessage);
+        throw Thrown(new RescheduleJobException(resumeAtUtc, reasonMessage));
     }
 
     /// <summary>
@@ -143,7 +176,7 @@ public abstract partial class JobContext
     public Task FailAsync(string? reasonMessage = null, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
-        throw new HandlerFailException(reasonMessage);
+        throw Thrown(new HandlerFailException(reasonMessage));
     }
 
     /// <summary>
@@ -156,7 +189,7 @@ public abstract partial class JobContext
     public Task CancelAsync(string? reasonMessage = null, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
-        throw new HandlerCancelException(reasonMessage);
+        throw Thrown(new HandlerCancelException(reasonMessage));
     }
 
     /// <summary>
@@ -170,7 +203,7 @@ public abstract partial class JobContext
     {
         ThrowIfInAtMostOnceStep(nameof(PauseAsync));
         ct.ThrowIfCancellationRequested();
-        throw new HandlerPauseException(reasonMessage);
+        throw Thrown(new HandlerPauseException(reasonMessage));
     }
 
     /// <summary>

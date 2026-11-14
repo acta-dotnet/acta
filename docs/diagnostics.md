@@ -1,7 +1,8 @@
 # Job-authoring diagnostics
 
 The `[Job]` source generator reports every problem it finds in a handler, a schedule, or a
-payload-format declaration as a compiler diagnostic with an `ACTA01xx` id. Each
+payload-format declaration as a compiler diagnostic with an `ACTA01xx` id, and an analyzer in the same
+package reports a catch in handler code that can take Acta's control flow. Each
 section below is one id: what the generator found, what to change, and the smallest example that
 clears it. The message you see in the build output names the exact member and variant; the id is
 the same for every variant of a section. An error stops the manifest from being generated for the
@@ -197,3 +198,21 @@ the compilation.
 
 **Invalid duration unit.** Acta durations use lowercase `ms`, `s`, `m`, `h`, and `d`; there are no
 calendar units, so a month or a year is written as days, and `1M` is not a minute.
+
+## ACTA0151 <a id="acta0151"></a>
+
+**A catch can take Acta's control flow.** A wait, a sleep, `RescheduleAsync` and `PauseAsync` end the
+attempt by throwing a `JobControlException`, which the worker turns into the job's next state. A
+catch around such a call, a helper handed the context, or a pipeline behavior's `next()`, that
+catches it (`catch`, `catch (Exception)`, `catch (ActaException)`, `catch (JobControlException)`)
+and whose filter can let it in, runs code the call should have held back; if the handler then
+returns, the attempt fails. Let it through, or filter on `ctx.EndsJob(ex)` to compensate only when a
+failure ends the job:
+
+```csharp
+catch (Exception ex) when (ex is not JobControlException)
+catch (Exception ex) when (ctx.EndsJob(ex))
+```
+
+A catch that only observes, with no `await` in it and a rethrow at its end, is not reported, and
+neither is one for `ctx.FailAsync` or `CancelAsync`, which end the job.

@@ -143,13 +143,14 @@ A step retries through its job: a body that throws fails the attempt, the job's 
 inside a step body works: the resume runs the body up to the wait, which returns what it has, and
 charges nothing.
 
-To compensate before the last failure lands, catch on `ctx.IsLastAttempt`, which reads the budget the
-job has already spent (and a Strict deadline), never the execution number:
-`catch (Exception ex) when (ctx.IsLastAttempt || ex is StepFailedException) { await ctx.RunStepAsync("release-stock", ...); throw; }`.
-The filter takes `StepFailedException` too because a non-retryable exception ends the job on any
-attempt. That is best effort: a crash or a lost lease on the last attempt skips the catch, so the compensation
-is an idempotent step, and work whose compensation must happen runs as a child job the parent
-compensates when the child lands `Failed`.
+To compensate before a failure ends the job, catch on `ctx.EndsJob(ex)`:
+`catch (Exception ex) when (ctx.EndsJob(ex)) { await ctx.RunStepAsync("release-stock", ...); throw; }`.
+It is true for `ctx.FailAsync` and `CancelAsync`, for a non-retryable exception such as `StepFailedException`,
+and for any other error on the last attempt (`ctx.IsLastAttempt` reads the budget the job has already
+spent, and a Strict deadline, never the execution number); it is false for a wait, sleep, reschedule or
+pause, which end only the attempt. That is best effort: a crash or a lost lease on the last attempt skips
+the catch, so the compensation is an idempotent step, and work whose compensation must happen runs as a
+child job the parent compensates when the child lands `Failed`.
 
 For side effects where a duplicate is worse than an ambiguous interruption (a payment capture),
 `AtMostOnce()` runs the body zero-or-one times and hands the handler an explicit interrupted state to
@@ -211,6 +212,7 @@ only under its own key.
 | `Task.Delay` or `Thread.Sleep` | `await ctx.SleepAsync("cool-down", delay, ct: ct)` | delays hold a worker; durable sleep frees it and survives deploys |
 | calling an API directly in the body | `await ctx.RunStepAsync("charge", ct => ...)` | a step records its outcome, so a retry does not repeat recorded work |
 | `catch { }` around the body | let it throw, or `await ctx.FailAsync(reason)` | swallowing turns a retryable failure into a silent success |
+| `catch (Exception)` around a wait, sleep or ctx call | `catch (Exception ex) when (ex is not JobControlException)`, or `when (ctx.EndsJob(ex))` to compensate | the call ends the attempt by throwing a `JobControlException` (a `finally` still runs); a handler that swallows it and returns fails at once, and `ACTA0151` warns at build time |
 | polling a flag in a loop | `await ctx.TryWaitSignalAsync("approved", timeout)` | polling burns a worker; a signal parks the job, and the timeout keeps it from parking forever |
 | starting children and looping until done | `await ctx.JoinAsync([audit, receipt], ct)` on the children you started (a `TimeSpan` before the token sets a deadline), or `MapAsync` when the children come from a list | the parent parks instead of occupying a worker |
 | `DateTime.Now` | `DateTime.UtcNow`, or a value from the input | the ledger is UTC throughout |
@@ -343,6 +345,9 @@ HTTP enqueue in the json format sends strict JSON (one value, no comments or tra
 - A `Suspended` job is healthy, not stuck: it is waiting on a signal, a child, or a timer. A wait
   armed with a timeout resolves itself when the deadline passes; an unbounded wait parks until
   raised.
+- A wait, a sleep, a reschedule and a pause are exceptions: each ends the attempt by throwing a
+  `JobControlException`, which the worker turns into the job's next state, so an attached debugger
+  does not stop on them; it stops on errors. Every exception Acta defines derives from `ActaException`.
 - An alert for a failed job is not instant. The `sys.alerts` job turns failure events into alerts once
   a minute, so one appears up to about two minutes after the failure. A handler that wants one now
   writes it: `await ctx.AlertAsync("Stock low", "Bin 7 is empty", AlertSeverityCode.Warning, ct: ct)`.

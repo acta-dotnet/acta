@@ -588,7 +588,7 @@ app.Run();</code></pre>
         <p>With a two-second heartbeat the lease lasts eight seconds, and a dead process's jobs become reclaimable almost immediately. <code>SalesFiles.cs</code> and the CSV files stay as they are. That is the complete program.</p>
         <aside class="callout" aria-label="Sidebar: a failing step and the job's retries">
           <h3>A failing step retries through the job</h3>
-          <p>If September's file were missing now, the exception would happen inside <code>load-sales</code> and fail the attempt like any other: the job's failure count goes up, and the job goes back to Ready after the <code>Backoff</code> from its <code>[Job]</code> attribute. On the retry, the steps that already succeeded return their stored results and <code>load-sales</code> runs again. Once <code>MaxAttempts</code> is spent, the job fails; <code>ctx.IsLastAttempt</code> tells a <code>catch</code> block that this failure is the last one.</p>
+          <p>If September's file were missing now, the exception would happen inside <code>load-sales</code> and fail the attempt like any other: the job's failure count goes up, and the job goes back to Ready after the <code>Backoff</code> from its <code>[Job]</code> attribute. On the retry, the steps that already succeeded return their stored results and <code>load-sales</code> runs again. Once <code>MaxAttempts</code> is spent, the job fails; <code>ctx.EndsJob(ex)</code> tells a <code>catch</code> block that this failure ends the job.</p>
         </aside>
       </section>
 

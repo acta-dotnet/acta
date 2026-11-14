@@ -28,6 +28,31 @@ public sealed class WorkerExecutorOutcomeTests
     }
 
     [Fact]
+    public async Task A_handler_that_returns_after_swallowing_its_reschedule_fails_without_a_retry()
+    {
+        var harness = new WorkerExecutorHarness();
+
+        var outcome = await harness.RunAsync(
+            static async (ctx, ct) =>
+            {
+                try
+                {
+                    await ctx.RescheduleAsync(TimeSpan.FromMinutes(1), ct: ct);
+                }
+                catch (JobControlException)
+                {
+                    // Swallowed: the handler goes on as if the reschedule had returned.
+                }
+            }
+        );
+
+        Assert.Equal(RunOnceStatus.Failed, outcome);
+        Assert.Equal((byte)JobStatusCode.Failed, harness.Completion.HandlerStatusCode);
+        Assert.Equal(EventReason.NonRetryableException, harness.Completion.Reason);
+        Assert.Contains("went on after RescheduleAsync", harness.Completion.EventMessage, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task A_replayed_step_result_its_type_cannot_read_fails_the_attempt_naming_the_step()
     {
         var harness = new WorkerExecutorHarness(replayedStepResult: "\"not a number\""u8.ToArray());
@@ -55,6 +80,29 @@ public sealed class WorkerExecutorOutcomeTests
         Assert.Equal(RunOnceStatus.Rearmed, outcome);
         Assert.Equal(EventReason.HandlerRescheduled, harness.Completion.Reason);
         Assert.Null(harness.Completion.EventMessage);
+    }
+
+    [Fact]
+    public async Task A_handler_that_rethrows_its_control_flow_keeps_its_outcome()
+    {
+        var harness = new WorkerExecutorHarness();
+
+        var outcome = await harness.RunAsync(
+            static async (ctx, ct) =>
+            {
+                try
+                {
+                    await ctx.RescheduleAsync(TimeSpan.FromMinutes(1), ct: ct);
+                }
+                catch (JobControlException)
+                {
+                    throw;
+                }
+            }
+        );
+
+        Assert.Equal(RunOnceStatus.Rearmed, outcome);
+        Assert.Equal(EventReason.HandlerRescheduled, harness.Completion.Reason);
     }
 
     [Fact]

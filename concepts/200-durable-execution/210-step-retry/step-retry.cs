@@ -66,8 +66,8 @@ namespace Acta.Concepts.StepRetry
                     ct
                 );
             }
-            // A StepFailedException is not retried, so it ends the job on any attempt while IsLastAttempt reads false.
-            catch (Exception ex) when (context.IsLastAttempt || ex is StepFailedException)
+            // EndsJob is true when this failure ends the job: on the last attempt, or on any attempt for one that is not retried.
+            catch (Exception ex) when (context.EndsJob(ex))
             {
                 // This failure ends the job, so give the slot back first. Best effort: a crash on the last attempt
                 // skips this block, which is why the release is a step of its own and safe to repeat.

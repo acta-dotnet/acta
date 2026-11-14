@@ -203,6 +203,16 @@ internal static class ManifestDiagnostics
         helpLinkUri: HelpBase + "acta0142"
     );
 
+    internal static readonly DiagnosticDescriptor CatchTakesControlFlow = new(
+        id: "ACTA0151",
+        title: "A catch can take Acta's control flow",
+        messageFormat: "{0}",
+        category: "Acta",
+        defaultSeverity: DiagnosticSeverity.Warning,
+        isEnabledByDefault: true,
+        helpLinkUri: HelpBase + "acta0151"
+    );
+
     public static DiagnosticDescriptor For(string id) =>
         id switch
         {

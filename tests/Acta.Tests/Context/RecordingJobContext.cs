@@ -44,6 +44,11 @@ internal class RecordingJobContext(IReadOnlyDictionary<string, JobStatusCode>? s
     /// <summary>Whether a lock acquire answers with a hold and stops the attempt, as one answered too late does.</summary>
     public bool AcquireStopsAttempt { get; init; }
 
+    /// <summary>What <see cref="JobContext.IsLastAttempt"/> answers.</summary>
+    public bool LastAttempt { get; init; }
+
+    public override bool IsLastAttempt => LastAttempt;
+
     public override long JobId => 1000;
     public override string JobNamespace => "test-ns";
     public override int NamespaceId => 1;

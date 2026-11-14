@@ -252,7 +252,7 @@ internal sealed partial class RuntimeJobContext(
             case ArmOrConsumeJobSleepTimerOutcomeCode.Suspend:
                 // The host writes the stored due to jobs_state.next_run_at_utc and finalizes the attempt Suspended.
                 _suspending = true;
-                throw new SuspendSignal(decision.DueAtUtc!.Value, reason);
+                throw Thrown(new SuspendSignal(decision.DueAtUtc!.Value, reason));
             default:
                 throw new InvalidOperationException(
                     $"Job {JobId} already has a pending sleep; only one concurrent sleep is allowed per job."
@@ -294,9 +294,9 @@ internal sealed partial class RuntimeJobContext(
         return decision.Outcome switch
         {
             WaitJobSignalOutcomeCode.ContinueSet => new SignalCheckpointState(decision.ValueFormatId, decision.Value),
-            WaitJobSignalOutcomeCode.SuspendPending => throw new SignalSuspendSignal(name), // The host locks the checkpoint and finalizes the attempt Suspended (or Ready if a raise won the race).
+            WaitJobSignalOutcomeCode.SuspendPending => throw Thrown(new SignalSuspendSignal(name)), // The host locks the checkpoint and finalizes the attempt Suspended (or Ready if a raise won the race).
             WaitJobSignalOutcomeCode.TimedOut when resumeOnTimeout => new SignalCheckpointState(0, null, TimedOut: true),
-            WaitJobSignalOutcomeCode.TimedOut => throw new WaitTimeoutSignal(name), // The host lands the attempt Cancelled, budget-neutral, like the Strict-deadline path.
+            WaitJobSignalOutcomeCode.TimedOut => throw Thrown(new WaitTimeoutSignal(name)), // The host lands the attempt Cancelled, budget-neutral, like the Strict-deadline path.
             _ => throw new InvalidOperationException($"wait_job_signal returned an unknown outcome for job {JobId}, signal '{name}'."),
         };
     }

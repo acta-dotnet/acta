@@ -10,11 +10,17 @@ Not tagged yet.
 
 **Call `ctx.RescheduleAsync`, `RescheduleUntilAsync`, `FailAsync`, `CancelAsync` or `PauseAsync` where a handler threw the control exception itself**: the constructors of `RescheduleJobException`, `HandlerFailException`, `HandlerCancelException` and `HandlerPauseException` are internal, and only Acta derives from `JobControlException` and `HandlerControlException`. The types stay public, so a catch can still name them. A home-made subclass, which the worker failed as an unhandled exception, no longer compiles.
 
+**Let a wait's, a sleep's or a ctx control call's exception through a catch**: a handler that catches the `JobControlException` one of them throws and then returns normally fails at once, with no retry and a message that names the call, where it succeeded as if the call had returned. A `finally` that runs as the exception unwinds is unaffected.
+
 **Catch `JobWaitTimeoutException` where code caught `TimeoutException` from `ThrowIfFailed()` or `ValueOrThrow()`**: an outcome whose wait ended before the job did throws it, with the job's `JobId` and `JobRef`, so the timeout is an `ActaException` too.
+
+**Filter a compensating catch on `ctx.EndsJob(ex)`**: the filter the guides showed, `ctx.IsLastAttempt || ex is StepFailedException`, also ran the compensation when a step merely waited on the last attempt, and missed `NotSupportedException` and `NotImplementedException`. `catch (Exception ex) when (ctx.EndsJob(ex)) { ...; throw; }` reads the worker's own rule for what ends a job.
 
 ### Additions
 
-- An attached debugger stops on a handler's errors and no longer on its waits, sleeps, reschedules and control calls, with Acta from the packages: once per error, at the line that threw it.
+- `JobContext.EndsJob(Exception)` answers whether an exception, left uncaught, ends the job with no further attempt.
+- `ACTA0151` warns at build time about a catch in handler code that can take the control flow of a wait, sleep, reschedule or pause: one that catches `Exception`, `ActaException` or `JobControlException` around such a call, a helper handed the context, or a pipeline behavior's `next()`, with a filter that can let it in.
+- An attached debugger stops on a handler's errors and no longer on its waits, sleeps, reschedules and control calls, with Acta from the packages: once per error, at the line that threw it, and for a control call the handler caught and went on from, at that call.
 - `JobControlException.ReasonMessage`, moved from `HandlerControlException`, carries the reason of every control call, so a reschedule without one records none, where its event read .NET's default exception text.
 
 ## 1.0.0-rc.11

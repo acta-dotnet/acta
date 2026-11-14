@@ -44,6 +44,10 @@ internal sealed class HandlerInvocation(
             var requestObject = DeserializeInput(descriptor, job);
             inputDeserialized = true;
             var output = await InvokeHandlerAsync(attemptServices, descriptor, requestObject, jobContext);
+            if (jobContext.ThrownControl is { } swallowed)
+            {
+                throw new SwallowedControlException(swallowed);
+            }
             completion = Succeeded(descriptor, job, output, jobContext.CancellationToken);
         }
         catch (Exception) when (jobContext.Fenced)
@@ -102,7 +106,9 @@ internal sealed class HandlerInvocation(
         }
         catch (Exception ex)
         {
-            Debugger.BreakForUserUnhandledException(ex);
+            // A debugger stops only on an exception that passed through the handler's code. For a swallowed control flow
+            // that is the control exception the handler caught, not the one reporting it.
+            Debugger.BreakForUserUnhandledException(ex is SwallowedControlException { InnerException: { } swallowed } ? swallowed : ex);
             completion = Faulted(ex, inputDeserialized, descriptor, job);
         }
 
@@ -320,19 +326,24 @@ internal sealed class HandlerInvocation(
         };
     }
 
-    private ExecutionCompletion Faulted(Exception ex, bool inputDeserialized, JobDescriptor descriptor, ClaimedJob job)
-    {
-        // A failure retrying cannot change, a programming error, a failed at-most-once step that throws again on
-        // every replay, a handler DI cannot build from the same registrations, or a finished body whose result could
-        // not be recorded, lands terminal Failed through the same completion branch as ctx.FailAsync, leaving the retry
-        // budget untouched.
-        var nonRetryable =
-            ex
+    /// <summary>
+    /// A failure retrying cannot change: a programming error, a failed at-most-once step that throws again on every
+    /// replay, a handler DI cannot build from the same registrations, a finished body whose result could not be
+    /// recorded, or a handler that went on after its own control flow. It lands terminal Failed through the same
+    /// completion branch as ctx.FailAsync, leaving the retry budget untouched.
+    /// </summary>
+    internal static bool IsNonRetryable(Exception ex) =>
+        ex
             is NotImplementedException
                 or NotSupportedException
                 or StepFailedException
                 or HandlerActivationException
-                or ResultNotRecordedException;
+                or ResultNotRecordedException
+                or SwallowedControlException;
+
+    private ExecutionCompletion Faulted(Exception ex, bool inputDeserialized, JobDescriptor descriptor, ClaimedJob job)
+    {
+        var nonRetryable = IsNonRetryable(ex);
         if (!inputDeserialized && log.IsEnabled(LogLevel.Warning))
         {
             ActaLog.InputDeserializationFailed(log, ex, descriptor.JobName, new JobRef(job.JobRef).ToString());

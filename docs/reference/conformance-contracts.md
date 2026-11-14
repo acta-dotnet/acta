@@ -1233,6 +1233,15 @@
   - RunAndWaitAsync observes a colocated completion at wake speed
   - A re-arming completion wakes the loop for its own retry
 
+## Handlers
+
+### A handler that swallows its own control flow fails without a retry
+- **Contract:** A handler that returns after a wait or ctx control call threw fails with no retry, naming the call, and a finally running as it unwinds still suspends.
+- **Guarantees:**
+  - A handler that returns after swallowing a wait fails without a retry, naming the wait
+  - A step body that swallows a wait is recorded, and the attempt fails at the handler's end
+  - A finally that runs a step as a wait unwinds still suspends the job
+
 ## Jobs
 
 ### A permanent slot resolves by its definition's path, not by any key

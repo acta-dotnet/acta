@@ -1318,6 +1318,7 @@ record struct Acta.JobCall<TInput, TResult> where TInput : notnull where TResult
     TInput Input { get;init; }
 abstract class Acta.JobContext
     Acta.JobRef JobRef { get; }
+    System.Boolean EndsJob(System.Exception exception)
     System.Boolean IsLastAttempt { get; }
     System.Boolean IsOverdue { get; }
     System.Collections.Generic.IReadOnlyList<Acta.TriggeringSchedule> TriggeringSchedules { get; }

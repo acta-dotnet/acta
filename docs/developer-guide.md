@@ -188,14 +188,14 @@ try
 {
     await ctx.RunStepAsync("charge-card", ChargeCardAsync, ct);
 }
-catch (Exception ex) when (ctx.IsLastAttempt || ex is StepFailedException)
+catch (Exception ex) when (ctx.EndsJob(ex))
 {
     await ctx.RunStepAsync("release-stock", ReleaseStockAsync, ct);
     throw;
 }
 ```
 
-The filter also takes `StepFailedException`, which an at-most-once body that threw and any step whose result could not be recorded both raise, because a non-retryable exception ends the job on any attempt while `IsLastAttempt` still reads false; add `NotSupportedException` and `NotImplementedException` if the body can throw them.
+`ctx.EndsJob(ex)` answers what the worker will do with the exception: true for `ctx.FailAsync` and `CancelAsync`, an expired wait, an interrupted step, a non-retryable exception (`StepFailedException`, which an at-most-once body that threw and any step whose result could not be recorded both raise, `NotSupportedException`, `NotImplementedException`), and any other error when `IsLastAttempt` is true; false for a wait, sleep, reschedule or pause, which end only the attempt, and for the exception of a cancelled attempt.
 
 Compensation in a catch is best effort. A worker crash or a lost lease on the last attempt skips the catch block, and a reclaim can spend the budget and fail the job with no handler code running, so the compensation is an idempotent step of its own. Work whose compensation must happen runs the risky part as a child job, and the parent compensates when the child lands `Failed`: `WaitChildAsync` survives crashes.
 

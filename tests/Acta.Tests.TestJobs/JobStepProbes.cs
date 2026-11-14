@@ -158,7 +158,7 @@ public static class JobStepProbes
         {
             await ctx.RunStepAsync("unrecorded", _ => UnrecordedAsync(ctx, (string)null!), ct);
         }
-        catch (Exception ex) when (ctx.IsLastAttempt || ex is StepFailedException)
+        catch (Exception ex) when (ctx.EndsJob(ex))
         {
             await ctx.RunStepAsync("compensate", _ => Task.CompletedTask, ct);
             throw;
