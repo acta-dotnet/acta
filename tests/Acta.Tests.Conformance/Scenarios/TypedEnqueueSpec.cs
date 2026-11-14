@@ -226,8 +226,8 @@ public sealed class TypedEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, J
         Assert.Equal("old", await Jobs.GetResultAsync<string>(first, ct));
         Assert.Equal(ControlAction.Applied, (await Jobs.RestartAsync(first, ct: ct)).Action);
 
-        // The deduplication key lands the wait on the restarted job, whose second execution succeeds with its result
-        // dropped; the restart cleared the first execution's "old", and the read is held to the second execution anyway.
+        // The deduplication key lands the wait on the restarted job, whose second execution fails on a result past the
+        // cap: the wait answers that failure and never the first execution's "old".
         var waiting = Jobs.CallAsync(
                 TestJobsManifest.OldThenOversizeResultProbe(input),
                 new JobExecutionOptions
@@ -239,10 +239,11 @@ public sealed class TypedEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, J
                 ct
             )
             .AsTask();
-        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(first, ct));
+        Assert.Equal(RunOnceStatus.Failed, await Runtime.RunOnceAsync(first, ct));
 
-        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => waiting);
-        Assert.Contains("stored no result", ex.Message);
+        var outcome = await waiting;
+        Assert.Equal(JobStatusCode.Failed, outcome.Status);
+        Assert.False(outcome.TryGetValue(out _));
     }
 
     [Fact(DisplayName = "A typed wait whose success is restarted before the result read keeps waiting instead of throwing")]

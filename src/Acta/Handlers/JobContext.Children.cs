@@ -228,9 +228,8 @@ public abstract partial class JobContext
         return stored
             ? value!
             : throw new InvalidOperationException(
-                $"Child job {child.JobRef} ('{name}') succeeded but stored no result: its result exceeded "
-                    + "MaxInlinePayloadBytes and was dropped, or an operator restarted it after it succeeded; the child's "
-                    + "events say which."
+                $"Child job {child.JobRef} ('{name}') succeeded but stored no result: its handler returns none, or an "
+                    + "operator restarted it after it succeeded; the child's events say which."
             );
     }
 

@@ -5,7 +5,7 @@ namespace TestJobs;
 /// <summary>
 /// Handlers exercising <c>MaxInlinePayloadBytes</c> enforcement inside a running handler: an oversize
 /// variable write must throw <c>PayloadTooLargeException</c> (caller-controlled), while an oversize
-/// handler result is dropped with a warning, and the job still completes Succeeded.
+/// handler result fails the job for good, since a retry would run the finished handler again.
 /// </summary>
 public static class PayloadProbes
 {
@@ -27,13 +27,13 @@ public static class PayloadProbes
         }
     }
 
-    /// <summary>Returns an oversize result; the framework drops it with a warning and completes the job, never throwing.</summary>
+    /// <summary>Returns an oversize result, which fails the job for good.</summary>
     [Job("oversize-result-probe")]
     public static Task<string> ReturnOversizeResult(JobContext ctx, CancellationToken ct) => Task.FromResult(BigValue());
 
     /// <summary>
-    /// Returns "old" from its first execution and, from any later one, a string past the default cap, whose result is
-    /// dropped: a restarted job then succeeds again with an older execution's result still stored.
+    /// Returns "old" from its first execution and, from any later one, a string past the default cap, which fails that
+    /// execution: a restarted job fails, and no read answers the first execution's "old" for it.
     /// </summary>
     [Job("old-then-oversize-result-probe")]
     public static Task<string> ReturnOldThenOversizeResult(OldThenOversizeInput input, JobContext ctx, CancellationToken ct) =>

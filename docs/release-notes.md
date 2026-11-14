@@ -29,6 +29,8 @@ Not tagged yet.
 
 **Expect a failed child to fail its parent at once**: in a handler, `ThrowIfFailed()`, `ThrowIfAnyFailed()` and `ValueOrThrow()` on a waited job now fail the job with no retry (reason `non-retryable-exception`), since a retry would read the same failed child. To recover, restart the child, then the parent once the child has succeeded.
 
+**Return a reference where a handler returned a result over `MaxInlinePayloadBytes`**: such a result now fails the job for good (reason `non-retryable-exception`), as a null or unserializable result does, where the job succeeded with its result dropped and reason `result-oversized`, which no event carries any more. Store a large result yourself and return what finds it.
+
 ### Additions
 
 - `JobContext.EndsJob(Exception)` answers whether an exception, left uncaught, ends the job with no further attempt.

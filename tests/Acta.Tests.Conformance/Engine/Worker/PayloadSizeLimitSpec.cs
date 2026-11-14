@@ -8,14 +8,14 @@ namespace Acta.Tests.Conformance.Engine.Worker;
 /// <summary>
 /// Conformance for <c>JobsOptions.MaxInlinePayloadBytes</c> enforcement. Caller-controlled writes
 /// (enqueue input, raised signal value, handler variable / progress writes) hard-throw
-/// <c>PayloadTooLargeException</c> past the cap; a handler result that exceeds the cap is dropped
-/// instead, because the job already ran. The cap is configured small so a modest payload trips it.
+/// <c>PayloadTooLargeException</c> past the cap, and a handler result past it fails the job for good, since a retry
+/// would run the finished handler again. The cap is configured small so a modest payload trips it.
 /// </summary>
 [ConformanceSpec(
     "payload-size-limit.enforcement",
-    "Caller writes hard-throw past the cap but an oversize result is dropped",
+    "Every write past the cap fails, a handler's result included",
     Area = "Payloads",
-    Contract = "Caller writes past the cap throw PayloadTooLargeException and an oversize handler result is dropped so the job still completes."
+    Contract = "Caller writes past the cap throw PayloadTooLargeException, and a handler result past it fails the job for good instead of being dropped."
 )]
 [Deploys("add-numbers", "oversize-result-probe", "oversize-variable-probe")]
 public sealed class PayloadSizeLimitSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<PayloadSizeLimitSpec>>
@@ -61,17 +61,16 @@ public sealed class PayloadSizeLimitSpec : ActaRuntimeTestBase<ConformanceFixtur
         Assert.Equal("caught", await Jobs.GetResultAsync<string>(enqueued, ct));
     }
 
-    [Fact(DisplayName = "An oversize handler result is dropped and the job still succeeds")]
-    public async Task Oversize_handler_result_is_dropped_not_thrown()
+    [Fact(DisplayName = "An oversize handler result fails the job for good")]
+    public async Task Oversize_handler_result_fails_the_job_for_good()
     {
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "oversize-result-probe", JobPayload.None), ct);
 
-        await Runtime.RunOnceAsync(enqueued, ct);
-
-        // The work happened, so the job is not failed over the size of what it returned. The body is
-        // dropped rather than persisted, leaving the row in the existing "no result" shape.
-        Assert.Equal(JobStatusCode.Succeeded, (await Jobs.GetStatusAsync(JobLookup.ById(enqueued.JobId), ct))?.Status);
+        // The default budget has attempts left: a retryable failure would re-arm the job and run the handler again.
+        Assert.Equal(RunOnceStatus.Failed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.NothingClaimed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(JobStatusCode.Failed, (await Jobs.GetStatusAsync(JobLookup.ById(enqueued.JobId), ct))?.Status);
         Assert.False((await Jobs.TryGetResultAsync<string>(enqueued, ct)).Found);
     }
 }

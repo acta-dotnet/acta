@@ -162,12 +162,6 @@ internal static partial class ActaLog
     )]
     public static partial void AttemptFenced(ILogger log, long actaJobId, long actaExecutionNumber);
 
-    [LoggerMessage(
-        Level = LogLevel.Warning,
-        Message = "Handler result for job ({ActaJobName}) id {ActaJobId} exceeds the inline cap ({ActaDetail}); the result body was dropped."
-    )]
-    public static partial void ResultDroppedOverCap(ILogger log, string actaJobName, long actaJobId, string actaDetail);
-
     [LoggerMessage(Level = LogLevel.Warning, Message = "Handler for job ({ActaJobName}) ({ActaJobRef}) exceeded its execution timeout.")]
     public static partial void ExecutionTimedOut(ILogger log, string actaJobName, string actaJobRef);
 

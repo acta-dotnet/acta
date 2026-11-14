@@ -408,7 +408,7 @@ public sealed class ChildJobSpec : ActaRuntimeTestBase<ConformanceFixture, JobsO
     }
 
     [Fact(
-        DisplayName = "The typed child wait reads the result of the execution whose landing set the latch, so a restarted child that stored none throws rather than answering an earlier result"
+        DisplayName = "The typed child wait reads the outcome of the execution whose landing set the latch, so a restarted child that failed fails its parent rather than answering an earlier result"
     )]
     public async Task Typed_child_wait_reads_the_latched_execution_result()
     {
@@ -418,15 +418,15 @@ public sealed class ChildJobSpec : ActaRuntimeTestBase<ConformanceFixture, JobsO
         var child = Assert.Single(await ReadChildrenAsync(parent.JobId, ct));
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(child.Id, ct));
 
-        // The parent is held while an operator restarts the succeeded child, whose second execution drops its oversize
-        // result and leaves the first execution's "old" stored.
+        // The parent is held while an operator restarts the succeeded child, whose second execution fails on a result past
+        // the cap after the first execution answered "old".
         Assert.Equal(ControlAction.Applied, (await Jobs.PauseAsync(parent, ct: ct)).Action);
         Assert.Equal(ControlAction.Applied, (await Jobs.RestartAsync(new JobRef(child.JobRef), ct: ct)).Action);
-        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(child.Id, ct));
+        Assert.Equal(RunOnceStatus.Failed, await Runtime.RunOnceAsync(child.Id, ct));
         Assert.Equal(ControlAction.Applied, (await Jobs.ResumeAsync(parent, ct: ct)).Action);
 
         Assert.Equal(RunOnceStatus.Failed, await Runtime.RunOnceAsync(parent, ct));
-        Assert.Contains("stored no result", await ExecutionFailureMessageAsync(parent.JobId, ct), StringComparison.Ordinal);
+        Assert.False((await Jobs.TryGetResultAsync<string>(parent, ct)).Found);
     }
 
     [Fact(DisplayName = "A map of generated calls gives every child its configure and answers each child's typed result")]

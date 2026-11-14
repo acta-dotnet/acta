@@ -64,9 +64,6 @@ internal static class EventReason
     /// </summary>
     public const string StepInterrupted = "step-interrupted";
 
-    /// <summary>The handler succeeded, but its result exceeded MaxInlinePayloadBytes and was dropped.</summary>
-    public const string ResultOversized = "result-oversized";
-
     /// <summary>A durable wait passed its expiration before it was satisfied.</summary>
     public const string WaitTimedOut = "wait-timed-out";
 

@@ -61,8 +61,8 @@ public static class ChildJobProbes
         (await ctx.CallChildAsync("echo", TestJobsManifest.JobChildEcho(new ChildEcho(21)), ct)).ValueOrThrow();
 
     /// <summary>
-    /// Waits on a child that answers "old" from its first execution and drops an oversize result from any later one; one
-    /// attempt, so the typed wait's throw fails the job.
+    /// Waits on a child that answers "old" from its first execution and fails on an oversize result from any later one;
+    /// the typed wait's throw then fails the job.
     /// </summary>
     [Job("job-parent-of-restarted-child", MaxAttempts = 1)]
     public static async Task<string> ParentOfRestartedChild(JobContext ctx, CancellationToken ct) =>

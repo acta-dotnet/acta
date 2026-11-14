@@ -48,7 +48,7 @@ internal sealed class HandlerInvocation(
             {
                 throw new SwallowedControlException(swallowed);
             }
-            completion = Succeeded(descriptor, job, output, jobContext.CancellationToken);
+            completion = Succeeded(descriptor, output, jobContext.CancellationToken);
         }
         catch (Exception) when (jobContext.Fenced)
         {
@@ -162,7 +162,7 @@ internal sealed class HandlerInvocation(
 
     /// <summary>The attempt's success, with its result recorded; a result that cannot be recorded throws to InvokeAsync.</summary>
     [DebuggerDisableUserUnhandledExceptions]
-    private ExecutionCompletion Succeeded(JobDescriptor descriptor, ClaimedJob job, JobHandlerOutput invocation, CancellationToken attempt)
+    private ExecutionCompletion Succeeded(JobDescriptor descriptor, JobHandlerOutput invocation, CancellationToken attempt)
     {
         var succeeded = new ExecutionCompletion(CompletionKind.Succeeded);
         if (!invocation.HasResult)
@@ -197,25 +197,16 @@ internal sealed class HandlerInvocation(
             throw new ResultNotRecordedException($"The handler's result could not be serialized: {ex.Message}", ex);
         }
 
-        if (payload.Data.Length <= maxInlinePayloadBytes)
-        {
-            return succeeded with { ResultFormatId = payload.Format.Id, Result = payload.Data };
-        }
-
-        // The job succeeded, so it is not failed over the size of what it returned. But the
-        // cap is a cap: the body is dropped rather than persisted, leaving the row in the
-        // existing "no result" shape (format 0, NULL) with result-oversized recording
-        // why. A typed read of the missing result throws rather than handing back a default.
-        if (log.IsEnabled(LogLevel.Warning))
-        {
-            ActaLog.ResultDroppedOverCap(
-                log,
-                descriptor.JobName,
-                job.JobId,
-                $"{payload.Data.Length} bytes, over the MaxInlinePayloadBytes cap of {maxInlinePayloadBytes} bytes"
+        return payload.Data.Length <= maxInlinePayloadBytes
+            ? succeeded with
+            {
+                ResultFormatId = payload.Format.Id,
+                Result = payload.Data,
+            }
+            : throw new ResultNotRecordedException(
+                $"The handler's result is {payload.Data.Length} bytes, over the MaxInlinePayloadBytes cap of "
+                    + $"{maxInlinePayloadBytes} bytes: store a large result yourself and return a reference to it."
             );
-        }
-        return succeeded with { Reason = EventReason.ResultOversized };
     }
 
     /// <summary>

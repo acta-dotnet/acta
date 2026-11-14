@@ -550,7 +550,7 @@
   - Reclaim exhausting a child's budget reports the pair whose latch raise releases the waiting parent
   - The maintenance sweep re-raises a stale latch lost to a crash and releases the parent
   - Concurrent cancel and child completions converge with the whole tree terminal and no error
-  - The typed child wait reads the result of the execution whose landing set the latch, so a restarted child that stored none throws rather than answering an earlier result
+  - The typed child wait reads the outcome of the execution whose landing set the latch, so a restarted child that failed fails its parent rather than answering an earlier result
   - A map of generated calls gives every child its configure and answers each child's typed result
 
 ### A bounded child wait expires, cancels its subtree, and leaves the parent running
@@ -1634,13 +1634,13 @@
 
 ## Payloads
 
-### Caller writes hard-throw past the cap but an oversize result is dropped
-- **Contract:** Caller writes past the cap throw PayloadTooLargeException and an oversize handler result is dropped so the job still completes.
+### Every write past the cap fails, a handler's result included
+- **Contract:** Caller writes past the cap throw PayloadTooLargeException, and a handler result past it fails the job for good instead of being dropped.
 - **Guarantees:**
   - Oversize enqueue input throws PayloadTooLargeException
   - Oversize signal value throws PayloadTooLargeException
   - Oversize handler variable write throws PayloadTooLargeException
-  - An oversize handler result is dropped and the job still succeeds
+  - An oversize handler result fails the job for good
 
 ## Provider
 

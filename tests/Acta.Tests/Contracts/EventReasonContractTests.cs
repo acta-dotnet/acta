@@ -30,7 +30,6 @@ public sealed partial class EventReasonContractTests
         SignalReleased=signal-released
         ConcurrencyKeyHeld=concurrency-key-held
         StepInterrupted=step-interrupted
-        ResultOversized=result-oversized
         WaitTimedOut=wait-timed-out
         RateLimited=rate-limited
         LaneRepaired=lane-repaired
