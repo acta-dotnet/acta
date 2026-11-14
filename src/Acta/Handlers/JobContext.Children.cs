@@ -139,7 +139,7 @@ public abstract partial class JobContext
     /// Bounded twin of
     /// <see cref="CallChildAsync{TInput}(string, TInput, Action{JobEnqueueOptionsBuilder}, CancellationToken)"/>:
     /// the child is started, then awaited under one stored expiration (<c>db_now + timeout</c>, whole seconds,
-    /// positive) that a replay reuses and never extends. On expiry the outcome reports
+    /// at least one) that a replay reuses and never extends. On expiry the outcome reports
     /// <see cref="JobOutcome.TimedOut"/>, Acta cancels the child and its descendant subtree, and this Job resumes.
     /// </summary>
     public async Task<JobOutcome> CallChildAsync<TInput>(

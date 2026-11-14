@@ -13,24 +13,36 @@ public sealed class JobContextWaitTimeoutTests
     [Theory]
     [InlineData(0)]
     [InlineData(-1)]
-    public async Task Non_positive_timeout_is_rejected_before_any_store_call(int seconds)
+    public async Task A_timeout_of_zero_or_less_waits_the_one_second_minimum(int seconds)
     {
-        // RecordingJobContext's wait sink only understands child-latch names, so reaching it at all
-        // would throw something other than ArgumentOutOfRangeException: this asserts the order too.
+        // A remaining time computed against a deadline goes negative on the replay after it. The wait has to reach the
+        // store, which answers from the expiration the first pass stored, rather than throw before it.
         var ct = TestContext.Current.CancellationToken;
-        var ctx = new RecordingJobContext();
+        var ctx = new BoundRecordingContext();
         var timeout = TimeSpan.FromSeconds(seconds);
 
-        var thrown = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => ctx.WaitSignalAsync("go", timeout, ct));
-        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => ctx.WaitSignalAsync<string>("go", timeout, ct));
-        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => ctx.TryWaitSignalAsync("go", timeout, ct));
-        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => ctx.TryWaitSignalAsync<string>("go", timeout, ct));
-        Assert.Empty(ctx.Events);
+        await ctx.WaitSignalAsync("go", timeout, ct);
+        await ctx.WaitSignalAsync<string>("go", timeout, ct);
+        await ctx.TryWaitSignalAsync("go", timeout, ct);
+        await ctx.TryWaitSignalAsync<string>("go", timeout, ct);
+        await ctx.WaitChildAsync(await ctx.EnqueueChildAsync("only", new { }, ct: ct), timeout, ct);
 
-        // Both non-positive cases say the same thing about the same parameter. Delegating the negative
-        // one to DurationSyntax would have named it a "Delay", which is not what the caller passed.
-        Assert.Equal("timeout", thrown.ParamName);
-        Assert.Contains("Wait timeout must be positive.", thrown.Message, StringComparison.Ordinal);
+        Assert.Equal<int?>([1, 1, 1, 1, 1], ctx.Bounds);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public async Task A_sleep_of_zero_or_less_reaches_the_store_with_a_zero_delay(int seconds)
+    {
+        // A delay computed against a deadline goes negative on the replay after it. The sleep still reaches the store,
+        // which consumes the timer the first pass armed, so that timer does not stay pending and refuse a later sleep.
+        var ct = TestContext.Current.CancellationToken;
+        var ctx = new SleepRecordingContext();
+
+        await ctx.SleepAsync("cool-down", TimeSpan.FromSeconds(seconds), ct: ct);
+
+        Assert.Equal<TimeSpan?>([TimeSpan.Zero], ctx.Delays);
     }
 
     [Fact]
@@ -46,18 +58,14 @@ public sealed class JobContextWaitTimeoutTests
         Assert.Equal(["wait:go"], ctx.Events);
     }
 
-    [Theory]
-    [InlineData(0)]
-    [InlineData(-1)]
-    public async Task A_bounded_child_wait_validates_its_arguments_before_any_store_call(int seconds)
+    [Fact]
+    public async Task A_bounded_child_wait_validates_its_arguments_before_any_store_call()
     {
         var ct = TestContext.Current.CancellationToken;
         var ctx = new RecordingJobContext();
         var child = await ctx.EnqueueChildAsync("only", new { }, ct: ct);
 
-        var badTimeout = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
-            ctx.WaitChildAsync(child, TimeSpan.FromSeconds(seconds), ct)
-        );
+        var badTimeout = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => ctx.WaitChildAsync(child, TimeSpan.MaxValue, ct));
         var badId = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => ctx.WaitChildAsync(Child(0), TimeSpan.FromMinutes(5), ct));
         await Assert.ThrowsAsync<ArgumentNullException>(() => ctx.WaitChildAsync(null!, TimeSpan.FromMinutes(5), ct));
 
@@ -103,10 +111,10 @@ public sealed class JobContextWaitTimeoutTests
     {
         var ct = TestContext.Current.CancellationToken;
         var ctx = new RecordingJobContext();
-        var zero = TimeSpan.Zero;
+        var tooLong = TimeSpan.MaxValue;
 
-        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => ctx.CallChildAsync("only", new { }, zero, ct));
-        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => ctx.MapAsync("grp", (int[])[1], i => i, i => new { }, zero, ct));
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => ctx.CallChildAsync("only", new { }, tooLong, ct));
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => ctx.MapAsync("grp", (int[])[1], i => i, i => new { }, tooLong, ct));
 
         // Every wrapper starts its children before it waits on any of them, so a rejected timeout must
         // not leave enqueued work that nothing is going to join on.
@@ -166,6 +174,8 @@ public sealed class JobContextWaitTimeoutTests
     }
 
     [Theory]
+    [InlineData(-5000, 1)]
+    [InlineData(0, 1)]
     [InlineData(1, 1)]
     [InlineData(1001, 2)]
     [InlineData(5000, 5)]
@@ -242,6 +252,41 @@ public sealed class JobContextWaitTimeoutTests
         {
             Events.Add($"deadline:{name}");
             return base.GetOrSetWaitDeadlineCoreAsync(name, timeout, ct);
+        }
+    }
+
+    /// <summary>A context that records the bound every bounded wait hands the store.</summary>
+    private sealed class BoundRecordingContext : RecordingJobContext
+    {
+        public List<int?> Bounds { get; } = [];
+
+        private protected override Task<SignalCheckpointState> WaitSignalCoreAsync(
+            string name,
+            int? timeoutSeconds,
+            bool resumeOnTimeout,
+            CancellationToken ct
+        )
+        {
+            Bounds.Add(timeoutSeconds);
+            return base.WaitSignalCoreAsync(name, timeoutSeconds, resumeOnTimeout, ct);
+        }
+    }
+
+    /// <summary>A context that records the delay every sleep hands the store, which answers continue.</summary>
+    private sealed class SleepRecordingContext : RecordingJobContext
+    {
+        public List<TimeSpan?> Delays { get; } = [];
+
+        private protected override Task SleepCoreAsync(
+            string name,
+            TimeSpan? delay,
+            DateTime? resumeAtUtc,
+            string? reason,
+            CancellationToken ct
+        )
+        {
+            Delays.Add(delay);
+            return Task.CompletedTask;
         }
     }
 

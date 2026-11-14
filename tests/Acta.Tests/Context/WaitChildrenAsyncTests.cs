@@ -88,7 +88,7 @@ public sealed class WaitChildrenAsyncTests
             var badId = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => join([child, unstarted]));
             Assert.Equal("children", badId.ParamName);
         }
-        var badTimeout = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => ctx.WaitChildrenAsync([child], TimeSpan.Zero, ct));
+        var badTimeout = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => ctx.WaitChildrenAsync([child], TimeSpan.MaxValue, ct));
 
         // A bad child anywhere in the list stops either join before it arms a latch or stores a deadline, so a rejected
         // group never leaves a half-armed wait behind.

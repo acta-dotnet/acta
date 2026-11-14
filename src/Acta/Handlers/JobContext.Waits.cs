@@ -4,22 +4,17 @@ public abstract partial class JobContext
 {
     /// <summary>
     /// Durable, replay-safe named wait: the first pass arms a timer and suspends the Job budget-neutrally; the replay
-    /// after the due instant consumes it and returns. A zero delay returns at once; no worker is held meanwhile.
+    /// after the due instant consumes it and returns; no worker is held meanwhile.
     /// </summary>
     /// <param name="name">Dotted-kebab wait name, unique per Job; identifies the timer across replays.</param>
-    /// <param name="delay">Wait length from DB now; whole-second precision (sub-second rounds up).</param>
+    /// <param name="delay">Wait length from DB now, sub-second rounding up; zero or less arms nothing, and an armed timer still decides.</param>
     /// <param name="reasonMessage">Operator-readable suspend reason.</param>
     /// <param name="ct">Cancellation; linked with the per-attempt <see cref="CancellationToken"/>.</param>
     public async Task SleepAsync(string name, TimeSpan delay, string? reasonMessage = null, CancellationToken ct = default)
     {
         ThrowIfInAtMostOnceStep(nameof(SleepAsync));
         name = NameSyntax.Canonicalize(name, nameof(name), NameSyntax.ExtendedMaxLength, reserveSystem: true);
-        var seconds = DurationSyntax.ToWholeSeconds(delay, nameof(delay));
-        if (seconds == 0)
-        {
-            return;
-        }
-
+        var seconds = delay <= TimeSpan.Zero ? 0 : DurationSyntax.ToWholeSeconds(delay, nameof(delay));
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, CancellationToken);
         await SleepCoreAsync(name, TimeSpan.FromSeconds(seconds), resumeAtUtc: null, reasonMessage, linked.Token);
     }
@@ -82,7 +77,7 @@ public abstract partial class JobContext
 
     /// <summary>
     /// Bounded twin of <see cref="WaitSignalAsync(string, CancellationToken)"/>. The first pass stores
-    /// <c>db_now + timeout</c> (whole seconds, rounded up, positive) as the wait's expiration; a replay reuses that
+    /// <c>db_now + timeout</c> (whole seconds, rounded up, at least one) as the wait's expiration; a replay reuses that
     /// instant and never extends it, so restarts cannot lengthen the wait. A raise landing before the replayed wait
     /// settles the wait is still taken; once it settles <c>Expired</c>, Acta ends the Job <c>Cancelled</c> with reason
     /// <c>wait-timed-out</c> and this call does not return. Use
@@ -150,16 +145,12 @@ public abstract partial class JobContext
     }
 
     /// <summary>
-    /// Rejects a non-positive timeout before any store call: a zero or negative expiration would
-    /// arm a wait that is due the instant it is written. Both non-positive cases are rejected here
-    /// rather than delegating the negative one, because DurationSyntax phrases it as a delay
-    /// ("Delay must not be negative"), which is the wrong noun for a wait. What survives the check
-    /// rounds like SleepAsync.
+    /// Whole seconds, rounded up, at least one: a timeout of zero or less is the one-second minimum a sub-second one
+    /// rounds up to. A remaining time computed against a deadline goes negative on the replay after it, where the
+    /// expiration the first pass stored decides; a wait armed with a length still suspends once before it expires.
     /// </summary>
     private static int ToWaitTimeoutSeconds(TimeSpan timeout) =>
-        timeout <= TimeSpan.Zero
-            ? throw new ArgumentOutOfRangeException(nameof(timeout), timeout, "Wait timeout must be positive.")
-            : DurationSyntax.ToWholeSeconds(timeout, nameof(timeout));
+        timeout <= TimeSpan.Zero ? 1 : DurationSyntax.ToWholeSeconds(timeout, nameof(timeout));
 
     /// <summary>
     /// The raised signal's stored payload: format id + bytes. <c>ValueFormatId == 0</c> means a

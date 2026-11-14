@@ -233,7 +233,9 @@ null when the signal was raised without one. The raising side is
 `await jobs.RaiseSignalAsync(jobRef, "shipped", new Shipped(trackingId), ct)` on `IJobs`, and an
 `actor:` argument before the token names who raised it. The deadline is stored once, as
 database time plus the timeout, so restarts and downtime never lengthen it, and a raise that lands
-before the parked job re-enters still wins. An expired wait stays expired, through a restart too: the
+before the parked job re-enters still wins. A timeout rounds up to whole seconds, at least one, and a sleep
+of zero or less returns at once, so a deadline shared by several waits is `deadline - DateTime.UtcNow` at each
+of them: the remaining time goes negative on the replay after the deadline, and each wait's stored instant decides. An expired wait stays expired, through a restart too: the
 restarted job reaches the same wait and is cancelled again at once, and a late raise changes nothing.
 A second window is a wait under a new name (`"shipped-2"`) or a new job.
 

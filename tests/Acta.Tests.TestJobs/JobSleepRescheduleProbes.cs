@@ -3,7 +3,7 @@ using Acta;
 namespace TestJobs;
 
 /// <summary>Outcome of the sleep-argument validation probe.</summary>
-public sealed record SleepValidationResult(bool InvalidNameRejected, bool ReservedNameRejected, bool NegativeDelayRejected);
+public sealed record SleepValidationResult(bool InvalidNameRejected, bool ReservedNameRejected, bool NegativeDelayReturned);
 
 /// <summary>
 /// Reschedule + durable-sleep probe handlers. Handlers restart from the top on every attempt, so each
@@ -57,8 +57,9 @@ public static class JobSleepRescheduleProbes
     {
         var invalid = await Rejects<ArgumentException>(() => ctx.SleepAsync("Bad Name", TimeSpan.FromMinutes(1), ct: ct));
         var reserved = await Rejects<ArgumentException>(() => ctx.SleepAsync("sys.reserved", TimeSpan.FromMinutes(1), ct: ct));
-        var negative = await Rejects<ArgumentOutOfRangeException>(() => ctx.SleepAsync("neg", TimeSpan.FromSeconds(-1), ct: ct));
-        return new SleepValidationResult(invalid, reserved, negative);
+        // A remaining time computed against a passed deadline is negative, and the sleep it bounds is over.
+        await ctx.SleepAsync("neg", TimeSpan.FromSeconds(-1), ct: ct);
+        return new SleepValidationResult(invalid, reserved, NegativeDelayReturned: true);
     }
 
     private static async Task<bool> Rejects<TException>(Func<Task> action)

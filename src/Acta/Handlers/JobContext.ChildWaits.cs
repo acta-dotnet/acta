@@ -22,7 +22,7 @@ public abstract partial class JobContext
 
     /// <summary>
     /// Bounded twin of <see cref="WaitChildAsync(EnqueueJobResponse, CancellationToken)"/>. The first pass stores
-    /// <c>db_now + timeout</c> (whole seconds, rounded up, positive) as the latch's expiration; a replay reuses that
+    /// <c>db_now + timeout</c> (whole seconds, rounded up, at least one) as the latch's expiration; a replay reuses that
     /// instant and never extends it. A child landing before the replayed wait settles the latch is still taken. A timeout
     /// never cancels this Job: the handler resumes with <see cref="JobOutcome.TimedOut"/> after Acta cancels the
     /// unfinished child and its subtree (<c>wait-timed-out</c>), free to compensate, start a replacement, or cancel itself.
@@ -177,8 +177,8 @@ public abstract partial class JobContext
     internal const string GroupDeadlinePrefix = "sys.wait-group.";
 
     /// <summary>
-    /// Rejects a bad timeout before the first enqueue: a wrapper starts every child before it
-    /// waits on any of them, so a rejection at wait time would leave enqueued children nothing is
+    /// Rejects a timeout too long to store before the first enqueue: a wrapper starts every child
+    /// before it waits on any of them, so a rejection at wait time would leave enqueued children nothing is
     /// going to wait for. A null timeout is the unbounded overload and has nothing to check.
     /// </summary>
     private static void ValidateGroupTimeout(TimeSpan? timeout)

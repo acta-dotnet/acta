@@ -23,7 +23,7 @@ public abstract partial class JobContext
 
     /// <summary>
     /// Bounded twin of <see cref="WaitChildrenAsync(IReadOnlyList{EnqueueJobResponse}, CancellationToken)"/>: the first pass stores
-    /// <c>db_now + timeout</c> once as the join's deadline (whole seconds, positive, for the whole join rather than per
+    /// <c>db_now + timeout</c> once as the join's deadline (whole seconds, at least one, for the whole join rather than per
     /// child), and every child on every replay waits toward that one instant, so the budget never restarts, except after
     /// <see cref="ResetStateAsync"/>, which clears the stored deadline with every other checkpoint. Children that landed
     /// keep their outcome; on expiry Acta cancels only the unfinished ones and their subtrees (<c>wait-timed-out</c>), and
@@ -97,7 +97,7 @@ public abstract partial class JobContext
     /// <summary>
     /// Bounded twin of
     /// <see cref="MapAsync{TItem, TKey, TInput}(string, IEnumerable{TItem}, Func{TItem, TKey}, Func{TItem, TInput}, CancellationToken)"/>:
-    /// every fanned-out child waits toward one stored absolute deadline (whole seconds, positive, for the group rather
+    /// every fanned-out child waits toward one stored absolute deadline (whole seconds, at least one, for the group rather
     /// than per item) that a replay reuses and never extends. An item whose child did not land by then reports
     /// <see cref="JobOutcome.TimedOut"/> and that child is cancelled along with its subtree; the item keying is
     /// unchanged, and this Job resumes either way.

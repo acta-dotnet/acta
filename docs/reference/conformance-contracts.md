@@ -2209,7 +2209,7 @@
   - Sleep rerun after due consumes the timer and the handler continues to Succeeded
   - An attempt that consumes its timer and then re-arms lands Ready at the new instant
   - Zero-delay sleep continues without arming a timer
-  - Sleep validation rejects invalid names, reserved names and negative delay
+  - Sleep validation rejects invalid and reserved names, and a negative delay returns at once
   - A second distinct pending sleep is rejected and re-arms without touching the existing timer
 
 ### A schedule verb records its operator as the event's actor

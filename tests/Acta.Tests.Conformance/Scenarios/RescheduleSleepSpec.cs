@@ -172,8 +172,8 @@ public sealed class RescheduleSleepSpec : ActaRuntimeTestBase<ConformanceFixture
     }
 
     // P1: hardening
-    [Fact(DisplayName = "Sleep validation rejects invalid names, reserved names and negative delay")]
-    public async Task Sleep_validation_rejects_invalid_names_and_negative_delay()
+    [Fact(DisplayName = "Sleep validation rejects invalid and reserved names, and a negative delay returns at once")]
+    public async Task Sleep_validation_rejects_invalid_names_and_returns_on_a_negative_delay()
     {
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-sleep-validation", JobPayload.None), ct);
@@ -183,7 +183,7 @@ public sealed class RescheduleSleepSpec : ActaRuntimeTestBase<ConformanceFixture
         var result = await Jobs.GetResultAsync<SleepValidationResult>(enqueued, ct);
         Assert.True(result.InvalidNameRejected);
         Assert.True(result.ReservedNameRejected);
-        Assert.True(result.NegativeDelayRejected);
+        Assert.True(result.NegativeDelayReturned);
         Assert.Empty(await ReadTimersAsync(enqueued.JobId, ct));
     }
 
