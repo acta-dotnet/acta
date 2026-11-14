@@ -34,7 +34,7 @@ var correlationKey = $"trace-{Guid.NewGuid():N}";
 Console.WriteLine($"enqueueing parent with CorrelationKey={correlationKey}");
 
 // JobExecutionOptions extends JobEnqueueOptions, so CorrelationKey is an enqueue-time option here.
-var outcome = await jobs.RunAndWaitAsync<RunPipeline>(
+var outcome = await jobs.CallAsync<RunPipeline>(
     new RunPipeline("demo"),
     new JobExecutionOptions { CorrelationKey = correlationKey, PollInterval = TimeSpan.FromMilliseconds(200) }
 );
@@ -75,7 +75,7 @@ namespace Acta.Concepts.CorrelationKey
         {
             _log.LogInformation("parent handler: RunId={RunId}; look for ActaCorrelationKey in Scopes", input.RunId);
 
-            await context.ExecuteChildAsync("step-1", new ProcessStep(input.RunId, 1), ct);
+            await context.CallChildAsync("step-1", new ProcessStep(input.RunId, 1), ct);
 
             _log.LogInformation("parent handler complete");
         }

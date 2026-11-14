@@ -260,7 +260,7 @@
         <p class="hint"><b>Application contract.</b> One job handles one immutable manuscript revision. <code>ProofApproval</code> carries <code>ProofId</code> and <code>Approved</code>. The PDF child stores a complete, immutable artifact before succeeding; the reference checker fails its child job if validation does not pass. Corrections start a new proof workflow. Review and publication adapters must deduplicate by proof ID. The 14-day timeout is an illustrative policy for each reviewer separately, not one deadline for the whole approval process.</p>
         <div class="actions">
           <a class="button primary" href="/how-it-works#steps">Explore durable workflows</a>
-          <a class="button" href="https://github.com/acta-dotnet/acta/tree/main/concepts/200-durable-execution/215-map-parallel-join">Run the fan-out lab</a>
+          <a class="button" href="https://github.com/acta-dotnet/acta/tree/main/concepts/200-durable-execution/215-map-wait-children">Run the fan-out lab</a>
         </div>
       </div>
     </section>
@@ -280,7 +280,7 @@
             <li><a href="/capabilities#sleeps">Durable sleeps and timers</a></li>
             <li><a href="/capabilities#signals">Signals</a></li>
             <li><a href="/capabilities#children">Child jobs with lineage</a></li>
-            <li><a href="/capabilities#fan-out">Map, Parallel, and Join</a></li>
+            <li><a href="/capabilities#fan-out">Map, Parallel, and WaitChildren</a></li>
             <li><a href="/capabilities#locks">Handler locks</a></li>
             <li><a href="/capabilities#plain-classes">Plain classes, constructor injection</a></li>
             <li><a href="/capabilities#behaviors">Shared behavior around every handler</a></li>

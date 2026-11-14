@@ -3,7 +3,7 @@ using System.Diagnostics;
 namespace Acta;
 
 /// <summary>
-/// <see cref="IJobs.WaitAsync"/> and <see cref="IJobs.RunAndWaitAsync{TInput}(TInput, JobExecutionOptions, CancellationToken)"/> over the public operations: a run validates
+/// <see cref="IJobs.WaitAsync"/> and <see cref="IJobs.CallAsync{TInput}(TInput, JobExecutionOptions, CancellationToken)"/> over the public operations: a run validates
 /// its wait options before anything is enqueued and enqueues, then both wait client-side for a terminal status. The
 /// budget is local monotonic time, not the Acta clock: the job keeps running after the caller stops waiting.
 /// </summary>

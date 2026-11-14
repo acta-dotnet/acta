@@ -103,8 +103,8 @@ public class ManifestCallsTests
                     EnqueueJobResponse inTx = await jobs.EnqueueAsync(tx, GenTestsJobs.Reconcile());
                     EnqueueJobResponse configuredInTx = await jobs.EnqueueAsync(tx, GenTestsJobs.Cleanup(), o => o.CorrelationKey("c-1"));
                     EnqueueJobResponse inDerived = await jobs.EnqueueAsync(derived, GenTestsJobs.ShipOrder(new ShipOrder(4)), o => o.Lane("ships"));
-                    JobOutcome<Receipt> waited = await jobs.RunAndWaitAsync(GenTestsJobs.SendInvoice(Guid.Empty, null));
-                    JobOutcome ran = await jobs.RunAndWaitAsync(GenTestsJobs.ShipOrder(new ShipOrder(2)));
+                    JobOutcome<Receipt> waited = await jobs.CallAsync(GenTestsJobs.SendInvoice(Guid.Empty, null));
+                    JobOutcome ran = await jobs.CallAsync(GenTestsJobs.ShipOrder(new ShipOrder(2)));
                     JobHandle later = await jobs.ScheduleAsync(GenTestsJobs.Reconcile(), TimeSpan.FromMinutes(1));
                     JobHandle<Receipt> at = await jobs.ScheduleAsync(GenTestsJobs.SendInvoice(Guid.Empty, null), DateTimeOffset.UnixEpoch);
                     EnqueueJobResponse laterInTx = await jobs.ScheduleAsync(tx, GenTestsJobs.ShipOrder(new ShipOrder(3)), TimeSpan.Zero);
@@ -121,7 +121,7 @@ public class ManifestCallsTests
             .OfType<InvocationExpressionSyntax>()
             .Select(i => model.GetSymbolInfo(i, TestContext.Current.CancellationToken).Symbol)
             .OfType<IMethodSymbol>()
-            .Where(m => m.Name is "EnqueueAsync" or "RunAndWaitAsync" or "ScheduleAsync")
+            .Where(m => m.Name is "EnqueueAsync" or "CallAsync" or "ScheduleAsync")
             .ToList();
         Assert.Equal(11, verbs.Count);
         Assert.All(verbs, m => Assert.Contains(m.Parameters, p => p.Type.OriginalDefinition.Name == "JobCall"));

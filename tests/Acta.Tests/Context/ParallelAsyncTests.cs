@@ -50,7 +50,7 @@ public sealed class ParallelAsyncTests
         // Joined by a hyphen, both would be the child "ship-eu-west".
         await ctx.ParallelAsync("ship", p => p.Child("eu-west", new Probe()), ct);
         await ctx.ParallelAsync("ship-eu", p => p.Child("west", new Probe()), ct);
-        await ctx.StartChildAsync("ship-eu-west", new Probe(), ct: ct);
+        await ctx.EnqueueChildAsync("ship-eu-west", new Probe(), ct: ct);
 
         Assert.Equal(["ship/eu-west", "ship-eu/west", "ship-eu-west"], ctx.Started.Select(s => s.Name));
     }

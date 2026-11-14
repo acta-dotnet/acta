@@ -261,7 +261,7 @@ internal static class ManifestSourceWriter
             sb.AppendLine();
             sb.AppendLine("    /// <summary>");
             sb.AppendLine(
-                $"    /// Call of job <c>{j.JobName}</c>, for <c>IJobs.EnqueueAsync</c>, <c>ScheduleAsync</c>, and <c>RunAndWaitAsync</c>."
+                $"    /// Call of job <c>{j.JobName}</c>, for <c>IJobs.EnqueueAsync</c>, <c>ScheduleAsync</c>, and <c>CallAsync</c>."
             );
             sb.AppendLine("    /// </summary>");
             sb.AppendLine($"    {ContractAccessibility(j)} static global::Acta.JobCall<{types}> {PascalCase(j.JobName)}({parameters}) =>");

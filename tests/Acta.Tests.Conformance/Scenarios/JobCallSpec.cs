@@ -118,8 +118,8 @@ public sealed class JobCallSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf
             new(8, "zeta")
         );
 
-        var typedOutcome = await DriveAsync(Jobs.RunAndWaitAsync(TestJobsManifest.FormatInvoice(7, "zeta"), Wait, ct), ct);
-        var untypedOutcome = await DriveAsync(Jobs.RunAndWaitAsync(untyped, Wait, ct), ct);
+        var typedOutcome = await DriveAsync(Jobs.CallAsync(TestJobsManifest.FormatInvoice(7, "zeta"), Wait, ct), ct);
+        var untypedOutcome = await DriveAsync(Jobs.CallAsync(untyped, Wait, ct), ct);
 
         Assert.Equal("zeta-7", typedOutcome.ValueOrThrow().Text);
         Assert.True(untypedOutcome.Succeeded);

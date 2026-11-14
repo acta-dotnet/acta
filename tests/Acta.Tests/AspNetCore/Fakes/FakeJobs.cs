@@ -305,13 +305,13 @@ internal sealed class FakeJobs : IJobs
     ValueTask<JobOutcome<TResult>> IJobs.WaitAsync<TResult>(JobLookup job, TimeSpan? timeout, CancellationToken ct) =>
         throw new NotSupportedException();
 
-    ValueTask<JobOutcome> IJobs.RunAndWaitAsync<TInput>(TInput input, JobExecutionOptions? options, CancellationToken ct) =>
+    ValueTask<JobOutcome> IJobs.CallAsync<TInput>(TInput input, JobExecutionOptions? options, CancellationToken ct) =>
         throw new NotSupportedException();
 
-    ValueTask<JobOutcome> IJobs.RunAndWaitAsync<TInput>(JobCall<TInput> job, JobExecutionOptions? options, CancellationToken ct) =>
+    ValueTask<JobOutcome> IJobs.CallAsync<TInput>(JobCall<TInput> job, JobExecutionOptions? options, CancellationToken ct) =>
         throw new NotSupportedException();
 
-    ValueTask<JobOutcome<TResult>> IJobs.RunAndWaitAsync<TInput, TResult>(
+    ValueTask<JobOutcome<TResult>> IJobs.CallAsync<TInput, TResult>(
         JobCall<TInput, TResult> job,
         JobExecutionOptions? options,
         CancellationToken ct

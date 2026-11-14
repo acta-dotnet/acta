@@ -8,7 +8,7 @@ the app to match an example.
 
 Acta is a durable job and workflow engine for .NET backed by the application's own SQL database
 (PostgreSQL, SQL Server, or embedded SQLite). One handler can record steps and variables, start
-child jobs and fan out with Map, Parallel, and Join, and wait for signals and timers without
+child jobs and fan out with Map, Parallel, and WaitChildren, and wait for signals and timers without
 holding a worker; lanes keep per-entity order, and concurrency and rate limits hold across every
 worker. Jobs, schedules, steps, waits, and alerts are ordinary rows. This file is the contract an agent needs to add Acta to a project correctly; the
 runnable proof lives in the repository's `concepts/` directory (compiled, one project per concept) and the
@@ -214,7 +214,7 @@ only under its own key.
 | `catch { }` around the body | let it throw, or `await ctx.FailAsync(reason)` | swallowing turns a retryable failure into a silent success |
 | `catch (Exception)` around a wait, sleep or ctx call | `catch (Exception ex) when (ex is not JobControlException)`, or `when (ctx.EndsJob(ex))` to compensate | the call ends the attempt by throwing a `JobControlException` (a `finally` still runs); a handler that swallows it and returns fails at once, and `ACTA0151` warns at build time |
 | polling a flag in a loop | `await ctx.TryWaitSignalAsync("approved", timeout)` | polling burns a worker; a signal parks the job, and the timeout keeps it from parking forever |
-| starting children and looping until done | `await ctx.JoinAsync([audit, receipt], ct)` on the children you started (a `TimeSpan` before the token sets a deadline), or `MapAsync` when the children come from a list | the parent parks instead of occupying a worker |
+| starting children and looping until done | `await ctx.WaitChildrenAsync([audit, receipt], ct)` on the children you started (a `TimeSpan` before the token sets a deadline), or `MapAsync` when the children come from a list | the parent parks instead of occupying a worker |
 | `DateTime.Now` | `DateTime.UtcNow`, or a value from the input | the ledger is UTC throughout |
 
 ## Waiting for an outside event
@@ -243,19 +243,19 @@ it already started.
 
 | To | Call | Answers |
 | --- | --- | --- |
-| run one child and wait | `await ctx.ExecuteChildAsync("email", new SendEmail(orderId), ct)` | `JobOutcome`: `Succeeded`, `Status`, `ThrowIfFailed()` |
-| run one child and read its result | `await ctx.ExecuteChildAsync("label", ShippingJobs.PrintLabel(new PrintLabel(orderId)), ct)` | `JobOutcome<TResult>`: also `Value`, `ValueOrThrow()` |
+| run one child and wait | `await ctx.CallChildAsync("email", new SendEmail(orderId), ct)` | `JobOutcome`: `Succeeded`, `Status`, `ThrowIfFailed()` |
+| run one child and read its result | `await ctx.CallChildAsync("label", ShippingJobs.PrintLabel(new PrintLabel(orderId)), ct)` | `JobOutcome<TResult>`: also `Value`, `ValueOrThrow()` |
 | run one child per item of a list | `await ctx.MapAsync("reserve", skus, itemKey: sku => sku, child: sku => new ReserveStock(orderId, sku), ct)` | `MapOutcome<TKey>`: `Items` (each `Key` and `Outcome`), `Failed`, `ThrowIfAnyFailed()` |
 | run different jobs at once | `await ctx.ParallelAsync("notify", p => p.Child("email", new SendEmail(orderId)).Child("sms", new SendSms(orderId)), ct)` | `ParallelOutcome`: `Branches["sms"]`, `Failed`, `ThrowIfAnyFailed()` |
-| start now, wait later | `var audit = await ctx.StartChildAsync("audit", new Audit(orderId), ct);` then `await ctx.JoinAsync([audit, receipt], ct)`, for one child or several | `ChildrenWaitOutcome`: `Children`, `Succeeded`, `Failed`, `ThrowIfAnyFailed()` |
+| start now, wait later | `var audit = await ctx.EnqueueChildAsync("audit", new Audit(orderId), ct);` then `await ctx.WaitChildrenAsync([audit, receipt], ct)`, for one child or several | `ChildrenWaitOutcome`: `Children`, `Succeeded`, `Failed`, `ThrowIfAnyFailed()` |
 
 - A failed or cancelled child never throws in the parent by itself. Every wait answers an outcome and the handler decides: `ThrowIfFailed()` or `ThrowIfAnyFailed()` to fail with it, or branch on `Failed` and compensate. A group waits for every child; it never fails fast and never cancels siblings.
-- Every child ends in a `JobOutcome`, alone or as a member of a group: `JobRef`, `Status`, `Succeeded`, `TimedOut`, and `ThrowIfFailed()`. `IJobs.WaitAsync` answers the same type outside a handler. Wait now with `ExecuteChildAsync`; wait later for children you started, one or many, with `JoinAsync`; fan a list out with `MapAsync`.
+- Every child ends in a `JobOutcome`, alone or as a member of a group: `JobRef`, `Status`, `Succeeded`, `TimedOut`, and `ThrowIfFailed()`. `IJobs.WaitAsync` answers the same type outside a handler. Wait now with `CallChildAsync`; wait later for children you started, one or many, with `WaitChildrenAsync`; fan a list out with `MapAsync`.
 - `ThrowIfFailed()` and `ThrowIfAnyFailed()` fail the parent's attempt, which retries; the retry finds the same failed child unless someone restarted it. When a retry cannot change the outcome, branch on `Failed` and end the job with `await ctx.FailAsync(reason, ct)`.
 - A child's result rides on the outcome when the child was started from the manifest's call (`ShippingJobs.PrintLabel(...)`). For a group member, read it by id: `await ctx.GetChildResultAsync<string>(item.Outcome.JobId, ct)` throws when there is none, and `TryGetChildResultAsync<T>` answers `(Found, Value)`.
-- `MapAsync`, `ParallelAsync`, and `JoinAsync` take a `TimeSpan` timeout before the token: one deadline for the whole group, which cancels only the members still running and reports `TimedOut` on the outcome.
+- `MapAsync`, `ParallelAsync`, and `WaitChildrenAsync` take a `TimeSpan` timeout before the token: one deadline for the whole group, which cancels only the members still running and reports `TimedOut` on the outcome.
 - A group does not limit how many of its children run at once; that is `ConcurrencyLimit` on the child's definition.
-- The runnable proof is `concepts/200-durable-execution/215-map-parallel-join`; a failed child's outcomes are in `219-child-failure-outcomes`.
+- The runnable proof is `concepts/200-durable-execution/215-map-wait-children`; a failed child's outcomes are in `219-child-failure-outcomes`.
 
 ## Recurring work
 
@@ -427,7 +427,7 @@ An app reads Acta through the services `UseActa` registers. Inject them like any
 
 Every pattern above exists as a compiled, runnable example under `concepts/` in the repository:
 numbered rungs from fundamentals to chaos recovery, each a small project for one idea, its program one
-file named after the folder: `concepts/200-durable-execution/215-map-parallel-join/map-parallel-join.cs`. The demo apps under
+file named after the folder: `concepts/200-durable-execution/215-map-wait-children/map-wait-children.cs`. The demo apps under
 `demos/` are complete deployable applications built only from the published packages. The one
 complete walk from enqueue to the first test, on the consumer packages, is `docs/first-job.md`; the
 rest of the `docs/` tree is indexed by task in `docs/README.md`. Start at useacta.net.

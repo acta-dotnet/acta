@@ -1,7 +1,7 @@
 namespace Acta;
 
 /// <summary>
-/// Result of a group wait, <c>ctx.JoinAsync</c>: one entry per awaited child, in caller order. A child that landed
+/// Result of a group wait, <c>ctx.WaitChildrenAsync</c>: one entry per awaited child, in caller order. A child that landed
 /// carries its terminal outcome; under a bounded wait, one that did not land before the group deadline carries
 /// <see cref="JobOutcome.TimedOut"/>. Returned, never thrown; call <see cref="ThrowIfAnyFailed"/> to opt into
 /// escalation. A bounded group shares one persisted deadline, so the wait cannot outlive it however many children it

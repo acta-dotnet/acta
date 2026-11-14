@@ -127,7 +127,7 @@ public sealed class WorkHandler(EffectClient effects)
                         ChildNamespace: input.ChildNamespace,
                         Boundary: input.Boundary == "join-after" && i == input.Children - 1 ? "claim" : null
                     );
-                    var handle = await ctx.StartChildAsync(
+                    var handle = await ctx.EnqueueChildAsync(
                         $"child-{i}",
                         input.ChildNamespace,
                         "work",
@@ -144,7 +144,7 @@ public sealed class WorkHandler(EffectClient effects)
                 {
                     await effects.CallAsync("barrier", input.Key, "join-before", false, 0, ct);
                 }
-                var joined = await ctx.JoinAsync(children, ct);
+                var joined = await ctx.WaitChildrenAsync(children, ct);
                 foreach (var outcome in joined.Children)
                 {
                     if (outcome.Succeeded)

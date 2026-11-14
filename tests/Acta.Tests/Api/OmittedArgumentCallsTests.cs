@@ -24,7 +24,7 @@ public sealed class OmittedArgumentCallsTests
         await jobs.EnqueueAsync(transaction, TestJobsManifest.AddNumbers(new AddNumbers(1, 2)));
         await jobs.ScheduleAsync(TestJobsManifest.AddNumbers(new AddNumbers(1, 2)), TimeSpan.FromMinutes(1));
         await jobs.ScheduleAsync(new AddNumbers(1, 2), TimeSpan.FromMinutes(1));
-        await jobs.RunAndWaitAsync(TestJobsManifest.AddNumbers(new AddNumbers(1, 2)));
+        await jobs.CallAsync(TestJobsManifest.AddNumbers(new AddNumbers(1, 2)));
         await jobs.WaitAsync(JobLookup.ById(1));
         await jobs.WaitAsync<AddNumbersResult>(JobLookup.ById(1));
         await jobs.EnqueueJobsAsync([new EnqueueJobRequest("probe", "noop")]);

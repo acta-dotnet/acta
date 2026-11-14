@@ -31,15 +31,15 @@ public static class ChildTimeoutProbes
     [Job("job-child-with-grandchild")]
     public static async Task ChildWithGrandchild(JobContext ctx, CancellationToken ct)
     {
-        await ctx.StartChildAsync("grand", ctx.JobNamespace, "job-wait-signal", JobPayload.None, ct: ct);
+        await ctx.EnqueueChildAsync("grand", ctx.JobNamespace, "job-wait-signal", JobPayload.None, ct: ct);
         await ctx.WaitSignalAsync("go", ct);
     }
 
     [Job("job-parent-try-wait-child")]
     public static async Task<ChildWaitReport> ParentTryWaitChild(TryWaitChildStart input, JobContext ctx, CancellationToken ct)
     {
-        var child = await ctx.StartChildAsync("only", ctx.JobNamespace, input.ChildJobName, JobPayload.None, ct: ct);
-        var result = await ctx.TryWaitChildAsync(child, LongWait, ct);
+        var child = await ctx.EnqueueChildAsync("only", ctx.JobNamespace, input.ChildJobName, JobPayload.None, ct: ct);
+        var result = await ctx.WaitChildAsync(child, LongWait, ct);
         await ctx.NoteAsync("child wait resumed", ct);
         await ctx.SetVariableAsync("ran.after", true, ct);
         return Report(result);
@@ -52,9 +52,9 @@ public static class ChildTimeoutProbes
     [Job("job-parent-try-wait-child-subtree")]
     public static async Task<ChildWaitReport> ParentTryWaitChildSubtree(JobContext ctx, CancellationToken ct)
     {
-        var slow = await ctx.StartChildAsync("slow", ctx.JobNamespace, "job-child-with-grandchild", JobPayload.None, ct: ct);
-        await ctx.StartChildAsync("sibling", ctx.JobNamespace, "job-wait-signal", JobPayload.None, ct: ct);
-        var result = await ctx.TryWaitChildAsync(slow, LongWait, ct);
+        var slow = await ctx.EnqueueChildAsync("slow", ctx.JobNamespace, "job-child-with-grandchild", JobPayload.None, ct: ct);
+        await ctx.EnqueueChildAsync("sibling", ctx.JobNamespace, "job-wait-signal", JobPayload.None, ct: ct);
+        var result = await ctx.WaitChildAsync(slow, LongWait, ct);
         await ctx.NoteAsync("child wait resumed", ct);
         await ctx.SetVariableAsync("ran.after", true, ct);
         return Report(result);
@@ -69,7 +69,7 @@ public static class ChildTimeoutProbes
     [Job("job-parent-try-wait-child-then-unbounded")]
     public static async Task ParentTryWaitChildThenUnbounded(JobContext ctx, CancellationToken ct)
     {
-        var child = await ctx.StartChildAsync("only", ctx.JobNamespace, "job-wait-signal", JobPayload.None, ct: ct);
+        var child = await ctx.EnqueueChildAsync("only", ctx.JobNamespace, "job-wait-signal", JobPayload.None, ct: ct);
         if (await ctx.ExistsVariableAsync("child.timed-out", ct))
         {
             await ctx.WaitChildAsync(child, ct);
@@ -77,7 +77,7 @@ public static class ChildTimeoutProbes
             return;
         }
 
-        var result = await ctx.TryWaitChildAsync(child, LongWait, ct);
+        var result = await ctx.WaitChildAsync(child, LongWait, ct);
         await ctx.SetVariableAsync("child.timed-out", result.TimedOut, ct);
         await ctx.WaitSignalAsync("hold", ct);
     }
@@ -90,7 +90,7 @@ public static class ChildTimeoutProbes
     public static async Task<ChildWaitReport> ParentTryWaitForeignJob(TryWaitForeignStart input, JobContext ctx, CancellationToken ct)
     {
         var foreign = new EnqueueJobResponse(input.ForeignJobId, input.ForeignJobRef, EnqueueJobAction.Deduplicated);
-        var result = await ctx.TryWaitChildAsync(foreign, LongWait, ct);
+        var result = await ctx.WaitChildAsync(foreign, LongWait, ct);
         await ctx.NoteAsync("foreign wait resumed", ct);
         return Report(result);
     }
@@ -103,14 +103,14 @@ public static class ChildTimeoutProbes
     [Job("job-parent-try-wait-child-then-retry")]
     public static async Task<ChildWaitReport> ParentTryWaitChildThenRetry(JobContext ctx, CancellationToken ct)
     {
-        var first = await ctx.StartChildAsync("first", ctx.JobNamespace, "job-wait-signal", JobPayload.None, ct: ct);
-        var result = await ctx.TryWaitChildAsync(first, LongWait, ct);
+        var first = await ctx.EnqueueChildAsync("first", ctx.JobNamespace, "job-wait-signal", JobPayload.None, ct: ct);
+        var result = await ctx.WaitChildAsync(first, LongWait, ct);
         if (!result.TimedOut)
         {
             return Report(result);
         }
 
-        var replacement = await ctx.StartChildAsync("second", ctx.JobNamespace, "job-child-quick", JobPayload.None, ct: ct);
+        var replacement = await ctx.EnqueueChildAsync("second", ctx.JobNamespace, "job-child-quick", JobPayload.None, ct: ct);
         var landed = await ctx.WaitChildAsync(replacement, ct);
         await ctx.NoteAsync("replacement child joined", ct);
         return new ChildWaitReport(TimedOut: true, Completed: false, result.JobId, ChildOutcomeEntry.Of(landed));

@@ -44,7 +44,7 @@ public interface IJobs
     /// <see cref="JobOutcome.ThrowIfFailed"/> for the throwing path). A wait timeout stops the caller
     /// awaiting; the Job keeps running on its worker.
     /// </summary>
-    ValueTask<JobOutcome> RunAndWaitAsync<TInput>(TInput input, JobExecutionOptions? options = null, CancellationToken ct = default)
+    ValueTask<JobOutcome> CallAsync<TInput>(TInput input, JobExecutionOptions? options = null, CancellationToken ct = default)
         where TInput : notnull;
 
     /// <summary>
@@ -109,16 +109,16 @@ public interface IJobs
 
     /// <summary>
     /// Enqueue-and-wait for a generated call; same waiting semantics as the typed
-    /// <see cref="RunAndWaitAsync{TInput}(TInput, JobExecutionOptions, CancellationToken)"/>, with the job named rather
+    /// <see cref="CallAsync{TInput}(TInput, JobExecutionOptions, CancellationToken)"/>, with the job named rather
     /// than inferred.
     /// </summary>
-    ValueTask<JobOutcome> RunAndWaitAsync<TInput>(JobCall<TInput> job, JobExecutionOptions? options = null, CancellationToken ct = default)
+    ValueTask<JobOutcome> CallAsync<TInput>(JobCall<TInput> job, JobExecutionOptions? options = null, CancellationToken ct = default)
         where TInput : notnull;
 
     /// <summary>
     /// Enqueue-and-wait for a generated call of a job that returns a result, read as <typeparamref name="TResult"/> on success.
     /// </summary>
-    ValueTask<JobOutcome<TResult>> RunAndWaitAsync<TInput, TResult>(
+    ValueTask<JobOutcome<TResult>> CallAsync<TInput, TResult>(
         JobCall<TInput, TResult> job,
         JobExecutionOptions? options = null,
         CancellationToken ct = default
@@ -139,7 +139,7 @@ public interface IJobs
     /// (Acta never opens, commits, rolls back, disposes, or retries it); no worker wakeup is published; the
     /// <see cref="EnqueueJobResponse"/> is provisional until commit and dead after a rollback (SQLite hands a rolled-back
     /// id to the next insert); any exception means rolling back the whole business transaction. No handle and no
-    /// transactional <c>RunAndWaitAsync</c>: the job is invisible until commit.
+    /// transactional <c>CallAsync</c>: the job is invisible until commit.
     /// </summary>
     [OverloadResolutionPriority(1)]
     ValueTask<EnqueueJobResponse> EnqueueAsync(DbTransaction transaction, EnqueueJobRequest request, CancellationToken ct = default);

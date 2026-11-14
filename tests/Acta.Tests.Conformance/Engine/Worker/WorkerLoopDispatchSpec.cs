@@ -174,7 +174,7 @@ public sealed class WorkerLoopDispatchSpec : ActaRuntimeTestBase<ConformanceFixt
         Assert.Equal(WorkerWakeupWaitStatus.TimedOut, ParkedSleepOutcome());
     }
 
-    [Fact(DisplayName = "RunAndWaitAsync observes a colocated completion at wake speed")]
+    [Fact(DisplayName = "CallAsync observes a colocated completion at wake speed")]
     public async Task Execute_observes_a_colocated_completion_at_wake_speed()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -186,7 +186,7 @@ public sealed class WorkerLoopDispatchSpec : ActaRuntimeTestBase<ConformanceFixt
         // either woken by the colocated completion or it times out with the row long since finished.
         // That leaves the wake as the only path to a non-timed-out wait, which is what the assertion
         // below reads.
-        var outcome = await Jobs.RunAndWaitAsync(
+        var outcome = await Jobs.CallAsync(
             new AddNumbers(2, 3),
             new JobExecutionOptions { PollInterval = PollBeyondThisWait, WaitTimeout = CompletionWait },
             ct

@@ -1,7 +1,7 @@
 namespace Acta;
 
 /// <summary>
-/// How a job ended, returned and never thrown, by a caller's wait (<see cref="IJobs.WaitAsync"/>, <c>RunAndWaitAsync</c>,
+/// How a job ended, returned and never thrown, by a caller's wait (<see cref="IJobs.WaitAsync"/>, <c>CallAsync</c>,
 /// <see cref="JobHandle.WaitAsync"/>) and by a handler's wait for a child or a group of children. <see cref="Status"/> is
 /// terminal unless <see cref="TimedOut"/>: then it is the last status a caller's wait observed, or <c>Cancelled</c> for a
 /// child wait, since Acta cancels the unfinished child and its subtree before the handler resumes. The failure reason is
@@ -61,8 +61,8 @@ public class JobOutcome
 
 /// <summary>
 /// A <see cref="JobOutcome"/> with the job's typed <typeparamref name="T"/> result on <c>Succeeded</c>, from a typed wait
-/// (<see cref="IJobs.WaitAsync{TResult}"/>, <see cref="IJobs.RunAndWaitAsync{TInput, TResult}(JobCall{TInput, TResult}, JobExecutionOptions, CancellationToken)"/>)
-/// or a typed <c>ExecuteChildAsync</c>.
+/// (<see cref="IJobs.WaitAsync{TResult}"/>, <see cref="IJobs.CallAsync{TInput, TResult}(JobCall{TInput, TResult}, JobExecutionOptions, CancellationToken)"/>)
+/// or a typed <c>CallChildAsync</c>.
 /// </summary>
 public sealed class JobOutcome<T> : JobOutcome
     where T : notnull

@@ -8,24 +8,24 @@ namespace Acta;
 public abstract partial class JobContext
 {
     /// <summary>
-    /// <see cref="StartChildAsync{TInput}(string, TInput, Action{JobEnqueueOptionsBuilder}, CancellationToken)"/> for a
-    /// generated call: <c>ctx.StartChildAsync("ship", ShippingJobs.Ship(order))</c>.
+    /// <see cref="EnqueueChildAsync{TInput}(string, TInput, Action{JobEnqueueOptionsBuilder}, CancellationToken)"/> for a
+    /// generated call: <c>ctx.EnqueueChildAsync("ship", ShippingJobs.Ship(order))</c>.
     /// </summary>
-    public Task<EnqueueJobResponse> StartChildAsync<TInput>(
+    public Task<EnqueueJobResponse> EnqueueChildAsync<TInput>(
         string name,
         JobCall<TInput> job,
         Action<JobEnqueueOptionsBuilder>? configure = null,
         CancellationToken ct = default
     )
         where TInput : notnull =>
-        StartChildCallAsync(name, job.Contract.ManifestType, job.Contract.JobName, job.Input, null, configure, ct);
+        EnqueueChildCallAsync(name, job.Contract.ManifestType, job.Contract.JobName, job.Input, null, configure, ct);
 
-    /// <inheritdoc cref="StartChildAsync{TInput}(string, JobCall{TInput}, Action{JobEnqueueOptionsBuilder}, CancellationToken)"/>
-    public Task<EnqueueJobResponse> StartChildAsync<TInput>(string name, JobCall<TInput> job, CancellationToken ct)
-        where TInput : notnull => StartChildAsync(name, job, configure: null, ct: ct);
+    /// <inheritdoc cref="EnqueueChildAsync{TInput}(string, JobCall{TInput}, Action{JobEnqueueOptionsBuilder}, CancellationToken)"/>
+    public Task<EnqueueJobResponse> EnqueueChildAsync<TInput>(string name, JobCall<TInput> job, CancellationToken ct)
+        where TInput : notnull => EnqueueChildAsync(name, job, configure: null, ct: ct);
 
-    /// <inheritdoc cref="StartChildAsync{TInput}(string, JobCall{TInput}, Action{JobEnqueueOptionsBuilder}, CancellationToken)"/>
-    public Task<EnqueueJobResponse> StartChildAsync<TInput, TResult>(
+    /// <inheritdoc cref="EnqueueChildAsync{TInput}(string, JobCall{TInput}, Action{JobEnqueueOptionsBuilder}, CancellationToken)"/>
+    public Task<EnqueueJobResponse> EnqueueChildAsync<TInput, TResult>(
         string name,
         JobCall<TInput, TResult> job,
         Action<JobEnqueueOptionsBuilder>? configure = null,
@@ -33,18 +33,18 @@ public abstract partial class JobContext
     )
         where TInput : notnull
         where TResult : notnull =>
-        StartChildCallAsync(name, job.Contract.ManifestType, job.Contract.JobName, job.Input, typeof(TResult), configure, ct);
+        EnqueueChildCallAsync(name, job.Contract.ManifestType, job.Contract.JobName, job.Input, typeof(TResult), configure, ct);
 
-    /// <inheritdoc cref="StartChildAsync{TInput}(string, JobCall{TInput}, Action{JobEnqueueOptionsBuilder}, CancellationToken)"/>
-    public Task<EnqueueJobResponse> StartChildAsync<TInput, TResult>(string name, JobCall<TInput, TResult> job, CancellationToken ct)
+    /// <inheritdoc cref="EnqueueChildAsync{TInput}(string, JobCall{TInput}, Action{JobEnqueueOptionsBuilder}, CancellationToken)"/>
+    public Task<EnqueueJobResponse> EnqueueChildAsync<TInput, TResult>(string name, JobCall<TInput, TResult> job, CancellationToken ct)
         where TInput : notnull
-        where TResult : notnull => StartChildAsync(name, job, configure: null, ct: ct);
+        where TResult : notnull => EnqueueChildAsync(name, job, configure: null, ct: ct);
 
     /// <summary>
-    /// <see cref="ExecuteChildAsync{TInput}(string, TInput, Action{JobEnqueueOptionsBuilder}, CancellationToken)"/> for a
+    /// <see cref="CallChildAsync{TInput}(string, TInput, Action{JobEnqueueOptionsBuilder}, CancellationToken)"/> for a
     /// generated call of a job with no result.
     /// </summary>
-    public async Task<JobOutcome> ExecuteChildAsync<TInput>(
+    public async Task<JobOutcome> CallChildAsync<TInput>(
         string name,
         JobCall<TInput> job,
         Action<JobEnqueueOptionsBuilder>? configure = null,
@@ -52,19 +52,19 @@ public abstract partial class JobContext
     )
         where TInput : notnull
     {
-        ThrowIfInAtMostOnceStep(nameof(ExecuteChildAsync));
-        return await SettleChildAsync(await StartChildAsync(name, job, configure, ct), timeout: null, ct);
+        ThrowIfInAtMostOnceStep(nameof(CallChildAsync));
+        return await SettleChildAsync(await EnqueueChildAsync(name, job, configure, ct), timeout: null, ct);
     }
 
-    /// <inheritdoc cref="ExecuteChildAsync{TInput}(string, JobCall{TInput}, Action{JobEnqueueOptionsBuilder}, CancellationToken)"/>
-    public Task<JobOutcome> ExecuteChildAsync<TInput>(string name, JobCall<TInput> job, CancellationToken ct)
-        where TInput : notnull => ExecuteChildAsync(name, job, configure: null, ct: ct);
+    /// <inheritdoc cref="CallChildAsync{TInput}(string, JobCall{TInput}, Action{JobEnqueueOptionsBuilder}, CancellationToken)"/>
+    public Task<JobOutcome> CallChildAsync<TInput>(string name, JobCall<TInput> job, CancellationToken ct)
+        where TInput : notnull => CallChildAsync(name, job, configure: null, ct: ct);
 
     /// <summary>
-    /// <see cref="ExecuteChildAsync{TInput}(string, TInput, TimeSpan, Action{JobEnqueueOptionsBuilder}, CancellationToken)"/>
+    /// <see cref="CallChildAsync{TInput}(string, TInput, TimeSpan, Action{JobEnqueueOptionsBuilder}, CancellationToken)"/>
     /// for a generated call of a job with no result.
     /// </summary>
-    public async Task<JobOutcome> ExecuteChildAsync<TInput>(
+    public async Task<JobOutcome> CallChildAsync<TInput>(
         string name,
         JobCall<TInput> job,
         TimeSpan timeout,
@@ -73,21 +73,21 @@ public abstract partial class JobContext
     )
         where TInput : notnull
     {
-        ThrowIfInAtMostOnceStep(nameof(ExecuteChildAsync));
+        ThrowIfInAtMostOnceStep(nameof(CallChildAsync));
         ToWaitTimeoutSeconds(timeout);
-        return await SettleChildAsync(await StartChildAsync(name, job, configure, ct), timeout, ct);
+        return await SettleChildAsync(await EnqueueChildAsync(name, job, configure, ct), timeout, ct);
     }
 
-    /// <inheritdoc cref="ExecuteChildAsync{TInput}(string, JobCall{TInput}, TimeSpan, Action{JobEnqueueOptionsBuilder}, CancellationToken)"/>
-    public Task<JobOutcome> ExecuteChildAsync<TInput>(string name, JobCall<TInput> job, TimeSpan timeout, CancellationToken ct)
-        where TInput : notnull => ExecuteChildAsync(name, job, timeout, configure: null, ct: ct);
+    /// <inheritdoc cref="CallChildAsync{TInput}(string, JobCall{TInput}, TimeSpan, Action{JobEnqueueOptionsBuilder}, CancellationToken)"/>
+    public Task<JobOutcome> CallChildAsync<TInput>(string name, JobCall<TInput> job, TimeSpan timeout, CancellationToken ct)
+        where TInput : notnull => CallChildAsync(name, job, timeout, configure: null, ct: ct);
 
     /// <summary>
-    /// <see cref="ExecuteChildAsync{TInput, TResult}(string, TInput, Action{JobEnqueueOptionsBuilder}, CancellationToken)"/>
-    /// for a generated call, which names the result type: <c>ctx.ExecuteChildAsync("ship", ShippingJobs.Ship(order), ct)</c>
+    /// <see cref="CallChildAsync{TInput, TResult}(string, TInput, Action{JobEnqueueOptionsBuilder}, CancellationToken)"/>
+    /// for a generated call, which names the result type: <c>ctx.CallChildAsync("ship", ShippingJobs.Ship(order), ct)</c>
     /// answers the child's outcome with its result.
     /// </summary>
-    public async Task<JobOutcome<TResult>> ExecuteChildAsync<TInput, TResult>(
+    public async Task<JobOutcome<TResult>> CallChildAsync<TInput, TResult>(
         string name,
         JobCall<TInput, TResult> job,
         Action<JobEnqueueOptionsBuilder>? configure = null,
@@ -96,20 +96,20 @@ public abstract partial class JobContext
         where TInput : notnull
         where TResult : notnull
     {
-        ThrowIfInAtMostOnceStep(nameof(ExecuteChildAsync));
-        return await SettleChildAsync<TResult>(await StartChildAsync(name, job, configure, ct), name, timeout: null, ct);
+        ThrowIfInAtMostOnceStep(nameof(CallChildAsync));
+        return await SettleChildAsync<TResult>(await EnqueueChildAsync(name, job, configure, ct), name, timeout: null, ct);
     }
 
-    /// <inheritdoc cref="ExecuteChildAsync{TInput, TResult}(string, JobCall{TInput, TResult}, Action{JobEnqueueOptionsBuilder}, CancellationToken)"/>
-    public Task<JobOutcome<TResult>> ExecuteChildAsync<TInput, TResult>(string name, JobCall<TInput, TResult> job, CancellationToken ct)
+    /// <inheritdoc cref="CallChildAsync{TInput, TResult}(string, JobCall{TInput, TResult}, Action{JobEnqueueOptionsBuilder}, CancellationToken)"/>
+    public Task<JobOutcome<TResult>> CallChildAsync<TInput, TResult>(string name, JobCall<TInput, TResult> job, CancellationToken ct)
         where TInput : notnull
-        where TResult : notnull => ExecuteChildAsync(name, job, configure: null, ct: ct);
+        where TResult : notnull => CallChildAsync(name, job, configure: null, ct: ct);
 
     /// <summary>
-    /// <see cref="ExecuteChildAsync{TInput, TResult}(string, TInput, TimeSpan, Action{JobEnqueueOptionsBuilder}, CancellationToken)"/>
+    /// <see cref="CallChildAsync{TInput, TResult}(string, TInput, TimeSpan, Action{JobEnqueueOptionsBuilder}, CancellationToken)"/>
     /// for a generated call, which names the result type.
     /// </summary>
-    public async Task<JobOutcome<TResult>> ExecuteChildAsync<TInput, TResult>(
+    public async Task<JobOutcome<TResult>> CallChildAsync<TInput, TResult>(
         string name,
         JobCall<TInput, TResult> job,
         TimeSpan timeout,
@@ -119,23 +119,23 @@ public abstract partial class JobContext
         where TInput : notnull
         where TResult : notnull
     {
-        ThrowIfInAtMostOnceStep(nameof(ExecuteChildAsync));
+        ThrowIfInAtMostOnceStep(nameof(CallChildAsync));
         ToWaitTimeoutSeconds(timeout);
-        return await SettleChildAsync<TResult>(await StartChildAsync(name, job, configure, ct), name, timeout, ct);
+        return await SettleChildAsync<TResult>(await EnqueueChildAsync(name, job, configure, ct), name, timeout, ct);
     }
 
-    /// <inheritdoc cref="ExecuteChildAsync{TInput, TResult}(string, JobCall{TInput, TResult}, TimeSpan, Action{JobEnqueueOptionsBuilder}, CancellationToken)"/>
-    public Task<JobOutcome<TResult>> ExecuteChildAsync<TInput, TResult>(
+    /// <inheritdoc cref="CallChildAsync{TInput, TResult}(string, JobCall{TInput, TResult}, TimeSpan, Action{JobEnqueueOptionsBuilder}, CancellationToken)"/>
+    public Task<JobOutcome<TResult>> CallChildAsync<TInput, TResult>(
         string name,
         JobCall<TInput, TResult> job,
         TimeSpan timeout,
         CancellationToken ct
     )
         where TInput : notnull
-        where TResult : notnull => ExecuteChildAsync(name, job, timeout, configure: null, ct: ct);
+        where TResult : notnull => CallChildAsync(name, job, timeout, configure: null, ct: ct);
 
     [DebuggerDisableUserUnhandledExceptions]
-    private async Task<EnqueueJobResponse> StartChildCallAsync<TInput>(
+    private async Task<EnqueueJobResponse> EnqueueChildCallAsync<TInput>(
         string name,
         Type? manifestType,
         string? jobName,
@@ -150,14 +150,14 @@ public abstract partial class JobContext
         ArgumentNullException.ThrowIfNull(input);
 
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, CancellationToken);
-        return await StartChildCallCoreAsync(manifestType, jobName, input, resultType, BuildChildOptions(name, configure), linked.Token);
+        return await EnqueueChildCallCoreAsync(manifestType, jobName, input, resultType, BuildChildOptions(name, configure), linked.Token);
     }
 
     /// <summary>
     /// Subclass sink: child enqueue of a generated call, routed by the job the call names; a
     /// <paramref name="resultType"/> is checked against the job's own.
     /// </summary>
-    private protected abstract Task<EnqueueJobResponse> StartChildCallCoreAsync<TInput>(
+    private protected abstract Task<EnqueueJobResponse> EnqueueChildCallCoreAsync<TInput>(
         Type? manifestType,
         string? jobName,
         TInput input,

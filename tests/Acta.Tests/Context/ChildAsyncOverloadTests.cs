@@ -4,7 +4,7 @@ namespace Acta.Tests.Context;
 
 /// <summary>
 /// Overload-resolution and forwarding tests for the positional-<c>ct</c> convenience overloads of
-/// <c>StartChildAsync{TInput}</c> and <c>ExecuteChildAsync</c>: a bare <c>ct</c> in the third slot
+/// <c>EnqueueChildAsync{TInput}</c> and <c>CallChildAsync</c>: a bare <c>ct</c> in the third slot
 /// must resolve to the new overload and behave identically to the named
 /// <c>configure: null, ct: ct</c> form (same deduplication key, same parent, same outcome).
 /// </summary>
@@ -13,13 +13,13 @@ public sealed class ChildAsyncOverloadTests
     private readonly record struct Probe;
 
     [Fact]
-    public async Task StartChildAsync_positional_ct_forwards_configure_null_like_the_named_form()
+    public async Task EnqueueChildAsync_positional_ct_forwards_configure_null_like_the_named_form()
     {
         var viaPositional = new RecordingJobContext();
         var viaNamed = new RecordingJobContext();
 
-        await viaPositional.StartChildAsync("reserve-inventory", new Probe(), TestContext.Current.CancellationToken);
-        await viaNamed.StartChildAsync("reserve-inventory", new Probe(), configure: null, ct: TestContext.Current.CancellationToken);
+        await viaPositional.EnqueueChildAsync("reserve-inventory", new Probe(), TestContext.Current.CancellationToken);
+        await viaNamed.EnqueueChildAsync("reserve-inventory", new Probe(), configure: null, ct: TestContext.Current.CancellationToken);
 
         var positional = Assert.Single(viaPositional.StartOptions);
         var named = Assert.Single(viaNamed.StartOptions);
@@ -28,11 +28,11 @@ public sealed class ChildAsyncOverloadTests
     }
 
     [Fact]
-    public async Task ExecuteChildAsync_void_positional_ct_forwards_configure_null_and_reports_success()
+    public async Task CallChildAsync_void_positional_ct_forwards_configure_null_and_reports_success()
     {
         var ctx = new RecordingJobContext();
 
-        var outcome = await ctx.ExecuteChildAsync("reserve-inventory", new Probe(), TestContext.Current.CancellationToken);
+        var outcome = await ctx.CallChildAsync("reserve-inventory", new Probe(), TestContext.Current.CancellationToken);
 
         Assert.True(outcome.Succeeded);
         var options = Assert.Single(ctx.StartOptions);
@@ -51,18 +51,18 @@ public sealed class ChildAsyncOverloadTests
         var minute = TimeSpan.FromMinutes(1);
         (string Sink, Func<RecordingJobContext, Task> Call)[] forms =
         [
-            ("call:probe:none", c => c.StartChildAsync("child", plain)),
-            ("call:probe:none", c => c.StartChildAsync("child", plain, ct)),
-            ("call:probe:Int32", c => c.StartChildAsync("child", typed)),
-            ("call:probe:Int32", c => c.StartChildAsync("child", typed, ct)),
-            ("call:probe:none", c => c.ExecuteChildAsync("child", plain)),
-            ("call:probe:none", c => c.ExecuteChildAsync("child", plain, ct)),
-            ("call:probe:none", c => c.ExecuteChildAsync("child", plain, minute)),
-            ("call:probe:none", c => c.ExecuteChildAsync("child", plain, minute, ct)),
-            ("call:probe:Int32", c => c.ExecuteChildAsync("child", typed)),
-            ("call:probe:Int32", c => c.ExecuteChildAsync("child", typed, ct)),
-            ("call:probe:Int32", c => c.ExecuteChildAsync("child", typed, minute)),
-            ("call:probe:Int32", c => c.ExecuteChildAsync("child", typed, minute, ct)),
+            ("call:probe:none", c => c.EnqueueChildAsync("child", plain)),
+            ("call:probe:none", c => c.EnqueueChildAsync("child", plain, ct)),
+            ("call:probe:Int32", c => c.EnqueueChildAsync("child", typed)),
+            ("call:probe:Int32", c => c.EnqueueChildAsync("child", typed, ct)),
+            ("call:probe:none", c => c.CallChildAsync("child", plain)),
+            ("call:probe:none", c => c.CallChildAsync("child", plain, ct)),
+            ("call:probe:none", c => c.CallChildAsync("child", plain, minute)),
+            ("call:probe:none", c => c.CallChildAsync("child", plain, minute, ct)),
+            ("call:probe:Int32", c => c.CallChildAsync("child", typed)),
+            ("call:probe:Int32", c => c.CallChildAsync("child", typed, ct)),
+            ("call:probe:Int32", c => c.CallChildAsync("child", typed, minute)),
+            ("call:probe:Int32", c => c.CallChildAsync("child", typed, minute, ct)),
         ];
 
         foreach (var (sink, call) in forms)
@@ -80,17 +80,17 @@ public sealed class ChildAsyncOverloadTests
         var ctx = new RecordingJobContext { SeededChildResult = 42 };
         var call = new JobCall<Probe, int>(new JobContract<Probe, int>(typeof(ChildAsyncOverloadTests), "probe"), new Probe());
 
-        JobOutcome<int> outcome = await ctx.ExecuteChildAsync("child", call, TestContext.Current.CancellationToken);
+        JobOutcome<int> outcome = await ctx.CallChildAsync("child", call, TestContext.Current.CancellationToken);
 
         Assert.Equal(42, outcome.ValueOrThrow());
     }
 
     [Fact]
-    public async Task ExecuteChildAsync_generic_positional_ct_forwards_configure_null_and_returns_the_seeded_result()
+    public async Task CallChildAsync_generic_positional_ct_forwards_configure_null_and_returns_the_seeded_result()
     {
         var ctx = new RecordingJobContext { SeededChildResult = 42 };
 
-        var outcome = await ctx.ExecuteChildAsync<Probe, int>("reserve-inventory", new Probe(), TestContext.Current.CancellationToken);
+        var outcome = await ctx.CallChildAsync<Probe, int>("reserve-inventory", new Probe(), TestContext.Current.CancellationToken);
 
         Assert.True(outcome.Succeeded);
         Assert.Equal(42, outcome.ValueOrThrow());

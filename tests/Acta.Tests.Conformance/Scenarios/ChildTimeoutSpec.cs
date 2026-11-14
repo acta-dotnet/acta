@@ -6,7 +6,7 @@ using Xunit;
 namespace Acta.Tests.Conformance.Scenarios;
 
 /// <summary>
-/// Conformance for durable child-wait timeouts: <c>TryWaitChildAsync</c> rides the same expiration the
+/// Conformance for durable child-wait timeouts: <c>WaitChildAsync</c> rides the same expiration the
 /// signal waits use, an expired child latch resolves TimedOut once, and the resolution cancels the
 /// awaited child and its descendants without ever touching the parent. A child landing terminal after
 /// the flip revives nothing.

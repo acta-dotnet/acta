@@ -1,6 +1,6 @@
-// Concept: reading a JobOutcome from RunAndWaitAsync -- timeout, failure, and success paths.
+// Concept: reading a JobOutcome from CallAsync -- timeout, failure, and success paths.
 using Acta;
-using Acta.Concepts.ExecuteOutcomeTimeout;
+using Acta.Concepts.CallOutcomeTimeout;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -9,7 +9,7 @@ var builder = Host.CreateApplicationBuilder(args);
 builder.Services.UseActa(j =>
 {
     j.UseLocalDatabase(builder.Configuration);
-    j.Run<ExecuteOutcomeTimeoutJobs>("execute-outcome-timeout");
+    j.Run<CallOutcomeTimeoutJobs>("call-outcome-timeout");
 });
 
 using var host = builder.Build();
@@ -21,13 +21,13 @@ var jobs = host.Services.GetRequiredService<IJobs>();
 // The job keeps running on the worker; the caller just stops waiting.
 Console.WriteLine("--- (a) timeout ---");
 var opts = new JobExecutionOptions { WaitTimeout = TimeSpan.FromMilliseconds(200), PollInterval = TimeSpan.FromMilliseconds(50) };
-var timedOut = await jobs.RunAndWaitAsync(ExecuteOutcomeTimeoutJobs.SlowReport(), opts);
+var timedOut = await jobs.CallAsync(CallOutcomeTimeoutJobs.SlowReport(), opts);
 Console.WriteLine($"TimedOut: {timedOut.TimedOut}");
 Console.WriteLine($"Succeeded: {timedOut.Succeeded}");
 
 // (b) Failing handler -> Status is Failed; ThrowIfFailed throws JobFailedException; TryGetValue is false.
 Console.WriteLine("--- (b) failure ---");
-var failed = await jobs.RunAndWaitAsync(ExecuteOutcomeTimeoutJobs.FailingReport());
+var failed = await jobs.CallAsync(CallOutcomeTimeoutJobs.FailingReport());
 Console.WriteLine($"Status: {failed.Status}");
 try
 {
@@ -41,14 +41,14 @@ Console.WriteLine($"TryGetValue: {failed.TryGetValue(out _)}");
 
 // (c) Success -> ValueOrThrow returns the handler's result.
 Console.WriteLine("--- (c) success ---");
-var success = await jobs.RunAndWaitAsync(ExecuteOutcomeTimeoutJobs.SuccessReport());
+var success = await jobs.CallAsync(CallOutcomeTimeoutJobs.SuccessReport());
 Console.WriteLine($"Succeeded: {success.Succeeded}");
 var result = success.ValueOrThrow();
 Console.WriteLine($"ValueOrThrow: {result.Summary}");
 
 await host.StopAsync();
 
-namespace Acta.Concepts.ExecuteOutcomeTimeout
+namespace Acta.Concepts.CallOutcomeTimeout
 {
     public readonly record struct SlowReport;
 

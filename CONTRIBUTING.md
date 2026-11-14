@@ -445,11 +445,15 @@ Server scopes constraint names and PostgreSQL index names to the schema, not the
   columns, TTLs, heartbeats: the execution lease on `jobs_state`, the lease on a lock hold - never a
   table or a store. `ExtendWorkerLeases` "extends the leases" of the executions and lock holds a
   worker holds; that layering is the rule.
-- **`run` is the verb, `execution` is the noun.** You run a step (`RunStepAsync`,
-  `RunWithLockAsync`, `builder.Run`, `RunAndWaitAsync`); the ledger records an execution
+- **`run` is the verb, `execution` is the noun.** You run a step here (`RunStepAsync`,
+  `RunWithLockAsync`, `builder.Run`); the ledger records an execution
   (`ExecutionNumber`, the dashboard's Executions list), with `attempt` as the retry-ledger
   synonym. "Run" never appears as a product noun. `NextRunAtUtc` stays: it is the verb phrase "next
   runs at". Anvil's certification "run" is internal-tool jargon, out of band.
+- **`call` sends a job and waits for its outcome; `enqueue` sends it without waiting.** A `JobCall`
+  is either enqueued (`EnqueueAsync`, `ctx.EnqueueChildAsync`) or called (`CallAsync`,
+  `ctx.CallChildAsync`), and a handler's call waits durably. A child is a job on any worker with its
+  own retries, so it is called, never run.
 - **`pause` stops a runnable thing's progress; `suspend` closes admission of new work.** This is
   why a job or schedule pauses while a namespace or tenant suspends, and why the outbox relay would
   pause rather than suspend.

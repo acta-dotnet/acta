@@ -14,7 +14,7 @@
     <Project Path="000-fundamentals/012-read-status/012-read-status.csproj" />
     <Project Path="000-fundamentals/013-read-result/013-read-result.csproj" />
     <Project Path="000-fundamentals/014-read-by-deduplication-key/014-read-by-deduplication-key.csproj" />
-    <Project Path="000-fundamentals/015-execute-vs-enqueue/015-execute-vs-enqueue.csproj" />
+    <Project Path="000-fundamentals/015-call-vs-enqueue/015-call-vs-enqueue.csproj" />
     <Project Path="000-fundamentals/016-max-attempts/016-max-attempts.csproj" />
     <Project Path="000-fundamentals/017-priority/017-priority.csproj" />
     <Project Path="000-fundamentals/018-tags/018-tags.csproj" />
@@ -53,9 +53,9 @@
     <Project Path="200-durable-execution/210-step-retry/210-step-retry.csproj" />
     <Project Path="200-durable-execution/211-child-jobs/211-child-jobs.csproj" />
     <Project Path="200-durable-execution/212-fan-out-join/212-fan-out-join.csproj" />
-    <Project Path="200-durable-execution/213-execute-child/213-execute-child.csproj" />
+    <Project Path="200-durable-execution/213-call-child/213-call-child.csproj" />
     <Project Path="200-durable-execution/214-reset-state/214-reset-state.csproj" />
-    <Project Path="200-durable-execution/215-map-parallel-join/215-map-parallel-join.csproj" />
+    <Project Path="200-durable-execution/215-map-wait-children/215-map-wait-children.csproj" />
     <Project Path="200-durable-execution/216-variable-lifecycle/216-variable-lifecycle.csproj" />
     <Project Path="200-durable-execution/217-absolute-time-controls/217-absolute-time-controls.csproj" />
     <Project Path="200-durable-execution/219-child-failure-outcomes/219-child-failure-outcomes.csproj" />
@@ -72,7 +72,7 @@
     <Project Path="300-failure-and-recovery/308-deadline-advisory/308-deadline-advisory.csproj" />
     <Project Path="300-failure-and-recovery/309-operator-resume/309-operator-resume.csproj" />
     <Project Path="300-failure-and-recovery/310-operator-restart/310-operator-restart.csproj" />
-    <Project Path="300-failure-and-recovery/311-execute-outcome-timeout/311-execute-outcome-timeout.csproj" />
+    <Project Path="300-failure-and-recovery/311-call-outcome-timeout/311-call-outcome-timeout.csproj" />
     <Project Path="300-failure-and-recovery/312-backoff-curve/312-backoff-curve.csproj" />
   </Folder>
   <Folder Name="/400-observability-and-alerts/">

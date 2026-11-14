@@ -203,7 +203,7 @@ public sealed partial class OperationsIndexTests
 
     // A public facade method runs an operation when its body names the operation's handler field, command, or query,
     // directly, through the method it calls on a helper class of the group, or through another method of the facade that
-    // it or such a helper method calls (RunAndWaitAsync runs EnqueueJob through JobRunAndWait.RunAsync, which calls
+    // it or such a helper method calls (CallAsync runs EnqueueJob through JobRunAndWait.RunAsync, which calls
     // IJobs.EnqueueAsync; WaitAsync calls JobRunAndWait.WaitAsync, which enqueues nothing).
     // The facade is the group's <Group>Operations class implementing I<Group>, and only the methods I<Group> declares
     // count: the class's engine calls are not on the public surface.

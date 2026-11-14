@@ -24,7 +24,7 @@ namespace Acta.Tests.Conformance.Scenarios;
     "job-child-group-hold",
     "job-child-quick",
     "job-child-with-grandchild",
-    "job-parent-execute-child-bounded",
+    "job-parent-call-child-bounded",
     "job-parent-join-children",
     "job-parent-join-children-subtree",
     "job-parent-join-children-unbounded",
@@ -358,11 +358,11 @@ public sealed class ChildGroupTimeoutSpec : ActaRuntimeTestBase<ConformanceFixtu
         Assert.Equal(CheckpointStatusCode.Expired, Assert.Single(await ReadLatchesAsync(expired.JobId, ct)).Status);
     }
 
-    [Fact(DisplayName = "A bounded ExecuteChild reports the timeout on its job outcome")]
+    [Fact(DisplayName = "A bounded CallChild reports the timeout on its job outcome")]
     public async Task Bounded_execute_child_surfaces_the_timeout()
     {
         var ct = TestContext.Current.CancellationToken;
-        var parent = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-parent-execute-child-bounded", JobPayload.None), ct);
+        var parent = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-parent-call-child-bounded", JobPayload.None), ct);
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(parent, ct));
         var child = await OnlyChildAsync(parent.JobId, ct);
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(child, ct));

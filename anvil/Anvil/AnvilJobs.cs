@@ -158,7 +158,7 @@ public static class OutboxReceiptJob
 
 public static class FanOutJob
 {
-    // Replay-safe fan-out: each StartChildAsync name is that child's dedup key, so a suspend/resume
+    // Replay-safe fan-out: each EnqueueChildAsync name is that child's dedup key, so a suspend/resume
     // replay of this loop returns the already-started children instead of inserting duplicates. The
     // start answers are rebuilt on every replay - no static or in-process state carries them.
     [Job("fan-out")]
@@ -167,10 +167,10 @@ public static class FanOutJob
         var children = new List<EnqueueJobResponse>(input.ChildCount);
         for (var i = 0; i < input.ChildCount; i++)
         {
-            children.Add(await ctx.StartChildAsync($"child-{i}", new SteadySuccess($"{input.Label}-child-{i}", 50), ct: ct));
+            children.Add(await ctx.EnqueueChildAsync($"child-{i}", new SteadySuccess($"{input.Label}-child-{i}", 50), ct: ct));
         }
 
-        var joined = await ctx.JoinAsync(children, ct);
+        var joined = await ctx.WaitChildrenAsync(children, ct);
         var succeeded = joined.Children.Count(outcome => outcome.Succeeded);
         return $"fan-out {input.Label}: {succeeded}/{joined.Children.Count} children succeeded";
     }

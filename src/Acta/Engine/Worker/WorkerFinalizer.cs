@@ -642,7 +642,7 @@ internal sealed partial class WorkerFinalizer(
     /// Set while the handler ran lands the job Ready inside complete_executions, which no other publish site sees. A
     /// final Ready wakes the namespace's claim loops (due now is WorkAvailable, a run time ahead of db_now is
     /// HorizonChanged so sleeping loops re-read their horizon); a final terminal status wakes the job's completion
-    /// channel for a colocated RunAndWaitAsync caller.
+    /// channel for a colocated CallAsync caller.
     /// </summary>
     private async Task WakeAsync(CompleteExecutionsRow complete, ClaimedJob job, string ns, CancellationToken ct)
     {

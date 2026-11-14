@@ -53,15 +53,13 @@ public sealed class JobContextWaitTimeoutTests
     {
         var ct = TestContext.Current.CancellationToken;
         var ctx = new RecordingJobContext();
-        var child = await ctx.StartChildAsync("only", new { }, ct: ct);
+        var child = await ctx.EnqueueChildAsync("only", new { }, ct: ct);
 
         var badTimeout = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
-            ctx.TryWaitChildAsync(child, TimeSpan.FromSeconds(seconds), ct)
+            ctx.WaitChildAsync(child, TimeSpan.FromSeconds(seconds), ct)
         );
-        var badId = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
-            ctx.TryWaitChildAsync(Child(0), TimeSpan.FromMinutes(5), ct)
-        );
-        await Assert.ThrowsAsync<ArgumentNullException>(() => ctx.TryWaitChildAsync(null!, TimeSpan.FromMinutes(5), ct));
+        var badId = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => ctx.WaitChildAsync(Child(0), TimeSpan.FromMinutes(5), ct));
+        await Assert.ThrowsAsync<ArgumentNullException>(() => ctx.WaitChildAsync(null!, TimeSpan.FromMinutes(5), ct));
 
         // Each throw names the argument the caller actually got wrong, not whichever guard ran first.
         Assert.Equal("timeout", badTimeout.ParamName);
@@ -74,9 +72,9 @@ public sealed class JobContextWaitTimeoutTests
     {
         var ct = TestContext.Current.CancellationToken;
         var ctx = new RecordingJobContext();
-        var child = await ctx.StartChildAsync("only", new { }, ct: ct);
+        var child = await ctx.EnqueueChildAsync("only", new { }, ct: ct);
 
-        var result = await ctx.TryWaitChildAsync(child, TimeSpan.FromMinutes(5), ct);
+        var result = await ctx.WaitChildAsync(child, TimeSpan.FromMinutes(5), ct);
 
         Assert.False(result.TimedOut);
         Assert.Equal((child.JobId, child.JobRef), (result.JobId, result.JobRef));
@@ -90,7 +88,7 @@ public sealed class JobContextWaitTimeoutTests
         var ct = TestContext.Current.CancellationToken;
         var ctx = new TimingOutChildContext();
 
-        var result = await ctx.TryWaitChildAsync(Child(7), TimeSpan.FromMinutes(5), ct);
+        var result = await ctx.WaitChildAsync(Child(7), TimeSpan.FromMinutes(5), ct);
 
         // The ordering is the point: the handler must never regain control while the subtree it gave
         // up on is still live. The outcome reports Cancelled, the status Acta drove the child to.
@@ -107,8 +105,8 @@ public sealed class JobContextWaitTimeoutTests
         var ctx = new RecordingJobContext();
         var zero = TimeSpan.Zero;
 
-        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => ctx.ExecuteChildAsync("only", new { }, zero, ct));
-        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => ctx.ExecuteChildAsync<object, string>("only", new { }, zero, ct));
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => ctx.CallChildAsync("only", new { }, zero, ct));
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => ctx.CallChildAsync<object, string>("only", new { }, zero, ct));
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => ctx.ParallelAsync("grp", b => b.Child("a", new { }), zero, ct));
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => ctx.MapAsync("grp", (int[])[1], i => i, i => new { }, zero, ct));
 
@@ -123,7 +121,7 @@ public sealed class JobContextWaitTimeoutTests
         var ct = TestContext.Current.CancellationToken;
         var ctx = new RecordingJobContext();
 
-        var result = await ctx.JoinAsync([], TimeSpan.FromMinutes(5), ct);
+        var result = await ctx.WaitChildrenAsync([], TimeSpan.FromMinutes(5), ct);
 
         Assert.Empty(result.Children);
         Assert.False(result.TimedOut);
@@ -138,7 +136,7 @@ public sealed class JobContextWaitTimeoutTests
         var ctx = new TimingOutChildContext();
 
         var seven = Child(7);
-        var result = await ctx.JoinAsync([seven, Child(9)], TimeSpan.FromMinutes(5), ct);
+        var result = await ctx.WaitChildrenAsync([seven, Child(9)], TimeSpan.FromMinutes(5), ct);
 
         Assert.True(result.TimedOut);
         Assert.False(result.Succeeded);
@@ -161,7 +159,7 @@ public sealed class JobContextWaitTimeoutTests
         var ct = TestContext.Current.CancellationToken;
         var ctx = new FixedDeadlineContext();
 
-        await ctx.JoinAsync([Child(7), Child(9), Child(11)], TimeSpan.FromMinutes(5), ct);
+        await ctx.WaitChildrenAsync([Child(7), Child(9), Child(11)], TimeSpan.FromMinutes(5), ct);
 
         // Each member is bounded by the one stored instant rather than by a length measured when the walk
         // reaches it, so however long the walk takes, no member's expiry lands past the group's deadline.
@@ -178,7 +176,7 @@ public sealed class JobContextWaitTimeoutTests
         var ct = TestContext.Current.CancellationToken;
         var ctx = new FixedDeadlineContext();
 
-        await ctx.JoinAsync([Child(7), Child(9)], TimeSpan.FromMilliseconds(milliseconds), ct);
+        await ctx.WaitChildrenAsync([Child(7), Child(9)], TimeSpan.FromMilliseconds(milliseconds), ct);
 
         // A single child's bound rounds up to whole seconds, and a group's is documented the same: a millisecond
         // passed through as written would be spent by the round trip that stores it.
@@ -204,8 +202,8 @@ public sealed class JobContextWaitTimeoutTests
         var ascending = new TimingOutChildContext();
         var descending = new TimingOutChildContext();
 
-        await ascending.JoinAsync([Child(7), Child(9)], TimeSpan.FromMinutes(5), ct);
-        var result = await descending.JoinAsync([Child(9), Child(7)], TimeSpan.FromMinutes(5), ct);
+        await ascending.WaitChildrenAsync([Child(7), Child(9)], TimeSpan.FromMinutes(5), ct);
+        var result = await descending.WaitChildrenAsync([Child(9), Child(7)], TimeSpan.FromMinutes(5), ct);
 
         // The checkpoint names the SET of children, so a handler that lists the same ids in a different order
         // between replays cannot mint a second deadline and restart the group's budget.

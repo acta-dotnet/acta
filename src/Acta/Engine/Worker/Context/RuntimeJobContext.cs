@@ -351,16 +351,16 @@ internal sealed partial class RuntimeJobContext(
         return serializer.Deserialize<T>(payload);
     }
 
-    private protected override Task<EnqueueJobResponse> StartChildCoreAsync<TInput>(
+    private protected override Task<EnqueueJobResponse> EnqueueChildCoreAsync<TInput>(
         TInput input,
         JobEnqueueOptions options,
         CancellationToken ct
     ) => FencedAsync(() => _jobOperations.EnqueueChildAsync(input, options, Fence, ct).AsTask());
 
-    private protected override Task<EnqueueJobResponse> StartChildCoreAsync(EnqueueJobRequest request, CancellationToken ct) =>
+    private protected override Task<EnqueueJobResponse> EnqueueChildCoreAsync(EnqueueJobRequest request, CancellationToken ct) =>
         FencedAsync(() => _jobOperations.EnqueueChildAsync(request, Fence, ct).AsTask());
 
-    private protected override Task<EnqueueJobResponse> StartChildCallCoreAsync<TInput>(
+    private protected override Task<EnqueueJobResponse> EnqueueChildCallCoreAsync<TInput>(
         Type? manifestType,
         string? jobName,
         TInput input,

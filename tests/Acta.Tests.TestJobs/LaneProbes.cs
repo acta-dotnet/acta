@@ -80,7 +80,7 @@ public static class LaneProbes
     [Job("lane-parent-waits")]
     public static async Task ParentWaits(LaneParentStep input, JobContext ctx, CancellationToken ct)
     {
-        var child = await ctx.StartChildAsync(
+        var child = await ctx.EnqueueChildAsync(
             "child",
             new LaneStep(input.ChildLane, input.Label + "-child"),
             options => options.Lane(input.ChildLane),

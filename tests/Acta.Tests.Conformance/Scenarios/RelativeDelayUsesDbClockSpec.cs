@@ -64,7 +64,7 @@ public sealed class RelativeDelayUsesDbClockSpec : ActaRuntimeTestBase<Conforman
         var local = new DateTime(2030, 1, 1, 12, 0, 0, DateTimeKind.Local);
         // JobExecutionOptions is the one options object a caller still passes whole, so the run-and-wait carries the instant;
         // its wait times out long before 2030, and the row is what this reads.
-        var enqueued = await Jobs.RunAndWaitAsync(
+        var enqueued = await Jobs.CallAsync(
             new AddNumbers(5, 6),
             new JobExecutionOptions { NextRunAtUtc = local, WaitTimeout = TimeSpan.FromMilliseconds(50) },
             ct

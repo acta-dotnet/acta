@@ -48,7 +48,7 @@ public static class ChildGroupTimeoutProbes
     public static async Task<ChildGroupReport> ParentJoinChildren(ChildGroupStart input, JobContext ctx, CancellationToken ct)
     {
         var children = await StartGroupAsync(ctx, input.ChildJobNames, ct);
-        var result = await ctx.JoinAsync(children, LongWait, ct);
+        var result = await ctx.WaitChildrenAsync(children, LongWait, ct);
         await ctx.NoteAsync("group wait resumed", ct);
         await ctx.SetVariableAsync("ran.after", true, ct);
         return Report(result);
@@ -66,7 +66,7 @@ public static class ChildGroupTimeoutProbes
     )
     {
         var children = await StartGroupAsync(ctx, input.ChildJobNames, ct);
-        var result = await ctx.JoinAsync(children, ct);
+        var result = await ctx.WaitChildrenAsync(children, ct);
         await ctx.NoteAsync("group wait resumed", ct);
         await ctx.SetVariableAsync("ran.after", true, ct);
         return Report(result);
@@ -80,11 +80,11 @@ public static class ChildGroupTimeoutProbes
     [Job("job-parent-join-children-subtree")]
     public static async Task<ChildGroupReport> ParentJoinChildrenSubtree(JobContext ctx, CancellationToken ct)
     {
-        var deep = await ctx.StartChildAsync("deep", ctx.JobNamespace, "job-child-with-grandchild", JobPayload.None, ct: ct);
-        var quick = await ctx.StartChildAsync("quick", ctx.JobNamespace, "job-child-quick", JobPayload.None, ct: ct);
-        await ctx.StartChildAsync("sibling", ctx.JobNamespace, "job-wait-signal", JobPayload.None, ct: ct);
+        var deep = await ctx.EnqueueChildAsync("deep", ctx.JobNamespace, "job-child-with-grandchild", JobPayload.None, ct: ct);
+        var quick = await ctx.EnqueueChildAsync("quick", ctx.JobNamespace, "job-child-quick", JobPayload.None, ct: ct);
+        await ctx.EnqueueChildAsync("sibling", ctx.JobNamespace, "job-wait-signal", JobPayload.None, ct: ct);
 
-        var result = await ctx.JoinAsync([deep, quick], LongWait, ct);
+        var result = await ctx.WaitChildrenAsync([deep, quick], LongWait, ct);
         await ctx.NoteAsync("group wait resumed", ct);
         await ctx.SetVariableAsync("ran.after", true, ct);
         return Report(result);
@@ -98,12 +98,12 @@ public static class ChildGroupTimeoutProbes
     [Job("job-parent-two-groups")]
     public static async Task<TwoGroupReport> ParentTwoGroups(JobContext ctx, CancellationToken ct)
     {
-        var a0 = await ctx.StartChildAsync("a0", ctx.JobNamespace, "job-wait-signal", JobPayload.None, ct: ct);
-        var a1 = await ctx.StartChildAsync("a1", ctx.JobNamespace, "job-wait-signal", JobPayload.None, ct: ct);
-        var b0 = await ctx.StartChildAsync("b0", ctx.JobNamespace, "job-wait-signal", JobPayload.None, ct: ct);
+        var a0 = await ctx.EnqueueChildAsync("a0", ctx.JobNamespace, "job-wait-signal", JobPayload.None, ct: ct);
+        var a1 = await ctx.EnqueueChildAsync("a1", ctx.JobNamespace, "job-wait-signal", JobPayload.None, ct: ct);
+        var b0 = await ctx.EnqueueChildAsync("b0", ctx.JobNamespace, "job-wait-signal", JobPayload.None, ct: ct);
 
-        var first = await ctx.JoinAsync([a0, a1], LongWait, ct);
-        var second = await ctx.JoinAsync([b0], LongerWait, ct);
+        var first = await ctx.WaitChildrenAsync([a0, a1], LongWait, ct);
+        var second = await ctx.WaitChildrenAsync([b0], LongerWait, ct);
         await ctx.NoteAsync("both groups resolved", ct);
         return new TwoGroupReport(Report(first), Report(second));
     }
@@ -116,18 +116,18 @@ public static class ChildGroupTimeoutProbes
     [Job("job-parent-re-wait-same-group")]
     public static async Task<TwoGroupReport> ParentReWaitSameGroup(JobContext ctx, CancellationToken ct)
     {
-        var c0 = await ctx.StartChildAsync("c0", ctx.JobNamespace, "job-wait-signal", JobPayload.None, ct: ct);
+        var c0 = await ctx.EnqueueChildAsync("c0", ctx.JobNamespace, "job-wait-signal", JobPayload.None, ct: ct);
 
-        var first = await ctx.JoinAsync([c0], LongWait, ct);
-        var second = await ctx.JoinAsync([c0], LongWait, ct);
+        var first = await ctx.WaitChildrenAsync([c0], LongWait, ct);
+        var second = await ctx.WaitChildrenAsync([c0], LongWait, ct);
         await ctx.NoteAsync("re-wait resolved", ct);
         return new TwoGroupReport(Report(first), Report(second));
     }
 
-    [Job("job-parent-execute-child-bounded")]
-    public static async Task<ChildOutcomeEntry> ParentExecuteChildBounded(JobContext ctx, CancellationToken ct)
+    [Job("job-parent-call-child-bounded")]
+    public static async Task<ChildOutcomeEntry> ParentCallChildBounded(JobContext ctx, CancellationToken ct)
     {
-        var outcome = await ctx.ExecuteChildAsync("only", new GroupHold("only"), LongWait, ct);
+        var outcome = await ctx.CallChildAsync("only", new GroupHold("only"), LongWait, ct);
         await ctx.NoteAsync("execute child resumed", ct);
         return ChildOutcomeEntry.Of(outcome);
     }
@@ -166,7 +166,7 @@ public static class ChildGroupTimeoutProbes
         var children = new EnqueueJobResponse[childJobNames.Count];
         for (var i = 0; i < childJobNames.Count; i++)
         {
-            children[i] = await ctx.StartChildAsync($"c{i}", ctx.JobNamespace, childJobNames[i], JobPayload.None, ct: ct);
+            children[i] = await ctx.EnqueueChildAsync($"c{i}", ctx.JobNamespace, childJobNames[i], JobPayload.None, ct: ct);
         }
         return children;
     }

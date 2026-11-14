@@ -204,7 +204,7 @@ The terms for internal structure; where each piece lives is [source layout](../C
 
 ### Handler contract
 
-- **Two handler attributes and two invocation modes.** `[Job]` and `[Schedule]` (namespace declared at `Run(...)`; steps have no attribute); callers use `EnqueueAsync` or `ScheduleAsync`, follow the answered `JobHandle` with `WaitAsync`, or do both in one `RunAndWaitAsync`. *Reason:* the declarative surface stays small.
+- **Two handler attributes and two invocation modes.** `[Job]` and `[Schedule]` (namespace declared at `Run(...)`; steps have no attribute); callers use `EnqueueAsync` or `ScheduleAsync`, follow the answered `JobHandle` with `WaitAsync`, or do both in one `CallAsync`. *Reason:* the declarative surface stays small.
 - **The handler-contract specification lives in [the handler contract](./developer-guide.md#handler-contract)**: shapes, placement, payload inference, exception semantics, diagnostics. *Reason:* one decision record per seam.
 
 ### Tooling

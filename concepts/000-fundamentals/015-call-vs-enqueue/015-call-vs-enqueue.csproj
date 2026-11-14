@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <RootNamespace>Acta.Concepts.ExecuteVsEnqueue</RootNamespace>
+    <RootNamespace>Acta.Concepts.CallVsEnqueue</RootNamespace>
   </PropertyGroup>
 </Project>

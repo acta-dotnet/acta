@@ -104,17 +104,13 @@ internal sealed class JobsOperations(
         CancellationToken ct = default
     ) => enqueueJobs.HandleAsync(new EnqueueJobsCommand(requests, transaction ?? throw new ArgumentNullException(nameof(transaction))), ct);
 
-    public ValueTask<JobOutcome> RunAndWaitAsync<TInput>(TInput input, JobExecutionOptions? options = null, CancellationToken ct = default)
+    public ValueTask<JobOutcome> CallAsync<TInput>(TInput input, JobExecutionOptions? options = null, CancellationToken ct = default)
         where TInput : notnull => JobRunAndWait.RunAsync(this, wakeup, o => routing.FromInput(input, o), options, ct);
 
-    public ValueTask<JobOutcome> RunAndWaitAsync<TInput>(
-        JobCall<TInput> job,
-        JobExecutionOptions? options = null,
-        CancellationToken ct = default
-    )
+    public ValueTask<JobOutcome> CallAsync<TInput>(JobCall<TInput> job, JobExecutionOptions? options = null, CancellationToken ct = default)
         where TInput : notnull => JobRunAndWait.RunAsync(this, wakeup, o => routing.FromCall(job, o), options, ct);
 
-    public ValueTask<JobOutcome<TResult>> RunAndWaitAsync<TInput, TResult>(
+    public ValueTask<JobOutcome<TResult>> CallAsync<TInput, TResult>(
         JobCall<TInput, TResult> job,
         JobExecutionOptions? options = null,
         CancellationToken ct = default

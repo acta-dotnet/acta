@@ -106,7 +106,7 @@ curated-view rows.
 | 012 | [read-status](../concepts/000-fundamentals/012-read-status/) | Read a `GetJobResponse` with `GetAsync` |
 | 013 | [read-result](../concepts/000-fundamentals/013-read-result/) | `TryGetResultAsync<T>` finds nothing before Succeeded; `GetResultAsync<T>` returns the result you expect |
 | 014 | [read-by-deduplication-key](../concepts/000-fundamentals/014-read-by-deduplication-key/) | Look a job up by `JobLookup.ByDeduplicationKey` |
-| 015 | [execute-vs-enqueue](../concepts/000-fundamentals/015-execute-vs-enqueue/) | Fire-and-forget vs enqueue-and-wait |
+| 015 | [call-vs-enqueue](../concepts/000-fundamentals/015-call-vs-enqueue/) | Fire-and-forget vs enqueue-and-wait |
 | 016 | [max-attempts](../concepts/000-fundamentals/016-max-attempts/) | Retry budget; terminal `Failed` after the cap |
 | 017 | [priority](../concepts/000-fundamentals/017-priority/) | Claim-order priority on enqueue |
 | 018 | [tags](../concepts/000-fundamentals/018-tags/) | Annotate a job with tags |
@@ -141,9 +141,9 @@ curated-view rows.
 | 210 | [step-retry](../concepts/200-durable-execution/210-step-retry/) | A failing step retries through its job, and the last attempt compensates on `IsLastAttempt` |
 | 211 | [child-jobs](../concepts/200-durable-execution/211-child-jobs/) | **Engineering Lab.** Independent child rows plus parent-owned latches; suspended parent holds no worker |
 | 212 | [fan-out-join](../concepts/200-durable-execution/212-fan-out-join/) | Map-reduce with `MapAsync`: chunk children compute partial sums in parallel, the parent merges their results |
-| 213 | [execute-child](../concepts/200-durable-execution/213-execute-child/) | `ExecuteChildAsync` delegates to an existing job and waits for its result (vs a step) |
+| 213 | [call-child](../concepts/200-durable-execution/213-call-child/) | `CallChildAsync` delegates to an existing job and waits for its result (vs a step) |
 | 214 | [reset-state](../concepts/200-durable-execution/214-reset-state/) | A recurring monitor uses durable state, then `ctx.ResetStateAsync` so the next fire starts blank |
-| 215 | [map-parallel-join](../concepts/200-durable-execution/215-map-parallel-join/) | `ParallelAsync`, `MapAsync`, and `JoinAsync` fan out child jobs and wait, all over the same latches |
+| 215 | [map-wait-children](../concepts/200-durable-execution/215-map-wait-children/) | `ParallelAsync`, `MapAsync`, and `WaitChildrenAsync` fan out child jobs and wait, all over the same latches |
 | 216 | [variable-lifecycle](../concepts/200-durable-execution/216-variable-lifecycle/) | Durable-variable lifecycle: `GetOrSet` (compute-once), `Exists`, `Delete`, defaults, raw `JobPayload` |
 | 217 | [absolute-time-controls](../concepts/200-durable-execution/217-absolute-time-controls/) | Absolute-instant timing: `ScheduleAsync(input, runAt)`, `SleepUntilAsync`, `RescheduleUntilAsync` |
 | 219 | [child-failure-outcomes](../concepts/200-durable-execution/219-child-failure-outcomes/) | Child-group failure handling: `MapOutcome`/`ParallelOutcome`/`ChildrenWaitOutcome` and `ThrowIfAnyFailed` |
@@ -158,7 +158,7 @@ curated-view rows.
 | 308 | [deadline-advisory](../concepts/300-failure-and-recovery/308-deadline-advisory/) | An Advisory `Deadline` still runs the handler; it reads `ctx.IsOverdue` and degrades gracefully |
 | 309 | [operator-resume](../concepts/300-failure-and-recovery/309-operator-resume/) | Pause and resume a job from outside via `IJobs.PauseAsync`/`ResumeAsync` (Applied vs Rejected) |
 | 310 | [operator-restart](../concepts/300-failure-and-recovery/310-operator-restart/) | **Engineering Lab.** Same identity, reset budget, appended history, retained step, repeated bare handler code |
-| 311 | [execute-outcome-timeout](../concepts/300-failure-and-recovery/311-execute-outcome-timeout/) | Read a `JobOutcome`: `WaitTimeout`, `ThrowIfFailed`, `TryGetValue`, `ValueOrThrow` |
+| 311 | [call-outcome-timeout](../concepts/300-failure-and-recovery/311-call-outcome-timeout/) | Read a `JobOutcome`: `WaitTimeout`, `ThrowIfFailed`, `TryGetValue`, `ValueOrThrow` |
 | 312 | [backoff-curve](../concepts/300-failure-and-recovery/312-backoff-curve/) | Typed retry backoff curve via the `Backoff` DSL string (e.g. `1s..8s x2 exact`) |
 | 401 | [pipeline-behavior](../concepts/400-observability-and-alerts/401-pipeline-behavior/) | `IJobPipelineBehavior` wraps every handler, like middleware |
 | 402 | [alerts](../concepts/400-observability-and-alerts/402-alerts/) | Raise an operator alert from a handler (`ctx.AlertAsync`), then read it back via `operations.Alerts` |

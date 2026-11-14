@@ -127,7 +127,7 @@ visibility. Use a step when work is part of one parent job's internal state mach
 
 ### Wait deadlines
 
-A signal or child wait can take a timeout (`WaitSignalAsync(name, timeout)`, `TryWaitSignalAsync`, `TryWaitChildAsync`). The deadline is database time, armed once at the first wait and never extended by replays. On expiry the wait is expired for good: a `Try` overload resumes with `TimedOut`, a plain overload cancels the job budget-neutrally with `wait-timed-out`, and a late signal or child outcome never revives the wait. A child group waited with a timeout shares one deadline, and expiry cancels only the members still running.
+A signal or child wait can take a timeout (`WaitSignalAsync(name, timeout)`, `TryWaitSignalAsync`, `WaitChildAsync(child, timeout)`). The deadline is database time, armed once at the first wait and never extended by replays. On expiry the wait is expired for good: a `Try` overload resumes with `TimedOut`, a plain overload cancels the job budget-neutrally with `wait-timed-out`, and a late signal or child outcome never revives the wait. A child group waited with a timeout shares one deadline, and expiry cancels only the members still running.
 
 ### Schedules, workers, and providers
 
@@ -570,19 +570,19 @@ Minimum guaranteed surface categories:
 * Transition helpers.
 * Alerts.
 
-A child is started from its input, `ctx.ExecuteChildAsync("ship", order, ct)`, which finds the job by the input's type, or from the manifest's generated call, `ctx.ExecuteChildAsync("ship", ShippingJobs.Ship(order), ct)`, which names the job and, for a job with a result, answers `JobOutcome<TResult>` with no type argument. `StartChildAsync` takes both forms too. Use the call when two jobs share an input type.
+A child is started from its input, `ctx.CallChildAsync("ship", order, ct)`, which finds the job by the input's type, or from the manifest's generated call, `ctx.CallChildAsync("ship", ShippingJobs.Ship(order), ct)`, which names the job and, for a job with a result, answers `JobOutcome<TResult>` with no type argument. `EnqueueChildAsync` takes both forms too. Use the call when two jobs share an input type.
 
 ### Child-job groups: Map, Parallel, Join
 
 | Convenience | Shape |
 | --- | --- |
-| `ctx.JoinAsync(handles)` | Wait on children you started; outcomes in caller order. |
+| `ctx.WaitChildrenAsync(handles)` | Wait on children you started; outcomes in caller order. |
 | `ctx.ParallelAsync(group, branches)` | Named heterogeneous branches; outcomes by branch name. |
 | `ctx.MapAsync(group, items)` | Fan-out keyed by a stable item key; outcomes per item. |
 
-Each child is an ordinary job, and a group is ordinary `StartChildAsync` calls plus a wait on each child, not a workflow runtime. Every child, alone or in a group, ends in a `JobOutcome`. They wait for every child and return every outcome: they never fail fast or cancel siblings, and throw only when asked (`ThrowIfAnyFailed`). A failed child stays failed on replay until restarted. Its newer outcome is recorded on the parent when it lands or is cancelled, even after the parent finished, so a parent restarted afterwards reads it; a wait that had already timed out keeps its timeout. Each also takes a `TimeSpan timeout`, one deadline for the whole group that cancels only the members still running and reports `TimedOut` in the outcome.
+Each child is an ordinary job, and a group is ordinary `EnqueueChildAsync` calls plus a wait on each child, not a workflow runtime. Every child, alone or in a group, ends in a `JobOutcome`. They wait for every child and return every outcome: they never fail fast or cancel siblings, and throw only when asked (`ThrowIfAnyFailed`). A failed child stays failed on replay until restarted. Its newer outcome is recorded on the parent when it lands or is cancelled, even after the parent finished, so a parent restarted afterwards reads it; a wait that had already timed out keeps its timeout. Each also takes a `TimeSpan timeout`, one deadline for the whole group that cancels only the members still running and reports `TimedOut` in the outcome.
 
-A group's children are keyed deterministically: `{group}/{branch}` for Parallel and `{group}/{key}` (or a hash of an unsafe key) for Map. No child name holds a `/`, so a group's children never share a key with another group's or with a child you named yourself; reusing a group name with the same branch or key lands two starts on one child. Groups do not limit concurrency; use concurrency keys or worker capacity. Concept `215-map-parallel-join` shows all three.
+A group's children are keyed deterministically: `{group}/{branch}` for Parallel and `{group}/{key}` (or a hash of an unsafe key) for Map. No child name holds a `/`, so a group's children never share a key with another group's or with a child you named yourself; reusing a group name with the same branch or key lands two starts on one child. Groups do not limit concurrency; use concurrency keys or worker capacity. Concept `215-map-wait-children` shows all three.
 
 ### CancellationToken semantics
 
@@ -766,7 +766,7 @@ JobOutcome outcome = await job.WaitAsync(TimeSpan.FromSeconds(30));
 Receipt sent = (await receipt.WaitAsync()).ValueOrThrow();
 ```
 
-- Each job's member on the generated manifest is a factory (`BillingJobs.SendInvoice(...)`): it takes the handler's input parameters, none when the input carries no data, and returns the job's call. A call names its job, so nothing is inferred from the input's type. The factory is public, unless the job takes or returns a type other assemblies cannot see: then it is internal, as is the job's argument record. Enqueue and schedule take it with options as a `configure` callback, and run-and-wait with its `JobExecutionOptions`.
+- Each job's member on the generated manifest is a factory (`BillingJobs.SendInvoice(...)`): it takes the handler's input parameters, none when the input carries no data, and returns the job's call. A call names its job, so nothing is inferred from the input's type. The factory is public, unless the job takes or returns a type other assemblies cannot see: then it is internal, as is the job's argument record. Enqueue and schedule take it with options as a `configure` callback, and `CallAsync` with its `JobExecutionOptions`.
 - A typed enqueue or a call answers a `JobHandle`: the `EnqueueJobResponse` (`JobRef`, `JobId`, `Action`) plus `GetStatusAsync`, `WaitAsync`, `GetResultAsync`, `TryGetResultAsync`, `CancelAsync`, and `ExplainAsync`, each addressed by the job's id, so none spends a query resolving the job.
 - A result job's call answers `JobHandle<TResult>`, so the wait and the result read need no type argument; an input-typed enqueue names it: `job.WaitAsync<Receipt>()`.
 - `WaitAsync` returns the outcome, never throws it; a timeout (30 seconds by default) or a cancelled token stops the wait, never the job. It throws when no job matches, for a non-positive timeout, when its token is cancelled, when a typed wait finds a success that stored no result, and when a typed wait or result read meets a job whose definition, as this process registers it, produces another result type, which a deduplication key shared across definitions can hand back. A job of a definition this process does not register is decoded without that check.
@@ -776,7 +776,7 @@ Receipt sent = (await receipt.WaitAsync()).ValueOrThrow();
 - `IJobs.GetVariableOrDefaultAsync<T>(jobRef, name)` reads a variable the job's handler stored, as its type, from outside the job, for a screen that shows how far a job has come. It answers default when the variable is not set or no job matches, and refuses a name the handler could not set.
 - `IJobs.WaitAsync(jobRef)` waits on a job another process enqueued, and `IJobs.GetHandleAsync(jobRef)` rebuilds a handle for it, or answers null when no job matches; `GetHandleAsync<Receipt>(jobRef)` rebuilds the typed handle a call of a result job answers.
 - `ScheduleAsync` takes a `TimeSpan`, counted on the database clock and rounded up to whole seconds, or a `DateTimeOffset`, and it accepts the same `configure` callback as `EnqueueAsync`; the time wins over one set there. It creates one job; a recurring schedule is `[Schedule]`.
-- `RunAndWaitAsync` is enqueue then wait in one call; its `JobExecutionOptions` carry the enqueue options plus the wait: `new JobExecutionOptions { DeduplicationKey = "invoice-8", WaitTimeout = TimeSpan.FromMinutes(1) }`. A typed result comes through the job's call, `jobs.RunAndWaitAsync(BillingJobs.SendInvoice(new SendInvoice(7)))`, which answers `JobOutcome<Receipt>`; with an input alone it answers `JobOutcome`.
+- `CallAsync` is enqueue then wait in one call; its `JobExecutionOptions` carry the enqueue options plus the wait: `new JobExecutionOptions { DeduplicationKey = "invoice-8", WaitTimeout = TimeSpan.FromMinutes(1) }`. A typed result comes through the job's call, `jobs.CallAsync(BillingJobs.SendInvoice(new SendInvoice(7)))`, which answers `JobOutcome<Receipt>`; with an input alone it answers `JobOutcome`.
 - The raw `EnqueueJobRequest`, batch, transactional, and child enqueues answer the plain `EnqueueJobResponse`.
 
 ## Transactional enqueue and the external outbox
@@ -874,7 +874,7 @@ Names passed to durable handler APIs are keys into persisted state. Once a name 
 | `WaitSignalAsync("approval")` | A raised value is read and stays set, otherwise the job suspends; a bounded wait keeps its original deadline. |
 | `SleepAsync("cooldown", ...)` | The same timer is observed, not extended. |
 | `SetVariableAsync("quote.id", ...)` | Later executions read the same value. |
-| `StartChildAsync("capture-payment", ...)` | The existing child is resolved, not created again. |
+| `EnqueueChildAsync("capture-payment", ...)` | The existing child is resolved, not created again. |
 | `ParallelAsync("notify", ...)` / `MapAsync("invoice", ...)` | The same branches are found again. |
 
 Renaming migrates nothing: a renamed step runs again, a renamed signal or timer is a different one, a renamed variable reads as absent, and a renamed child is new work. A step's stored result type must stay readable, or replay throws `StepResultContractMismatchException`.
@@ -1135,7 +1135,7 @@ public async Task Waits_for_the_approval_signal_then_completes()
 ```
 
 The same two-tick pattern covers every re-arming primitive: `ctx.SleepAsync` / `RescheduleAsync`
-(tick again once due), child jobs (`StartChildAsync` + drive the child's id), and steps
+(tick again once due), child jobs (`EnqueueChildAsync` + drive the child's id), and steps
 (`RunStepAsync` checkpoints replay across retry ticks).
 
 ### Asserting results

@@ -925,9 +925,9 @@ worker downtime, restarts, and replays all count against it.
 
 ### …a child never finishes and the parent is waiting on it?
 
-`TryWaitChildAsync(child, timeout)` resumes the parent with `TimedOut` and cancels the
+`WaitChildAsync(child, timeout)` resumes the parent with `TimedOut` and cancels the
 unfinished child and its descendant subtree; the parent stays active and decides what happens
-next. A group is the same story under one clock: the bounded `JoinAsync`, `ParallelAsync`, and
+next. A group is the same story under one clock: the bounded `WaitChildrenAsync`, `ParallelAsync`, and
 `MapAsync` spend a single persisted deadline across all members:
 completed children keep their outcomes, only the unfinished ones are cancelled, and the
 at-least-once shape below covers each of those cancellations the same way. Two limits remain. The subtree cancellation is initiated by the parent's resumed attempt, so

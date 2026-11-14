@@ -6,9 +6,9 @@ namespace Acta;
 public abstract partial class JobContext
 {
     /// <summary>
-    /// Durable, replay-safe wait for a child started by
-    /// <see cref="StartChildAsync{TInput}(string, TInput, Action{JobEnqueueOptionsBuilder}, CancellationToken)"/>, given
-    /// what the start answered, to reach a terminal status. Returns the child's terminal outcome immediately when it
+    /// Durable, replay-safe wait for a child enqueued by
+    /// <see cref="EnqueueChildAsync{TInput}(string, TInput, Action{JobEnqueueOptionsBuilder}, CancellationToken)"/>, given
+    /// what the enqueue answered, to reach a terminal status. Returns the child's terminal outcome immediately when it
     /// already finished; otherwise suspends this Job (budget-neutral) until the child's terminal landing releases it.
     /// Never throws on a failed or cancelled child; branch on <see cref="JobOutcome.Succeeded"/>.
     /// The outcome latch lives on this Job and survives the child row's retention purge.
@@ -21,16 +21,15 @@ public abstract partial class JobContext
     }
 
     /// <summary>
-    /// Bounded twin of <see cref="WaitChildAsync"/>. The first pass stores <c>db_now + timeout</c> (whole seconds,
-    /// rounded up, positive) as the latch's expiration; a replay reuses that instant and never extends it. A child
-    /// landing before the replayed wait settles the latch is still taken. A timeout never cancels this Job: the handler
-    /// resumes with <see cref="JobOutcome.TimedOut"/> after Acta cancels the unfinished child and its subtree
-    /// (<c>wait-timed-out</c>), free to compensate, start a replacement, or cancel itself. There is no non-Try twin:
-    /// a child timeout resolves in the parent's favour, so a non-returning overload would mean nothing.
+    /// Bounded twin of <see cref="WaitChildAsync(EnqueueJobResponse, CancellationToken)"/>. The first pass stores
+    /// <c>db_now + timeout</c> (whole seconds, rounded up, positive) as the latch's expiration; a replay reuses that
+    /// instant and never extends it. A child landing before the replayed wait settles the latch is still taken. A timeout
+    /// never cancels this Job: the handler resumes with <see cref="JobOutcome.TimedOut"/> after Acta cancels the
+    /// unfinished child and its subtree (<c>wait-timed-out</c>), free to compensate, start a replacement, or cancel itself.
     /// </summary>
-    public async Task<JobOutcome> TryWaitChildAsync(EnqueueJobResponse child, TimeSpan timeout, CancellationToken ct = default)
+    public async Task<JobOutcome> WaitChildAsync(EnqueueJobResponse child, TimeSpan timeout, CancellationToken ct = default)
     {
-        ThrowIfInAtMostOnceStep(nameof(TryWaitChildAsync));
+        ThrowIfInAtMostOnceStep(nameof(WaitChildAsync));
         ValidateChild(child, nameof(child));
         return (await WaitChildCoreAsync(child, timeout, ct)).Outcome;
     }

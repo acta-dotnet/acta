@@ -7,7 +7,7 @@ using Xunit;
 namespace Acta.Tests.Conformance.Scenarios;
 
 /// <summary>
-/// Conformance for child jobs: <c>ctx.StartChildAsync</c> enqueues a name-deduped child through the
+/// Conformance for child jobs: <c>ctx.EnqueueChildAsync</c> enqueues a name-deduped child through the
 /// shared enqueue path, a terminal child raises a durable <c>sys.child.{id}</c> latch on its parent
 /// (releasing a Suspended parent), waits return the child's <see cref="JobOutcome"/>, and cancel
 /// cascades to the non-terminal descendant subtree.
@@ -16,7 +16,7 @@ namespace Acta.Tests.Conformance.Scenarios;
     "child-jobs.start-wait-cascade",
     "Child jobs start deduped, join on completion latches, and cancel cascades",
     Area = "ChildJobs",
-    Contract = "StartChildAsync dedupes by name per parent and a terminal child raises a durable latch that releases a waiting parent while cancel cascades to the live subtree."
+    Contract = "EnqueueChildAsync dedupes by name per parent and a terminal child's durable latch releases a waiting parent while cancel cascades to the live subtree."
 )]
 [Deploys(
     "echo",
@@ -111,7 +111,7 @@ public sealed class ChildJobSpec : ActaRuntimeTestBase<ConformanceFixture, JobsO
         var parent = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-parent-one", JobPayload.None), ct);
 
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(parent, ct));
-        // Force a replay while the child is still pending: the re-run StartChildAsync must dedupe.
+        // Force a replay while the child is still pending: the re-run EnqueueChildAsync must dedupe.
         await SetJobStatusReadyAsync(Db, parent.JobId, ct);
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(parent, ct));
 
@@ -139,7 +139,7 @@ public sealed class ChildJobSpec : ActaRuntimeTestBase<ConformanceFixture, JobsO
         Assert.False(outcome.Succeeded);
     }
 
-    [Fact(DisplayName = "JoinAsync joins all children in any completion order, woken only by the child it waits on")]
+    [Fact(DisplayName = "WaitChildrenAsync waits for all children in any completion order, woken only by the child it waits on")]
     public async Task Join_waits_for_all_children_in_any_completion_order()
     {
         var ct = TestContext.Current.CancellationToken;

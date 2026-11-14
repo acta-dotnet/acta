@@ -55,7 +55,7 @@ internal class RecordingJobContext(IReadOnlyDictionary<string, JobStatusCode>? s
     public override string JobName => "parent";
     public override CancellationToken CancellationToken => Attempt?.Token ?? CancellationToken.None;
 
-    private protected override Task<EnqueueJobResponse> StartChildCoreAsync<TInput>(
+    private protected override Task<EnqueueJobResponse> EnqueueChildCoreAsync<TInput>(
         TInput input,
         JobEnqueueOptions options,
         CancellationToken ct
@@ -70,7 +70,7 @@ internal class RecordingJobContext(IReadOnlyDictionary<string, JobStatusCode>? s
         return Task.FromResult(new EnqueueJobResponse(id, JobRef.New(), EnqueueJobAction.Inserted));
     }
 
-    private protected override Task<EnqueueJobResponse> StartChildCallCoreAsync<TInput>(
+    private protected override Task<EnqueueJobResponse> EnqueueChildCallCoreAsync<TInput>(
         Type? manifestType,
         string? jobName,
         TInput input,
@@ -80,7 +80,7 @@ internal class RecordingJobContext(IReadOnlyDictionary<string, JobStatusCode>? s
     )
     {
         Events.Add($"call:{jobName}:{resultType?.Name ?? "none"}");
-        return StartChildCoreAsync(input, options, ct);
+        return EnqueueChildCoreAsync(input, options, ct);
     }
 
     private protected override Task<SignalCheckpointState> WaitSignalCoreAsync(string name, CancellationToken ct)
@@ -156,7 +156,7 @@ internal class RecordingJobContext(IReadOnlyDictionary<string, JobStatusCode>? s
     private protected override T? DeserializeSignalPayload<T>(byte valueFormatId, byte[] value)
         where T : default => Unsupported<T?>();
 
-    private protected override Task<EnqueueJobResponse> StartChildCoreAsync(EnqueueJobRequest request, CancellationToken ct)
+    private protected override Task<EnqueueJobResponse> EnqueueChildCoreAsync(EnqueueJobRequest request, CancellationToken ct)
     {
         var name = request.DeduplicationKey ?? throw new InvalidOperationException("child request carried no deduplication key.");
         var id = ++_nextId;

@@ -11,7 +11,7 @@ public sealed class ChildJobOptionsTests
     {
         var ctx = new RecordingJobContext();
 
-        await ctx.StartChildAsync("send-email", new Probe(), o => o.TenantName("Tenant-A"), TestContext.Current.CancellationToken);
+        await ctx.EnqueueChildAsync("send-email", new Probe(), o => o.TenantName("Tenant-A"), TestContext.Current.CancellationToken);
 
         var options = Assert.Single(ctx.StartOptions);
         Assert.Equal("tenant-a", options.TenantName);
@@ -24,7 +24,7 @@ public sealed class ChildJobOptionsTests
     {
         var ctx = new RecordingJobContext();
 
-        await ctx.StartChildAsync(
+        await ctx.EnqueueChildAsync(
             "send-email",
             "mail",
             "send-email",

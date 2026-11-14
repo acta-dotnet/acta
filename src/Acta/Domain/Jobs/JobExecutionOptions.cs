@@ -1,8 +1,8 @@
 namespace Acta;
 
 /// <summary>
-/// Options for the typed enqueue-and-wait facade (<see cref="IJobs.RunAndWaitAsync{TInput}(TInput, JobExecutionOptions, CancellationToken)"/> and
-/// <see cref="IJobs.RunAndWaitAsync{TInput, TResult}(JobCall{TInput, TResult}, JobExecutionOptions, CancellationToken)"/>): the enqueue
+/// Options for the typed enqueue-and-wait facade (<see cref="IJobs.CallAsync{TInput}(TInput, JobExecutionOptions, CancellationToken)"/> and
+/// <see cref="IJobs.CallAsync{TInput, TResult}(JobCall{TInput, TResult}, JobExecutionOptions, CancellationToken)"/>): the enqueue
 /// choices of <see cref="JobEnqueueOptions"/> plus the local wait budget. <see cref="WaitTimeout"/> and
 /// <see cref="PollInterval"/> govern a client-side poll loop in local monotonic time, not durable server-side
 /// decisions; the Job keeps running on its worker after a wait timeout, only the caller stops awaiting.

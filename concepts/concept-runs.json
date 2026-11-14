@@ -13,7 +13,7 @@
   "012-read-status": ["status=Succeeded"],
   "013-read-result": ["right away:        no result yet", "after it finishes: 42"],
   "014-read-by-deduplication-key": ["by deduplication key 'send-welcome-email:welcome:sam'", "Sent welcome email to Sam <sam@example.com>"],
-  "015-execute-vs-enqueue": ["EnqueueAsync returned right away", "RunAndWaitAsync waited and returned", ", result 4"],
+  "015-call-vs-enqueue": ["EnqueueAsync returned right away", "CallAsync waited and returned", ", result 4"],
   "016-max-attempts": ["status=Failed failureCount=3"],
   "017-priority": ["running URGENT"],
   "018-tags": ["with tags campaign=spring, channel=email.", "Sent welcome email to Sam <sam@example.com>"],
@@ -94,9 +94,9 @@
     "snowman finished: FinishedSnowman { Name = Frosty, HeightCm = 120 }"
   ],
   "212-fan-out-join": ["sum 1..1000 = 500500"],
-  "213-execute-child": ["published: EpisodePublished { EpisodeId = ep-42, StreamUrl = hls/ep-42.m3u8 }"],
+  "213-call-child": ["published: EpisodePublished { EpisodeId = ep-42, StreamUrl = hls/ep-42.m3u8 }"],
   "214-reset-state": ["cycle start - 0 readings carried over (0 means last cycle reset)", "cycle done  - 3 readings, avg"],
-  "215-map-parallel-join": ["photo asset-42: 4 renditions ready, published=True"],
+  "215-map-wait-children": ["photo asset-42: 4 renditions ready, published=True"],
   "216-variable-lifecycle": [
     "get-or-set: v1=42 v2=42 factory-calls=1",
     "exists before delete: True",
@@ -139,7 +139,7 @@
     "[report-1] report generated after operator restart",
     "re-run complete: status=Succeeded executionNumber=4"
   ],
-  "311-execute-outcome-timeout": [
+  "311-call-outcome-timeout": [
     "TimedOut: True",
     "Status: Failed",
     "ThrowIfFailed threw: JobFailedException",

@@ -14,7 +14,7 @@ namespace Acta.Tests.Conformance.Scenarios;
     "child-jobs.cross-namespace",
     "A child started in another namespace releases its waiting parent",
     Area = "ChildJobs",
-    Contract = "StartChildAsync targets any namespace and the child's terminal landing releases the waiting parent across the namespace boundary."
+    Contract = "EnqueueChildAsync targets any namespace and the child's terminal landing releases the waiting parent across the namespace boundary."
 )]
 [Deploys("job-child-echo", "job-parent-cross-namespace")]
 public sealed class ChildJobCrossNamespaceSpec : ActaTestBase<ConformanceFixture>

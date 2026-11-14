@@ -16,6 +16,13 @@ Not tagged yet.
 
 **Filter a compensating catch on `ctx.EndsJob(ex)`**: the filter the guides showed, `ctx.IsLastAttempt || ex is StepFailedException`, also ran the compensation when a step merely waited on the last attempt, and missed `NotSupportedException` and `NotImplementedException`. `catch (Exception ex) when (ctx.EndsJob(ex)) { ...; throw; }` reads the worker's own rule for what ends a job.
 
+**Rename the calls that send and wait for jobs**: a handler's call is now the `IJobs` call with `Child` after its first verb, and *call* means send a job and wait for its outcome, while *run* stays for work done here, such as `RunStepAsync`. Each behaves as before.
+- `jobs.RunAndWaitAsync` → `jobs.CallAsync`
+- `ctx.StartChildAsync` → `ctx.EnqueueChildAsync`
+- `ctx.ExecuteChildAsync` → `ctx.CallChildAsync`
+- `ctx.JoinAsync` → `ctx.WaitChildrenAsync`
+- `ctx.TryWaitChildAsync(child, timeout)` → `ctx.WaitChildAsync(child, timeout)`
+
 ### Additions
 
 - `JobContext.EndsJob(Exception)` answers whether an exception, left uncaught, ends the job with no further attempt.

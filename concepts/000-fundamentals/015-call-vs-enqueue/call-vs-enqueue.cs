@@ -1,5 +1,5 @@
 using Acta;
-using Acta.Concepts.ExecuteVsEnqueue;
+using Acta.Concepts.CallVsEnqueue;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -8,7 +8,7 @@ var builder = Host.CreateApplicationBuilder(args);
 builder.Services.UseActa(j =>
 {
     j.UseLocalDatabase(builder.Configuration);
-    j.Run<ExecuteVsEnqueueJobs>("execute-vs-enqueue");
+    j.Run<CallVsEnqueueJobs>("call-vs-enqueue");
 });
 
 using var host = builder.Build();
@@ -20,13 +20,13 @@ var jobs = host.Services.GetRequiredService<IJobs>();
 var enqueued = await jobs.EnqueueAsync(new AddNumbers(1, 1));
 Console.WriteLine($"EnqueueAsync returned right away: job {enqueued.JobRef}, status {(await enqueued.GetStatusAsync())?.Status}");
 
-// RunAndWaitAsync enqueues, then waits and returns the result. (See 013-read-result for the read-back path.)
-var executed = await jobs.RunAndWaitAsync(ExecuteVsEnqueueJobs.AddNumbers(new AddNumbers(2, 2)));
-Console.WriteLine($"RunAndWaitAsync waited and returned: job {executed.JobId}, result {executed.ValueOrThrow().Sum}");
+// CallAsync enqueues, then waits and returns the result. (See 013-read-result for the read-back path.)
+var executed = await jobs.CallAsync(CallVsEnqueueJobs.AddNumbers(new AddNumbers(2, 2)));
+Console.WriteLine($"CallAsync waited and returned: job {executed.JobId}, result {executed.ValueOrThrow().Sum}");
 
 await host.StopAsync();
 
-namespace Acta.Concepts.ExecuteVsEnqueue
+namespace Acta.Concepts.CallVsEnqueue
 {
     public sealed record AddNumbers(int Left, int Right);
 

@@ -21,20 +21,20 @@ var jobs = host.Services.GetRequiredService<IJobs>();
 // --- Scenario 1: MapAsync, soft handling ---
 // The handler inspects MapOutcome.Failed and returns a partial result; the parent lands Succeeded.
 Console.WriteLine("--- scenario 1: map with one failing item, soft handling ---");
-var mapOutcome = await jobs.RunAndWaitAsync(ChildFailureOutcomesJobs.RunMapSoft());
+var mapOutcome = await jobs.CallAsync(ChildFailureOutcomesJobs.RunMapSoft());
 Console.WriteLine($"parent: {mapOutcome.Status}, report: {mapOutcome.Value!.Summary}");
 
 // --- Scenario 2: ParallelAsync, ThrowIfAnyFailed escalation ---
 // The handler calls ThrowIfAnyFailed after a branch fails; ChildGroupException makes the parent
 // land Failed. The driver reads the Failed status without the exception propagating here.
 Console.WriteLine("--- scenario 2: parallel with one failing branch, ThrowIfAnyFailed ---");
-var parallelOutcome = await jobs.RunAndWaitAsync<RunParallelEscalated>(new RunParallelEscalated());
+var parallelOutcome = await jobs.CallAsync<RunParallelEscalated>(new RunParallelEscalated());
 Console.WriteLine($"parent: {parallelOutcome.Status} (expected Failed)");
 
-// --- Scenario 3: JoinAsync, ThrowIfAnyFailed escalation ---
+// --- Scenario 3: WaitChildrenAsync, ThrowIfAnyFailed escalation ---
 // Same pattern for a join: the handler escalates, parent lands Failed.
 Console.WriteLine("--- scenario 3: join with one failing child, ThrowIfAnyFailed ---");
-var joinOutcome = await jobs.RunAndWaitAsync<RunJoinEscalated>(new RunJoinEscalated());
+var joinOutcome = await jobs.CallAsync<RunJoinEscalated>(new RunJoinEscalated());
 Console.WriteLine($"parent: {joinOutcome.Status} (expected Failed)");
 
 await host.StopAsync();
@@ -141,10 +141,10 @@ namespace Acta.Concepts.ChildFailureOutcomes
         [Job("run-join-escalated", MaxAttempts = 1)]
         public async Task HandleJoinEscalated(RunJoinEscalated _, JobContext context, CancellationToken ct)
         {
-            var alpha = await context.StartChildAsync("alpha", new RunChild("alpha", ShouldFail: false), ct);
-            var beta = await context.StartChildAsync("beta", new RunChild("beta", ShouldFail: true), ct);
+            var alpha = await context.EnqueueChildAsync("alpha", new RunChild("alpha", ShouldFail: false), ct);
+            var beta = await context.EnqueueChildAsync("beta", new RunChild("beta", ShouldFail: true), ct);
 
-            var result = await context.JoinAsync([alpha, beta], ct);
+            var result = await context.WaitChildrenAsync([alpha, beta], ct);
 
             foreach (var child in result.Failed)
             {

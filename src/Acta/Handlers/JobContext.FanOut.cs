@@ -13,28 +13,28 @@ public abstract partial class JobContext
     /// outcomes come back in caller order. Never throws because a child failed and does not cancel siblings; branch on the
     /// outcome or call <see cref="ChildrenWaitOutcome.ThrowIfAnyFailed"/>.
     /// </summary>
-    public async Task<ChildrenWaitOutcome> JoinAsync(IReadOnlyList<EnqueueJobResponse> children, CancellationToken ct = default)
+    public async Task<ChildrenWaitOutcome> WaitChildrenAsync(IReadOnlyList<EnqueueJobResponse> children, CancellationToken ct = default)
     {
-        ThrowIfInAtMostOnceStep(nameof(JoinAsync));
+        ThrowIfInAtMostOnceStep(nameof(WaitChildrenAsync));
         ValidateChildren(children);
         return ChildrenWaitOutcome.From(await WaitChildGroupAsync(children, timeout: null, ct));
     }
 
     /// <summary>
-    /// Bounded twin of <see cref="JoinAsync(IReadOnlyList{EnqueueJobResponse}, CancellationToken)"/>: the first pass stores
+    /// Bounded twin of <see cref="WaitChildrenAsync(IReadOnlyList{EnqueueJobResponse}, CancellationToken)"/>: the first pass stores
     /// <c>db_now + timeout</c> once as the join's deadline (whole seconds, positive, for the whole join rather than per
     /// child), and every child on every replay waits toward that one instant, so the budget never restarts, except after
     /// <see cref="ResetStateAsync"/>, which clears the stored deadline with every other checkpoint. Children that landed
     /// keep their outcome; on expiry Acta cancels only the unfinished ones and their subtrees (<c>wait-timed-out</c>), and
     /// this Job resumes with the outcome either way.
     /// </summary>
-    public async Task<ChildrenWaitOutcome> JoinAsync(
+    public async Task<ChildrenWaitOutcome> WaitChildrenAsync(
         IReadOnlyList<EnqueueJobResponse> children,
         TimeSpan timeout,
         CancellationToken ct = default
     )
     {
-        ThrowIfInAtMostOnceStep(nameof(JoinAsync));
+        ThrowIfInAtMostOnceStep(nameof(WaitChildrenAsync));
         ValidateChildren(children);
         ToWaitTimeoutSeconds(timeout);
         if (children.Count == 0)
@@ -224,7 +224,7 @@ public abstract partial class JobContext
         var started = new EnqueueJobResponse[materialized.Count];
         for (var i = 0; i < materialized.Count; i++)
         {
-            started[i] = await StartGroupChildAsync(names[i], child(materialized[i]), ct);
+            started[i] = await EnqueueGroupChildAsync(names[i], child(materialized[i]), ct);
         }
 
         var outcomes = await WaitChildGroupAsync(started, timeout, ct);

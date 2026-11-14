@@ -51,12 +51,12 @@ namespace Acta.Concepts.CrossNamespaceChild
 
     public sealed class OrderJobs
     {
-        // The raw StartChildAsync overload names an explicit (namespace, job) route; the completion
+        // The raw EnqueueChildAsync overload names an explicit (namespace, job) route; the completion
         // latch lands on the parent regardless of where the child ran.
         [Job("place-order")]
         public async Task<OrderConfirmation> Handle(PlaceOrder order, JobContext context, CancellationToken ct)
         {
-            var charge = await context.StartChildAsync(
+            var charge = await context.EnqueueChildAsync(
                 "charge",
                 "billing",
                 "charge-payment",

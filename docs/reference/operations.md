@@ -119,7 +119,7 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 | `ResumeJob` | `IJobs.ResumeAsync` | `POST /jobs/{jobRef}/resume` (`resumeJob`, `acta.control`) | `resume` | inline | `events`, `jobs_state`, `schedules_state` | `ResumeJobSpec` |
 | `UpdateJobInput` | `IJobs.UpdateInputAsync` | `PUT /jobs/{jobRef}/input` (`updateJobInput`, `acta.control`) | · | inline | `events`, `jobs` | `UpdateJobInputSpec` |
 
-`IJobs.RunAndWaitAsync` runs `EnqueueJob`, `GetJob`, `GetJobResult`.
+`IJobs.CallAsync` runs `EnqueueJob`, `GetJob`, `GetJobResult`.
 
 `IJobs.TryGetResultAsync` runs `GetJobResult`.
 

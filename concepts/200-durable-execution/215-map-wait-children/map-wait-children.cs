@@ -1,5 +1,5 @@
 using Acta;
-using Acta.Concepts.MapParallelJoin;
+using Acta.Concepts.MapWaitChildren;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -8,7 +8,7 @@ var builder = Host.CreateApplicationBuilder(args);
 builder.Services.UseActa(j =>
 {
     j.UseLocalDatabase(builder.Configuration);
-    j.Run<MapParallelJoinJobs>("photos");
+    j.Run<MapWaitChildrenJobs>("photos");
 });
 
 using var host = builder.Build();
@@ -21,8 +21,8 @@ var jobs = host.Services.GetRequiredService<IJobs>();
 //   Parallel - independent analyzes of the same source,
 //   Map      - one child per item, keyed by a stable key,
 //   Join     - wait on handles you started by hand.
-var outcome = await jobs.RunAndWaitAsync(
-    MapParallelJoinJobs.ProcessPhoto(new ProcessPhoto("asset-42", "https://example.com/photos/asset-42/original.jpg"))
+var outcome = await jobs.CallAsync(
+    MapWaitChildrenJobs.ProcessPhoto(new ProcessPhoto("asset-42", "https://example.com/photos/asset-42/original.jpg"))
 );
 
 var result = outcome.Value!;
@@ -30,7 +30,7 @@ Console.WriteLine($"photo {result.AssetId}: {result.RenditionsReady} renditions 
 
 await host.StopAsync();
 
-namespace Acta.Concepts.MapParallelJoin
+namespace Acta.Concepts.MapWaitChildren
 {
     public sealed record ProcessPhoto(string AssetId, string SourceUrl);
 
@@ -79,9 +79,9 @@ namespace Acta.Concepts.MapParallelJoin
             var renditionsReady = resized.Items.Count(i => i.Outcome.Succeeded);
 
             // Join: start two independent side effects by hand and wait on the handles.
-            var cdn = await context.StartChildAsync("publish-cdn", new PublishCdn(photo.AssetId), ct);
-            var index = await context.StartChildAsync("update-index", new UpdateIndex(photo.AssetId), ct);
-            var published = await context.JoinAsync([cdn, index], ct);
+            var cdn = await context.EnqueueChildAsync("publish-cdn", new PublishCdn(photo.AssetId), ct);
+            var index = await context.EnqueueChildAsync("update-index", new UpdateIndex(photo.AssetId), ct);
+            var published = await context.WaitChildrenAsync([cdn, index], ct);
 
             return new PhotoResult(photo.AssetId, renditionsReady, published.Succeeded);
         }

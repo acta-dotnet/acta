@@ -25,7 +25,7 @@ await host.StartAsync();
 
 var jobs = host.Services.GetRequiredService<IJobs>();
 
-// Children dedupe by name; JoinAsync resumes from durable latches on replay.
+// Children dedupe by name; WaitChildrenAsync resumes from durable latches on replay.
 var outcome = await jobs.EnqueueAsync(new BuildSnowman("Frosty", failChild ? "head" : null));
 await WaitForAsync(
     jobs,
@@ -148,18 +148,18 @@ namespace Acta.Concepts.ChildJobs
 
     public sealed class SnowmanBuilder
     {
-        // StartChildAsync enqueues name-deduped child jobs; JoinAsync suspends the parent
+        // EnqueueChildAsync enqueues name-deduped child jobs; WaitChildrenAsync suspends the parent
         // (holding no executor) until every child is terminal; cancelling the parent cascades to children.
-        // MapAsync and ParallelAsync do this same start-then-join in one call (lab 215); it is spelled
-        // out here so each latch the join arms stays visible.
+        // MapAsync and ParallelAsync do this same start-then-wait in one call (lab 215); it is spelled
+        // out here so each latch the group wait arms stays visible.
         [Job("build-snowman")]
         public async Task<FinishedSnowman> Handle(BuildSnowman input, JobContext context, CancellationToken ct)
         {
-            var bottom = await context.StartChildAsync("bottom", new RollSnowball("bottom", input.FailPart == "bottom"), ct);
-            var middle = await context.StartChildAsync("middle", new RollSnowball("middle", input.FailPart == "middle"), ct);
-            var head = await context.StartChildAsync("head", new RollSnowball("head", input.FailPart == "head"), ct);
+            var bottom = await context.EnqueueChildAsync("bottom", new RollSnowball("bottom", input.FailPart == "bottom"), ct);
+            var middle = await context.EnqueueChildAsync("middle", new RollSnowball("middle", input.FailPart == "middle"), ct);
+            var head = await context.EnqueueChildAsync("head", new RollSnowball("head", input.FailPart == "head"), ct);
 
-            var joined = await context.JoinAsync([bottom, middle, head], ct);
+            var joined = await context.WaitChildrenAsync([bottom, middle, head], ct);
             foreach (var outcome in joined.Failed)
             {
                 await context.FailAsync($"child {outcome.JobRef} ended {outcome.Status}; see its job events for the reason", ct);

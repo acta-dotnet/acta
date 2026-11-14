@@ -500,7 +500,7 @@
 ## ChildJobs
 
 ### A child started in another namespace releases its waiting parent
-- **Contract:** StartChildAsync targets any namespace and the child's terminal landing releases the waiting parent across the namespace boundary.
+- **Contract:** EnqueueChildAsync targets any namespace and the child's terminal landing releases the waiting parent across the namespace boundary.
 - **Guarantees:**
   - A child completing in another namespace carries the parent link and releases the waiting parent
 
@@ -515,7 +515,7 @@
   - A replay over an expired group re-runs every member cancel as a no-op
   - Two groups in one job keep separate deadlines and expire independently
   - Re-waiting the same children reuses the stored deadline and resolves off the latches
-  - A bounded ExecuteChild reports the timeout on its job outcome
+  - A bounded CallChild reports the timeout on its job outcome
   - A bounded Parallel reports the timeout while keeping its branch keying
   - A bounded Map reports the timeout while keeping its item keying
   - A lineage map shows the child wait a parent is parked on, with its deadline when bounded
@@ -535,14 +535,14 @@
   - Manual purge refuses a child under a live parent and a parent with children, and takes the tree leaves first once it is terminal
 
 ### Child jobs start deduped, join on completion latches, and cancel cascades
-- **Contract:** StartChildAsync dedupes by name per parent and a terminal child raises a durable latch that releases a waiting parent while cancel cascades to the live subtree.
+- **Contract:** EnqueueChildAsync dedupes by name per parent and a terminal child's durable latch releases a waiting parent while cancel cascades to the live subtree.
 - **Guarantees:**
   - A terminal child sets a durable sys.child latch that releases the Suspended parent, which reads the child result
   - A late latch raise for an outcome the child no longer holds leaves the newer outcome on the parent
   - A late latch raise after the child succeeded again names no execution, so the parent reads the newest result
   - Child start is replay-deduped by name per parent
   - WaitChildAsync returns an outcome record and never throws on child failure
-  - JoinAsync joins all children in any completion order, woken only by the child it waits on
+  - WaitChildrenAsync waits for all children in any completion order, woken only by the child it waits on
   - Operator cancel cascades to the non-terminal descendant subtree with reason ParentCancelled
   - A handler self-cancel cascades to its children with reason ParentCancelled
   - Parent completion never cascades, and a child that lands afterwards records its outcome on the finished parent
@@ -967,7 +967,7 @@
   - Builders map relative delay to an integer, round sub-second up, and clear the other channel last-write-wins
 
 ### Typed enqueue resolves the route and delayed jobs gate on next_run
-- **Contract:** The typed IJobs façade resolves the route from the input type, applies deduplication-key dedupe and delayed-run options, and RunAndWaitAsync waits.
+- **Contract:** The typed IJobs façade resolves the route from the input type, applies deduplication-key dedupe and delayed-run options, and CallAsync waits.
 - **Guarantees:**
   - Typed enqueue resolves the route, serializes the input and round-trips the result
   - Typed enqueue round-trips scalar value-type inputs without misclassifying them as none
@@ -975,13 +975,13 @@
   - Typed enqueue applies the deduplication key and a repeat deduplicates onto one row
   - A delayed job is not claimable before due but runs once due
   - A handler returning a null result fails the job and stores no result
-  - RunAndWaitAsync enqueues, waits for completion and returns the typed result
+  - CallAsync enqueues, waits for completion and returns the typed result
   - A typed wait on a job whose definition produces no result throws
-  - RunAndWaitAsync reads the result of the execution it saw succeed, never an earlier one
+  - CallAsync reads the result of the execution it saw succeed, never an earlier one
   - A typed wait whose success is restarted before the result read keeps waiting instead of throwing
   - A typed wait that sees a restarted success on every read answers TimedOut at its budget
-  - RunAndWaitAsync honors WaitTimeout when PollInterval exceeds it
-  - RunAndWaitAsync rejects non-positive wait options before enqueue
+  - CallAsync honors WaitTimeout when PollInterval exceeds it
+  - CallAsync rejects non-positive wait options before enqueue
 
 ### A Reference-only host typed-enqueues without running a worker
 - **Contract:** j.Reference<TManifest> feeds the typed route index without declaring a worker, so the host typed-enqueues and the namespace's Run worker completes it.
@@ -1230,7 +1230,7 @@
   - A due-now enqueue wake interrupts the idle sleep
   - A delayed enqueue refreshes the sleeping loop's horizon
   - An unpublished Ready row is discovered by the safety poll
-  - RunAndWaitAsync observes a colocated completion at wake speed
+  - CallAsync observes a colocated completion at wake speed
   - A re-arming completion wakes the loop for its own retry
 
 ## Handlers

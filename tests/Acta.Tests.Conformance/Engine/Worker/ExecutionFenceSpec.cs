@@ -236,7 +236,7 @@ public sealed class ExecutionFenceSpec : ActaRuntimeTestBase<ConformanceFixture,
         var (old, current) = await SupersedeAsync(sameWorker, ct);
         using var oldAttempt = old;
         using var currentAttempt = current;
-        var child = await current.Ctx.StartChildAsync(
+        var child = await current.Ctx.EnqueueChildAsync(
             "child-a",
             TestNamespace,
             "add-numbers",
@@ -261,13 +261,19 @@ public sealed class ExecutionFenceSpec : ActaRuntimeTestBase<ConformanceFixture,
         var ct = TestContext.Current.CancellationToken;
         EnqueueJobResponse child = null!;
         var (old, current) = await SupersedeAsync(sameWorker, ct, async first =>
-            child = await first.Ctx.StartChildAsync("child-a", TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 1)), ct: ct)
+            child = await first.Ctx.EnqueueChildAsync(
+                "child-a",
+                TestNamespace,
+                "add-numbers",
+                JobPayload.Json(new AddNumbers(1, 1)),
+                ct: ct
+            )
         );
         using var oldAttempt = old;
         using var currentAttempt = current;
         Assert.Equal(ControlAction.Applied, (await Jobs.RestartAsync(JobLookup.ById(child.JobId), ct: ct)).Action);
         await current.Ctx.ResetStateAsync(ct);
-        await Assert.ThrowsAsync<SignalSuspendSignal>(() => current.Ctx.TryWaitChildAsync(child, TimeSpan.FromHours(1), ct));
+        await Assert.ThrowsAsync<SignalSuspendSignal>(() => current.Ctx.WaitChildAsync(child, TimeSpan.FromHours(1), ct));
         var parentBefore = await DurableStateAsync(current.Claim.JobId, ct);
 
         await Assert.ThrowsAsync<ExecutionFencedException>(() =>
@@ -288,7 +294,7 @@ public sealed class ExecutionFenceSpec : ActaRuntimeTestBase<ConformanceFixture,
             ct
         );
         using var attempt = await ClaimAsync(parent, worker, ct);
-        var child = await attempt.Ctx.StartChildAsync(
+        var child = await attempt.Ctx.EnqueueChildAsync(
             "child-a",
             TestNamespace,
             "add-numbers",
@@ -319,11 +325,11 @@ public sealed class ExecutionFenceSpec : ActaRuntimeTestBase<ConformanceFixture,
 
         await AssertFencedOutAsync(
             old,
-            () => old.Ctx.StartChildAsync("child-a", TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(9, 9)), ct: ct),
+            () => old.Ctx.EnqueueChildAsync("child-a", TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(9, 9)), ct: ct),
             ct
         );
 
-        var child = await current.Ctx.StartChildAsync(
+        var child = await current.Ctx.EnqueueChildAsync(
             "child-a",
             TestNamespace,
             "add-numbers",

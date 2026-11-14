@@ -493,14 +493,10 @@ public class CliRunnerClipboardTests
         )
             where TInput : notnull => throw new NotSupportedException();
 
-        public ValueTask<JobOutcome> RunAndWaitAsync<TInput>(
-            TInput input,
-            JobExecutionOptions? options = null,
-            CancellationToken ct = default
-        )
+        public ValueTask<JobOutcome> CallAsync<TInput>(TInput input, JobExecutionOptions? options = null, CancellationToken ct = default)
             where TInput : notnull => throw new NotSupportedException();
 
-        public ValueTask<JobOutcome> RunAndWaitAsync<TInput>(
+        public ValueTask<JobOutcome> CallAsync<TInput>(
             JobCall<TInput> job,
             JobExecutionOptions? options = null,
             CancellationToken ct = default
@@ -545,7 +541,7 @@ public class CliRunnerClipboardTests
         public ValueTask<JobOutcome<TResult>> WaitAsync<TResult>(JobLookup job, TimeSpan? timeout = null, CancellationToken ct = default)
             where TResult : notnull => throw new NotSupportedException();
 
-        public ValueTask<JobOutcome<TResult>> RunAndWaitAsync<TInput, TResult>(
+        public ValueTask<JobOutcome<TResult>> CallAsync<TInput, TResult>(
             JobCall<TInput, TResult> job,
             JobExecutionOptions? options = null,
             CancellationToken ct = default

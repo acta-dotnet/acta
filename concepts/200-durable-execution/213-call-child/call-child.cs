@@ -1,5 +1,5 @@
 using Acta;
-using Acta.Concepts.ExecuteChild;
+using Acta.Concepts.CallChild;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -8,7 +8,7 @@ var builder = Host.CreateApplicationBuilder(args);
 builder.Services.UseActa(j =>
 {
     j.UseLocalDatabase(builder.Configuration);
-    j.Run<ExecuteChildJobs>("execute-child");
+    j.Run<CallChildJobs>("call-child");
 });
 
 using var host = builder.Build();
@@ -16,12 +16,12 @@ await host.StartAsync();
 
 var jobs = host.Services.GetRequiredService<IJobs>();
 
-var outcome = await jobs.RunAndWaitAsync(ExecuteChildJobs.PublishEpisode(new PublishEpisode("ep-42", "raw/ep-42.mov")));
+var outcome = await jobs.CallAsync(CallChildJobs.PublishEpisode(new PublishEpisode("ep-42", "raw/ep-42.mov")));
 Console.WriteLine($"published: {outcome.Value}");
 
 await host.StopAsync();
 
-namespace Acta.Concepts.ExecuteChild
+namespace Acta.Concepts.CallChild
 {
     public sealed record PublishEpisode(string EpisodeId, string SourceUrl);
 
@@ -34,14 +34,14 @@ namespace Acta.Concepts.ExecuteChild
     public sealed class PublishingJobs
     {
         // A child is a real job (own retry policy, queue identity, operator-visible), unlike a private
-        // idempotent step (202). ExecuteChildAsync runs one child start-to-result; ValueOrThrow()
+        // idempotent step (202). CallChildAsync runs one child start-to-result; ValueOrThrow()
         // returns its result or throws. A failed child stays failed: a parent retry dedupes onto it and
         // throws again, so recovering means restarting the child, not retrying the parent.
         [Job("publish-episode")]
         public async Task<EpisodePublished> Handle(PublishEpisode episode, JobContext context, CancellationToken ct)
         {
             var transcoded = (
-                await context.ExecuteChildAsync<TranscodeVideo, TranscodeResult>("transcode", new TranscodeVideo(episode.SourceUrl), ct)
+                await context.CallChildAsync<TranscodeVideo, TranscodeResult>("transcode", new TranscodeVideo(episode.SourceUrl), ct)
             ).ValueOrThrow();
 
             return new EpisodePublished(episode.EpisodeId, transcoded.StreamUrl);

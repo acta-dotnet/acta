@@ -72,7 +72,7 @@ public static class ActaServiceCollectionExtensions
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<JobsOptions>, JobsOptionsValidator>());
 
         // Swappable wake transport. InProcessWakeup is the default: same-process enqueues, control
-        // verbs, and completions wake local waiters (claim loops, RunAndWaitAsync completion waits)
+        // verbs, and completions wake local waiters (claim loops, CallAsync completion waits)
         // instantly; a transport package replaces the IWorkerWakeup registration for cross-process
         // reach. Publishes always go through WorkerWakeupPublisher (never breaks the caller, consistent
         // metrics); registered unconditionally so enqueue-only processes publish too.
@@ -340,7 +340,7 @@ public static class ActaServiceCollectionExtensions
             );
         });
 
-        // Type to enqueue-route index backing the typed IJobs.EnqueueAsync<TInput> and RunAndWaitAsync
+        // Type to enqueue-route index backing the typed IJobs.EnqueueAsync<TInput> and CallAsync
         // facade. The raw EnqueueJobRequest path needs no index. Captured here because the namespace
         // is assigned per Reference/Run call, not on the namespace-neutral manifest.
         var typeRegistry = JobTypeRegistry.Build(builder.Catalogs);
