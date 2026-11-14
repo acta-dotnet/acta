@@ -188,6 +188,8 @@ SELECT
     CASE
         WHEN r.job_id IS NULL THEN 2 /* ControlAction.NotFound */
         WHEN EXISTS (SELECT 1 FROM temp._raise_stale) THEN 3 /* ControlAction.Rejected */
+        -- A finished job takes no signal, but a raise repeating the value it holds is already in state, whenever it comes.
+        WHEN (SELECT s.action FROM temp._raise_settled s) = 6 /* ControlAction.AlreadyInState */ THEN 6 /* ControlAction.AlreadyInState */
         WHEN
             r.job_status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
             AND @p_checkpoint_kind_code <> 50 /* CheckpointKindCode.ChildLatch */

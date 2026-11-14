@@ -2584,6 +2584,7 @@
   - A raise of a name the job does not wait on is stored and leaves the job suspended
   - A state reset on the way out of a suspending wait fails the attempt and keeps the checkpoint
   - Raise is rejected against a terminal job and writes no checkpoint
+  - After the job finished, a raise repeating the kept value is already in state and any other raise is rejected
   - Raise returns NotFound for an unknown job
 
 ### A bounded wait expires on its checkpoint's stored instant, once and for good

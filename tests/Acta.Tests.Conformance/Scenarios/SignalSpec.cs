@@ -304,6 +304,26 @@ public sealed class SignalSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<
         Assert.Empty(await ReadSignalsAsync(enqueued.JobId, ct));
     }
 
+    [Fact(DisplayName = "After the job finished, a raise repeating the kept value is already in state and any other raise is rejected")]
+    public async Task A_repeat_raise_after_the_job_finished_is_already_in_state()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct);
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(ControlAction.Applied, (await Jobs.RaiseSignalAsync(enqueued, "go", JobPayload.None, ct: ct)).Action);
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
+
+        // A caller retrying its own raise after the job finished hears that it counted, not that it was refused.
+        var repeat = await Jobs.RaiseSignalAsync(enqueued, "go", JobPayload.None, ct: ct);
+        Assert.Equal(ControlAction.AlreadyInState, repeat.Action);
+        Assert.Equal(JobStatusCode.Succeeded, repeat.Status);
+
+        var other = JobPayload.Json(new ReviewDecision(true, "late"));
+        Assert.Equal(ControlAction.Rejected, (await Jobs.RaiseSignalAsync(enqueued, "go", other, ct: ct)).Action);
+        Assert.Equal(ControlAction.Rejected, (await Jobs.RaiseSignalAsync(enqueued, "never-raised", JobPayload.None, ct: ct)).Action);
+        Assert.Equal(1, await CountEventsAsync(enqueued.JobId, EventCode.JobSignalRaised, ct));
+    }
+
     [Fact(DisplayName = "Raise returns NotFound for an unknown job")]
     public async Task Raise_signal_returns_not_found_for_unknown_job()
     {

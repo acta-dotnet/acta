@@ -63,14 +63,27 @@ BEGIN
                 GOTO Finish;
             END;
 
-        -- A finished job takes no signal. It still takes a child's latch, which a restart of it reads, and is not woken.
+        -- A finished job takes no signal, but a raise repeating the value it holds is already in state, whenever it comes.
+        -- It still takes a child's latch, which a restart of it reads, and is not woken.
         IF
             @from_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
             AND @p_checkpoint_kind_code <> 50 /* CheckpointKindCode.ChildLatch */
             BEGIN
 
                 SELECT
-                    CAST(3 /* ControlAction.Rejected */ AS TINYINT) AS action,
+                    CAST(
+                        CASE
+                            WHEN
+                                @existing = 20 /* CheckpointStatusCode.Set */
+                                AND @fmt = @p_value_format_id
+                                AND (
+                                    (@val IS NULL AND @p_value IS NULL)
+                                    OR (DATALENGTH(@val) = DATALENGTH(@p_value) AND @val = @p_value)
+                                )
+                                THEN 6 /* ControlAction.AlreadyInState */
+                            ELSE 3 /* ControlAction.Rejected */
+                        END AS TINYINT
+                    ) AS action,
                     @from_status AS status;
                 GOTO Finish;
             END;

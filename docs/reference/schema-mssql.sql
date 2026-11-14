@@ -57,7 +57,7 @@ GO
 -- ===== refuse a database a newer release already upgraded =====
 IF EXISTS (
     SELECT 1 FROM acta.migrations
-    WHERE name NOT IN ('M20261111163142_init', 'M20261112231452_index_lanes_by_namespace', 'M20261114214847_keep_first_signal_value')
+    WHERE name NOT IN ('M20261111163142_init', 'M20261112231452_index_lanes_by_namespace', 'M20261114214847_keep_first_signal_value', 'M20261114235108_repeat_raise_after_finish')
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -5333,6 +5333,244 @@ INSERT INTO acta.migrations (name)
 VALUES ('M20261114214847_keep_first_signal_value');
 GO
 -- ===== END M20261114214847_keep_first_signal_value =====
+GO
+-- ===== BEGIN M20261114235108_repeat_raise_after_finish =====
+SET QUOTED_IDENTIFIER ON;
+SET ANSI_NULLS ON;
+GO
+
+
+CREATE OR ALTER PROCEDURE acta.raise_job_signal
+    @p_job_id BIGINT,
+    @p_checkpoint_kind_code TINYINT,
+    @p_checkpoint_name VARCHAR(128),
+    @p_value_format_id TINYINT,
+    @p_value VARBINARY(MAX),
+    @p_event_message NVARCHAR(512),
+    @p_actor NVARCHAR(128),
+    @p_details_format_id TINYINT,
+    @p_details VARBINARY(MAX),
+    @p_child_job_id BIGINT,
+    @p_child_status TINYINT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    DECLARE @entry_trancount INT = @@TRANCOUNT;
+    BEGIN TRY
+        IF @entry_trancount = 0
+            BEGIN TRANSACTION;
+
+        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
+        DECLARE @existing TINYINT;
+        DECLARE @fmt TINYINT;
+        DECLARE @val VARBINARY(MAX);
+        DECLARE @expired BIT = 0;
+        DECLARE @message NVARCHAR(512);
+        DECLARE
+            @from_status TINYINT, @namespace_id INT, @lineage_root_job_id BIGINT,
+            @definition_id INT, @tenant_id INT, @execution_number BIGINT, @event_recording TINYINT;
+
+        -- The checkpoint's own lock, as wait_job_signal names it (docs/sql-internals.md, "Step, checkpoint and rate locks").
+        DECLARE @checkpoint_lock NVARCHAR(255) = CONCAT(N'acta.checkpoint:', @p_job_id, N':', @p_checkpoint_kind_code, N':', @p_checkpoint_name);
+        DECLARE @checkpoint_lock_result INT;
+        -- Positional: resource, mode, owner, timeout (-1 waits like any lock).
+        EXEC @checkpoint_lock_result = sp_getapplock @checkpoint_lock, 'Exclusive', 'Transaction', -1;
+        IF @checkpoint_lock_result < 0
+            THROW 51205, 'ACTA:CHECKPOINT_LOCK:The checkpoint lock was not granted (deadlock victim or cancelled).', 1;
+
+        SELECT @existing = checkpoint_status_code, @fmt = value_format_id, @val = value
+        FROM acta.checkpoints WITH (UPDLOCK)
+        WHERE job_id = @p_job_id AND checkpoint_kind_code = @p_checkpoint_kind_code AND checkpoint_name = @p_checkpoint_name;
+
+        SELECT
+            @from_status = r.job_status_code,
+            @namespace_id = j.namespace_id,
+            @lineage_root_job_id = j.lineage_root_job_id,
+            @definition_id = j.definition_id,
+            @tenant_id = j.tenant_id,
+            @execution_number = r.execution_number,
+            @event_recording = j.event_recording_code
+        FROM acta.jobs_state r WITH (UPDLOCK, ROWLOCK)
+        INNER JOIN acta.jobs j ON j.job_id = r.job_id
+        WHERE r.job_id = @p_job_id;
+
+        IF @from_status IS NULL
+            BEGIN
+
+                SELECT
+                    CAST(2 /* ControlAction.NotFound */ AS TINYINT) AS action,
+                    CAST(NULL AS TINYINT) AS status;
+                GOTO Finish;
+            END;
+
+        -- A finished job takes no signal, but a raise repeating the value it holds is already in state, whenever it comes.
+        -- It still takes a child's latch, which a restart of it reads, and is not woken.
+        IF
+            @from_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
+            AND @p_checkpoint_kind_code <> 50 /* CheckpointKindCode.ChildLatch */
+            BEGIN
+
+                SELECT
+                    CAST(
+                        CASE
+                            WHEN
+                                @existing = 20 /* CheckpointStatusCode.Set */
+                                AND @fmt = @p_value_format_id
+                                AND (
+                                    (@val IS NULL AND @p_value IS NULL)
+                                    OR (DATALENGTH(@val) = DATALENGTH(@p_value) AND @val = @p_value)
+                                )
+                                THEN 6 /* ControlAction.AlreadyInState */
+                            ELSE 3 /* ControlAction.Rejected */
+                        END AS TINYINT
+                    ) AS action,
+                    @from_status AS status;
+                GOTO Finish;
+            END;
+
+        -- A child latch for an outcome the child no longer holds writes nothing: the child was restarted since, and its
+        -- next landing raises the latch itself. A purged child has no row, and its latch is raised.
+        IF @p_child_job_id IS NOT NULL AND EXISTS (
+            SELECT 1 FROM acta.jobs_state c WHERE c.job_id = @p_child_job_id AND c.job_status_code <> @p_child_status)
+            BEGIN
+                SELECT
+                    CAST(3 /* ControlAction.Rejected */ AS TINYINT) AS action,
+                    @from_status AS status;
+                GOTO Finish;
+            END;
+
+        -- First raise wins: a signal never changes once raised, so a repeat writes nothing, already in state with the
+        -- same value and rejected with another or at an expired wait, while a child's latch keeps rewriting. Lengths are
+        -- compared too, so a value that differs only in trailing zero bytes is never taken for the same one.
+        IF
+            @p_checkpoint_kind_code <> 50 /* CheckpointKindCode.ChildLatch */
+            AND @existing IN (20 /* CheckpointStatusCode.Set */, 30 /* CheckpointStatusCode.Expired */)
+            BEGIN
+                SELECT
+                    CAST(
+                        CASE
+                            WHEN
+                                @existing = 20 /* CheckpointStatusCode.Set */
+                                AND @fmt = @p_value_format_id
+                                AND (
+                                    (@val IS NULL AND @p_value IS NULL)
+                                    OR (DATALENGTH(@val) = DATALENGTH(@p_value) AND @val = @p_value)
+                                )
+                                THEN 6 /* ControlAction.AlreadyInState */
+                            ELSE 3 /* ControlAction.Rejected */
+                        END AS TINYINT
+                    ) AS action,
+                    @from_status AS status;
+                GOTO Finish;
+            END;
+
+        /* No revival: an Expired latch already resolved the wait TimedOut, so a late child latch writes no
+           value and releases no job. The landing still happened, so it is still recorded: the event below
+           carries a message saying why it changed nothing, and the verb reports the unchanged status. */
+        SET @expired = CASE WHEN @existing = 30 /* CheckpointStatusCode.Expired */ THEN 1 ELSE 0 END;
+        SET @message = CASE
+            WHEN @expired = 1
+                THEN LEFT(COALESCE(@p_event_message + N' ', N'') + N'Signal not applied: the wait had already expired.', 512)
+            ELSE @p_event_message
+        END;
+
+        IF @expired = 0
+            BEGIN
+                IF @existing IS NULL
+                    INSERT INTO acta.checkpoints (
+                        job_id, checkpoint_kind_code, checkpoint_name, checkpoint_status_code, value_format_id, value,
+                        created_at_utc, modified_at_utc, version
+                    )
+                    VALUES (
+                        @p_job_id, @p_checkpoint_kind_code, @p_checkpoint_name, 20 /* CheckpointStatusCode.Set */,
+                        @p_value_format_id, @p_value, @now, @now, 0
+                    );
+                ELSE
+                    UPDATE acta.checkpoints
+                    SET
+                        checkpoint_status_code = 20 /* CheckpointStatusCode.Set */,
+                        value_format_id = @p_value_format_id,
+                        value = @p_value,
+                        modified_at_utc = @now,
+                        version = version + 1
+                    WHERE
+                        job_id = @p_job_id AND checkpoint_kind_code = @p_checkpoint_kind_code AND checkpoint_name = @p_checkpoint_name;
+            END
+
+        IF @event_recording = 20 /* EventRecordingCode.Audit */
+            INSERT INTO acta.events (
+                event_code, created_at_utc, namespace_id,
+                entity_code, entity_id,
+                definition_id, tenant_id, lineage_root_job_id,
+                execution_number,
+                event_message, actor, details_format_id, details
+            )
+            VALUES (
+                80 /* EventCode.JobSignalRaised */, @now, @namespace_id,
+                50 /* EntityCode.Job */, @p_job_id,
+                @definition_id, @tenant_id, COALESCE(@lineage_root_job_id, @p_job_id),
+                @execution_number,
+                @message, @p_actor, @p_details_format_id, @p_details
+            );
+
+        -- Only the checkpoint the job waits on releases it; any other raise is stored for the wait that will read it.
+        IF @from_status = 20 /* JobStatusCode.Suspended */ AND @existing = 10 /* CheckpointStatusCode.Pending */
+            BEGIN
+                UPDATE acta.jobs_state
+                SET
+                    job_status_code = 10 /* JobStatusCode.Ready */,
+                    next_run_at_utc = @now,
+                    modified_at_utc = @now,
+                    version = version + 1
+                WHERE job_id = @p_job_id;
+
+                IF @event_recording = 20 /* EventRecordingCode.Audit */
+                    INSERT INTO acta.events (
+                        event_code, created_at_utc, namespace_id,
+                        entity_code, entity_id,
+                        definition_id, tenant_id, lineage_root_job_id,
+                        execution_number,
+                        event_message, actor, details_format_id, details
+                    )
+                    VALUES (
+                        72 /* EventCode.JobResumed */, @now, @namespace_id,
+                        50 /* EntityCode.Job */, @p_job_id,
+                        @definition_id, @tenant_id, COALESCE(@lineage_root_job_id, @p_job_id),
+                        @execution_number,
+                        @p_event_message, @p_actor, @p_details_format_id, @p_details
+                    );
+
+                SELECT
+                    CAST(1 /* ControlAction.Applied */ AS TINYINT) AS action,
+                    CAST(10 /* JobStatusCode.Ready */ AS TINYINT) AS status;
+                GOTO Finish;
+            END
+
+        SELECT
+            CAST(1 /* ControlAction.Applied */ AS TINYINT) AS action,
+            @from_status AS status;
+
+    Finish:
+
+        IF @entry_trancount = 0
+            COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @entry_trancount = 0 AND XACT_STATE() <> 0
+            ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH;
+END;
+GO
+
+
+IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261114235108_repeat_raise_after_finish')
+INSERT INTO acta.migrations (name)
+VALUES ('M20261114235108_repeat_raise_after_finish');
+GO
+-- ===== END M20261114235108_repeat_raise_after_finish =====
 GO
 COMMIT TRANSACTION;
 GO

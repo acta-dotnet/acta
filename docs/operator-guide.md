@@ -366,7 +366,7 @@ A `job_...` target is a job ref, `id:<n>` the internal id, and any other target,
 
 | Exit code | Meaning |
 |------|--------------------------------------|
-| 0    | Applied, found, migrated, or debug run succeeded |
+| 0    | Applied, already in state (a `signal` repeated with its value), found, migrated, or debug run succeeded |
 | 1    | Rejected, handler failed, or migration failed |
 | 2    | Job not found                        |
 | 64   | Usage error                          |
@@ -927,7 +927,7 @@ The signal value is stored in the named checkpoint. When the handler later calls
 set: a replay or a later wait on that name reads it again. A signal keeps its first value: a repeat raise
 with that value answers `already-in-state` and one with another value `rejected`, as a raise at an expired
 wait does, and none of them writes anything. A signal sent
-to a terminal job is rejected; a signal sent to a paused job is stored but does not resume the job
+to a terminal job is rejected, unless it repeats the value the signal holds, which answers `already-in-state`; a signal sent to a paused job is stored but does not resume the job
 until the job itself is resumed.
 
 ### …a signal never arrives?

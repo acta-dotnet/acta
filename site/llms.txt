@@ -238,8 +238,8 @@ of zero or less returns at once, so a deadline shared by several waits is `deadl
 of them: the remaining time goes negative on the replay after the deadline, and each wait's stored instant decides. An expired wait stays expired, and a late raise answers
 `Rejected`. Only a restart reopens one: the timed-out wait that ended the job, so the restarted job waits
 again under a fresh bound, while a timeout the handler went past stays as it was.
-A signal keeps the value of its first raise: raising it again with the same value answers `AlreadyInState`,
-and with another value `Rejected`, so a wait that already returned never reads a different value on replay.
+A signal keeps the value of its first raise: raising it again with the same value answers `AlreadyInState`, after
+the job finished too, and with another value `Rejected`, so a wait that already returned never reads a different value on replay.
 A second window, or a second value, is a wait under a new name (`"shipped-2"`) or a new job.
 
 ## Child jobs and fan-out

@@ -57,12 +57,29 @@ BEGIN
         RETURN;
     END IF;
 
-    -- A finished job takes no signal. It still takes a child's latch, which a restart of it reads, and is not woken.
+    -- A finished job takes no signal, but a raise repeating the value it holds is already in state, whenever it comes.
+    -- It still takes a child's latch, which a restart of it reads, and is not woken.
     IF
         v_from_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
         AND p_checkpoint_kind_code <> 50 /* CheckpointKindCode.ChildLatch */
     THEN
-        RETURN QUERY SELECT 3 /* ControlAction.Rejected */::SMALLINT, v_from_status;
+        RETURN QUERY SELECT
+            CASE
+                WHEN EXISTS (
+                    SELECT 1
+                    FROM {{schema}}.checkpoints js
+                    WHERE
+                        js.job_id = p_job_id
+                        AND js.checkpoint_kind_code = p_checkpoint_kind_code
+                        AND js.checkpoint_name = p_checkpoint_name
+                        AND js.checkpoint_status_code = 20 /* CheckpointStatusCode.Set */
+                        AND js.value_format_id = p_value_format_id
+                        AND js.value IS NOT DISTINCT FROM p_value
+                )
+                    THEN 6 /* ControlAction.AlreadyInState */
+                ELSE 3 /* ControlAction.Rejected */
+            END::SMALLINT,
+            v_from_status;
         RETURN;
     END IF;
 
