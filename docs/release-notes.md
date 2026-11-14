@@ -57,6 +57,7 @@ Tagged 2026-11-14. rc.11 migrates a database instead of re-cutting it, answers e
 - Acta Verify no longer refuses a run because of the shell that launched it. Its clean-start check took every process whose command line names a run's DLL for another run's leftover, so a run started as `bash -lc "dotnet Acta.Verify.dll ..."` found its own shell and ran nothing. A command line counts only where the program it starts is dotnet, by its bare name or a path to it.
 - `acta-verify cleanup --yes` holds back for a run started as `dotnet Acta.Verify.dll`. It looked for another run by process image alone, and that run's image is `dotnet`, so it removed the containers and databases of a run in progress. It reads the command lines the clean-start check reads.
 - ACTA0105 on a malformed rate limit shows how an interval is written: one every four seconds is `"15/m"`. A rate is a count per second, minute or hour, and the message gave the grammar but not the conversion.
+- A list's name column in the dashboard keeps twelve characters in any font. With a font wider than Segoe UI, as on a Linux desktop, the definitions list at 1280 px squeezed every name to nothing; the name now ends in an ellipsis, and a table that still does not fit scrolls sideways.
 
 ### Dependencies
 
@@ -65,7 +66,7 @@ Tagged 2026-11-14. rc.11 migrates a database instead of re-cutting it, answers e
 
 ### Evidence
 
-The engine was certified with the Acta Verify release suite on PostgreSQL, SQL Server, and SQLite, reported in [`docs/reference/benchmark.md`](./reference/benchmark.md) and on [useacta.net/benchmark](https://useacta.net/benchmark), in one run in which no cell was rerun to pass. The run's commit is `1bb9ec4e0`. The commits after it change how `acta-verify compare` matches a runtime, with its test and README, and documentation and the site, so the evidence stands for the tag.
+The engine was certified with the Acta Verify release suite on PostgreSQL, SQL Server, and SQLite, reported in [`docs/reference/benchmark.md`](./reference/benchmark.md) and on [useacta.net/benchmark](https://useacta.net/benchmark), in one run in which no cell was rerun to pass. The run's commit is `1bb9ec4e0`. The commits after it change how `acta-verify compare` matches a runtime, with its test and README; the dashboard's floor for a list's name column, which the release run does not exercise; and documentation and the site, so the evidence stands for the tag.
 - **Result.** Every correctness, fault, and chaos scenario passed on every database, every trial's ledger passed the certification checks, and every performance floor held in the run.
 - **Chaos certification.** On the shipped lease timings, 1,000,000 jobs on PostgreSQL and on SQL Server with a worker killed every 5 s: 72 busy kills reclaimed on PostgreSQL and 81 on SQL Server. SQLite passed at 10,000 jobs, with 40 busy kills reclaimed.
 - **Throughput.** Four PostgreSQL workers polling held 15,000/s offered in three 30 s passes; the 120 s confirmation at 15,000 missed its p99 target, 2.5 s against 2.0 s, and the one at 12,500 held, completing 12,512 fully executed, durably completed jobs per second with p99 1.0 s. One worker, woken in process, completed 7,500 a second with p99 50 ms. SQL Server held 5,000 a second on four workers (4,986, p99 946 ms) and on one (5,000, p99 714 ms); SQLite held 250 on one, with p99 102 ms.
