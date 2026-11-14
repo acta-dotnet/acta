@@ -6,7 +6,7 @@ namespace Acta;
 /// <see cref="JobRef"/>, and <see cref="TerminalStatus"/>; the terminal cause lives in the Job's event timeline.
 /// </summary>
 public sealed class JobFailedException(long jobId, JobRef jobRef, JobStatusCode terminalStatus)
-    : Exception($"Job {jobRef} terminated as {terminalStatus}.")
+    : ActaException($"Job {jobRef} terminated as {terminalStatus}.")
 {
     public long JobId { get; } = jobId;
     public JobRef JobRef { get; } = jobRef;

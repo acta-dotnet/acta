@@ -59,8 +59,11 @@ public static class RecurringPingHandler
             throw new InvalidOperationException($"forced recurring failure on sequence {sequence}");
         }
 
-        return CancelOnSequence.TryGetValue(ctx.JobNamespace, out var cancelAt) && sequence == cancelAt
-            ? throw new HandlerCancelException($"recurring slot stopped by handler on sequence {sequence}")
-            : new RecurringPingResult(sequence);
+        if (CancelOnSequence.TryGetValue(ctx.JobNamespace, out var cancelAt) && sequence == cancelAt)
+        {
+            await ctx.CancelAsync($"recurring slot stopped by handler on sequence {sequence}", ct);
+        }
+
+        return new RecurringPingResult(sequence);
     }
 }

@@ -2195,7 +2195,6 @@
 - **Contract:** Reschedule re-arms to Ready without charging the budget and durable sleep arms one idempotent timer checkpoint consumed by the replayed handler once due.
 - **Guarantees:**
   - Reschedule re-arms Ready with a forward-dated next_run, no budget charge and no result
-  - Reschedule by direct throw re-arms Ready like the context method
   - Reschedule to an absolute past instant is immediately reclaimable
   - First sleep arms one Pending timer and suspends the handler
   - Sleep rerun before due does not extend or duplicate the timer
@@ -2204,7 +2203,6 @@
   - Zero-delay sleep continues without arming a timer
   - Sleep validation rejects invalid names, reserved names and negative delay
   - A second distinct pending sleep is rejected and re-arms without touching the existing timer
-  - Unknown control exception fails the attempt like a handler exception, not a reschedule or suspend
 
 ### A schedule verb records its operator as the event's actor
 - **Contract:** The operator a schedule verb names is its event's actor, byte-identical on every provider, and the event's details name no actor.
@@ -2626,8 +2624,7 @@
   - Uncaught StepInterruptedException fails the parent terminally without re-invoking the body
   - Caught StepInterruptedException lets the parent proceed to Succeeded
   - A wait inside an at-most-once body is refused at the call and arms nothing
-  - A RescheduleJobException an at-most-once body throws is refused and fails the step
-  - A HandlerPauseException an at-most-once body throws is refused and fails the step
+  - A wait begun outside an at-most-once body and ended in it is refused and fails the step
 
 ### A failed step re-throws on re-entry until a restart clears it
 - **Contract:** Re-entering a failed at-most-once step throws StepFailedException without running the body, and a restart runs it afresh.

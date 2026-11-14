@@ -28,6 +28,36 @@ public sealed class WorkerExecutorOutcomeTests
     }
 
     [Fact]
+    public async Task A_replayed_step_result_its_type_cannot_read_fails_the_attempt_naming_the_step()
+    {
+        var harness = new WorkerExecutorHarness(replayedStepResult: "\"not a number\""u8.ToArray());
+
+        var outcome = await harness.RunAsync(
+            static (ctx, ct) => ctx.RunStepAsync(WorkerExecutorHarness.StepName, static _ => Task.FromResult(42), ct)
+        );
+
+        Assert.Equal(RunOnceStatus.Rearmed, outcome);
+        Assert.Equal(EventReason.UnhandledException, harness.Completion.Reason);
+        Assert.Contains(
+            $"Step '{WorkerExecutorHarness.StepName}' has a stored result that cannot be deserialized",
+            harness.Completion.EventMessage,
+            StringComparison.Ordinal
+        );
+    }
+
+    [Fact]
+    public async Task A_reschedule_without_a_reason_records_none()
+    {
+        var harness = new WorkerExecutorHarness();
+
+        var outcome = await harness.RunAsync(static (ctx, ct) => ctx.RescheduleAsync(TimeSpan.FromMinutes(1), ct: ct));
+
+        Assert.Equal(RunOnceStatus.Rearmed, outcome);
+        Assert.Equal(EventReason.HandlerRescheduled, harness.Completion.Reason);
+        Assert.Null(harness.Completion.EventMessage);
+    }
+
+    [Fact]
     public async Task An_uncaught_failed_step_fails_the_job_at_once_instead_of_retrying_it()
     {
         // Every retry would replay the failed step and throw again, so the budget is not spent on it.

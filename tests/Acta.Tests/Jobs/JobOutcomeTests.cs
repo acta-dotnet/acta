@@ -17,7 +17,8 @@ public class JobOutcomeTests
     [Fact]
     public void A_timed_out_outcome_throws_naming_the_job_by_its_ref()
     {
-        var timedOut = Assert.Throws<TimeoutException>(JobOutcome.Expired(7, Ref, JobStatusCode.Ready).ThrowIfFailed);
+        var timedOut = Assert.Throws<JobWaitTimeoutException>(JobOutcome.Expired(7, Ref, JobStatusCode.Ready).ThrowIfFailed);
+        Assert.Equal((7L, Ref), (timedOut.JobId, timedOut.JobRef));
         Assert.Contains(Ref.ToString(), timedOut.Message, StringComparison.Ordinal);
     }
 }

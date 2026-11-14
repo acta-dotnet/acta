@@ -18,9 +18,7 @@ namespace Acta.Tests.Conformance.Scenarios;
     Contract = "Reschedule re-arms to Ready without charging the budget and durable sleep arms one idempotent timer checkpoint consumed by the replayed handler once due."
 )]
 [Deploys(
-    "job-control-unknown",
     "job-reschedule-delay",
-    "job-reschedule-throw",
     "job-reschedule-until-past",
     "job-sleep-basic",
     "job-sleep-reject",
@@ -61,20 +59,6 @@ public sealed class RescheduleSleepSpec : ActaRuntimeTestBase<ConformanceFixture
         // Acceptance invariant: a re-arm writes no result payload.
         var result = await Services.GetRequiredService<GetJobResultHandler>().ReadAsync(enqueued.JobId, null, ct);
         Assert.Null(result);
-    }
-
-    [Fact(DisplayName = "Reschedule by direct throw re-arms Ready like the context method")]
-    public async Task Reschedule_via_direct_throw_rearms_like_the_context_method()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-reschedule-throw", JobPayload.None), ct);
-
-        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
-
-        var job = await ReadJobAsync(enqueued.JobId, ct);
-        Assert.Equal(JobStatusCode.Ready, job.Status);
-        Assert.Equal(1, await CountYieldedAsync(enqueued.JobId, "rescheduled", ct));
-        Assert.Equal(1, await CountEventsAsync(enqueued.JobId, EventCode.JobRescheduled, ct));
     }
 
     [Fact(DisplayName = "Reschedule to an absolute past instant is immediately reclaimable")]
@@ -220,25 +204,6 @@ public sealed class RescheduleSleepSpec : ActaRuntimeTestBase<ConformanceFixture
         var only = Assert.Single(timers);
         Assert.Equal("already-pending", only.CheckpointName);
         Assert.Equal(JobStatusCode.Ready, (await ReadJobAsync(enqueued.JobId, ct)).Status);
-    }
-
-    [Fact(DisplayName = "Unknown control exception fails the attempt like a handler exception, not a reschedule or suspend")]
-    public async Task Unknown_control_exception_fails_the_attempt_not_translated_to_a_rearm()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-control-unknown", JobPayload.None), ct);
-
-        // An unrecognized JobControlException is a handler exception to the runtime: the attempt fails
-        // under the retry budget and re-arms, rather than being translated into a reschedule / suspend
-        // or escaping the attempt and leaving the row Executing under a lease the heartbeat renews.
-        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
-
-        var job = await ReadJobAsync(enqueued.JobId, ct);
-        Assert.Equal(JobStatusCode.Ready, job.Status);
-        var failed = await ReadSingleEventAsync(enqueued.JobId, EventCode.JobExecutionFailed, ct);
-        Assert.Equal(EventReason.UnhandledException, EventDetail(failed, "reason"));
-        Assert.Equal(0, await CountReasonAsync(enqueued.JobId, EventReason.HandlerRescheduled, ct));
-        Assert.Equal(0, await CountEventsAsync(enqueued.JobId, EventCode.JobSuspended, ct));
     }
 
     private async Task<IReadOnlyList<CheckpointEntity>> ReadTimersAsync(long jobId, CancellationToken ct)

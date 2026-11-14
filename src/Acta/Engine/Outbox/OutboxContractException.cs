@@ -5,4 +5,4 @@ namespace Acta;
 /// tag name, or a payload above the target's hard inline cap). The relay quarantines the row
 /// immediately rather than accruing retries.
 /// </summary>
-internal sealed class OutboxContractException(string message) : Exception(message);
+internal sealed class OutboxContractException(string message) : ActaException(message);

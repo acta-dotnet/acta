@@ -1,3 +1,5 @@
+using System.Diagnostics;
+
 namespace Acta;
 
 public abstract partial class JobContext
@@ -13,6 +15,7 @@ public abstract partial class JobContext
     /// idempotent: a crash after the side effect but before the record re-runs it, and so does the resume after a wait
     /// inside the body. <paramref name="configure"/> chooses <see cref="StepOptionsBuilder.AtMostOnce"/>.
     /// </summary>
+    [DebuggerDisableUserUnhandledExceptions]
     public async Task RunStepAsync(
         string name,
         Func<CancellationToken, Task> body,
@@ -46,6 +49,7 @@ public abstract partial class JobContext
     /// serialized, or is over the inline cap throws <see cref="StepFailedException"/>. Wrap each outside-world effect in
     /// its own step: an unwrapped call repeats on every retry, and a crash between two effects in one step re-runs both.
     /// </summary>
+    [DebuggerDisableUserUnhandledExceptions]
     public async Task<TResult> RunStepAsync<TResult>(
         string name,
         Func<CancellationToken, Task<TResult>> body,
@@ -103,7 +107,7 @@ public abstract partial class JobContext
         }
     }
 
-    /// <summary>The refusal of a suspension inside the at-most-once step <paramref name="step"/>, called or thrown.</summary>
+    /// <summary>The refusal of a suspension inside the at-most-once step <paramref name="step"/>, at the call or in the body.</summary>
     private protected static InvalidOperationException AtMostOnceSuspensionRefused(string call, string step) =>
         new(
             $"{call} inside the AtMostOnce step '{step}' is refused: it can suspend the job, and resuming replays the "

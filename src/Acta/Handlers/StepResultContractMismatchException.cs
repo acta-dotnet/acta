@@ -7,7 +7,7 @@ namespace Acta;
 /// <paramref name="expectedType"/>, and wraps the serializer's <paramref name="innerException"/>.
 /// </summary>
 public sealed class StepResultContractMismatchException(string stepName, Type expectedType, Exception innerException)
-    : Exception(
+    : ActaException(
         $"Step '{stepName}' has a stored result that cannot be deserialized into '{expectedType}'. "
             + "The step's result contract changed while the job was in flight (a breaking change).",
         innerException

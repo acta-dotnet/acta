@@ -411,7 +411,7 @@ internal sealed class DbSession : IDbSession
     /// A mapper/binder/teardown exception is never evidence that the database aborted the operation.
     /// Preserves its original public exception while excluding it from provider conflict classification.
     /// </summary>
-    private sealed class ClientCommandFailure(Exception cause) : Exception("Client command processing failed.", cause);
+    private sealed class ClientCommandFailure(Exception cause) : ActaException("Client command processing failed.", cause);
 
     private async Task<T> UseWriteResourceAsync<TResource, T>(TResource resource, Func<TResource, Task<T>> execute)
         where TResource : IAsyncDisposable

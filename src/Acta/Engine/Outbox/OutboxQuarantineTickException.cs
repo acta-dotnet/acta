@@ -7,7 +7,7 @@ namespace Acta;
 /// rather than one per row.
 /// </summary>
 internal sealed class OutboxQuarantineTickException(string sourceName, IReadOnlyList<Guid> quarantinedIds)
-    : Exception(BuildMessage(sourceName, quarantinedIds))
+    : ActaException(BuildMessage(sourceName, quarantinedIds))
 {
     /// <summary>The bounded 10-id sample the alert and the paired diagnostic log line share, so neither
     /// prints the full (up to 5,120) id set.</summary>

@@ -6,16 +6,6 @@ namespace TestJobs;
 public sealed record SleepValidationResult(bool InvalidNameRejected, bool ReservedNameRejected, bool NegativeDelayRejected);
 
 /// <summary>
-/// A user-defined <see cref="JobControlException"/> subclass the framework does not understand. Used to
-/// prove <c>WorkerExecutor</c> rethrows unknown control signals instead of translating them to a re-arm.
-/// </summary>
-public sealed class FakeControlException : JobControlException
-{
-    public FakeControlException()
-        : base("fake control signal") { }
-}
-
-/// <summary>
 /// Reschedule + durable-sleep probe handlers. Handlers restart from the top on every attempt, so each
 /// writes its observable variables on the path it actually reaches.
 /// </summary>
@@ -29,16 +19,9 @@ public static class JobSleepRescheduleProbes
         await ctx.SetVariableAsync("ran.after", true, ct);
     }
 
-    [Job("job-reschedule-throw")]
-    public static async Task RescheduleThrow(JobContext ctx, CancellationToken ct)
-    {
-        await ctx.SetVariableAsync("ran.before", true, ct);
-        throw new RescheduleJobException(TimeSpan.FromMinutes(10), "cooldown");
-    }
-
     [Job("job-reschedule-until-past")]
     public static Task RescheduleUntilPast(JobContext ctx, CancellationToken ct) =>
-        throw new RescheduleJobException(DateTimeOffset.UtcNow.AddMinutes(-5), "immediate");
+        ctx.RescheduleUntilAsync(DateTimeOffset.UtcNow.AddMinutes(-5), "immediate", ct);
 
     [Job("job-sleep-basic")]
     public static async Task SleepBasic(JobContext ctx, CancellationToken ct)
@@ -77,9 +60,6 @@ public static class JobSleepRescheduleProbes
         var negative = await Rejects<ArgumentOutOfRangeException>(() => ctx.SleepAsync("neg", TimeSpan.FromSeconds(-1), ct: ct));
         return new SleepValidationResult(invalid, reserved, negative);
     }
-
-    [Job("job-control-unknown")]
-    public static Task ControlUnknown(JobContext ctx, CancellationToken ct) => throw new FakeControlException();
 
     private static async Task<bool> Rejects<TException>(Func<Task> action)
         where TException : Exception

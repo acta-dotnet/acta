@@ -40,7 +40,8 @@ internal sealed class WorkerExecutorHarness(
     string? backoff = null,
     bool inputDeserializationThrows = false,
     string jobName = "harness-job",
-    JobStatusCode unmatchedRowStatus = JobStatusCode.Executing
+    JobStatusCode unmatchedRowStatus = JobStatusCode.Executing,
+    byte[]? replayedStepResult = null
 )
 {
     /// <summary>The step the default handler runs; asserted on by name in the ownership pins.</summary>
@@ -56,7 +57,7 @@ internal sealed class WorkerExecutorHarness(
 
     // The worker state the executor and finalizer read, held here so a fact can retire the definition mid-attempt.
     private readonly WorkerContext _context = new(new WorkerRegistration("harness", null, null, [], []));
-    private readonly ScriptedExecutionStore _store = new(stepOutcome, completionAction, unmatchedRowStatus);
+    private readonly ScriptedExecutionStore _store = new(stepOutcome, completionAction, unmatchedRowStatus, replayedStepResult);
     private readonly ScriptedLockStore _locks = new(
         slotGranted,
         slotRacesLost,
@@ -315,10 +316,12 @@ internal sealed class WorkerExecutorHarness(
     // The real execution group over a scripted session. Only the calls one attempt makes are
     // answered; everything else throws so a future change that starts leaning on another call is
     // visible rather than silent.
+    /// <summary>A set <c>replayedStepResult</c> is what <c>start_job_step</c> answers: the step already succeeded with those JSON bytes.</summary>
     private sealed class ScriptedExecutionStore(
         CompleteJobStepOutcomeCode stepOutcome,
         CompleteExecutionsAction completionAction,
-        JobStatusCode unmatchedRowStatus
+        JobStatusCode unmatchedRowStatus,
+        byte[]? replayedStepResult
     )
     {
         private readonly List<BoundCompletion> _submitted = [];
@@ -355,13 +358,21 @@ internal sealed class WorkerExecutorHarness(
         private StartJobStepResponse StartJobStep(string name)
         {
             _startedSteps.Add(name);
-            return new StartJobStepResponse(
-                StartJobStepOutcomeCode.Invoke,
-                Version: 1,
-                ResultFormatId: 0,
-                Result: null,
-                FailureMessage: null
-            );
+            return replayedStepResult is null
+                ? new StartJobStepResponse(
+                    StartJobStepOutcomeCode.Invoke,
+                    Version: 1,
+                    ResultFormatId: 0,
+                    Result: null,
+                    FailureMessage: null
+                )
+                : new StartJobStepResponse(
+                    StartJobStepOutcomeCode.ReplaySuccess,
+                    Version: 1,
+                    JobPayloadFormat.Json.Id,
+                    replayedStepResult,
+                    FailureMessage: null
+                );
         }
 
         private CompleteJobStepResponse CompleteJobStep()

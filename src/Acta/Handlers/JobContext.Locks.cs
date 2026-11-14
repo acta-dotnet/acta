@@ -1,3 +1,5 @@
+using System.Diagnostics;
+
 namespace Acta;
 
 public abstract partial class JobContext
@@ -19,7 +21,8 @@ public abstract partial class JobContext
         ArgumentNullException.ThrowIfNull(action);
         return RunWithLockAsync(
             key,
-            async token =>
+            [DebuggerDisableUserUnhandledExceptions]
+            async (token) =>
             {
                 await action(token);
                 return true;
@@ -33,6 +36,7 @@ public abstract partial class JobContext
     /// Result-returning overload of
     /// <see cref="RunWithLockAsync(string, Func{CancellationToken, Task}, TimeSpan?, CancellationToken)"/>.
     /// </summary>
+    [DebuggerDisableUserUnhandledExceptions]
     public async Task<TResult> RunWithLockAsync<TResult>(
         string key,
         Func<CancellationToken, Task<TResult>> action,

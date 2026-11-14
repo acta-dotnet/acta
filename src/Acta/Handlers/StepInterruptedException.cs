@@ -9,7 +9,7 @@ namespace Acta;
 /// <c>Failed</c> at once (<c>step-interrupted</c>, no retry, budget untouched), never replayed into the same step.
 /// </summary>
 public sealed class StepInterruptedException(string stepName)
-    : Exception(
+    : ActaException(
         $"Step '{stepName}' was interrupted before its outcome was recorded. Because it was configured "
             + "AtMostOnce, the body will not be run again; it may have run zero or one times and must be "
             + "reconciled externally."

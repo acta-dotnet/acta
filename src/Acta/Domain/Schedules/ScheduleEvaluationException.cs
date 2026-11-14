@@ -5,5 +5,4 @@ namespace Acta;
 /// window that can be used. The admitter parks such a schedule as an evaluation error; a preview throws this, which the
 /// HTTP layer answers as a 422 problem carrying the message.
 /// </summary>
-public sealed class ScheduleEvaluationException(string message, Exception innerException)
-    : InvalidOperationException(message, innerException);
+public sealed class ScheduleEvaluationException(string message, Exception innerException) : ActaException(message, innerException);

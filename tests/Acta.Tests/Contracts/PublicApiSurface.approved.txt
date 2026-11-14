@@ -124,6 +124,9 @@ sealed record Acta.AcknowledgeAlertResponse : Acta.IAlertControlResponse
     Acta.ControlAction Action { get;init; }
     System.Nullable<System.DateTime> AcknowledgedAtUtc { get;init; }
     System.Nullable<System.DateTime> ResolvedAtUtc { get;init; }
+abstract class Acta.ActaException : System.Exception
+    protected .ctor(System.String? message)
+    protected .ctor(System.String? message, System.Exception? innerException)
 sealed class Acta.ActaJobs : Acta.IJobManifest
     .ctor()
     static Acta.JobCall<Acta.NoInput> SysAlerts()
@@ -302,7 +305,7 @@ sealed class Acta.BytesJobPayloadSerializer : Acta.IJobPayloadSerializer
     Acta.JobPayloadFormat Format { get; }
     T Deserialize<T>(Acta.JobPayload payload)
     static Acta.BytesJobPayloadSerializer Default { get; }
-sealed class Acta.CalendarDefinitionException : System.Exception
+sealed class Acta.CalendarDefinitionException : Acta.ActaException
     System.Collections.Generic.IReadOnlyList<System.String> Problems { get; }
 sealed record Acta.CalendarLookup
     .ctor(System.String JobNamespace, System.String CalendarName)
@@ -346,7 +349,7 @@ sealed class Acta.CalendarStatusCodeJsonConverter : System.Text.Json.Serializati
     .ctor()
     Acta.CalendarStatusCode Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
     System.Void Write(System.Text.Json.Utf8JsonWriter writer, Acta.CalendarStatusCode value, System.Text.Json.JsonSerializerOptions options)
-sealed class Acta.CalendarUnavailableException : System.InvalidOperationException
+sealed class Acta.CalendarUnavailableException : Acta.ActaException
     .ctor(System.String message)
 record struct Acta.CalendarWindow
     .ctor(System.DateTime StartUtc, System.Nullable<System.DateTime> EndUtc)
@@ -403,7 +406,7 @@ sealed class Acta.CheckpointStatusCodeJsonConverter : System.Text.Json.Serializa
     .ctor()
     Acta.CheckpointStatusCode Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
     System.Void Write(System.Text.Json.Utf8JsonWriter writer, Acta.CheckpointStatusCode value, System.Text.Json.JsonSerializerOptions options)
-sealed class Acta.ChildGroupException : System.Exception
+sealed class Acta.ChildGroupException : Acta.ActaException
     .ctor(System.Collections.Generic.IReadOnlyList<Acta.JobOutcome> failed)
     System.Collections.Generic.IReadOnlyList<Acta.JobOutcome> Failed { get; }
 sealed record Acta.ChildrenWaitOutcome
@@ -573,7 +576,7 @@ sealed record Acta.DiscardOutboxResponse : Acta.IOutboxControlResponse
     .ctor(Acta.ControlAction Action, System.Nullable<System.DateTime> PendingSinceUtc)
     Acta.ControlAction Action { get;init; }
     System.Nullable<System.DateTime> PendingSinceUtc { get;init; }
-sealed class Acta.DuplicateDeduplicationKeyInBatchException : System.Exception
+sealed class Acta.DuplicateDeduplicationKeyInBatchException : Acta.ActaException
     System.Int32 FirstOrdinal { get; }
     System.Int32 SecondOrdinal { get; }
     System.Nullable<System.Int64> ParentJobId { get; }
@@ -609,7 +612,7 @@ record Acta.EnqueueJobResponse
 sealed record Acta.EnqueueJobsResponse
     .ctor(System.Collections.Generic.IReadOnlyList<Acta.EnqueueJobResponse> Jobs)
     System.Collections.Generic.IReadOnlyList<Acta.EnqueueJobResponse> Jobs { get;init; }
-sealed class Acta.EnqueueRejectedException : System.Exception
+sealed class Acta.EnqueueRejectedException : Acta.ActaException
     .ctor(Acta.EnqueueRejectionReason reason, System.String message, System.Exception? innerException = null)
     Acta.EnqueueRejectionReason Reason { get; }
 enum Acta.EnqueueRejectionReason : System.Byte
@@ -1087,17 +1090,12 @@ sealed record Acta.GetWorkerResponse
     System.String JobNamespace { get;init; }
     System.String? DotnetVersion { get;init; }
     System.String? EngineVersion { get;init; }
-sealed class Acta.HandlerActivationException : System.InvalidOperationException
+sealed class Acta.HandlerActivationException : Acta.ActaException
     .ctor(System.Type handlerType, System.Exception innerException)
 sealed class Acta.HandlerCancelException : Acta.HandlerControlException
-    .ctor(System.String? reasonMessage = null)
 abstract class Acta.HandlerControlException : Acta.JobControlException
-    System.String? ReasonMessage { get; }
-    protected .ctor(System.String? reasonMessage)
 sealed class Acta.HandlerFailException : Acta.HandlerControlException
-    .ctor(System.String? reasonMessage = null)
 sealed class Acta.HandlerPauseException : Acta.HandlerControlException
-    .ctor(System.String? reasonMessage = null)
 interface Acta.IActaBuilder
     Acta.IActaBuilder AddPayloadSerializer<TSerializer>() where TSerializer : class, Acta.IJobPayloadSerializer
     Acta.IActaBuilder AddPipelineBehavior<TBehavior>(Microsoft.Extensions.DependencyInjection.ServiceLifetime lifetime = Microsoft.Extensions.DependencyInjection.ServiceLifetime.Scoped) where TBehavior : class, Acta.IJobPipelineBehavior
@@ -1275,9 +1273,9 @@ interface Acta.IWorkerWakeup
 interface Acta.IWorkers
     System.Threading.Tasks.ValueTask<Acta.GetWorkerResponse?> GetAsync(Acta.WorkerRef workerRef, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.ListWorkersResponse> ListAsync(Acta.ListWorkersQuery query, System.Threading.CancellationToken ct = default)
-sealed class Acta.InvalidPageCursorException : System.ArgumentException
+sealed class Acta.InvalidPageCursorException : Acta.ActaException
     .ctor(System.String message)
-sealed class Acta.InvalidQueryException : System.ArgumentException
+sealed class Acta.InvalidQueryException : Acta.ActaException
     .ctor(System.String message)
 sealed class Acta.JobAttribute : System.Attribute
     .ctor(System.String name)
@@ -1411,8 +1409,8 @@ record struct Acta.JobContract<TInput, TResult>
     System.String JobName { get;init; }
     System.String ToString()
     System.Type ManifestType { get;init; }
-abstract class Acta.JobControlException : System.Exception
-    protected .ctor(System.String? message)
+abstract class Acta.JobControlException : Acta.ActaException
+    System.String? ReasonMessage { get; }
 sealed record Acta.JobDescriptor
     .ctor(System.String JobName, System.Type HandlerType, System.String MethodName, System.Type InputType, System.Type? ResultType, Acta.JobPayloadFormat InputPayloadFormat, System.Nullable<Acta.JobPayloadFormat> ResultPayloadFormat, Acta.JobPriorityCode Priority, System.Int32 MaxAttempts, Acta.EventRecordingCode EventRecording, Acta.AlertProfileCode AlertProfile, Acta.FiringFailurePolicyCode FiringFailurePolicy, Acta.ScheduledDeliveryCode ScheduledDelivery, Acta.JobHandlerInvokeDelegate Invoker, System.Func<Acta.IJobPayloadSerializer, Acta.JobPayload, System.Object> DeserializeInput, System.Func<Acta.IJobPayloadSerializer, System.Object?, Acta.JobPayload>? SerializeResult)
     Acta.AlertProfileCode AlertProfile { get;init; }
@@ -1484,7 +1482,7 @@ sealed class Acta.JobExecutionOptions : Acta.JobEnqueueOptions
     .ctor()
     System.TimeSpan PollInterval { get;init; }
     System.TimeSpan WaitTimeout { get;init; }
-sealed class Acta.JobFailedException : System.Exception
+sealed class Acta.JobFailedException : Acta.ActaException
     .ctor(System.Int64 jobId, Acta.JobRef jobRef, Acta.JobStatusCode terminalStatus)
     Acta.JobRef JobRef { get; }
     Acta.JobStatusCode TerminalStatus { get; }
@@ -1670,6 +1668,10 @@ sealed class Acta.JobStatusCodeJsonConverter : System.Text.Json.Serialization.Js
     System.Void Write(System.Text.Json.Utf8JsonWriter writer, Acta.JobStatusCode value, System.Text.Json.JsonSerializerOptions options)
 static class Acta.JobStatusExtensions
     static System.Boolean get_IsTerminal(Acta.JobStatusCode value)
+sealed class Acta.JobWaitTimeoutException : Acta.ActaException
+    .ctor(System.Int64 jobId, Acta.JobRef jobRef)
+    Acta.JobRef JobRef { get; }
+    System.Int64 JobId { get; }
 sealed class Acta.JobsOptions
     .ctor()
     Acta.AlertChannelValidationMode AlertChannelValidationMode { get;set; }
@@ -2174,7 +2176,7 @@ sealed record Acta.ListWorkersResponse : Acta.IPagedResponse<Acta.ListWorkersIte
     System.Int32 PageSize { get;init; }
     System.Nullable<System.Int64> TotalCount { get;init; }
     System.String? NextCursor { get;init; }
-sealed class Acta.LockAcquisitionTimeoutException : System.Exception
+sealed class Acta.LockAcquisitionTimeoutException : Acta.ActaException
     .ctor(System.String key, System.TimeSpan timeout)
     System.String Key { get; }
     System.TimeSpan Timeout { get; }
@@ -2296,12 +2298,12 @@ sealed record Acta.PauseScheduleResponse : Acta.IScheduleControlResponse
     System.Nullable<System.DateTime> NextOccurrenceAtUtc { get;init; }
     System.Nullable<System.DateTime> PausedUntilUtc { get;init; }
     System.Nullable<System.Int64> Version { get;init; }
-sealed class Acta.PayloadContractDriftException : System.Exception
+sealed class Acta.PayloadContractDriftException : Acta.ActaException
     .ctor(System.String message)
 enum Acta.PayloadContractDriftMode : System.Byte
     Fail = 2
     Warn = 1
-sealed class Acta.PayloadTooLargeException : System.Exception
+sealed class Acta.PayloadTooLargeException : Acta.ActaException
     .ctor(System.String entryPoint, System.Int32 actualBytes, System.Int32 maxBytes)
     System.Int32 ActualBytes { get; }
     System.Int32 MaxBytes { get; }
@@ -2369,8 +2371,6 @@ sealed record Acta.RequeueOutboxResponse : Acta.IOutboxControlResponse
     Acta.ControlAction Action { get;init; }
     System.Nullable<System.DateTime> PendingSinceUtc { get;init; }
 sealed class Acta.RescheduleJobException : Acta.JobControlException
-    .ctor(System.DateTimeOffset resumeAtUtc, System.String? message = null)
-    .ctor(System.TimeSpan delay, System.String? message = null)
     System.Nullable<System.DateTimeOffset> ResumeAtUtc { get; }
     System.Nullable<System.TimeSpan> Delay { get; }
 sealed record Acta.RescheduleJobResponse : Acta.IJobControlResponse
@@ -2466,7 +2466,7 @@ sealed record Acta.ScheduleDescriptor
     System.String? AvailabilityCalendarName { get;init; }
     System.String? Description { get;init; }
     System.String? TimeZoneId { get;init; }
-sealed class Acta.ScheduleEvaluationException : System.InvalidOperationException
+sealed class Acta.ScheduleEvaluationException : Acta.ActaException
     .ctor(System.String message, System.Exception innerException)
 enum Acta.ScheduleEvaluationStatusCode : System.Byte
     EvaluationError = 40
@@ -2602,11 +2602,11 @@ sealed class Acta.SqlProviderOptions
     System.String Schema { get;set; }
     System.TimeSpan CommandTimeout { get;set; }
     const System.Int32 MaxDeadlockRetryAttempts = 100
-sealed class Acta.StepFailedException : System.Exception
+sealed class Acta.StepFailedException : Acta.ActaException
     .ctor(System.String stepName, System.String? lastReasonMessage)
     System.String StepName { get; }
     System.String? LastReasonMessage { get; }
-sealed class Acta.StepInterruptedException : System.Exception
+sealed class Acta.StepInterruptedException : Acta.ActaException
     .ctor(System.String stepName)
     System.String StepName { get; }
 sealed record Acta.StepOptions
@@ -2614,7 +2614,7 @@ sealed record Acta.StepOptions
     static readonly Acta.StepOptions Inherit
 sealed class Acta.StepOptionsBuilder
     Acta.StepOptionsBuilder AtMostOnce()
-sealed class Acta.StepResultContractMismatchException : System.Exception
+sealed class Acta.StepResultContractMismatchException : Acta.ActaException
     .ctor(System.String stepName, System.Type expectedType, System.Exception innerException)
     System.String StepName { get; }
     System.Type ExpectedType { get; }

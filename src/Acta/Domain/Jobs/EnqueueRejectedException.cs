@@ -6,7 +6,7 @@ namespace Acta;
 /// </summary>
 /// <remarks>Build a rejection carrying the machine-readable reason and the provider exception as inner.</remarks>
 public sealed class EnqueueRejectedException(EnqueueRejectionReason reason, string message, Exception? innerException = null)
-    : Exception(message, innerException)
+    : ActaException(message, innerException)
 {
     /// <summary>Which guard rejected the enqueue.</summary>
     public EnqueueRejectionReason Reason { get; } = reason;

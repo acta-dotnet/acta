@@ -1,3 +1,5 @@
+using System.Diagnostics;
+
 namespace Acta;
 
 public abstract partial class JobContext
@@ -12,6 +14,7 @@ public abstract partial class JobContext
     /// <param name="input">Typed input resolved to a job route via the generated manifest.</param>
     /// <param name="configure">Optional enqueue options; the parent id and deduplication key are framework-set and win.</param>
     /// <param name="ct">Cancellation; linked with the per-attempt <see cref="CancellationToken"/>.</param>
+    [DebuggerDisableUserUnhandledExceptions]
     public async Task<EnqueueJobResponse> StartChildAsync<TInput>(
         string name,
         TInput input,
@@ -44,6 +47,7 @@ public abstract partial class JobContext
     /// (<paramref name="jobNamespace"/>, <paramref name="jobName"/>) targeting, including a namespace
     /// other than this Job's.
     /// </summary>
+    [DebuggerDisableUserUnhandledExceptions]
     public async Task<EnqueueJobResponse> StartChildAsync(
         string name,
         string jobNamespace,

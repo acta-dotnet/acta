@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
@@ -82,6 +83,7 @@ public abstract partial class JobContext
         CancellationToken ct = default
     ) => ParallelCoreAsync(groupName, configure, timeout, ct);
 
+    [DebuggerDisableUserUnhandledExceptions]
     private async Task<ParallelOutcome> ParallelCoreAsync(
         string groupName,
         Action<ParallelBuilder> configure,
@@ -172,6 +174,7 @@ public abstract partial class JobContext
         where TKey : notnull
         where TInput : notnull => MapCoreAsync<TItem, TKey, TInput>(groupName, items, itemKey, child, timeout, ct);
 
+    [DebuggerDisableUserUnhandledExceptions]
     private async Task<MapOutcome<TKey>> MapCoreAsync<TItem, TKey, TInput>(
         string groupName,
         IEnumerable<TItem> items,

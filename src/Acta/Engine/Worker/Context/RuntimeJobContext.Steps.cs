@@ -1,5 +1,6 @@
 #nullable enable
 
+using System.Diagnostics;
 using Microsoft.Extensions.Logging;
 
 namespace Acta;
@@ -14,7 +15,8 @@ internal sealed partial class RuntimeJobContext
     ) =>
         RunStepImplAsync<bool>(
             name,
-            async token =>
+            [DebuggerDisableUserUnhandledExceptions]
+            async (token) =>
             {
                 await body(token);
                 return false;
@@ -34,8 +36,9 @@ internal sealed partial class RuntimeJobContext
     /// <summary>
     /// Durable step orchestration: start (invoke, replay, failed, or interrupted), run the body, record the success.
     /// An ordinary body's failure propagates and fails the attempt, so the job's retry runs it again; an at-most-once
-    /// body's failure is recorded terminal first.
+    /// body's failure is recorded terminal first. A debugger stops on the failure once, where the attempt ends.
     /// </summary>
+    [DebuggerDisableUserUnhandledExceptions]
     private async Task<TResult> RunStepImplAsync<TResult>(
         string name,
         Func<CancellationToken, Task<TResult>> body,
@@ -69,16 +72,13 @@ internal sealed partial class RuntimeJobContext
         {
             value = await body(ct);
         }
-        catch (JobControlException control) when (options.AtMostOnce && control is not (HandlerFailException or HandlerCancelException))
+        catch (JobControlException control)
+            when (options.AtMostOnce && control is not (HandlerFailException or HandlerCancelException or WaitTimeoutSignal))
         {
-            // A suspension the body threw itself rather than through a guarded call: its resume would find the step
-            // started and interrupt it, so it is refused as those calls are. Fail and cancel end the job and pass through.
-            throw await RecordFailureAsync(
-                name,
-                start.Version,
-                AtMostOnceSuspensionRefused($"A thrown {control.GetType().Name}", name).Message,
-                ct
-            );
+            // A wait begun outside the body and awaited inside it got past the refusal at the call; resuming it would
+            // find the step started and interrupt it, so it is refused here. Fail, cancel and an expired wait end the
+            // job and pass through.
+            throw await RecordFailureAsync(name, start.Version, AtMostOnceSuspensionRefused($"A {control.GetType().Name}", name), ct);
         }
         catch (Exception ex)
             when (ex is not (JobControlException or ExecutionFencedException)
@@ -94,7 +94,7 @@ internal sealed partial class RuntimeJobContext
                 throw;
             }
 
-            throw await RecordFailureAsync(name, start.Version, ex.Message, ct);
+            throw await RecordFailureAsync(name, start.Version, ex, ct);
         }
 
         // The body has run. A result that cannot be recorded fails the step for good rather than the attempt, whose retry
@@ -151,9 +151,9 @@ internal sealed partial class RuntimeJobContext
         FencedAsync(() => _executionStore.CompleteJobStepAsync(command, ct));
 
     /// <summary>Records an at-most-once body's failure terminal and answers the exception its call throws.</summary>
-    private async Task<StepFailedException> RecordFailureAsync(string name, int version, string failureMessage, CancellationToken ct)
+    private async Task<StepFailedException> RecordFailureAsync(string name, int version, Exception cause, CancellationToken ct)
     {
-        var message = failureMessage.Truncate(ActaTextLimits.StepFailureMessage);
+        var message = cause.Message.Truncate(ActaTextLimits.StepFailureMessage);
         var failure = await CompleteJobStepAsync(
             new CompleteJobStepCommand(Fence, name, Succeeded: false, ResultFormatId: 0, Result: null, message, version),
             ct
@@ -169,7 +169,7 @@ internal sealed partial class RuntimeJobContext
         {
             ActaLog.StepFailed(_log, JobId, $"step '{name}': {message}");
         }
-        return new StepFailedException(name, message);
+        return new StepFailedException(name, message, cause);
     }
 
     private JobPayload SerializeStepResult<TResult>(TResult value)
@@ -179,6 +179,8 @@ internal sealed partial class RuntimeJobContext
         return payload;
     }
 
+    /// <summary>A replayed step's stored result; a serializer that cannot read it throws to the attempt as a contract mismatch.</summary>
+    [DebuggerDisableUserUnhandledExceptions]
     private TResult DeserializeStepResult<TResult>(string name, byte resultFormatId, byte[] result)
     {
         try

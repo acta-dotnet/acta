@@ -219,7 +219,7 @@ If the worker dies after the step's start is recorded but before its outcome, th
 
 A body that throws leaves the step `Failed`, and `RunStepAsync` throws `StepFailedException` then and on every replay without running the body; catch it where the job can go on. Uncaught, it fails the job at once instead of retrying it, since every retry would throw again. Restarting the job runs the step again.
 
-A wait, sleep, reschedule, pause, or child wait inside an at-most-once body throws `InvalidOperationException` at the call, before it writes anything: the resume would replay the job from the top and run the body again. A `RescheduleJobException` or `HandlerPauseException` the body throws itself is refused the same way, and the step ends `Failed`. Move the wait out of the step.
+A wait, sleep, reschedule, pause, or child wait inside an at-most-once body throws `InvalidOperationException` at the call, before it writes anything: the resume would replay the job from the top and run the body again. Move the wait out of the step.
 
 In a permanent job, catch the exception and prefer a per-period step name (`$"charge-{period}"`): an uncaught interruption stops the whole schedule. Each period's step row stays as long as the job, so at a high cadence run the charge in a job per occurrence, as above.
 
@@ -543,6 +543,8 @@ Durable job instructions are stored inline, capped by `JobsOptions.MaxInlinePayl
 For large files, exports, media, archives, reports, or model inputs, store the bytes in file/blob/object storage and enqueue a reference (URI, checksum, size, content type). The handler opens, verifies, processes, and returns a small durable result. The job input is the durable pointer and verification contract, not the file. See `concepts/000-fundamentals/025-large-payload-reference`.
 
 ### Exception semantics
+
+Every exception type Acta defines derives from `ActaException`, so one catch takes them all; argument checks, misuse such as a typed read of a value that was never stored, parse formats and cancellation throw .NET's own types.
 
 Unhandled exceptions escape the handler and are captured as attempt failures. The framework records the exception's `Message`, truncated to 512 characters, as the attempt's failure message, at the job's event recording level; retry policy decides whether the job retries or becomes terminal. Nothing redacts that message: it is shown on the read surface and sent to alert channels, so keep secrets and personal data out of exception messages.
 

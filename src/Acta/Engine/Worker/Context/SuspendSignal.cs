@@ -12,6 +12,6 @@ internal sealed class SuspendSignal(DateTime resumeAtUtc, string? reasonMessage)
     /// <summary>The timer's stored due instant; becomes the Job's re-arm <c>next_run_at_utc</c>.</summary>
     public DateTime ResumeAtUtc { get; } = resumeAtUtc;
 
-    /// <summary>Operator-readable suspend reason.</summary>
-    public string? ReasonMessage { get; } = reasonMessage;
+    /// <summary>The reason, or the instant the sleep lasts until when none was given.</summary>
+    public override string Message => ReasonMessage ?? $"Sleeping until {ResumeAtUtc:u}.";
 }

@@ -68,11 +68,11 @@
          without the context it exists to carry; CA1032 asks for exactly those constructors. -->
     <NoWarn>$(NoWarn);CA1032</NoWarn>
     <!-- The same boundary drawn the other way round. Acta's catchable exception surface is the public
-         one - JobFailedException, PayloadTooLargeException, the JobControlException family - and
-         every type CA1064 flags is instead internal to the engine, thrown as an engine
+         one under ActaException - JobFailedException, PayloadTooLargeException, the JobControlException
+         family - and every type CA1064 flags is instead internal to the engine, thrown as an engine
          control signal that one frame catches. AlertProjectionDataException is the projector's own
          poison classification, thrown and caught inside AlertsJob. StepOwnershipLostException is the
-         complete_job_step CAS miss, thrown by RuntimeJobContext and caught by JobExecution. The meta
+         complete_job_step CAS miss, thrown by RuntimeJobContext and caught by HandlerInvocation. The meta
          reader throws OutboxContractException and the relay catches it in the same tick.
          OutboxQuarantineTickException is the one that does leave the runtime, as the sys.outbox job's
          own failure - but it reaches an operator as alert text, never as a type on a handler's catch

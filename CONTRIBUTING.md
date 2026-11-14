@@ -776,7 +776,7 @@ Definitions the boxes rest on: a worker is one process runtime registered for on
 
 ### The other folders
 
-- `Domain/`: what Acta is made of. Every type outside an operation that is public, or that code outside `Operations/` names, sits in `Domain/<Group>/` for the group it belongs to: refs, lookups, enqueue options and builders, exceptions, each group's control response interface, the claim and completion types, schedule math, and the rows the engine reads. What spans groups, `IControlResponse` and `ControlAction`, sits at its root. `Domain/Codes/` holds the persisted code families with the code attributes and manifests that declare them, and `Domain/Entities/` the table models, one class per table.
+- `Domain/`: what Acta is made of. Every type outside an operation that is public, or that code outside `Operations/` names, sits in `Domain/<Group>/` for the group it belongs to: refs, lookups, enqueue options and builders, exceptions, each group's control response interface, the claim and completion types, schedule math, and the rows the engine reads. What spans groups, `IControlResponse`, `ControlAction` and `ActaException`, sits at its root. `Domain/Codes/` holds the persisted code families with the code attributes and manifests that declare them, and `Domain/Entities/` the table models, one class per table.
 - `Handlers/`: the handler API: `JobContext`, the job attributes, backoff and rate-limit specs, steps, waits, locks, children, and their outcomes.
 - `Configuration/`: `JobsOptions`, `SqlProviderOptions`, and the options validator.
 - `Payloads/`: `JobPayload`, the payload formats, and the serializers and their registry.
@@ -804,6 +804,7 @@ Definitions the boxes rest on: a worker is one process runtime registered for on
 | `FileNameTests` | every file in `src/Acta` named for its first top-level type, a partial type's other files `Type.Part.cs` |
 | `PublicApiContractTests` | the public types and members of every shipped assembly match `PublicApiSurface.approved.txt` |
 | `ArchitectureBoundaryTests` | `Acta.AspNetCore` references only `Acta`, and `Acta.Dashboard` only `Acta.AspNetCore` |
+| `ExceptionBaseTests` | every exception type a shipped assembly defines, public or not, derives from `ActaException` |
 
 Every rule holds with no known exception: a single violation fails its test.
 

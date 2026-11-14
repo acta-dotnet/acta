@@ -168,12 +168,6 @@ internal static partial class ActaLog
     )]
     public static partial void ResultDroppedOverCap(ILogger log, string actaJobName, long actaJobId, string actaDetail);
 
-    [LoggerMessage(
-        Level = LogLevel.Warning,
-        Message = "Handler for job ({ActaJobName}) id {ActaJobId} threw a control signal the runtime does not recognize; transitioning to Failed."
-    )]
-    public static partial void UnrecognizedControlSignal(ILogger log, Exception exception, string actaJobName, long actaJobId);
-
     [LoggerMessage(Level = LogLevel.Warning, Message = "Handler for job ({ActaJobName}) ({ActaJobRef}) exceeded its execution timeout.")]
     public static partial void ExecutionTimedOut(ILogger log, string actaJobName, string actaJobRef);
 

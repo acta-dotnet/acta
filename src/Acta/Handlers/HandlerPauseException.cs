@@ -5,5 +5,8 @@ namespace Acta;
 /// the Job is not retried automatically, does not set <c>next_run_at_utc</c>, and the failure budget
 /// is untouched. Resumes only through the existing <c>IJobs.ResumeAsync</c> path.
 /// </summary>
-/// <remarks>Initializes the pause control with an optional <paramref name="reasonMessage"/>.</remarks>
-public sealed class HandlerPauseException(string? reasonMessage = null) : HandlerControlException(reasonMessage) { }
+public sealed class HandlerPauseException : HandlerControlException
+{
+    internal HandlerPauseException(string? reasonMessage)
+        : base(reasonMessage) { }
+}

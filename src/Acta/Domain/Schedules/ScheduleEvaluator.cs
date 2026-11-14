@@ -226,7 +226,14 @@ internal static class ScheduleEvaluator
 
     // What a schedule's own source throws when it cannot be read: an expression, a zone, or a calendar.
     private static bool IsSourceFailure(Exception ex) =>
-        ex is FormatException or ArgumentException or InvalidOperationException or TimeZoneNotFoundException or InvalidTimeZoneException;
+        ex
+            is FormatException
+                or ArgumentException
+                or InvalidOperationException
+                or TimeZoneNotFoundException
+                or InvalidTimeZoneException
+                or CalendarUnavailableException
+                or ScheduleEvaluationException;
 
     /// <summary>
     /// Runs a preview's walk of a source. What the admitter would park as an evaluation error is thrown as

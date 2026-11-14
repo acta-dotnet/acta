@@ -8,4 +8,4 @@ namespace Acta;
 /// <see cref="InvalidOperationException"/> the handler itself throws is retried as any other exception is.
 /// </summary>
 public sealed class HandlerActivationException(Type handlerType, Exception innerException)
-    : InvalidOperationException($"Handler '{handlerType}' cannot be activated: {innerException.Message}", innerException);
+    : ActaException($"Handler '{handlerType}' cannot be activated: {innerException.Message}", innerException);

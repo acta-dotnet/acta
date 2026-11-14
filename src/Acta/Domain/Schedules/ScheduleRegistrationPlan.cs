@@ -49,7 +49,7 @@ internal static class ScheduleRegistrationPlan
             {
                 source = resolve(timing).Bound();
             }
-            catch (InvalidOperationException ex)
+            catch (Exception ex) when (ex is InvalidOperationException or CalendarUnavailableException)
             {
                 throw new InvalidOperationException($"Schedule '{d.ScheduleName}' of job '{d.JobName}' cannot register: {ex.Message}", ex);
             }

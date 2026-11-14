@@ -35,24 +35,6 @@ internal static class AtMostOnceStepHandler
 
     public static Task RunUncaughtAsync(JobContext ctx, CancellationToken ct) => ChargeAsync(ctx, ct);
 
-    public static Task RunThrowsRescheduleAsync(JobContext ctx, CancellationToken ct) =>
-        ThrowInsideAsync(ctx, new RescheduleJobException(TimeSpan.FromMinutes(1)), ct);
-
-    public static Task RunThrowsPauseAsync(JobContext ctx, CancellationToken ct) =>
-        ThrowInsideAsync(ctx, new HandlerPauseException("hold"), ct);
-
-    private static Task ThrowInsideAsync(JobContext ctx, JobControlException control, CancellationToken ct) =>
-        ctx.RunStepAsync(
-            StepName,
-            async _ =>
-            {
-                await Task.CompletedTask;
-                throw control;
-            },
-            o => o.AtMostOnce(),
-            ct
-        );
-
     public static Task RunWaitInsideAsync(JobContext ctx, CancellationToken ct) =>
         ctx.RunStepAsync(
             StepName,
@@ -72,6 +54,23 @@ internal static class AtMostOnceStepHandler
             ct
         );
 
+    // A wait begun outside the body whose control flow the body ends with, as a wait started before the step and awaited
+    // inside it does.
+    public static async Task RunCarriedWaitAsync(JobContext ctx, CancellationToken ct)
+    {
+        JobControlException? carried = null;
+        try
+        {
+            await ctx.WaitSignalAsync("approval", ct);
+        }
+        catch (JobControlException ex)
+        {
+            carried = ex;
+        }
+
+        await ctx.RunStepAsync(StepName, _ => Task.FromException(carried!), o => o.AtMostOnce(), ct);
+    }
+
     public static async Task RunCaughtAsync(JobContext ctx, CancellationToken ct)
     {
         try
@@ -85,22 +84,20 @@ internal static class AtMostOnceStepHandler
     }
 }
 
-/// <summary>Spec-local manifest with the two at-most-once probes, isolated from TestJobsManifest.</summary>
+/// <summary>Spec-local manifest with the at-most-once probes, isolated from TestJobsManifest.</summary>
 public sealed class AtMostOnceStepManifest : IJobManifest
 {
     public const string UncaughtProbe = "at-most-once-uncaught";
     public const string CaughtProbe = "at-most-once-caught";
     public const string WaitInsideProbe = "at-most-once-wait-inside";
-    public const string ThrowsRescheduleProbe = "at-most-once-throws-reschedule";
-    public const string ThrowsPauseProbe = "at-most-once-throws-pause";
+    public const string CarriedWaitProbe = "at-most-once-carried-wait";
 
     public static JobDescriptorManifest Descriptors { get; } =
         new([
             Probe(UncaughtProbe, AtMostOnceStepHandler.RunUncaughtAsync),
             Probe(CaughtProbe, AtMostOnceStepHandler.RunCaughtAsync),
             Probe(WaitInsideProbe, AtMostOnceStepHandler.RunWaitInsideAsync),
-            Probe(ThrowsRescheduleProbe, AtMostOnceStepHandler.RunThrowsRescheduleAsync),
-            Probe(ThrowsPauseProbe, AtMostOnceStepHandler.RunThrowsPauseAsync),
+            Probe(CarriedWaitProbe, AtMostOnceStepHandler.RunCarriedWaitAsync),
         ]);
 
     private static JobDescriptor Probe(string name, Func<JobContext, CancellationToken, Task> run) =>
@@ -270,29 +267,20 @@ public sealed class StepAtMostOnceSpec : ActaRuntimeTestBase<ConformanceFixture,
         Assert.Equal(JobStatusCode.Failed, (await ReadJobAsync(enqueued.JobId, ct)).Status);
     }
 
-    [Fact(DisplayName = "A RescheduleJobException an at-most-once body throws is refused and fails the step")]
-    public Task Thrown_reschedule_inside_an_at_most_once_body_is_refused() =>
-        AssertThrownSuspensionRefusedAsync(AtMostOnceStepManifest.ThrowsRescheduleProbe, nameof(RescheduleJobException));
-
-    [Fact(DisplayName = "A HandlerPauseException an at-most-once body throws is refused and fails the step")]
-    public Task Thrown_pause_inside_an_at_most_once_body_is_refused() =>
-        AssertThrownSuspensionRefusedAsync(AtMostOnceStepManifest.ThrowsPauseProbe, nameof(HandlerPauseException));
-
-    // Uncaught, the suspension would re-arm the job and leave the step started, so the next attempt would interrupt it.
-    private async Task AssertThrownSuspensionRefusedAsync(string probe, string thrown)
+    [Fact(DisplayName = "A wait begun outside an at-most-once body and ended in it is refused and fails the step")]
+    public async Task A_wait_carried_into_an_at_most_once_body_is_refused()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, probe, JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(
+            new EnqueueJobRequest(TestNamespace, AtMostOnceStepManifest.CarriedWaitProbe, JobPayload.None),
+            ct
+        );
 
         Assert.Equal(RunOnceStatus.Failed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var row = await ReadStepAsync(enqueued.JobId, ct);
         Assert.Equal(StepStatusCode.Failed, row.Status);
-        Assert.StartsWith(
-            $"A thrown {thrown} inside the AtMostOnce step '{StepName}' is refused",
-            row.FailureMessage,
-            StringComparison.Ordinal
-        );
+        Assert.Contains($"inside the AtMostOnce step '{StepName}' is refused", row.FailureMessage, StringComparison.Ordinal);
         Assert.Equal(JobStatusCode.Failed, (await ReadJobAsync(enqueued.JobId, ct)).Status);
     }
 

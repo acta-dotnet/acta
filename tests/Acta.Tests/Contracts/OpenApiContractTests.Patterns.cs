@@ -215,7 +215,7 @@ public sealed partial class OpenApiContractTests
             parse();
             return true;
         }
-        catch (ArgumentException)
+        catch (Exception ex) when (ex is ArgumentException or InvalidQueryException or MalformedRouteKeyException)
         {
             return false;
         }

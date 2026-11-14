@@ -278,7 +278,7 @@ internal static class RouteTable
         {
             return ControlEndpointValidation.Problem(StatusCodes.Status400BadRequest, ex.Title, ex.Message);
         }
-        catch (ArgumentException ex)
+        catch (Exception ex) when (ex is ArgumentException or InvalidQueryException)
         {
             return ControlEndpointValidation.Problem(StatusCodes.Status400BadRequest, invalidTitle, ex.Message);
         }
@@ -299,7 +299,7 @@ internal static class RouteTable
         {
             return await action();
         }
-        catch (ArgumentException ex) when (ex is InvalidPageCursorException or InvalidQueryException or MalformedRouteKeyException)
+        catch (ActaException ex) when (ex is InvalidPageCursorException or InvalidQueryException or MalformedRouteKeyException)
         {
             return BadRequest(ex.Message);
         }
@@ -374,7 +374,8 @@ internal sealed record ReadCall(IActaOperations Operations, IJobs Jobs, Cancella
 /// The tag subresource over <see cref="ITags"/>, behind every group's tag routes. One rule decides the target's
 /// answer: a target this API cannot address, a catalog identifier or an entity ref alike, is malformed input and
 /// answers 400, read or mutation; so 404 says only that an addressable target is not there or a mutation matched
-/// no row. Every resolver therefore reports a target it cannot build as <see cref="ArgumentException"/>.
+/// no row. Every resolver therefore reports a target it cannot build as <see cref="ArgumentException"/>, or as
+/// <see cref="MalformedRouteKeyException"/> for a ref the route carries.
 /// </summary>
 internal static class TagRoutes
 {
@@ -404,7 +405,11 @@ internal static class TagRoutes
             }
             catch (ArgumentException ex)
             {
-                return InvalidTarget(ex);
+                return InvalidTarget(ex.Message);
+            }
+            catch (MalformedRouteKeyException ex)
+            {
+                return InvalidTarget(ex.Message);
             }
 
             if (!found)
@@ -452,12 +457,16 @@ internal static class TagRoutes
         }
         catch (ArgumentException ex)
         {
-            return InvalidTarget(ex);
+            return InvalidTarget(ex.Message);
+        }
+        catch (MalformedRouteKeyException ex)
+        {
+            return InvalidTarget(ex.Message);
         }
     }
 
-    private static IResult InvalidTarget(ArgumentException ex) =>
-        ControlEndpointValidation.Problem(StatusCodes.Status400BadRequest, "Invalid tag or tag target.", ex.Message);
+    private static IResult InvalidTarget(string message) =>
+        ControlEndpointValidation.Problem(StatusCodes.Status400BadRequest, "Invalid tag or tag target.", message);
 
     /// <summary>
     /// A list has no control envelope to answer with - its 200 is the page of tags - so an unknown target

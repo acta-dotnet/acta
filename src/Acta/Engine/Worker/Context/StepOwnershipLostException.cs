@@ -8,7 +8,7 @@ namespace Acta;
 /// <c>attempt-aborted</c> under the failure budget, with the step named, instead of reporting a step nothing recorded.
 /// </summary>
 internal sealed class StepOwnershipLostException(string stepName)
-    : Exception(
+    : ActaException(
         $"Step '{stepName}' changed under its own attempt before it completed: its name was started twice at once, or the job's state was reset inside its body."
     )
 {

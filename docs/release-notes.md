@@ -1,5 +1,22 @@
 # Release notes
 
+## 1.0.0-rc.12
+
+Not tagged yet.
+
+### What a consumer must change
+
+**Catch `ActaException` to catch every exception Acta defines**: each one derives from it, and the control flow a wait, sleep, reschedule or ctx control call throws derives from `JobControlException` under it. Six types lose their .NET base: `InvalidQueryException` and `InvalidPageCursorException` are no longer an `ArgumentException`, and `HandlerActivationException`, `ScheduleEvaluationException` and `CalendarUnavailableException` are no longer an `InvalidOperationException`, so a `catch (ArgumentException)` around a query or a `catch (InvalidOperationException)` around a schedule preview names the type, or `ActaException`, instead. Argument checks, misuse, parse formats and cancellation still throw .NET's own types.
+
+**Call `ctx.RescheduleAsync`, `RescheduleUntilAsync`, `FailAsync`, `CancelAsync` or `PauseAsync` where a handler threw the control exception itself**: the constructors of `RescheduleJobException`, `HandlerFailException`, `HandlerCancelException` and `HandlerPauseException` are internal, and only Acta derives from `JobControlException` and `HandlerControlException`. The types stay public, so a catch can still name them. A home-made subclass, which the worker failed as an unhandled exception, no longer compiles.
+
+**Catch `JobWaitTimeoutException` where code caught `TimeoutException` from `ThrowIfFailed()` or `ValueOrThrow()`**: an outcome whose wait ended before the job did throws it, with the job's `JobId` and `JobRef`, so the timeout is an `ActaException` too.
+
+### Additions
+
+- An attached debugger stops on a handler's errors and no longer on its waits, sleeps, reschedules and control calls, with Acta from the packages: once per error, at the line that threw it.
+- `JobControlException.ReasonMessage`, moved from `HandlerControlException`, carries the reason of every control call, so a reschedule without one records none, where its event read .NET's default exception text.
+
 ## 1.0.0-rc.11
 
 Tagged 2026-11-14. rc.11 migrates a database instead of re-cutting it, answers every child wait with one outcome type, reads a job's input and variables from outside the job, shows each definition's performance in the dashboard, and runs on .NET 11. The schema changes by one migration on rc.10's baseline, the first a release candidate ships: an rc.10 database is migrated, not reprovisioned.

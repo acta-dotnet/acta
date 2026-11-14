@@ -509,7 +509,7 @@ internal sealed record AlertDeliveryBudget(TimeSpan Send, TimeSpan Pass);
 /// skip and replayed. Any other exception fails the <c>sys.alerts</c> pass, so the shared event cursor never advances
 /// over an event that hit an unexpected error.
 /// </summary>
-internal sealed class AlertProjectionDataException(string reason, string message, Exception inner) : Exception(message, inner)
+internal sealed class AlertProjectionDataException(string reason, string message, Exception inner) : ActaException(message, inner)
 {
     internal const string UnknownJob = "unknown-job";
     internal const string InvalidEvent = "invalid-event";

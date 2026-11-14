@@ -18,8 +18,12 @@ internal sealed class HandlerInvocation(
 {
     /// <summary>
     /// The attempt's completion, or null when nothing is to be written: worker shutdown interrupted the handler and the
-    /// row stays Executing for recovery, or a write found the row held by another execution, which owns it now.
+    /// row stays Executing for recovery, or a write found the row held by another execution, which owns it now. An
+    /// attached debugger stops on an error the handler let escape, never on its control flow, a cancellation or a fence.
+    /// Every Acta method that runs a delegate the handler passed, inside its own async body or catch, carries
+    /// <see cref="DebuggerDisableUserUnhandledExceptionsAttribute"/> too, so the stop here is the only one.
     /// </summary>
+    [DebuggerDisableUserUnhandledExceptions]
     public async Task<ExecutionCompletion?> InvokeAsync(
         IServiceProvider attemptServices,
         JobDescriptor descriptor,
@@ -50,7 +54,7 @@ internal sealed class HandlerInvocation(
         }
         catch (JobControlException control)
         {
-            completion = Controlled(control, descriptor, job);
+            completion = Controlled(control);
         }
         catch (OperationCanceledException) when (jobContext.CancellationToken.IsCancellationRequested)
         {
@@ -72,6 +76,7 @@ internal sealed class HandlerInvocation(
         {
             // A step's completion matched no row, and nothing was recorded for it (StepOwnershipLostException says how
             // that happens): the attempt fails under its budget with the step named.
+            Debugger.BreakForUserUnhandledException(ownershipLost);
             completion = new ExecutionCompletion(CompletionKind.Failed)
             {
                 Reason = EventReason.AttemptAborted,
@@ -86,6 +91,7 @@ internal sealed class HandlerInvocation(
             // ctx.FailAsync: no retry (JobStepInterrupted is non-retryable), budget untouched, so the
             // parent is never replayed back into the interrupted step. The distinct reason preserves
             // the "outcome unknown" story for jobs explain / the timeline.
+            Debugger.BreakForUserUnhandledException(interrupted);
             completion = ExecutionCompletion.Terminal(
                 CompletionKind.Failed,
                 EventReason.StepInterrupted,
@@ -96,6 +102,7 @@ internal sealed class HandlerInvocation(
         }
         catch (Exception ex)
         {
+            Debugger.BreakForUserUnhandledException(ex);
             completion = Faulted(ex, inputDeserialized, descriptor, job);
         }
 
@@ -147,6 +154,8 @@ internal sealed class HandlerInvocation(
         return chain();
     }
 
+    /// <summary>The attempt's success, with its result recorded; a result that cannot be recorded throws to InvokeAsync.</summary>
+    [DebuggerDisableUserUnhandledExceptions]
     private ExecutionCompletion Succeeded(JobDescriptor descriptor, ClaimedJob job, JobHandlerOutput invocation, CancellationToken attempt)
     {
         var succeeded = new ExecutionCompletion(CompletionKind.Succeeded);
@@ -205,10 +214,9 @@ internal sealed class HandlerInvocation(
 
     /// <summary>
     /// A deliberate control signal: reschedule or durable sleep. Caught before cancellation /
-    /// generic failure so it is never mis-recorded as Failed. An unknown subclass never falls
-    /// into the re-arm path: it is failed like any other exception the handler let escape.
+    /// generic failure so it is never mis-recorded as Failed. The family is closed, so every member has an arm.
     /// </summary>
-    private ExecutionCompletion Controlled(JobControlException control, JobDescriptor descriptor, ClaimedJob job)
+    private static ExecutionCompletion Controlled(JobControlException control)
     {
         switch (control)
         {
@@ -216,7 +224,7 @@ internal sealed class HandlerInvocation(
                 return new ExecutionCompletion(CompletionKind.Rescheduled)
                 {
                     Reason = EventReason.HandlerRescheduled,
-                    ReasonMessage = reschedule.Message.Truncate(ActaTextLimits.EventMessage),
+                    ReasonMessage = reschedule.ReasonMessage.Truncate(ActaTextLimits.EventMessage),
                     RescheduleDelaySeconds = reschedule.Delay is { } delay ? (int)delay.TotalSeconds : null,
                     RescheduleResumeAtUtc = reschedule.Delay is null ? reschedule.ResumeAtUtc?.UtcDateTime : null,
                 };
@@ -233,9 +241,7 @@ internal sealed class HandlerInvocation(
                 return new ExecutionCompletion(CompletionKind.Suspended)
                 {
                     Reason = EventReason.HandlerSuspended,
-                    ReasonMessage = (signalSuspend.ReasonMessage ?? $"Signal '{signalSuspend.SignalName}' pending.").Truncate(
-                        ActaTextLimits.EventMessage
-                    ),
+                    ReasonMessage = signalSuspend.ReasonMessage.Truncate(ActaTextLimits.EventMessage),
                     WaitSignalName = signalSuspend.SignalName,
                 };
             case WaitTimeoutSignal waitTimeout:
@@ -247,7 +253,7 @@ internal sealed class HandlerInvocation(
                 return ExecutionCompletion.Terminal(
                     CompletionKind.Cancelled,
                     EventReason.WaitTimedOut,
-                    $"Durable wait '{waitTimeout.WaitName}' timed out.",
+                    waitTimeout.ReasonMessage,
                     JobStatusCode.Cancelled
                 );
             case HandlerFailException fail:
@@ -274,18 +280,7 @@ internal sealed class HandlerInvocation(
                     JobStatusCode.Paused
                 );
             default:
-                // A subclass the runtime does not know: the base type is public, so user code can
-                // derive one. Rethrowing it would leave the row Executing until its lease lapsed,
-                // so it lands as a handler exception instead: a retried Failed, charged to the
-                // budget, with the type in the reason.
-                ActaLog.UnrecognizedControlSignal(log, control, descriptor.JobName, job.JobId);
-                return new ExecutionCompletion(CompletionKind.Failed)
-                {
-                    Reason = EventReason.UnhandledException,
-                    ReasonMessage = $"Unrecognized control signal {control.GetType().Name}: {control.Message}".Truncate(
-                        ActaTextLimits.EventMessage
-                    ),
-                };
+                throw new UnreachableException($"Control signal {control.GetType().Name} has no completion.");
         }
     }
 

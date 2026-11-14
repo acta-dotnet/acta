@@ -1,3 +1,5 @@
+using System.Diagnostics;
+
 namespace Acta;
 
 // The child forms that take a generated call, as IJobs has them: the child is the job the call names, so nothing is
@@ -132,6 +134,7 @@ public abstract partial class JobContext
         where TInput : notnull
         where TResult : notnull => ExecuteChildAsync(name, job, timeout, configure: null, ct: ct);
 
+    [DebuggerDisableUserUnhandledExceptions]
     private async Task<EnqueueJobResponse> StartChildCallAsync<TInput>(
         string name,
         Type? manifestType,

@@ -9,7 +9,7 @@ namespace Acta;
 /// <paramref name="timeout"/> budget.
 /// </remarks>
 public sealed class LockAcquisitionTimeoutException(string key, TimeSpan timeout)
-    : Exception($"Could not acquire lock '{key}' within {timeout}.")
+    : ActaException($"Could not acquire lock '{key}' within {timeout}.")
 {
     /// <summary>The user-supplied lock key that could not be acquired (not the internal composed key).</summary>
     public string Key { get; } = key;

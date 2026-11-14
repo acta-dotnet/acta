@@ -7,7 +7,7 @@ namespace Acta;
 /// <see cref="ExecutionFence"/>, so it changed nothing. The executor ends the attempt as it ends a lost lease: no
 /// completion, no retry charged, and the row stays with whoever holds it now.
 /// </summary>
-internal sealed class ExecutionFencedException(string message, Exception? innerException = null) : Exception(message, innerException)
+internal sealed class ExecutionFencedException(string message, Exception? innerException = null) : ActaException(message, innerException)
 {
     /// <summary>The token a fenced routine raises, matched anywhere in the message because provider wrappers prepend their own.</summary>
     public const string Token = "ACTA:EXECUTION_FENCED:";

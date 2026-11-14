@@ -8,7 +8,7 @@ namespace Acta;
 /// <remarks>
 /// Builds the exception from the non-succeeded child outcomes that triggered the escalation.
 /// </remarks>
-public sealed class ChildGroupException(IReadOnlyList<JobOutcome> failed) : Exception(BuildMessage(failed))
+public sealed class ChildGroupException(IReadOnlyList<JobOutcome> failed) : ActaException(BuildMessage(failed))
 {
     /// <summary>The non-succeeded child outcomes (failed, cancelled, or timed out).</summary>
     public IReadOnlyList<JobOutcome> Failed { get; } = failed;

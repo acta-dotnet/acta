@@ -4,7 +4,7 @@ namespace Acta;
 /// Thrown before a batch enqueue reaches SQL when two rows carry the same deduplication key inside
 /// the same root or child uniqueness boundary.
 /// </summary>
-public sealed class DuplicateDeduplicationKeyInBatchException : Exception
+public sealed class DuplicateDeduplicationKeyInBatchException : ActaException
 {
     private DuplicateDeduplicationKeyInBatchException(
         string message,

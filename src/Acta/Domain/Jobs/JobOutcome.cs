@@ -32,8 +32,8 @@ public class JobOutcome
     public bool Succeeded => !TimedOut && Status == JobStatusCode.Succeeded;
 
     /// <summary>
-    /// No-op when <see cref="Succeeded"/>; throws <c>JobFailedException</c> on <c>Failed</c>/<c>Cancelled</c>
-    /// and <c>TimeoutException</c> when <see cref="TimedOut"/>.
+    /// No-op when <see cref="Succeeded"/>; throws <see cref="JobFailedException"/> on <c>Failed</c>/<c>Cancelled</c>
+    /// and <see cref="JobWaitTimeoutException"/> when <see cref="TimedOut"/>.
     /// </summary>
     public void ThrowIfFailed()
     {
@@ -44,7 +44,7 @@ public class JobOutcome
 
         if (TimedOut)
         {
-            throw new TimeoutException($"The wait for job {JobRef} timed out.");
+            throw new JobWaitTimeoutException(JobId, JobRef);
         }
 
         throw new JobFailedException(JobId, JobRef, Status);
@@ -89,7 +89,7 @@ public sealed class JobOutcome<T> : JobOutcome
 
     /// <summary>
     /// Returns <see cref="Value"/> on success; throws <c>JobFailedException</c> on terminal failure /
-    /// cancellation, <c>TimeoutException</c> on wait timeout, <c>InvalidOperationException</c> on
+    /// cancellation, <see cref="JobWaitTimeoutException"/> on wait timeout, <c>InvalidOperationException</c> on
     /// success-with-null-value (framework bug indicator).
     /// </summary>
     public T ValueOrThrow()

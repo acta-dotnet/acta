@@ -9,7 +9,7 @@ namespace Acta;
 /// <paramref name="entryPoint"/> whose payload of <paramref name="actualBytes"/> exceeded <paramref name="maxBytes"/>.
 /// </summary>
 public sealed class PayloadTooLargeException(string entryPoint, int actualBytes, int maxBytes)
-    : Exception($"{entryPoint} payload is {actualBytes} bytes, exceeding the {maxBytes}-byte MaxInlinePayloadBytes limit.")
+    : ActaException($"{entryPoint} payload is {actualBytes} bytes, exceeding the {maxBytes}-byte MaxInlinePayloadBytes limit.")
 {
     /// <summary>The write that was rejected (e.g. <c>"enqueue input"</c>, <c>"variable 'foo'"</c>).</summary>
     public string EntryPoint { get; } = entryPoint;

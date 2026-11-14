@@ -5,7 +5,7 @@ namespace Acta;
 /// preview or a publication throws it for a stored version this build cannot read. The message lists every problem on its own
 /// line, each starting with its JSON path, as <see cref="Problems"/> does.
 /// </summary>
-public sealed class CalendarDefinitionException : Exception
+public sealed class CalendarDefinitionException : ActaException
 {
     internal CalendarDefinitionException(IReadOnlyList<string> problems)
         : base($"The calendar definition does not compile:{Environment.NewLine}{string.Join(Environment.NewLine, problems)}") =>

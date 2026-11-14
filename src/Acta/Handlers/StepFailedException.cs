@@ -8,7 +8,7 @@ namespace Acta;
 /// run a finished body twice, or a handler catches it to run compensation and continue. A replay of a failed step
 /// re-throws at once, until an operator restart clears it. Carries the step name and the failure.
 /// </summary>
-public sealed class StepFailedException : Exception
+public sealed class StepFailedException : ActaException
 {
     public StepFailedException(string stepName, string? lastReasonMessage)
         : this(stepName, lastReasonMessage, innerException: null) { }
