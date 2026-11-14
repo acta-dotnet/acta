@@ -94,6 +94,22 @@ public sealed class RescheduleSleepSpec : ActaRuntimeTestBase<ConformanceFixture
         Assert.Equal(0, await CountVariableAsync(enqueued.JobId, "ran.after", ct));
         Assert.Equal(1, await CountYieldedAsync(enqueued.JobId, "suspended", ct));
         Assert.Equal(1, await CountEventsAsync(enqueued.JobId, EventCode.JobSuspended, ct));
+
+        // The sleep's reason is the timeline's line.
+        Assert.Equal("waiting", (await ReadLatestEventAsync(enqueued.JobId, EventCode.JobSuspended, ct)).EventMessage);
+    }
+
+    [Fact(DisplayName = "A sleep given no reason names its timer and the instant it lasts until on the timeline")]
+    public async Task A_sleep_without_a_reason_names_its_timer()
+    {
+        var ct = TestContext.Current.CancellationToken;
+
+        // The rejection probe, with no other timer pending, is a plain ten-minute sleep given no reason.
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-sleep-reject", JobPayload.None), ct);
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
+
+        var suspended = await ReadLatestEventAsync(enqueued.JobId, EventCode.JobSuspended, ct);
+        Assert.StartsWith("Timer 'second-name' until ", suspended.EventMessage ?? "", StringComparison.Ordinal);
     }
 
     [Fact(DisplayName = "Sleep rerun before due does not extend or duplicate the timer")]

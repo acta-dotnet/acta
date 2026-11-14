@@ -22,7 +22,7 @@ public sealed class RaiseJobSignalSpec : ActaRuntimeTestBase<ConformanceFixture,
                 .ToListAsync(ct)
         );
 
-    [Fact(DisplayName = "A raise stores the payload on a Set checkpoint and records the operator on the event")]
+    [Fact(DisplayName = "A raise stores the payload on a Set checkpoint and records the operator and the signal on the event")]
     public async Task Raise_sets_the_checkpoint_and_audits_the_operator()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -42,6 +42,7 @@ public sealed class RaiseJobSignalSpec : ActaRuntimeTestBase<ConformanceFixture,
 
         var evt = await ReadSingleEventAsync(enqueued.JobId, EventCode.JobSignalRaised, ct);
         Assert.Equal("Jože Kovač", evt.Actor);
+        Assert.Equal("Signal 'review' raised.", evt.EventMessage);
         Assert.Null(EventDetail(evt, "actor"));
         Assert.Equal(EventReason.SignalReleased, EventDetail(evt, "reason"));
     }

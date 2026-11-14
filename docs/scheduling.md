@@ -51,6 +51,13 @@ waits for capacity and is woken by the settlement. One firing can carry several
 Historical executions are visible in the event timeline (`schedule.admitted`, `schedule.skipped`);
 Acta does not pre-materialize a queue of future occurrences.
 
+Every firing writes its events, work or no work: a permanent job firing every 5 seconds writes `schedule.admitted`
+and its execution's event each time, some 35,000 rows a day kept for the events retention (a year by default). A
+sub-minute schedule usually wants `[Job(EventRecording = EventRecordingCode.Failures)]`, which keeps the failures and
+drops the routine rows; a screen that needs a rare event reads it by code, `ListEventsQuery(EventCode: ...)`, rather
+than from the newest page. Acta keeps no read of a permanent job's firings; to show them, write a row of your own in
+the firing's first step, keyed by `ctx.FiringId`.
+
 ## Delivery and capacity
 
 `[Job(ScheduledDelivery = ...)]` says how a definition's schedules deliver its work, and it is immutable

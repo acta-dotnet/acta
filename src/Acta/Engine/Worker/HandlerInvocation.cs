@@ -229,7 +229,7 @@ internal sealed class HandlerInvocation(
                 return new ExecutionCompletion(CompletionKind.Suspended)
                 {
                     Reason = EventReason.HandlerSuspended,
-                    ReasonMessage = suspend.ReasonMessage.Truncate(ActaTextLimits.EventMessage),
+                    ReasonMessage = suspend.Message.Truncate(ActaTextLimits.EventMessage),
                     RescheduleResumeAtUtc = suspend.ResumeAtUtc,
                 };
             case SignalSuspendSignal signalSuspend:

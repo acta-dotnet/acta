@@ -273,7 +273,7 @@ public interface IJobs
     ValueTask<ListJobCheckpointsResponse> ListCheckpointsAsync(ListJobCheckpointsQuery query, CancellationToken ct = default);
 
     /// <summary>
-    /// The variable the job's handler stored under <paramref name="name"/>, read as <typeparamref name="T"/> as
+    /// The variable the job's handler stored under <paramref name="name"/>, read as <typeparamref name="T"/> the way
     /// <c>ctx.GetVariableOrDefaultAsync</c> reads it: <c>await jobs.GetVariableOrDefaultAsync&lt;Stage&gt;(jobRef, "stage", ct)</c>.
     /// Answers <c>default</c> when the variable is not set or no job matches, so read <c>int?</c> to tell a stored 0 from
     /// none. The name is canonicalized as inside the job, and a malformed name or one under <c>sys.</c> throws
@@ -370,10 +370,11 @@ public interface IJobs
 
     /// <summary>
     /// Restart the job identified by <paramref name="job"/>: any status except <c>Executing</c> moves to <c>Ready</c>
-    /// to run now, with the failure budget reset, the retention deadline cleared, and the attempt counter unchanged.
-    /// A permanent job returns to <c>Idle</c> instead, and is rejected while a firing is outstanding.
-    /// <paramref name="reasonMessage"/> and <paramref name="actor"/> go on the audit event. A laned job restarts in place under its lane's lock, <c>Blocked</c> while another
-    /// member runs or an older one is unfinished, then runs first, since promotion takes the lowest id.
+    /// to run now, with the failure budget reset, the retention deadline cleared, and the attempt counter unchanged; a
+    /// permanent job returns to <c>Idle</c>, and is rejected while a firing is outstanding. Succeeded steps are kept and
+    /// failed ones cleared, so a failed at-most-once body runs again: reconcile it first. <paramref name="reasonMessage"/>
+    /// and <paramref name="actor"/> go on the audit event. A laned job restarts in place under its lane's lock, Blocked
+    /// while another member runs or an older one is unfinished, then runs first, since promotion takes the lowest id.
     /// </summary>
     ValueTask<RestartJobResponse> RestartAsync(
         JobLookup job,
@@ -464,8 +465,7 @@ public interface IJobs
     );
 
     /// <summary>
-    /// Pre-formed-payload variant of
-    /// <see cref="RaiseSignalAsync(JobLookup, string, JobPayload, string?, CancellationToken)"/>: stores
+    /// Raises the signal with a pre-formed payload: stores
     /// <paramref name="value"/> on the signal verbatim under its <c>Format</c>, read by
     /// <c>ctx.WaitSignalAsync&lt;T&gt;(name)</c>; <see cref="JobPayload.None"/> raises a presence-only signal. The HTTP
     /// signal endpoint uses it to pass a request body through as JSON without binding the handler's type.

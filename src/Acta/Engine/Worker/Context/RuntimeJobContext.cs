@@ -255,7 +255,7 @@ internal sealed partial class RuntimeJobContext(
             case ArmOrConsumeJobSleepTimerOutcomeCode.Suspend:
                 // The host writes the stored due to jobs_state.next_run_at_utc and finalizes the attempt Suspended.
                 _suspending = true;
-                throw Thrown(new SuspendSignal(decision.DueAtUtc!.Value, reason));
+                throw Thrown(new SuspendSignal(name, decision.DueAtUtc!.Value, reason));
             default:
                 throw new InvalidOperationException(
                     $"Job {JobId} already has a pending sleep; only one concurrent sleep is allowed per job."

@@ -2207,6 +2207,7 @@
   - Reschedule re-arms Ready with a forward-dated next_run, no budget charge and no result
   - Reschedule to an absolute past instant is immediately reclaimable
   - First sleep arms one Pending timer and suspends the handler
+  - A sleep given no reason names its timer and the instant it lasts until on the timeline
   - Sleep rerun before due does not extend or duplicate the timer
   - Sleep rerun after due consumes the timer and the handler continues to Succeeded
   - An attempt that consumes its timer and then re-arms lands Ready at the new instant
@@ -2557,7 +2558,7 @@
 ### An operator raise sets the named checkpoint and records who raised it
 - **Contract:** A raise sets the named checkpoint once and records the operator, while a repeat is AlreadyInState or Rejected and a missing job NotFound.
 - **Guarantees:**
-  - A raise stores the payload on a Set checkpoint and records the operator on the event
+  - A raise stores the payload on a Set checkpoint and records the operator and the signal on the event
   - A repeat raise writes nothing: the same value is AlreadyInState and another value Rejected
   - An unknown job is NotFound and a finished job is Rejected, and neither gains a checkpoint or an event
   - A malformed or reserved signal name throws before the job is looked up

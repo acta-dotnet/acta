@@ -147,7 +147,11 @@ internal sealed class ExplainJobHandler(GetJobIdHandler getJobId, IDbSession ses
             case JobStatusCode.Ready:
                 if (h.NextRunAtUtc is { } next && next > nowUtc)
                 {
-                    headline = $"Ready, scheduled to run in {Humanize(next - nowUtc)}.";
+                    // A durable sleep re-arms the job Ready at its timer's due instant, so its pending timer names the wait.
+                    wait = FindTimer(data.Checkpoints);
+                    headline = wait is null
+                        ? $"Ready, scheduled to run in {Humanize(next - nowUtc)}."
+                        : $"Ready, sleeping on durable timer \"{wait.Name}\", {DuePhrase(wait.DueAtUtc ?? next, nowUtc)}.";
                     actions.Add(Move("none", "no action needed - the job becomes claimable when its next run time arrives"));
                 }
                 else
@@ -289,15 +293,15 @@ internal sealed class ExplainJobHandler(GetJobIdHandler getJobId, IDbSession ses
                 return new ExplainJobWait(CheckpointKindCode.ChildLatch, c.CheckpointName, c.DueAtUtc);
             }
         }
-        foreach (var c in checkpoints)
-        {
-            if (c.CheckpointKind == CheckpointKindCode.Timer && c.CheckpointStatus == CheckpointStatusCode.Pending)
-            {
-                return new ExplainJobWait(CheckpointKindCode.Timer, c.CheckpointName, c.DueAtUtc);
-            }
-        }
-        return null;
+        return FindTimer(checkpoints);
     }
+
+    /// <summary>The pending timer of a durable sleep, which parks a Suspended job or re-arms a Ready one at its due.</summary>
+    private static ExplainJobWait? FindTimer(IReadOnlyList<ExplainJobCheckpointRow> checkpoints) =>
+        checkpoints.FirstOrDefault(c => c.CheckpointKind == CheckpointKindCode.Timer && c.CheckpointStatus == CheckpointStatusCode.Pending)
+            is { } timer
+            ? new ExplainJobWait(CheckpointKindCode.Timer, timer.CheckpointName, timer.DueAtUtc)
+            : null;
 
     /// <summary>
     /// The latch name is the framework-owned sys.child.{id} key, so the readable half is the id: an
@@ -335,7 +339,9 @@ internal sealed class ExplainJobHandler(GetJobIdHandler getJobId, IDbSession ses
         }
         else
         {
-            recovery = "The lease is valid; the worker holds it and heartbeats keep it extended.";
+            recovery = h.LeaseExpiresAtUtc is { } until
+                ? $"The lease is valid until {until:u}; if its worker has stopped, recovery reclaims the job on its first pass after that."
+                : "The lease is valid; if its worker has stopped, recovery reclaims the job on its first pass after the lease lapses.";
         }
 
         // The lease is reported whenever jobs_state still names a holder, because its timings describe the
@@ -373,8 +379,8 @@ internal sealed class ExplainJobHandler(GetJobIdHandler getJobId, IDbSession ses
         {
             StepStatusCode.Succeeded => "succeeded and will not rerun",
             StepStatusCode.Failed => s.FailureMessage is { Length: > 0 } m
-                ? $"failed and runs at most once, so it will not rerun: {m}"
-                : "failed and runs at most once, so it will not rerun",
+                ? $"failed and runs at most once: no retry reruns it, but a restart does, so reconcile before restarting: {m}"
+                : "failed and runs at most once: no retry reruns it, but a restart does, so reconcile before restarting",
             StepStatusCode.Pending => "has started and has no recorded success",
             StepStatusCode.Interrupted =>
                 "was interrupted before its outcome was recorded; it may have run 0 or 1 times - reconcile externally",

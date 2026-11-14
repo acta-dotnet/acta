@@ -22,7 +22,7 @@ public sealed class EndsJobTests
     public static TheoryData<Exception> NeverEndTheJob =>
         [
             new SignalSuspendSignal("approval"),
-            new SuspendSignal(DateTime.UtcNow, reasonMessage: null),
+            new SuspendSignal("cool-down", DateTime.UtcNow, reasonMessage: null),
             new RescheduleJobException(TimeSpan.FromMinutes(1)),
             new HandlerPauseException("hold"),
             new ExecutionFencedException("fenced"),

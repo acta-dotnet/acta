@@ -456,7 +456,9 @@ Manual purge removes Acta's record of one finished job and nothing else, such as
 Workers heartbeat their leases (`HeartbeatInterval`), and once a lease one worker's heartbeat takes
 the namespace's recovery pass, which reclaims jobs whose lease lapsed (back to Ready in budget, terminal Failed past `MaxAttempts`, with retention stamped),
 marks silent workers Dead after `WorkerDeadAfter`, and re-raises any child-completion latch a crash
-left pending; `sys.retention` runs the purge. If a job looks stuck in `Executing`, check the
+left pending; `sys.retention` runs the purge. A lost attempt is therefore reclaimed on the first pass after its lease
+lapses: between one and two leases after its worker's last heartbeat (180 to about 360 seconds at the default
+heartbeat), at the latest on the pass that marks the worker Dead. If a job looks stuck in `Executing`, check the
 worker's `last_seen_at_utc` first; recovery is automatic once the lease lapses.
 
 ## Production guide

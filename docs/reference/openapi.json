@@ -16861,7 +16861,7 @@
           },
           "workerStale": {
             "type": "boolean",
-            "description": "Whether the worker has stopped sending heartbeats."
+            "description": "Whether recovery has marked the worker dead, a dead-worker window without a heartbeat; the worker list's stale flag judges the shorter lease window."
           },
           "recoveryExpectation": {
             "type": "string",
@@ -16932,7 +16932,7 @@
                 "$ref": "#/components/schemas/ExplainJobWait"
               }
             ],
-            "description": "The wait the job is suspended on; null when it is not waiting."
+            "description": "The wait the job is parked on, a sleep's timer included; null when it is not waiting."
           },
           "lease": {
             "oneOf": [
@@ -19482,14 +19482,14 @@
                 "$ref": "#/components/schemas/WorkerRef"
               }
             ],
-            "description": "The ref of the worker that recorded the event, when a worker did."
+            "description": "The ref of the worker the event is about, when there is one: for job.execution-orphaned the dead worker whose attempt was reclaimed, not the worker whose recovery pass wrote it."
           },
           "executionNumber": {
             "type": [
               "null",
               "integer"
             ],
-            "description": "The attempt the event belongs to, when it belongs to one.",
+            "description": "The job's execution number when the event was written: the attempt it belongs to, and for schedule.admitted the number before the firing it opens.",
             "format": "int64"
           },
           "durationMs": {

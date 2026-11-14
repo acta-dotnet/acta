@@ -157,7 +157,9 @@ For side effects where a duplicate is worse than an ambiguous interruption (a pa
 `AtMostOnce()` runs the body zero-or-one times and hands the handler an explicit interrupted state to
 reconcile. A body that throws fails the step for good: every later attempt throws `StepFailedException`
 for it without running the body, so left uncaught it fails the job at once; catch it where the job can
-go on, and an operator restart runs the step again. A wait inside an at-most-once body throws at the
+go on, and an operator restart runs the step again. A body can fail without knowing the outcome, a
+timeout after the provider committed: treat that `StepFailedException` as ambiguous too, and reconcile before
+anyone restarts the job. A wait inside an at-most-once body throws at the
 call, because its resume would run the body again.
 
 ## An external side effect, done right
@@ -210,6 +212,7 @@ only under its own key.
 | Instead of | Do | Because |
 | --- | --- | --- |
 | static/instance fields for progress | `SetVariableAsync` / `GetVariableOrDefaultAsync` | fields die with the process; variables are rows |
+| computing a value fixed once (a quote, a snapshot) in a bare line | `await ctx.GetOrSetVariableAsync("quote", ct => ..., ct)` after the step that produced it | the first stored value stays; a bare line recomputes on every re-entry |
 | `Task.Delay` or `Thread.Sleep` | `await ctx.SleepAsync("cool-down", delay, ct: ct)` | delays hold a worker; durable sleep frees it and survives deploys |
 | calling an API directly in the body | `await ctx.RunStepAsync("charge", ct => ...)` | a step records its outcome, so a retry does not repeat recorded work |
 | `catch { }` around the body | let it throw, or `await ctx.FailAsync(reason)` | swallowing turns a retryable failure into a silent success |
@@ -228,7 +231,8 @@ job. `await ctx.WaitSignalAsync("shipped", ct)` parks until the raise, and
 raised without one. A wait that can time out answers an outcome instead:
 `var r = await ctx.WaitSignalAsync<Shipped>("shipped", TimeSpan.FromDays(14), ct);` returns a
 `SignalWaitOutcome<T>`, so branch on `r.TimedOut` and read `r.Value`, or call `r.ValueOrThrow()`
-(untyped: `r.ThrowIfTimedOut()`) to fail the job at once when the deadline passed. An outcome left
+(untyped: `r.ThrowIfTimedOut()`) to fail the job at once when the deadline passed; it answers null for a raise that
+carried no value. An outcome left
 unread lets the handler carry on past the deadline. The raising side is
 `await jobs.RaiseSignalAsync(jobRef, "shipped", new Shipped(trackingId), ct)` on `IJobs`, and an
 `actor:` argument before the token names who raised it. The deadline is stored once, as

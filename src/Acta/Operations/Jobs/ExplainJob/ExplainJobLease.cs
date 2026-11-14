@@ -11,7 +11,7 @@ namespace Acta;
 /// <param name="ExpiresAtUtc">When the lease expires, in UTC.</param>
 /// <param name="Expired">Whether the lease has expired.</param>
 /// <param name="WorkerLastSeenAtUtc">When the worker last sent a heartbeat, in UTC.</param>
-/// <param name="WorkerStale">Whether the worker has stopped sending heartbeats.</param>
+/// <param name="WorkerStale">Whether recovery has marked the worker dead, a dead-worker window without a heartbeat; the worker list's stale flag judges the shorter lease window.</param>
 /// <param name="RecoveryExpectation">What recovery will do with the job, in a sentence.</param>
 /// <param name="WorkerRef">The ref of the worker that holds the lease.</param>
 public sealed record ExplainJobLease(

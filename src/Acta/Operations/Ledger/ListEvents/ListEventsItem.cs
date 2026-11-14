@@ -22,8 +22,8 @@ namespace Acta;
 /// <param name="LineageRootJobRef">The ref of the job at the root of the event's job's lineage, the job itself for a root job, when the
 /// event is about a job.</param>
 /// <param name="TenantName">The tenant the job is about, when it names one.</param>
-/// <param name="WorkerRef">The ref of the worker that recorded the event, when a worker did.</param>
-/// <param name="ExecutionNumber">The attempt the event belongs to, when it belongs to one.</param>
+/// <param name="WorkerRef">The ref of the worker the event is about, when there is one: for <c>job.execution-orphaned</c> the dead worker whose attempt was reclaimed, not the worker whose recovery pass wrote it.</param>
+/// <param name="ExecutionNumber">The job's execution number when the event was written: the attempt it belongs to, and for <c>schedule.admitted</c> the number before the firing it opens.</param>
 /// <param name="DurationMs">How long the recorded work took, in milliseconds, when the event measures it.</param>
 /// <param name="Message">The event's message, when it has one.</param>
 /// <param name="Actor">Who performed the action: the operator an operator verb was given, as text, or the job's own id on a state reset its

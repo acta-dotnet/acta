@@ -13,7 +13,7 @@ namespace Acta;
 /// <param name="Status">The job's status.</param>
 /// <param name="StatusMeaning">What the job's status means, in a sentence.</param>
 /// <param name="Headline">A one-sentence summary of where the job is and why.</param>
-/// <param name="ActiveWait">The wait the job is suspended on; null when it is not waiting.</param>
+/// <param name="ActiveWait">The wait the job is parked on, a sleep's timer included; null when it is not waiting.</param>
 /// <param name="Lease">The lease on the job; null when no worker holds one.</param>
 /// <param name="LastExecutedBy">The worker that last ran the job: its ref, with its deployment version when one is recorded, such as wrk_... (version 1.4.0); null once retention removed the worker.</param>
 /// <param name="Steps">The job's newest steps, at most 50, oldest first; stepsHasMore says when older ones were left out.</param>

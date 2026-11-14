@@ -184,6 +184,22 @@ public class JobExplainerTests
     }
 
     [Fact]
+    public void A_sleeping_job_reads_ready_and_names_its_timer_as_the_active_wait()
+    {
+        // A durable sleep re-arms the job Ready at its timer's due instant, so the status alone looks like a schedule.
+        var data = Data(
+            Header(JobStatusCode.Ready, nextRunAtUtc: Now.AddMinutes(30)),
+            checkpoints: [Checkpoint(CheckpointKindCode.Timer, "cool-down", CheckpointStatusCode.Pending, Now.AddMinutes(30))]
+        );
+
+        var x = ExplainJobHandler.Explain(data, Now);
+
+        Assert.Equal(CheckpointKindCode.Timer, x.ActiveWait!.Kind);
+        Assert.Equal("cool-down", x.ActiveWait.Name);
+        Assert.Equal("Ready, sleeping on durable timer \"cool-down\", due in 30m.", x.Headline);
+    }
+
+    [Fact]
     public void Suspended_with_missing_wait_details_points_to_the_timeline()
     {
         var x = ExplainJobHandler.Explain(Data(Header(JobStatusCode.Suspended)), Now);
@@ -450,7 +466,7 @@ public class JobExplainerTests
         Assert.Equal(3, x.Steps.Count);
         Assert.Contains("succeeded and will not rerun", x.Steps[0].Explanation);
         Assert.Contains("has started and has no recorded success", x.Steps[1].Explanation);
-        Assert.Contains("runs at most once, so it will not rerun: carrier down", x.Steps[2].Explanation);
+        Assert.Contains("runs at most once: no retry reruns it, but a restart does, so reconcile before restarting: carrier down", x.Steps[2].Explanation);
     }
 
     [Fact]
