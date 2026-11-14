@@ -128,17 +128,20 @@ public abstract partial class JobContext
         };
     }
 
+    private JobControlException? _thrownControl;
+
     /// <summary>
-    /// The first control-flow exception a call on this context threw in the attempt. The call ended the attempt, so a
-    /// handler that returns normally after it swallowed it, and the worker fails that attempt.
+    /// The first control-flow exception a call on this context threw in the attempt, the first even when calls run
+    /// concurrently. The call ended the attempt, so a handler that returns normally after it swallowed it, and the worker
+    /// fails that attempt.
     /// </summary>
-    internal JobControlException? ThrownControl { get; private set; }
+    internal JobControlException? ThrownControl => Volatile.Read(ref _thrownControl);
 
     /// <summary>Keeps the attempt's first control-flow exception and hands <paramref name="control"/> back to throw.</summary>
     private protected TControl Thrown<TControl>(TControl control)
         where TControl : JobControlException
     {
-        ThrownControl ??= control;
+        Interlocked.CompareExchange(ref _thrownControl, control, null);
         return control;
     }
 

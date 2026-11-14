@@ -219,7 +219,10 @@ internal sealed partial class RuntimeJobContext(
     private protected override Task<bool> DeleteVariableCoreAsync(string name, CancellationToken ct) =>
         FencedAsync(() => CheckpointAccess.DeleteAsync(_executionStore, Fence, CheckpointKindCode.Variable, name, ct));
 
-    /// <summary>True once a wait or sleep has told the handler to suspend: the job then waits on the checkpoint it armed.</summary>
+    /// <summary>
+    /// True once a wait or sleep has told the handler to suspend: the job then waits on the checkpoint it armed. Only ever
+    /// set, so a wait that finds its signal cannot clear what a concurrent wait set.
+    /// </summary>
     private volatile bool _suspending;
 
     private protected override Task ResetStateCoreAsync(CancellationToken ct) =>
@@ -290,7 +293,10 @@ internal sealed partial class RuntimeJobContext(
             ? CheckpointKindCode.ChildLatch
             : CheckpointKindCode.Signal;
         var decision = await FencedAsync(() => _signals.WaitJobSignalAsync(Fence, kind, name, timeoutSeconds, dueAtUtc, ct));
-        _suspending |= decision.Outcome == WaitJobSignalOutcomeCode.SuspendPending;
+        if (decision.Outcome == WaitJobSignalOutcomeCode.SuspendPending)
+        {
+            _suspending = true;
+        }
         return decision.Outcome switch
         {
             WaitJobSignalOutcomeCode.ContinueSet => new SignalCheckpointState(decision.ValueFormatId, decision.Value),
