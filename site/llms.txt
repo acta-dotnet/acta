@@ -245,10 +245,11 @@ it already started.
 | run one child and read its result | `await ctx.ExecuteChildAsync("label", ShippingJobs.PrintLabel(new PrintLabel(orderId)), ct)` | `JobOutcome<TResult>`: also `Value`, `ValueOrThrow()` |
 | run one child per item of a list | `await ctx.MapAsync("reserve", skus, itemKey: sku => sku, child: sku => new ReserveStock(orderId, sku), ct)` | `MapOutcome<TKey>`: `Items` (each `Key` and `Outcome`), `Failed`, `ThrowIfAnyFailed()` |
 | run different jobs at once | `await ctx.ParallelAsync("notify", p => p.Child("email", new SendEmail(orderId)).Child("sms", new SendSms(orderId)), ct)` | `ParallelOutcome`: `Branches["sms"]`, `Failed`, `ThrowIfAnyFailed()` |
-| start now, wait later | `var audit = await ctx.StartChildAsync("audit", new Audit(orderId), ct);` then `await ctx.WaitChildAsync(audit, ct)` for one, or `await ctx.JoinAsync([audit, receipt], ct)` for several | `JobOutcome`; `ChildrenWaitOutcome`: `Children`, `Failed`, `ThrowIfAnyFailed()` |
+| start now, wait later | `var audit = await ctx.StartChildAsync("audit", new Audit(orderId), ct);` then `await ctx.JoinAsync([audit, receipt], ct)`, for one child or several | `ChildrenWaitOutcome`: `Children`, `Succeeded`, `Failed`, `ThrowIfAnyFailed()` |
 
 - A failed or cancelled child never throws in the parent by itself. Every wait answers an outcome and the handler decides: `ThrowIfFailed()` or `ThrowIfAnyFailed()` to fail with it, or branch on `Failed` and compensate. A group waits for every child; it never fails fast and never cancels siblings.
-- Every child ends in a `JobOutcome`, alone or as a member of a group: `JobRef`, `Status`, `Succeeded`, `TimedOut`, and `ThrowIfFailed()`. `IJobs.WaitAsync` answers the same type outside a handler.
+- Every child ends in a `JobOutcome`, alone or as a member of a group: `JobRef`, `Status`, `Succeeded`, `TimedOut`, and `ThrowIfFailed()`. `IJobs.WaitAsync` answers the same type outside a handler. Wait now with `ExecuteChildAsync`; wait later for children you started, one or many, with `JoinAsync`; fan a list out with `MapAsync`.
+- `ThrowIfFailed()` and `ThrowIfAnyFailed()` fail the parent's attempt, which retries; the retry finds the same failed child unless someone restarted it. When a retry cannot change the outcome, branch on `Failed` and end the job with `await ctx.FailAsync(reason, ct)`.
 - A child's result rides on the outcome when the child was started from the manifest's call (`ShippingJobs.PrintLabel(...)`). For a group member, read it by id: `await ctx.GetChildResultAsync<string>(item.Outcome.JobId, ct)` throws when there is none, and `TryGetChildResultAsync<T>` answers `(Found, Value)`.
 - `MapAsync`, `ParallelAsync`, and `JoinAsync` take a `TimeSpan` timeout before the token: one deadline for the whole group, which cancels only the members still running and reports `TimedOut` on the outcome.
 - A group does not limit how many of its children run at once; that is `ConcurrencyLimit` on the child's definition.
@@ -279,7 +280,9 @@ rate decides HOW OFTEN. For one job at a time per customer, account, or aggregat
 order, and the jobs waiting behind its head cost the claim nothing, where a busy key's waiting jobs are
 claimed, bounced, and re-armed. Use a bare `ConcurrencyKey` only when order must not hold work up: a
 lane's failing head blocks the jobs behind it until it succeeds or exhausts MaxAttempts, and a key's
-does not. Use `ConcurrencyLimit` for N at once and `RateLimit` for pacing; they combine.
+does not. Use `ConcurrencyLimit` for N at once and `RateLimit` for pacing; they combine. A limit's slot
+is held while an attempt runs, not while the job sleeps or waits, so a resource a job holds for its
+whole life, a machine or a room, is a lane: the next job behind it starts only when this one ends.
 
 ## Limiting how much runs at once
 
@@ -343,6 +346,9 @@ HTTP enqueue in the json format sends strict JSON (one value, no comments or tra
 - An alert for a failed job is not instant. The `sys.alerts` job turns failure events into alerts once
   a minute, so one appears up to about two minutes after the failure. A handler that wants one now
   writes it: `await ctx.AlertAsync("Stock low", "Bin 7 is empty", AlertSeverityCode.Warning, ct: ct)`.
+  An alert raised that way stays open until something resolves it: find it with
+  `acta.Alerts.ListAsync(new ListAlertsQuery(JobId: jobId, UnresolvedOnly: true))` and call
+  `acta.Alerts.ResolveAsync(alert.AlertRef)` from the step that fixed the cause.
 - Retention deletes finished work only. A job that landed `Succeeded`, `Failed`, or `Cancelled` is
   deleted with its steps and checkpoints once its definition's `JobRetention` has passed, 90 days by
   default (`[Job("release-payment", JobRetention = "365d")]`). A job that waits is never deleted,
@@ -397,12 +403,13 @@ An app reads Acta through the services `UseActa` registers. Inject them like any
 - One job is `IJobs`. `GetAsync(jobRef)` answers the status, `NextRunAtUtc`, the lease, the parent, and the lane, or null when there is no such job. `GetStatusAsync`, `GetInputAsync`, `GetResultAsync<T>`, and `ExplainAsync` read one part. `var order = await jobs.GetInputAsync<ShipOrder>(jobRef, ct)` reads the input, as enqueued or last amended, as its type, and throws when no job matches. `ListStepsAsync(new ListJobStepsQuery(jobRef))` and `ListCheckpointsAsync(new ListJobCheckpointsQuery(jobRef))` list what the handler recorded.
 - Many jobs are `IActaOperations`. `acta.Ledger.ListJobsAsync(new ListJobsQuery(JobNamespace: "shipping", Status: JobStatusCode.Failed))` finds jobs, also by `JobName`, `ParentJobId`, `CorrelationKey`, `Tags`, and `Lane`. `acta.Ledger.ListEventsAsync(new ListEventsQuery(JobId: job.JobId))` reads a timeline. `Definitions`, `Schedules`, `Alerts`, and `Workers` sit beside `Ledger`.
 - A list answers a page: `Items`, `HasMore`, and `NextCursor`, which goes back in as the query's `Cursor`.
-- A step shows `Name`, `Status`, `CreatedAtUtc`, and `ModifiedAtUtc`. Its result stays inside the job. A value the screen needs goes in a variable, `await ctx.SetVariableAsync("stage", new Stage("packed", 3), ct)`, and the screen reads it with `await jobs.GetVariableOrDefaultAsync<Stage>(jobRef, "stage", ct)`, null until the handler has set it. `ctx.SetProgressAsync(value, ct)` keeps one "how far along" value, last write wins, as the checkpoint `sys.progress`, which Acta's dashboard lists with the job's checkpoints; a value your own screen reads goes in a variable, as above.
-- The checkpoints also list what the job waits for: a `Signal` or a `Timer` with its `DueAtUtc`, and a `ChildLatch` per child.
-- A job between attempts reads `ready` with `FailureCount` above zero and its next attempt at `NextRunAtUtc`, and the step that threw reads `pending`. The exception's message is on the timeline, as the `Message` of each event whose `EventCode` is `EventCode.JobExecutionFailed`; an event also shows `CreatedAtUtc`, `DetailsText`, and `Actor`. A step's `FailureMessage` is set only for an at-most-once step that failed or was interrupted.
+- A step shows `Name`, `Status`, `CreatedAtUtc`, and `ModifiedAtUtc`. Its result stays inside the job. A value the screen needs goes in a variable, `await ctx.SetVariableAsync("stage", new Stage("packed", 3), ct)`, and the screen reads it with `await jobs.GetVariableOrDefaultAsync<Stage>(jobRef, "stage", ct)`, null until the handler has set it. A variable write is durable by itself and needs no step around it; a step is for work that must not run twice. `ctx.SetProgressAsync(value, ct)` keeps one "how far along" value, last write wins, as the checkpoint `sys.progress`, which Acta's dashboard lists with the job's checkpoints; a value your own screen reads goes in a variable, as above.
+- The checkpoints also list what the job waits for: a `Signal` or a `Timer` with its `DueAtUtc`, and a `ChildLatch` per child. A variable's checkpoint has no `Status`.
+- To label what a job is doing, read `jobs.ExplainAsync(jobRef)`: `Headline` says it in a sentence and `ActiveWait` names the wait it is parked on (`Kind`, `Name`, `DueAtUtc`). The status alone does not tell a sleep from a wait for a person or a child.
+- A job between attempts reads `ready` with `FailureCount` above zero and its next attempt at `NextRunAtUtc`, and the step that threw reads `pending`. `FailureCount` counts the attempts that failed in a row and returns to 0 when the job succeeds; the events keep every failure. The exception's message is on the timeline, as the `Message` of each event whose `EventCode` is `EventCode.JobExecutionFailed`; an event also shows `CreatedAtUtc`, `DetailsText`, and `Actor`. A step's `FailureMessage` is set only for an at-most-once step that failed or was interrupted.
 - Stored JSON has camelCase property names: `OrderId` is `orderId`.
 - The text of a status or a kind is `.Code`: `job.Status.Code` is `suspended`, the text the CLI, the HTTP API, and SQL show, where `ToString()` gives the C# name `Suspended`. `JobStatusCodeExtensions.FromCode("suspended")` reads it back.
-- Each read is its own snapshot, so two reads a moment apart can disagree while a job moves. A sleeping job reads `ready` with a future `NextRunAtUtc`; a job waiting for a signal or a child reads `suspended`.
+- Each read is its own snapshot, so two reads a moment apart can disagree while a job moves, and so is a read of your own table: an endpoint that reads both can show a record the handler wrote before the job reads `succeeded`. A sleeping job reads `ready` with a future `NextRunAtUtc`; a job waiting for a signal or a child reads `suspended`.
 - `jobs.GetLineageMapAsync(jobRef)` answers one job with its `Ancestors` and its direct `Children`, each list capped and flagged (`ChildrenHasMore`). It is the neighbourhood of that job, not the whole tree: walk down by asking again for a child.
 - `executing` means claimed, and the concurrency slot and the rate turn are taken after the claim. A count of `executing` jobs can therefore read above a `ConcurrencyLimit` for a moment; to show what is inside a gate, show the step the handler has reached.
 - A page's script can call the same reads as JSON under `/acta/api/v1`, and a link to a job in Acta's dashboard is `/acta/#/jobs/{jobRef}`.
