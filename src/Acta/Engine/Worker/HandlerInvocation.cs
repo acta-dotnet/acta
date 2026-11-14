@@ -212,7 +212,7 @@ internal sealed class HandlerInvocation(
                 log,
                 descriptor.JobName,
                 job.JobId,
-                $"{payload.Data.Length} bytes over the MaxInlinePayloadBytes cap of {maxInlinePayloadBytes} bytes"
+                $"{payload.Data.Length} bytes, over the MaxInlinePayloadBytes cap of {maxInlinePayloadBytes} bytes"
             );
         }
         return succeeded with { Reason = EventReason.ResultOversized };

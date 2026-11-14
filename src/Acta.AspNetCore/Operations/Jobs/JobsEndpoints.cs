@@ -128,7 +128,7 @@ internal static class JobsEndpoints
         controls.MapCommand(
             "/jobs/{jobRef}/restart",
             new("restartJob", ActaPermissions.Control),
-            "Restart a terminal job with its original input.",
+            "Restart a job that is not executing.",
             options,
             ActaApiJsonContext.Relaxed.RestartJobRequest,
             "Invalid request.",

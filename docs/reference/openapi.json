@@ -830,7 +830,7 @@
         "tags": [
           "Jobs"
         ],
-        "summary": "Restart a terminal job with its original input.",
+        "summary": "Restart a job that is not executing.",
         "description": "Needs the acta.control permission.",
         "operationId": "restartJob",
         "parameters": [
@@ -18254,7 +18254,7 @@
           },
           "version": {
             "type": "integer",
-            "description": "The job's version, which every change to its state increments; the pause, resume, restart, cancel, reschedule, and reprioritize controls take it as expectedVersion, which makes the call a compare-and-set.",
+            "description": "The job's version, which every status change and every pause, resume, restart, cancel, reschedule, or reprioritize increments; heartbeats, progress, variables, steps, and an input amend leave it as it is. Those six controls take it as expectedVersion, which makes the call a compare-and-set.",
             "format": "int64"
           }
         },

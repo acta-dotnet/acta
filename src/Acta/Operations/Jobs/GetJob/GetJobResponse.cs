@@ -40,8 +40,9 @@ namespace Acta;
 /// <param name="CreatedAtUtc">When the row was created, in UTC.</param>
 /// <param name="ModifiedAtUtc">When the row last changed, in UTC.</param>
 /// <param name="LeasedByWorkerRef">The ref of the worker that holds the job's lease; null when none does.</param>
-/// <param name="Version">The job's version, which every change to its state increments; the pause, resume, restart, cancel,
-/// reschedule, and reprioritize controls take it as expectedVersion, which makes the call a compare-and-set.</param>
+/// <param name="Version">The job's version, which every status change and every pause, resume, restart, cancel, reschedule,
+/// or reprioritize increments; heartbeats, progress, variables, steps, and an input amend leave it as it is. Those six
+/// controls take it as expectedVersion, which makes the call a compare-and-set.</param>
 public sealed record GetJobResponse(
     [property: JsonIgnore] long JobId,
     JobRef JobRef,

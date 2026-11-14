@@ -121,7 +121,9 @@ period identity unless the job input or application data supplies one.
 
 The dashboard confirmation records an optional note. Triggering is rejected when the schedule is paused,
 when its permanent job is not `Idle` (paused, cancelled, failed, or with a firing outstanding), or when a
-per-occurrence schedule is at `MaxOutstanding`; a missing or orphaned schedule is not found.
+per-occurrence schedule is at `MaxOutstanding`; a missing or orphaned schedule is not found. A trigger is not
+deduplicated: a retry after a lost response admits a second job on a per-occurrence schedule, while a permanent
+job rejects it until it is `Idle` again.
 
 ## Catch-up, misfire, and expiration
 
