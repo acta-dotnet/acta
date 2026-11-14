@@ -45,14 +45,16 @@ await jobs.CancelAsync(outcome, "demo cancelled after two failures");
 
 // Automatic alerts are NOT raised at failure time. The sys.alerts permanent job on a
 // Cron.EveryMinute sweep generates them, and a sweep reads only events older than two command
-// timeouts (60 s by default), so the row appears one to two minutes after the failure.
+// timeouts (60 s by default), so the row appears one to two minutes after the failure. A sweep
+// that falls between the two failures crossing that age raises the alert with one occurrence and
+// the next sweep adds the second, so the poll waits until the alert shows both.
 Console.WriteLine("waiting for the sys.alerts sweep, one to two minutes...");
-var deadline = DateTime.UtcNow.AddSeconds(130);
+var deadline = DateTime.UtcNow.AddSeconds(150);
 ListAlertsResponse? alertPage = null;
 while (DateTime.UtcNow < deadline)
 {
     alertPage = await queries.Alerts.ListAsync(new ListAlertsQuery(JobNamespace: "automatic-failure-alerts"));
-    if (alertPage.Items.Count > 0)
+    if (alertPage.Items.Any(alert => alert.OccurrenceCount >= 2))
         break;
     await Task.Delay(2000);
 }
