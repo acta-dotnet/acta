@@ -82,7 +82,7 @@ acta-verify concepts
 
 - `replay` reruns a frozen plan and refuses one this build would not plan the same way.
 - `report` rebuilds a bundle's report. It finalizes an interrupted run as ABORTED, never PASS, and refuses an active run. A finished bundle is validated first: its checksums, its plan's hash, and that a PASS covers the whole scope it claims.
-- `compare` writes compare.md into the after bundle and prints it. It compares a scenario on a database only when both runs ran it there with the same resolved settings and suite timing, and lists every other pair as not compared, with the reason; a different seed, measurement version, machine or durability setting compares nothing.
+- `compare` writes compare.md into the after bundle and prints it. It compares a scenario on a database only when both runs ran it there with the same resolved settings and suite timing, and lists every other pair as not compared, with the reason; a different seed, measurement version, machine or durability setting compares nothing. The runtime counts by its major release, so a patch of the same .NET release is the same machine.
   - Correctness: the scenarios that no longer pass, those that pass now, and how many passed both times.
   - Performance: a ladder's highest rate held in every pass, a confirmation's or a drain's completed jobs per second, and p99 at the highest rate both held. A change beyond 10% is faster or slower, and a rate held only before is slower.
   - It exits 1 when a scenario no longer passes or is slower, 0 when none is, and 2 when nothing compared.

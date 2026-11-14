@@ -239,6 +239,15 @@ public sealed class RecoveryTests : IDisposable
     }
 
     [Fact]
+    public async Task Compare_reads_a_patch_of_the_same_runtime_as_the_same_machine_and_a_new_major_as_another()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var baseline = Measured(".NET 10.0.14", (50, "VALID", 900));
+        Assert.Equal(0, await VerifyCommand.RunAsync(["compare", baseline, Measured(".NET 10.0.15", (50, "VALID", 900))], ct));
+        Assert.Equal(2, await VerifyCommand.RunAsync(["compare", baseline, Measured(".NET 11.0.0", (50, "VALID", 900))], ct));
+    }
+
+    [Fact]
     public async Task Compare_writes_a_scenario_that_no_longer_passes_and_skips_one_whose_settings_changed()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -413,11 +422,21 @@ public sealed class RecoveryTests : IDisposable
     private string Measured(int seed, params (double Rate, string Measurement, double P99)[] trials) =>
         Measured(Protocol.Plan("quick", ["pg"], seed, ["three-steps"]), "PASS", trials);
 
-    private string Measured(RunPlan plan, string status, params (double Rate, string Measurement, double P99)[] trials)
+    private string Measured(string runtime, params (double Rate, string Measurement, double P99)[] trials) =>
+        Measured(Protocol.Plan("quick", ["pg"], 1729, ["three-steps"]), "PASS", runtime, trials);
+
+    private string Measured(RunPlan plan, string status, params (double Rate, string Measurement, double P99)[] trials) =>
+        Measured(plan, status, "test", trials);
+
+    private string Measured(RunPlan plan, string status, string runtime, (double Rate, string Measurement, double P99)[] trials)
     {
         var bundle = new EvidenceBundle(_root, plan.RunId);
         bundle.Write("resolved-plan.json", plan, VerifyJson.Default.RunPlan);
-        bundle.Write("environment.json", MachineKeys.ToDictionary(k => k, _ => "test"), VerifyJson.Default.DictionaryStringString);
+        bundle.Write(
+            "environment.json",
+            MachineKeys.ToDictionary(k => k, k => k == "runtime" ? runtime : "test"),
+            VerifyJson.Default.DictionaryStringString
+        );
         bundle.Write("histories/trial-checks.json", new[] { new Check("trial", "root", true, "") }, VerifyJson.Default.CheckArray);
         Finish(
             bundle,

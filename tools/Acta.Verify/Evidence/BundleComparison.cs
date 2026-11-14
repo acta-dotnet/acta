@@ -184,7 +184,9 @@ internal static class BundleComparison
         }
         var (ea, eb) = (Read(a, before, a.Provenance.EnvironmentFile), Read(b, after, b.Provenance.EnvironmentFile));
         if (
-            MachineKeys.Where(k => !ea.ContainsKey(k) || ea.GetValueOrDefault(k) != eb.GetValueOrDefault(k)).ToArray() is
+            MachineKeys
+                .Where(k => !ea.ContainsKey(k) || MachineValue(k, ea.GetValueOrDefault(k)) != MachineValue(k, eb.GetValueOrDefault(k)))
+                .ToArray() is
             { Length: > 0 } machine
         )
         {
@@ -352,4 +354,20 @@ internal static class BundleComparison
             ? JsonSerializer.Deserialize(File.ReadAllText(Path.Combine(directory, relative)), VerifyJson.Default.DictionaryStringString)
                 ?? []
             : [];
+
+    /// <summary>
+    /// A machine value as the comparison matches it. The runtime counts by its major release, ".NET 10" for ".NET 10.0.15":
+    /// a patch of the same release is the same machine, and only a new major is another one.
+    /// </summary>
+    private static string? MachineValue(string key, string? value)
+    {
+        if (key != "runtime" || value is null)
+        {
+            return value;
+        }
+
+        var major = value.AsSpan().IndexOfAnyInRange('0', '9');
+        var dot = major < 0 ? -1 : value.IndexOf('.', major);
+        return dot < 0 ? value : value[..dot];
+    }
 }
