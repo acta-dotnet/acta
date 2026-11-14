@@ -721,9 +721,10 @@ table.data td button:not(.copy):not(.value-detail) { padding: 2px 10px; font-siz
 table.data th.shrink,
 table.data td.shrink { width: 1%; white-space: nowrap; }
 /* Grow column (the jobs list name): takes the row's slack, and gives it back first when the panel is
-   narrow, ending its text in an ellipsis, so the last columns stay in view. */
+   narrow, ending its text in an ellipsis, so the last columns stay in view. It keeps twelve characters
+   in any font, so a wide one cannot squeeze the name to nothing; a table wider still scrolls in its wrap. */
 table.data th.grow,
-table.data td.grow { width: 100%; max-width: 0; overflow: hidden; text-overflow: ellipsis; }
+table.data td.grow { width: 100%; min-width: 12ch; max-width: 0; overflow: hidden; text-overflow: ellipsis; }
 /* A number column's header may wrap, so a long label over short values never sets the column's width. */
 table.data th.col-num { white-space: normal; }
 table.data tr:last-child td { border-bottom: none; }

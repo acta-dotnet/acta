@@ -135,6 +135,7 @@ Acta should feel calm, technically precise, modern, and readable. Focus is the d
 - Tell a system job by its reserved `sys.` prefix, set in the muted tone before the rest of the name, as a reference's type is. Put no mark after a name in its cell: text of varying length gives it a different place on each row, and the column's ellipsis hides it first.
 - A table never scrolls sideways for one long value. The value ends in an ellipsis on its row and opens in full in its card.
 - A list's row actions stay in view at a 1440px window. Its prose cell gives way first: an alert's title and message share one cell that ends in an ellipsis, and the alert page shows both whole.
+- A list's name column gives way first and keeps twelve characters in any font: where the other columns need more room than the window has, the table scrolls sideways and the name still reads.
 - Use compact empty-state rows with an icon, heading, and short message.
 - Use small section icons for Workers and Outbox relays.
 - Give operational problems prominence while keeping healthy and empty states compact.
