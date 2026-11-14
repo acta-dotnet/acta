@@ -5,8 +5,9 @@ namespace Acta.AspNetCore;
 
 /// <summary>
 /// The Jobs routes: one job by its ref or its deduplication key, its tags, its steps, and the control verbs. A verb
-/// answers with its response at 200 when applied, 409 when the job's state or a stale expectedVersion refuses it, and 404
-/// for an unknown ref, so a client reads <c>action</c>, <c>status</c>, and <c>version</c> without special-casing the code.
+/// answers with its response at 200 when applied or already in state, 409 when the job's state or a stale
+/// expectedVersion refuses it, and 404 for an unknown ref, so a client reads <c>action</c>, <c>status</c>, and
+/// <c>version</c> without special-casing the code.
 /// </summary>
 internal static class JobsEndpoints
 {

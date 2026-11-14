@@ -21187,7 +21187,7 @@
         "type": "object",
         "properties": {
           "action": {
-            "description": "What the call did: applied; rejected, when the job's state refuses it; or not-found.",
+            "description": "What the call did: applied; already-in-state, when the signal was raised before with this value; rejected, when the job is finished, the signal holds another value, or its wait expired, since a signal keeps its first value; or not-found.",
             "$ref": "#/components/schemas/ControlAction"
           },
           "status": {

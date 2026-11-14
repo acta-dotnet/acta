@@ -53,7 +53,7 @@ CREATE TEMP TABLE release_guard (
 INSERT INTO release_guard
 SELECT EXISTS (
     SELECT 1 FROM main.migrations
-    WHERE name NOT IN ('M20261111163142_init', 'M20261112231452_index_lanes_by_namespace')
+    WHERE name NOT IN ('M20261111163142_init', 'M20261112231452_index_lanes_by_namespace', 'M20261114214847_keep_first_signal_value')
 );
 DROP TABLE release_guard;
 
@@ -840,6 +840,13 @@ VALUES ('M20261112231452_index_lanes_by_namespace')
 ON CONFLICT (name) DO NOTHING;
 
 -- ===== END M20261112231452_index_lanes_by_namespace =====
+
+-- ===== BEGIN M20261114214847_keep_first_signal_value =====
+INSERT INTO main.migrations (name)
+VALUES ('M20261114214847_keep_first_signal_value')
+ON CONFLICT (name) DO NOTHING;
+
+-- ===== END M20261114214847_keep_first_signal_value =====
 
 COMMIT;
 

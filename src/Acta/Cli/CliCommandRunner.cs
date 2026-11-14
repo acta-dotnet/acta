@@ -169,7 +169,7 @@ internal sealed class CliCommandRunner(
         CliOutput.WriteControl(output, verb, jobRef, result, json);
         return result.Action switch
         {
-            ControlAction.Applied => ExitOk,
+            ControlAction.Applied or ControlAction.AlreadyInState => ExitOk,
             ControlAction.NotFound => ExitNotFound,
             _ => ExitRejected,
         };

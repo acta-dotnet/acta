@@ -5,12 +5,12 @@ using Xunit;
 
 namespace Acta.Tests.Conformance.Operations.Signals;
 
-/// <summary>Conformance for the operator raise: one Set checkpoint per name holding the latest payload, an audited raise, and no write on a missing or finished job.</summary>
+/// <summary>Conformance for the operator raise: one Set checkpoint per name holding its first payload, an audited raise, and no write on a repeat, a missing job or a finished one.</summary>
 [ConformanceSpec(
     "raise-job-signal.operator",
     "An operator raise sets the named checkpoint and records who raised it",
     Area = "Signals",
-    Contract = "Raise upserts the job's named checkpoint to Set with the latest payload and records the operator, while a missing job is NotFound and a finished one Rejected."
+    Contract = "A raise sets the named checkpoint once and records the operator, while a repeat is AlreadyInState or Rejected and a missing job NotFound."
 )]
 [Deploys("job-wait-signal", "job-wait-signal-typed")]
 public sealed class RaiseJobSignalSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<RaiseJobSignalSpec>>
@@ -46,20 +46,24 @@ public sealed class RaiseJobSignalSpec : ActaRuntimeTestBase<ConformanceFixture,
         Assert.Equal(EventReason.SignalReleased, EventDetail(evt, "reason"));
     }
 
-    [Fact(DisplayName = "A repeat raise keeps one checkpoint, overwrites its payload, and bumps its version")]
-    public async Task Repeat_raise_overwrites_one_checkpoint()
+    [Fact(DisplayName = "A repeat raise writes nothing: the same value is AlreadyInState and another value Rejected")]
+    public async Task Repeat_raise_keeps_the_first_value()
     {
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-wait-signal-typed", JobPayload.None), ct);
-        await Jobs.RaiseSignalAsync(enqueued, "review", new ReviewDecision(false, "first"), ct);
+        var decision = new ReviewDecision(false, "first");
+        await Jobs.RaiseSignalAsync(enqueued, "review", decision, ct);
         var first = await ReadCheckpointAsync(enqueued.JobId, "review", ct);
 
-        var second = JobPayload.Json(new ReviewDecision(true, "second"));
-        Assert.Equal(ControlAction.Applied, (await Jobs.RaiseSignalAsync(enqueued, "review", second, ct)).Action);
+        Assert.Equal(ControlAction.AlreadyInState, (await Jobs.RaiseSignalAsync(enqueued, "review", decision, ct)).Action);
+        var other = new ReviewDecision(true, "second");
+        Assert.Equal(ControlAction.Rejected, (await Jobs.RaiseSignalAsync(enqueued, "review", other, ct)).Action);
 
+        // A later replay reads what the first raise stored, so a wait that already returned can never read another value.
         var checkpoint = await ReadCheckpointAsync(enqueued.JobId, "review", ct);
-        Assert.Equal(first.Version + 1, checkpoint.Version);
-        Assert.Equal(second.Data.ToArray(), checkpoint.Value);
+        Assert.Equal(first.Version, checkpoint.Version);
+        Assert.Equal(first.Value, checkpoint.Value);
+        Assert.Equal(1, await CountEventsAsync(enqueued.JobId, EventCode.JobSignalRaised, ct));
     }
 
     [Fact(DisplayName = "An unknown job is NotFound and a finished job is Rejected, and neither gains a checkpoint or an event")]

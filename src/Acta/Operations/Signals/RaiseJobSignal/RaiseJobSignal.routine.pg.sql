@@ -17,6 +17,8 @@ AS $$
 DECLARE
     v_now TIMESTAMPTZ := now();
     v_existing SMALLINT;
+    v_fmt SMALLINT;
+    v_val BYTEA;
     v_expired BOOLEAN := FALSE;
     v_message VARCHAR;
     v_from_status SMALLINT;
@@ -65,7 +67,7 @@ BEGIN
     END IF;
 
     -- Read again under the job's lock: a wait that expired while this call waited for it inserted its Expired row then.
-    SELECT js.checkpoint_status_code INTO v_existing
+    SELECT js.checkpoint_status_code, js.value_format_id, js.value INTO v_existing, v_fmt, v_val
     FROM {{schema}}.checkpoints js
     WHERE
         js.job_id = p_job_id
@@ -81,8 +83,25 @@ BEGIN
         RETURN;
     END IF;
 
-    /* No revival: an Expired checkpoint already resolved the wait TimedOut, so a late raise writes no value
-       and releases no job. The raise still happened, so it is still recorded: the event below carries
+    -- First raise wins: a signal never changes once raised, so a repeat writes nothing. The same value again is already
+    -- in state, and another value, or any raise at a wait that expired, is rejected. A child's latch keeps rewriting,
+    -- since a restarted child's next landing must reach its parent.
+    IF
+        p_checkpoint_kind_code <> 50 /* CheckpointKindCode.ChildLatch */
+        AND v_existing IN (20 /* CheckpointStatusCode.Set */, 30 /* CheckpointStatusCode.Expired */)
+    THEN
+        RETURN QUERY SELECT
+            CASE
+                WHEN v_existing = 20 /* CheckpointStatusCode.Set */ AND v_fmt = p_value_format_id AND v_val IS NOT DISTINCT FROM p_value
+                    THEN 6 /* ControlAction.AlreadyInState */
+                ELSE 3 /* ControlAction.Rejected */
+            END::SMALLINT,
+            v_from_status;
+        RETURN;
+    END IF;
+
+    /* No revival: an Expired latch already resolved the wait TimedOut, so a late child latch writes no value
+       and releases no job. The landing still happened, so it is still recorded: the event below carries
        a message saying why it changed nothing, and the verb reports the job's unchanged status. */
     -- COALESCE, not a bare comparison: a first raise has no checkpoint at all, and NULL = 30 is unknown, which
     -- would skip the upsert below rather than take it.

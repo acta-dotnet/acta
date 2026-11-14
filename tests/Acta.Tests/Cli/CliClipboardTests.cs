@@ -309,6 +309,31 @@ public class CliRunnerClipboardTests
         Assert.Equal(json, System.Text.Encoding.UTF8.GetString(Value!));
     }
 
+    [Theory]
+    [InlineData(ControlAction.AlreadyInState, 0)]
+    [InlineData(ControlAction.Rejected, 1)]
+    public async Task A_repeat_raise_exits_0_and_a_refused_one_exits_1(ControlAction answer, int expectedExit)
+    {
+        // A raise repeating the signal's first value changed nothing and is no failure, as HTTP answers it 200.
+        var jobs = new NothingJobs { SignalAction = answer };
+        var runner = new CliCommandRunner(jobs, jobs, [], ["shop"], new StringWriter(), new StringWriter(), () => null);
+
+        var exit = await runner.RunAsync(
+            new CliCommand(
+                CliVerb.Signal,
+                Target: NothingJobs.KnownDeduplicationKey,
+                SignalName: "approval",
+                SignalValue: null,
+                null,
+                null,
+                Json: false
+            ),
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.Equal(expectedExit, exit);
+    }
+
     [Fact]
     public async Task Signal_with_a_value_that_is_not_json_is_a_usage_error_and_raises_nothing()
     {
@@ -683,6 +708,9 @@ public class CliRunnerClipboardTests
         /// <summary>Recorded signal raises with the delivered payload format and bytes (null when presence-only).</summary>
         public List<(string Name, byte FormatId, byte[]? Value)> Signals { get; } = [];
 
+        /// <summary>What every raise answers.</summary>
+        public ControlAction SignalAction { get; set; } = ControlAction.Applied;
+
         public ValueTask<RaiseJobSignalResponse> RaiseSignalAsync(
             JobLookup job,
             string name,
@@ -692,7 +720,7 @@ public class CliRunnerClipboardTests
         )
         {
             Signals.Add((name, value.Format.Id, value.IsNone ? null : value.Data.ToArray()));
-            return ValueTask.FromResult(new RaiseJobSignalResponse(1, ControlAction.Applied, JobStatusCode.Ready));
+            return ValueTask.FromResult(new RaiseJobSignalResponse(1, SignalAction, JobStatusCode.Ready));
         }
     }
 }

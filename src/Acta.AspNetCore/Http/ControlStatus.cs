@@ -7,14 +7,17 @@ internal sealed record ControlStatus<TResponse>(Func<TResponse, int> Map, int[] 
 
 internal static class ControlStatus
 {
-    /// <summary>The job verbs: Applied 200, Rejected and VersionConflict 409 (the job's state or a stale expectedVersion), NotFound 404.</summary>
+    /// <summary>
+    /// The job verbs: Applied and AlreadyInState (a signal raised again with its value) 200, Rejected and VersionConflict
+    /// 409 (the job's state or a stale expectedVersion), NotFound 404.
+    /// </summary>
     public static ControlStatus<T> Job<T>()
         where T : IJobControlResponse =>
         new(
             static response =>
                 response.Action switch
                 {
-                    ControlAction.Applied => StatusCodes.Status200OK,
+                    ControlAction.Applied or ControlAction.AlreadyInState => StatusCodes.Status200OK,
                     ControlAction.Rejected or ControlAction.VersionConflict => StatusCodes.Status409Conflict,
                     _ => StatusCodes.Status404NotFound,
                 },

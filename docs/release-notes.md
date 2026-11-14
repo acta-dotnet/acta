@@ -29,6 +29,10 @@ Not tagged yet.
 
 **Expect a failed child to fail its parent at once**: in a handler, `ThrowIfFailed()`, `ThrowIfAnyFailed()` and `ValueOrThrow()` on a waited job now fail the job with no retry (reason `non-retryable-exception`), since a retry would read the same failed child. To recover, restart the child, then the parent once the child has succeeded.
 
+**Apply the migration to every rc.11 database before an rc.12 worker starts**: `<app> jobs migrate`, `{Provider}Migrations.ApplyAsync` or the provider's schema script applies `M20261114214847_keep_first_signal_value`, and `MigrateOnStartup` does in development ([migration ownership](./operator-guide.md#migration-ownership)). It re-creates the signal raise and changes no table or row.
+
+**Raise a signal once per value**: a signal keeps the value of its first raise. Raising it again with the same value answers `AlreadyInState` (200 over HTTP), and with another value, or at a wait that expired, `Rejected` (409), and none of them writes anything, where a raise replaced the stored value and a late one answered `Applied` with an event saying it changed nothing. A permanent job that waits on one signal name every fire puts the period in the name, or resets its state as its last action, as its steps already need. A child's latch still takes each landing of the child.
+
 **Return a reference where a handler returned a result over `MaxInlinePayloadBytes`**: such a result now fails the job for good (reason `non-retryable-exception`), as a null or unserializable result does, where the job succeeded with its result dropped and reason `result-oversized`, which no event carries any more. Store a large result yourself and return what finds it.
 
 ### Additions

@@ -8,7 +8,7 @@ namespace Acta.Tests.Conformance.Scenarios;
 
 /// <summary>
 /// Conformance for durable signals: <c>ctx.WaitSignalAsync</c> suspends the Job on a Pending checkpoint and
-/// <c>IJobs.RaiseSignalAsync</c> sets the checkpoint (last-writer-wins) and releases a Suspended Job to Ready.
+/// <c>IJobs.RaiseSignalAsync</c> sets the checkpoint once (first raise wins) and releases a Suspended Job to Ready.
 /// Unlike sleep, a signal wait lands real <c>Suspended</c> with no <c>NextRunAtUtc</c> - only a raise
 /// re-arms it.
 /// </summary>
@@ -16,7 +16,7 @@ namespace Acta.Tests.Conformance.Scenarios;
     "signals.wait-and-raise",
     "Wait suspends a job and a raise releases it last-writer-wins",
     Area = "Signals",
-    Contract = "WaitSignalAsync suspends a job on a Pending checkpoint and RaiseSignalAsync sets the checkpoint last-writer-wins, releasing a Suspended job that waits on it."
+    Contract = "WaitSignalAsync suspends a job on a Pending checkpoint and RaiseSignalAsync sets it once, the first raise winning, releasing a Suspended job that waits on it."
 )]
 [Deploys("job-wait-signal", "job-wait-signal-then-reset", "job-wait-signal-twice", "job-wait-signal-typed")]
 public sealed class SignalSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<SignalSpec>>
@@ -175,7 +175,7 @@ public sealed class SignalSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<
         Assert.Equal(decision, await Jobs.GetResultAsync<ReviewDecision>(enqueued, ct));
     }
 
-    [Fact(DisplayName = "A wait on a signal already set reads its value each time, and a later raise replaces what a replay reads")]
+    [Fact(DisplayName = "A wait on a signal already set reads its value each time, and a later raise of another value is rejected")]
     public async Task Set_signal_is_read_not_consumed()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -185,13 +185,13 @@ public sealed class SignalSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<
         // Both waits of the pass read the value that was set, and the job then waits on another name.
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
         var second = await Jobs.RaiseSignalAsync(enqueued, "review", new ReviewDecision(false, "two"), ct: ct);
-        Assert.Equal(JobStatusCode.Suspended, second.Status);
+        Assert.Equal((ControlAction.Rejected, JobStatusCode.Suspended), (second.Action, second.Status));
 
         await Jobs.RaiseSignalAsync(enqueued, "go", JobPayload.None, ct: ct);
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
 
-        // A set signal stays set: the replay's waits read what the later raise stored.
-        Assert.Equal("one|one then two|two", await Jobs.GetResultAsync<string>(enqueued, ct));
+        // A set signal keeps its first value: the replay's waits read what the first raise stored.
+        Assert.Equal("one|one then one|one", await Jobs.GetResultAsync<string>(enqueued, ct));
     }
 
     [Fact(DisplayName = "A presence signal sets the checkpoint with a null payload")]
@@ -209,19 +209,19 @@ public sealed class SignalSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<
         Assert.Null(sig.Value);
     }
 
-    [Fact(DisplayName = "A duplicate raise is last-writer-wins")]
-    public async Task Duplicate_raise_is_last_writer_wins()
+    [Fact(DisplayName = "A duplicate raise of another value is rejected, and the wait reads the first")]
+    public async Task Duplicate_raise_is_first_writer_wins()
     {
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-wait-signal-typed", JobPayload.None), ct);
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
 
-        await Jobs.RaiseSignalAsync(enqueued, "review", new ReviewDecision(false, "first"), ct: ct);
-        await Jobs.RaiseSignalAsync(enqueued, "review", new ReviewDecision(true, "second"), ct: ct);
+        Assert.Equal(ControlAction.Applied, (await Jobs.RaiseSignalAsync(enqueued, "review", new ReviewDecision(false, "first"), ct: ct)).Action);
+        Assert.Equal(ControlAction.Rejected, (await Jobs.RaiseSignalAsync(enqueued, "review", new ReviewDecision(true, "second"), ct: ct)).Action);
 
         Assert.Equal(CheckpointStatusCode.Set, (await ReadSignalsAsync(enqueued.JobId, ct)).Single().Status);
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
-        Assert.Equal(new ReviewDecision(true, "second"), await Jobs.GetResultAsync<ReviewDecision>(enqueued, ct));
+        Assert.Equal(new ReviewDecision(false, "first"), await Jobs.GetResultAsync<ReviewDecision>(enqueued, ct));
     }
 
     [Fact(DisplayName = "Raise sets the checkpoint but does not reactivate a paused job")]

@@ -22,6 +22,8 @@ BEGIN
 
         DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
         DECLARE @existing TINYINT;
+        DECLARE @fmt TINYINT;
+        DECLARE @val VARBINARY(MAX);
         DECLARE @expired BIT = 0;
         DECLARE @message NVARCHAR(512);
         DECLARE
@@ -36,7 +38,7 @@ BEGIN
         IF @checkpoint_lock_result < 0
             THROW 51205, 'ACTA:CHECKPOINT_LOCK:The checkpoint lock was not granted (deadlock victim or cancelled).', 1;
 
-        SELECT @existing = checkpoint_status_code
+        SELECT @existing = checkpoint_status_code, @fmt = value_format_id, @val = value
         FROM {{schema}}.checkpoints WITH (UPDLOCK)
         WHERE job_id = @p_job_id AND checkpoint_kind_code = @p_checkpoint_kind_code AND checkpoint_name = @p_checkpoint_name;
 
@@ -84,8 +86,33 @@ BEGIN
                 GOTO Finish;
             END;
 
-        /* No revival: an Expired checkpoint already resolved the wait TimedOut, so a late raise writes no
-           value and releases no job. The raise still happened, so it is still recorded: the event below
+        -- First raise wins: a signal never changes once raised, so a repeat writes nothing, already in state with the
+        -- same value and rejected with another or at an expired wait, while a child's latch keeps rewriting. Lengths are
+        -- compared too, so a value that differs only in trailing zero bytes is never taken for the same one.
+        IF
+            @p_checkpoint_kind_code <> 50 /* CheckpointKindCode.ChildLatch */
+            AND @existing IN (20 /* CheckpointStatusCode.Set */, 30 /* CheckpointStatusCode.Expired */)
+            BEGIN
+                SELECT
+                    CAST(
+                        CASE
+                            WHEN
+                                @existing = 20 /* CheckpointStatusCode.Set */
+                                AND @fmt = @p_value_format_id
+                                AND (
+                                    (@val IS NULL AND @p_value IS NULL)
+                                    OR (DATALENGTH(@val) = DATALENGTH(@p_value) AND @val = @p_value)
+                                )
+                                THEN 6 /* ControlAction.AlreadyInState */
+                            ELSE 3 /* ControlAction.Rejected */
+                        END AS TINYINT
+                    ) AS action,
+                    @from_status AS status;
+                GOTO Finish;
+            END;
+
+        /* No revival: an Expired latch already resolved the wait TimedOut, so a late child latch writes no
+           value and releases no job. The landing still happened, so it is still recorded: the event below
            carries a message saying why it changed nothing, and the verb reports the unchanged status. */
         SET @expired = CASE WHEN @existing = 30 /* CheckpointStatusCode.Expired */ THEN 1 ELSE 0 END;
         SET @message = CASE

@@ -1,5 +1,5 @@
-/* No revival: an Expired checkpoint already resolved the wait TimedOut, so a late raise writes nothing and
-   releases no job, but the raise still happened and the audit event still records it with a message
+/* No revival: an Expired latch already resolved the wait TimedOut, so a late child latch writes nothing and
+   releases no job, but the landing still happened and the audit event still records it with a message
    saying why it changed nothing. The pre-state is captured first because the upsert overwrites it. */
 DROP TABLE IF EXISTS temp._raise_expired;
 
@@ -32,6 +32,28 @@ SELECT 1 AS stale
 FROM {{schema}}.jobs_state c
 WHERE @p_child_job_id IS NOT NULL AND c.job_id = @p_child_job_id AND c.job_status_code <> @p_child_status;
 
+-- First raise wins: a signal never changes once raised, so a repeat writes nothing. The same value again is already
+-- in state, and another value, or any raise at a wait that expired, is rejected. A child's latch keeps rewriting,
+-- since a restarted child's next landing must reach its parent.
+DROP TABLE IF EXISTS temp._raise_settled;
+CREATE TEMP TABLE _raise_settled AS
+SELECT
+    CASE
+        WHEN
+            c.checkpoint_status_code = 20 /* CheckpointStatusCode.Set */
+            AND c.value_format_id = @p_value_format_id
+            AND c.value IS @p_value
+            THEN 6 /* ControlAction.AlreadyInState */
+        ELSE 3 /* ControlAction.Rejected */
+    END AS action
+FROM {{schema}}.checkpoints c
+WHERE
+    c.job_id = @p_job_id
+    AND c.checkpoint_kind_code = @p_checkpoint_kind_code
+    AND c.checkpoint_name = @p_checkpoint_name
+    AND @p_checkpoint_kind_code <> 50 /* CheckpointKindCode.ChildLatch */
+    AND c.checkpoint_status_code IN (20 /* CheckpointStatusCode.Set */, 30 /* CheckpointStatusCode.Expired */);
+
 INSERT INTO {{schema}}.checkpoints (
     job_id, checkpoint_kind_code, checkpoint_name, checkpoint_status_code, value_format_id, value, modified_at_utc, version
 )
@@ -58,6 +80,7 @@ WHERE
     )
     AND NOT EXISTS (SELECT 1 FROM temp._raise_expired)
     AND NOT EXISTS (SELECT 1 FROM temp._raise_stale)
+    AND NOT EXISTS (SELECT 1 FROM temp._raise_settled)
 ON CONFLICT (job_id, checkpoint_kind_code, checkpoint_name) DO UPDATE
 SET
     checkpoint_status_code = 20 /* CheckpointStatusCode.Set */,
@@ -108,7 +131,8 @@ WHERE
         OR @p_checkpoint_kind_code = 50 /* CheckpointKindCode.ChildLatch */
     )
     AND j.event_recording_code = 20 /* EventRecordingCode.Audit */
-    AND NOT EXISTS (SELECT 1 FROM temp._raise_stale);
+    AND NOT EXISTS (SELECT 1 FROM temp._raise_stale)
+    AND NOT EXISTS (SELECT 1 FROM temp._raise_settled);
 
 INSERT INTO {{schema}}.events (
     event_code,
@@ -168,6 +192,7 @@ SELECT
             r.job_status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
             AND @p_checkpoint_kind_code <> 50 /* CheckpointKindCode.ChildLatch */
             THEN 3 /* ControlAction.Rejected */
+        WHEN EXISTS (SELECT 1 FROM temp._raise_settled) THEN (SELECT s.action FROM temp._raise_settled s)
         ELSE 1 /* ControlAction.Applied */
     END AS action,
     r.job_status_code AS status

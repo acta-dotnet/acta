@@ -909,7 +909,9 @@ recovery also reversed external effects.
 
 The signal value is stored in the named checkpoint. When the handler later calls
 `WaitSignalAsync` with the same name, it reads the stored value without suspending, and the value stays
-set: a replay or a later wait on that name reads it again, until a later raise replaces it. A signal sent
+set: a replay or a later wait on that name reads it again. A signal keeps its first value: a repeat raise
+with that value answers `already-in-state` and one with another value `rejected`, as a raise at an expired
+wait does, and none of them writes anything. A signal sent
 to a terminal job is rejected; a signal sent to a paused job is stored but does not resume the job
 until the job itself is resumed.
 

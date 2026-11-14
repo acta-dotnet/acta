@@ -236,8 +236,10 @@ database time plus the timeout, so restarts and downtime never lengthen it, and 
 before the parked job re-enters still wins. A timeout rounds up to whole seconds, at least one, and a sleep
 of zero or less returns at once, so a deadline shared by several waits is `deadline - DateTime.UtcNow` at each
 of them: the remaining time goes negative on the replay after the deadline, and each wait's stored instant decides. An expired wait stays expired, through a restart too: the
-restarted job reaches the same wait and is cancelled again at once, and a late raise changes nothing.
-A second window is a wait under a new name (`"shipped-2"`) or a new job.
+restarted job reaches the same wait and is cancelled again at once, and a late raise answers `Rejected`.
+A signal keeps the value of its first raise: raising it again with the same value answers `AlreadyInState`,
+and with another value `Rejected`, so a wait that already returned never reads a different value on replay.
+A second window, or a second value, is a wait under a new name (`"shipped-2"`) or a new job.
 
 ## Child jobs and fan-out
 
@@ -383,9 +385,9 @@ HTTP enqueue in the json format sends strict JSON (one value, no comments or tra
   stays at-least-once either way.
 - Tags are for finding jobs, not for carrying data: input is typed and versioned, tags are
   searchable labels.
-- A permanent job keeps its step results and variables from one fire to the next: a step that
-  succeeded on Monday returns Monday's result on Tuesday. Put the period in the step name
-  (`$"invoice-{period}"`), or call `ctx.ResetStateAsync` as the handler's last action so the next fire
+- A permanent job keeps its step results, variables and signals from one fire to the next: a step
+  that succeeded on Monday returns Monday's result on Tuesday, and Monday's signal answers Tuesday's
+  wait. Put the period in the step or signal name (`$"invoice-{period}"`), or call `ctx.ResetStateAsync` as the handler's last action so the next fire
   starts clean. Never at the top: a reset there also runs on every retry and replay of the same fire,
   erasing its own progress, so succeeded steps run again and an `AtMostOnce` body can run twice.
 - Children a permanent job starts are never purged while its schedule lives, since retention keeps a

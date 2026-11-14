@@ -2552,10 +2552,10 @@
 ## Signals
 
 ### An operator raise sets the named checkpoint and records who raised it
-- **Contract:** Raise upserts the job's named checkpoint to Set with the latest payload and records the operator, while a missing job is NotFound and a finished one Rejected.
+- **Contract:** A raise sets the named checkpoint once and records the operator, while a repeat is AlreadyInState or Rejected and a missing job NotFound.
 - **Guarantees:**
   - A raise stores the payload on a Set checkpoint and records the operator on the event
-  - A repeat raise keeps one checkpoint, overwrites its payload, and bumps its version
+  - A repeat raise writes nothing: the same value is AlreadyInState and another value Rejected
   - An unknown job is NotFound and a finished job is Rejected, and neither gains a checkpoint or an event
   - A malformed or reserved signal name throws before the job is looked up
 
@@ -2566,7 +2566,7 @@
   - The same completion with nothing raised in the window still parks the job Suspended
 
 ### Wait suspends a job and a raise releases it last-writer-wins
-- **Contract:** WaitSignalAsync suspends a job on a Pending checkpoint and RaiseSignalAsync sets the checkpoint last-writer-wins, releasing a Suspended job that waits on it.
+- **Contract:** WaitSignalAsync suspends a job on a Pending checkpoint and RaiseSignalAsync sets it once, the first raise winning, releasing a Suspended job that waits on it.
 - **Guarantees:**
   - Raise wakes an idle loop to run the released job
   - Wait lands Suspended with a Pending checkpoint and no NextRunAtUtc
@@ -2574,9 +2574,9 @@
   - Raise sets the checkpoint and releases a Suspended job to Ready, then it completes
   - A signal raised before the wait is observed without suspending the job
   - A typed signal round-trips its payload to the handler
-  - A wait on a signal already set reads its value each time, and a later raise replaces what a replay reads
+  - A wait on a signal already set reads its value each time, and a later raise of another value is rejected
   - A presence signal sets the checkpoint with a null payload
-  - A duplicate raise is last-writer-wins
+  - A duplicate raise of another value is rejected, and the wait reads the first
   - Raise sets the checkpoint but does not reactivate a paused job
   - A raise of a name the job does not wait on is stored and leaves the job suspended
   - A state reset on the way out of a suspending wait fails the attempt and keeps the checkpoint
@@ -2594,7 +2594,7 @@
   - The typed Try overload carries the payload before the deadline and a null value after it
   - A replay asking for a longer wait does not move the stored expiration
   - A raise after the deadline but before the wait re-enters still wins
-  - A raise on an expired checkpoint revives nothing and the replayed wait stays TimedOut
+  - A raise on an expired checkpoint is rejected, writes nothing, and the replayed wait stays TimedOut
   - An unbounded wait replayed over an expired checkpoint cancels the job instead of parking
   - A replay carrying a bound arms the deadline an unbounded wait never had
   - A replay dropping the bound does not clear the deadline the checkpoint carries

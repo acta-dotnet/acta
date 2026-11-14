@@ -218,7 +218,7 @@ public sealed class SignalTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, 
         Assert.Equal(0, await CountReasonAsync(enqueued.JobId, EventReason.WaitTimedOut, ct));
     }
 
-    [Fact(DisplayName = "A raise on an expired checkpoint revives nothing and the replayed wait stays TimedOut")]
+    [Fact(DisplayName = "A raise on an expired checkpoint is rejected, writes nothing, and the replayed wait stays TimedOut")]
     public async Task Late_raise_cannot_revive_an_expired_wait()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -237,7 +237,7 @@ public sealed class SignalTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, 
         Assert.Null(parked.NextRunAtUtc);
 
         var late = await Jobs.RaiseSignalAsync(enqueued, "go", JobPayload.None, ct: ct);
-        Assert.Equal(ControlAction.Applied, late.Action);
+        Assert.Equal(ControlAction.Rejected, late.Action);
         Assert.Equal(JobStatusCode.Suspended, late.Status);
 
         var after = await ReadJobAsync(enqueued.JobId, ct);
@@ -248,10 +248,8 @@ public sealed class SignalTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, 
         Assert.Equal(CheckpointStatusCode.Expired, go.Status);
         Assert.Equal(0, go.ValueFormatId);
 
-        // The raise changed nothing, but it happened: the timeline says so and says why, or an operator
-        // is left with a verb that reported Applied and a job that never moved.
-        var raised = await ReadLatestEventAsync(enqueued.JobId, EventCode.JobSignalRaised, ct);
-        Assert.Contains("already expired", raised.EventMessage ?? "", StringComparison.Ordinal);
+        // A rejected raise writes nothing, its event included: the answer itself says the raise changed nothing.
+        Assert.Equal(0, await CountEventsAsync(enqueued.JobId, EventCode.JobSignalRaised, ct));
         Assert.Equal(0, await CountEventsAsync(enqueued.JobId, EventCode.JobResumed, ct));
 
         // Releasing the second signal replays the handler over the expired checkpoint: it still resolves
