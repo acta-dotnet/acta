@@ -149,7 +149,7 @@ configuration is exercised by the conformance suites.
 On SQL Server, sixteen worker processes enqueuing and claiming at about 4,000 jobs a second see short
 stalls, up to about 0.4 s, in which enqueues wait, mostly on SQL Server's throttle for inserts into the
 newest page of `jobs` and `jobs_state`. Throughput holds, but the stalls lift an enqueue's p99 to between
-0.5 s and 1.9 s in a run. The benchmark reports of rc.9 and rc.10 name the runs.
+0.5 s and 1.9 s in a run. The benchmark reports of rc.9, rc.10, and rc.11 name the runs.
 
 SQL provider behavior should be tested under your workload, including claim pressure, long-running
 handlers, retries, schedule load, alert delivery, retention sweeps, and backup/restore drills.

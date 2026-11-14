@@ -2,7 +2,7 @@
 
 ## 1.0.0-rc.11
 
-Not tagged yet. The schema changes by one migration on rc.10's baseline, the first a release candidate ships: an rc.10 database is migrated, not reprovisioned.
+Tagged 2026-11-14. rc.11 migrates a database instead of re-cutting it, answers every child wait with one outcome type, reads a job's input and variables from outside the job, shows each definition's performance in the dashboard, and runs on .NET 11. The schema changes by one migration on rc.10's baseline, the first a release candidate ships: an rc.10 database is migrated, not reprovisioned.
 
 ### What a consumer must change
 
@@ -62,6 +62,16 @@ Not tagged yet. The schema changes by one migration on rc.10's baseline, the fir
 
 - The packages build against the current patches: `Microsoft.Extensions.*` and `Microsoft.Data.Sqlite` 10.0.15, `Microsoft.Data.SqlClient` 7.1.2, and `StackExchange.Redis` 3.4.35. Each is a floor with no upper bound, so a host that pins one of them lower raises its pin.
 - The `System.Security.Cryptography.Pkcs` pin is gone, because `Microsoft.Data.SqlClient` 7.1.2 requires a safe version itself.
+
+### Evidence
+
+The engine was certified with the Acta Verify release suite on PostgreSQL, SQL Server, and SQLite, reported in [`docs/reference/benchmark.md`](./reference/benchmark.md) and on [useacta.net/benchmark](https://useacta.net/benchmark), in one run in which no cell was rerun to pass. The run's commit is `1bb9ec4e0`. The commits after it change how `acta-verify compare` matches a runtime, with its test and README, and documentation and the site, so the evidence stands for the tag.
+- **Result.** Every correctness, fault, and chaos scenario passed on every database, every trial's ledger passed the certification checks, and every performance floor held in the run.
+- **Chaos certification.** On the shipped lease timings, 1,000,000 jobs on PostgreSQL and on SQL Server with a worker killed every 5 s: 72 busy kills reclaimed on PostgreSQL and 81 on SQL Server. SQLite passed at 10,000 jobs, with 40 busy kills reclaimed.
+- **Throughput.** Four PostgreSQL workers polling held 15,000/s offered in three 30 s passes; the 120 s confirmation at 15,000 missed its p99 target, 2.5 s against 2.0 s, and the one at 12,500 held, completing 12,512 fully executed, durably completed jobs per second with p99 1.0 s. One worker, woken in process, completed 7,500 a second with p99 50 ms. SQL Server held 5,000 a second on four workers (4,986, p99 946 ms) and on one (5,000, p99 714 ms); SQLite held 250 on one, with p99 102 ms.
+- **Drain.** Eight workers drained a backlog of 1,000,000 jobs at 81,391 a second on PostgreSQL and 46,656 on SQL Server (the steady rate on the database clock, median of three passes); one SQLite worker drained its backlog at 7,231.
+- **Compared with rc.10.** `acta-verify compare` sets every scenario beside rc.10's run, on .NET 10.0.15 against 10.0.14 with the same container images. All 221 scenario runs passed both times, and of the measured cells 21 read faster, 57 the same, and 16 slower, from one run each. PostgreSQL's four-worker confirmation sits at this machine's edge: rerun back to back the same morning, rc.10's tree held 15,000 once and 12,500 once, and rc.11's held 12,500 twice. The other slower cells were not rerun and stay inside their floors; the benchmark report names them.
+- **useacta.net.** The homepage states 12,512 fully executed, durably completed jobs per second on four PostgreSQL workers. The benchmark report is a page of the site.
 
 ## 1.0.0-rc.10
 
