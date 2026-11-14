@@ -62,7 +62,7 @@ public sealed class WorkHandler(EffectClient effects)
         {
             if (input.SignalTimeoutSeconds > 0)
             {
-                var signalled = await ctx.TryWaitSignalAsync(input.Signal, TimeSpan.FromSeconds(input.SignalTimeoutSeconds), ct);
+                var signalled = await ctx.WaitSignalAsync(input.Signal, TimeSpan.FromSeconds(input.SignalTimeoutSeconds), ct);
                 return signalled.TimedOut ? "expired" : "signalled";
             }
             await ctx.WaitSignalAsync(input.Signal, ct);

@@ -229,7 +229,7 @@ client reads `action`, the resulting `status`, and the row's `version` without s
 |---|---|---|---|---|---|---|---|---|---|---|
 | `pause` | A | A | A | A | A | 409 | 409 | 409 | 409 | Paused |
 | `resume` | 409 | 409 | 409 | A | 409 | 409 | 409 | 409 | 409 | Ready at the next run time it kept, or now when that has passed or the job was paused while Suspended on a signal or child wait, so its handler sees a signal raised meanwhile; or Blocked behind its lane; a permanent job with no firing outstanding returns to Idle |
-| `restart` | A | A | A | A | A | 409 | A | A | A | Ready, or Blocked behind its lane, or Idle for a permanent job; failure budget, retention, and Failed steps reset, and the expired wait that cancelled the job is cleared |
+| `restart` | A | A | A | A | A | 409 | A | A | A | Ready, or Blocked behind its lane, or Idle for a permanent job; failure budget, retention, and Failed steps reset, and the expired wait that ended the job is cleared |
 | `cancel` | A | A | A | A | A | A | 409 | 409 | 409 | Cancelled, cascading to non-terminal descendants |
 | `purge` | 409 | 409 | 409 | 409 | A | 409 | A | A | A | Row hard-deleted, `job.purged` event kept |
 | `reschedule` | A | A | A | A | A | 409 | 409 | 409 | 409 | Ready at the new instant, or Blocked behind its lane; an Idle permanent job takes a manual firing |
@@ -273,7 +273,7 @@ Five rules the table cannot show:
 | Meaning | Call |
 | --- | --- |
 | Retry under the job's own policy | None: the policy retries a failed attempt by itself. `reschedule` brings a waiting retry forward, and `restart` gives a Failed job a new budget. |
-| Run again, keeping what already ran | `restart`: succeeded steps, signals, variables and children stay; failed steps run again, and the expired wait that cancelled the job waits again under a fresh bound. |
+| Run again, keeping what already ran | `restart`: succeeded steps, signals, variables and children stay; failed steps run again, and the expired wait that ended the job waits again under a fresh bound. |
 | New work from a changed input | A new job, enqueued under a new deduplication key (`invoice-77.r2`) with the old job's correlation key, so every revision is found together. Its steps and children start fresh. |
 | Settle an interrupted external call first | An at-most-once step hands its handler the interrupted state to reconcile; `restart` runs a failed at-most-once step again. |
 
@@ -934,11 +934,11 @@ until the job itself is resumed.
 
 An unbounded `WaitSignalAsync` suspends the job indefinitely, and retention never touches a
 suspended job, only terminal ones. When "never" is a real possibility, bound the wait:
-`WaitSignalAsync(name, timeout)` cancels the job on expiry, budget-neutral, with reason
-`wait-timed-out`, so the row lands terminal and ages out normally; `TryWaitSignalAsync`
-resumes the handler with a `TimedOut` result instead, for workflows that expire or compensate
-explicitly. The deadline is stamped on the checkpoint when the wait first arms and is never extended:
-worker downtime, restarts, and replays all count against it.
+`WaitSignalAsync(name, timeout)` resumes the handler with a `TimedOut` outcome on expiry, for
+workflows that expire or compensate explicitly, and the outcome's `ThrowIfTimedOut()` fails the job
+at once, with no retry and no budget spent, so the row lands terminal and ages out normally. The
+deadline is stamped on the checkpoint when the wait first arms and is never extended: worker downtime,
+restarts, and replays all count against it. A restart of the failed job reopens the wait under a fresh bound.
 
 ### …a child never finishes and the parent is waiting on it?
 
@@ -952,7 +952,8 @@ it is at-least-once like everything else: a crash between the durable expiry and
 re-runs it on replay, and a parent that goes terminal without ever replaying leaves its children
 running, which is what parent death has always meant in Acta. And an expired wait is
 terminal for its name: a replay that reaches an unbounded `WaitChildAsync` over an already-expired
-latch cancels the job rather than parking it forever on a wait that can no longer complete.
+latch resumes with the `TimedOut` outcome rather than parking forever on a wait that can no longer
+complete, and an unbounded `WaitSignalAsync` there fails the job with the timeout.
 
 ### …a sleeping or signal-waiting job has no worker?
 

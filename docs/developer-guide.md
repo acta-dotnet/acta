@@ -127,7 +127,7 @@ visibility. Use a step when work is part of one parent job's internal state mach
 
 ### Wait deadlines
 
-A signal or child wait can take a timeout (`WaitSignalAsync(name, timeout)`, `TryWaitSignalAsync`, `WaitChildAsync(child, timeout)`). The deadline is database time, armed once at the first wait and never extended by replays. On expiry the wait is expired for good: a `Try` overload resumes with `TimedOut`, a plain overload cancels the job budget-neutrally with `wait-timed-out`, and a late signal or child outcome never revives the wait. A child group waited with a timeout shares one deadline, and expiry cancels only the members still running.
+A signal or child wait can take a timeout (`WaitSignalAsync(name, timeout)`, `WaitChildAsync(child, timeout)`), and a wait that can time out answers an outcome. The deadline is database time, armed once at the first wait and never extended by replays. On expiry the wait is expired for good: the outcome reports `TimedOut`, `ThrowIfTimedOut()`, `ThrowIfFailed()` or `ValueOrThrow()` on it fails the job at once with no retry, and a late signal or child outcome never revives the wait. A child group waited with a timeout shares one deadline, and expiry cancels only the members still running.
 
 ### Schedules, workers, and providers
 

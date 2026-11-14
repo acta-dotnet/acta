@@ -24,7 +24,6 @@ internal sealed class ControlFlowCatchAnalyzer : DiagnosticAnalyzer
         "SleepAsync",
         "SleepUntilAsync",
         "WaitSignalAsync",
-        "TryWaitSignalAsync",
         "WaitChildAsync",
         "CallChildAsync",
         "WaitChildrenAsync",

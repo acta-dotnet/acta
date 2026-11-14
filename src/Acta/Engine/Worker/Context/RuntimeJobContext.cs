@@ -264,28 +264,18 @@ internal sealed partial class RuntimeJobContext(
     }
 
     private protected override Task<SignalCheckpointState> WaitSignalCoreAsync(string name, CancellationToken ct) =>
-        WaitSignalCoreAsync(name, timeoutSeconds: null, resumeOnTimeout: false, ct);
+        WaitSignalCoreAsync(name, timeoutSeconds: null, ct);
 
-    /// <summary>
-    /// Which overload the handler called decides what an expired wait does: the checkpoint records only
-    /// the absolute expiration, so timeout policy lives in code, and a replay of the other
-    /// overload against the same checkpoint is free to decide differently.
-    /// </summary>
-    private protected override Task<SignalCheckpointState> WaitSignalCoreAsync(
-        string name,
-        int? timeoutSeconds,
-        bool resumeOnTimeout,
-        CancellationToken ct
-    ) => WaitCheckpointAsync(name, timeoutSeconds, dueAtUtc: null, resumeOnTimeout, ct);
+    private protected override Task<SignalCheckpointState> WaitSignalCoreAsync(string name, int? timeoutSeconds, CancellationToken ct) =>
+        WaitCheckpointAsync(name, timeoutSeconds, dueAtUtc: null, ct);
 
     private protected override Task<SignalCheckpointState> WaitSignalUntilCoreAsync(string name, DateTime dueAtUtc, CancellationToken ct) =>
-        WaitCheckpointAsync(name, timeoutSeconds: null, dueAtUtc, resumeOnTimeout: true, ct);
+        WaitCheckpointAsync(name, timeoutSeconds: null, dueAtUtc, ct);
 
     private async Task<SignalCheckpointState> WaitCheckpointAsync(
         string name,
         int? timeoutSeconds,
         DateTime? dueAtUtc,
-        bool resumeOnTimeout,
         CancellationToken ct
     )
     {
@@ -301,8 +291,7 @@ internal sealed partial class RuntimeJobContext(
         {
             WaitJobSignalOutcomeCode.ContinueSet => new SignalCheckpointState(decision.ValueFormatId, decision.Value),
             WaitJobSignalOutcomeCode.SuspendPending => throw Thrown(new SignalSuspendSignal(name)), // The host locks the checkpoint and finalizes the attempt Suspended (or Ready if a raise won the race).
-            WaitJobSignalOutcomeCode.TimedOut when resumeOnTimeout => new SignalCheckpointState(0, null, TimedOut: true),
-            WaitJobSignalOutcomeCode.TimedOut => throw Thrown(new WaitTimeoutSignal(name)), // The host lands the attempt Cancelled, budget-neutral, like the Strict-deadline path.
+            WaitJobSignalOutcomeCode.TimedOut => new SignalCheckpointState(0, null, TimedOut: true),
             _ => throw new InvalidOperationException($"wait_job_signal returned an unknown outcome for job {JobId}, signal '{name}'."),
         };
     }

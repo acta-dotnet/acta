@@ -8,9 +8,9 @@ namespace Acta.Tests.Conformance.Operations.Execution;
 
 /// <summary>
 /// Conformance for the one started attempt <c>reclaim_stuck_jobs</c> must not charge: the attempt that woke on a
-/// wait deadline, flipped the awaited checkpoint to Expired, and then lost its worker. The surviving path ends
-/// that attempt Cancelled with reason <c>wait-timed-out</c> and no budget spent, so a reclaim that charged
-/// it would let a crash fail a job the deadline had already resolved for free. Reclaim recognizes the
+/// wait deadline, flipped the awaited checkpoint to Expired, and then lost its worker. The surviving path hands
+/// the handler its timed-out outcome with no budget spent, so a reclaim that charged it would let a crash
+/// spend an attempt on a wait the deadline had already resolved. Reclaim recognizes the
 /// case from state alone - a checkpoint of the job's own wait kinds, Expired, whose stored expiration is the
 /// instant the suspend cached on the jobs_state row - and hands the job back Suspended on that same past
 /// deadline, uncharged, for the replay to resolve as the waiting overload defines it.
@@ -25,7 +25,7 @@ namespace Acta.Tests.Conformance.Operations.Execution;
     Area = "Recovery",
     Contract = "An expired-lease attempt whose awaited wait had already expired returns to Suspended uncharged, and still raises the job's automatic incident."
 )]
-[Deploys("job-try-wait-signal-timeout", "job-try-wait-signal-timeout-then-hold", "job-wait-signal-timeout")]
+[Deploys("job-wait-signal-outcome", "job-wait-signal-outcome-then-hold", "job-wait-signal-timeout")]
 public sealed class ReclaimStuckJobsWaitTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<ReclaimStuckJobsWaitTimeoutSpec>>
 {
     [Fact(DisplayName = "A crash after the wait expired re-arms the job Suspended on the same deadline with no attempt charged")]
@@ -66,14 +66,14 @@ public sealed class ReclaimStuckJobsWaitTimeoutSpec : ActaRuntimeTestBase<Confor
         Assert.Equal(EventReason.LeaseExpired, EventDetail(recovery, "reason"));
 
         // The replay lands exactly what the surviving path would have landed, still budget-neutral.
-        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Failed, await Runtime.RunOnceAsync(enqueued, ct));
         var settled = await ReadJobAsync(enqueued.JobId, ct);
-        Assert.Equal(JobStatusCode.Cancelled, settled.Status);
+        Assert.Equal(JobStatusCode.Failed, settled.Status);
         Assert.Equal(0, settled.FailureCount);
         Assert.NotNull(settled.RetentionUntilUtc);
         Assert.Equal(
-            EventReason.WaitTimedOut,
-            EventDetail(await ReadLatestEventAsync(enqueued.JobId, EventCode.JobCancelled, ct), "reason")
+            EventReason.NonRetryableException,
+            EventDetail(await ReadLatestEventAsync(enqueued.JobId, EventCode.JobFailed, ct), "reason")
         );
     }
 
@@ -107,13 +107,13 @@ public sealed class ReclaimStuckJobsWaitTimeoutSpec : ActaRuntimeTestBase<Confor
         var worker = await ChaosSpecHelpers.WorkerIdAsync(Db, ns, ct);
 
         var enqueued = await Jobs.EnqueueAsync(
-            new EnqueueJobRequest(TestNamespace, "job-try-wait-signal-timeout-then-hold", JobPayload.None),
+            new EnqueueJobRequest(TestNamespace, "job-wait-signal-outcome-then-hold", JobPayload.None),
             ct
         );
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
         await ExpireWaitAsync(Db, enqueued.JobId, "go", ct);
 
-        // The Try wait resolves TimedOut and the handler parks on a second, unbounded wait: the job now
+        // The bounded wait answers TimedOut and the handler parks on a second, unbounded wait: the job now
         // carries an Expired checkpoint it walked past, which must not read as a deadline still resolving.
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
         Assert.Equal(
@@ -148,16 +148,6 @@ public sealed class ReclaimStuckJobsWaitTimeoutSpec : ActaRuntimeTestBase<Confor
         Assert.Equal(enqueued.JobId, raised.JobId);
         Assert.Equal(AlertKindCode.FirstFailure, raised.Kind);
         Assert.Null(raised.ResolvedAtUtc);
-
-        // The replay gives up on the wait, which is a Cancelled landing: it alerts under no profile and
-        // resolves nothing, so the incident the crash opened stays open for someone to look at.
-        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
-        Assert.Equal(JobStatusCode.Cancelled, (await ReadJobAsync(enqueued.JobId, ct)).Status);
-        await RunAlertsAsync(enqueued.JobId, ns, ct);
-
-        var afterCancel = Assert.Single(await ReadAlertsAsync(ns, ct));
-        Assert.Equal(AlertKindCode.FirstFailure, afterCancel.Kind);
-        Assert.Null(afterCancel.ResolvedAtUtc);
     }
 
     [Fact(DisplayName = "A success after an uncharged reclaim resolves the incident it opened")]
@@ -166,9 +156,9 @@ public sealed class ReclaimStuckJobsWaitTimeoutSpec : ActaRuntimeTestBase<Confor
         var ct = TestContext.Current.CancellationToken;
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
 
-        // The Try overload resumes past its expired wait, so this job is the one-off: one worker died
-        // on the timeout resolution, the replay finished the work, and nothing is wrong any more.
-        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-try-wait-signal-timeout", JobPayload.None), ct);
+        // The handler reads the outcome and resumes past its expired wait, so this job is the one-off: one
+        // worker died on the timeout resolution, the replay finished the work, and nothing is wrong any more.
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-wait-signal-outcome", JobPayload.None), ct);
         await ReclaimAfterResolvedWaitAsync(enqueued, ns, ct);
 
         await RunAlertsAsync(enqueued.JobId, ns, ct);

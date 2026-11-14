@@ -121,7 +121,7 @@ public abstract partial class JobContext
         ArgumentNullException.ThrowIfNull(exception);
         return exception switch
         {
-            HandlerFailException or HandlerCancelException or WaitTimeoutSignal or StepInterruptedException => true,
+            HandlerFailException or HandlerCancelException or StepInterruptedException => true,
             JobControlException or ExecutionFencedException => false,
             OperationCanceledException when CancellationToken.IsCancellationRequested => false,
             _ => HandlerInvocation.IsNonRetryable(exception) || IsLastAttempt,

@@ -72,12 +72,11 @@ internal sealed partial class RuntimeJobContext
         {
             value = await body(ct);
         }
-        catch (JobControlException control)
-            when (options.AtMostOnce && control is not (HandlerFailException or HandlerCancelException or WaitTimeoutSignal))
+        catch (JobControlException control) when (options.AtMostOnce && control is not (HandlerFailException or HandlerCancelException))
         {
             // A wait begun outside the body and awaited inside it got past the refusal at the call; resuming it would
-            // find the step started and interrupt it, so it is refused here. Fail, cancel and an expired wait end the
-            // job and pass through.
+            // find the step started and interrupt it, so it is refused here. Fail and cancel end the job and pass
+            // through.
             throw await RecordFailureAsync(name, start.Version, AtMostOnceSuspensionRefused($"A {control.GetType().Name}", name), ct);
         }
         catch (Exception ex)

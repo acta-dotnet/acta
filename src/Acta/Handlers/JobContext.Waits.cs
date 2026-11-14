@@ -58,7 +58,7 @@ public abstract partial class JobContext
         ThrowIfInAtMostOnceStep(nameof(WaitSignalAsync));
         name = NameSyntax.Canonicalize(name, nameof(name), NameSyntax.ExtendedMaxLength, reserveSystem: true);
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, CancellationToken);
-        await WaitSignalCoreAsync(name, linked.Token);
+        ThrowIfTimedOut(await WaitSignalCoreAsync(name, linked.Token), name);
     }
 
     /// <summary>
@@ -71,78 +71,54 @@ public abstract partial class JobContext
         ThrowIfInAtMostOnceStep(nameof(WaitSignalAsync));
         name = NameSyntax.Canonicalize(name, nameof(name), NameSyntax.ExtendedMaxLength, reserveSystem: true);
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, CancellationToken);
-        var outcome = await WaitSignalCoreAsync(name, linked.Token);
+        var outcome = ThrowIfTimedOut(await WaitSignalCoreAsync(name, linked.Token), name);
         return outcome.ValueFormatId == 0 ? default : DeserializeSignalPayload<T>(outcome.ValueFormatId, outcome.Value!);
     }
 
     /// <summary>
-    /// Bounded twin of <see cref="WaitSignalAsync(string, CancellationToken)"/>. The first pass stores
-    /// <c>db_now + timeout</c> (whole seconds, rounded up, at least one) as the wait's expiration; a replay reuses that
-    /// instant and never extends it, so restarts cannot lengthen the wait. A raise landing before the replayed wait
-    /// settles the wait is still taken; once it settles <c>Expired</c>, Acta ends the Job <c>Cancelled</c> with reason
-    /// <c>wait-timed-out</c> and this call does not return. Use
-    /// <see cref="TryWaitSignalAsync(string, TimeSpan, CancellationToken)"/> to resume the handler instead.
+    /// Bounded twin of <see cref="WaitSignalAsync(string, CancellationToken)"/>, answering whether the signal arrived. The
+    /// first pass stores <c>db_now + timeout</c> (whole seconds, rounded up, at least one) as the wait's expiration, and a
+    /// replay reuses that instant and never extends it. A raise landing before the replayed wait settles it is still
+    /// taken; once it settles <c>Expired</c> the outcome reports <see cref="SignalWaitOutcome.TimedOut"/>, and
+    /// <see cref="SignalWaitOutcome.ThrowIfTimedOut"/> fails the job with it.
     /// </summary>
-    public async Task WaitSignalAsync(string name, TimeSpan timeout, CancellationToken ct = default)
+    public async Task<SignalWaitOutcome> WaitSignalAsync(string name, TimeSpan timeout, CancellationToken ct = default)
     {
         ThrowIfInAtMostOnceStep(nameof(WaitSignalAsync));
         name = NameSyntax.Canonicalize(name, nameof(name), NameSyntax.ExtendedMaxLength, reserveSystem: true);
         var seconds = ToWaitTimeoutSeconds(timeout);
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, CancellationToken);
-        await WaitSignalCoreAsync(name, seconds, resumeOnTimeout: false, linked.Token);
+        var outcome = await WaitSignalCoreAsync(name, seconds, linked.Token);
+        return outcome.TimedOut ? SignalWaitOutcome.Expired(name) : SignalWaitOutcome.Signalled(name);
     }
 
     /// <summary>
-    /// Typed-payload variant of <see cref="WaitSignalAsync(string, TimeSpan, CancellationToken)"/>. A
-    /// presence-only signal (raised without a value) returns <c>default</c>; a timeout does not return.
+    /// Typed twin of <see cref="WaitSignalAsync(string, TimeSpan, CancellationToken)"/>: <c>Value</c> is the raised
+    /// payload, <c>default</c> on a timeout and on a presence-only raise, and <see cref="SignalWaitOutcome{T}.ValueOrThrow"/>
+    /// reads it or fails the job with the timeout.
     /// </summary>
-    public async Task<T?> WaitSignalAsync<T>(string name, TimeSpan timeout, CancellationToken ct = default)
+    public async Task<SignalWaitOutcome<T>> WaitSignalAsync<T>(string name, TimeSpan timeout, CancellationToken ct = default)
     {
         ThrowIfInAtMostOnceStep(nameof(WaitSignalAsync));
         name = NameSyntax.Canonicalize(name, nameof(name), NameSyntax.ExtendedMaxLength, reserveSystem: true);
         var seconds = ToWaitTimeoutSeconds(timeout);
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, CancellationToken);
-        var outcome = await WaitSignalCoreAsync(name, seconds, resumeOnTimeout: false, linked.Token);
-        return outcome.ValueFormatId == 0 ? default : DeserializeSignalPayload<T>(outcome.ValueFormatId, outcome.Value!);
-    }
-
-    /// <summary>
-    /// Resuming twin of <see cref="WaitSignalAsync(string, TimeSpan, CancellationToken)"/>: a wait whose
-    /// re-entry settles the wait <c>Expired</c> returns a result carrying
-    /// <see cref="SignalWaitOutcome.TimedOut"/>, and the handler continues rather than the Job being
-    /// cancelled. The expiration, its never-extend replay rule, and a raise winning right up to that
-    /// settlement are identical; only what an expired wait does to the handler differs.
-    /// </summary>
-    public async Task<SignalWaitOutcome> TryWaitSignalAsync(string name, TimeSpan timeout, CancellationToken ct = default)
-    {
-        ThrowIfInAtMostOnceStep(nameof(TryWaitSignalAsync));
-        name = NameSyntax.Canonicalize(name, nameof(name), NameSyntax.ExtendedMaxLength, reserveSystem: true);
-        var seconds = ToWaitTimeoutSeconds(timeout);
-        using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, CancellationToken);
-        var outcome = await WaitSignalCoreAsync(name, seconds, resumeOnTimeout: true, linked.Token);
-        return outcome.TimedOut ? SignalWaitOutcome.Expired : SignalWaitOutcome.Signalled;
-    }
-
-    /// <summary>
-    /// Typed-payload variant of <see cref="TryWaitSignalAsync(string, TimeSpan, CancellationToken)"/>.
-    /// <c>Value</c> is <c>default</c> on a timeout and on a presence-only raise; branch on
-    /// <c>TimedOut</c> to tell the two apart.
-    /// </summary>
-    public async Task<SignalWaitOutcome<T>> TryWaitSignalAsync<T>(string name, TimeSpan timeout, CancellationToken ct = default)
-    {
-        ThrowIfInAtMostOnceStep(nameof(TryWaitSignalAsync));
-        name = NameSyntax.Canonicalize(name, nameof(name), NameSyntax.ExtendedMaxLength, reserveSystem: true);
-        var seconds = ToWaitTimeoutSeconds(timeout);
-        using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, CancellationToken);
-        var outcome = await WaitSignalCoreAsync(name, seconds, resumeOnTimeout: true, linked.Token);
+        var outcome = await WaitSignalCoreAsync(name, seconds, linked.Token);
         if (outcome.TimedOut)
         {
-            return SignalWaitOutcome<T>.Expired;
+            return SignalWaitOutcome<T>.Expired(name);
         }
 
         var value = outcome.ValueFormatId == 0 ? default : DeserializeSignalPayload<T>(outcome.ValueFormatId, outcome.Value!);
-        return SignalWaitOutcome<T>.Signalled(value);
+        return SignalWaitOutcome<T>.Signalled(name, value);
     }
+
+    /// <summary>
+    /// An unbounded wait cannot report a timeout, so one that meets an expired checkpoint, left by a bound the code has
+    /// since dropped, fails with it: a retry would meet the same expired wait.
+    /// </summary>
+    private static SignalCheckpointState ThrowIfTimedOut(SignalCheckpointState state, string name) =>
+        state.TimedOut ? throw new SignalWaitTimeoutException(name) : state;
 
     /// <summary>
     /// Whole seconds, rounded up, at least one: a timeout of zero or less is the one-second minimum a sub-second one
@@ -155,7 +131,7 @@ public abstract partial class JobContext
     /// <summary>
     /// The raised signal's stored payload: format id + bytes. <c>ValueFormatId == 0</c> means a
     /// presence-only signal with no payload (<see cref="Value"/> is <c>null</c>). <c>TimedOut</c> is
-    /// set only on the resuming path of a bounded wait whose expiration passed.
+    /// set when the wait's stored expiration passed with nothing raised.
     /// </summary>
     private protected readonly record struct SignalCheckpointState(byte ValueFormatId, byte[]? Value, bool TimedOut = false);
 
@@ -166,19 +142,13 @@ public abstract partial class JobContext
     private protected abstract Task<SignalCheckpointState> WaitSignalCoreAsync(string name, CancellationToken ct);
 
     /// <summary>
-    /// Subclass sink for the bounded overloads: <paramref name="timeoutSeconds"/> is the wait length the
-    /// store resolves against the DB clock into the wait's absolute expiration, written only when the
-    /// checkpoint is first armed (never on re-entry, and null for an unbounded wait). On an expired wait the
-    /// implementation returns a timed-out outcome when <paramref name="resumeOnTimeout"/> is set, and
-    /// otherwise ends the attempt. The default forwards to the unbounded sink, so a subclass that
-    /// overrides only that one keeps working and simply never expires a wait.
+    /// Subclass sink for the bounded waits: <paramref name="timeoutSeconds"/> is the wait length the store resolves
+    /// against the DB clock into the wait's absolute expiration, written only when the checkpoint is first armed (never on
+    /// re-entry, and null for an unbounded wait), and an expired wait answers a timed-out state. The default forwards to
+    /// the unbounded sink, so a subclass that overrides only that one keeps working and simply never expires a wait.
     /// </summary>
-    private protected virtual Task<SignalCheckpointState> WaitSignalCoreAsync(
-        string name,
-        int? timeoutSeconds,
-        bool resumeOnTimeout,
-        CancellationToken ct
-    ) => WaitSignalCoreAsync(name, ct);
+    private protected virtual Task<SignalCheckpointState> WaitSignalCoreAsync(string name, int? timeoutSeconds, CancellationToken ct) =>
+        WaitSignalCoreAsync(name, ct);
 
     /// <summary>
     /// Subclass sink for a wait bounded by an instant, a group's stored deadline, rather than a length: the store arms
@@ -187,7 +157,7 @@ public abstract partial class JobContext
     /// length-bounded sink, so a subclass without durable storage keeps working.
     /// </summary>
     private protected virtual Task<SignalCheckpointState> WaitSignalUntilCoreAsync(string name, DateTime dueAtUtc, CancellationToken ct) =>
-        WaitSignalCoreAsync(name, (int)Math.Max(1, Math.Ceiling((dueAtUtc - DateTime.UtcNow).TotalSeconds)), resumeOnTimeout: true, ct);
+        WaitSignalCoreAsync(name, (int)Math.Max(1, Math.Ceiling((dueAtUtc - DateTime.UtcNow).TotalSeconds)), ct);
 
     /// <summary>
     /// Subclass sink: deserializes a raised signal payload via the runtime serializer registry.

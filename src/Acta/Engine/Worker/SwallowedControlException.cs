@@ -19,7 +19,6 @@ internal sealed class SwallowedControlException(JobControlException control)
                 $"the wait for child job {name[RaiseChildLatch.NamePrefix.Length..]}",
             SignalSuspendSignal { SignalName: var name } => $"the wait for signal '{name}'",
             SuspendSignal => "a sleep",
-            WaitTimeoutSignal { WaitName: var name } => $"the expired wait '{name}'",
             RescheduleJobException => "RescheduleAsync",
             HandlerFailException => "FailAsync",
             HandlerCancelException => "CancelAsync",

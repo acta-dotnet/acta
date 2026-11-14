@@ -157,14 +157,14 @@ WHERE
     AND s.action = 1 /* ControlAction.Applied */
     AND NOT EXISTS (SELECT 1 FROM capacity);
 
--- A restart clears the expired wait that cancelled the job, so it waits again under a fresh bound. That wait is the
--- handler's last write: a non-Try timeout ends the attempt at once, and a Try timeout the handler went past is followed
+-- A restart clears the expired wait that ended the job, so it waits again under a fresh bound. That wait is the
+-- handler's last write: a timeout thrown out of the handler ends the attempt at once, and one it went past is followed
 -- by the writes of what came next. A child's landing and the firing are not the handler's writes.
 DELETE FROM {{schema}}.checkpoints e
 USING _restart_job s
 WHERE
     s.action = 1 /* ControlAction.Applied */
-    AND s.from_status = 220 /* JobStatusCode.Cancelled */
+    AND s.from_status IN (200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
     AND e.job_id = @p_job_id
     AND e.checkpoint_kind_code = 20 /* CheckpointKindCode.Signal */
     AND e.checkpoint_status_code = 30 /* CheckpointStatusCode.Expired */

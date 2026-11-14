@@ -9,7 +9,7 @@ public sealed class EndsJobTests
         [
             new HandlerFailException("bad input"),
             new HandlerCancelException("superseded"),
-            new WaitTimeoutSignal("approval"),
+            new SignalWaitTimeoutException("approval"),
             new StepInterruptedException("charge"),
             new StepFailedException("charge", "declined"),
             new NotSupportedException(),

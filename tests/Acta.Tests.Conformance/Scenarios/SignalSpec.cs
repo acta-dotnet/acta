@@ -216,8 +216,14 @@ public sealed class SignalSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<
         var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-wait-signal-typed", JobPayload.None), ct);
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
 
-        Assert.Equal(ControlAction.Applied, (await Jobs.RaiseSignalAsync(enqueued, "review", new ReviewDecision(false, "first"), ct: ct)).Action);
-        Assert.Equal(ControlAction.Rejected, (await Jobs.RaiseSignalAsync(enqueued, "review", new ReviewDecision(true, "second"), ct: ct)).Action);
+        Assert.Equal(
+            ControlAction.Applied,
+            (await Jobs.RaiseSignalAsync(enqueued, "review", new ReviewDecision(false, "first"), ct: ct)).Action
+        );
+        Assert.Equal(
+            ControlAction.Rejected,
+            (await Jobs.RaiseSignalAsync(enqueued, "review", new ReviewDecision(true, "second"), ct: ct)).Action
+        );
 
         Assert.Equal(CheckpointStatusCode.Set, (await ReadSignalsAsync(enqueued.JobId, ct)).Single().Status);
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));

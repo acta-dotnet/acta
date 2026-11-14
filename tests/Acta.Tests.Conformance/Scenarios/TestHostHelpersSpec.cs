@@ -16,7 +16,7 @@ namespace Acta.Tests.Conformance.Scenarios;
     "job-parent-join-children",
     "job-parent-try-wait-child",
     "job-sleep-basic",
-    "job-try-wait-signal-timeout",
+    "job-wait-signal-outcome",
     "job-wait-signal",
     "recurring-ping"
 )]
@@ -63,7 +63,7 @@ public sealed class TestHostHelpersSpec : ActaTestBase<ConformanceFixture>
         var ct = TestContext.Current.CancellationToken;
         await using var host = await StartHostAsync(ct);
 
-        var bounded = await host.Jobs.EnqueueAsync(TestJobsManifest.JobTryWaitSignalTimeout(), ct: ct);
+        var bounded = await host.Jobs.EnqueueAsync(TestJobsManifest.JobWaitSignalOutcome(), ct: ct);
         Assert.NotNull((await RunUntilWaitingAsync(host, bounded, "go", ct)).DueAtUtc);
 
         await host.ForceWaitTimeoutDueAsync(bounded, "go", ct);

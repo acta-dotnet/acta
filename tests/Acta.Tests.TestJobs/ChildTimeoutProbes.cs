@@ -63,8 +63,8 @@ public static class ChildTimeoutProbes
     /// <summary>
     /// Times out on a bounded child wait, parks, and on the replay after that waits on the SAME child
     /// with the unbounded overload. Stands in for code redeployed without the bound over a job whose
-    /// latch is already Expired: policy is code, so the unbounded overload resolves TimedOut too and
-    /// takes the cancelling path, which is the one way a child timeout does end the parent.
+    /// latch is already Expired: a child wait answers an outcome either way, so the unbounded overload
+    /// resolves TimedOut too and the parent runs on.
     /// </summary>
     [Job("job-parent-try-wait-child-then-unbounded")]
     public static async Task ParentTryWaitChildThenUnbounded(JobContext ctx, CancellationToken ct)

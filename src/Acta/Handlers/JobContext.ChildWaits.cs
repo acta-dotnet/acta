@@ -49,7 +49,7 @@ public abstract partial class JobContext
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, CancellationToken);
         var latch = seconds is null
             ? await WaitSignalCoreAsync(ChildLatchName(child.JobId), linked.Token)
-            : await WaitSignalCoreAsync(ChildLatchName(child.JobId), seconds, resumeOnTimeout: true, linked.Token);
+            : await WaitSignalCoreAsync(ChildLatchName(child.JobId), seconds, linked.Token);
         return await ResolveChildWaitAsync(child, latch, linked.Token);
     }
 

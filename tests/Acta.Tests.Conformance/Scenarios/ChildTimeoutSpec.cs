@@ -247,8 +247,8 @@ public sealed class ChildTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, J
         Assert.Equal("Parent's child wait timed out.", cancel.EventMessage);
     }
 
-    [Fact(DisplayName = "An unbounded wait replayed over an expired child latch cancels the parent instead")]
-    public async Task Unbounded_replay_over_an_expired_latch_cancels_the_parent()
+    [Fact(DisplayName = "An unbounded wait replayed over an expired child latch resumes with the timed-out outcome")]
+    public async Task Unbounded_replay_over_an_expired_latch_resumes_with_the_timeout()
     {
         var ct = TestContext.Current.CancellationToken;
         var parent = await Jobs.EnqueueAsync(
@@ -258,28 +258,28 @@ public sealed class ChildTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, J
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(parent, ct));
         var child = await OnlyChildAsync(parent.JobId, ct);
 
-        // The Try overload resolves TimedOut and the handler parks, so the job is alive and Suspended
+        // The bounded wait resolves TimedOut and the handler parks, so the job is alive and Suspended
         // while its child latch is already Expired.
         await ExpireChildWaitAsync(Db, parent.JobId, child, ct);
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(parent, ct));
         Assert.Equal(JobStatusCode.Suspended, (await ReadJobAsync(parent.JobId, ct)).Status);
 
-        // Releasing the park replays the handler over the same latch with the unbounded overload. The
-        // checkpoint cannot say which overload armed it, so the code that re-enters decides what an expiry
-        // means, and the unbounded one ends the job rather than returning.
+        // Releasing the park replays the handler over the same latch with the unbounded overload. A child
+        // wait answers an outcome either way, so the expiry reaches the handler as TimedOut and the parent
+        // runs on; the cancel of the child it re-runs is a no-op.
         Assert.Equal(ControlAction.Applied, (await Jobs.RaiseSignalAsync(parent, "hold", JobPayload.None, ct: ct)).Action);
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(parent, ct));
 
         var job = await ReadJobAsync(parent.JobId, ct);
-        Assert.Equal(JobStatusCode.Cancelled, job.Status);
+        Assert.Equal(JobStatusCode.Succeeded, job.Status);
         Assert.Equal(0, job.FailureCount);
-        Assert.NotNull(job.RetentionUntilUtc);
-        Assert.Equal(EventReason.WaitTimedOut, EventDetail(await ReadLatestEventAsync(parent.JobId, EventCode.JobCancelled, ct), "reason"));
+        Assert.Equal(1, await CountEventsAsync(parent.JobId, EventCode.JobNoteRecorded, ct));
         Assert.Equal(
             CheckpointStatusCode.Expired,
             (await ReadSignalsAsync(parent.JobId, ct)).Single(s => s.CheckpointName == $"sys.child.{child}").Status
         );
-        Assert.Equal(0, await CountEventsAsync(parent.JobId, EventCode.JobNoteRecorded, ct));
+        Assert.Equal(JobStatusCode.Cancelled, (await ReadJobAsync(child, ct)).Status);
+        Assert.Equal(1, await CountEventsAsync(child, EventCode.JobCancelled, ct));
     }
 
     [Fact(DisplayName = "A bounded wait on a job that is not this job's child times out without cancelling it")]

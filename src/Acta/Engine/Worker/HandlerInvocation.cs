@@ -241,18 +241,6 @@ internal sealed class HandlerInvocation(
                     ReasonMessage = signalSuspend.ReasonMessage.Truncate(ActaTextLimits.EventMessage),
                     WaitSignalName = signalSuspend.SignalName,
                 };
-            case WaitTimeoutSignal waitTimeout:
-                // A bounded wait outlived the expiration stored on its checkpoint and the handler used a
-                // non-Try overload. Terminate Cancelled like the Strict-deadline path: no
-                // FailureCount is submitted, so complete_executions' COALESCE leaves the budget
-                // untouched, and the terminal landing stamps retention so the job stops being
-                // an immortal Suspended row.
-                return ExecutionCompletion.Terminal(
-                    CompletionKind.Cancelled,
-                    EventReason.WaitTimedOut,
-                    waitTimeout.ReasonMessage,
-                    JobStatusCode.Cancelled
-                );
             case HandlerFailException fail:
                 // Deliberate terminal Failed: no retry, budget untouched. Distinct from an unhandled
                 // exception (JobUnhandledException reason); both land Failed but the reason tells them apart.
@@ -320,9 +308,10 @@ internal sealed class HandlerInvocation(
     /// <summary>
     /// A failure retrying cannot change: a programming error, a failed at-most-once step that throws again on every
     /// replay, a handler DI cannot build from the same registrations, a finished body whose result could not be
-    /// recorded, a handler that went on after its own control flow, or a waited job's failure or expired wait rethrown
-    /// (ThrowIfFailed, ThrowIfAnyFailed, ValueOrThrow), which a replay reads from the same latch. It lands terminal Failed
-    /// through the same completion branch as ctx.FailAsync, leaving the retry budget untouched.
+    /// recorded, a handler that went on after its own control flow, or a waited job's failure or an expired wait
+    /// rethrown (ThrowIfFailed, ThrowIfAnyFailed, ThrowIfTimedOut, ValueOrThrow), which a replay reads from the same
+    /// checkpoint. It lands terminal Failed through the same completion branch as ctx.FailAsync, leaving the retry budget
+    /// untouched.
     /// </summary>
     internal static bool IsNonRetryable(Exception ex) =>
         ex
@@ -334,7 +323,8 @@ internal sealed class HandlerInvocation(
                 or SwallowedControlException
                 or JobFailedException
                 or ChildGroupException
-                or JobWaitTimeoutException;
+                or JobWaitTimeoutException
+                or SignalWaitTimeoutException;
 
     private ExecutionCompletion Faulted(Exception ex, bool inputDeserialized, JobDescriptor descriptor, ClaimedJob job)
     {

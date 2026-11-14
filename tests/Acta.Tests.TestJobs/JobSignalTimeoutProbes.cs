@@ -18,7 +18,7 @@ public static class JobSignalTimeoutProbes
     public static async Task WaitWithTimeout(JobContext ctx, CancellationToken ct)
     {
         await ctx.SetVariableAsync("ran.before", true, ct);
-        await ctx.WaitSignalAsync("go", LongWait, ct);
+        (await ctx.WaitSignalAsync("go", LongWait, ct)).ThrowIfTimedOut();
         await ctx.NoteAsync("wait resumed", ct);
         await ctx.SetVariableAsync("ran.after", true, ct);
     }
@@ -26,25 +26,25 @@ public static class JobSignalTimeoutProbes
     [Job("job-wait-signal-timeout-typed")]
     public static async Task<WaitTimeoutReport> WaitWithTimeoutTyped(JobContext ctx, CancellationToken ct)
     {
-        var decision = await ctx.WaitSignalAsync<ReviewDecision>("review", LongWait, ct);
+        var decision = (await ctx.WaitSignalAsync<ReviewDecision>("review", LongWait, ct)).ValueOrThrow();
         await ctx.NoteAsync("wait resumed", ct);
         return new WaitTimeoutReport(TimedOut: false, Received: true, decision?.Comment);
     }
 
-    [Job("job-try-wait-signal-timeout")]
-    public static async Task<WaitTimeoutReport> TryWaitWithTimeout(JobContext ctx, CancellationToken ct)
+    [Job("job-wait-signal-outcome")]
+    public static async Task<WaitTimeoutReport> WaitWithTimeoutOutcome(JobContext ctx, CancellationToken ct)
     {
         await ctx.SetVariableAsync("ran.before", true, ct);
-        var result = await ctx.TryWaitSignalAsync("go", LongWait, ct);
+        var result = await ctx.WaitSignalAsync("go", LongWait, ct);
         await ctx.NoteAsync("wait resumed", ct);
         await ctx.SetVariableAsync("ran.after", true, ct);
         return new WaitTimeoutReport(result.TimedOut, result.Received, Comment: null);
     }
 
-    [Job("job-try-wait-signal-timeout-typed")]
-    public static async Task<WaitTimeoutReport> TryWaitWithTimeoutTyped(JobContext ctx, CancellationToken ct)
+    [Job("job-wait-signal-outcome-typed")]
+    public static async Task<WaitTimeoutReport> WaitWithTimeoutOutcomeTyped(JobContext ctx, CancellationToken ct)
     {
-        var result = await ctx.TryWaitSignalAsync<ReviewDecision>("review", LongWait, ct);
+        var result = await ctx.WaitSignalAsync<ReviewDecision>("review", LongWait, ct);
         await ctx.NoteAsync("wait resumed", ct);
         return new WaitTimeoutReport(result.TimedOut, result.Received, result.Value?.Comment);
     }
@@ -53,10 +53,10 @@ public static class JobSignalTimeoutProbes
     /// Times out on one signal and then parks on a second, unbounded one, which is the only shape that
     /// leaves a live job holding an already-expired checkpoint: exactly what a late raise must not revive.
     /// </summary>
-    [Job("job-try-wait-signal-timeout-then-hold")]
-    public static async Task TryWaitWithTimeoutThenHold(JobContext ctx, CancellationToken ct)
+    [Job("job-wait-signal-outcome-then-hold")]
+    public static async Task WaitWithTimeoutOutcomeThenHold(JobContext ctx, CancellationToken ct)
     {
-        var result = await ctx.TryWaitSignalAsync("go", LongWait, ct);
+        var result = await ctx.WaitSignalAsync("go", LongWait, ct);
         await ctx.SetVariableAsync("go.timed-out", result.TimedOut, ct);
         await ctx.WaitSignalAsync("hold", ct);
         await ctx.NoteAsync("released", ct);
@@ -65,10 +65,10 @@ public static class JobSignalTimeoutProbes
     /// <summary>
     /// Times out on a bounded wait, parks, and on the replay after that waits on the SAME name with
     /// the unbounded overload. Policy is code, so the unbounded overload resolves TimedOut over the
-    /// Expired checkpoint too and takes the cancelling path rather than parking forever.
+    /// Expired checkpoint too and fails with the timeout rather than parking forever.
     /// </summary>
-    [Job("job-try-wait-signal-timeout-then-unbounded")]
-    public static async Task TryWaitWithTimeoutThenUnbounded(JobContext ctx, CancellationToken ct)
+    [Job("job-wait-signal-outcome-then-unbounded")]
+    public static async Task WaitWithTimeoutOutcomeThenUnbounded(JobContext ctx, CancellationToken ct)
     {
         if (await ctx.ExistsVariableAsync("go.timed-out", ct))
         {
@@ -77,7 +77,7 @@ public static class JobSignalTimeoutProbes
             return;
         }
 
-        var result = await ctx.TryWaitSignalAsync("go", LongWait, ct);
+        var result = await ctx.WaitSignalAsync("go", LongWait, ct);
         await ctx.SetVariableAsync("go.timed-out", result.TimedOut, ct);
         await ctx.WaitSignalAsync("hold", ct);
     }
@@ -89,7 +89,7 @@ public static class JobSignalTimeoutProbes
     [Job("job-wait-signal-timeout-replay")]
     public static async Task WaitWithGrowingTimeout(JobContext ctx, CancellationToken ct)
     {
-        await ctx.WaitSignalAsync("go", ctx.ExecutionNumber == 1 ? LongWait : LongWait + LongWait, ct);
+        (await ctx.WaitSignalAsync("go", ctx.ExecutionNumber == 1 ? LongWait : LongWait + LongWait, ct)).ThrowIfTimedOut();
         await ctx.NoteAsync("wait resumed", ct);
     }
 
@@ -106,7 +106,7 @@ public static class JobSignalTimeoutProbes
         }
         else
         {
-            await ctx.WaitSignalAsync("go", LongWait, ct);
+            (await ctx.WaitSignalAsync("go", LongWait, ct)).ThrowIfTimedOut();
         }
         await ctx.NoteAsync("wait resumed", ct);
     }
@@ -120,7 +120,7 @@ public static class JobSignalTimeoutProbes
     {
         if (ctx.ExecutionNumber == 1)
         {
-            await ctx.WaitSignalAsync("go", LongWait, ct);
+            (await ctx.WaitSignalAsync("go", LongWait, ct)).ThrowIfTimedOut();
         }
         else
         {

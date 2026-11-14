@@ -23,11 +23,9 @@ public sealed class JobContextWaitTimeoutTests
 
         await ctx.WaitSignalAsync("go", timeout, ct);
         await ctx.WaitSignalAsync<string>("go", timeout, ct);
-        await ctx.TryWaitSignalAsync("go", timeout, ct);
-        await ctx.TryWaitSignalAsync<string>("go", timeout, ct);
         await ctx.WaitChildAsync(await ctx.EnqueueChildAsync("only", new { }, ct: ct), timeout, ct);
 
-        Assert.Equal<int?>([1, 1, 1, 1, 1], ctx.Bounds);
+        Assert.Equal<int?>([1, 1, 1], ctx.Bounds);
     }
 
     [Theory]
@@ -51,7 +49,7 @@ public sealed class JobContextWaitTimeoutTests
         var ct = TestContext.Current.CancellationToken;
         var ctx = new RecordingJobContext();
 
-        var result = await ctx.TryWaitSignalAsync("go", TimeSpan.FromMinutes(5), ct);
+        var result = await ctx.WaitSignalAsync("go", TimeSpan.FromMinutes(5), ct);
 
         Assert.True(result.Received);
         Assert.False(result.TimedOut);
@@ -231,12 +229,7 @@ public sealed class JobContextWaitTimeoutTests
     /// </summary>
     private sealed class TimingOutChildContext : RecordingJobContext
     {
-        private protected override Task<SignalCheckpointState> WaitSignalCoreAsync(
-            string name,
-            int? timeoutSeconds,
-            bool resumeOnTimeout,
-            CancellationToken ct
-        )
+        private protected override Task<SignalCheckpointState> WaitSignalCoreAsync(string name, int? timeoutSeconds, CancellationToken ct)
         {
             Events.Add($"wait:{name}");
             return Task.FromResult(new SignalCheckpointState(0, null, TimedOut: true));
@@ -260,15 +253,10 @@ public sealed class JobContextWaitTimeoutTests
     {
         public List<int?> Bounds { get; } = [];
 
-        private protected override Task<SignalCheckpointState> WaitSignalCoreAsync(
-            string name,
-            int? timeoutSeconds,
-            bool resumeOnTimeout,
-            CancellationToken ct
-        )
+        private protected override Task<SignalCheckpointState> WaitSignalCoreAsync(string name, int? timeoutSeconds, CancellationToken ct)
         {
             Bounds.Add(timeoutSeconds);
-            return base.WaitSignalCoreAsync(name, timeoutSeconds, resumeOnTimeout, ct);
+            return base.WaitSignalCoreAsync(name, timeoutSeconds, ct);
         }
     }
 

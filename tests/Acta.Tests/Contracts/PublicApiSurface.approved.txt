@@ -1352,7 +1352,6 @@ abstract class Acta.JobContext
     System.Threading.Tasks.Task SleepAsync(System.String name, System.TimeSpan delay, System.String? reasonMessage = null, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task SleepUntilAsync(System.String name, System.DateTimeOffset resumeAtUtc, System.String? reasonMessage = null, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task WaitSignalAsync(System.String name, System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.Task WaitSignalAsync(System.String name, System.TimeSpan timeout, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task<Acta.ChildrenWaitOutcome> WaitChildrenAsync(System.Collections.Generic.IReadOnlyList<Acta.EnqueueJobResponse> children, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task<Acta.ChildrenWaitOutcome> WaitChildrenAsync(System.Collections.Generic.IReadOnlyList<Acta.EnqueueJobResponse> children, System.TimeSpan timeout, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task<Acta.EnqueueJobResponse> EnqueueChildAsync(System.String name, System.String jobNamespace, System.String jobName, Acta.JobPayload input = default, System.Action<Acta.JobEnqueueOptionsBuilder>? configure = null, System.Threading.CancellationToken ct = default)
@@ -1384,8 +1383,8 @@ abstract class Acta.JobContext
     System.Threading.Tasks.Task<Acta.MapOutcome<TKey>> MapAsync<TItem, TKey, TInput>(System.String groupName, System.Collections.Generic.IEnumerable<TItem> items, System.Func<TItem, TKey> itemKey, System.Func<TItem, TInput> child, System.Threading.CancellationToken ct = default) where TKey : notnull where TInput : notnull
     System.Threading.Tasks.Task<Acta.MapOutcome<TKey>> MapAsync<TItem, TKey, TInput>(System.String groupName, System.Collections.Generic.IEnumerable<TItem> items, System.Func<TItem, TKey> itemKey, System.Func<TItem, TInput> child, System.TimeSpan timeout, System.Action<Acta.JobEnqueueOptionsBuilder> configure, System.Threading.CancellationToken ct = default) where TKey : notnull where TInput : notnull
     System.Threading.Tasks.Task<Acta.MapOutcome<TKey>> MapAsync<TItem, TKey, TInput>(System.String groupName, System.Collections.Generic.IEnumerable<TItem> items, System.Func<TItem, TKey> itemKey, System.Func<TItem, TInput> child, System.TimeSpan timeout, System.Threading.CancellationToken ct = default) where TKey : notnull where TInput : notnull
-    System.Threading.Tasks.Task<Acta.SignalWaitOutcome<T>> TryWaitSignalAsync<T>(System.String name, System.TimeSpan timeout, System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.Task<Acta.SignalWaitOutcome> TryWaitSignalAsync(System.String name, System.TimeSpan timeout, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.Task<Acta.SignalWaitOutcome<T>> WaitSignalAsync<T>(System.String name, System.TimeSpan timeout, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.Task<Acta.SignalWaitOutcome> WaitSignalAsync(System.String name, System.TimeSpan timeout, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task<System.Boolean> DeleteVariableAsync(System.String name, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task<System.Boolean> ExistsVariableAsync(System.String name, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task<System.ValueTuple<System.Boolean Found, TResult? Value>> TryGetChildResultAsync<TResult>(System.Int64 childJobId, System.Threading.CancellationToken ct = default)
@@ -1395,7 +1394,6 @@ abstract class Acta.JobContext
     System.Threading.Tasks.Task<T> GetVariableOrDefaultAsync<T>(System.String name, T defaultValue, System.Threading.CancellationToken ct = default) where T : notnull
     System.Threading.Tasks.Task<T?> GetVariableOrDefaultAsync<T>(System.String name, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task<T?> WaitSignalAsync<T>(System.String name, System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.Task<T?> WaitSignalAsync<T>(System.String name, System.TimeSpan timeout, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task<TResult> GetChildResultAsync<TResult>(System.Int64 childJobId, System.Threading.CancellationToken ct = default) where TResult : notnull
     System.Threading.Tasks.Task<TResult> RunStepAsync<TResult>(System.String name, System.Func<System.Threading.CancellationToken, System.Threading.Tasks.Task<TResult>> body, System.Action<Acta.StepOptionsBuilder>? configure = null, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task<TResult> RunStepAsync<TResult>(System.String name, System.Func<System.Threading.CancellationToken, System.Threading.Tasks.Task<TResult>> body, System.Threading.CancellationToken ct)
@@ -2587,10 +2585,15 @@ sealed class Acta.ScheduledDeliveryCodeJsonConverter : System.Text.Json.Serializ
 sealed record Acta.SignalWaitOutcome
     System.Boolean Received { get; }
     System.Boolean TimedOut { get; }
+    System.Void ThrowIfTimedOut()
 sealed record Acta.SignalWaitOutcome<T>
     System.Boolean Received { get; }
     System.Boolean TimedOut { get; }
     T? Value { get; }
+    T? ValueOrThrow()
+sealed class Acta.SignalWaitTimeoutException : Acta.ActaException
+    .ctor(System.String signalName)
+    System.String SignalName { get; }
 sealed class Acta.SqlProviderOptions
     .ctor()
     System.Boolean MigrateOnStartup { get;set; }

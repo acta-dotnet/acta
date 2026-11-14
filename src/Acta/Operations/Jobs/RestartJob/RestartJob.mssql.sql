@@ -257,10 +257,10 @@ BEGIN TRY
                 AND @recharged > 0;
         END;
 
-    -- A restart clears the expired wait that cancelled the job, so it waits again under a fresh bound. That wait is the
-    -- handler's last write: a non-Try timeout ends the attempt at once, and a Try timeout the handler went past is
+    -- A restart clears the expired wait that ended the job, so it waits again under a fresh bound. That wait is the
+    -- handler's last write: a timeout thrown out of the handler ends the attempt at once, and one it went past is
     -- followed by the writes of what came next. A child's landing and the firing are not the handler's writes.
-    IF @from_status = 220 /* JobStatusCode.Cancelled */
+    IF @from_status IN (200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
         DELETE e
         FROM {{schema}}.checkpoints AS e WITH (FORCESEEK)
         WHERE

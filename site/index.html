@@ -236,8 +236,8 @@
 
     <span class="k">foreach</span> (<span class="k">var</span> role <span class="k">in</span> <span class="k">new</span>[] { <span class="s">"author"</span>, <span class="s">"editor"</span> })
     {
-        <span class="k">var</span> approval = <span class="k">await</span> ctx.WaitSignalAsync&lt;ProofApproval&gt;(
-            $<span class="s">"{role}-approval"</span>, TimeSpan.FromDays(14), ct);
+        <span class="k">var</span> approval = (<span class="k">await</span> ctx.WaitSignalAsync&lt;ProofApproval&gt;(
+            $<span class="s">"{role}-approval"</span>, TimeSpan.FromDays(14), ct)).Value;
 
         <span class="k">if</span> (approval <span class="k">is</span> <span class="k">not</span> { Approved: <span class="k">true</span> } || approval.ProofId != proofId)
         {
@@ -254,7 +254,7 @@
             <li><b>proof-id</b><span class="v">variable</span><span class="d">Created once and stored for this job. Every retry, child job, approval request, and publication uses the same proof identity.</span></li>
             <li><b>prepare</b><span class="v">parallel children</span><span class="d">Both children read the same immutable manuscript revision independently. PDF creation and reference validation must both succeed before review is requested.</span></li>
             <li><b>request-review</b><span class="v">step</span><span class="d">Creates the review request after preparation completes. Its operation key is the proof ID, so replay cannot create a second request.</span></li>
-            <li><b>author / editor</b><span class="v">signal waits</span><span class="d">Each reviewer has 14 days from when their wait first begins. The stored deadline survives retries and restarts. The job releases its worker while waiting; a timed-out wait cancels the job and prevents publication. Both approvals must name this proof ID.</span></li>
+            <li><b>author / editor</b><span class="v">signal waits</span><span class="d">Each reviewer has 14 days from when their wait first begins. The stored deadline survives retries and restarts. The job releases its worker while waiting; a timed-out wait brings no approval, which cancels the job and prevents publication. Both approvals must name this proof ID.</span></li>
             <li><b>publish</b><span class="v">step</span><span class="d">Publishes the exact stored PDF that was approved. The publishing adapter must be idempotent by proof ID.</span></li>
           </ol>
         </div>

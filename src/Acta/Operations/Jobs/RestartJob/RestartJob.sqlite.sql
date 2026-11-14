@@ -166,15 +166,15 @@ WHERE
     AND (@p_expected_version IS NULL OR r.version = @p_expected_version)
     AND s.rejected = 0;
 
--- A restart clears the expired wait that cancelled the job, so it waits again under a fresh bound. That wait is the
--- handler's last write: a non-Try timeout ends the attempt at once, and a Try timeout the handler went past is followed
+-- A restart clears the expired wait that ended the job, so it waits again under a fresh bound. That wait is the
+-- handler's last write: a timeout thrown out of the handler ends the attempt at once, and one it went past is followed
 -- by the writes of what came next, a failed step among them, so this runs before the failed steps go.
 DELETE FROM {{schema}}.checkpoints
 WHERE
     job_id = @p_job_id
     AND checkpoint_kind_code = 20 /* CheckpointKindCode.Signal */
     AND checkpoint_status_code = 30 /* CheckpointStatusCode.Expired */
-    AND (SELECT s.from_status FROM temp._restart_job s) = 220 /* JobStatusCode.Cancelled */
+    AND (SELECT s.from_status FROM temp._restart_job s) IN (200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
     AND (SELECT s.rejected FROM temp._restart_job s) = 0
     AND (@p_expected_version IS NULL OR (SELECT s.from_version FROM temp._restart_job s) = @p_expected_version)
     AND NOT EXISTS (

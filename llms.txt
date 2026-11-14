@@ -214,7 +214,7 @@ only under its own key.
 | calling an API directly in the body | `await ctx.RunStepAsync("charge", ct => ...)` | a step records its outcome, so a retry does not repeat recorded work |
 | `catch { }` around the body | let it throw, or `await ctx.FailAsync(reason)` | swallowing turns a retryable failure into a silent success |
 | `catch (Exception)` around a wait, sleep or ctx call | `catch (Exception ex) when (ex is not JobControlException)`, or `when (ctx.EndsJob(ex))` to compensate | the call ends the attempt by throwing a `JobControlException` (a `finally` still runs); a handler that swallows it and returns fails at once, and `ACTA0151` warns at build time |
-| polling a flag in a loop | `await ctx.TryWaitSignalAsync("approved", timeout)` | polling burns a worker; a signal parks the job, and the timeout keeps it from parking forever |
+| polling a flag in a loop | `var r = await ctx.WaitSignalAsync("approved", timeout, ct)` | polling burns a worker; a signal parks the job, and the timeout keeps it from parking forever |
 | enqueuing children and looping until they are done | `await ctx.WaitChildrenAsync([audit, receipt], ct)` on the children you enqueued (a `TimeSpan` before the token sets a deadline), or `MapAsync` when the children come from a list | the parent parks instead of occupying a worker |
 | `jobs.CallAsync` or `handle.WaitAsync()` on an injected `IJobs` inside a handler | `await ctx.CallChildAsync("label", ShippingJobs.PrintLabel(input), ct)`, or `EnqueueChildAsync` and a wait later | an `IJobs` wait holds the worker until the job ends or the wait times out, and each re-entry enqueues another job; a child call parks the job, and its name finds the same child |
 | `Task.WhenAll` over several `CallChildAsync` calls | `EnqueueChildAsync` each, then one `await ctx.WaitChildrenAsync([email, sms], ct)` | the group wait wakes the parent only when the child it waits on lands, where `Task.WhenAll` wakes it on every landing, and a timeout on it is one deadline for every child |
@@ -223,21 +223,21 @@ only under its own key.
 ## Waiting for an outside event
 
 A handler parks on a named signal and something outside raises it: a webhook, an operator, another
-job. `var r = await ctx.TryWaitSignalAsync("shipped", TimeSpan.FromDays(14), ct);` returns a
-`SignalWaitOutcome`; branch on `r.TimedOut` to handle the deadline in code. The other overload,
-`await ctx.WaitSignalAsync("shipped", TimeSpan.FromDays(14), ct)`, returns nothing, and a timeout
-ends the job `Cancelled` with reason `wait-timed-out` instead of returning; use it only when a
-missed deadline should stop the job. Both are typed too: `TryWaitSignalAsync<T>` returns
-`SignalWaitOutcome<T>` with `Value`, and `WaitSignalAsync<T>` returns the raised value; the value is
-null when the signal was raised without one. The raising side is
+job. `await ctx.WaitSignalAsync("shipped", ct)` parks until the raise, and
+`await ctx.WaitSignalAsync<Shipped>("shipped", ct)` returns the raised value, null when the signal was
+raised without one. A wait that can time out answers an outcome instead:
+`var r = await ctx.WaitSignalAsync<Shipped>("shipped", TimeSpan.FromDays(14), ct);` returns a
+`SignalWaitOutcome<T>`, so branch on `r.TimedOut` and read `r.Value`, or call `r.ValueOrThrow()`
+(untyped: `r.ThrowIfTimedOut()`) to fail the job at once when the deadline passed. An outcome left
+unread lets the handler carry on past the deadline. The raising side is
 `await jobs.RaiseSignalAsync(jobRef, "shipped", new Shipped(trackingId), ct)` on `IJobs`, and an
 `actor:` argument before the token names who raised it. The deadline is stored once, as
 database time plus the timeout, so restarts and downtime never lengthen it, and a raise that lands
 before the parked job re-enters still wins. A timeout rounds up to whole seconds, at least one, and a sleep
 of zero or less returns at once, so a deadline shared by several waits is `deadline - DateTime.UtcNow` at each
 of them: the remaining time goes negative on the replay after the deadline, and each wait's stored instant decides. An expired wait stays expired, and a late raise answers
-`Rejected`. Only a restart reopens one: the wait that cancelled the job, so the restarted job waits again
-under a fresh bound, while a `TryWaitSignalAsync` timeout the handler went past stays as it was.
+`Rejected`. Only a restart reopens one: the timed-out wait that ended the job, so the restarted job waits
+again under a fresh bound, while a timeout the handler went past stays as it was.
 A signal keeps the value of its first raise: raising it again with the same value answers `AlreadyInState`,
 and with another value `Rejected`, so a wait that already returned never reads a different value on replay.
 A second window, or a second value, is a wait under a new name (`"shipped-2"`) or a new job.

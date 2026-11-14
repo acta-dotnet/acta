@@ -563,7 +563,7 @@
   - A replay over an expired child latch re-runs the cancel as a no-op and still resolves TimedOut
   - A child landing terminal on an expired latch writes no checkpoint, releases no parent, and says so
   - A timed-out child lands Cancelled budget-neutrally with its retention stamped
-  - An unbounded wait replayed over an expired child latch cancels the parent instead
+  - An unbounded wait replayed over an expired child latch resumes with the timed-out outcome
   - A bounded wait on a job that is not this job's child times out without cancelling it
   - An unbounded child wait still suspends with no due instant and stays unclaimable
 
@@ -2591,20 +2591,20 @@
 - **Guarantees:**
   - Arming stores an expiration on the checkpoint and carries it into the Suspended job's next run
   - A signal before the deadline delivers its typed payload and leaves no timeout artifacts
-  - A presence-only signal before the deadline resumes the non-Try overload
-  - An expired non-Try wait cancels the job with reason wait-timed-out and no budget charge
-  - An expired Try wait resumes the handler exactly once with a TimedOut result
-  - The typed Try overload carries the payload before the deadline and a null value after it
+  - A presence-only signal before the deadline resumes the handler
+  - A timeout the handler throws with ThrowIfTimedOut fails the job at once, with no budget charge
+  - An expired bounded wait resumes the handler exactly once with a TimedOut outcome
+  - The typed outcome carries the payload before the deadline and a null value after it
   - A replay asking for a longer wait does not move the stored expiration
   - A raise after the deadline but before the wait re-enters still wins
   - A raise on an expired checkpoint is rejected, writes nothing, and the replayed wait stays TimedOut
-  - An unbounded wait replayed over an expired checkpoint cancels the job instead of parking
+  - An unbounded wait replayed over an expired checkpoint fails the job with the timeout instead of parking
   - A replay carrying a bound arms the deadline an unbounded wait never had
   - A replay dropping the bound does not clear the deadline the checkpoint carries
   - A bounded wait arriving at a checkpoint an unbounded one already armed still arms the deadline
   - An unbounded wait still suspends with no due instant and stays unclaimable
-  - A restart clears the expired wait that cancelled the job, which waits again under a fresh bound
-  - A restart keeps the expiry of a Try wait the handler went past
+  - A restart clears the expired wait that ended the job, which waits again under a fresh bound
+  - A restart keeps the expiry of a timed-out wait the handler went past
 
 ### A wait arms its checkpoint once and answers suspend, continue, or timed out
 - **Contract:** Wait arms a Pending checkpoint once, continues with a Set one's payload, and answers TimedOut past a stored expiry or at once when first armed past an instant.

@@ -22,8 +22,6 @@ public sealed class AtMostOnceSuspensionTests
         ["WaitSignalAsync<T>"] = (ctx, ct) => ctx.WaitSignalAsync<string>("approval", ct),
         ["WaitSignalAsync timeout"] = (ctx, ct) => ctx.WaitSignalAsync("approval", Timeout, ct),
         ["WaitSignalAsync<T> timeout"] = (ctx, ct) => ctx.WaitSignalAsync<string>("approval", Timeout, ct),
-        ["TryWaitSignalAsync"] = (ctx, ct) => ctx.TryWaitSignalAsync("approval", Timeout, ct),
-        ["TryWaitSignalAsync<T>"] = (ctx, ct) => ctx.TryWaitSignalAsync<string>("approval", Timeout, ct),
         ["WaitChildAsync"] = (ctx, ct) => ctx.WaitChildAsync(Child, ct),
         ["WaitChildAsync timeout"] = (ctx, ct) => ctx.WaitChildAsync(Child, Timeout, ct),
         ["CallChildAsync"] = (ctx, ct) => ctx.CallChildAsync("ship", new NoInput(), ct),
