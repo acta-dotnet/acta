@@ -1,8 +1,9 @@
 -- One batch, one implicit transaction; only the final SELECT returns rows. The job's rows are locked, and a
--- job that is not in flight takes the new input.
+-- job that is not in flight and has an input takes the new one, compare-and-set when an expected version is given.
 DROP TABLE IF EXISTS pg_temp._update_job_input;
 CREATE TEMP TABLE _update_job_input (
     from_status SMALLINT NOT NULL,
+    from_version BIGINT NOT NULL,
     namespace_id INT NOT NULL,
     lineage_root_job_id BIGINT,
     definition_id INT NOT NULL,
@@ -13,10 +14,10 @@ CREATE TEMP TABLE _update_job_input (
 ) ON COMMIT DROP;
 
 INSERT INTO _update_job_input (
-    from_status, namespace_id, lineage_root_job_id, definition_id, tenant_id, execution_number,
+    from_status, from_version, namespace_id, lineage_root_job_id, definition_id, tenant_id, execution_number,
     old_format_id, old_bytes)
 SELECT
-    r.job_status_code, j.namespace_id, j.lineage_root_job_id, j.definition_id, j.tenant_id, r.execution_number,
+    r.job_status_code, r.version, j.namespace_id, j.lineage_root_job_id, j.definition_id, j.tenant_id, r.execution_number,
     j.input_format_id, octet_length(j.input)
 FROM {{schema}}.jobs j
 JOIN {{schema}}.jobs_state r ON r.job_id = j.job_id
@@ -31,8 +32,23 @@ WHERE
     job_id = @p_job_id
     AND EXISTS (
         SELECT 1 FROM _update_job_input s
-        WHERE s.from_status <> 50 /* JobStatusCode.Executing */
+        WHERE
+            s.from_status <> 50 /* JobStatusCode.Executing */
+            AND s.old_format_id <> 0 /* JobPayloadFormat.None */
+            AND (@p_expected_version IS NULL OR s.from_version = @p_expected_version)
     );
+
+-- The input lives on jobs, the version on jobs_state: an amend moves it as every other control does.
+UPDATE {{schema}}.jobs_state AS r
+SET
+    modified_at_utc = now(),
+    version = r.version + 1
+FROM _update_job_input s
+WHERE
+    r.job_id = @p_job_id
+    AND s.from_status <> 50 /* JobStatusCode.Executing */
+    AND s.old_format_id <> 0 /* JobPayloadFormat.None */
+    AND (@p_expected_version IS NULL OR s.from_version = @p_expected_version);
 
 -- The details are the operator's, plus bounded JSON metadata about the previous payload (format name and byte
 -- count), never the payload itself. The writer's details are a compact JSON object, so the metadata joins it as
@@ -72,14 +88,26 @@ CROSS JOIN LATERAL (
             || '","bytes":' || s.old_bytes::text
         END AS members
 ) o
-WHERE s.from_status <> 50 /* JobStatusCode.Executing */;
+WHERE
+    s.from_status <> 50 /* JobStatusCode.Executing */
+    AND s.old_format_id <> 0 /* JobPayloadFormat.None */
+    AND (@p_expected_version IS NULL OR s.from_version = @p_expected_version);
 
 SELECT
     CASE
         WHEN s.from_status IS NULL THEN 2 /* ControlAction.NotFound */
-        WHEN s.from_status = 50 /* JobStatusCode.Executing */ THEN 3 /* ControlAction.Rejected */
+        WHEN @p_expected_version IS NOT NULL AND s.from_version <> @p_expected_version THEN 5 /* ControlAction.VersionConflict */
+        WHEN s.from_status = 50 /* JobStatusCode.Executing */ OR s.old_format_id = 0 /* JobPayloadFormat.None */
+            THEN 3 /* ControlAction.Rejected */
         ELSE 1 /* ControlAction.Applied */
     END::SMALLINT AS action,
-    s.from_status AS status
+    s.from_status AS status,
+    CASE
+        WHEN s.from_status IS NULL THEN NULL
+        WHEN @p_expected_version IS NOT NULL AND s.from_version <> @p_expected_version THEN s.from_version
+        WHEN s.from_status = 50 /* JobStatusCode.Executing */ OR s.old_format_id = 0 /* JobPayloadFormat.None */
+            THEN s.from_version
+        ELSE s.from_version + 1
+    END AS version
 FROM (SELECT 1) one
 LEFT JOIN _update_job_input s ON true;

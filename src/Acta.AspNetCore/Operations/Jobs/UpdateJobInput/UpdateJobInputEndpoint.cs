@@ -50,23 +50,21 @@ internal static class UpdateJobInputEndpoint
                     return reasonError;
                 }
 
-                // Neither early answer reads a status: an unresolvable ref is NotFound, and a job with no stored
-                // input (none) is Rejected, since it has nothing to replace.
+                // The early answer reads no status: an unresolvable ref is NotFound.
                 var status = ControlStatus.Job<UpdateJobInputResponse>();
                 var jobId = (await jobs.GetIdAsync(JobLookup.ByRef(parsed), ct))?.JobId;
                 if (jobId is null)
                 {
-                    return RouteTable.Control(new UpdateJobInputResponse(0, ControlAction.NotFound, null), status);
-                }
-
-                if ((await jobs.GetInputAsync(JobLookup.ById(jobId.Value), ct))?.Input is not { } stored)
-                {
-                    return RouteTable.Control(new UpdateJobInputResponse(jobId.Value, ControlAction.Rejected, null), status);
+                    return RouteTable.Control(new UpdateJobInputResponse(0, ControlAction.NotFound, null, null), status);
                 }
 
                 // A json input replaces any stored format, and the runner decodes by the new id. Bytes keep the
-                // job's own binary format, so the handler's deserializer still reads them.
-                if (payload.Format.Id != JobPayloadFormat.Json.Id)
+                // job's own binary format, so the handler's deserializer still reads them. A job with no stored input
+                // has nothing to replace; the verb refuses it, answering its status and version as IJobs does.
+                if (
+                    payload.Format.Id != JobPayloadFormat.Json.Id
+                    && (await jobs.GetInputAsync(JobLookup.ById(jobId.Value), ct))?.Input is { } stored
+                )
                 {
                     if (payload.Format.Id != stored.Format.Id)
                     {
@@ -86,7 +84,7 @@ internal static class UpdateJobInputEndpoint
                 var actor = http.User?.Identity?.Name;
                 try
                 {
-                    var result = await jobs.UpdateInputAsync(JobLookup.ByRef(parsed), payload, reason, actor, ct);
+                    var result = await jobs.UpdateInputAsync(JobLookup.ByRef(parsed), payload, reason, actor, body.ExpectedVersion, ct);
                     return RouteTable.Control(result, status);
                 }
                 catch (PayloadTooLargeException ex)

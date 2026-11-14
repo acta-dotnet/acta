@@ -687,6 +687,7 @@ public class CliRunnerClipboardTests
             JobPayload input,
             string? reasonMessage = null,
             string? actor = null,
+            long? expectedVersion = null,
             CancellationToken ct = default
         ) => throw new NotSupportedException();
 

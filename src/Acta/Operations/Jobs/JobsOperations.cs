@@ -222,8 +222,9 @@ internal sealed class JobsOperations(
         JobPayload input,
         string? reasonMessage = null,
         string? actor = null,
+        long? expectedVersion = null,
         CancellationToken ct = default
-    ) => updateJobInput.HandleAsync(new UpdateJobInputCommand(job, input, reasonMessage, actor), ct);
+    ) => updateJobInput.HandleAsync(new UpdateJobInputCommand(job, input, reasonMessage, actor, expectedVersion), ct);
 
     public ValueTask<PurgeJobResponse> PurgeAsync(
         JobLookup job,

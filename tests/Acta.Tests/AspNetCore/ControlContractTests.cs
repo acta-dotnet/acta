@@ -281,9 +281,8 @@ public sealed class ControlContractTests
         ];
     }
 
-    // The input update decides two of its three outcomes itself, before the verb runs: an
-    // unresolvable ref is the not-found, and a job whose stored input is none is the rejection. Both
-    // are staged on the fake's StoredInput rather than by ref.
+    // The input update's verb refuses a job whose stored input is none, as the store does, so the
+    // rejection is staged on the fake's StoredInput rather than by ref.
     private static IEnumerable<Case> JobInput()
     {
         const string route = "/jobs/{jobRef}/input";

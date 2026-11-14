@@ -418,18 +418,18 @@ public interface IJobs
     );
 
     /// <summary>
-    /// Amend the stored input payload of the job identified by <paramref name="job"/>, in any status except
-    /// <c>Executing</c>, where a handler may already have read it: an in-flight job is
-    /// <see cref="ControlAction.Rejected"/>, a missing one <see cref="ControlAction.NotFound"/>. On success the input
-    /// and format are replaced and the transition is audited (<c>job.input-amended</c>); the event detail carries the
-    /// previous payload's format name and byte count, never the payload, so the amended-away value cannot outlive the
-    /// job's payload retention. <paramref name="reasonMessage"/> and <paramref name="actor"/> go on the audit event.
+    /// Amend the stored input of the job identified by <paramref name="job"/>, in any status except <c>Executing</c>, where
+    /// a handler may already have read it, compare-and-set on <paramref name="expectedVersion"/> when given; the outcomes
+    /// are on <see cref="UpdateJobInputResponse.Action"/>. Completed steps keep what they computed from the old input, so a
+    /// restart replays them, and a recompute is a new job. The event (<c>job.input-amended</c>) carries the previous
+    /// payload's format and byte count, never the payload, beside <paramref name="reasonMessage"/> and <paramref name="actor"/>.
     /// </summary>
     ValueTask<UpdateJobInputResponse> UpdateInputAsync(
         JobLookup job,
         JobPayload input,
         string? reasonMessage = null,
         string? actor = null,
+        long? expectedVersion = null,
         CancellationToken ct = default
     );
 

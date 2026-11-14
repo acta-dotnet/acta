@@ -8,7 +8,7 @@ BEGIN TRY
 
     DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
     DECLARE
-        @from_status TINYINT, @namespace_id INT,
+        @from_status TINYINT, @from_version BIGINT, @namespace_id INT,
         @lineage_root_job_id BIGINT, @definition_id INT, @tenant_id INT, @execution_number BIGINT,
         @old_format_id TINYINT, @old_input VARBINARY(MAX);
     DECLARE @old_members VARCHAR(100);
@@ -17,6 +17,7 @@ BEGIN TRY
 
     SELECT
         @from_status = r.job_status_code,
+        @from_version = r.version,
         @namespace_id = j.namespace_id,
         @lineage_root_job_id = j.lineage_root_job_id,
         @definition_id = j.definition_id,
@@ -33,19 +34,29 @@ BEGIN TRY
 
             SELECT
                 CAST(2 /* ControlAction.NotFound */ AS TINYINT) AS action,
-                CAST(NULL AS TINYINT) AS status;
+                CAST(NULL AS TINYINT) AS status,
+                CAST(NULL AS BIGINT) AS version;
             GOTO Finish;
         END;
 
-    IF
-        @from_status IN (
-            50 /* JobStatusCode.Executing */
-        )
+    IF @p_expected_version IS NOT NULL AND @from_version <> @p_expected_version
+        BEGIN
+
+            SELECT
+                CAST(5 /* ControlAction.VersionConflict */ AS TINYINT) AS action,
+                @from_status AS status,
+                @from_version AS version;
+            GOTO Finish;
+        END;
+
+    -- A job in flight, or one with no input to replace, takes none.
+    IF @from_status = 50 /* JobStatusCode.Executing */ OR @old_format_id = 0 /* JobPayloadFormat.None */
         BEGIN
 
             SELECT
                 CAST(3 /* ControlAction.Rejected */ AS TINYINT) AS action,
-                @from_status AS status;
+                @from_status AS status,
+                @from_version AS version;
             GOTO Finish;
         END;
 
@@ -53,6 +64,13 @@ BEGIN TRY
     SET
         input = @p_input,
         input_format_id = @p_input_format_id
+    WHERE job_id = @p_job_id;
+
+    -- The input lives on jobs, the version on jobs_state: an amend moves it as every other control does.
+    UPDATE {{schema}}.jobs_state
+    SET
+        modified_at_utc = @now,
+        version = version + 1
     WHERE job_id = @p_job_id;
 
     -- The details are the operator's, plus bounded JSON metadata about the previous payload (format name
@@ -95,7 +113,8 @@ BEGIN TRY
 
     SELECT
         CAST(1 /* ControlAction.Applied */ AS TINYINT) AS action,
-        @from_status AS status;
+        @from_status AS status,
+        @from_version + 1 AS version;
 
 Finish:
 

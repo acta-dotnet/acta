@@ -1,5 +1,5 @@
 namespace Acta;
 
-/// <summary>The (action, status_code) row an input amend answers; it carries no version.</summary>
+/// <summary>The (action, status_code, version) row an input amend answers.</summary>
 [DbProjection]
-internal sealed record UpdateJobInputRow(ControlAction Action, JobStatusCode? Status);
+internal sealed record UpdateJobInputRow(ControlAction Action, JobStatusCode? Status, long? Version);

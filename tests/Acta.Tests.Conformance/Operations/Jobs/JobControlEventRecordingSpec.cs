@@ -49,7 +49,7 @@ public sealed class JobControlEventRecordingSpec : ActaRuntimeTestBase<Conforman
             "restart" => (await Jobs.RestartAsync(job, "why", "op", ct: ct)).Action,
             "reschedule" => (await Jobs.RescheduleAsync(job, DateTime.UtcNow.AddHours(1), "why", "op", ct: ct)).Action,
             "reprioritize" => (await Jobs.ReprioritizeAsync(job, JobPriorityCode.High, "why", "op", ct: ct)).Action,
-            _ => (await Jobs.UpdateInputAsync(job, JobPayload.Json(new AddNumbers(4, 5)), "why", "op", ct)).Action,
+            _ => (await Jobs.UpdateInputAsync(job, JobPayload.Json(new AddNumbers(4, 5)), "why", "op", ct: ct)).Action,
         };
 
         Assert.Equal(ControlAction.Applied, action);

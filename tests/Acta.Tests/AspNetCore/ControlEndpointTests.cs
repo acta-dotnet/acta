@@ -1021,18 +1021,21 @@ public sealed class ControlEndpointTests
     }
 
     [Fact]
-    public async Task Amend_no_input_job_is_409()
+    public async Task Amend_no_input_job_is_409_with_the_status_and_version_the_verb_answers()
     {
         var fakes = JobWithInput(null);
         var (app, client) = await StartWithControlsAsync(fakes);
         await using var _ = app;
+        var ct = TestContext.Current.CancellationToken;
 
-        var response = await client.SendAsync(
-            AmendInput(new { input = new { json = new { a = 1 } } }),
-            TestContext.Current.CancellationToken
-        );
+        var response = await client.SendAsync(AmendInput(new { input = new { json = new { a = 1 } } }), ct);
+        var body = await response.Content.ReadAsStringAsync(ct);
+
+        // The verb refuses a job with no input, so HTTP answers what IJobs answers rather than a refusal of its own.
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
-        Assert.Empty(fakes.Jobs.InputAmendCalls);
+        Assert.Contains("\"action\":\"rejected\",\"status\":\"ready\"", body);
+        Assert.Contains($"\"version\":{FakeJobs.CurrentJobVersion}", body);
+        Assert.Single(fakes.Jobs.InputAmendCalls);
     }
 
     private static HttpRequestMessage PostEnqueue(object body, bool confirm = true)

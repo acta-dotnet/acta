@@ -1204,7 +1204,7 @@ interface Acta.IJobs
     System.Threading.Tasks.ValueTask<Acta.RescheduleJobResponse> RescheduleAsync(Acta.JobLookup job, System.Nullable<System.DateTime> nextRunAtUtc = null, System.String? reasonMessage = null, System.String? actor = null, System.Nullable<System.Int64> expectedVersion = null, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.RestartJobResponse> RestartAsync(Acta.JobLookup job, System.String? reasonMessage = null, System.String? actor = null, System.Nullable<System.Int64> expectedVersion = null, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.ResumeJobResponse> ResumeAsync(Acta.JobLookup job, System.String? reasonMessage = null, System.String? actor = null, System.Nullable<System.Int64> expectedVersion = null, System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.ValueTask<Acta.UpdateJobInputResponse> UpdateInputAsync(Acta.JobLookup job, Acta.JobPayload input, System.String? reasonMessage = null, System.String? actor = null, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.ValueTask<Acta.UpdateJobInputResponse> UpdateInputAsync(Acta.JobLookup job, Acta.JobPayload input, System.String? reasonMessage = null, System.String? actor = null, System.Nullable<System.Int64> expectedVersion = null, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<System.ValueTuple<System.Boolean Found, TResult? Value>> TryGetResultAsync<TResult>(Acta.JobLookup job, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<T?> GetVariableOrDefaultAsync<T>(Acta.JobLookup job, System.String name, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<TInput> GetInputAsync<TInput>(Acta.JobLookup job, System.Threading.CancellationToken ct = default) where TInput : notnull
@@ -2705,10 +2705,11 @@ sealed record Acta.UpdateDefinitionOverridesResponse : Acta.IDefinitionControlRe
     Acta.ControlAction Action { get;init; }
     System.Nullable<System.Int64> Version { get;init; }
 sealed record Acta.UpdateJobInputResponse : Acta.IJobControlResponse
-    .ctor(System.Int64 JobId, Acta.ControlAction Action, System.Nullable<Acta.JobStatusCode> Status)
+    .ctor(System.Int64 JobId, Acta.ControlAction Action, System.Nullable<Acta.JobStatusCode> Status, System.Nullable<System.Int64> Version)
     Acta.ControlAction Action { get;init; }
     System.Int64 JobId { get;init; }
     System.Nullable<Acta.JobStatusCode> Status { get;init; }
+    System.Nullable<System.Int64> Version { get;init; }
 sealed record Acta.UpdateNamespaceResponse : Acta.IControlResponse
     .ctor(Acta.ControlAction Action, System.Nullable<System.Int64> Version)
     Acta.ControlAction Action { get;init; }

@@ -6,8 +6,8 @@ using Xunit;
 namespace Acta.Tests.Conformance.Operations.Jobs;
 
 /// <summary>
-/// Operator UpdateInputAsync: amends a job's stored input payload. Allowed in any status except
-/// Executing (a mid-flight handler may already have read the input); the transition is
+/// Operator UpdateInputAsync: amends a job's stored input payload, compare-and-set on its version when one is given.
+/// Allowed in any status except Executing (a mid-flight handler may already have read the input); the transition is
 /// audited (job.input-amended) with bounded metadata (format name and byte count) about the
 /// previous payload in the event detail, never the payload itself.
 /// </summary>
@@ -15,9 +15,9 @@ namespace Acta.Tests.Conformance.Operations.Jobs;
     "job.update-input",
     "Operator update-input amends stored input and audits bounded payload metadata.",
     Area = "Control",
-    Contract = "UpdateJobInput replaces a job's input in any status except Executing and audits job.input-amended with prior-payload metadata, never the payload."
+    Contract = "UpdateJobInput replaces the input of a job that is not executing, compare-and-set on its version, and audits job.input-amended with prior-payload metadata."
 )]
-[Deploys("add-numbers", "purge-now")]
+[Deploys("add-numbers", "job-wait-signal", "purge-now")]
 public sealed class UpdateJobInputSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<UpdateJobInputSpec>>
 {
     [Fact(DisplayName = "UpdateJobInput amends a Ready job's input and audits the old payload's format and byte count")]
@@ -29,7 +29,7 @@ public sealed class UpdateJobInputSpec : ActaRuntimeTestBase<ConformanceFixture,
         var newInput = JobPayload.Json(new AddNumbers(7, 8));
         var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", oldInput), ct);
 
-        var result = await Jobs.UpdateInputAsync(enqueued, newInput, "corrected operands", "spec-actor", ct);
+        var result = await Jobs.UpdateInputAsync(enqueued, newInput, "corrected operands", "spec-actor", ct: ct);
 
         Assert.Equal(ControlAction.Applied, result.Action);
         Assert.Equal(JobStatusCode.Ready, result.Status);
@@ -68,7 +68,7 @@ public sealed class UpdateJobInputSpec : ActaRuntimeTestBase<ConformanceFixture,
         var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "purge-now", oldInput), ct);
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
 
-        var amend = await Jobs.UpdateInputAsync(enqueued, JobPayload.Json(new PurgeProbe("clean")), "scrub", "spec-actor", ct);
+        var amend = await Jobs.UpdateInputAsync(enqueued, JobPayload.Json(new PurgeProbe("clean")), "scrub", "spec-actor", ct: ct);
         Assert.Equal(ControlAction.Applied, amend.Action);
 
         // Sweep with the events window wide open: the job row goes, the ledger stays.
@@ -166,13 +166,49 @@ public sealed class UpdateJobInputSpec : ActaRuntimeTestBase<ConformanceFixture,
         var newInput = JobPayload.Bytes([3, 4, 5]);
         var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", oldInput), ct);
 
-        var result = await Jobs.UpdateInputAsync(enqueued, newInput, "reformat", "spec-actor", ct);
+        var result = await Jobs.UpdateInputAsync(enqueued, newInput, "reformat", "spec-actor", ct: ct);
         Assert.Equal(ControlAction.Applied, result.Action);
 
         var stored = (await Jobs.GetInputAsync(enqueued, ct))?.Input;
         Assert.NotNull(stored);
         Assert.Equal(JobPayloadFormat.Bytes.Id, stored!.Value.Format.Id);
         Assert.Equal(newInput.Data.ToArray(), stored.Value.Data.ToArray());
+    }
+
+    [Fact(DisplayName = "UpdateJobInput with a stale expected version is a version conflict, and an applied amend moves the version")]
+    public async Task Amend_is_compare_and_set_on_the_version()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var enqueued = await Jobs.EnqueueAsync(
+            new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 3))),
+            ct
+        );
+        var version = (await Jobs.GetAsync(enqueued, ct))!.Version;
+
+        var stale = await Jobs.UpdateInputAsync(enqueued, JobPayload.Json(new AddNumbers(4, 4)), expectedVersion: version + 1, ct: ct);
+        Assert.Equal(ControlAction.VersionConflict, stale.Action);
+        Assert.Equal(version, stale.Version);
+
+        var amended = JobPayload.Json(new AddNumbers(5, 5));
+        var applied = await Jobs.UpdateInputAsync(enqueued, amended, expectedVersion: version, ct: ct);
+        Assert.Equal(ControlAction.Applied, applied.Action);
+        Assert.Equal(version + 1, applied.Version);
+        Assert.Equal(version + 1, (await Jobs.GetAsync(enqueued, ct))!.Version);
+        Assert.Equal(amended.Data.ToArray(), (await ReadJobRowAsync(enqueued.JobId, ct)).Input);
+        Assert.Equal(1, await CountEventsAsync(enqueued.JobId, EventCode.JobInputAmended, ct));
+    }
+
+    [Fact(DisplayName = "UpdateJobInput rejects a job with no input to replace and writes nothing")]
+    public async Task Amend_rejects_a_job_with_no_input()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct);
+
+        var result = await Jobs.UpdateInputAsync(enqueued, JobPayload.Json(new AddNumbers(1, 1)), ct: ct);
+
+        Assert.Equal(ControlAction.Rejected, result.Action);
+        Assert.Equal(JobPayloadFormat.None.Id, (await ReadJobRowAsync(enqueued.JobId, ct)).InputFormatId);
+        Assert.Equal(0, await CountEventsAsync(enqueued.JobId, EventCode.JobInputAmended, ct));
     }
 
     [Fact(DisplayName = "UpdateJobInput returns NotFound for an unknown lookup")]

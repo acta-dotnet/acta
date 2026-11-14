@@ -304,6 +304,34 @@ public sealed class RegisterSchedulesSpec : ActaRuntimeTestBase<ConformanceFixtu
         }
     }
 
+    [Fact(DisplayName = "A deploy that changes a permanent job's input moves its version, and one that keeps it does not")]
+    public async Task A_deploy_that_changes_the_slot_input_moves_its_version()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var cursor = FloorSeconds(DateTime.UtcNow.AddHours(6));
+        var jobName = Unique("register-input-version");
+        var defId = await CreateDefinitionAsync(jobName, ct);
+        DefinitionSchedules Deploy(string json) =>
+            new(
+                NamespaceId: TestNamespaceId,
+                DefinitionId: defId,
+                InputFormatId: JobPayloadFormat.Json.Id,
+                Input: System.Text.Encoding.UTF8.GetBytes(json),
+                ScheduledDelivery: ScheduledDeliveryCode.Permanent,
+                Schedules: [Slot("only", cursor)]
+            );
+
+        await ScheduleTestOps.RegisterAsync(Services, [Deploy("""{"a":1}""")], ct);
+        var slot = JobLookup.ById(await SlotIdAsync(jobName, ct));
+        var first = (await Jobs.GetAsync(slot, ct))!.Version;
+
+        // An amend checked against the version it read must not overwrite a deploy's input unseen.
+        await ScheduleTestOps.RegisterAsync(Services, [Deploy("""{"a":1}""")], ct);
+        Assert.Equal(first, (await Jobs.GetAsync(slot, ct))!.Version);
+        await ScheduleTestOps.RegisterAsync(Services, [Deploy("""{"a":2}""")], ct);
+        Assert.Equal(first + 1, (await Jobs.GetAsync(slot, ct))!.Version);
+    }
+
     /// <summary>Puts the slot in flight with a lease, as a claim on another host would leave it.</summary>
     private static Task LeaseInFlightAsync(IDbSession db, long jobId, DateTime leaseExpiresAtUtc, CancellationToken ct) =>
         db.ExecuteRawAsync(

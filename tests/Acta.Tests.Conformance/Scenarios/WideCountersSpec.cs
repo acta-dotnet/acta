@@ -272,12 +272,9 @@ public sealed class WideCountersSpec : ActaRuntimeTestBase<ConformanceFixture, J
                 AssertApplied(await Jobs.CancelAsync(job, expectedVersion: PlantedVersion, ct: ct), PlantedVersion + 1);
                 break;
             case "amend-input":
-                Assert.Equal(
-                    ControlAction.Applied,
-                    (await Jobs.UpdateInputAsync(job, JobPayload.Json(new AddNumbers(4, 5)), ct: ct)).Action
-                );
-                await AssertCountersAsync(job.JobId, PlantedExecution, PlantedVersion, ct);
-                return;
+                var amended = JobPayload.Json(new AddNumbers(4, 5));
+                AssertApplied(await Jobs.UpdateInputAsync(job, amended, expectedVersion: PlantedVersion, ct: ct), PlantedVersion + 1);
+                break;
             case "purge":
                 AssertApplied(await Jobs.CancelAsync(job, expectedVersion: PlantedVersion, ct: ct), PlantedVersion + 1);
                 Assert.Equal(ControlAction.Applied, (await Jobs.PurgeAsync(job, ct: ct)).Action);

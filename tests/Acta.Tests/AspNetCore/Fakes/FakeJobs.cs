@@ -243,6 +243,7 @@ internal sealed class FakeJobs : IJobs
         JobPayload input,
         string? reasonMessage,
         string? actor,
+        long? expectedVersion,
         CancellationToken ct
     ) => UpdateInput(job, input, reasonMessage, actor, ct);
 
@@ -400,13 +401,19 @@ internal sealed class FakeJobs : IJobs
     private UpdateJobInputResponse Amend(JobLookup job, JobPayload input)
     {
         InputAmendCalls.Add(input);
-        var (jobId, action, status, _) = ResultFor(job, applied: JobStatusCode.Ready);
+        var (jobId, action, status, version) = ResultFor(job, applied: JobStatusCode.Ready);
+        // The store refuses a job with no input, which has nothing to replace, and answers where the job stands.
+        if (action == ControlAction.Applied && StoredInput is null)
+        {
+            return new UpdateJobInputResponse(jobId, ControlAction.Rejected, JobStatusCode.Ready, CurrentJobVersion);
+        }
+
         if (action == ControlAction.Applied)
         {
             StoredInput = input;
         }
 
-        return new UpdateJobInputResponse(jobId, action, status);
+        return new UpdateJobInputResponse(jobId, action, status, version);
     }
 
     private ValueTask<T> Control<T>(

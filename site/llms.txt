@@ -383,6 +383,10 @@ HTTP enqueue in the json format sends strict JSON (one value, no comments or tra
   case-insensitive.
 - The enqueue `deduplicationKey` prevents a second job ROW, not a second side effect; execution
   stays at-least-once either way.
+- An amended input does not recompute what already ran: a restart keeps every succeeded step, so those
+  steps return what they computed from the old input. To recompute, enqueue a new job under a new
+  deduplication key (`invoice-77.r2`) with the old job's correlation key; its steps and children start
+  fresh, since a child's name is unique only within its parent.
 - Tags are for finding jobs, not for carrying data: input is typed and versioned, tags are
   searchable labels.
 - A permanent job keeps its step results, variables and signals from one fire to the next: a step

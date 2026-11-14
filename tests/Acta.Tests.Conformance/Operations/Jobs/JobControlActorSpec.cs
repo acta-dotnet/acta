@@ -51,7 +51,7 @@ public sealed class JobControlActorSpec : ActaRuntimeTestBase<ConformanceFixture
             "restart" => (await Jobs.RestartAsync(job, "why", Operator, ct: ct)).Action,
             "reschedule" => (await Jobs.RescheduleAsync(job, DateTime.UtcNow.AddHours(1), "why", Operator, ct: ct)).Action,
             "reprioritize" => (await Jobs.ReprioritizeAsync(job, JobPriorityCode.High, "why", Operator, ct: ct)).Action,
-            "update-input" => (await Jobs.UpdateInputAsync(job, JobPayload.Json(new AddNumbers(4, 5)), "why", Operator, ct)).Action,
+            "update-input" => (await Jobs.UpdateInputAsync(job, JobPayload.Json(new AddNumbers(4, 5)), "why", Operator, ct: ct)).Action,
             _ => (await Jobs.PurgeAsync(job, "why", Operator, ct)).Action,
         };
 

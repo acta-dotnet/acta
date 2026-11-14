@@ -1,3 +1,21 @@
+-- The permanent jobs whose input this deploy changes, read before the upsert below overwrites it. An input write
+-- moves the job's version, as an amend does, so an amend checked against the version it read never lands unseen.
+DROP TABLE IF EXISTS temp._reg_input_changed;
+CREATE TEMP TABLE _reg_input_changed AS
+SELECT j.job_id
+FROM json_each(@p_definitions) d
+JOIN {{schema}}.jobs j
+    ON j.definition_id = json_extract(d.value, '$.definition_id')
+    AND j.job_kind_code = 20 /* JobKindCode.Permanent */
+WHERE
+    j.input_format_id <> json_extract(d.value, '$.input_format_id')
+    OR j.input IS NOT (
+        CASE
+            WHEN json_extract(d.value, '$.input_format_id') <> 0 /* JobPayloadFormat.None */
+                THEN COALESCE(acta_blob(json_extract(d.value, '$.input')), X'')
+        END
+    );
+
 INSERT INTO {{schema}}.jobs (
     job_kind_code,
     job_ref,
@@ -82,6 +100,12 @@ WHERE
     -- The declaration's priority reaches a slot between firings; one an attempt or an operator holds keeps its own.
     {{schema}}.jobs_state.job_status_code = 40 /* JobStatusCode.Idle */
     AND {{schema}}.jobs_state.job_priority_code IS NOT excluded.job_priority_code;
+
+UPDATE {{schema}}.jobs_state
+SET
+    modified_at_utc = {{now}},
+    version = version + 1
+WHERE job_id IN (SELECT job_id FROM temp._reg_input_changed);
 
 DROP TABLE IF EXISTS temp._reg_schedules;
 

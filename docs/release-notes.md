@@ -33,6 +33,8 @@ Not tagged yet.
 
 **Raise a signal once per value**: a signal keeps the value of its first raise. Raising it again with the same value answers `AlreadyInState` (200 over HTTP), and with another value, or at a wait that expired, `Rejected` (409), and none of them writes anything, where a raise replaced the stored value and a late one answered `Applied` with an event saying it changed nothing. A permanent job that waits on one signal name every fire puts the period in the name, or resets its state as its last action, as its steps already need. A child's latch still takes each landing of the child.
 
+**Name `ct:` where code passed a token to `UpdateInputAsync` by position**: the amend takes `expectedVersion` before the token, as the other job verbs do, and answers `VersionConflict` with the current version when it is stale; `PUT /jobs/{jobRef}/input` takes `expectedVersion` too, and the response carries `version`. An applied amend now moves the job's version, a deploy that changes a permanent job's input moves it as well, and an amend of a job with no input answers `Rejected` through `IJobs`, as it already did over HTTP.
+
 **Return a reference where a handler returned a result over `MaxInlinePayloadBytes`**: such a result now fails the job for good (reason `non-retryable-exception`), as a null or unserializable result does, where the job succeeded with its result dropped and reason `result-oversized`, which no event carries any more. Store a large result yourself and return what finds it.
 
 ### Additions

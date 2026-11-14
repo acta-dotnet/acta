@@ -7,6 +7,15 @@ SELECT 1 AS granted FROM (SELECT pg_advisory_xact_lock(hashtext('{{schema}}.sche
 DROP TABLE IF EXISTS pg_temp._reg_slots;
 CREATE TEMP TABLE _reg_slots (definition_id INT PRIMARY KEY, slot_id BIGINT NOT NULL) ON COMMIT DROP;
 
+-- The permanent jobs whose input this deploy changes, read before the upsert below overwrites it. An input write
+-- moves the job's version, as an amend does, so an amend checked against the version it read never lands unseen.
+DROP TABLE IF EXISTS pg_temp._reg_input_changed;
+CREATE TEMP TABLE _reg_input_changed ON COMMIT DROP AS
+SELECT j.job_id
+FROM unnest(@p_d_definition_id, @p_d_input_format_id, @p_d_input) AS d(definition_id, input_format_id, input)
+INNER JOIN {{schema}}.jobs AS j ON j.definition_id = d.definition_id AND j.job_kind_code = 20 /* JobKindCode.Permanent */
+WHERE j.input_format_id <> d.input_format_id OR j.input IS DISTINCT FROM d.input;
+
 WITH defs AS (
     SELECT *
     FROM unnest(
@@ -93,6 +102,13 @@ WHERE
     -- The declaration's priority reaches a slot between firings; one an attempt or an operator holds keeps its own.
     {{schema}}.jobs_state.job_status_code = 40 /* JobStatusCode.Idle */
     AND {{schema}}.jobs_state.job_priority_code IS DISTINCT FROM EXCLUDED.job_priority_code;
+
+UPDATE {{schema}}.jobs_state AS r
+SET
+    modified_at_utc = now(),
+    version = r.version + 1
+FROM _reg_input_changed AS c
+WHERE r.job_id = c.job_id;
 
 DROP TABLE IF EXISTS pg_temp._reg_schedules;
 CREATE TEMP TABLE _reg_schedules ON COMMIT DROP AS

@@ -765,13 +765,15 @@
   - RescheduleAsync returns NotFound for an unknown lookup
 
 ### Operator update-input amends stored input and audits bounded payload metadata.
-- **Contract:** UpdateJobInput replaces a job's input in any status except Executing and audits job.input-amended with prior-payload metadata, never the payload.
+- **Contract:** UpdateJobInput replaces the input of a job that is not executing, compare-and-set on its version, and audits job.input-amended with prior-payload metadata.
 - **Guarantees:**
   - UpdateJobInput amends a Ready job's input and audits the old payload's format and byte count
   - UpdateJobInput audit metadata outlives the purged job without leaking payload bytes
   - UpdateJobInput rejects an Executing job and leaves its input unchanged
   - UpdateJobInput on a Failed job feeds the new input to the handler after RestartAsync
   - UpdateJobInput stores the new payload's format id, so a bytes job amends as bytes
+  - UpdateJobInput with a stale expected version is a version conflict, and an applied amend moves the version
+  - UpdateJobInput rejects a job with no input to replace and writes nothing
   - UpdateJobInput returns NotFound for an unknown lookup
 
 ### Pause applies from Suspended and again from Paused
@@ -2453,6 +2455,7 @@
   - A deploy that changes a schedule's timing reseeds its cursor after now and audits the retime; an edit of its text does not
   - A deploy that drops a schedule records schedule.orphaned, and one that brings it back schedule.retimed, below Audit too
   - A slot input with a format and no bytes registers and re-registers as a zero-length input, not NULL
+  - A deploy that changes a permanent job's input moves its version, and one that keeps it does not
 
 ### A permanent slot that re-arms itself runs again within the same firing
 - **Contract:** A slot handler's zero-delay reschedule keeps its firing outstanding and readies the slot until an attempt finishes, which settles the firing.

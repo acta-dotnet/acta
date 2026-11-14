@@ -2,7 +2,7 @@ using Microsoft.Extensions.Options;
 
 namespace Acta;
 
-/// <summary><see cref="IJobs.UpdateInputAsync"/>: caps the payload, then replaces the input of a job that is not in flight.</summary>
+/// <summary><see cref="IJobs.UpdateInputAsync"/>: caps the payload, then replaces the input of a job that is not in flight, compare-and-set when an expected version is given.</summary>
 internal sealed class UpdateJobInputHandler(
     GetJobIdHandler getJobId,
     IDbSession session,
@@ -22,10 +22,10 @@ internal sealed class UpdateJobInputHandler(
 
         if (await getJobId.HandleAsync(new GetJobIdQuery(command.Job), ct) is not { JobId: var jobId })
         {
-            return new UpdateJobInputResponse(0, ControlAction.NotFound, null);
+            return new UpdateJobInputResponse(0, ControlAction.NotFound, null, null);
         }
 
-        var control = JobControl.Operator(command.ReasonMessage, command.Actor);
+        var control = JobControl.Operator(command.ReasonMessage, command.Actor, command.ExpectedVersion);
         var row = await session.ExecuteOneAsync(
             new StoreCommand("UpdateJobInput"),
             cmd =>
@@ -34,10 +34,11 @@ internal sealed class UpdateJobInputHandler(
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.InputFormatId, input.Format.Id));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.Input, input.IsNone ? null : input.Data.ToArray()));
                 JobControl.BindEvent(cmd, dialect, control);
+                JobControl.BindExpectedVersion(cmd, dialect, control);
             },
             DbProjectionResolver.Resolve<UpdateJobInputRow>(),
             ct
         );
-        return new UpdateJobInputResponse(jobId, row.Action, row.Status);
+        return new UpdateJobInputResponse(jobId, row.Action, row.Status, row.Version);
     }
 }

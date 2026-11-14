@@ -18,6 +18,23 @@ BEGIN TRY
     -- Every read of a permanent table seeks its own keys, slots through ux_jobs_slot, so a registration never touches
     -- another namespace's rows (docs/sql-internals.md, "Locking reads seek").
 
+    -- The permanent jobs whose input this deploy changes, read before the update below overwrites it. An input write
+    -- moves the job's version, as an amend does, so an amend checked against the version it read never lands unseen.
+    DECLARE @input_changed TABLE (job_id BIGINT PRIMARY KEY);
+    INSERT INTO @input_changed (job_id)
+    SELECT j.job_id
+    FROM {{schema}}.jobs AS j WITH (INDEX (ux_jobs_slot), FORCESEEK)
+    INNER JOIN @p_definitions AS d ON d.definition_id = j.definition_id
+    WHERE
+        j.job_kind_code = 20 /* JobKindCode.Permanent */
+        AND (
+            j.input_format_id <> d.input_format_id
+            OR (j.input IS NULL AND d.input IS NOT NULL)
+            OR (j.input IS NOT NULL AND d.input IS NULL)
+            OR DATALENGTH(j.input) <> DATALENGTH(d.input)
+            OR j.input <> d.input
+        );
+
     -- The slot's event recording is the definition row's effective recording, read under the lock, so an override
     -- committed after this worker read its catalog stands.
     UPDATE j
@@ -44,6 +61,13 @@ BEGIN TRY
         j.job_kind_code = 20 /* JobKindCode.Permanent */
         AND r.job_status_code = 40 /* JobStatusCode.Idle */
         AND r.job_priority_code <> jd.job_priority_code_effective;
+
+    UPDATE r
+    SET
+        modified_at_utc = @now,
+        version = r.version + 1
+    FROM {{schema}}.jobs_state AS r WITH (FORCESEEK)
+    INNER JOIN @input_changed AS c ON c.job_id = r.job_id;
 
     INSERT INTO {{schema}}.jobs (
         job_kind_code, job_ref, lineage_root_job_id, parent_job_id, correlation_key,

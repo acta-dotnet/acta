@@ -1994,7 +1994,8 @@
                   "updateJobInput": {
                     "value": {
                       "action": "applied",
-                      "status": "ready"
+                      "status": "ready",
+                      "version": 8
                     }
                   }
                 }
@@ -2055,7 +2056,8 @@
                   "updateJobInput": {
                     "value": {
                       "action": "not-found",
-                      "status": null
+                      "status": null,
+                      "version": null
                     }
                   }
                 }
@@ -2073,7 +2075,8 @@
                   "updateJobInput": {
                     "value": {
                       "action": "rejected",
-                      "status": null
+                      "status": "succeeded",
+                      "version": 7
                     }
                   }
                 }
@@ -22234,6 +22237,14 @@
               "string"
             ],
             "description": "Why the operator made this call, recorded on the event the call writes."
+          },
+          "expectedVersion": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "description": "The job's version as the caller last read it; when the job has another version the call answers version-conflict and changes nothing. Omit it to act on the job whatever its version.",
+            "format": "int64"
           }
         },
         "additionalProperties": false,
@@ -22242,12 +22253,13 @@
       "UpdateJobInputResponse": {
         "required": [
           "action",
-          "status"
+          "status",
+          "version"
         ],
         "type": "object",
         "properties": {
           "action": {
-            "description": "What the call did: applied; rejected, when the job is executing or has no input to replace; or not-found.",
+            "description": "What the call did: applied; rejected, when the job is executing or has no input to replace; version-conflict, when expectedVersion is stale; or not-found.",
             "$ref": "#/components/schemas/ControlAction"
           },
           "status": {
@@ -22259,10 +22271,18 @@
                 "$ref": "#/components/schemas/JobStatusCode"
               }
             ],
-            "description": "The job's status after the call; null when the job was not found or has no input to replace."
+            "description": "The job's status after the call; null when the job was not found."
+          },
+          "version": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "description": "The job's version after the call; on a version conflict, the version it has now; null when the job was not found.",
+            "format": "int64"
           }
         },
-        "description": "What updating a job's input did, and the job's status after the attempt; the update carries no version."
+        "description": "What updating a job's input did, and the job's status and version after the attempt."
       },
       "UpdateNamespaceRequest": {
         "required": [

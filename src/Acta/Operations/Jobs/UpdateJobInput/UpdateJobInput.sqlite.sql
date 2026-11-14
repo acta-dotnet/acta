@@ -1,14 +1,21 @@
 DROP TABLE IF EXISTS temp._update_job_input;
 
+-- A job that is not in flight and has an input takes the new one, compare-and-set when an expected version is given.
 CREATE TEMP TABLE _update_job_input AS
-SELECT j.job_id, r.job_status_code AS from_status
+SELECT
+    j.job_id,
+    r.job_status_code AS from_status,
+    r.version AS from_version,
+    r.job_status_code <> 50 /* JobStatusCode.Executing */
+        AND j.input_format_id <> 0 /* JobPayloadFormat.None */
+        AND (@p_expected_version IS NULL OR r.version = @p_expected_version) AS applies
 FROM {{schema}}.jobs j
 JOIN {{schema}}.jobs_state r ON r.job_id = j.job_id
 WHERE j.job_id = @p_job_id;
 
 -- The details are the operator's, plus bounded JSON metadata about the previous payload (format name and byte
 -- count), never the payload itself, joined as more members before the writer's closing brace. Emitted BEFORE the
--- update so j.input_format_id / j.input still hold the old value, and gated on the same non-executing guard.
+-- update so j.input_format_id / j.input still hold the old value, and gated on the same guard.
 WITH old_input (members) AS (
     SELECT
         CASE WHEN j.input_format_id <> 0 /* JobPayloadFormat.None */ THEN
@@ -58,9 +65,10 @@ SELECT
 FROM {{schema}}.jobs j
 JOIN {{schema}}.jobs_state r ON r.job_id = j.job_id
 CROSS JOIN old_input o
+JOIN temp._update_job_input s ON s.job_id = j.job_id
 WHERE
     j.job_id = @p_job_id
-    AND r.job_status_code <> 50 /* JobStatusCode.Executing */;
+    AND s.applies;
 
 UPDATE {{schema}}.jobs
 SET
@@ -68,19 +76,25 @@ SET
     input_format_id = @p_input_format_id
 WHERE
     job_id = @p_job_id
-    AND EXISTS (
-        SELECT 1
-        FROM {{schema}}.jobs_state r
-        WHERE
-            r.job_id = @p_job_id
-            AND r.job_status_code <> 50 /* JobStatusCode.Executing */);
+    AND EXISTS (SELECT 1 FROM temp._update_job_input s WHERE s.applies);
+
+-- The input lives on jobs, the version on jobs_state: an amend moves it as every other control does.
+UPDATE {{schema}}.jobs_state
+SET
+    modified_at_utc = {{now}},
+    version = version + 1
+WHERE
+    job_id = @p_job_id
+    AND EXISTS (SELECT 1 FROM temp._update_job_input s WHERE s.applies);
 
 SELECT
     CASE
         WHEN s.job_id IS NULL THEN 2 /* ControlAction.NotFound */
-        WHEN s.from_status <> 50 /* JobStatusCode.Executing */ THEN 1 /* ControlAction.Applied */
+        WHEN @p_expected_version IS NOT NULL AND s.from_version <> @p_expected_version THEN 5 /* ControlAction.VersionConflict */
+        WHEN s.applies THEN 1 /* ControlAction.Applied */
         ELSE 3 /* ControlAction.Rejected */
     END AS action,
-    s.from_status AS status
+    s.from_status AS status,
+    CASE WHEN s.applies THEN s.from_version + 1 ELSE s.from_version END AS version
 FROM (SELECT @p_job_id AS qid) q
 LEFT JOIN temp._update_job_input s ON s.job_id = q.qid;

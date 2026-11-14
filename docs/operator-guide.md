@@ -204,8 +204,8 @@ Ready, or Blocked behind their lane, and gives an Idle permanent job a manual fi
 terminal (finish or cancel the tree, then purge the leaves first).
 Every verb returns Applied / Rejected / NotFound rather than throwing on an illegal transition.
 
-Cancel, pause, resume, restart, reschedule, and reprioritize also take an optional `expectedVersion`
-after `actor`. Left null, the verb writes unconditionally, which is what an operator acting on a
+Cancel, pause, resume, restart, reschedule, reprioritize, and an input amend also take an optional
+`expectedVersion` after `actor`. Left null, the verb writes unconditionally, which is what an operator acting on a
 moving job wants. Pass the `Version` from a `GetJobResponse` (or from a previous control result) and the
 write becomes a compare-and-set: a row that changed underneath you answers `VersionConflict` with its
 current version instead of overwriting someone else's decision.
@@ -256,14 +256,28 @@ Five rules the table cannot show:
 - **`signal` on a Paused job** records the signal and leaves the job Paused. The signal is not lost;
   it is waiting for a `resume`.
 - **`input` on a terminal job is allowed**, which looks odd until you want it: amend the input of a
-  failed job, then `restart` it. Only Executing rejects, because that is the state where a worker
-  may already have read the payload. A job that stored no input has nothing to
-  amend and answers `409` from the endpoint before the routine is reached.
+  failed job, then `restart` it, and the restarted handler reads the new input. Only Executing rejects,
+  because that is the state where a worker may already have read the payload, and a job that stored no
+  input has nothing to amend. A restart keeps every step that succeeded, so those steps return what
+  they computed from the old input. The amend takes `expectedVersion` like the other verbs and moves
+  the version, as a deploy that changes a permanent job's input does.
 - **`restart` has three more refusals.** A finished laned job is not restarted while an
   unfinished ancestor or descendant sits in its lane, a permanent job whose firing is still
   outstanding is not restarted around it, and a finished per-occurrence root is not restarted into a
   schedule that is full or gone. A restarted or resumed permanent job with no firing outstanding
   returns to `Idle`, where the next due schedule admits it; it does not run now.
+
+"Try it again" means one of four things, and each has its own call:
+
+| Meaning | Call |
+| --- | --- |
+| Retry under the job's own policy | None: the policy retries a failed attempt by itself. `reschedule` brings a waiting retry forward, and `restart` gives a Failed job a new budget. |
+| Run again, keeping what already ran | `restart`: succeeded steps, signals, variables and children stay; failed steps run again. |
+| New work from a changed input | A new job, enqueued under a new deduplication key (`invoice-77.r2`) with the old job's correlation key, so every revision is found together. Its steps and children start fresh. |
+| Settle an interrupted external call first | An at-most-once step hands its handler the interrupted state to reconcile; `restart` runs a failed at-most-once step again. |
+
+A restart of a parent leaves its failed children failed. The parent's handler decides what a failed
+child means: fail with it, compensate, or enqueue a replacement child under a new name.
 
 ## Tenant and namespace administration
 
