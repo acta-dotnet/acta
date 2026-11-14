@@ -90,27 +90,22 @@ public sealed class DeadlineSpec : ActaRuntimeTestBase<ConformanceFixture, JobsO
         Assert.False(await HasVariableAsync(enqueued.JobId, "ran-after", ct));
     }
 
-    [Fact(DisplayName = "A restart of a job past its Strict deadline is cancelled again at admission")]
-    public async Task Restart_past_a_strict_deadline_cancels_at_admission()
+    [Fact(DisplayName = "A restart of a job past its Strict deadline is rejected, and the job stays as it ended")]
+    public async Task Restart_past_a_strict_deadline_is_rejected()
     {
         var ct = TestContext.Current.CancellationToken;
-        // A minute's deadline: were a restart to count the deadline afresh, the handler would run and suspend on its wait.
         var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "deadline-strict-wait-probe", JobPayload.None), ct);
         await MakeOverdueAsync(enqueued.JobId, ct);
         await Runtime.RunOnceAsync(enqueued, ct).WaitAsync(SpecWaits.Gate, ct);
         Assert.Equal(JobStatusCode.Cancelled, (await Jobs.GetAsync(enqueued, ct))!.Status);
 
-        // A restart resets the failure budget and retention, not the deadline, which counts from the job's creation.
+        // The deadline counts from the job's creation, so a restarted run would be cancelled again at admission: the
+        // restart says so at once, and a new job is the way to try again.
         var restarted = await Jobs.RestartAsync(enqueued, ct: ct);
-        Assert.Equal((ControlAction.Applied, JobStatusCode.Ready), (restarted.Action, restarted.Status));
-        await Runtime.RunOnceAsync(enqueued, ct).WaitAsync(SpecWaits.Gate, ct);
-
+        Assert.Equal((ControlAction.Rejected, JobStatusCode.Cancelled), (restarted.Action, restarted.Status));
         var snapshot = await Jobs.GetAsync(enqueued, ct);
         Assert.Equal(JobStatusCode.Cancelled, snapshot!.Status);
-        Assert.Equal(0, snapshot.FailureCount);
-        Assert.Equal(2, snapshot.ExecutionNumber);
-        var events = await GetEventsByJobId.Run(Services, enqueued.JobId, ct);
-        Assert.Equal(2, events.Count(e => e.EventCode == EventCode.JobExecutionYielded && e.Reason == EventReason.DeadlineExceeded));
+        Assert.Equal(1, snapshot.ExecutionNumber);
     }
 
     [Fact(DisplayName = "Advisory never auto-terminates")]

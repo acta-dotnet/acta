@@ -35,6 +35,8 @@ Not tagged yet.
 
 **Name `ct:` where code passed a token to `UpdateInputAsync` by position**: the amend takes `expectedVersion` before the token, as the other job verbs do, and answers `VersionConflict` with the current version when it is stale; `PUT /jobs/{jobRef}/input` takes `expectedVersion` too, and the response carries `version`. An applied amend now moves the job's version, a deploy that changes a permanent job's input moves it as well, and an amend of a job with no input answers `Rejected` through `IJobs`, as it already did over HTTP.
 
+**Expect a restart to reopen the wait that cancelled its job, and to refuse a job past its Strict deadline**: restarting a job that `WaitSignalAsync(name, timeout)` cancelled on expiry clears that expired wait, so the restarted job waits again under a fresh bound and a raise after the restart counts, where the job met the same expired wait and was cancelled again at once. A `TryWaitSignalAsync` timeout the handler went past stays expired. A restart of a job past its Strict deadline answers `Rejected` with the job's status, where it applied and admission cancelled the job again; a new job is the way to try again.
+
 **Return a reference where a handler returned a result over `MaxInlinePayloadBytes`**: such a result now fails the job for good (reason `non-retryable-exception`), as a null or unserializable result does, where the job succeeded with its result dropped and reason `result-oversized`, which no event carries any more. Store a large result yourself and return what finds it.
 
 ### Additions

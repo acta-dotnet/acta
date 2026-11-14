@@ -1024,7 +1024,7 @@
   - Strict admission cancels without running the handler
   - Strict blocks a retry past the deadline
   - Strict leaves a job suspended on an unbounded wait alone and cancels it when it is next claimed
-  - A restart of a job past its Strict deadline is cancelled again at admission
+  - A restart of a job past its Strict deadline is rejected, and the job stays as it ended
   - Advisory never auto-terminates
 
 ### A handler exceeding its timeout fails with the timeout reason
@@ -2603,6 +2603,8 @@
   - A replay dropping the bound does not clear the deadline the checkpoint carries
   - A bounded wait arriving at a checkpoint an unbounded one already armed still arms the deadline
   - An unbounded wait still suspends with no due instant and stays unclaimable
+  - A restart clears the expired wait that cancelled the job, which waits again under a fresh bound
+  - A restart keeps the expiry of a Try wait the handler went past
 
 ### A wait arms its checkpoint once and answers suspend, continue, or timed out
 - **Contract:** Wait arms a Pending checkpoint once, continues with a Set one's payload, and answers TimedOut past a stored expiry or at once when first armed past an instant.

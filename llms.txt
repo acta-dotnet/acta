@@ -235,8 +235,9 @@ null when the signal was raised without one. The raising side is
 database time plus the timeout, so restarts and downtime never lengthen it, and a raise that lands
 before the parked job re-enters still wins. A timeout rounds up to whole seconds, at least one, and a sleep
 of zero or less returns at once, so a deadline shared by several waits is `deadline - DateTime.UtcNow` at each
-of them: the remaining time goes negative on the replay after the deadline, and each wait's stored instant decides. An expired wait stays expired, through a restart too: the
-restarted job reaches the same wait and is cancelled again at once, and a late raise answers `Rejected`.
+of them: the remaining time goes negative on the replay after the deadline, and each wait's stored instant decides. An expired wait stays expired, and a late raise answers
+`Rejected`. Only a restart reopens one: the wait that cancelled the job, so the restarted job waits again
+under a fresh bound, while a `TryWaitSignalAsync` timeout the handler went past stays as it was.
 A signal keeps the value of its first raise: raising it again with the same value answers `AlreadyInState`,
 and with another value `Rejected`, so a wait that already returned never reads a different value on replay.
 A second window, or a second value, is a wait under a new name (`"shipped-2"`) or a new job.

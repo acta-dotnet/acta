@@ -229,7 +229,7 @@ client reads `action`, the resulting `status`, and the row's `version` without s
 |---|---|---|---|---|---|---|---|---|---|---|
 | `pause` | A | A | A | A | A | 409 | 409 | 409 | 409 | Paused |
 | `resume` | 409 | 409 | 409 | A | 409 | 409 | 409 | 409 | 409 | Ready at the next run time it kept, or now when that has passed or the job was paused while Suspended on a signal or child wait, so its handler sees a signal raised meanwhile; or Blocked behind its lane; a permanent job with no firing outstanding returns to Idle |
-| `restart` | A | A | A | A | A | 409 | A | A | A | Ready, or Blocked behind its lane, or Idle for a permanent job; failure budget, retention, and Failed steps reset |
+| `restart` | A | A | A | A | A | 409 | A | A | A | Ready, or Blocked behind its lane, or Idle for a permanent job; failure budget, retention, and Failed steps reset, and the expired wait that cancelled the job is cleared |
 | `cancel` | A | A | A | A | A | A | 409 | 409 | 409 | Cancelled, cascading to non-terminal descendants |
 | `purge` | 409 | 409 | 409 | 409 | A | 409 | A | A | A | Row hard-deleted, `job.purged` event kept |
 | `reschedule` | A | A | A | A | A | 409 | 409 | 409 | 409 | Ready at the new instant, or Blocked behind its lane; an Idle permanent job takes a manual firing |
@@ -261,10 +261,11 @@ Five rules the table cannot show:
   input has nothing to amend. A restart keeps every step that succeeded, so those steps return what
   they computed from the old input. The amend takes `expectedVersion` like the other verbs and moves
   the version, as a deploy that changes a permanent job's input does.
-- **`restart` has three more refusals.** A finished laned job is not restarted while an
+- **`restart` has four more refusals.** A finished laned job is not restarted while an
   unfinished ancestor or descendant sits in its lane, a permanent job whose firing is still
-  outstanding is not restarted around it, and a finished per-occurrence root is not restarted into a
-  schedule that is full or gone. A restarted or resumed permanent job with no firing outstanding
+  outstanding is not restarted around it, a finished per-occurrence root is not restarted into a
+  schedule that is full or gone, and a job past its Strict deadline is not restarted at all, since
+  admission would cancel it again: a new job is the way to try again. A restarted or resumed permanent job with no firing outstanding
   returns to `Idle`, where the next due schedule admits it; it does not run now.
 
 "Try it again" means one of four things, and each has its own call:
@@ -272,7 +273,7 @@ Five rules the table cannot show:
 | Meaning | Call |
 | --- | --- |
 | Retry under the job's own policy | None: the policy retries a failed attempt by itself. `reschedule` brings a waiting retry forward, and `restart` gives a Failed job a new budget. |
-| Run again, keeping what already ran | `restart`: succeeded steps, signals, variables and children stay; failed steps run again. |
+| Run again, keeping what already ran | `restart`: succeeded steps, signals, variables and children stay; failed steps run again, and the expired wait that cancelled the job waits again under a fresh bound. |
 | New work from a changed input | A new job, enqueued under a new deduplication key (`invoice-77.r2`) with the old job's correlation key, so every revision is found together. Its steps and children start fresh. |
 | Settle an interrupted external call first | An at-most-once step hands its handler the interrupted state to reconcile; `restart` runs a failed at-most-once step again. |
 

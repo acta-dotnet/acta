@@ -9,6 +9,16 @@ SELECT
     r.version AS from_version,
     CASE
         WHEN r.job_status_code = 50 /* JobStatusCode.Executing */ THEN 1
+        -- A job past its Strict deadline would be cancelled again at admission, so it is not restarted: a new job is.
+        WHEN j.job_kind_code <> 20 /* JobKindCode.Permanent */ AND EXISTS (
+            SELECT 1
+            FROM {{schema}}.definitions d
+            WHERE
+                d.definition_id = j.definition_id
+                AND d.deadline_behavior_code_effective = 10 /* DeadlineBehaviorCode.Strict */
+                AND d.deadline_seconds_effective > 0
+                AND j.created_at_utc + d.deadline_seconds_effective * 1000 <= {{now}}
+        ) THEN 1
         -- A slot whose firing is still outstanding is not restarted around it; one with none restarts Idle, for admission.
         WHEN j.job_kind_code = 20 /* JobKindCode.Permanent */ AND EXISTS (
             SELECT 1
@@ -155,6 +165,32 @@ WHERE
     j.job_id = @p_job_id
     AND (@p_expected_version IS NULL OR r.version = @p_expected_version)
     AND s.rejected = 0;
+
+-- A restart clears the expired wait that cancelled the job, so it waits again under a fresh bound. That wait is the
+-- handler's last write: a non-Try timeout ends the attempt at once, and a Try timeout the handler went past is followed
+-- by the writes of what came next, a failed step among them, so this runs before the failed steps go.
+DELETE FROM {{schema}}.checkpoints
+WHERE
+    job_id = @p_job_id
+    AND checkpoint_kind_code = 20 /* CheckpointKindCode.Signal */
+    AND checkpoint_status_code = 30 /* CheckpointStatusCode.Expired */
+    AND (SELECT s.from_status FROM temp._restart_job s) = 220 /* JobStatusCode.Cancelled */
+    AND (SELECT s.rejected FROM temp._restart_job s) = 0
+    AND (@p_expected_version IS NULL OR (SELECT s.from_version FROM temp._restart_job s) = @p_expected_version)
+    AND NOT EXISTS (
+        SELECT 1
+        FROM {{schema}}.checkpoints o
+        WHERE
+            o.job_id = @p_job_id
+            AND o.checkpoint_kind_code IN (
+                10 /* CheckpointKindCode.Variable */, 20 /* CheckpointKindCode.Signal */,
+                30 /* CheckpointKindCode.Timer */, 40 /* CheckpointKindCode.Progress */
+            )
+            AND o.modified_at_utc > {{schema}}.checkpoints.modified_at_utc
+    )
+    AND NOT EXISTS (
+        SELECT 1 FROM {{schema}}.steps st WHERE st.job_id = @p_job_id AND st.modified_at_utc > {{schema}}.checkpoints.modified_at_utc
+    );
 
 -- A failed at-most-once step, whose body threw, runs again on the operator's say-so; an interrupted one
 -- stays, since only someone who reconciled its outcome can say it may run again.

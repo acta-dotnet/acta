@@ -68,6 +68,27 @@ BEGIN TRY
             GOTO Finish;
         END;
 
+    -- A job past its Strict deadline would be cancelled again at admission, so it is not restarted: a new job is.
+    IF EXISTS (
+        SELECT 1
+        FROM {{schema}}.jobs j
+        INNER JOIN {{schema}}.definitions d ON d.definition_id = j.definition_id
+        WHERE
+            j.job_id = @p_job_id
+            AND j.job_kind_code <> 20 /* JobKindCode.Permanent */
+            AND d.deadline_behavior_code_effective = 10 /* DeadlineBehaviorCode.Strict */
+            AND d.deadline_seconds_effective > 0
+            AND DATEADD(SECOND, d.deadline_seconds_effective, j.created_at_utc) <= @now
+    )
+        BEGIN
+
+            SELECT
+                CAST(3 /* ControlAction.Rejected */ AS TINYINT) AS action,
+                @from_status AS status,
+                @version AS version;
+            GOTO Finish;
+        END;
+
     DECLARE @slot BIT = CASE WHEN EXISTS (
         SELECT 1 FROM {{schema}}.jobs j WHERE j.job_id = @p_job_id AND j.job_kind_code = 20 /* JobKindCode.Permanent */
     ) THEN 1 ELSE 0 END;
@@ -235,6 +256,33 @@ BEGIN TRY
                 st.schedule_id = @schedule_id
                 AND @recharged > 0;
         END;
+
+    -- A restart clears the expired wait that cancelled the job, so it waits again under a fresh bound. That wait is the
+    -- handler's last write: a non-Try timeout ends the attempt at once, and a Try timeout the handler went past is
+    -- followed by the writes of what came next. A child's landing and the firing are not the handler's writes.
+    IF @from_status = 220 /* JobStatusCode.Cancelled */
+        DELETE e
+        FROM {{schema}}.checkpoints AS e WITH (FORCESEEK)
+        WHERE
+            e.job_id = @p_job_id
+            AND e.checkpoint_kind_code = 20 /* CheckpointKindCode.Signal */
+            AND e.checkpoint_status_code = 30 /* CheckpointStatusCode.Expired */
+            AND NOT EXISTS (
+                SELECT 1
+                FROM {{schema}}.checkpoints AS o WITH (FORCESEEK)
+                WHERE
+                    o.job_id = @p_job_id
+                    AND o.checkpoint_kind_code IN (
+                        10 /* CheckpointKindCode.Variable */, 20 /* CheckpointKindCode.Signal */,
+                        30 /* CheckpointKindCode.Timer */, 40 /* CheckpointKindCode.Progress */
+                    )
+                    AND o.modified_at_utc > e.modified_at_utc
+            )
+            AND NOT EXISTS (
+                SELECT 1
+                FROM {{schema}}.steps AS st WITH (FORCESEEK)
+                WHERE st.job_id = @p_job_id AND st.modified_at_utc > e.modified_at_utc
+            );
 
     UPDATE {{schema}}.jobs_state
     SET

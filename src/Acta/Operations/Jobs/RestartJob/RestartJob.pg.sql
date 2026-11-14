@@ -38,6 +38,12 @@ SELECT
     CASE
         WHEN @p_expected_version IS NOT NULL AND r.version <> @p_expected_version THEN 5 /* ControlAction.VersionConflict */
         WHEN r.job_status_code = 50 /* JobStatusCode.Executing */ THEN 3 /* ControlAction.Rejected */
+        -- A job past its Strict deadline would be cancelled again at admission, so it is not restarted: a new job is.
+        WHEN j.job_kind_code <> 20 /* JobKindCode.Permanent */
+            AND d.deadline_behavior_code_effective = 10 /* DeadlineBehaviorCode.Strict */
+            AND d.deadline_seconds_effective > 0
+            AND j.created_at_utc + make_interval(secs => d.deadline_seconds_effective) <= now()
+            THEN 3 /* ControlAction.Rejected */
         -- A slot whose firing is still outstanding is not restarted around it; one with none restarts Idle, for admission.
         WHEN j.job_kind_code = 20 /* JobKindCode.Permanent */ AND EXISTS (
             SELECT 1
@@ -50,6 +56,7 @@ SELECT
     CASE WHEN j.job_kind_code = 20 /* JobKindCode.Permanent */ THEN 40 /* JobStatusCode.Idle */ ELSE 10 /* JobStatusCode.Ready */ END
 FROM {{schema}}.jobs_state r
 JOIN {{schema}}.jobs j ON j.job_id = r.job_id
+JOIN {{schema}}.definitions d ON d.definition_id = j.definition_id
 WHERE r.job_id = @p_job_id
 FOR UPDATE OF r;
 
@@ -149,6 +156,30 @@ WHERE
     s.recharge
     AND s.action = 1 /* ControlAction.Applied */
     AND NOT EXISTS (SELECT 1 FROM capacity);
+
+-- A restart clears the expired wait that cancelled the job, so it waits again under a fresh bound. That wait is the
+-- handler's last write: a non-Try timeout ends the attempt at once, and a Try timeout the handler went past is followed
+-- by the writes of what came next. A child's landing and the firing are not the handler's writes.
+DELETE FROM {{schema}}.checkpoints e
+USING _restart_job s
+WHERE
+    s.action = 1 /* ControlAction.Applied */
+    AND s.from_status = 220 /* JobStatusCode.Cancelled */
+    AND e.job_id = @p_job_id
+    AND e.checkpoint_kind_code = 20 /* CheckpointKindCode.Signal */
+    AND e.checkpoint_status_code = 30 /* CheckpointStatusCode.Expired */
+    AND NOT EXISTS (
+        SELECT 1
+        FROM {{schema}}.checkpoints o
+        WHERE
+            o.job_id = @p_job_id
+            AND o.checkpoint_kind_code IN (
+                10 /* CheckpointKindCode.Variable */, 20 /* CheckpointKindCode.Signal */,
+                30 /* CheckpointKindCode.Timer */, 40 /* CheckpointKindCode.Progress */
+            )
+            AND o.modified_at_utc > e.modified_at_utc
+    )
+    AND NOT EXISTS (SELECT 1 FROM {{schema}}.steps st WHERE st.job_id = @p_job_id AND st.modified_at_utc > e.modified_at_utc);
 
 -- A re-charged root's settled envelope is outstanding again, and takes its schedule's capacity once.
 WITH recharged AS (
