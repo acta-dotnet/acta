@@ -377,7 +377,7 @@ internal static class ManifestDiagnostics
     public static DiagnosticRecord DuplicateInputType(DiscoveredJob job, string inputTypeName) =>
         new(
             "ACTA0104",
-            $"Input type `{inputTypeName}` is declared by multiple `[Job]` handlers in this manifest; typed enqueue cannot resolve a unique route from it. Give the jobs distinct input types, or enqueue them via the raw `EnqueueJobRequest` path, which names the job.",
+            $"Input type `{inputTypeName}` is declared by multiple `[Job]` handlers in this manifest; typed enqueue cannot resolve a unique route from it. Give the jobs distinct input types, or enqueue them through the generated call, which names the job: `{ManifestSourceWriter.PascalCase(job.JobName)}(...)` on the manifest.",
             job.Location
         );
 
@@ -473,14 +473,14 @@ internal static class ManifestDiagnostics
     public static DiagnosticRecord ScheduledInputNotConstructible(IMethodSymbol method, ITypeSymbol inputType, Location location) =>
         new(
             "ACTA0123",
-            $"`[Job]` method `{method.Name}` declares one or more `[Schedule]` but its input `{inputType.ToDisplayString()}` has no accessible parameterless constructor. The permanent job seeds its payload from `new {inputType.Name}()`; give the input a parameterless constructor or use a parameterless record (e.g. `record Reconcile;`).",
+            $"`[Job]` method `{method.Name}` declares one or more `[Schedule]` but its input `{inputType.ToDisplayString()}` has no accessible parameterless constructor. A scheduled job, permanent or per-occurrence, seeds its payload from `new {inputType.Name}()`; give the input a parameterless constructor or use a parameterless record (e.g. `record Reconcile;`).",
             location
         );
 
     public static DiagnosticRecord ScheduledArguments(IMethodSymbol method, Location location) =>
         new(
             "ACTA0123",
-            $"`[Job]` method `{method.Name}` declares one or more `[Schedule]` but takes several input parameters. The permanent job seeds its payload from a parameterless constructor, which the generated argument record has none of; take one input record with a parameterless constructor.",
+            $"`[Job]` method `{method.Name}` declares one or more `[Schedule]` but takes several input parameters. A scheduled job, permanent or per-occurrence, seeds its payload from a parameterless constructor, which the generated argument record has none of; take one input record with a parameterless constructor.",
             location
         );
 

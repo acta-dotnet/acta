@@ -128,8 +128,9 @@ known-good cron strings; an interval is `"5m"`, `"PT5M"`, or `"P1D"`.
 
 ## ACTA0123 <a id="acta0123"></a>
 
-**A scheduled handler's input cannot be constructed.** A permanent job seeds its input from
-`new TIn()`, so a `[Schedule]` handler's input needs an accessible parameterless constructor, and a
+**A scheduled handler's input cannot be constructed.** A scheduled job, permanent or per-occurrence,
+seeds its input from `new TIn()` when the definition deploys, the same for every occurrence, so a
+`[Schedule]` handler's input needs an accessible parameterless constructor, and a
 handler taking several input parameters cannot carry a schedule, since its generated argument
 record has none.
 

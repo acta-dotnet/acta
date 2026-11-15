@@ -104,9 +104,9 @@ internal static partial class ActaLog
 
     [LoggerMessage(
         Level = LogLevel.Warning,
-        Message = "At-most-once step on job {ActaJobId} failed and does not run again ({ActaDetail})."
+        Message = "At-most-once step on job ({ActaJobName}) ({ActaJobRef}) failed and does not run again ({ActaDetail})."
     )]
-    public static partial void StepFailed(ILogger log, long actaJobId, string actaDetail);
+    public static partial void StepFailed(ILogger log, string actaJobName, string actaJobRef, string actaDetail);
 
     [LoggerMessage(
         Level = LogLevel.Warning,

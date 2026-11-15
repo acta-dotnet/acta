@@ -468,7 +468,7 @@ JobHandle<Receipt> job = await jobs.EnqueueAsync(BillingJobs.SendInvoice(invoice
 - The record is the job's `TIn`, stored as JSON: `{"invoiceId":"…","recipient":"billing@example.com"}`. The parameter names are its contract fields, so renaming one is a contract change; see [contract evolution](#contract-evolution).
 - Under Native AOT, declare the input record yourself and give the handler that one parameter. System.Text.Json's source generator never sees a type another generator emits, so it writes no metadata for the generated record (warning SYSLIB1030), and its first enqueue throws.
 - An interface parameter other than a collection such as `IReadOnlyList<T>` is rejected (ACTA0103): it reads as a dependency, and dependencies come from the constructor.
-- Such a handler cannot carry `[Schedule]` (ACTA0123), since a permanent job seeds its input from a parameterless constructor the record lacks.
+- Such a handler cannot carry `[Schedule]` (ACTA0123), since a scheduled job, permanent or per-occurrence, seeds its input from a parameterless constructor the record lacks.
 
 ### Input payload format inference
 

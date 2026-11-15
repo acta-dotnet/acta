@@ -166,7 +166,7 @@ internal sealed partial class RuntimeJobContext
         RecordStep(name, "failed");
         if (_log.IsEnabled(LogLevel.Warning))
         {
-            ActaLog.StepFailed(_log, JobId, $"step '{name}': {message}");
+            ActaLog.StepFailed(_log, JobName, JobRef.ToString(), $"step '{name}': {message}");
         }
         return new StepFailedException(name, message, cause);
     }
