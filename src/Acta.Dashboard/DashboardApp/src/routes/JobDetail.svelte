@@ -202,7 +202,7 @@
         {#if explanation?.lease?.expired}<p>{explanation.lease.recoveryExpectation}</p>{/if}
         <div class="focus-facts">
           {#if explanation?.activeWait}
-            {@const wait = activeWaitLabel(explanation.activeWait.kind, explanation.activeWait.name)}
+            {@const wait = activeWaitLabel(explanation.activeWait.kind, explanation.activeWait.name, explanation.activeWait.childName)}
             <span>Waiting on <strong class="mono">{wait.name}</strong>{#if explanation.activeWait.dueAtUtc}{' · due '}<RelativeTime value={explanation.activeWait.dueAtUtc} />{/if}</span>
           {/if}
           {#if job.status === 'blocked' && job.blockedBehindJobRef}<span>Blocked behind <JobRef value={job.blockedBehindJobRef} href={routes.job(job.blockedBehindJobRef, { namespace: job.jobNamespace })} /></span>{/if}

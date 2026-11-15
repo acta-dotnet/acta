@@ -54,6 +54,21 @@ WHERE
     AND @p_checkpoint_kind_code <> 50 /* CheckpointKindCode.ChildLatch */
     AND c.checkpoint_status_code IN (20 /* CheckpointStatusCode.Set */, 30 /* CheckpointStatusCode.Expired */);
 
+-- A child's landing names the child as its parent named it, and how it ended; a purged child keeps its id.
+DROP TABLE IF EXISTS temp._raise_landing;
+CREATE TEMP TABLE _raise_landing AS
+SELECT COALESCE(
+    @p_event_message,
+    'Child '
+    || COALESCE((SELECT '''' || c.deduplication_key || '''' FROM {{schema}}.jobs c WHERE c.job_id = @p_child_job_id), 'job ' || @p_child_job_id)
+    || ' '
+    || CASE @p_child_status
+        WHEN 100 /* JobStatusCode.Succeeded */ THEN 'succeeded'
+        WHEN 200 /* JobStatusCode.Failed */ THEN 'failed'
+        ELSE 'cancelled'
+    END || '.'
+) AS message;
+
 INSERT INTO {{schema}}.checkpoints (
     job_id, checkpoint_kind_code, checkpoint_name, checkpoint_status_code, value_format_id, value, modified_at_utc, version
 )
@@ -116,8 +131,8 @@ SELECT
     r.execution_number,
     CASE
         WHEN EXISTS (SELECT 1 FROM temp._raise_expired)
-            THEN substr(COALESCE(@p_event_message || ' ', '') || 'Signal not applied: the wait had already expired.', 1, 512)
-        ELSE @p_event_message
+            THEN substr(COALESCE((SELECT m.message FROM temp._raise_landing m) || ' ', '') || 'Signal not applied: the wait had already expired.', 1, 512)
+        ELSE (SELECT m.message FROM temp._raise_landing m)
     END,
     @p_actor,
     @p_details_format_id,
@@ -159,7 +174,7 @@ SELECT
     j.tenant_id,
     COALESCE(j.lineage_root_job_id, j.job_id),
     r.execution_number,
-    @p_event_message,
+    (SELECT m.message FROM temp._raise_landing m),
     @p_actor,
     @p_details_format_id,
     @p_details

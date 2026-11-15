@@ -1,5 +1,6 @@
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
+using Microsoft.Extensions.DependencyInjection;
 using TestJobs;
 using Xunit;
 
@@ -86,6 +87,34 @@ public sealed class RaiseJobSignalSpec : ActaRuntimeTestBase<ConformanceFixture,
         Assert.Equal("job-finished", finished.Reason);
         Assert.Empty(await ReadSignalsAsync(enqueued.JobId, ct));
         Assert.Equal(0, await CountEventsAsync(enqueued.JobId, EventCode.JobSignalRaised, ct));
+    }
+
+    [Fact(DisplayName = "A latch raised for a child with no row names it by its id on the parent's timeline")]
+    public async Task A_latch_for_a_missing_child_names_it_by_id()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var parent = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct);
+        var input = new JobControlInput(null, EventReason.SignalReleased, null);
+
+        // long.MaxValue is no job's id, as a purged child's is no longer one.
+        await Services
+            .GetRequiredService<SignalsOperations>()
+            .RaiseJobSignalAsync(
+                new RaiseJobSignalCheckpoint(
+                    parent.JobId,
+                    CheckpointKindCode.ChildLatch,
+                    $"sys.child.{long.MaxValue}",
+                    0,
+                    null,
+                    input,
+                    long.MaxValue,
+                    JobStatusCode.Failed
+                ),
+                ct
+            );
+
+        var raised = await ReadSingleEventAsync(parent.JobId, EventCode.JobSignalRaised, ct);
+        Assert.Equal($"Child job {long.MaxValue} failed.", raised.EventMessage);
     }
 
     [Fact(DisplayName = "A malformed or reserved signal name throws before the job is looked up")]

@@ -9867,7 +9867,8 @@
                             "jobName": "render-pdf",
                             "status": "executing",
                             "createdAtUtc": "2026-06-12T05:30:00Z",
-                            "modifiedAtUtc": "2026-06-12T06:00:00Z"
+                            "modifiedAtUtc": "2026-06-12T06:00:00Z",
+                            "childName": null
                           }
                         ],
                         "childrenHasMore": false
@@ -17219,7 +17220,9 @@
         "required": [
           "kind",
           "name",
-          "dueAtUtc"
+          "dueAtUtc",
+          "childJobRef",
+          "childName"
         ],
         "type": "object",
         "properties": {
@@ -17238,9 +17241,23 @@
             ],
             "description": "When the wait times out or the timer is due, in UTC; null for a wait without a bound.",
             "format": "date-time"
+          },
+          "childJobRef": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The ref of the child a child-latch wait waits on; null for any other wait, or once the child is purged."
+          },
+          "childName": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The name the parent gave that child, the call's name or {map}/{key}; null where childJobRef is."
           }
         },
-        "description": "The durable wait a Suspended Job is blocked on: a signal name, or a timer and its due instant."
+        "description": "The durable wait a Suspended Job is blocked on: a signal name, a child, or a timer and its due instant."
       },
       "FiringFailurePolicyCode": {
         "examples": [
@@ -18079,7 +18096,8 @@
           "jobName",
           "status",
           "createdAtUtc",
-          "modifiedAtUtc"
+          "modifiedAtUtc",
+          "childName"
         ],
         "type": "object",
         "properties": {
@@ -18104,6 +18122,13 @@
             "type": "string",
             "description": "When the row last changed, in UTC.",
             "format": "date-time"
+          },
+          "childName": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The name the parent gave the child, the call's name or {map}/{key}; null for one it gave none."
           }
         },
         "description": "A direct child of the focused Job, linkable to its own detail view."
@@ -18263,7 +18288,9 @@
         "required": [
           "kind",
           "name",
-          "dueAtUtc"
+          "dueAtUtc",
+          "childJobRef",
+          "childName"
         ],
         "type": "object",
         "properties": {
@@ -18282,6 +18309,20 @@
             ],
             "description": "When the wait times out or the timer is due, in UTC; null for a wait without a bound.",
             "format": "date-time"
+          },
+          "childJobRef": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The ref of the child a child-latch wait waits on; null for any other wait, or once the child is purged."
+          },
+          "childName": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The name the parent gave that child, the call's name or {map}/{key}; null where childJobRef is."
           }
         },
         "description": "The durable wait the focused Job is blocked on: a signal, child latch, or timer, and its due instant."

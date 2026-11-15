@@ -404,6 +404,19 @@ public sealed class ChildGroupTimeoutSpec : ActaRuntimeTestBase<ConformanceFixtu
         Assert.NotNull(unboundedMap!.ActiveWait);
         Assert.Equal(CheckpointKindCode.ChildLatch, unboundedMap.ActiveWait!.Kind);
         Assert.Null(unboundedMap.ActiveWait.DueAtUtc);
+
+        // The child is named as its parent called it, by name and ref, on every read of the wait.
+        var echo = Assert.Single(unboundedMap.Children);
+        Assert.Equal("echo", echo.ChildName);
+        Assert.Equal((echo.JobRef, "echo"), (unboundedMap.ActiveWait.ChildJobRef, unboundedMap.ActiveWait.ChildName));
+        var explained = await Jobs.ExplainAsync(unbounded, ct);
+        Assert.Equal((echo.JobRef, "echo"), (explained!.ActiveWait!.ChildJobRef, explained.ActiveWait.ChildName));
+        Assert.Contains($"waiting for child 'echo' ({echo.JobRef})", explained.Headline, StringComparison.Ordinal);
+        Assert.Equal("Child 'echo' pending.", (await ReadSingleEventAsync(unbounded.JobId, EventCode.JobSuspended, ct)).EventMessage);
+
+        // Its landing tells the parent's timeline which child ended, and how.
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(echo.JobId, ct));
+        Assert.Equal("Child 'echo' succeeded.", (await ReadSingleEventAsync(unbounded.JobId, EventCode.JobSignalRaised, ct)).EventMessage);
     }
 
     // Every bounded wrapper resolves the same way: one member is let through, the group deadline is

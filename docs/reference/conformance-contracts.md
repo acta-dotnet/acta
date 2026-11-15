@@ -2576,6 +2576,7 @@
   - A raise stores the payload on a Set checkpoint and records the operator and the signal on the event
   - A repeat raise writes nothing: the same value is AlreadyInState and another value Rejected
   - An unknown job is NotFound and a finished job is Rejected, and neither gains a checkpoint or an event
+  - A latch raised for a child with no row names it by its id on the parent's timeline
   - A malformed or reserved signal name throws before the job is looked up
 
 ### A raise inside the suspend handoff lands the job Ready, not Suspended

@@ -9,11 +9,13 @@ namespace Acta;
 /// <param name="Status">The job's status.</param>
 /// <param name="CreatedAtUtc">When the row was created, in UTC.</param>
 /// <param name="ModifiedAtUtc">When the row last changed, in UTC.</param>
+/// <param name="ChildName">The name the parent gave the child, the call's name or {map}/{key}; null for one it gave none.</param>
 public sealed record GetJobLineageMapChild(
     [property: JsonIgnore] long JobId,
     JobRef JobRef,
     string JobName,
     JobStatusCode Status,
     DateTime CreatedAtUtc,
-    DateTime ModifiedAtUtc
+    DateTime ModifiedAtUtc,
+    string? ChildName = null
 );

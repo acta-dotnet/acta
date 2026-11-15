@@ -562,6 +562,16 @@ BEGIN
                 r.execution_number AS child_execution,
                 c.reason,
                 c.event_message,
+                -- The landing names the child as its parent named it, how it ended, and the child's own message.
+                LEFT(
+                    'Child ' || COALESCE('''' || j.deduplication_key || '''', 'job ' || r.job_id) || ' '
+                    || CASE r.job_status_code
+                        WHEN 100 /* JobStatusCode.Succeeded */ THEN 'succeeded'
+                        WHEN 200 /* JobStatusCode.Failed */ THEN 'failed'
+                        ELSE 'cancelled'
+                    END || COALESCE(': ' || c.event_message, '.'),
+                    512
+                ) AS landing,
                 COALESCE(l.checkpoint_status_code = 30 /* CheckpointStatusCode.Expired */, FALSE) AS latch_expired,
                 COALESCE(l.checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */, FALSE) AS latch_pending,
                 pr.job_status_code AS parent_status,
@@ -637,8 +647,8 @@ BEGIN
                 s.parent_execution,
                 CASE
                     WHEN s.latch_expired
-                        THEN LEFT(COALESCE(s.event_message || ' ', '') || 'Child outcome not applied: the wait had already expired.', 512)
-                    ELSE s.event_message
+                        THEN LEFT(s.landing || ' Child outcome not applied: the wait had already expired.', 512)
+                    ELSE s.landing
                 END,
                 CASE WHEN s.reason IS NULL THEN 0 /* JobPayloadFormat.None */ ELSE 1 /* JobPayloadFormat.Json */ END,
                 convert_to('{"reason":"' || s.reason || '"}', 'UTF8')

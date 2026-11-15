@@ -103,12 +103,12 @@ internal sealed class ExplainJobHandler(GetJobIdHandler getJobId, IDbSession ses
                     {
                         // No raise-signal action: the sys.child latch is framework-owned and the raise
                         // verb rejects that name, so offering it would suggest a move that cannot work.
-                        var child = ChildLabel(wait.Name);
+                        var child = ChildLabel(wait);
                         headline = wait.DueAtUtc is { } childDue
                             ? $"Suspended, waiting for {child}; times out at {Instant(childDue)}."
                             : $"Suspended, waiting for {child}; no timeout, so it waits until the child completes.";
                         actions.Add(Move("none", $"no action needed - it resumes when {child} reaches a terminal status"));
-                        actions.Add(Move("inspect-timeline", $"inspect {child} with 'jobs explain{ChildLookup(wait.Name)}'"));
+                        actions.Add(Move("inspect-timeline", $"inspect {child} with 'jobs explain{ChildLookup(wait)}'"));
                         actions.Add(Move("cancel", "cancel the job if the wait is no longer needed"));
                         break;
                     }
@@ -290,7 +290,7 @@ internal sealed class ExplainJobHandler(GetJobIdHandler getJobId, IDbSession ses
         {
             if (c.CheckpointKind == CheckpointKindCode.ChildLatch && c.CheckpointStatus == CheckpointStatusCode.Pending)
             {
-                return new ExplainJobWait(CheckpointKindCode.ChildLatch, c.CheckpointName, c.DueAtUtc);
+                return new ExplainJobWait(CheckpointKindCode.ChildLatch, c.CheckpointName, c.DueAtUtc, c.ChildJobRef, c.ChildName);
             }
         }
         return FindTimer(checkpoints);
@@ -304,20 +304,24 @@ internal sealed class ExplainJobHandler(GetJobIdHandler getJobId, IDbSession ses
             : null;
 
     /// <summary>
-    /// The latch name is the framework-owned sys.child.{id} key, so the readable half is the id: an
-    /// operator wants the child's number, not the latch's spelling. A name that does not parse is
-    /// shown verbatim rather than guessed at.
+    /// The child by the name its parent gave it and its ref. Once the child is purged only the latch name is left: its
+    /// sys.child.{id} key gives the id, and a name that does not parse is shown verbatim rather than guessed at.
     /// </summary>
-    private static string ChildLabel(string latchName) =>
-        latchName.StartsWith(RaiseChildLatch.NamePrefix, StringComparison.Ordinal)
-            ? $"child job {latchName[RaiseChildLatch.NamePrefix.Length..]}"
-            : $"child latch \"{latchName}\"";
+    private static string ChildLabel(ExplainJobWait wait) =>
+        wait.ChildJobRef is { } childRef
+            ? wait.ChildName is { } childName
+                ? $"child '{childName}' ({childRef})"
+                : $"child {childRef}"
+            : wait.Name.StartsWith(RaiseChildLatch.NamePrefix, StringComparison.Ordinal)
+                ? $"child job {wait.Name[RaiseChildLatch.NamePrefix.Length..]}"
+                : $"child latch \"{wait.Name}\"";
 
-    /// <summary>The CLI's lookup for the child, " id:{id}", since a bare number reads as a deduplication key.</summary>
-    private static string ChildLookup(string latchName) =>
-        latchName.StartsWith(RaiseChildLatch.NamePrefix, StringComparison.Ordinal)
-            ? $" id:{latchName[RaiseChildLatch.NamePrefix.Length..]}"
-            : "";
+    /// <summary>The CLI's lookup for the child: its ref, or " id:{id}" by the latch name, since a bare number reads as a deduplication key.</summary>
+    private static string ChildLookup(ExplainJobWait wait) =>
+        wait.ChildJobRef is { } childRef ? $" {childRef}"
+        : wait.Name.StartsWith(RaiseChildLatch.NamePrefix, StringComparison.Ordinal)
+            ? $" id:{wait.Name[RaiseChildLatch.NamePrefix.Length..]}"
+        : "";
 
     private static ExplainJobLease? BuildLease(ExplainJobHeaderRow h, DateTime nowUtc, bool sqlite)
     {

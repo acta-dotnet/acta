@@ -26,6 +26,7 @@ BEGIN
         DECLARE @val VARBINARY(MAX);
         DECLARE @expired BIT = 0;
         DECLARE @message NVARCHAR(512);
+        DECLARE @landing NVARCHAR(512);
         DECLARE
             @from_status TINYINT, @namespace_id INT, @lineage_root_job_id BIGINT,
             @definition_id INT, @tenant_id INT, @execution_number BIGINT, @event_recording TINYINT;
@@ -128,10 +129,25 @@ BEGIN
            value and releases no job. The landing still happened, so it is still recorded: the event below
            carries a message saying why it changed nothing, and the verb reports the unchanged status. */
         SET @expired = CASE WHEN @existing = 30 /* CheckpointStatusCode.Expired */ THEN 1 ELSE 0 END;
+        -- A child's landing names the child as its parent named it, and how it ended; a purged child keeps its id.
+        SET @landing = COALESCE(
+            @p_event_message,
+            N'Child '
+            + COALESCE(
+                (SELECT N'''' + c.deduplication_key COLLATE DATABASE_DEFAULT + N'''' FROM {{schema}}.jobs c WHERE c.job_id = @p_child_job_id),
+                N'job ' + CONVERT(NVARCHAR(20), @p_child_job_id)
+            )
+            + N' '
+            + CASE @p_child_status
+                WHEN 100 /* JobStatusCode.Succeeded */ THEN N'succeeded'
+                WHEN 200 /* JobStatusCode.Failed */ THEN N'failed'
+                ELSE N'cancelled'
+            END + N'.'
+        );
         SET @message = CASE
             WHEN @expired = 1
-                THEN LEFT(COALESCE(@p_event_message + N' ', N'') + N'Signal not applied: the wait had already expired.', 512)
-            ELSE @p_event_message
+                THEN LEFT(COALESCE(@landing + N' ', N'') + N'Signal not applied: the wait had already expired.', 512)
+            ELSE @landing
         END;
 
         IF @expired = 0
@@ -197,7 +213,7 @@ BEGIN
                         50 /* EntityCode.Job */, @p_job_id,
                         @definition_id, @tenant_id, COALESCE(@lineage_root_job_id, @p_job_id),
                         @execution_number,
-                        @p_event_message, @p_actor, @p_details_format_id, @p_details
+                        @landing, @p_actor, @p_details_format_id, @p_details
                     );
 
                 SELECT

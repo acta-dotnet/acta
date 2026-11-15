@@ -15,6 +15,7 @@ internal sealed class SwallowedControlException(JobControlException control)
     private static string Describe(JobControlException control) =>
         control switch
         {
+            SignalSuspendSignal { ChildName: { } child } => $"the wait for child '{child}'",
             SignalSuspendSignal { SignalName: var name } when name.StartsWith(RaiseChildLatch.NamePrefix, StringComparison.Ordinal) =>
                 $"the wait for child job {name[RaiseChildLatch.NamePrefix.Length..]}",
             SignalSuspendSignal { SignalName: var name } => $"the wait for signal '{name}'",

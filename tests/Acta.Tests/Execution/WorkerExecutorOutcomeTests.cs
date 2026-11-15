@@ -52,6 +52,17 @@ public sealed class WorkerExecutorOutcomeTests
         Assert.Contains("went on after RescheduleAsync", harness.Completion.EventMessage, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData("echo", "the wait for child 'echo'")]
+    [InlineData(null, "the wait for child job 5")]
+    public void A_swallowed_child_wait_names_the_child_as_its_parent_named_it(string? childName, string described)
+    {
+        // A child the attempt did not enqueue has no name here, so it keeps its id.
+        var swallowed = new SwallowedControlException(new SignalSuspendSignal($"{RaiseChildLatch.NamePrefix}5", childName: childName));
+
+        Assert.Contains($"went on after {described} ended the attempt", swallowed.Message, StringComparison.Ordinal);
+    }
+
     [Fact]
     public async Task A_replayed_step_result_its_type_cannot_read_fails_the_job_at_once_naming_the_step()
     {

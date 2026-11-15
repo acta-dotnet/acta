@@ -21,6 +21,7 @@ DECLARE
     v_val BYTEA;
     v_expired BOOLEAN := FALSE;
     v_message VARCHAR;
+    v_landing VARCHAR;
     v_from_status SMALLINT;
     v_namespace_id INT;
     v_lineage_root_job_id BIGINT;
@@ -123,10 +124,22 @@ BEGIN
     -- COALESCE, not a bare comparison: a first raise has no checkpoint at all, and NULL = 30 is unknown, which
     -- would skip the upsert below rather than take it.
     v_expired := COALESCE(v_existing = 30 /* CheckpointStatusCode.Expired */, FALSE);
+    -- A child's landing names the child as its parent named it, and how it ended; a purged child keeps its id.
+    v_landing := COALESCE(
+        p_event_message,
+        'Child '
+        || COALESCE((SELECT '''' || c.deduplication_key || '''' FROM {{schema}}.jobs c WHERE c.job_id = p_child_job_id), 'job ' || p_child_job_id)
+        || ' '
+        || CASE p_child_status
+            WHEN 100 /* JobStatusCode.Succeeded */ THEN 'succeeded'
+            WHEN 200 /* JobStatusCode.Failed */ THEN 'failed'
+            ELSE 'cancelled'
+        END || '.'
+    );
     v_message := CASE
         WHEN v_expired
-            THEN LEFT(COALESCE(p_event_message || ' ', '') || 'Signal not applied: the wait had already expired.', 512)
-        ELSE p_event_message END;
+            THEN LEFT(COALESCE(v_landing || ' ', '') || 'Signal not applied: the wait had already expired.', 512)
+        ELSE v_landing END;
 
     IF NOT v_expired THEN
         INSERT INTO {{schema}}.checkpoints (
@@ -223,7 +236,7 @@ BEGIN
                 v_tenant_id,
                 COALESCE(v_lineage_root_job_id, p_job_id),
                 v_execution_number,
-                p_event_message,
+                v_landing,
                 p_actor,
                 p_details_format_id,
                 p_details);

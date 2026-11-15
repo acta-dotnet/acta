@@ -53,7 +53,7 @@ CREATE TEMP TABLE release_guard (
 INSERT INTO release_guard
 SELECT EXISTS (
     SELECT 1 FROM main.migrations
-    WHERE name NOT IN ('M20261111163142_init', 'M20261112231452_index_lanes_by_namespace', 'M20261114214847_keep_first_signal_value', 'M20261114235108_repeat_raise_after_finish', 'M20261115084424_refuse_cross_tenant_dedup', 'M20261115085724_carry_child_failure_message', 'M20261115090220_answer_the_checked_dedup_job', 'M20261115092119_rename_the_enqueue_staging_table', 'M20261115101053_decode_the_signal_cleared_event')
+    WHERE name NOT IN ('M20261111163142_init', 'M20261112231452_index_lanes_by_namespace', 'M20261114214847_keep_first_signal_value', 'M20261114235108_repeat_raise_after_finish', 'M20261115084424_refuse_cross_tenant_dedup', 'M20261115085724_carry_child_failure_message', 'M20261115090220_answer_the_checked_dedup_job', 'M20261115092119_rename_the_enqueue_staging_table', 'M20261115101053_decode_the_signal_cleared_event', 'M20261115113558_name_a_landed_child', 'M20261115114815_keep_a_child_landing_whole')
 );
 DROP TABLE release_guard;
 
@@ -929,6 +929,20 @@ VALUES ('M20261115101053_decode_the_signal_cleared_event')
 ON CONFLICT (name) DO NOTHING;
 
 -- ===== END M20261115101053_decode_the_signal_cleared_event =====
+
+-- ===== BEGIN M20261115113558_name_a_landed_child =====
+INSERT INTO main.migrations (name)
+VALUES ('M20261115113558_name_a_landed_child')
+ON CONFLICT (name) DO NOTHING;
+
+-- ===== END M20261115113558_name_a_landed_child =====
+
+-- ===== BEGIN M20261115114815_keep_a_child_landing_whole =====
+INSERT INTO main.migrations (name)
+VALUES ('M20261115114815_keep_a_child_landing_whole')
+ON CONFLICT (name) DO NOTHING;
+
+-- ===== END M20261115114815_keep_a_child_landing_whole =====
 
 COMMIT;
 

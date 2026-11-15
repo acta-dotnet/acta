@@ -7,7 +7,7 @@ SELECT
     x.worker_deployment_version, x.worker_status, x.worker_last_seen_at_utc, x.latest_reason_message, x.latest_reason_actor,
     x.latest_reason_details_format_id, x.latest_reason_details, x.last_executed_by_worker_version, x.leased_by_worker_ref,
     x.last_executed_by_worker_ref, x.definition_status, x.step_name, x.step_status, x.failure_message,
-    x.checkpoint_kind, x.checkpoint_name, x.checkpoint_status, x.due_at_utc
+    x.checkpoint_kind, x.checkpoint_name, x.checkpoint_status, x.due_at_utc, x.child_job_ref, x.child_name
 FROM (
     -- The header: job + jobs_state snapshot, the leasing worker's liveness (LEFT JOIN on the lease owner), the newest
     -- reason on the timeline (a failed, orphaned, or terminally failed attempt, or a Cancelled job's cancel), and the
@@ -45,7 +45,9 @@ FROM (
         NULL::smallint AS checkpoint_kind,
         NULL::varchar(128) AS checkpoint_name,
         NULL::smallint AS checkpoint_status,
-        NULL::timestamptz AS due_at_utc
+        NULL::timestamptz AS due_at_utc,
+        NULL::uuid AS child_job_ref,
+        NULL::varchar(128) AS child_name
     FROM {{schema}}.jobs j
     INNER JOIN {{schema}}.jobs_state r ON r.job_id = j.job_id
     INNER JOIN {{schema}}.namespaces ns ON ns.namespace_id = j.namespace_id
@@ -90,7 +92,7 @@ FROM (
         NULL, NULL, NULL, NULL, NULL, NULL, NULL,
         NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
         s.step_name, s.step_status_code, s.failure_message,
-        NULL, NULL, NULL, NULL
+        NULL, NULL, NULL, NULL, NULL, NULL
     FROM (
         SELECT step_name, step_status_code, failure_message, created_at_utc
         FROM {{schema}}.steps
@@ -101,15 +103,20 @@ FROM (
 
     UNION ALL
 
-    -- Checkpoints of every kind, by kind then name.
+    -- Checkpoints of every kind, by kind then name; a child latch names its child, the direct child its name carries.
     SELECT
         3, NULL, c.checkpoint_kind_code, c.checkpoint_name,
         NULL, NULL, NULL, NULL, NULL, NULL, NULL,
         NULL, NULL, NULL, NULL, NULL, NULL, NULL,
         NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
         NULL, NULL, NULL,
-        c.checkpoint_kind_code, c.checkpoint_name, c.checkpoint_status_code, c.due_at_utc
+        c.checkpoint_kind_code, c.checkpoint_name, c.checkpoint_status_code, c.due_at_utc, ch.job_ref, ch.deduplication_key
     FROM {{schema}}.checkpoints c
+    LEFT JOIN {{schema}}.jobs ch
+        ON
+            c.checkpoint_kind_code = 50 /* CheckpointKindCode.ChildLatch */
+            AND ch.parent_job_id = c.job_id
+            AND c.checkpoint_name = 'sys.child.' || ch.job_id
     WHERE c.job_id = @p_job_id
 ) x
 ORDER BY x.row_kind, x.sort_at, x.sort_kind, x.sort_name;

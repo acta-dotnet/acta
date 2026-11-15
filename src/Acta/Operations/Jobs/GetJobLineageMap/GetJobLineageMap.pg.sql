@@ -62,9 +62,17 @@ WHERE s.job_id = @p_job_id
 ORDER BY s.created_at_utc DESC, s.step_name DESC
 LIMIT @p_step_limit;
 
--- 4) Focus job checkpoints (signal / timer / variable / progress / child-latch), for the active wait.
-SELECT c.checkpoint_kind_code AS kind, c.checkpoint_name, c.checkpoint_status_code AS status, c.due_at_utc
+-- 4) Focus job checkpoints (signal / timer / variable / progress / child-latch), for the active wait; a child latch
+-- names its child, the direct child its name carries.
+SELECT
+    c.checkpoint_kind_code AS kind, c.checkpoint_name, c.checkpoint_status_code AS status, c.due_at_utc,
+    ch.job_ref AS child_job_ref, ch.deduplication_key AS child_name
 FROM {{schema}}.checkpoints c
+LEFT JOIN {{schema}}.jobs ch
+    ON
+        c.checkpoint_kind_code = 50 /* CheckpointKindCode.ChildLatch */
+        AND ch.parent_job_id = c.job_id
+        AND c.checkpoint_name = 'sys.child.' || ch.job_id
 WHERE c.job_id = @p_job_id
 ORDER BY c.checkpoint_kind_code, c.checkpoint_name;
 
@@ -75,7 +83,8 @@ SELECT
     jd.definition_name AS job_name,
     r.job_status_code AS status,
     j.created_at_utc,
-    r.modified_at_utc
+    r.modified_at_utc,
+    j.deduplication_key AS child_name
 FROM {{schema}}.jobs j
 INNER JOIN {{schema}}.jobs_state r ON r.job_id = j.job_id
 INNER JOIN {{schema}}.definitions jd ON jd.definition_id = j.definition_id

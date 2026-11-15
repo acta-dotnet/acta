@@ -439,14 +439,22 @@ INSERT INTO {{schema}}.events (
 SELECT
     80 /* EventCode.JobSignalRaised */, (SELECT now_utc FROM temp._ces_done LIMIT 1), pj.namespace_id, 50 /* EntityCode.Job */, d.parent_job_id,
     pj.definition_id, pj.tenant_id, COALESCE(pj.lineage_root_job_id, d.parent_job_id), pr.execution_number,
-    CASE
-        WHEN d.latch_state = 30 /* CheckpointStatusCode.Expired */
-            THEN substr(COALESCE(d.event_message || ' ', '') || 'Child outcome not applied: the wait had already expired.', 1, 512)
-        ELSE d.event_message
-    END,
+    -- The landing names the child as its parent named it, how it ended, and the child's own message.
+    substr(
+        'Child ' || COALESCE('''' || ch.deduplication_key || '''', 'job ' || d.job_id) || ' '
+        || CASE d.to_status
+            WHEN 100 /* JobStatusCode.Succeeded */ THEN 'succeeded'
+            WHEN 200 /* JobStatusCode.Failed */ THEN 'failed'
+            ELSE 'cancelled'
+        END || COALESCE(': ' || d.event_message, '.')
+        || CASE WHEN d.latch_state = 30 /* CheckpointStatusCode.Expired */ THEN ' Child outcome not applied: the wait had already expired.' ELSE '' END,
+        1,
+        512
+    ),
     CASE WHEN d.reason IS NULL THEN 0 /* JobPayloadFormat.None */ ELSE 1 /* JobPayloadFormat.Json */ END,
     CAST('{"reason":"' || d.reason || '"}' AS BLOB)
 FROM temp._ces_done d
+INNER JOIN {{schema}}.jobs ch ON ch.job_id = d.job_id
 INNER JOIN {{schema}}.jobs pj ON pj.job_id = d.parent_job_id
 INNER JOIN {{schema}}.jobs_state pr ON pr.job_id = d.parent_job_id
 WHERE

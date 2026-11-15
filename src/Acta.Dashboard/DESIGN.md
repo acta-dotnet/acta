@@ -113,7 +113,7 @@ Acta should feel calm, technically precise, modern, and readable. Focus is the d
 - Make failed children easy to spot and inspect.
 - Show a compact status rollup and filters when a family is large.
 - Show ancestors as a navigable path. An explored branch's path starts below this job: the API lists ancestors farthest first.
-- Give every child node its compact reference, since siblings often share a job name.
+- Lead every child node with the name its parent gave it, then its job name and compact reference, since siblings often share a job name. A wait on a child names it the same way.
 - Inspect a child's real state within the page and load its details on demand. A changed parent read refreshes the inspected child and the explored branch.
 - Allow drilling into descendants and returning through the lineage path. Inspecting this job's failed child leaves an explored branch.
 - Use a readable vertical hierarchy on narrow screens.

@@ -20,7 +20,7 @@
 
     <dl class="kv">
       {#if explanation.activeWait}
-        {@const wait = activeWaitLabel(explanation.activeWait.kind, explanation.activeWait.name)}
+        {@const wait = activeWaitLabel(explanation.activeWait.kind, explanation.activeWait.name, explanation.activeWait.childName)}
         <dt>Waiting on</dt>
         <dd id="job-wait-evidence">{wait.kind} <span class="mono">{wait.name}</span>{#if explanation.activeWait.dueAtUtc}{' '}<span class="dim">· due <RelativeTime value={explanation.activeWait.dueAtUtc} /></span>{/if}</dd>
       {/if}

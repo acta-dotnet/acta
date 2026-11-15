@@ -9,7 +9,7 @@
   import Icon from '../../components/Icon.svelte';
   import JobRef from '../../components/JobRef.svelte';
   import type { JobLineage, JobDetail } from './types.ts';
-  import { childRollup } from './jobDetailState.ts';
+  import { activeWaitLabel, childRollup } from './jobDetailState.ts';
   import { routes } from '../../routes.ts';
   import { TERMINAL_STATUSES } from '../../format.ts';
 
@@ -128,7 +128,7 @@
       <div class="lineage-children" class:unconnected={shown.length > 4} style={'--children:' + Math.max(shown.length, 1)} role="group" aria-label="Child jobs">
         {#each shown as child (child.jobRef)}
           <button class="lineage-child" class:failed={child.status === 'failed'} class:selected={selectedRef === child.jobRef} aria-pressed={selectedRef === child.jobRef} title={child.jobRef} onclick={() => inspect(child.jobRef)}>
-            <span class="child-name">{child.jobName}</span><span class="child-ref mono">{compactRef(child.jobRef)}</span><StatusBadge status={child.status} />
+            <span class="child-name">{child.childName ?? child.jobName}</span>{#if child.childName}<span class="child-job dim">{child.jobName}</span>{/if}<span class="child-ref mono">{compactRef(child.jobRef)}</span><StatusBadge status={child.status} />
           </button>
         {/each}
       </div>
@@ -141,13 +141,13 @@
 
   {#if selected}
     <section class="lineage-inspector" id={inspectorId} aria-label="Selected child">
-      <div class="lineage-heading"><h3>{selected.jobName}</h3><button class="icon-btn" title="Close child inspector" aria-label="Close child inspector" onclick={() => (selectedRef = null)}><Icon name="x" /></button></div>
+      <div class="lineage-heading"><h3>{selected.childName ?? selected.jobName}</h3><button class="icon-btn" title="Close child inspector" aria-label="Close child inspector" onclick={() => (selectedRef = null)}><Icon name="x" /></button></div>
       <div class="selected-identity"><StatusBadge status={selectedDetail?.job.status ?? selected.status} /><JobRef value={selected.jobRef} copy /><span class="dim">Updated <RelativeTime value={selected.modifiedAtUtc} /></span></div>
       {#if selectedQuery.isPending}<StateView loading={true} loadingText="Loading child details…" />
       {:else if selectedQuery.error}<StateView error={selectedQuery.error.message} onRetry={() => selectedQuery.refetch()} />
       {:else if selectedDetail}
         <p>{selectedDetail.explain?.reason ?? selectedDetail.explain?.headline ?? 'Open this job for its complete execution details.'}</p>
-        {#if selectedDetail.explain?.activeWait}<p class="dim">Waiting on <span class="mono">{selectedDetail.explain.activeWait.name}</span>{#if selectedDetail.explain.activeWait.dueAtUtc}{' · due '}<RelativeTime value={selectedDetail.explain.activeWait.dueAtUtc} />{/if}</p>{/if}
+        {#if selectedDetail.explain?.activeWait}{@const wait = activeWaitLabel(selectedDetail.explain.activeWait.kind, selectedDetail.explain.activeWait.name, selectedDetail.explain.activeWait.childName)}<p class="dim">Waiting on {wait.kind} <span class="mono">{wait.name}</span>{#if selectedDetail.explain.activeWait.dueAtUtc}{' · due '}<RelativeTime value={selectedDetail.explain.activeWait.dueAtUtc} />{/if}</p>{/if}
       {:else}<p class="dim">This job is no longer available. Its recorded lineage is shown above.</p>{/if}
       <div class="control-row">
         {#if selectedDetail?.lineage?.children.length}<button onclick={() => explore(selected!.jobRef)}>{selectedDetail.lineage.children.length}{selectedDetail.lineage.childrenHasMore ? '+' : ''} {selectedDetail.lineage.children.length === 1 && !selectedDetail.lineage.childrenHasMore ? 'child' : 'children'}<Icon name="chevron-right" /></button>{/if}
@@ -180,6 +180,7 @@
   .lineage-child.failed::before { border-color: var(--bad); }
   .lineage-child.selected { outline: 2px solid var(--accent); outline-offset: 2px; }
   .child-name { font-weight: 500; overflow-wrap: anywhere; font-size: var(--text-sm); }
+  .child-job { margin-top: -6px; font-size: var(--text-micro); overflow-wrap: anywhere; }
   .child-ref { margin-top: -6px; color: var(--muted); font-size: var(--text-micro); }
   .lineage-children.unconnected { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .unconnected::before, .unconnected .lineage-child::before { display: none; }

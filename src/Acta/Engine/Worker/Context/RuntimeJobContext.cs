@@ -1,5 +1,6 @@
 #nullable enable
 
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Globalization;
 using Microsoft.Extensions.Logging;
@@ -290,7 +291,10 @@ internal sealed partial class RuntimeJobContext(
         return decision.Outcome switch
         {
             WaitJobSignalOutcomeCode.ContinueSet => new SignalCheckpointState(decision.ValueFormatId, decision.Value),
-            WaitJobSignalOutcomeCode.SuspendPending => throw Thrown(new SignalSuspendSignal(name)), // The host locks the checkpoint and finalizes the attempt Suspended (or Ready if a raise won the race).
+            // The host locks the checkpoint and finalizes the attempt Suspended (or Ready if a raise won the race).
+            WaitJobSignalOutcomeCode.SuspendPending => throw Thrown(
+                kind == CheckpointKindCode.ChildLatch ? ChildPending(name) : new SignalSuspendSignal(name)
+            ),
             WaitJobSignalOutcomeCode.TimedOut => new SignalCheckpointState(0, null, TimedOut: true),
             _ => throw new InvalidOperationException($"wait_job_signal returned an unknown outcome for job {JobId}, signal '{name}'."),
         };
@@ -344,10 +348,14 @@ internal sealed partial class RuntimeJobContext(
         TInput input,
         JobEnqueueOptions options,
         CancellationToken ct
-    ) => FencedAsync(() => _jobOperations.EnqueueChildAsync(input, options, Fence, ct).AsTask());
+    ) =>
+        RememberChildAsync(
+            FencedAsync(() => _jobOperations.EnqueueChildAsync(input, options, Fence, ct).AsTask()),
+            options.DeduplicationKey
+        );
 
     private protected override Task<EnqueueJobResponse> EnqueueChildCoreAsync(EnqueueJobRequest request, CancellationToken ct) =>
-        FencedAsync(() => _jobOperations.EnqueueChildAsync(request, Fence, ct).AsTask());
+        RememberChildAsync(FencedAsync(() => _jobOperations.EnqueueChildAsync(request, Fence, ct).AsTask()), request.DeduplicationKey);
 
     private protected override Task<EnqueueJobResponse> EnqueueChildCallCoreAsync<TInput>(
         Type? manifestType,
@@ -356,7 +364,35 @@ internal sealed partial class RuntimeJobContext(
         Type? resultType,
         JobEnqueueOptions options,
         CancellationToken ct
-    ) => FencedAsync(() => _jobOperations.EnqueueChildAsync(manifestType, jobName, input, resultType, options, Fence, ct).AsTask());
+    ) =>
+        RememberChildAsync(
+            FencedAsync(() => _jobOperations.EnqueueChildAsync(manifestType, jobName, input, resultType, options, Fence, ct).AsTask()),
+            options.DeduplicationKey
+        );
+
+    // The name each child this attempt enqueued was given, by its id, so a wait on it names it. A replay enqueues again
+    // before it waits; a child carried over in a variable has no entry and is named by its id.
+    private readonly ConcurrentDictionary<long, string> _childNames = new();
+
+    private async Task<EnqueueJobResponse> RememberChildAsync(Task<EnqueueJobResponse> enqueue, string? name)
+    {
+        var child = await enqueue;
+        if (name is not null)
+        {
+            _childNames[child.JobId] = name;
+        }
+        return child;
+    }
+
+    private SignalSuspendSignal ChildPending(string latchName)
+    {
+        var id = latchName[RaiseChildLatch.NamePrefix.Length..];
+        return
+            long.TryParse(id, NumberStyles.None, CultureInfo.InvariantCulture, out var childId)
+            && _childNames.TryGetValue(childId, out var name)
+            ? new SignalSuspendSignal(latchName, $"Child '{name}' pending.", name)
+            : new SignalSuspendSignal(latchName, $"Child job {id} pending.");
+    }
 
     private protected override Task<(bool Stored, TResult? Value)> ReadChildResultCoreAsync<TResult>(
         long childJobId,

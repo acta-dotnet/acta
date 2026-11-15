@@ -538,9 +538,20 @@ BEGIN
                             ) AS VARBINARY(MAX)
                         ),
                         c.reason,
-                        c.event_message
+                        -- The landing names the child as its parent named it, how it ended, and the child's own message; the cast
+                        -- caps it in UTF-16 units, which LEFT does not count under a supplementary-character collation.
+                        CAST(LEFT(
+                            N'Child ' + COALESCE(N'''' + j.deduplication_key COLLATE DATABASE_DEFAULT + N'''', N'job ' + CAST(d.job_id AS NVARCHAR(20))) + N' '
+                            + CASE d.job_status_code
+                                WHEN 100 /* JobStatusCode.Succeeded */ THEN N'succeeded'
+                                WHEN 200 /* JobStatusCode.Failed */ THEN N'failed'
+                                ELSE N'cancelled'
+                            END + COALESCE(N': ' + c.event_message, N'.'),
+                            512
+                        ) AS NVARCHAR(512))
                     FROM @done d
                     INNER JOIN @p_batch c ON c.job_id = d.job_id AND c.execution_number = d.execution_number
+                    INNER JOIN {{schema}}.jobs j WITH (FORCESEEK) ON j.job_id = d.job_id
                     WHERE
                         d.parent_job_id IS NOT NULL
                         AND d.job_status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */);
@@ -600,10 +611,10 @@ BEGIN
                         p.parent_execution,
                         CASE
                             WHEN p.latch_state = 30 /* CheckpointStatusCode.Expired */
-                                THEN LEFT(
+                                THEN CAST(LEFT(
                                     COALESCE(p.event_message + N' ', N'') + N'Child outcome not applied: the wait had already expired.',
                                     512
-                                )
+                                ) AS NVARCHAR(512))
                             ELSE p.event_message
                         END,
                         CASE WHEN p.reason IS NULL THEN 0 /* JobPayloadFormat.None */ ELSE 1 /* JobPayloadFormat.Json */ END,

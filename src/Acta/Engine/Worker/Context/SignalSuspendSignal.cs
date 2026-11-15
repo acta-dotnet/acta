@@ -8,8 +8,12 @@ namespace Acta;
 /// <c>ctx.WaitSignalAsync</c>, which arms the checkpoint before signalling; a raw user throw would skip arming and land
 /// the Job Ready to run again at once, so this type never escapes the assembly.
 /// </summary>
-internal sealed class SignalSuspendSignal(string signalName) : JobControlException($"Signal '{signalName}' pending.")
+internal sealed class SignalSuspendSignal(string signalName, string? message = null, string? childName = null)
+    : JobControlException(message ?? $"Signal '{signalName}' pending.")
 {
     /// <summary>The awaited signal name; carried as the completion row's <c>wait_signal_name</c>.</summary>
     public string SignalName { get; } = signalName;
+
+    /// <summary>The name the parent gave the child this wait is on; null for a signal, or a child the attempt did not enqueue.</summary>
+    public string? ChildName { get; } = childName;
 }
