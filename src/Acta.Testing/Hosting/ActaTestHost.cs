@@ -3,6 +3,9 @@ using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Text;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Acta.Testing;
 
@@ -40,6 +43,10 @@ public static class ActaTestHost
         var services = new ServiceCollection();
         services.UseActa(j => configureJobs(j, schema));
         options.ConfigureServices?.Invoke(services);
+        // A handler's service may take an ILogger<T>, which a host without logging cannot build; a test that wants the
+        // lines registers logging in ConfigureServices, and these only fill in when it did not.
+        services.TryAddSingleton<ILoggerFactory, NullLoggerFactory>();
+        services.TryAdd(ServiceDescriptor.Singleton(typeof(ILogger<>), typeof(NullLogger<>)));
         var provider = services.BuildServiceProvider(validateScopes: true);
         try
         {
@@ -56,10 +63,9 @@ public static class ActaTestHost
 
             // Lets the run-once helper stop retrying an empty claim as soon as the row can no longer be
             // claimed, instead of waiting out its budget to say so.
-            var jobs = provider.GetRequiredService<IJobs>();
             foreach (var runtime in runtimes)
             {
-                runtime.AttachClaimabilityProbe(jobs);
+                runtime.AttachClaimabilityProbe(provider);
             }
 
             // The schema the session resolved, so a provider that fixes its own (SQLite's main) is named as it is.
@@ -366,7 +372,7 @@ public sealed class ActaTestHostOptions
 /// child-wait deadline depends on that; a Suspended row with no due instant is an unbounded wait nothing
 /// here can release, and every other status is owned, paused or finished. For those the answer will not
 /// change however long this waits, and a fact expecting it used to wait out the whole budget to hear it,
-/// which over the suite was more waiting than testing. A host attaches its facade per runtime and the
+/// which over the suite was more waiting than testing. A host attaches its services per runtime and the
 /// loop then stops as soon as the row is no longer claimable; a host that attaches nothing keeps the
 /// budget. The claim-only helper keys on a store, not a runtime, and keeps the budget: it obtains a lease
 /// that is expected to succeed, so it only ever pays on failure.
@@ -379,10 +385,18 @@ internal static class TestRunners
     // status is read at most this often rather than on every empty claim.
     private static readonly TimeSpan ProbeEvery = TimeSpan.FromMilliseconds(500);
 
-    private static readonly ConditionalWeakTable<WorkerRuntime, IJobs> s_facades = new();
+    private static readonly ConditionalWeakTable<WorkerRuntime, Func<long, CancellationToken, ValueTask<bool>>> s_probes = new();
 
-    /// <summary>Lets the run-once loop stop retrying an empty claim once the row can no longer be claimed.</summary>
-    internal static void AttachClaimabilityProbe(this WorkerRuntime runtime, IJobs jobs) => s_facades.AddOrUpdate(runtime, jobs);
+    /// <summary>
+    /// Lets the run-once loop stop retrying an empty claim once the row can no longer be claimed. The probe reads the
+    /// concrete database clock, which no test's clock fault wraps, so the probe never takes a fault meant for the engine.
+    /// </summary>
+    internal static void AttachClaimabilityProbe(this WorkerRuntime runtime, IServiceProvider services)
+    {
+        var jobs = services.GetRequiredService<IJobs>();
+        var clock = services.GetRequiredService<ClockOperations>();
+        s_probes.AddOrUpdate(runtime, (jobId, ct) => StillClaimableAsync(jobs, clock, jobId, ct));
+    }
 
     /// <summary>
     /// Convenience overload taking the enqueue result directly: <c>Runtime.RunOnceAsync(enqueued, ct)</c>.
@@ -399,7 +413,7 @@ internal static class TestRunners
     internal static async Task<RunOnceStatus> RunOnceAsync(this WorkerRuntime runtime, long jobId, CancellationToken ct)
     {
         var jobNamespace = runtime.RegisteredNamespaceIds.Keys.Single();
-        s_facades.TryGetValue(runtime, out var jobs);
+        s_probes.TryGetValue(runtime, out var stillClaimable);
         // The budget covers the retries, not the first drive: a drive that repeats a failing start or
         // completion paces its own retry and can outlast the budget on a loaded box, and the row it leaves
         // Ready still deserves the re-claim this loop exists for.
@@ -414,10 +428,10 @@ internal static class TestRunners
                 return outcome;
             }
 
-            if (jobs is not null && elapsed.Elapsed - lastProbe >= ProbeEvery)
+            if (stillClaimable is not null && elapsed.Elapsed - lastProbe >= ProbeEvery)
             {
                 lastProbe = elapsed.Elapsed;
-                if (!await StillClaimableAsync(jobs, jobId, ct))
+                if (!await stillClaimable(jobId, ct))
                 {
                     return outcome;
                 }
@@ -427,9 +441,14 @@ internal static class TestRunners
         }
     }
 
-    private static async ValueTask<bool> StillClaimableAsync(IJobs jobs, long jobId, CancellationToken ct) =>
+    // Claimable now, not some day: a sleeping, backing-off or bounded-waiting job is due only at its next run, so a drive
+    // of it answers NothingClaimed at once instead of waiting out the budget. The due instant is read against the database
+    // clock the claim compares it with, not this host's clock or a test's IActaClock. A second of slack keeps a drive
+    // retrying a row due within it, such as a one-second wait timeout.
+    private static async ValueTask<bool> StillClaimableAsync(IJobs jobs, ClockOperations clock, long jobId, CancellationToken ct) =>
         await jobs.GetAsync(JobLookup.ById(jobId), ct) is { } job
-        && (job.Status == JobStatusCode.Ready || (job.Status == JobStatusCode.Suspended && job.NextRunAtUtc is not null));
+        && (job.Status == JobStatusCode.Ready || (job.Status == JobStatusCode.Suspended && job.NextRunAtUtc is not null))
+        && (job.NextRunAtUtc is not { } due || due <= (await clock.GetUtcNowAsync(ct)).AddSeconds(1));
 
     /// <summary>
     /// Convenience overload taking the enqueue result directly.

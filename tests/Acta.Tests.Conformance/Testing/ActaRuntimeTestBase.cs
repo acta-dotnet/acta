@@ -77,7 +77,7 @@ public abstract class ActaRuntimeTestBase<TFixture, TManifest> : ActaTestBase<TF
         Runtime = Services.GetServices<WorkerRuntime>().Single();
         // The base resolves its runtime here rather than through ActaTestHost, so the probe that stops
         // the run-once helper waiting out its budget on an unclaimable row is attached here as well.
-        Runtime.AttachClaimabilityProbe(Jobs);
+        Runtime.AttachClaimabilityProbe(Services);
         var ct = TestContext.Current.CancellationToken;
         await BeforeWorkerStartAsync(ct);
         await CatalogTestOps.DeployAndStartAsync(Services, Runtime, ct);

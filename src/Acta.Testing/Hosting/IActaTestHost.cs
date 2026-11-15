@@ -85,7 +85,10 @@ public interface IActaTestHost : IAsyncDisposable
 /// </summary>
 public enum ActaRunStatus : byte
 {
-    /// <summary>Nothing was claimable this tick (no Ready job, or a claim lost its row before start).</summary>
+    /// <summary>
+    /// Nothing was claimable this tick (no Ready job, or a claim lost its row before start), or the tick's attempt was
+    /// superseded: its lease expired and recovery took the job back, so its completion settled nothing.
+    /// </summary>
     NothingClaimed = 1,
 
     /// <summary>
