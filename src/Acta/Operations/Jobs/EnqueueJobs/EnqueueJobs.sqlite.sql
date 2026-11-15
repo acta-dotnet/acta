@@ -12,11 +12,14 @@ WHERE EXISTS (
     )
 );
 
+-- A suspended namespace refuses new roots only: a child is the work of a parent already admitted.
 SELECT ACTA_ERROR('ACTA:ENQ_NS_SUSPENDED:Enqueue rejected: one or more rows reference a suspended namespace.')
 WHERE EXISTS (
     SELECT 1 FROM JSON_EACH(@p_rows) r
     JOIN {{schema}}.namespaces ns ON ns.namespace_name = JSON_EXTRACT(r.value, '$.namespace_name')
-    WHERE ns.namespace_status_code <> 10 /* NamespaceStatusCode.Active */
+    WHERE
+        ns.namespace_status_code <> 10 /* NamespaceStatusCode.Active */
+        AND JSON_EXTRACT(r.value, '$.parent_job_id') IS NULL
 );
 
 SELECT ACTA_ERROR('ACTA:ENQ_DEF_RETIRED:Enqueue rejected: the job definition is retired.')

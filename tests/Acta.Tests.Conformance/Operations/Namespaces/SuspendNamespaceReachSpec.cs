@@ -7,14 +7,14 @@ using Xunit;
 namespace Acta.Tests.Conformance.Operations.Namespaces;
 
 /// <summary>
-/// Conformance for how far a suspension reaches: it closes the namespace to new work, a running job's children and the
-/// system jobs' schedules included, and the jobs the namespace already holds still run.
+/// Conformance for how far a suspension reaches: it closes the namespace to new roots, the system jobs' schedules
+/// included, and the jobs the namespace already holds still run, with the children they start.
 /// </summary>
 [ConformanceSpec(
     "suspend-namespace.reach",
     "A suspended namespace takes no new work and still runs what it holds",
     Area = "Admin",
-    Contract = "A suspended namespace rejects a running job's child start and holds every schedule, the system jobs' too, while the jobs it already holds still run."
+    Contract = "A suspended namespace admits no new root and holds every schedule, the system jobs' too, while the jobs it holds and the children they start still run."
 )]
 [Deploys("add-numbers", "failures-audit-probe", "job-child-echo", "job-parent-one")]
 public sealed class SuspendNamespaceReachSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<SuspendNamespaceReachSpec>>
@@ -81,8 +81,8 @@ public sealed class SuspendNamespaceReachSpec : ActaRuntimeTestBase<ConformanceF
         Assert.All(await StatusesAsync(slots, ct), status => Assert.Equal(JobStatusCode.Ready, status));
     }
 
-    [Fact(DisplayName = "A running job's child start into its suspended namespace is rejected and fails the attempt")]
-    public async Task Child_start_is_rejected()
+    [Fact(DisplayName = "A running job's child start into its suspended namespace is admitted, since its parent was")]
+    public async Task Child_start_is_admitted()
     {
         var ct = TestContext.Current.CancellationToken;
         var parent = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-parent-one", JobPayload.None), ct);
@@ -90,9 +90,8 @@ public sealed class SuspendNamespaceReachSpec : ActaRuntimeTestBase<ConformanceF
 
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(parent, ct));
 
-        Assert.Equal(0, await Db.From<JobEntity>().Where(j => j.ParentJobId == parent.JobId).CountAsync(ct));
-        var failed = await ReadSingleEventAsync(parent.JobId, EventCode.JobExecutionFailed, ct);
-        Assert.Contains("suspended namespace", failed.EventMessage, StringComparison.Ordinal);
+        Assert.Equal(1, await Db.From<JobEntity>().Where(j => j.ParentJobId == parent.JobId).CountAsync(ct));
+        Assert.Equal(0, await CountEventsAsync(parent.JobId, EventCode.JobExecutionFailed, ct));
     }
 
     private async Task SuspendAsync(CancellationToken ct) =>

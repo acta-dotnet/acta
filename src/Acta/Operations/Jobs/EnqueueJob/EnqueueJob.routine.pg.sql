@@ -78,7 +78,8 @@ BEGIN
             USING ERRCODE = 'P0001';
     END IF;
 
-    IF v_ns_status <> 10 /* NamespaceStatusCode.Active */ THEN
+    -- A suspended namespace refuses new roots only: a child is the work of a parent already admitted.
+    IF v_ns_status <> 10 /* NamespaceStatusCode.Active */ AND p_parent_job_id IS NULL THEN
         RAISE EXCEPTION 'ACTA:ENQ_NS_SUSPENDED:Enqueue rejected: one or more rows reference a suspended namespace.'
             USING ERRCODE = 'P0001';
     END IF;

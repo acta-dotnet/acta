@@ -59,12 +59,13 @@ BEGIN
             USING ERRCODE = 'P0001';
     END IF;
 
+    -- A suspended namespace refuses new roots only: a child is the work of a parent already admitted.
     SELECT COUNT(*)
     INTO ns_active_count
-    FROM unnest(p_b_namespace_name, p_b_job_name) AS b(namespace_name, job_name)
+    FROM unnest(p_b_namespace_name, p_b_job_name, p_b_parent_job_id) AS b(namespace_name, job_name, parent_job_id)
     INNER JOIN {{schema}}.namespaces ns
         ON ns.namespace_name = b.namespace_name
-        AND ns.namespace_status_code = 10 /* NamespaceStatusCode.Active */
+        AND (ns.namespace_status_code = 10 /* NamespaceStatusCode.Active */ OR b.parent_job_id IS NOT NULL)
     INNER JOIN {{schema}}.definitions jd
         ON jd.namespace_id = ns.namespace_id
         AND jd.definition_name = b.job_name;

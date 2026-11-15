@@ -35,11 +35,11 @@
   - Re-resuming an active tenant is AlreadyInState with no event
 
 ### A suspended namespace takes no new work and still runs what it holds
-- **Contract:** A suspended namespace rejects a running job's child start and holds every schedule, the system jobs' too, while the jobs it already holds still run.
+- **Contract:** A suspended namespace admits no new root and holds every schedule, the system jobs' too, while the jobs it holds and the children they start still run.
 - **Guarantees:**
   - A suspended namespace's Ready and retrying jobs are still claimed and run
   - A suspended namespace's system schedules hold, and a resume hands them back to the admitter
-  - A running job's child start into its suspended namespace is rejected and fails the attempt
+  - A running job's child start into its suspended namespace is admitted, since its parent was
 
 ### Namespace suspend flips status, emits namespace.suspended, and rejects sys
 - **Contract:** Suspend flips a namespace to Suspended once with a version bump and namespace.suspended, reports NotFound for unknown names, and rejects sys.
@@ -902,6 +902,7 @@
   - Enqueue with a suspended tenant throws TenantSuspended
   - Enqueue with an unknown tenant throws TenantUnknown
   - A batch into a suspended namespace throws NamespaceSuspended
+  - A child enqueue into a suspended namespace passes, alone or in a batch, since its parent was admitted
   - An unknown job rejection throws RouteUnknown with the routine's message alone
   - Enqueue against a retired definition throws DefinitionRetired
   - A child of a parent that does not exist or has finished throws ParentUnavailable and is not stored

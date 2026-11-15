@@ -80,7 +80,8 @@ BEGIN
                 THROW 50001, @route_msg, 1;
             END;
 
-        IF @ns_status <> 10 /* NamespaceStatusCode.Active */
+        -- A suspended namespace refuses new roots only: a child is the work of a parent already admitted.
+        IF @ns_status <> 10 /* NamespaceStatusCode.Active */ AND @p_parent_job_id IS NULL
             BEGIN
                 THROW 50005, 'ACTA:ENQ_NS_SUSPENDED:Enqueue rejected: one or more rows reference a suspended namespace.', 1;
             END;

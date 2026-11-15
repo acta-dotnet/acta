@@ -65,6 +65,25 @@ public sealed class EnqueueJobRejectionTaxonomySpec : ActaRuntimeTestBase<Confor
         Assert.Equal(EnqueueRejectionReason.NamespaceSuspended, ex.Reason);
     }
 
+    [Fact(DisplayName = "A child enqueue into a suspended namespace passes, alone or in a batch, since its parent was admitted")]
+    public async Task Child_enqueue_passes_a_suspended_namespace()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var parent = await Jobs.EnqueueAsync(Request(), ct);
+        await Operations.Namespaces.SuspendAsync(TestNamespace, null, "op", ct);
+
+        var child = await Jobs.EnqueueAsync(Request() with { ParentJobId = parent.JobId }, ct);
+        var batch = await Jobs.EnqueueJobsAsync(
+            [Request() with { ParentJobId = parent.JobId }, Request() with { ParentJobId = parent.JobId }],
+            ct
+        );
+
+        Assert.Equal(EnqueueJobAction.Inserted, child.Action);
+        Assert.All(batch.Jobs, j => Assert.Equal(EnqueueJobAction.Inserted, j.Action));
+        var root = await Assert.ThrowsAsync<EnqueueRejectedException>(async () => await Jobs.EnqueueAsync(Request(), ct));
+        Assert.Equal(EnqueueRejectionReason.NamespaceSuspended, root.Reason);
+    }
+
     [Fact(DisplayName = "An unknown job rejection throws RouteUnknown with the routine's message alone")]
     public async Task Unknown_job_throws_route_unknown()
     {

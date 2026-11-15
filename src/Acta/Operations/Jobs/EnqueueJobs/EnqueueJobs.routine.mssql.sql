@@ -61,10 +61,13 @@ BEGIN
                 THROW 50001, @route_msg, 1;
             END;
 
+        -- A suspended namespace refuses new roots only: a child is the work of a parent already admitted.
         IF
             EXISTS (
-                SELECT 1 FROM @resolved
-                WHERE ns_status <> 10 /* NamespaceStatusCode.Active */
+                SELECT 1
+                FROM @resolved r
+                INNER JOIN @p_batch b ON b.ordinal = r.ordinal
+                WHERE r.ns_status <> 10 /* NamespaceStatusCode.Active */ AND b.parent_job_id IS NULL
             )
             BEGIN
                 THROW 50005, 'ACTA:ENQ_NS_SUSPENDED:Enqueue rejected: one or more rows reference a suspended namespace.', 1;
