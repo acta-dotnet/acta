@@ -529,7 +529,7 @@ dotnet run --no-build -v q -- jobs events  <job-ref> --json   # the timeline, ne
 - `-v q` keeps `dotnet run`'s own `Using launch settings from ...` line off stdout, so `--json` output pipes into `jq`; the launch profile, and with it the environment, still applies.
 - `explain` first for anything stuck, waiting, or failed: one read of the status, lease, worker, newest
   steps, checkpoints, and latest reason, with a headline and the next actions.
-- Exit codes: 0 found or applied, 1 rejected or failed, 2 job not found, 64 usage error, 130 cancelled.
+- Exit codes: 0 found, applied, or already in state, 1 rejected or failed, 2 job not found, 64 usage error, 130 cancelled.
 - On SQLite the reads open the file read-only: before `jobs migrate` has run they create nothing, print
   ``not provisioned; run `<app> jobs migrate` ``, and exit 1.
 - `status`, `info`, `result`, `explain`, and `events` read. `cancel`, `pause`, `resume`, `restart`,

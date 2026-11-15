@@ -227,6 +227,8 @@ SELECT
     CASE
         WHEN s.from_status IS NULL THEN 2 /* ControlAction.NotFound */
         WHEN @p_expected_version IS NOT NULL AND s.from_version <> @p_expected_version THEN 5 /* ControlAction.VersionConflict */
+        -- A cancel of a job already cancelled writes nothing, as a repeat raise does not.
+        WHEN s.from_status = 220 /* JobStatusCode.Cancelled */ THEN 6 /* ControlAction.AlreadyInState */
         WHEN NOT s.applied THEN 3 /* ControlAction.Rejected */
         ELSE 1 /* ControlAction.Applied */
     END::SMALLINT AS action,

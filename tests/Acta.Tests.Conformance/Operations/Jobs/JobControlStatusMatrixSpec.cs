@@ -7,17 +7,17 @@ using Xunit;
 namespace Acta.Tests.Conformance.Operations.Jobs;
 
 /// <summary>
-/// Conformance for the operator guide's table "What each verb does from each status": a verb applies or is rejected
-/// by the job's status alone, and an applied verb leaves the job in the status the table names. The refusals that depend
-/// on more than the status (a job with children, a lane's other members, an outstanding firing, a live schedule) have
-/// specs of their own, as do a purge and an input amendment of an Idle permanent job. A status is staged on the row,
-/// so the matrix holds the verbs' status rules, not what a real wait or attempt adds to them.
+/// Conformance for the operator guide's table "What each verb does from each status": a verb applies, is already in
+/// state, or is rejected by the job's status alone, and an applied verb leaves the job in the status the table names.
+/// The refusals that depend on more than the status (a job with children, a lane's other members, an outstanding
+/// firing, a live schedule) have specs of their own, as do a purge and an input amendment of an Idle permanent job. A
+/// status is staged on the row, so the matrix holds the verbs' status rules, not what a real wait or attempt adds to them.
 /// </summary>
 [ConformanceSpec(
     "control.status-matrix",
-    "Each control verb applies or is rejected by the job's status",
+    "Each control verb's answer follows the job's status",
     Area = "Control",
-    Contract = "A control verb applies from each status the operator guide's table marks applied and is rejected from every other, for an ordinary and an Idle permanent job."
+    Contract = "A control verb applies, is already in state, or is rejected from each status as the operator guide's table says, for an ordinary and an Idle permanent job."
 )]
 [Deploys("lane-step", "recurring-ping")]
 public sealed class JobControlStatusMatrixSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<JobControlStatusMatrixSpec>>
@@ -35,11 +35,13 @@ public sealed class JobControlStatusMatrixSpec : ActaRuntimeTestBase<Conformance
         JobStatusCode.Cancelled,
     ];
 
-    [Theory(DisplayName = "A verb applies (A) or is rejected (-) from each status of an ordinary job as the table says")]
-    [InlineData("pause", "AAAA----")]
+    [Theory(
+        DisplayName = "A verb applies (A), is already in state (=), or is rejected (-) from each status of an ordinary job as the table says"
+    )]
+    [InlineData("pause", "AAA=----")]
     [InlineData("resume", "---A----")]
     [InlineData("restart", "AAAA-AAA")]
-    [InlineData("cancel", "AAAAA---")]
+    [InlineData("cancel", "AAAAA--=")]
     [InlineData("purge", "-----AAA")]
     [InlineData("reschedule", "AAAA----")]
     [InlineData("reprioritize", "AAAAA---")]
@@ -99,6 +101,7 @@ public sealed class JobControlStatusMatrixSpec : ActaRuntimeTestBase<Conformance
         action switch
         {
             ControlAction.Applied => 'A',
+            ControlAction.AlreadyInState => '=',
             ControlAction.Rejected => '-',
             _ => '?',
         };

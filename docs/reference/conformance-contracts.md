@@ -672,10 +672,11 @@
   - ResolveAsync suppresses a queued delivery and clears retry_after_utc, leaving an already-sent one alone
 
 ### Cancel stamps retention once and walks only a cancelled job's tree
-- **Contract:** A cancel stamps retention once, a re-cancel is Rejected, and a walk that outlives a restart of its job cancels none of the new children.
+- **Contract:** A cancel stamps retention once, a re-cancel is AlreadyInState yet finishes the walk, and a walk outliving a restart spares the new children.
 - **Guarantees:**
   - Cancel from Suspended and Executing is Applied and stamps retention_until_utc
-  - Re-cancel of a Cancelled job is Rejected and does not re-stamp retention_until_utc
+  - Re-cancel of a Cancelled job is AlreadyInState and writes nothing, its retention_until_utc included
+  - A re-cancel of a Cancelled parent is AlreadyInState and cancels the child a cut-short walk left running
   - A descendant walk that outlives a restart of its root leaves the restarted job's new children alone
 
 ### An external cancel reaches the running handler's token via heartbeat
@@ -720,10 +721,10 @@
   - A caller's cancel of an executing job below Audit records the cancel and not the attempt's yield
   - A raised signal sets its checkpoint at every recording level and writes its event only at Audit
 
-### Each control verb applies or is rejected by the job's status
-- **Contract:** A control verb applies from each status the operator guide's table marks applied and is rejected from every other, for an ordinary and an Idle permanent job.
+### Each control verb's answer follows the job's status
+- **Contract:** A control verb applies, is already in state, or is rejected from each status as the operator guide's table says, for an ordinary and an Idle permanent job.
 - **Guarantees:**
-  - A verb applies (A) or is rejected (-) from each status of an ordinary job as the table says
+  - A verb applies (A), is already in state (=), or is rejected (-) from each status of an ordinary job as the table says
   - A verb applies or is rejected from an Idle permanent job as the table says
 
 ### Handler Fail Cancel Pause finalize the attempt without returning to user code
@@ -783,10 +784,10 @@
   - UpdateJobInput rejects a job with no input to replace and writes nothing
   - UpdateJobInput returns NotFound for an unknown lookup
 
-### Pause applies from Suspended and again from Paused
-- **Contract:** Pause applies to a Suspended job, and pausing a Paused job applies again rather than rejecting.
+### Pause applies from Suspended and is already in state from Paused
+- **Contract:** Pause applies to a Suspended job, and pausing a Paused job is AlreadyInState with no second event and its version unchanged.
 - **Guarantees:**
-  - Pause from Suspended is Applied and re-pause from Paused is also Applied
+  - Pause from Suspended is Applied and re-pause from Paused is AlreadyInState and writes nothing
 
 ### Restart revives Failed or Cancelled jobs and rejects an executing one
 - **Contract:** Restart revives a Failed or Cancelled job with failure_count reset, retention and the stored result cleared, and is Rejected from Executing.

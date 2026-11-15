@@ -71,7 +71,8 @@ app.MapGet("/jobs/{jobRef}/explain", async (JobRef jobRef, IJobs jobs) =>
     await jobs.ExplainAsync(jobRef) is { } why ? Results.Ok(why) : Results.NotFound()
 );
 
-// Cancel: applied while the job has not finished; a finished job answers rejected and keeps its outcome.
+// Cancel: applied while the job has not finished; a cancelled job answers already-in-state, and any other finished one
+// answers rejected and keeps its outcome.
 app.MapPost("/jobs/{jobRef}/cancel", async (JobRef jobRef, IJobs jobs) =>
 {
     var cancelled = await jobs.CancelAsync(jobRef, reasonMessage: "cancelled from the orders API");

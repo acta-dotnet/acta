@@ -5,13 +5,15 @@ const title = (verb: string) => verb.charAt(0).toUpperCase() + verb.slice(1);
 
 // Job verbs at jobs/{jobRef}/{verb}: pause, resume, restart, cancel, reschedule, reprioritize, purge,
 // signal, and clear-signal (DELETE jobs/{jobRef}/signals/{name}). The dashboard sends no expectedVersion, so a job
-// verb never answers version-conflict. Only the two signal verbs answer already-in-state, and they name the reason
-// for a refusal.
+// verb never answers version-conflict. Pause, cancel and the two signal verbs answer already-in-state, and the signal
+// verbs name the reason for a refusal.
 export function jobControlMessage(verb: string, action: string, reason?: string | null): string {
   switch (action) {
     case 'applied':
       return verb === 'clear-signal' ? 'Signal cleared.' : `${title(verb)} applied.`;
     case 'already-in-state':
+      if (verb === 'pause') return 'The job is already paused.';
+      if (verb === 'cancel') return 'The job is already cancelled.';
       return verb === 'clear-signal' ? 'The job holds no signal by that name.' : 'The signal already holds this value.';
     case 'rejected':
       if (verb === 'clear-signal')

@@ -211,6 +211,8 @@ SELECT
     CASE
         WHEN s.job_id IS NULL THEN 2 /* ControlAction.NotFound */
         WHEN @p_expected_version IS NOT NULL AND s.from_version <> @p_expected_version THEN 5 /* ControlAction.VersionConflict */
+        -- A cancel of a job already cancelled writes nothing, as a repeat raise does not.
+        WHEN s.from_status = 220 /* JobStatusCode.Cancelled */ THEN 6 /* ControlAction.AlreadyInState */
         WHEN s.from_status IN (40 /* JobStatusCode.Idle */, 30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 50 /* JobStatusCode.Executing */) THEN 1 /* ControlAction.Applied */
         ELSE 3 /* ControlAction.Rejected */
     END AS action,

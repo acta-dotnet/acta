@@ -331,12 +331,12 @@ public interface IJobs
     ValueTask<(bool Found, TResult? Value)> TryGetResultAsync<TResult>(JobLookup job, CancellationToken ct = default);
 
     /// <summary>
-    /// Cancel the job identified by <paramref name="job"/>: any non-terminal status moves to <c>Cancelled</c>, and the
-    /// cancel cascades to its non-terminal descendants (event reason <c>parent-cancelled</c>), running to the end when
-    /// <paramref name="ct"/> stops the wait for it. <paramref name="reasonMessage"/> is the message of the job.cancelled
-    /// event, written at every recording level (a descendant's only at Audit), and <paramref name="actor"/> is its actor,
-    /// the operator identity (the authenticated principal name; null when unknown). An already-terminal job is
-    /// <see cref="ControlAction.Rejected"/>; a missing job is <see cref="ControlAction.NotFound"/>.
+    /// Cancel the job identified by <paramref name="job"/>: any non-terminal status moves to <c>Cancelled</c>, and the cancel cascades
+    /// to its non-terminal descendants (event reason <c>parent-cancelled</c>), running to the end when <paramref name="ct"/> stops the
+    /// wait for it. <paramref name="reasonMessage"/> is the message of the job.cancelled event, written at every recording level (a
+    /// descendant's only at Audit), and <paramref name="actor"/> is its actor, the operator identity (the authenticated principal name;
+    /// null when unknown). A Cancelled job is <see cref="ControlAction.AlreadyInState"/> and left as it is, its descendants walked again;
+    /// a Succeeded or Failed job is <see cref="ControlAction.Rejected"/>; a missing job is <see cref="ControlAction.NotFound"/>.
     /// </summary>
     ValueTask<CancelJobResponse> CancelAsync(
         JobLookup job,
@@ -349,7 +349,8 @@ public interface IJobs
     /// <summary>
     /// Pause the job identified by <paramref name="job"/>: a job at or before <c>Ready</c> moves to <c>Paused</c>.
     /// <paramref name="reasonMessage"/> is the audit event's message and <paramref name="actor"/> is recorded on it as the
-    /// operator identity (the authenticated principal name; null when unknown). A running or terminal job is
+    /// operator identity (the authenticated principal name; null when unknown). A Paused job is
+    /// <see cref="ControlAction.AlreadyInState"/> and is left as it is; a running or terminal job is
     /// <see cref="ControlAction.Rejected"/>. <see cref="ResumeAsync"/> is the way out: back to <c>Ready</c> at its kept next run
     /// (now if it was waiting), while <see cref="RescheduleAsync"/> re-arms it at a new instant.
     /// </summary>

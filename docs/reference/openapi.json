@@ -16410,7 +16410,7 @@
         "type": "object",
         "properties": {
           "action": {
-            "description": "What the call did: applied; rejected, when the job's status refuses it; version-conflict, when expectedVersion is stale; or not-found.",
+            "description": "What the call did: applied; already-in-state, when the job is already cancelled and is left as it is, its descendants walked again; rejected, when the job has succeeded or failed; version-conflict, when expectedVersion is stale; or not-found.",
             "$ref": "#/components/schemas/ControlAction"
           },
           "status": {
@@ -21044,7 +21044,7 @@
         "type": "object",
         "properties": {
           "action": {
-            "description": "What the call did: applied; rejected, when the job's status refuses it; version-conflict, when expectedVersion is stale; or not-found.",
+            "description": "What the call did: applied; already-in-state, when the job is already paused and is left as it is; rejected, when the job's status refuses it; version-conflict, when expectedVersion is stale; or not-found.",
             "$ref": "#/components/schemas/ControlAction"
           },
           "status": {

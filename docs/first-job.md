@@ -159,7 +159,8 @@ app.MapGet("/jobs/{jobRef}/explain", async (JobRef jobRef, IJobs jobs) =>
     await jobs.ExplainAsync(jobRef) is { } why ? Results.Ok(why) : Results.NotFound()
 );
 
-// Cancel: applied while the job has not finished; a finished job answers rejected and keeps its outcome.
+// Cancel: applied while the job has not finished; a cancelled job answers already-in-state, and any other finished one
+// answers rejected and keeps its outcome.
 app.MapPost("/jobs/{jobRef}/cancel", async (JobRef jobRef, IJobs jobs) =>
 {
     var cancelled = await jobs.CancelAsync(jobRef, reasonMessage: "cancelled from the orders API");
@@ -261,10 +262,10 @@ shows and the CLI's `jobs explain` prints.
 ### Cancel
 
 `jobs.CancelAsync(lookup, reasonMessage: ...)` is applied while the job has not finished: a queued or
-delayed job never runs, a running handler sees its `CancellationToken` cancelled. A finished job answers
-`Rejected` and keeps its outcome. The reason is the message of the job's `job.cancelled` event, and
-an `actor:` argument, when given, is that event's `actor`; the event is written at every recording
-level.
+delayed job never runs, a running handler sees its `CancellationToken` cancelled. A cancelled job answers
+`AlreadyInState` and writes nothing, and a job that succeeded or failed answers `Rejected` and keeps its
+outcome. The reason is the message of the job's `job.cancelled` event, and an `actor:` argument, when
+given, is that event's `actor`; the event is written at every recording level.
 
 ### A wait timeout is not a cancellation
 

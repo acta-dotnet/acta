@@ -32,8 +32,7 @@ SELECT
     r.job_status_code, r.version, r.lane_id, j.namespace_id, j.lineage_root_job_id, j.definition_id, j.tenant_id, r.execution_number,
     (@p_expected_version IS NULL OR r.version = @p_expected_version)
     AND r.job_status_code IN (
-        40 /* JobStatusCode.Idle */, 30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */,
-        15 /* JobStatusCode.Blocked */
+        40 /* JobStatusCode.Idle */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */
     )
 FROM {{schema}}.jobs_state r
 JOIN {{schema}}.jobs j ON j.job_id = r.job_id
@@ -114,6 +113,8 @@ SELECT
     CASE
         WHEN s.from_status IS NULL THEN 2 /* ControlAction.NotFound */
         WHEN @p_expected_version IS NOT NULL AND s.from_version <> @p_expected_version THEN 5 /* ControlAction.VersionConflict */
+        -- A pause of a job already paused writes nothing, as a repeat raise does not.
+        WHEN s.from_status = 30 /* JobStatusCode.Paused */ THEN 6 /* ControlAction.AlreadyInState */
         WHEN NOT s.applied THEN 3 /* ControlAction.Rejected */
         ELSE 1 /* ControlAction.Applied */
     END::SMALLINT AS action,

@@ -8,6 +8,11 @@ test('job verbs name the verb on apply and on a status rejection', () => {
   assert.equal(jobControlMessage('pause', 'not-found'), 'Job not found.');
 });
 
+test('a pause of a paused job and a cancel of a cancelled job say the job already is', () => {
+  assert.equal(jobControlMessage('pause', 'already-in-state'), 'The job is already paused.');
+  assert.equal(jobControlMessage('cancel', 'already-in-state'), 'The job is already cancelled.');
+});
+
 test('the signal verbs word already-in-state and each refusal reason, never as a missing job', () => {
   assert.equal(jobControlMessage('signal', 'already-in-state'), 'The signal already holds this value.');
   assert.equal(jobControlMessage('clear-signal', 'already-in-state'), 'The job holds no signal by that name.');

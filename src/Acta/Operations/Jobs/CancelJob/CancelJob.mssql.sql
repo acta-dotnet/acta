@@ -90,6 +90,19 @@ BEGIN TRY
             GOTO Finish;
         END;
 
+    -- A cancel of a job already cancelled writes nothing, as a repeat raise does not.
+    IF @from_status = 220 /* JobStatusCode.Cancelled */
+        BEGIN
+
+            SELECT
+                CAST(6 /* ControlAction.AlreadyInState */ AS TINYINT) AS action,
+                @from_status AS status,
+                @parent_job_id AS parent_job_id,
+                @version AS version,
+                CAST(0 AS TINYINT) AS lane_promoted;
+            GOTO Finish;
+        END;
+
     IF
         @from_status NOT IN (
             40 /* JobStatusCode.Idle */,

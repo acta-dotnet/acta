@@ -8,8 +8,8 @@ internal sealed record ControlStatus<TResponse>(Func<TResponse, int> Map, int[] 
 internal static class ControlStatus
 {
     /// <summary>
-    /// The job verbs: Applied and AlreadyInState (a signal raised again with its value) 200, Rejected and VersionConflict
-    /// 409 (the job's state or a stale expectedVersion), NotFound 404.
+    /// The job verbs: Applied and AlreadyInState (the job was already as asked) 200, Rejected and VersionConflict 409 (the
+    /// job's state or a stale expectedVersion), NotFound 404.
     /// </summary>
     public static ControlStatus<T> Job<T>()
         where T : IJobControlResponse =>

@@ -58,10 +58,21 @@ BEGIN TRY
             GOTO Finish;
         END;
 
+    -- A pause of a job already paused writes nothing, as a repeat raise does not.
+    IF @from_status = 30 /* JobStatusCode.Paused */
+        BEGIN
+
+            SELECT
+                CAST(6 /* ControlAction.AlreadyInState */ AS TINYINT) AS action,
+                @from_status AS status,
+                @version AS version,
+                CAST(0 AS TINYINT) AS lane_promoted;
+            GOTO Finish;
+        END;
+
     IF
         @from_status NOT IN (
             40 /* JobStatusCode.Idle */,
-            30 /* JobStatusCode.Paused */,
             20 /* JobStatusCode.Suspended */,
             10 /* JobStatusCode.Ready */,
             15 /* JobStatusCode.Blocked */

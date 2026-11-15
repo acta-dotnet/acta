@@ -209,7 +209,8 @@ enqueues it. Restart leaves a terminal row's history intact and re-arms the same
 is never a replacement row. Reschedule applies to Paused/Suspended/Ready/Blocked rows and re-arms them
 Ready, or Blocked behind their lane, and gives an Idle permanent job a manual firing; purge refuses a non-terminal job, a job that has child jobs, and a child whose parent is not
 terminal (finish or cancel the tree, then purge the leaves first).
-Every verb returns Applied / Rejected / NotFound rather than throwing on an illegal transition.
+Every verb returns Applied / Rejected / NotFound rather than throwing on an illegal transition, and a pause of a
+Paused job or a cancel of a Cancelled one returns AlreadyInState.
 
 Cancel, pause, resume, restart, reschedule, reprioritize, and an input amend also take an optional
 `expectedVersion` after `actor`. Left null, the verb writes unconditionally, which is what an operator acting on a
@@ -226,26 +227,29 @@ A schedule has verbs of its own, addressed by path through `operations.Schedules
 Read from the provider routines, not from intent. Every verb answers one of three ways: **applied**
 (`200`), **rejected** (`409`, the job exists but its status forbids the transition), or **not found**
 (`404`); a verb given an `expectedVersion` has a fourth, **version conflict** (`409`, the row moved
-since you read it), and nothing is written. All four carry the same body, so a
+since you read it), and nothing is written. A pause of a Paused job and a cancel of a Cancelled one answer
+**already in state** (`200`) and write nothing to the job. Every answer carries the same body, so a
 client reads `action`, the resulting `status`, and the row's `version` without special-casing the code.
 
 `R` Ready · `B` Blocked · `S` Suspended · `P` Paused · `I` Idle · `X` Executing · `✓` Succeeded · `F` Failed ·
-`C` Cancelled. **A** applied, **409** rejected.
+`C` Cancelled. **A** applied, **=** already in state, **409** rejected.
 
 | Verb | R | B | S | P | I | X | ✓ | F | C | Result on applied |
 |---|---|---|---|---|---|---|---|---|---|---|
-| `pause` | A | A | A | A | A | 409 | 409 | 409 | 409 | Paused |
+| `pause` | A | A | A | = | A | 409 | 409 | 409 | 409 | Paused |
 | `resume` | 409 | 409 | 409 | A | 409 | 409 | 409 | 409 | 409 | Ready at the next run time it kept, or now when that has passed or the job was paused while Suspended on a signal or child wait, so its handler sees a signal raised meanwhile; or Blocked behind its lane; a permanent job with no firing outstanding returns to Idle |
 | `restart` | A | A | A | A | A | 409 | A | A | A | Ready, or Blocked behind its lane, or Idle for a permanent job; failure budget, retention, and Failed steps reset, and the expired wait that ended the job is cleared |
-| `cancel` | A | A | A | A | A | A | 409 | 409 | 409 | Cancelled, cascading to non-terminal descendants |
+| `cancel` | A | A | A | A | A | A | 409 | 409 | = | Cancelled, cascading to non-terminal descendants |
 | `purge` | 409 | 409 | 409 | 409 | A | 409 | A | A | A | Row hard-deleted, `job.purged` event kept |
 | `reschedule` | A | A | A | A | A | 409 | 409 | 409 | 409 | Ready at the new instant, or Blocked behind its lane; an Idle permanent job takes a manual firing |
 | `reprioritize` | A | A | A | A | A | A | 409 | 409 | 409 | Priority changed, status untouched |
 | `input` (amend) | A | A | A | A | A | 409 | A | A | A | Input replaced, format round-tripped |
 | `signal` | A | A | A | A | A | A | 409 | 409 | 409 | Signal set; a Suspended job that waits on it goes Ready, and one that waits on something else stays Suspended |
 
-Repeating a verb is a no-op only where the table says so. **`pause` is idempotent** (Paused stays
-Paused, applied). **`resume` is not**: it accepts only Paused, so resuming an already-running job is
+Repeating a verb is a no-op only where the table says so. **`pause` and `cancel` are idempotent**: a
+Paused job stays Paused and a Cancelled job stays Cancelled, answered already in state with no event and
+the version unchanged. A repeat cancel still walks the job's descendants, so it finishes a walk a crash
+cut short. **`resume` is not**: it accepts only Paused, so resuming an already-running job is
 a 409 rather than a silent success. That asymmetry is deliberate - pausing twice expresses the same
 intent, resuming something that was never paused does not.
 
@@ -376,7 +380,7 @@ On SQLite a read opens the database file read-only, so a read of a file `migrate
 
 | Exit code | Meaning |
 |------|--------------------------------------|
-| 0    | Applied, already in state (a `signal` repeated with its value), found, migrated, or debug run succeeded |
+| 0    | Applied, already in state (a `pause` of a paused job, a `cancel` of a cancelled one, a `signal` repeated with its value), found, migrated, or debug run succeeded |
 | 1    | Rejected, handler failed, migration failed, or database not provisioned |
 | 2    | Job not found                        |
 | 64   | Usage error                          |

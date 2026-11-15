@@ -6,12 +6,12 @@ using Xunit;
 
 namespace Acta.Tests.Conformance.Operations.Jobs;
 
-/// <summary>Conformance for pause's status guard: a suspended job pauses, and a paused one pauses again.</summary>
+/// <summary>Conformance for pause's status guard: a suspended job pauses, and a paused one is already in state.</summary>
 [ConformanceSpec(
     "pause-job.state-guard",
-    "Pause applies from Suspended and again from Paused",
+    "Pause applies from Suspended and is already in state from Paused",
     Area = "Control",
-    Contract = "Pause applies to a Suspended job, and pausing a Paused job applies again rather than rejecting."
+    Contract = "Pause applies to a Suspended job, and pausing a Paused job is AlreadyInState with no second event and its version unchanged."
 )]
 [Deploys("add-numbers")]
 public sealed class PauseJobSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<PauseJobSpec>>
@@ -41,8 +41,8 @@ public sealed class PauseJobSpec : ActaRuntimeTestBase<ConformanceFixture, JobsO
             ("@p_id", jobId)
         );
 
-    [Fact(DisplayName = "Pause from Suspended is Applied and re-pause from Paused is also Applied")]
-    public async Task Pause_from_Suspended_and_repause_from_Paused_both_Applied()
+    [Fact(DisplayName = "Pause from Suspended is Applied and re-pause from Paused is AlreadyInState and writes nothing")]
+    public async Task Pause_from_Suspended_applies_and_repause_from_Paused_is_AlreadyInState()
     {
         var ct = TestContext.Current.CancellationToken;
         var input = ControlInput("pause test");
@@ -57,11 +57,14 @@ public sealed class PauseJobSpec : ActaRuntimeTestBase<ConformanceFixture, JobsO
         var afterFirst = await ReadJobAsync(jobId, ct);
         Assert.Equal(JobStatusCode.Paused, afterFirst.Status);
 
-        var secondPause = await Services.GetRequiredService<PauseJobHandler>().PauseAsync(jobId, input, ct);
-        Assert.Equal(ControlAction.Applied, secondPause.Action);
+        var secondPause = await Jobs.PauseAsync(JobLookup.ById(jobId), "pause again", ct: ct);
+        Assert.Equal(ControlAction.AlreadyInState, secondPause.Action);
         Assert.Equal(JobStatusCode.Paused, secondPause.Status);
+        Assert.Equal(afterFirst.Version, secondPause.Version);
 
         var afterSecond = await ReadJobAsync(jobId, ct);
         Assert.Equal(JobStatusCode.Paused, afterSecond.Status);
+        Assert.Equal(afterFirst.Version, afterSecond.Version);
+        Assert.Equal(1, await CountEventsAsync(jobId, EventCode.JobPaused, ct));
     }
 }
