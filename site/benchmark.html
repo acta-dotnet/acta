@@ -7,6 +7,16 @@
   <meta name="description" content="The published Acta Verify run: every scenario on PostgreSQL, SQL Server and SQLite, its verdict, and the measured rates." />
   <link rel="canonical" href="https://useacta.net/benchmark" />
   <meta name="theme-color" content="#0B0E15" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Acta for .NET" />
+  <meta property="og:title" content="Benchmark and release validation · Acta, durable execution for .NET" />
+  <meta property="og:description" content="The published Acta Verify run: every scenario on PostgreSQL, SQL Server and SQLite, its verdict, and the measured rates." />
+  <meta property="og:url" content="https://useacta.net/benchmark" />
+  <meta property="og:image" content="https://useacta.net/assets/social-card.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="Acta: the durable work ledger for .NET. Postgres, SQL Server, SQLite." />
+  <meta name="twitter:card" content="summary_large_image" />
   <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   <link rel="preload" href="assets/fonts/ibm-plex-sans-latin.woff2" as="font" type="font/woff2" crossorigin />
   <style>
@@ -15,9 +25,9 @@
     @font-face { font-family: "IBM Plex Mono"; font-style: normal; font-weight: 400; font-display: swap; src: url(assets/fonts/ibm-plex-mono-400-latin.woff2) format("woff2"); }
     .benchmark { padding-block: 1.5rem 5rem; }
     .benchmark h1 { max-width: none; }
-    .page-head h1.PASS, .benchmark h1.PASS { color: var(--verdi); }
-    .page-head h1.FAIL, .benchmark h1.FAIL { color: var(--bad); }
-    .page-head h1.INCOMPLETE, .page-head h1.ABORTED, .benchmark h1.INCOMPLETE, .benchmark h1.ABORTED { color: var(--oxide); }
+    .page-head h1.PASS, .benchmark .PASS { color: var(--verdi); }
+    .page-head h1.FAIL, .benchmark .FAIL { color: var(--bad); }
+    .page-head h1.INCOMPLETE, .page-head h1.ABORTED, .benchmark .INCOMPLETE, .benchmark .ABORTED { color: var(--oxide); }
     .benchmark h2 { margin-block-start: 3rem; }
     .benchmark h3 { font-family: var(--serif); font-weight: 500; font-size: 1.35rem; margin-block: 2.25rem .5rem; }
     .benchmark p, .benchmark li { color: var(--muted); max-width: 80ch; }
@@ -60,7 +70,7 @@
 <li>PostgreSQL&#39;s four workers held 15,000/s offered in all three 30 s passes, but the 120 s confirmation at 15,000 missed its p99 target, 2.5 s against 2.0 s, and the one at 12,500 held, completing 12,512 jobs a second where rc.10&#39;s completed 14,857 at 15,000. The cell sits at this machine&#39;s edge. Rerun the same morning, back to back on the same machine and runtime, rc.10&#39;s tree held the 15,000 confirmation once (14,996) and missed it once (12,454 at 12,500), and this release&#39;s tree missed it twice (12,503 and 12,600 at 12,500). Every confirmation at 15,000 that missed, on either tree, ended 25,000 to 48,000 jobs behind after 125 s, rc.10&#39;s furthest.</li>
 <li>The other cells that read slower come from one run each and were not rerun: SQLite&#39;s drain (7,940 then 6,946 jobs a second in the comparison) and fourteen p99s at rates both runs held, each inside its floor. Faster, from one run each: PostgreSQL&#39;s four-worker drain (37,545 then 46,761) and the one-worker drain on PostgreSQL (16,306 then 19,185) and on SQL Server (11,883 then 13,893).</li>
 </ul>
-<h1 class="">Acta Verify: PASS</h1>
+<h2 class="PASS">Acta Verify: PASS</h2>
 <p>The release suite on PostgreSQL, SQL Server, SQLite, commit <code>1bb9ec4e0</code>, started 2026-11-14 00:45 UTC, 7 h 12 min, on Intel(R) Core(TM) i9-14900K.</p>
 <div class="table"><table>
 <tr><th></th><th>PostgreSQL</th><th>SQL Server</th><th>SQLite</th></tr>

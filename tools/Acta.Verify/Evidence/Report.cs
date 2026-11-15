@@ -779,7 +779,7 @@ public static partial class Report
         "<!doctype html><html lang=\"en\"><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width\"><title>Acta Verify</title>"
         + "<style>body{font:16px system-ui;max-width:1200px;margin:3rem auto;padding:0 1rem;color:#18222d}table{border-collapse:collapse;width:100%;font-size:14px;margin:1rem 0}td,th{padding:.5rem;border:1px solid #ccd;text-align:left}th{background:#eef}code{overflow-wrap:anywhere}blockquote{border-left:4px solid #165e38;margin:1rem 0;padding:.5rem 1rem;background:#f3f8f5}"
         + ".FAIL{color:#b21}.INCOMPLETE,.ABORTED{color:#854800}.PASS{color:#165e38}</style>"
-        + Body(markdown, Word(status))
+        + Body(markdown, Word(status), "h1")
         + "</html>";
 
     /// <summary>
@@ -793,7 +793,8 @@ public static partial class Report
         ArgumentNullException.ThrowIfNull(markdown);
         var (chrome, footer) = SiteFrame(framePage);
         var lines = markdown.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n');
-        var status = lines[0].StartsWith("# Acta Verify: ", StringComparison.Ordinal) ? lines[0]["# Acta Verify: ".Length..].Trim() : "";
+        var verdict = Array.Find(lines, line => line.StartsWith("# Acta Verify: ", StringComparison.Ordinal));
+        var status = verdict is null ? "" : verdict["# Acta Verify: ".Length..].Trim();
         var lede = lines.Length > 1 ? Array.FindIndex(lines, 1, line => line.Length > 0) : -1;
         var head = "";
         if (
@@ -807,7 +808,7 @@ public static partial class Report
         {
             head =
                 "<header class=\"wrap page-head\">\n  <p class=\"record\">Benchmark</p>\n"
-                + (status.Length > 0 ? $"  <h1 class=\"{WebUtility.HtmlEncode(status)}\">" : "  <h1>")
+                + (lines[0] == verdict ? $"  <h1 class=\"{WebUtility.HtmlEncode(status)}\">" : "  <h1>")
                 + $"{Inline(lines[0][2..])}</h1>\n  <p class=\"lede\">{Inline(lines[lede])}</p>\n</header>\n";
             lines = lines[(lede + 1)..];
         }
@@ -817,7 +818,8 @@ public static partial class Report
             + "\n<main id=\"content\">\n"
             + head
             + "<div class=\"wrap benchmark\">\n"
-            + Body(string.Join('\n', lines), status)
+            // A page headed by its title keeps that as its one h1, so the record's verdict heading sits a level below.
+            + Body(string.Join('\n', lines), status, head.Length > 0 ? "h2" : "h1")
             + "</div>\n"
             + footer
             + "</main>\n</body>\n</html>\n";
@@ -865,6 +867,16 @@ public static partial class Report
           <meta name="description" content="The published Acta Verify run: every scenario on PostgreSQL, SQL Server and SQLite, its verdict, and the measured rates." />
           <link rel="canonical" href="https://useacta.net/benchmark" />
           <meta name="theme-color" content="#0B0E15" />
+          <meta property="og:type" content="website" />
+          <meta property="og:site_name" content="Acta for .NET" />
+          <meta property="og:title" content="Benchmark and release validation · Acta, durable execution for .NET" />
+          <meta property="og:description" content="The published Acta Verify run: every scenario on PostgreSQL, SQL Server and SQLite, its verdict, and the measured rates." />
+          <meta property="og:url" content="https://useacta.net/benchmark" />
+          <meta property="og:image" content="https://useacta.net/assets/social-card.png" />
+          <meta property="og:image:width" content="1200" />
+          <meta property="og:image:height" content="630" />
+          <meta property="og:image:alt" content="Acta: the durable work ledger for .NET. Postgres, SQL Server, SQLite." />
+          <meta name="twitter:card" content="summary_large_image" />
           <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
           <link rel="preload" href="assets/fonts/ibm-plex-sans-latin.woff2" as="font" type="font/woff2" crossorigin />
           <style>
@@ -873,9 +885,9 @@ public static partial class Report
             @font-face { font-family: "IBM Plex Mono"; font-style: normal; font-weight: 400; font-display: swap; src: url(assets/fonts/ibm-plex-mono-400-latin.woff2) format("woff2"); }
             .benchmark { padding-block: 1.5rem 5rem; }
             .benchmark h1 { max-width: none; }
-            .page-head h1.PASS, .benchmark h1.PASS { color: var(--verdi); }
-            .page-head h1.FAIL, .benchmark h1.FAIL { color: var(--bad); }
-            .page-head h1.INCOMPLETE, .page-head h1.ABORTED, .benchmark h1.INCOMPLETE, .benchmark h1.ABORTED { color: var(--oxide); }
+            .page-head h1.PASS, .benchmark .PASS { color: var(--verdi); }
+            .page-head h1.FAIL, .benchmark .FAIL { color: var(--bad); }
+            .page-head h1.INCOMPLETE, .page-head h1.ABORTED, .benchmark .INCOMPLETE, .benchmark .ABORTED { color: var(--oxide); }
             .benchmark h2 { margin-block-start: 3rem; }
             .benchmark h3 { font-family: var(--serif); font-weight: 500; font-size: 1.35rem; margin-block: 2.25rem .5rem; }
             .benchmark p, .benchmark li { color: var(--muted); max-width: 80ch; }
@@ -894,8 +906,11 @@ public static partial class Report
 
         """;
 
-    /// <summary>The report's Markdown as HTML: headings, tables, list items, quotes and paragraphs, every text HTML-encoded.</summary>
-    private static string Body(string markdown, string status)
+    /// <summary>
+    /// The report's Markdown as HTML: headings, tables, list items, quotes and paragraphs, every text HTML-encoded. A
+    /// top-level heading renders as <paramref name="topHeading"/>, classed by <paramref name="status"/>.
+    /// </summary>
+    private static string Body(string markdown, string status, string topHeading)
     {
         var html = new StringBuilder();
         var table = false;
@@ -944,7 +959,10 @@ public static partial class Report
             }
             else if (line.StartsWith("# ", StringComparison.Ordinal))
             {
-                html.Append(CultureInfo.InvariantCulture, $"<h1 class=\"{WebUtility.HtmlEncode(status)}\">{Inline(line[2..])}</h1>\n");
+                html.Append(
+                    CultureInfo.InvariantCulture,
+                    $"<{topHeading} class=\"{WebUtility.HtmlEncode(status)}\">{Inline(line[2..])}</{topHeading}>\n"
+                );
             }
             else if (line.StartsWith("### ", StringComparison.Ordinal))
             {
