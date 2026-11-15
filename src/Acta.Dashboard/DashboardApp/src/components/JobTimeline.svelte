@@ -8,6 +8,7 @@
     timelineAttemptNumbers,
     timelinePresentation
   } from './jobTimelineState.ts';
+  import { routes } from '../routes.ts';
   import Icon from './Icon.svelte';
   import RelativeTime from './RelativeTime.svelte';
 
@@ -125,7 +126,7 @@
                 </div>
                 {#if evt.message || facts.reason || actor}
                   <div class="rail-reason">
-                    {#if facts.reason}<span class="mono">{facts.reason}</span>{/if}{#if facts.reason && evt.message}&nbsp;·&nbsp;{/if}{evt.message ?? ''}{#if actor}{#if facts.reason || evt.message}&nbsp;·&nbsp;{/if}by {actor}{/if}
+                    {#if facts.reason}<span class="mono">{facts.reason}</span>{/if}{#if facts.reason && evt.message}&nbsp;·&nbsp;{/if}{evt.message ?? ''}{#if actor}{#if facts.reason || evt.message}&nbsp;·&nbsp;{/if}by {actor}{/if}{#if facts.child}&nbsp;·&nbsp;<a href={routes.job(facts.child, { namespace: evt.jobNamespace })}>open the child</a>{/if}
                   </div>
                 {/if}
               </div>

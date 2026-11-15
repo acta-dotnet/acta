@@ -16,4 +16,20 @@ describe('JobTimeline', () => {
     expect(screen.getByRole('button', { name: 'Jump to latest failed execution' })).toBeTruthy();
     expect(screen.queryByText(/attempt/i)).toBeNull();
   });
+
+  it('links a child landing to the child its details name', () => {
+    const child = 'job_0123456789abcdef0123456789abcdef';
+    const landing = {
+      eventId: 3,
+      eventCode: 'job.signal-raised',
+      createdAtUtc: '2026-07-14T10:00:00Z',
+      executionNumber: 2,
+      durationMs: null,
+      message: "Child 'echo' succeeded.",
+      jobNamespace: 'shipping',
+      detailsText: JSON.stringify({ child, status: 'succeeded' })
+    };
+    render(JobTimeline, { props: { events: [landing] } });
+    expect(screen.getByRole('link', { name: 'open the child' }).getAttribute('href')).toContain(child);
+  });
 });
