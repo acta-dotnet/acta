@@ -100,6 +100,26 @@ WHERE EXISTS (
         AND pj.tenant_id <> t.tenant_id
 );
 
+-- A key another tenant's job holds refuses the whole batch, naming neither: the caller learns only that it is taken.
+SELECT
+    ACTA_ERROR(
+        'ACTA:ENQ_TENANT_MISMATCH:Enqueue rejected: one or more rows name a deduplication key'
+        || ' another tenant''s job holds.'
+    )
+WHERE EXISTS (
+    SELECT 1 FROM JSON_EACH(@p_rows) r
+    JOIN {{schema}}.tenants t ON t.tenant_name = JSON_EXTRACT(r.value, '$.tenant_name')
+    JOIN {{schema}}.namespaces ns ON ns.namespace_name = JSON_EXTRACT(r.value, '$.namespace_name')
+    JOIN {{schema}}.jobs j
+        ON
+            j.namespace_id = ns.namespace_id
+            AND j.deduplication_key = JSON_EXTRACT(r.value, '$.deduplication_key')
+            AND j.parent_job_id IS NULL
+    WHERE
+        JSON_EXTRACT(r.value, '$.parent_job_id') IS NULL
+        AND j.tenant_id <> t.tenant_id
+);
+
 -- The immediate transaction is the lanes' mutex on SQLite: it serializes this batch against every
 -- settle and enqueue, so Ready versus Blocked below is decided on a stable member set.
 INSERT INTO {{schema}}.lanes (namespace_id, lane_name)

@@ -27,7 +27,10 @@ public enum EnqueueRejectionReason : byte
     /// <summary>The definition forbids a tenant and the row names an explicit tenant name.</summary>
     TenantForbidden = 7,
 
-    /// <summary>A child names a tenant that differs from the parent's without the explicit override opt-in.</summary>
+    /// <summary>
+    /// A child names a tenant that differs from the parent's without the explicit override opt-in, or a deduplication key
+    /// is held by another tenant's job.
+    /// </summary>
     TenantMismatch = 8,
 
     /// <summary>A child names the lane of an unfinished ancestor, so it would wait behind the ancestor that waits for it.</summary>

@@ -332,6 +332,20 @@ BEGIN
 
         RETURN QUERY SELECT 0, v_job_id, p_job_ref, 1 /* EnqueueJobAction.Inserted */;
     ELSE
+        -- A key another tenant's job holds is refused, naming neither: the caller learns only that it is taken.
+        IF p_parent_job_id IS NULL AND v_tenant_id IS NOT NULL AND EXISTS (
+            SELECT 1
+            FROM {{schema}}.jobs j
+            WHERE
+                j.namespace_id = v_ns_id
+                AND j.deduplication_key = p_deduplication_key
+                AND j.parent_job_id IS NULL
+                AND j.tenant_id <> v_tenant_id
+        ) THEN
+            RAISE EXCEPTION 'ACTA:ENQ_TENANT_MISMATCH:Enqueue rejected: the deduplication key belongs to another tenant''s job.'
+                USING ERRCODE = 'P0001';
+        END IF;
+
         RETURN QUERY
         SELECT 0, j.job_id, j.job_ref, 2 /* EnqueueJobAction.Deduplicated */
         FROM {{schema}}.jobs j

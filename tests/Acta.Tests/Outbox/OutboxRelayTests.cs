@@ -25,7 +25,8 @@ public sealed class OutboxRelayTests
         int failureCount = 0,
         Guid? id = null,
         byte[]? data = null,
-        string? meta = null
+        string? meta = null,
+        string? tenant = null
     ) =>
         new(
             id ?? Guid.NewGuid(),
@@ -40,7 +41,7 @@ public sealed class OutboxRelayTests
             null,
             null,
             null,
-            null,
+            tenant,
             meta,
             failureCount,
             Interlocked.Increment(ref _staged)
@@ -120,6 +121,28 @@ public sealed class OutboxRelayTests
         var batch = Assert.Single(target.Batches);
         Assert.Equal(2, batch.Count);
         Assert.Equal([upper.OutboxId, lower.OutboxId, otherKey.OutboxId], store.Deleted.ToHashSet());
+    }
+
+    [Fact]
+    public async Task A_coalesced_member_naming_another_tenant_is_refused_as_it_would_be_alone()
+    {
+        // Apart, the enqueue refuses the second tenant's handoff, since the key belongs to the first tenant's job; claimed
+        // in one tick it must not read as delivered into that job. A member with no tenant still matches.
+        var first = Row("k1", tenant: "acme");
+        var untenanted = Row("k1");
+        var other = Row("k1", tenant: "globex");
+        var store = new FakeStore(first, untenanted, other);
+        var target = new FakeSubmission();
+        var svc = new OutboxRelay(store.Source(), target.Jobs());
+
+        var summary = await svc.RunTickAsync(Options(), TestContext.Current.CancellationToken);
+
+        Assert.Single(Assert.Single(target.Batches));
+        Assert.Equal([first.OutboxId, untenanted.OutboxId], store.Deleted.ToHashSet());
+        var refused = Assert.Single(store.Rescheduled);
+        Assert.Equal((other.OutboxId, 1), (refused.OutboxId, refused.FailureCount));
+        Assert.Equal("Enqueue rejected: the deduplication key belongs to another tenant's job.", refused.LastError);
+        Assert.Equal(new OutboxTickSummary(3, 1, 1, 0, 0), summary);
     }
 
     [Fact]

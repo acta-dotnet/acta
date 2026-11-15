@@ -197,6 +197,44 @@ public sealed class EnqueueJobTenantSpec : ActaRuntimeTestBase<ConformanceFixtur
         Assert.Equal(childTenantId, childJob!.TenantId);
     }
 
+    [Fact(
+        DisplayName = "A deduplication key another tenant's job holds is refused, one row or a batch, while a side with no tenant still matches"
+    )]
+    public async Task A_key_another_tenants_job_holds_is_refused()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var tenantA = Unique("ten-a");
+        var tenantB = Unique("ten-b");
+        await Operations.Tenants.RegisterAsync(tenantA, null, null, ct);
+        await Operations.Tenants.RegisterAsync(tenantB, null, null, ct);
+        var key = Unique("order-7");
+        var payload = Services
+            .GetRequiredService<IJobPayloadSerializerRegistry>()
+            .Resolve(JobPayloadFormat.Json.Id)
+            .Serialize(new AddNumbers(1, 2));
+        EnqueueJobRequest Request(string? tenant, string dedupKey) =>
+            new(TestNamespace, "add-numbers", payload, DeduplicationKey: dedupKey, TenantName: tenant);
+
+        var held = await Jobs.EnqueueAsync(Request(tenantA, key), ct);
+        Assert.Equal(EnqueueJobAction.Inserted, held.Action);
+        var before = await CountJobsAsync(ct);
+
+        var single = await Assert.ThrowsAsync<EnqueueRejectedException>(async () => await Jobs.EnqueueAsync(Request(tenantB, key), ct));
+        Assert.Equal(EnqueueRejectionReason.TenantMismatch, single.Reason);
+        Assert.DoesNotContain(held.JobRef.ToString(), single.Message, StringComparison.Ordinal);
+        var batch = await Assert.ThrowsAsync<EnqueueRejectedException>(async () =>
+            await Jobs.EnqueueJobsAsync([Request(tenantB, Unique("fresh")), Request(tenantB, key)], ct)
+        );
+        Assert.Equal(EnqueueRejectionReason.TenantMismatch, batch.Reason);
+        Assert.Equal(before, await CountJobsAsync(ct));
+
+        // A caller with no tenant still gets the held job, and so does any tenant for a key a job with no tenant holds.
+        Assert.Equal(held.JobRef, (await Jobs.EnqueueAsync(Request(null, key), ct)).JobRef);
+        var open = Unique("open-key");
+        var untenanted = await Jobs.EnqueueAsync(Request(null, open), ct);
+        Assert.Equal(untenanted.JobRef, (await Jobs.EnqueueAsync(Request(tenantB, open), ct)).JobRef);
+    }
+
     [Fact(DisplayName = "ListJobs filters by tenant id")]
     public async Task ListJobs_filters_by_tenant()
     {

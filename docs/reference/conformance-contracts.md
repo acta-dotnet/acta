@@ -871,6 +871,7 @@
   - A child with a different TenantName and the explicit override lands under its own tenant
   - A child with a different TenantName and no override is rejected atomically
   - A child naming its tenant-less parent's namespace tenant explicitly lands without the override
+  - A deduplication key another tenant's job holds is refused, one row or a batch, while a side with no tenant still matches
   - ListJobs filters by tenant id
 
 ### Transactional enqueue commits or rolls back with the business write

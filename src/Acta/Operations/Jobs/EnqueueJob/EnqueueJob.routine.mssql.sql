@@ -34,7 +34,7 @@ BEGIN
         DECLARE @ns_id INT, @ns_status TINYINT, @def_id INT, @def_priority SMALLINT;
         DECLARE @def_event_recording TINYINT, @def_status TINYINT, @def_tenant_req TINYINT;
         DECLARE @tenant_id INT, @tenant_status TINYINT, @lineage BIGINT, @parent_corr VARCHAR(64), @parent_tenant INT;
-        DECLARE @existing_id BIGINT, @existing_ref UNIQUEIDENTIFIER, @job_id BIGINT;
+        DECLARE @existing_id BIGINT, @existing_ref UNIQUEIDENTIFIER, @existing_tenant INT, @job_id BIGINT;
         DECLARE @lane VARCHAR(128), @lane_id BIGINT, @ancestor_lane_hits INT;
 
         -- Own a local transaction only when invoked outside one. Inside a caller's transaction (direct
@@ -186,7 +186,8 @@ BEGIN
                     BEGIN
                         SELECT
                             @existing_id = j.job_id,
-                            @existing_ref = j.job_ref
+                            @existing_ref = j.job_ref,
+                            @existing_tenant = j.tenant_id
                         FROM {{schema}}.jobs j WITH (UPDLOCK, FORCESEEK, INDEX (ux_jobs_deduplication_key_root))
                         WHERE
                             j.namespace_id = @ns_id
@@ -194,6 +195,10 @@ BEGIN
                             AND j.parent_job_id IS NULL
                             AND j.deduplication_key IS NOT NULL;
                     END;
+
+                -- A key another tenant's job holds is refused, naming neither: the caller learns only that it is taken.
+                IF @existing_tenant IS NOT NULL AND @tenant_id IS NOT NULL AND @existing_tenant <> @tenant_id
+                    THROW 50009, 'ACTA:ENQ_TENANT_MISMATCH:Enqueue rejected: the deduplication key belongs to another tenant''s job.', 1;
             END;
 
         IF @p_parent_job_id IS NOT NULL

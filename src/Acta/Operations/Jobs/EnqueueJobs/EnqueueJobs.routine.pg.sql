@@ -529,6 +529,21 @@ BEGIN
     )
     SELECT count(*) INTO inserted_count FROM inserted;
 
+    -- A key another tenant's job holds refuses the whole batch, naming neither: the caller learns only that it is taken.
+    IF EXISTS (
+        SELECT 1
+        FROM _enq_batch e
+        INNER JOIN {{schema}}.jobs root
+            ON NOT e.is_child
+            AND root.namespace_id = e.namespace_id
+            AND root.deduplication_key = e.deduplication_key
+            AND root.parent_job_id IS NULL
+        WHERE root.tenant_id <> e.tenant_id
+    ) THEN
+        RAISE EXCEPTION 'ACTA:ENQ_TENANT_MISMATCH:Enqueue rejected: one or more rows name a deduplication key another tenant''s job holds.'
+            USING ERRCODE = 'P0001';
+    END IF;
+
     RETURN QUERY
     SELECT
         e.ordinal,

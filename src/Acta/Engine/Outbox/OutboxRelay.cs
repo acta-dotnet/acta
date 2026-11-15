@@ -49,6 +49,9 @@ internal sealed class OutboxRelay(OutboxOperations.Source source, JobsOperations
     /// </summary>
     private static readonly Backoff RowBackoff = Backoff.Range(TimeSpan.FromMinutes(1), TimeSpan.FromHours(8));
 
+    /// <summary>The enqueue's own refusal of a key another tenant's job holds, which a row that arrives alone records.</summary>
+    private const string TenantMismatchMessage = "Enqueue rejected: the deduplication key belongs to another tenant's job.";
+
     private readonly ILogger _log = log ?? NullLogger<OutboxRelay>.Instance;
 
     private sealed record OutboxGroup(ClaimOutboxRow Representative, IReadOnlyList<ClaimOutboxRow> Rows)
@@ -179,8 +182,13 @@ internal sealed class OutboxRelay(OutboxOperations.Source source, JobsOperations
     {
         var verdicts = new List<GroupVerdict>();
         var valid = new List<(EnqueueJobRequest Request, OutboxGroup Group)>();
-        foreach (var group in Coalesce(claimed))
+        foreach (var (group, mismatched) in Coalesce(claimed).Select(SplitTenantMismatches))
         {
+            if (mismatched is not null)
+            {
+                verdicts.Add(new GroupVerdict(mismatched, GroupVerdictKind.Rejected, TenantMismatchMessage));
+            }
+
             try
             {
                 valid.Add((OutboxRequestReconstruction.ToRequest(group.Representative, options.MaxInlinePayloadBytes), group));
@@ -378,6 +386,26 @@ internal sealed class OutboxRelay(OutboxOperations.Source source, JobsOperations
                     return new OutboxGroup(ordered[0], ordered);
                 }),
         ];
+
+    /// <summary>
+    /// Splits off the members that name a tenant other than the representative's, which the enqueue refuses when they
+    /// arrive apart: absorbed into the representative's job, one would read as delivered into another tenant's job. A
+    /// member or a representative with no tenant still matches, as at the enqueue. Mismatched is null when none differs.
+    /// </summary>
+    private static (OutboxGroup Group, OutboxGroup? Mismatched) SplitTenantMismatches(OutboxGroup group)
+    {
+        var tenant = Tenant(group.Representative);
+        var split = group.Rows.ToLookup(row => tenant is not null && Tenant(row) is { } other && other != tenant);
+        if (split[true].ToList() is not [var first, ..] mismatched)
+        {
+            return (group, null);
+        }
+
+        return (new OutboxGroup(group.Representative, [.. split[false]]), new OutboxGroup(first, mismatched));
+    }
+
+    /// <summary>The row's tenant as the enqueue stores it, trimmed and lowercased.</summary>
+    private static string? Tenant(ClaimOutboxRow row) => row.TenantName?.Trim().ToLowerInvariant();
 
     private async Task ReleaseBestEffortAsync(Guid token, IReadOnlyList<Guid> outboxIds)
     {

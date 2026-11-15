@@ -152,6 +152,7 @@ public static class ShippingHandlers
 - Give each build its own version: `JobsOptions.DeploymentVersion`, by default the entry assembly's informational version. An app that is `1.0.0` on every build is one version to Acta.
 - A job that must exist only if your own write commits takes your transaction first: `await jobs.EnqueueAsync(transaction, new ShipOrder(orderId), ct: ct)` inserts it through your open `DbTransaction` (every enqueue shape has the overload), so the order row and its job commit or roll back together. A plain connection of your own needs nothing registered: Acta prepares a SQLite connection it is handed itself. Your tables may share Acta's database, a SQLite file included; Acta's tables have plain names (`jobs`, `steps`, `events`, ...) in its own schema, `acta` on Postgres and SQL Server and `main` on SQLite, so prefix yours there. Acta never commits or rolls back your transaction, and the job is picked up after the commit by polling, not at once. On SQLite keep it short: it holds the database's one write lock, which every Acta write in the process waits on. When the business data lives in another database, stage the job in an outbox table instead: `docs/developer-guide.md`, "Transactional enqueue and the external outbox".
 - An external outbox table comes from the producer's own migrations (`CreateOutboxScript()`) or `ApplyOutboxAsync`; Acta never creates it on its own.
+- On SQLite every Acta write in the process queues behind one in-process write queue and then waits for the file's write lock as long as the connection string's `Default Timeout` (30 s unless set; `CommandTimeout` does not bound that wait), and a write still refused is retried up to `DeadlockRetryAttempts` times. A lock held shorter than that is a silent stall, not a failure; past it the caller sees the provider's own exception, `SqliteException` ("database is locked"), which an endpoint maps to 503. `acta.jobs.inflight` (by state: claimed, executing, finalizing) and `acta.completions.unsettled` on the `Acta` meter show what the process holds meanwhile.
 - Rolling deploys are routine: run `<app> jobs migrate`, start the new build, stop the old one, with any overlap. Acta's migrations are forward-only and keep an old and a new build working on one schema; a worker hands back a job whose handler it lacks and stops claiming that definition; a deploy never retires a definition the new build omits, so a rollback keeps the queue. What the application keeps is its own, as in any rolling deploy: a queued input the new build still reads, and a step name a running job still finds. Retiring a dropped definition and cancelling its queue is an operator action on the definition.
 - Definitions and schedules are the current deployment's. An older build's workers write nothing, and its `jobs deploy` changes nothing unless run with `--force`, which is how a rollback restores the earlier definitions. A schedule a deploy drops is orphaned and loses its pause, so to hold a permanent job across a rollback, pause the job, not the schedule.
 
@@ -412,6 +413,23 @@ turn stays valid for a second, or for the rate's interval when that is longer, s
 in arrival order at the rate with one re-arm per job; a job picked up later than that is metered
 again.
 
+## Tenants
+
+- A tenant names who a job is about, a customer such as `acme-corp`; the namespace names who runs it. Register one
+  with `await acta.Tenants.RegisterAsync("acme-corp", ct: ct)`, enqueue with `o => o.TenantName("acme-corp")`, and the
+  handler reads `ctx.TenantName`. A child inherits its parent's tenant; naming another takes `overrideParent: true`.
+- `[Job(TenantRequirement = DefinitionTenantRequirementCode.Required)]` refuses an enqueue without a tenant, and
+  `Forbidden` one with a tenant.
+- An unknown or suspended tenant's enqueue is refused (`EnqueueRejectionReason.TenantUnknown`, `TenantSuspended`).
+  Suspension only stops admission: admitted jobs run on, the children they start are admitted, and restarts and
+  signals still apply.
+- A deduplication key is the namespace's, not the tenant's: an enqueue whose key another tenant's job holds is refused
+  (`EnqueueRejectionReason.TenantMismatch`), naming neither the job nor the tenant, while a side with no tenant still
+  matches. Build a tenant's key with `DeduplicationKey.ForTenant(tenantName, businessKey)`.
+- A tenant is not a security boundary. Acta authorizes no caller by tenant: its reads filter by tenant only when asked,
+  and its HTTP API and dashboard show every tenant to whoever holds the permission, so a tenant-facing app checks
+  `TenantName` itself before it shows or controls a job.
+
 ## Payloads
 
 Inline payloads (inputs, step results, variables) are capped at 1 MiB (`MaxInlinePayloadBytes`).
@@ -461,7 +479,8 @@ must be refused, and give an enum a first value that grants nothing (`Unset`).
   trimmed): `Order-1` and `order-1` are two keys, so lowercase an id yourself when its source is
   case-insensitive.
 - The enqueue `deduplicationKey` prevents a second job ROW, not a second side effect; execution
-  stays at-least-once either way.
+  stays at-least-once either way. The handle tells which: `handle.Action` is `EnqueueJobAction.Deduplicated` when
+  the key matched a job already there, `Inserted` when the enqueue created it.
 - An amended input does not recompute what already ran: a restart keeps every succeeded step, so those
   steps return what they computed from the old input. To recompute, enqueue a new job under a new
   deduplication key (`invoice-77.r2`) with the old job's correlation key; its steps and children start

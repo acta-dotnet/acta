@@ -97,6 +97,20 @@ WHERE
             AND jd.tenant_requirement_code = 20 /* DefinitionTenantRequirementCode.Forbidden */
     );
 
+-- A key another tenant's job holds is refused, naming neither: the caller learns only that it is taken.
+SELECT ACTA_ERROR('ACTA:ENQ_TENANT_MISMATCH:Enqueue rejected: the deduplication key belongs to another tenant''s job.')
+WHERE
+    @p_deduplication_key IS NOT NULL
+    AND @p_parent_job_id IS NULL
+    AND EXISTS (
+        SELECT 1 FROM {{schema}}.jobs j
+        WHERE
+            j.namespace_id = (SELECT ns.namespace_id FROM {{schema}}.namespaces ns WHERE ns.namespace_name = @p_namespace_name)
+            AND j.deduplication_key = @p_deduplication_key
+            AND j.parent_job_id IS NULL
+            AND j.tenant_id <> (SELECT t.tenant_id FROM {{schema}}.tenants t WHERE t.tenant_name = @p_tenant_name)
+    );
+
 SELECT
     ACTA_ERROR(
         'ACTA:ENQ_TENANT_MISMATCH:Enqueue rejected: a child TenantName differs from the parent'
