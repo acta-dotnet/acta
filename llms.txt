@@ -26,7 +26,8 @@ Where these docs say a re-entry replays a step, the step answers from its record
 `acta.steps` meter's `replayed` outcome means the same).
 A crash counts against the retry budget: the attempt a dead worker held is reclaimed as a failed one, so
 `MaxAttempts` crashes since the job last succeeded fail a job that never threw (a wait or a sleep is not a success,
-so the count carries across them), and a reclaimed job runs again at once, without the backoff.
+so the count carries across them), and a reclaimed job runs again at once, without the backoff, through the same
+concurrency and rate gates as any claim.
 The reclaim is `job.execution-orphaned` (reason `lease-expired`) on the timeline. With the default 45-second heartbeat a lost attempt comes back
 three to about seven minutes after its worker's last heartbeat (one to two leases, plus up to a heartbeat for the
 recovery pass). A clean stop is not a crash: running handlers finish first, up to the host's
@@ -95,6 +96,10 @@ public static class ShippingHandlers
   (`apply.{id}`, never `apply/{id}`). An invalid one fails the job at once, since no retry can fix it, and the build
   refuses one it can already see is broken (ACTA0152). A raised signal value or a stored step result the code can no
   longer read fails the job at once too, naming the signal or step and the type.
+- An attempt is cut off at its `ExecutionTimeout`, 5 minutes unless `[Job(ExecutionTimeout = "2h")]` says otherwise,
+  and the cut spends an attempt. A long loop either sets it, or records each chunk as a step and yields every few
+  minutes with `await ctx.RescheduleAsync(TimeSpan.Zero, ct: ct)`, which starts a fresh execution, its recorded
+  chunks replayed, without spending budget.
 - `ShippingJobs` is the source-generated manifest, named from the LAST segment of the project's
   `RootNamespace` plus `Jobs` (`Users` → `UsersJobs`; a segment already ending in `Jobs` gets
   `Manifest` instead: `TestJobs` → `TestJobsManifest`). It is generated into that root namespace,
@@ -138,7 +143,7 @@ public static class ShippingHandlers
 - Split deployment (API enqueues, separate worker executes): the worker registers
   `Run<TManifest>`; the producer enqueues by the raw route contract instead of the typed call so
   it does not need the handler assembly.
-- Never enable `MigrateOnStartup` outside an explicitly local or development configuration. There, startup applies the schema and writes the app's jobs and schedules, so one `dotnet run` is enough.
+- Never enable `MigrateOnStartup` outside an explicitly local or development configuration. There, startup applies the schema and writes the app's jobs and schedules, so one `dotnet run` is enough. An app that owns its SQLite file, such as a desktop tool or a single-file exe, is such a local configuration.
 - Production runs `<app> jobs migrate` from a deploy step before the new build starts: it applies the schema, deploys the app's job definitions and schedules, and records the app's version. `<app> jobs deploy` does the deploy alone and needs no DDL right. A worker start writes no definition or schedule, and refuses a namespace its build's version has not deployed in.
 - Once `jobs migrate` or `jobs deploy` has deployed a namespace, a `MigrateOnStartup` start writes no definition or schedule there, on a local database too: a new or changed job then takes `jobs deploy`, or a fresh local database.
 - Give each build its own version: `JobsOptions.DeploymentVersion`, by default the entry assembly's informational version. An app that is `1.0.0` on every build is one version to Acta.
@@ -506,7 +511,7 @@ service or another singleton included.
 - `await ctx.NoteAsync("Packed by Ana", ct)` writes a line of your own onto the job's timeline (`EventCode.JobNoteRecorded`), beside Acta's events. A note is written each time its line runs, so one before a wait or a sleep is written again when the job resumes: put it in a step, or after the last wait.
 - A list answers a page: `Items`, `HasMore`, and `NextCursor`, which goes back in as the query's `Cursor`.
 - A step shows `Name`, `Status`, `CreatedAtUtc`, and `ModifiedAtUtc`. Its result stays inside the job. A value the screen needs goes in a variable, `await ctx.SetVariableAsync("stage", new Stage("packed", 3), ct)`, and the screen reads it with `await jobs.GetVariableOrDefaultAsync<Stage>(jobRef, "stage", ct)`, null until the handler has set it. A variable write is durable by itself and needs no step around it; a step is for work that must not run twice. `ctx.SetProgressAsync(value, ct)` keeps one "how far along" value, last write wins, as the checkpoint `sys.progress`, which Acta's dashboard lists with the job's checkpoints; a value your own screen reads goes in a variable, as above.
-- The checkpoints also list what the job waits for: a `Signal` or a `Timer` with its `DueAtUtc`, and a `ChildLatch` per child. A variable's checkpoint has no `Status`.
+- The checkpoints also list what the job waits for: a `Signal` or a `Timer` with its `DueAtUtc`, and a `ChildLatch` per child. A variable's checkpoint has no `Status`. A checkpoint's `Value` is the payload as stored, so a raised signal's value reads with the serializer Acta wrote it with, `JsonJobPayloadSerializer.Default.Deserialize<Decision>(item.Value!.Value)` (with `JsonJobPayloadSerializer.WithResolver(...)` when the app registered a source-generated context with `UseJsonPayloads`).
 - To label what a job is doing, read `jobs.ExplainAsync(jobRef)`: `Headline` says it in a sentence and `ActiveWait` names the wait it is parked on (`Kind`, `Name`, `DueAtUtc`). The status alone does not tell a sleep from a wait for a person or a child.
 - A job between attempts reads `ready` with `FailureCount` above zero and its next attempt at `NextRunAtUtc`, and the step that threw reads `pending`. `FailureCount` is the retry budget's counter: the attempts that failed since the job last succeeded, a crash included, carried across waits and sleeps (a wait is not a success), and 0 again when the job succeeds; the events keep every failure. `ExecutionNumber` counts every claim of the job, each resume after a wait and each bounce off a full concurrency key included, so a parent that never failed can read execution 4: show `FailureCount` as the tries. The exception's message is on the timeline, as the `Message` of each event whose `EventCode` is `EventCode.JobExecutionFailed`; an event also shows `CreatedAtUtc`, `DetailsText`, and `Actor`. A step's `FailureMessage` is set only for an at-most-once step that failed or was interrupted.
 - Stored JSON has camelCase property names: `OrderId` is `orderId`.

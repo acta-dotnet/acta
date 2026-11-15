@@ -71,8 +71,8 @@ public sealed class JobAttribute(string name) : Attribute
     public string? Backoff { get; init; }
 
     /// <summary>
-    /// Per-attempt wall-clock cap. Cancels the handler's <c>CancellationToken</c> when exceeded; does not
-    /// span retries. Use Acta duration syntax, e.g. <c>"30s"</c>.
+    /// Per-attempt wall-clock cap, 5 minutes when unset. Cancels the handler's <c>CancellationToken</c> when exceeded,
+    /// which spends an attempt; does not span retries. Use Acta duration syntax, e.g. <c>"30s"</c>.
     /// </summary>
     public string? ExecutionTimeout { get; init; }
 

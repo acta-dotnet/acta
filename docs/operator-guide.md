@@ -198,7 +198,10 @@ await jobs.PurgeAsync(job);                              // hard-delete a termin
 ```
 
 Cancel of a parent cancels the whole non-terminal subtree (descendants carry reason
-`parent-cancelled`). Restart leaves a terminal row's history intact and re-arms the same id; there
+`parent-cancelled`); every other verb acts on the one job it names, so a pause or a resume does not reach a child. A
+cancel ends the job where it stands and gives its handler no later turn, so work that must follow a cancel (closing
+the books, a compensation) is started by the code that cancels, for example an endpoint that cancels and then
+enqueues it. Restart leaves a terminal row's history intact and re-arms the same id; there
 is never a replacement row. Reschedule applies to Paused/Suspended/Ready/Blocked rows and re-arms them
 Ready, or Blocked behind their lane, and gives an Idle permanent job a manual firing; purge refuses a non-terminal job, a job that has child jobs, and a child whose parent is not
 terminal (finish or cancel the tree, then purge the leaves first).
