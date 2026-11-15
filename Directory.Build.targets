@@ -52,4 +52,144 @@
       <None Include="$(_PackedLlmsTxt)" Pack="true" PackagePath="\" Visible="false" />
     </ItemGroup>
   </Target>
+
+  <!-- A package's XML documentation describes only what its consumer can call: the public and
+       protected members of its public types. An agent reading the packed file would otherwise learn
+       internal APIs it cannot reach. The build output keeps every member, for the project references
+       in this repository and for Acta.Emit, which reads internal summaries. -->
+  <PropertyGroup>
+    <TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);PackPublicDocumentation</TargetsForTfmSpecificBuildOutput>
+  </PropertyGroup>
+  <Target Name="PackPublicDocumentation" DependsOnTargets="ResolveReferences" Condition="'@(DocFileItem)' != ''">
+    <PropertyGroup>
+      <_PublicDocs>$([MSBuild]::NormalizePath('$(ProjectDir)', '$(IntermediateOutputPath)', 'public', '$(TargetName).xml'))</_PublicDocs>
+    </PropertyGroup>
+    <WritePublicDocumentation
+      AssemblyFile="@(IntermediateAssembly->'%(FullPath)')"
+      ReferenceFiles="@(ReferencePath)"
+      DocumentationFile="@(DocFileItem->'%(FullPath)')"
+      DestinationFile="$(_PublicDocs)"
+    />
+    <ItemGroup>
+      <DocumentationProjectOutputGroupOutput Remove="@(DocumentationProjectOutputGroupOutput)" />
+      <BuildOutputInPackage Include="$(_PublicDocs)" FinalOutputPath="$(_PublicDocs)" TargetPath="$(TargetName).xml" />
+    </ItemGroup>
+  </Target>
+  <UsingTask
+    TaskName="WritePublicDocumentation"
+    TaskFactory="RoslynCodeTaskFactory"
+    AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll"
+  >
+    <ParameterGroup>
+      <AssemblyFile ParameterType="System.String" Required="true" />
+      <ReferenceFiles ParameterType="System.String[]" Required="true" />
+      <DocumentationFile ParameterType="System.String" Required="true" />
+      <DestinationFile ParameterType="System.String" Required="true" />
+    </ParameterGroup>
+    <Task>
+      <Using Namespace="System.Reflection" />
+      <Using Namespace="System.Xml.Linq" />
+      <Code Type="Fragment" Language="cs">
+        <![CDATA[
+        // MetadataLoadContext ships with MSBuild and reads the assembly as metadata, so nothing loads or stays locked.
+        var loader = Assembly.Load(new AssemblyName("System.Reflection.MetadataLoadContext"));
+        var resolver = Activator.CreateInstance(
+            loader.GetType("System.Reflection.PathAssemblyResolver", true),
+            new object[] { ReferenceFiles }
+        );
+        var context = (IDisposable)Activator.CreateInstance(
+            loader.GetType("System.Reflection.MetadataLoadContext", true),
+            new object[] { resolver, "System.Runtime" }
+        );
+        const BindingFlags Declared =
+            BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly;
+        var exposed = new HashSet<string>(StringComparer.Ordinal);
+        using (context)
+        {
+            var assembly = (Assembly)context.GetType().GetMethod("LoadFromAssemblyPath").Invoke(context, new object[] { AssemblyFile });
+            foreach (var type in assembly.GetTypes().Where(IsVisible))
+            {
+                var name = DefinitionId(type);
+                exposed.Add("T:" + name);
+                foreach (var field in type.GetFields(Declared).Where(f => f.IsPublic || f.IsFamily || f.IsFamilyOrAssembly))
+                    exposed.Add("F:" + name + "." + field.Name);
+                foreach (var property in type.GetProperties(Declared).Where(p => p.GetAccessors(true).Any(IsExposed)))
+                    exposed.Add("P:" + name + "." + property.Name + ParametersId(property.GetIndexParameters()));
+                foreach (var evt in type.GetEvents(Declared).Where(e => IsExposed(e.AddMethod)))
+                    exposed.Add("E:" + name + "." + evt.Name);
+                foreach (var method in type.GetConstructors(Declared).Concat<MethodBase>(type.GetMethods(Declared)).Where(IsExposed))
+                {
+                    var id = "M:" + name + "." + method.Name.Replace('.', '#');
+                    if (method.IsGenericMethodDefinition)
+                        id += "``" + method.GetGenericArguments().Length;
+                    id += ParametersId(method.GetParameters());
+                    if (method.Name == "op_Implicit" || method.Name == "op_Explicit")
+                        id += "~" + TypeId(((MethodInfo)method).ReturnType);
+                    exposed.Add(id);
+                }
+            }
+        }
+
+        // A member id that names no type or member (a namespace, say) is kept as written.
+        var document = XDocument.Load(DocumentationFile, LoadOptions.PreserveWhitespace);
+        foreach (var member in document.Descendants("members").Elements("member").ToList())
+        {
+            var id = (string)member.Attribute("name") ?? "";
+            if (id.Length < 2 || id[1] != ':' || "TFPEM".IndexOf(id[0]) < 0 || exposed.Contains(id))
+                continue;
+            if (member.PreviousNode is XText gap && string.IsNullOrWhiteSpace(gap.Value))
+                gap.Remove();
+            member.Remove();
+        }
+        Directory.CreateDirectory(Path.GetDirectoryName(DestinationFile));
+        document.Save(DestinationFile, SaveOptions.DisableFormatting);
+
+        bool IsVisible(Type t) =>
+            t.IsNested ? (t.IsNestedPublic || t.IsNestedFamily || t.IsNestedFamORAssem) && IsVisible(t.DeclaringType) : t.IsPublic;
+
+        bool IsExposed(MethodBase m) => m != null && (m.IsPublic || m.IsFamily || m.IsFamilyOrAssembly);
+
+        // The ids follow the compiler's documentation-comment id grammar: a nested type joins its outer
+        // type with '.', a definition keeps its `n arity, and a constructed type names its arguments in braces.
+        string DefinitionId(Type t) =>
+            t.IsNested ? DefinitionId(t.DeclaringType) + "." + t.Name
+            : string.IsNullOrEmpty(t.Namespace) ? t.Name
+            : t.Namespace + "." + t.Name;
+
+        string ParametersId(ParameterInfo[] parameters) =>
+            parameters.Length == 0 ? "" : "(" + string.Join(",", parameters.Select(p => TypeId(p.ParameterType))) + ")";
+
+        string TypeId(Type t)
+        {
+            if (t.IsByRef)
+                return TypeId(t.GetElementType()) + "@";
+            if (t.IsPointer)
+                return TypeId(t.GetElementType()) + "*";
+            if (t.IsArray && t.Name.EndsWith("[]", StringComparison.Ordinal))
+                return TypeId(t.GetElementType()) + "[]";
+            if (t.IsArray)
+                return TypeId(t.GetElementType()) + "[" + string.Join(",", Enumerable.Repeat("0:", t.GetArrayRank())) + "]";
+            if (t.IsGenericParameter)
+                return (t.DeclaringMethod != null ? "``" : "`") + t.GenericParameterPosition;
+            return t.IsGenericType ? ConstructedId(t.GetGenericTypeDefinition(), t.GetGenericArguments()) : DefinitionId(t);
+        }
+
+        // Metadata lists every argument of a nested constructed type on the innermost type; each level takes its own.
+        string ConstructedId(Type definition, Type[] arguments)
+        {
+            var outer = definition.IsNested ? definition.DeclaringType.GetGenericArguments().Length : 0;
+            var prefix =
+                !definition.IsNested ? (string.IsNullOrEmpty(definition.Namespace) ? "" : definition.Namespace + ".")
+                : outer > 0 ? ConstructedId(definition.DeclaringType, arguments) + "."
+                : DefinitionId(definition.DeclaringType) + ".";
+            var tick = definition.Name.IndexOf('`');
+            if (tick < 0)
+                return prefix + definition.Name;
+            var own = arguments.Skip(outer).Take(definition.GetGenericArguments().Length - outer).Select(TypeId);
+            return prefix + definition.Name.Substring(0, tick) + "{" + string.Join(",", own) + "}";
+        }
+        ]]>
+      </Code>
+    </Task>
+  </UsingTask>
 </Project>
