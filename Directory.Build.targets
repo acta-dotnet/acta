@@ -3,4 +3,53 @@
   <ItemGroup Condition="'$(IsPackable)' != 'false'">
     <PackageReference Include="MinVer" PrivateAssets="all" />
   </ItemGroup>
+
+  <!-- The durability contract as do-this-not-that pairs, for a coding agent that has Acta in front
+       of it but only Hangfire/Quartz idioms in its weights. Those idioms compile here and are wrong
+       here, and the compiler cannot say so; shipping the text where the package is read can. The
+       packed copy opens with the package version and the commit it was built from, so an agent
+       reading it inside a package knows which Acta it describes. -->
+  <PropertyGroup>
+    <_LlmsTxt>$(MSBuildThisFileDirectory)llms.txt</_LlmsTxt>
+    <BeforePack>$(BeforePack);PackLlmsTxt</BeforePack>
+  </PropertyGroup>
+  <UsingTask
+    TaskName="WriteStampedLlmsTxt"
+    TaskFactory="RoslynCodeTaskFactory"
+    AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll"
+  >
+    <ParameterGroup>
+      <Stamp ParameterType="System.String" Required="true" />
+      <SourceFile ParameterType="System.String" Required="true" />
+      <DestinationFile ParameterType="System.String" Required="true" />
+    </ParameterGroup>
+    <Task>
+      <Code Type="Fragment" Language="cs">
+        <![CDATA[
+        // A task rather than WriteLinesToFile, which turns every backslash into a slash on Linux.
+        var text = Stamp + "\n\n" + File.ReadAllText(SourceFile);
+        if (!File.Exists(DestinationFile) || File.ReadAllText(DestinationFile) != text)
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(DestinationFile));
+            File.WriteAllText(DestinationFile, text);
+        }
+        ]]>
+      </Code>
+    </Task>
+  </UsingTask>
+  <Target
+    Name="PackLlmsTxt"
+    DependsOnTargets="$(GetPackageVersionDependsOn);InitializeSourceControlInformation"
+    Condition="Exists('$(_LlmsTxt)')"
+  >
+    <PropertyGroup>
+      <_PackedLlmsTxt>$([MSBuild]::NormalizePath('$(ProjectDir)', '$(IntermediateOutputPath)', 'llms.txt'))</_PackedLlmsTxt>
+      <_LlmsTxtStamp>This copy ships in $(PackageId) $(PackageVersion)</_LlmsTxtStamp>
+      <_LlmsTxtStamp Condition="'$(SourceRevisionId)' != ''">$(_LlmsTxtStamp), built from commit $(SourceRevisionId)</_LlmsTxtStamp>
+    </PropertyGroup>
+    <WriteStampedLlmsTxt Stamp="$(_LlmsTxtStamp)." SourceFile="$(_LlmsTxt)" DestinationFile="$(_PackedLlmsTxt)" />
+    <ItemGroup>
+      <None Include="$(_PackedLlmsTxt)" Pack="true" PackagePath="\" Visible="false" />
+    </ItemGroup>
+  </Target>
 </Project>
