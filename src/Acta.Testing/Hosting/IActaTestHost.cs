@@ -2,7 +2,7 @@ namespace Acta.Testing;
 
 /// <summary>
 /// A running Acta runtime for tests: enqueue jobs, drive them deterministically with
-/// <see cref="RunOnceAsync"/>, and assert through the <see cref="Jobs"/> read surface. Provider-agnostic:
+/// <see cref="RunOnceAsync(JobLookup, CancellationToken)"/>, and assert through the <see cref="Jobs"/> read surface. Provider-agnostic:
 /// the integrator wires their own <c>UseSqlServer</c> / <c>UsePostgres</c> in the start callback.
 /// </summary>
 public interface IActaTestHost : IAsyncDisposable
@@ -80,7 +80,7 @@ public interface IActaTestHost : IAsyncDisposable
 }
 
 /// <summary>
-/// Coarse outcome of one <see cref="IActaTestHost.RunOnceAsync"/> tick: the public mirror of the
+/// Coarse outcome of one <see cref="IActaTestHost.RunOnceAsync(JobLookup, CancellationToken)"/> tick: the public mirror of the
 /// runtime's internal run outcome, so integrators can assert on what a single drive did.
 /// </summary>
 public enum ActaRunStatus : byte

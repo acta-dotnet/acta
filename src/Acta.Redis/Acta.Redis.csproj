@@ -7,6 +7,9 @@
     <LangVersion>latest</LangVersion>
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>Acta.Redis</RootNamespace>
+    <!-- Ship the XML doc file, so IntelliSense shows the summaries; not every public member needs one. -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);1591</NoWarn>
     <Description>Redis cross-process worker wakeup transport for Acta.</Description>
     <PackageTags>jobs;background-jobs;durable-work-ledger;durable-execution;redis;worker-wakeup;dotnet;aot</PackageTags>
   </PropertyGroup>

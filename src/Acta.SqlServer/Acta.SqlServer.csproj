@@ -7,6 +7,9 @@
     <LangVersion>latest</LangVersion>
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>Acta.SqlServer</RootNamespace>
+    <!-- Ship the XML doc file, so IntelliSense shows the summaries; not every public member needs one. -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);1591</NoWarn>
     <Description>SQL Server provider for Acta: store, dialect, parameter binding, and migrations.</Description>
   </PropertyGroup>
 

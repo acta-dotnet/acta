@@ -5,6 +5,9 @@
     <LangVersion>latest</LangVersion>
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>Acta.Testing</RootNamespace>
+    <!-- Ship the XML doc file, so IntelliSense shows the summaries; not every public member needs one. -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);1591</NoWarn>
     <!-- Test host, diagnostics, and relational assertion/query helpers. -->
     <Description>Acta.Testing provides ActaTestHost, a test-framework-agnostic harness (xUnit, NUnit, MSTest, TUnit) that stands up the full Acta runtime on a throwaway schema and drives [Job] handlers one tick at a time for deterministic end-to-end tests.</Description>
   </PropertyGroup>
