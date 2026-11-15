@@ -32,6 +32,7 @@ BEGIN
         DECLARE @val VARBINARY(MAX) = NULL;
         DECLARE @due DATETIME2(3) = NULL;
         DECLARE @outcome SMALLINT;
+        DECLARE @expired_due DATETIME2(3) = NULL;
         DECLARE @arm_due DATETIME2(3) = COALESCE(@p_due_at_utc, DATEADD(SECOND, @p_timeout_seconds, @now));
         DECLARE @arm_state TINYINT = CASE
             WHEN @arm_due <= @now THEN 30 /* CheckpointStatusCode.Expired */
@@ -86,6 +87,7 @@ BEGIN
                 WHERE job_id = @p_job_id AND checkpoint_kind_code = @p_checkpoint_kind_code AND checkpoint_name = @p_checkpoint_name;
 
                 SET @outcome = 3 /* WaitJobSignalOutcomeCode.TimedOut */;
+                SET @expired_due = @due;
                 SET @fmt = 0 /* JobPayloadFormat.None */;
                 SET @val = NULL;
             END
@@ -103,7 +105,10 @@ BEGIN
                             0 /* JobPayloadFormat.None */, NULL, @now, @now, 0
                         );
                         IF @arm_state = 30 /* CheckpointStatusCode.Expired */
-                            SET @outcome = 3 /* WaitJobSignalOutcomeCode.TimedOut */;
+                            BEGIN
+                                SET @outcome = 3 /* WaitJobSignalOutcomeCode.TimedOut */;
+                                SET @expired_due = @arm_due;
+                            END
                     END
                 ELSE IF @state = 10 /* CheckpointStatusCode.Pending */ AND @due IS NULL AND @arm_due IS NOT NULL
                     BEGIN
@@ -118,11 +123,52 @@ BEGIN
                             AND checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */
                             AND due_at_utc IS NULL;
                         IF @arm_state = 30 /* CheckpointStatusCode.Expired */
-                            SET @outcome = 3 /* WaitJobSignalOutcomeCode.TimedOut */;
+                            BEGIN
+                                SET @outcome = 3 /* WaitJobSignalOutcomeCode.TimedOut */;
+                                SET @expired_due = @arm_due;
+                            END
                     END
                 SET @fmt = 0 /* JobPayloadFormat.None */;
                 SET @val = NULL;
             END
+
+        -- An expiry this call made reaches the timeline, a child named as its parent named it; a replayed one does not.
+        IF @expired_due IS NOT NULL
+            INSERT INTO {{schema}}.events (
+                event_code, created_at_utc, namespace_id,
+                entity_code, entity_id,
+                definition_id, tenant_id, lineage_root_job_id,
+                execution_number,
+                event_message, details_format_id, details
+            )
+            SELECT
+                83 /* EventCode.JobWaitExpired */, @now, j.namespace_id,
+                50 /* EntityCode.Job */, j.job_id,
+                j.definition_id, j.tenant_id, COALESCE(j.lineage_root_job_id, j.job_id),
+                @p_execution_number,
+                N'The wait for '
+                + CASE
+                    WHEN @p_checkpoint_kind_code = 50 /* CheckpointKindCode.ChildLatch */
+                        THEN N'child ' + COALESCE(
+                            N'''' + ch.deduplication_key COLLATE DATABASE_DEFAULT + N'''',
+                            N'job ' + SUBSTRING(@p_checkpoint_name, 11, 128)
+                        )
+                    ELSE N'signal ''' + @p_checkpoint_name + N''''
+                END + N' expired.',
+                1 /* JobPayloadFormat.Json */,
+                CAST(
+                    '{"kind":"'
+                    + CASE WHEN @p_checkpoint_kind_code = 50 /* CheckpointKindCode.ChildLatch */ THEN 'child-latch' ELSE 'signal' END
+                    + '","name":"' + @p_checkpoint_name + '","dueAtUtc":"' + CONVERT(VARCHAR(23), @expired_due, 126) + 'Z"}'
+                    AS VARBINARY(MAX)
+                )
+            FROM {{schema}}.jobs j
+            LEFT JOIN {{schema}}.jobs ch
+                ON
+                    @p_checkpoint_kind_code = 50 /* CheckpointKindCode.ChildLatch */
+                    AND ch.parent_job_id = j.job_id
+                    AND CONCAT('sys.child.', ch.job_id) = @p_checkpoint_name
+            WHERE j.job_id = @p_job_id AND j.event_recording_code = 20 /* EventRecordingCode.Audit */;
 
         SELECT
             @outcome AS outcome_code,

@@ -689,6 +689,7 @@ enum Acta.EventCode : System.Byte
     JobSignalRaised = 80
     JobStateReset = 81
     JobSuspended = 60
+    JobWaitExpired = 83
     NamespaceDeployed = 23
     NamespaceResumed = 21
     NamespaceSuspended = 20

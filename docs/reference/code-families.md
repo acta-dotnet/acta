@@ -5,7 +5,7 @@
 > Generated reference for Acta code families and the payload-format registry.
 > Every persisted code is documented here exactly once; the data-model reference [`data-model.md`](./data-model.md) links into this file from every code-bearing column.
 
-This release: **33 families**, **198 values**.
+This release: **33 families**, **199 values**.
 
 > Numeric IDs are stable family-local persistence identifiers. Enum members carry programmatic meaning; textual codes carry operator-facing meaning.
 > Numeric grouping is a readability convention, not a runtime schema. Canonical failure states use `200`.
@@ -238,6 +238,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `JobSignalRaised` | 80 | `job.signal-raised` | A signal was raised for the job. Its signal checkpoint is set, unless the wait had already expired: then nothing changes, and the message says so. | Active |
 | `JobStateReset` | 81 | `job.state-reset` | The handler reset the job's state: its checkpoints and steps were cleared so the next execution starts as new. The record of a scheduled firing stays. | Active |
 | `JobSignalCleared` | 82 | `job.signal-cleared` | An operator cleared a signal from a finished job or a permanent job between firings, so the job's next wait for it waits again; the operator is the event's actor. | Active |
+| `JobWaitExpired` | 83 | `job.wait-expired` | A signal or child wait passed its deadline, settled when the job re-entered it; the message names the signal or the child, and the details carry its kind, name and dueAtUtc. | Active |
 | `JobNoteRecorded` | 90 | `job.note-recorded` | A note the application's handler wrote. It is the only event an application can write, and the engine never writes it, so every other event is the engine's own. The message carries the line; the details carry the optional payload. | Active |
 | `SchedulePaused` | 100 | `schedule.paused` | A recurring schedule was paused; details carry the schedule name. | Active |
 | `ScheduleResumed` | 101 | `schedule.resumed` | A recurring schedule was resumed; details carry the schedule name. | Active |

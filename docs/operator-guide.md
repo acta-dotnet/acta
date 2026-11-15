@@ -280,7 +280,7 @@ Five rules the table cannot show:
 | Meaning | Call |
 | --- | --- |
 | Retry under the job's own policy | None: the policy retries a failed attempt by itself. `reschedule` brings a waiting retry forward, and `restart` gives a Failed job a new budget. |
-| Run again, keeping what already ran | `restart`: succeeded steps, signals, variables and children stay; failed steps run again, and the expired wait that ended the job waits again under a fresh bound. |
+| Run again, keeping what already ran | `restart`: succeeded steps, signals, variables and children stay; failed steps run again, and the expired wait that ended the job waits again under a fresh bound, unless an instant bounded it, which it meets again at once. |
 | New work from a changed input | A new job, enqueued under a new deduplication key (`invoice-77.r2`) with the old job's correlation key, so every revision is found together. Its steps and children start fresh. |
 | Settle an interrupted external call first | An at-most-once step hands its handler the interrupted state to reconcile; `restart` runs a failed at-most-once step again, but never an interrupted one or one whose body threw `OutcomeUnknownException`. |
 
@@ -954,7 +954,8 @@ suspended job, only terminal ones. When "never" is a real possibility, bound the
 workflows that expire or compensate explicitly, and the outcome's `ThrowIfTimedOut()` fails the job
 at once, with no retry and no budget spent, so the row lands terminal and ages out normally. The
 deadline is stamped on the checkpoint when the wait first arms and is never extended: worker downtime,
-restarts, and replays all count against it. A restart of the failed job reopens the wait under a fresh bound.
+restarts, and replays all count against it. A restart of the failed job reopens the wait under a fresh bound; a
+wait bounded by an instant, `WaitSignalAsync(name, until)`, meets that instant again and times out at once.
 
 ### …a child never finishes and the parent is waiting on it?
 

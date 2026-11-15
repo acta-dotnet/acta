@@ -123,6 +123,11 @@ public sealed class ChildTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, J
         Assert.Equal(slow, report.ChildJobId);
         Assert.Null(report.Outcome);
 
+        // The expiry reaches the parent's timeline once, naming the child as the parent named it.
+        var expired = await ReadSingleEventAsync(parent.JobId, EventCode.JobWaitExpired, ct);
+        Assert.Equal("The wait for child 'slow' expired.", expired.EventMessage);
+        Assert.Equal(("child-latch", $"sys.child.{slow}"), (EventDetail(expired, "kind"), EventDetail(expired, "name")));
+
         foreach (var cancelledId in (long[])[slow, grandchild])
         {
             var job = await ReadJobAsync(cancelledId, ct);

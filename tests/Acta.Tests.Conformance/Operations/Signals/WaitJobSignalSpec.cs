@@ -1,3 +1,4 @@
+using System.Globalization;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -133,6 +134,13 @@ public sealed class WaitJobSignalSpec : ActaRuntimeTestBase<ConformanceFixture, 
         Assert.Equal(WaitJobSignalOutcomeCode.TimedOut, (await WaitAsync(jobId, "go", 60, ct)).Outcome);
         Assert.Equal(CheckpointStatusCode.Expired, (await ReadCheckpointAsync(jobId, CheckpointKindCode.Signal, "go", ct)).Status);
         Assert.Equal(WaitJobSignalOutcomeCode.TimedOut, (await WaitAsync(jobId, "go", null, ct)).Outcome);
+
+        // The expiry reaches the timeline once, naming the signal and its stored deadline; the replay adds nothing.
+        var expired = await ReadSingleEventAsync(jobId, EventCode.JobWaitExpired, ct);
+        Assert.Equal("The wait for signal 'go' expired.", expired.EventMessage);
+        Assert.Equal(("signal", "go"), (EventDetail(expired, "kind"), EventDetail(expired, "name")));
+        var due = DateTime.Parse(EventDetail(expired, "dueAtUtc")!, CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal);
+        Assert.InRange(due, past.AddSeconds(-1), past.AddSeconds(1));
     }
 
     [Fact(DisplayName = "A wait bounded by an instant stores that instant, and a later instant neither moves nor clears it")]
@@ -163,6 +171,7 @@ public sealed class WaitJobSignalSpec : ActaRuntimeTestBase<ConformanceFixture, 
         await WaitAsync(jobId, "later", null, ct);
         Assert.Equal(WaitJobSignalOutcomeCode.TimedOut, (await WaitUntilAsync(jobId, "later", past, ct)).Outcome);
         Assert.Equal(CheckpointStatusCode.Expired, (await ReadCheckpointAsync(jobId, CheckpointKindCode.Signal, "later", ct)).Status);
+        Assert.Equal(2, await CountEventsAsync(jobId, EventCode.JobWaitExpired, ct));
     }
 
     [Fact(DisplayName = "A raise that waited for the job while a wait expired leaves the Expired checkpoint as it is")]

@@ -217,7 +217,7 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 | --- | --- | --- | --- | --- | --- | --- |
 | `ClearJobSignal` | `IJobs.ClearSignalAsync` | `DELETE /jobs/{jobRef}/signals/{signalName}` (`clearJobSignal`, `acta.control`) | `clear-signal` | inline | `checkpoints`, `events` | `ClearJobSignalSpec` |
 | `RaiseJobSignal` | `IJobs.RaiseSignalAsync` | `POST /jobs/{jobRef}/signals/{signalName}` (`raiseJobSignal`, `acta.control`) | `signal` | routine | `checkpoints`, `events`, `jobs_state` | `RaiseJobSignalSpec` |
-| `WaitJobSignal` | · | · | · | routine | `checkpoints` | `WaitJobSignalSpec` |
+| `WaitJobSignal` | · | · | · | routine | `checkpoints`, `events` | `WaitJobSignalSpec` |
 
 ## Tags
 

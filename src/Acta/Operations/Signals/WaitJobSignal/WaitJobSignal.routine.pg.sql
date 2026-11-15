@@ -31,6 +31,8 @@ DECLARE
     v_val BYTEA;
     v_due TIMESTAMPTZ;
     v_armed INT;
+    v_outcome SMALLINT := 1 /* WaitJobSignalOutcomeCode.SuspendPending */;
+    v_expired_due TIMESTAMPTZ;
 BEGIN
     /* A checkpoint this call arms at or past its due is armed Expired, so a child landing after it cannot
        revive the wait, and the wait times out now. Only an instant can be due already: a length is
@@ -86,39 +88,33 @@ BEGIN
         ON CONFLICT (job_id, checkpoint_kind_code, checkpoint_name) DO NOTHING;
         GET DIAGNOSTICS v_armed = ROW_COUNT;
 
-        /* Returning here rather than resolving is what keeps a wait this call armed with a length
-           suspending once on all three providers; mssql and sqlite reach that by construction. */
-        IF v_armed = 1 THEN
-            RETURN QUERY SELECT
-                CASE
-                    WHEN v_arm_state = 30 /* CheckpointStatusCode.Expired */ THEN 3 /* WaitJobSignalOutcomeCode.TimedOut */
-                    ELSE 1 /* WaitJobSignalOutcomeCode.SuspendPending */
-                END::SMALLINT,
-                0 /* JobPayloadFormat.None */::SMALLINT,
-                NULL::BYTEA;
-            RETURN;
-        END IF;
-
         /* Lost the race, so DO NOTHING waited the winner out and its row is committed. The re-read
            sees it because this runs at READ COMMITTED - the repo sets no isolation level - where each
            statement takes a fresh snapshot; under Serializable it would abort, which is also correct. */
-        SELECT js.checkpoint_status_code, js.value_format_id, js.value, js.due_at_utc
-        INTO v_state, v_fmt, v_val, v_due
-        FROM {{schema}}.checkpoints js
-        WHERE js.job_id = p_job_id AND js.checkpoint_kind_code = p_checkpoint_kind_code AND js.checkpoint_name = p_checkpoint_name
-        FOR UPDATE;
+        IF v_armed = 0 THEN
+            SELECT js.checkpoint_status_code, js.value_format_id, js.value, js.due_at_utc
+            INTO v_state, v_fmt, v_val, v_due
+            FROM {{schema}}.checkpoints js
+            WHERE js.job_id = p_job_id AND js.checkpoint_kind_code = p_checkpoint_kind_code AND js.checkpoint_name = p_checkpoint_name
+            FOR UPDATE;
+        END IF;
     END IF;
 
-    IF v_state = 20 /* CheckpointStatusCode.Set */ THEN
+    /* A wait this call armed is not resolved further, which keeps one armed with a length suspending once on all
+       three providers; mssql and sqlite reach that by construction. */
+    IF v_armed = 1 THEN
+        IF v_arm_state = 30 /* CheckpointStatusCode.Expired */ THEN
+            v_outcome := 3 /* WaitJobSignalOutcomeCode.TimedOut */;
+            v_expired_due := v_arm_due;
+        END IF;
+    ELSIF v_state = 20 /* CheckpointStatusCode.Set */ THEN
         RETURN QUERY SELECT
             2 /* WaitJobSignalOutcomeCode.ContinueSet */::SMALLINT,
             v_fmt,
             v_val;
+        RETURN;
     ELSIF v_state = 30 /* CheckpointStatusCode.Expired */ THEN
-        RETURN QUERY SELECT
-            3 /* WaitJobSignalOutcomeCode.TimedOut */::SMALLINT,
-            0 /* JobPayloadFormat.None */::SMALLINT,
-            NULL::BYTEA;
+        v_outcome := 3 /* WaitJobSignalOutcomeCode.TimedOut */;
     ELSIF v_state = 10 /* CheckpointStatusCode.Pending */ AND v_due IS NOT NULL AND v_due <= v_now THEN
 
         UPDATE {{schema}}.checkpoints js
@@ -128,10 +124,8 @@ BEGIN
             version = js.version + 1
         WHERE js.job_id = p_job_id AND js.checkpoint_kind_code = p_checkpoint_kind_code AND js.checkpoint_name = p_checkpoint_name;
 
-        RETURN QUERY SELECT
-            3 /* WaitJobSignalOutcomeCode.TimedOut */::SMALLINT,
-            0 /* JobPayloadFormat.None */::SMALLINT,
-            NULL::BYTEA;
+        v_outcome := 3 /* WaitJobSignalOutcomeCode.TimedOut */;
+        v_expired_due := v_due;
     ELSIF v_state = 10 /* CheckpointStatusCode.Pending */ AND v_due IS NULL AND v_arm_due IS NOT NULL THEN
 
         UPDATE {{schema}}.checkpoints js
@@ -147,18 +141,53 @@ BEGIN
             AND js.checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */
             AND js.due_at_utc IS NULL;
 
-        RETURN QUERY SELECT
-            CASE
-                WHEN v_arm_state = 30 /* CheckpointStatusCode.Expired */ THEN 3 /* WaitJobSignalOutcomeCode.TimedOut */
-                ELSE 1 /* WaitJobSignalOutcomeCode.SuspendPending */
-            END::SMALLINT,
-            0 /* JobPayloadFormat.None */::SMALLINT,
-            NULL::BYTEA;
-    ELSE
-        RETURN QUERY SELECT
-            1 /* WaitJobSignalOutcomeCode.SuspendPending */::SMALLINT,
-            0 /* JobPayloadFormat.None */::SMALLINT,
-            NULL::BYTEA;
+        IF v_arm_state = 30 /* CheckpointStatusCode.Expired */ THEN
+            v_outcome := 3 /* WaitJobSignalOutcomeCode.TimedOut */;
+            v_expired_due := v_arm_due;
+        END IF;
     END IF;
+
+    -- An expiry this call made reaches the timeline, a child named as its parent named it; a replayed one does not.
+    IF v_expired_due IS NOT NULL THEN
+        INSERT INTO {{schema}}.events (
+            event_code, created_at_utc, namespace_id,
+            entity_code, entity_id,
+            definition_id, tenant_id, lineage_root_job_id,
+            execution_number,
+            event_message, details_format_id, details
+        )
+        SELECT
+            83 /* EventCode.JobWaitExpired */, v_now, j.namespace_id,
+            50 /* EntityCode.Job */, j.job_id,
+            j.definition_id, j.tenant_id, COALESCE(j.lineage_root_job_id, j.job_id),
+            p_execution_number,
+            'The wait for '
+            || CASE
+                WHEN p_checkpoint_kind_code = 50 /* CheckpointKindCode.ChildLatch */
+                    THEN 'child ' || COALESCE('''' || ch.deduplication_key || '''', 'job ' || substr(p_checkpoint_name, 11))
+                ELSE 'signal ''' || p_checkpoint_name || ''''
+            END || ' expired.',
+            1 /* JobPayloadFormat.Json */,
+            convert_to(
+                json_build_object(
+                    'kind', CASE WHEN p_checkpoint_kind_code = 50 /* CheckpointKindCode.ChildLatch */ THEN 'child-latch' ELSE 'signal' END,
+                    'name', p_checkpoint_name,
+                    'dueAtUtc', to_char(v_expired_due AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')
+                )::text,
+                'UTF8'
+            )
+        FROM {{schema}}.jobs j
+        LEFT JOIN {{schema}}.jobs ch
+            ON
+                p_checkpoint_kind_code = 50 /* CheckpointKindCode.ChildLatch */
+                AND ch.parent_job_id = j.job_id
+                AND 'sys.child.' || ch.job_id = p_checkpoint_name
+        WHERE j.job_id = p_job_id AND j.event_recording_code = 20 /* EventRecordingCode.Audit */;
+    END IF;
+
+    RETURN QUERY SELECT
+        v_outcome,
+        0 /* JobPayloadFormat.None */::SMALLINT,
+        NULL::BYTEA;
 END;
 $$;

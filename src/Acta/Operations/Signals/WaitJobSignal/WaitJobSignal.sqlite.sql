@@ -21,6 +21,13 @@ WHERE NOT EXISTS (
         AND r.leased_by_worker_id = @p_leased_by_worker_id
 );
 
+-- The state before this call changes anything, so an expiry it makes is told from one it replays.
+DROP TABLE IF EXISTS temp._wait_before;
+CREATE TEMP TABLE _wait_before AS
+SELECT c.checkpoint_status_code AS status
+FROM {{schema}}.checkpoints c
+WHERE c.job_id = @p_job_id AND c.checkpoint_kind_code = @p_checkpoint_kind_code AND c.checkpoint_name = @p_checkpoint_name;
+
 UPDATE {{schema}}.checkpoints
 SET
     checkpoint_status_code = 30 /* CheckpointStatusCode.Expired */,
@@ -62,6 +69,48 @@ WHERE
     AND checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */
     AND due_at_utc IS NULL
     AND COALESCE(@p_due_at_utc, @p_timeout_seconds) IS NOT NULL;
+
+-- An expiry this call made reaches the timeline, a child named as its parent named it; a replayed one does not.
+INSERT INTO {{schema}}.events (
+    event_code, created_at_utc, namespace_id, entity_code, entity_id, definition_id, tenant_id, lineage_root_job_id,
+    execution_number, event_message, details_format_id, details
+)
+SELECT
+    83 /* EventCode.JobWaitExpired */,
+    {{now}},
+    j.namespace_id,
+    50 /* EntityCode.Job */,
+    j.job_id,
+    j.definition_id,
+    j.tenant_id,
+    COALESCE(j.lineage_root_job_id, j.job_id),
+    @p_execution_number,
+    'The wait for '
+    || CASE
+        WHEN @p_checkpoint_kind_code = 50 /* CheckpointKindCode.ChildLatch */
+            THEN 'child ' || COALESCE('''' || ch.deduplication_key || '''', 'job ' || substr(@p_checkpoint_name, 11))
+        ELSE 'signal ''' || @p_checkpoint_name || ''''
+    END || ' expired.',
+    1 /* JobPayloadFormat.Json */,
+    CAST(
+        json_object(
+            'kind', CASE WHEN @p_checkpoint_kind_code = 50 /* CheckpointKindCode.ChildLatch */ THEN 'child-latch' ELSE 'signal' END,
+            'name', @p_checkpoint_name,
+            'dueAtUtc', strftime('%Y-%m-%dT%H:%M:%fZ', c.due_at_utc / 1000.0, 'unixepoch')
+        ) AS BLOB
+    )
+FROM {{schema}}.checkpoints c
+JOIN {{schema}}.jobs j ON j.job_id = c.job_id
+LEFT JOIN {{schema}}.jobs ch
+    ON
+        @p_checkpoint_kind_code = 50 /* CheckpointKindCode.ChildLatch */
+        AND ch.parent_job_id = j.job_id
+        AND 'sys.child.' || ch.job_id = @p_checkpoint_name
+WHERE
+    c.job_id = @p_job_id AND c.checkpoint_kind_code = @p_checkpoint_kind_code AND c.checkpoint_name = @p_checkpoint_name
+    AND c.checkpoint_status_code = 30 /* CheckpointStatusCode.Expired */
+    AND NOT EXISTS (SELECT 1 FROM temp._wait_before b WHERE b.status = 30 /* CheckpointStatusCode.Expired */)
+    AND j.event_recording_code = 20 /* EventRecordingCode.Audit */;
 
 SELECT
     CASE

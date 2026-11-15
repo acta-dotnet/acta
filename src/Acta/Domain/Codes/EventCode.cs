@@ -152,6 +152,12 @@ public enum EventCode : byte
     JobSignalCleared = 82,
 
     [Code(
+        "job.wait-expired",
+        "A signal or child wait passed its deadline, settled when the job re-entered it; the message names the signal or the child, and the details carry its kind, name and dueAtUtc."
+    )]
+    JobWaitExpired = 83,
+
+    [Code(
         "job.note-recorded",
         "A note the application's handler wrote. It is the only event an application can write, and the engine never writes it, so every other event is the engine's own. The message carries the line; the details carry the optional payload."
     )]

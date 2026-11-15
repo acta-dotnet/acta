@@ -6,7 +6,7 @@ namespace Acta;
 /// fails the job at once, since a retry would meet the same expired wait; a restart reopens the wait.
 /// </summary>
 public sealed class SignalWaitTimeoutException(string signalName)
-    : ActaException($"The wait for signal '{signalName}' timed out. A restart waits again under a fresh bound.")
+    : ActaException($"The wait for signal '{signalName}' timed out. A restart waits again, for a fresh timeout or until the same instant.")
 {
     /// <summary>The signal whose wait timed out.</summary>
     public string SignalName { get; } = signalName;
