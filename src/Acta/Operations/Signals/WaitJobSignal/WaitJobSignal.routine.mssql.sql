@@ -138,14 +138,14 @@ BEGIN
                 event_code, created_at_utc, namespace_id,
                 entity_code, entity_id,
                 definition_id, tenant_id, lineage_root_job_id,
-                execution_number,
+                worker_id, execution_number,
                 event_message, details_format_id, details
             )
             SELECT
                 83 /* EventCode.JobWaitExpired */, @now, j.namespace_id,
                 50 /* EntityCode.Job */, j.job_id,
                 j.definition_id, j.tenant_id, COALESCE(j.lineage_root_job_id, j.job_id),
-                @p_execution_number,
+                @p_leased_by_worker_id, @p_execution_number,
                 N'The wait for '
                 + CASE
                     WHEN @p_checkpoint_kind_code = 50 /* CheckpointKindCode.ChildLatch */
@@ -167,7 +167,8 @@ BEGIN
                 ON
                     @p_checkpoint_kind_code = 50 /* CheckpointKindCode.ChildLatch */
                     AND ch.parent_job_id = j.job_id
-                    AND CONCAT('sys.child.', ch.job_id) = @p_checkpoint_name
+                    -- A seek on the child's id, the latch name's tail, so no sibling row is read or waited on.
+                    AND ch.job_id = TRY_CAST(SUBSTRING(@p_checkpoint_name, 11, 20) AS BIGINT)
             WHERE j.job_id = @p_job_id AND j.event_recording_code = 20 /* EventRecordingCode.Audit */;
 
         SELECT

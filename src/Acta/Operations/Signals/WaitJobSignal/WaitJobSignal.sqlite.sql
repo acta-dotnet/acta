@@ -73,7 +73,7 @@ WHERE
 -- An expiry this call made reaches the timeline, a child named as its parent named it; a replayed one does not.
 INSERT INTO {{schema}}.events (
     event_code, created_at_utc, namespace_id, entity_code, entity_id, definition_id, tenant_id, lineage_root_job_id,
-    execution_number, event_message, details_format_id, details
+    worker_id, execution_number, event_message, details_format_id, details
 )
 SELECT
     83 /* EventCode.JobWaitExpired */,
@@ -84,6 +84,7 @@ SELECT
     j.definition_id,
     j.tenant_id,
     COALESCE(j.lineage_root_job_id, j.job_id),
+    @p_leased_by_worker_id,
     @p_execution_number,
     'The wait for '
     || CASE
@@ -105,7 +106,8 @@ LEFT JOIN {{schema}}.jobs ch
     ON
         @p_checkpoint_kind_code = 50 /* CheckpointKindCode.ChildLatch */
         AND ch.parent_job_id = j.job_id
-        AND 'sys.child.' || ch.job_id = @p_checkpoint_name
+        -- A seek on the child's id, the latch name's tail, so no sibling row is read.
+        AND ch.job_id = CAST(substr(@p_checkpoint_name, 11) AS INTEGER)
 WHERE
     c.job_id = @p_job_id AND c.checkpoint_kind_code = @p_checkpoint_kind_code AND c.checkpoint_name = @p_checkpoint_name
     AND c.checkpoint_status_code = 30 /* CheckpointStatusCode.Expired */

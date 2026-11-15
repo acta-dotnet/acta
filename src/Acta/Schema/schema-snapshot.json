@@ -1515,7 +1515,7 @@
       "start_job_step": "986670056d896544a6b177fe9dda6aeb3ce5df63dfac6bd2920569aaccffe4f6",
       "steps_view": "08ca955c91698a21e3fbdac79d9927a53ac4f5d73ba2d75d7c29477308fd0b9f",
       "tags_view": "55d18a02036ad23fbf32bbcbeef0bac99a881b9adf9e80e61711b33ca46717bb",
-      "wait_job_signal": "0ef541f3d7826307e477ed751ac1aac27086a9c9c733b20c59c080bce5f310f1",
+      "wait_job_signal": "eb4c7b4f40bed418b7834ccbe64a7239784d778d35e29b1b046dda3eeb65b565",
       "workers_view": "479bc6e7fdd8a3e6948fd652689e36e7942bcfc90cb8c1cce6ef63e442ce9f08"
     },
     "pg": {
@@ -1542,7 +1542,7 @@
       "start_job_step": "e0a919f275554b22f2724937bce650a48d9c2aef40175965b3132c742f990ef6",
       "steps_view": "d54994208bd643e15fe3b95994df31fd8f03f99273ea4d1ef5e69e6f53515727",
       "tags_view": "7c53250b8389ffff268b2c675dd929aa2bc434b34921753d649a49487c6b4d2f",
-      "wait_job_signal": "7db431760d557a98f8bf482e57eb0c9f56d05efcfa67ded3c33882a09aef65f6",
+      "wait_job_signal": "f2e29a35fe92d48b1eddc4f22087e2fe01033297194022a6a208d3dfaafba228",
       "workers_view": "83b2b8503a31f125ebc4c2c1b362fe0f180c5f04c6f679e63225612fcafcfeaa"
     },
     "sqlite": {

@@ -17258,7 +17258,7 @@
               "null",
               "string"
             ],
-            "description": "The name the parent gave that child, the call's name or {map}/{key}; null where childJobRef is."
+            "description": "The name the parent gave that child, the call's name or {map}/{key}; null where childJobRef is, and for a child the parent gave no name."
           }
         },
         "description": "The durable wait a Suspended Job is blocked on: a signal name, a child, or a timer and its due instant."
@@ -18326,7 +18326,7 @@
               "null",
               "string"
             ],
-            "description": "The name the parent gave that child, the call's name or {map}/{key}; null where childJobRef is."
+            "description": "The name the parent gave that child, the call's name or {map}/{key}; null where childJobRef is, and for a child the parent gave no name."
           }
         },
         "description": "The durable wait the focused Job is blocked on: a signal, child latch, or timer, and its due instant."
