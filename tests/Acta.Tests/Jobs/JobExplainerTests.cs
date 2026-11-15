@@ -122,7 +122,7 @@ public class JobExplainerTests
         // has to stay true after the explanation is pasted somewhere.
         Assert.Equal(Now.AddMinutes(30), x.ActiveWait!.DueAtUtc);
         Assert.Contains("waiting for signal \"fraud-review\"", x.Headline);
-        Assert.Contains($"times out at {Now.AddMinutes(30):yyyy-MM-dd HH:mm:ss}Z", x.Headline, StringComparison.Ordinal);
+        Assert.Contains($"times out at {Now.AddMinutes(30):yyyy-MM-dd HH:mm:ss.fff}Z", x.Headline, StringComparison.Ordinal);
         Assert.Contains(x.NextActions, a => a.Kind == "raise-signal");
     }
 
@@ -165,7 +165,7 @@ public class JobExplainerTests
         Assert.Equal(Now.AddMinutes(30), x.ActiveWait!.DueAtUtc);
         Assert.Contains("waiting for child job 7", x.Headline, StringComparison.Ordinal);
         // Same absolute-instant shape the bounded signal wait prints, for the same reason.
-        Assert.Contains($"times out at {Now.AddMinutes(30):yyyy-MM-dd HH:mm:ss}Z", x.Headline, StringComparison.Ordinal);
+        Assert.Contains($"times out at {Now.AddMinutes(30):yyyy-MM-dd HH:mm:ss.fff}Z", x.Headline, StringComparison.Ordinal);
         Assert.DoesNotContain("until the child completes", x.Headline, StringComparison.Ordinal);
     }
 
@@ -278,7 +278,7 @@ public class JobExplainerTests
 
         var recovery = ExplainJobHandler.Explain(data, Now, sqlite).Lease!.RecoveryExpectation;
 
-        Assert.StartsWith("The lease is valid until", recovery, StringComparison.Ordinal);
+        Assert.StartsWith($"The lease is valid until {Now.AddMinutes(2):yyyy-MM-dd HH:mm:ss.fff}Z;", recovery, StringComparison.Ordinal);
         Assert.Equal(sqlite, recovery.Contains("at once when a host starts on this machine", StringComparison.Ordinal));
     }
 

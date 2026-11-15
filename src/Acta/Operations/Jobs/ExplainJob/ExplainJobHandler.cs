@@ -348,7 +348,7 @@ internal sealed class ExplainJobHandler(GetJobIdHandler getJobId, IDbSession ses
             // On SQLite a starting host releases the jobs of a process that ended on its machine (WorkerRuntimeInitializer).
             var restart = sqlite ? ", or at once when a host starts on this machine after that worker's process ended" : "";
             recovery = h.LeaseExpiresAtUtc is { } until
-                ? $"The lease is valid until {until:u}; if its worker has stopped, recovery reclaims the job on its first pass after that{restart}."
+                ? $"The lease is valid until {Instant(until)}; if its worker has stopped, recovery reclaims the job on its first pass after that{restart}."
                 : $"The lease is valid; if its worker has stopped, recovery reclaims the job on its first pass after the lease lapses{restart}.";
         }
 
@@ -413,9 +413,10 @@ internal sealed class ExplainJobHandler(GetJobIdHandler getJobId, IDbSession ses
 
     /// <summary>
     /// An absolute instant, not a relative phrase: a wait's deadline is the thing an operator
-    /// diaries against, and it stays true however long the explanation sits in a terminal buffer.
+    /// diaries against, and it stays true however long the explanation sits in a terminal buffer. To the millisecond, as
+    /// the database stores it, so it lines up with the events' times.
     /// </summary>
-    private static string Instant(DateTime utc) => utc.ToString("yyyy-MM-dd HH:mm:ss'Z'", CultureInfo.InvariantCulture);
+    private static string Instant(DateTime utc) => utc.ToString("yyyy-MM-dd HH:mm:ss.fff'Z'", CultureInfo.InvariantCulture);
 
     private static string Ago(DateTime instant, DateTime now) => $"{Humanize(now - instant)} ago";
 
