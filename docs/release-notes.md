@@ -43,6 +43,12 @@ Not tagged yet.
 
 **Expect a broken name, or a stored value the code cannot read, to fail the job at once**: a step, variable, signal, timer, child or group name that breaks the name rule throws an `ActaException` at the call, where it threw `ArgumentException` and the job retried it until its budget ran out; the build refuses such a name when it can already see it (ACTA0152, an error). A raised signal value the waiting type cannot read throws `SignalValueContractMismatchException`, and a stored step result the current type cannot read `StepResultContractMismatchException`, and both now fail the job on the first attempt, where they retried. A signal timeout fails with reason `wait-timed-out` where it said `non-retryable-exception`.
 
+**Read `eventCode` where a script read `event` from `jobs events --json`**: each event's code is `eventCode`, the name the HTTP API gives it.
+
+**Count `reused` where a dashboard counted the `acta.steps` outcome `replayed`**: a step answered from its record is tagged `reused`.
+
+**Read `ExplainJobLease.WorkerDead` where code read `WorkerStale`**: the flag says recovery has marked the lease holder dead, which the worker list's `Stale` does not; it is `workerDead` over HTTP and in `jobs explain --json`.
+
 ### Additions
 
 - `JobContext.EndsJob(Exception)` answers whether an exception, left uncaught, ends the job with no further attempt.

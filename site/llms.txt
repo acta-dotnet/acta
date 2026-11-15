@@ -23,7 +23,7 @@ variables, timers, and signal waits return their recorded results instead of rep
 their work; every bare line between them runs again on every entry. The model is checkpoints, not
 deterministic replay: there is no determinism requirement on your code, and there is no magic resume-at-line-N.
 Where these docs say a re-entry replays a step, the step answers from its record and its body does not run (the
-`acta.steps` meter's `replayed` outcome means the same).
+`acta.steps` meter counts such a step under the outcome `reused`).
 A crash counts against the retry budget: the attempt a dead worker held is reclaimed as a failed one, so
 `MaxAttempts` crashes since the job last succeeded fail a job that never threw (a wait or a sleep is not a success,
 so the count carries across them), and a reclaimed job is due again at once, without the backoff: it waits behind

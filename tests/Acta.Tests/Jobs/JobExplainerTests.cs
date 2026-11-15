@@ -305,7 +305,7 @@ public class JobExplainerTests
         Assert.Contains("Ready", x.Lease.RecoveryExpectation);
         Assert.Contains(x.NextActions, a => a.Kind == "wait-recovery");
         Assert.DoesNotContain(x.NextActions, a => a.Kind == "restart");
-        Assert.False(x.Lease.WorkerStale);
+        Assert.False(x.Lease.WorkerDead);
     }
 
     [Fact]
@@ -326,7 +326,7 @@ public class JobExplainerTests
         var x = ExplainJobHandler.Explain(data, Now);
 
         Assert.Contains("Failed", x.Lease!.RecoveryExpectation);
-        Assert.True(x.Lease.WorkerStale);
+        Assert.True(x.Lease.WorkerDead);
     }
 
     [Fact]

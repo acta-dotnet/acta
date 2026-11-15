@@ -93,7 +93,7 @@ public sealed class ActaMetricsTests
     // steps assert behavior, not metric tags.
     [Theory]
     [InlineData("succeeded")]
-    [InlineData("replayed")]
+    [InlineData("reused")]
     [InlineData("interrupted")]
     [InlineData("failed")]
     public void RecordStep_increments_steps_counter_with_outcome_tag(string outcome)

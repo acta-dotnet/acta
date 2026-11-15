@@ -52,7 +52,7 @@ internal sealed partial class RuntimeJobContext
         switch (start.Outcome)
         {
             case StartJobStepOutcomeCode.ReplaySuccess:
-                RecordStep(name, "replayed");
+                RecordStep(name, "reused");
                 return storeResult ? DeserializeStepResult<TResult>(name, start.ResultFormatId, start.Result!) : default!;
             case StartJobStepOutcomeCode.Failed:
                 throw new StepFailedException(name, start.FailureMessage);

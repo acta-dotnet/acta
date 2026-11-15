@@ -52,7 +52,7 @@ export interface JobExplanation {
     expiresAtUtc: string | null;
     expired: boolean;
     workerLastSeenAtUtc: string | null;
-    workerStale: boolean;
+    workerDead: boolean;
     recoveryExpectation: string;
   } | null;
   lastExecutedBy: string | null;

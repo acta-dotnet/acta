@@ -741,9 +741,9 @@ sealed record Acta.ExplainJobAction
     System.String Description { get;init; }
     System.String Kind { get;init; }
 sealed record Acta.ExplainJobLease
-    .ctor(System.Int32 WorkerId, System.String? WorkerVersion, System.Nullable<System.DateTime> ExpiresAtUtc, System.Boolean Expired, System.Nullable<System.DateTime> WorkerLastSeenAtUtc, System.Boolean WorkerStale, System.String RecoveryExpectation, System.Nullable<Acta.WorkerRef> WorkerRef)
+    .ctor(System.Int32 WorkerId, System.String? WorkerVersion, System.Nullable<System.DateTime> ExpiresAtUtc, System.Boolean Expired, System.Nullable<System.DateTime> WorkerLastSeenAtUtc, System.Boolean WorkerDead, System.String RecoveryExpectation, System.Nullable<Acta.WorkerRef> WorkerRef)
     System.Boolean Expired { get;init; }
-    System.Boolean WorkerStale { get;init; }
+    System.Boolean WorkerDead { get;init; }
     System.Int32 WorkerId { get;init; }
     System.Nullable<Acta.WorkerRef> WorkerRef { get;init; }
     System.Nullable<System.DateTime> ExpiresAtUtc { get;init; }

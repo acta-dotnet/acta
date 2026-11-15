@@ -28,7 +28,7 @@ describe('JobDiagnosis', () => {
       expiresAtUtc: null,
       expired: false,
       workerLastSeenAtUtc: null,
-      workerStale: false,
+      workerDead: false,
       recoveryExpectation: ''
     };
     const { container, getByText } = render(JobDiagnosis, { jobNamespace: 'billing', explanation: explanation({ lease }) });
@@ -44,7 +44,7 @@ describe('JobDiagnosis', () => {
       expiresAtUtc: '2026-07-14T08:00:00Z',
       expired: true,
       workerLastSeenAtUtc: '2026-07-14T07:58:00Z',
-      workerStale: true,
+      workerDead: true,
       recoveryExpectation: 'Recovery reclaims the job on its next pass.'
     };
     const { container } = render(JobDiagnosis, { jobNamespace: 'billing', explanation: explanation({ lease }) });

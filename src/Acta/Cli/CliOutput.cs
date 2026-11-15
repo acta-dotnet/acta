@@ -127,7 +127,7 @@ internal static class CliOutput
                     WriteJsonInstantOrNull(w, "expiresAtUtc", lease.ExpiresAtUtc);
                     w.WriteBoolean("expired", lease.Expired);
                     WriteJsonInstantOrNull(w, "workerLastSeenAtUtc", lease.WorkerLastSeenAtUtc);
-                    w.WriteBoolean("workerStale", lease.WorkerStale);
+                    w.WriteBoolean("workerDead", lease.WorkerDead);
                     w.WriteString("recoveryExpectation", lease.RecoveryExpectation);
                     w.WriteEndObject();
                 }
@@ -183,7 +183,7 @@ internal static class CliOutput
             {
                 writer.WriteLine($"- Last heartbeat at {Instant(seen)}.");
             }
-            if (expiredLease.WorkerStale)
+            if (expiredLease.WorkerDead)
             {
                 writer.WriteLine("- Worker is marked Dead.");
             }
@@ -281,7 +281,7 @@ internal static class CliOutput
                 {
                     w.WriteStartObject();
                     w.WriteString("createdAtUtc", e.CreatedAtUtc);
-                    w.WriteString("event", e.EventCode.Code);
+                    w.WriteString("eventCode", e.EventCode.Code);
                     WriteJsonStringOrNull(w, "message", e.Message);
                     WriteJsonStringOrNull(w, "actor", e.Actor);
                     WriteJsonStringOrNull(w, "detailsText", e.DetailsText);

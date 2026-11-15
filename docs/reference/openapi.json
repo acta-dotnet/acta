@@ -16826,7 +16826,7 @@
           "expiresAtUtc",
           "expired",
           "workerLastSeenAtUtc",
-          "workerStale",
+          "workerDead",
           "recoveryExpectation",
           "workerRef"
         ],
@@ -16859,7 +16859,7 @@
             "description": "When the worker last sent a heartbeat, in UTC.",
             "format": "date-time"
           },
-          "workerStale": {
+          "workerDead": {
             "type": "boolean",
             "description": "Whether recovery has marked the worker dead, a dead-worker window without a heartbeat; the worker list's stale flag judges the shorter lease window."
           },

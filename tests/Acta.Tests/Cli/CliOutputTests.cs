@@ -305,7 +305,7 @@ public class CliOutputTests
 
         Assert.Contains($"\"jobRef\":\"{SampleJobRef}\"", text);
         Assert.Contains("\"createdAtUtc\":\"2026-06-21T12:30:01Z\"", text);
-        Assert.Contains("\"event\":\"job.failed\"", text);
+        Assert.Contains("\"eventCode\":\"job.failed\"", text);
         Assert.Contains("\"message\":\"boom\"", text);
         Assert.Contains("\"actor\":null", text);
         Assert.Contains("\"detailsText\":", text);
@@ -414,7 +414,7 @@ public class CliOutputTests
                 ExpiresAtUtc: new DateTime(2026, 7, 4, 11, 58, 0, DateTimeKind.Utc),
                 Expired: true,
                 WorkerLastSeenAtUtc: new DateTime(2026, 7, 4, 11, 56, 0, DateTimeKind.Utc),
-                WorkerStale: true,
+                WorkerDead: true,
                 RecoveryExpectation: "Recovery should return it to Ready on its next pass.",
                 WorkerRef: ExplainWorkerRef
             ),
@@ -940,7 +940,7 @@ public class CliOutputTests
                 ExpiresAtUtc: new DateTime(2026, 7, 4, 11, 58, 0, DateTimeKind.Utc),
                 Expired: true,
                 WorkerLastSeenAtUtc: new DateTime(2026, 7, 4, 11, 56, 0, DateTimeKind.Utc),
-                WorkerStale: true,
+                WorkerDead: true,
                 RecoveryExpectation: "Recovery should return it to Ready on its next pass.",
                 WorkerRef: SentinelWorkerRef
             ),

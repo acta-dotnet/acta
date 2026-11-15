@@ -109,7 +109,7 @@ test('incident summary names the lease holder by its ref, with its deployment ve
     expiresAtUtc: '2026-01-02T00:00:00Z',
     expired: false,
     workerLastSeenAtUtc: null,
-    workerStale: false,
+    workerDead: false,
     recoveryExpectation: ''
   };
   const explanation = {
