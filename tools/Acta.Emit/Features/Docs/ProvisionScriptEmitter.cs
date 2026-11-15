@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using System.Text.RegularExpressions;
 using Acta.Emit.Features.Migrations;
 using Acta.Emit.Shared;
 using Acta.Emit.Shared.Sql;
@@ -16,7 +17,7 @@ namespace Acta.Emit.Features.Docs;
 /// <c>MigrateOnStartup = false</c>, and because each migration records its own history row
 /// the bootstrap accepts the result as its own work.
 /// </summary>
-internal static class ProvisionScriptEmitter
+internal static partial class ProvisionScriptEmitter
 {
     /// <summary>The published file for one dialect: flat beside the other reference artifacts.</summary>
     internal static string PathFor(string repoRoot, string token) => Path.Combine(repoRoot, "docs", "reference", $"schema-{token}.sql");
@@ -150,17 +151,24 @@ internal static class ProvisionScriptEmitter
         );
         Append("-- ===== refuse a database a newer release already upgraded =====\n" + Render(NoDowngradeGuard(token, stems)));
 
-        foreach (var stem in stems)
+        string Read(string stem) => File.ReadAllText(MigrationFiles.PathFor(repoRoot, token, stem)).ReplaceLineEndings("\n");
+        var lastDefinition = string.Equals(token, "pg", StringComparison.Ordinal)
+            ? stems
+                .SelectMany((stem, index) => PgView().Matches(Read(stem)).Select(view => (Name: view.Groups["name"].Value, index)))
+                .GroupBy(view => view.Name, StringComparer.Ordinal)
+                .ToDictionary(views => views.Key, views => views.Max(view => view.index), StringComparer.Ordinal)
+            : [];
+
+        for (var index = 0; index < stems.Count; index++)
         {
             // Drop the migration file's own leading comment banner: it addresses migration editors
             // ("hand-edit only as a delta", "`{{schema}}` is substituted at apply time") and reads
             // false or confusing inside the fully rendered script; the BEGIN banner names the file.
-            var body = File.ReadAllText(MigrationFiles.PathFor(repoRoot, token, stem))
-                .ReplaceLineEndings("\n")
+            var body = Read(stems[index])
                 .Split('\n')
                 .SkipWhile(line => line.StartsWith("--", StringComparison.Ordinal) || line.Length == 0);
-            Append($"-- ===== BEGIN {stem} =====\n" + Render(string.Join("\n", body)));
-            Append($"-- ===== END {stem} =====");
+            Append($"-- ===== BEGIN {stems[index]} =====\n" + Render(GuardEarlierViews(body, index, lastDefinition)));
+            Append($"-- ===== END {stems[index]} =====");
         }
 
         Append(mssql ? "COMMIT TRANSACTION;" : "COMMIT;");
@@ -253,4 +261,42 @@ internal static class ProvisionScriptEmitter
 
     private static string Indent(string text, int spaces) =>
         string.Join("\n", text.Split('\n').Select(line => new string(' ', spaces) + line));
+
+    /// <summary>
+    /// A migration's definitions of the PostgreSQL views a later migration defines again, each run only where its view is
+    /// absent: <c>CREATE OR REPLACE</c> cannot take a column back, so a second run of the script would fail at the earlier
+    /// definition. A fresh install still builds them in order, and a re-run leaves the later one and a DBA's grants.
+    /// </summary>
+    private static string GuardEarlierViews(IEnumerable<string> migration, int index, Dictionary<string, int> lastDefinition)
+    {
+        var lines = migration.ToList();
+        var guarded = new List<string>();
+        for (var i = 0; i < lines.Count; i++)
+        {
+            var view = PgView().Match(lines[i]);
+            if (!view.Success || lastDefinition[view.Groups["name"].Value] == index)
+            {
+                guarded.Add(lines[i]);
+                continue;
+            }
+
+            // The statement runs to its first line ending in a semicolon, as every emitted view does.
+            var end = lines.FindIndex(i, line => line.TrimEnd().EndsWith(';'));
+            var name = view.Groups["name"].Value;
+            guarded.Add("DO $guard$");
+            guarded.Add("BEGIN");
+            guarded.Add($"    IF to_regclass('{{{{schema}}}}.{name}') IS NULL THEN");
+            guarded.Add($"        CREATE VIEW {{{{schema}}}}.{name} AS");
+            guarded.AddRange(lines.GetRange(i + 1, end - i).Select(line => line.Length == 0 ? line : "        " + line));
+            guarded.Add("    END IF;");
+            guarded.Add("END");
+            guarded.Add("$guard$;");
+            i = end;
+        }
+
+        return string.Join("\n", guarded);
+    }
+
+    [GeneratedRegex(@"^CREATE OR REPLACE VIEW \{\{schema\}\}\.(?<name>\w+) AS$", RegexOptions.Multiline | RegexOptions.CultureInvariant)]
+    private static partial Regex PgView();
 }

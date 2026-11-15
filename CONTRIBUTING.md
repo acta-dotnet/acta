@@ -250,13 +250,13 @@ upgrade:
 | Add column | `ADD COLUMN IF NOT EXISTS` | `IF COL_LENGTH('schema.table','col') IS NULL` | the table-rebuild idiom, guarded on the new table |
 
 Routine and view statements need no guard: `CREATE OR REPLACE`, `CREATE OR ALTER`, and SQLite's
-drop-then-create are idempotent as written. On PostgreSQL a later definition must keep what `CREATE OR
-REPLACE` cannot change, a function's parameters and result and a view's columns, or a second run of
-the script fails at the earlier definition. A routine redefined with the same parameters and result
-needs nothing more: the second run replays the earlier body and then the later one. Before a migration
-redefines a PostgreSQL view, or a routine's parameters or result, the script emitter must publish the
-earlier definition behind a guard on the object's absence, which keeps a fresh install in order and
-leaves a DBA's grants in place; `PostgresObjectRedefinitionTests` fails until it does.
+drop-then-create are idempotent as written. On PostgreSQL `CREATE OR REPLACE` cannot change a function's
+parameters and result or take a column from a view, so a second run of the script would fail at an
+earlier definition. The script emitter publishes each earlier definition of a view behind a guard on the
+view's absence, which keeps a fresh install in order and leaves a DBA's grants in place. A routine has
+no such guard: one redefined by a later migration keeps its parameters and result, the second run
+replaying the earlier body and then the later one, and `PostgresObjectRedefinitionTests` refuses a
+migration that changes them until the emitter guards routines too.
 
 `schema add` writes an added column, check, or foreign key as a bare `ALTER TABLE`, with no
 existence guard and no `TODO` saying one is missing, so a second run of the published script fails
