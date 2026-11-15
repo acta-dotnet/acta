@@ -406,7 +406,17 @@ SELECT
     'sys.child.' || d.job_id,
     20 /* CheckpointStatusCode.Set */,
     1 /* JobPayloadFormat.Json */,
-    CAST(json_object('childJobId', d.job_id, 'status', d.to_status, 'executionNumber', d.execution_number) AS BLOB),
+    -- A failed landing carries its message, so the parent's outcome can say why without reading the child's timeline.
+    CAST(
+        CASE
+            WHEN d.to_status = 200 /* JobStatusCode.Failed */ AND d.event_message IS NOT NULL
+                THEN json_object(
+                    'childJobId', d.job_id, 'status', d.to_status, 'executionNumber', d.execution_number,
+                    'failureMessage', d.event_message
+                )
+            ELSE json_object('childJobId', d.job_id, 'status', d.to_status, 'executionNumber', d.execution_number)
+        END AS BLOB
+    ),
     (SELECT now_utc FROM temp._ces_done LIMIT 1),
     0
 FROM temp._ces_done d

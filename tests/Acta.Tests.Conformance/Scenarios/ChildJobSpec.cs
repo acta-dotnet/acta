@@ -136,6 +136,9 @@ public sealed class ChildJobSpec : ActaRuntimeTestBase<ConformanceFixture, JobsO
         Assert.Equal(child.Id, outcome.ChildJobId);
         Assert.Equal(JobStatusCode.Failed, outcome.Status);
         Assert.False(outcome.Succeeded);
+
+        // The landing wrote the child's own message into the envelope, quotes and non-ASCII letters intact.
+        Assert.Equal("child says no \"thanks\" äß", outcome.FailureMessage);
     }
 
     [Fact(DisplayName = "WaitChildrenAsync waits for all children in any completion order, woken only by the child it waits on")]

@@ -597,8 +597,16 @@ BEGIN
                 'sys.child.' || s.child_job_id::text,
                 20 /* CheckpointStatusCode.Set */,
                 1 /* JobPayloadFormat.Json */,
+                -- A failed landing carries its message, so the parent's outcome can say why without reading the child's timeline.
                 convert_to(
-                    json_build_object('childJobId', s.child_job_id, 'status', s.child_status, 'executionNumber', s.child_execution)::text,
+                    CASE
+                        WHEN s.child_status = 200 /* JobStatusCode.Failed */ AND s.event_message IS NOT NULL
+                            THEN json_build_object(
+                                'childJobId', s.child_job_id, 'status', s.child_status, 'executionNumber', s.child_execution,
+                                'failureMessage', s.event_message
+                            )
+                        ELSE json_build_object('childJobId', s.child_job_id, 'status', s.child_status, 'executionNumber', s.child_execution)
+                    END::text,
                     'UTF8'
                 ),
                 now(),

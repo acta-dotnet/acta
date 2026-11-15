@@ -68,10 +68,10 @@ public abstract partial class JobContext
     {
         if (!latch.TimedOut)
         {
-            var (status, executionNumber) = ChildOutcomeEnvelope.Parse(
+            var (status, executionNumber, failureMessage) = ChildOutcomeEnvelope.Parse(
                 latch.Value ?? throw new InvalidOperationException($"Child latch for job {child.JobId} carries no envelope.")
             );
-            return (JobOutcome.Landed(child.JobId, child.JobRef, status), executionNumber);
+            return (JobOutcome.Landed(child.JobId, child.JobRef, status, failureMessage), executionNumber);
         }
 
         await CancelTimedOutChildCoreAsync(child.JobId, ct);

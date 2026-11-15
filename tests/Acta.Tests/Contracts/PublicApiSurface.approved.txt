@@ -1554,6 +1554,7 @@ class Acta.JobOutcome
     System.Boolean Succeeded { get; }
     System.Boolean TimedOut { get; }
     System.Int64 JobId { get; }
+    System.String? FailureMessage { get; }
     System.Void ThrowIfFailed()
 sealed class Acta.JobOutcome<T> : Acta.JobOutcome where T : notnull
     System.Boolean TryGetValue(out T value)

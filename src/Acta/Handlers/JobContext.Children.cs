@@ -206,7 +206,7 @@ public abstract partial class JobContext
                 child.JobRef,
                 await RequireChildResultAsync<TResult>(child, wait.ExecutionNumber, name, ct)
             )
-            : JobOutcome<TResult>.Landed(child.JobId, child.JobRef, wait.Outcome.Status);
+            : JobOutcome<TResult>.Landed(child.JobId, child.JobRef, wait.Outcome.Status, wait.Outcome.FailureMessage);
     }
 
     /// <summary>

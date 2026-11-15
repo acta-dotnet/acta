@@ -4,18 +4,19 @@ namespace Acta;
 /// How a job ended, returned and never thrown, by a caller's wait (<see cref="IJobs.WaitAsync"/>, <c>CallAsync</c>,
 /// <see cref="JobHandle.WaitAsync"/>) and by a handler's wait for a child or a group of children. <see cref="Status"/> is
 /// terminal unless <see cref="TimedOut"/>: then it is the last status a caller's wait observed, or <c>Cancelled</c> for a
-/// child wait, since Acta cancels the unfinished child and its subtree before the handler resumes. The failure reason is
-/// not carried here; read it from the job's event timeline. Construction is gated to the framework, so no caller can build
-/// an inconsistent <c>(Status, TimedOut)</c> pair.
+/// child wait, since Acta cancels the unfinished child and its subtree before the handler resumes. A handler's wait for a child
+/// that failed carries its <see cref="FailureMessage"/>. Construction is gated to the framework, so no caller can build an
+/// inconsistent <c>(Status, TimedOut)</c> pair.
 /// </summary>
 public class JobOutcome
 {
-    private protected JobOutcome(long jobId, JobRef jobRef, JobStatusCode status, bool timedOut)
+    private protected JobOutcome(long jobId, JobRef jobRef, JobStatusCode status, bool timedOut, string? failureMessage = null)
     {
         JobId = jobId;
         JobRef = jobRef;
         Status = status;
         TimedOut = timedOut;
+        FailureMessage = failureMessage;
     }
 
     public long JobId { get; }
@@ -27,6 +28,13 @@ public class JobOutcome
     /// <see cref="Status"/>.
     /// </summary>
     public bool TimedOut { get; }
+
+    /// <summary>
+    /// The message the job failed with, as its child's landing recorded it for a handler's wait; null on a caller's wait,
+    /// which reads it from the job's event timeline, and for a job that did not fail. It is null too for a child crash
+    /// recovery failed and for a latch the recovery backstop raised again, since neither raise carries the message.
+    /// </summary>
+    public string? FailureMessage { get; }
 
     /// <summary>True when the job landed <c>Succeeded</c> before the wait ended.</summary>
     public bool Succeeded => !TimedOut && Status == JobStatusCode.Succeeded;
@@ -47,11 +55,11 @@ public class JobOutcome
             throw new JobWaitTimeoutException(JobId, JobRef);
         }
 
-        throw new JobFailedException(JobId, JobRef, Status);
+        throw new JobFailedException(JobId, JobRef, Status, FailureMessage);
     }
 
-    internal static JobOutcome Landed(long jobId, JobRef jobRef, JobStatusCode status) =>
-        new(jobId, jobRef, LandedStatus(status), timedOut: false);
+    internal static JobOutcome Landed(long jobId, JobRef jobRef, JobStatusCode status, string? failureMessage = null) =>
+        new(jobId, jobRef, LandedStatus(status), timedOut: false, failureMessage);
 
     internal static JobOutcome Expired(long jobId, JobRef jobRef, JobStatusCode status) => new(jobId, jobRef, status, timedOut: true);
 
@@ -67,8 +75,8 @@ public class JobOutcome
 public sealed class JobOutcome<T> : JobOutcome
     where T : notnull
 {
-    private JobOutcome(long jobId, JobRef jobRef, JobStatusCode status, bool timedOut, T? value)
-        : base(jobId, jobRef, status, timedOut)
+    private JobOutcome(long jobId, JobRef jobRef, JobStatusCode status, bool timedOut, T? value, string? failureMessage = null)
+        : base(jobId, jobRef, status, timedOut, failureMessage)
     {
         Value = value;
     }
@@ -101,8 +109,8 @@ public sealed class JobOutcome<T> : JobOutcome
     internal static JobOutcome<T> Landed(long jobId, JobRef jobRef, T value) =>
         new(jobId, jobRef, JobStatusCode.Succeeded, timedOut: false, value);
 
-    internal static new JobOutcome<T> Landed(long jobId, JobRef jobRef, JobStatusCode status) =>
-        new(jobId, jobRef, LandedStatus(status), timedOut: false, value: default);
+    internal static new JobOutcome<T> Landed(long jobId, JobRef jobRef, JobStatusCode status, string? failureMessage = null) =>
+        new(jobId, jobRef, LandedStatus(status), timedOut: false, value: default, failureMessage);
 
     internal static new JobOutcome<T> Expired(long jobId, JobRef jobRef, JobStatusCode status) =>
         new(jobId, jobRef, status, timedOut: true, value: default);

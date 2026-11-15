@@ -6,10 +6,10 @@ namespace Acta;
 /// <summary>
 /// Reads and writes the system JSON envelope stored on the parent's <c>sys.child.{id}</c> signal
 /// checkpoint. Hand-rolled rather than the registered serializer: the contract is pinned and must not
-/// change when a consumer swaps the JSON format. The envelope carries terminal state only
-/// (<c>childJobId</c>, <c>status</c>, and the landing <c>executionNumber</c> when known); the failure reason lives
-/// on the child's event timeline. <c>complete_executions</c> builds the same shape in SQL for its in-transaction
-/// raise; <see cref="Write"/> serves the C#-side raises (cancel, reclaim, maintenance backstop).
+/// change when a consumer swaps the JSON format. The envelope carries terminal state (<c>childJobId</c>, <c>status</c>,
+/// the landing <c>executionNumber</c> when known) and a failed landing's <c>failureMessage</c>, which only
+/// <c>complete_executions</c> writes, building the same shape in SQL for its in-transaction raise; <see cref="Write"/>
+/// serves the C#-side raises (cancel, reclaim, maintenance backstop), whose failure reason stays on the child's timeline.
 /// </summary>
 internal static class ChildOutcomeEnvelope
 {
@@ -30,11 +30,12 @@ internal static class ChildOutcomeEnvelope
         return buffer.WrittenSpan.ToArray();
     }
 
-    public static (JobStatusCode Status, long? ExecutionNumber) Parse(ReadOnlySpan<byte> utf8)
+    public static (JobStatusCode Status, long? ExecutionNumber, string? FailureMessage) Parse(ReadOnlySpan<byte> utf8)
     {
         long childJobId = 0;
         short status = 0;
         long? executionNumber = null;
+        string? failureMessage = null;
 
         var reader = new Utf8JsonReader(utf8);
         while (reader.Read())
@@ -59,6 +60,11 @@ internal static class ChildOutcomeEnvelope
                 reader.Read();
                 executionNumber = reader.GetInt64();
             }
+            else if (reader.ValueTextEquals("failureMessage"u8))
+            {
+                reader.Read();
+                failureMessage = reader.GetString();
+            }
             else
             {
                 reader.Skip();
@@ -67,6 +73,6 @@ internal static class ChildOutcomeEnvelope
 
         return childJobId == 0 || status == 0
             ? throw new InvalidOperationException("Child outcome envelope is missing childJobId or status.")
-            : ((JobStatusCode)status, executionNumber);
+            : ((JobStatusCode)status, executionNumber, failureMessage);
     }
 }

@@ -15,9 +15,10 @@ public sealed record CrossNamespaceStart(string ChildNamespace);
 /// One awaited child's outcome, flattened to plain fields so it survives the JSON round trip through the result store;
 /// the computed flags are read inside the handler, where the framework type still carries them.
 /// </summary>
-public sealed record ChildOutcomeEntry(long ChildJobId, JobStatusCode Status, bool TimedOut, bool Succeeded)
+public sealed record ChildOutcomeEntry(long ChildJobId, JobStatusCode Status, bool TimedOut, bool Succeeded, string? FailureMessage = null)
 {
-    public static ChildOutcomeEntry Of(JobOutcome outcome) => new(outcome.JobId, outcome.Status, outcome.TimedOut, outcome.Succeeded);
+    public static ChildOutcomeEntry Of(JobOutcome outcome) =>
+        new(outcome.JobId, outcome.Status, outcome.TimedOut, outcome.Succeeded, outcome.FailureMessage);
 }
 
 /// <summary>

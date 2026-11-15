@@ -519,13 +519,23 @@ BEGIN
                         d.parent_job_id,
                         d.job_id,
                         'sys.child.' + CAST(d.job_id AS VARCHAR(20)),
+                        -- The collation goes on the text before the cast, so a failure message reaches the bytes as UTF-8.
                         CAST(
                             CAST(
-                                N'{"childJobId":' + CAST(d.job_id AS NVARCHAR(20))
-                                + N',"status":' + CAST(d.job_status_code AS NVARCHAR(3))
-                                + N',"executionNumber":' + CAST(d.execution_number AS NVARCHAR(20)) + N'}'
+                                (
+                                    N'{"childJobId":' + CAST(d.job_id AS NVARCHAR(20))
+                                    + N',"status":' + CAST(d.job_status_code AS NVARCHAR(3))
+                                    + N',"executionNumber":' + CAST(d.execution_number AS NVARCHAR(20))
+                                    -- A failed landing carries its message, so the parent's outcome can say why.
+                                    + CASE
+                                        WHEN d.job_status_code = 200 /* JobStatusCode.Failed */ AND c.event_message IS NOT NULL
+                                            THEN N',"failureMessage":"' + STRING_ESCAPE(c.event_message, 'json') + N'"'
+                                        ELSE N''
+                                    END
+                                    + N'}'
+                                ) COLLATE latin1_general_100_bin2_utf8
                                 AS VARCHAR(MAX)
-                            ) COLLATE latin1_general_100_bin2_utf8 AS VARBINARY(MAX)
+                            ) AS VARBINARY(MAX)
                         ),
                         c.reason,
                         c.event_message
