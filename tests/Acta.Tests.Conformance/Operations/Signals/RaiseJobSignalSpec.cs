@@ -58,7 +58,8 @@ public sealed class RaiseJobSignalSpec : ActaRuntimeTestBase<ConformanceFixture,
 
         Assert.Equal(ControlAction.AlreadyInState, (await Jobs.RaiseSignalAsync(enqueued, "review", decision, ct)).Action);
         var other = new ReviewDecision(true, "second");
-        Assert.Equal(ControlAction.Rejected, (await Jobs.RaiseSignalAsync(enqueued, "review", other, ct)).Action);
+        var differs = await Jobs.RaiseSignalAsync(enqueued, "review", other, ct);
+        Assert.Equal((ControlAction.Rejected, "value-differs"), (differs.Action, differs.Reason));
 
         // A later replay reads what the first raise stored, so a wait that already returned can never read another value.
         var checkpoint = await ReadCheckpointAsync(enqueued.JobId, "review", ct);
@@ -82,6 +83,7 @@ public sealed class RaiseJobSignalSpec : ActaRuntimeTestBase<ConformanceFixture,
         var finished = await Jobs.RaiseSignalAsync(enqueued, "go", JobPayload.None, ct: ct);
         Assert.Equal(ControlAction.Rejected, finished.Action);
         Assert.Equal(JobStatusCode.Cancelled, finished.Status);
+        Assert.Equal("job-finished", finished.Reason);
         Assert.Empty(await ReadSignalsAsync(enqueued.JobId, ct));
         Assert.Equal(0, await CountEventsAsync(enqueued.JobId, EventCode.JobSignalRaised, ct));
     }

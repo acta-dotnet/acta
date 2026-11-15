@@ -6,8 +6,13 @@ namespace Acta;
 /// <param name="JobId">The job's internal id; the JSON omits it.</param>
 /// <param name="Action">What the call did: applied; already-in-state, when the signal was raised before with this value; rejected, when the job is finished, the signal holds another value, or its wait expired, since a signal keeps its first value; or not-found.</param>
 /// <param name="Status">The job's status after the call; null when the job was not found.</param>
-public sealed record RaiseJobSignalResponse([property: JsonIgnore] long JobId, ControlAction Action, JobStatusCode? Status)
-    : IJobControlResponse
+/// <param name="Reason">Why a rejected raise was rejected: job-finished, wait-expired, or value-differs; null otherwise.</param>
+public sealed record RaiseJobSignalResponse(
+    [property: JsonIgnore] long JobId,
+    ControlAction Action,
+    JobStatusCode? Status,
+    string? Reason = null
+) : IJobControlResponse
 {
     long? IControlResponse.Version => null;
 }

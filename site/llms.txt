@@ -282,10 +282,10 @@ the wait expired. A wait's timeout rounds up to whole seconds, at least one, so 
 still parks about a second before it times out (a sleep of zero or less returns at once). A deadline shared by
 several waits is an instant: `await ctx.WaitSignalAsync("approval", deadline, ct)` takes a `DateTimeOffset` and
 stores it as the wait's expiration, and a wait first armed at or past it times out at once. An expired wait stays expired, and a late raise answers
-`Rejected`. Only a restart reopens one: the timed-out wait that ended the job, so the restarted job waits
+`Rejected` with `Reason` `wait-expired`. Only a restart reopens one: the timed-out wait that ended the job, so the restarted job waits
 again under a fresh bound, while a timeout the handler went past stays as it was.
 A signal keeps the value of its first raise: raising it again with the same value answers `AlreadyInState`, after
-the job finished too, and with another value `Rejected`, so a wait that already returned never reads a different value on replay.
+the job finished too, and with another value `Rejected` (`Reason` `value-differs`), so a wait that already returned never reads a different value on replay. A raise on a finished job answers `Rejected` with `job-finished`; the reason is in the HTTP 409 body and the CLI's output too.
 The values compare as stored bytes, so keep volatile fields (a timestamp, a per-attempt id) out of a raised value: a
 retry after a lost answer then repeats the same value and answers `AlreadyInState`.
 A second window, or a second value, is a wait under a new name (`"shipped-2"`) or a new job.

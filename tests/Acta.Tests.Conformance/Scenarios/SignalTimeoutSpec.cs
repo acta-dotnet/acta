@@ -228,6 +228,7 @@ public sealed class SignalTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, 
         var late = await Jobs.RaiseSignalAsync(enqueued, "go", JobPayload.None, ct: ct);
         Assert.Equal(ControlAction.Rejected, late.Action);
         Assert.Equal(JobStatusCode.Suspended, late.Status);
+        Assert.Equal("wait-expired", late.Reason);
 
         var after = await ReadJobAsync(enqueued.JobId, ct);
         Assert.Equal(JobStatusCode.Suspended, after.Status);

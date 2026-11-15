@@ -35,6 +35,10 @@ internal static class CliOutput
                 {
                     w.WriteNull("status");
                 }
+                if (result is RaiseJobSignalResponse { Reason: { } rejected })
+                {
+                    w.WriteString("reason", rejected);
+                }
             });
             return;
         }
@@ -42,6 +46,10 @@ internal static class CliOutput
         writer.WriteLine($"job: {jobRef}");
         writer.WriteLine($"action: {Code(result.Action)}");
         writer.WriteLine($"status: {(result.Status is { } s ? s.Code : "(none)")}");
+        if (result is RaiseJobSignalResponse { Reason: { } reason })
+        {
+            writer.WriteLine($"reason: {reason}");
+        }
     }
 
     public static void WriteSnapshot(TextWriter writer, GetJobResponse snapshot, bool json)

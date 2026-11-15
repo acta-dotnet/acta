@@ -58,6 +58,7 @@ Not tagged yet.
 - `MapAsync` takes a generated call per item, and for a job with a result answers `MapOutcome<TKey, TResult>`, whose items carry typed outcomes. Its `configure` gives every child of the map the same options.
 - A generated call that reaches an input parameter, as `input: call` or through a generic helper, is enqueued by the job it names, where it threw an `ArgumentException`.
 - A wait's timeout of zero or less waits the one-second minimum, and a sleep's returns at once, where both threw `ArgumentOutOfRangeException` until the job failed.
+- A rejected signal raise says why in `RaiseJobSignalResponse.Reason`: `job-finished`, `wait-expired`, or `value-differs`, in the HTTP 409 body and `jobs signal` too.
 - `ctx.AlertAsync` answers the alert's `AlertRef`: the row it opened, or the open row a repeated deduplication key collapsed onto, so a handler can resolve it later with `IAlerts.ResolveAsync`.
 - `ctx.ResolveAlertAsync(deduplicationKey)` resolves the open alert holding that key in the job's namespace, whichever job opened the incident, and answers whether one was open; `alert.resolved` names the job as its actor.
 - `WaitSignalAsync(name, until)` and `WaitSignalAsync<T>(name, until)` bound a signal wait by a `DateTimeOffset`, stored as its expiration, so several waits share one deadline; a wait first armed at or past it times out at once.

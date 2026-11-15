@@ -2347,10 +2347,11 @@ sealed record Acta.PurgeJobResponse : Acta.IJobControlResponse
     System.Int64 JobId { get;init; }
     System.Nullable<Acta.JobStatusCode> Status { get;init; }
 sealed record Acta.RaiseJobSignalResponse : Acta.IJobControlResponse
-    .ctor(System.Int64 JobId, Acta.ControlAction Action, System.Nullable<Acta.JobStatusCode> Status)
+    .ctor(System.Int64 JobId, Acta.ControlAction Action, System.Nullable<Acta.JobStatusCode> Status, System.String? Reason = null)
     Acta.ControlAction Action { get;init; }
     System.Int64 JobId { get;init; }
     System.Nullable<Acta.JobStatusCode> Status { get;init; }
+    System.String? Reason { get;init; }
 sealed record Acta.RegisterTenantResponse
     .ctor(System.Int32 TenantId, System.String TenantName)
     System.Int32 TenantId { get;init; }

@@ -10,6 +10,7 @@ internal sealed class RaiseJobSignalHandler(
     IDbSession session,
     ISqlDialect dialect,
     GetJobIdHandler getJobId,
+    ListJobCheckpointsHandler listJobCheckpoints,
     WorkerWakeupPublisher wakeup,
     IOptions<JobsOptions> options
 )
@@ -43,7 +44,39 @@ internal sealed class RaiseJobSignalHandler(
             ct
         );
         await JobControl.WakeIfReadyAsync(wakeup, response.Action, response.Status, ct);
-        return response;
+        return response.Action == ControlAction.Rejected
+            ? response with
+            {
+                Reason = await RejectionReasonAsync(jobId, name, response.Status, ct),
+            }
+            : response;
+    }
+
+    /// <summary>
+    /// Why a raise was rejected, read after it on that rare path: the job had finished, or the signal's wait had expired,
+    /// or the signal held another value. Null when the signal is gone by the time of the read.
+    /// </summary>
+    private async Task<string?> RejectionReasonAsync(long jobId, string name, JobStatusCode? status, CancellationToken ct)
+    {
+        if (status is { } finished && finished.IsTerminal)
+        {
+            return "job-finished";
+        }
+
+        for (string? cursor = null; ; )
+        {
+            var page = await listJobCheckpoints.HandleAsync(new ListJobCheckpointsQuery(JobLookup.ById(jobId), 100, cursor), ct);
+            if (page.Items.FirstOrDefault(c => c.Kind == CheckpointKindCode.Signal && c.Name == name) is { } signal)
+            {
+                return signal.Status == CheckpointStatusCode.Expired ? "wait-expired" : "value-differs";
+            }
+
+            if (!page.HasMore)
+            {
+                return null;
+            }
+            cursor = page.NextCursor;
+        }
     }
 
     /// <summary><see cref="SignalsOperations.RaiseJobSignalAsync"/>: one routine call for any checkpoint kind, the operator's raise among them.</summary>
