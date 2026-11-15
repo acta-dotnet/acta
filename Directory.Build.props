@@ -175,7 +175,7 @@
     <Authors>Marko Voncina</Authors>
     <Company>useacta</Company>
     <Product>Acta</Product>
-    <PackageTags>jobs;background-jobs;durable-work-ledger;durable-execution;workflow;sql;postgres;sqlserver;sqlite;dotnet;aot</PackageTags>
+    <PackageTags>jobs;background-jobs;durable-execution;workflow;sql;postgres;sqlserver;sqlite;dotnet;aot</PackageTags>
     <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
     <PackageProjectUrl>https://useacta.net</PackageProjectUrl>
     <RepositoryUrl>https://github.com/acta-dotnet/acta</RepositoryUrl>
