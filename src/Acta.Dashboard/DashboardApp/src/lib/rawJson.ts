@@ -36,7 +36,10 @@ export function jsonError(text: string): string | null {
   }
 }
 
-/** Valid JSON text re-indented by two spaces, as JSON.stringify(value, null, 2) would print it, without parsing a number. */
+/**
+ * Valid JSON text re-indented by two spaces, as JSON.stringify(value, null, 2) would print it, without parsing a number:
+ * a \uXXXX escape it would print as the character itself (the server's encoder escapes non-ASCII) is shown decoded.
+ */
 export function prettyJson(text: string): string {
   let out = '';
   let depth = 0;
@@ -47,6 +50,12 @@ export function prettyJson(text: string): string {
   for (let i = 0; i < text.length; i++) {
     const c = text[i];
     if (inString) {
+      const decoded = !escaped && c === '\\' ? decodedEscape(text, i) : null;
+      if (decoded) {
+        out += decoded.char;
+        i += decoded.length - 1;
+        continue;
+      }
       out += c;
       if (escaped) escaped = false;
       else if (c === '\\') escaped = true;
@@ -89,6 +98,21 @@ export function prettyJson(text: string): string {
     }
   }
   return out;
+}
+
+// The character a \uXXXX escape at `at` stands for when JSON.stringify prints it unescaped: not a control character,
+// quote, backslash or lone surrogate. A surrogate pair decodes as one character from both escapes.
+function decodedEscape(text: string, at: number): { char: string; length: number } | null {
+  const unit = escapedUnit(text, at);
+  if (unit === null || unit < 0x20 || unit === 0x22 || unit === 0x5c || (unit >= 0xdc00 && unit <= 0xdfff)) return null;
+  if (unit < 0xd800 || unit > 0xdbff) return { char: String.fromCharCode(unit), length: 6 };
+  const low = escapedUnit(text, at + 6);
+  return low !== null && low >= 0xdc00 && low <= 0xdfff ? { char: String.fromCharCode(unit, low), length: 12 } : null;
+}
+
+function escapedUnit(text: string, at: number): number | null {
+  const hex = text.slice(at + 2, at + 6);
+  return text[at] === '\\' && text[at + 1] === 'u' && /^[0-9a-fA-F]{4}$/.test(hex) ? parseInt(hex, 16) : null;
 }
 
 /** A json payload's envelope for a request: the text spliced in as the envelope's json member, every digit kept. */

@@ -7,8 +7,8 @@ namespace Acta;
 /// <param name="Name">The step's name, unique within its job.</param>
 /// <param name="Status">The step's status.</param>
 /// <param name="FailureMessage">Why an at-most-once step ended failed or interrupted; null for every other step.</param>
-/// <param name="CreatedAtUtc">When the row was created, in UTC.</param>
-/// <param name="ModifiedAtUtc">When the row last changed, in UTC.</param>
+/// <param name="CreatedAtUtc">When the step first started, in UTC, in whichever execution got there first.</param>
+/// <param name="ModifiedAtUtc">When the row last changed, in UTC, possibly in a later execution.</param>
 public sealed record ListJobStepsItem(
     string Name,
     StepStatusCode Status,

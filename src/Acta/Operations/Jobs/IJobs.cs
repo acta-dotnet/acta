@@ -341,8 +341,8 @@ public interface IJobs
     /// Pause the job identified by <paramref name="job"/>: a job at or before <c>Ready</c> moves to <c>Paused</c>.
     /// <paramref name="reasonMessage"/> is the audit event's message and <paramref name="actor"/> is recorded on it as the
     /// operator identity (the authenticated principal name; null when unknown). A running or terminal job is
-    /// <see cref="ControlAction.Rejected"/>. <see cref="RescheduleAsync"/> re-arms a <c>Paused</c> job to
-    /// <c>Ready</c>, the documented path out of <c>Paused</c>.
+    /// <see cref="ControlAction.Rejected"/>. <see cref="ResumeAsync"/> is the way out: back to <c>Ready</c> at its kept next run
+    /// (now if it was waiting), while <see cref="RescheduleAsync"/> re-arms it at a new instant.
     /// </summary>
     ValueTask<PauseJobResponse> PauseAsync(
         JobLookup job,

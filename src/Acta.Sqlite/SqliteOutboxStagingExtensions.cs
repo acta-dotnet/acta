@@ -14,6 +14,11 @@ namespace Acta.Sqlite;
 /// </summary>
 public static class SqliteOutboxStagingExtensions
 {
+    /// <summary>
+    /// Stages <paramref name="request"/> as one outbox row on this transaction, committed or rolled back with it. The
+    /// request needs a <see cref="EnqueueJobRequest.DeduplicationKey"/>, which names the job the relay enqueues, and no
+    /// parent; <paramref name="table"/> is the table the relay's source reads.
+    /// </summary>
     public static Task AddToActaOutboxAsync(
         this SqliteTransaction transaction,
         EnqueueJobRequest request,

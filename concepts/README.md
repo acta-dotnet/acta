@@ -13,6 +13,7 @@ dotnet run --project concepts/000-fundamentals/001-hello-acta
 - Before a release, `dotnet run -c Release --project tools/Acta.Verify -- concepts` runs the whole ladder, one rung at a time, and checks that each rung prints the lines `concept-runs.json` says show its idea.
 - The state is one SQLite file under the temp folder; delete it to start over.
 - To run a rung on PostgreSQL or SQL Server, set `ACTA_LOCAL_PROVIDER` and the connection string as [CONTRIBUTING.md](../CONTRIBUTING.md#postgresql--sql-server-setup) describes.
+- `j.UseLocalDatabase(...)` in a rung is a helper of this repository (`support/Acta.LocalHost`) that picks the provider from that environment; an application calls `UseSqlite`, `UsePostgres` or `UseSqlServer` itself.
 
 Where to start, and what each rung teaches, is in [Engineering Labs](../docs/engineering-labs.md): the short tour first, then [the concept ladder](../docs/engineering-labs.md#the-concept-ladder), which lists every rung.
 

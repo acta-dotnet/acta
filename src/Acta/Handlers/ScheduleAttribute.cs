@@ -88,9 +88,9 @@ public sealed class ScheduleAttribute : Attribute
     public string[]? Environments { get; init; }
 
     /// <summary>
-    /// Behavior when occurrences were missed during downtime: skip them (the default), fire once for all of them,
-    /// fire once as the latest of them, or fire each in order. Each <see cref="MisfireStrategyCode"/> member says
-    /// exactly what it does.
+    /// Behavior when occurrences were missed during downtime, or held back by a full schedule under
+    /// <see cref="FullBehavior"/> <c>Wait</c>: skip them (the default), fire once for all of them, fire once as the latest
+    /// of them, or fire each in order. Each <see cref="MisfireStrategyCode"/> member says exactly what it does.
     /// </summary>
     public MisfireStrategyCode MisfireStrategy { get; init; } = MisfireStrategyCode.Skip;
 
@@ -102,7 +102,8 @@ public sealed class ScheduleAttribute : Attribute
 
     /// <summary>
     /// What an occurrence does when the schedule is at <see cref="MaxOutstanding"/>: <c>Wait</c> keeps it undecided
-    /// until a settlement frees capacity; <c>Drop</c> skips it, audited, and moves on.
+    /// until a settlement frees capacity, when <see cref="MisfireStrategy"/> decides the held-back occurrences
+    /// (<c>CatchUpAll</c> keeps every one); <c>Drop</c> skips it, audited, and moves on.
     /// </summary>
     public ScheduleFullBehaviorCode FullBehavior { get; init; } = ScheduleFullBehaviorCode.Wait;
 

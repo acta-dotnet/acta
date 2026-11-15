@@ -108,7 +108,7 @@ internal sealed class ExplainJobHandler(GetJobIdHandler getJobId, IDbSession ses
                             ? $"Suspended, waiting for {child}; times out at {Instant(childDue)}."
                             : $"Suspended, waiting for {child}; no timeout, so it waits until the child completes.";
                         actions.Add(Move("none", $"no action needed - it resumes when {child} reaches a terminal status"));
-                        actions.Add(Move("inspect-timeline", $"inspect {child} with 'jobs explain'"));
+                        actions.Add(Move("inspect-timeline", $"inspect {child} with 'jobs explain{ChildLookup(wait.Name)}'"));
                         actions.Add(Move("cancel", "cancel the job if the wait is no longer needed"));
                         break;
                     }
@@ -312,6 +312,12 @@ internal sealed class ExplainJobHandler(GetJobIdHandler getJobId, IDbSession ses
         latchName.StartsWith(RaiseChildLatch.NamePrefix, StringComparison.Ordinal)
             ? $"child job {latchName[RaiseChildLatch.NamePrefix.Length..]}"
             : $"child latch \"{latchName}\"";
+
+    /// <summary>The CLI's lookup for the child, " id:{id}", since a bare number reads as a deduplication key.</summary>
+    private static string ChildLookup(string latchName) =>
+        latchName.StartsWith(RaiseChildLatch.NamePrefix, StringComparison.Ordinal)
+            ? $" id:{latchName[RaiseChildLatch.NamePrefix.Length..]}"
+            : "";
 
     private static ExplainJobLease? BuildLease(ExplainJobHeaderRow h, DateTime nowUtc)
     {

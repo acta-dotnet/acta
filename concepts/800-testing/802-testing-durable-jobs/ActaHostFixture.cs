@@ -2,6 +2,7 @@
 
 using Acta.Testing;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace Acta.Concepts.TestingDurable;
@@ -9,6 +10,9 @@ namespace Acta.Concepts.TestingDurable;
 public sealed class ActaHostFixture : IAsyncLifetime
 {
     public IActaTestHost Host { get; private set; } = null!;
+
+    // The job's dependency, registered as a service rather than kept in a static field the tests would share.
+    public Warehouse Warehouse { get; } = new();
 
     public async ValueTask InitializeAsync()
     {
@@ -19,7 +23,8 @@ public sealed class ActaHostFixture : IAsyncLifetime
             {
                 j.UseLocalDatabase(configuration, schema);
                 j.Run<TestingDurableJobs>("testing-durable");
-            }
+            },
+            new ActaTestHostOptions { ConfigureServices = services => services.AddSingleton(Warehouse) }
         );
     }
 
@@ -37,6 +42,8 @@ public abstract class ActaTestBase(ActaHostFixture acta) : IClassFixture<ActaHos
     protected IActaTestHost Host => acta.Host;
 
     protected IJobs Jobs => acta.Host.Jobs;
+
+    protected Warehouse Warehouse => acta.Warehouse;
 
     protected static CancellationToken Ct => TestContext.Current.CancellationToken;
 }

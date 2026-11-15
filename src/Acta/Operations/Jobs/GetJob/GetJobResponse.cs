@@ -34,7 +34,7 @@ namespace Acta;
 /// running job, or else its oldest unfinished one. Null otherwise.</param>
 /// <param name="NextRunAtUtc">When the job next becomes claimable, in UTC; null when it is not waiting on a time.</param>
 /// <param name="ExecutionNumber">How many times the job has been claimed; retries and reclaims count.</param>
-/// <param name="FailureCount">How many attempts in a row have failed; a success resets it.</param>
+/// <param name="FailureCount">The retry budget's count: attempts failed since the job last succeeded, waits included.</param>
 /// <param name="LeaseExpiresAtUtc">When the lease of the worker running the job expires, in UTC; null when no worker holds one.</param>
 /// <param name="RetentionUntilUtc">When retention may delete the job, in UTC; null when no such time is set.</param>
 /// <param name="CreatedAtUtc">When the row was created, in UTC.</param>

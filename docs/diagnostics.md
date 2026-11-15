@@ -216,4 +216,11 @@ catch (Exception ex) when (ctx.EndsJob(ex))
 ```
 
 A catch that only observes, with no `await` in it and a rethrow at its end, is not reported, and
-neither is one for `ctx.FailAsync` or `CancelAsync`, which end the job.
+neither is one for `ctx.FailAsync` or `CancelAsync`, which end the job. Awaited work that must run however the
+attempt ends, such as a pipeline behavior writing its own outcome row, goes in a `finally`, which lets the control
+flow through and also runs when a wait suspends the job:
+
+```csharp
+try { await next(); }
+finally { await outcomes.CloseAsync(runId); }
+```

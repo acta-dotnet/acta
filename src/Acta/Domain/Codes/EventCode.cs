@@ -78,7 +78,7 @@ public enum EventCode : byte
 
     [Code(
         "job.execution-yielded",
-        "The attempt ended without succeeding or failing: rescheduled, suspended, paused, or cancelled by its handler or the engine. Recorded under audit only; the details carry the keys outcome and reason."
+        "The attempt ended without succeeding or failing: rescheduled, suspended, paused, or cancelled by its handler or the engine. Recorded at the audit level, the default for an application's jobs, and not under failures; the details carry the keys outcome and reason."
     )]
     JobExecutionYielded = 43,
 

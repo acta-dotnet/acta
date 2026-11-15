@@ -4,7 +4,8 @@ public abstract partial class JobContext
 {
     /// <summary>
     /// Reports progress as a typed value, JSON-serialized into the reserved <c>sys.progress</c> checkpoint. Last
-    /// write wins. Silent: no event, no version bump.
+    /// write wins. Silent: no event, no version bump. Its own write, not a step's checkpoint: written inside a step
+    /// body, it can report work a crash then takes back.
     /// </summary>
     public async Task SetProgressAsync<T>(T value, CancellationToken ct = default)
     {

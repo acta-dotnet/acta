@@ -145,7 +145,10 @@ public class JobExplainerTests
         // The sys.child latch is framework-owned and RaiseSignalAsync rejects the name, so proposing a
         // raise would send an operator at a verb that cannot work.
         Assert.DoesNotContain(x.NextActions, a => a.Kind == "raise-signal");
-        Assert.Contains(x.NextActions, a => a.Kind == "inspect-timeline" && a.Description.Contains("child job 4242"));
+        // The CLI reads a bare number as a deduplication key, so the advice names the id form it runs.
+        Assert.Contains(x.NextActions, a =>
+            a.Kind == "inspect-timeline" && a.Description.Contains("child job 4242") && a.Description.Contains("'jobs explain id:4242'")
+        );
         Assert.Contains(x.NextActions, a => a.Kind == "cancel");
     }
 

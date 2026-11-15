@@ -87,8 +87,9 @@ Authentication is the host's: Acta ships none. The surface is local-only by defa
 
 ## Storage and providers
 
-SQLite has concurrency limits compared with server databases. Use SQL Server or PostgreSQL for
-distributed multi-worker deployments.
+SQLite is supported for a single process: one host that enqueues and runs the jobs on one database file. Two
+processes sharing a file, or a worker apart from its producer, take SQL Server or PostgreSQL. Read-only access
+from another process is fine: the control CLI's read verbs (`<app> jobs status`, `explain`, `events`) and a SQL client.
 
 On SQLite, Acta's tables share `main` with the application's: the schema must be `main`, so there is no
 `acta` schema to keep them apart. The provisioning script creates each table only if it is missing, so an

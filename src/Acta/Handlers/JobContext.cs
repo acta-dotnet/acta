@@ -11,7 +11,7 @@ public abstract partial class JobContext
 {
     private protected JobContext() { }
 
-    /// <summary>Public Job handle (the sequence-allocated <c>job.id</c>).</summary>
+    /// <summary>The job's numeric id, the database's <c>job.id</c>: the debug path. <see cref="JobRef"/> is its public identity.</summary>
     public abstract long JobId { get; }
 
     /// <summary>Owning <c>JobNamespace</c> (kebab).</summary>
@@ -62,7 +62,8 @@ public abstract partial class JobContext
 
     /// <summary>
     /// The durable id of the firing this execution belongs to, the same across its retries and reclaims; null for an
-    /// ordinary job. Not an idempotency key for external effects, which still need the application's own.
+    /// ordinary job. Not an idempotency key for external effects, which still need the application's own. A UUIDv7, so
+    /// its hex starts with its timestamp: in a name segment, prefix a letter (<c>$"plan.f{ctx.FiringId:N}"</c>).
     /// </summary>
     public virtual Guid? FiringId => null;
 
@@ -252,10 +253,10 @@ public abstract partial class JobContext
 
     /// <summary>
     /// Writes an application-authored note onto this job's timeline, beside the framework's own events rather than in
-    /// a log sink not joined to the job row. Annotation, not logging: <c>events</c> is indexed for timeline queries,
-    /// so use <c>ILogger</c> for volume. Notes ignore <c>EventRecording</c>, a volume control over events Acta chooses to
-    /// record, because dropping an explicit call would be data loss; bounding a job's event volume is the caller's.
-    /// Notes are the only event code an application can write and the runtime never emits, so an application can
+    /// a log sink not joined to the job row. Annotation, not logging: use <c>ILogger</c> for volume. A note is written
+    /// each time this line runs, so one before a wait or a sleep is written again when the job resumes: put it in a
+    /// step, or after the last wait. Notes ignore <c>EventRecording</c>, since dropping an explicit call would be data
+    /// loss. Notes are the only event code an application can write and the runtime never emits, so an application can
     /// annotate the ledger but never forge an attempt's outcome; do not widen this to a second code.
     /// </summary>
     public async Task NoteAsync(string message, CancellationToken ct = default)

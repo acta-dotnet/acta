@@ -28,7 +28,7 @@ see [architecture decisions](./architecture-decisions.md).
 | **Attempt** | One try at the work that counts against retry policy when it fails. `MaxAttempts` is the job's retry budget, and a step retries through it: a step body that throws fails the attempt. Successful executions are recorded but do not consume the budget. |
 | **Status** | The lifecycle-or-outcome code on every entity that has one, named for its table (`jobs_state.job_status_code`, `workers.worker_status_code`, `steps.step_status_code`, `checkpoints.checkpoint_status_code`, ...). The job's `jobs_state` row stores current status; events explain transitions. |
 | **Firing** | One admitted occurrence of a `[Schedule]`, or the occurrences of several schedules due at once coalesced into one, with an envelope naming the contributors: on a permanent job the `sys.firing` checkpoint, on a per-occurrence definition a fresh root. 1:1 with an execution in steady state; the misfire policy decides what happens to occurrences nobody admitted in time. |
-| **Namespace** | The service-owned execution boundary. A worker claims only jobs in its own namespace. One `Run(...)` owns one namespace; a process can host several. |
+| **Namespace** | The service-owned execution boundary. A worker claims only jobs in its own namespace, and only its recovery pass reclaims their expired leases. One `Run(...)` owns one namespace; a process can host several. A manifest is per assembly, so namespaces with different jobs take one project each. |
 | **Lane** | An ordered sequence of jobs within a namespace, named at enqueue or on the definition. A lane runs one job at a time, in enqueue order, and the jobs behind its head wait as `Blocked`. See [Lanes](#lanes). |
 | **Tenant** | Optional, validated scope naming the customer / business entity a job is *about*. Registered in the Acta-owned `tenants` catalog by a `TenantName`, a dotted kebab-case name such as `acme-corp` (fold or prefix an external id that is not one) and resolved to `jobs.tenant_id` at enqueue. Audit / query / runtime scope only, not an ownership, claim, or scheduling boundary. |
 | **Provider** | The durable SQL backend. SQL Server and Postgres are the distributed providers; SQLite is the embedded single-node provider used by concepts, demos, tests, and local exploration. |
@@ -66,7 +66,7 @@ permanent job through a real worker crash.
 - **Namespace: who owns and runs the work.** A service or work domain (`billing`, `kyc`) owning its workers, definitions, schedules, and system jobs; it is the claim filter. Never a customer, environment, or worker (`tenant-acme`, `prod`, `worker-a`).
 - **Tenant: who the work is about.** Set per job at enqueue (`TenantName`, a name such as `acme-corp`), immutable, and inherited by children; a child naming another tenant is rejected unless it passes `overrideParent: true`. It scopes audit, queries, and `JobContext.TenantName`, never claims, schedules, idempotency, or concurrency keys.
 
-Register tenants with `operations.Tenants.RegisterAsync(tenantName, displayName?, description?)`, and suspend, resume, or update them through the same API. Enqueuing an unknown or suspended tenant is rejected, and `[Job(TenantRequirement = Required)]` (or `Forbidden`) makes the choice durable. The catalog is global per store, and suspension is admission control: jobs already admitted keep running.
+Register tenants with `operations.Tenants.RegisterAsync(tenantName, displayName?, description?)`, and suspend, resume, or update them through the same API: `SuspendAsync`, `ResumeAsync` and `UpdateAsync` on `operations.Tenants`, and the same pair for a namespace on `operations.Namespaces`. Enqueuing an unknown or suspended tenant is rejected, and `[Job(TenantRequirement = Required)]` (or `Forbidden`) makes the choice durable. The catalog is global per store, and suspension is admission control: jobs already admitted keep running.
 
 A tenant is not a security boundary. Acta does not authorize callers or isolate data per tenant; your application enforces access using `JobContext.TenantName`.
 
@@ -104,7 +104,8 @@ Only the head is claimable; the jobs behind it wait as `Blocked` and cost the cl
 - Anything that holds the head holds the lane: a delay, a pause, a wait on a signal or children, or a definition no running worker supports.
 - Enqueue order is commit order: enqueue locks the lane until the enqueuing transaction commits.
 - Priority does not reorder a lane, and concurrency and rate limits still apply to its head.
-- Restart runs a finished laned job again in place, right after the job running now.
+- Restart runs a finished laned job again in place, right after the job running now: it keeps its enqueue order, so it
+  overtakes every member still queued behind the head. To run it after them, enqueue it again instead.
 - A child cannot join an unfinished ancestor's lane, children do not inherit a lane, and a schedule cannot target a laned definition. Waits across lanes can form a cycle Acta cannot see; give them a timeout.
 - Execution stays at-least-once: cancelling or recovering a running head can let the next job start while the old handler still finishes.
 
@@ -127,7 +128,7 @@ visibility. Use a step when work is part of one parent job's internal state mach
 
 ### Wait deadlines
 
-A signal or child wait can take a timeout (`WaitSignalAsync(name, timeout)`, `WaitChildAsync(child, timeout)`), and a wait that can time out answers an outcome. The deadline is database time, armed once at the first wait and never extended by replays. On expiry the wait is expired for good: the outcome reports `TimedOut`, `ThrowIfTimedOut()`, `ThrowIfFailed()` or `ValueOrThrow()` on it fails the job at once with no retry, and a late signal or child outcome never revives the wait. A child group waited with a timeout shares one deadline, and expiry cancels only the members still running.
+A signal or child wait can take a timeout (`WaitSignalAsync(name, timeout)`, `WaitChildAsync(child, timeout)`), and a wait that can time out answers an outcome. The deadline is database time, armed once at the first wait and never extended by replays. On expiry the wait is expired for good: the outcome reports `TimedOut`, `ThrowIfTimedOut()`, `ThrowIfFailed()` or `ValueOrThrow()` on it fails the job at once with no retry, and a late signal or child outcome never revives the wait. A raise still wins until the parked job re-enters, even past the deadline: the job wakes at its deadline, and only its re-entry settles the wait expired. A child group waited with a timeout shares one deadline, and expiry cancels only the members still running.
 
 ### Schedules, workers, and providers
 
@@ -163,7 +164,7 @@ Execution is at-least-once: a crash, a lease expiry, a failed completion write, 
 
 Names given to steps, signals, timers, variables, children, and child groups are persisted keys: renaming one makes a new one (see [renaming a step, variable, signal or timer](#renaming-a-step-variable-signal-or-timer)). Durable state belongs to the job, not to one fire, so a permanent job's succeeded step replays its stored result on the next fire; a handler that must start clean calls `ctx.ResetStateAsync`.
 
-Retention follows the same rule. A permanent job keeps its steps and the children it started for as long as it exists, and it exists for as long as its schedule, so a child or a step it names per period is never purged. Give per-occurrence work a job of its own by declaring the definition `PerOccurrence`: each admitted occurrence is then a fresh root job with the definition's default input, its own steps, children, retries, and retention, and `MaxOutstanding` bounds how many of one schedule's roots may be unsettled at once ([delivery and capacity](./scheduling.md#delivery-and-capacity)).
+Retention follows the same rule. A permanent job keeps its steps and the children it started for as long as it exists, and it exists for as long as its schedule, so a child or a step it names per period is never purged. Give per-occurrence work a job of its own by declaring the definition `PerOccurrence`: each admitted occurrence is then a fresh root job with the definition's default input (`new TInput()` serialized when the definition deploys, the same for every occurrence; the occurrence itself is `ctx.TriggeringSchedules[0].OccurrenceAtUtc`), its own steps, children, retries, and retention, and `MaxOutstanding` bounds how many of one schedule's roots may be unsettled at once ([delivery and capacity](./scheduling.md#delivery-and-capacity)).
 
 ```csharp
 [Job("import-files", ScheduledDelivery = ScheduledDeliveryCode.PerOccurrence)]
@@ -171,8 +172,12 @@ Retention follows the same rule. A permanent job keeps its steps and the childre
 public async Task ImportFiles(JobContext ctx, CancellationToken ct)
 {
     // One root per admitted hour: its children and steps belong to it, and retention purges it once it is terminal.
-    // A manual trigger carries no occurrence.
-    var hour = ctx.TriggeringSchedules.Count > 0 ? ctx.TriggeringSchedules[0].OccurrenceAtUtc : DateTime.UtcNow;
+    // A manual trigger carries no occurrence, so a step freezes the hour once for every re-entry.
+    var hour = await ctx.RunStepAsync(
+        "hour",
+        _ => Task.FromResult(ctx.TriggeringSchedules.Count > 0 ? ctx.TriggeringSchedules[0].OccurrenceAtUtc : DateTime.UtcNow),
+        ct
+    );
 }
 ```
 
@@ -737,7 +742,7 @@ Sizing workers and executors against the database is in the operator guide: [Wor
 
 ### Handler Policy Lives Elsewhere
 
-Retries, backoff, execution timeout, deadline, retention, alert profile, event recording, priority, concurrency limit, and rate limit are declared on `[Job(...)]`, and schedule policy on `[Schedule(...)]`, not on `JobsOptions`. An operator overrides the job policy without a deploy through `IActaOperations.Definitions.UpdateOverridesAsync`, `PUT /definitions/{jobNamespace}/{jobName}/overrides`, or the dashboard: the call replaces the whole override set, a null field clears an override, and the definition's `version` guards a concurrent edit. Over HTTP the body's `overrides` carries every field, and one it leaves out answers 400; `GET /definitions/{jobNamespace}/{jobName}` answers `overrides` in the same shape, so a client changes fields of it and sends it back whole. Workers pick the change up on their next heartbeat. Priority and event recording are copied onto each job when it is enqueued, so an override of either reaches the jobs enqueued after it, and `IJobs.ReprioritizeAsync` moves a queued one. A permanent job, one job that lives on, takes a new event recording at once, and a new priority at once when it is Idle; one with a firing outstanding takes the priority at the next deploy that finds it Idle.
+Retries, backoff, execution timeout, deadline, retention, alert profile, event recording, priority, concurrency limit, and rate limit are declared on `[Job(...)]`, and schedule policy on `[Schedule(...)]`, not on `JobsOptions`. An operator overrides the job policy without a deploy through `IActaOperations.Definitions.UpdateOverridesAsync`, `PUT /definitions/{jobNamespace}/{jobName}/overrides`, or the dashboard: the call replaces the whole override set, a null field clears an override, and the definition's `version` guards a concurrent edit. Over HTTP the body's `overrides` carries every field, and one it leaves out answers 400; `GET /definitions/{jobNamespace}/{jobName}` answers `overrides` in the same shape, so a client changes fields of it and sends it back whole. Workers pick the change up on their next heartbeat, within `JobsOptions.HeartbeatInterval` (45 seconds by default). Priority and event recording are copied onto each job when it is enqueued, so an override of either reaches the jobs enqueued after it, and `IJobs.ReprioritizeAsync` moves a queued one. A permanent job, one job that lives on, takes a new event recording at once, and a new priority at once when it is Idle; one with a firing outstanding takes the priority at the next deploy that finds it Idle.
 
 The default retry policy (`MaxAttempts = 15`, backoff `"1m..1d x2 ~10%"`) keeps a failing job retrying for about 4.4 days before it lands Failed.
 
@@ -797,7 +802,8 @@ With EF Core, pass `transaction.GetDbTransaction()`.
 
 - You own the transaction: Acta never commits, rolls back, disposes, or retries it.
 - No wakeup is published, because Acta cannot know when you commit; workers pick the job up by polling.
-- The returned `JobId` and `JobRef` are provisional until you commit and dead after a rollback, so the answer is the plain `EnqueueJobResponse`, not a handle; follow the job after the commit with `jobs.WaitAsync(receipt)`. `ScheduleAsync` has the same transactional twins.
+- The returned `JobId` and `JobRef` are provisional until you commit and dead after a rollback, so the answer is the plain `EnqueueJobResponse`, not a handle; follow the job after the commit with `jobs.WaitAsync(receipt)`, by its `JobRef`. Your own rows' generated ids are provisional the same way: on SQLite a rolled-back id is handed out again. `ScheduleAsync` has the same transactional twins.
+- On SQLite your transaction holds the database's one write lock, so every Acta write in the process (claims, completions, other enqueues) waits until you commit or roll back, with no timeout of its own: keep the transaction short. The connection needs only the same `Data Source` as Acta's.
 - After any enqueue exception, roll back the whole business transaction.
 - Supply a stable `DeduplicationKey` if you may retry the whole transaction after an ambiguous commit.
 - A null, closed, or wrong-provider transaction is rejected before any command runs; pointing it at the database that holds the Acta schema is your job.
@@ -907,7 +913,9 @@ The package is test-framework-agnostic (xUnit, NUnit, MSTest, TUnit). Its types 
 `ActaTestHost.StartAsync` builds the same DI container production uses, applies migrations to a
 unique throwaway schema (default `acta_test_{12-hex}`), deploys your manifest's catalog (namespace,
 definitions, schedules), and starts its worker row. It does not start the background claim loop; nothing executes
-until you drive it.
+until you drive it. Its container is not a generic host's: it adds a null logger when you register none, but no
+`IHostApplicationLifetime` or other host service, so register any your handlers take in `ConfigureServices`. A tick that answers `Failed` says why in
+`ExplainAsync(job)`.
 
 Drive execution one tick at a time:
 
@@ -1019,6 +1027,43 @@ public sealed class SendWelcomeEmailTests : IAsyncLifetime
   `JobLookup.ById(...)` passes. The drive routes to the worker that owns the job's namespace, and retries a
   transiently missed claim for up to five seconds (the claim uses skip-locked reads), stopping as soon as
   the row can no longer be claimed.
+
+### On SQLite
+
+SQLite has no schema to hand out, so each host takes a database file of its own, and the file is what keeps
+parallel tests apart:
+
+```csharp
+private readonly string _file = Path.Combine(Path.GetTempPath(), $"acta-test-{Guid.NewGuid():N}.db");
+
+public async ValueTask InitializeAsync()
+{
+    _email = new FakeEmailService();
+    _host = await ActaTestHost.StartAsync(
+        (j, _) =>
+        {
+            j.UseSqlite(opts =>
+            {
+                opts.ConnectionString = $"Data Source={_file}";   // one file per host
+                opts.MigrateOnStartup = true;
+            });
+            j.Run<UsersJobs>(jobNamespace: "users", ownerTeam: "growth");
+        },
+        new ActaTestHostOptions { ConfigureServices = s => s.AddSingleton<EmailService>(_email) });
+}
+
+public async ValueTask DisposeAsync()
+{
+    await _host.DisposeAsync();
+    SqliteConnection.ClearAllPools();   // release the file before deleting it
+    File.Delete(_file);
+}
+```
+
+With xunit.v3 on the .NET 10 SDK the test project is an executable on Microsoft.Testing.Platform: `dotnet run` in
+it runs the tests, and `dotnet test` needs the opt-in in `global.json`: `{ "test": { "runner":
+"Microsoft.Testing.Platform" } }`. Its analyzer (xUnit1051) asks every call that takes a token for
+`TestContext.Current.CancellationToken`; the samples here leave the token out to stay short.
 
 ### Reading the outcome
 

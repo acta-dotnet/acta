@@ -224,7 +224,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `JobExecutionSucceeded` | 40 | `job.execution-succeeded` | The attempt's handler returned successfully; durationMs is set. Recorded for every success under audit, under failures only for a success after counted failures, and under an enabled alert profile also for a one-shot job's success past its first attempt. | Active |
 | `JobExecutionFailed` | 41 | `job.execution-failed` | The attempt failed and the job lives on: a retry within budget, or a permanent job's firing that spent its budget and returned the job to idle. durationMs and the failure's message are set; the details carry the keys reason and to. | Active |
 | `JobExecutionOrphaned` | 42 | `job.execution-orphaned` | The lease of the attempt's worker expired and crash recovery reclaimed the job without ending it. workerRef names the worker that held it; the details carry the keys reason and to. | Active |
-| `JobExecutionYielded` | 43 | `job.execution-yielded` | The attempt ended without succeeding or failing: rescheduled, suspended, paused, or cancelled by its handler or the engine. Recorded under audit only; the details carry the keys outcome and reason. | Active |
+| `JobExecutionYielded` | 43 | `job.execution-yielded` | The attempt ended without succeeding or failing: rescheduled, suspended, paused, or cancelled by its handler or the engine. Recorded at the audit level, the default for an application's jobs, and not under failures; the details carry the keys outcome and reason. | Active |
 | `JobFailed` | 44 | `job.failed` | The job failed for good: its retry budget is spent, its handler failed it, or its failure is not retryable. durationMs is set when an attempt ran; the details carry the key reason. | Active |
 | `JobSuspended` | 60 | `job.suspended` | The attempt stopped on a durable wait: a sleep timer made the job ready again at its due time, or a wait on a signal or on child jobs left it suspended. It spends no retry budget; the details carry the key to. | Active |
 | `JobRescheduled` | 61 | `job.rescheduled` | The job became ready with a new nextRunAtUtc: its handler rescheduled it, a failed attempt retries within budget, or an operator rescheduled it, who is then the event's actor. The details carry the reason when there is one. | Active |
@@ -327,8 +327,8 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 |---|---:|---|---|---|
 | `Unspecified` | 0 | `unspecified` | Misfire strategy not recognized by this build; the row was written by a newer Acta. | Active |
 | `CatchUpOnce` | 10 | `catch-up-once` | After downtime, fire once immediately for all missed occurrences, then resume from the next occurrence after now. | Active |
-| `Skip` | 20 | `skip` | After downtime, skip all missed occurrences and resume from the first occurrence strictly after now. | Active |
-| `CatchUpLatest` | 30 | `catch-up-latest` | After downtime, fire once for the latest missed occurrence, the earlier ones coalesced into it, then resume from the next occurrence after now. | Active |
+| `Skip` | 20 | `skip` | After downtime, skip the missed occurrences, except the latest when it is less than a minute overdue, which fires. | Active |
+| `CatchUpLatest` | 30 | `catch-up-latest` | After downtime, fire once for the latest missed occurrence, however late, the earlier ones skipped, then resume from the next occurrence after now. | Active |
 | `CatchUpAll` | 40 | `catch-up-all` | After downtime, fire every missed occurrence in order, one per settlement, subject to the schedule's capacity. | Active |
 
 ### `NamespaceStatusCode` · `namespace-status` <a id="code-family-namespacestatuscode"></a>

@@ -457,8 +457,10 @@ Workers heartbeat their leases (`HeartbeatInterval`), and once a lease one worke
 the namespace's recovery pass, which reclaims jobs whose lease lapsed (back to Ready in budget, terminal Failed past `MaxAttempts`, with retention stamped),
 marks silent workers Dead after `WorkerDeadAfter`, and re-raises any child-completion latch a crash
 left pending; `sys.retention` runs the purge. A lost attempt is therefore reclaimed on the first pass after its lease
-lapses: between one and two leases after its worker's last heartbeat (180 to about 360 seconds at the default
-heartbeat), at the latest on the pass that marks the worker Dead. If a job looks stuck in `Executing`, check the
+lapses: one to two leases after its worker's last heartbeat, plus up to a heartbeat for the pass (180 to about 400 seconds at the default
+heartbeat), at the latest on the pass that marks the worker Dead. The namespace's row keeps the pass's due time, so a
+restarted host keeps the cadence instead of running a pass at its start, and a single host on SQLite reclaims its killed
+predecessor's jobs the same way. If a job looks stuck in `Executing`, check the
 worker's `last_seen_at_utc` first; recovery is automatic once the lease lapses.
 
 ## Production guide
@@ -783,15 +785,15 @@ seconds for the two lags that can run to hours, `acta.alerts.lag` and `acta.sche
 
 | Instrument | Unit | What it measures |
 | --- | --- | --- |
-| `acta.executions` | execution | Completed job executions, tagged by outcome. |
+| `acta.executions` | execution | Completed job executions, tagged by outcome: succeeded, failed, rescheduled, suspended, cancelled, or paused. |
 | `acta.executions.duration` | ms | Handler execution duration. |
-| `acta.claims` | claim | Claim attempts, tagged by result. |
-| `acta.steps` | step | Durable step outcomes, tagged by outcome. |
+| `acta.claims` | claim | Claim attempts, tagged by result: claimed (counted per job) or nothing-claimed, which an idle poll records too. |
+| `acta.steps` | step | Durable step outcomes, tagged by outcome: succeeded (the body ran), replayed (answered from its record), failed, or interrupted. Measured on the handler's own flow. |
 | `acta.jobs.inflight` | job | Jobs this process holds, tagged by state: claimed, executing, or finalizing. |
 | `acta.completions.batch` | completion | Completions the finalizer wrote in one call. |
 | `acta.completions.unsettled` | completion | Completion writes still repeating after a failure. |
 | `acta.executions.fenced` | execution | Attempts stopped because a write found their job held by another execution. |
-| `acta.lease.headroom` | ms | Time an attempt had left on its lease when a renewal confirmed it. |
+| `acta.lease.headroom` | ms | Time an attempt had left, when a renewal confirmed its lease, before its worker would stop it unconfirmed: midway between a heartbeat and the lease after the last confirmation (112.5 s at the default), so below the job row's lease. |
 | `acta.recovery.passes` | pass | Recovery passes this process ran, tagged by outcome. |
 | `acta.lock.release.failures` | failure | Lock releases that failed and were left to expire. |
 | `acta.wakeup.publish.attempts` | publish | Wake publishes, tagged by channel and reason. |
@@ -871,10 +873,10 @@ w.AddAlertChannel("ops-slack", AlertTransportKinds.SlackWebhook,
 ```
 
 - Route a job with `[Job(AlertChannelName = "ops-slack")]`. Without one it goes to the namespace's implicit `default` channel, which logs, so failures reach the logs with no setup. `RunbookUrl` on the job travels with the notification.
-- The built-in transports are `log` and `slack-webhook`; a custom one registers an `IAlertTransport`. Endpoints and credentials stay in configuration and are never stored in the database.
+- The built-in transports are `log` and `slack-webhook`; a custom one is an `IAlertTransport` registered in DI, and a channel names it by its `TransportKind`: `builder.Services.AddSingleton<IAlertTransport, PagerTransport>()`, then `w.AddAlertChannel("on-call", "pager", endpoint: "pager://on-call")`. Its `SendAsync` gets the notification and the target (`AlertTarget.ChannelName`, the endpoint) and answers `Delivered`, `Retryable` or `Permanent` rather than throwing. Endpoints and credentials stay in configuration and are never stored in the database.
 - A send has ten seconds. One that has not answered by then is cancelled, given up, and retried on the delivery backoff, and its channel is not asked again in that pass, so an endpoint that never answers costs a pass ten seconds however many alerts it has queued. A pass that has spent thirty seconds, as three such endpoints make it, leaves the alerts it did not reach for the next pass a minute later.
 - A channel's `MinSeverity` and its `Disabled` or `Deprecated` status suppress delivery. A channel the namespace does not configure fails delivery, and `AlertChannelValidationMode` checks every definition's routing at startup.
-- A failed send retries for a few minutes, about five attempts, and then settles `Failed`. Delivery is at least once. Resolving an alert before it is sent cancels the send.
+- A failed send retries for a few minutes, about five attempts, and then settles `Failed`. Delivery is at least once. Resolving an alert before it is sent cancels the send and settles it `Suppressed`, the word a severity floor uses too. So does a failure the job recovered from before the projector read it: a failed attempt followed by a success inside the projection lag gives an alert born resolved, never sent.
 
 ### Operator surface
 
@@ -896,7 +898,7 @@ effect occurred, but the lost attempt counts against the budget like any other c
 
 ### …a worker crashes while the handler is running?
 
-The lease expires and recovery makes the job runnable again within budget, within two leases of the crash: six minutes at the default heartbeat. Bare handler
+The lease expires and recovery makes the job runnable again within budget, on the first recovery pass after the lease lapses: about seven minutes after the crash at worst with the default heartbeat. Bare handler
 code may run again. Succeeded durable steps return their stored results; an in-progress step whose
 outcome was not recorded follows its configured semantics.
 
@@ -1518,7 +1520,11 @@ SELECT namespace_name, worker_id, host_name, worker_status, deployment_version, 
 
 Crash recovery marks Active and Draining workers Dead when `last_seen_at_utc` falls past
 `JobsOptions.WorkerDeadAfter`. A Dead worker that heartbeats again, after a database outage for
-example, turns Active again.
+example, turns Active again. The workers list reads an Active or Draining worker as stale once it has sent no
+heartbeat for a lease, judged by the reading host's lease window: about when the leases of its jobs lapse, so
+nothing tells a dead worker from a slow one before then. Recovery reclaims those jobs on its first pass after the
+lapse, which can come minutes before the pass that marks the worker Dead, so a recovered job can sit beside its old
+worker still listed as Active.
 
 ### Pending Or Failed Alert Delivery
 

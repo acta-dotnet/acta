@@ -21,7 +21,16 @@ Execution is at-least-once, and a handler re-enters from the top. After a crash,
 retry, or a resumed wait, Acta runs the handler method again from its first line. Completed steps,
 variables, timers, and signal waits return their recorded results instead of repeating
 their work; every bare line between them runs again on every entry. The model is checkpoints, not
-replay: there is no determinism requirement on your code, and there is no magic resume-at-line-N.
+deterministic replay: there is no determinism requirement on your code, and there is no magic resume-at-line-N.
+Where these docs say a re-entry replays a step, the step answers from its record and its body does not run (the
+`acta.steps` meter's `replayed` outcome means the same).
+A crash counts against the retry budget: the attempt a dead worker held is reclaimed as a failed one, so
+`MaxAttempts` crashes since the job last succeeded fail a job that never threw (a wait or a sleep is not a success,
+so the count carries across them), and a reclaimed job runs again at once, without the backoff.
+The reclaim is `job.execution-orphaned` (reason `lease-expired`) on the timeline. With the default 45-second heartbeat a lost attempt comes back
+three to about seven minutes after its worker's last heartbeat (one to two leases, plus up to a heartbeat for the
+recovery pass). A clean stop is not a crash: running handlers finish first, up to the host's
+`HostOptions.ShutdownTimeout` (30 seconds by default), and only then is their token cancelled.
 
 Those recorded results and the ledger make re-entry something you can reason about and test, because
 everything a handler decided is a row you can read. Write handlers as if the method will be
@@ -81,7 +90,10 @@ public static class ShippingHandlers
 
 - `[Job("ship-order")]` is required and a name: dotted kebab-case, `[a-z][a-z0-9-]*` segments joined by `.`
   (`billing.send-invoice`), no underscores, no trailing dash, at most 128 chars. The bare `sys` and the `sys.` prefix are reserved for Acta's own jobs. The name is
-  the durable operator-facing contract in SQL, the dashboard, the CLI, and alerts.
+  the durable operator-facing contract in SQL, the dashboard, the CLI, and alerts. The names you give steps, variables,
+  signals, timers and children follow the same rule after folding to lowercase, so a per-item name is dotted
+  (`apply.{id}`, never `apply/{id}`); an invalid one throws `ArgumentException` at the call, and the job retries it
+  like any failure.
 - `ShippingJobs` is the source-generated manifest, named from the LAST segment of the project's
   `RootNamespace` plus `Jobs` (`Users` → `UsersJobs`; a segment already ending in `Jobs` gets
   `Manifest` instead: `TestJobs` → `TestJobsManifest`). It is generated into that root namespace,
@@ -97,7 +109,8 @@ public static class ShippingHandlers
   `IActaOperations.Calendars`, the HTTP API, or the dashboard's Calendars page, in the namespace or shared in `sys`.
   Publish it before the deploy of the jobs that name it: a deploy whose schedule names a calendar with no
   published version fails and writes nothing. The page is `docs/scheduling.md`.
-- Each job's member on `ShippingJobs` is a factory taking the handler's input parameters and returning the
+- Each job's member on `ShippingJobs` is named after the job in Pascal case (`ship-order` is `ShipOrder`,
+  `permit.consultation` is `PermitConsultation`), a factory taking the handler's input parameters and returning the
   job's call: `jobs.EnqueueAsync(ShippingJobs.ShipOrder(new ShipOrder(orderId)))` names the job outright, and a
   result job's call answers `JobHandle<TResult>`. An enqueue that reads no result can pass the input alone, options
   included: `jobs.EnqueueAsync(new ShipOrder(orderId), o => o.DeduplicationKey(key))`. A handler may take several input parameters before `JobContext` and
@@ -118,6 +131,9 @@ public static class ShippingHandlers
   existing connection string; do not change the host type to add Acta.
 - Producer and worker in the same assembly: typed `EnqueueAsync` plus `j.Run<TManifest>(...)`, as
   above. This is the default.
+- A manifest is per assembly: every `[Job]` in a project lands in its one manifest, and `j.Run<TManifest>("ns")` registers
+  them all in that namespace. Namespaces with different jobs take one project each. A namespace's expired leases are
+  reclaimed by its own workers' recovery pass, so while it has no live worker its lost jobs stay `executing`.
 - Split deployment (API enqueues, separate worker executes): the worker registers
   `Run<TManifest>`; the producer enqueues by the raw route contract instead of the typed call so
   it does not need the handler assembly.
@@ -125,6 +141,7 @@ public static class ShippingHandlers
 - Production runs `<app> jobs migrate` from a deploy step before the new build starts: it applies the schema, deploys the app's job definitions and schedules, and records the app's version. `<app> jobs deploy` does the deploy alone and needs no DDL right. A worker start writes no definition or schedule, and refuses a namespace its build's version has not deployed in.
 - Once `jobs migrate` or `jobs deploy` has deployed a namespace, a `MigrateOnStartup` start writes no definition or schedule there, on a local database too: a new or changed job then takes `jobs deploy`, or a fresh local database.
 - Give each build its own version: `JobsOptions.DeploymentVersion`, by default the entry assembly's informational version. An app that is `1.0.0` on every build is one version to Acta.
+- A job that must exist only if your own write commits takes your transaction first: `await jobs.EnqueueAsync(transaction, new ShipOrder(orderId), ct: ct)` inserts it through your open `DbTransaction` (every enqueue shape has the overload), so the order row and its job commit or roll back together. A plain connection of your own needs nothing registered: Acta prepares a SQLite connection it is handed itself. Your tables may share Acta's database, a SQLite file included; Acta's tables have plain names (`jobs`, `steps`, `events`, ...) in its own schema, `acta` on Postgres and SQL Server and `main` on SQLite, so prefix yours there. Acta never commits or rolls back your transaction, and the job is picked up after the commit by polling, not at once. On SQLite keep it short: it holds the database's one write lock, which every Acta write in the process waits on. When the business data lives in another database, stage the job in an outbox table instead: `docs/developer-guide.md`, "Transactional enqueue and the external outbox".
 - An external outbox table comes from the producer's own migrations (`CreateOutboxScript()`) or `ApplyOutboxAsync`; Acta never creates it on its own.
 - Rolling deploys are routine: run `<app> jobs migrate`, start the new build, stop the old one, with any overlap. Acta's migrations are forward-only and keep an old and a new build working on one schema; a worker hands back a job whose handler it lacks and stops claiming that definition; a deploy never retires a definition the new build omits, so a rollback keeps the queue. What the application keeps is its own, as in any rolling deploy: a queued input the new build still reads, and a step name a running job still finds. Retiring a dropped definition and cancelling its queue is an operator action on the definition.
 - Definitions and schedules are the current deployment's. An older build's workers write nothing, and its `jobs deploy` changes nothing unless run with `--force`, which is how a rollback restores the earlier definitions. A schedule a deploy drops is orphaned and loses its pause, so to hold a permanent job across a rollback, pause the job, not the schedule.
@@ -171,41 +188,47 @@ namespace Shipping;
 
 public sealed record DeliverWebhook(Guid DeliveryId, string Url, string Payload);
 
+// The receiver refused the payload itself, so no retry can change its answer.
+public sealed class WebhookRejected(int status) : Exception($"The receiver refused the webhook with {status}.");
+
 public sealed class WebhookJobs(HttpClient http)
 {
     [Job("deliver-webhook", MaxAttempts = 5)]
     public async Task Handle(DeliverWebhook input, JobContext ctx, CancellationToken ct)
     {
-        // The idempotency key comes from the JOB (stable across attempts), never the attempt.
-        var signature = await ctx.RunStepAsync("sign-payload",
-            _ => Task.FromResult($"{input.DeliveryId}:{input.Payload.Length}"), ct);
-
-        var status = await ctx.RunStepAsync("post", async token =>
+        try
         {
-            using var request = new HttpRequestMessage(HttpMethod.Post, input.Url);
-            request.Headers.Add("Idempotency-Key", input.DeliveryId.ToString());
-            request.Headers.Add("X-Signature", signature);
-            request.Content = new StringContent(input.Payload);
-            using var response = await http.SendAsync(request, token);
-            // A failed delivery throws, so the step records no success and the attempt retries; which
-            // statuses deserve a retry is this application's call, not a framework policy.
-            response.EnsureSuccessStatusCode();
-            return (int)response.StatusCode;
-        }, ct);
-
-        await ctx.RunStepAsync("record-response",
-            _ => Task.FromResult(status), ct);
+            await ctx.RunStepAsync("post", async token =>
+            {
+                using var request = new HttpRequestMessage(HttpMethod.Post, input.Url);
+                // The idempotency key comes from the JOB (stable across attempts), never the attempt.
+                request.Headers.Add("Idempotency-Key", input.DeliveryId.ToString());
+                request.Content = new StringContent(input.Payload);
+                using var response = await http.SendAsync(request, token);
+                if ((int)response.StatusCode is >= 400 and < 500 and not 408 and not 429)
+                {
+                    throw new WebhookRejected((int)response.StatusCode);
+                }
+                response.EnsureSuccessStatusCode(); // a 5xx, a 408 or a 429 throws, and the attempt retries
+            }, ct);
+        }
+        catch (WebhookRejected rejected)
+        {
+            await ctx.FailAsync(rejected.Message, ct); // ends the job now: a retry would get the same answer
+        }
     }
 }
 ```
 
 Register `HttpClient` in DI (`builder.Services.AddHttpClient<WebhookJobs>();`). A step that recorded
-its outcome is reused on re-entry, so a crash after `post` recorded its status never sends again;
-`record-response` replays from the row. The window for a duplicate is narrower: the receiver accepted
-the request, then the process died before Acta recorded the `post` outcome. The retry sends again
-with the same `Idempotency-Key`, because the key comes from the job's input and not from the attempt,
-and the receiver deduplicates on it. That is the at-least-once contract working: an effect can repeat
-only under its own key.
+its outcome is reused on re-entry, so a crash after `post` recorded never sends again. The window for a
+duplicate is narrower: the receiver accepted the request, then the process died before Acta recorded
+the `post` outcome. The retry sends again with the same `Idempotency-Key`, because the key comes from
+the job's input and not from the attempt, and the receiver deduplicates on it. That is the
+at-least-once contract working: an effect can repeat only under its own key. Which answers retry is
+the application's call: throw for them inside the step, and end the job with `FailAsync` outside it for
+an answer no retry changes. Never return the refusal as the step's result and fail after it: the step
+would record success with the refusal in it, and a restart would never send again.
 
 ## Do this, not that
 
@@ -235,15 +258,26 @@ raised without one. A wait that can time out answers an outcome instead:
 carried no value. An outcome left
 unread lets the handler carry on past the deadline. The raising side is
 `await jobs.RaiseSignalAsync(jobRef, "shipped", new Shipped(trackingId), ct)` on `IJobs`, and an
-`actor:` argument before the token names who raised it. The deadline is stored once, as
-database time plus the timeout, so restarts and downtime never lengthen it, and a raise that lands
-before the parked job re-enters still wins. A timeout rounds up to whole seconds, at least one, and a sleep
-of zero or less returns at once, so a deadline shared by several waits is `deadline - DateTime.UtcNow` at each
+`actor:` argument before the token names who raised it. It answers an `Action` and the job's `Status` after the call,
+so a job parked on the wait reads `Ready`: the raise re-armed it. `Applied` means stored, not taken: a name no wait
+ever asks for is `Applied` too, so a raise authenticates and correlates nothing; check the caller first. An unknown
+job answers `NotFound`. A raise commits on its own, never in your transaction,
+so a crash between your commit and the raise leaves the wait to time out: let the timeout branch re-read your own
+record. A raise that comes before the handler reaches its wait
+is stored, and the wait reads it without parking. The deadline is stored once, as
+database time plus the timeout, so restarts and downtime never lengthen it; on SQLite, database time is SQLite's
+clock, which can trail `DateTime.UtcNow` by a clock tick (about 16 ms on Windows). A raise wins until the parked
+job re-enters, even after the deadline has passed: the job wakes at its deadline, and only its re-entry settles
+the wait expired. A wait's timeout rounds up to whole seconds, at least one, so a wait whose span is zero or less
+still parks about a second before it times out (a sleep of zero or less returns at once). A deadline shared by
+several waits is `deadline - DateTime.UtcNow` at each
 of them: the remaining time goes negative on the replay after the deadline, and each wait's stored instant decides. An expired wait stays expired, and a late raise answers
 `Rejected`. Only a restart reopens one: the timed-out wait that ended the job, so the restarted job waits
 again under a fresh bound, while a timeout the handler went past stays as it was.
 A signal keeps the value of its first raise: raising it again with the same value answers `AlreadyInState`, after
 the job finished too, and with another value `Rejected`, so a wait that already returned never reads a different value on replay.
+The values compare as stored bytes, so keep volatile fields (a timestamp, a per-attempt id) out of a raised value: a
+retry after a lost answer then repeats the same value and answers `AlreadyInState`.
 A second window, or a second value, is a wait under a new name (`"shipped-2"`) or a new job.
 
 ## Child jobs and fan-out
@@ -273,7 +307,11 @@ until the job ends or the wait times out; a handler's wait parks the job and hol
 
 - A failed or cancelled child never throws in the parent by itself. Every wait answers an outcome and the handler decides: `ThrowIfFailed()` or `ThrowIfAnyFailed()` to fail with it, or branch on `Failed` and compensate. A group waits for every child; it never fails fast and never cancels siblings.
 - Every child ends in a `JobOutcome`, alone or as a member of a group: `JobRef`, `Status`, `Succeeded`, `TimedOut`, and `ThrowIfFailed()`. `IJobs.WaitAsync` answers the same type outside a handler. Wait now with `CallChildAsync`; wait later for children you enqueued, one or many, with `WaitChildrenAsync`; fan a list out with `MapAsync`.
-- `ThrowIfFailed()`, `ThrowIfAnyFailed()` and `ValueOrThrow()` in a handler fail the job at once, with no retry: a retry would find the same failed child. To recover, restart the child, then the parent once the child has succeeded.
+- `ThrowIfFailed()`, `ThrowIfAnyFailed()` and `ValueOrThrow()` in a handler fail the job at once, with no retry: a retry would find the same failed child. To recover, restart the child, then the parent once the child has succeeded; a parent restarted alone reads the same failed child and fails again at once. A restarted parent keeps the results of the steps after its wait, so bind a decision you derive from the children's outcomes into the step that acts on it.
+- A child's name is its `DeduplicationKey` on the job reads: the call's name for `CallChildAsync` and `EnqueueChildAsync`, and `{map}/{key}` for a map's child (`sections/coast`, or a hash of a key that is not safe as a name), so `acta.Ledger.ListJobsAsync(new ListJobsQuery(ParentJobId: parent.JobId))` lists the children by name. A failed child's reason is not on its outcome: read `(await jobs.ExplainAsync(outcome.JobRef, ct))?.Reason`.
+- A child alerts on its own failure as its definition's `AlertProfile` says (`OnFailure` by default), also when the
+  parent expects the failure and compensates for it. When the parent reports it, declare the child
+  `[Job("reserve-room", AlertProfile = AlertProfileCode.None)]`; an alert the parent raises is still created.
 - A child's result rides on the outcome when the child is the manifest's call (`ShippingJobs.PrintLabel(...)`), alone with `CallChildAsync` or per item with `MapAsync`. For a child you enqueued and waited for, read it by id: `await ctx.GetChildResultAsync<string>(child.JobId, ct)` throws when there is none, and `TryGetChildResultAsync<T>` answers `(Found, Value)`.
 - `MapAsync` and `WaitChildrenAsync` take a `TimeSpan` timeout before the token: one deadline for the whole group, which cancels only the members still running and reports `TimedOut` on the outcome. `MapAsync` takes one `configure` that every child gets.
 - A generated call passed where an input is expected, a map's child included, is enqueued by the job it names.
@@ -318,13 +356,24 @@ ConcurrencyLimit = 4)]` sizes that gate: the key gets four concurrency slots ins
 supplies no key, the definition name is the key, so a limit alone throttles the whole definition. Two
 definitions on the same key share its slots and the key's capacity is the largest limit among them.
 It is mutual exclusion, never ordering: an older job can be overtaken while the key stays busy.
+Each bounce is an execution of its own (the job's `ExecutionNumber` moves and the timeline gains its rows), so a
+long queue behind a narrow key writes many rows; a lane, which holds its queue `Blocked` and claims only the head,
+writes none for waiting. A slot held by a worker that died stays taken until recovery reclaims that job's lease.
+For one section of a handler rather than the whole job, `await ctx.RunWithLockAsync("ledger:acme", ct => ..., ct: ct)`
+runs the action under a lock on an opaque key, scoped to the namespace; acquiring waits about 30 seconds (the
+`timeout:` argument) before it throws `LockAcquisitionTimeoutException`. The hold renews with the holder's
+heartbeat, so a dead holder keeps the key for up to one lease, the same window as its job's lease.
 
 ## Running jobs in order
 
 `options.Lane("customer-42")` on an enqueue, or `[Job("sync-orders", Lane = "orders")]` on a
 definition, puts the job in a lane: one job of the lane runs at a time, in enqueue order, like an SQS
 FIFO message group. The jobs behind the head are `Blocked` until it finishes (Succeeded, Failed on
-its last attempt, or Cancelled), and a failing head keeps retrying in place, holding the lane. A lane
+its last attempt, or Cancelled), and a failing head keeps retrying in place, holding the lane. A paused head holds
+it until resumed, and a head whose worker died holds it until recovery reclaims it: three to about seven
+minutes at the default heartbeat. `Blocked` says
+only that a job is behind the head, whatever the head is doing (running, retrying, or waiting for a person), so
+a screen that tells a hold from a queue reads the head: the lane's one unfinished job that is not `Blocked`. A lane
 is order, not a condition: the next job runs after a failed or cancelled head too, so a job that may
 only follow a success checks for it in its first step. Rows
 staged in sequence through the outbox with a lane reach it in staging order, a rejected row keeping its place. An
@@ -334,7 +383,9 @@ at enqueue), never put a lane on a scheduled definition (refused), give waits ac
 and restart of a finished laned job runs that job again, right after the lane's current head.
 
 `[Job("send-invoice", RateLimit = "10/s")]` paces how OFTEN attempts are admitted, which is a
-different gate from how many run at once, and a job passes both. The value is a count per second,
+different gate from how many run at once, and a job passes both. It takes the concurrency slot first and then the
+rate turn, and one the meter books for later gives its slot back, so with a rate and a narrow key on one job most of
+a backlog bounces off the key before the meter books it. The value is a count per second,
 minute, or hour, `N/s`, `N/m`, or `N/h`, at most 1000 a second: one every four seconds is `15/m`.
 It paces admissions, not starts,
 and is no hard burst cap: a turn admitted late can land beside an on-time one. Every execution takes a
@@ -361,6 +412,9 @@ belong in blob storage with the job carrying a reference: URI, checksum, size.
 By default an input with no data uses the `none` format, `byte[]`/`ReadOnlyMemory<byte>` use `bytes`, and every
 other input, scalars included, is JSON (`"hello"`, `42`); an explicit or custom format overrides that. A raw or
 HTTP enqueue in the json format sends strict JSON (one value, no comments or trailing commas) or is refused.
+A JSON value binds leniently, as System.Text.Json does: a member it leaves out reads as its default, so a signal
+raised as `{"note":"ok"}` reads an enum `Verdict` as its first value. Mark a member `required` when leaving it out
+must be refused, and give an enum a first value that grants nothing (`Unset`).
 
 ## Things that are not what they sound like
 
@@ -375,7 +429,15 @@ HTTP enqueue in the json format sends strict JSON (one value, no comments or tra
   writes it: `await ctx.AlertAsync("Stock low", "Bin 7 is empty", AlertSeverityCode.Warning, ct: ct)`.
   An alert raised that way stays open until something resolves it: find it with
   `acta.Alerts.ListAsync(new ListAlertsQuery(JobId: jobId, UnresolvedOnly: true))` and call
-  `acta.Alerts.ResolveAsync(alert.AlertRef)` from the step that fixed the cause.
+  `acta.Alerts.ResolveAsync(alert.AlertRef)` from the step that fixed the cause. The row is written at once; its delivery to
+  the alert channel runs on the `sys.alerts` pass, so it reaches a channel within about a minute. The line runs again on every
+  re-entry, like any bare line: without a `deduplicationKey` each run inserts another alert, and with one a
+  repeat folds into the open alert, counting an occurrence, while a repeat after it was resolved opens a new one.
+  To raise it once, raise it in a step: `await ctx.RunStepAsync("ring-engineer", _ => ctx.AlertAsync(...), ct)`.
+- `acta.Definitions.UpdateOverridesAsync` replaces the definition's whole override set, and a null field clears
+  that override: read `Overrides` from `GetAsync`, change it with `with { ConcurrencyLimit = 4 }`, and send it back
+  with the definition's `version`. Workers take the change on their next heartbeat (`HeartbeatInterval`, 45
+  seconds by default).
 - Retention deletes finished work only. A job that landed `Succeeded`, `Failed`, or `Cancelled` is
   deleted with its steps and checkpoints once its definition's `JobRetention` has passed, 90 days by
   default (`[Job("release-payment", JobRetention = "365d")]`). A job that waits is never deleted,
@@ -398,7 +460,10 @@ HTTP enqueue in the json format sends strict JSON (one value, no comments or tra
   that succeeded on Monday returns Monday's result on Tuesday, and Monday's signal answers Tuesday's
   wait. Put the period in the step or signal name (`$"invoice-{period}"`), or call `ctx.ResetStateAsync` as the handler's last action so the next fire
   starts clean. Never at the top: a reset there also runs on every retry and replay of the same fire,
-  erasing its own progress, so succeeded steps run again and an `AtMostOnce` body can run twice.
+  erasing its own progress, so succeeded steps run again and an `AtMostOnce` body can run twice. The reset clears
+  variables too, so a watermark carried across fires is written after it, as the last line. A fire that fails for
+  good never reaches its reset and leaves its steps to the next one, so name a fire's steps by the fire:
+  `$"plan.f{ctx.FiringId:N}"`, since a GUID's hex can start with a digit and a name segment cannot.
 - Children a permanent job starts are never purged while its schedule lives, since retention keeps a
   child as long as its parent is unfinished. For per-occurrence fan-out, declare the definition
   `ScheduledDelivery = ScheduledDeliveryCode.PerOccurrence`: each occurrence is then a root job of its
@@ -407,7 +472,10 @@ HTTP enqueue in the json format sends strict JSON (one value, no comments or tra
 ## Watch a job
 
 Every Acta host is also a control CLI: `<app> jobs <verb>` runs against the app's own configured database
-and exits, starting no worker, so it must run with the same configuration and environment as the app.
+and exits, starting no worker, so it must run with the same configuration and environment as the app. The
+first argument `jobs` is reserved for it: a host started with `jobs` runs the verb as the host starts and exits, so an
+app's own launcher never passes `jobs` as its first argument. Code before `app.Run` still runs on that path; guard
+host-only startup work (seeding, your own files) with `if (args is not ["jobs", ..])`.
 Keep the job ref an enqueue returns (`job_...`); it is the job's public identity everywhere.
 
 ```bash
@@ -425,19 +493,21 @@ dotnet run --no-build -v q -- jobs events  <job-ref> --json   # the timeline, ne
 - A `ready` job with a future due instant, or a `suspended` one, is healthy: it is waiting for its
   time or its signal, and `explain` names what it waits for. A caller's wait timeout stops only the
   wait; the job keeps running.
-- The dashboard at `/acta` shows the same job, and `GET /acta/api/v1/jobs/{jobRef}` answers it as JSON.
+- The dashboard at `/acta` shows the same job, and `GET /acta/api/v1/jobs/{jobRef}` answers it as JSON; `GET /acta/api/v1/jobs/{jobRef}/detail` answers the job page's whole read, its explain included.
 
 ## Show jobs on your own screen
 
-An app reads Acta through the services `UseActa` registers. Inject them like any other service.
+An app reads Acta through the services `UseActa` registers. Both are singletons, so inject them anywhere, a hosted
+service or another singleton included.
 
 - One job is `IJobs`. `GetAsync(jobRef)` answers the status, `NextRunAtUtc`, the lease, the parent, and the lane, or null when there is no such job. `GetStatusAsync`, `GetInputAsync`, `GetResultAsync<T>`, and `ExplainAsync` read one part. `var order = await jobs.GetInputAsync<ShipOrder>(jobRef, ct)` reads the input, as enqueued or last amended, as its type, and throws when no job matches. `ListStepsAsync(new ListJobStepsQuery(jobRef))` and `ListCheckpointsAsync(new ListJobCheckpointsQuery(jobRef))` list what the handler recorded.
-- Many jobs are `IActaOperations`. `acta.Ledger.ListJobsAsync(new ListJobsQuery(JobNamespace: "shipping", Status: JobStatusCode.Failed))` finds jobs, also by `JobName`, `ParentJobId`, `CorrelationKey`, `Tags`, and `Lane`. `acta.Ledger.ListEventsAsync(new ListEventsQuery(JobId: job.JobId))` reads a timeline. `Definitions`, `Schedules`, `Alerts`, and `Workers` sit beside `Ledger`.
+- Many jobs are `IActaOperations`. `acta.Ledger.ListJobsAsync(new ListJobsQuery(JobNamespace: "shipping", Status: JobStatusCode.Failed))` finds jobs, also by `JobName`, `ParentJobId`, `CorrelationKey`, `Tags`, and `Lane`. `acta.Ledger.ListEventsAsync(new ListEventsQuery(JobId: job.JobId))` reads a timeline, newest first, and `new ListEventsQuery(LineageRootJobId: root.JobId)` reads a whole tree's in one query, children included. A timeline starts at the first attempt: the enqueue is the job's row (`CreatedAtUtc`), not an event. A wait writes two events at one instant, `job.execution-yielded` (the execution's outcome) and `job.suspended` (the job's move); a wait on a child reads `Signal 'sys.child.<jobId>' pending`, and the child's end resumes it with `job.signal-raised`. An execution reaches the timeline when it ends; the one running shows on `GetAsync` (`ExecutionNumber`, the lease). `Definitions`, `Schedules`, `Alerts`, and `Workers` sit beside `Ledger`.
+- `await ctx.NoteAsync("Packed by Ana", ct)` writes a line of your own onto the job's timeline (`EventCode.JobNoteRecorded`), beside Acta's events. A note is written each time its line runs, so one before a wait or a sleep is written again when the job resumes: put it in a step, or after the last wait.
 - A list answers a page: `Items`, `HasMore`, and `NextCursor`, which goes back in as the query's `Cursor`.
 - A step shows `Name`, `Status`, `CreatedAtUtc`, and `ModifiedAtUtc`. Its result stays inside the job. A value the screen needs goes in a variable, `await ctx.SetVariableAsync("stage", new Stage("packed", 3), ct)`, and the screen reads it with `await jobs.GetVariableOrDefaultAsync<Stage>(jobRef, "stage", ct)`, null until the handler has set it. A variable write is durable by itself and needs no step around it; a step is for work that must not run twice. `ctx.SetProgressAsync(value, ct)` keeps one "how far along" value, last write wins, as the checkpoint `sys.progress`, which Acta's dashboard lists with the job's checkpoints; a value your own screen reads goes in a variable, as above.
 - The checkpoints also list what the job waits for: a `Signal` or a `Timer` with its `DueAtUtc`, and a `ChildLatch` per child. A variable's checkpoint has no `Status`.
 - To label what a job is doing, read `jobs.ExplainAsync(jobRef)`: `Headline` says it in a sentence and `ActiveWait` names the wait it is parked on (`Kind`, `Name`, `DueAtUtc`). The status alone does not tell a sleep from a wait for a person or a child.
-- A job between attempts reads `ready` with `FailureCount` above zero and its next attempt at `NextRunAtUtc`, and the step that threw reads `pending`. `FailureCount` counts the attempts that failed in a row and returns to 0 when the job succeeds; the events keep every failure. The exception's message is on the timeline, as the `Message` of each event whose `EventCode` is `EventCode.JobExecutionFailed`; an event also shows `CreatedAtUtc`, `DetailsText`, and `Actor`. A step's `FailureMessage` is set only for an at-most-once step that failed or was interrupted.
+- A job between attempts reads `ready` with `FailureCount` above zero and its next attempt at `NextRunAtUtc`, and the step that threw reads `pending`. `FailureCount` is the retry budget's counter: the attempts that failed since the job last succeeded, a crash included, carried across waits and sleeps (a wait is not a success), and 0 again when the job succeeds; the events keep every failure. `ExecutionNumber` counts every claim of the job, each resume after a wait and each bounce off a full concurrency key included, so a parent that never failed can read execution 4: show `FailureCount` as the tries. The exception's message is on the timeline, as the `Message` of each event whose `EventCode` is `EventCode.JobExecutionFailed`; an event also shows `CreatedAtUtc`, `DetailsText`, and `Actor`. A step's `FailureMessage` is set only for an at-most-once step that failed or was interrupted.
 - Stored JSON has camelCase property names: `OrderId` is `orderId`.
 - The text of a status or a kind is `.Code`: `job.Status.Code` is `suspended`, the text the CLI, the HTTP API, and SQL show, where `ToString()` gives the C# name `Suspended`. `JobStatusCodeExtensions.FromCode("suspended")` reads it back.
 - Each read is its own snapshot, so two reads a moment apart can disagree while a job moves, and so is a read of your own table: an endpoint that reads both can show a record the handler wrote before the job reads `succeeded`. A sleeping job reads `ready` with a future `NextRunAtUtc`; a job waiting for a signal or a child reads `suspended`.
@@ -448,6 +518,13 @@ An app reads Acta through the services `UseActa` registers. Inject them like any
 ## The HTTP API
 
 `Acta.AspNetCore` serves Acta's operations over HTTP: `MapActaApi` maps the API alone, and `MapActa` from `Acta.Dashboard` maps it under `{pattern}/api/v1` beside the dashboard. Its contract is the OpenAPI document `docs/reference/openapi.json` in the repository. Generate a client from that document with standard OpenAPI tools; Acta ships no client package.
+
+A payload travels in an envelope: `json` carries a JSON input as the value itself, and `base64` beside a `formatId` carries any other format. An enqueue, with controls enabled:
+
+```bash
+curl -X POST http://localhost:5090/acta/api/v1/jobs -H "Content-Type: application/json" \
+  -d '{"jobNamespace":"shipping","jobName":"ship-order","input":{"json":{"orderId":1042}}}'   # 201, {"jobRef":"job_...","action":"inserted"}
+```
 
 ## When you are unsure
 

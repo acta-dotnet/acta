@@ -1,5 +1,7 @@
 // Durable multi-step job under test: reserve stock, wait for an approval signal, then charge.
 
+using System.Collections.Concurrent;
+
 namespace Acta.Concepts.TestingDurable;
 
 public sealed record PlaceOrder(string OrderId, decimal Amount);
@@ -8,19 +10,27 @@ public sealed record ApprovalDecision(bool Approved, string By);
 
 public sealed record OrderResult(string OrderId, bool Charged);
 
-public static class OrderJob
+// The stock system the job reserves against. A test registers its own instance and reads how many times an order's
+// reservation ran, so the run-once proof holds per order even while tests share the host.
+public sealed class Warehouse
 {
-    // Counts reserve step body executions so a test can prove run-once across suspend/replay.
-    public static int ReserveCount;
+    private readonly ConcurrentDictionary<string, int> _reservations = new();
 
+    public void Reserve(string orderId) => _reservations.AddOrUpdate(orderId, 1, (_, count) => count + 1);
+
+    public int ReservationsFor(string orderId) => _reservations.GetValueOrDefault(orderId);
+}
+
+public sealed class OrderJob(Warehouse warehouse)
+{
     [Job("process-order")]
-    public static async Task<OrderResult> Handle(PlaceOrder order, JobContext context, CancellationToken ct)
+    public async Task<OrderResult> Handle(PlaceOrder order, JobContext context, CancellationToken ct)
     {
         await context.RunStepAsync(
             "reserve-stock",
             _ =>
             {
-                Interlocked.Increment(ref ReserveCount);
+                warehouse.Reserve(order.OrderId);
                 return Task.CompletedTask;
             },
             ct

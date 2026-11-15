@@ -40,6 +40,10 @@ separate calls one transaction.
 | Caller-transaction enqueue | All three providers join the supplied transaction. Acta never commits, disposes, or retries it. |
 | Ordinary read | No additional write transaction. |
 
+A handler's durable calls are each one owned mutation: a fresh step is two, its start and its completion; a step a
+re-entry answers from its record is one, the start that finds the record; a variable or progress write is one. On
+SQLite each of them is a write transaction on the process's one write lock.
+
 A read whose parts must agree has to be one statement. Under PostgreSQL's read committed, SQL Server's read-committed
 snapshot (without snapshot isolation), and SQLite's WAL, a statement reads one snapshot and the next statement another,
 so a batch of SELECTs can pair rows from before a commit with rows from after it. The explain read returns its header,

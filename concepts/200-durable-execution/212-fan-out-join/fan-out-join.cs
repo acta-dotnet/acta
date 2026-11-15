@@ -37,7 +37,8 @@ namespace Acta.Concepts.FanOutJoin
     public sealed class AddNumbersJobs
     {
         // MapAsync starts one child per chunk and waits for all of them. Each child is keyed by its range,
-        // so a replay finds the same children by name; the merge then reads each child's result.
+        // so a replay finds the same children by name. A child given as its generated call types the map,
+        // so each item's outcome carries the child's result and the merge reads no child by id.
         [Job("add-numbers")]
         public async Task<SumResult> Handle(AddNumbers request, JobContext context, CancellationToken ct)
         {
@@ -45,7 +46,7 @@ namespace Acta.Concepts.FanOutJoin
                 "chunk",
                 request.Chunks,
                 itemKey: chunk => $"{chunk.From}-{chunk.To}",
-                child: chunk => chunk,
+                child: chunk => FanOutJoinJobs.SumRange(chunk),
                 ct
             );
             if (!chunks.Succeeded)
@@ -53,13 +54,7 @@ namespace Acta.Concepts.FanOutJoin
                 await context.FailAsync("a chunk failed", ct);
             }
 
-            var total = 0L;
-            foreach (var item in chunks.Items)
-            {
-                total += (await context.GetChildResultAsync<PartialSum>(item.Outcome.JobId, ct)).Value;
-            }
-
-            return new SumResult(total);
+            return new SumResult(chunks.Items.Sum(item => item.Outcome.ValueOrThrow().Value));
         }
 
         [Job("sum-range")]

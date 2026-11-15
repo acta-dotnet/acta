@@ -14,6 +14,11 @@ namespace Acta.SqlServer;
 /// </summary>
 public static class SqlServerOutboxStagingExtensions
 {
+    /// <summary>
+    /// Stages <paramref name="request"/> as one outbox row on this transaction, committed or rolled back with it. The
+    /// request needs a <see cref="EnqueueJobRequest.DeduplicationKey"/>, which names the job the relay enqueues, and no
+    /// parent; <paramref name="table"/> and <paramref name="schema"/> are the ones the relay's source reads.
+    /// </summary>
     public static Task AddToActaOutboxAsync(
         this SqlTransaction transaction,
         EnqueueJobRequest request,

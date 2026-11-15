@@ -32,6 +32,18 @@ test('prettyJson leaves escaped quotes inside strings alone', () => {
   assert.equal(prettyJson('{"q":"say \\"hi\\", ok"}'), '{\n  "q": "say \\"hi\\", ok"\n}');
 });
 
+test('prettyJson shows the escape of a printable character as the character, as JSON.stringify prints it', () => {
+  const stored = '{"h":"Refund of \\u20AC129","name":"Kova\\u010D","q":"it\\u0027s","pair":"\\uD83D\\uDE00"}';
+  assert.equal(prettyJson(stored), JSON.stringify(JSON.parse(stored), null, 2));
+});
+
+test('prettyJson keeps a control, quote, backslash, lone surrogate or escaped backslash as written', () => {
+  assert.equal(
+    prettyJson('["a\\u000Ab","\\u0022","\\u005C","\\uD83D","\\\\u20AC"]'),
+    '[\n  "a\\u000Ab",\n  "\\u0022",\n  "\\u005C",\n  "\\uD83D",\n  "\\\\u20AC"\n]'
+  );
+});
+
 test('prettyJson re-indents already formatted text', () => {
   assert.equal(prettyJson('{\n    "a" : 1 ,\n "b":2}'), '{\n  "a": 1,\n  "b": 2\n}');
 });

@@ -13,7 +13,6 @@ public sealed class OrderTests(ActaHostFixture acta) : ActaTestBase(acta)
     [Fact]
     public async Task Order_reserves_once_waits_for_approval_then_charges()
     {
-        OrderJob.ReserveCount = 0;
         var enqueued = await Jobs.EnqueueAsync(new PlaceOrder("o-1", 99m), ct: Ct);
 
         // First tick: reserve runs, then the job suspends waiting for approval (re-armed, not done).
@@ -30,13 +29,12 @@ public sealed class OrderTests(ActaHostFixture acta) : ActaTestBase(acta)
 
         var result = await enqueued.GetResultAsync<OrderResult>(Ct);
         Assert.True(result.Charged);
-        Assert.Equal(1, OrderJob.ReserveCount); // reserve ran exactly once across the replay
+        Assert.Equal(1, Warehouse.ReservationsFor("o-1")); // reserve ran exactly once across the replay
     }
 
     [Fact]
     public async Task Rejected_order_completes_without_charging()
     {
-        OrderJob.ReserveCount = 0;
         var enqueued = await Jobs.EnqueueAsync(new PlaceOrder("o-2", 50m), ct: Ct);
 
         Assert.Equal(ActaRunStatus.Rearmed, await Host.RunOnceAsync(enqueued, Ct));
