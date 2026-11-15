@@ -1,16 +1,19 @@
+using Microsoft.Extensions.Options;
+
 namespace Acta;
 
 /// <summary>
 /// <see cref="ILedger.GetOverviewAsync"/>: the one-row health snapshot in one round trip, times from the
-/// database clock; an unknown namespace yields all-zero counters.
+/// database clock; an unknown namespace yields all-zero counters. Staleness and executor capacity key on this
+/// deployment's lease window, the one the worker list judges by: past it a worker's jobs are already reclaimable, so
+/// its executors are not capacity, and a host that widens the lease widens both readings with it.
 /// </summary>
-internal sealed class GetOverviewHandler(IDbSession session, ISqlDialect dialect)
+internal sealed class GetOverviewHandler(IDbSession session, ISqlDialect dialect, IOptions<JobsOptions> options)
 {
     public async ValueTask<GetOverviewResponse> HandleAsync(GetOverviewQuery query, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(query);
         var jobNamespace = QueryValidation.ValidateNamespace(query.JobNamespace, nameof(query.JobNamespace));
-        ArgumentOutOfRangeException.ThrowIfLessThan(query.StaleWorkerAfterSeconds, 1, nameof(query.StaleWorkerAfterSeconds));
         ArgumentOutOfRangeException.ThrowIfLessThan(query.DueSoonWindowSeconds, 1, nameof(query.DueSoonWindowSeconds));
 
         return await session.QuerySingleAsync(
@@ -18,7 +21,7 @@ internal sealed class GetOverviewHandler(IDbSession session, ISqlDialect dialect
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.NamespaceFilter, jobNamespace));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.StaleAfterSeconds, query.StaleWorkerAfterSeconds));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.StaleAfterSeconds, options.Value.LeaseTtlSeconds));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.DueSoonSeconds, query.DueSoonWindowSeconds));
             },
             static reader => new GetOverviewResponse(

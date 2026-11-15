@@ -5,7 +5,7 @@ namespace Acta;
 
 /// <summary>
 /// <see cref="IWorkers.ListAsync"/>: workers most recently seen first, one keyset page at a time, each judged stale against
-/// this deployment's lease window, the one the HTTP overview counts stale workers by.
+/// this deployment's lease window, the one the overview counts stale workers by.
 /// </summary>
 internal sealed class ListWorkersHandler(IDbSession session, ISqlDialect dialect, IOptions<JobsOptions> options)
 {

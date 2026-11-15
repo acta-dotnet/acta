@@ -1032,9 +1032,8 @@ sealed record Acta.GetNamespaceResponse
     System.String? Description { get;init; }
     System.String? OwnerTeam { get;init; }
 sealed record Acta.GetOverviewQuery
-    .ctor(System.String? JobNamespace = null, System.Int32 StaleWorkerAfterSeconds = 180, System.Int32 DueSoonWindowSeconds = 3600)
+    .ctor(System.String? JobNamespace = null, System.Int32 DueSoonWindowSeconds = 3600)
     System.Int32 DueSoonWindowSeconds { get;init; }
-    System.Int32 StaleWorkerAfterSeconds { get;init; }
     System.String? JobNamespace { get;init; }
 sealed record Acta.GetOverviewResponse
     .ctor(System.Int64 ReadyCount, System.Nullable<System.Int64> OldestReadyAgeSeconds, System.Int64 ExecutingCount, System.Int64 FailedCount, System.Int64 UnresolvedAlertCount, System.Int64 UnresolvedCriticalAlertCount, System.Int64 DeadWorkerCount, System.Int64 StaleWorkerCount, System.Int64 DueSoonScheduleCount, System.Int64 ExecutorCapacity, System.Nullable<System.Int64> ScheduleLagSeconds)

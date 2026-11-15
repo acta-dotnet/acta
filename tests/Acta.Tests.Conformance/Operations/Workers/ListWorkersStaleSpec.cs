@@ -8,7 +8,7 @@ namespace Acta.Tests.Conformance.Operations.Workers;
 
 /// <summary>
 /// Conformance for a listed worker's staleness: judged on the database clock against the deployment's lease window, the
-/// window the overview's stale count uses on the HTTP read.
+/// window the overview's stale count uses.
 /// </summary>
 [ConformanceSpec(
     "list-workers.stale",

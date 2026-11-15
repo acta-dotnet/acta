@@ -1,6 +1,7 @@
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using TestJobs;
 using Xunit;
 
@@ -43,7 +44,7 @@ public sealed class GetOverviewSpec : ActaRuntimeTestBase<ConformanceFixture, Jo
             ct
         );
 
-        var ns = await Operations.Ledger.GetOverviewAsync(new GetOverviewQuery(TestNamespace, 180, 3600), ct);
+        var ns = await Operations.Ledger.GetOverviewAsync(new GetOverviewQuery(TestNamespace), ct);
 
         Assert.True(ns.ReadyCount >= 1, $"Expected ReadyCount >= 1 in namespace {TestNamespace}, got {ns.ReadyCount}.");
         Assert.NotNull(ns.OldestReadyAgeSeconds);
@@ -57,7 +58,7 @@ public sealed class GetOverviewSpec : ActaRuntimeTestBase<ConformanceFixture, Jo
         Assert.True(ns.DueSoonScheduleCount >= 0);
         Assert.True(ns.ExecutorCapacity >= 0);
 
-        var global = await Operations.Ledger.GetOverviewAsync(new GetOverviewQuery(null, 180, 3600), ct);
+        var global = await Operations.Ledger.GetOverviewAsync(new GetOverviewQuery(), ct);
 
         Assert.True(
             global.ReadyCount >= ns.ReadyCount,
@@ -70,7 +71,7 @@ public sealed class GetOverviewSpec : ActaRuntimeTestBase<ConformanceFixture, Jo
     {
         var ct = TestContext.Current.CancellationToken;
 
-        var result = await Operations.Ledger.GetOverviewAsync(new GetOverviewQuery("no-such-namespace-xyz", 180, 3600), ct);
+        var result = await Operations.Ledger.GetOverviewAsync(new GetOverviewQuery("no-such-namespace-xyz"), ct);
 
         Assert.Equal(0, result.ReadyCount);
         Assert.Null(result.OldestReadyAgeSeconds);
@@ -93,9 +94,9 @@ public sealed class GetOverviewSpec : ActaRuntimeTestBase<ConformanceFixture, Jo
     ///   <item>ReadyCount / ExecutingCount / FailedCount · driven via enqueue + claim + CompleteExecutions.</item>
     ///   <item>UnresolvedAlertCount / UnresolvedCriticalAlertCount · 2 / 1: one Error + one Critical raised via RaiseAlert.</item>
     ///   <item>DeadWorkerCount · 1: W1 aged 2 h, swept by MarkDeadWorkers with 60 s window.</item>
-    ///   <item>StaleWorkerCount · threshold flip: W2 aged 2 min; staleAfterSeconds=60 → 1, staleAfterSeconds=14400 → 0.</item>
+    ///   <item>StaleWorkerCount · lease flip: W2 fresh → 0, W2 aged a minute past the configured lease → 1.</item>
     ///   <item>DueSoonScheduleCount · 0: dueSoonSeconds=1 and the slot cursors are parked a day out, so the one-second window can never include them.</item>
-    ///   <item>ExecutorCapacity · threshold flip, inverted from StaleWorkerCount: staleAfterSeconds=60 → 0, staleAfterSeconds=14400 → 1 (W2's single slot).</item>
+    ///   <item>ExecutorCapacity · lease flip, inverted from StaleWorkerCount: W2 fresh → 1 (its single slot), W2 aged → 0.</item>
     ///   <item>ScheduleLagSeconds · null: the parked cursors are a day ahead, so no live schedule is past due.</item>
     /// </list>
     /// </para>
@@ -104,7 +105,7 @@ public sealed class GetOverviewSpec : ActaRuntimeTestBase<ConformanceFixture, Jo
     public async Task Backlog_counts_a_suspended_wait_only_once_expired()
     {
         var ct = TestContext.Current.CancellationToken;
-        var before = await Operations.Ledger.GetOverviewAsync(new GetOverviewQuery(TestNamespace, 3600, 1), ct);
+        var before = await Operations.Ledger.GetOverviewAsync(new GetOverviewQuery(TestNamespace, DueSoonWindowSeconds: 1), ct);
 
         // An unbounded wait is never backlog: no worker will ever claim it, and only a raise can move it.
         var unbounded = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct);
@@ -115,7 +116,7 @@ public sealed class GetOverviewSpec : ActaRuntimeTestBase<ConformanceFixture, Jo
         var bounded = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-wait-signal-timeout", JobPayload.None), ct);
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(bounded, ct));
 
-        var waiting = await Operations.Ledger.GetOverviewAsync(new GetOverviewQuery(TestNamespace, 3600, 1), ct);
+        var waiting = await Operations.Ledger.GetOverviewAsync(new GetOverviewQuery(TestNamespace, DueSoonWindowSeconds: 1), ct);
         Assert.Equal(before.ReadyCount, waiting.ReadyCount);
 
         // Past the deadline it is backlog, because the claim will now take it and a worker is what it
@@ -124,7 +125,7 @@ public sealed class GetOverviewSpec : ActaRuntimeTestBase<ConformanceFixture, Jo
             .Where(r => r.Id == bounded.JobId)
             .UpdateOnlyAsync(() => new JobStateEntity { NextRunAtUtc = DateTime.UtcNow.AddMinutes(-1) }, ct);
 
-        var expired = await Operations.Ledger.GetOverviewAsync(new GetOverviewQuery(TestNamespace, 3600, 1), ct);
+        var expired = await Operations.Ledger.GetOverviewAsync(new GetOverviewQuery(TestNamespace, DueSoonWindowSeconds: 1), ct);
         Assert.Equal(before.ReadyCount + 1, expired.ReadyCount);
         Assert.NotNull(expired.OldestReadyAgeSeconds);
     }
@@ -145,7 +146,7 @@ public sealed class GetOverviewSpec : ActaRuntimeTestBase<ConformanceFixture, Jo
         // The base's deploy seeds one Ready slot job for every schedule whose environments list
         // is empty (currently: recurring-ping with "every-5-minutes"). Take a before-snapshot now so
         // ReadyCount assertions use deltas and remain correct if the manifest changes.
-        var before = await Operations.Ledger.GetOverviewAsync(new GetOverviewQuery(TestNamespace, 3600, 1), ct);
+        var before = await Operations.Ledger.GetOverviewAsync(new GetOverviewQuery(TestNamespace, DueSoonWindowSeconds: 1), ct);
         // Confirm the namespace is otherwise clean (fresh, unique per test-instance).
         Assert.Equal(0, before.ExecutingCount);
         Assert.Equal(0, before.FailedCount);
@@ -213,10 +214,9 @@ public sealed class GetOverviewSpec : ActaRuntimeTestBase<ConformanceFixture, Jo
             .Where(w => w.Id == w1.Id)
             .UpdateOnlyAsync(() => new WorkerEntity { Status = WorkerStatusCode.Dead }, ct);
 
-        // ── Stale-worker threshold flip ───────────────────────────────────────────────────────────
-        // W2 is started fresh after W1 is dead, then aged to 2 min ago.
-        // staleAfterSeconds=60 → W2's 2 min > 1 min → stale (count = 1).
-        // staleAfterSeconds=14400 (4 h) → W2's 2 min < 4 h → not stale (count = 0).
+        // ── Stale-worker lease flip ───────────────────────────────────────────────────────────────
+        // W2 is started fresh after W1 is dead and reads live, then aged a minute past the configured lease.
+        var configuredLease = Services.GetRequiredService<IOptions<JobsOptions>>().Value.LeaseTtlSeconds;
         var (_, w2Id) = await WorkerTestOps.StartAsync(
             Services,
             TestNamespace,
@@ -230,47 +230,45 @@ public sealed class GetOverviewSpec : ActaRuntimeTestBase<ConformanceFixture, Jo
             maxConcurrentExecutors: 1,
             ct
         );
-        // Aged two minutes, well inside every dead-after window the suite's global reapers use (five
-        // minutes and up), so a concurrent sweep never flips W2 Dead and inflates DeadWorkerCount (the
-        // off-by-one flake), while the one-minute threshold below still counts it stale.
         await Db.From<WorkerEntity>()
             .Where(w => w.Id == w2Id)
-            .UpdateOnlyAsync(
-                () => new WorkerEntity { Status = WorkerStatusCode.Draining, LastSeenAtUtc = DateTime.UtcNow.AddMinutes(-2) },
-                ct
-            );
+            .UpdateOnlyAsync(() => new WorkerEntity { Status = WorkerStatusCode.Draining }, ct);
 
-        // ── Narrow-threshold assertion (staleAfterSeconds = 1 min) ───────────────────────────────
-        var ovNarrow = await Operations.Ledger.GetOverviewAsync(new GetOverviewQuery(TestNamespace, 60, 1), ct);
+        // ── Fresh assertion: W2 heard from inside the lease ──────────────────────────────────────
+        var ovFresh = await Operations.Ledger.GetOverviewAsync(new GetOverviewQuery(TestNamespace, DueSoonWindowSeconds: 1), ct);
 
         // ReadyCount: delta from before (before includes slot jobs seeded by the deploy).
-        Assert.Equal(before.ReadyCount + 2, ovNarrow.ReadyCount); // j1, j2 added; j3 Executing, j4 Failed
-        Assert.Equal(1, ovNarrow.ExecutingCount); // j3 is Executing
-        Assert.Equal(1, ovNarrow.FailedCount); // j4 is Failed
-        Assert.Equal(2, ovNarrow.UnresolvedAlertCount); // 2 raised, none resolved
-        Assert.Equal(1, ovNarrow.UnresolvedCriticalAlertCount); // 1 Critical (severity = 40)
-        Assert.Equal(1, ovNarrow.DeadWorkerCount); // W1 swept Dead, scoped to TestNamespace
-        Assert.Equal(1, ovNarrow.StaleWorkerCount); // W2 Draining, 2 min > 1 min threshold
-        Assert.Equal(0, ovNarrow.DueSoonScheduleCount); // dueSoonSeconds=1: harness parks slot cursors a day out
-        Assert.NotNull(ovNarrow.OldestReadyAgeSeconds);
-        Assert.True(ovNarrow.OldestReadyAgeSeconds >= 0);
-        // Capacity is StaleWorkerCount's exact inverse here: W1 is Dead and W2 is past the 1 min threshold,
-        // so neither contributes a slot. A capacity that ignored freshness would read 1.
-        Assert.Equal(0, ovNarrow.ExecutorCapacity);
-        Assert.Null(ovNarrow.ScheduleLagSeconds); // the harness parks slot cursors a day out, so none is past due
+        Assert.Equal(before.ReadyCount + 2, ovFresh.ReadyCount); // j1, j2 added; j3 Executing, j4 Failed
+        Assert.Equal(1, ovFresh.ExecutingCount); // j3 is Executing
+        Assert.Equal(1, ovFresh.FailedCount); // j4 is Failed
+        Assert.Equal(2, ovFresh.UnresolvedAlertCount); // 2 raised, none resolved
+        Assert.Equal(1, ovFresh.UnresolvedCriticalAlertCount); // 1 Critical (severity = 40)
+        Assert.Equal(1, ovFresh.DeadWorkerCount); // W1 swept Dead, scoped to TestNamespace
+        Assert.Equal(0, ovFresh.StaleWorkerCount); // W2 Draining, heard from inside the lease
+        Assert.Equal(1, ovFresh.ExecutorCapacity); // W2's single slot; W1 is Dead
+        Assert.Equal(0, ovFresh.DueSoonScheduleCount); // dueSoonSeconds=1: harness parks slot cursors a day out
+        Assert.NotNull(ovFresh.OldestReadyAgeSeconds);
+        Assert.True(ovFresh.OldestReadyAgeSeconds >= 0);
+        Assert.Null(ovFresh.ScheduleLagSeconds); // the harness parks slot cursors a day out, so none is past due
 
-        // ── Wide-threshold assertion (staleAfterSeconds = 4 h): count flips to 0 ────────────────
-        var ovWide = await Operations.Ledger.GetOverviewAsync(new GetOverviewQuery(TestNamespace, 14400, 1), ct);
+        // ── Aged assertion: W2 a minute past the lease ───────────────────────────────────────────
+        // Well inside every dead-after window the suite's global reapers use (five minutes and up), so a concurrent
+        // sweep never flips W2 Dead and inflates DeadWorkerCount (the off-by-one flake).
+        var past = DateTime.UtcNow.AddSeconds(-(configuredLease + 60));
+        await Db.From<WorkerEntity>().Where(w => w.Id == w2Id).UpdateOnlyAsync(() => new WorkerEntity { LastSeenAtUtc = past }, ct);
+        var ovAged = await Operations.Ledger.GetOverviewAsync(new GetOverviewQuery(TestNamespace, DueSoonWindowSeconds: 1), ct);
 
-        Assert.Equal(0, ovWide.StaleWorkerCount); // threshold crossed: W2's 2 min < 4 h
-        Assert.Equal(1, ovWide.ExecutorCapacity); // same crossing, other direction: W2's single slot is live again
-        Assert.Null(ovWide.ScheduleLagSeconds);
-        // Cross-check that other counters are unchanged across the threshold call.
-        Assert.Equal(before.ReadyCount + 2, ovWide.ReadyCount);
-        Assert.Equal(1, ovWide.ExecutingCount);
-        Assert.Equal(1, ovWide.FailedCount);
-        Assert.Equal(1, ovWide.DeadWorkerCount);
-        Assert.Equal(2, ovWide.UnresolvedAlertCount);
-        Assert.Equal(1, ovWide.UnresolvedCriticalAlertCount);
+        Assert.Equal(1, ovAged.StaleWorkerCount); // W2 Draining, silent past the lease
+        // Capacity is StaleWorkerCount's exact inverse here: W1 is Dead and W2 is past the lease, so neither
+        // contributes a slot. A capacity that ignored freshness would read 1.
+        Assert.Equal(0, ovAged.ExecutorCapacity);
+        Assert.Null(ovAged.ScheduleLagSeconds);
+        // Cross-check that other counters are unchanged across the aging.
+        Assert.Equal(before.ReadyCount + 2, ovAged.ReadyCount);
+        Assert.Equal(1, ovAged.ExecutingCount);
+        Assert.Equal(1, ovAged.FailedCount);
+        Assert.Equal(1, ovAged.DeadWorkerCount);
+        Assert.Equal(2, ovAged.UnresolvedAlertCount);
+        Assert.Equal(1, ovAged.UnresolvedCriticalAlertCount);
     }
 }

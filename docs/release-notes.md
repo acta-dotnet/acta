@@ -53,6 +53,8 @@ Not tagged yet.
 
 **Pass `Finished` where code passed `ListJobsQuery.TerminalOnly`, and `finished` where a request sent `terminalOnly`**: true lists the finished jobs, Succeeded, Failed and Cancelled, as before, and false now lists only the unfinished ones, where it listed every job, as null does. The jobs list ignores a query parameter it does not know, so a request that still sends `terminalOnly=true` lists every job.
 
+**Drop `StaleWorkerAfterSeconds` from a `GetOverviewQuery`**: `ILedger.GetOverviewAsync` counts a worker stale, and leaves its executors out of `ExecutorCapacity`, against this deployment's lease window, `JobsOptions.LeaseTtlSeconds`, as `GET /overview` and the worker list's `Stale` do, where a C# caller got a 180-second default whatever the lease. A second positional argument now sets `DueSoonWindowSeconds`: `new GetOverviewQuery(ns, 600)`, which set the stale window, still compiles and counts schedules due in the next ten minutes instead, so drop that argument.
+
 ### Additions
 
 - A `job.signal-raised` event says which signal or child in its details: an operator's raise adds `"signal":"approved"` beside its reason, and a child's end, from its completion or from a cancel, retire or recovery, adds `"child":"job_..."`, the child's ref, and `"status"`, `succeeded`, `failed` or `cancelled`. A timeline with two signals or two children no longer has to tell them apart by message or actor. Migration `M20261115163733_name_the_raised_signal` re-creates `raise_job_signal` and `complete_executions` on PostgreSQL and SQL Server.
