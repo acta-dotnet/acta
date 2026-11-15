@@ -37,6 +37,13 @@ internal static class MessageTruncator
         return max > 0 && char.IsHighSurrogate(sanitized[max - 1]) ? sanitized[..(max - 1)] : sanitized[..max];
     }
 
+    /// <summary>
+    /// An exception's message as a failure's text, or its type when the message is blank: an empty reason tells an
+    /// operator nothing, and an alert read "Attempt failed: ." for a <c>FileNotFoundException</c> with no message.
+    /// </summary>
+    public static string FailureText(this Exception exception) =>
+        string.IsNullOrWhiteSpace(exception.Message) ? $"{exception.GetType().Name} with no message" : exception.Message;
+
     private static string ReplaceUnstorable(string value)
     {
         // Most values carry neither surrogates nor NUL; scan first so the common case allocates nothing.

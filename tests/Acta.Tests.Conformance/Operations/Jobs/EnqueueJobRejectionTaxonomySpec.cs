@@ -65,7 +65,7 @@ public sealed class EnqueueJobRejectionTaxonomySpec : ActaRuntimeTestBase<Confor
         Assert.Equal(EnqueueRejectionReason.NamespaceSuspended, ex.Reason);
     }
 
-    [Fact(DisplayName = "An unknown job rejection throws RouteUnknown")]
+    [Fact(DisplayName = "An unknown job rejection throws RouteUnknown with the routine's message alone")]
     public async Task Unknown_job_throws_route_unknown()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -74,6 +74,8 @@ public sealed class EnqueueJobRejectionTaxonomySpec : ActaRuntimeTestBase<Confor
         );
         Assert.Equal(EnqueueRejectionReason.RouteUnknown, ex.Reason);
         Assert.IsAssignableFrom<DbException>(ex.InnerException);
+        Assert.StartsWith("Enqueue rejected:", ex.Message, StringComparison.Ordinal);
+        Assert.EndsWith("(jobs deploy)?", ex.Message, StringComparison.Ordinal);
     }
 
     [Fact(DisplayName = "Enqueue against a retired definition throws DefinitionRetired")]

@@ -847,7 +847,9 @@ An ambient `TransactionScope` is rejected: Acta connections never enlist. Use on
 - An open producer transaction never stops the relay, so a SQL Server business database needs no `READ_COMMITTED_SNAPSHOT`. The exception is a producer statement that locks a page or the whole table, such as a `TABLOCK` or `PAGLOCK` bulk load: it holds the relay until it commits.
 - A delivered row (inserted or deduplicated) is deleted from the outbox.
 - An infrastructure failure fails the tick without spending a row's budget, and the tick retries after fifteen seconds, doubling to a minute. A routing rejection (unknown job, suspended tenant) retries its row after about one, two, four, and eight minutes and quarantines it on the fifth rejection; the delay doubles up to eight hours under a higher `QuarantineThreshold`. Malformed or oversized rows quarantine at once.
-- A worker that dies mid-relay leaves its claimed rows invisible for up to one lease (`LeaseTtlSeconds`). Redelivery is deduplicated only while the target job exists, so give definitions the outbox targets a `JobRetention` well past that.
+- A pass that quarantines a row fails on purpose once its other rows have committed, so the quarantine raises one `SysCritical` alert. The source's status keeps the previous pass, and the next pass waits out `sys.outbox`'s retry delay, fifteen seconds doubling to a minute, for every row of the source.
+- A worker that dies mid-relay holds the whole source, pending rows included, until recovery reclaims `sys.outbox` itself, on the first pass after its lease lapses; its claimed rows come back with it. Redelivery is deduplicated only while the target job exists, so give definitions the outbox targets a `JobRetention` well past that.
+- A lane's rows are claimed head first, one per lane per claim, so a laned backlog drains one row per lane per round trip.
 - Quarantined rows stay in the table until an operator requeues or discards them through `IActaOperations.Outbox`, `POST /outbox/{jobNamespace}/requeue` or `/discard`, or the dashboard's outbox panel. The dashboard lists them on a host that registered the namespace's relay.
 
 ## Schedules and calendars

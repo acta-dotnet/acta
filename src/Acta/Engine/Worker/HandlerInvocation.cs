@@ -337,9 +337,9 @@ internal sealed class HandlerInvocation(
         return new ExecutionCompletion(CompletionKind.Failed)
         {
             Reason = nonRetryable ? EventReason.NonRetryableException : EventReason.UnhandledException,
-            ReasonMessage = (inputDeserialized ? ex.Message : $"Input deserialization failed ({ex.GetType().Name}): {ex.Message}").Truncate(
-                ActaTextLimits.EventMessage
-            ),
+            ReasonMessage = (
+                inputDeserialized ? ex.FailureText() : $"Input deserialization failed ({ex.GetType().Name}): {ex.FailureText()}"
+            ).Truncate(ActaTextLimits.EventMessage),
             HandlerStatusCode = nonRetryable ? JobStatusCode.Failed : null,
             HandlerException = inputDeserialized ? ex : null,
         };

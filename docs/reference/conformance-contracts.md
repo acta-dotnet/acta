@@ -895,7 +895,7 @@
   - Enqueue with a suspended tenant throws TenantSuspended
   - Enqueue with an unknown tenant throws TenantUnknown
   - A batch into a suspended namespace throws NamespaceSuspended
-  - An unknown job rejection throws RouteUnknown
+  - An unknown job rejection throws RouteUnknown with the routine's message alone
   - Enqueue against a retired definition throws DefinitionRetired
   - A child of a parent that does not exist or has finished throws ParentUnavailable and is not stored
 

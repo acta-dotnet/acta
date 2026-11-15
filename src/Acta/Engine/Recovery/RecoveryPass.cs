@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
 namespace Acta;
@@ -15,7 +17,8 @@ internal sealed class RecoveryPass(
     WorkersOperations workers,
     ExecutionOperations execution,
     IOptions<JobsOptions> options,
-    WorkerWakeupPublisher wakeupPublisher
+    WorkerWakeupPublisher wakeupPublisher,
+    ILogger<RecoveryPass>? log = null
 )
 {
     /// <summary>
@@ -23,6 +26,9 @@ internal sealed class RecoveryPass(
     /// 45.1s heartbeat derives 315.7s) would tombstone a live worker up to a second early.
     /// </summary>
     private readonly int _deadAfterSeconds = (int)Math.Ceiling(options.Value.WorkerDeadAfter.TotalSeconds);
+
+    /// <summary>Logging is optional in a host, as for the rest of the engine: without it the pass writes nothing.</summary>
+    private readonly ILogger _log = (ILogger?)log ?? NullLogger.Instance;
 
     /// <summary>
     /// Sweeps dead workers globally, then reclaims stuck jobs and raises stale child latches for
@@ -39,6 +45,16 @@ internal sealed class RecoveryPass(
     {
         var deadWorkers = (await workers.MarkDeadWorkersAsync(_deadAfterSeconds, ct)).Marked;
         var result = await execution.ReclaimStuckJobsAsync(namespaceId, ct);
+        if (deadWorkers > 0 || result.Reclaimed > 0 || result.RepairedLanes > 0)
+        {
+            // The rare event an operator tailing the log needs: a worker stopped heartbeating, or its work came back.
+            ActaLog.RecoveryPassChangedWork(
+                _log,
+                namespaceName,
+                $"dead workers marked: {deadWorkers}, jobs reclaimed after their lease expired: {result.Reclaimed}, stranded lanes released: {result.RepairedLanes}"
+            );
+        }
+
         if (result.Reclaimed > 0 || result.RepairedLanes > 0)
         {
             await wakeupPublisher.WakeAsync(WorkerWakeupChannel.WorkerNamespace(namespaceName), WorkerWakeupReason.WorkAvailable, ct);

@@ -466,7 +466,10 @@ public class JobExplainerTests
         Assert.Equal(3, x.Steps.Count);
         Assert.Contains("succeeded and will not rerun", x.Steps[0].Explanation);
         Assert.Contains("has started and has no recorded success", x.Steps[1].Explanation);
-        Assert.Contains("runs at most once: no retry reruns it, but a restart does, so reconcile before restarting: carrier down", x.Steps[2].Explanation);
+        Assert.Contains(
+            "runs at most once: no retry reruns it, but a restart does, so reconcile before restarting: carrier down",
+            x.Steps[2].Explanation
+        );
     }
 
     [Fact]

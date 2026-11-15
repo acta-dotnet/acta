@@ -10,6 +10,13 @@ namespace Acta.Tests.Abstractions;
 public sealed class MessageTruncatorTests
 {
     [Fact]
+    public void A_failure_with_a_blank_message_reads_as_its_type()
+    {
+        Assert.Equal("FileNotFoundException with no message", new FileNotFoundException("").FailureText());
+        Assert.Equal("disk full", new IOException("disk full").FailureText());
+    }
+
+    [Fact]
     public void Cut_at_a_surrogate_pair_boundary_backs_off_instead_of_splitting()
     {
         // 511 chars + a 2-char emoji: a raw cut at 512 would end on the lone high surrogate that

@@ -171,7 +171,11 @@ internal static class JobEnqueue
             var idx = ex.Message.IndexOf(token, StringComparison.Ordinal);
             if (idx >= 0)
             {
-                return new EnqueueRejectedException(reason, ex.Message[(idx + token.Length)..], ex);
+                // SQLite reports a function's error as "SQLite Error 1: '<message>'.", so its tail drops that wrapper.
+                var message = ex.Message[(idx + token.Length)..];
+                var wrapped =
+                    ex.Message.StartsWith("SQLite Error ", StringComparison.Ordinal) && message.EndsWith("'.", StringComparison.Ordinal);
+                return new EnqueueRejectedException(reason, wrapped ? message[..^2] : message, ex);
             }
         }
         return null;

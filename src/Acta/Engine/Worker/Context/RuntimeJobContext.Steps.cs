@@ -152,7 +152,7 @@ internal sealed partial class RuntimeJobContext
     /// <summary>Records an at-most-once body's failure terminal and answers the exception its call throws.</summary>
     private async Task<StepFailedException> RecordFailureAsync(string name, int version, Exception cause, CancellationToken ct)
     {
-        var message = cause.Message.Truncate(ActaTextLimits.StepFailureMessage);
+        var message = cause.FailureText().Truncate(ActaTextLimits.StepFailureMessage);
         var failure = await CompleteJobStepAsync(
             new CompleteJobStepCommand(Fence, name, Succeeded: false, ResultFormatId: 0, Result: null, message, version),
             ct

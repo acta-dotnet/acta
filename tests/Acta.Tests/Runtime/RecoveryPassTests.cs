@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Xunit;
 
@@ -27,12 +28,14 @@ public sealed class RecoveryPassTests
     public async Task A_pass_that_changes_nothing_publishes_no_wakeup()
     {
         var wakeups = new RecordingWakeup();
-        var pass = Pass(WorkerSweep(), ExecutionStore(), SignalStore(releases: false), wakeup: wakeups);
+        var log = new RecordingLog();
+        var pass = Pass(WorkerSweep(), ExecutionStore(), SignalStore(releases: false), wakeup: wakeups, log: log);
 
         var outcome = await pass.RunAsync(namespaceId: 1, namespaceName: "payments", TestContext.Current.CancellationToken);
 
         Assert.Equal((0, 0, 0), outcome);
         Assert.Empty(wakeups.Channels);
+        Assert.Empty(log.Lines);
     }
 
     [Fact]
@@ -48,7 +51,8 @@ public sealed class RecoveryPassTests
             ],
             staleLatches: [new ListStaleJobChildLatchesItem(ParentJobId: 9, ChildJobId: 10, ChildStatus: JobStatusCode.Cancelled)]
         );
-        var pass = Pass(WorkerSweep(marked: 3), execution, SignalStore(releases: true), wakeup: wakeups);
+        var log = new RecordingLog();
+        var pass = Pass(WorkerSweep(marked: 3), execution, SignalStore(releases: true), wakeup: wakeups, log: log);
 
         var outcome = await pass.RunAsync(namespaceId: 1, namespaceName: "payments", TestContext.Current.CancellationToken);
 
@@ -61,6 +65,11 @@ public sealed class RecoveryPassTests
             ],
             wakeups.Channels
         );
+
+        // One warning per pass that changed work, so an operator tailing the log sees the crash and its recovery.
+        var line = Assert.Single(log.Lines);
+        Assert.Equal(LogLevel.Warning, line.Level);
+        Assert.Contains("dead workers marked: 3, jobs reclaimed after their lease expired: 2", line.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -83,7 +92,8 @@ public sealed class RecoveryPassTests
         ExecutionOperations execution,
         SignalsOperations signals,
         TimeSpan? deadAfter = null,
-        RecordingWakeup? wakeup = null
+        RecordingWakeup? wakeup = null,
+        RecordingLog? log = null
     )
     {
         var options = new JobsOptions();
@@ -97,8 +107,27 @@ public sealed class RecoveryPassTests
             workers.Services().GetRequiredService<WorkersOperations>(),
             execution,
             Options.Create(options),
-            new WorkerWakeupPublisher(wakeup ?? new())
+            new WorkerWakeupPublisher(wakeup ?? new()),
+            log ?? new RecordingLog()
         );
+    }
+
+    private sealed class RecordingLog : ILogger<RecoveryPass>
+    {
+        public List<(LogLevel Level, string Message)> Lines { get; } = [];
+
+        public IDisposable? BeginScope<TState>(TState state)
+            where TState : notnull => null;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(
+            LogLevel logLevel,
+            EventId eventId,
+            TState state,
+            Exception? exception,
+            Func<TState, Exception?, string> formatter
+        ) => Lines.Add((logLevel, formatter(state, exception)));
     }
 
     private sealed class RecordingWakeup : IWorkerWakeup
