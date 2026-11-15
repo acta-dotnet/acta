@@ -1509,9 +1509,10 @@
   - Sources compose from the slot job; the quarantine listing requires the local source
 
 ### Outbox source counters come from the last successful tick
-- **Contract:** The source listing reads backlog and quarantine from the status a successful sys.outbox tick writes, and a failed tick leaves the previous status standing.
+- **Contract:** Each successful sys.outbox pass writes the status the source line reads, and the quarantine alert is open exactly while the source holds quarantined rows.
 - **Guarantees:**
-  - The source line reads the last successful tick's status, and a failed tick leaves it standing
+  - The source line reads the last successful pass's status, a pass that quarantines a row included, and a failed pass leaves it standing
+  - The quarantine alert takes the job's alert channel, collapses repeats, opens again after a resolve while rows remain, and resolves once the quarantine is empty
 
 ### Quarantined rows list in keyset pages with their failure evidence
 - **Contract:** ListQuarantinedOutboxRows pages every Quarantined row by outbox_id with identity and failure evidence, and CountQuarantined reports the current total.
@@ -1614,10 +1615,10 @@
   - A retry after the source row is deleted never recreates it
   - Duplicate source rows for one key coalesce to a single target job and all delete
 
-### Threshold and contract failures quarantine with one bounded summary
+### Threshold and contract failures quarantine in a tick that succeeds
 - **Contract:** The fifth persistent recoverable rejection quarantines a row, and malformed or oversized rows quarantine immediately.
 - **Guarantees:**
-  - The fifth routing rejection quarantines the row and raises one summarized failure, earlier ticks staying quiet
+  - The fifth routing rejection quarantines the row in a tick that succeeds, earlier ticks rescheduling it
   - Malformed meta, an oversized payload, an unsupported format id, json holding a NUL byte, and json that is not one value quarantine immediately without touching the target
 
 ### An unknown route reschedules quietly and delivers after the route is registered

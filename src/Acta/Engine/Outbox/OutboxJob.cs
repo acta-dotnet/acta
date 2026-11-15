@@ -7,12 +7,20 @@ namespace Acta;
 /// <c>sys.outbox</c>, the external-outbox relay: a recurring, competitively claimed <c>[Job]</c> added to a namespace only by
 /// <c>AddOutboxRelay</c>. Each tick applies parked operator commands (<see cref="OutboxSignalApplier"/>) first, so rows a
 /// requeue frees are claimable in the same pass, drains a bounded slice of due source rows through <see cref="OutboxRelay"/>,
-/// and writes its accounting to the slot's <see cref="OutboxTickSummary.VariableName"/> variable for operator surfaces on any
-/// peer. <c>EventRecording = Failures</c> keeps idle and successful ticks out of <c>events</c>, while quarantine and
-/// infrastructure failures fail the tick so <c>SysCritical</c> alerts; staging sends no wakeup, so the cadence is the pickup floor.
+/// keeps the quarantine alert, and writes its accounting to the slot's <see cref="OutboxTickSummary.VariableName"/> variable
+/// for operator surfaces on any peer. <c>EventRecording = Failures</c> keeps successful ticks out of <c>events</c>, and an
+/// infrastructure failure fails the tick so <c>SysCritical</c> alerts; staging sends no wakeup, so the cadence is the pickup floor.
 /// </summary>
-internal sealed class OutboxJob(OutboxRelayRegistry registry, OutboxOperations outbox, IOptions<JobsOptions> options)
+internal sealed class OutboxJob(
+    OutboxRelayRegistry registry,
+    OutboxOperations outbox,
+    AlertsOperations alerts,
+    IDefinitions definitions,
+    IOptions<JobsOptions> options
+)
 {
+    internal const string QuarantineAlertKey = "sys.outbox.quarantine";
+
     [Job(
         "sys.outbox",
         Priority = JobPriorityCode.Realtime,
@@ -30,7 +38,7 @@ internal sealed class OutboxJob(OutboxRelayRegistry registry, OutboxOperations o
 
         var (requeued, discarded) = await new OutboxSignalApplier(service.Source, outbox).ApplyAsync(ctx.JobId, ct);
 
-        var summary = await service.RunTickAsync(
+        var (summary, quarantined) = await service.RunTickAsync(
             new OutboxRelayTickOptions(
                 registration.SourceName,
                 registration.QuarantineThreshold,
@@ -39,6 +47,19 @@ internal sealed class OutboxJob(OutboxRelayRegistry registry, OutboxOperations o
             ),
             ct
         );
+
+        // The namespace's one quarantine incident is open exactly while its source holds quarantined rows: a pass that
+        // quarantines more collapses onto it, one that finds rows and no open incident opens it again, whatever closed
+        // it, and one that finds none resolves it, whatever emptied the quarantine.
+        var open = await alerts.GetAlertRefByDeduplicationKeyAsync(ctx.NamespaceId, QuarantineAlertKey, ct);
+        if (quarantined.Count > 0 || (summary.QuarantineTotal > 0 && open is null))
+        {
+            await RaiseQuarantineAlertAsync(ctx, registration.SourceName, summary.QuarantineTotal, quarantined, ct);
+        }
+        else if (summary.QuarantineTotal == 0 && open is not null)
+        {
+            await ctx.ResolveAlertAsync(QuarantineAlertKey, ct);
+        }
 
         // A failed tick throws above and leaves the previous status standing. The summary is serialized with Acta's
         // own context rather than the app's payload serializer, so every peer reads it back the same way.
@@ -51,6 +72,31 @@ internal sealed class OutboxJob(OutboxRelayRegistry registry, OutboxOperations o
             OutboxTickSummaryJsonContext.Default.OutboxTickSummary
         );
         await ctx.SetVariableAsync(OutboxTickSummary.VariableName, JobPayload.Trusted(JobPayloadFormat.Json, status), ct);
+    }
+
+    private async Task RaiseQuarantineAlertAsync(
+        JobContext ctx,
+        string source,
+        long total,
+        IReadOnlyList<Guid> quarantined,
+        CancellationToken ct
+    )
+    {
+        // The channel in force for the job's own failure alerts, an operator's override included; none routes to default.
+        var channel = (await definitions.GetAsync(ctx.JobNamespace, ctx.JobName, ct))?.AlertChannelNameEffective;
+        var message =
+            quarantined.Count > 0
+                ? $"Outbox source '{source}' holds {total} quarantined row(s); this pass quarantined {quarantined.Count}: "
+                    + $"[{OutboxRelay.FormatSample(quarantined)}]."
+                : $"Outbox source '{source}' holds {total} quarantined row(s).";
+        await ctx.AlertAsync(
+            $"Outbox source '{source}' quarantined rows",
+            message,
+            AlertSeverityCode.Critical,
+            channel,
+            QuarantineAlertKey,
+            ct
+        );
     }
 }
 
@@ -153,11 +199,11 @@ internal sealed class OutboxSignalApplier(OutboxOperations.Source source, Outbox
 
     /// <summary>
     /// The evidence line: operator justification first, then the applied count and the bounded id
-    /// sample (the same 10-id bound the quarantine alert uses), truncated to the events column width.
+    /// sample, truncated to the events column width.
     /// </summary>
     private static string Evidence(string? reasonMessage, IReadOnlyList<Guid> affected)
     {
-        var applied = $"{affected.Count} row(s): [{OutboxQuarantineTickException.FormatSample(affected)}]";
+        var applied = $"{affected.Count} row(s): [{OutboxRelay.FormatSample(affected)}]";
         var text = string.IsNullOrEmpty(reasonMessage) ? applied : $"{reasonMessage} - {applied}";
         return text.Truncate(ActaTextLimits.EventMessage)!;
     }

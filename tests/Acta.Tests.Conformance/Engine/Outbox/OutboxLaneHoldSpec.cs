@@ -43,9 +43,7 @@ public sealed class OutboxLaneHoldSpec : OutboxRelayIntegrationBase
         var ct = TestContext.Current.CancellationToken;
         await Fixture.StageInOneTransactionAsync(SourceTable, [Row("dead", "a", jobName: "no-such-job"), Row("dead", "b")]);
 
-        await Assert.ThrowsAsync<OutboxQuarantineTickException>(() =>
-            Relay(SourceStore, OwnedSubmission).RunTickAsync(TickOptions(quarantineThreshold: 1), ct)
-        );
+        await Relay(SourceStore, OwnedSubmission).RunTickAsync(TickOptions(quarantineThreshold: 1), ct);
 
         Assert.Equal(1, await CountLedgerJobsAsync(Key("b"), ct));
     }

@@ -54,7 +54,7 @@ public sealed class OutboxRelaySignalApplySpec : OutboxRelayIntegrationBase
         Assert.Contains(row.OutboxId.ToString(), evidence.EventMessage);
 
         // The same pass's drain now claims the freed row and relays it into a ledger job.
-        var summary = await relay.RunTickAsync(TickOptions(), ct);
+        var (summary, _) = await relay.RunTickAsync(TickOptions(), ct);
         Assert.Equal(1, summary.Relayed);
         Assert.Equal(1, await CountLedgerJobsAsync(dedup, ct));
     }

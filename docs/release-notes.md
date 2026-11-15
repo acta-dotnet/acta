@@ -78,6 +78,7 @@ Not tagged yet.
 
 ### Fixes
 
+- A relay pass that quarantines an outbox row succeeds, where it failed on purpose to raise an alert: the source's status counts the row, where it kept the previous pass and read `Quarantined 0` beside it, and the source's next pass and parked commands run on the five-second cadence, where they waited out `sys.outbox`'s retry delay. `sys.outbox` keeps the alert itself, critical, kind `manual`, on the job's alert channel, deduplication key `sys.outbox.quarantine`, open exactly while the namespace's source holds quarantined rows, where it was a `first-failure` alert of the job that the next good pass closed with the rows still quarantined.
 - A claim that reached its executor with the lease runway already spent, as one queued behind a write lock held longer than the runway does, was dropped without running and left for recovery, which charged it an attempt: a job with `MaxAttempts = 1` could fail without its handler ever running. Such a claim now goes back to `Ready` at once, uncharged, with a `job.execution-yielded` event saying the runway ran out.
 
 ## 1.0.0-rc.11

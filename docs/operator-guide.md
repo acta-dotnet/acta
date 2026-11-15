@@ -1191,12 +1191,13 @@ If a producer staged an `acta_outbox` row and no Acta job appeared, check the re
 - `sys.outbox` runs on a five-second cadence and sends no cross-database wakeup, so a few seconds of delay
   is normal. After a worker crash the whole source waits, pending rows included, until recovery reclaims
   `sys.outbox` itself on the first pass after its lease lapses (three to about seven minutes at the default
-  heartbeat); the rows the dead worker had claimed come back with it. A pass that quarantined a row fails on
-  purpose, so the next pass also waits out `sys.outbox`'s retry delay, fifteen seconds doubling to a minute.
+  heartbeat); the rows the dead worker had claimed come back with it.
 - Connectivity and table-shape problems fail inside `sys.outbox` and raise a `SysCritical` alert rather
   than blocking unrelated jobs. Check `acta.alerts_view` and the `sys.outbox` event timeline.
 - A row the relay could not deliver is quarantined in place (`outbox_status_code = 90`) and excluded from claims.
-  Requeue or discard it through `IActaOperations.Outbox`, `POST /outbox/{jobNamespace}/requeue` or
+  The pass still succeeds, and one critical alert for the namespace (deduplication key `sys.outbox.quarantine`)
+  stays open while the source holds quarantined rows: acknowledge it rather than resolve it, since a pass that
+  finds rows and no open alert opens it again, and the first pass that finds none resolves it. Requeue or discard it through `IActaOperations.Outbox`, `POST /outbox/{jobNamespace}/requeue` or
   `/discard`, or the dashboard's outbox panel; the
   [quarantine SQL recipes](#quarantined-outbox-rows) are the unaudited fallback. A requeue without
   `outboxIds` takes every quarantined row of the namespace. A discard names its rows in `outboxIds` or

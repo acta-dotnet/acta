@@ -5,19 +5,19 @@ using Xunit;
 namespace Acta.Tests.Conformance.Engine.Outbox;
 
 /// <summary>
-/// The relay's quarantine boundary: a persistent recoverable rejection quarantines at the threshold with
-/// one summarized system-job failure, and a deterministically malformed or oversized row quarantines
-/// immediately without accruing retries or touching the target.
+/// The relay's quarantine boundary: a persistent recoverable rejection quarantines at the threshold, and a
+/// deterministically malformed or oversized row quarantines immediately without accruing retries or touching
+/// the target. The tick answers the rows it quarantined and succeeds.
 /// </summary>
 [ConformanceSpec(
     "outbox.relay-quarantine",
-    "Threshold and contract failures quarantine with one bounded summary",
+    "Threshold and contract failures quarantine in a tick that succeeds",
     Area = "Outbox",
     Contract = "The fifth persistent recoverable rejection quarantines a row, and malformed or oversized rows quarantine immediately."
 )]
 public sealed class OutboxRelayQuarantineSpec : OutboxRelayIntegrationBase
 {
-    [Fact(DisplayName = "The fifth routing rejection quarantines the row and raises one summarized failure, earlier ticks staying quiet")]
+    [Fact(DisplayName = "The fifth routing rejection quarantines the row in a tick that succeeds, earlier ticks rescheduling it")]
     public async Task Threshold_routing_rejection_quarantines_on_the_fifth_tick()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -29,7 +29,7 @@ public sealed class OutboxRelayQuarantineSpec : OutboxRelayIntegrationBase
 
         var store = new HookedOutboxStore(SourceConnection);
 
-        // Ticks 1..4: below the default threshold of five, each rejection reschedules quietly (no throw).
+        // Ticks 1..4: below the default threshold of five, each rejection reschedules the row.
         for (var attempt = 1; attempt <= 4; attempt++)
         {
             await Relay(store.Source, OwnedSubmission).RunTickAsync(TickOptions(), ct);
@@ -39,11 +39,10 @@ public sealed class OutboxRelayQuarantineSpec : OutboxRelayIntegrationBase
             await Fixture.RewindOutboxAsync(SourceTable); // make it due for the next tick
         }
 
-        // Tick 5: the fifth rejection reaches the threshold, quarantines the row, and raises one bounded summary.
-        var summary = await Assert.ThrowsAsync<OutboxQuarantineTickException>(() =>
-            Relay(store.Source, OwnedSubmission).RunTickAsync(TickOptions(), ct)
-        );
-        Assert.Contains("quarantined 1 row(s)", summary.Message, StringComparison.Ordinal);
+        // Tick 5: the fifth rejection reaches the threshold and quarantines the row, and the tick still succeeds.
+        var (summary, quarantined) = await Relay(store.Source, OwnedSubmission).RunTickAsync(TickOptions(), ct);
+        Assert.Equal([seed.OutboxId], quarantined);
+        Assert.Equal(1, summary.QuarantineTotal);
 
         var row = await Fixture.ReadOutboxRowAsync(SourceTable, seed.OutboxId);
         Assert.True(row.Exists);
@@ -75,10 +74,8 @@ public sealed class OutboxRelayQuarantineSpec : OutboxRelayIntegrationBase
         var target = new HookedJobSubmission(Services) { FailInstead = () => new InvalidOperationException("target must not be called") };
 
         // A tiny payload cap so the oversized row is over the target inline limit; the echo payload stays under it.
-        var summary = await Assert.ThrowsAsync<OutboxQuarantineTickException>(() =>
-            Relay(store.Source, target.Jobs).RunTickAsync(TickOptions(maxPayload: 64), ct)
-        );
-        Assert.Contains("quarantined 5 row(s)", summary.Message, StringComparison.Ordinal);
+        var (_, quarantined) = await Relay(store.Source, target.Jobs).RunTickAsync(TickOptions(maxPayload: 64), ct);
+        Assert.Equal(5, quarantined.Count);
 
         foreach (var seed in new[] { malformed, oversize, unsupportedFormat, jsonWithNul, notJson })
         {

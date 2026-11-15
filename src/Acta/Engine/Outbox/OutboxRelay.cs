@@ -7,7 +7,7 @@ namespace Acta;
 /// <summary>
 /// Provider-neutral relay policy for one <c>sys.outbox</c> tick: claim due source rows in bounded
 /// batches, coalesce duplicate handoffs, enqueue representatives through the owned batch path, then
-/// finalize under the claim token. Retry, per-group rejection isolation, quarantine, and the single
+/// finalize under the claim token. Retry, per-group rejection isolation, quarantine, and the
 /// bounded tick summary all live here; the source is the injected <see cref="OutboxOperations.Source"/> and the target is
 /// the owned batch enqueue, <see cref="IJobs.EnqueueJobsAsync(IReadOnlyList{EnqueueJobRequest}, CancellationToken)"/>.
 /// </summary>
@@ -95,11 +95,13 @@ internal sealed class OutboxRelay(OutboxOperations.Source source, JobsOperations
     }
 
     /// <summary>
-    /// Runs one relay tick and returns its accounting (persisted as the <c>sys.outbox</c> job result).
-    /// Infrastructure failures and any quarantine transition fail the tick (so the system-job alert path
-    /// fires); recoverable row rejections below the threshold reschedule quietly.
+    /// Runs one relay tick and answers its accounting and the rows it quarantined. Infrastructure failures fail the
+    /// tick (so the system-job alert path fires); recoverable row rejections below the threshold reschedule quietly.
     /// </summary>
-    public async Task<OutboxTickSummary> RunTickAsync(OutboxRelayTickOptions options, CancellationToken ct)
+    public async Task<(OutboxTickSummary Summary, IReadOnlyList<Guid> Quarantined)> RunTickAsync(
+        OutboxRelayTickOptions options,
+        CancellationToken ct
+    )
     {
         // No pre-flight shape check: the table comes from the tested DDL API, so an incompatible table
         // surfaces as a claim/finalize SQL error, an infrastructure failure that fails only this tick.
@@ -148,23 +150,28 @@ internal sealed class OutboxRelay(OutboxOperations.Source source, JobsOperations
             }
         }
 
-        if (quarantinedIds.Count > 0)
+        if (quarantinedIds.Count > 0 && _log.IsEnabled(LogLevel.Error))
         {
-            if (_log.IsEnabled(LogLevel.Error))
-            {
-                ActaLog.OutboxRowsQuarantined(
-                    _log,
-                    $"{quarantinedIds.Count} row(s), source '{options.SourceName}', ids [{OutboxQuarantineTickException.FormatSample(quarantinedIds)}]"
-                );
-            }
-            throw new OutboxQuarantineTickException(options.SourceName, quarantinedIds);
+            ActaLog.OutboxRowsQuarantined(
+                _log,
+                $"{quarantinedIds.Count} row(s), source '{options.SourceName}', ids [{FormatSample(quarantinedIds)}]"
+            );
         }
 
         // Both totals are read after finalization, so the summary reports what still awaits relay and
         // what currently sits in quarantine - the cross-peer channel operator surfaces read.
         var backlog = await source.CountBacklogAsync(ct);
         var quarantineTotal = await source.CountQuarantinedAsync(ct);
-        return new OutboxTickSummary(claimedTotal, relayed, deduplicated, backlog, quarantineTotal);
+        return (new OutboxTickSummary(claimedTotal, relayed, deduplicated, backlog, quarantineTotal), quarantinedIds);
+    }
+
+    /// <summary>The bounded 10-id sample the quarantine alert, its log line, and an operator command's evidence share,
+    /// so none prints the full (up to 5,120) id set.</summary>
+    internal static string FormatSample(IReadOnlyList<Guid> ids)
+    {
+        var sample = string.Join(", ", ids.Take(10));
+        var suffix = ids.Count > 10 ? ", ..." : "";
+        return $"{sample}{suffix}";
     }
 
     /// <summary>

@@ -72,7 +72,7 @@ public sealed class OutboxRelayTests
         var target = new FakeSubmission();
         var svc = new OutboxRelay(store.Source(), target.Jobs());
 
-        var summary = await svc.RunTickAsync(Options(), TestContext.Current.CancellationToken);
+        var (summary, _) = await svc.RunTickAsync(Options(), TestContext.Current.CancellationToken);
 
         var batch = Assert.Single(target.Batches);
         var request = Assert.Single(batch);
@@ -96,7 +96,7 @@ public sealed class OutboxRelayTests
         var target = new FakeSubmission { Action = action };
         var svc = new OutboxRelay(store.Source(), target.Jobs());
 
-        var summary = await svc.RunTickAsync(Options(), TestContext.Current.CancellationToken);
+        var (summary, _) = await svc.RunTickAsync(Options(), TestContext.Current.CancellationToken);
 
         Assert.Single(Assert.Single(target.Batches));
         Assert.Equal(3, store.Deleted.Count);
@@ -135,7 +135,7 @@ public sealed class OutboxRelayTests
         var target = new FakeSubmission();
         var svc = new OutboxRelay(store.Source(), target.Jobs());
 
-        var summary = await svc.RunTickAsync(Options(), TestContext.Current.CancellationToken);
+        var (summary, _) = await svc.RunTickAsync(Options(), TestContext.Current.CancellationToken);
 
         Assert.Single(Assert.Single(target.Batches));
         Assert.Equal([first.OutboxId, untenanted.OutboxId], store.Deleted.ToHashSet());
@@ -153,7 +153,7 @@ public sealed class OutboxRelayTests
         var target = new FakeSubmission { Action = EnqueueJobAction.Deduplicated };
         var svc = new OutboxRelay(store.Source(), target.Jobs());
 
-        var summary = await svc.RunTickAsync(Options(), TestContext.Current.CancellationToken);
+        var (summary, _) = await svc.RunTickAsync(Options(), TestContext.Current.CancellationToken);
 
         Assert.Contains(row.OutboxId, store.Deleted);
         Assert.Empty(store.Quarantined);
@@ -176,7 +176,7 @@ public sealed class OutboxRelayTests
         var target = new FakeSubmission { RejectWhen = reqs => reqs.Any(r => r.JobName == "bad") };
         var svc = new OutboxRelay(store.Source(), target.Jobs());
 
-        var summary = await svc.RunTickAsync(Options(), TestContext.Current.CancellationToken);
+        var (summary, _) = await svc.RunTickAsync(Options(), TestContext.Current.CancellationToken);
 
         Assert.Contains(good1.OutboxId, store.Deleted);
         Assert.Contains(good2.OutboxId, store.Deleted);
@@ -192,18 +192,17 @@ public sealed class OutboxRelayTests
     }
 
     [Fact]
-    public async Task A_recoverable_rejection_at_the_threshold_quarantines_and_fails_the_tick_once()
+    public async Task A_recoverable_rejection_at_the_threshold_quarantines_and_the_tick_answers_the_row()
     {
         var bad = Row("bad", job: "bad", failureCount: 4);
         var store = new FakeStore(bad);
         var target = new FakeSubmission { RejectWhen = _ => true };
         var svc = new OutboxRelay(store.Source(), target.Jobs());
 
-        var ex = await Assert.ThrowsAsync<OutboxQuarantineTickException>(() =>
-            svc.RunTickAsync(Options(threshold: 5), TestContext.Current.CancellationToken)
-        );
+        var (summary, quarantined) = await svc.RunTickAsync(Options(threshold: 5), TestContext.Current.CancellationToken);
 
-        Assert.StartsWith("Outbox source 'orders' quarantined 1 row(s)", ex.Message, StringComparison.Ordinal);
+        Assert.Equal([bad.OutboxId], quarantined);
+        Assert.Equal(1, summary.Claimed);
         Assert.Contains(bad.OutboxId, store.Quarantined);
         Assert.Empty(store.Rescheduled);
     }
@@ -216,8 +215,9 @@ public sealed class OutboxRelayTests
         var target = new FakeSubmission();
         var svc = new OutboxRelay(store.Source(), target.Jobs());
 
-        await Assert.ThrowsAsync<OutboxQuarantineTickException>(() => svc.RunTickAsync(Options(), TestContext.Current.CancellationToken));
+        var (_, quarantined) = await svc.RunTickAsync(Options(), TestContext.Current.CancellationToken);
 
+        Assert.Equal([row.OutboxId], quarantined);
         Assert.Contains(row.OutboxId, store.Quarantined);
         Assert.Empty(target.Batches);
     }
@@ -231,7 +231,7 @@ public sealed class OutboxRelayTests
         var target = new FakeSubmission();
         var svc = new OutboxRelay(store.Source(), target.Jobs());
 
-        await Assert.ThrowsAsync<OutboxQuarantineTickException>(() => svc.RunTickAsync(Options(), TestContext.Current.CancellationToken));
+        await svc.RunTickAsync(Options(), TestContext.Current.CancellationToken);
 
         Assert.Equal([poison.OutboxId], store.Quarantined);
         Assert.Equal([good.OutboxId], store.Deleted);
@@ -245,7 +245,7 @@ public sealed class OutboxRelayTests
         var target = new FakeSubmission();
         var svc = new OutboxRelay(store.Source(), target.Jobs());
 
-        var summary = await svc.RunTickAsync(Options(), TestContext.Current.CancellationToken);
+        var (summary, _) = await svc.RunTickAsync(Options(), TestContext.Current.CancellationToken);
 
         Assert.Equal(3, store.ClaimCalls);
         Assert.Equal(2500, store.Deleted.Count);
@@ -259,7 +259,7 @@ public sealed class OutboxRelayTests
         var target = new FakeSubmission();
         var svc = new OutboxRelay(store.Source(), target.Jobs()) { TimeBudget = TimeSpan.Zero };
 
-        var summary = await svc.RunTickAsync(Options(), TestContext.Current.CancellationToken);
+        var (summary, _) = await svc.RunTickAsync(Options(), TestContext.Current.CancellationToken);
 
         Assert.Equal(1, store.ClaimCalls);
         // The summary reports the one batch relayed and the rest as the backlog the next tick continues.
@@ -277,9 +277,7 @@ public sealed class OutboxRelayTests
         var svc = new OutboxRelay(store.Source(), target.Jobs());
 
         // The count-4 row reaches the threshold of five and quarantines; the count-0 row reschedules at 1.
-        await Assert.ThrowsAsync<OutboxQuarantineTickException>(() =>
-            svc.RunTickAsync(Options(threshold: 5), TestContext.Current.CancellationToken)
-        );
+        await svc.RunTickAsync(Options(threshold: 5), TestContext.Current.CancellationToken);
 
         Assert.Equal([aged.OutboxId], store.Quarantined);
         var resched = Assert.Single(store.Rescheduled);
