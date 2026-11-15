@@ -33,6 +33,7 @@ namespace Acta.Tests.Conformance.Scenarios;
     "flaky-recover",
     "job-child-echo",
     "job-note",
+    "job-parent-map-typed",
     "job-parent-one",
     "job-sleep-basic",
     "job-step-basic",
@@ -109,6 +110,7 @@ public sealed class NamespaceIsolationSpec : ActaRuntimeTestBase<ConformanceFixt
         );
         await other.Check("run a step", t => RunToEndAsync(Request("job-step-basic", null), t));
         await other.Check("run a child and resume its parent", t => RunToEndAsync(Request("job-parent-one", null), t));
+        await other.Check("run a map and resume its parent", t => RunToEndAsync(Request("job-parent-map-typed", null), t));
         await other.Check("fail, retry, and succeed", t => RunToEndAsync(Request("flaky-recover", null), t));
         await other.Check("wait for a signal, raise it, and resume", async t =>
         {

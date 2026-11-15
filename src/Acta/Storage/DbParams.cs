@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Numerics;
 using System.Text;
 using System.Text.Json;
 
@@ -63,26 +64,42 @@ internal static class DbParams
     public static int Int32Version(long expected) => expected is >= 0 and <= int.MaxValue ? (int)expected : -1;
 
     /// <summary>
-    /// JSON array text (<c>[1,2]</c>) for the dialects whose SQL expands an id set with OPENJSON or
-    /// json_each; null for an empty set, which those bodies bind as DBNull and read as "no filter".
+    /// JSON array text (<c>[1,2]</c>) for SQL that expands an id set from it; null for an empty set, which binds as DBNull.
     /// </summary>
-    public static string? JsonIdArray(int[]? values)
+    public static string? JsonIdArray<T>(IReadOnlyList<T>? values)
+        where T : IBinaryInteger<T>
     {
-        if (values is not { Length: > 0 })
+        if (values is not { Count: > 0 })
         {
             return null;
         }
 
         var text = new StringBuilder("[");
-        for (var i = 0; i < values.Length; i++)
+        for (var i = 0; i < values.Count; i++)
         {
             if (i > 0)
             {
                 text.Append(',');
             }
-            text.Append(values[i].ToString(CultureInfo.InvariantCulture));
+            text.Append(values[i].ToString(null, CultureInfo.InvariantCulture));
         }
         return text.Append(']').ToString();
+    }
+
+    /// <summary>JSON array text (<c>["a","b"]</c>) for the dialects whose SQL expands a name set from it.</summary>
+    public static string JsonStringArray(IReadOnlyList<string> values)
+    {
+        using var buffer = new MemoryStream();
+        using (var json = new Utf8JsonWriter(buffer))
+        {
+            json.WriteStartArray();
+            foreach (var value in values)
+            {
+                json.WriteStringValue(value);
+            }
+            json.WriteEndArray();
+        }
+        return Encoding.UTF8.GetString(buffer.ToArray());
     }
 
     /// <summary>

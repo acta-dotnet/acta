@@ -511,6 +511,12 @@
 - **Guarantees:**
   - A child completing in another namespace carries the parent link and releases the waiting parent
 
+### A replayed map starts only the children it has not started
+- **Contract:** A replayed map answers the children it started from their rows, builds none of their inputs again, and names the child it waits on.
+- **Guarantees:**
+  - A replayed map answers the children it started from their rows and builds none of their inputs again
+  - A map replayed without starting a child names the child it waits on
+
 ### A bounded group wait spends one stored deadline across every child and replay
 - **Contract:** A bounded group wait spends one stored deadline across all children and replays, and on expiry cancels only its unfinished members, all in one pass.
 - **Guarantees:**
@@ -1187,6 +1193,12 @@
 - **Guarantees:**
   - Every direct child is listed, a cancelled one included
   - A grandchild is listed under its own parent only, and a job with no children lists none
+
+### A parent's children are found by the names it started them under
+- **Contract:** The read answers each of the parent's direct children whose name was asked for, and no child of another parent or of another name.
+- **Guarantees:**
+  - Each child named is answered with its id and ref, a finished one included
+  - A name no child holds, another parent's child, a grandchild, and a child not named are never answered
 
 ### Stale child latches are found once their child is terminal or gone
 - **Contract:** A live parent's Pending latch on its own child is reported once that child is terminal or gone, and never otherwise.
@@ -2987,6 +2999,7 @@
 | `ListCalendarVersions` | yes | yes | yes |
 | `ListCalendars` | yes | yes | yes |
 | `ListChildJobIds` | yes | yes | yes |
+| `ListChildJobsByName` | yes | yes | yes |
 | `ListCurrentCalendars` | yes | yes | yes |
 | `ListDefinitionContracts` | yes | yes | yes |
 | `ListDefinitions` | yes | yes | yes |

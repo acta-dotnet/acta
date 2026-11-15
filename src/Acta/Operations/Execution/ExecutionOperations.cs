@@ -15,6 +15,7 @@ internal sealed class ExecutionOperations(
     AccessJobCheckpointHandler accessJobCheckpoint,
     RecordJobNoteHandler recordJobNote,
     ListChildJobIdsHandler listChildJobIds,
+    ListChildJobsByNameHandler listChildJobsByName,
     ListStaleJobChildLatchesHandler listStaleJobChildLatches,
     ArmOrConsumeJobSleepTimerHandler armOrConsumeJobSleepTimer,
     GetScheduleFiringHandler getScheduleFiring
@@ -98,6 +99,16 @@ internal sealed class ExecutionOperations(
     /// </summary>
     public Task<ListChildJobIdsResponse> ListChildJobIdsAsync(long parentJobId, CancellationToken ct) =>
         listChildJobIds.HandleAsync(new ListChildJobIdsQuery(parentJobId), ct);
+
+    /// <summary>
+    /// Reads a parent's children by the names it started them under: a map's replay answers the children it already
+    /// started from their rows. Unlike <see cref="ListChildJobIdsAsync"/>, it lists no child outside the names.
+    /// </summary>
+    public Task<ListChildJobsByNameResponse> ListChildJobsByNameAsync(
+        long parentJobId,
+        IReadOnlyList<string> names,
+        CancellationToken ct
+    ) => listChildJobsByName.HandleAsync(new ListChildJobsByNameQuery(parentJobId, names), ct);
 
     /// <summary>
     /// Maintenance backstop feed: finds Pending child-done latches in one namespace whose child

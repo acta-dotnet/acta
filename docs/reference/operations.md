@@ -85,6 +85,7 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 | `CompleteJobStep` | · | · | · | routine | `steps` | `CompleteJobStepSpec` |
 | `GetScheduleFiring` | · | · | · | inline | · | `GetScheduleFiringSpec` |
 | `ListChildJobIds` | · | · | · | inline | · | `ListChildJobIdsSpec` |
+| `ListChildJobsByName` | · | · | · | inline | · | `ListChildJobsByNameSpec` |
 | `ListStaleJobChildLatches` | · | · | · | inline | · | `ListStaleJobChildLatchesSpec` |
 | `ReclaimStuckJobs` | · | · | · | routine | `checkpoints`, `events`, `jobs_state`, `schedules`, `schedules_state`, `workers` | `ReclaimStuckJobsSpec`, `ReclaimStuckJobsWaitTimeoutSpec` |
 | `RecordJobNote` | · | · | · | inline | `events` | `RecordJobNoteSpec` |

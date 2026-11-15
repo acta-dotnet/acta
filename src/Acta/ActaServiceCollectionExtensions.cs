@@ -260,6 +260,7 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<CompleteExecutionsHandler>();
         services.TryAddSingleton<CompleteJobStepHandler>();
         services.TryAddSingleton<ListChildJobIdsHandler>();
+        services.TryAddSingleton<ListChildJobsByNameHandler>();
         services.TryAddSingleton<ListStaleJobChildLatchesHandler>();
         services.TryAddSingleton<ReclaimStuckJobsHandler>();
         services.TryAddSingleton<GetScheduleFiringHandler>();

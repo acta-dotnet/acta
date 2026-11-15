@@ -1,6 +1,3 @@
-using System.Text;
-using System.Text.Json;
-
 namespace Acta;
 
 /// <summary>
@@ -16,7 +13,9 @@ internal sealed class StartDeploymentHandler(IDbSession session, ISqlDialect dia
             new StoreCommand("StartDeployment"),
             cmd =>
             {
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.NamespaceNamesJson, NamesJson(command.NamespaceNames)));
+                cmd.Parameters.Add(
+                    dialect.CreateParameter(ActaSchema.Sql.NamespaceNamesJson, DbParams.JsonStringArray(command.NamespaceNames))
+                );
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Namespace.NamespaceStatusCode, NamespaceStatusCode.Active));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Deployment.DeploymentVersion, command.DeploymentVersion));
             },
@@ -28,20 +27,5 @@ internal sealed class StartDeploymentHandler(IDbSession session, ISqlDialect dia
             : throw new InvalidOperationException(
                 $"StartDeployment returned {rows.Count} rows for {command.NamespaceNames.Count} namespaces. It must return one per namespace."
             );
-    }
-
-    private static string NamesJson(IReadOnlyList<string> names)
-    {
-        using var buffer = new MemoryStream();
-        using (var json = new Utf8JsonWriter(buffer))
-        {
-            json.WriteStartArray();
-            foreach (var name in names)
-            {
-                json.WriteStringValue(name);
-            }
-            json.WriteEndArray();
-        }
-        return Encoding.UTF8.GetString(buffer.ToArray());
     }
 }

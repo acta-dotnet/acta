@@ -335,7 +335,7 @@ until the job ends or the wait times out; a handler's wait parks the job and hol
   parent expects the failure and compensates for it. When the parent reports it, declare the child
   `[Job("reserve-room", AlertProfile = AlertProfileCode.None)]`; an alert the parent raises is still created.
 - A child's result rides on the outcome when the child is the manifest's call (`ShippingJobs.PrintLabel(...)`), alone with `CallChildAsync` or per item with `MapAsync`. For a child you enqueued and waited for, read it by id: `await ctx.GetChildResultAsync<string>(child.JobId, ct)` throws when there is none, and `TryGetChildResultAsync<T>` answers `(Found, Value)`.
-- `MapAsync` and `WaitChildrenAsync` take a `TimeSpan` timeout before the token: one deadline for the whole group, which cancels only the members still running and reports `TimedOut` on the outcome. `MapAsync` takes one `configure` that every child gets.
+- `MapAsync` and `WaitChildrenAsync` take a `TimeSpan` timeout before the token: one deadline for the whole group, which cancels only the members still running and reports `TimedOut` on the outcome. `MapAsync` takes one `configure` that every child gets. A replay starts only the children not yet started, without running the `child` selector or `configure` for one already started.
 - A generated call passed where an input is expected, a map's child included, is enqueued by the job it names.
 - A group does not limit how many of its children run at once; that is `ConcurrencyLimit` on the child's definition.
 - The runnable proof is `concepts/200-durable-execution/215-map-wait-children`; a failed child's outcomes are in `219-child-failure-outcomes`.

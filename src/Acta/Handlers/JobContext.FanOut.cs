@@ -44,8 +44,7 @@ public abstract partial class JobContext
             return ChildrenWaitOutcome.From([]);
         }
 
-        using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, CancellationToken);
-        var waits = await WaitChildGroupAsync(children, timeout, linked.Token);
+        var waits = await WaitChildGroupAsync(children, timeout, ct);
         return ChildrenWaitOutcome.From([.. waits.Select(wait => wait.Outcome)]);
     }
 
@@ -65,9 +64,10 @@ public abstract partial class JobContext
     /// <summary>
     /// Fans out one child job per item and waits for all of them, returning outcomes keyed back to the items. The
     /// group name plus the caller's stable item key derives a deterministic, parent-scoped child name (readable when
-    /// the key is name-safe, otherwise a stable hash), so a replay dedupes onto the same children. Duplicate keys are
-    /// rejected before any child starts; every child starts before any is awaited. Does not throw on a failed child
-    /// and does not limit worker concurrency; branch on the outcome or call <see cref="MapOutcome{TKey}.ThrowIfAnyFailed"/>.
+    /// the key is name-safe, otherwise a stable hash), so a replay finds the same children and builds neither input nor
+    /// options for one already started. Duplicate keys are rejected before any child starts; every child starts before
+    /// any is awaited. Does not throw on a failed child and does not limit worker concurrency; branch on the outcome or
+    /// call <see cref="MapOutcome{TKey}.ThrowIfAnyFailed"/>.
     /// </summary>
     public Task<MapOutcome<TKey>> MapAsync<TItem, TKey, TInput>(
         string groupName,
@@ -280,14 +280,36 @@ public abstract partial class JobContext
             names[i] = childName;
         }
 
+        IReadOnlyDictionary<string, EnqueueJobResponse>? existing = null;
+        if (names.Length > 0)
+        {
+            using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, CancellationToken);
+            existing = await ListChildJobsByNameCoreAsync(names, linked.Token);
+        }
+
+        // A child already started is answered from its row, so the start's checks of route, definition, tenant and payload
+        // size do not run again for it.
         var started = new EnqueueJobResponse[materialized.Count];
         for (var i = 0; i < materialized.Count; i++)
         {
-            started[i] = await EnqueueGroupChildAsync(names[i], child(materialized[i]), configure, ct);
+            started[i] =
+                existing is not null && existing.TryGetValue(names[i], out var found)
+                    ? found
+                    : await EnqueueGroupChildAsync(names[i], child(materialized[i]), configure, ct);
         }
 
         return (keys, names, started, await WaitChildGroupAsync(started, timeout, ct));
     }
+
+    /// <summary>
+    /// Subclass sink: this Job's children under <paramref name="names"/>, by name, each answered as its start would
+    /// answer it; a name no child holds is absent. The default answers null, and every child is started, so a
+    /// <see cref="JobContext"/> subclass without durable storage keeps working.
+    /// </summary>
+    private protected virtual Task<IReadOnlyDictionary<string, EnqueueJobResponse>?> ListChildJobsByNameCoreAsync(
+        IReadOnlyList<string> names,
+        CancellationToken ct
+    ) => Task.FromResult<IReadOnlyDictionary<string, EnqueueJobResponse>?>(null);
 
     private static string ChildGroupName<TKey>(string groupName, TKey key)
         where TKey : notnull

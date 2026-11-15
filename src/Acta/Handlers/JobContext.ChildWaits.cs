@@ -102,11 +102,12 @@ public abstract partial class JobContext
     private protected virtual Task CancelTimedOutChildCoreAsync(long childJobId, CancellationToken ct) => Task.CompletedTask;
 
     /// <summary>
-    /// The one home of the group deadline rule; every group API funnels through it, and a null timeout is the unbounded
-    /// loop. Every member's wait is bounded by the group's stored instant itself, so each latch expires at that instant
-    /// whenever it is armed, and a member first reached after the instant has passed times out in the same pass as the
-    /// rest instead of arming a fresh bound and suspending the parent once per member. Each outcome comes with the
-    /// execution whose landing set its latch, so a typed caller reads the result the wait saw.
+    /// The one home of the group deadline rule; every group API funnels through it, and a null timeout is unbounded.
+    /// Every member's wait is bounded by the group's stored instant itself, so a member first reached after it times out
+    /// in the same pass as the rest instead of suspending the parent once per member. The members are waited on in item
+    /// order, so one that landed while an earlier one was asked for answers without suspending the parent, and a parent
+    /// that never suspends is not replayed. Each outcome carries the execution whose landing set its latch, whose result
+    /// a typed caller reads.
     /// </summary>
     private async Task<(JobOutcome Outcome, long? ExecutionNumber)[]> WaitChildGroupAsync(
         IReadOnlyList<EnqueueJobResponse> children,
@@ -114,39 +115,37 @@ public abstract partial class JobContext
         CancellationToken ct
     )
     {
-        var outcomes = new (JobOutcome Outcome, long? ExecutionNumber)[children.Count];
-        if (timeout is not { } bound)
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, CancellationToken);
+        DateTime? deadlineAtUtc = null;
+        if (timeout is { } bound)
         {
-            for (var i = 0; i < children.Count; i++)
-            {
-                outcomes[i] = await WaitChildCoreAsync(children[i], timeout: null, ct);
-            }
-            return outcomes;
+            // Whole seconds, rounded up, as a single child's bound is: a fraction of a second would be spent by the round
+            // trip that stores it.
+            deadlineAtUtc = await GetOrSetWaitDeadlineCoreAsync(
+                GroupDeadlineName([.. children.Select(child => child.JobId)]),
+                TimeSpan.FromSeconds(ToWaitTimeoutSeconds(bound)),
+                linked.Token
+            );
         }
 
-        // Whole seconds, rounded up, as a single child's bound is: a fraction of a second would be spent by the round
-        // trip that stores it.
-        var deadlineAtUtc = await GetOrSetWaitDeadlineCoreAsync(
-            GroupDeadlineName([.. children.Select(child => child.JobId)]),
-            TimeSpan.FromSeconds(ToWaitTimeoutSeconds(bound)),
-            ct
-        );
-
+        var outcomes = new (JobOutcome Outcome, long? ExecutionNumber)[children.Count];
         for (var i = 0; i < children.Count; i++)
         {
-            var latch = await WaitSignalUntilCoreAsync(ChildLatchName(children[i].JobId), deadlineAtUtc, ct);
-            outcomes[i] = await ResolveChildWaitAsync(children[i], latch, ct);
+            var latch = deadlineAtUtc is { } due
+                ? await WaitSignalUntilCoreAsync(ChildLatchName(children[i].JobId), due, linked.Token)
+                : await WaitSignalCoreAsync(ChildLatchName(children[i].JobId), linked.Token);
+            outcomes[i] = await ResolveChildWaitAsync(children[i], latch, linked.Token);
         }
         return outcomes;
     }
 
     /// <summary>
-    /// Reserved deadline checkpoint name: the child ids hashed to a stable tail, under the <c>sys.</c> prefix user variables
-    /// cannot take. The ids come back identical on every replay (a child start dedupes onto the same row), so the
-    /// name is stable, and two waits on the same children in one Job share the deadline on purpose. The ids are
-    /// sorted and de-duplicated first, so the name is a property of the set: reordering them, or listing one twice on
-    /// one replay, would otherwise mint a second deadline and a fresh budget, making never-restart a matter of caller
-    /// discipline. Caller order survives in the outcome array.
+    /// Reserved deadline checkpoint name: the child ids hashed to a stable tail, under the <c>sys.</c> prefix user variables cannot take.
+    /// Every replay gets the same ids back, from a child start that dedupes onto the same row or from a map's read of the children it
+    /// started, so the name is stable, and two waits on the same children in one Job share the deadline on purpose. The ids are sorted
+    /// and de-duplicated first, so the name is a property of the set: reordering them, or listing one twice on one replay, would otherwise
+    /// mint a second deadline and a fresh budget, making never-restart a matter of caller discipline. Caller order survives in the outcome
+    /// array.
     /// </summary>
     internal static string GroupDeadlineName(IReadOnlyList<long> childJobIds)
     {

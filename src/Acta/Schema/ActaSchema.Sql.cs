@@ -27,6 +27,9 @@ internal static partial class ActaSchema
         /// <summary>The workers a release takes, as a JSON array of ids. The operation SQL parses it provider-locally.</summary>
         public static readonly DbValueSpec<string?> WorkerIdsJson = new("p_worker_ids", DbKind.UnicodeString, -1);
 
+        /// <summary>The children a map looks for, as a JSON array of their names. The operation SQL parses it provider-locally.</summary>
+        public static readonly DbValueSpec<string> ChildNamesJson = new("p_child_names", DbKind.UnicodeString, -1);
+
         public static readonly DbValueSpec<string?> TenantNameFilter = new("p_tenant_name", DbKind.AsciiString, 128);
 
         /// <summary>

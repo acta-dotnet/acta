@@ -370,8 +370,8 @@ internal sealed partial class RuntimeJobContext(
             options.DeduplicationKey
         );
 
-    // The name each child this attempt enqueued was given, by its id, so a wait on it names it. A replay enqueues again
-    // before it waits; a child carried over in a variable has no entry and is named by its id.
+    // The name each child this attempt enqueued or found was given, by its id, so a wait on it names it. A replay enqueues
+    // or finds its children again before it waits; a child carried over in a variable has no entry and is named by its id.
     private readonly ConcurrentDictionary<long, string> _childNames = new();
 
     private async Task<EnqueueJobResponse> RememberChildAsync(Task<EnqueueJobResponse> enqueue, string? name)
@@ -382,6 +382,20 @@ internal sealed partial class RuntimeJobContext(
             _childNames[child.JobId] = name;
         }
         return child;
+    }
+
+    private protected override async Task<IReadOnlyDictionary<string, EnqueueJobResponse>?> ListChildJobsByNameCoreAsync(
+        IReadOnlyList<string> names,
+        CancellationToken ct
+    )
+    {
+        var children = new Dictionary<string, EnqueueJobResponse>(StringComparer.Ordinal);
+        foreach (var child in (await _executionStore.ListChildJobsByNameAsync(JobId, names, ct)).Children)
+        {
+            children[child.DeduplicationKey] = new EnqueueJobResponse(child.JobId, new JobRef(child.JobRef), EnqueueJobAction.Deduplicated);
+            _childNames[child.JobId] = child.DeduplicationKey;
+        }
+        return children;
     }
 
     private SignalSuspendSignal ChildPending(string latchName)

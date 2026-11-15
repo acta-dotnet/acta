@@ -220,6 +220,8 @@ filter so the hint always compiles:
   `ux_definitions_namespace_name`. They run in the caller's transaction, and at repeatable read or serializable every
   row a read touches stays share-locked until the caller commits, so a lookup that scanned `namespaces` held every
   namespace's row and deadlocked with deploys writing theirs.
+- A map's replay reads its children as `enqueue_jobs` probes, a join's inner side under the list it passes:
+  `ListChildJobsByName` names both columns of `ux_jobs_deduplication_key_child`.
 - The retention purge's staging read seeks `ix_jobs_namespace_created` from its cursor and then `jobs_state`
   and `jobs` by key, and its event read seeks `ix_events_namespace_created`.
 - The outbox claim, its lease recovery and lane check, the relay's finalizes, the backlog count, and the

@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Acta;
 
 namespace TestJobs;
@@ -27,6 +28,9 @@ public sealed record ChildOutcomeEntry(long ChildJobId, JobStatusCode Status, bo
 /// </summary>
 public static class ChildJobProbes
 {
+    /// <summary>How many child inputs each counted map built, by its parent's job id.</summary>
+    public static readonly ConcurrentDictionary<long, int> MapInputsBuilt = new();
+
     [Job("job-child-echo")]
     public static Task<ChildEchoResult> ChildEcho(ChildEcho input, CancellationToken ct) =>
         Task.FromResult(new ChildEchoResult(input.Value * 2));
@@ -54,6 +58,24 @@ public static class ChildJobProbes
             ct
         );
         return new ChildEchoResult(echoes.Items.Sum(item => item.Outcome.ValueOrThrow().Doubled));
+    }
+
+    /// <summary>Maps three children and counts the inputs it builds, which a child answered from its row does not need.</summary>
+    [Job("job-parent-map-counted")]
+    public static async Task<ChildEchoResult> ParentMapCounted(JobContext ctx, CancellationToken ct)
+    {
+        var echoes = await ctx.MapAsync(
+            "echo",
+            (int[])[1, 2, 3],
+            n => n,
+            n =>
+            {
+                MapInputsBuilt.AddOrUpdate(ctx.JobId, 1, static (_, built) => built + 1);
+                return new ChildEcho(n);
+            },
+            ct
+        );
+        return new ChildEchoResult(echoes.Items.Count(item => item.Outcome.Succeeded));
     }
 
     /// <summary>Calls its child through the manifest's generated call, which names the child's job and its result type.</summary>
