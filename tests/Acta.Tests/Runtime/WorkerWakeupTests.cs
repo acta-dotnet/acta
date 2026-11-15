@@ -328,7 +328,7 @@ public sealed class WorkerWakeupTests
 
         var (Value, Tags) = Assert.Single(captured);
         Assert.Equal("billing", Tags["namespace"]);
-        Assert.Equal("worker_namespace", Tags["channel"]);
+        Assert.Equal("worker-namespace", Tags["channel"]);
         Assert.Equal("InvalidOperationException", Tags["exception_type"]);
     }
 
@@ -399,8 +399,8 @@ public sealed class WorkerWakeupTests
 
         var (Value, Tags) = Assert.Single(captured);
         Assert.Equal("*", Tags["namespace"]);
-        Assert.Equal("all_worker_namespaces", Tags["channel"]);
-        Assert.Equal("horizon_changed", Tags["reason"]);
+        Assert.Equal("all-worker-namespaces", Tags["channel"]);
+        Assert.Equal("horizon-changed", Tags["reason"]);
     }
 
     [Fact]
@@ -420,8 +420,8 @@ public sealed class WorkerWakeupTests
 
         var (Value, Tags) = Assert.Single(captured);
         Assert.DoesNotContain("namespace", Tags.Keys);
-        Assert.Equal("job_completion", Tags["channel"]);
-        Assert.Equal("job_finished", Tags["reason"]);
+        Assert.Equal("job-completion", Tags["channel"]);
+        Assert.Equal("job-finished", Tags["reason"]);
     }
 
     [Fact]

@@ -54,18 +54,18 @@ internal sealed class WorkerWakeupPublisher(IWorkerWakeup wakeup, ILogger<Worker
     internal static string ChannelTag(WorkerWakeupChannelKind kind) =>
         kind switch
         {
-            WorkerWakeupChannelKind.WorkerNamespace => "worker_namespace",
-            WorkerWakeupChannelKind.AllWorkerNamespaces => "all_worker_namespaces",
-            WorkerWakeupChannelKind.JobCompletion => "job_completion",
+            WorkerWakeupChannelKind.WorkerNamespace => "worker-namespace",
+            WorkerWakeupChannelKind.AllWorkerNamespaces => "all-worker-namespaces",
+            WorkerWakeupChannelKind.JobCompletion => "job-completion",
             _ => "unknown",
         };
 
     internal static string ReasonTag(WorkerWakeupReason reason) =>
         reason switch
         {
-            WorkerWakeupReason.WorkAvailable => "work_available",
-            WorkerWakeupReason.HorizonChanged => "horizon_changed",
-            WorkerWakeupReason.JobFinished => "job_finished",
+            WorkerWakeupReason.WorkAvailable => "work-available",
+            WorkerWakeupReason.HorizonChanged => "horizon-changed",
+            WorkerWakeupReason.JobFinished => "job-finished",
             _ => "unknown",
         };
 
@@ -73,7 +73,7 @@ internal sealed class WorkerWakeupPublisher(IWorkerWakeup wakeup, ILogger<Worker
         result switch
         {
             WorkerWakeupWaitStatus.Signaled => "signaled",
-            WorkerWakeupWaitStatus.TimedOut => "timed_out",
+            WorkerWakeupWaitStatus.TimedOut => "timed-out",
             _ => "unknown",
         };
 }

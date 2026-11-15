@@ -211,7 +211,7 @@ internal sealed class ActaMetrics : IDisposable
     }
 
     /// <summary>
-    /// result is one of { signaled, timed_out }; a signaled wait is a wakeup interrupting an idle
+    /// result is one of { signaled, timed-out }; a signaled wait is a wakeup interrupting an idle
     /// sleep.
     /// </summary>
     public void RecordWakeupWait(string @namespace, string result) =>

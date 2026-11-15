@@ -118,14 +118,14 @@ public sealed class ActaMetricsTests
 
         var (Value, Tags) = Assert.Single(
             Collect<long>(metrics, "acta.wakeup.publish.attempts", () =>
-                metrics.RecordWakeupPublish("billing", "worker_namespace", "work_available")
+                metrics.RecordWakeupPublish("billing", "worker-namespace", "work-available")
             )
         );
 
         Assert.Equal(1, Value);
         Assert.Equal("billing", Tags["namespace"]);
-        Assert.Equal("worker_namespace", Tags["channel"]);
-        Assert.Equal("work_available", Tags["reason"]);
+        Assert.Equal("worker-namespace", Tags["channel"]);
+        Assert.Equal("work-available", Tags["reason"]);
     }
 
     [Fact]
@@ -135,12 +135,12 @@ public sealed class ActaMetricsTests
 
         var (Value, Tags) = Assert.Single(
             Collect<long>(metrics, "acta.wakeup.publish.attempts", () =>
-                metrics.RecordWakeupPublish(@namespace: null, "job_completion", "job_finished")
+                metrics.RecordWakeupPublish(@namespace: null, "job-completion", "job-finished")
             )
         );
 
         Assert.DoesNotContain("namespace", Tags.Keys);
-        Assert.Equal("job_completion", Tags["channel"]);
+        Assert.Equal("job-completion", Tags["channel"]);
     }
 
     [Fact]
@@ -150,14 +150,14 @@ public sealed class ActaMetricsTests
 
         var (Value, Tags) = Assert.Single(
             Collect<long>(metrics, "acta.wakeup.publish.failures", () =>
-                metrics.RecordWakeupPublishFailure("*", "all_worker_namespaces", "horizon_changed", "TimeoutException")
+                metrics.RecordWakeupPublishFailure("*", "all-worker-namespaces", "horizon-changed", "TimeoutException")
             )
         );
 
         Assert.Equal(1, Value);
         Assert.Equal("*", Tags["namespace"]);
-        Assert.Equal("all_worker_namespaces", Tags["channel"]);
-        Assert.Equal("horizon_changed", Tags["reason"]);
+        Assert.Equal("all-worker-namespaces", Tags["channel"]);
+        Assert.Equal("horizon-changed", Tags["reason"]);
         Assert.Equal("TimeoutException", Tags["exception_type"]);
     }
 
@@ -400,9 +400,9 @@ public sealed class ActaMetricsTests
 
         metrics.RecordExecution("billing", "send-receipt", "failed", "unhandled-exception", 12);
         metrics.RecordClaim("billing", "nothing-claimed");
-        metrics.RecordWakeupPublish("billing", "worker_namespace", "work_available");
-        metrics.RecordWakeupPublishFailure("billing", "worker_namespace", "work_available", "TimeoutException");
-        metrics.RecordWakeupWait("billing", "timed_out");
+        metrics.RecordWakeupPublish("billing", "worker-namespace", "work-available");
+        metrics.RecordWakeupPublishFailure("billing", "worker-namespace", "work-available", "TimeoutException");
+        metrics.RecordWakeupWait("billing", "timed-out");
         metrics.RecordStep("billing", "send-receipt", "succeeded");
         metrics.RecordLockReleaseFailure("billing", "send-receipt", "slot", "TimeoutException");
         metrics.RecordUnsettledCompletion(1);
