@@ -269,6 +269,15 @@ public class JobExplainerTests
         Assert.Null(x.LastExecutedBy);
     }
 
+    [Fact]
+    public void A_success_after_lost_attempts_says_how_many_it_lost()
+    {
+        var recovered = Data(Header(JobStatusCode.Succeeded) with { OrphanedExecutions = 1, FailedExecutions = 2 });
+
+        Assert.Equal("Succeeded after 1 lost lease and 2 failed attempts.", ExplainJobHandler.Explain(recovered, Now).Headline);
+        Assert.Equal("Succeeded.", ExplainJobHandler.Explain(Data(Header(JobStatusCode.Succeeded)), Now).Headline);
+    }
+
     [Theory]
     [InlineData(true)]
     [InlineData(false)]

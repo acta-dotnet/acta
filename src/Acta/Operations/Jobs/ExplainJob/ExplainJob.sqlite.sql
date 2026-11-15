@@ -7,7 +7,8 @@ SELECT
     x.worker_deployment_version, x.worker_status, x.worker_last_seen_at_utc, x.latest_reason_message, x.latest_reason_actor,
     x.latest_reason_details_format_id, x.latest_reason_details, x.last_executed_by_worker_version, x.leased_by_worker_ref,
     x.last_executed_by_worker_ref, x.definition_status, x.step_name, x.step_status, x.failure_message,
-    x.checkpoint_kind, x.checkpoint_name, x.checkpoint_status, x.due_at_utc, x.child_job_ref, x.child_name
+    x.checkpoint_kind, x.checkpoint_name, x.checkpoint_status, x.due_at_utc, x.child_job_ref, x.child_name, x.failed_executions,
+    x.orphaned_executions
 FROM (
     -- The header: job + jobs_state snapshot, the leasing worker's liveness (LEFT JOIN on the lease owner), the newest
     -- reason on the timeline (a failed, orphaned, or terminally failed attempt, or a Cancelled job's cancel), and the
@@ -47,7 +48,9 @@ FROM (
         NULL AS checkpoint_status,
         NULL AS due_at_utc,
         NULL AS child_job_ref,
-        NULL AS child_name
+        NULL AS child_name,
+        rc.failed_executions,
+        rc.orphaned_executions
     FROM {{schema}}.jobs j
     INNER JOIN {{schema}}.jobs_state r ON r.job_id = j.job_id
     INNER JOIN {{schema}}.namespaces ns ON ns.namespace_id = j.namespace_id
@@ -86,6 +89,29 @@ FROM (
                 LIMIT 1
             )
     LEFT JOIN {{schema}}.workers lxw ON lxw.worker_id = lx.worker_id
+    -- The attempts this run lost since its last restart: failed ones and ones crash recovery reclaimed. Only a Succeeded
+    -- headline reads them, so any other status skips both reads and answers null. A CROSS JOIN keeps the job's state row
+    -- in SQLite's outer loop, so a status that fails the gate never reaches the events.
+    LEFT JOIN (
+        SELECT
+            e.entity_id AS job_id,
+            SUM(CASE WHEN e.event_code = 41 /* EventCode.JobExecutionFailed */ THEN 1 ELSE 0 END) AS failed_executions,
+            SUM(CASE WHEN e.event_code = 42 /* EventCode.JobExecutionOrphaned */ THEN 1 ELSE 0 END) AS orphaned_executions
+        FROM {{schema}}.jobs_state g
+        CROSS JOIN {{schema}}.events e
+        WHERE
+            g.job_id = @p_job_id
+            AND g.job_status_code = 100 /* JobStatusCode.Succeeded */
+            AND e.entity_code = 50 /* EntityCode.Job */
+            AND e.entity_id = @p_job_id
+            AND e.event_code IN (41 /* EventCode.JobExecutionFailed */, 42 /* EventCode.JobExecutionOrphaned */)
+            AND e.event_id > COALESCE((
+                SELECT MAX(rs.event_id)
+                FROM {{schema}}.events rs
+                WHERE rs.entity_code = 50 /* EntityCode.Job */ AND rs.entity_id = @p_job_id AND rs.event_code = 73 /* EventCode.JobRestarted */
+            ), 0)
+        GROUP BY e.entity_id
+    ) rc ON rc.job_id = j.job_id
     WHERE j.job_id = @p_job_id
 
     UNION ALL
@@ -97,7 +123,7 @@ FROM (
         NULL, NULL, NULL, NULL, NULL, NULL, NULL,
         NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
         s.step_name, s.step_status_code, s.failure_message,
-        NULL, NULL, NULL, NULL, NULL, NULL
+        NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
     FROM (
         SELECT step_name, step_status_code, failure_message, created_at_utc
         FROM {{schema}}.steps
@@ -115,7 +141,7 @@ FROM (
         NULL, NULL, NULL, NULL, NULL, NULL, NULL,
         NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
         NULL, NULL, NULL,
-        c.checkpoint_kind_code, c.checkpoint_name, c.checkpoint_status_code, c.due_at_utc, ch.job_ref, ch.deduplication_key
+        c.checkpoint_kind_code, c.checkpoint_name, c.checkpoint_status_code, c.due_at_utc, ch.job_ref, ch.deduplication_key, NULL, NULL
     FROM {{schema}}.checkpoints c
     LEFT JOIN {{schema}}.jobs ch
         ON

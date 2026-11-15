@@ -5,7 +5,7 @@ namespace Acta;
 /// LEFT JOIN on <c>jobs_state.leased_by_worker_id</c>) and the newest reason on the timeline (the job's latest
 /// failed, orphaned, or terminally failed attempt, or a Cancelled job's cancel: its message, actor, and details). Worker and
 /// reason columns are null when the Job holds no lease / has no recorded reason. Bound by name from the explain read's
-/// row_kind 1 row.
+/// row_kind 1 row. The two counts are the attempts lost since the last restart, failed and reclaimed by crash recovery.
 /// </summary>
 [DbProjection(ByName = true)]
 internal sealed record ExplainJobHeaderRow(
@@ -30,5 +30,7 @@ internal sealed record ExplainJobHeaderRow(
     string? LastExecutedByWorkerVersion,
     Guid? LeasedByWorkerRef,
     Guid? LastExecutedByWorkerRef,
-    DefinitionStatusCode DefinitionStatus
+    DefinitionStatusCode DefinitionStatus,
+    int? FailedExecutions = null,
+    int? OrphanedExecutions = null
 );

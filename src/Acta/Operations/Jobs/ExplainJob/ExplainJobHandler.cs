@@ -180,7 +180,7 @@ internal sealed class ExplainJobHandler(GetJobIdHandler getJobId, IDbSession ses
                 break;
 
             case JobStatusCode.Succeeded:
-                headline = "Succeeded.";
+                headline = SucceededHeadline(h.OrphanedExecutions ?? 0, h.FailedExecutions ?? 0);
                 actions.Add(Move("inspect-timeline", "inspect the event timeline if needed"));
                 break;
 
@@ -422,6 +422,21 @@ internal sealed class ExplainJobHandler(GetJobIdHandler getJobId, IDbSession ses
     /// the database stores it, so it lines up with the events' times.
     /// </summary>
     private static string Instant(DateTime utc) => utc.ToString("yyyy-MM-dd HH:mm:ss.fff'Z'", CultureInfo.InvariantCulture);
+
+    /// <summary>A success that came after lost attempts says so: those crash recovery reclaimed, then those that failed.</summary>
+    private static string SucceededHeadline(int lostLeases, int failedAttempts)
+    {
+        var lost = new List<string>(2);
+        if (lostLeases > 0)
+        {
+            lost.Add(lostLeases == 1 ? "1 lost lease" : $"{lostLeases} lost leases");
+        }
+        if (failedAttempts > 0)
+        {
+            lost.Add(failedAttempts == 1 ? "1 failed attempt" : $"{failedAttempts} failed attempts");
+        }
+        return lost.Count == 0 ? "Succeeded." : $"Succeeded after {string.Join(" and ", lost)}.";
+    }
 
     private static string Ago(DateTime instant, DateTime now) => $"{Humanize(now - instant)} ago";
 

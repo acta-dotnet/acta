@@ -81,6 +81,9 @@ public sealed class OneShotRetrySpec : ActaRuntimeTestBase<ConformanceFixture, J
             (EventCode.JobExecutionSucceeded, null),
         ];
         Assert.Equal(expected, attempts);
+
+        // Explain counts the attempts the success came after, from those same events.
+        Assert.Equal("Succeeded after 2 failed attempts.", (await Jobs.ExplainAsync(enqueued, ct))!.Headline);
     }
 
     [Fact(DisplayName = "A retry within budget records the failed attempt and the re-arm at Audit, with one message, worker, and instant")]
