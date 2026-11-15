@@ -200,7 +200,7 @@
             <span>Waiting on <strong class="mono">{wait.name}</strong>{#if explanation.activeWait.dueAtUtc}{' · due '}<RelativeTime value={explanation.activeWait.dueAtUtc} />{/if}</span>
           {/if}
           {#if job.status === 'blocked' && job.blockedBehindJobRef}<span>Blocked behind <JobRef value={job.blockedBehindJobRef} href={routes.job(job.blockedBehindJobRef, { namespace: job.jobNamespace })} /></span>{/if}
-          {#if !TERMINAL_STATUSES.includes(job.status) && (job.nextRunAtUtc || job.status === 'idle')}<span>Next run <JobNextRun {job} schedules={detail.schedules} total={detail.schedulesTotal} /></span>{/if}
+          {#if !TERMINAL_STATUSES.includes(job.status) && job.status !== 'blocked' && (job.nextRunAtUtc || job.status === 'idle')}<span>{job.status === 'suspended' ? 'Times out' : 'Next run'} <JobNextRun {job} schedules={detail.schedules} total={detail.schedulesTotal} /></span>{/if}
           {#if hasExecutions}<button class="hero-attempt" onclick={showExecutions}>{heroAttempt}</button>{/if}
           {#if job.failureCount > 0 && job.status !== 'succeeded'}<span>{consecutiveFailuresText(job.failureCount) + (job.kind === 'permanent' ? ' in the latest firing' : '') + (budgetText ? ', ' + budgetText : '')}</span>{/if}
         </div>
@@ -233,7 +233,7 @@
       <FocusDisclosure title="Activity" hint={hasExecutions ? heroAttempt : 'Events and history'} bind:open={activityOpen} id="job-activity">
         <div hidden={executionsOpen}>
         {#key focusExecution}
-          <JobEventsPanel bind:this={eventsPanel} jobRef={job.jobRef} polling={!TERMINAL_STATUSES.includes(job.status)} nextRunAtUtc={TERMINAL_STATUSES.includes(job.status) ? null : job.nextRunAtUtc} initialAttempt={focusExecution} permanent={job.kind === 'permanent'} onEventsChange={(loaded) => (events = loaded)} />
+          <JobEventsPanel bind:this={eventsPanel} jobRef={job.jobRef} polling={!TERMINAL_STATUSES.includes(job.status)} nextRunAtUtc={TERMINAL_STATUSES.includes(job.status) ? null : job.nextRunAtUtc} initialAttempt={focusExecution} onEventsChange={(loaded) => (events = loaded)} />
         {/key}
         </div>
         {#if hasExecutions}

@@ -41,7 +41,18 @@ test('a yielded attempt is presented by the outcome in its details, and an unrea
     tone: 'warn',
     title: 'Attempt rescheduled'
   });
-  assert.equal(yielded('{"outcome":"suspended"}').title, 'Sleeping');
+  assert.equal(yielded('{"outcome":"suspended"}').title, 'Waiting');
+  const suspended = (detailsText: string) => timelinePresentation({ eventCode: 'job.suspended', detailsText }).title;
+  assert.equal(suspended('{"to":"ready"}'), 'Sleeping');
+  assert.equal(suspended('{"to":"suspended"}'), 'Waiting');
+  // A suspended yield reads as the job.suspended event its own execution wrote.
+  const yieldedIn = (to: string) =>
+    timelinePresentation({ eventCode: 'job.execution-yielded', executionNumber: 2, detailsText: '{"outcome":"suspended"}' }, [
+      { eventCode: 'job.suspended', executionNumber: 1, detailsText: '{"to":"ready"}' },
+      { eventCode: 'job.suspended', executionNumber: 2, detailsText: JSON.stringify({ to }) }
+    ]).title;
+  assert.equal(yieldedIn('ready'), 'Sleeping');
+  assert.equal(yieldedIn('suspended'), 'Waiting');
   assert.equal(yielded('{"outcome":"paused"}').title, 'Paused');
   assert.equal(yielded('{"outcome":"cancelled"}').tone, 'bad');
   assert.deepEqual(yielded('not json'), { icon: 'minus-circle', tone: 'neutral', title: 'Attempt yielded' });

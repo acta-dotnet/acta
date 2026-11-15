@@ -98,8 +98,8 @@ Acta should feel calm, technically precise, modern, and readable. Focus is the d
 - Show a successful result prominently when one exists.
 - Collapse Activity, stored input and checkpoints, attached schedules, and technical details independently.
 - Keep execution history and timeline filters available within Activity.
-- Draw the activity timeline as the website draws its execution record: a soft round mark for each event, a hairline between two marks that touches neither, the event's title in the running weight with its reason beneath, and the time with the event's code at the right. Name each attempt in a plain line above its events. The mark alone carries the tone, and only the newest settled outcome takes a solid mark.
-- Showing execution history puts the attempt summaries in focus. Walking an execution returns to its filtered event timeline.
+- Draw the activity timeline as the website draws its execution record: a soft round mark for each event, a hairline between two marks that touches neither, the event's title in the running weight with its reason beneath, and the time with the event's code at the right. Name each execution ("Execution N", never "Attempt N": the number counts claims, so a resume or a bounce adds one) in a plain line above its events. The mark alone carries the tone, and only the newest settled outcome takes a solid mark.
+- Showing execution history puts the execution summaries in focus. Walking an execution returns to its filtered event timeline.
 - Preserve existing section and execution deep links by opening their matching disclosures.
 - Keep input amendment, signals, clone, tags, incident copying, and all existing job controls available under their permissions.
 - Preserve permanent-job firing and attempt-budget semantics. A retrying job states its budget beside its failures: "fails permanently at N", or "each firing gets N attempts" on a permanent job.

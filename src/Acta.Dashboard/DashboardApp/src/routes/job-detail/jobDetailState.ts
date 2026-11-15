@@ -3,10 +3,10 @@ import { displayFormatter } from '../../format.ts';
 import { eventFacts } from '../../lib/eventFacts.ts';
 import type { JobExplanation, JobLineageNode, JobDetail } from './types.ts';
 
-/** The job's execution number as the page header reads it: a permanent job's counts every firing, so it is a total, not a retry. */
+/** The job's execution number as the page header reads it: it counts every run of the handler, each resume after a wait and each firing included, so it names an execution, not a try. */
 export function executionLabel(job: Pick<JobDetail, 'kind' | 'executionNumber'>): string {
   const count = displayFormatter.number(job.executionNumber);
-  if (job.kind !== 'permanent') return 'attempt ' + count;
+  if (job.kind !== 'permanent') return 'execution ' + count;
   return count + (job.executionNumber === 1 ? ' execution' : ' executions');
 }
 

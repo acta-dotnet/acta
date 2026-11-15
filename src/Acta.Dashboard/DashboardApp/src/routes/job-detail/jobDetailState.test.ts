@@ -59,10 +59,10 @@ test('a child latch wait reads as a child job, not as a timer', () => {
   assert.deepEqual(activeWaitLabel('timer', 'nightly'), { kind: 'timer', name: 'nightly' });
 });
 
-test('a permanent job counts its executions across firings; any other job names its attempt', () => {
+test('a permanent job counts its executions across firings; any other job names its execution', () => {
   assert.equal(executionLabel({ kind: 'permanent', executionNumber: 28 }), '28 executions');
   assert.equal(executionLabel({ kind: 'permanent', executionNumber: 1 }), '1 execution');
-  assert.equal(executionLabel({ kind: 'ordinary', executionNumber: 28 }), 'attempt 28');
+  assert.equal(executionLabel({ kind: 'ordinary', executionNumber: 28 }), 'execution 28');
 });
 
 test('an unfamiliar wait kind names itself instead of borrowing another kind name', () => {

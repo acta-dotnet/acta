@@ -16,12 +16,8 @@
     hasMore = false,
     loadingMore = false,
     onLoadMore = () => {},
-    initialAttempt = null,
-    permanent = false
+    initialAttempt = null
   } = $props();
-
-  // A permanent job's execution number counts every firing's executions, so it is no attempt within a budget.
-  let unit = $derived(permanent ? 'Execution' : 'Attempt');
 
   // Job detail remounts the timeline when an execution deep link changes.
   // svelte-ignore state_referenced_locally
@@ -78,11 +74,11 @@
 
 <div class="timeline-tools" aria-label="Timeline filters">
   <label>
-    {unit}
+    Execution
     <select bind:value={attemptFilter}>
-      <option value="all">All loaded {unit.toLowerCase()}s</option>
+      <option value="all">All loaded executions</option>
       {#each attemptNumbers as attempt}
-        <option value={String(attempt)}>{attempt === 0 ? 'Lifecycle' : unit + ' ' + displayFormatter.number(attempt)}</option>
+        <option value={String(attempt)}>{attempt === 0 ? 'Lifecycle' : 'Execution ' + displayFormatter.number(attempt)}</option>
       {/each}
     </select>
   </label>
@@ -101,7 +97,7 @@
     <input bind:value={eventFilter} placeholder="e.g. job.execution" />
   </label>
   {#if failedAttempts.length > 0}
-    <button onclick={jumpToFailedAttempt}>Jump to latest failed {unit.toLowerCase()}</button>
+    <button onclick={jumpToFailedAttempt}>Jump to latest failed execution</button>
   {/if}
 </div>
 
@@ -112,11 +108,11 @@
     {#each attempts as [attempt, steps]}
       <div class="timeline-attempt" id={'attempt-' + attempt}>
         <div class="timeline-eyebrow">
-          <span>{attempt === 0 ? 'Lifecycle' : unit + ' ' + displayFormatter.number(attempt)}</span>
+          <span>{attempt === 0 ? 'Lifecycle' : 'Execution ' + displayFormatter.number(attempt)}</span>
         </div>
         <ol class="rail">
           {#each steps as evt (evt.eventId)}
-            {@const p = timelinePresentation(evt)}
+            {@const p = timelinePresentation(evt, events)}
             {@const facts = eventFacts(evt.detailsText)}
             <li class={'t-' + p.tone}>
               <span class="rail-node" class:terminal={evt.eventId === terminalEventId}><Icon name={p.icon} /></span>

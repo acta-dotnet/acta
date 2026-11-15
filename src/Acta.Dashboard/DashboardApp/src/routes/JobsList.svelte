@@ -70,7 +70,7 @@
     { key: 'tenant', header: 'Tenant', class: 'mobile-hide' },
     { key: 'createdAtUtc', header: 'Age' },
     { key: 'nextRunAtUtc', header: 'Next run', class: 'mobile-hide' },
-    { key: 'attempts', header: 'Attempts', align: 'right' }
+    { key: 'attempts', header: 'Executions', align: 'right' }
   ];
 
   function clearTenant() {

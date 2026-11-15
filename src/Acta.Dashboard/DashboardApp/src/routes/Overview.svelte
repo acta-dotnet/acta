@@ -162,7 +162,7 @@
             {#if i > 0}{' · '}{/if}
             {#if reason.href}<a href={reason.href}>{reason.text}</a>{:else}{reason.text}{/if}
           {:else}
-            No critical alerts, no stuck backlog, workers healthy.
+            No critical alerts, no stuck backlog, no stale workers.
           {/each}
         </span>
       </div>

@@ -505,7 +505,7 @@ test('executions disclosure summarizes the attempt and deep-links expanded', asy
   await expect(walk).toBeVisible();
   await walk.click();
   await expect(page.getByRole('heading', { name: 'Timeline' })).toBeVisible();
-  await expect(page.getByLabel('Attempt')).toHaveValue('1');
+  await expect(page.getByLabel('Execution')).toHaveValue('1');
 });
 
 test('Focus actions and related links stay accessible across resizing', async ({ page }) => {
@@ -1124,8 +1124,8 @@ test('the Jobs table shows every column at a 1440 px viewport', async ({ page })
   await expect(wrap.getByRole('link', { name: /reports\.nightly-revenue-summary/ })).toBeVisible();
   expect(await wrap.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
   const wrapBox = (await wrap.boundingBox())!;
-  const attemptsBox = (await wrap.getByRole('columnheader', { name: 'Attempts' }).boundingBox())!;
-  expect(attemptsBox.x + attemptsBox.width).toBeLessThanOrEqual(wrapBox.x + wrapBox.width);
+  const executionsBox = (await wrap.getByRole('columnheader', { name: 'Executions' }).boundingBox())!;
+  expect(executionsBox.x + executionsBox.width).toBeLessThanOrEqual(wrapBox.x + wrapBox.width);
 });
 
 // A first look at the catalog: the first-job sample's two jobs, the system jobs, which take no input, and two app jobs

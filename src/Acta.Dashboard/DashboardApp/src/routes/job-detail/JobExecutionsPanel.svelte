@@ -85,6 +85,7 @@
         return 'stale';
       case 'paused':
       case 'suspended':
+      case 'sleeping':
         return 'held';
       default:
         return '';

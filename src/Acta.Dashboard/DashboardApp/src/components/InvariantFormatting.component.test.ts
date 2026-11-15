@@ -70,7 +70,7 @@ describe('invariant dashboard formatting', () => {
       }
     });
 
-    expect(screen.getAllByText(`Attempt ${displayFormatter.number(12345)}`).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(`Execution ${displayFormatter.number(12345)}`).length).toBeGreaterThan(0);
     expect(screen.getByText(displayFormatter.milliseconds(1234567))).toBeTruthy();
     expect(screen.getByText('Full retained history loaded · 1 events')).toBeTruthy();
   });

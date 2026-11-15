@@ -105,7 +105,7 @@
     { key: 'subject', header: 'Subject', class: 'shrink' },
     { key: 'jobName', header: 'Name', dimRepeats: true },
     { key: 'jobNamespace', header: 'Namespace', dimRepeats: true },
-    { key: 'executionNumber', header: 'Attempt', align: 'right' },
+    { key: 'executionNumber', header: 'Execution', align: 'right' },
     { key: 'detailsText', header: 'Details', class: 'grow' }
   ];
 </script>

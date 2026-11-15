@@ -36,7 +36,7 @@ describe('JobsList', () => {
 
     const { container } = render(JobsListHarness);
 
-    await vi.waitFor(() => expect(container.querySelector('td[data-label="Attempts"]')?.textContent?.trim()).toBe('6 (3 consecutive failures)'));
+    await vi.waitFor(() => expect(container.querySelector('td[data-label="Executions"]')?.textContent?.trim()).toBe('6 (3 consecutive failures)'));
   });
 
   it('looks a deduplication key up in the scope picked while the namespaces load', async () => {

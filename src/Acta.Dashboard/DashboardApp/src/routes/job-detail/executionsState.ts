@@ -2,6 +2,7 @@ import type { EventItem } from '../../api.ts';
 import { eventFacts } from '../../lib/eventFacts.ts';
 import type { JobDetail } from './types.ts';
 import type { TimelineTone } from '../../components/jobTimelineState.ts';
+import { executionSlept } from '../../components/jobTimelineState.ts';
 
 // One row per execution whose outcome the ledger holds: the event that closed the attempt, which carries
 // the worker and the handler's duration. The claim writes no event, so the execution in flight takes its
@@ -15,6 +16,7 @@ export type ExecutionOutcome =
   | 'failed'
   | 'rescheduled'
   | 'suspended'
+  | 'sleeping'
   | 'paused'
   | 'cancelled'
   | 'orphaned'
@@ -60,6 +62,7 @@ export function deriveExecutions(events: EventItem[]): ExecutionSummary[] {
 
   const summaries = [...closing].map(([executionNumber, end]): ExecutionSummary => {
     const facts = eventFacts(end.detailsText);
+    const outcome = outcomeOf(end.eventCode, facts.outcome);
     return {
       executionNumber,
       // The start is the finish less the handler's duration; a reclaim or a cancel records no duration, so its start is unknown.
@@ -67,7 +70,7 @@ export function deriveExecutions(events: EventItem[]): ExecutionSummary[] {
       finishedAtUtc: end.createdAtUtc,
       durationMs: end.durationMs,
       workerRef: end.workerRef,
-      outcome: outcomeOf(end.eventCode, facts.outcome),
+      outcome: outcome === 'suspended' && executionSlept(events, executionNumber) ? 'sleeping' : outcome,
       reason: facts.reason ?? null,
       message: end.message,
     };
@@ -125,7 +128,8 @@ export function executionPresentation(outcome: ExecutionOutcome): ExecutionPrese
     case 'failed': return { tone: 'bad', icon: 'x', label: 'Failed' };
     case 'executing': return { tone: 'run', icon: 'lightning-bolt', label: 'Executing' };
     case 'rescheduled': return { tone: 'warn', icon: 'counter-clockwise-clock', label: 'Rescheduled' };
-    case 'suspended': return { tone: 'held', icon: 'clock', label: 'Sleeping' };
+    case 'suspended': return { tone: 'held', icon: 'clock', label: 'Waiting' };
+    case 'sleeping': return { tone: 'held', icon: 'clock', label: 'Sleeping' };
     case 'paused': return { tone: 'warn', icon: 'pause', label: 'Paused' };
     case 'cancelled': return { tone: 'bad', icon: 'x', label: 'Cancelled' };
     case 'orphaned': return { tone: 'warn', icon: 'warn', label: 'Orphaned' };
