@@ -558,7 +558,7 @@ service or another singleton included.
 - `jobs.GetLineageMapAsync(jobRef)` answers one job with its `Ancestors` and its direct `Children`, each list capped and flagged (`ChildrenHasMore`). It is the neighbourhood of that job, not the whole tree: walk down by asking again for a child.
 - `executing` means claimed, and the concurrency slot and the rate turn are taken after the claim. A count of `executing` jobs can therefore read above a `ConcurrencyLimit` for a moment; to show what is inside a gate, show the step the handler has reached.
 - A page's script can call the same reads as JSON under `/acta/api/v1`, and a link to a job in Acta's dashboard is `/acta/#/jobs/{jobRef}`.
-- The timings in force read from `IOptions<JobsOptions>`: `HeartbeatInterval` (45 s by default), and the two derived from it, `LeaseTtlSeconds` (four beats, 180 s) and `WorkerDeadAfter` (seven beats, 315 s).
+- The timings in force read from `IOptions<JobsOptions>`: `HeartbeatInterval` (45 s by default), and the two derived from it, `LeaseTtl` (four beats, 180 s) and `WorkerDeadAfter` (seven beats, 315 s).
 
 ## The HTTP API
 

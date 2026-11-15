@@ -84,16 +84,19 @@ public sealed class JobsOptions
     public TimeSpan HeartbeatInterval { get; set; } = TimeSpan.FromSeconds(45);
 
     /// <summary>
-    /// Derived, <see cref="HeartbeatInterval"/> x4: worker-wide lease window in seconds, set on every claim and
-    /// refreshed by the heartbeat while a handler executes. The multiple keeps a live worker's own jobs from being
-    /// reclaimed mid-run: it can miss three beats before crash recovery may take its leases. Long-running
-    /// handlers stay alive through heartbeating, not a longer lease, and there is no per-definition override, which
-    /// would re-add a JOIN to <c>definitions</c> on the hot claim path. Default 180s.
+    /// Derived, <see cref="HeartbeatInterval"/> x4: worker-wide lease window, set on every claim and refreshed by the
+    /// heartbeat while a handler executes. The multiple keeps a live worker's own jobs from being reclaimed mid-run: it
+    /// can miss three beats before crash recovery may take its leases. Long-running handlers stay alive through
+    /// heartbeating, not a longer lease, and there is no per-definition override, which would re-add a JOIN to
+    /// <c>definitions</c> on the hot claim path. Default 180s.
     /// </summary>
-    public int LeaseTtlSeconds
+    public TimeSpan LeaseTtl => TimeSpan.FromSeconds(LeaseTtlSeconds);
+
+    /// <summary><see cref="LeaseTtl"/> in whole seconds, as the routines take it; tests set it directly.</summary>
+    internal int LeaseTtlSeconds
     {
         get => _leaseTtlSeconds ?? (int)(HeartbeatInterval.TotalSeconds * LeaseHeartbeatMultiple);
-        internal set => _leaseTtlSeconds = value;
+        set => _leaseTtlSeconds = value;
     }
 
     /// <summary>

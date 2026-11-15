@@ -20,7 +20,7 @@ public sealed class AnvilStateReader(
     private readonly string _namespaceName = session.NamespaceName;
     private readonly TimeSpan _workerDeadAfter = options.Value.WorkerDeadAfter;
     private readonly int _heartbeatSeconds = (int)options.Value.HeartbeatInterval.TotalSeconds;
-    private readonly int _leaseTtlSeconds = options.Value.LeaseTtlSeconds;
+    private readonly int _leaseTtlSeconds = (int)options.Value.LeaseTtl.TotalSeconds;
 
     public async ValueTask<AnvilState> ReadAsync(CancellationToken ct = default)
     {

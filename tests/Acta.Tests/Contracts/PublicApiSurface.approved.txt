@@ -1697,7 +1697,6 @@ sealed class Acta.JobsOptions
     System.Boolean AllowClockSkew { get;set; }
     System.Boolean RunSystemJobs { get;set; }
     System.Int32 AlertFailureThreshold { get;set; }
-    System.Int32 LeaseTtlSeconds { get; }
     System.Int32 MaxConcurrentExecutors { get;set; }
     System.Int32 MaxInlinePayloadBytes { get;set; }
     System.String? DeploymentVersion { get;set; }
@@ -1706,6 +1705,7 @@ sealed class Acta.JobsOptions
     System.TimeSpan AlertRetention { get;set; }
     System.TimeSpan HeartbeatInterval { get;set; }
     System.TimeSpan JobEventsRetention { get;set; }
+    System.TimeSpan LeaseTtl { get; }
     System.TimeSpan SafetyPollInterval { get;set; }
     System.TimeSpan WorkerDeadAfter { get; }
     System.TimeSpan WorkerRetention { get;set; }

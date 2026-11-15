@@ -18,7 +18,7 @@ internal sealed record WorkerSettings(
         new(
             options.MaxConcurrentExecutors,
             options.HeartbeatInterval.TotalSeconds,
-            options.LeaseTtlSeconds,
+            (int)options.LeaseTtl.TotalSeconds,
             options.SafetyPollInterval.TotalMilliseconds,
             options.WorkerDeadAfter.TotalSeconds
         );

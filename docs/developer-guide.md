@@ -734,7 +734,7 @@ alert settings, or lease/heartbeat relationships fail fast.
 | `MaxConcurrentExecutors` | `clamp(ProcessorCount * 4, 8, 64)` | per worker | Maximum in-flight handler executions per worker; each `Run(...)` in a process is its own worker with this many. A claim takes one row for every free executor. |
 | `SafetyPollInterval` | 1 second | per process | Idle polling ceiling when no wakeup is received. Must be at least 1 second. |
 | `HeartbeatInterval` | 45 seconds | coordination invariant | Worker heartbeat cadence, and the only timing value you set. Must be 6 hours or less. |
-| `LeaseTtlSeconds` | 180 (derived) | read-only | `HeartbeatInterval` x4. Lease window refreshed while handlers run. |
+| `LeaseTtl` | 180 (derived) | read-only | `HeartbeatInterval` x4. Lease window refreshed while handlers run. |
 | `WorkerDeadAfter` | 315 s (derived) | read-only | `HeartbeatInterval` x7. No-heartbeat window before crash recovery marks a worker Dead. |
 | `WorkerRetention` | 90 days | cluster data | Terminal worker row retention, `Stopped` and `Dead` alike. A row also stays until `JobEventsRetention` has passed, so events keep their worker. Must be at least one day. |
 | `JobEventsRetention` | 365 | cluster data | Retention for every event row, both audit timeline and execution ledger. |

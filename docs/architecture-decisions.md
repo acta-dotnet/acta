@@ -223,7 +223,7 @@ The terms for internal structure; where each piece lives is [source layout](../C
 ### Behavior conventions
 
 - **Duration policy has three representations.** ISO 8601 in attributes/config, `TimeSpan` in C#, `int` seconds in the DB. *Reason:* one canonical form per layer.
-- **One heartbeat rhythm:** `HeartbeatInterval` 45s is the single setting; `LeaseTtlSeconds` (x4, 180s) and `WorkerDeadAfter` (x7, 315s) derive from it, and leases and worker liveness extend on one loop. *Reason:* one tuning constant, one mental model - and since the triple must agree across replicas with nothing able to verify that at runtime, deriving holds the ratio by construction instead of by validation.
+- **One heartbeat rhythm:** `HeartbeatInterval` 45s is the single setting; `LeaseTtl` (x4, 180s) and `WorkerDeadAfter` (x7, 315s) derive from it, and leases and worker liveness extend on one loop. *Reason:* one tuning constant, one mental model - and since the triple must agree across replicas with nothing able to verify that at runtime, deriving holds the ratio by construction instead of by validation.
 - **`TimeProvider`, not `DateTime.UtcNow`**, for anything driving scheduling, lease, or claim correctness; carve-outs are DB-rendered defaults, the `DeduplicationKey.Per*` convenience overloads, the clock-free wakeup hint, the handler's advisory deadline reads (`IsOverdue`, `TimeUntilDeadline`), the in-process wait for a rate turn, and a placeholder next run the completion overwrites in the same statement. *Reason:* testability and clock-source clarity.
 - **Per-execution DI scope.** Scoped services receive fresh instances per attempt. *Reason:* the attempt is the unit of work.
 

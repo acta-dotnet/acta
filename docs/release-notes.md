@@ -51,6 +51,8 @@ Not tagged yet.
 
 **Read the wakeup meters' tag values in kebab case**: `acta.wakeup.*` tags its channel `worker-namespace`, `all-worker-namespaces` or `job-completion`, its reason `work-available`, `horizon-changed` or `job-finished`, and a wait's result `signaled` or `timed-out`, as every other Acta tag value is spelled, where they were written with underscores.
 
+**Read `JobsOptions.LeaseTtl` where code read `LeaseTtlSeconds`**: the lease window is a `TimeSpan`, as every other duration on `JobsOptions` is; `LeaseTtl.TotalSeconds` gives the number the old property did.
+
 **Read `ExplainJobLease.WorkerDead` where code read `WorkerStale`**: the flag says recovery has marked the lease holder dead, which the worker list's `Stale` does not; it is `workerDead` over HTTP and in `jobs explain --json`.
 
 **Pass `Finished` where code passed `ListJobsQuery.TerminalOnly`, and `finished` where a request sent `terminalOnly`**: true lists the finished jobs, Succeeded, Failed and Cancelled, as before, and false now lists only the unfinished ones, where it listed every job, as null does. The jobs list ignores a query parameter it does not know, so a request that still sends `terminalOnly=true` lists every job.

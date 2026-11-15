@@ -706,7 +706,7 @@ Keep clocks healthy rather than suppressing the check. A skewed host or database
 look expired too early or too late.
 
 The coordination triple is one setting. Keep `HeartbeatInterval` the same across every worker in a
-namespace; `LeaseTtlSeconds` (x4) and `WorkerDeadAfter` (x7) derive from it and are read-only, so
+namespace; `LeaseTtl` (x4) and `WorkerDeadAfter` (x7) derive from it and are read-only, so
 replicas that agree on the heartbeat agree on all three by construction.
 
 The default shape is a 45-second heartbeat, a 180-second lease, and a 315-second dead-worker
