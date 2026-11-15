@@ -2637,6 +2637,11 @@
 
 ## Steps
 
+### GetJobStepResultOrDefault reads a step's result from outside the job
+- **Contract:** A succeeded step's result reads back outside the job as its type, default for a step without one, a step not run, or no job.
+- **Guarantees:**
+  - A succeeded step's result reads back as its type under any casing of its name, and default otherwise
+
 ### A result that cannot be recorded never runs its body again
 - **Contract:** A finished body whose result cannot be recorded fails its job for good instead of running again, and an at-most-once step stays unrun through a restart.
 - **Guarantees:**
@@ -2940,6 +2945,7 @@
 | `GetJobLineageMap` | yes | yes | yes |
 | `GetJobResult` | yes | yes | yes |
 | `GetJobStatus` | yes | yes | yes |
+| `GetJobStepResultOrDefault` | yes | yes | yes |
 | `GetJobVariableOrDefault` | yes | yes | yes |
 | `GetNamespace` | yes | yes | yes |
 | `GetOutboxSignal` | yes | yes | yes |

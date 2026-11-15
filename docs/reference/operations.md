@@ -108,6 +108,7 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 | `GetJobLineageMap` | `IJobs.GetLineageMapAsync` | · | · | inline | · | `GetJobLineageMapSpec` |
 | `GetJobResult` | `IJobs.GetResultAsync` | `GET /jobs/{jobRef}/result` (`getJobResult`, `acta.read`) | `result` | inline | · | `GetJobResultSpec` |
 | `GetJobStatus` | `IJobs.GetStatusAsync` | · | `status` | inline | · | `GetJobStatusSpec` |
+| `GetJobStepResultOrDefault` | `IJobs.GetStepResultOrDefaultAsync` | · | · | inline | · | `GetJobStepResultOrDefaultSpec` |
 | `GetJobVariableOrDefault` | `IJobs.GetVariableOrDefaultAsync` | · | · | inline | · | `GetJobVariableOrDefaultSpec` |
 | `ListJobCheckpoints` | `IJobs.ListCheckpointsAsync` | `GET /jobs/{jobRef}/checkpoints` (`listJobCheckpoints`, `acta.read`) | · | inline | · | `ListJobCheckpointsSpec` |
 | `ListJobSteps` | `IJobs.ListStepsAsync` | `GET /jobs/{jobRef}/steps` (`listJobSteps`, `acta.read`) | · | inline | · | `ListJobStepsSpec` |

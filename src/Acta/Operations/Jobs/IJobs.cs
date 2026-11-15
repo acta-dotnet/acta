@@ -282,6 +282,15 @@ public interface IJobs
     ValueTask<T?> GetVariableOrDefaultAsync<T>(JobLookup job, string name, CancellationToken ct = default);
 
     /// <summary>
+    /// The result the job's step <paramref name="name"/> recorded, read as <typeparamref name="T"/> the way the step's replay
+    /// reads it: <c>await jobs.GetStepResultOrDefaultAsync&lt;Receipt&gt;(jobRef, "charge-card", ct)</c>. Answers
+    /// <c>default</c> until the step has succeeded with a result, and when no job matches, so read <c>int?</c> to tell a
+    /// recorded 0 from none. The name is canonicalized as inside the job, and a malformed name or one under <c>sys.</c>
+    /// throws <see cref="ArgumentException"/>. Non-blocking point-in-time read.
+    /// </summary>
+    ValueTask<T?> GetStepResultOrDefaultAsync<T>(JobLookup job, string name, CancellationToken ct = default);
+
+    /// <summary>
     /// One page of the steps recorded for <see cref="ListJobStepsQuery.Job"/>, most recently started first (two that
     /// started in the same millisecond come by name, not run order): name, status, and the failure that ended an
     /// at-most-once step. A job with no steps, or no job at all, answers an empty page. Non-blocking point-in-time read.
