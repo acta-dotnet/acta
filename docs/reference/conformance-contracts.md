@@ -1867,7 +1867,8 @@
 - **Contract:** ListJobs filters partition the result to exactly the matching rows and exclude all non-matching rows for each filter dimension.
 - **Guarantees:**
   - Status filter returns only jobs at the specified status and the total matches the filtered count
-  - TerminalOnly restricts to terminal rows and Kind to jobs of that kind
+  - Finished true restricts to terminal rows and Kind to jobs of that kind
+  - Finished false lists only unfinished rows, Ready and Executing alike, and the total matches
   - ParentJobId filter returns exactly the direct children of that parent and no other children
   - TenantId filter returns exactly the jobs for that tenant and excludes all other tenants' jobs
   - Namespace filter returns only jobs in the requested namespace and the total matches the filtered count

@@ -50,7 +50,11 @@ WHERE
                 AND ((f.value ->> 'tag_value_search') IS NULL OR t.tag_value_search = f.value ->> 'tag_value_search')
         )
     ))
-    AND (@p_terminal_only IS NULL OR r.job_status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */))
+    AND (
+        @p_finished IS NULL
+        OR (@p_finished AND r.job_status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */))
+        OR (NOT @p_finished AND r.job_status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */))
+    )
     AND (@p_lane_filter IS NULL OR r.lane_id IN (SELECT l.lane_id FROM {{schema}}.lanes l WHERE l.lane_name = @p_lane_filter))
     AND (@p_job_kind_code IS NULL OR j.job_kind_code = @p_job_kind_code)
     AND (@p_cursor_created_at_utc IS NULL
@@ -90,7 +94,11 @@ SELECT CASE WHEN @p_include_total IS NOT NULL THEN (
                     AND ((f.value ->> 'tag_value_search') IS NULL OR t.tag_value_search = f.value ->> 'tag_value_search')
             )
         ))
-        AND (@p_terminal_only IS NULL OR r.job_status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */))
+        AND (
+            @p_finished IS NULL
+            OR (@p_finished AND r.job_status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */))
+            OR (NOT @p_finished AND r.job_status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */))
+        )
         AND (@p_lane_filter IS NULL OR r.lane_id IN (SELECT l.lane_id FROM {{schema}}.lanes l WHERE l.lane_name = @p_lane_filter))
         AND (@p_job_kind_code IS NULL OR j.job_kind_code = @p_job_kind_code)
 ) END;

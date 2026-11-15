@@ -2589,9 +2589,9 @@
             }
           },
           {
-            "name": "terminalOnly",
+            "name": "finished",
             "in": "query",
-            "description": "True restricts to terminal statuses.",
+            "description": "True restricts to finished jobs (succeeded, failed, cancelled), false to unfinished ones.",
             "schema": {
               "type": "boolean"
             }

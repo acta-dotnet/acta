@@ -54,8 +54,9 @@ WHERE
         )
     ))
     AND (
-        @p_terminal_only IS NULL
-        OR r.job_status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
+        @p_finished IS NULL
+        OR (@p_finished = 1 AND r.job_status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */))
+        OR (@p_finished = 0 AND r.job_status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */))
     )
     AND (@p_lane_filter IS NULL OR r.lane_id IN (SELECT l.lane_id FROM {{schema}}.lanes l WHERE l.lane_name = @p_lane_filter))
     AND (@p_job_kind_code IS NULL OR j.job_kind_code = @p_job_kind_code)
@@ -102,8 +103,9 @@ SELECT CASE WHEN @p_include_total IS NOT NULL THEN (
             )
         ))
         AND (
-            @p_terminal_only IS NULL
-            OR r.job_status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
+            @p_finished IS NULL
+            OR (@p_finished = 1 AND r.job_status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */))
+            OR (@p_finished = 0 AND r.job_status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */))
         )
         AND (@p_lane_filter IS NULL OR r.lane_id IN (SELECT l.lane_id FROM {{schema}}.lanes l WHERE l.lane_name = @p_lane_filter))
         AND (@p_job_kind_code IS NULL OR j.job_kind_code = @p_job_kind_code)

@@ -307,15 +307,15 @@ internal static partial class ActaSchema
         public static readonly DbValueSpec<bool?> UnresolvedOnlyFlag = new("p_unresolved_only", DbKind.Boolean);
 
         /// <summary>
-        /// ListJobs tri-state flag: true restricts to terminal rows; NULL skips it (false is folded to NULL before binding).
-        /// </summary>
-        public static readonly DbValueSpec<bool?> TerminalOnlyFlag = new("p_terminal_only", DbKind.Boolean);
-
-        /// <summary>
         /// List-read tri-state flag: null skips the filter, true/false restrict to acknowledged/unacknowledged
         /// rows (unlike the "only" flags above, both non-null states are meaningful, not just true).
         /// </summary>
         public static readonly DbValueSpec<bool?> AcknowledgedFilter = new("p_acknowledged", DbKind.Boolean);
+
+        /// <summary>
+        /// ListJobs tri-state flag: null skips the filter, true/false restrict to terminal/non-terminal rows.
+        /// </summary>
+        public static readonly DbValueSpec<bool?> FinishedFilter = new("p_finished", DbKind.Boolean);
 
         /// <summary>
         /// List-read total toggle: when requested, storage computes the filter-wide row count into the

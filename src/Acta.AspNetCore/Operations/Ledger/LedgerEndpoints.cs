@@ -37,7 +37,7 @@ internal static class LedgerEndpoints
                             Cursor: query.Text("cursor"),
                             IncludeTotal: query.Bool("includeTotal") ?? false,
                             Tags: query.Tags(),
-                            TerminalOnly: query.Bool("terminalOnly"),
+                            Finished: query.Bool("finished"),
                             Kind: query.Code("kind", JobKindCodeExtensions.FromCode),
                             Lane: query.Text("lane")
                         ),
@@ -55,7 +55,11 @@ internal static class LedgerEndpoints
                     new QueryParameterDoc("jobNamespace", QueryParameterKind.String, "Only jobs in this namespace."),
                     new QueryParameterDoc("jobName", QueryParameterKind.String, "Exact job name."),
                     new QueryParameterDoc("status", QueryParameterKind.String, "Exact job status as a kebab code.", CodeKind: "job-status"),
-                    new QueryParameterDoc("terminalOnly", QueryParameterKind.Bool, "True restricts to terminal statuses."),
+                    new QueryParameterDoc(
+                        "finished",
+                        QueryParameterKind.Bool,
+                        "True restricts to finished jobs (succeeded, failed, cancelled), false to unfinished ones."
+                    ),
                     new QueryParameterDoc("kind", QueryParameterKind.String, "Exact job kind as a kebab code.", CodeKind: "job-kind"),
                     new QueryParameterDoc("parentJobRef", QueryParameterKind.String, "Only direct children of this parent job ref."),
                     new QueryParameterDoc("correlationKey", QueryParameterKind.String, "Only jobs stamped with this correlation key."),

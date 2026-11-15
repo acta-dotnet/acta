@@ -636,7 +636,8 @@ The boundary has three sides, and only two of them are inside it:
   `outboxId` keeps the `Id` suffix because it is a uuid with no rendered handle.
 - `jobNamespace` is the namespace's name everywhere, on every tier.
 - Instants end in `AtUtc` (`createdAtUtc`); every persisted instant is UTC.
-- Narrowing booleans end in `Only` and are nullable (`unresolvedOnly`, `liveOnly`).
+- Narrowing booleans end in `Only` and are nullable (`unresolvedOnly`, `liveOnly`). A filter on a state with two
+  sides takes the state's name instead: true one side, false the other, null both (`finished`).
 - Paging is cursor-only: `pageSize` + opaque `cursor`, `nextCursor`/`hasMore` on the page; no
   offset paging anywhere.
 - **`expectedVersion` is the CAS token on requests; `version` on responses is the new current

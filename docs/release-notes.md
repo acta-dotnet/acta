@@ -51,6 +51,8 @@ Not tagged yet.
 
 **Read `ExplainJobLease.WorkerDead` where code read `WorkerStale`**: the flag says recovery has marked the lease holder dead, which the worker list's `Stale` does not; it is `workerDead` over HTTP and in `jobs explain --json`.
 
+**Pass `Finished` where code passed `ListJobsQuery.TerminalOnly`, and `finished` where a request sent `terminalOnly`**: true lists the finished jobs, Succeeded, Failed and Cancelled, as before, and false now lists only the unfinished ones, where it listed every job, as null does. The jobs list ignores a query parameter it does not know, so a request that still sends `terminalOnly=true` lists every job.
+
 ### Additions
 
 - A `job.signal-raised` event says which signal or child in its details: an operator's raise adds `"signal":"approved"` beside its reason, and a child's end, from its completion or from a cancel, retire or recovery, adds `"child":"job_..."`, the child's ref, and `"status"`, `succeeded`, `failed` or `cancelled`. A timeline with two signals or two children no longer has to tell them apart by message or actor. Migration `M20261115163733_name_the_raised_signal` re-creates `raise_job_signal` and `complete_executions` on PostgreSQL and SQL Server.

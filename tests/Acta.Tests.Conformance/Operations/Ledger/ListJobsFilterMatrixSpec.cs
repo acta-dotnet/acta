@@ -92,8 +92,8 @@ public sealed class ListJobsFilterMatrixSpec : ActaRuntimeTestBase<ConformanceFi
         Assert.Equal([j3], failedPage.Items.Select(static i => i.JobId).ToHashSet());
     }
 
-    [Fact(DisplayName = "TerminalOnly restricts to terminal rows and Kind to jobs of that kind")]
-    public async Task TerminalOnly_and_Kind_restrict_exactly()
+    [Fact(DisplayName = "Finished true restricts to terminal rows and Kind to jobs of that kind")]
+    public async Task Finished_and_Kind_restrict_exactly()
     {
         var ct = TestContext.Current.CancellationToken;
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
@@ -121,13 +121,13 @@ public sealed class ListJobsFilterMatrixSpec : ActaRuntimeTestBase<ConformanceFi
 
         var queries = Services.GetRequiredService<IActaOperations>();
 
-        // TerminalOnly: only the failed row survives; the Ready sibling is excluded and the total matches.
-        var terminalPage = await queries.Ledger.ListJobsAsync(
-            new ListJobsQuery(JobNamespace: TestNamespace, JobName: "add-numbers", TerminalOnly: true, IncludeTotal: true),
+        // Finished true: only the failed row survives; the Ready sibling is excluded and the total matches.
+        var finishedPage = await queries.Ledger.ListJobsAsync(
+            new ListJobsQuery(JobNamespace: TestNamespace, JobName: "add-numbers", Finished: true, IncludeTotal: true),
             ct
         );
-        Assert.Equal([failed], terminalPage.Items.Select(static i => i.JobId).ToHashSet());
-        Assert.Equal(1L, terminalPage.TotalCount);
+        Assert.Equal([failed], finishedPage.Items.Select(static i => i.JobId).ToHashSet());
+        Assert.Equal(1L, finishedPage.TotalCount);
 
         // Kind: the recurring-ping permanent slot and the enqueued ordinary rows share the namespace, and each
         // is listed only under its own kind.
@@ -148,13 +148,44 @@ public sealed class ListJobsFilterMatrixSpec : ActaRuntimeTestBase<ConformanceFi
         Assert.Contains(failed, ordinaryIds);
         Assert.DoesNotContain(slot.JobId, ordinaryIds);
         Assert.Equal((long)ordinaryPage.Items.Count, ordinaryPage.TotalCount);
+    }
 
-        // TerminalOnly false is a no-op, identical to the unfiltered read.
-        var falsePage = await queries.Ledger.ListJobsAsync(
-            new ListJobsQuery(JobNamespace: TestNamespace, JobName: "add-numbers", TerminalOnly: false),
+    [Fact(DisplayName = "Finished false lists only unfinished rows, Ready and Executing alike, and the total matches")]
+    public async Task Finished_false_lists_only_unfinished_rows()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
+        const int LeaseTtl = 300;
+
+        var worker = await Db.From<WorkerEntity>().Where(w => w.NamespaceId == ns).SingleOrDefaultAsync(ct);
+        Assert.NotNull(worker);
+
+        // One row stays Ready, one is claimed and stays Executing, one is driven to terminal Failed.
+        var outcomes = await EnqueueAsync([AddNumbersRow(), AddNumbersRow(), AddNumbersRow()], ct);
+        var ready = outcomes[0].JobId;
+        var executing = outcomes[1].JobId;
+        var failed = outcomes[2].JobId;
+
+        var execution = Services.GetRequiredService<ExecutionOperations>();
+        var claim = Assert.Single(await execution.ClaimJobAsync(ns, worker!.Id, LeaseTtl, failed, ct));
+        var completed = await execution.CompleteAsync(
+            worker.Id,
+            CompletionTestOps.Landing(claim, succeeded: false) with
+            {
+                HandlerStatusCode = (byte)JobStatusCode.Failed,
+            },
             ct
         );
-        Assert.Equal([ready, failed], falsePage.Items.Select(static i => i.JobId).ToHashSet());
+        Assert.Equal(CompleteExecutionsAction.Completed, completed.Action);
+        Assert.Single(await execution.ClaimJobAsync(ns, worker.Id, LeaseTtl, executing, ct));
+
+        var queries = Services.GetRequiredService<IActaOperations>();
+        var unfinishedPage = await queries.Ledger.ListJobsAsync(
+            new ListJobsQuery(JobNamespace: TestNamespace, JobName: "add-numbers", Finished: false, IncludeTotal: true),
+            ct
+        );
+        Assert.Equal([ready, executing], unfinishedPage.Items.Select(static i => i.JobId).ToHashSet());
+        Assert.Equal(2L, unfinishedPage.TotalCount);
     }
 
     [Fact(DisplayName = "ParentJobId filter returns exactly the direct children of that parent and no other children")]

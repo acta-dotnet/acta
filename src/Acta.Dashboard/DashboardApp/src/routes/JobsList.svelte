@@ -253,7 +253,7 @@
           tenantName: $filters.tenantName,
           lane: $filters.lane,
           tag: parseTagTokens($filters.tags),
-          terminalOnly: view === 'history' ? 'true' : '',
+          finished: view === 'history' ? 'true' : '',
           kind: view === 'permanent' ? 'permanent' : ''
         })}
         countMode="on-demand"
