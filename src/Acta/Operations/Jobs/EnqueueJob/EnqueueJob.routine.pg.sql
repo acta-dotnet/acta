@@ -40,6 +40,9 @@ DECLARE
     v_parent_corr VARCHAR;
     v_parent_tenant INT;
     v_job_id BIGINT;
+    v_held_id BIGINT;
+    v_held_ref UUID;
+    v_held_tenant INT;
     v_lane VARCHAR;
     v_lane_id BIGINT;
 BEGIN
@@ -332,22 +335,8 @@ BEGIN
 
         RETURN QUERY SELECT 0, v_job_id, p_job_ref, 1 /* EnqueueJobAction.Inserted */;
     ELSE
-        -- A key another tenant's job holds is refused, naming neither: the caller learns only that it is taken.
-        IF p_parent_job_id IS NULL AND v_tenant_id IS NOT NULL AND EXISTS (
-            SELECT 1
-            FROM {{schema}}.jobs j
-            WHERE
-                j.namespace_id = v_ns_id
-                AND j.deduplication_key = p_deduplication_key
-                AND j.parent_job_id IS NULL
-                AND j.tenant_id <> v_tenant_id
-        ) THEN
-            RAISE EXCEPTION 'ACTA:ENQ_TENANT_MISMATCH:Enqueue rejected: the deduplication key belongs to another tenant''s job.'
-                USING ERRCODE = 'P0001';
-        END IF;
-
-        RETURN QUERY
-        SELECT 0, j.job_id, j.job_ref, 2 /* EnqueueJobAction.Deduplicated */
+        -- One read both checks and answers the held job, so a purge and a new holder between two reads cannot swap it.
+        SELECT j.job_id, j.job_ref, j.tenant_id INTO v_held_id, v_held_ref, v_held_tenant
         FROM {{schema}}.jobs j
         WHERE
             (p_parent_job_id IS NULL
@@ -357,6 +346,16 @@ BEGIN
             OR (p_parent_job_id IS NOT NULL
                 AND j.parent_job_id = p_parent_job_id
                 AND j.deduplication_key = p_deduplication_key);
+
+        -- A key another tenant's job holds is refused, naming neither: the caller learns only that it is taken.
+        IF p_parent_job_id IS NULL AND v_held_tenant <> v_tenant_id THEN
+            RAISE EXCEPTION 'ACTA:ENQ_TENANT_MISMATCH:Enqueue rejected: the deduplication key belongs to another tenant''s job.'
+                USING ERRCODE = 'P0001';
+        END IF;
+
+        IF v_held_id IS NOT NULL THEN
+            RETURN QUERY SELECT 0, v_held_id, v_held_ref, 2 /* EnqueueJobAction.Deduplicated */;
+        END IF;
     END IF;
 END;
 $$;
