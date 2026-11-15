@@ -34,9 +34,9 @@ high-throughput event streaming.
 ## Run the experiment
 
 This is intentionally a real distributed-provider lab, since its two workers run at once. One SQLite host
-recovers the same way across restarts: its next start reclaims a killed predecessor's job on the first recovery
-pass after the lease lapses, as [220](../../200-durable-execution/220-at-most-once-step/) shows with its `crash`
-and `recover` runs. Set `ACTA_LOCAL_PROVIDER=postgres` or
+recovers across restarts without waiting out the lease: its next start finds a predecessor on the same machine
+whose process has ended, marks it dead, and reclaims its job at once, as
+[220](../../200-durable-execution/220-at-most-once-step/) shows with its `crash` and `recover` runs. Set `ACTA_LOCAL_PROVIDER=postgres` or
 `sqlserver` plus `ACTA_TEST_PG`/`ACTA_TEST_MSSQL`, then use separate terminals:
 
 ```bash

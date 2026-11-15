@@ -45,21 +45,25 @@ There are exactly two ways a worker process ends, and the terminal status names 
 | Status | What happened | Event |
 |---|---|---|
 | `Stopped = 100` | Exited cleanly through SIGTERM / `IHostedService.StopAsync` | `worker.stopped` (121) |
-| `Dead = 200` | Heartbeat went stale past the liveness window; crash recovery flipped it | `worker.died` (122) |
+| `Dead = 200` | Heartbeat went stale past the liveness window, or on SQLite its process had ended when a worker of the same namespace started on the same machine; crash recovery flipped it | `worker.died` (122) |
 
 A clean stop drains. The worker stops claiming, is stamped `Draining`, and lets its running handlers
 finish; when the last one lands it is stamped `Stopped`. The host bounds that wait with
 `HostOptions.ShutdownTimeout`. A handler still running when it passes has its token cancelled and the
 process exits without a completion for it, so the job keeps its lease until the lease lapses, and crash
 recovery then reclaims it and charges the attempt (`lease-expired`). Give a host whose handlers run
-longer than the shutdown timeout a longer one, and have such handlers honour their token.
+longer than the shutdown timeout a longer one, and have such handlers honour their token. In a web host the
+dashboard and the HTTP API stop before the worker, so only another process reading the database sees `Draining`.
 
 On a terminal worker, `modified_at_utc` is the instant it ended: both transitions stamp it. Crash
 recovery stamps it again when it reclaims a job the worker still leased, because that writes an event
 naming the worker. A worker
 killed outright never reaches the clean path, so it stays `Active`, or `Draining` if the kill landed
 mid-drain, until recovery marks it `Dead` - which is why a kill and a crash are indistinguishable
-here, and correctly so. A worker cut off by a database outage longer than `WorkerDeadAfter` is
+here, and correctly so. On SQLite, where one process owns the file, that wait ends at the next start when crash
+recovery is on: a worker starting in the namespace on the same machine marks `Dead` each worker there whose process has ended (no process
+has its id, or the one that has it started after the worker), lapses the leases, locks, and concurrency slots of
+its jobs, and runs a recovery pass, so they run again within the start. A worker cut off by a database outage longer than `WorkerDeadAfter` is
 marked `Dead` too, and its first heartbeat after the outage makes it `Active` again and records
 `worker.started`, so every `worker.died` of a worker that lived on has a start after it.
 

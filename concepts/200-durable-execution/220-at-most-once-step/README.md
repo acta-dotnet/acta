@@ -50,8 +50,8 @@ queries select the fields that prove the lesson, and the text below explains the
 
 Before recovery, `jobs_view` is executing with a lapsed owner and `steps_view` is pending. After crash
 recovery re-arms it, the step becomes `interrupted`, and its `failure_message` says why;
-`events_view` preserves the loss and replay. The lab uses short lease timings
-only to make the experiment quick.
+`events_view` preserves the loss and replay. On SQLite the restarted host releases the crashed
+process's job at once; on a server database the lab's short lease timings make the wait quick.
 
 ## Break it
 

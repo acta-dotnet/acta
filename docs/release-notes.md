@@ -53,6 +53,7 @@ Not tagged yet.
 - A generated call that reaches an input parameter, as `input: call` or through a generic helper, is enqueued by the job it names, where it threw an `ArgumentException`.
 - A wait's timeout of zero or less waits the one-second minimum, and a sleep's returns at once, where both threw `ArgumentOutOfRangeException` until the job failed. So a deadline shared by several waits is `deadline - DateTime.UtcNow` at each of them: on the replay after the deadline the remaining time goes negative, and each wait's stored expiration decides.
 - A sleep with no reason names its timer and the instant it lasts until on its suspend events (`Timer 'cool-down' until 2026-11-15 09:30:00Z.`), where their message was empty.
+- On SQLite a restart brings a killed host's jobs back at once: a starting worker with crash recovery on marks `Dead` each worker of its namespace on the same machine whose process has ended (no process has its id, or the one that has it started after the worker), lapses the leases, locks and concurrency slots of its jobs, and runs a recovery pass, where they waited three to about seven minutes for the lease. Server databases keep the lease wait.
 
 ## 1.0.0-rc.11
 

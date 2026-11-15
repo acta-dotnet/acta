@@ -60,10 +60,7 @@ internal static partial class ActaLog
     [LoggerMessage(Level = LogLevel.Information, Message = "Acta: enqueue-only process; no workers registered.")]
     public static partial void EnqueueOnlyProcess(ILogger log);
 
-    [LoggerMessage(
-        Level = LogLevel.Warning,
-        Message = "Acta recovery in namespace ({ActaNamespace}): {ActaDetail}. A reclaimed job's timeline records job.execution-orphaned."
-    )]
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Acta recovery in namespace ({ActaNamespace}): {ActaDetail}.")]
     public static partial void RecoveryPassChangedWork(ILogger log, string actaNamespace, string actaDetail);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Acta applied migrations at startup ({ActaDetail}).")]

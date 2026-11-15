@@ -69,7 +69,11 @@ public sealed class RecoveryPassTests
         // One warning per pass that changed work, so an operator tailing the log sees the crash and its recovery.
         var line = Assert.Single(log.Lines);
         Assert.Equal(LogLevel.Warning, line.Level);
-        Assert.Contains("dead workers marked: 3, jobs reclaimed after their lease expired: 2", line.Message, StringComparison.Ordinal);
+        Assert.Contains(
+            "dead workers marked (all namespaces): 3, jobs reclaimed after their lease expired: 2",
+            line.Message,
+            StringComparison.Ordinal
+        );
     }
 
     [Fact]

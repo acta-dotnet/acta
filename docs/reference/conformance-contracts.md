@@ -2822,6 +2822,12 @@
 - **Guarantees:**
   - Three workers register, each owning one namespace and running jobs only in its own namespace
 
+### Releasing an ended worker lapses its jobs' leases and holds at once
+- **Contract:** ReleaseGoneWorkers turns live workers Dead and lapses their jobs' leases, locks and slots, and a SQLite start releases this machine's ended workers.
+- **Guarantees:**
+  - A release turns the worker Dead and lapses its jobs' leases, locks, and slots, and leaves rate rows and other workers
+  - A start on SQLite releases this machine's workers whose process has ended and reclaims their jobs; a server database leaves them to the lease
+
 ### Stop flips an active worker to Stopped once and is idempotent
 - **Contract:** Stopping an active worker flips it to Stopped and emits one worker.stopped event, and a second stop on the terminal worker is a no-op.
 - **Guarantees:**
@@ -2976,6 +2982,7 @@
 | `RegisterSchedules` | yes | yes | yes |
 | `RegisterTenant` | yes | yes | yes |
 | `ReleaseClaimedOutbox` | yes | yes | yes |
+| `ReleaseGoneWorkers` | yes | yes | yes |
 | `ReleaseLock` | yes | yes | yes |
 | `RemoveClaimedOutbox` | yes | yes | yes |
 | `RemoveTag` | yes | yes | yes |

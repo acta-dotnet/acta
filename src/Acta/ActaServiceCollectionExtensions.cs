@@ -232,6 +232,7 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<GetWorkerHandler>();
         services.TryAddSingleton<ListWorkersHandler>();
         services.TryAddSingleton<MarkDeadWorkersHandler>();
+        services.TryAddSingleton<ReleaseGoneWorkersHandler>();
         services.TryAddSingleton<StartWorkerHandler>();
         services.TryAddSingleton<StopWorkerHandler>();
         services.TryAddSingleton<WorkersOperations>();

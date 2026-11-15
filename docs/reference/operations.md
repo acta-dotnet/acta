@@ -246,6 +246,7 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 | `GetWorker` | `IWorkers.GetAsync` | `GET /workers/{workerRef}` (`getWorker`, `acta.read`) | · | inline | · | `GetWorkerSpec` |
 | `ListWorkers` | `IWorkers.ListAsync` | `GET /workers` (`listWorkers`, `acta.read`) | · | inline | · | `ListWorkersFilterMatrixSpec`, `ListWorkersSpec`, `ListWorkersStaleSpec` |
 | `MarkDeadWorkers` | · | · | · | inline | `events`, `workers` | `MarkDeadWorkersSpec` |
+| `ReleaseGoneWorkers` | · | · | · | inline | `events`, `jobs_state`, `locks`, `workers` | `ReleaseGoneWorkersSpec` |
 | `StartWorker` | · | · | · | inline | `events`, `workers` | `StartWorkerIdAllocationSpec`, `StartWorkerSpec` |
 | `StopWorker` | · | · | · | inline | `events`, `workers` | `StopWorkerSpec` |
 

@@ -74,6 +74,9 @@ internal sealed class WorkerRuntime
             options,
             workerRegistration,
             _context,
+            rootServices.GetRequiredService<RecoveryPass>(),
+            rootServices.GetRequiredService<ISqlDialect>().Provider == DbProvider.Sqlite,
+            metrics,
             logger
         );
 

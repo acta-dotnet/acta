@@ -1,4 +1,6 @@
 using System.Collections.Immutable;
+using System.ComponentModel;
+using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using Microsoft.Extensions.Logging;
@@ -8,9 +10,9 @@ using Microsoft.Extensions.Options;
 namespace Acta;
 
 /// <summary>
-/// Owns the worker-runtime startup: the clock-skew check, the descriptor shape checks, the <c>workers</c> row, and the
+/// Owns the worker-runtime startup: the clock-skew check, the descriptor shape checks, the <c>workers</c> row, the
 /// read of the namespace's deployed catalog into the shared <see cref="WorkerContext"/> read on the claim/dispatch hot
-/// path; then the Stopped stamp on a clean shutdown. It writes no namespace, definition, or schedule: a deploy does
+/// path, and on SQLite the release of this machine's ended workers; then the Stopped stamp on a clean shutdown. It writes no namespace, definition, or schedule: a deploy does
 /// (<see cref="CatalogDeployer"/>), and a start refuses a namespace, a version, or a job that no deploy has written. An
 /// enqueue-only runtime (a <c>j.Reference&lt;...&gt;(...)</c> host with no <c>j.Run&lt;...&gt;(...)</c> worker) skips
 /// the worker-row write and leaves the context empty.
@@ -23,11 +25,17 @@ internal sealed class WorkerRuntimeInitializer(
     IOptions<JobsOptions> options,
     WorkerRegistration? workerRegistration,
     WorkerContext context,
+    RecoveryPass recoveryPass,
+    bool singleProcessDatabase,
+    ActaMetrics? metrics,
     ILogger? log = null
 )
 {
     private readonly DefinitionsOperations _definitions = definitions;
     private readonly WorkersOperations _workers = workers;
+    private readonly RecoveryPass _recoveryPass = recoveryPass;
+    private readonly bool _singleProcessDatabase = singleProcessDatabase;
+    private readonly ActaMetrics? _metrics = metrics;
     private readonly IClockOperations _serverClock = serverClock;
     private readonly AlertRoutingCheck? _alertRouting = alertRouting;
     private readonly IOptions<JobsOptions> _options = options;
@@ -87,6 +95,74 @@ internal sealed class WorkerRuntimeInitializer(
             }
             _context.WorkerId = null;
             throw;
+        }
+
+        if (_singleProcessDatabase && _context.RunsRecovery)
+        {
+            await ReleaseGoneWorkersAsync(ns, _context.Worker.NamespaceId, ct);
+        }
+    }
+
+    /// <summary>
+    /// On a database one process owns, SQLite, a worker row of this namespace on this machine whose process has ended
+    /// is dead for good: the start marks it Dead, lapses its jobs' leases and holds, and runs one recovery pass, so
+    /// those jobs run again now rather than a lease and a pass later. A server database keeps the lease wait, because
+    /// replicas that share a host name keep process ids of their own. The release only brings the pass forward, so a
+    /// failure is logged and leaves the jobs to the next pass.
+    /// </summary>
+    private async Task ReleaseGoneWorkersAsync(string ns, int namespaceId, CancellationToken ct)
+    {
+        var outcome = "completed";
+        try
+        {
+            var gone = (await _workers.ListAsync(new ListWorkersQuery(JobNamespace: ns, PageSize: 100), ct))
+                .Items.Where(w =>
+                    w.Status is WorkerStatusCode.Active or WorkerStatusCode.Draining
+                    && w.WorkerId != _context.WorkerId
+                    && w.HostName == Environment.MachineName
+                    && w.ProcessId is { } processId
+                    && ProcessEnded(processId, w.StartedAtUtc)
+                )
+                .ToList();
+            if (gone.Count == 0)
+            {
+                return;
+            }
+
+            await _workers.ReleaseGoneWorkersAsync([.. gone.Select(w => w.WorkerId)], ct);
+            var released = string.Join(", ", gone.Select(w => $"{w.WorkerRef} (process {w.ProcessId})"));
+            ActaLog.RecoveryPassChangedWork(_log, ns, $"released this machine's workers whose process has ended: {released}");
+            await _recoveryPass.RunAsync(namespaceId, ns, ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
+        {
+            outcome = "failed";
+            ActaLog.RecoveryPassFailed(_log, ex, ns);
+        }
+
+        // A pass the start ran counts as the heartbeat's do; a start with nothing to release ran none.
+        _metrics?.RecordRecoveryPass(ns, outcome);
+    }
+
+    /// <summary>
+    /// Whether the process that wrote a worker row has ended: no process has its id, or the one that has it started
+    /// more than a second after the row, a margin for a start time the system reports coarsely. A process this one may
+    /// not inspect counts as running.
+    /// </summary>
+    private static bool ProcessEnded(int processId, DateTime rowStartedAtUtc)
+    {
+        try
+        {
+            using var process = Process.GetProcessById(processId);
+            return process.StartTime.ToUniversalTime() > rowStartedAtUtc.AddSeconds(1);
+        }
+        catch (ArgumentException)
+        {
+            return true;
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or Win32Exception or NotSupportedException)
+        {
+            return false;
         }
     }
 

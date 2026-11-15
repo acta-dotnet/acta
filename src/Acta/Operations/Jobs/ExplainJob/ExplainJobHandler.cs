@@ -22,7 +22,7 @@ internal sealed class ExplainJobHandler(GetJobIdHandler getJobId, IDbSession ses
             return null;
         }
 
-        return Explain(data, await clock.GetUtcNowAsync(ct));
+        return Explain(data, await clock.GetUtcNowAsync(ct), dialect.Provider == DbProvider.Sqlite);
     }
 
     /// <summary>The explanation header plus its step and checkpoint sets by job id, or null when no row matches.</summary>
@@ -71,7 +71,7 @@ internal sealed class ExplainJobHandler(GetJobIdHandler getJobId, IDbSession ses
     /// every status to its <c>[Code]</c> description rather than duplicating prose, and branches on Status in the
     /// order the troubleshooting guide prescribes.
     /// </summary>
-    internal static ExplainJobResponse Explain(ExplainJobRows data, DateTime nowUtc)
+    internal static ExplainJobResponse Explain(ExplainJobRows data, DateTime nowUtc, bool sqlite = false)
     {
         var h = data.Header;
         var status = h.Status;
@@ -162,7 +162,7 @@ internal sealed class ExplainJobHandler(GetJobIdHandler getJobId, IDbSession ses
                 break;
 
             case JobStatusCode.Executing:
-                lease = BuildLease(h, nowUtc);
+                lease = BuildLease(h, nowUtc, sqlite);
                 if (lease is { Expired: true })
                 {
                     var lapsed = h.LeaseExpiresAtUtc is { } exp ? $"expired {Ago(exp, nowUtc)}" : "has expired";
@@ -319,7 +319,7 @@ internal sealed class ExplainJobHandler(GetJobIdHandler getJobId, IDbSession ses
             ? $" id:{latchName[RaiseChildLatch.NamePrefix.Length..]}"
             : "";
 
-    private static ExplainJobLease? BuildLease(ExplainJobHeaderRow h, DateTime nowUtc)
+    private static ExplainJobLease? BuildLease(ExplainJobHeaderRow h, DateTime nowUtc, bool sqlite)
     {
         if (h.LeasedByWorkerId is not { } workerId)
         {
@@ -345,9 +345,11 @@ internal sealed class ExplainJobHandler(GetJobIdHandler getJobId, IDbSession ses
         }
         else
         {
+            // On SQLite a starting host releases the jobs of a process that ended on its machine (WorkerRuntimeInitializer).
+            var restart = sqlite ? ", or at once when a host starts on this machine after that worker's process ended" : "";
             recovery = h.LeaseExpiresAtUtc is { } until
-                ? $"The lease is valid until {until:u}; if its worker has stopped, recovery reclaims the job on its first pass after that."
-                : "The lease is valid; if its worker has stopped, recovery reclaims the job on its first pass after the lease lapses.";
+                ? $"The lease is valid until {until:u}; if its worker has stopped, recovery reclaims the job on its first pass after that{restart}."
+                : $"The lease is valid; if its worker has stopped, recovery reclaims the job on its first pass after the lease lapses{restart}.";
         }
 
         // The lease is reported whenever jobs_state still names a holder, because its timings describe the

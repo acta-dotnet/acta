@@ -98,7 +98,9 @@ await lab.ShowAsync(
     new { jobId = crashed.JobId }
 );
 
-Console.WriteLine("Waiting for the short lab lease to lapse; the worker's heartbeat takes the recovery pass once a lease...");
+Console.WriteLine(
+    "Waiting for recovery: on SQLite this host's start releases the crashed process's job at once; on a server database the heartbeat takes the pass once the short lab lease lapses..."
+);
 
 using var recoveryTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
 while (true)

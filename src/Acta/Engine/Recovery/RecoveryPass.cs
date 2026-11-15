@@ -51,7 +51,12 @@ internal sealed class RecoveryPass(
             ActaLog.RecoveryPassChangedWork(
                 _log,
                 namespaceName,
-                $"dead workers marked: {deadWorkers}, jobs reclaimed after their lease expired: {result.Reclaimed}, stranded lanes released: {result.RepairedLanes}"
+                $"dead workers marked (all namespaces): {deadWorkers}, jobs reclaimed after their lease expired: {result.Reclaimed}, stranded lanes released: {result.RepairedLanes}"
+                    + (
+                        result.Reclaimed > 0
+                            ? "; a reclaimed job's timeline records job.execution-orphaned, or job.failed on its last attempt"
+                            : ""
+                    )
             );
         }
 

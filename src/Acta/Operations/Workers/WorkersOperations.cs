@@ -7,7 +7,8 @@ internal sealed class WorkersOperations(
     StartWorkerHandler startWorker,
     StopWorkerHandler stopWorker,
     ExtendWorkerLeasesHandler extendWorkerLeases,
-    MarkDeadWorkersHandler markDeadWorkers
+    MarkDeadWorkersHandler markDeadWorkers,
+    ReleaseGoneWorkersHandler releaseGoneWorkers
 ) : IWorkers
 {
     public ValueTask<GetWorkerResponse?> GetAsync(WorkerRef workerRef, CancellationToken ct = default) =>
@@ -51,4 +52,13 @@ internal sealed class WorkersOperations(
     /// </summary>
     internal Task<MarkDeadWorkersResponse> MarkDeadWorkersAsync(int deadAfterSeconds, CancellationToken ct) =>
         markDeadWorkers.HandleAsync(new MarkDeadWorkersCommand(deadAfterSeconds), ct);
+
+    /// <summary>
+    /// Releases workers whose process is known to be gone: each still Active or Draining turns Dead with a
+    /// <c>worker.died</c> event, and the leases of the jobs they execute, with those jobs' lock holds and concurrency
+    /// slots, lapse at once, so the next recovery pass reclaims the jobs instead of waiting out the lease. A rate
+    /// meter's rows are left alone.
+    /// </summary>
+    internal Task ReleaseGoneWorkersAsync(int[] workerIds, CancellationToken ct) =>
+        releaseGoneWorkers.HandleAsync(new ReleaseGoneWorkersCommand(workerIds), ct);
 }

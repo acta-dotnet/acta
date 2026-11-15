@@ -269,6 +269,19 @@ public class JobExplainerTests
         Assert.Null(x.LastExecutedBy);
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void A_live_lease_on_sqlite_also_names_the_release_at_a_restart(bool sqlite)
+    {
+        var data = Data(Header(JobStatusCode.Executing, leasedByWorkerId: 17, leaseExpiresAtUtc: Now.AddMinutes(2)));
+
+        var recovery = ExplainJobHandler.Explain(data, Now, sqlite).Lease!.RecoveryExpectation;
+
+        Assert.StartsWith("The lease is valid until", recovery, StringComparison.Ordinal);
+        Assert.Equal(sqlite, recovery.Contains("at once when a host starts on this machine", StringComparison.Ordinal));
+    }
+
     [Fact]
     public void Executing_with_an_expired_lease_reports_the_lapse_and_expects_recovery_to_ready()
     {
