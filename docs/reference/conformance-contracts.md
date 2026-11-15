@@ -1801,7 +1801,8 @@
 ### ListAlerts filter-matrix selects exactly matching rows per dimension
 - **Contract:** ListAlerts filters partition the alert rows to exactly the matching ids and exclude all non-matching ids for each filter dimension.
 - **Guarantees:**
-  - JobId filter returns only that job's alerts and excludes all other jobs' alerts
+  - Job filter returns only that job's alerts and excludes all other jobs' alerts
+  - A Job filter that names no job returns an empty page and a zero total
   - DeliveryStatus filter partitions alerts by status and the total matches the filtered count
   - SeverityAtLeast floor returns only alerts at or above the threshold and excludes lower ones
   - UnresolvedOnly filter excludes resolved alerts and includes them when filter is null
@@ -1831,8 +1832,8 @@
 ### ListJobEvents filter-matrix selects exactly matching rows per dimension
 - **Contract:** ListJobEvents filters partition the event rows to exactly the matching ids and exclude all non-matching ids for each filter dimension.
 - **Guarantees:**
-  - JobId filter returns only that job's events and excludes all other jobs' events
-  - LineageRootJobId filter returns all lineage events and excludes unrelated jobs
+  - Job filter returns only that job's events and excludes all other jobs' events
+  - LineageRoot filter returns all lineage events and excludes unrelated jobs
   - JobNamespace filter scopes events to exactly one namespace
   - EventCode filter returns only events of that code and excludes all other codes
   - DefinitionId filter partitions events and applies uniformly to the row count
@@ -1840,6 +1841,7 @@
   - The subject filters select exactly one subject's events, and a kind alone selects that kind
   - An operator verb's event carries the operator's message and the principal as its actor
   - CreatedFromUtc and CreatedToUtc split the timeline at a boundary instant
+  - A Job, LineageRoot, or Worker filter that names nothing returns an empty page, with a zero total for a Job filter
 
 ### ListJobEvents pages a job timeline newest first and scopes totals to a job
 - **Contract:** ListJobEvents pages a job timeline newest first by cursor and reads the page plus an opt-in job-scoped count in one command.
@@ -1871,7 +1873,8 @@
   - Status filter returns only jobs at the specified status and the total matches the filtered count
   - Finished true restricts to terminal rows and Kind to jobs of that kind
   - Finished false lists only unfinished rows, Ready and Executing alike, and the total matches
-  - ParentJobId filter returns exactly the direct children of that parent and no other children
+  - Parent filter returns exactly the direct children of that parent and no other children
+  - A Parent filter that names no job returns an empty page and a zero total
   - TenantId filter returns exactly the jobs for that tenant and excludes all other tenants' jobs
   - Namespace filter returns only jobs in the requested namespace and the total matches the filtered count
   - CorrelationKey filter returns exactly the jobs stamped with that id and excludes other correlation ids

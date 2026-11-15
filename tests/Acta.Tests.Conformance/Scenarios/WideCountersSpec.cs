@@ -498,7 +498,7 @@ public sealed class WideCountersSpec : ActaRuntimeTestBase<ConformanceFixture, J
         Assert.NotNull(explained);
         Assert.Equal(JobStatusCode.Succeeded, explained.Status);
 
-        var events = await Operations.Ledger.ListEventsAsync(new ListEventsQuery(JobId: job.JobId, PageSize: 100), ct);
+        var events = await Operations.Ledger.ListEventsAsync(new ListEventsQuery(Job: job.JobRef, PageSize: 100), ct);
         Assert.Contains(events.Items, e => e.EventCode == EventCode.JobExecutionSucceeded && e.ExecutionNumber == PlantedExecution + 1);
     }
 

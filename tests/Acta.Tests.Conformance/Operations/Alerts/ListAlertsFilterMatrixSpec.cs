@@ -30,7 +30,7 @@ public sealed class ListAlertsFilterMatrixSpec : ActaRuntimeTestBase<Conformance
     ) => AlertTestOps.RaiseAsync(Services, ns ?? TestNamespace, jobId, severity, kind, "title", "message", "default", delivery, null, ct);
 
     /// <summary>
-    /// Enqueue one job in this spec's own namespace and return its id, for use as an alert subject.
+    /// Enqueue one job in this spec's own namespace, for use as an alert subject.
     /// </summary>
     /// <remarks>
     /// raise_alert resolves job_id against the whole jobs table, not against the alert's namespace, so
@@ -38,12 +38,11 @@ public sealed class ListAlertsFilterMatrixSpec : ActaRuntimeTestBase<Conformance
     /// schema and throws ACTA:ALERT_UNKNOWN_JOB the moment a purge or a schema reset removes them. Which
     /// ids the alerts hang off is irrelevant to the filter under test; that this spec owns them is not.
     /// </remarks>
-    private async Task<long> EnqueueProbeJobAsync(CancellationToken ct)
+    private async Task<EnqueueJobResponse> EnqueueProbeJobAsync(CancellationToken ct)
     {
         var serializers = Services.GetRequiredService<IJobPayloadSerializerRegistry>();
         var payload = serializers.Resolve(JobPayloadFormat.Json.Id).Serialize(new TestJobs.AddNumbers(0, 0));
-        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", payload, null, null, null), ct);
-        return enqueued.JobId;
+        return await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", payload, null, null, null), ct);
     }
 
     private async Task<IReadOnlyList<ListAlertsItem>> AllAlertsAsync(CancellationToken ct, string ns = null!) =>
@@ -53,8 +52,8 @@ public sealed class ListAlertsFilterMatrixSpec : ActaRuntimeTestBase<Conformance
                 .Alerts.ListAsync(new ListAlertsQuery(JobNamespace: ns ?? TestNamespace, PageSize: 100), ct)
         ).Items;
 
-    [Fact(DisplayName = "JobId filter returns only that job's alerts and excludes all other jobs' alerts")]
-    public async Task JobId_filter_returns_exact_alert_id_set()
+    [Fact(DisplayName = "Job filter returns only that job's alerts and excludes all other jobs' alerts")]
+    public async Task Job_filter_returns_exact_alert_id_set()
     {
         var ct = TestContext.Current.CancellationToken;
         var queries = Services.GetRequiredService<IActaOperations>();
@@ -62,27 +61,47 @@ public sealed class ListAlertsFilterMatrixSpec : ActaRuntimeTestBase<Conformance
         // Two alerts under j1, one under j2
         var j1 = await EnqueueProbeJobAsync(ct);
         var j2 = await EnqueueProbeJobAsync(ct);
-        await RaiseAsync(Db, j1, AlertSeverityCode.Info, AlertDeliveryStatusCode.Pending, ct);
-        await RaiseAsync(Db, j1, AlertSeverityCode.Info, AlertDeliveryStatusCode.Pending, ct);
-        await RaiseAsync(Db, j2, AlertSeverityCode.Info, AlertDeliveryStatusCode.Pending, ct);
+        await RaiseAsync(Db, j1.JobId, AlertSeverityCode.Info, AlertDeliveryStatusCode.Pending, ct);
+        await RaiseAsync(Db, j1.JobId, AlertSeverityCode.Info, AlertDeliveryStatusCode.Pending, ct);
+        await RaiseAsync(Db, j2.JobId, AlertSeverityCode.Info, AlertDeliveryStatusCode.Pending, ct);
 
-        // Capture IDs via namespace-only read (independent of jobId filter)
+        // Capture IDs via namespace-only read (independent of the job filter)
         var all = await AllAlertsAsync(ct);
-        var aIds = all.Where(a => a.JobId == j1).Select(a => a.AlertId).ToHashSet();
-        var bIds = all.Where(a => a.JobId == j2).Select(a => a.AlertId).ToHashSet();
+        var aIds = all.Where(a => a.JobId == j1.JobId).Select(a => a.AlertId).ToHashSet();
+        var bIds = all.Where(a => a.JobId == j2.JobId).Select(a => a.AlertId).ToHashSet();
         Assert.Equal(2, aIds.Count);
         Assert.Single(bIds);
 
         // Filter by j1: exact set + total, j2 excluded
-        var j1Page = await queries.Alerts.ListAsync(new ListAlertsQuery(JobNamespace: TestNamespace, JobId: j1, IncludeTotal: true), ct);
+        var j1Page = await queries.Alerts.ListAsync(
+            new ListAlertsQuery(JobNamespace: TestNamespace, Job: j1.JobRef, IncludeTotal: true),
+            ct
+        );
         Assert.Equal(aIds, [.. j1Page.Items.Select(a => a.AlertId)]);
         Assert.Equal(2L, j1Page.TotalCount);
         Assert.Empty(j1Page.Items.Select(a => a.AlertId).Intersect(bIds));
 
         // Filter by j2: exact set, j1 excluded
-        var j2Page = await queries.Alerts.ListAsync(new ListAlertsQuery(JobNamespace: TestNamespace, JobId: j2), ct);
+        var j2Page = await queries.Alerts.ListAsync(new ListAlertsQuery(JobNamespace: TestNamespace, Job: j2.JobRef), ct);
         Assert.Equal(bIds, [.. j2Page.Items.Select(a => a.AlertId)]);
         Assert.Empty(j2Page.Items.Select(a => a.AlertId).Intersect(aIds));
+    }
+
+    [Fact(DisplayName = "A Job filter that names no job returns an empty page and a zero total")]
+    public async Task Job_filter_naming_no_job_returns_an_empty_page()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var queries = Services.GetRequiredService<IActaOperations>();
+        await RaiseAsync(Db, (await EnqueueProbeJobAsync(ct)).JobId, AlertSeverityCode.Info, AlertDeliveryStatusCode.Pending, ct);
+        Assert.NotEmpty(await AllAlertsAsync(ct));
+
+        var page = await queries.Alerts.ListAsync(
+            new ListAlertsQuery(JobNamespace: TestNamespace, Job: JobRef.New(), IncludeTotal: true),
+            ct
+        );
+
+        Assert.Empty(page.Items);
+        Assert.Equal(0L, page.TotalCount);
     }
 
     [Fact(DisplayName = "DeliveryStatus filter partitions alerts by status and the total matches the filtered count")]
@@ -159,7 +178,7 @@ public sealed class ListAlertsFilterMatrixSpec : ActaRuntimeTestBase<Conformance
         // Alert A: FirstFailure kind so ResolveAlerts will close it. The subject is a job
         // this spec enqueues, for the reason EnqueueProbeJobAsync documents - a hardcoded id names rows
         // another spec created. This was the one fact the rest of the class's migration missed.
-        var resolveJobId = await EnqueueProbeJobAsync(ct);
+        var resolveJobId = (await EnqueueProbeJobAsync(ct)).JobId;
         await RaiseAsync(
             Db,
             resolveJobId,

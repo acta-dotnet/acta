@@ -37,7 +37,7 @@ public sealed class JobAttemptIdentitySpec : ActaRuntimeTestBase<ConformanceFixt
         Assert.Equal(JobStatusCode.Succeeded, (await Jobs.GetStatusAsync(enqueued, ct))?.Status);
 
         var notes = await Operations.Ledger.ListEventsAsync(
-            new ListEventsQuery(JobId: enqueued.JobId, EventCode: EventCode.JobNoteRecorded, PageSize: 50),
+            new ListEventsQuery(Job: enqueued.JobRef, EventCode: EventCode.JobNoteRecorded, PageSize: 50),
             ct
         );
         Assert.Equal(2, notes.Items.Count);

@@ -277,11 +277,8 @@ public sealed class ContinuousSynchronizationTests : IAsyncLifetime
             )
             .NextOccurrenceAtUtc;
 
-    private async Task<IReadOnlyList<ListEventsItem>> EventsAsync(EventCode code)
-    {
-        var jobId = (await JobAsync()).JobId;
-        return (await _host.Operations.Ledger.ListEventsAsync(new ListEventsQuery(JobId: jobId, EventCode: code, PageSize: 100), Ct)).Items;
-    }
+    private async Task<IReadOnlyList<ListEventsItem>> EventsAsync(EventCode code) =>
+        (await _host.Operations.Ledger.ListEventsAsync(new ListEventsQuery(Job: _slot, EventCode: code, PageSize: 100), Ct)).Items;
 
     /// <summary>
     /// The lab's crash point, as a test can hold it: the attempt that wrote the watermark at CrashAfter stalls there

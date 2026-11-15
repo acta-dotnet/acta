@@ -65,9 +65,8 @@ Console.WriteLine($"re-run complete: status={snapshot!.Status} executionNumber={
 await ShowRestartStateAsync(lab, "After restart: same identity, reset budget, retained completed step", outcome.JobId);
 
 // The restart reason is stamped on the job.restarted audit event.
-var jobId = outcome.JobId;
 var operations = host.Services.GetRequiredService<IActaOperations>();
-var events = await operations.Ledger.ListEventsAsync(new ListEventsQuery(JobId: jobId, EventCode: EventCode.JobRestarted));
+var events = await operations.Ledger.ListEventsAsync(new ListEventsQuery(Job: outcome, EventCode: EventCode.JobRestarted));
 foreach (var e in events.Items)
 {
     Console.WriteLine($"event: {e.EventCode} message=\"{e.Message}\" details={e.DetailsText ?? "(none)"}");

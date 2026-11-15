@@ -40,7 +40,7 @@ public sealed class JobRefAfterPurgeSpec : ActaRuntimeTestBase<ConformanceFixtur
 
         // Before purge: the timeline resolves the ref through the live job row.
         var before = (
-            await Services.GetRequiredService<ILedger>().ListEventsAsync(new ListEventsQuery(JobId: jobId, PageSize: 100), ct)
+            await Services.GetRequiredService<ILedger>().ListEventsAsync(new ListEventsQuery(Job: JobLookup.ById(jobId), PageSize: 100), ct)
         ).Items;
         Assert.NotEmpty(before);
         Assert.All(before, row => Assert.Equal<JobRef?>(jobRef, row.JobRef));
@@ -78,7 +78,7 @@ public sealed class JobRefAfterPurgeSpec : ActaRuntimeTestBase<ConformanceFixtur
 
         // The timeline still reads back by job id, and with the job row gone it has no ref to show.
         var after = (
-            await Services.GetRequiredService<ILedger>().ListEventsAsync(new ListEventsQuery(JobId: jobId, PageSize: 100), ct)
+            await Services.GetRequiredService<ILedger>().ListEventsAsync(new ListEventsQuery(Job: JobLookup.ById(jobId), PageSize: 100), ct)
         ).Items;
         Assert.Equal(before.Select(e => e.EventId), after.Select(e => e.EventId));
         Assert.All(after, row => Assert.Null(row.JobRef));

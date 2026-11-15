@@ -32,7 +32,7 @@ internal static class AlertsEndpoints
                         Job: query.Job("jobRef", options)
                     ),
                 static async (call, bound) =>
-                    await call.Operations.Alerts.ListAsync(bound.Query with { JobId = await call.JobIdAsync(bound.Job) }, call.Ct),
+                    await call.Operations.Alerts.ListAsync(bound.Query with { Job = await call.JobIdAsync(bound.Job) }, call.Ct),
                 [
                     new QueryParameterDoc("jobNamespace", QueryParameterKind.String, "Only alerts raised in this namespace."),
                     new QueryParameterDoc("jobRef", QueryParameterKind.String, "Only alerts attached to this job ref."),

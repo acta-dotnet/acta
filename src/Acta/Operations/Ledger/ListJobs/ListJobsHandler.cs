@@ -2,8 +2,8 @@ using System.Globalization;
 
 namespace Acta;
 
-/// <summary><see cref="ILedger.ListJobsAsync"/>: jobs newest first, one keyset page at a time.</summary>
-internal sealed class ListJobsHandler(IDbSession session, ISqlDialect dialect)
+/// <summary><see cref="ILedger.ListJobsAsync"/>: resolves the parent filter, then jobs newest first, one keyset page at a time.</summary>
+internal sealed class ListJobsHandler(GetJobIdHandler getJobId, IDbSession session, ISqlDialect dialect)
 {
     public async ValueTask<ListJobsResponse> HandleAsync(ListJobsQuery query, CancellationToken ct)
     {
@@ -12,12 +12,18 @@ internal sealed class ListJobsHandler(IDbSession session, ISqlDialect dialect)
         var jobName = QueryValidation.ValidateJobName(query.JobName, jobNamespace, nameof(query.JobName));
         QueryValidation.ValidateEnum(query.Status, nameof(query.Status));
         QueryValidation.ValidateEnum(query.Kind, nameof(query.Kind));
-        QueryValidation.ValidatePositiveId(query.ParentJobId, nameof(query.ParentJobId));
         QueryValidation.ValidatePositiveId((long?)query.TenantId, nameof(query.TenantId));
         var tenantName = QueryValidation.ValidateExtendedName(query.TenantName, nameof(query.TenantName));
         var tags = TagFilterJson.Normalize(query.Tags, nameof(ListJobsQuery));
         var lane = QueryValidation.ValidateExtendedName(query.Lane, nameof(query.Lane));
         var correlationKey = QueryValidation.ValidateKey(query.CorrelationKey, nameof(query.CorrelationKey), NameSyntax.DefaultMaxLength);
+
+        // A parent that is not there has no children: answered before the cursor is read.
+        long? parentJobId = null;
+        if (query.Parent is { } parent && (parentJobId = (await getJobId.HandleAsync(new GetJobIdQuery(parent), ct))?.JobId) is null)
+        {
+            return new ListJobsResponse([], null, false, JobsQueryLimits.NormalizePageSize(query.PageSize), query.IncludeTotal ? 0 : null);
+        }
 
         var paging = Paging.Start(
             "ListJobs",
@@ -29,7 +35,7 @@ internal sealed class ListJobsHandler(IDbSession session, ISqlDialect dialect)
                 ("ns", jobNamespace),
                 ("status", ((byte?)query.Status)?.ToString(CultureInfo.InvariantCulture)),
                 ("name", jobName),
-                ("parent", query.ParentJobId?.ToString(CultureInfo.InvariantCulture)),
+                ("parent", parentJobId?.ToString(CultureInfo.InvariantCulture)),
                 ("tenant", query.TenantId?.ToString(CultureInfo.InvariantCulture)),
                 ("tenantName", tenantName),
                 ("correlation", correlationKey),
@@ -48,7 +54,7 @@ internal sealed class ListJobsHandler(IDbSession session, ISqlDialect dialect)
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.NamespaceFilter, jobNamespace));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobState.JobStatusCode, query.Status));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.JobNameFilter, jobName));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.ParentJobIdFilter, query.ParentJobId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.ParentJobIdFilter, parentJobId));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.TenantId, query.TenantId));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.TenantNameFilter, tenantName));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.CorrelationKeyFilter, correlationKey));

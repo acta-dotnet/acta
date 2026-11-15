@@ -105,7 +105,7 @@ public sealed class UpdateJobInputSpec : ActaRuntimeTestBase<ConformanceFixture,
             }
         }
 
-        var page = await Operations.Ledger.ListEventsAsync(new ListEventsQuery(JobId: enqueued.JobId, PageSize: 100), ct);
+        var page = await Operations.Ledger.ListEventsAsync(new ListEventsQuery(Job: JobLookup.ById(enqueued.JobId), PageSize: 100), ct);
         Assert.Contains(page.Items, i => i.EventCode == EventCode.JobInputAmended && i.DetailsText is not null);
         foreach (var item in page.Items)
         {

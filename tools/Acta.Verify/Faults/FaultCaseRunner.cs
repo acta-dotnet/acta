@@ -294,7 +294,7 @@ internal static class FaultCaseRunner
                 var events = await host
                     .Services.GetRequiredService<IActaOperations>()
                     .Ledger.ListEventsAsync(
-                        new(JobNamespace: "verify", JobId: root.JobId, EventCode: EventCode.JobNoteRecorded, PageSize: 100),
+                        new(JobNamespace: "verify", Job: root, EventCode: EventCode.JobNoteRecorded, PageSize: 100),
                         ct
                     );
                 foreach (var step in Enumerable.Range(1, input.Steps))

@@ -329,9 +329,14 @@ internal static class RouteTable
         }
     }
 
-    /// <summary>The internal id of the job a filter names, or null with no filter; a filter naming no job is the 404.</summary>
-    public static async ValueTask<long?> JobIdAsync(this ReadCall call, JobLookup? job) =>
-        job is { } lookup ? (await call.Jobs.GetIdAsync(lookup, call.Ct))?.JobId ?? throw new TargetNotFoundException("Job") : null;
+    /// <summary>
+    /// The job a filter names, by its internal id so the list does not look it up again, or null with no filter; a filter
+    /// naming no job is the 404.
+    /// </summary>
+    public static async ValueTask<JobLookup?> JobIdAsync(this ReadCall call, JobLookup? job) =>
+        job is { } lookup
+            ? JobLookup.ById((await call.Jobs.GetIdAsync(lookup, call.Ct))?.JobId ?? throw new TargetNotFoundException("Job"))
+            : (JobLookup?)null;
 
     /// <summary>
     /// The internal id of the job a route names, or null when no such job is stored. A numeric id is read first,

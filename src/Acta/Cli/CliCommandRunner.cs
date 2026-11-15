@@ -263,7 +263,7 @@ internal sealed class CliCommandRunner(
     /// </summary>
     private async Task<int> EventsAsync(JobLookup job, JobRef jobRef, int? take, string? cursor, bool json, CancellationToken ct)
     {
-        var page = await operations.Ledger.ListEventsAsync(new ListEventsQuery(JobId: job.JobId, PageSize: take, Cursor: cursor), ct);
+        var page = await operations.Ledger.ListEventsAsync(new ListEventsQuery(Job: job, PageSize: take, Cursor: cursor), ct);
 
         // An empty page is a job with no retained events; a purged job reads the same way. Only the
         // second is an error, so an empty page is worth one existence probe before it is reported.

@@ -14,9 +14,9 @@ namespace Acta.Tests.Api;
 /// </summary>
 public sealed class FacadeReadValidationTests
 {
-    private static ListJobsHandler ListJobs() => new(new EmptyPageSession(), null!);
+    private static ListJobsHandler ListJobs() => new(new GetJobIdHandler(null!, null!), new EmptyPageSession(), null!);
 
-    private static ListEventsHandler ListEvents() => new(new EmptyPageSession(), null!);
+    private static ListEventsHandler ListEvents() => new(new GetJobIdHandler(null!, null!), null!, new EmptyPageSession(), null!);
 
     // Runs the handler's own row reader over an empty result: no rows, and no total.
     private sealed class EmptyPageSession : DbSessionStub
@@ -29,7 +29,7 @@ public sealed class FacadeReadValidationTests
         ) => read(new DataTable().CreateDataReader(), ct);
     }
 
-    private static ListAlertsHandler ListAlerts() => new(new EmptyPageSession(), null!);
+    private static ListAlertsHandler ListAlerts() => new(new GetJobIdHandler(null!, null!), new EmptyPageSession(), null!);
 
     private static ListSchedulesHandler ListSchedules() => new(new EmptyPageSession(), null!);
 
@@ -98,7 +98,7 @@ public sealed class FacadeReadValidationTests
     [Fact]
     public async Task Events_total_with_job_id_is_allowed()
     {
-        var result = await ListEvents().HandleAsync(new ListEventsQuery(JobId: 1, IncludeTotal: true), Ct);
+        var result = await ListEvents().HandleAsync(new ListEventsQuery(Job: JobLookup.ById(1), IncludeTotal: true), Ct);
 
         Assert.Empty(result.Items);
     }
@@ -143,16 +143,6 @@ public sealed class FacadeReadValidationTests
         await Assert.ThrowsAsync<InvalidQueryException>(async () =>
             await ListAlerts().HandleAsync(new ListAlertsQuery(SeverityAtLeast: (AlertSeverityCode)200), Ct)
         );
-    }
-
-    [Theory]
-    [InlineData(0)]
-    [InlineData(-7)]
-    public async Task Non_positive_id_filters_throw(long jobId)
-    {
-        await Assert.ThrowsAsync<InvalidQueryException>(async () => await ListEvents().HandleAsync(new ListEventsQuery(JobId: jobId), Ct));
-
-        await Assert.ThrowsAsync<InvalidQueryException>(async () => await ListAlerts().HandleAsync(new ListAlertsQuery(JobId: jobId), Ct));
     }
 
     [Fact]

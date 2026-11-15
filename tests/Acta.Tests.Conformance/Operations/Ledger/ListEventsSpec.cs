@@ -43,7 +43,7 @@ public sealed class ListEventsSpec : ActaRuntimeTestBase<ConformanceFixture, Job
         var pages = 0;
         do
         {
-            var page = await queries.Ledger.ListEventsAsync(new ListEventsQuery(JobId: jobId, PageSize: 1, Cursor: cursor), ct);
+            var page = await queries.Ledger.ListEventsAsync(new ListEventsQuery(Job: enqueued[0].JobRef, PageSize: 1, Cursor: cursor), ct);
             seen.AddRange(page.Items);
             cursor = page.NextCursor;
             pages++;
@@ -60,7 +60,10 @@ public sealed class ListEventsSpec : ActaRuntimeTestBase<ConformanceFixture, Job
             Assert.True(ordered, "rows are not in created_at DESC, id DESC order");
         }
 
-        var withTotal = await queries.Ledger.ListEventsAsync(new ListEventsQuery(JobId: jobId, PageSize: 1, IncludeTotal: true), ct);
+        var withTotal = await queries.Ledger.ListEventsAsync(
+            new ListEventsQuery(Job: enqueued[0].JobRef, PageSize: 1, IncludeTotal: true),
+            ct
+        );
         Assert.Equal(seen.Count, withTotal.TotalCount);
     }
 
@@ -86,9 +89,14 @@ public sealed class ListEventsSpec : ActaRuntimeTestBase<ConformanceFixture, Job
         // pinned to an independently counted value rather than merely bounded against the page size -
         // that bound is true by construction (a page can never exceed its filter's total) and would
         // still pass with a badly wrong TotalCount.
-        var expectedTotal = (await Operations.Ledger.ListEventsAsync(new ListEventsQuery(JobId: jobId, PageSize: 100), ct)).Items.Count;
+        var expectedTotal = (await Operations.Ledger.ListEventsAsync(new ListEventsQuery(Job: enqueued[0].JobRef, PageSize: 100), ct))
+            .Items
+            .Count;
 
-        var page = await Operations.Ledger.ListEventsAsync(new ListEventsQuery(JobId: jobId, PageSize: 2, IncludeTotal: true), ct);
+        var page = await Operations.Ledger.ListEventsAsync(
+            new ListEventsQuery(Job: enqueued[0].JobRef, PageSize: 2, IncludeTotal: true),
+            ct
+        );
         var (rows, total) = (page.Items, page.TotalCount);
 
         Assert.NotEmpty(rows);

@@ -23,13 +23,13 @@ var queries = host.Services.GetRequiredService<IActaOperations>();
 // Audit: emits an attempt event (job.execution-succeeded, -failed, ...) for every run.
 var auditOutcome = await jobs.EnqueueAsync(new AuditWork("report-a"));
 await Task.Delay(500);
-var auditEvents = await queries.Ledger.ListEventsAsync(new ListEventsQuery(JobId: auditOutcome.JobId));
+var auditEvents = await queries.Ledger.ListEventsAsync(new ListEventsQuery(Job: auditOutcome));
 Console.WriteLine($"Audit level  -> event count: {auditEvents.Items.Count}");
 
 // Failures: suppresses job.execution-succeeded for successful runs that follow no failure; failures emit.
 var failuresOutcome = await jobs.EnqueueAsync(new FailuresWork("report-b"));
 await Task.Delay(500);
-var failuresEvents = await queries.Ledger.ListEventsAsync(new ListEventsQuery(JobId: failuresOutcome.JobId));
+var failuresEvents = await queries.Ledger.ListEventsAsync(new ListEventsQuery(Job: failuresOutcome));
 Console.WriteLine(
     $"Failures level -> event count: {failuresEvents.Items.Count} (expected 0: a successful run emits nothing at Failures level)"
 );

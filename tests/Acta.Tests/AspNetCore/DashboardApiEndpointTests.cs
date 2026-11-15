@@ -120,9 +120,9 @@ public sealed class DashboardApiEndpointTests
         Assert.Equal(HttpStatusCode.OK, ok.StatusCode);
         Assert.NotNull(fakes.Ledger.LastEventsQuery);
         Assert.Equal(Acta.EventCode.NamespaceUpdated, fakes.Ledger.LastEventsQuery!.EventCode);
-        // Each ref is edge-resolved to the internal id the ledger indexes on.
-        Assert.Equal(42L, fakes.Ledger.LastEventsQuery.JobId);
-        Assert.Equal(42, fakes.Ledger.LastEventsQuery.WorkerId);
+        // The job ref goes on as the id the edge resolved, so the ledger reads no job again; the worker ref goes on as sent.
+        Assert.Equal(JobLookup.ById(42), fakes.Ledger.LastEventsQuery.Job);
+        Assert.Equal(FakeWorkers.KnownWorkerRef, fakes.Ledger.LastEventsQuery.Worker);
         Assert.Equal("acme", fakes.Ledger.LastEventsQuery.TenantName);
         Assert.Null(fakes.Ledger.LastEventsQuery.TenantId);
 

@@ -69,7 +69,7 @@ public sealed class WorkerRefSurvivesPurgeSpec : ActaRuntimeTestBase<Conformance
 
         Assert.NotNull(await Db.From<WorkerEntity>().Where(w => w.Id == workerId).SingleOrDefaultAsync(ct));
         var events = (
-            await Operations.Ledger.ListEventsAsync(new ListEventsQuery(WorkerId: workerId, JobNamespace: TestNamespace), ct)
+            await Operations.Ledger.ListEventsAsync(new ListEventsQuery(Worker: workerRef, JobNamespace: TestNamespace), ct)
         ).Items;
         Assert.Equal(
             [EventCode.JobExecutionSucceeded, EventCode.WorkerStarted, EventCode.WorkerStopped],
@@ -105,7 +105,7 @@ public sealed class WorkerRefSurvivesPurgeSpec : ActaRuntimeTestBase<Conformance
 
         Assert.NotNull(await Db.From<WorkerEntity>().Where(w => w.Id == workerId).SingleOrDefaultAsync(ct));
         var orphaned = Assert.Single(
-            (await Operations.Ledger.ListEventsAsync(new ListEventsQuery(WorkerId: workerId, JobNamespace: TestNamespace), ct)).Items,
+            (await Operations.Ledger.ListEventsAsync(new ListEventsQuery(Worker: workerRef, JobNamespace: TestNamespace), ct)).Items,
             e => e.JobRef == jobRef && e.EventCode == EventCode.JobExecutionOrphaned
         );
         Assert.Equal<WorkerRef?>(workerRef, orphaned.WorkerRef);

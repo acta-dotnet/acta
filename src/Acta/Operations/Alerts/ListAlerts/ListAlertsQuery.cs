@@ -2,13 +2,13 @@ namespace Acta;
 
 /// <summary>
 /// Filters and paging for <see cref="IAlerts.ListAsync"/>; alerts are ordered newest first (created_at_utc descending,
-/// id descending). <c>AcknowledgedOnly</c> null returns every alert, true the acknowledged and false the unacknowledged;
-/// <c>PageSize</c> null defaults to 50 and values above 100 clamp; <c>Cursor</c> is the previous page's
-/// <see cref="IPagedResponse{T}.NextCursor"/>.
+/// id descending). <c>Job</c> restricts to the alerts attached to that job, none when it is not there; <c>AcknowledgedOnly</c>
+/// null returns every alert, true the acknowledged and false the unacknowledged; <c>PageSize</c> null defaults to 50 and values
+/// above 100 clamp; <c>Cursor</c> is the previous page's <see cref="IPagedResponse{T}.NextCursor"/>.
 /// </summary>
 public sealed record ListAlertsQuery(
     string? JobNamespace = null,
-    long? JobId = null,
+    JobLookup? Job = null,
     bool? UnresolvedOnly = null,
     AlertSeverityCode? SeverityAtLeast = null,
     AlertDeliveryStatusCode? DeliveryStatus = null,

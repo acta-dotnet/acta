@@ -5,8 +5,8 @@ namespace Acta.AspNetCore;
 
 /// <summary>
 /// The Ledger routes: the job list, the event list, one job's and one definition's event history, and the overview.
-/// Every ref filter resolves to the internal id the ledger indexes on: a malformed ref is the 400, and a ref that names
-/// no row is the 404.
+/// Every ref filter is checked here: a malformed ref is the 400, and a ref that names no row is the 404. A job filter goes
+/// on by its internal id, so the ledger does not look it up again.
 /// </summary>
 internal static class LedgerEndpoints
 {
@@ -44,13 +44,7 @@ internal static class LedgerEndpoints
                         Parent: query.Job("parentJobRef", options)
                     ),
                 static async (call, bound) =>
-                    await call.Operations.Ledger.ListJobsAsync(
-                        bound.Query with
-                        {
-                            ParentJobId = await call.JobIdAsync(bound.Parent),
-                        },
-                        call.Ct
-                    ),
+                    await call.Operations.Ledger.ListJobsAsync(bound.Query with { Parent = await call.JobIdAsync(bound.Parent) }, call.Ct),
                 [
                     new QueryParameterDoc("jobNamespace", QueryParameterKind.String, "Only jobs in this namespace."),
                     new QueryParameterDoc("jobName", QueryParameterKind.String, "Exact job name."),
@@ -101,13 +95,13 @@ internal static class LedgerEndpoints
                     await call.Operations.Ledger.ListEventsAsync(
                         bound.Query with
                         {
-                            JobId = await call.JobIdAsync(bound.Job),
-                            LineageRootJobId = await call.JobIdAsync(bound.Lineage),
-                            WorkerId = bound.Worker is { } worker
-                                ? (
-                                    await call.Operations.Workers.GetAsync(worker, call.Ct) ?? throw new TargetNotFoundException("Worker")
-                                ).WorkerId
-                                : null,
+                            Job = await call.JobIdAsync(bound.Job),
+                            LineageRoot = await call.JobIdAsync(bound.Lineage),
+                            // A worker has no lookup by id, so the list reads the ref again after this read answers the 404.
+                            Worker =
+                                bound.Worker is { } worker && await call.Operations.Workers.GetAsync(worker, call.Ct) is null
+                                    ? throw new TargetNotFoundException("Worker")
+                                    : bound.Worker,
                         },
                         call.Ct
                     ),
@@ -166,7 +160,7 @@ internal static class LedgerEndpoints
                         )
                     ),
                 static async (call, bound) =>
-                    await call.Operations.Ledger.ListEventsAsync(bound.Query with { JobId = await call.JobIdAsync(bound.Job) }, call.Ct),
+                    await call.Operations.Ledger.ListEventsAsync(bound.Query with { Job = await call.JobIdAsync(bound.Job) }, call.Ct),
                 [
                     new QueryParameterDoc(
                         "eventCode",

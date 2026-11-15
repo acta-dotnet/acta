@@ -36,7 +36,7 @@ public sealed class RecordJobNoteSpec : ActaRuntimeTestBase<ConformanceFixture, 
         Assert.Equal(JobStatusCode.Succeeded, (await Jobs.GetStatusAsync(enqueued, ct))?.Status);
 
         var events = await Operations.Ledger.ListEventsAsync(
-            new ListEventsQuery(JobId: enqueued.JobId, EventCode: EventCode.JobNoteRecorded, PageSize: 50),
+            new ListEventsQuery(Job: enqueued.JobRef, EventCode: EventCode.JobNoteRecorded, PageSize: 50),
             ct
         );
 
@@ -87,7 +87,7 @@ public sealed class RecordJobNoteSpec : ActaRuntimeTestBase<ConformanceFixture, 
         await execution.RecordJobNoteAsync(current, "current note", null, ct);
 
         var events = await Operations.Ledger.ListEventsAsync(
-            new ListEventsQuery(JobId: enqueued.JobId, EventCode: EventCode.JobNoteRecorded, PageSize: 50),
+            new ListEventsQuery(Job: enqueued.JobRef, EventCode: EventCode.JobNoteRecorded, PageSize: 50),
             ct
         );
         var note = Assert.Single(events.Items);

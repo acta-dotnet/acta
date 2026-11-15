@@ -61,7 +61,7 @@ internal static class GetEventsByJobId
         string? cursor = null;
         do
         {
-            var page = await ledger.ListEventsAsync(new ListEventsQuery(JobId: jobId, PageSize: 100, Cursor: cursor), ct);
+            var page = await ledger.ListEventsAsync(new ListEventsQuery(Job: JobLookup.ById(jobId), PageSize: 100, Cursor: cursor), ct);
             rows.AddRange(page.Items);
             cursor = page.NextCursor;
         } while (cursor is not null);

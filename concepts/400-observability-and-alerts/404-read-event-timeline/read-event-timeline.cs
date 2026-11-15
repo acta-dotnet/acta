@@ -28,10 +28,10 @@ var finished = await parent.WaitAsync();
 
 Console.WriteLine($"parent finished with status: {finished.Status}");
 
-// Query the full lineage event timeline scoped to the lineage root (the parent job's id).
+// Query the full lineage event timeline scoped to the lineage root (the parent job).
 // Events are returned newest-first; reverse to print in chronological order.
 Console.WriteLine("event timeline for the lineage:");
-var eventsPage = await queries.Ledger.ListEventsAsync(new ListEventsQuery(LineageRootJobId: parent.JobId, PageSize: 100));
+var eventsPage = await queries.Ledger.ListEventsAsync(new ListEventsQuery(LineageRoot: parent, PageSize: 100));
 var events = eventsPage.Items.Reverse().ToList();
 foreach (var e in events)
 {

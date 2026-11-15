@@ -196,7 +196,9 @@ public sealed class NamespaceIsolationSpec : ActaRuntimeTestBase<ConformanceFixt
         await other.Check("stop the worker", t => Runtime.StopAsync(t));
         await other.ReleaseAsync(ct);
 
-        var projected = await Services.GetRequiredService<IAlerts>().ListAsync(new ListAlertsQuery(TestNamespace, failed.JobId), ct);
+        var projected = await Services
+            .GetRequiredService<IAlerts>()
+            .ListAsync(new ListAlertsQuery(TestNamespace, JobLookup.ById(failed.JobId)), ct);
         Assert.True(projected.Items.Count > 0, "the alerts pass projected no alert for the failed job");
     }
 
@@ -476,7 +478,9 @@ public sealed class NamespaceIsolationSpec : ActaRuntimeTestBase<ConformanceFixt
             "isolation-" + jobId.ToString(CultureInfo.InvariantCulture),
             ct
         );
-        return (await services.GetRequiredService<IAlerts>().ListAsync(new ListAlertsQuery(jobNamespace, jobId), ct)).Items[0].AlertRef;
+        return (await services.GetRequiredService<IAlerts>().ListAsync(new ListAlertsQuery(jobNamespace, JobLookup.ById(jobId)), ct))
+            .Items[0]
+            .AlertRef;
     }
 
     private static async Task TagAsync(IServiceProvider services, string jobNamespace, EnqueueJobResponse job, CancellationToken ct)

@@ -2,8 +2,8 @@ using System.Globalization;
 
 namespace Acta;
 
-/// <summary><see cref="IAlerts.ListAsync"/>: alerts newest first, one keyset page at a time.</summary>
-internal sealed class ListAlertsHandler(IDbSession session, ISqlDialect dialect)
+/// <summary><see cref="IAlerts.ListAsync"/>: resolves the job filter, then alerts newest first, one keyset page at a time.</summary>
+internal sealed class ListAlertsHandler(GetJobIdHandler getJobId, IDbSession session, ISqlDialect dialect)
 {
     public async ValueTask<ListAlertsResponse> HandleAsync(ListAlertsQuery query, CancellationToken ct)
     {
@@ -11,7 +11,19 @@ internal sealed class ListAlertsHandler(IDbSession session, ISqlDialect dialect)
         var jobNamespace = QueryValidation.ValidateNamespace(query.JobNamespace, nameof(query.JobNamespace));
         QueryValidation.ValidateEnum(query.SeverityAtLeast, nameof(query.SeverityAtLeast));
         QueryValidation.ValidateEnum(query.DeliveryStatus, nameof(query.DeliveryStatus));
-        QueryValidation.ValidatePositiveId(query.JobId, nameof(query.JobId));
+
+        // A job that is not there has no alerts: answered before the cursor is read.
+        long? jobId = null;
+        if (query.Job is { } job && (jobId = (await getJobId.HandleAsync(new GetJobIdQuery(job), ct))?.JobId) is null)
+        {
+            return new ListAlertsResponse(
+                [],
+                null,
+                false,
+                JobsQueryLimits.NormalizePageSize(query.PageSize),
+                query.IncludeTotal ? 0 : null
+            );
+        }
 
         var unresolvedOnly = query.UnresolvedOnly == true ? true : (bool?)null;
         var paging = Paging.Start(
@@ -22,7 +34,7 @@ internal sealed class ListAlertsHandler(IDbSession session, ISqlDialect dialect)
             query.PageSize,
             [
                 ("ns", jobNamespace),
-                ("job", query.JobId?.ToString(CultureInfo.InvariantCulture)),
+                ("job", jobId?.ToString(CultureInfo.InvariantCulture)),
                 ("open", unresolvedOnly?.ToString()),
                 ("sev", ((byte?)query.SeverityAtLeast)?.ToString(CultureInfo.InvariantCulture)),
                 ("delivery", ((byte?)query.DeliveryStatus)?.ToString(CultureInfo.InvariantCulture)),
@@ -35,7 +47,7 @@ internal sealed class ListAlertsHandler(IDbSession session, ISqlDialect dialect)
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.NamespaceFilter, jobNamespace));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Alert.JobId, query.JobId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Alert.JobId, jobId));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.UnresolvedOnlyFlag, unresolvedOnly));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Alert.AlertSeverityCode, query.SeverityAtLeast));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Alert.DeliveryStatusCode, query.DeliveryStatus));

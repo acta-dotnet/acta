@@ -34,12 +34,11 @@ var resumeResult = await jobs.ResumeAsync(handle, "review complete");
 Console.WriteLine($"ResumeAsync -> action={resumeResult.Action} status={resumeResult.Status}");
 
 // Poll until the worker finishes the job (terminal status).
-var jobId = handle.JobId;
 JobStatusCode? status;
 do
 {
     await Task.Delay(300);
-    status = (await jobs.GetStatusAsync(JobLookup.ById(jobId)))?.Status;
+    status = (await jobs.GetStatusAsync(handle))?.Status;
 } while (status is not null && !status.Value.IsTerminal);
 
 Console.WriteLine($"Job finished with status={status}");
@@ -49,7 +48,7 @@ var rejectedResult = await jobs.PauseAsync(handle, "too late");
 Console.WriteLine($"PauseAsync on terminal -> action={rejectedResult.Action} blocking-status={rejectedResult.Status}");
 
 // Step 4: read the event timeline to confirm the pause and resume events with their message and details.
-var events = await queries.Ledger.ListEventsAsync(new ListEventsQuery(JobId: jobId));
+var events = await queries.Ledger.ListEventsAsync(new ListEventsQuery(Job: handle));
 foreach (var ev in events.Items)
 {
     if (ev.EventCode is EventCode.JobPaused or EventCode.JobResumed)

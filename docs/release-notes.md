@@ -59,6 +59,8 @@ Not tagged yet.
 
 **Pass `Finished` where code passed `ListJobsQuery.TerminalOnly`, and `finished` where a request sent `terminalOnly`**: true lists the finished jobs, Succeeded, Failed and Cancelled, as before, and false now lists only the unfinished ones, where it listed every job, as null does. The jobs list ignores a query parameter it does not know, so a request that still sends `terminalOnly=true` lists every job.
 
+**Pass a job or a worker ref where code passed a numeric id to a list filter**: `ListEventsQuery` takes `Job`, `LineageRoot` and `Worker` where it took `JobId`, `LineageRootJobId` and `WorkerId`, `ListAlertsQuery` takes `Job` for `JobId`, and `ListJobsQuery` takes `Parent` for `ParentJobId`, each in the same position. A job filter is a `JobLookup`, so `new ListEventsQuery(Job: order.JobRef)` reads a timeline with no id lookup first, and `JobLookup.ById(id)` still passes an id; the worker filter is a `WorkerRef`. A filter that names no job or worker answers an empty page, with a total of 0 when `IncludeTotal` asks for one. The HTTP filters are unchanged.
+
 **Drop `StaleWorkerAfterSeconds` from a `GetOverviewQuery`**: `ILedger.GetOverviewAsync` counts a worker stale, and leaves its executors out of `ExecutorCapacity`, against this deployment's lease window, `JobsOptions.LeaseTtlSeconds`, as `GET /overview` and the worker list's `Stale` do, where a C# caller got a 180-second default whatever the lease. A second positional argument now sets `DueSoonWindowSeconds`: `new GetOverviewQuery(ns, 600)`, which set the stale window, still compiles and counts schedules due in the next ten minutes instead, so drop that argument.
 
 ### Additions

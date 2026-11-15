@@ -8,7 +8,7 @@ namespace Acta.Tests.Conformance.Operations.Ledger;
 
 /// <summary>
 /// Conformance for <c>ListJobs</c> filter dimensions: each filter scopes the result set to exactly
-/// the matching rows. One fact per filter: status, parentJobId, tenantId, namespace, jobName.
+/// the matching rows. One fact per filter: status, parent, tenantId, namespace, jobName.
 /// </summary>
 [ConformanceSpec(
     "list-jobs.filter-matrix",
@@ -188,8 +188,8 @@ public sealed class ListJobsFilterMatrixSpec : ActaRuntimeTestBase<ConformanceFi
         Assert.Equal(2L, unfinishedPage.TotalCount);
     }
 
-    [Fact(DisplayName = "ParentJobId filter returns exactly the direct children of that parent and no other children")]
-    public async Task ParentJobId_filter_returns_exact_children()
+    [Fact(DisplayName = "Parent filter returns exactly the direct children of that parent and no other children")]
+    public async Task Parent_filter_returns_exact_children()
     {
         var ct = TestContext.Current.CancellationToken;
 
@@ -208,13 +208,28 @@ public sealed class ListJobsFilterMatrixSpec : ActaRuntimeTestBase<ConformanceFi
 
         var queries = Services.GetRequiredService<IActaOperations>();
 
-        var p1Page = await queries.Ledger.ListJobsAsync(new ListJobsQuery(JobNamespace: TestNamespace, ParentJobId: p1), ct);
+        var p1Page = await queries.Ledger.ListJobsAsync(new ListJobsQuery(JobNamespace: TestNamespace, Parent: parents[0].JobRef), ct);
         Assert.Equal([c1, c2], p1Page.Items.Select(static i => i.JobId).ToHashSet());
         Assert.DoesNotContain(p1Page.Items, i => i.JobId == c3);
 
-        var p2Page = await queries.Ledger.ListJobsAsync(new ListJobsQuery(JobNamespace: TestNamespace, ParentJobId: p2), ct);
+        var p2Page = await queries.Ledger.ListJobsAsync(new ListJobsQuery(JobNamespace: TestNamespace, Parent: parents[1].JobRef), ct);
         Assert.Equal([c3], p2Page.Items.Select(static i => i.JobId).ToHashSet());
         Assert.DoesNotContain(p2Page.Items, i => i.JobId == c1 || i.JobId == c2);
+    }
+
+    [Fact(DisplayName = "A Parent filter that names no job returns an empty page and a zero total")]
+    public async Task Parent_filter_naming_no_job_returns_an_empty_page()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await EnqueueAsync([AddNumbersRow()], ct);
+
+        var page = await Operations.Ledger.ListJobsAsync(
+            new ListJobsQuery(JobNamespace: TestNamespace, Parent: JobRef.New(), IncludeTotal: true),
+            ct
+        );
+
+        Assert.Empty(page.Items);
+        Assert.Equal(0L, page.TotalCount);
     }
 
     [Fact(DisplayName = "TenantId filter returns exactly the jobs for that tenant and excludes all other tenants' jobs")]

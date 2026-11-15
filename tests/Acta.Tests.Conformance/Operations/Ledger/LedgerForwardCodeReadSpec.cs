@@ -45,7 +45,7 @@ public sealed class LedgerForwardCodeReadSpec : ActaRuntimeTestBase<ConformanceF
             .UpdateOnlyAsync(() => new EventEntity { EventCode = (EventCode)UnassignedId }, ct);
         Assert.True(rewritten > 0);
 
-        var page = await Operations.Ledger.ListEventsAsync(new ListEventsQuery(JobId: jobId, PageSize: 100), ct);
+        var page = await Operations.Ledger.ListEventsAsync(new ListEventsQuery(Job: enqueued.JobRef, PageSize: 100), ct);
         Assert.Equal(rewritten, page.Items.Count);
         Assert.All(page.Items, e => Assert.Equal(EventCode.Unspecified, e.EventCode));
         Assert.Contains("\"eventCode\":\"unspecified\"", JsonSerializer.Serialize(page, WebJson));
