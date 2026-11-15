@@ -777,10 +777,10 @@ startup.
 
 ### Logs
 
-- Acta logs failures, misconfigurations and rare events, never a line per successful job, and it writes no Debug lines.
+- Acta logs failures, misconfigurations and rare events, never a line per successful job. Its one Debug line is the stack trace of the exception a retried attempt threw.
 - Every field Acta adds to a line starts with `Acta`, so none clashes with your own fields. Every line of an attempt, your handler's included, carries `ActaJobId`, `ActaJobRef` (the ref the dashboard and the API show), `ActaJobName`, `ActaNamespace`, `ActaExecutionNumber`, `ActaWorkerId`, and `ActaCorrelationKey` when the job has one.
 - With no Slack channel, alerts arrive as `Acta alert` lines carrying `ActaAlertRef`, `ActaJobRef`, and `ActaAlertKind`, so log-based alert rules can route on them.
-- An outage downstream of your handlers logs one Warning, with its stack trace, per failed attempt. To quiet a storm without losing Acta's own errors, raise the category:
+- An outage downstream of your handlers logs one Warning per failed attempt. While the job retries, the Warning names the exception's type and message, `threw on attempt (2 of 5, TimeoutException: The operation has timed out.); the job retries in 30000ms.`, and the stack trace follows at Debug; the attempt that ends the job warns with its stack trace. To quiet a storm without losing Acta's own errors, raise the category:
 
 ```json
 { "Logging": { "LogLevel": { "Acta.WorkerRuntime": "Error" } } }

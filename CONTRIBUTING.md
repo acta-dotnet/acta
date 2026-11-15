@@ -680,7 +680,7 @@ Every field Acta logs is a mapped field in an operator's index for as long as th
 
 - src logs only through `ActaLog` (in Acta, also used by Acta.Redis) and `ActaAspNetCoreLog`, as `[LoggerMessage]` methods: a disabled level costs one check and no formatting. `LogVocabularyTests` holds the list above, each method's parameter names and types against it, and bans a log call anywhere else in src.
 - `ActaLog.BeginJobScope` stamps `ActaJobId`, `ActaJobRef`, `ActaJobName`, `ActaNamespace`, `ActaExecutionNumber`, `ActaWorkerId`, and `ActaCorrelationKey` on every line of an attempt, the handler's own lines included; `JobLogScopeTests` pins them.
-- The success path logs nothing per job. Failures, misconfigurations and rare events log, even where the ledger also records them; Acta writes no Debug lines.
+- The success path logs nothing per job. Failures, misconfigurations and rare events log, even where the ledger also records them. Acta's only Debug line is a retried attempt's exception with its stack: the attempt's Warning names the exception's type and message, so an outage downstream warns one short line per attempt.
 - A value an operator would not filter or chart by goes into the message text or `ActaDetail`. A new field needs the one thing an operator does with it, written in the table.
 - A call site that computes an argument (an interpolation, a `ToString`) computes it into a local inside an `IsEnabled` guard; CA1873 fails the build otherwise.
 - A string value sits in parentheses in the message (`({ActaDetail})`); a number does not.

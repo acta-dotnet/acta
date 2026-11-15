@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using Microsoft.Extensions.Logging;
 using Xunit;
 
 namespace Acta.Tests.Execution;
@@ -179,12 +180,19 @@ public sealed class WorkerExecutorOutcomeTests
         var outcome = await harness.RunAsync((_, _) => throw thrown);
 
         Assert.Equal(RunOnceStatus.Rearmed, outcome);
-        var line = Assert.Single(harness.Log, entry => entry.Message.StartsWith("Handler for job", StringComparison.Ordinal));
-        Assert.Matches(
-            $@"^Handler for job \(harness-job\) \({harness.JobRef}\) threw on attempt \(2 of 3\); the job retries in {harness.Completion.RescheduleDelaySeconds * 1000}ms\.$",
-            line.Message
+        var warning = Assert.Single(harness.Log, entry =>
+            entry.Level == LogLevel.Warning && entry.Message.StartsWith("Handler for job", StringComparison.Ordinal)
         );
-        Assert.Same(thrown, line.Exception);
+        Assert.Matches(
+            $@"^Handler for job \(harness-job\) \({harness.JobRef}\) threw on attempt \(2 of 3, InvalidOperationException: 503 from the carrier\); the job retries in {harness.Completion.RescheduleDelaySeconds * 1000}ms\.$",
+            warning.Message
+        );
+        Assert.Null(warning.Exception);
+
+        // The stack goes to Debug, so an outage downstream warns one short line per attempt.
+        var stack = Assert.Single(harness.Log, entry => entry.Level == LogLevel.Debug);
+        Assert.Equal($"Handler for job (harness-job) ({harness.JobRef}) threw on attempt (2 of 3), which the job retries.", stack.Message);
+        Assert.Same(thrown, stack.Exception);
     }
 
     // A cancel ends the job while its attempt runs, and the handler then throws with budget left. A row that matches

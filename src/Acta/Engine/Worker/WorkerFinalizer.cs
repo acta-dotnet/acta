@@ -357,9 +357,10 @@ internal sealed partial class WorkerFinalizer(
     public void LogUnwritten(InFlightJob entry) => LogHandlerThrew(entry, write: null);
 
     /// <summary>
-    /// The handler's failure line, one per failed attempt: the job by its ref, the exception, and what
-    /// <paramref name="write"/> does with the failure, or, with no write planned, that recovery reclaims the job. The
-    /// finalizer runs outside the attempt's log scope, so the line opens it again.
+    /// The handler's failure warning, one per failed attempt: the job by its ref, the exception, and what
+    /// <paramref name="write"/> does with the failure, or, with no write planned, that recovery reclaims the job. A retry's
+    /// warning names the exception and a Debug line carries its stack. The finalizer runs outside the attempt's log scope,
+    /// so the line opens it again.
     /// </summary>
     private void LogHandlerThrew(InFlightJob entry, PlannedWrite? write)
     {
@@ -390,7 +391,9 @@ internal sealed partial class WorkerFinalizer(
 
         if (planned.Row.RescheduleDelaySeconds is { } delaySeconds)
         {
-            ActaLog.HandlerThrewRetrying(_log, thrown, descriptor.JobName, jobRef, attempt, delaySeconds * 1000L);
+            var detail = $"{attempt}, {thrown.GetType().Name}: {thrown.Message}";
+            ActaLog.HandlerThrewRetrying(_log, descriptor.JobName, jobRef, detail, delaySeconds * 1000L);
+            ActaLog.HandlerThrewRetryingStack(_log, thrown, descriptor.JobName, jobRef, attempt);
             return;
         }
 

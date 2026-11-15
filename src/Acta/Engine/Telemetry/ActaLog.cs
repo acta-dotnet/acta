@@ -174,17 +174,33 @@ internal static partial class ActaLog
     )]
     public static partial void AttemptAborted(ILogger log, string actaJobRef);
 
+    /// <summary>
+    /// A retried attempt's warning, with the exception's type and message in <paramref name="actaDetail"/> and without the
+    /// exception itself: an outage downstream fails every job's attempt, and a stack apiece would bury the log.
+    /// <see cref="HandlerThrewRetryingStack"/> logs the stack at Debug.
+    /// </summary>
     [LoggerMessage(
         Level = LogLevel.Warning,
         Message = "Handler for job ({ActaJobName}) ({ActaJobRef}) threw on attempt ({ActaDetail}); the job retries in {ActaDurationMs}ms."
     )]
     public static partial void HandlerThrewRetrying(
         ILogger log,
-        Exception exception,
         string actaJobName,
         string actaJobRef,
         string actaDetail,
         long actaDurationMs
+    );
+
+    [LoggerMessage(
+        Level = LogLevel.Debug,
+        Message = "Handler for job ({ActaJobName}) ({ActaJobRef}) threw on attempt ({ActaDetail}), which the job retries."
+    )]
+    public static partial void HandlerThrewRetryingStack(
+        ILogger log,
+        Exception exception,
+        string actaJobName,
+        string actaJobRef,
+        string actaDetail
     );
 
     [LoggerMessage(

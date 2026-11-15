@@ -219,7 +219,7 @@ curl http://localhost:5090/jobs/job_...                  # {"status":"succeeded"
 curl http://localhost:5090/jobs/job_.../label            # {"orderId":1044,"carrier":"acme-post","trackingNumber":"AP00001044"}
 ```
 
-The console warns that the handler `threw on attempt (1 of 15); the job retries in 56000ms.`, and the explanation's headline counts down to it, `Ready, scheduled to run in 54s.`: the first retry waits one minute, give or take 10% jitter, so the numbers vary. Until then the Jobs screen shows the order ready, with `1 (1 consecutive failure)` under Attempts; after it, succeeded with `2`. The job's timeline holds Execution 1 with `job.execution-failed` and the carrier's message, and Execution 2 with `job.execution-succeeded`. `FailureCount` counts the attempts in a row that failed, so the success reset it to 0.
+The console warns that the handler `threw on attempt (1 of 15, TimeoutException: Carrier did not answer; order 1044 not booked.); the job retries in 56000ms.`, and the explanation's headline counts down to it, `Ready, scheduled to run in 54s.`: the first retry waits one minute, give or take 10% jitter, so the numbers vary. Until then the Jobs screen shows the order ready, with `1 (1 consecutive failure)` under Attempts; after it, succeeded with `2`. The job's timeline holds Execution 1 with `job.execution-failed` and the carrier's message, and Execution 2 with `job.execution-succeeded`. `FailureCount` counts the attempts in a row that failed, so the success reset it to 0.
 
 Make the carrier flaky again and `curl -X POST http://localhost:5090/orders/1045/ship-now` answers 202 with the ref after five seconds, not the label: the wait timed out, and the job still ships at its retry.
 
