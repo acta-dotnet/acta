@@ -166,7 +166,8 @@ internal sealed class ExplainJobHandler(GetJobIdHandler getJobId, IDbSession ses
                 if (lease is { Expired: true })
                 {
                     var lapsed = h.LeaseExpiresAtUtc is { } exp ? $"expired {Ago(exp, nowUtc)}" : "has expired";
-                    headline = $"{status}, but its lease {lapsed}.";
+                    var lastSeen = h.WorkerLastSeenAtUtc is { } seen ? $"; its worker was last seen {Ago(seen, nowUtc)}" : "";
+                    headline = $"{status}, but its lease {lapsed}{lastSeen}.";
                     actions.Add(Move("wait-recovery", "wait for crash recovery to reclaim the job on its next pass"));
                     actions.Add(Move("cancel", "cancel the job if it should not continue"));
                 }

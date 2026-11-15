@@ -102,4 +102,19 @@ public sealed class GetJobSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<
 
         Assert.Null(snapshot);
     }
+
+    [Fact(DisplayName = "An executing job past its lease reads LeaseLapsed, and one inside its lease does not")]
+    public async Task An_executing_job_past_its_lease_reads_lapsed()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var job = await Jobs.EnqueueAsync(new AddNumbers(1, 2), ct: ct);
+        await JobStateStaging.SetStatusAsync(Db, job.JobId, JobStatusCode.Executing, ct);
+        Assert.False((await Jobs.GetAsync(job, ct))!.LeaseLapsed);
+
+        var past = DateTime.UtcNow.AddMinutes(-5);
+        await Db.From<JobStateEntity>()
+            .Where(r => r.Id == job.JobId)
+            .UpdateOnlyAsync(() => new JobStateEntity { LeaseExpiresAtUtc = past }, ct);
+        Assert.True((await Jobs.GetAsync(job, ct))!.LeaseLapsed);
+    }
 }

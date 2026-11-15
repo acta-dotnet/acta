@@ -22,6 +22,8 @@ export interface JobDetail {
   failureCount: number;
   leasedByWorkerRef: string | null;
   leaseExpiresAtUtc: string | null;
+  // Executing past its lease on the database clock: its worker stopped heartbeating.
+  leaseLapsed?: boolean;
   retentionUntilUtc: string | null;
   createdAtUtc: string;
   modifiedAtUtc: string;

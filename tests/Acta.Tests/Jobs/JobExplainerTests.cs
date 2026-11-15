@@ -301,7 +301,7 @@ public class JobExplainerTests
         var x = ExplainJobHandler.Explain(data, Now);
 
         Assert.True(x.Lease!.Expired);
-        Assert.Contains("lease expired 2m ago", x.Headline);
+        Assert.Contains("lease expired 2m ago; its worker was last seen 4m ago", x.Headline);
         Assert.Contains("Ready", x.Lease.RecoveryExpectation);
         Assert.Contains(x.NextActions, a => a.Kind == "wait-recovery");
         Assert.DoesNotContain(x.NextActions, a => a.Kind == "restart");

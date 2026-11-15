@@ -190,6 +190,7 @@
   {:else if job && detail}
     <section class="entity-summary" aria-label="Job identity">
       <StatusBadge status={job.status} />
+      {#if job.leaseLapsed}<span class="lease-lapsed">Lease lapsed</span>{/if}
       <a href={routes.namespace(job.jobNamespace, { namespace: job.jobNamespace })}>{job.jobNamespace}</a>
       <JobRef value={job.jobRef} copy />
       {#if job.kind === 'permanent'}<span class="dim">Permanent job</span>{/if}
@@ -274,6 +275,7 @@
 
 <style>
   .support-row { display: flex; flex-wrap: wrap; gap: 10px; }
+  .lease-lapsed { color: var(--warn); font-weight: 500; font-size: var(--text-sm); }
   .clone-action { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border: 1px solid var(--line); border-radius: var(--radius-control); color: var(--ink); justify-self: start; }
   .hero-attempt { border: 0; background: none; padding: 0; color: var(--muted); font: inherit; text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 4px; }
   .hero-attempt:hover:not(:disabled) { color: var(--accent); }

@@ -1754,6 +1754,7 @@
   - A known job id returns a populated GetJobResponse whose id and Ready status match the enqueued row
   - A tenant-scoped job's snapshot carries the tenant id and its external key
   - An unknown job id returns null
+  - An executing job past its lease reads LeaseLapsed, and one inside its lease does not
 
 ### GetOverview returns accurate health counters scoped to a namespace and globally
 - **Contract:** GetOverview returns non-negative health counters for the requested namespace and a globally-scoped result that is a superset of any namespace-scoped result.

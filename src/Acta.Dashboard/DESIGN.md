@@ -95,6 +95,7 @@ Acta should feel calm, technically precise, modern, and readable. Focus is the d
 
 - Use the Focus single-page structure.
 - Show failure reasons, active waits, deadlines, blocked dependencies, and useful recovery actions near the top.
+- An executing job past its lease, whose worker stopped heartbeating, carries a "Lease lapsed" mark beside its status badge, in small text in the warning colour, so it does not pass for a live one until crash recovery reclaims it.
 - Show a successful result prominently when one exists.
 - Collapse Activity, stored input and checkpoints, attached schedules, and technical details independently.
 - Keep execution history and timeline filters available within Activity.

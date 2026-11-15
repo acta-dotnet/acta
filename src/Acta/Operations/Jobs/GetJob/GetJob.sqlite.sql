@@ -18,6 +18,8 @@ SELECT
     r.next_run_at_utc,
     r.leased_by_worker_id,
     r.lease_expires_at_utc,
+    -- An executing job past its lease, judged on the database clock: its holder stopped heartbeating.
+    CASE WHEN r.job_status_code = 50 /* JobStatusCode.Executing */ AND r.lease_expires_at_utc < {{now}} THEN 1 ELSE 0 END AS lease_lapsed,
     j.concurrency_key,
     r.retention_until_utc,
     j.created_at_utc,
