@@ -39,42 +39,33 @@ public static class NameSyntax
     {
         ArgumentNullException.ThrowIfNull(value, paramName);
         var canonical = value.Trim().ToLowerInvariant();
-        if (canonical.Length == 0)
-        {
-            throw new ArgumentException("Identifier must not be empty.", paramName);
-        }
-
-        if (canonical.Length > maxLength)
-        {
-            throw new ArgumentException($"Identifier must not exceed {maxLength} characters (got {canonical.Length}).", paramName);
-        }
-
-        if (!IsDottedKebab(canonical))
-        {
-            throw new ArgumentException(
-                $"Identifier '{value}' is not kebab-case or dotted-kebab (each segment must match `[a-z][a-z0-9-]*`).",
-                paramName
-            );
-        }
-
-        if (reserveSystem && canonical == ReservedSystemName)
-        {
-            throw new ArgumentException(
-                $"Identifier '{value}' is reserved for system-internal names (the bare name '{ReservedSystemName}' and the '{SystemPrefix}' prefix are both reserved).",
-                paramName
-            );
-        }
-
-        if (reserveSystem && StartsWithSystemPrefix(canonical))
-        {
-            throw new ArgumentException(
-                $"Identifier '{value}' uses the reserved system prefix '{SystemPrefix}': reserved for system-internal names.",
-                paramName
-            );
-        }
-
-        return canonical;
+        return Problem(value, canonical, maxLength, reserveSystem) is { } problem
+            ? throw new ArgumentException(problem, paramName)
+            : canonical;
     }
+
+    /// <summary>
+    /// <see cref="Canonicalize"/> for a name a handler records (a step, variable, signal, timer, or child): a name that
+    /// breaks the rule throws <see cref="InvalidDurableNameException"/>, which fails the job at once.
+    /// </summary>
+    internal static string CanonicalizeDurable(string value, string paramName)
+    {
+        ArgumentNullException.ThrowIfNull(value, paramName);
+        var canonical = value.Trim().ToLowerInvariant();
+        return Problem(value, canonical, ExtendedMaxLength, reserveSystem: true) is { } problem
+            ? throw new InvalidDurableNameException(problem, paramName)
+            : canonical;
+    }
+
+    private static string? Problem(string value, string canonical, int maxLength, bool reserveSystem) =>
+        canonical.Length == 0 ? "Identifier must not be empty."
+        : canonical.Length > maxLength ? $"Identifier must not exceed {maxLength} characters (got {canonical.Length})."
+        : !IsDottedKebab(canonical) ? $"Identifier '{value}' is not kebab-case or dotted-kebab (each segment must match `[a-z][a-z0-9-]*`)."
+        : reserveSystem && canonical == ReservedSystemName
+            ? $"Identifier '{value}' is reserved for system-internal names (the bare name '{ReservedSystemName}' and the '{SystemPrefix}' prefix are both reserved)."
+        : reserveSystem && StartsWithSystemPrefix(canonical)
+            ? $"Identifier '{value}' uses the reserved system prefix '{SystemPrefix}': reserved for system-internal names."
+        : null;
 
     private static bool IsDottedKebab(string value)
     {

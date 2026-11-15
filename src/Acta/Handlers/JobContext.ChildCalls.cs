@@ -147,7 +147,7 @@ public abstract partial class JobContext
     )
         where TInput : notnull
     {
-        name = NameSyntax.Canonicalize(name, nameof(name), NameSyntax.ExtendedMaxLength, reserveSystem: true);
+        name = NameSyntax.CanonicalizeDurable(name, nameof(name));
         ArgumentNullException.ThrowIfNull(input);
 
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, CancellationToken);

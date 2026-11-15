@@ -23,7 +23,7 @@ public abstract partial class JobContext
         CancellationToken ct = default
     )
     {
-        name = NameSyntax.Canonicalize(name, nameof(name), NameSyntax.ExtendedMaxLength, reserveSystem: true);
+        name = NameSyntax.CanonicalizeDurable(name, nameof(name));
         ArgumentNullException.ThrowIfNull(body);
         var options = BuildStepOptions(name, configure);
 
@@ -57,7 +57,7 @@ public abstract partial class JobContext
         CancellationToken ct = default
     )
     {
-        name = NameSyntax.Canonicalize(name, nameof(name), NameSyntax.ExtendedMaxLength, reserveSystem: true);
+        name = NameSyntax.CanonicalizeDurable(name, nameof(name));
         ArgumentNullException.ThrowIfNull(body);
         var options = BuildStepOptions(name, configure);
 

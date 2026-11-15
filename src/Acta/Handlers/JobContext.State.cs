@@ -141,8 +141,7 @@ public abstract partial class JobContext
         return await DeleteVariableCoreAsync(name, linked.Token);
     }
 
-    private static string ValidateUserVariableName(string name) =>
-        NameSyntax.Canonicalize(name, nameof(name), NameSyntax.ExtendedMaxLength, reserveSystem: true);
+    private static string ValidateUserVariableName(string name) => NameSyntax.CanonicalizeDurable(name, nameof(name));
 
     /// <summary>
     /// Subclass sink: set a user variable using the default JSON format.

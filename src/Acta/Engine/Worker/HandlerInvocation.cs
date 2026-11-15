@@ -324,7 +324,10 @@ internal sealed class HandlerInvocation(
                 or JobFailedException
                 or ChildGroupException
                 or JobWaitTimeoutException
-                or SignalWaitTimeoutException;
+                or SignalWaitTimeoutException
+                or InvalidDurableNameException
+                or StepResultContractMismatchException
+                or SignalValueContractMismatchException;
 
     private ExecutionCompletion Faulted(Exception ex, bool inputDeserialized, JobDescriptor descriptor, ClaimedJob job)
     {

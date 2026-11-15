@@ -224,3 +224,14 @@ flow through and also runs when a wait suspends the job:
 try { await next(); }
 finally { await outcomes.CloseAsync(runId); }
 ```
+
+## ACTA0152 <a id="acta0152"></a>
+
+**A name a handler records can never be valid.** A step, variable, signal, timer, child or group name is dotted
+kebab, `[a-z][a-z0-9-]*` segments joined by `.`, at most 128 characters, and not `sys` or under `sys.`. A name that
+breaks the rule fails its job at once, on the first attempt, so the build refuses one it can already see is
+broken: a constant, or an interpolation whose own text is (a `/`, an `_`, an empty segment, a segment that starts
+with a digit). A name built wholly at run time is checked only when the job runs.
+
+Make a per-item name dotted, and give a segment that starts with an id a letter first:
+`$"apply.{grantId}"`, `$"plan.f{ctx.FiringId:N}"`.

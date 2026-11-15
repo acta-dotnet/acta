@@ -23,6 +23,7 @@ ACTA0131 | Acta | Error | Invalid [JobPayloadFormatDeclaration]
 ACTA0132 | Acta | Error | Invalid [Job] payload-format usage (Format vs InputFormat/ResultFormat, ResultFormat on void, unknown name)
 ACTA0142 | Acta | Error | Invalid Acta duration unit (uppercase or calendar unit)
 ACTA0151 | Acta | Warning | A catch that can take a wait's, sleep's, reschedule's or pause's control flow
+ACTA0152 | Acta | Error | A name a handler records (step, variable, signal, timer, child) that can never be valid
 ACTA0201 | ActaCodes | Error | Invalid code-family declaration
 ACTA0202 | ActaCodes | Error | Invalid [Code] value (shape or id outside 0..254)
 ACTA0203 | ActaCodes | Error | Duplicate [Code] value (code string or numeric value)

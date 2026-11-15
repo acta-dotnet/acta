@@ -2578,6 +2578,7 @@
   - Raise sets the checkpoint and releases a Suspended job to Ready, then it completes
   - A signal raised before the wait is observed without suspending the job
   - A typed signal round-trips its payload to the handler
+  - A raised value the waiting type cannot read fails the job at once, naming the signal and the type
   - A wait on a signal already set reads its value each time, and a later raise of another value is rejected
   - A presence signal sets the checkpoint with a null payload
   - A duplicate raise of another value is rejected, and the wait reads the first

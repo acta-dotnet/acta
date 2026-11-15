@@ -53,7 +53,7 @@ public sealed class WorkerExecutorOutcomeTests
     }
 
     [Fact]
-    public async Task A_replayed_step_result_its_type_cannot_read_fails_the_attempt_naming_the_step()
+    public async Task A_replayed_step_result_its_type_cannot_read_fails_the_job_at_once_naming_the_step()
     {
         var harness = new WorkerExecutorHarness(replayedStepResult: "\"not a number\""u8.ToArray());
 
@@ -61,8 +61,9 @@ public sealed class WorkerExecutorOutcomeTests
             static (ctx, ct) => ctx.RunStepAsync(WorkerExecutorHarness.StepName, static _ => Task.FromResult(42), ct)
         );
 
-        Assert.Equal(RunOnceStatus.Rearmed, outcome);
-        Assert.Equal(EventReason.UnhandledException, harness.Completion.Reason);
+        // Every attempt would read the same stored bytes, so no retry can help.
+        Assert.Equal(RunOnceStatus.Failed, outcome);
+        Assert.Equal(EventReason.NonRetryableException, harness.Completion.Reason);
         Assert.Contains(
             $"Step '{WorkerExecutorHarness.StepName}' has a stored result that cannot be deserialized",
             harness.Completion.EventMessage,

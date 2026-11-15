@@ -213,6 +213,16 @@ internal static class ManifestDiagnostics
         helpLinkUri: HelpBase + "acta0151"
     );
 
+    internal static readonly DiagnosticDescriptor InvalidDurableName = new(
+        id: "ACTA0152",
+        title: "A name a handler records can never be valid",
+        messageFormat: "{0}",
+        category: "Acta",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        helpLinkUri: HelpBase + "acta0152"
+    );
+
     public static DiagnosticDescriptor For(string id) =>
         id switch
         {

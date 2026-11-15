@@ -153,11 +153,14 @@ public static class JobVariableProbes
         var invalidNamesRejected = true;
         foreach (var name in invalidNames)
         {
-            invalidNamesRejected &= await ThrowsAsync<ArgumentException>(() => ctx.ExistsVariableAsync(name, ct));
+            // A name a handler records that breaks the rule is an ActaException, which fails the job at once.
+            invalidNamesRejected &= await ThrowsAsync<ActaException>(() => ctx.ExistsVariableAsync(name, ct));
         }
 
-        var reservedSetRejected = await ThrowsAsync<ArgumentException>(() => ctx.SetVariableAsync("sys.progress", "bad", ct));
-        var reservedDeleteRejected = await ThrowsAsync<ArgumentException>(() => ctx.DeleteVariableAsync("sys.progress", ct));
+        // A local, since the build itself refuses a reserved constant (ACTA0152).
+        var reserved = "sys.progress";
+        var reservedSetRejected = await ThrowsAsync<ActaException>(() => ctx.SetVariableAsync(reserved, "bad", ct));
+        var reservedDeleteRejected = await ThrowsAsync<ActaException>(() => ctx.DeleteVariableAsync(reserved, ct));
         var nonePayloadRejected = await ThrowsAsync<ArgumentException>(() => ctx.SetVariableAsync("payload.none", JobPayload.None, ct));
         var unregisteredPayloadRejected = await ThrowsAsync<InvalidOperationException>(() =>
             ctx.SetVariableAsync("payload.custom", JobPayload.CopyBytes(JobPayloadFormat.Custom(128, "test-custom"), [1]), ct)

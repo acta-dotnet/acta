@@ -249,7 +249,7 @@ public abstract partial class JobContext
         ArgumentNullException.ThrowIfNull(items);
         ArgumentNullException.ThrowIfNull(itemKey);
         ArgumentNullException.ThrowIfNull(child);
-        groupName = NameSyntax.Canonicalize(groupName, nameof(groupName), NameSyntax.ExtendedMaxLength, reserveSystem: true);
+        groupName = NameSyntax.CanonicalizeDurable(groupName, nameof(groupName));
         ValidateGroupTimeout(timeout);
 
         var materialized = items as IReadOnlyList<TItem> ?? items.ToList();

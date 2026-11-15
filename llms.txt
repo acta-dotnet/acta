@@ -92,8 +92,9 @@ public static class ShippingHandlers
   (`billing.send-invoice`), no underscores, no trailing dash, at most 128 chars. The bare `sys` and the `sys.` prefix are reserved for Acta's own jobs. The name is
   the durable operator-facing contract in SQL, the dashboard, the CLI, and alerts. The names you give steps, variables,
   signals, timers and children follow the same rule after folding to lowercase, so a per-item name is dotted
-  (`apply.{id}`, never `apply/{id}`); an invalid one throws `ArgumentException` at the call, and the job retries it
-  like any failure.
+  (`apply.{id}`, never `apply/{id}`). An invalid one fails the job at once, since no retry can fix it, and the build
+  refuses one it can already see is broken (ACTA0152). A raised signal value or a stored step result the code can no
+  longer read fails the job at once too, naming the signal or step and the type.
 - `ShippingJobs` is the source-generated manifest, named from the LAST segment of the project's
   `RootNamespace` plus `Jobs` (`Users` → `UsersJobs`; a segment already ending in `Jobs` gets
   `Manifest` instead: `TestJobs` → `TestJobsManifest`). It is generated into that root namespace,

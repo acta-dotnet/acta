@@ -175,6 +175,28 @@ public sealed class SignalSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<
         Assert.Equal(decision, await Jobs.GetResultAsync<ReviewDecision>(enqueued, ct));
     }
 
+    [Fact(DisplayName = "A raised value the waiting type cannot read fails the job at once, naming the signal and the type")]
+    public async Task Unreadable_signal_value_fails_the_job_at_once()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-wait-signal-typed", JobPayload.None), ct);
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(ControlAction.Applied, (await Jobs.RaiseSignalAsync(enqueued, "review", "not a decision", ct: ct)).Action);
+
+        // Every attempt would read the same stored value, so the job fails on the first one instead of retrying.
+        Assert.Equal(RunOnceStatus.Failed, await Runtime.RunOnceAsync(enqueued, ct));
+        var job = await ReadJobAsync(enqueued.JobId, ct);
+        Assert.Equal(JobStatusCode.Failed, job.Status);
+        Assert.Equal(0, job.FailureCount);
+        var failed = await ReadLatestEventAsync(enqueued.JobId, EventCode.JobFailed, ct);
+        Assert.Equal(EventReason.NonRetryableException, EventDetail(failed, "reason"));
+        Assert.StartsWith(
+            "Signal 'review' has a value that cannot be deserialized into",
+            failed.EventMessage ?? "",
+            StringComparison.Ordinal
+        );
+    }
+
     [Fact(DisplayName = "A wait on a signal already set reads its value each time, and a later raise of another value is rejected")]
     public async Task Set_signal_is_read_not_consumed()
     {

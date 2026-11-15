@@ -55,8 +55,12 @@ public static class JobSleepRescheduleProbes
     [Job("job-sleep-validation")]
     public static async Task<SleepValidationResult> SleepValidation(JobContext ctx, CancellationToken ct)
     {
-        var invalid = await Rejects<ArgumentException>(() => ctx.SleepAsync("Bad Name", TimeSpan.FromMinutes(1), ct: ct));
-        var reserved = await Rejects<ArgumentException>(() => ctx.SleepAsync("sys.reserved", TimeSpan.FromMinutes(1), ct: ct));
+        // A name a handler records that breaks the rule is an ActaException, which fails the job at once. The names are
+        // locals, since the build itself refuses such a constant (ACTA0152).
+        string badName = "Bad Name",
+            reservedName = "sys.reserved";
+        var invalid = await Rejects<ActaException>(() => ctx.SleepAsync(badName, TimeSpan.FromMinutes(1), ct: ct));
+        var reserved = await Rejects<ActaException>(() => ctx.SleepAsync(reservedName, TimeSpan.FromMinutes(1), ct: ct));
         // A remaining time computed against a passed deadline is negative, and the sleep it bounds is over.
         await ctx.SleepAsync("neg", TimeSpan.FromSeconds(-1), ct: ct);
         return new SleepValidationResult(invalid, reserved, NegativeDelayReturned: true);

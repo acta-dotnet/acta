@@ -1,3 +1,5 @@
+using System.Diagnostics;
+
 namespace Acta;
 
 public abstract partial class JobContext
@@ -13,7 +15,7 @@ public abstract partial class JobContext
     public async Task SleepAsync(string name, TimeSpan delay, string? reasonMessage = null, CancellationToken ct = default)
     {
         ThrowIfInAtMostOnceStep(nameof(SleepAsync));
-        name = NameSyntax.Canonicalize(name, nameof(name), NameSyntax.ExtendedMaxLength, reserveSystem: true);
+        name = NameSyntax.CanonicalizeDurable(name, nameof(name));
         var seconds = delay <= TimeSpan.Zero ? 0 : DurationSyntax.ToWholeSeconds(delay, nameof(delay));
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, CancellationToken);
         await SleepCoreAsync(name, TimeSpan.FromSeconds(seconds), resumeAtUtc: null, reasonMessage, linked.Token);
@@ -27,7 +29,7 @@ public abstract partial class JobContext
     public async Task SleepUntilAsync(string name, DateTimeOffset resumeAtUtc, string? reasonMessage = null, CancellationToken ct = default)
     {
         ThrowIfInAtMostOnceStep(nameof(SleepUntilAsync));
-        name = NameSyntax.Canonicalize(name, nameof(name), NameSyntax.ExtendedMaxLength, reserveSystem: true);
+        name = NameSyntax.CanonicalizeDurable(name, nameof(name));
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, CancellationToken);
         await SleepCoreAsync(name, delay: null, resumeAtUtc.UtcDateTime, reasonMessage, linked.Token);
     }
@@ -56,7 +58,7 @@ public abstract partial class JobContext
     public async Task WaitSignalAsync(string name, CancellationToken ct = default)
     {
         ThrowIfInAtMostOnceStep(nameof(WaitSignalAsync));
-        name = NameSyntax.Canonicalize(name, nameof(name), NameSyntax.ExtendedMaxLength, reserveSystem: true);
+        name = NameSyntax.CanonicalizeDurable(name, nameof(name));
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, CancellationToken);
         ThrowIfTimedOut(await WaitSignalCoreAsync(name, linked.Token), name);
     }
@@ -69,10 +71,10 @@ public abstract partial class JobContext
     public async Task<T?> WaitSignalAsync<T>(string name, CancellationToken ct = default)
     {
         ThrowIfInAtMostOnceStep(nameof(WaitSignalAsync));
-        name = NameSyntax.Canonicalize(name, nameof(name), NameSyntax.ExtendedMaxLength, reserveSystem: true);
+        name = NameSyntax.CanonicalizeDurable(name, nameof(name));
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, CancellationToken);
         var outcome = ThrowIfTimedOut(await WaitSignalCoreAsync(name, linked.Token), name);
-        return outcome.ValueFormatId == 0 ? default : DeserializeSignalPayload<T>(outcome.ValueFormatId, outcome.Value!);
+        return ReadSignalValue<T>(name, outcome);
     }
 
     /// <summary>
@@ -85,7 +87,7 @@ public abstract partial class JobContext
     public async Task<SignalWaitOutcome> WaitSignalAsync(string name, TimeSpan timeout, CancellationToken ct = default)
     {
         ThrowIfInAtMostOnceStep(nameof(WaitSignalAsync));
-        name = NameSyntax.Canonicalize(name, nameof(name), NameSyntax.ExtendedMaxLength, reserveSystem: true);
+        name = NameSyntax.CanonicalizeDurable(name, nameof(name));
         var seconds = ToWaitTimeoutSeconds(timeout);
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, CancellationToken);
         var outcome = await WaitSignalCoreAsync(name, seconds, linked.Token);
@@ -100,7 +102,7 @@ public abstract partial class JobContext
     public async Task<SignalWaitOutcome<T>> WaitSignalAsync<T>(string name, TimeSpan timeout, CancellationToken ct = default)
     {
         ThrowIfInAtMostOnceStep(nameof(WaitSignalAsync));
-        name = NameSyntax.Canonicalize(name, nameof(name), NameSyntax.ExtendedMaxLength, reserveSystem: true);
+        name = NameSyntax.CanonicalizeDurable(name, nameof(name));
         var seconds = ToWaitTimeoutSeconds(timeout);
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, CancellationToken);
         var outcome = await WaitSignalCoreAsync(name, seconds, linked.Token);
@@ -109,8 +111,26 @@ public abstract partial class JobContext
             return SignalWaitOutcome<T>.Expired(name);
         }
 
-        var value = outcome.ValueFormatId == 0 ? default : DeserializeSignalPayload<T>(outcome.ValueFormatId, outcome.Value!);
-        return SignalWaitOutcome<T>.Signalled(name, value);
+        return SignalWaitOutcome<T>.Signalled(name, ReadSignalValue<T>(name, outcome));
+    }
+
+    /// <summary>A raised value read as <typeparamref name="T"/>; one it cannot read fails the job at once, as every attempt reads the same.</summary>
+    [DebuggerDisableUserUnhandledExceptions]
+    private T? ReadSignalValue<T>(string name, SignalCheckpointState outcome)
+    {
+        if (outcome.ValueFormatId == 0)
+        {
+            return default;
+        }
+
+        try
+        {
+            return DeserializeSignalPayload<T>(outcome.ValueFormatId, outcome.Value!);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            throw new SignalValueContractMismatchException(name, typeof(T), ex);
+        }
     }
 
     /// <summary>

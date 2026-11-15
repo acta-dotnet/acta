@@ -2582,6 +2582,10 @@ sealed class Acta.ScheduledDeliveryCodeJsonConverter : System.Text.Json.Serializ
     .ctor()
     Acta.ScheduledDeliveryCode Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
     System.Void Write(System.Text.Json.Utf8JsonWriter writer, Acta.ScheduledDeliveryCode value, System.Text.Json.JsonSerializerOptions options)
+sealed class Acta.SignalValueContractMismatchException : Acta.ActaException
+    .ctor(System.String signalName, System.Type expectedType, System.Exception innerException)
+    System.String SignalName { get; }
+    System.Type ExpectedType { get; }
 sealed record Acta.SignalWaitOutcome
     System.Boolean Received { get; }
     System.Boolean TimedOut { get; }
