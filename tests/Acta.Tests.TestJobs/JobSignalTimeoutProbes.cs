@@ -31,6 +31,11 @@ public static class JobSignalTimeoutProbes
         return new WaitTimeoutReport(TimedOut: false, Received: true, decision?.Comment);
     }
 
+    /// <summary>A wait bounded by the instant its input names, answering whether it timed out.</summary>
+    [Job("job-wait-signal-until")]
+    public static async Task<bool> WaitUntil(DateTimeOffset until, JobContext ctx, CancellationToken ct) =>
+        (await ctx.WaitSignalAsync("go", until, ct)).TimedOut;
+
     [Job("job-wait-signal-outcome")]
     public static async Task<WaitTimeoutReport> WaitWithTimeoutOutcome(JobContext ctx, CancellationToken ct)
     {

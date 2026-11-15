@@ -2609,6 +2609,12 @@
   - A restart clears the expired wait that ended the job, which waits again under a fresh bound
   - A restart keeps the expiry of a timed-out wait the handler went past, whatever then ended the job
 
+### A wait bounded by an instant stores that instant and times out at it
+- **Contract:** WaitSignalAsync(name, until) stores until as the wait's expiration, and a wait first armed at or past it times out at once.
+- **Guarantees:**
+  - A wait bounded by an instant stores that instant as its expiration
+  - A wait first armed past its instant times out at once
+
 ### A wait arms its checkpoint once and answers suspend, continue, or timed out
 - **Contract:** Wait arms a Pending checkpoint once, continues with a Set one's payload, and answers TimedOut past a stored expiry or at once when first armed past an instant.
 - **Guarantees:**

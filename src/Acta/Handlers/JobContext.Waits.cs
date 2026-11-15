@@ -114,6 +114,35 @@ public abstract partial class JobContext
         return SignalWaitOutcome<T>.Signalled(name, ReadSignalValue<T>(name, outcome));
     }
 
+    /// <summary>
+    /// <see cref="WaitSignalAsync(string, TimeSpan, CancellationToken)"/> bounded by an instant rather than a length:
+    /// <paramref name="until"/> is stored as the wait's expiration, and a wait first armed at or past it times out at
+    /// once, so a deadline several waits share is the same instant at each, and a restart after it meets it again.
+    /// </summary>
+    public async Task<SignalWaitOutcome> WaitSignalAsync(string name, DateTimeOffset until, CancellationToken ct = default)
+    {
+        ThrowIfInAtMostOnceStep(nameof(WaitSignalAsync));
+        name = NameSyntax.CanonicalizeDurable(name, nameof(name));
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, CancellationToken);
+        var outcome = await WaitSignalUntilCoreAsync(name, until.UtcDateTime, linked.Token);
+        return outcome.TimedOut ? SignalWaitOutcome.Expired(name) : SignalWaitOutcome.Signalled(name);
+    }
+
+    /// <summary>
+    /// Typed twin of <see cref="WaitSignalAsync(string, DateTimeOffset, CancellationToken)"/>, read as
+    /// <see cref="WaitSignalAsync{T}(string, TimeSpan, CancellationToken)"/> reads its value.
+    /// </summary>
+    public async Task<SignalWaitOutcome<T>> WaitSignalAsync<T>(string name, DateTimeOffset until, CancellationToken ct = default)
+    {
+        ThrowIfInAtMostOnceStep(nameof(WaitSignalAsync));
+        name = NameSyntax.CanonicalizeDurable(name, nameof(name));
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, CancellationToken);
+        var outcome = await WaitSignalUntilCoreAsync(name, until.UtcDateTime, linked.Token);
+        return outcome.TimedOut
+            ? SignalWaitOutcome<T>.Expired(name)
+            : SignalWaitOutcome<T>.Signalled(name, ReadSignalValue<T>(name, outcome));
+    }
+
     /// <summary>A raised value read as <typeparamref name="T"/>; one it cannot read fails the job at once, as every attempt reads the same.</summary>
     [DebuggerDisableUserUnhandledExceptions]
     private T? ReadSignalValue<T>(string name, SignalCheckpointState outcome)
