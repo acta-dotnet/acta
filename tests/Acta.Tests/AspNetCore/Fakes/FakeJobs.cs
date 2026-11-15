@@ -88,6 +88,17 @@ internal sealed class FakeJobs : IJobs
             var (jobId, action, status, _) = ResultFor(job, applied: JobStatusCode.Ready);
             return ValueTask.FromResult(new RaiseJobSignalResponse(jobId, action, status));
         };
+        ClearSignal = (job, name, actor, _) =>
+        {
+            ClearSignalCalls.Add((job.JobRef, name, actor));
+            var (jobId, action, status, _) = ResultFor(job, applied: JobStatusCode.Succeeded);
+            // A clear refuses only a live job.
+            return ValueTask.FromResult(
+                action == ControlAction.Rejected
+                    ? new ClearJobSignalResponse(jobId, action, JobStatusCode.Ready, "job-not-finished")
+                    : new ClearJobSignalResponse(jobId, action, status)
+            );
+        };
     }
 
     /// <summary>Input the found job carries. The amend verb reads its format and writes the amended payload back; null
@@ -118,6 +129,8 @@ internal sealed class FakeJobs : IJobs
 
     /// <summary>Signal raises with the delivered format and bytes; null bytes is a presence-only signal.</summary>
     public List<(JobRef JobRef, string Name, byte FormatId, byte[]? Value, string? Actor)> SignalCalls { get; } = [];
+
+    public List<(JobRef JobRef, string Name, string? Actor)> ClearSignalCalls { get; } = [];
 
     /// <summary>The format-resolved payloads the amend endpoint built.</summary>
     public List<JobPayload> InputAmendCalls { get; } = [];
@@ -167,6 +180,8 @@ internal sealed class FakeJobs : IJobs
     public Func<JobLookup, string?, string?, CancellationToken, ValueTask<PurgeJobResponse>> Purge { get; set; }
 
     public Func<JobLookup, string, JobPayload, string?, CancellationToken, ValueTask<RaiseJobSignalResponse>> RaiseSignal { get; set; }
+
+    public Func<JobLookup, string, string?, CancellationToken, ValueTask<ClearJobSignalResponse>> ClearSignal { get; set; }
 
     ValueTask<GetJobResponse?> IJobs.GetAsync(JobLookup job, CancellationToken ct) => Get(job, ct);
 
@@ -257,6 +272,9 @@ internal sealed class FakeJobs : IJobs
         string? actor,
         CancellationToken ct
     ) => RaiseSignal(job, name, value, actor, ct);
+
+    ValueTask<ClearJobSignalResponse> IJobs.ClearSignalAsync(JobLookup job, string name, string? actor, CancellationToken ct) =>
+        ClearSignal(job, name, actor, ct);
 
     ValueTask<GetJobStatusResponse?> IJobs.GetStatusAsync(JobLookup job, CancellationToken ct) =>
         ValueTask.FromResult(Detail(job) is { } found ? new GetJobStatusResponse(found.Status) : null);

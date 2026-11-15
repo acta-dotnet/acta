@@ -4,12 +4,23 @@
 const title = (verb: string) => verb.charAt(0).toUpperCase() + verb.slice(1);
 
 // Job verbs at jobs/{jobRef}/{verb}: pause, resume, restart, cancel, reschedule, reprioritize, purge,
-// signal. The dashboard sends no expectedVersion, so a job verb never answers version-conflict.
-export function jobControlMessage(verb: string, action: string): string {
+// signal, and clear-signal (DELETE jobs/{jobRef}/signals/{name}). The dashboard sends no expectedVersion, so a job
+// verb never answers version-conflict. Only the two signal verbs answer already-in-state, and they name the reason
+// for a refusal.
+export function jobControlMessage(verb: string, action: string, reason?: string | null): string {
   switch (action) {
     case 'applied':
-      return `${title(verb)} applied.`;
+      return verb === 'clear-signal' ? 'Signal cleared.' : `${title(verb)} applied.`;
+    case 'already-in-state':
+      return verb === 'clear-signal' ? 'The job holds no signal by that name.' : 'The signal already holds this value.';
     case 'rejected':
+      if (verb === 'clear-signal')
+        return 'Clear rejected: the job has not finished. A signal clears only from a finished job or a permanent job between firings.';
+      if (verb === 'signal' && reason === 'job-finished')
+        return 'Signal rejected: the job has finished. Clear the signal if it holds a value, run the job again, then raise it.';
+      if (verb === 'signal' && reason === 'wait-expired') return 'Signal rejected: the wait for it has expired.';
+      if (verb === 'signal' && reason === 'value-differs')
+        return 'Signal rejected: it already holds another value, and a signal keeps its first.';
       if (verb === 'restart')
         return 'Restart rejected: the job is executing, a firing is still outstanding, an unfinished ancestor or descendant sits in its lane, or its schedule is full, orphaned or retired.';
       if (verb === 'purge')

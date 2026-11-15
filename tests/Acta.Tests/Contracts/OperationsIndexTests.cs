@@ -498,6 +498,20 @@ public sealed partial class OperationsIndexTests
     {
         var nodes = Parse(runner).ToList();
         var methods = nodes.OfType<MethodDeclarationSyntax>().GroupBy(m => m.Identifier.Text).ToDictionary(g => g.Key, g => g.First());
+
+        // A verb as it is typed: the parser's arm that maps its text to the CliVerb member.
+        var typed = Parse(Path.Combine(Path.GetDirectoryName(runner)!, "CliCommandParser.cs"))
+            .OfType<SwitchExpressionArmSyntax>()
+            .Select(arm =>
+                (
+                    arm.Pattern is ConstantPatternSyntax { Expression: LiteralExpressionSyntax text } ? text.Token.ValueText : null,
+                    arm.Expression is MemberAccessExpressionSyntax { Expression: IdentifierNameSyntax { Identifier.Text: "CliVerb" } } verb
+                        ? verb.Name.Identifier.Text
+                        : null
+                )
+            )
+            .Where(pair => pair.Item1 is not null && pair.Item2 is not null)
+            .ToDictionary(pair => pair.Item2!, pair => pair.Item1!, StringComparer.Ordinal);
         var found = new List<(string, string)>();
         foreach (var arm in nodes.OfType<SwitchExpressionArmSyntax>())
         {
@@ -523,7 +537,7 @@ public sealed partial class OperationsIndexTests
                     .LastOrDefault(op => op is not null);
             if (operation is not null)
             {
-                found.Add((member.Name.Identifier.Text.ToLowerInvariant(), operation));
+                found.Add((typed[member.Name.Identifier.Text], operation));
             }
         }
 

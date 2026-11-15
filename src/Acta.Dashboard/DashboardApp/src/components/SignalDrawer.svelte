@@ -60,7 +60,7 @@
     message = '';
     try {
       const result = await mutation.mutateAsync(vars);
-      message = jobControlMessage('signal', result.action);
+      message = jobControlMessage('signal', result.action, result.reason);
       messageKind = result.action === 'applied' ? 'ok' : 'warn';
       onSent();
     } catch (e) {

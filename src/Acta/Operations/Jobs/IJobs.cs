@@ -503,4 +503,12 @@ public interface IJobs
     /// </summary>
     ValueTask<RaiseJobSignalResponse> RaiseSignalAsync(JobLookup job, string name, JobPayload value, CancellationToken ct) =>
         RaiseSignalAsync(job, name, value, actor: null, ct);
+
+    /// <summary>
+    /// Clears the signal <paramref name="name"/> from a finished job, or from a permanent job between firings, so its
+    /// next wait for the signal waits again. To give a finished job's signal a new value, clear it, restart the job, then
+    /// raise it. A system job keeps its signals: the clear answers Rejected with reason <c>system-job</c>.
+    /// <paramref name="actor"/> is recorded on the audit event as the operator identity; null when unknown.
+    /// </summary>
+    ValueTask<ClearJobSignalResponse> ClearSignalAsync(JobLookup job, string name, string? actor = null, CancellationToken ct = default);
 }

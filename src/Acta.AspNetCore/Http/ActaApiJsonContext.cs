@@ -54,6 +54,7 @@ namespace Acta.AspNetCore;
 [JsonSerializable(typeof(UpdateJobInputResponse))]
 [JsonSerializable(typeof(PurgeJobResponse))]
 [JsonSerializable(typeof(RaiseJobSignalResponse))]
+[JsonSerializable(typeof(ClearJobSignalResponse))]
 [JsonSerializable(typeof(RescheduleJobRequest))]
 [JsonSerializable(typeof(ReprioritizeJobRequest))]
 [JsonSerializable(typeof(UpdateJobInputRequest))]

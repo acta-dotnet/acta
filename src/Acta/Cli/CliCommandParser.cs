@@ -68,6 +68,7 @@ internal static class CliCommandParser
             "resume" => CliVerb.Resume,
             "restart" => CliVerb.Restart,
             "signal" => CliVerb.Signal,
+            "clear-signal" => CliVerb.ClearSignal,
             "debug" => CliVerb.Debug,
             "events" => CliVerb.Events,
             "explain" => CliVerb.Explain,
@@ -149,7 +150,7 @@ internal static class CliCommandParser
                     {
                         target = token;
                     }
-                    else if (verb == CliVerb.Signal && signalName is null)
+                    else if (verb is CliVerb.Signal or CliVerb.ClearSignal && signalName is null)
                     {
                         signalName = token;
                     }
@@ -162,9 +163,9 @@ internal static class CliCommandParser
             }
         }
 
-        if (verb == CliVerb.Signal && signalName is null)
+        if (verb is CliVerb.Signal or CliVerb.ClearSignal && signalName is null)
         {
-            error = "Verb 'signal' requires a job and a signal name.";
+            error = $"Verb '{args[0]}' requires a job and a signal name.";
             return false;
         }
         if (reason is not null && verb is not (CliVerb.Cancel or CliVerb.Pause or CliVerb.Resume or CliVerb.Restart))

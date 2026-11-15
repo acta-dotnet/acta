@@ -20,6 +20,13 @@ internal static class CliOutput
 
     public static void WriteControl(TextWriter writer, string verb, JobRef jobRef, IJobControlResponse result, bool json)
     {
+        // The signal verbs say why they were refused.
+        var reason = result switch
+        {
+            RaiseJobSignalResponse raise => raise.Reason,
+            ClearJobSignalResponse clear => clear.Reason,
+            _ => null,
+        };
         if (json)
         {
             WriteJson(writer, w =>
@@ -35,9 +42,9 @@ internal static class CliOutput
                 {
                     w.WriteNull("status");
                 }
-                if (result is RaiseJobSignalResponse { Reason: { } rejected })
+                if (reason is not null)
                 {
-                    w.WriteString("reason", rejected);
+                    w.WriteString("reason", reason);
                 }
             });
             return;
@@ -46,7 +53,7 @@ internal static class CliOutput
         writer.WriteLine($"job: {jobRef}");
         writer.WriteLine($"action: {Code(result.Action)}");
         writer.WriteLine($"status: {(result.Status is { } s ? s.Code : "(none)")}");
-        if (result is RaiseJobSignalResponse { Reason: { } reason })
+        if (reason is not null)
         {
             writer.WriteLine($"reason: {reason}");
         }
@@ -536,6 +543,7 @@ internal static class CliOutput
         );
         writer.WriteLine("  restart  <job-ref|deduplication-key>             reset any non-executing job to ready");
         writer.WriteLine("  signal   <job-ref|deduplication-key> <name>      raise a signal (add --value for a payload)");
+        writer.WriteLine("  clear-signal <job-ref|deduplication-key> <name>  clear a finished job's signal before a restart");
         writer.WriteLine(
             "  debug    <job-ref|deduplication-key>             run only this one job in-process (this worker runs nothing else)"
         );

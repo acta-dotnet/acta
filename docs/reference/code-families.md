@@ -5,7 +5,7 @@
 > Generated reference for Acta code families and the payload-format registry.
 > Every persisted code is documented here exactly once; the data-model reference [`data-model.md`](./data-model.md) links into this file from every code-bearing column.
 
-This release: **33 families**, **197 values**.
+This release: **33 families**, **198 values**.
 
 > Numeric IDs are stable family-local persistence identifiers. Enum members carry programmatic meaning; textual codes carry operator-facing meaning.
 > Numeric grouping is a readability convention, not a runtime schema. Canonical failure states use `200`.
@@ -237,6 +237,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `JobInputAmended` | 76 | `job.input-amended` | An operator replaced a job's stored input; the operator is the event's actor, the details carry the format name and byte count of the previous input, and the message carries the reason. | Active |
 | `JobSignalRaised` | 80 | `job.signal-raised` | A signal was raised for the job. Its signal checkpoint is set, unless the wait had already expired: then nothing changes, and the message says so. | Active |
 | `JobStateReset` | 81 | `job.state-reset` | The handler reset the job's state: its checkpoints and steps were cleared so the next execution starts as new. The record of a scheduled firing stays. | Active |
+| `JobSignalCleared` | 82 | `job.signal-cleared` | An operator cleared a signal from a finished job or a permanent job between firings, so the job's next wait for it waits again; the operator is the event's actor. | Active |
 | `JobNoteRecorded` | 90 | `job.note-recorded` | A note the application's handler wrote. It is the only event an application can write, and the engine never writes it, so every other event is the engine's own. The message carries the line; the details carry the optional payload. | Active |
 | `SchedulePaused` | 100 | `schedule.paused` | A recurring schedule was paused; details carry the schedule name. | Active |
 | `ScheduleResumed` | 101 | `schedule.resumed` | A recurring schedule was resumed; details carry the schedule name. | Active |
@@ -269,7 +270,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
 | `Unspecified` | 0 | `unspecified` | Event recording not recognized by this build; the row was written by a newer Acta. | Active |
-| `Failures` | 10 | `failures` | Records every failed or orphaned attempt, a success that recovers from counted failures, a job freed from a stranded lane, a caller's pause, resume, restart, reschedule, priority change, input update, or cancel, and a schedule's pause, pause end, manual trigger, or failing evaluation. Under an enabled alert profile, also a one-shot's success past its first attempt, which resolves its alert. | Active |
+| `Failures` | 10 | `failures` | Records every failed or orphaned attempt, a success that recovers from counted failures, a job freed from a stranded lane, a caller's pause, resume, restart, reschedule, reprioritize, input update, signal clear, or cancel, and a schedule's pause, pause end, trigger, or failing evaluation. Under an enabled alert profile, also a one-shot's success past its first attempt, which resolves its alert. | Active |
 | `Audit` | 20 | `audit` | Records every per-job event. The default for an application's jobs. | Active |
 
 ### `FiringFailurePolicyCode` · `firing-failure-policy` <a id="code-family-firingfailurepolicycode"></a>

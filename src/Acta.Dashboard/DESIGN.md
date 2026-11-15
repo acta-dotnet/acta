@@ -102,6 +102,7 @@ Acta should feel calm, technically precise, modern, and readable. Focus is the d
 - Showing execution history puts the execution summaries in focus. Walking an execution returns to its filtered event timeline.
 - Preserve existing section and execution deep links by opening their matching disclosures.
 - Keep input amendment, signals, clone, tags, incident copying, and all existing job controls available under their permissions.
+- A finished job's signal, or a permanent job's between firings, clears from its row in the checkpoints panel behind a confirmation; a system job's signals carry no Clear. Once the job has shown checkpoints the panel stays, so clearing the last one keeps its outcome in view.
 - Preserve permanent-job firing and attempt-budget semantics. A retrying job states its budget beside its failures: "fails permanently at N", or "each firing gets N attempts" on a permanent job.
 - When a job turns terminal, the timeline reads its newest events once more, since the last poll can precede them.
 - A not-found page names the reference that was requested.

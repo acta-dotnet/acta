@@ -85,6 +85,12 @@ internal sealed class CliCommandRunner(
             CliVerb.Resume => Control("resume", jobRef, await jobs.ResumeAsync(job, command.Reason, ct: ct), command.Json),
             CliVerb.Restart => Control("restart", jobRef, await jobs.RestartAsync(job, command.Reason, ct: ct), command.Json),
             CliVerb.Signal => await SignalAsync(job, jobRef, command, ct),
+            CliVerb.ClearSignal => Control(
+                "clear-signal",
+                jobRef,
+                await jobs.ClearSignalAsync(job, command.SignalName!, ct: ct),
+                command.Json
+            ),
             CliVerb.Debug => await DebugAsync(snapshot, command.Json, command.Break, ct),
             CliVerb.Events => await EventsAsync(job, jobRef, command.Take, command.Cursor, command.Json, ct),
             CliVerb.Explain => await ExplainAsync(job, command.Json, ct),

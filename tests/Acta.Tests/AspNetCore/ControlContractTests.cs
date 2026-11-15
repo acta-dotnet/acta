@@ -212,6 +212,7 @@ public sealed class ControlContractTests
             Row("jobs", "/jobs/{jobRef}/reprioritize", "POST", "/jobs/not-a-ref/reprioritize", Reason),
             Row("jobs", "/jobs/{jobRef}/input", "PUT", "/jobs/not-a-ref/input", Reason),
             Row("jobs", "/jobs/{jobRef}/signals/{signalName}", "POST", "/jobs/not-a-ref/signals/approval", null),
+            Row("jobs", "/jobs/{jobRef}/signals/{signalName}", "DELETE", "/jobs/not-a-ref/signals/approval", null),
             Row("alerts", "/alerts/{alertRef}/acknowledge", "POST", "/alerts/not-a-ref/acknowledge", Reason),
             Row("alerts", "/alerts/{alertRef}/resolve", "POST", "/alerts/not-a-ref/resolve", Reason),
             Row("tags", "/jobs/{jobRef}/tags/{tagName}", "PUT", "/jobs/not-a-ref/tags/env", upsert),
@@ -278,6 +279,40 @@ public sealed class ControlContractTests
                 StatusCodes.Status404NotFound,
                 "not-found"
             ),
+            // The clear's DELETE on the same route answers the same three outcomes in its own envelope.
+            Job(
+                typeof(ClearJobSignalResponse),
+                route,
+                "applied",
+                $"/jobs/{Found}/signals/approval",
+                StatusCodes.Status200OK,
+                "applied"
+            ) with
+            {
+                Method = "DELETE",
+            },
+            Job(
+                typeof(ClearJobSignalResponse),
+                route,
+                "rejected",
+                $"/jobs/{Blocked}/signals/approval",
+                StatusCodes.Status409Conflict,
+                "rejected"
+            ) with
+            {
+                Method = "DELETE",
+            },
+            Job(
+                typeof(ClearJobSignalResponse),
+                route,
+                "not-found",
+                $"/jobs/{Missing}/signals/approval",
+                StatusCodes.Status404NotFound,
+                "not-found"
+            ) with
+            {
+                Method = "DELETE",
+            },
         ];
     }
 

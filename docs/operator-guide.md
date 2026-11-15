@@ -360,12 +360,13 @@ Every Acta host doubles as a control CLI: `<app> jobs <verb>` runs the verb agai
 <app> jobs resume  <job-ref|deduplication-key> [--reason <msg>]
 <app> jobs restart <job-ref|deduplication-key> [--reason <msg>]
 <app> jobs signal  <job-ref|deduplication-key> <name> [--value <json>]
+<app> jobs clear-signal <job-ref|deduplication-key> <name>
 <app> jobs debug   <job-ref|deduplication-key> [--break]
 <app> jobs deploy  [--force] [--json]
 <app> jobs migrate [--force] [--json]
 ```
 
-A `job_...` target is a job ref, `id:<n>` the internal id, and any other target, a bare integer included, a deduplication key. As on the HTTP API, `id:<n>` is for reads (`info`, `status`, `result`, `explain`, `events`), and a control (`cancel`, `pause`, `resume`, `restart`, `signal`, `debug`) given one exits 64, since an internal id names a job in any namespace. A read with no target takes it from the clipboard and prints what it took to stderr; a control with no target exits 64. Add `--ns <ns>` to pick the namespace for a deduplication-key lookup and `--json` for JSON output.
+A `job_...` target is a job ref, `id:<n>` the internal id, and any other target, a bare integer included, a deduplication key. As on the HTTP API, `id:<n>` is for reads (`info`, `status`, `result`, `explain`, `events`), and a control (`cancel`, `pause`, `resume`, `restart`, `signal`, `clear-signal`, `debug`) given one exits 64, since an internal id names a job in any namespace. A read with no target takes it from the clipboard and prints what it took to stderr; a control with no target exits 64. Add `--ns <ns>` to pick the namespace for a deduplication-key lookup and `--json` for JSON output.
 
 `explain` is where to start for any stuck, waiting, or failed job: it reads the job's status, lease, worker, newest 50 steps, checkpoints, and latest reason in one statement and says what happened and what to do next. It cannot know what your code or an external system did.
 
@@ -940,7 +941,9 @@ set: a replay or a later wait on that name reads it again. A signal keeps its fi
 with that value answers `already-in-state` and one with another value `rejected`, as a raise at an expired
 wait does, and none of them writes anything. A signal sent
 to a terminal job is rejected, unless it repeats the value the signal holds, which answers `already-in-state`; a signal sent to a paused job is stored but does not resume the job
-until the job itself is resumed.
+until the job itself is resumed. To give a finished job's signal another value, clear it (`jobs clear-signal`, or
+`DELETE /jobs/{jobRef}/signals/{name}`), restart the job, then raise it; a permanent job's signal clears between
+firings too, a live job's clear is `rejected` with reason `job-not-finished`, and a system job's with `system-job`.
 
 ### …a signal never arrives?
 

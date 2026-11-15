@@ -129,7 +129,13 @@
       : job.kind === 'permanent' ? 'each firing gets ' + detail.maxAttemptsEffective + ' attempts'
       : 'fails permanently at ' + detail.maxAttemptsEffective
   );
-  let hasData = $derived(!!detail && (!!detail.input || detail.checkpoints.items.length > 0));
+  // Once this job showed checkpoints the panel stays, so clearing its last signal keeps the outcome in view.
+  let checkpointsSeenFor = $state<string | null>(null);
+  $effect(() => {
+    if (job && detail && detail.checkpoints.items.length > 0) checkpointsSeenFor = job.jobRef;
+  });
+  let showCheckpoints = $derived(!!detail && (detail.checkpoints.items.length > 0 || checkpointsSeenFor === job?.jobRef));
+  let hasData = $derived(!!detail && (!!detail.input || showCheckpoints));
   let hasSchedules = $derived(!!detail && (detail.schedules.length > 0 || (detail.schedulesTotal ?? 0) > 0));
   const tabFilters = createUrlFilters({ tab: 'tab', execution: 'execution' }, { tab: '', execution: '' });
   let focusExecution = $derived(/^\d+$/.test($tabFilters.execution) ? Number($tabFilters.execution) : null);
@@ -246,7 +252,7 @@
       {#if hasData}
         <FocusDisclosure title={detail.checkpoints.items.length ? 'Data and checkpoints' : 'Stored data'} hint={(detail.input ? 'Input' : '') + (detail.checkpoints.items.length ? (detail.input ? ' · ' : '') + detail.checkpoints.items.length + (detail.checkpoints.items.length === 1 ? ' checkpoint' : ' checkpoints') : '')} bind:open={dataOpen} id="job-data">
           {#if detail.input}<JobInputPanel input={detail.input} jobRef={job.jobRef} status={job.status} canControl={canControlNow} onAmended={reload} />{/if}
-          {#if detail.checkpoints.items.length}<JobCheckpointsPanel checkpoints={detail.checkpoints.items} total={detail.checkpoints.totalCount} />{/if}
+          {#if showCheckpoints}<JobCheckpointsPanel checkpoints={detail.checkpoints.items} total={detail.checkpoints.totalCount} jobRef={job.jobRef} jobName={job.jobName} status={job.status} kind={job.kind} canControl={canControlNow} onCleared={reload} />{/if}
         </FocusDisclosure>
       {/if}
       {#if hasSchedules}

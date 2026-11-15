@@ -21,4 +21,5 @@ internal enum CliVerb : byte
     Explain = 11,
     Migrate = 12,
     Deploy = 13,
+    ClearSignal = 14,
 }

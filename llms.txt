@@ -292,6 +292,11 @@ the job finished too, and with another value `Rejected` (`Reason` `value-differs
 The values compare as stored bytes, so keep volatile fields (a timestamp, a per-attempt id) out of a raised value: a
 retry after a lost answer then repeats the same value and answers `AlreadyInState`.
 A second window, or a second value, is a wait under a new name (`"shipped-2"`) or a new job.
+A finished job, or a permanent job between firings, forgets a signal with `jobs.ClearSignalAsync(job, name)`
+(`DELETE /jobs/{jobRef}/signals/{name}`, `<app> jobs clear-signal <job> <name>`), recorded as `job.signal-cleared`
+with the actor. To give a finished job's signal another value, clear it, restart the job, then raise it. A live job
+keeps its signals: the clear answers `Rejected` with `Reason` `job-not-finished` (`system-job` for a `sys.` job),
+and a name with no signal `AlreadyInState`.
 
 ## Child jobs and fan-out
 

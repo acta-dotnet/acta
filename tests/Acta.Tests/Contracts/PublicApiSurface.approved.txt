@@ -415,6 +415,12 @@ sealed record Acta.ChildrenWaitOutcome
     System.Collections.Generic.IReadOnlyList<Acta.JobOutcome> Children { get; }
     System.Collections.Generic.IReadOnlyList<Acta.JobOutcome> Failed { get; }
     System.Void ThrowIfAnyFailed()
+sealed record Acta.ClearJobSignalResponse : Acta.IJobControlResponse
+    .ctor(System.Int64 JobId, Acta.ControlAction Action, System.Nullable<Acta.JobStatusCode> Status, System.String? Reason = null)
+    Acta.ControlAction Action { get;init; }
+    System.Int64 JobId { get;init; }
+    System.Nullable<Acta.JobStatusCode> Status { get;init; }
+    System.String? Reason { get;init; }
 sealed class Acta.CodeAttribute : System.Attribute
     .ctor(System.String code, System.String description)
     Acta.CodeLifecycle Lifecycle { get;init; }
@@ -679,6 +685,7 @@ enum Acta.EventCode : System.Byte
     JobRescheduled = 61
     JobRestarted = 73
     JobResumed = 72
+    JobSignalCleared = 82
     JobSignalRaised = 80
     JobStateReset = 81
     JobSuspended = 60
@@ -1168,6 +1175,7 @@ interface Acta.IJobPipelineBehavior
     System.Threading.Tasks.ValueTask<Acta.JobHandlerOutput> InvokeAsync(System.Object request, Acta.JobContext context, Acta.JobBehaviorDelegate next, System.Threading.CancellationToken ct)
 interface Acta.IJobs
     System.Threading.Tasks.ValueTask<Acta.CancelJobResponse> CancelAsync(Acta.JobLookup job, System.String? reasonMessage = null, System.String? actor = null, System.Nullable<System.Int64> expectedVersion = null, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.ValueTask<Acta.ClearJobSignalResponse> ClearSignalAsync(Acta.JobLookup job, System.String name, System.String? actor = null, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.EnqueueJobResponse> EnqueueAsync(Acta.EnqueueJobRequest request, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.EnqueueJobResponse> EnqueueAsync(System.Data.Common.DbTransaction transaction, Acta.EnqueueJobRequest request, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.EnqueueJobResponse> EnqueueAsync<TInput, TResult>(System.Data.Common.DbTransaction transaction, Acta.JobCall<TInput, TResult> job, System.Action<Acta.JobEnqueueOptionsBuilder>? configure = null, System.Threading.CancellationToken ct = default) where TInput : notnull where TResult : notnull

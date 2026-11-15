@@ -255,6 +255,10 @@ async function mockDashboard(
     sessionEnded?: () => boolean;
     // Sees the path of every call, so a test can count what the page sent.
     onRequest?: (path: string) => void;
+    // The checkpoints the job's detail read carries; none unless a test names them.
+    checkpoints?: unknown[];
+    // Called for each DELETE of the job's approval signal, which then answers applied.
+    onClearSignal?: () => void;
   }
 ): Promise<void> {
   await page.route('**/api/v1/**', async (route: Route) => {
@@ -422,7 +426,12 @@ async function mockDashboard(
         job,
         input: { json: { invoiceId: 42 }, formatId: 1, formatName: 'json' },
         result: null,
-        checkpoints: { items: [], nextCursor: null, hasMore: false, totalCount: 0 },
+        checkpoints: {
+          items: options.checkpoints ?? [],
+          nextCursor: null,
+          hasMore: false,
+          totalCount: options.checkpoints?.length ?? 0
+        },
         explain: {
           headline: 'The latest attempt failed in the invoice provider.',
           activeWait: null,
@@ -452,6 +461,10 @@ async function mockDashboard(
       return json({ action: 'applied', status: 'ready', version: 4 });
     }
     if (path === `jobs/${jobRef}/signals/approval` && request.method() === 'POST') return json({ action: 'applied' });
+    if (path === `jobs/${jobRef}/signals/approval` && request.method() === 'DELETE') {
+      options.onClearSignal?.();
+      return json({ action: 'applied', status: 'failed' });
+    }
 
     return json({ title: `No mock for ${request.method()} ${path}` }, 404);
   });
@@ -767,6 +780,46 @@ test('safe single-job control sends exactly one restart request', async ({ page 
 
   await expect(page.getByText('Restart applied.')).toBeVisible();
   expect(restartRequests).toBe(1);
+});
+
+const approvalSignal = { kind: 'signal', name: 'approval', status: 'set', value: { json: { approved: false }, formatId: 1, formatName: 'json' } };
+
+test("a finished job's signal clears after its confirmation", async ({ page }) => {
+  let clears = 0;
+  await mockDashboard(page, { controls: true, checkpoints: [approvalSignal], onClearSignal: () => clears++ });
+  await page.goto(`/#/jobs/${jobRef}?ns=billing`);
+
+  await page.locator('#job-data > summary').click();
+  await page.getByRole('button', { name: 'Clear signal approval' }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog.getByText(/run the job again, then raise it/)).toBeVisible();
+  await dialog.getByRole('button', { name: 'Clear signal' }).click();
+
+  await expect(page.getByText('Signal cleared.')).toBeVisible();
+  expect(clears).toBe(1);
+});
+
+test('a reader sees no Clear action on a signal', async ({ page }) => {
+  await mockDashboard(page, { controls: true, permissions: ['acta.read'], checkpoints: [approvalSignal] });
+  await page.goto(`/#/jobs/${jobRef}?ns=billing`);
+
+  await page.locator('#job-data > summary').click();
+  await expect(page.getByRole('table', { name: 'Job checkpoints' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Clear signal/ })).toHaveCount(0);
+});
+
+// A system job's signals are commands it has yet to apply, so the server refuses their clear and the panel offers none.
+test("a system job's signal carries no Clear action", async ({ page }) => {
+  await mockDashboard(page, { controls: true });
+  const outbox = { ...job, kind: 'permanent', status: 'idle', jobName: 'sys.outbox', version: 1 };
+  await routeJobDetail(page, outbox, {
+    checkpoints: { items: [{ ...approvalSignal, name: 'outbox.requeue' }], nextCursor: null, hasMore: false, totalCount: 1 }
+  });
+  await page.goto(`/#/jobs/${jobRef}?ns=billing`);
+
+  await page.locator('#job-data > summary').click();
+  await expect(page.getByRole('table', { name: 'Job checkpoints' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Clear signal/ })).toHaveCount(0);
 });
 
 test('a job opened by its numeric id sends every later call to its ref', async ({ page }) => {
@@ -1685,6 +1738,11 @@ const scanned: Array<[RouteName, string, (page: Page) => Promise<void>]> = [
     await openJob(page);
     await page.getByRole('button', { name: 'Run again', exact: true }).click();
     await expect(page.getByRole('dialog')).toBeVisible();
+  }],
+  ['job-detail', "a finished job's checkpoints with a Clear action", async (page) => {
+    await openJob(page, { controls: true, checkpoints: [approvalSignal] });
+    await page.locator('#job-data > summary').click();
+    await expect(page.getByRole('button', { name: 'Clear signal approval' })).toBeVisible();
   }],
   ['job-detail', 'the signal form', async (page) => {
     await openJob(page);

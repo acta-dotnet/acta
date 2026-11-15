@@ -726,5 +726,12 @@ public class CliRunnerClipboardTests
             Signals.Add((name, value.Format.Id, value.IsNone ? null : value.Data.ToArray()));
             return ValueTask.FromResult(new RaiseJobSignalResponse(1, SignalAction, JobStatusCode.Ready));
         }
+
+        public ValueTask<ClearJobSignalResponse> ClearSignalAsync(
+            JobLookup job,
+            string name,
+            string? actor = null,
+            CancellationToken ct = default
+        ) => throw new NotSupportedException();
     }
 }

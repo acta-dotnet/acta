@@ -3055,6 +3055,181 @@
           }
         },
         "x-acta-permission": "acta.control"
+      },
+      "delete": {
+        "tags": [
+          "Jobs"
+        ],
+        "summary": "Clear a named signal from a finished job, so a restart waits for it again.",
+        "description": "Needs the acta.control permission.",
+        "operationId": "clearJobSignal",
+        "parameters": [
+          {
+            "name": "jobRef",
+            "in": "path",
+            "description": "The job's ref, job_ followed by 32 hex digits.",
+            "required": true,
+            "schema": {
+              "pattern": "^job_[0-9A-Fa-f]{32}$",
+              "type": "string"
+            },
+            "example": "job_00000000000000000000000000000042"
+          },
+          {
+            "name": "signalName",
+            "in": "path",
+            "description": "The signal's name, trimmed and lowercased; sys and the names under it are reserved.",
+            "required": true,
+            "schema": {
+              "pattern": "^[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*(?=[-.0-9A-Za-z\\u212A]{1,128}[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$)[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?(?:\\.[A-Za-z\\u212A](?:[-0-9A-Za-z\\u212A]*[0-9A-Za-z\\u212A])?)*[\\t-\\r \\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]*$",
+              "type": "string"
+            },
+            "example": "approval"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The call ran; the body says what it did.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClearJobSignalResponse"
+                },
+                "examples": {
+                  "clearJobSignal": {
+                    "value": {
+                      "action": "applied",
+                      "status": "succeeded",
+                      "reason": null
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The call is not confirmed, a path parameter cannot name a target, or the body breaks a rule; the problem's detail says which.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "clearJobSignal": {
+                    "value": {
+                      "type": "https://tools.ietf.org/html/rfc9110#section-15.5.1",
+                      "title": "Invalid request.",
+                      "status": 400,
+                      "detail": "jobRef is not a valid job ref."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The call carries no credential the host accepts."
+          },
+          "403": {
+            "description": "The call was refused before it ran: by the local-only guard, because the caller lacks the operation's permission, or because this host has not enabled controls.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "clearJobSignal": {
+                    "value": {
+                      "type": "https://tools.ietf.org/html/rfc9110#section-15.5.4",
+                      "title": "Permission denied.",
+                      "status": 403,
+                      "detail": "This operation needs the acta.control permission."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The target does not exist; the body's action is not-found and nothing was written.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClearJobSignalResponse"
+                },
+                "examples": {
+                  "clearJobSignal": {
+                    "value": {
+                      "action": "not-found",
+                      "status": null,
+                      "reason": null
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The control was refused and nothing was written; the body's action says why: rejected by the target's state, or version-conflict where the call carries an expected version.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClearJobSignalResponse"
+                },
+                "examples": {
+                  "clearJobSignal": {
+                    "value": {
+                      "action": "rejected",
+                      "status": "ready",
+                      "reason": "job-not-finished"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The server failed unexpectedly; the problem document leaves the cause to the host's log.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "clearJobSignal": {
+                    "value": {
+                      "type": "https://tools.ietf.org/html/rfc9110#section-15.6.1",
+                      "title": "Internal server error.",
+                      "status": 500,
+                      "detail": "The Acta API failed to process the request; see the host log for detail."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The database could not be reached or refused the call; retry later.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "clearJobSignal": {
+                    "value": {
+                      "type": "https://tools.ietf.org/html/rfc9110#section-15.6.4",
+                      "title": "Service unavailable.",
+                      "status": 503,
+                      "detail": "The Acta API is temporarily unavailable: the database is unreachable or rejected the request."
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "x-acta-permission": "acta.control"
       }
     },
     "/v1/namespaces/{jobNamespace}/tags/{tagName}": {
@@ -16289,6 +16464,39 @@
           "cancelled"
         ]
       },
+      "ClearJobSignalResponse": {
+        "required": [
+          "action",
+          "status",
+          "reason"
+        ],
+        "type": "object",
+        "properties": {
+          "action": {
+            "description": "What the call did: applied; already-in-state, when the job holds no such signal; rejected, when the job has not finished and is not a permanent job between firings, or is a system job; or not-found.",
+            "$ref": "#/components/schemas/ControlAction"
+          },
+          "status": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/JobStatusCode"
+              }
+            ],
+            "description": "The job's status after the call; null when the job was not found."
+          },
+          "reason": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Why a rejected clear was rejected: job-not-finished or system-job; null otherwise."
+          }
+        },
+        "description": "What clearing a signal from a job did, and the job's status after the attempt; a clear carries no version."
+      },
       "ControlAction": {
         "examples": [
           "applied"
@@ -16743,7 +16951,7 @@
           "tenant.suspended"
         ],
         "type": "string",
-        "description": "What an event records, as a dotted code. There is no code for an enqueue, because the job row itself records it.\n\nKnown values:\n- unspecified: Event code not recognized by this build; the row was written by a newer Acta.\n- tenant.suspended: An operator suspended a tenant; enqueues that name it are rejected. The message carries the reason.\n- tenant.resumed: An operator resumed a suspended tenant; enqueues that name it are accepted again. The message carries the reason.\n- tenant.updated: An operator changed a tenant's display name or description. The message carries the reason.\n- namespace.suspended: An operator suspended a namespace; enqueues into it are rejected. The message carries the reason.\n- namespace.resumed: An operator resumed a suspended namespace; enqueues into it are accepted again. The message carries the reason.\n- namespace.updated: An operator changed a namespace's owner team or description. The message carries the reason.\n- namespace.deployed: A deploy wrote the namespace's job definitions and schedules. The message names the version and the one it replaced; the details list the jobs it added and changed.\n- definition.overrides-updated: An operator changed a job definition's policy overrides; the message summarizes the change.\n- definition.retired: An operator retired a job definition; enqueues are rejected and its waiting jobs were cancelled.\n- job.execution-succeeded: The attempt's handler returned successfully; durationMs is set. Recorded for every success under audit, under failures only for a success after counted failures, and under an enabled alert profile also for a one-shot job's success past its first attempt.\n- job.execution-failed: The attempt failed and the job lives on: a retry within budget, or a permanent job's firing that spent its budget and returned the job to idle. durationMs and the failure's message are set; the details carry the keys reason and to.\n- job.execution-orphaned: The lease of the attempt's worker expired and crash recovery reclaimed the job without ending it. workerRef names the worker that held it; the details carry the keys reason and to.\n- job.execution-yielded: The attempt ended without succeeding or failing: rescheduled, suspended, paused, or cancelled by its handler or the engine. Recorded at the audit level, the default for an application's jobs, and not under failures; the details carry the keys outcome and reason.\n- job.failed: The job failed for good: its retry budget is spent, its handler failed it, or its failure is not retryable. durationMs is set when an attempt ran; the details carry the key reason.\n- job.suspended: The attempt stopped on a durable wait: a sleep timer made the job ready again at its due time, or a wait on a signal or on child jobs left it suspended. It spends no retry budget; the details carry the key to.\n- job.rescheduled: The job became ready with a new nextRunAtUtc: its handler rescheduled it, a failed attempt retries within budget, or an operator rescheduled it, who is then the event's actor. The details carry the reason when there is one.\n- job.cancelled: The job was cancelled, which is final.\n- job.paused: The job was paused.\n- job.resumed: The job was resumed: it is ready again, idle for a permanent job with no firing outstanding, or blocked behind its lane. Crash recovery records the same event, with the reason lane-repaired in its details, when it releases the next job of a stranded lane.\n- job.restarted: The job was restarted: it is ready again, idle for a permanent job, or blocked behind its lane. Its failure count is reset and its retention cleared, and its execution number carries on.\n- job.reprioritized: An operator changed the job's priority; the message carries the operator's reason, if any.\n- job.purged: An operator deleted a finished job's record; the event is about the deleted job's id, its details keep the job's jobRef and correlationKey, and its actor is the operator. Recorded whatever the event recording level.\n- job.input-amended: An operator replaced a job's stored input; the operator is the event's actor, the details carry the format name and byte count of the previous input, and the message carries the reason.\n- job.signal-raised: A signal was raised for the job. Its signal checkpoint is set, unless the wait had already expired: then nothing changes, and the message says so.\n- job.state-reset: The handler reset the job's state: its checkpoints and steps were cleared so the next execution starts as new. The record of a scheduled firing stays.\n- job.note-recorded: A note the application's handler wrote. It is the only event an application can write, and the engine never writes it, so every other event is the engine's own. The message carries the line; the details carry the optional payload.\n- schedule.paused: A recurring schedule was paused; details carry the schedule name.\n- schedule.resumed: A recurring schedule was resumed; details carry the schedule name.\n- schedule.pause-expired: A timed pause ended and the scheduler resumed the schedule. The details carry the schedule name.\n- schedule.triggered: An operator fired the schedule's job by hand; the schedule's own timing did not move. The details carry the schedule name.\n- schedule.admitted: The scheduler chose one of the schedule's occurrences to fire; the details carry the schedule, the occurrence, the time through which the schedule is decided, and the firing id.\n- schedule.skipped: A range of the schedule's occurrences was decided without work: the misfire policy skipped it, it expired, the schedule was full, its calendar no longer produces it, or a calendar publication discarded it; details carry the schedule, the range, and the reason.\n- schedule.retimed: A deploy changed the schedule's timing or declared again a schedule it had dropped, or a calendar it names was published; the undecided occurrences of the old timing were discarded and the schedule continues from the first occurrence of the new one. The details carry the schedule name.\n- schedule.evaluation-failed: The schedule's next occurrence could not be computed, so it admits nothing and is tried again every minute; the message is the error and the details carry the schedule. Recorded whatever the event recording level, when the schedule enters the error.\n- schedule.orphaned: A deploy dropped the schedule: its definition no longer declares it, so it fires nothing and keeps its history. The details carry the schedule name. Recorded whatever the event recording level.\n- calendar.draft-saved: An operator saved a new draft version of a catalog calendar. The details carry the calendar, the version, and the role; the message carries the reason.\n- calendar.published: An operator published a catalog calendar version, which became the family's current one. Details carry the calendar, the version, the version it replaced, the overdue decision, and the schedules it affected.\n- calendar.archived: An operator archived a catalog calendar's current version; the family has no current version until another is published. Details carry the calendar and the version.\n- worker.started: A worker process registered and is active, or one marked dead heartbeated again.\n- worker.stopped: A worker process shut down cleanly.\n- worker.died: A worker's heartbeat went stale and crash recovery marked it dead.\n- alert.acknowledged: An operator acknowledged an alert; the message carries the note.\n- alert.resolved: An operator resolved an alert by hand; the message carries the note.\n- outbox.requeued: An operator returned quarantined outbox rows to delivery; the message carries the reason and the row ids.\n- outbox.discarded: An operator deleted quarantined outbox rows; the message carries the reason and the deleted row ids.\n\nOther values may appear: keep a value this client does not know as it is.",
+        "description": "What an event records, as a dotted code. There is no code for an enqueue, because the job row itself records it.\n\nKnown values:\n- unspecified: Event code not recognized by this build; the row was written by a newer Acta.\n- tenant.suspended: An operator suspended a tenant; enqueues that name it are rejected. The message carries the reason.\n- tenant.resumed: An operator resumed a suspended tenant; enqueues that name it are accepted again. The message carries the reason.\n- tenant.updated: An operator changed a tenant's display name or description. The message carries the reason.\n- namespace.suspended: An operator suspended a namespace; enqueues into it are rejected. The message carries the reason.\n- namespace.resumed: An operator resumed a suspended namespace; enqueues into it are accepted again. The message carries the reason.\n- namespace.updated: An operator changed a namespace's owner team or description. The message carries the reason.\n- namespace.deployed: A deploy wrote the namespace's job definitions and schedules. The message names the version and the one it replaced; the details list the jobs it added and changed.\n- definition.overrides-updated: An operator changed a job definition's policy overrides; the message summarizes the change.\n- definition.retired: An operator retired a job definition; enqueues are rejected and its waiting jobs were cancelled.\n- job.execution-succeeded: The attempt's handler returned successfully; durationMs is set. Recorded for every success under audit, under failures only for a success after counted failures, and under an enabled alert profile also for a one-shot job's success past its first attempt.\n- job.execution-failed: The attempt failed and the job lives on: a retry within budget, or a permanent job's firing that spent its budget and returned the job to idle. durationMs and the failure's message are set; the details carry the keys reason and to.\n- job.execution-orphaned: The lease of the attempt's worker expired and crash recovery reclaimed the job without ending it. workerRef names the worker that held it; the details carry the keys reason and to.\n- job.execution-yielded: The attempt ended without succeeding or failing: rescheduled, suspended, paused, or cancelled by its handler or the engine. Recorded at the audit level, the default for an application's jobs, and not under failures; the details carry the keys outcome and reason.\n- job.failed: The job failed for good: its retry budget is spent, its handler failed it, or its failure is not retryable. durationMs is set when an attempt ran; the details carry the key reason.\n- job.suspended: The attempt stopped on a durable wait: a sleep timer made the job ready again at its due time, or a wait on a signal or on child jobs left it suspended. It spends no retry budget; the details carry the key to.\n- job.rescheduled: The job became ready with a new nextRunAtUtc: its handler rescheduled it, a failed attempt retries within budget, or an operator rescheduled it, who is then the event's actor. The details carry the reason when there is one.\n- job.cancelled: The job was cancelled, which is final.\n- job.paused: The job was paused.\n- job.resumed: The job was resumed: it is ready again, idle for a permanent job with no firing outstanding, or blocked behind its lane. Crash recovery records the same event, with the reason lane-repaired in its details, when it releases the next job of a stranded lane.\n- job.restarted: The job was restarted: it is ready again, idle for a permanent job, or blocked behind its lane. Its failure count is reset and its retention cleared, and its execution number carries on.\n- job.reprioritized: An operator changed the job's priority; the message carries the operator's reason, if any.\n- job.purged: An operator deleted a finished job's record; the event is about the deleted job's id, its details keep the job's jobRef and correlationKey, and its actor is the operator. Recorded whatever the event recording level.\n- job.input-amended: An operator replaced a job's stored input; the operator is the event's actor, the details carry the format name and byte count of the previous input, and the message carries the reason.\n- job.signal-raised: A signal was raised for the job. Its signal checkpoint is set, unless the wait had already expired: then nothing changes, and the message says so.\n- job.state-reset: The handler reset the job's state: its checkpoints and steps were cleared so the next execution starts as new. The record of a scheduled firing stays.\n- job.signal-cleared: An operator cleared a signal from a finished job or a permanent job between firings, so the job's next wait for it waits again; the operator is the event's actor.\n- job.note-recorded: A note the application's handler wrote. It is the only event an application can write, and the engine never writes it, so every other event is the engine's own. The message carries the line; the details carry the optional payload.\n- schedule.paused: A recurring schedule was paused; details carry the schedule name.\n- schedule.resumed: A recurring schedule was resumed; details carry the schedule name.\n- schedule.pause-expired: A timed pause ended and the scheduler resumed the schedule. The details carry the schedule name.\n- schedule.triggered: An operator fired the schedule's job by hand; the schedule's own timing did not move. The details carry the schedule name.\n- schedule.admitted: The scheduler chose one of the schedule's occurrences to fire; the details carry the schedule, the occurrence, the time through which the schedule is decided, and the firing id.\n- schedule.skipped: A range of the schedule's occurrences was decided without work: the misfire policy skipped it, it expired, the schedule was full, its calendar no longer produces it, or a calendar publication discarded it; details carry the schedule, the range, and the reason.\n- schedule.retimed: A deploy changed the schedule's timing or declared again a schedule it had dropped, or a calendar it names was published; the undecided occurrences of the old timing were discarded and the schedule continues from the first occurrence of the new one. The details carry the schedule name.\n- schedule.evaluation-failed: The schedule's next occurrence could not be computed, so it admits nothing and is tried again every minute; the message is the error and the details carry the schedule. Recorded whatever the event recording level, when the schedule enters the error.\n- schedule.orphaned: A deploy dropped the schedule: its definition no longer declares it, so it fires nothing and keeps its history. The details carry the schedule name. Recorded whatever the event recording level.\n- calendar.draft-saved: An operator saved a new draft version of a catalog calendar. The details carry the calendar, the version, and the role; the message carries the reason.\n- calendar.published: An operator published a catalog calendar version, which became the family's current one. Details carry the calendar, the version, the version it replaced, the overdue decision, and the schedules it affected.\n- calendar.archived: An operator archived a catalog calendar's current version; the family has no current version until another is published. Details carry the calendar and the version.\n- worker.started: A worker process registered and is active, or one marked dead heartbeated again.\n- worker.stopped: A worker process shut down cleanly.\n- worker.died: A worker's heartbeat went stale and crash recovery marked it dead.\n- alert.acknowledged: An operator acknowledged an alert; the message carries the note.\n- alert.resolved: An operator resolved an alert by hand; the message carries the note.\n- outbox.requeued: An operator returned quarantined outbox rows to delivery; the message carries the reason and the row ids.\n- outbox.discarded: An operator deleted quarantined outbox rows; the message carries the reason and the deleted row ids.\n\nOther values may appear: keep a value this client does not know as it is.",
         "x-acta-known-values": [
           "unspecified",
           "tenant.suspended",
@@ -16771,6 +16979,7 @@
           "job.input-amended",
           "job.signal-raised",
           "job.state-reset",
+          "job.signal-cleared",
           "job.note-recorded",
           "schedule.paused",
           "schedule.resumed",
@@ -16798,7 +17007,7 @@
           "failures"
         ],
         "type": "string",
-        "description": "How much of a job's history is recorded as events.\n\nKnown values:\n- unspecified: Event recording not recognized by this build; the row was written by a newer Acta.\n- failures: Records every failed or orphaned attempt, a success that recovers from counted failures, a job freed from a stranded lane, a caller's pause, resume, restart, reschedule, priority change, input update, or cancel, and a schedule's pause, pause end, manual trigger, or failing evaluation. Under an enabled alert profile, also a one-shot's success past its first attempt, which resolves its alert.\n- audit: Records every per-job event. The default for an application's jobs.\n\nOther values may appear: keep a value this client does not know as it is.",
+        "description": "How much of a job's history is recorded as events.\n\nKnown values:\n- unspecified: Event recording not recognized by this build; the row was written by a newer Acta.\n- failures: Records every failed or orphaned attempt, a success that recovers from counted failures, a job freed from a stranded lane, a caller's pause, resume, restart, reschedule, reprioritize, input update, signal clear, or cancel, and a schedule's pause, pause end, trigger, or failing evaluation. Under an enabled alert profile, also a one-shot's success past its first attempt, which resolves its alert.\n- audit: Records every per-job event. The default for an application's jobs.\n\nOther values may appear: keep a value this client does not know as it is.",
         "x-acta-known-values": [
           "unspecified",
           "failures",

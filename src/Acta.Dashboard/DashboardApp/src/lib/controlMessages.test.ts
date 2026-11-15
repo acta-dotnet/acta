@@ -8,6 +8,16 @@ test('job verbs name the verb on apply and on a status rejection', () => {
   assert.equal(jobControlMessage('pause', 'not-found'), 'Job not found.');
 });
 
+test('the signal verbs word already-in-state and each refusal reason, never as a missing job', () => {
+  assert.equal(jobControlMessage('signal', 'already-in-state'), 'The signal already holds this value.');
+  assert.equal(jobControlMessage('clear-signal', 'already-in-state'), 'The job holds no signal by that name.');
+  assert.equal(jobControlMessage('clear-signal', 'applied'), 'Signal cleared.');
+  assert.match(jobControlMessage('clear-signal', 'rejected', 'job-not-finished'), /^Clear rejected: the job has not finished/);
+  assert.match(jobControlMessage('signal', 'rejected', 'job-finished'), /has finished\. Clear the signal/);
+  assert.match(jobControlMessage('signal', 'rejected', 'wait-expired'), /wait for it has expired/);
+  assert.match(jobControlMessage('signal', 'rejected', 'value-differs'), /keeps its first/);
+});
+
 test('a rejected restart names every cause the restart statement has', () => {
   const message = jobControlMessage('restart', 'rejected');
   for (const cause of ['is executing', 'firing is still outstanding', 'ancestor or descendant sits in its lane', 'full, orphaned or retired']) {

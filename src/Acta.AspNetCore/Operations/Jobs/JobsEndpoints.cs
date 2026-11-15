@@ -99,6 +99,7 @@ internal static class JobsEndpoints
         UpdateJobInputEndpoint.Map(controls, options);
         EnqueueJobEndpoint.Map(controls);
         RaiseJobSignalEndpoint.Map(controls);
+        ClearJobSignalEndpoint.Map(controls);
     }
 
     // A verb addresses its job by ref only; the id:<n> debug lookup is for reads.

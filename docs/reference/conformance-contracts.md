@@ -2562,6 +2562,14 @@
 
 ## Signals
 
+### An operator clear deletes a finished job's signal and records who cleared it
+- **Contract:** A clear deletes a finished or idle job's named signal, so a raise after a restart takes a new value, and refuses a live job.
+- **Guarantees:**
+  - A finished job's clear deletes the signal and records the operator, and a raise after a restart takes a new value
+  - A live job's clear is Rejected, an absent signal AlreadyInState, an unknown job NotFound, and none writes
+  - A permanent job between firings forgets a signal, so its next firing waits for it again
+  - A malformed or reserved signal name throws before the job is looked up
+
 ### An operator raise sets the named checkpoint and records who raised it
 - **Contract:** A raise sets the named checkpoint once and records the operator, while a repeat is AlreadyInState or Rejected and a missing job NotFound.
 - **Guarantees:**
@@ -2917,6 +2925,7 @@
 | `ClaimJob` | yes | yes | yes |
 | `ClaimJobs` | yes | yes | yes |
 | `ClaimOutbox` | yes | yes | yes |
+| `ClearJobSignal` | yes | yes | yes |
 | `CompleteExecutions` | yes | yes | yes |
 | `CompleteJobStep` | yes | yes | yes |
 | `ConsumeOutboxSignal` | yes | yes | yes |

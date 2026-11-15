@@ -258,6 +258,8 @@ export type ControlAction = 'applied' | 'not-found' | 'rejected' | 'accepted' | 
 // (api.ts's controlRequest, via useControlMutation.ts) rather than a per-verb fetch function. The
 // dashboard sends no expectedVersion, so 'version-conflict' only reaches other API callers.
 export interface JobControlResponse {
+  // Why a signal raise or clear was refused; null for every other verb and outcome.
+  reason?: string | null;
   action: ControlAction;
   status: string | null;
 }

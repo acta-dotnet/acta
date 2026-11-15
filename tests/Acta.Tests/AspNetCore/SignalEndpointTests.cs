@@ -219,4 +219,53 @@ public sealed class SignalEndpointTests
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
         Assert.Empty(fakes.Jobs.SignalCalls);
     }
+
+    private static HttpRequestMessage Delete(string jobRef, string name)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Delete, $"/acta/api/v1/jobs/{jobRef}/signals/{name}");
+        request.Headers.Add("X-Acta-Control", "true");
+        return request;
+    }
+
+    [Fact]
+    public async Task Delete_clears_the_folded_name_and_applies()
+    {
+        var fakes = new FakeOperations();
+        var (app, client) = await StartAsync(fakes);
+        await using var _ = app;
+
+        var response = await client.SendAsync(Delete(Found, "Approval"), TestContext.Current.CancellationToken);
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains("\"action\":\"applied\"", body);
+        Assert.Equal((FakeJobs.FoundJobRef, "approval", (string?)null), Assert.Single(fakes.Jobs.ClearSignalCalls));
+    }
+
+    [Fact]
+    public async Task Delete_on_a_live_job_is_409_with_its_reason()
+    {
+        var fakes = new FakeOperations();
+        var (app, client) = await StartAsync(fakes);
+        await using var _ = app;
+
+        var response = await client.SendAsync(Delete(Rejected, "go"), TestContext.Current.CancellationToken);
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Contains("\"reason\":\"job-not-finished\"", body);
+    }
+
+    [Fact]
+    public async Task Delete_of_a_reserved_name_is_400_and_never_reaches_jobs()
+    {
+        var fakes = new FakeOperations();
+        var (app, client) = await StartAsync(fakes);
+        await using var _ = app;
+
+        var response = await client.SendAsync(Delete(Found, "sys.child.1"), TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Empty(fakes.Jobs.ClearSignalCalls);
+    }
 }

@@ -31,7 +31,7 @@ public sealed class OperationNameTests
         // Reads: one thing, items, a number, and the two that compute an answer and store nothing.
         .. "Get List Count Explain Preview".Split(' '),
         // Everything else changes state.
-        .. "Access Acknowledge Acquire Admit Archive Arm Cancel Claim Complete Consume Discard Drop Enqueue Ensure".Split(' '),
+        .. "Access Acknowledge Acquire Admit Archive Arm Cancel Claim Clear Complete Consume Discard Drop Enqueue Ensure".Split(' '),
         .. "Extend Mark Park Pause Plan Publish Purge Quarantine Raise Reclaim Record Register Release Remove".Split(' '),
         .. "Replace Reprioritize Requeue Reschedule Reserve Reset Resolve Restart Resume Retire Save Start Stop".Split(' '),
         .. "Suspend Trigger Update Upsert Wait".Split(' '),

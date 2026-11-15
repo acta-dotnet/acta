@@ -31,6 +31,7 @@ internal sealed class JobsOperations(
     UpdateJobInputHandler updateJobInput,
     PurgeJobHandler purgeJob,
     RaiseJobSignalHandler raiseJobSignal,
+    ClearJobSignalHandler clearJobSignal,
     ResetJobStateHandler resetJobState
 ) : IJobs
 {
@@ -254,6 +255,13 @@ internal sealed class JobsOperations(
         string? actor = null,
         CancellationToken ct = default
     ) => raiseJobSignal.HandleAsync(new RaiseJobSignalCommand(job, name, value, actor), ct);
+
+    public ValueTask<ClearJobSignalResponse> ClearSignalAsync(
+        JobLookup job,
+        string name,
+        string? actor = null,
+        CancellationToken ct = default
+    ) => clearJobSignal.HandleAsync(new ClearJobSignalCommand(job, name, actor), ct);
 
     /// <summary>
     /// Cancels the non-terminal descendants of a job its own handler cancelled, stamped as an ancestor's cancellation by

@@ -146,6 +146,12 @@ public enum EventCode : byte
     JobStateReset = 81,
 
     [Code(
+        "job.signal-cleared",
+        "An operator cleared a signal from a finished job or a permanent job between firings, so the job's next wait for it waits again; the operator is the event's actor."
+    )]
+    JobSignalCleared = 82,
+
+    [Code(
         "job.note-recorded",
         "A note the application's handler wrote. It is the only event an application can write, and the engine never writes it, so every other event is the engine's own. The message carries the line; the details carry the optional payload."
     )]

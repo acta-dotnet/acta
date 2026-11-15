@@ -277,6 +277,7 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<MaintenanceOperations>();
 
         services.TryAddSingleton<RaiseJobSignalHandler>();
+        services.TryAddSingleton<ClearJobSignalHandler>();
         services.TryAddSingleton<WaitJobSignalHandler>();
         services.TryAddSingleton<SignalsOperations>();
     }

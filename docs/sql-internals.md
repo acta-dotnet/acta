@@ -333,12 +333,19 @@ reads it under `UPDLOCK`; a refusal raises 51205:
 - `reserve_rate` locks `<schema>.rate:<bucket key>`, so the calls on one meter serialize without a range lock on a bucket not yet stored, whose gap holds the meter's reservations and the next meters.
 
 The sleep timer needs none: `arm_or_consume_job_sleep_timer` locks the job's `jobs_state` row first.
+`ClearJobSignal` inserts nothing but takes a raise's order, the checkpoint first and then the job's `jobs_state`
+row: the checkpoint's lock on SQL Server, the checkpoint row on PostgreSQL.
 
 A raise, and a child's landing that writes its parent's latch, hold the checkpoint and then lock the job's
 `jobs_state` row. `ResetJobState` goes the other way: it holds the job's row, as every write of a running
 handler does, and then deletes the job's checkpoints. So its delete passes a checkpoint another transaction
 holds (`SKIP LOCKED` on PostgreSQL, `READPAST` on SQL Server) and never waits for one. The checkpoint it
 passed keeps what that transaction writes, as if the raise had come after the reset.
+
+`RestartJob` also holds the job's row first, and then deletes the expired signal whose timeout ended the job,
+waiting for that checkpoint row rather than passing it. On PostgreSQL a clear of that signal holds its checkpoint
+row while it waits for the job's row, as a raise of it does, so a clear or a raise and a restart of the same job
+at once can deadlock; the database aborts one with `40P01`, and the aborted owned call is retried.
 
 ### Outbox lock
 
