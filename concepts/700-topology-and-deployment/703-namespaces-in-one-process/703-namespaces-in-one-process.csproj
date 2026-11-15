@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <RootNamespace>Acta.Concepts.MultiWorker</RootNamespace>
+    <RootNamespace>Acta.Concepts.NamespacesInOneProcess</RootNamespace>
   </PropertyGroup>
 </Project>

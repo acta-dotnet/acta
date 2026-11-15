@@ -100,7 +100,7 @@
   </Folder>
   <Folder Name="/700-topology-and-deployment/">
     <Project Path="700-topology-and-deployment/701-enqueue-only-reference/701-enqueue-only-reference.csproj" />
-    <Project Path="700-topology-and-deployment/703-multi-worker-process/703-multi-worker-process.csproj" />
+    <Project Path="700-topology-and-deployment/703-namespaces-in-one-process/703-namespaces-in-one-process.csproj" />
     <Project Path="700-topology-and-deployment/704-cross-namespace-child/704-cross-namespace-child.csproj" />
     <Project Path="700-topology-and-deployment/705-worker-crash-recovery/705-worker-crash-recovery.csproj" />
   </Folder>

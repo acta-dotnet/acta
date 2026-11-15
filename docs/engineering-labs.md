@@ -178,7 +178,7 @@ curated-view rows.
 | 601 | [fan-out](../concepts/600-job-composition/601-fan-out/) | A handler injects `IJobs` and enqueues many independent jobs: no lineage and no join (compare 212's `MapAsync`) |
 | 602 | [chained-jobs](../concepts/600-job-composition/602-chained-jobs/) | A linear pipeline: each stage enqueues the next |
 | 701 | [enqueue-only-reference](../concepts/700-topology-and-deployment/701-enqueue-only-reference/) | `Reference<TManifest>()` enqueues without a worker; `Run<TManifest>()` drains (one process, two roles) |
-| 703 | [multi-worker-process](../concepts/700-topology-and-deployment/703-multi-worker-process/) | Two workers (two namespaces) in one process |
+| 703 | [namespaces-in-one-process](../concepts/700-topology-and-deployment/703-namespaces-in-one-process/) | Two namespaces, each with its own worker, in one process |
 | 704 | [cross-namespace-child](../concepts/700-topology-and-deployment/704-cross-namespace-child/) | A parent starts a child in another worker's namespace and waits across the boundary |
 | 705 | [worker-crash-recovery](../concepts/700-topology-and-deployment/705-worker-crash-recovery/) | **Engineering Lab.** Real peer-process loss/recovery through SQL leases and leaderless crash recovery on the heartbeat (PostgreSQL/SQL Server) |
 | 706 | [API/worker split](../demos/ApiWorkerSplit/) | **Production capstone.** Open the focused solution and press F5 to run an enqueue-only API and independently scalable worker as separate processes |

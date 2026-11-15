@@ -1,5 +1,5 @@
 using Acta;
-using Acta.Concepts.MultiWorker;
+using Acta.Concepts.NamespacesInOneProcess;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -11,8 +11,8 @@ builder.Services.UseActa(j =>
 
     // Each Run starts an independent worker owning a distinct namespace (own claim loop, lease
     // identity, heartbeat); they share process and database but never each other's jobs.
-    j.Run<MultiWorkerJobs>("orders-eu");
-    j.Run<MultiWorkerJobs>("orders-us");
+    j.Run<NamespacesInOneProcessJobs>("orders-eu");
+    j.Run<NamespacesInOneProcessJobs>("orders-us");
 });
 
 using var host = builder.Build();
@@ -39,7 +39,7 @@ Console.WriteLine("Enqueued 3 orders into each region. Both workers drain in par
 await host.WaitForShutdownAsync();
 await host.StopAsync();
 
-namespace Acta.Concepts.MultiWorker
+namespace Acta.Concepts.NamespacesInOneProcess
 {
     public sealed record ProcessOrder(string OrderId);
 

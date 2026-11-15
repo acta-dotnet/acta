@@ -218,7 +218,7 @@
   ],
   "602-chained-jobs": ["ingested report.md", "rendered report.md -> PDF", "archived report.md - pipeline done"],
   "701-enqueue-only-reference": ["[worker] executed welcome-user for alice", "Job status after worker drain: Succeeded"],
-  "703-multi-worker-process": [
+  "703-namespaces-in-one-process": [
     "processed EU-1",
     "processed EU-2",
     "processed EU-3",
