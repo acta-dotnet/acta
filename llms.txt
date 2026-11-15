@@ -530,6 +530,8 @@ dotnet run --no-build -v q -- jobs events  <job-ref> --json   # the timeline, ne
 - `explain` first for anything stuck, waiting, or failed: one read of the status, lease, worker, newest
   steps, checkpoints, and latest reason, with a headline and the next actions.
 - Exit codes: 0 found or applied, 1 rejected or failed, 2 job not found, 64 usage error, 130 cancelled.
+- On SQLite the reads open the file read-only: before `jobs migrate` has run they create nothing, print
+  ``not provisioned; run `<app> jobs migrate` ``, and exit 1.
 - `status`, `info`, `result`, `explain`, and `events` read. `cancel`, `pause`, `resume`, `restart`,
   `signal`, `debug` (runs the handler in this process), `deploy`, and `migrate` change things.
 - A `ready` job with a future due instant, or a `suspended` one, is healthy: it is waiting for its

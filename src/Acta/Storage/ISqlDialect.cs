@@ -48,6 +48,18 @@ internal interface ISqlDialect
     /// </summary>
     bool IsCancellation(Exception exception) => false;
 
+    /// <summary>
+    /// The connection string a process that only reads the ledger opens, as the CLI's read verbs do. The default is the
+    /// string as given; SQLite opens a file database read-only, so a read of a file that is not there never creates it.
+    /// </summary>
+    string ReadOnlyConnectionString(string connectionString) => connectionString;
+
+    /// <summary>
+    /// Whether an exception from a read-only session says the database holds no Acta schema. The default recognizes
+    /// none; SQLite recognizes a database file that is not there and a table that is not in it.
+    /// </summary>
+    bool IsSchemaMissing(Exception exception) => false;
+
     DbConnection CreateConnection(string connectionString);
 
     /// <summary>

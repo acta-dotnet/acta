@@ -18,4 +18,8 @@ internal sealed record CliCommand(
     string? Cursor = null,
     bool Break = false,
     bool Force = false
-);
+)
+{
+    /// <summary>Whether the verb only reads the ledger: nothing it runs writes, so its database can be opened read-only.</summary>
+    public bool IsRead => Verb is CliVerb.Info or CliVerb.Status or CliVerb.Result or CliVerb.Events or CliVerb.Explain;
+}

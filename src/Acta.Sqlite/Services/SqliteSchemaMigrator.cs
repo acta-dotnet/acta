@@ -142,7 +142,7 @@ internal sealed class SqliteSchemaMigrator(SqlProviderOptions options, ILogger<S
         }
     }
 
-    private static bool IsPlainFileSource(SqliteConnectionStringBuilder builder) =>
+    internal static bool IsPlainFileSource(SqliteConnectionStringBuilder builder) =>
         builder.Mode != SqliteOpenMode.Memory
         && !string.IsNullOrEmpty(builder.DataSource)
         && !string.Equals(builder.DataSource, ":memory:", StringComparison.Ordinal)

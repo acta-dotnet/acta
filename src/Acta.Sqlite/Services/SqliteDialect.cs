@@ -43,6 +43,34 @@ internal sealed partial class SqliteDialect : ISqlDialect
     public bool IsTransientConflict(Exception exception) => exception is SqliteException { SqliteErrorCode: 5 or 6 };
 
     /// <summary>
+    /// A plain file source opened with Mode=ReadOnly, so its open fails with SQLITE_CANTOPEN where it would create the
+    /// file. An in-memory or URI source is left as given: it has no file to create, or names its own mode.
+    /// </summary>
+    public string ReadOnlyConnectionString(string connectionString)
+    {
+        var builder = new SqliteConnectionStringBuilder(connectionString);
+        if (!SqliteSchemaMigrator.IsPlainFileSource(builder))
+        {
+            return connectionString;
+        }
+
+        builder.Mode = SqliteOpenMode.ReadOnly;
+        return builder.ConnectionString;
+    }
+
+    /// <summary>
+    /// SQLITE_CANTOPEN (14), a read-only open of a file that is not there, or SQLITE_ERROR (1) naming a table that is not
+    /// there, as in a file an earlier open left empty.
+    /// </summary>
+    public bool IsSchemaMissing(Exception exception) =>
+        exception switch
+        {
+            SqliteException { SqliteErrorCode: 14 } => true,
+            SqliteException { SqliteErrorCode: 1 } error => error.Message.Contains("no such table", StringComparison.Ordinal),
+            _ => false,
+        };
+
+    /// <summary>
     /// BEGIN IMMEDIATE takes the reserved write lock up front so concurrent writers honor busy_timeout.
     /// </summary>
     public DbTransaction BeginOwnedWriteTransaction(DbConnection connection) =>

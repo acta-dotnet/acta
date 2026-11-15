@@ -368,6 +368,8 @@ Every Acta host doubles as a control CLI: `<app> jobs <verb>` runs the verb agai
 
 A `job_...` target is a job ref, `id:<n>` the internal id, and any other target, a bare integer included, a deduplication key. As on the HTTP API, `id:<n>` is for reads (`info`, `status`, `result`, `explain`, `events`), and a control (`cancel`, `pause`, `resume`, `restart`, `signal`, `clear-signal`, `debug`) given one exits 64, since an internal id names a job in any namespace. A read with no target takes it from the clipboard and prints what it took to stderr; a control with no target exits 64. Add `--ns <ns>` to pick the namespace for a deduplication-key lookup and `--json` for JSON output.
 
+On SQLite a read opens the database file read-only, so a read of a file `migrate` has not provisioned creates nothing and prints ``not provisioned; run `<app> jobs migrate` `` to stderr, exiting 1. A file an earlier run left empty answers the same.
+
 `explain` is where to start for any stuck, waiting, or failed job: it reads the job's status, lease, worker, newest 50 steps, checkpoints, and latest reason in one statement and says what happened and what to do next. It cannot know what your code or an external system did.
 
 `debug` resets the job to Ready with restart semantics, claims exactly it, and runs the handler in this process, so a breakpoint in the handler stops it; leases keep renewing while it is stopped. A live worker can take the job first, and an Executing job is refused. `--break` raises the debugger at the handler.
@@ -375,7 +377,7 @@ A `job_...` target is a job ref, `id:<n>` the internal id, and any other target,
 | Exit code | Meaning |
 |------|--------------------------------------|
 | 0    | Applied, already in state (a `signal` repeated with its value), found, migrated, or debug run succeeded |
-| 1    | Rejected, handler failed, or migration failed |
+| 1    | Rejected, handler failed, migration failed, or database not provisioned |
 | 2    | Job not found                        |
 | 64   | Usage error                          |
 | 130  | Cancelled (Ctrl-C)                    |

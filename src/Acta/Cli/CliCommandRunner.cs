@@ -35,7 +35,7 @@ internal sealed class CliCommandRunner(
         }
 
         // The clipboard serves the reads only: a control acts on the job the operator typed.
-        var read = command.Verb is CliVerb.Info or CliVerb.Status or CliVerb.Result or CliVerb.Events or CliVerb.Explain;
+        var read = command.IsRead;
         if (command.Target is null)
         {
             if (!read)

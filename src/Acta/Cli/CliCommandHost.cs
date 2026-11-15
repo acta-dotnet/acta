@@ -91,6 +91,11 @@ internal sealed class CliCommandHost(CliInvocation invocation, IServiceProvider 
         {
             return 130;
         }
+        catch (Exception ex) when (command.IsRead && services.GetService<ISqlDialect>()?.IsSchemaMissing(ex) == true)
+        {
+            await error.WriteLineAsync("not provisioned; run `<app> jobs migrate`");
+            return 1;
+        }
         catch (Exception ex)
         {
             await error.WriteLineAsync(string.IsNullOrEmpty(ex.Message) ? ex.GetType().Name : ex.Message);

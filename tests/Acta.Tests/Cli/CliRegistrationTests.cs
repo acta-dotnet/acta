@@ -87,6 +87,55 @@ public sealed class CliRegistrationTests
         }
     }
 
+    // A read opens its database read-only: a file nothing created stays uncreated, and an empty one an earlier open left
+    // behind reads the same.
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task A_read_of_an_unprovisioned_database_says_so_in_one_line_and_creates_nothing(bool emptyFileExists)
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"acta-cli-unprovisioned-{Guid.NewGuid():N}.db");
+        try
+        {
+            if (emptyFileExists)
+            {
+                await File.WriteAllBytesAsync(path, [], TestContext.Current.CancellationToken);
+            }
+
+            var (exitCode, error, _) = await ReadAsync(path, ["status", JobRef.New().ToString()]);
+
+            Assert.Equal(1, exitCode);
+            Assert.Equal(["not provisioned; run `<app> jobs migrate`"], Lines(error));
+            Assert.Equal(emptyFileExists, File.Exists(path));
+        }
+        finally
+        {
+            SqliteConnection.ClearAllPools();
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public async Task A_read_of_a_provisioned_database_opens_it_read_only_and_answers()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"acta-cli-read-{Guid.NewGuid():N}.db");
+        try
+        {
+            Assert.Equal(0, (await MigrateAsync(path)).ExitCode);
+
+            var (exitCode, error, mode) = await ReadAsync(path, ["status", JobRef.New().ToString()]);
+
+            Assert.Equal(SqliteOpenMode.ReadOnly, mode);
+            Assert.Equal(2, exitCode);
+            Assert.Equal(["job not found"], Lines(error));
+        }
+        finally
+        {
+            SqliteConnection.ClearAllPools();
+            File.Delete(path);
+        }
+    }
+
     private static IServiceCollection BuildWith(string[]? cliArgs, Action<IActaBuilder>? useProvider = null)
     {
         var services = new ServiceCollection();
@@ -131,6 +180,21 @@ public sealed class CliRegistrationTests
         var exitCode = await host.RunAsync(output, error, TestContext.Current.CancellationToken);
         Assert.True(error.ToString().Length == 0, error.ToString());
         return (exitCode, output.ToString());
+    }
+
+    /// <summary>
+    /// Runs a read verb through the CLI host a SQLite container registers, as the process would, with the open mode its
+    /// session's connection string names.
+    /// </summary>
+    private static async Task<(int ExitCode, string Error, SqliteOpenMode Mode)> ReadAsync(string databasePath, string[] cliArgs)
+    {
+        var services = BuildWith(cliArgs, j => j.UseSqlite(o => o.ConnectionString = $"Data Source={databasePath}"));
+        await using var provider = services.AddLogging().BuildServiceProvider();
+        var host = provider.GetServices<IHostedService>().OfType<CliCommandHost>().Single();
+        var error = new StringWriter();
+        var exitCode = await host.RunAsync(new StringWriter(), error, TestContext.Current.CancellationToken);
+        var mode = new SqliteConnectionStringBuilder(provider.GetRequiredService<SqlProviderOptions>().ConnectionString).Mode;
+        return (exitCode, error.ToString(), mode);
     }
 
     private static string[] Lines(string text) => text.Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries);

@@ -397,6 +397,15 @@ public static class ActaServiceCollectionExtensions
             var namespaces = builder.Catalogs.Select(c => c.NamespaceName).Distinct(StringComparer.Ordinal).ToArray();
             services.AddSingleton(new CliInvocation(cliArgs, namespaces));
             services.AddHostedService<CliCommandHost>();
+
+            // A read verb's session opens the database read-only, so a read of a database nothing provisioned reports
+            // it missing instead of creating an empty one.
+            if (CliCommandParser.TryParse(cliArgs, out var command, out _) && command.IsRead)
+            {
+                services
+                    .AddOptions<SqlProviderOptions>()
+                    .PostConfigure<ISqlDialect>(static (o, d) => o.ConnectionString = d.ReadOnlyConnectionString(o.ConnectionString));
+            }
         }
         else
         {
