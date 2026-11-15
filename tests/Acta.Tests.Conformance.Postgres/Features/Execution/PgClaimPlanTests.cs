@@ -49,6 +49,9 @@ public sealed class PgClaimPlanTests : ClaimSkewTestBase
                 + "SET LOCAL auto_explain.log_level = 'notice'; SET LOCAL client_min_messages = 'notice'",
             ct
         );
+        // On a small table the planner rightly prefers a bitmap scan and a sort, so the test takes bitmaps away, and plans
+        // each call afresh: what it proves is that an ordered path through the index exists, so a claim never sorts.
+        await ExecuteAsync(conn, "SET LOCAL enable_bitmapscan = off; SET LOCAL plan_cache_mode = force_custom_plan", ct);
 
         // The first claim takes every due row; the second finds none left and reports the horizon.
         Assert.Equal(DueRows, await ClaimAsync(conn, ns, workerId, ct));
