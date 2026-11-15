@@ -183,9 +183,17 @@ public sealed class RaiseAlertSpec : ActaStorageTestBase<ConformanceFixture>
         var ct = TestContext.Current.CancellationToken;
         var ctx = BuildContext();
 
-        await ctx.AlertAsync("title", "message", AlertSeverityCode.Error, channelName: "ops", deduplicationKey: "ctx-key", ct: ct);
+        var alertRef = await ctx.AlertAsync(
+            "title",
+            "message",
+            AlertSeverityCode.Error,
+            channelName: "ops",
+            deduplicationKey: "ctx-key",
+            ct: ct
+        );
 
         var row = Assert.Single(await ReadAlertsAsync(TestNamespaceId, ct));
+        Assert.Equal(row.AlertRef, alertRef.Value);
         Assert.Equal(JobIdValue, row.JobId);
         Assert.Equal(AlertDeliveryStatusCode.Pending, row.DeliveryStatusCode);
         Assert.Equal(AlertKindCode.Manual, row.Kind);
@@ -196,6 +204,33 @@ public sealed class RaiseAlertSpec : ActaStorageTestBase<ConformanceFixture>
         // No projected event behind an in-handler raise, so the row carries no projection mark and the
         // replay guard has nothing to hold back.
         Assert.Null(row.LastProjectedEventId);
+
+        // A repeat of the key collapses onto the open row and answers its ref.
+        Assert.Equal(
+            alertRef,
+            await ctx.AlertAsync("title", "again", AlertSeverityCode.Error, channelName: "ops", deduplicationKey: "ctx-key", ct: ct)
+        );
+    }
+
+    [Fact(DisplayName = "ResolveAlertAsync resolves the open incident by its key, with the job as actor, and then finds none open")]
+    public async Task ResolveAlertAsync_through_context_resolves_the_open_incident()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var ctx = BuildContext();
+        var alertRef = await ctx.AlertAsync("title", "message", AlertSeverityCode.Error, deduplicationKey: "resolve-key", ct: ct);
+
+        Assert.True(await ctx.ResolveAlertAsync("resolve-key", ct));
+
+        var row = Assert.Single(await ReadAlertsAsync(TestNamespaceId, ct));
+        Assert.Equal(alertRef.Value, row.AlertRef);
+        Assert.NotNull(row.ResolvedAtUtc);
+        var resolved = Assert.Single(
+            await Db.From<EventEntity>()
+                .Where(e => e.EntityCode == EntityCode.Alert && e.EntityId == row.Id && e.EventCode == EventCode.AlertResolved)
+                .ToListAsync(ct)
+        );
+        Assert.Equal(JobIdValue.ToString(System.Globalization.CultureInfo.InvariantCulture), resolved.Actor);
+        Assert.False(await ctx.ResolveAlertAsync("resolve-key", ct));
     }
 
     [Fact(DisplayName = "Raising with a non-null unknown jobId throws ArgumentException, not a provider constraint error")]

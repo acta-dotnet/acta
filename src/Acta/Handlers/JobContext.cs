@@ -211,14 +211,14 @@ public abstract partial class JobContext
     }
 
     /// <summary>
-    /// Persists an operator-facing alert from inside the handler, stamped kind <c>Manual</c>, delivery
-    /// <c>Pending</c>, and this job's namespace and job. A non-null <paramref name="deduplicationKey"/> collapses
-    /// repeats onto the one unresolved row carrying it (<c>occurrence_count</c>++, content refreshed) and opens a
-    /// fresh row once that one is resolved; a null key always inserts. A null <paramref name="channelName"/> routes to
-    /// the <c>default</c> channel. Writing the row is independent of delivery; title and message are capped to column
-    /// width at persistence, and <paramref name="ct"/> is linked with the per-attempt token.
+    /// Persists an operator-facing alert from inside the handler, stamped kind <c>Manual</c>, delivery <c>Pending</c>, and
+    /// this job's namespace and job, and answers its ref. A non-null <paramref name="deduplicationKey"/> collapses repeats
+    /// onto the one unresolved row carrying it (<c>occurrence_count</c>++, content refreshed), whose ref it answers, and
+    /// opens a fresh row once that one is resolved; a null key always inserts. A null <paramref name="channelName"/> routes
+    /// to the <c>default</c> channel. Title and message are capped to column width, and <paramref name="ct"/> is linked
+    /// with the per-attempt token.
     /// </summary>
-    public async Task AlertAsync(
+    public async Task<AlertRef> AlertAsync(
         string title,
         string message,
         AlertSeverityCode severityCode,
@@ -235,14 +235,14 @@ public abstract partial class JobContext
         }
 
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, CancellationToken);
-        await RaiseAlertCoreAsync(severityCode, title, message, channelName, deduplicationKey, linked.Token);
+        return await RaiseAlertCoreAsync(severityCode, title, message, channelName, deduplicationKey, linked.Token);
     }
 
     /// <summary>
-    /// Subclass sink: persist the alert. Bounded text fields are truncated to their column widths and
+    /// Subclass sink: persist the alert and answer its ref. Bounded text fields are truncated to their column widths and
     /// the deduplication key is normalized in the concrete implementation.
     /// </summary>
-    private protected abstract Task RaiseAlertCoreAsync(
+    private protected abstract Task<AlertRef> RaiseAlertCoreAsync(
         AlertSeverityCode severityCode,
         string title,
         string message,
@@ -250,6 +250,21 @@ public abstract partial class JobContext
         string? deduplicationKey,
         CancellationToken ct
     );
+
+    /// <summary>
+    /// Resolves the open alert holding <paramref name="deduplicationKey"/> in this job's namespace, whichever job opened
+    /// that incident, and answers whether one was open; its <c>alert.resolved</c> event names this job as the actor. Once
+    /// it is resolved a replayed <see cref="AlertAsync"/> on the key opens a new incident, so raise and resolve each in a step.
+    /// </summary>
+    public async Task<bool> ResolveAlertAsync(string deduplicationKey, CancellationToken ct = default)
+    {
+        deduplicationKey = KeySyntax.Canonicalize(deduplicationKey, nameof(deduplicationKey), ActaTextLimits.AlertDeduplicationKey);
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, CancellationToken);
+        return await ResolveAlertCoreAsync(deduplicationKey, linked.Token);
+    }
+
+    /// <summary>Subclass sink: resolve the namespace's open alert holding the canonical key, if one is open.</summary>
+    private protected abstract Task<bool> ResolveAlertCoreAsync(string deduplicationKey, CancellationToken ct);
 
     /// <summary>
     /// Writes an application-authored note onto this job's timeline, beside the framework's own events rather than in

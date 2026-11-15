@@ -12,6 +12,7 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 | `AcknowledgeAlert` | `IAlerts.AcknowledgeAsync` | `POST /alerts/{alertRef}/acknowledge` (`acknowledgeAlert`, `acta.control`) | · | inline | `alerts`, `events` | `AcknowledgeAlertSpec` |
 | `GetAlert` | `IAlerts.GetAsync` | `GET /alerts/{alertRef}` (`getAlert`, `acta.read`) | · | inline | · | `GetAlertSpec` |
 | `GetAlertFloor` | · | · | · | inline | · | `GetAlertFloorSpec` |
+| `GetAlertRefByDeduplicationKey` | · | · | · | inline | · | `GetAlertRefByDeduplicationKeySpec` |
 | `ListAlertableEvents` | · | · | · | inline | · | `ListAlertableEventsSpec` |
 | `ListAlerts` | `IAlerts.ListAsync` | `GET /alerts` (`listAlerts`, `acta.read`) | · | inline | · | `ListAlertsFilterMatrixSpec`, `ListAlertsSpec` |
 | `ListDeliverableAlerts` | · | · | · | inline | · | `ListDeliverableAlertsSpec` |

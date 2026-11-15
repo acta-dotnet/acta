@@ -109,6 +109,7 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<ListAlertsHandler>();
         services.TryAddSingleton<RaiseAlertHandler>();
         services.TryAddSingleton<ResolveAlertHandler>();
+        services.TryAddSingleton<GetAlertRefByDeduplicationKeyHandler>();
         services.TryAddSingleton<ResolveAlertsHandler>();
         services.TryAddSingleton<UpdateAlertDeliveryHandler>();
         services.TryAddSingleton<AlertsOperations>();

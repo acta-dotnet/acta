@@ -242,6 +242,11 @@
   - The floor is the cursor, and each skip record names its event and job, read by namespace or by a job in it
   - An event whose job is gone leaves no skip record, and a record stored for one is dropped by the next pass
 
+### GetAlertRefByDeduplicationKey finds the open incident holding a key
+- **Contract:** GetAlertRefByDeduplicationKey answers the namespace's open alert holding a key, and null once it is resolved or when none holds it.
+- **Guarantees:**
+  - An open incident resolves to its ref, and a resolved or unknown key to null
+
 ### The alertable-event read walks a (stamp, id) cursor up to an inclusive horizon
 - **Contract:** ListAlertableEvents reads a namespace's alertable finished attempts after the (stamp, id) cursor and at or before the horizon, ordered by stamp then id.
 - **Guarantees:**
@@ -275,6 +280,7 @@
   - A raise after the incident resolved opens a fresh row with fresh delivery, leaving the resolved row resolved
   - Bounded prose truncates to column width
   - AlertAsync stamps the Manual kind and carries the caller's deduplication key
+  - ResolveAlertAsync resolves the open incident by its key, with the job as actor, and then finds none open
   - Raising with a non-null unknown jobId throws ArgumentException, not a provider constraint error
   - Raising with a null jobId still inserts a job-less alert
 
@@ -2919,6 +2925,7 @@
 | `ExtendWorkerLeases` | yes | yes | yes |
 | `GetAlert` | yes | yes | yes |
 | `GetAlertFloor` | yes | yes | yes |
+| `GetAlertRefByDeduplicationKey` | yes | yes | yes |
 | `GetCalendar` | yes | yes | yes |
 | `GetCalendarPublication` | yes | yes | yes |
 | `GetCalendarVersion` | yes | yes | yes |

@@ -437,9 +437,11 @@ must be refused, and give an enum a first value that grants nothing (`Unset`).
 - An alert for a failed job is not instant. The `sys.alerts` job turns failure events into alerts once
   a minute, so one appears up to about two minutes after the failure. A handler that wants one now
   writes it: `await ctx.AlertAsync("Stock low", "Bin 7 is empty", AlertSeverityCode.Warning, ct: ct)`.
-  An alert raised that way stays open until something resolves it: find it with
-  `acta.Alerts.ListAsync(new ListAlertsQuery(JobId: jobId, UnresolvedOnly: true))` and call
-  `acta.Alerts.ResolveAsync(alert.AlertRef)` from the step that fixed the cause. The row is written at once; its delivery to
+  An alert raised that way stays open until something resolves it: `AlertAsync` answers its `AlertRef`, and
+  `acta.Alerts.ResolveAsync(alertRef)` resolves it from the step that fixed the cause (keep the ref in a variable
+  across waits). One raised with a
+  `deduplicationKey` resolves by that key from any job of its namespace, the job that opened it or another:
+  `await ctx.ResolveAlertAsync("stock-low-bin-7", ct)` answers true when it resolved an open one. The row is written at once; its delivery to
   the alert channel runs on the `sys.alerts` pass, so it reaches a channel within about a minute. The line runs again on every
   re-entry, like any bare line: without a `deduplicationKey` each run inserts another alert, and with one a
   repeat folds into the open alert, counting an occurrence, while a repeat after it was resolved opens a new one.

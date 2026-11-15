@@ -58,6 +58,8 @@ Not tagged yet.
 - `MapAsync` takes a generated call per item, and for a job with a result answers `MapOutcome<TKey, TResult>`, whose items carry typed outcomes. Its `configure` gives every child of the map the same options.
 - A generated call that reaches an input parameter, as `input: call` or through a generic helper, is enqueued by the job it names, where it threw an `ArgumentException`.
 - A wait's timeout of zero or less waits the one-second minimum, and a sleep's returns at once, where both threw `ArgumentOutOfRangeException` until the job failed.
+- `ctx.AlertAsync` answers the alert's `AlertRef`: the row it opened, or the open row a repeated deduplication key collapsed onto, so a handler can resolve it later with `IAlerts.ResolveAsync`.
+- `ctx.ResolveAlertAsync(deduplicationKey)` resolves the open alert holding that key in the job's namespace, whichever job opened the incident, and answers whether one was open; `alert.resolved` names the job as its actor.
 - `WaitSignalAsync(name, until)` and `WaitSignalAsync<T>(name, until)` bound a signal wait by a `DateTimeOffset`, stored as its expiration, so several waits share one deadline; a wait first armed at or past it times out at once.
 - A sleep with no reason names its timer and the instant it lasts until on its suspend events (`Timer 'cool-down' until 2026-11-15 09:30:00Z.`), where their message was empty.
 - Explain prints its instants to the millisecond (`times out at 2026-11-15 09:30:00.123Z`), as the events carry them, where it cut them to the second.

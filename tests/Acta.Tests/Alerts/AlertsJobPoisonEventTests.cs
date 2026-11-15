@@ -130,7 +130,7 @@ public sealed class AlertsJobPoisonEventTests
             RaiseAttempts.Add(jobId == 101 ? 11L : 12L);
             return jobId == 101
                 ? throw failure ?? (deterministicFailure ? new UnknownJob() : new TimeoutException("provider timeout"))
-                : new RaiseAlertResponse(1, sourceEventId);
+                : new RaiseAlertResponse(1, sourceEventId, Guid.Empty);
         }
 
         private static AlertableEvent Event(long eventId, long jobId) =>

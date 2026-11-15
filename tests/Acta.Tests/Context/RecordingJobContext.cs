@@ -215,12 +215,14 @@ internal class RecordingJobContext(IReadOnlyDictionary<string, JobStatusCode>? s
     private protected override Task WriteNoteCoreAsync<T>(string message, T? detail, CancellationToken ct)
         where T : default => Unsupported<Task>();
 
-    private protected override Task RaiseAlertCoreAsync(
+    private protected override Task<AlertRef> RaiseAlertCoreAsync(
         AlertSeverityCode severityCode,
         string title,
         string message,
         string? channelName,
         string? deduplicationKey,
         CancellationToken ct
-    ) => Unsupported<Task>();
+    ) => Unsupported<Task<AlertRef>>();
+
+    private protected override Task<bool> ResolveAlertCoreAsync(string deduplicationKey, CancellationToken ct) => Unsupported<Task<bool>>();
 }

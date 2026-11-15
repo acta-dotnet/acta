@@ -103,7 +103,7 @@ WHERE
 -- Read back rather than RETURNed: the identity's newest row is the open incident, or the last-resolved one when
 -- a guard held the write back, so its count and mark let the caller re-assert only the escalation this event
 -- earned. A keyless raise reads the row it just minted.
-SELECT a.occurrence_count, a.last_projected_event_id
+SELECT a.occurrence_count, a.last_projected_event_id, a.alert_ref
 FROM {{schema}}.alerts a
 WHERE
     (@p_deduplication_key::VARCHAR IS NULL AND a.alert_ref = @p_alert_ref)

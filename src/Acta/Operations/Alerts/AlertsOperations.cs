@@ -12,9 +12,16 @@ internal sealed class AlertsOperations(
     UpdateAlertDeliveryHandler updateAlertDelivery,
     ResolveAlertsHandler resolveAlerts,
     GetAlertFloorHandler getAlertFloor,
-    ListPoisonAlertEventsHandler listPoisonAlertEvents
+    ListPoisonAlertEventsHandler listPoisonAlertEvents,
+    GetAlertRefByDeduplicationKeyHandler getAlertRefByDeduplicationKey
 ) : IAlerts
 {
+    /// <summary>The namespace's open alert holding the canonical key, which a handler's resolve by key resolves.</summary>
+    internal async Task<AlertRef?> GetAlertRefByDeduplicationKeyAsync(int namespaceId, string deduplicationKey, CancellationToken ct) =>
+        (
+            await getAlertRefByDeduplicationKey.HandleAsync(new GetAlertRefByDeduplicationKeyQuery(namespaceId, deduplicationKey), ct)
+        )?.AlertRef;
+
     /// <summary>
     /// What the namespace's <c>sys.alerts</c> projector has consumed: its cursor and the poison events it skipped and
     /// still owes a replay. Retention and an explicit purge keep every alert-required event past it, and its job.

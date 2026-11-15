@@ -92,7 +92,7 @@ public sealed class AlertsJobReplayTests
                 case "RaiseAlert":
                     var id = call.Get(ActaSchema.Sql.SourceEventId);
                     attempts.Add(id!.Value);
-                    return new RaiseAlertResponse(1, id);
+                    return new RaiseAlertResponse(1, id, Guid.Empty);
                 case "ResolveAlerts":
                     return null;
                 default:

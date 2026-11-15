@@ -382,20 +382,27 @@ internal sealed partial class RuntimeJobContext(
         return FencedAsync(() => _executionStore.RecordJobNoteAsync(Fence, message.Truncate(ActaTextLimits.EventMessage)!, payload, ct));
     }
 
-    private protected override async Task RaiseAlertCoreAsync(
+    private protected override async Task<AlertRef> RaiseAlertCoreAsync(
         AlertSeverityCode severityCode,
         string title,
         string message,
         string? channelName,
         string? deduplicationKey,
         CancellationToken ct
-    )
-    {
-        await _alerts.RaiseAlertAsync(
-            RaiseAlertCommand.Manual(JobNamespace, JobId, severityCode, title, message, channelName, deduplicationKey),
-            ct
+    ) =>
+        new(
+            (
+                await _alerts.RaiseAlertAsync(
+                    RaiseAlertCommand.Manual(JobNamespace, JobId, severityCode, title, message, channelName, deduplicationKey),
+                    ct
+                )
+            ).AlertRef
         );
-    }
+
+    // The job's own handler resolves it, so the job id is the actor, as for a reset of its state.
+    private protected override async Task<bool> ResolveAlertCoreAsync(string deduplicationKey, CancellationToken ct) =>
+        await _alerts.GetAlertRefByDeduplicationKeyAsync(NamespaceId, deduplicationKey, ct) is { } open
+        && (await _alerts.ResolveAsync(open, actor: JobId.ToString(CultureInfo.InvariantCulture), ct: ct)).Action == ControlAction.Applied;
 
     /// <summary>
     /// Caller-controlled handler writes (variables, progress) HARD-THROW past the inline cap; the

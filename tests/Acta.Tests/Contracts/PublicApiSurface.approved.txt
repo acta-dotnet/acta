@@ -1334,7 +1334,6 @@ abstract class Acta.JobContext
     System.String JobNamespace { get; }
     System.String? TenantName { get; }
     System.Threading.CancellationToken CancellationToken { get; }
-    System.Threading.Tasks.Task AlertAsync(System.String title, System.String message, Acta.AlertSeverityCode severityCode, System.String? channelName = null, System.String? deduplicationKey = null, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task CancelAsync(System.String? reasonMessage = null, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task FailAsync(System.String? reasonMessage = null, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task NoteAsync(System.String message, System.Threading.CancellationToken ct = default)
@@ -1352,6 +1351,7 @@ abstract class Acta.JobContext
     System.Threading.Tasks.Task SleepAsync(System.String name, System.TimeSpan delay, System.String? reasonMessage = null, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task SleepUntilAsync(System.String name, System.DateTimeOffset resumeAtUtc, System.String? reasonMessage = null, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task WaitSignalAsync(System.String name, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.Task<Acta.AlertRef> AlertAsync(System.String title, System.String message, Acta.AlertSeverityCode severityCode, System.String? channelName = null, System.String? deduplicationKey = null, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task<Acta.ChildrenWaitOutcome> WaitChildrenAsync(System.Collections.Generic.IReadOnlyList<Acta.EnqueueJobResponse> children, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task<Acta.ChildrenWaitOutcome> WaitChildrenAsync(System.Collections.Generic.IReadOnlyList<Acta.EnqueueJobResponse> children, System.TimeSpan timeout, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task<Acta.EnqueueJobResponse> EnqueueChildAsync(System.String name, System.String jobNamespace, System.String jobName, Acta.JobPayload input = default, System.Action<Acta.JobEnqueueOptionsBuilder>? configure = null, System.Threading.CancellationToken ct = default)
@@ -1389,6 +1389,7 @@ abstract class Acta.JobContext
     System.Threading.Tasks.Task<Acta.SignalWaitOutcome> WaitSignalAsync(System.String name, System.TimeSpan timeout, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task<System.Boolean> DeleteVariableAsync(System.String name, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task<System.Boolean> ExistsVariableAsync(System.String name, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.Task<System.Boolean> ResolveAlertAsync(System.String deduplicationKey, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task<System.ValueTuple<System.Boolean Found, TResult? Value>> TryGetChildResultAsync<TResult>(System.Int64 childJobId, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task<T> GetOrSetVariableAsync<T>(System.String name, System.Func<System.Threading.CancellationToken, System.Threading.Tasks.Task<T>> valueFactory, System.Threading.CancellationToken ct = default) where T : notnull
     System.Threading.Tasks.Task<T> GetOrSetVariableAsync<T>(System.String name, System.Func<T> valueFactory, System.Threading.CancellationToken ct = default) where T : notnull

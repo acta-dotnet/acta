@@ -42,7 +42,7 @@ BEGIN TRY
                 @p_delivery_status_code, 0,
                 @now, @now, 0
             );
-            SELECT 1, @p_source_event_id;
+            SELECT 1, @p_source_event_id, @p_alert_ref;
             GOTO Finish;
         END
 
@@ -55,7 +55,7 @@ BEGIN TRY
     IF @alert_lock_result < 0
         THROW 51205, 'ACTA:ALERT_LOCK:The alert identity lock was not granted (deadlock victim or cancelled).', 1;
 
-    DECLARE @updated TABLE (occurrence_count INT NOT NULL, last_projected_event_id BIGINT NULL);
+    DECLARE @updated TABLE (occurrence_count INT NOT NULL, last_projected_event_id BIGINT NULL, alert_ref UNIQUEIDENTIFIER NOT NULL);
 
     -- The identity's one OPEN row absorbs the repeat and a resolved one is left for the insert arm below. The seek is
     -- pinned to the index every alert deleter locks first (docs/sql-internals.md, "Alert lock order").
@@ -72,7 +72,7 @@ BEGIN TRY
         last_projected_event_id = COALESCE(@p_source_event_id, ja.last_projected_event_id),
         modified_at_utc = @now,
         version = ja.version + 1
-    OUTPUT INSERTED.occurrence_count, INSERTED.last_projected_event_id INTO @updated
+    OUTPUT INSERTED.occurrence_count, INSERTED.last_projected_event_id, INSERTED.alert_ref INTO @updated
     FROM {{schema}}.alerts AS ja WITH (UPDLOCK, FORCESEEK (ix_alerts_deduplication_key_identity (namespace_id, deduplication_key)))
     WHERE
         ja.namespace_id = @v_ns
@@ -96,7 +96,7 @@ BEGIN TRY
                 delivery_status_code, retry_count,
                 created_at_utc, modified_at_utc, version
             )
-            OUTPUT INSERTED.occurrence_count, INSERTED.last_projected_event_id INTO @updated
+            OUTPUT INSERTED.occurrence_count, INSERTED.last_projected_event_id, INSERTED.alert_ref INTO @updated
             SELECT
                 @v_ns, @p_alert_ref, @p_job_id, @v_job_ref,
                 @p_alert_severity_code, @p_alert_kind_code, @p_title, @p_alert_message, @p_channel_name,
@@ -120,8 +120,8 @@ BEGIN TRY
                     -- Nothing written: a replay-held update or a ghost-blocked insert. The newest
                     -- row has already absorbed this event or a newer one, so its count and mark
                     -- re-assert only this event's own escalation, never a neighbour's.
-                    INSERT INTO @updated (occurrence_count, last_projected_event_id)
-                    SELECT TOP (1) ja.occurrence_count, ja.last_projected_event_id
+                    INSERT INTO @updated (occurrence_count, last_projected_event_id, alert_ref)
+                    SELECT TOP (1) ja.occurrence_count, ja.last_projected_event_id, ja.alert_ref
                     FROM {{schema}}.alerts AS ja WITH (FORCESEEK (ix_alerts_deduplication_key_identity (namespace_id, deduplication_key)))
                     WHERE
                         ja.namespace_id = @v_ns
@@ -130,7 +130,7 @@ BEGIN TRY
                 END
         END
 
-    SELECT TOP (1) occurrence_count, last_projected_event_id FROM @updated;
+    SELECT TOP (1) occurrence_count, last_projected_event_id, alert_ref FROM @updated;
 
 Finish:
 

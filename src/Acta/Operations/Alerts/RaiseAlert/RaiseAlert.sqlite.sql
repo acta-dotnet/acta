@@ -66,7 +66,7 @@ WHERE
 -- Read back rather than RETURNed, and unconditionally: SQLite has no procedural branch and the caller
 -- takes this file's LAST result set, so a read producing rows only when the write was held back would
 -- leave the applied path with nothing to return. The two arms below are mutually exclusive.
-SELECT a.occurrence_count, a.last_projected_event_id
+SELECT a.occurrence_count, a.last_projected_event_id, a.alert_ref
 FROM {{schema}}.alerts a
 WHERE
     (@p_deduplication_key IS NULL AND a.alert_ref = @p_alert_ref) -- keyless: the row just minted

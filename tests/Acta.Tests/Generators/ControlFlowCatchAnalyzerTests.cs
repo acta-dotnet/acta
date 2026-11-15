@@ -83,6 +83,7 @@ public sealed class ControlFlowCatchAnalyzerTests
             "GetVariableAsync",
             "GetVariableOrDefaultAsync",
             "NoteAsync",
+            "ResolveAlertAsync",
             "ResetStateAsync",
             "SetProgressAsync",
             "SetVariableAsync",

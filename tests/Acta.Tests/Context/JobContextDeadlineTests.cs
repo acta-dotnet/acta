@@ -30,6 +30,9 @@ public class JobContextDeadlineTests
             CancellationToken ct
         ) => throw new NotSupportedException();
 
+        private protected override Task<bool> ResolveAlertCoreAsync(string deduplicationKey, CancellationToken ct) =>
+            throw new NotSupportedException();
+
         private protected override Task<bool> ExistsVariableCoreAsync(string name, CancellationToken ct) =>
             throw new NotSupportedException();
 
@@ -99,7 +102,7 @@ public class JobContextDeadlineTests
         private protected override Task WriteNoteCoreAsync<T>(string message, T? detail, CancellationToken ct)
             where T : default => throw new NotSupportedException();
 
-        private protected override Task RaiseAlertCoreAsync(
+        private protected override Task<AlertRef> RaiseAlertCoreAsync(
             AlertSeverityCode severityCode,
             string title,
             string message,

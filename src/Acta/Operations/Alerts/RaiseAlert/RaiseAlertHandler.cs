@@ -31,7 +31,8 @@ internal sealed class RaiseAlertHandler(IDbSession session, ISqlDialect dialect)
                         ? null
                         : new RaiseAlertResponse(
                             Convert.ToInt32(reader.GetValue(0), CultureInfo.InvariantCulture),
-                            reader.IsDBNull(1) ? null : Convert.ToInt64(reader.GetValue(1), CultureInfo.InvariantCulture)
+                            reader.IsDBNull(1) ? null : Convert.ToInt64(reader.GetValue(1), CultureInfo.InvariantCulture),
+                            reader.GetGuid(2)
                         ),
                 ct
             );

@@ -168,7 +168,7 @@ public sealed class ReflectionFreeJsonTests
         private RaiseAlertResponse Raise(long? jobId, long? sourceEventId)
         {
             Raised.Add(sourceEventId!.Value);
-            return new RaiseAlertResponse(1, sourceEventId);
+            return new RaiseAlertResponse(1, sourceEventId, Guid.Empty);
         }
 
         private static PoisonAlertEvent Skip(AlertableEvent e) => new(e.EventId, e.JobId, e.CreatedAtUtc.Ticks);
