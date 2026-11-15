@@ -929,9 +929,9 @@ The package is test-framework-agnostic (xUnit, NUnit, MSTest, TUnit). Its types 
 `ActaTestHost.StartAsync` builds the same DI container production uses, applies migrations to a
 unique throwaway schema (default `acta_test_{12-hex}`), deploys your manifest's catalog (namespace,
 definitions, schedules), and starts its worker row. It does not start the background claim loop; nothing executes
-until you drive it. Its container is not a generic host's: it adds a null logger when you register none, but no
-`IHostApplicationLifetime` or other host service, so register any your handlers take in `ConfigureServices`. A tick that answers `Failed` says why in
-`ExplainAsync(job)`.
+until you drive it. Its container is not a generic host's: it adds a null logger and an `IHostApplicationLifetime`
+whose tokens never fire when you register none, but no other host service, so register any your handlers take in
+`ConfigureServices`. A tick that answers `Failed` says why in `ExplainAsync(job)`.
 
 Drive execution one tick at a time:
 

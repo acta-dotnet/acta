@@ -4,6 +4,7 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -47,6 +48,8 @@ public static class ActaTestHost
         // lines registers logging in ConfigureServices, and these only fill in when it did not.
         services.TryAddSingleton<ILoggerFactory, NullLoggerFactory>();
         services.TryAdd(ServiceDescriptor.Singleton(typeof(ILogger<>), typeof(NullLogger<>)));
+        // No generic host runs here to supply the application lifetime a handler's service may take.
+        services.TryAddSingleton<IHostApplicationLifetime>(new NeverStoppingLifetime());
         var provider = services.BuildServiceProvider(validateScopes: true);
         try
         {
@@ -354,6 +357,21 @@ public sealed class ActaTestHostOptions
 
     /// <summary>Extra DI registrations (fakes and the handlers' own dependencies) applied after <c>UseActa</c>.</summary>
     public Action<IServiceCollection>? ConfigureServices { get; set; }
+}
+
+/// <summary>
+/// The application lifetime a test host supplies when the test registers none: its tokens never fire and a stop request
+/// does nothing, since the test ends the run by disposing the host.
+/// </summary>
+internal sealed class NeverStoppingLifetime : IHostApplicationLifetime
+{
+    public CancellationToken ApplicationStarted => CancellationToken.None;
+
+    public CancellationToken ApplicationStopping => CancellationToken.None;
+
+    public CancellationToken ApplicationStopped => CancellationToken.None;
+
+    public void StopApplication() { }
 }
 
 /// <summary>
