@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace Acta;
 
 /// <summary>
@@ -177,6 +179,7 @@ public abstract partial class JobContext
     /// <see cref="HandlerFailException"/> synchronously, so code after the call is unreachable and a forgotten
     /// <c>await</c> still stops the handler; the <see cref="Task"/> return mirrors the other control verbs.
     /// </summary>
+    [DoesNotReturn]
     public Task FailAsync(string? reasonMessage = null, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
@@ -190,6 +193,7 @@ public abstract partial class JobContext
     /// budget is untouched. The cancel cascades recursively to this Job's non-terminal descendant
     /// subtree (descendants land <c>Cancelled</c> with the event reason <c>parent-cancelled</c>).
     /// </summary>
+    [DoesNotReturn]
     public Task CancelAsync(string? reasonMessage = null, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
