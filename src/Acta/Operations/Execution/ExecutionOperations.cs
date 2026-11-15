@@ -48,6 +48,10 @@ internal sealed class ExecutionOperations(
     public Task<CompleteExecutionsResponse> CompleteExecutionsAsync(CompleteExecutionsCommand command, CancellationToken ct) =>
         completeExecutions.HandleAsync(command, ct);
 
+    /// <summary>The envelope of the firing the attempt holds, under its fence, and whether the attempt is its first; null for a lost claim or an ordinary job.</summary>
+    public Task<GetScheduleFiringResponse?> GetScheduleFiringAsync(ExecutionFence fence, CancellationToken ct) =>
+        getScheduleFiring.HandleAsync(new GetScheduleFiringQuery(fence), ct);
+
     /// <summary>
     /// Recovery pass for one namespace: in-flight jobs whose lease expired return to Ready, or go Failed at MaxAttempts;
     /// returns the count and the Failed children with their parents, for the caller's child-done raises. An attempt that
@@ -55,10 +59,6 @@ internal sealed class ExecutionOperations(
     /// surviving path never spends that retry: it returns to Suspended on the same past deadline, and the replay
     /// resolves the timeout as the waiting overload defines it.
     /// </summary>
-    /// <summary>The envelope of the firing the attempt holds, under its fence, and whether the attempt is its first; null for a lost claim or an ordinary job.</summary>
-    public Task<GetScheduleFiringResponse?> GetScheduleFiringAsync(ExecutionFence fence, CancellationToken ct) =>
-        getScheduleFiring.HandleAsync(new GetScheduleFiringQuery(fence), ct);
-
     public Task<ReclaimStuckJobsResponse> ReclaimStuckJobsAsync(int namespaceId, CancellationToken ct) =>
         reclaimStuckJobs.HandleAsync(new ReclaimStuckJobsCommand(namespaceId), ct);
 
