@@ -28,7 +28,8 @@ A crash counts against the retry budget: the attempt a dead worker held is recla
 `MaxAttempts` crashes since the job last succeeded fail a job that never threw (a wait or a sleep is not a success,
 so the count carries across them), and a reclaimed job is due again at once, without the backoff: it waits behind
 work that was due before it and passes the same concurrency and rate gates as any claim.
-The reclaim is `job.execution-orphaned` (reason `lease-expired`) on the timeline. With the default 45-second heartbeat a lost attempt comes back
+The reclaim is `job.execution-orphaned` (reason `lease-expired`) on the timeline, or `job.failed` with that reason when
+it spent the last attempt. With the default 45-second heartbeat a lost attempt comes back
 three to about seven minutes after its worker's last heartbeat (one to two leases, plus up to a heartbeat for the
 recovery pass). On SQLite, with crash recovery on (the default), a restart brings it back at once: a starting
 worker releases its namespace's workers on the same machine whose process has ended, with their jobs' locks and
@@ -95,8 +96,9 @@ public static class ShippingHandlers
 - `[Job("ship-order")]` is required and a name: dotted kebab-case, `[a-z][a-z0-9-]*` segments joined by `.`
   (`billing.send-invoice`), no underscores, no trailing dash, at most 128 chars. The bare `sys` and the `sys.` prefix are reserved for Acta's own jobs. The name is
   the durable operator-facing contract in SQL, the dashboard, the CLI, and alerts. The names you give steps, variables,
-  signals, timers and children follow the same rule after folding to lowercase, so a per-item name is dotted
-  (`apply.{id}`, never `apply/{id}`). An invalid one fails the job at once, since no retry can fix it, and the build
+  signals, timers and children follow the same rule after folding to lowercase, so a per-item name puts a letter
+  before the id: `apply-{orderId}` or `apply.o{orderId}`, never `apply/{orderId}`, and never `apply.{orderId}` when
+  the id can start with a digit. An invalid one fails the job at once, since no retry can fix it, and the build
   refuses one it can already see is broken (ACTA0152). A raised signal value or a stored step result the code can no
   longer read fails the job at once too, naming the signal or step and the type.
 - An attempt is cut off at its `ExecutionTimeout`, 5 minutes unless `[Job(ExecutionTimeout = "2h")]` says otherwise,
@@ -317,7 +319,7 @@ until the job ends or the wait times out; a handler's wait parks the job and hol
 | call different jobs at once, or enqueue now and wait later | `var email = await ctx.EnqueueChildAsync("email", new SendEmail(orderId), ct);` and `sms` alike, then `await ctx.WaitChildrenAsync([email, sms], ct)` | `ChildrenWaitOutcome`: `Children`, `Succeeded`, `Failed`, `ThrowIfAnyFailed()` |
 
 - A failed or cancelled child never throws in the parent by itself. Every wait answers an outcome and the handler decides: `ThrowIfFailed()` or `ThrowIfAnyFailed()` to fail with it, or branch on `Failed` and compensate. A group waits for every child; it never fails fast and never cancels siblings.
-- Every child ends in a `JobOutcome`, alone or as a member of a group: `JobRef`, `Status`, `Succeeded`, `TimedOut`, and `ThrowIfFailed()`. A child that failed carries the message it failed with in `FailureMessage`, and `ThrowIfFailed()` puts it in the parent's failure. `IJobs.WaitAsync` answers the same type outside a handler, with no `FailureMessage`: read that job's timeline. Wait now with `CallChildAsync`; wait later for children you enqueued, one or many, with `WaitChildrenAsync`; fan a list out with `MapAsync`.
+- Every child ends in a `JobOutcome`, alone or as a member of a group: `JobRef`, `Status`, `Succeeded`, `TimedOut`, and `ThrowIfFailed()`. A child that failed carries the message it failed with in `FailureMessage`, and `ThrowIfFailed()` puts it in the parent's failure; one that crash recovery failed carries none. `IJobs.WaitAsync` answers the same type outside a handler, with no `FailureMessage`: read that job's timeline. Wait now with `CallChildAsync`; wait later for children you enqueued, one or many, with `WaitChildrenAsync`; fan a list out with `MapAsync`.
 - `ThrowIfFailed()`, `ThrowIfAnyFailed()` and `ValueOrThrow()` in a handler fail the job at once, with no retry: a retry would find the same failed child. To recover, restart the child, then the parent once the child has succeeded; a parent restarted alone reads the same failed child and fails again at once. A restarted parent keeps the results of the steps after its wait, so bind a decision you derive from the children's outcomes into the step that acts on it.
 - A child's name is its `DeduplicationKey` on the job reads: the call's name for `CallChildAsync` and `EnqueueChildAsync`, and `{map}/{key}` for a map's child (`sections/coast`, or a hash of a key that is not safe as a name), so `acta.Ledger.ListJobsAsync(new ListJobsQuery(ParentJobId: parent.JobId))` lists the children by name. A failed child's reason is not on its outcome: read `(await jobs.ExplainAsync(outcome.JobRef, ct))?.Reason`.
 - A child alerts on its own failure as its definition's `AlertProfile` says (`OnFailure` by default), also when the

@@ -7,8 +7,9 @@ using Xunit;
 namespace Acta.Tests.Generators;
 
 /// <summary>
-/// ACTA0152 reports a name a handler records that can never pass the name rule, a constant or an interpolation's own
-/// text, and leaves alone every name some run-time value could make valid.
+/// ACTA0152 reports a name a handler records that can never pass the name rule, a constant, an interpolation's own
+/// text, or an unformatted number-typed hole opening a segment, and leaves alone every name some run-time value could
+/// make valid.
 /// </summary>
 public sealed class DurableNameAnalyzerTests
 {
@@ -22,6 +23,8 @@ public sealed class DurableNameAnalyzerTests
     [InlineData("await ctx.RunStepAsync($\"plan.1{id}\", _ => Task.CompletedTask, ct);")]
     [InlineData("await ctx.RunStepAsync($\"{id}.\", _ => Task.CompletedTask, ct);")]
     [InlineData("await ctx.RunStepAsync(\"\", _ => Task.CompletedTask, ct);")]
+    [InlineData("await ctx.RunStepAsync($\"apply.{n}\", _ => Task.CompletedTask, ct);")]
+    [InlineData("await ctx.RunStepAsync($\"{n}\", _ => Task.CompletedTask, ct);")]
     public async Task A_name_that_can_never_be_valid_is_reported(string body) => Assert.Single(await AnalyzeAsync(body));
 
     [Theory]
@@ -33,7 +36,17 @@ public sealed class DurableNameAnalyzerTests
     [InlineData("await ctx.RunStepAsync(name, _ => Task.CompletedTask, ct);")]
     [InlineData("await ctx.RunStepAsync($\"{id}\", _ => Task.CompletedTask, ct);")]
     [InlineData("await ctx.RunWithLockAsync(\"ledger:acme/1\", _ => Task.CompletedTask, ct: ct);")]
+    [InlineData("await ctx.RunStepAsync($\"apply-{n}\", _ => Task.CompletedTask, ct);")]
+    [InlineData("await ctx.RunStepAsync($\"batch.n{n}\", _ => Task.CompletedTask, ct);")]
+    [InlineData("await ctx.RunStepAsync($\"shard.{n:x}\", _ => Task.CompletedTask, ct);")]
     public async Task A_name_some_value_could_make_valid_is_quiet(string body) => Assert.Empty(await AnalyzeAsync(body));
+
+    [Fact]
+    public async Task The_report_shows_a_letter_before_the_id()
+    {
+        var diagnostic = Assert.Single(await AnalyzeAsync("await ctx.RunStepAsync($\"apply.{n}\", _ => Task.CompletedTask, ct);"));
+        Assert.Contains("($\"apply-{id}\")", diagnostic.GetMessage(), StringComparison.Ordinal);
+    }
 
     private static async Task<Diagnostic[]> AnalyzeAsync(string body)
     {
@@ -47,7 +60,7 @@ public sealed class DurableNameAnalyzerTests
 
             public static class Handler
             {
-                public static async Task Run(JobContext ctx, string id, string name, CancellationToken ct)
+                public static async Task Run(JobContext ctx, string id, string name, int n, CancellationToken ct)
                 {
                     {{body}}
                 }

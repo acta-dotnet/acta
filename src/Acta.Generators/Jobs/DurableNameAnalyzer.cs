@@ -20,6 +20,10 @@ internal sealed class DurableNameAnalyzer : DiagnosticAnalyzer
     // Stands for an interpolation hole: any text, so every check around it gives it the benefit of the doubt.
     private const char Hole = '\u0001';
 
+    // Stands for a hole of an integral type with no format or alignment, whose text starts with a digit or '-' and so
+    // can never start a segment.
+    private const char NumberHole = '\u0002';
+
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
         ImmutableArray.Create(ManifestDiagnostics.InvalidDurableName);
 
@@ -58,8 +62,8 @@ internal sealed class DurableNameAnalyzer : DiagnosticAnalyzer
                         ManifestDiagnostics.InvalidDurableName,
                         argument.Value.Syntax.GetLocation(),
                         $"The name {argument.Value.Syntax} can never be valid: {problem}. A name is dotted kebab, "
-                            + "[a-z][a-z0-9-]* segments joined by '.', so a per-item name is dotted ($\"apply.{id}\"), and "
-                            + "the job would fail on this one at once."
+                            + "[a-z][a-z0-9-]* segments joined by '.', so a per-item name puts a letter before the id "
+                            + "($\"apply-{id}\"), and the job would fail on this one at once."
                     )
                 );
             }
@@ -100,11 +104,30 @@ internal sealed class DurableNameAnalyzer : DiagnosticAnalyzer
         var text = new StringBuilder();
         foreach (var part in interpolated.Parts)
         {
-            text.Append(part is IInterpolatedStringTextOperation { Text.ConstantValue.Value: string literal } ? literal : Hole.ToString());
+            text.Append(
+                part switch
+                {
+                    IInterpolatedStringTextOperation { Text.ConstantValue.Value: string literal } => literal,
+                    IInterpolationOperation { Expression.Type.SpecialType: var type, FormatString: null, Alignment: null }
+                        when IsIntegral(type) => NumberHole.ToString(),
+                    _ => Hole.ToString(),
+                }
+            );
         }
 
         return text.ToString();
     }
+
+    private static bool IsIntegral(SpecialType type) =>
+        type
+            is SpecialType.System_Byte
+                or SpecialType.System_SByte
+                or SpecialType.System_Int16
+                or SpecialType.System_UInt16
+                or SpecialType.System_Int32
+                or SpecialType.System_UInt32
+                or SpecialType.System_Int64
+                or SpecialType.System_UInt64;
 
     /// <summary>Why <paramref name="template"/> can never pass the rule, or null when some value of its holes could.</summary>
     private static string? Problem(string template)
@@ -115,13 +138,14 @@ internal sealed class DurableNameAnalyzer : DiagnosticAnalyzer
             return "it is empty";
         }
 
-        if (name.IndexOf(Hole) < 0 && name.Length > MaxLength)
+        if (name.IndexOf(Hole) < 0 && name.IndexOf(NumberHole) < 0 && name.Length > MaxLength)
         {
             return $"it is longer than {MaxLength} characters";
         }
 
         if (
-            name.FirstOrDefault(c => c != Hole && c is not ((>= 'a' and <= 'z') or (>= '0' and <= '9') or '-' or '.')) is var bad
+            name.FirstOrDefault(c => c != Hole && c != NumberHole && c is not ((>= 'a' and <= 'z') or (>= '0' and <= '9') or '-' or '.'))
+                is var bad
             && bad != default
         )
         {
@@ -130,19 +154,25 @@ internal sealed class DurableNameAnalyzer : DiagnosticAnalyzer
 
         foreach (var segment in name.Split('.'))
         {
+            var shown = segment.Replace(Hole, '*').Replace(NumberHole, '#');
             if (segment.Length == 0)
             {
                 return "it has an empty segment";
             }
 
+            if (segment[0] == NumberHole)
+            {
+                return $"the segment '{shown}' starts with a number";
+            }
+
             if (segment[0] != Hole && segment[0] is not (>= 'a' and <= 'z'))
             {
-                return $"the segment '{segment.Replace(Hole, '*')}' does not start with a letter";
+                return $"the segment '{shown}' does not start with a letter";
             }
 
             if (segment[segment.Length - 1] == '-')
             {
-                return $"the segment '{segment.Replace(Hole, '*')}' ends with '-'";
+                return $"the segment '{shown}' ends with '-'";
             }
         }
 

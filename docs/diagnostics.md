@@ -231,7 +231,8 @@ finally { await outcomes.CloseAsync(runId); }
 kebab, `[a-z][a-z0-9-]*` segments joined by `.`, at most 128 characters, and not `sys` or under `sys.`. A name that
 breaks the rule fails its job at once, on the first attempt, so the build refuses one it can already see is
 broken: a constant, or an interpolation whose own text is (a `/`, an `_`, an empty segment, a segment that starts
-with a digit). A name built wholly at run time is checked only when the job runs.
+with a digit), or a segment that opens with a number-typed hole (`$"batch.{n}"` with an `int n`), since a number
+never starts with a letter. A name built wholly at run time is checked only when the job runs.
 
-Make a per-item name dotted, and give a segment that starts with an id a letter first:
-`$"apply.{grantId}"`, `$"plan.f{ctx.FiringId:N}"`.
+Put a letter before an id that can start with a digit: `$"apply-{grantId}"`, `$"batch.n{n}"`,
+`$"plan.f{ctx.FiringId:N}"`.
