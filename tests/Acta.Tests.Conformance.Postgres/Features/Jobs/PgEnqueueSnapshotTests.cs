@@ -97,7 +97,7 @@ public sealed class PgEnqueueSnapshotTests : ActaRuntimeTestBase<PgConformanceFi
             cmd.Transaction = transaction;
             cmd.CommandText =
                 $"CREATE FUNCTION pg_temp.hold_staging() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN PERFORM pg_advisory_xact_lock({barrier}); RETURN NULL; END $$; "
-                + "CREATE TRIGGER hold_staging BEFORE TRUNCATE ON _enq_batch FOR EACH STATEMENT EXECUTE FUNCTION pg_temp.hold_staging()";
+                + "CREATE TRIGGER hold_staging BEFORE TRUNCATE ON _enq_rows FOR EACH STATEMENT EXECUTE FUNCTION pg_temp.hold_staging()";
             await cmd.ExecuteNonQueryAsync(ct);
         }
 

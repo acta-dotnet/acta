@@ -252,7 +252,9 @@ BEGIN
     -- Resolve catalog + pre-allocate the job id ONCE into a temp table keyed by that id, so the inserts
     -- below read a staged, ANALYZEd set instead of re-joining a catalog CTE the planner sizes at ~1 row
     -- (which forces batch-rescanning Nested Loops once the job state sits in its own table).
-    CREATE TEMP TABLE IF NOT EXISTS _enq_batch (
+
+    -- An open transaction keeps the temp table an older routine made across a migration, so new columns take a new name.
+    CREATE TEMP TABLE IF NOT EXISTS _enq_rows (
         job_id BIGINT PRIMARY KEY,
         ordinal INT NOT NULL,
         job_ref UUID NOT NULL,
@@ -277,7 +279,7 @@ BEGIN
         held_ref UUID,
         held_tenant INT
     ) ON COMMIT DROP;
-    TRUNCATE _enq_batch;
+    TRUNCATE _enq_rows;
 
     -- Ids are drawn first and handed out by rank, so job-id order equals ordinal order however the
     -- sequence calls interleave: a lane runs in job-id order, which must be the caller's batch order.
@@ -303,7 +305,7 @@ BEGIN
             input_format_id, input, concurrency_key, next_run_at_utc,
             delay_seconds, parent_job_id, tenant_name, lane)
     )
-    INSERT INTO _enq_batch (
+    INSERT INTO _enq_rows (
         job_id,
         ordinal,
         job_ref,
@@ -356,7 +358,7 @@ BEGIN
     LEFT JOIN {{schema}}.jobs pj ON pj.job_id = b.parent_job_id;
 
     IF lane_count > 0 THEN
-        UPDATE _enq_batch e
+        UPDATE _enq_rows e
         SET lane_id = el.lane_id, lane_busy = el.busy
         FROM _enq_lanes el
         WHERE el.namespace_id = e.namespace_id AND el.lane_name = e.lane;
@@ -366,7 +368,7 @@ BEGIN
             IF EXISTS (
                 WITH RECURSIVE ancestors AS (
                     SELECT e.lane_id, a.job_id, a.parent_job_id
-                    FROM _enq_batch e
+                    FROM _enq_rows e
                     INNER JOIN {{schema}}.jobs a ON a.job_id = e.parent_job_id
                     WHERE e.lane_id IS NOT NULL
                     UNION ALL
@@ -391,7 +393,7 @@ BEGIN
     END IF;
 
     -- Give the planner real row counts for the staged set so the inserts below stay hash/index joins.
-    ANALYZE _enq_batch;
+    ANALYZE _enq_rows;
 
     -- The inserts run as one statement and the outcomes are read by the next: a row skipped because a
     -- concurrent producer committed its key while this one waited is invisible to this statement's snapshot,
@@ -430,7 +432,7 @@ BEGIN
             e.concurrency_key,
             e.event_recording_code,
             now()
-        FROM _enq_batch e
+        FROM _enq_rows e
         WHERE NOT e.is_child
         ON CONFLICT (namespace_id, deduplication_key)
             WHERE deduplication_key IS NOT NULL AND parent_job_id IS NULL
@@ -471,7 +473,7 @@ BEGIN
             e.concurrency_key,
             e.event_recording_code,
             now()
-        FROM _enq_batch e
+        FROM _enq_rows e
         WHERE e.is_child
         ON CONFLICT (parent_job_id, deduplication_key)
             WHERE deduplication_key IS NOT NULL AND parent_job_id IS NOT NULL
@@ -519,21 +521,21 @@ BEGIN
             now(),
             0
         FROM inserted i
-        INNER JOIN _enq_batch e ON e.job_id = i.job_id
+        INNER JOIN _enq_rows e ON e.job_id = i.job_id
         RETURNING 1
     ),
     tag_insert AS (
         INSERT INTO {{schema}}.tags (entity_code, entity_id, tag_name, tag_value, tag_value_search)
         SELECT 50 /* EntityCode.Job */, e.job_id, t.tag_name, t.tag_value, t.tag_value_search
         FROM unnest(p_tag_ordinal, p_tag_name, p_tag_value, p_tag_value_search) AS t(ordinal, tag_name, tag_value, tag_value_search)
-        INNER JOIN _enq_batch e ON e.ordinal = t.ordinal
+        INNER JOIN _enq_rows e ON e.ordinal = t.ordinal
         INNER JOIN inserted i ON i.job_id = e.job_id
         RETURNING 1
     )
     SELECT count(*) INTO inserted_count FROM inserted;
 
     -- One read both checks and answers each held job, so a purge and a new holder between two reads cannot swap it.
-    UPDATE _enq_batch e
+    UPDATE _enq_rows e
     SET held_id = h.job_id, held_ref = h.job_ref, held_tenant = h.tenant_id
     FROM {{schema}}.jobs h
     WHERE
@@ -545,7 +547,7 @@ BEGIN
         );
 
     -- A key another tenant's job holds refuses the whole batch, naming neither: the caller learns only that it is taken.
-    IF EXISTS (SELECT 1 FROM _enq_batch e WHERE NOT e.is_child AND e.held_tenant <> e.tenant_id) THEN
+    IF EXISTS (SELECT 1 FROM _enq_rows e WHERE NOT e.is_child AND e.held_tenant <> e.tenant_id) THEN
         RAISE EXCEPTION 'ACTA:ENQ_TENANT_MISMATCH:Enqueue rejected: one or more rows name a deduplication key another tenant''s job holds.'
             USING ERRCODE = 'P0001';
     END IF;
@@ -558,7 +560,7 @@ BEGIN
         CASE WHEN mine.job_id IS NOT NULL
             THEN 1 /* EnqueueJobAction.Inserted */
             ELSE 2 /* EnqueueJobAction.Deduplicated */ END AS action
-    FROM _enq_batch e
+    FROM _enq_rows e
     LEFT JOIN {{schema}}.jobs mine ON mine.job_id = e.job_id
     ORDER BY e.ordinal;
 END;
