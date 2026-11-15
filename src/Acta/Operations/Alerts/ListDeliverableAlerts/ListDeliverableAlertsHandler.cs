@@ -11,6 +11,8 @@ internal sealed class ListDeliverableAlertsHandler(IDbSession session, ISqlDiale
                 {
                     cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Alert.NamespaceId, query.NamespaceId));
                     cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.AlertBatchSize, query.BatchSize));
+                    cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.AlertCursorUtc, query.Cursor.Utc));
+                    cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.CursorEventId, query.Cursor.EventId));
                 },
                 DbProjectionResolver.Resolve<DeliverableAlert>(),
                 ct

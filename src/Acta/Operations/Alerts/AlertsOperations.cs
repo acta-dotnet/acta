@@ -90,10 +90,15 @@ internal sealed class AlertsOperations(
     /// Pending and RetryAfter once it has elapsed or is unset, Delivered and Failed once the reminder their
     /// settlement scheduled is due; Suppressed is never reminded. Not <c>modified_at_utc</c>: every repeat
     /// re-stamps it, so a job failing faster than the reminder interval would never be reminded. Resolved
-    /// rows are never sent; an attempt already in flight may still complete.
+    /// rows are never sent; an attempt already in flight may still complete. An automatic alert is held while a
+    /// newer retry success of its job lies past <paramref name="cursor"/>, for the pass that projects it to resolve.
     /// </summary>
-    internal Task<ListDeliverableAlertsResponse> ListDeliverableAlertsAsync(int namespaceId, int batchSize, CancellationToken ct) =>
-        listDeliverableAlerts.HandleAsync(new ListDeliverableAlertsQuery(namespaceId, batchSize), ct);
+    internal Task<ListDeliverableAlertsResponse> ListDeliverableAlertsAsync(
+        int namespaceId,
+        int batchSize,
+        AlertsCursor cursor,
+        CancellationToken ct
+    ) => listDeliverableAlerts.HandleAsync(new ListDeliverableAlertsQuery(namespaceId, batchSize, cursor), ct);
 
     /// <summary>
     /// Records one delivery attempt's outcome (status, retry count, and <c>retry_after_utc</c>: the next retry

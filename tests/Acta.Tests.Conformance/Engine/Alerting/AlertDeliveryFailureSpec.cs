@@ -237,7 +237,7 @@ public sealed class AlertDeliveryFailureSpec : ActaStorageTestBase<ConformanceFi
 
         var row = Assert.Single(await ReadAlertsAsync(TestNamespaceId, ct));
         Assert.Equal(AlertDeliveryStatusCode.Suppressed, row.DeliveryStatusCode);
-        Assert.Empty((await Services.GetRequiredService<AlertsOperations>().ListDeliverableAlertsAsync(TestNamespaceId, 50, ct)).Alerts);
+        Assert.Empty(await DueAsync(ct));
     }
 
     [Fact(DisplayName = "Deprecated channel suppresses the alert and is not reread")]
@@ -252,7 +252,7 @@ public sealed class AlertDeliveryFailureSpec : ActaStorageTestBase<ConformanceFi
 
         var row = Assert.Single(await ReadAlertsAsync(TestNamespaceId, ct));
         Assert.Equal(AlertDeliveryStatusCode.Suppressed, row.DeliveryStatusCode);
-        Assert.Empty((await Services.GetRequiredService<AlertsOperations>().ListDeliverableAlertsAsync(TestNamespaceId, 50, ct)).Alerts);
+        Assert.Empty(await DueAsync(ct));
     }
 
     [Fact(DisplayName = "Below min severity suppresses the alert and is not reread")]
@@ -279,7 +279,7 @@ public sealed class AlertDeliveryFailureSpec : ActaStorageTestBase<ConformanceFi
 
         var row = Assert.Single(await ReadAlertsAsync(TestNamespaceId, ct));
         Assert.Equal(AlertDeliveryStatusCode.Suppressed, row.DeliveryStatusCode);
-        Assert.Empty((await Services.GetRequiredService<AlertsOperations>().ListDeliverableAlertsAsync(TestNamespaceId, 50, ct)).Alerts);
+        Assert.Empty(await DueAsync(ct));
     }
 
     [Fact(DisplayName = "Null-job-id alert is returned by ListDeliverableAlerts and delivers successfully")]
@@ -292,9 +292,7 @@ public sealed class AlertDeliveryFailureSpec : ActaStorageTestBase<ConformanceFi
         await RaiseAlertAsync(Db, "ch-log", jobId: null, ct);
 
         // Confirm the alert IS returned (not dropped by the LEFT JOIN on job → definitions).
-        var due = Assert.Single(
-            (await Services.GetRequiredService<AlertsOperations>().ListDeliverableAlertsAsync(TestNamespaceId, 50, ct)).Alerts
-        );
+        var due = Assert.Single(await DueAsync(ct));
         Assert.Null(due.JobRef);
         Assert.Null(due.RunbookUrl); // no job → no definition → runbook is null
 
@@ -515,6 +513,12 @@ public sealed class AlertDeliveryFailureSpec : ActaStorageTestBase<ConformanceFi
 
     private void RegisterChannel(string name, string transportKind, AlertChannelStatusCode status, AlertSeverityCode minSeverity) =>
         Channels[name] = new AlertChannelDeclaration(name, transportKind, Endpoint: "endpoint", status, minSeverity);
+
+    private async Task<IReadOnlyList<DeliverableAlert>> DueAsync(CancellationToken ct)
+    {
+        var alerts = Services.GetRequiredService<AlertsOperations>();
+        return (await alerts.ListDeliverableAlertsAsync(TestNamespaceId, 50, new AlertsCursor(0L, 0L), ct)).Alerts;
+    }
 
     private Task RaiseAlertAsync(
         IDbSession db,

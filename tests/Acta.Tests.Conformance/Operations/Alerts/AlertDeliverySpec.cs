@@ -285,8 +285,11 @@ public sealed class AlertDeliverySpec : ActaStorageTestBase<ConformanceFixture>
 
     // --- Helpers ---
 
-    private async Task<IReadOnlyList<DeliverableAlert>> DueAsync(CancellationToken ct) =>
-        (await Services.GetRequiredService<AlertsOperations>().ListDeliverableAlertsAsync(TestNamespaceId, 50, ct)).Alerts;
+    private async Task<IReadOnlyList<DeliverableAlert>> DueAsync(CancellationToken ct)
+    {
+        var alerts = Services.GetRequiredService<AlertsOperations>();
+        return (await alerts.ListDeliverableAlertsAsync(TestNamespaceId, 50, new AlertsCursor(0L, 0L), ct)).Alerts;
+    }
 
     private async Task<bool> SettleAsync(
         long alertId,

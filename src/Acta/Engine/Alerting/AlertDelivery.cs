@@ -34,9 +34,15 @@ internal sealed class AlertDelivery(
     /// </summary>
     private static readonly Backoff RetryBackoff = Backoff.Parse("30s..1h");
 
-    internal async Task DeliverAsync(JobContext ctx, AlertSettlementClock settlement, AlertDeliveryBudget budget, CancellationToken ct)
+    internal async Task DeliverAsync(
+        JobContext ctx,
+        AlertsCursor cursor,
+        AlertSettlementClock settlement,
+        AlertDeliveryBudget budget,
+        CancellationToken ct
+    )
     {
-        var due = (await _alerts.ListDeliverableAlertsAsync(ctx.NamespaceId, DeliverBatchSize, ct)).Alerts;
+        var due = (await _alerts.ListDeliverableAlertsAsync(ctx.NamespaceId, DeliverBatchSize, cursor, ct)).Alerts;
         var elapsed = Stopwatch.StartNew();
         HashSet<string>? unanswered = null;
         foreach (var a in due)

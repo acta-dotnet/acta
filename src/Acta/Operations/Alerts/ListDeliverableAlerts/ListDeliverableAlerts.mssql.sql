@@ -37,4 +37,22 @@ WHERE
             AND a.retry_after_utc <= SYSUTCDATETIME()
         )
     )
+    /* A recovery past the projector's cursor holds the automatic alert it will resolve: the job's retry success, read
+       as the projector reads it, under a newer id than the alert's mark. The projection lags by its horizon, so without
+       this a failure that healed inside that lag is sent before the pass that reaches its recovery closes it. */
+    AND NOT EXISTS (
+        SELECT 1
+        FROM {{schema}}.events s WITH (FORCESEEK (ix_events_entity_timeline (entity_code, entity_id)))
+        WHERE
+            a.alert_kind_code IN (
+                10 /* AlertKindCode.FirstFailure */, 20 /* AlertKindCode.ThresholdReached */, 30 /* AlertKindCode.FinalFailure */
+            )
+            AND s.entity_code = 50 /* EntityCode.Job */
+            AND s.entity_id = a.job_id
+            AND s.created_at_utc >= @p_cursor_utc
+            AND (s.created_at_utc > @p_cursor_utc OR s.event_id > @p_cursor_event_id)
+            AND s.event_code = 40 /* EventCode.JobExecutionSucceeded */
+            AND s.execution_number > 1
+            AND s.event_id > a.last_projected_event_id
+    )
 ORDER BY a.alert_id;

@@ -226,6 +226,7 @@
   - A withheld event under a lower id than a projected neighbour is still taken once it ages out
   - An event aged past the horizon projects on the next pass
   - A pass projects the aged event and stops its cursor below the one still inside the horizon
+  - A recovery still inside the horizon holds its failure's alert unsent until the pass that resolves it
 
 ### Alert writers race job purges without a deadlock or an orphaned alert
 - **Contract:** Raising, resolving, and sweeping alerts while their jobs are purged never deadlocks and never leaves an alert on a purged job.

@@ -111,14 +111,13 @@ public sealed class ListDeliverableAlertsSpec : ActaStorageTestBase<ConformanceF
     public async Task Unset_instant_is_due_only_on_the_retry_arm()
     {
         var ct = TestContext.Current.CancellationToken;
-        var store = Services.GetRequiredService<AlertsOperations>();
         var retrying = await StageAsync(AlertDeliveryStatusCode.RetryAfter, ct);
         await StageAsync(AlertDeliveryStatusCode.Delivered, ct);
         await StageAsync(AlertDeliveryStatusCode.Failed, ct);
 
         // A settled row is reminded only at the instant its settlement scheduled, so with none set it
         // waits for the next settle rather than going out on every pass.
-        Assert.Equal([retrying], (await store.ListDeliverableAlertsAsync(TestNamespaceId, 50, ct)).Alerts.Select(a => a.AlertId));
+        Assert.Equal([retrying], (await DueAsync(TestNamespaceId, 50, ct)).Select(a => a.AlertId));
     }
 
     private static void AssertMatchesRow(AlertEntity row, DeliverableAlert due)
@@ -136,8 +135,11 @@ public sealed class ListDeliverableAlertsSpec : ActaStorageTestBase<ConformanceF
         Assert.Equal(row.CreatedAtUtc, due.CreatedAtUtc);
     }
 
-    private async Task<IReadOnlyList<DeliverableAlert>> DueAsync(int namespaceId, int batchSize, CancellationToken ct) =>
-        (await Services.GetRequiredService<AlertsOperations>().ListDeliverableAlertsAsync(namespaceId, batchSize, ct)).Alerts;
+    private async Task<IReadOnlyList<DeliverableAlert>> DueAsync(int namespaceId, int batchSize, CancellationToken ct)
+    {
+        var alerts = Services.GetRequiredService<AlertsOperations>();
+        return (await alerts.ListDeliverableAlertsAsync(namespaceId, batchSize, new AlertsCursor(0L, 0L), ct)).Alerts;
+    }
 
     /// <summary>One job-less alert settled into <paramref name="status"/> with no retry instant; returns its id.</summary>
     private async Task<long> StageAsync(AlertDeliveryStatusCode status, CancellationToken ct)

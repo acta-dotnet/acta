@@ -139,15 +139,46 @@ public sealed class AlertProjectionSafeHorizonSpec : ActaRuntimeTestBase<Conform
         Assert.Equal(withheld, await ReadCursorAsync(subject.JobId, ct));
     }
 
+    [Fact(DisplayName = "A recovery still inside the horizon holds its failure's alert unsent until the pass that resolves it")]
+    public async Task Recovery_inside_the_horizon_holds_the_alert_it_will_resolve()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var subject = await SeedAlertingJobAsync(ct, AlertProfileCode.OnFailure);
+
+        // A failure that healed inside the lag: the failed attempt is behind the horizon and the retry that
+        // succeeded is not, so the pass that raises the alert cannot read the success that resolves it yet.
+        var failed = await StageFailureEventAsync(subject, executionNumber: 1, ct, EventCode.JobExecutionFailed);
+        await BackdateToHorizonAsync(failed, ct);
+        var recovered = await StageRecoveryEventAsync(subject, executionNumber: 2, ct);
+        Assert.True(recovered > failed, "the recovery must take the newer id");
+
+        await RunAlertsWithoutAgingAsync(subject.JobId, ct);
+
+        // Raised and held. Sent here, it would report a retry of a job that had already succeeded.
+        var raised = Assert.Single(await ReadAlertsAsync(NamespaceId, ct));
+        Assert.Equal(AlertKindCode.FirstFailure, raised.Kind);
+        Assert.Equal(AlertDeliveryStatusCode.Pending, raised.DeliveryStatusCode);
+        Assert.Null(raised.ResolvedAtUtc);
+
+        await Task.Delay(TimeSpan.FromMilliseconds(10), ct);
+        await AlertTestOps.AgeEventsPastHorizonAsync(Services, NamespaceId, ct);
+        await RunAlertsWithoutAgingAsync(subject.JobId, ct);
+
+        // The pass that reaches the recovery resolves the incident, and Suppressed says it was never sent.
+        var resolved = Assert.Single(await ReadAlertsAsync(NamespaceId, ct));
+        Assert.NotNull(resolved.ResolvedAtUtc);
+        Assert.Equal(AlertDeliveryStatusCode.Suppressed, resolved.DeliveryStatusCode);
+    }
+
     /// <summary>
-    /// One definition carrying the <c>OnTerminal</c> profile and one job under it - the quietest
-    /// alerting shape there is, so a single terminal-failure event means exactly one raise. The job
-    /// doubles as the cursor's owner, standing in for the namespace's sys.alerts slot.
+    /// One definition carrying the <c>OnTerminal</c> profile, unless a fact names another, and one job
+    /// under it - the quietest alerting shape there is, so a single terminal-failure event means exactly
+    /// one raise. The job doubles as the cursor's owner, standing in for the namespace's sys.alerts slot.
     /// </summary>
-    private async Task<AlertingSubject> SeedAlertingJobAsync(CancellationToken ct)
+    private async Task<AlertingSubject> SeedAlertingJobAsync(CancellationToken ct, AlertProfileCode profile = AlertProfileCode.OnTerminal)
     {
         var seeder = new ActaTestSeeder(Db);
-        var definitionId = await seeder.SeedJobDefinitionAsync(NamespaceId, Unique("horizon-probe"), AlertProfileCode.OnTerminal, ct);
+        var definitionId = await seeder.SeedJobDefinitionAsync(NamespaceId, Unique("horizon-probe"), profile, ct);
         var (jobId, _) = await seeder.SeedJobAsync(NamespaceId, definitionId, ct: ct);
         return new AlertingSubject(definitionId, jobId);
     }
@@ -160,15 +191,20 @@ public sealed class AlertProjectionSafeHorizonSpec : ActaRuntimeTestBase<Conform
     }
 
     /// <summary>
-    /// One <c>JobFailed</c> row, with <c>created_at_utc</c> left to the
+    /// One <c>JobFailed</c> row, or the failure a fact names, with <c>created_at_utc</c> left to the
     /// column default so the stamp is the database's own clock rather than this process's.
     /// </summary>
-    private Task<long> StageFailureEventAsync(AlertingSubject subject, int executionNumber, CancellationToken ct) =>
+    private Task<long> StageFailureEventAsync(
+        AlertingSubject subject,
+        int executionNumber,
+        CancellationToken ct,
+        EventCode eventCode = EventCode.JobFailed
+    ) =>
         StagedEvents.InsertAsync(
             Db,
             new EventEntity
             {
-                EventCode = EventCode.JobFailed,
+                EventCode = eventCode,
                 NamespaceId = NamespaceId,
                 EntityCode = EntityCode.Job,
                 EntityId = subject.JobId,
@@ -177,6 +213,23 @@ public sealed class AlertProjectionSafeHorizonSpec : ActaRuntimeTestBase<Conform
                 EventMessage = "staged for the horizon",
             },
             EventDetails.Write(("reason", EventReason.UnhandledException)),
+            ct
+        );
+
+    /// <summary>A retry's <c>JobExecutionSucceeded</c> row, stamped as a failure row is, which resolves its job's alerts.</summary>
+    private Task<long> StageRecoveryEventAsync(AlertingSubject subject, int executionNumber, CancellationToken ct) =>
+        StagedEvents.InsertAsync(
+            Db,
+            new EventEntity
+            {
+                EventCode = EventCode.JobExecutionSucceeded,
+                NamespaceId = NamespaceId,
+                EntityCode = EntityCode.Job,
+                EntityId = subject.JobId,
+                DefinitionId = subject.DefinitionId,
+                ExecutionNumber = executionNumber,
+            },
+            details: null,
             ct
         );
 

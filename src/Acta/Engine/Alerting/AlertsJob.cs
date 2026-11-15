@@ -108,8 +108,8 @@ internal sealed class AlertsJob(
         var clockRequestedAt = Stopwatch.GetTimestamp();
         var nowUtc = await _clock.GetUtcNowAsync(ct);
         var settlement = new AlertSettlementClock(nowUtc, clockRequestedAt);
-        await GenerateAsync(ctx, nowUtc, ct);
-        await _delivery.DeliverAsync(ctx, settlement, Delivery, ct);
+        var cursor = await GenerateAsync(ctx, nowUtc, ct);
+        await _delivery.DeliverAsync(ctx, cursor, settlement, Delivery, ct);
     }
 
     /// <summary>
@@ -131,7 +131,7 @@ internal sealed class AlertsJob(
     /// the read is bounded by the safe horizon, behind which every alertable row has committed, so a short batch
     /// advances the cursor's instant to it and nothing is rescanned; any other event source reopens that.
     /// </summary>
-    private async Task GenerateAsync(JobContext ctx, DateTime nowUtc, CancellationToken ct)
+    private async Task<AlertsCursor> GenerateAsync(JobContext ctx, DateTime nowUtc, CancellationToken ct)
     {
         // A monotonic clock bounds work cooperatively across replay and the forward drain.
         var elapsed = Stopwatch.StartNew();
@@ -198,24 +198,26 @@ internal sealed class AlertsJob(
             // older checkpoint, which replays, never a mixed one, which would skip.
             if (nextId != cursorId || nextUtc != cursorUtc)
             {
-                await ctx.SetVariableAsync(CursorVariableName, new AlertsCursor(nextUtc.Ticks, nextId), ct);
+                cursor = new AlertsCursor(nextUtc.Ticks, nextId);
+                await ctx.SetVariableAsync(CursorVariableName, cursor, ct);
                 cursorId = nextId;
                 cursorUtc = nextUtc;
             }
 
             if (shortBatch)
             {
-                return;
+                return cursor;
             }
 
             if (elapsed.Elapsed >= Drain.TimeBudget)
             {
                 LogDrainBound(ctx, "time-budget", projected, elapsed);
-                return;
+                return cursor;
             }
         }
 
         LogDrainBound(ctx, "batch-cap", projected, elapsed);
+        return cursor;
     }
 
     /// <summary>

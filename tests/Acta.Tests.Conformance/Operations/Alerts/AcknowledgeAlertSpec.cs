@@ -127,9 +127,8 @@ public sealed class AcknowledgeAlertSpec : ActaRuntimeTestBase<ConformanceFixtur
                 )
             ).Updated
         );
-        Assert.Contains((await store.ListDeliverableAlertsAsync(Runtime.RegisteredNamespaceIds[TestNamespace], 50, ct)).Alerts, a =>
-            a.AlertId == row.Id
-        );
+        var due = await store.ListDeliverableAlertsAsync(Runtime.RegisteredNamespaceIds[TestNamespace], 50, new AlertsCursor(0L, 0L), ct);
+        Assert.Contains(due.Alerts, a => a.AlertId == row.Id);
 
         Assert.Equal(ControlAction.Applied, (await Operations.Alerts.AcknowledgeAsync(alertRef, ct: ct)).Action);
 
@@ -139,9 +138,8 @@ public sealed class AcknowledgeAlertSpec : ActaRuntimeTestBase<ConformanceFixtur
         var acknowledged = await AlertRowAsync(jobId, ct);
         Assert.NotNull(acknowledged.AcknowledgedAtUtc);
         Assert.Null(acknowledged.ResolvedAtUtc);
-        Assert.Contains((await store.ListDeliverableAlertsAsync(Runtime.RegisteredNamespaceIds[TestNamespace], 50, ct)).Alerts, a =>
-            a.AlertId == row.Id
-        );
+        due = await store.ListDeliverableAlertsAsync(Runtime.RegisteredNamespaceIds[TestNamespace], 50, new AlertsCursor(0L, 0L), ct);
+        Assert.Contains(due.Alerts, a => a.AlertId == row.Id);
     }
 
     [Fact(DisplayName = "AcknowledgeAsync and ResolveAsync return NotFound for an unknown alert ref")]
