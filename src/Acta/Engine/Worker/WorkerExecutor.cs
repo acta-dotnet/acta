@@ -148,11 +148,13 @@ internal sealed class WorkerExecutor(
         {
             var namespaceName = context.WorkerRegistration!.NamespaceName;
             var (namespaceId, workerId) = context.Worker;
-            // The heartbeat found the row gone, or the lease lapsed while the claim waited for an executor: the
-            // row is no longer this worker's to run.
+            // The claim's runway ran out before the handler started, behind a stalled write or a busy executor, or the
+            // heartbeat found the row gone. The handler never ran, so the job goes back uncharged, and a row that moved
+            // on meanwhile takes nothing from the hand-back; a hard stop leaves the row to recovery.
             if (entry.AttemptToken.IsCancellationRequested)
             {
-                return false;
+                return !hostCt.IsCancellationRequested
+                    && Finalizing(entry, HandBack("The claim's lease runway ran out before the handler started; returned to Ready."));
             }
 
             entry.State = InFlightJobState.Executing;

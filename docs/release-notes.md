@@ -67,6 +67,10 @@ Not tagged yet.
 - `OutcomeUnknownException`: a step body throws it when it cannot know whether its effect happened, such as a capture that timed out after the request left. In an `AtMostOnce` step the step ends as a crash ends it, `RunStepAsync` throws `StepInterruptedException`, and neither a retry nor a restart runs the body again; elsewhere it is an ordinary failure.
 - On SQLite a restart brings a killed host's jobs back at once: a starting worker with crash recovery on marks `Dead` each worker of its namespace on the same machine whose process has ended (no process has its id, or the one that has it started after the worker), lapses the leases, locks and concurrency slots of its jobs, and runs a recovery pass, where they waited three to about seven minutes for the lease. Server databases keep the lease wait.
 
+### Fixes
+
+- A claim that reached its executor with the lease runway already spent, as one queued behind a write lock held longer than the runway does, was dropped without running and left for recovery, which charged it an attempt: a job with `MaxAttempts = 1` could fail without its handler ever running. Such a claim now goes back to `Ready` at once, uncharged, with a `job.execution-yielded` event saying the runway ran out.
+
 ## 1.0.0-rc.11
 
 Tagged 2026-11-14. rc.11 migrates a database instead of re-cutting it, answers every child wait with one outcome type, reads a job's input and variables from outside the job, shows each definition's performance in the dashboard, and runs on .NET 11. The schema changes by one migration on rc.10's baseline, the first a release candidate ships: an rc.10 database is migrated, not reprovisioned.

@@ -210,6 +210,27 @@ internal sealed class WorkerExecutorHarness(
         Executor(descriptor: null, out _)
             .RunInlineAsync(new InFlightJob(Job(), leaseRunway: null, CancellationToken.None), CancellationToken.None);
 
+    /// <summary>
+    /// Drives a claim whose lease runway was spent before an executor took it, as a claim that waited out a stalled
+    /// write lands: its attempt token is already cancelled, so the default handler never starts its step.
+    /// </summary>
+    public Task<RunOnceStatus> RunWithSpentRunwayAsync()
+    {
+        _entry = new InFlightJob(Job(), leaseRunway: TimeSpan.Zero, _workerCts.Token);
+        var descriptor = Descriptor(
+            jobName,
+            static (ctx, token) => ctx.RunStepAsync(StepName, static _ => Task.CompletedTask, ct: token),
+            maxAttempts,
+            backoff,
+            concurrencyLimit,
+            rateLimit,
+            rateName,
+            deadlineAtUtc,
+            inputDeserializationThrows
+        );
+        return Executor(descriptor, out _).RunInlineAsync(_entry, _workerCts.Token);
+    }
+
     // The worker this runtime would be: registered for one namespace, with the descriptor the claim names, if any.
     private WorkerExecutor Executor(JobDescriptor? descriptor, out InFlightJobRegistry registry)
     {
