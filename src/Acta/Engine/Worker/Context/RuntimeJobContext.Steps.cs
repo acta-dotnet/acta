@@ -36,7 +36,8 @@ internal sealed partial class RuntimeJobContext
     /// <summary>
     /// Durable step orchestration: start (invoke, replay, failed, or interrupted), run the body, record the success.
     /// An ordinary body's failure propagates and fails the attempt, so the job's retry runs it again; an at-most-once
-    /// body's failure is recorded terminal first. A debugger stops on the failure once, where the attempt ends.
+    /// body's failure is recorded terminal first, unless its outcome is unknown. A debugger stops on the failure once,
+    /// where the attempt ends.
     /// </summary>
     [DebuggerDisableUserUnhandledExceptions]
     private async Task<TResult> RunStepImplAsync<TResult>(
@@ -91,6 +92,14 @@ internal sealed partial class RuntimeJobContext
             {
                 RecordStep(name, "failed");
                 throw;
+            }
+
+            // A body that cannot tell whether its effect happened, itself or through a step inside it, ends the step as a
+            // crash does: left started, so no retry or restart runs the body again.
+            if (ex is OutcomeUnknownException or StepInterruptedException)
+            {
+                RecordStep(name, "interrupted");
+                throw new StepInterruptedException(name, ex);
             }
 
             throw await RecordFailureAsync(name, start.Version, ex, ct);

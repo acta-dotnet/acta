@@ -282,7 +282,7 @@ Five rules the table cannot show:
 | Retry under the job's own policy | None: the policy retries a failed attempt by itself. `reschedule` brings a waiting retry forward, and `restart` gives a Failed job a new budget. |
 | Run again, keeping what already ran | `restart`: succeeded steps, signals, variables and children stay; failed steps run again, and the expired wait that ended the job waits again under a fresh bound. |
 | New work from a changed input | A new job, enqueued under a new deduplication key (`invoice-77.r2`) with the old job's correlation key, so every revision is found together. Its steps and children start fresh. |
-| Settle an interrupted external call first | An at-most-once step hands its handler the interrupted state to reconcile; `restart` runs a failed at-most-once step again. |
+| Settle an interrupted external call first | An at-most-once step hands its handler the interrupted state to reconcile; `restart` runs a failed at-most-once step again, but never an interrupted one or one whose body threw `OutcomeUnknownException`. |
 
 A restart of a parent leaves its failed children failed. The parent's handler decides what a failed
 child means: fail with it, compensate, or enqueue a replacement child under a new name.

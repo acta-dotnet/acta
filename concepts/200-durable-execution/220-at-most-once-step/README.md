@@ -22,7 +22,8 @@ dies in that gap, retrying may duplicate the charge; refusing retry leaves an un
 
 `AtMostOnce()` durably marks the step start before invoking the body. Re-entering a still-pending step
 terminalizes it as `interrupted` and throws `StepInterruptedException`; Acta never calls that body a
-second time. The handler then owns reconciliation policy.
+second time. The handler then owns reconciliation policy. A body that learns of the same ambiguity without
+dying, a timeout after the request left, throws `OutcomeUnknownException` and ends the step the same way.
 
 ## Trade-offs
 

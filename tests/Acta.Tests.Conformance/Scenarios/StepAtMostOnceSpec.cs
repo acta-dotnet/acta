@@ -35,6 +35,35 @@ internal static class AtMostOnceStepHandler
 
     public static Task RunUncaughtAsync(JobContext ctx, CancellationToken ct) => ChargeAsync(ctx, ct);
 
+    /// <summary>How often the checkout step around the unknown charge ran its body, per job id.</summary>
+    public static readonly ConcurrentDictionary<long, int> CheckoutInvocations = new();
+
+    /// <summary>An at-most-once checkout whose body runs the charge whose outcome is unknown.</summary>
+    public static Task RunNestedOutcomeUnknownAsync(JobContext ctx, CancellationToken ct) =>
+        ctx.RunStepAsync(
+            "checkout",
+            token =>
+            {
+                CheckoutInvocations.AddOrUpdate(ctx.JobId, 1, static (_, n) => n + 1);
+                return RunOutcomeUnknownAsync(ctx, token);
+            },
+            o => o.AtMostOnce(),
+            ct
+        );
+
+    /// <summary>A charge whose call timed out after the request left, so the body cannot tell whether it went through.</summary>
+    public static Task RunOutcomeUnknownAsync(JobContext ctx, CancellationToken ct) =>
+        ctx.RunStepAsync(
+            StepName,
+            _ =>
+            {
+                BodyInvocations.AddOrUpdate(ctx.JobId, 1, static (_, n) => n + 1);
+                throw new OutcomeUnknownException("The capture timed out after the request left.", new TimeoutException());
+            },
+            o => o.AtMostOnce(),
+            ct
+        );
+
     public static Task RunWaitInsideAsync(JobContext ctx, CancellationToken ct) =>
         ctx.RunStepAsync(
             StepName,
@@ -91,10 +120,14 @@ public sealed class AtMostOnceStepManifest : IJobManifest
     public const string CaughtProbe = "at-most-once-caught";
     public const string WaitInsideProbe = "at-most-once-wait-inside";
     public const string CarriedWaitProbe = "at-most-once-carried-wait";
+    public const string OutcomeUnknownProbe = "at-most-once-outcome-unknown";
+    public const string NestedOutcomeUnknownProbe = "at-most-once-nested-outcome-unknown";
 
     public static JobDescriptorManifest Descriptors { get; } =
         new([
             Probe(UncaughtProbe, AtMostOnceStepHandler.RunUncaughtAsync),
+            Probe(OutcomeUnknownProbe, AtMostOnceStepHandler.RunOutcomeUnknownAsync),
+            Probe(NestedOutcomeUnknownProbe, AtMostOnceStepHandler.RunNestedOutcomeUnknownAsync),
             Probe(CaughtProbe, AtMostOnceStepHandler.RunCaughtAsync),
             Probe(WaitInsideProbe, AtMostOnceStepHandler.RunWaitInsideAsync),
             Probe(CarriedWaitProbe, AtMostOnceStepHandler.RunCarriedWaitAsync),
@@ -220,6 +253,44 @@ public sealed class StepAtMostOnceSpec : ActaRuntimeTestBase<ConformanceFixture,
         var step = Assert.Single(x.Steps);
         Assert.Equal(StepStatusCode.Interrupted, step.Status);
         Assert.Contains("reconcile", step.Explanation, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact(DisplayName = "A body that throws OutcomeUnknownException ends the step as a crash does, and a restart does not run it again")]
+    public async Task Outcome_unknown_ends_the_step_as_a_crash_does()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var enqueued = await Jobs.EnqueueAsync(
+            new EnqueueJobRequest(TestNamespace, AtMostOnceStepManifest.OutcomeUnknownProbe, JobPayload.None),
+            ct
+        );
+
+        // The failure names the cause and fails the job at once, with no retry.
+        Assert.Equal(RunOnceStatus.Failed, await Runtime.RunOnceAsync(enqueued, ct));
+        var x = await Jobs.ExplainAsync(JobLookup.ById(enqueued.JobId), ct);
+        Assert.Equal(JobStatusCode.Failed, x!.Status);
+        Assert.Contains("timed out after the request left", x.Reason);
+
+        // A restart re-enters the step, which interrupts it, and the body stays at its one run.
+        Assert.Equal(ControlAction.Applied, (await Jobs.RestartAsync(enqueued, "provider answered", ct: ct)).Action);
+        Assert.Equal(RunOnceStatus.Failed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(1, AtMostOnceStepHandler.BodyInvocations[enqueued.JobId]);
+        Assert.Equal(StepStatusCode.Interrupted, (await ReadStepAsync(enqueued.JobId, ct)).Status);
+    }
+
+    [Fact(DisplayName = "An at-most-once step around one whose outcome is unknown stays started too, and a restart runs neither body")]
+    public async Task Outcome_unknown_inside_an_at_most_once_step_leaves_both_started()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var enqueued = await Jobs.EnqueueAsync(
+            new EnqueueJobRequest(TestNamespace, AtMostOnceStepManifest.NestedOutcomeUnknownProbe, JobPayload.None),
+            ct
+        );
+
+        Assert.Equal(RunOnceStatus.Failed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(ControlAction.Applied, (await Jobs.RestartAsync(enqueued, "provider answered", ct: ct)).Action);
+        Assert.Equal(RunOnceStatus.Failed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(1, AtMostOnceStepHandler.CheckoutInvocations[enqueued.JobId]);
+        Assert.Equal(1, AtMostOnceStepHandler.BodyInvocations[enqueued.JobId]);
     }
 
     [Fact(DisplayName = "Caught StepInterruptedException lets the parent proceed to Succeeded")]

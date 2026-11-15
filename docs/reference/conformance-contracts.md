@@ -2638,6 +2638,8 @@
   - A first invocation of an at-most-once step still runs the body (Invoke)
   - A pending step re-entered under at-most-once terminalizes Interrupted, version-idempotent
   - Uncaught StepInterruptedException fails the parent terminally without re-invoking the body
+  - A body that throws OutcomeUnknownException ends the step as a crash does, and a restart does not run it again
+  - An at-most-once step around one whose outcome is unknown stays started too, and a restart runs neither body
   - Caught StepInterruptedException lets the parent proceed to Succeeded
   - A wait inside an at-most-once body is refused at the call and arms nothing
   - A wait begun outside an at-most-once body and ended in it is refused and fails the step

@@ -224,6 +224,22 @@ If the worker dies after the step's start is recorded but before its outcome, th
 
 A body that throws leaves the step `Failed`, and `RunStepAsync` throws `StepFailedException` then and on every replay without running the body; catch it where the job can go on. Uncaught, it fails the job at once instead of retrying it, since every retry would throw again. Restarting the job runs the step again.
 
+A body that cannot know whether its effect happened, such as a capture that timed out after the request left, throws `OutcomeUnknownException` instead of failing. The step then ends as a crash ends it: it stays started, `RunStepAsync` throws `StepInterruptedException`, and neither a retry nor a restart runs the body again, so an operator restart cannot charge twice.
+
+```csharp
+await ctx.RunStepAsync("charge-card", async token =>
+{
+    try
+    {
+        await payments.CaptureAsync(orderId, token);
+    }
+    catch (TimeoutException ex)
+    {
+        throw new OutcomeUnknownException("The capture timed out after the request left.", ex);
+    }
+}, o => o.AtMostOnce());
+```
+
 A wait, sleep, reschedule, pause, or child wait inside an at-most-once body throws `InvalidOperationException` at the call, before it writes anything: the resume would replay the job from the top and run the body again. Move the wait out of the step.
 
 In a permanent job, catch the exception and prefer a per-period step name (`$"charge-{period}"`): an uncaught interruption stops the whole schedule. Each period's step row stays as long as the job, so at a high cadence run the charge in a job per occurrence, as above.

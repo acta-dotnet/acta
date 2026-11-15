@@ -2262,6 +2262,9 @@ sealed class Acta.OutboxStatusCodeJsonConverter : System.Text.Json.Serialization
     .ctor()
     Acta.OutboxStatusCode Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
     System.Void Write(System.Text.Json.Utf8JsonWriter writer, Acta.OutboxStatusCode value, System.Text.Json.JsonSerializerOptions options)
+sealed class Acta.OutcomeUnknownException : Acta.ActaException
+    .ctor(System.String message)
+    .ctor(System.String message, System.Exception? innerException)
 enum Acta.OverdueDecisionCode : System.Byte
     Discard = 20
     Refuse = 10

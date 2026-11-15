@@ -183,10 +183,11 @@ For side effects where a duplicate is worse than an ambiguous interruption (a pa
 `AtMostOnce()` runs the body zero-or-one times and hands the handler an explicit interrupted state to
 reconcile. A body that throws fails the step for good: every later attempt throws `StepFailedException`
 for it without running the body, so left uncaught it fails the job at once; catch it where the job can
-go on, and an operator restart runs the step again. A body can fail without knowing the outcome, a
-timeout after the provider committed: treat that `StepFailedException` as ambiguous too, and reconcile before
-anyone restarts the job. A wait inside an at-most-once body throws at the
-call, because its resume would run the body again.
+go on, and an operator restart runs the step again. A body that cannot know the outcome, a timeout after
+the request left, throws `OutcomeUnknownException` instead: the step ends as a crash ends it, the call throws
+`StepInterruptedException`, and no retry or restart runs the body again
+(`catch (TimeoutException ex) { throw new OutcomeUnknownException("capture timed out", ex); }`). A wait inside an
+at-most-once body throws at the call, because its resume would run the body again.
 
 ## An external side effect, done right
 
