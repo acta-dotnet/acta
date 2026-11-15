@@ -57,7 +57,7 @@ GO
 -- ===== refuse a database a newer release already upgraded =====
 IF EXISTS (
     SELECT 1 FROM acta.migrations
-    WHERE name NOT IN ('M20261111163142_init', 'M20261112231452_index_lanes_by_namespace', 'M20261114214847_keep_first_signal_value', 'M20261114235108_repeat_raise_after_finish', 'M20261115084424_refuse_cross_tenant_dedup', 'M20261115085724_carry_child_failure_message', 'M20261115090220_answer_the_checked_dedup_job', 'M20261115092119_rename_the_enqueue_staging_table', 'M20261115101053_decode_the_signal_cleared_event', 'M20261115113558_name_a_landed_child', 'M20261115114815_keep_a_child_landing_whole', 'M20261115115355_record_a_wait_expiry', 'M20261115144330_seek_a_waited_child')
+    WHERE name NOT IN ('M20261111163142_init', 'M20261112231452_index_lanes_by_namespace', 'M20261114214847_keep_first_signal_value', 'M20261114235108_repeat_raise_after_finish', 'M20261115084424_refuse_cross_tenant_dedup', 'M20261115085724_carry_child_failure_message', 'M20261115090220_answer_the_checked_dedup_job', 'M20261115092119_rename_the_enqueue_staging_table', 'M20261115101053_decode_the_signal_cleared_event', 'M20261115113558_name_a_landed_child', 'M20261115114815_keep_a_child_landing_whole', 'M20261115115355_record_a_wait_expiry', 'M20261115144330_seek_a_waited_child', 'M20261115144345_seek_a_held_job')
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -9862,6 +9862,18 @@ INSERT INTO acta.migrations (name)
 VALUES ('M20261115144330_seek_a_waited_child');
 GO
 -- ===== END M20261115144330_seek_a_waited_child =====
+GO
+-- ===== BEGIN M20261115144345_seek_a_held_job =====
+SET QUOTED_IDENTIFIER ON;
+SET ANSI_NULLS ON;
+GO
+
+
+IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261115144345_seek_a_held_job')
+INSERT INTO acta.migrations (name)
+VALUES ('M20261115144345_seek_a_held_job');
+GO
+-- ===== END M20261115144345_seek_a_held_job =====
 GO
 COMMIT TRANSACTION;
 GO

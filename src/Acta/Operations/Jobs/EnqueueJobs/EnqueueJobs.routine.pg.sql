@@ -534,17 +534,27 @@ BEGIN
     )
     SELECT count(*) INTO inserted_count FROM inserted;
 
-    -- One read both checks and answers each held job, so a purge and a new holder between two reads cannot swap it.
+    -- One read both checks and answers each held job, so a purge and a new holder between two reads cannot swap it. A root
+    -- key and a child key each probe their own unique index, so the two arms are two statements.
     UPDATE _enq_rows e
     SET held_id = h.job_id, held_ref = h.job_ref, held_tenant = h.tenant_id
     FROM {{schema}}.jobs h
     WHERE
-        NOT EXISTS (SELECT 1 FROM {{schema}}.jobs mine WHERE mine.job_id = e.job_id)
+        NOT e.is_child
+        AND NOT EXISTS (SELECT 1 FROM {{schema}}.jobs mine WHERE mine.job_id = e.job_id)
+        AND h.namespace_id = e.namespace_id
         AND h.deduplication_key = e.deduplication_key
-        AND (
-            (NOT e.is_child AND h.namespace_id = e.namespace_id AND h.parent_job_id IS NULL)
-            OR (e.is_child AND h.parent_job_id = e.parent_job_id)
-        );
+        AND h.deduplication_key IS NOT NULL
+        AND h.parent_job_id IS NULL;
+    UPDATE _enq_rows e
+    SET held_id = h.job_id, held_ref = h.job_ref, held_tenant = h.tenant_id
+    FROM {{schema}}.jobs h
+    WHERE
+        e.is_child
+        AND NOT EXISTS (SELECT 1 FROM {{schema}}.jobs mine WHERE mine.job_id = e.job_id)
+        AND h.parent_job_id = e.parent_job_id
+        AND h.deduplication_key = e.deduplication_key
+        AND h.deduplication_key IS NOT NULL;
 
     -- A key another tenant's job holds refuses the whole batch, naming neither: the caller learns only that it is taken.
     IF EXISTS (SELECT 1 FROM _enq_rows e WHERE NOT e.is_child AND e.held_tenant <> e.tenant_id) THEN
