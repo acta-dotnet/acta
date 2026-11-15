@@ -1,6 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { failedTimelineAttempts, matchesTimelineCategory, timelineAttemptNumbers, timelinePresentation } from './jobTimelineState.ts';
+import {
+  failedTimelineAttempts,
+  matchesTimelineCategory,
+  timelineActor,
+  timelineAttemptNumbers,
+  timelinePresentation
+} from './jobTimelineState.ts';
 
 const events = [
   { executionNumber: 4, eventCode: 'job.execution-orphaned', detailsText: '{"reason":"lease-expired","to":"ready"}' },
@@ -57,4 +63,14 @@ test('a yielded attempt is presented by the outcome in its details, and an unrea
   assert.equal(yielded('{"outcome":"cancelled"}').tone, 'bad');
   assert.deepEqual(yielded('not json'), { icon: 'minus-circle', tone: 'neutral', title: 'Attempt yielded' });
   assert.equal(yielded(null).title, 'Attempt yielded');
+});
+
+test('an action the job took on itself reads as the job, and any other actor by name', () => {
+  const resetBy = (actor: string | null) => timelineActor({ eventCode: 'job.state-reset', entityKind: 'job', entityId: 3, actor });
+  assert.equal(resetBy('3'), 'the job');
+  assert.equal(resetBy('4'), '4');
+  assert.equal(resetBy('marko'), 'marko');
+  assert.equal(resetBy(null), null);
+  // Only a job's own id is the job: the same number on another kind of subject names something else.
+  assert.equal(timelineActor({ eventCode: 'namespace.suspended', entityKind: 'namespace', entityId: 3, actor: '3' }), '3');
 });

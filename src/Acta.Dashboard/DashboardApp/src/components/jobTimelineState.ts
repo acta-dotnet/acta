@@ -6,6 +6,9 @@ interface TimelineEvent {
   eventCode?: string | null;
   executionNumber?: number | null;
   detailsText?: string | null;
+  entityKind?: string | null;
+  entityId?: number | null;
+  actor?: string | null;
 }
 
 // The failed-attempt codes: a failure that runs again, a reclaimed orphan, and the job's final failure.
@@ -89,6 +92,15 @@ export function timelinePresentation(evt: TimelineEvent, events: readonly Timeli
     return { icon: 'calendar', tone: 'held', title: humanize(code) };
   }
   return { icon: 'minus-circle', tone: 'neutral', title: humanize(code) };
+}
+
+/**
+ * Who the rail's "by" line names. An action the job's own handler took, such as a state reset, records the job's id
+ * as its actor, and reads as the job rather than as its number.
+ */
+export function timelineActor(evt: TimelineEvent): string | null {
+  if (!evt.actor) return null;
+  return evt.entityKind === 'job' && evt.actor === String(evt.entityId) ? 'the job' : evt.actor;
 }
 
 /** A job status folded onto the shared tone classes, for the hero and lineage dots. */

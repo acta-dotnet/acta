@@ -4,6 +4,7 @@
   import {
     failedTimelineAttempts,
     matchesTimelineCategory,
+    timelineActor,
     timelineAttemptNumbers,
     timelinePresentation
   } from './jobTimelineState.ts';
@@ -114,6 +115,7 @@
           {#each steps as evt (evt.eventId)}
             {@const p = timelinePresentation(evt, events)}
             {@const facts = eventFacts(evt.detailsText)}
+            {@const actor = timelineActor(evt)}
             <li class={'t-' + p.tone}>
               <span class="rail-node" class:terminal={evt.eventId === terminalEventId}><Icon name={p.icon} /></span>
               <div class="rail-body">
@@ -121,9 +123,9 @@
                   {p.title}
                   {#if evt.durationMs != null}<span class="rail-chip">{displayFormatter.milliseconds(evt.durationMs)}</span>{/if}
                 </div>
-                {#if evt.message || facts.reason || evt.actor}
+                {#if evt.message || facts.reason || actor}
                   <div class="rail-reason">
-                    {#if facts.reason}<span class="mono">{facts.reason}</span>{/if}{#if facts.reason && evt.message}&nbsp;·&nbsp;{/if}{evt.message ?? ''}{#if evt.actor}{#if facts.reason || evt.message}&nbsp;·&nbsp;{/if}by {evt.actor}{/if}
+                    {#if facts.reason}<span class="mono">{facts.reason}</span>{/if}{#if facts.reason && evt.message}&nbsp;·&nbsp;{/if}{evt.message ?? ''}{#if actor}{#if facts.reason || evt.message}&nbsp;·&nbsp;{/if}by {actor}{/if}
                   </div>
                 {/if}
               </div>
