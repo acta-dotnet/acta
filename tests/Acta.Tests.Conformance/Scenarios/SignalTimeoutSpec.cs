@@ -20,6 +20,7 @@ namespace Acta.Tests.Conformance.Scenarios;
 )]
 [Deploys(
     "job-wait-signal-outcome",
+    "job-wait-signal-outcome-then-fail",
     "job-wait-signal-outcome-then-hold",
     "job-wait-signal-outcome-then-unbounded",
     "job-wait-signal-outcome-typed",
@@ -109,9 +110,10 @@ public sealed class SignalTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, 
         Assert.Equal(CheckpointStatusCode.Expired, (await ReadSignalsAsync(enqueued.JobId, ct)).Single().Status);
         Assert.Equal(0, await CountVariableAsync(enqueued.JobId, "ran.after", ct));
 
+        // The reason and the message name the wait, which is how a restart knows which one to reopen.
         var failed = await ReadLatestEventAsync(enqueued.JobId, EventCode.JobFailed, ct);
-        Assert.Equal(EventReason.NonRetryableException, EventDetail(failed, "reason"));
-        Assert.Contains("The wait for signal 'go' timed out.", failed.EventMessage ?? "", StringComparison.Ordinal);
+        Assert.Equal(EventReason.WaitTimedOut, EventDetail(failed, "reason"));
+        Assert.StartsWith("The wait for signal 'go' timed out.", failed.EventMessage ?? "", StringComparison.Ordinal);
     }
 
     [Fact(DisplayName = "An expired bounded wait resumes the handler exactly once with a TimedOut outcome")]
@@ -276,10 +278,7 @@ public sealed class SignalTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, 
         Assert.Equal(JobStatusCode.Failed, job.Status);
         Assert.Equal(0, job.FailureCount);
         Assert.NotNull(job.RetentionUntilUtc);
-        Assert.Equal(
-            EventReason.NonRetryableException,
-            EventDetail(await ReadLatestEventAsync(enqueued.JobId, EventCode.JobFailed, ct), "reason")
-        );
+        Assert.Equal(EventReason.WaitTimedOut, EventDetail(await ReadLatestEventAsync(enqueued.JobId, EventCode.JobFailed, ct), "reason"));
 
         var go = (await ReadSignalsAsync(enqueued.JobId, ct)).Single(s => s.CheckpointName == "go");
         Assert.Equal(CheckpointStatusCode.Expired, go.Status);
@@ -408,23 +407,34 @@ public sealed class SignalTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, 
         Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(enqueued.JobId, ct)).Status);
     }
 
-    [Fact(DisplayName = "A restart keeps the expiry of a timed-out wait the handler went past")]
+    [Fact(DisplayName = "A restart keeps the expiry of a timed-out wait the handler went past, whatever then ended the job")]
     public async Task Restart_keeps_an_expiry_the_handler_went_past()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enqueued = await Jobs.EnqueueAsync(
-            new EnqueueJobRequest(TestNamespace, "job-wait-signal-outcome-then-hold", JobPayload.None),
+
+        // The handler wrote what came after the timeout and parked on "hold", and an operator cancelled it.
+        var held = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-wait-signal-outcome-then-hold", JobPayload.None), ct);
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(held, ct));
+        await ExpireWaitAsync(Db, held.JobId, "go", ct);
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(held, ct));
+        Assert.Equal(ControlAction.Applied, (await Jobs.CancelAsync(held, ct: ct)).Action);
+
+        // The handler went past the timeout and failed for good on something else: the expired wait is its last write,
+        // but the failure is not that wait's timeout.
+        var failed = await Jobs.EnqueueAsync(
+            new EnqueueJobRequest(TestNamespace, "job-wait-signal-outcome-then-fail", JobPayload.None),
             ct
         );
-        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
-        await ExpireWaitAsync(Db, enqueued.JobId, "go", ct);
-        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
-        Assert.Equal(ControlAction.Applied, (await Jobs.CancelAsync(enqueued, ct: ct)).Action);
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(failed, ct));
+        await ExpireWaitAsync(Db, failed.JobId, "go", ct);
+        Assert.Equal(RunOnceStatus.Failed, await Runtime.RunOnceAsync(failed, ct));
 
-        // The handler wrote what came after the timeout and parked on "hold", so the timeout did not end the job.
-        Assert.Equal(ControlAction.Applied, (await Jobs.RestartAsync(enqueued, ct: ct)).Action);
-        var go = Assert.Single(await ReadSignalsAsync(enqueued.JobId, ct), s => s.CheckpointName == "go");
-        Assert.Equal(CheckpointStatusCode.Expired, go.Status);
+        foreach (var job in new[] { held, failed })
+        {
+            Assert.Equal(ControlAction.Applied, (await Jobs.RestartAsync(job, ct: ct)).Action);
+            var go = Assert.Single(await ReadSignalsAsync(job.JobId, ct), s => s.CheckpointName == "go");
+            Assert.Equal(CheckpointStatusCode.Expired, go.Status);
+        }
     }
 
     // Moves the wait past its deadline the way real time would: the checkpoint's stored expiration and the

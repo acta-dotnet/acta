@@ -95,8 +95,10 @@ public sealed class CompletionCommandTests
         }
     }
 
-    [Fact]
-    public void A_non_retryable_failure_of_a_permanent_job_settles_the_firing_and_keeps_the_job()
+    [Theory]
+    [InlineData(EventReason.NonRetryableException)]
+    [InlineData(EventReason.WaitTimedOut)]
+    public void A_non_retryable_failure_of_a_permanent_job_settles_the_firing_and_keeps_the_job(string reason)
     {
         var descriptor = new JobDescriptor(
             "slot",
@@ -120,7 +122,7 @@ public sealed class CompletionCommandTests
         {
             Kind = JobKindCode.Permanent,
         };
-        var completion = ExecutionCompletion.Terminal(CompletionKind.Failed, EventReason.NonRetryableException, "no", JobStatusCode.Failed);
+        var completion = ExecutionCompletion.Terminal(CompletionKind.Failed, reason, "no", JobStatusCode.Failed);
 
         var slot = WorkerFinalizer.BuildCommand(descriptor, job, completion, default);
         var oneShot = WorkerFinalizer.BuildCommand(descriptor, job with { Kind = JobKindCode.Ordinary }, completion, default);

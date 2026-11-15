@@ -63,6 +63,17 @@ public static class JobSignalTimeoutProbes
     }
 
     /// <summary>
+    /// Goes past a timed-out wait with no write after it and then fails for good on something else, so the expired
+    /// checkpoint is the handler's last write while the timeout did not end the job.
+    /// </summary>
+    [Job("job-wait-signal-outcome-then-fail")]
+    public static async Task WaitWithTimeoutOutcomeThenFail(JobContext ctx, CancellationToken ct)
+    {
+        var result = await ctx.WaitSignalAsync("go", LongWait, ct);
+        throw new NotSupportedException($"Gave up after the wait (timed out: {result.TimedOut}).");
+    }
+
+    /// <summary>
     /// Times out on a bounded wait, parks, and on the replay after that waits on the SAME name with
     /// the unbounded overload. Policy is code, so the unbounded overload resolves TimedOut over the
     /// Expired checkpoint too and fails with the timeout rather than parking forever.

@@ -157,9 +157,9 @@ WHERE
     AND s.action = 1 /* ControlAction.Applied */
     AND NOT EXISTS (SELECT 1 FROM capacity);
 
--- A restart clears the expired wait that ended the job, so it waits again under a fresh bound. That wait is the
--- handler's last write: a timeout thrown out of the handler ends the attempt at once, and one it went past is followed
--- by the writes of what came next. A child's landing and the firing are not the handler's writes.
+-- A restart reopens the signal wait whose timeout ended the job: its last execution ended with reason wait-timed-out and
+-- the signal between the first quotes of its message ("The wait for signal 'name' ...", rc.11: "Durable wait 'name' ...").
+-- A timeout the handler went past ended nothing, so its expiry stays.
 DELETE FROM {{schema}}.checkpoints e
 USING _restart_job s
 WHERE
@@ -168,18 +168,20 @@ WHERE
     AND e.job_id = @p_job_id
     AND e.checkpoint_kind_code = 20 /* CheckpointKindCode.Signal */
     AND e.checkpoint_status_code = 30 /* CheckpointStatusCode.Expired */
-    AND NOT EXISTS (
-        SELECT 1
-        FROM {{schema}}.checkpoints o
+    AND e.checkpoint_name = (
+        SELECT split_part(f.event_message, '''', 2)
+        FROM {{schema}}.events f
+        JOIN {{schema}}.jobs_state r ON r.job_id = f.entity_id
         WHERE
-            o.job_id = @p_job_id
-            AND o.checkpoint_kind_code IN (
-                10 /* CheckpointKindCode.Variable */, 20 /* CheckpointKindCode.Signal */,
-                30 /* CheckpointKindCode.Timer */, 40 /* CheckpointKindCode.Progress */
-            )
-            AND o.modified_at_utc > e.modified_at_utc
-    )
-    AND NOT EXISTS (SELECT 1 FROM {{schema}}.steps st WHERE st.job_id = @p_job_id AND st.modified_at_utc > e.modified_at_utc);
+            f.entity_code = 50 /* EntityCode.Job */
+            AND f.entity_id = @p_job_id
+            AND f.event_code IN (43 /* EventCode.JobExecutionYielded */, 44 /* EventCode.JobFailed */, 70 /* EventCode.JobCancelled */)
+            AND f.execution_number = r.execution_number
+            AND convert_from(f.details, 'UTF8')::jsonb ->> 'reason' = 'wait-timed-out'
+            AND (f.event_message LIKE 'The wait for signal ''%' OR f.event_message LIKE 'Durable wait ''%')
+        ORDER BY f.created_at_utc DESC, f.event_id DESC
+        LIMIT 1
+    );
 
 -- A re-charged root's settled envelope is outstanding again, and takes its schedule's capacity once.
 WITH recharged AS (

@@ -71,10 +71,7 @@ public sealed class ReclaimStuckJobsWaitTimeoutSpec : ActaRuntimeTestBase<Confor
         Assert.Equal(JobStatusCode.Failed, settled.Status);
         Assert.Equal(0, settled.FailureCount);
         Assert.NotNull(settled.RetentionUntilUtc);
-        Assert.Equal(
-            EventReason.NonRetryableException,
-            EventDetail(await ReadLatestEventAsync(enqueued.JobId, EventCode.JobFailed, ct), "reason")
-        );
+        Assert.Equal(EventReason.WaitTimedOut, EventDetail(await ReadLatestEventAsync(enqueued.JobId, EventCode.JobFailed, ct), "reason"));
     }
 
     [Fact(DisplayName = "A crash before the wait expired is charged and re-armed the ordinary way")]

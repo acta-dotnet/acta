@@ -336,7 +336,11 @@ internal sealed class HandlerInvocation(
 
         return new ExecutionCompletion(CompletionKind.Failed)
         {
-            Reason = nonRetryable ? EventReason.NonRetryableException : EventReason.UnhandledException,
+            // A timed-out signal wait fails as wait-timed-out, its message naming the signal: a restart reopens that wait.
+            Reason =
+                ex is SignalWaitTimeoutException ? EventReason.WaitTimedOut
+                : nonRetryable ? EventReason.NonRetryableException
+                : EventReason.UnhandledException,
             ReasonMessage = (
                 inputDeserialized ? ex.FailureText() : $"Input deserialization failed ({ex.GetType().Name}): {ex.FailureText()}"
             ).Truncate(ActaTextLimits.EventMessage),

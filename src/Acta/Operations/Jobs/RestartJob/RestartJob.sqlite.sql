@@ -166,9 +166,9 @@ WHERE
     AND (@p_expected_version IS NULL OR r.version = @p_expected_version)
     AND s.rejected = 0;
 
--- A restart clears the expired wait that ended the job, so it waits again under a fresh bound. That wait is the
--- handler's last write: a timeout thrown out of the handler ends the attempt at once, and one it went past is followed
--- by the writes of what came next, a failed step among them, so this runs before the failed steps go.
+-- A restart reopens the signal wait whose timeout ended the job: its last execution ended with reason wait-timed-out and
+-- the signal between the first quotes of its message ("The wait for signal 'name' ...", rc.11: "Durable wait 'name' ...").
+-- A timeout the handler went past ended nothing, so its expiry stays.
 DELETE FROM {{schema}}.checkpoints
 WHERE
     job_id = @p_job_id
@@ -177,19 +177,22 @@ WHERE
     AND (SELECT s.from_status FROM temp._restart_job s) IN (200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
     AND (SELECT s.rejected FROM temp._restart_job s) = 0
     AND (@p_expected_version IS NULL OR (SELECT s.from_version FROM temp._restart_job s) = @p_expected_version)
-    AND NOT EXISTS (
-        SELECT 1
-        FROM {{schema}}.checkpoints o
-        WHERE
-            o.job_id = @p_job_id
-            AND o.checkpoint_kind_code IN (
-                10 /* CheckpointKindCode.Variable */, 20 /* CheckpointKindCode.Signal */,
-                30 /* CheckpointKindCode.Timer */, 40 /* CheckpointKindCode.Progress */
-            )
-            AND o.modified_at_utc > {{schema}}.checkpoints.modified_at_utc
-    )
-    AND NOT EXISTS (
-        SELECT 1 FROM {{schema}}.steps st WHERE st.job_id = @p_job_id AND st.modified_at_utc > {{schema}}.checkpoints.modified_at_utc
+    AND checkpoint_name = (
+        SELECT substr(q.tail, 1, instr(q.tail, '''') - 1)
+        FROM (
+            SELECT substr(f.event_message, instr(f.event_message, '''') + 1) AS tail
+            FROM {{schema}}.events f
+            JOIN {{schema}}.jobs_state r ON r.job_id = f.entity_id
+            WHERE
+                f.entity_code = 50 /* EntityCode.Job */
+                AND f.entity_id = @p_job_id
+                AND f.event_code IN (43 /* EventCode.JobExecutionYielded */, 44 /* EventCode.JobFailed */, 70 /* EventCode.JobCancelled */)
+                AND f.execution_number = r.execution_number
+                AND json_extract(CAST(f.details AS TEXT), '$.reason') = 'wait-timed-out'
+                AND (f.event_message LIKE 'The wait for signal ''%' OR f.event_message LIKE 'Durable wait ''%')
+            ORDER BY f.created_at_utc DESC, f.event_id DESC
+            LIMIT 1
+        ) q
     );
 
 -- A failed at-most-once step, whose body threw, runs again on the operator's say-so; an interrupted one

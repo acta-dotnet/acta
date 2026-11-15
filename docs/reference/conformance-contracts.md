@@ -2606,7 +2606,7 @@
   - A bounded wait arriving at a checkpoint an unbounded one already armed still arms the deadline
   - An unbounded wait still suspends with no due instant and stays unclaimable
   - A restart clears the expired wait that ended the job, which waits again under a fresh bound
-  - A restart keeps the expiry of a timed-out wait the handler went past
+  - A restart keeps the expiry of a timed-out wait the handler went past, whatever then ended the job
 
 ### A wait arms its checkpoint once and answers suspend, continue, or timed out
 - **Contract:** Wait arms a Pending checkpoint once, continues with a Set one's payload, and answers TimedOut past a stored expiry or at once when first armed past an instant.
