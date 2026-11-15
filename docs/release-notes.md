@@ -53,6 +53,7 @@ Not tagged yet.
 
 ### Additions
 
+- A `job.signal-raised` event says which signal or child in its details: an operator's raise adds `"signal":"approved"` beside its reason, and a child's end, from its completion or from a cancel, retire or recovery, adds `"child":"job_..."`, the child's ref, and `"status"`, `succeeded`, `failed` or `cancelled`. A timeline with two signals or two children no longer has to tell them apart by message or actor. Migration `M20261115163733_name_the_raised_signal` re-creates `raise_job_signal` and `complete_executions` on PostgreSQL and SQL Server.
 - `JobContext.EndsJob(Exception)` answers whether an exception, left uncaught, ends the job with no further attempt.
 - `ACTA0151` warns at build time about a catch in handler code that can take the control flow of a wait, sleep, reschedule or pause: one that catches `Exception`, `ActaException` or `JobControlException` around such a call, a helper handed the context, or a pipeline behavior's `next()`, with a filter that can let it in.
 - An attached debugger stops on a handler's errors and no longer on its waits, sleeps, reschedules and control calls, with Acta from the packages: once per error, at the line that threw it, and for a control call the handler caught and went on from, at that call.

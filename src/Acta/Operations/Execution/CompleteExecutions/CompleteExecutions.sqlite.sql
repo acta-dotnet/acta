@@ -451,8 +451,22 @@ SELECT
         1,
         512
     ),
-    CASE WHEN d.reason IS NULL THEN 0 /* JobPayloadFormat.None */ ELSE 1 /* JobPayloadFormat.Json */ END,
-    CAST('{"reason":"' || d.reason || '"}' AS BLOB)
+    -- The details name the child by its ref and how it ended, beside the reason it ended with; json_patch drops a null.
+    1 /* JobPayloadFormat.Json */,
+    CAST(
+        json_patch(
+            '{}',
+            json_object(
+                'reason', d.reason,
+                'child', 'job_' || replace(ch.job_ref, '-', ''),
+                'status', CASE d.to_status
+                    WHEN 100 /* JobStatusCode.Succeeded */ THEN 'succeeded'
+                    WHEN 200 /* JobStatusCode.Failed */ THEN 'failed'
+                    ELSE 'cancelled'
+                END
+            )
+        ) AS BLOB
+    )
 FROM temp._ces_done d
 INNER JOIN {{schema}}.jobs ch ON ch.job_id = d.job_id
 INNER JOIN {{schema}}.jobs pj ON pj.job_id = d.parent_job_id

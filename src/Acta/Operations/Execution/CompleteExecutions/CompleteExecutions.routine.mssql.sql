@@ -503,6 +503,8 @@ BEGIN
                     CREATE TABLE #parents (
                         parent_job_id BIGINT NOT NULL,
                         child_job_id BIGINT NOT NULL,
+                        child_ref UNIQUEIDENTIFIER NOT NULL,
+                        child_status TINYINT NOT NULL,
                         latch_name VARCHAR(128) NOT NULL,
                         envelope VARBINARY(MAX) NOT NULL,
                         reason VARCHAR(64) NULL,
@@ -514,10 +516,12 @@ BEGIN
                         PRIMARY KEY (parent_job_id, latch_name)
                     );
 
-                    INSERT INTO #parents (parent_job_id, child_job_id, latch_name, envelope, reason, event_message)
+                    INSERT INTO #parents (parent_job_id, child_job_id, child_ref, child_status, latch_name, envelope, reason, event_message)
                     SELECT
                         d.parent_job_id,
                         d.job_id,
+                        j.job_ref,
+                        d.job_status_code,
                         'sys.child.' + CAST(d.job_id AS VARCHAR(20)),
                         -- The collation goes on the text before the cast, so a failure message reaches the bytes as UTF-8.
                         CAST(
@@ -617,8 +621,20 @@ BEGIN
                                 ) AS NVARCHAR(512))
                             ELSE p.event_message
                         END,
-                        CASE WHEN p.reason IS NULL THEN 0 /* JobPayloadFormat.None */ ELSE 1 /* JobPayloadFormat.Json */ END,
-                        CAST('{"reason":"' + p.reason + '"}' AS VARBINARY(MAX))
+                        -- The details name the child by its ref and how it ended, beside the reason it ended with.
+                        1 /* JobPayloadFormat.Json */,
+                        CAST(
+                            '{' + COALESCE('"reason":"' + p.reason + '",', '')
+                            + '"child":"job_' + LOWER(REPLACE(CONVERT(CHAR(36), p.child_ref), '-', ''))
+                            + '","status":"'
+                            + CASE p.child_status
+                                WHEN 100 /* JobStatusCode.Succeeded */ THEN 'succeeded'
+                                WHEN 200 /* JobStatusCode.Failed */ THEN 'failed'
+                                ELSE 'cancelled'
+                            END
+                            + '"}'
+                            AS VARBINARY(MAX)
+                        )
                     FROM #parents p
                     INNER JOIN {{schema}}.jobs pj WITH (FORCESEEK) ON pj.job_id = p.parent_job_id
                     WHERE pj.event_recording_code = 20 /* EventRecordingCode.Audit */ AND p.parent_status IS NOT NULL

@@ -2,11 +2,11 @@ namespace Acta;
 
 /// <summary>
 /// What a job control transition writes onto its event: the operator principal (null on a system path), the
-/// <see cref="EventReason"/> when the code does not imply it, and the human message. A null
+/// <see cref="EventReason"/> when the code does not imply it, the human message, and the signal a raise names. A null
 /// <c>ExpectedVersion</c> writes unconditionally.
 /// </summary>
-internal sealed record JobControlInput(string? Actor, string? Reason, string? Message, long? ExpectedVersion = null)
+internal sealed record JobControlInput(string? Actor, string? Reason, string? Message, long? ExpectedVersion = null, string? Signal = null)
 {
-    /// <summary>The event's JSON details: the reason, or null when it has none.</summary>
-    public byte[]? Details => EventDetails.Write(("reason", Reason));
+    /// <summary>The event's JSON details: the reason and the signal, or null when it has neither.</summary>
+    public byte[]? Details => EventDetails.Write(("reason", Reason), ("signal", Signal));
 }

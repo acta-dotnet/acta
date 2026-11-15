@@ -29,6 +29,7 @@ DECLARE
     v_tenant_id INT;
     v_execution_number BIGINT;
     v_event_recording SMALLINT;
+    v_details BYTEA;
 BEGIN
 
     SELECT js.checkpoint_status_code INTO v_existing
@@ -171,6 +172,22 @@ BEGIN
     END IF;
 
     IF v_event_recording = 20 /* EventRecordingCode.Audit */ THEN
+        -- A child's latch names the child by its ref and how it ended, beside the reason the raise carries.
+        v_details := CASE
+            WHEN p_child_job_id IS NULL THEN p_details
+            ELSE convert_to(
+                json_strip_nulls(json_build_object(
+                    'reason', convert_from(p_details, 'UTF8')::json ->> 'reason',
+                    'child', (SELECT 'job_' || replace(c.job_ref::text, '-', '') FROM {{schema}}.jobs c WHERE c.job_id = p_child_job_id),
+                    'status', CASE p_child_status
+                        WHEN 100 /* JobStatusCode.Succeeded */ THEN 'succeeded'
+                        WHEN 200 /* JobStatusCode.Failed */ THEN 'failed'
+                        ELSE 'cancelled'
+                    END
+                ))::text,
+                'UTF8'
+            )
+        END;
         INSERT INTO {{schema}}.events (
             event_code,
             created_at_utc,
@@ -197,8 +214,8 @@ BEGIN
             v_execution_number,
             v_message,
             p_actor,
-            p_details_format_id,
-            p_details);
+            CASE WHEN v_details IS NULL THEN 0 /* JobPayloadFormat.None */ ELSE 1 /* JobPayloadFormat.Json */ END,
+            v_details);
     END IF;
 
     -- Only the checkpoint the job waits on releases it; any other raise is stored for the wait that will read it.

@@ -558,6 +558,7 @@ BEGIN
             SELECT
                 j.parent_job_id,
                 r.job_id AS child_job_id,
+                j.job_ref AS child_ref,
                 r.job_status_code AS child_status,
                 r.execution_number AS child_execution,
                 c.reason,
@@ -650,8 +651,20 @@ BEGIN
                         THEN LEFT(s.landing || ' Child outcome not applied: the wait had already expired.', 512)
                     ELSE s.landing
                 END,
-                CASE WHEN s.reason IS NULL THEN 0 /* JobPayloadFormat.None */ ELSE 1 /* JobPayloadFormat.Json */ END,
-                convert_to('{"reason":"' || s.reason || '"}', 'UTF8')
+                -- The details name the child by its ref and how it ended, beside the reason it ended with.
+                1 /* JobPayloadFormat.Json */,
+                convert_to(
+                    json_strip_nulls(json_build_object(
+                        'reason', s.reason,
+                        'child', 'job_' || replace(s.child_ref::text, '-', ''),
+                        'status', CASE s.child_status
+                            WHEN 100 /* JobStatusCode.Succeeded */ THEN 'succeeded'
+                            WHEN 200 /* JobStatusCode.Failed */ THEN 'failed'
+                            ELSE 'cancelled'
+                        END
+                    ))::text,
+                    'UTF8'
+                )
             FROM settled s
             WHERE s.event_recording_code = 20 /* EventRecordingCode.Audit */
             ORDER BY s.parent_job_id, s.child_job_id

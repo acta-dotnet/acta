@@ -416,7 +416,9 @@ public sealed class ChildGroupTimeoutSpec : ActaRuntimeTestBase<ConformanceFixtu
 
         // Its landing tells the parent's timeline which child ended, and how.
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(echo.JobId, ct));
-        Assert.Equal("Child 'echo' succeeded.", (await ReadSingleEventAsync(unbounded.JobId, EventCode.JobSignalRaised, ct)).EventMessage);
+        var landing = await ReadSingleEventAsync(unbounded.JobId, EventCode.JobSignalRaised, ct);
+        Assert.Equal("Child 'echo' succeeded.", landing.EventMessage);
+        Assert.Equal((echo.JobRef.ToString(), "succeeded"), (EventDetail(landing, "child"), EventDetail(landing, "status")));
     }
 
     // Every bounded wrapper resolves the same way: one member is let through, the group deadline is

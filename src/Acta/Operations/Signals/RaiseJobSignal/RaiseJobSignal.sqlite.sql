@@ -135,8 +135,25 @@ SELECT
         ELSE (SELECT m.message FROM temp._raise_landing m)
     END,
     @p_actor,
-    @p_details_format_id,
-    @p_details
+    -- A child's latch names the child by its ref and how it ended, beside the reason the raise carries.
+    CASE WHEN @p_child_job_id IS NULL THEN @p_details_format_id ELSE 1 /* JobPayloadFormat.Json */ END,
+    CASE
+        WHEN @p_child_job_id IS NULL THEN @p_details
+        ELSE CAST(
+            json_patch(
+                '{}',
+                json_object(
+                    'reason', json_extract(CAST(@p_details AS TEXT), '$.reason'),
+                    'child', (SELECT 'job_' || replace(c.job_ref, '-', '') FROM {{schema}}.jobs c WHERE c.job_id = @p_child_job_id),
+                    'status', CASE @p_child_status
+                        WHEN 100 /* JobStatusCode.Succeeded */ THEN 'succeeded'
+                        WHEN 200 /* JobStatusCode.Failed */ THEN 'failed'
+                        ELSE 'cancelled'
+                    END
+                )
+            ) AS BLOB
+        )
+    END
 FROM {{schema}}.jobs j
 JOIN {{schema}}.jobs_state r ON r.job_id = j.job_id
 WHERE

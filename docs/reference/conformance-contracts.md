@@ -2580,6 +2580,7 @@
   - A repeat raise writes nothing: the same value is AlreadyInState and another value Rejected
   - An unknown job is NotFound and a finished job is Rejected, and neither gains a checkpoint or an event
   - A latch raised for a child with no row names it by its id on the parent's timeline
+  - A cancelled child's latch names the child by its ref and how it ended in the parent's event details
   - A malformed or reserved signal name throws before the job is looked up
 
 ### A raise inside the suspend handoff lands the job Ready, not Suspended

@@ -173,6 +173,27 @@ BEGIN
                         job_id = @p_job_id AND checkpoint_kind_code = @p_checkpoint_kind_code AND checkpoint_name = @p_checkpoint_name;
             END
 
+        -- A child's latch names the child by its ref and how it ended, beside the reason the raise carries.
+        DECLARE @details VARBINARY(MAX) = @p_details;
+        IF @p_child_job_id IS NOT NULL
+            SET @details = CAST(
+                '{' + COALESCE('"reason":"' + CAST(JSON_VALUE(CAST(@p_details AS VARCHAR(MAX)), '$.reason') AS VARCHAR(64)) + '",', '')
+                + COALESCE(
+                    '"child":"job_'
+                    + LOWER(REPLACE(CONVERT(CHAR(36), (SELECT c.job_ref FROM {{schema}}.jobs c WHERE c.job_id = @p_child_job_id)), '-', ''))
+                    + '",',
+                    ''
+                )
+                + '"status":"'
+                + CASE @p_child_status
+                    WHEN 100 /* JobStatusCode.Succeeded */ THEN 'succeeded'
+                    WHEN 200 /* JobStatusCode.Failed */ THEN 'failed'
+                    ELSE 'cancelled'
+                END
+                + '"}'
+                AS VARBINARY(MAX)
+            );
+
         IF @event_recording = 20 /* EventRecordingCode.Audit */
             INSERT INTO {{schema}}.events (
                 event_code, created_at_utc, namespace_id,
@@ -186,7 +207,9 @@ BEGIN
                 50 /* EntityCode.Job */, @p_job_id,
                 @definition_id, @tenant_id, COALESCE(@lineage_root_job_id, @p_job_id),
                 @execution_number,
-                @message, @p_actor, @p_details_format_id, @p_details
+                @message, @p_actor,
+                CASE WHEN @details IS NULL THEN 0 /* JobPayloadFormat.None */ ELSE 1 /* JobPayloadFormat.Json */ END,
+                @details
             );
 
         -- Only the checkpoint the job waits on releases it; any other raise is stored for the wait that will read it.

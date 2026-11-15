@@ -46,6 +46,7 @@ public sealed class RaiseJobSignalSpec : ActaRuntimeTestBase<ConformanceFixture,
         Assert.Equal("Signal 'review' raised.", evt.EventMessage);
         Assert.Null(EventDetail(evt, "actor"));
         Assert.Equal(EventReason.SignalReleased, EventDetail(evt, "reason"));
+        Assert.Equal("review", EventDetail(evt, "signal"));
     }
 
     [Fact(DisplayName = "A repeat raise writes nothing: the same value is AlreadyInState and another value Rejected")]
@@ -115,6 +116,26 @@ public sealed class RaiseJobSignalSpec : ActaRuntimeTestBase<ConformanceFixture,
 
         var raised = await ReadSingleEventAsync(parent.JobId, EventCode.JobSignalRaised, ct);
         Assert.Equal($"Child job {long.MaxValue} failed.", raised.EventMessage);
+        Assert.Equal(((string?)null, "failed"), (EventDetail(raised, "child"), EventDetail(raised, "status")));
+    }
+
+    [Fact(DisplayName = "A cancelled child's latch names the child by its ref and how it ended in the parent's event details")]
+    public async Task A_cancelled_childs_latch_names_it_in_the_details()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var parent = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct);
+        var child = await Jobs.EnqueueAsync(
+            new EnqueueJobRequest(TestNamespace, "job-wait-signal", JobPayload.None, ParentJobId: parent.JobId),
+            ct
+        );
+
+        Assert.Equal(ControlAction.Applied, (await Jobs.CancelAsync(child, ct: ct)).Action);
+
+        var raised = await ReadSingleEventAsync(parent.JobId, EventCode.JobSignalRaised, ct);
+        Assert.Equal(
+            (EventReason.SignalReleased, child.JobRef.ToString(), "cancelled"),
+            (EventDetail(raised, "reason"), EventDetail(raised, "child"), EventDetail(raised, "status"))
+        );
     }
 
     [Fact(DisplayName = "A malformed or reserved signal name throws before the job is looked up")]
