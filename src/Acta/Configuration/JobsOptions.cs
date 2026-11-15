@@ -207,7 +207,7 @@ public sealed class JobsOptions
     /// <summary>
     /// Per-process; must differ across a rolling deploy (it identifies the build). Opaque deployment
     /// version (git SHA, build tag) written to <c>workers.deployment_version</c>. When <c>null</c>,
-    /// the runtime derives it from the worker assembly's informational version.
+    /// the runtime derives it from the entry assembly's informational version.
     /// </summary>
     public string? DeploymentVersion { get; set; }
 

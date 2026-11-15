@@ -17341,7 +17341,7 @@
               "null",
               "string"
             ],
-            "description": "When delivery is tried again, in UTC; null when no retry is pending.",
+            "description": "When the alert is sent again, in UTC: a failed send's retry, or, once a send settles an unresolved alert, its reminder one AlertReminderInterval out; null when nothing is scheduled.",
             "format": "date-time"
           },
           "createdAtUtc": {
@@ -19080,7 +19080,7 @@
               "null",
               "string"
             ],
-            "description": "When delivery is tried again, in UTC; null when no retry is pending.",
+            "description": "When the alert is sent again, in UTC: a failed send's retry, or, once a send settles an unresolved alert, its reminder one AlertReminderInterval out; null when nothing is scheduled.",
             "format": "date-time"
           },
           "createdAtUtc": {

@@ -77,15 +77,16 @@ namespace Acta.Concepts.ChildFailureOutcomes
             return new MapReport($"{succeeded}/{ids.Length} items succeeded");
         }
 
-        // MaxAttempts = 1 so the job fails immediately without retrying; the parent sees terminal fast.
-        [Job("process-item", MaxAttempts = 1)]
-        public async Task ProcessItemHandler(ProcessItem input, CancellationToken ct)
+        // FailAsync ends the job Failed at once, with no retry, and leaves MaxAttempts to absorb crashes; a thrown
+        // exception would retry, and MaxAttempts = 1 would fail the job on its first crash too.
+        [Job("process-item")]
+        public async Task ProcessItemHandler(ProcessItem input, JobContext context, CancellationToken ct)
         {
             await Task.Delay(100, ct);
             if (input.ShouldFail)
             {
                 Console.WriteLine($"  item {input.Id}: failing");
-                throw new InvalidOperationException($"item {input.Id} failed intentionally");
+                await context.FailAsync($"item {input.Id} failed intentionally", ct);
             }
             Console.WriteLine($"  item {input.Id}: done");
         }
@@ -109,15 +110,15 @@ namespace Acta.Concepts.ChildFailureOutcomes
             result.ThrowIfAnyFailed();
         }
 
-        // MaxAttempts = 1 so the failing child terminates immediately.
-        [Job("run-child", MaxAttempts = 1)]
-        public async Task RunChildHandler(RunChild input, CancellationToken ct)
+        // FailAsync, as in process-item: the failing child ends at once and keeps its budget for crashes.
+        [Job("run-child")]
+        public async Task RunChildHandler(RunChild input, JobContext context, CancellationToken ct)
         {
             await Task.Delay(100, ct);
             if (input.ShouldFail)
             {
                 Console.WriteLine($"  child {input.Name}: failing");
-                throw new InvalidOperationException($"child {input.Name} failed intentionally");
+                await context.FailAsync($"child {input.Name} failed intentionally", ct);
             }
             Console.WriteLine($"  child {input.Name}: done");
         }

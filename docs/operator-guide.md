@@ -510,7 +510,8 @@ must keep a deterministic collation, which is the default, so that keys compare 
 
 Use SQLite when the database is embedded in one process. SQLite is useful for concepts, local
 exploration, tests, and small single-process tools. Several processes can share one SQLite file on one
-machine for a try-out, as the demos do, but that is not a supported deployment. On SQLite, Acta's tables
+machine, as the demos do, but it is discouraged: they take turns at its one write lock, and an enqueue
+wakes only its own process. On SQLite, Acta's tables
 share `main` with the application's, so keep its table names free in that file; [known
 limitations](./known-limitations.md#storage-and-providers) lists what a clash does.
 
@@ -614,7 +615,7 @@ Running `jobs deploy`, or `jobs migrate` under the deploy login, as a step befor
 
 ### Rolling deploys
 
-Deploy: run `<app> jobs migrate`, start the new workers, stop the old ones once the new ones are healthy. Rollback: start the old build, stop the new one; its version has deployed, so its workers start. To put the old build's definitions and schedules back as well, run its `jobs deploy --force`. While both builds run:
+Deploy: run `<app> jobs migrate`, start the new workers, stop the old ones once the new ones are healthy. On SQLite, where one process uses the file, there is no overlap: stop the old build, run the new build's deploy verb, then start it. Rollback: start the old build, stop the new one; its version has deployed, so its workers start. To put the old build's definitions and schedules back as well, run its `jobs deploy --force`. A rollback runs the older handler on rows the newer build wrote, so a member the older input type lacks is dropped when it reads the row, with no error; where that loses meaning, put the new member behind a new job name. While both builds run:
 
 - Either build may claim a job only the other can run. The worker without the handler hands it back to `Ready` without charging a failure and stops claiming that definition.
 - A deploy never retires a definition, so the old fleet finishes its jobs and a rollback finds nothing missing.

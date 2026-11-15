@@ -87,9 +87,16 @@ Authentication is the host's: Acta ships none. The surface is local-only by defa
 
 ## Storage and providers
 
-SQLite is supported for a single process: one host that enqueues and runs the jobs on one database file. Two
-processes sharing a file, or a worker apart from its producer, take SQL Server or PostgreSQL. Read-only access
-from another process is fine: the control CLI's read verbs (`<app> jobs status`, `explain`, `events`) and a SQL client.
+SQLite is built for one process: one host that enqueues and runs the jobs on one database file. Several hosts on
+one machine can share the file, a worker apart from its producer included, but that is discouraged: they take turns
+at the file's one write lock, and a wakeup reaches only the process that wrote, so another host picks the work up on
+its next poll (`SafetyPollInterval`). Hosts that share the file must also share one process-id space, one operating
+system rather than containers of their own, because a starting host releases a worker registered under its machine
+name whose process id it cannot find, and that worker's jobs run again while it may still be running them. Hosts on
+several machines, or a file on a network share, whose locking SQLite cannot trust, take SQL Server or PostgreSQL.
+A short-lived process beside the host is fine: the control CLI's verbs
+(`<app> jobs status`, `explain`, `signal`, `cancel`, ...) and a SQL client. A control verb is one short write
+transaction the host's writes wait for, and the host sees its effect on its next poll.
 
 On SQLite, Acta's tables share `main` with the application's: the schema must be `main`, so there is no
 `acta` schema to keep them apart. The provisioning script creates each table only if it is missing, so an

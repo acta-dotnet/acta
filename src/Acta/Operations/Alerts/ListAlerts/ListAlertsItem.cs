@@ -19,7 +19,7 @@ namespace Acta;
 /// <param name="ResolvedAtUtc">When the alert was resolved, in UTC; null while it is open.</param>
 /// <param name="DeliveryStatus">Where delivery of the alert to its channel stands.</param>
 /// <param name="RetryCount">How many delivery attempts have failed so far.</param>
-/// <param name="RetryAfterUtc">When delivery is tried again, in UTC; null when no retry is pending.</param>
+/// <param name="RetryAfterUtc">When the alert is sent again, in UTC: a failed send's retry, or, once a send settles an unresolved alert, its reminder one <c>AlertReminderInterval</c> out; null when nothing is scheduled.</param>
 /// <param name="CreatedAtUtc">When the row was created, in UTC.</param>
 /// <param name="ModifiedAtUtc">When the row last changed, in UTC.</param>
 /// <param name="AcknowledgedAtUtc">When the alert was acknowledged, in UTC; null while it has not been.</param>
