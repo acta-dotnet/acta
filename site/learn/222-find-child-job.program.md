@@ -83,6 +83,7 @@ namespace Acta.Learn.FindChildJob
         [Job("send-invoice")]
         public async Task Send(SendInvoice invoice, JobContext ctx, CancellationToken ct)
         {
+            // FailAsync ends the job there, Failed with no retry, so only the other invoices print as sent.
             if (invoice.InvoiceId == 7)
             {
                 await ctx.FailAsync("the customer's address bounced", ct);

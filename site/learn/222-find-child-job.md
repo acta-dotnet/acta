@@ -35,6 +35,7 @@ public sealed class InvoiceJobs
     [Job("send-invoice")]
     public async Task Send(SendInvoice invoice, JobContext ctx, CancellationToken ct)
     {
+        // FailAsync ends the job there, Failed with no retry, so only the other invoices print as sent.
         if (invoice.InvoiceId == 7)
         {
             await ctx.FailAsync("the customer's address bounced", ct);
@@ -152,4 +153,4 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## More
 
-- [The whole program](/learn/222-find-child-job.program.md): every file as compiled, 80 lines.
+- [The whole program](/learn/222-find-child-job.program.md): every file as compiled, 81 lines.

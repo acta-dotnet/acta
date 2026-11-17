@@ -89,6 +89,7 @@
     <span class="a">[Job(<span class="s">&quot;send-invoice&quot;</span>)]</span>
     <span class="k">public</span> <span class="k">async</span> Task Send(SendInvoice invoice, JobContext ctx, CancellationToken ct)
     {
+        <span class="c">// FailAsync ends the job there, Failed with no retry, so only the other invoices print as sent.</span>
         <span class="k">if</span> (invoice.InvoiceId == 7)
         {
             <span class="k">await</span> ctx.FailAsync(<span class="s">&quot;the customer's address bounced&quot;</span>, ct);
@@ -145,7 +146,7 @@ invoice 7: Failed. the customer's address bounced</code></pre></figure>
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/learn/200-durable-execution/222-find-child-job"><code>learn/200-durable-execution/222-find-child-job</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">find-child-job.cs</span><span class="file-size">80 lines</span></summary><figure class="listing"><figcaption><span class="file">find-child-job.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to find the child job that handles one item</span>
+<details class="source-file"><summary><span class="file-name">find-child-job.cs</span><span class="file-size">81 lines</span></summary><figure class="listing"><figcaption><span class="file">find-child-job.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to find the child job that handles one item</span>
 <span class="c">// A child's name on the reads is its deduplication key, `{map}/{key}` for a child that a map started. List the</span>
 <span class="c">// parent's children and pick the one that carries the item's key.</span>
 <span class="k">using</span> Acta;
@@ -217,6 +218,7 @@ builder.Logging.AddFilter(<span class="s">&quot;Acta&quot;</span>, LogLevel.Erro
         <span class="a">[Job(<span class="s">&quot;send-invoice&quot;</span>)]</span>
         <span class="k">public</span> <span class="k">async</span> Task Send(SendInvoice invoice, JobContext ctx, CancellationToken ct)
         {
+            <span class="c">// FailAsync ends the job there, Failed with no retry, so only the other invoices print as sent.</span>
             <span class="k">if</span> (invoice.InvoiceId == 7)
             {
                 <span class="k">await</span> ctx.FailAsync(<span class="s">&quot;the customer's address bounced&quot;</span>, ct);
@@ -289,7 +291,7 @@ builder.Logging.AddFilter(<span class="s">&quot;Acta&quot;</span>, LogLevel.Erro
           <div class="footer-release">
             <p class="footer-head">Release</p>
             <p class="footer-version"><span class="release-dot" aria-hidden="true"></span><a href="https://github.com/acta-dotnet/acta/releases">1.0.0-rc.12 <span aria-hidden="true">↗</span></a><span>a release candidate</span></p>
-            <a href="https://github.com/acta-dotnet/acta/blob/main/docs/compatibility-and-support.md">Compatibility and support</a>
+            <a href="https://github.com/acta-dotnet/acta/blob/main/docs/compatibility-and-support.md">Compatibility</a>
             <a href="/support">Support Acta</a>
             <a href="https://github.com/acta-dotnet/acta/blob/main/docs/known-limitations.md#stability-status">Stability status</a>
             <a href="https://github.com/acta-dotnet/acta">Source on GitHub <span aria-hidden="true">↗</span></a>
