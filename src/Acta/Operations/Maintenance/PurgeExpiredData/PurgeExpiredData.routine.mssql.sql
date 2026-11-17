@@ -118,7 +118,7 @@ BEGIN
                         FROM {{schema}}.events e WITH (FORCESEEK (ix_events_entity_timeline (entity_code, entity_id)))
                         INNER JOIN {{schema}}.definitions d WITH (FORCESEEK) ON d.definition_id = e.definition_id
                         WHERE
-                            e.entity_code = 50 /* EntityCode.Job */
+                            e.entity_code = 4 /* EntityCode.Job */
                             AND e.entity_id = j.job_id
                             AND e.created_at_utc >= @floor_utc
                             AND (e.created_at_utc > @floor_utc OR e.event_id > @floor_id)
@@ -159,7 +159,7 @@ BEGIN
                 -- the whole child table under update locks
                 -- (docs/sql-internals.md, "Foreign keys in set-based writes").
                 DELETE t FROM {{schema}}.tags t WITH (FORCESEEK (pk_tags (entity_code, entity_id)))
-                INNER JOIN @job_del d ON t.entity_code = 50 /* EntityCode.Job */ AND t.entity_id = d.job_id;
+                INNER JOIN @job_del d ON t.entity_code = 4 /* EntityCode.Job */ AND t.entity_id = d.job_id;
 
                 /* The jobs' settled alerts go with them, so no alert outlives its job: the held job rows let none join since
                    the ids were read. Each identity row is locked before its row (docs/sql-internals.md, "Alert lock
@@ -207,7 +207,7 @@ BEGIN
                     e.namespace_id = @p_namespace_id
                     AND e.created_at_utc <= @p_cutoff_utc
                     AND NOT (
-                        e.entity_code = 50 /* EntityCode.Job */
+                        e.entity_code = 4 /* EntityCode.Job */
                         AND e.created_at_utc >= @floor_utc
                         AND (e.created_at_utc > @floor_utc OR e.event_id > @floor_id)
                         AND (

@@ -244,7 +244,7 @@ BEGIN TRY
             VALUES (
                 43 /* EventCode.JobExecutionYielded */, @now, @namespace_id,
                 @worker_id,
-                50 /* EntityCode.Job */, @p_job_id,
+                4 /* EntityCode.Job */, @p_job_id,
                 @definition_id, @tenant_id, COALESCE(@lineage_root_job_id, @p_job_id),
                 @execution_number,
                 @p_event_message, @p_actor, 1 /* JobPayloadFormat.Json */,
@@ -269,7 +269,7 @@ BEGIN TRY
             )
             VALUES (
                 70 /* EventCode.JobCancelled */, @now, @namespace_id,
-                50 /* EntityCode.Job */, @p_job_id,
+                4 /* EntityCode.Job */, @p_job_id,
                 @definition_id, @tenant_id, COALESCE(@lineage_root_job_id, @p_job_id),
                 @execution_number,
                 @p_event_message, @p_actor, @p_details_format_id, @p_details

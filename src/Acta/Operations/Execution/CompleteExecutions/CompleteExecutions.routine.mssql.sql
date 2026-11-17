@@ -354,7 +354,7 @@ BEGIN
                         event_code, created_at_utc, namespace_id, entity_code, entity_id,
                         definition_id, tenant_id, lineage_root_job_id, execution_number, event_message, details_format_id, details)
                     SELECT
-                        100 /* EventCode.SchedulePaused */, @now, j.namespace_id, 50 /* EntityCode.Job */, p.job_id,
+                        100 /* EventCode.SchedulePaused */, @now, j.namespace_id, 4 /* EntityCode.Job */, p.job_id,
                         j.definition_id, j.tenant_id, COALESCE(j.lineage_root_job_id, j.job_id), r.execution_number, 'Paused by the firing failure policy: the last firing failed for good.',
                         1 /* JobPayloadFormat.Json */, CONVERT(VARBINARY(MAX), '{"schedule":"' + p.schedule_name + '","reason":"firing-failed"}')
                     FROM @policy_paused p
@@ -375,7 +375,7 @@ BEGIN
         )
         SELECT
             c.event_code, @now, j.namespace_id,
-            50 /* EntityCode.Job */, d.job_id,
+            4 /* EntityCode.Job */, d.job_id,
             j.definition_id, j.tenant_id, COALESCE(j.lineage_root_job_id, d.job_id),
             @p_leased_by_worker_id, d.execution_number, c.duration_ms,
             c.event_message,
@@ -436,7 +436,7 @@ BEGIN
                 )
                 SELECT
                     k.event_code, @now, j.namespace_id,
-                    50 /* EntityCode.Job */, d.job_id,
+                    4 /* EntityCode.Job */, d.job_id,
                     j.definition_id, j.tenant_id, COALESCE(j.lineage_root_job_id, d.job_id),
                     @p_leased_by_worker_id, d.execution_number,
                     c.event_message,
@@ -589,7 +589,7 @@ BEGIN
                     )
                     SELECT
                         80 /* EventCode.JobSignalRaised */, @now, pj.namespace_id,
-                        50 /* EntityCode.Job */, p.parent_job_id,
+                        4 /* EntityCode.Job */, p.parent_job_id,
                         pj.definition_id, pj.tenant_id, COALESCE(pj.lineage_root_job_id, p.parent_job_id),
                         p.parent_execution,
                         CASE
@@ -644,7 +644,7 @@ BEGIN
                     )
                     SELECT
                         72 /* EventCode.JobResumed */, @now, pj.namespace_id,
-                        50 /* EntityCode.Job */, w.parent_job_id,
+                        4 /* EntityCode.Job */, w.parent_job_id,
                         pj.definition_id, pj.tenant_id, COALESCE(pj.lineage_root_job_id, w.parent_job_id),
                         w.parent_execution,
                         1 /* JobPayloadFormat.Json */, CAST('{"reason":"signal-released"}' AS VARBINARY(MAX))

@@ -20,7 +20,7 @@ SELECT
     30 /* EventCode.DefinitionOverridesUpdated */,
     {{now}},
     s.namespace_id,
-    30 /* EntityCode.Definition */,
+    3 /* EntityCode.Definition */,
     s.definition_id,
     s.definition_id,
     @p_event_message,

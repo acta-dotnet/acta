@@ -204,7 +204,7 @@ BEGIN
             )
             VALUES (
                 80 /* EventCode.JobSignalRaised */, @now, @namespace_id,
-                50 /* EntityCode.Job */, @p_job_id,
+                4 /* EntityCode.Job */, @p_job_id,
                 @definition_id, @tenant_id, COALESCE(@lineage_root_job_id, @p_job_id),
                 @execution_number,
                 @message, @p_actor,
@@ -233,7 +233,7 @@ BEGIN
                     )
                     VALUES (
                         72 /* EventCode.JobResumed */, @now, @namespace_id,
-                        50 /* EntityCode.Job */, @p_job_id,
+                        4 /* EntityCode.Job */, @p_job_id,
                         @definition_id, @tenant_id, COALESCE(@lineage_root_job_id, @p_job_id),
                         @execution_number,
                         @landing, @p_actor, @p_details_format_id, @p_details

@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 namespace Acta;
 
 /// <summary>A kind of thing in Acta that an event can be about. Tags attach only to tenants, namespaces, definitions, and jobs.</summary>
-/// <remarks>One <c>(entity_code, entity_id)</c> pair points at a row of any table; <see cref="TagTarget"/> builds tag targets.</remarks>
+/// <remarks>One <c>(entity_code, entity_id)</c> pair points at one row; <see cref="TagTarget"/> builds tag targets.</remarks>
 [JsonConverter(typeof(EntityCodeJsonConverter))]
 [CodeKind("entity")]
 public enum EntityCode : byte
@@ -12,44 +12,23 @@ public enum EntityCode : byte
     Unspecified = 0,
 
     [Code("alert", "One alert.")]
-    Alert = 10,
+    Alert = 1,
 
     [Code("calendar", "One version of a catalog calendar.")]
-    Calendar = 15,
-
-    [Code("checkpoint", "One checkpoint of a job.")]
-    Checkpoint = 20,
+    Calendar = 2,
 
     [Code("definition", "One job definition.")]
-    Definition = 30,
-
-    [Code("event", "One event.")]
-    Event = 40,
+    Definition = 3,
 
     [Code("job", "One job.")]
-    Job = 50,
-
-    [Code("lane", "One lane.")]
-    Lane = 60,
-
-    [Code("lock", "One lock.")]
-    Lock = 70,
+    Job = 4,
 
     [Code("namespace", "One namespace.")]
-    Namespace = 80,
-
-    [Code("schedule", "One schedule of a scheduled job.")]
-    Schedule = 90,
-
-    [Code("step", "One step of a job.")]
-    Step = 100,
-
-    [Code("tag", "One tag on its entity.")]
-    Tag = 110,
+    Namespace = 5,
 
     [Code("tenant", "One tenant.")]
-    Tenant = 120,
+    Tenant = 6,
 
     [Code("worker", "One worker process lifetime.")]
-    Worker = 130,
+    Worker = 7,
 }

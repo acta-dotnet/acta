@@ -20,7 +20,7 @@ SELECT
     12 /* EventCode.TenantUpdated */,
     {{now}},
     1,
-    120 /* EntityCode.Tenant */,
+    6 /* EntityCode.Tenant */,
     s.tenant_id,
     @p_event_message,
     @p_actor,

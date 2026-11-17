@@ -29,7 +29,7 @@ BEGIN TRY
         )
         VALUES (
             12 /* EventCode.TenantUpdated */, @now, 1,
-            120 /* EntityCode.Tenant */, @tenant_id,
+            6 /* EntityCode.Tenant */, @tenant_id,
             @p_event_message, @p_actor, @p_details_format_id, @p_details
         );
     END;

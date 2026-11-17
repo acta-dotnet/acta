@@ -280,7 +280,7 @@ BEGIN TRY
                 FROM {{schema}}.events AS f
                 JOIN {{schema}}.jobs_state AS r ON r.job_id = f.entity_id
                 WHERE
-                    f.entity_code = 50 /* EntityCode.Job */
+                    f.entity_code = 4 /* EntityCode.Job */
                     AND f.entity_id = @p_job_id
                     AND f.event_code IN (43 /* EventCode.JobExecutionYielded */, 44 /* EventCode.JobFailed */, 70 /* EventCode.JobCancelled */)
                     AND f.execution_number = r.execution_number
@@ -334,7 +334,7 @@ BEGIN TRY
     )
     VALUES (
         73 /* EventCode.JobRestarted */, @now, @namespace_id,
-        50 /* EntityCode.Job */, @p_job_id,
+        4 /* EntityCode.Job */, @p_job_id,
         @definition_id, @tenant_id, COALESCE(@lineage_root_job_id, @p_job_id),
         @execution_number,
         @p_event_message, @p_actor, @p_details_format_id, @p_details

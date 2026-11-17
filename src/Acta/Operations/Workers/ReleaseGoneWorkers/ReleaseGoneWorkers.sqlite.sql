@@ -10,7 +10,7 @@ SELECT
     122 /* EventCode.WorkerDied */,
     w.namespace_id,
     w.worker_id,
-    130 /* EntityCode.Worker */,
+    7 /* EntityCode.Worker */,
     w.worker_id
 FROM {{schema}}.workers w
 WHERE

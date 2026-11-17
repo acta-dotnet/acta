@@ -82,7 +82,7 @@ WHERE
         FROM {{schema}}.events e
         JOIN {{schema}}.definitions d ON d.definition_id = e.definition_id
         WHERE
-            e.entity_code = 50 /* EntityCode.Job */
+            e.entity_code = 4 /* EntityCode.Job */
             AND e.entity_id = j.job_id
             AND e.created_at_utc >= COALESCE(@p_alert_floor_utc, @p_cutoff_utc)
             AND (
@@ -101,7 +101,7 @@ WHERE
 ORDER BY j.created_at_utc DESC, j.job_id DESC
 LIMIT @p_batch_size;
 
-DELETE FROM {{schema}}.tags WHERE entity_code = 50 /* EntityCode.Job */ AND entity_id IN (SELECT p.job_id FROM temp._purge_jobs p);
+DELETE FROM {{schema}}.tags WHERE entity_code = 4 /* EntityCode.Job */ AND entity_id IN (SELECT p.job_id FROM temp._purge_jobs p);
 
 -- The job's settled alerts go with it, so no alert outlives its job.
 DELETE FROM {{schema}}.alerts WHERE job_id IN (SELECT p.job_id FROM temp._purge_jobs p);
@@ -122,7 +122,7 @@ WHERE
     AND e.namespace_id = @p_namespace_id
     AND e.created_at_utc <= @p_cutoff_utc
     AND NOT (
-        e.entity_code = 50 /* EntityCode.Job */
+        e.entity_code = 4 /* EntityCode.Job */
         AND e.created_at_utc >= COALESCE(@p_alert_floor_utc, @p_cutoff_utc)
         AND (
             e.created_at_utc > COALESCE(@p_alert_floor_utc, @p_cutoff_utc)

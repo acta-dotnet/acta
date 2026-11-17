@@ -20,7 +20,7 @@ audit AS (
     )
     SELECT
         21 /* EventCode.NamespaceResumed */, now(), r.namespace_id,
-        80 /* EntityCode.Namespace */, r.namespace_id,
+        5 /* EntityCode.Namespace */, r.namespace_id,
         @p_event_message, @p_actor, @p_details_format_id, @p_details
     FROM resumed r
 )

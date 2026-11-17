@@ -11,6 +11,11 @@ namespace Acta.Verify.Tests;
 /// </summary>
 public sealed class CertificationTests
 {
+    // The ids the planted rows carry, taken from the enums so a renumbered family moves them.
+    private const byte Job = (byte)EntityCode.Job;
+    private const byte Succeeded = (byte)EventCode.JobExecutionSucceeded;
+    private const byte Note = (byte)EventCode.JobNoteRecorded;
+
     [Fact]
     public void Namespace_isolation_names_an_attempt_that_ran_on_another_namespaces_worker()
     {
@@ -19,13 +24,13 @@ public sealed class CertificationTests
         // Only the columns the check reads. Job 101 ran on worker 202 of namespace 2; job 102 on its own namespace's worker.
         Execute(
             db,
-            """
+            $"""
             CREATE TABLE jobs (job_id INTEGER, namespace_id INTEGER);
             CREATE TABLE workers (worker_id INTEGER, namespace_id INTEGER);
             CREATE TABLE events (entity_code INTEGER, entity_id INTEGER, event_code INTEGER, namespace_id INTEGER, worker_id INTEGER);
             INSERT INTO jobs VALUES (101, 1), (102, 1);
             INSERT INTO workers VALUES (201, 1), (202, 2);
-            INSERT INTO events VALUES (50, 101, 40, 1, 202), (50, 102, 40, 1, 201);
+            INSERT INTO events VALUES ({Job}, 101, {Succeeded}, 1, 202), ({Job}, 102, {Succeeded}, 1, 201);
             """
         );
 
@@ -51,15 +56,15 @@ public sealed class CertificationTests
         // success committed, and execution 2 ran it again, which at-least-once allows.
         Execute(
             db,
-            """
+            $"""
             CREATE TABLE steps (job_id INTEGER, step_name TEXT, step_status_code INTEGER);
             CREATE TABLE events (entity_code INTEGER, entity_id INTEGER, event_code INTEGER, event_message TEXT, execution_number INTEGER);
             INSERT INTO steps VALUES (7, 'step-1', 100), (8, 'step-1', 100);
             INSERT INTO events VALUES
-                (50, 7, 90, 'step-body step-1', 1), (50, 7, 90, 'step-done step-1', 1),
-                (50, 7, 90, 'step-body step-1', 2), (50, 7, 90, 'step-done step-1', 2),
-                (50, 8, 90, 'step-body step-1', 1),
-                (50, 8, 90, 'step-body step-1', 2), (50, 8, 90, 'step-done step-1', 2);
+                ({Job}, 7, {Note}, 'step-body step-1', 1), ({Job}, 7, {Note}, 'step-done step-1', 1),
+                ({Job}, 7, {Note}, 'step-body step-1', 2), ({Job}, 7, {Note}, 'step-done step-1', 2),
+                ({Job}, 8, {Note}, 'step-body step-1', 1),
+                ({Job}, 8, {Note}, 'step-body step-1', 2), ({Job}, 8, {Note}, 'step-done step-1', 2);
             """
         );
 

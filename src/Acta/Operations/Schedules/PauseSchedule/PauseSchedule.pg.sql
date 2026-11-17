@@ -58,7 +58,7 @@ INSERT INTO {{schema}}.events (
 )
 SELECT
     100 /* EventCode.SchedulePaused */, now(), js.namespace_id,
-    CASE WHEN js.job_id IS NULL THEN 30 /* EntityCode.Definition */ ELSE 50 /* EntityCode.Job */ END,
+    CASE WHEN js.job_id IS NULL THEN 3 /* EntityCode.Definition */ ELSE 4 /* EntityCode.Job */ END,
     COALESCE(js.job_id, js.definition_id),
     js.definition_id, COALESCE(j.lineage_root_job_id, j.job_id),
     s.execution_number,

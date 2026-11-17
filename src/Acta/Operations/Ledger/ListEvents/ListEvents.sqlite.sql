@@ -23,14 +23,14 @@ SELECT
     e.details
 FROM {{schema}}.events e
 JOIN {{schema}}.namespaces ns ON ns.namespace_id = e.namespace_id
-LEFT JOIN {{schema}}.jobs sj ON e.entity_code = 50 /* EntityCode.Job */ AND sj.job_id = e.entity_id
+LEFT JOIN {{schema}}.jobs sj ON e.entity_code = 4 /* EntityCode.Job */ AND sj.job_id = e.entity_id
 LEFT JOIN {{schema}}.jobs rjob ON rjob.job_id = e.lineage_root_job_id
 LEFT JOIN {{schema}}.definitions jd ON jd.definition_id = e.definition_id
 LEFT JOIN {{schema}}.tenants t
-    ON t.tenant_id = COALESCE(e.tenant_id, CASE WHEN e.entity_code = 120 /* EntityCode.Tenant */ THEN e.entity_id END)
+    ON t.tenant_id = COALESCE(e.tenant_id, CASE WHEN e.entity_code = 6 /* EntityCode.Tenant */ THEN e.entity_id END)
 LEFT JOIN {{schema}}.workers wkr ON wkr.worker_id = e.worker_id
 WHERE
-    (@p_job_id IS NULL OR (e.entity_code = 50 /* EntityCode.Job */ AND e.entity_id = @p_job_id))
+    (@p_job_id IS NULL OR (e.entity_code = 4 /* EntityCode.Job */ AND e.entity_id = @p_job_id))
     AND (@p_lineage_root_job_id IS NULL OR e.lineage_root_job_id = @p_lineage_root_job_id)
     AND (
         @p_namespace_name IS NULL
@@ -57,9 +57,9 @@ SELECT CASE WHEN @p_include_total IS NOT NULL THEN (
     SELECT COUNT(*)
     FROM {{schema}}.events e
     LEFT JOIN {{schema}}.tenants t
-        ON t.tenant_id = COALESCE(e.tenant_id, CASE WHEN e.entity_code = 120 /* EntityCode.Tenant */ THEN e.entity_id END)
+        ON t.tenant_id = COALESCE(e.tenant_id, CASE WHEN e.entity_code = 6 /* EntityCode.Tenant */ THEN e.entity_id END)
     WHERE
-        (@p_job_id IS NULL OR (e.entity_code = 50 /* EntityCode.Job */ AND e.entity_id = @p_job_id))
+        (@p_job_id IS NULL OR (e.entity_code = 4 /* EntityCode.Job */ AND e.entity_id = @p_job_id))
         AND (@p_lineage_root_job_id IS NULL OR e.lineage_root_job_id = @p_lineage_root_job_id)
         AND (
             @p_namespace_name IS NULL

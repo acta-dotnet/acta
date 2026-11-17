@@ -111,7 +111,7 @@ BEGIN TRY
             )
             VALUES (
                 104 /* EventCode.ScheduleTriggered */, @now, @ns,
-                50 /* EntityCode.Job */, @p_job_id,
+                4 /* EntityCode.Job */, @p_job_id,
                 @def, COALESCE(@lineage, @p_job_id),
                 @en,
                 @p_event_message, @p_actor, @p_details_format_id, @p_details

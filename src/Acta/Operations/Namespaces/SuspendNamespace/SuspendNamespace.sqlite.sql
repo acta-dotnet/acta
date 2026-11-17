@@ -19,7 +19,7 @@ SELECT
     20 /* EventCode.NamespaceSuspended */,
     {{now}},
     s.namespace_id,
-    80 /* EntityCode.Namespace */,
+    5 /* EntityCode.Namespace */,
     s.namespace_id,
     @p_event_message,
     @p_actor,

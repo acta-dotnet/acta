@@ -58,7 +58,7 @@ evt AS (
         now(),
         w.namespace_id,
         w.worker_id,
-        130 /* EntityCode.Worker */,
+        7 /* EntityCode.Worker */,
         w.worker_id
     FROM w
     RETURNING 1

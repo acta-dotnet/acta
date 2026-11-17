@@ -297,7 +297,7 @@ BEGIN TRY
     )
     SELECT
         k.event_code, @now, @p_namespace_id,
-        CASE WHEN k.on_job IS NULL THEN 30 /* EntityCode.Definition */ ELSE 50 /* EntityCode.Job */ END,
+        CASE WHEN k.on_job IS NULL THEN 3 /* EntityCode.Definition */ ELSE 4 /* EntityCode.Job */ END,
         COALESCE(k.on_job, k.definition_id),
         k.definition_id, k.tenant_id, k.lineage_root_job_id,
         k.execution_number,

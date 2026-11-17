@@ -104,7 +104,7 @@ audit AS (
     )
     SELECT
         110 /* EventCode.CalendarDraftSaved */, now(), s.namespace_id,
-        15 /* EntityCode.Calendar */, s.calendar_id,
+        2 /* EntityCode.Calendar */, s.calendar_id,
         @p_event_message, @p_actor, @p_details_format_id, @p_details
     FROM saved s
 )

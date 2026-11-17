@@ -32,7 +32,7 @@ BEGIN TRY
         SYSUTCDATETIME(),
         m.namespace_id,
         m.worker_id,
-        130 /* EntityCode.Worker */,
+        7 /* EntityCode.Worker */,
         m.worker_id
     FROM @marked m;
 

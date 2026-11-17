@@ -61,7 +61,7 @@ FROM (
         SELECT TOP (1) e.event_code, e.event_message, e.actor, e.details_format_id, e.details
         FROM {{schema}}.events e
         WHERE
-            e.entity_code = 50 /* EntityCode.Job */
+            e.entity_code = 4 /* EntityCode.Job */
             AND e.entity_id = j.job_id
             AND (
                 (
@@ -82,7 +82,7 @@ FROM (
     OUTER APPLY (
         SELECT TOP (1) e.worker_id
         FROM {{schema}}.events e
-        WHERE e.entity_code = 50 /* EntityCode.Job */ AND e.entity_id = j.job_id AND e.worker_id <> 0
+        WHERE e.entity_code = 4 /* EntityCode.Job */ AND e.entity_id = j.job_id AND e.worker_id <> 0
         ORDER BY e.created_at_utc DESC, e.event_id DESC
     ) lx
     LEFT JOIN {{schema}}.workers lxw ON lxw.worker_id = lx.worker_id
@@ -96,13 +96,13 @@ FROM (
         FROM {{schema}}.events e WITH (FORCESEEK (ix_events_entity_timeline (entity_code, entity_id)))
         WHERE
             r.job_status_code = 100 /* JobStatusCode.Succeeded */
-            AND e.entity_code = 50 /* EntityCode.Job */
+            AND e.entity_code = 4 /* EntityCode.Job */
             AND e.entity_id = @p_job_id
             AND e.event_code IN (41 /* EventCode.JobExecutionFailed */, 42 /* EventCode.JobExecutionOrphaned */)
             AND e.event_id > COALESCE((
                 SELECT MAX(rs.event_id)
                 FROM {{schema}}.events rs WITH (FORCESEEK (ix_events_entity_timeline (entity_code, entity_id)))
-                WHERE rs.entity_code = 50 /* EntityCode.Job */ AND rs.entity_id = @p_job_id AND rs.event_code = 73 /* EventCode.JobRestarted */
+                WHERE rs.entity_code = 4 /* EntityCode.Job */ AND rs.entity_id = @p_job_id AND rs.event_code = 73 /* EventCode.JobRestarted */
             ), 0)
         GROUP BY e.entity_id
     ) rc

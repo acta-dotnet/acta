@@ -18,7 +18,7 @@ SELECT
                 SELECT 1
                 FROM {{schema}}.events s
                 WHERE
-                    s.entity_code = 50 /* EntityCode.Job */
+                    s.entity_code = 4 /* EntityCode.Job */
                     AND s.entity_id = e.entity_id
                     AND s.event_code = 40 /* EventCode.JobExecutionSucceeded */
                     AND (s.created_at_utc > e.created_at_utc OR (s.created_at_utc = e.created_at_utc AND s.event_id > e.event_id))
@@ -30,7 +30,7 @@ SELECT
 FROM OPENJSON(@p_alert_poison_events) WITH (event_id BIGINT '$.event_id', job_id BIGINT '$.job_id') p
 INNER JOIN {{schema}}.events e
     ON
-        e.entity_code = 50 /* EntityCode.Job */
+        e.entity_code = 4 /* EntityCode.Job */
         AND e.entity_id = p.job_id
         AND e.event_id = p.event_id
 INNER JOIN {{schema}}.definitions jd ON jd.definition_id = e.definition_id

@@ -88,7 +88,7 @@ BEGIN TRY
     )
     VALUES (
         74 /* EventCode.JobReprioritized */, @now, @namespace_id,
-        50 /* EntityCode.Job */, @p_job_id,
+        4 /* EntityCode.Job */, @p_job_id,
         @definition_id, @tenant_id, COALESCE(@lineage_root_job_id, @p_job_id),
         @execution_number,
         @p_event_message, @p_actor, @p_details_format_id, @p_details

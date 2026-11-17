@@ -16932,21 +16932,14 @@
           "alert"
         ],
         "type": "string",
-        "description": "A kind of thing in Acta that an event can be about. Tags attach only to tenants, namespaces, definitions, and jobs.\n\nKnown values:\n- unspecified: Entity kind not recognized by this build; the row was written by a newer Acta.\n- alert: One alert.\n- calendar: One version of a catalog calendar.\n- checkpoint: One checkpoint of a job.\n- definition: One job definition.\n- event: One event.\n- job: One job.\n- lane: One lane.\n- lock: One lock.\n- namespace: One namespace.\n- schedule: One schedule of a scheduled job.\n- step: One step of a job.\n- tag: One tag on its entity.\n- tenant: One tenant.\n- worker: One worker process lifetime.\n\nOther values may appear: keep a value this client does not know as it is.",
+        "description": "A kind of thing in Acta that an event can be about. Tags attach only to tenants, namespaces, definitions, and jobs.\n\nKnown values:\n- unspecified: Entity kind not recognized by this build; the row was written by a newer Acta.\n- alert: One alert.\n- calendar: One version of a catalog calendar.\n- definition: One job definition.\n- job: One job.\n- namespace: One namespace.\n- tenant: One tenant.\n- worker: One worker process lifetime.\n\nOther values may appear: keep a value this client does not know as it is.",
         "x-acta-known-values": [
           "unspecified",
           "alert",
           "calendar",
-          "checkpoint",
           "definition",
-          "event",
           "job",
-          "lane",
-          "lock",
           "namespace",
-          "schedule",
-          "step",
-          "tag",
           "tenant",
           "worker"
         ]

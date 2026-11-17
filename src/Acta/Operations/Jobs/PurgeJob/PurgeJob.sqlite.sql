@@ -23,7 +23,7 @@ SELECT
             FROM {{schema}}.events e
             JOIN {{schema}}.definitions d ON d.definition_id = e.definition_id
             WHERE
-                e.entity_code = 50 /* EntityCode.Job */
+                e.entity_code = 4 /* EntityCode.Job */
                 AND e.entity_id = j.job_id
                 AND e.created_at_utc >= @p_alert_floor_utc
                 AND (e.created_at_utc > @p_alert_floor_utc OR e.event_id > @p_alert_floor_event_id)
@@ -60,13 +60,13 @@ WHERE j.job_id = @p_job_id;
 
 DELETE FROM {{schema}}.tags
 WHERE
-    entity_code = 50 /* EntityCode.Job */
+    entity_code = 4 /* EntityCode.Job */
     AND entity_id = @p_job_id
     AND EXISTS (SELECT 1 FROM temp._purge_job s WHERE s.eligible = 1 AND s.lineage_hold = 0 AND s.alert_hold = 0);
 
 DELETE FROM {{schema}}.events
 WHERE
-    entity_code = 50 /* EntityCode.Job */
+    entity_code = 4 /* EntityCode.Job */
     AND entity_id = @p_job_id
     AND EXISTS (SELECT 1 FROM temp._purge_job s WHERE s.job_id = @p_job_id AND s.eligible = 1 AND s.lineage_hold = 0 AND s.alert_hold = 0);
 
@@ -123,7 +123,7 @@ SELECT
     75 /* EventCode.JobPurged */,
     {{now}},
     s.namespace_id,
-    50 /* EntityCode.Job */,
+    4 /* EntityCode.Job */,
     s.job_id,
     s.definition_id,
     s.tenant_id,

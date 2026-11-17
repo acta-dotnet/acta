@@ -19,7 +19,7 @@ WHERE
         WHERE NOT EXISTS (
             SELECT 1 FROM {{schema}}.tags tg
             WHERE
-                tg.entity_code = 80 /* EntityCode.Namespace */ AND tg.entity_id = ns.namespace_id
+                tg.entity_code = 5 /* EntityCode.Namespace */ AND tg.entity_id = ns.namespace_id
                 AND tg.tag_name = f.tag_name
                 AND (f.tag_value_search IS NULL OR tg.tag_value_search = f.tag_value_search)
         )
@@ -41,7 +41,7 @@ SELECT CASE WHEN @p_include_total IS NOT NULL THEN (
             WHERE NOT EXISTS (
                 SELECT 1 FROM {{schema}}.tags tg
                 WHERE
-                    tg.entity_code = 80 /* EntityCode.Namespace */ AND tg.entity_id = ns.namespace_id
+                    tg.entity_code = 5 /* EntityCode.Namespace */ AND tg.entity_id = ns.namespace_id
                     AND tg.tag_name = f.tag_name
                     AND (f.tag_value_search IS NULL OR tg.tag_value_search = f.tag_value_search)
             )

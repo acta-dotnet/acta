@@ -331,7 +331,7 @@ BEGIN
             0);
 
         INSERT INTO {{schema}}.tags (entity_code, entity_id, tag_name, tag_value, tag_value_search)
-        SELECT 50 /* EntityCode.Job */, v_job_id, t.tag_name, t.tag_value, t.tag_value_search
+        SELECT 4 /* EntityCode.Job */, v_job_id, t.tag_name, t.tag_value, t.tag_value_search
         FROM unnest(p_tag_name, p_tag_value, p_tag_value_search) AS t(tag_name, tag_value, tag_value_search);
 
         RETURN QUERY SELECT 0, v_job_id, p_job_ref, 1 /* EnqueueJobAction.Inserted */;

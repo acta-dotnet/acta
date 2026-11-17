@@ -70,7 +70,7 @@ SELECT
     104 /* EventCode.ScheduleTriggered */,
     {{now}},
     j.namespace_id,
-    50 /* EntityCode.Job */,
+    4 /* EntityCode.Job */,
     j.job_id,
     j.definition_id,
     COALESCE(j.lineage_root_job_id, j.job_id),

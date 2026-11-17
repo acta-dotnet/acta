@@ -598,21 +598,14 @@ enum Acta.EnqueueRejectionReason : System.Byte
     TenantSuspended = 2
     TenantUnknown = 3
 enum Acta.EntityCode : System.Byte
-    Alert = 10
-    Calendar = 15
-    Checkpoint = 20
-    Definition = 30
-    Event = 40
-    Job = 50
-    Lane = 60
-    Lock = 70
-    Namespace = 80
-    Schedule = 90
-    Step = 100
-    Tag = 110
-    Tenant = 120
+    Alert = 1
+    Calendar = 2
+    Definition = 3
+    Job = 4
+    Namespace = 5
+    Tenant = 6
     Unspecified = 0
-    Worker = 130
+    Worker = 7
 static class Acta.EntityCodeExtensions
     static Acta.EntityCode FromCode(System.String code)
     static Acta.EntityCode FromId(System.Byte id)

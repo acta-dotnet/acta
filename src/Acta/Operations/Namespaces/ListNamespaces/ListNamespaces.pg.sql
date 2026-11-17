@@ -10,7 +10,7 @@ WHERE
             SELECT 1
             FROM {{schema}}.tags tg
             WHERE
-                tg.entity_code = 80 /* EntityCode.Namespace */ AND tg.entity_id = ns.namespace_id
+                tg.entity_code = 5 /* EntityCode.Namespace */ AND tg.entity_id = ns.namespace_id
                 AND tg.tag_name = f.value ->> 'tag_name'
                 AND ((f.value ->> 'tag_value_search') IS NULL OR tg.tag_value_search = f.value ->> 'tag_value_search')
         )
@@ -32,7 +32,7 @@ SELECT CASE WHEN @p_include_total IS NOT NULL THEN (
                 SELECT 1
                 FROM {{schema}}.tags tg
                 WHERE
-                    tg.entity_code = 80 /* EntityCode.Namespace */ AND tg.entity_id = ns.namespace_id
+                    tg.entity_code = 5 /* EntityCode.Namespace */ AND tg.entity_id = ns.namespace_id
                     AND tg.tag_name = f.value ->> 'tag_name'
                     AND ((f.value ->> 'tag_value_search') IS NULL OR tg.tag_value_search = f.value ->> 'tag_value_search')
             )

@@ -204,7 +204,7 @@ BEGIN
             72 /* EventCode.JobResumed */,
             @now,
             j.namespace_id,
-            50 /* EntityCode.Job */,
+            4 /* EntityCode.Job */,
             j.job_id,
             j.definition_id,
             j.tenant_id,
@@ -322,7 +322,7 @@ BEGIN
             CASE WHEN to_status_code = 200 /* JobStatusCode.Failed */ THEN 44 /* EventCode.JobFailed */ ELSE 42 /* EventCode.JobExecutionOrphaned */ END,
             @now,
             namespace_id,
-            50 /* EntityCode.Job */,
+            4 /* EntityCode.Job */,
             job_id,
             definition_id,
             tenant_id,
@@ -432,7 +432,7 @@ BEGIN
             event_code, created_at_utc, namespace_id, entity_code, entity_id,
             definition_id, tenant_id, lineage_root_job_id, execution_number, event_message, details_format_id, details)
         SELECT
-            100 /* EventCode.SchedulePaused */, @now, r.namespace_id, 50 /* EntityCode.Job */, r.job_id,
+            100 /* EventCode.SchedulePaused */, @now, r.namespace_id, 4 /* EntityCode.Job */, r.job_id,
             r.definition_id, r.tenant_id, COALESCE(r.lineage_root_job_id, r.job_id), r.execution_number, 'Paused by the firing failure policy: the last firing failed for good.',
             1 /* JobPayloadFormat.Json */, CONVERT(VARBINARY(MAX), '{"schedule":"' + p.schedule_name + '","reason":"firing-failed"}')
         FROM @policy_paused p

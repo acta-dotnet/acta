@@ -17,7 +17,7 @@ SELECT
     121 /* EventCode.WorkerStopped */,
     @p_namespace_id,
     w.worker_id,
-    130 /* EntityCode.Worker */,
+    7 /* EntityCode.Worker */,
     w.worker_id
 FROM {{schema}}.workers w
 WHERE w.worker_id = @p_worker_id AND CHANGES() > 0;

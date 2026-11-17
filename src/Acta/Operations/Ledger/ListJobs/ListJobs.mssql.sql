@@ -55,7 +55,7 @@ WHERE
             SELECT 1
             FROM {{schema}}.tags t
             WHERE
-                t.entity_code = 50 /* EntityCode.Job */ AND t.entity_id = j.job_id
+                t.entity_code = 4 /* EntityCode.Job */ AND t.entity_id = j.job_id
                 AND t.tag_name = f.tag_name
                 AND (f.tag_value_search IS NULL OR t.tag_value_search = f.tag_value_search)
         )
@@ -107,7 +107,7 @@ SELECT
                     SELECT 1
                     FROM {{schema}}.tags t
                     WHERE
-                        t.entity_code = 50 /* EntityCode.Job */ AND t.entity_id = j.job_id
+                        t.entity_code = 4 /* EntityCode.Job */ AND t.entity_id = j.job_id
                         AND t.tag_name = f.tag_name
                         AND (f.tag_value_search IS NULL OR t.tag_value_search = f.tag_value_search)
                 )

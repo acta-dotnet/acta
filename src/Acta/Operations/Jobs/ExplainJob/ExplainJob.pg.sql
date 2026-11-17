@@ -61,7 +61,7 @@ FROM (
         SELECT e.event_code, e.event_message, e.actor, e.details_format_id, e.details
         FROM {{schema}}.events e
         WHERE
-            e.entity_code = 50 /* EntityCode.Job */
+            e.entity_code = 4 /* EntityCode.Job */
             AND e.entity_id = j.job_id
             AND (
                 (
@@ -79,7 +79,7 @@ FROM (
     LEFT JOIN LATERAL (
         SELECT e.worker_id
         FROM {{schema}}.events e
-        WHERE e.entity_code = 50 /* EntityCode.Job */ AND e.entity_id = j.job_id AND e.worker_id <> 0
+        WHERE e.entity_code = 4 /* EntityCode.Job */ AND e.entity_id = j.job_id AND e.worker_id <> 0
         ORDER BY e.created_at_utc DESC, e.event_id DESC
         LIMIT 1
     ) lx ON true
@@ -93,13 +93,13 @@ FROM (
         FROM {{schema}}.events e
         WHERE
             r.job_status_code = 100 /* JobStatusCode.Succeeded */
-            AND e.entity_code = 50 /* EntityCode.Job */
+            AND e.entity_code = 4 /* EntityCode.Job */
             AND e.entity_id = j.job_id
             AND e.event_code IN (41 /* EventCode.JobExecutionFailed */, 42 /* EventCode.JobExecutionOrphaned */)
             AND e.event_id > COALESCE((
                 SELECT max(rs.event_id)
                 FROM {{schema}}.events rs
-                WHERE rs.entity_code = 50 /* EntityCode.Job */ AND rs.entity_id = j.job_id AND rs.event_code = 73 /* EventCode.JobRestarted */
+                WHERE rs.entity_code = 4 /* EntityCode.Job */ AND rs.entity_id = j.job_id AND rs.event_code = 73 /* EventCode.JobRestarted */
             ), 0)
         GROUP BY e.entity_id
     ) rc ON true

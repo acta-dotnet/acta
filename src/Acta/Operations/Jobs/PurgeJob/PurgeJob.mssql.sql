@@ -94,7 +94,7 @@ BEGIN TRY
             FROM {{schema}}.events e WITH (FORCESEEK (ix_events_entity_timeline (entity_code, entity_id)))
             INNER JOIN {{schema}}.definitions d ON d.definition_id = e.definition_id
             WHERE
-                e.entity_code = 50 /* EntityCode.Job */
+                e.entity_code = 4 /* EntityCode.Job */
                 AND e.entity_id = @p_job_id
                 AND e.created_at_utc >= @p_alert_floor_utc
                 AND (e.created_at_utc > @p_alert_floor_utc OR e.event_id > @p_alert_floor_event_id)
@@ -151,10 +151,10 @@ BEGIN TRY
     );
 
     DELETE FROM {{schema}}.tags
-    WHERE entity_code = 50 /* EntityCode.Job */ AND entity_id = @p_job_id;
+    WHERE entity_code = 4 /* EntityCode.Job */ AND entity_id = @p_job_id;
 
     DELETE e FROM {{schema}}.events e WITH (FORCESEEK)
-    WHERE e.entity_code = 50 /* EntityCode.Job */ AND e.entity_id = @p_job_id;
+    WHERE e.entity_code = 4 /* EntityCode.Job */ AND e.entity_id = @p_job_id;
     DELETE a FROM {{schema}}.alerts a WITH (FORCESEEK (pk_alerts (alert_id))) INNER JOIN @alert_ids i ON i.alert_id = a.alert_id
     WHERE a.job_id = @p_job_id;
     DELETE c FROM {{schema}}.checkpoints c WITH (FORCESEEK)
@@ -180,7 +180,7 @@ BEGIN TRY
     )
     VALUES (
         75 /* EventCode.JobPurged */, @now, @namespace_id,
-        50 /* EntityCode.Job */, @p_job_id,
+        4 /* EntityCode.Job */, @p_job_id,
         @definition_id, @tenant_id, COALESCE(@lineage_root_job_id, @p_job_id),
         @p_event_message, @p_actor, @p_details_format_id, @p_details
     );

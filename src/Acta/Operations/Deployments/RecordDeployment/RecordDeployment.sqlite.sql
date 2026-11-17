@@ -38,7 +38,7 @@ SELECT
     23 /* EventCode.NamespaceDeployed */,
     {{now}},
     @p_namespace_id,
-    80 /* EntityCode.Namespace */,
+    5 /* EntityCode.Namespace */,
     @p_namespace_id,
     @p_event_message,
     @p_details_format_id,

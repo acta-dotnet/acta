@@ -93,7 +93,7 @@ INSERT INTO {{schema}}.events (
 SELECT
     72 /* EventCode.JobResumed */,
     j.namespace_id,
-    50 /* EntityCode.Job */,
+    4 /* EntityCode.Job */,
     j.job_id,
     j.definition_id,
     j.tenant_id,
@@ -174,7 +174,7 @@ INSERT INTO {{schema}}.events (
 SELECT
     CASE WHEN rj.to_status = 200 /* JobStatusCode.Failed */ THEN 44 /* EventCode.JobFailed */ ELSE 42 /* EventCode.JobExecutionOrphaned */ END,
     j.namespace_id,
-    50 /* EntityCode.Job */,
+    4 /* EntityCode.Job */,
     j.job_id,
     j.definition_id,
     j.tenant_id,
@@ -327,7 +327,7 @@ INSERT INTO {{schema}}.events (
     event_code, created_at_utc, namespace_id, entity_code, entity_id,
     definition_id, tenant_id, lineage_root_job_id, execution_number, event_message, details_format_id, details)
 SELECT
-    100 /* EventCode.SchedulePaused */, {{now}}, p.namespace_id, 50 /* EntityCode.Job */, p.job_id,
+    100 /* EventCode.SchedulePaused */, {{now}}, p.namespace_id, 4 /* EntityCode.Job */, p.job_id,
     p.definition_id, p.tenant_id, p.lineage_root_job_id, p.execution_number, 'Paused by the firing failure policy: the last firing failed for good.',
     1 /* JobPayloadFormat.Json */, CAST('{"schedule":"' || p.schedule_name || '","reason":"firing-failed"}' AS BLOB)
 FROM temp._reclaim_policy_paused p;

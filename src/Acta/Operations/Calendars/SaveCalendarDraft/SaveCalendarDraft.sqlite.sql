@@ -97,7 +97,7 @@ SELECT
     110 /* EventCode.CalendarDraftSaved */,
     {{now}},
     c.namespace_id,
-    15 /* EntityCode.Calendar */,
+    2 /* EntityCode.Calendar */,
     c.calendar_id,
     @p_event_message,
     @p_actor,

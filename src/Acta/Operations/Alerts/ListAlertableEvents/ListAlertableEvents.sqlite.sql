@@ -23,7 +23,7 @@ WHERE
         e.created_at_utc > @p_cursor_utc
         OR (e.created_at_utc = @p_cursor_utc AND e.event_id > @p_cursor_event_id)
     )
-    AND e.entity_code = 50 /* EntityCode.Job */
+    AND e.entity_code = 4 /* EntityCode.Job */
     AND e.event_code IN (
         40 /* EventCode.JobExecutionSucceeded */, 41 /* EventCode.JobExecutionFailed */,
         42 /* EventCode.JobExecutionOrphaned */, 44 /* EventCode.JobFailed */

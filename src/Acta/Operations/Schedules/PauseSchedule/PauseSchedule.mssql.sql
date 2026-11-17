@@ -95,7 +95,7 @@ BEGIN TRY
     )
     VALUES (
         100 /* EventCode.SchedulePaused */, @now, @ns,
-        CASE WHEN @slot IS NULL THEN 30 /* EntityCode.Definition */ ELSE 50 /* EntityCode.Job */ END, COALESCE(@slot, @def),
+        CASE WHEN @slot IS NULL THEN 3 /* EntityCode.Definition */ ELSE 4 /* EntityCode.Job */ END, COALESCE(@slot, @def),
         @def, COALESCE(@lineage, @slot),
         @en,
         @p_event_message, @p_actor, @p_details_format_id, @p_details

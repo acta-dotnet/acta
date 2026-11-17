@@ -45,7 +45,7 @@ WHERE
             a.alert_kind_code IN (
                 10 /* AlertKindCode.FirstFailure */, 20 /* AlertKindCode.ThresholdReached */, 30 /* AlertKindCode.FinalFailure */
             )
-            AND s.entity_code = 50 /* EntityCode.Job */
+            AND s.entity_code = 4 /* EntityCode.Job */
             AND s.entity_id = a.job_id
             AND s.created_at_utc >= @p_cursor_utc
             AND (s.created_at_utc > @p_cursor_utc OR s.event_id > @p_cursor_event_id)

@@ -61,7 +61,7 @@ audit AS (
     )
     SELECT
         112 /* EventCode.CalendarArchived */, now(), a.namespace_id,
-        15 /* EntityCode.Calendar */, a.calendar_id,
+        2 /* EntityCode.Calendar */, a.calendar_id,
         @p_event_message, @p_actor, @p_details_format_id, @p_details
     FROM archived a
 )

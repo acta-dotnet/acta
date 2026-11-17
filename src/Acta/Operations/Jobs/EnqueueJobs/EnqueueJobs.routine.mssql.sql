@@ -575,7 +575,7 @@ BEGIN
 
         INSERT INTO {{schema}}.tags (entity_code, entity_id, tag_name, tag_value, tag_value_search)
         SELECT
-            50 /* EntityCode.Job */,
+            4 /* EntityCode.Job */,
             m.job_id,
             t.tag_name,
             t.tag_value,

@@ -148,7 +148,7 @@ SELECT
     73 /* EventCode.JobRestarted */,
     {{now}},
     j.namespace_id,
-    50 /* EntityCode.Job */,
+    4 /* EntityCode.Job */,
     j.job_id,
     j.definition_id,
     j.tenant_id,
@@ -184,7 +184,7 @@ WHERE
             FROM {{schema}}.events f
             JOIN {{schema}}.jobs_state r ON r.job_id = f.entity_id
             WHERE
-                f.entity_code = 50 /* EntityCode.Job */
+                f.entity_code = 4 /* EntityCode.Job */
                 AND f.entity_id = @p_job_id
                 AND f.event_code IN (43 /* EventCode.JobExecutionYielded */, 44 /* EventCode.JobFailed */, 70 /* EventCode.JobCancelled */)
                 AND f.execution_number = r.execution_number

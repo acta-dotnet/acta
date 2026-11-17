@@ -51,7 +51,7 @@ SELECT
     112 /* EventCode.CalendarArchived */,
     {{now}},
     t.namespace_id,
-    15 /* EntityCode.Calendar */,
+    2 /* EntityCode.Calendar */,
     t.calendar_id,
     @p_event_message,
     @p_actor,

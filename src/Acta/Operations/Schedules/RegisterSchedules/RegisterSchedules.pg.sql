@@ -158,7 +158,7 @@ INSERT INTO {{schema}}.events (
 )
 SELECT
     107 /* EventCode.ScheduleRetimed */, now(), @p_namespace_id,
-    50 /* EntityCode.Job */, s.job_id,
+    4 /* EntityCode.Job */, s.job_id,
     s.definition_id, j.tenant_id, COALESCE(j.lineage_root_job_id, j.job_id),
     r.execution_number,
     1 /* JobPayloadFormat.Json */, convert_to('{"schedule":"' || s.schedule_name || '"}', 'UTF8')
@@ -177,7 +177,7 @@ INSERT INTO {{schema}}.events (
 )
 SELECT
     107 /* EventCode.ScheduleRetimed */, now(), @p_namespace_id,
-    30 /* EntityCode.Definition */, s.definition_id,
+    3 /* EntityCode.Definition */, s.definition_id,
     s.definition_id,
     1 /* JobPayloadFormat.Json */, convert_to('{"schedule":"' || s.schedule_name || '"}', 'UTF8')
 FROM _reg_schedules AS src
@@ -370,7 +370,7 @@ recorded AS (
     )
     SELECT
         109 /* EventCode.ScheduleOrphaned */, now(), @p_namespace_id,
-        CASE WHEN o.job_id IS NULL THEN 30 /* EntityCode.Definition */ ELSE 50 /* EntityCode.Job */ END,
+        CASE WHEN o.job_id IS NULL THEN 3 /* EntityCode.Definition */ ELSE 4 /* EntityCode.Job */ END,
         COALESCE(o.job_id, o.definition_id),
         o.definition_id, j.tenant_id, COALESCE(j.lineage_root_job_id, j.job_id),
         COALESCE(r.execution_number, 0),

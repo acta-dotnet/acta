@@ -5,7 +5,7 @@
 > Generated reference for Acta code families and the payload-format registry.
 > Every persisted code is documented here exactly once; the data-model reference [`data-model.md`](./data-model.md) links into this file from every code-bearing column.
 
-This release: **32 families**, **199 values**.
+This release: **32 families**, **192 values**.
 
 > Numeric IDs are stable family-local persistence identifiers. Enum members carry programmatic meaning; textual codes carry operator-facing meaning.
 > Numeric grouping is a readability convention, not a runtime schema. Canonical failure states use `200`.
@@ -175,20 +175,13 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
 | `Unspecified` | 0 | `unspecified` | Entity kind not recognized by this build; the row was written by a newer Acta. | Active |
-| `Alert` | 10 | `alert` | One alert. | Active |
-| `Calendar` | 15 | `calendar` | One version of a catalog calendar. | Active |
-| `Checkpoint` | 20 | `checkpoint` | One checkpoint of a job. | Active |
-| `Definition` | 30 | `definition` | One job definition. | Active |
-| `Event` | 40 | `event` | One event. | Active |
-| `Job` | 50 | `job` | One job. | Active |
-| `Lane` | 60 | `lane` | One lane. | Active |
-| `Lock` | 70 | `lock` | One lock. | Active |
-| `Namespace` | 80 | `namespace` | One namespace. | Active |
-| `Schedule` | 90 | `schedule` | One schedule of a scheduled job. | Active |
-| `Step` | 100 | `step` | One step of a job. | Active |
-| `Tag` | 110 | `tag` | One tag on its entity. | Active |
-| `Tenant` | 120 | `tenant` | One tenant. | Active |
-| `Worker` | 130 | `worker` | One worker process lifetime. | Active |
+| `Alert` | 1 | `alert` | One alert. | Active |
+| `Calendar` | 2 | `calendar` | One version of a catalog calendar. | Active |
+| `Definition` | 3 | `definition` | One job definition. | Active |
+| `Job` | 4 | `job` | One job. | Active |
+| `Namespace` | 5 | `namespace` | One namespace. | Active |
+| `Tenant` | 6 | `tenant` | One tenant. | Active |
+| `Worker` | 7 | `worker` | One worker process lifetime. | Active |
 
 ### `EventCode` · `event` <a id="code-family-eventcode"></a>
 

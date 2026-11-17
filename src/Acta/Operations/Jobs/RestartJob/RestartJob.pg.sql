@@ -173,7 +173,7 @@ WHERE
         FROM {{schema}}.events f
         JOIN {{schema}}.jobs_state r ON r.job_id = f.entity_id
         WHERE
-            f.entity_code = 50 /* EntityCode.Job */
+            f.entity_code = 4 /* EntityCode.Job */
             AND f.entity_id = @p_job_id
             AND f.event_code IN (43 /* EventCode.JobExecutionYielded */, 44 /* EventCode.JobFailed */, 70 /* EventCode.JobCancelled */)
             AND f.execution_number = r.execution_number
@@ -258,7 +258,7 @@ INSERT INTO {{schema}}.events (
 )
 SELECT
     73 /* EventCode.JobRestarted */, now(), s.namespace_id,
-    50 /* EntityCode.Job */, @p_job_id,
+    4 /* EntityCode.Job */, @p_job_id,
     s.definition_id, s.tenant_id, COALESCE(s.lineage_root_job_id, @p_job_id),
     s.execution_number,
     @p_event_message, @p_actor, @p_details_format_id, @p_details

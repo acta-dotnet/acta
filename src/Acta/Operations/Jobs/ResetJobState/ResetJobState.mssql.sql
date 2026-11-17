@@ -54,7 +54,7 @@ BEGIN TRY
             )
             VALUES (
                 81 /* EventCode.JobStateReset */, @now, @namespace_id,
-                50 /* EntityCode.Job */, @p_job_id,
+                4 /* EntityCode.Job */, @p_job_id,
                 @definition_id, @tenant_id, COALESCE(@lineage_root_job_id, @p_job_id),
                 @execution_number,
                 CONVERT(NVARCHAR(20), @p_job_id)

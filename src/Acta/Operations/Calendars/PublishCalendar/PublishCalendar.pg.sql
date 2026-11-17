@@ -90,7 +90,7 @@ INSERT INTO {{schema}}.events (
 )
 SELECT
     e.event_code, now(), s.namespace_id,
-    CASE WHEN s.job_id IS NULL THEN 30 /* EntityCode.Definition */ ELSE 50 /* EntityCode.Job */ END,
+    CASE WHEN s.job_id IS NULL THEN 3 /* EntityCode.Definition */ ELSE 4 /* EntityCode.Job */ END,
     COALESCE(s.job_id, s.definition_id),
     s.definition_id, j.tenant_id, COALESCE(j.lineage_root_job_id, j.job_id),
     jr.execution_number,
@@ -139,7 +139,7 @@ INSERT INTO {{schema}}.events (
 )
 SELECT
     111 /* EventCode.CalendarPublished */, now(), @p_namespace_id,
-    15 /* EntityCode.Calendar */, t.candidate_id,
+    2 /* EntityCode.Calendar */, t.candidate_id,
     @p_event_message, @p_actor, @p_details_format_id, @p_details
 FROM _pub_target t
 WHERE EXISTS (SELECT 1 FROM _pub_valid);

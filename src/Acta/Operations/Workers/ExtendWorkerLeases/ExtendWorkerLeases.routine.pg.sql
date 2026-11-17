@@ -51,7 +51,7 @@ BEGIN
         INSERT INTO {{schema}}.events (event_code, created_at_utc, namespace_id, worker_id, entity_code, entity_id)
         VALUES (
             120 /* EventCode.WorkerStarted */, now(), v_namespace_id, p_leased_by_worker_id,
-            130 /* EntityCode.Worker */, p_leased_by_worker_id
+            7 /* EntityCode.Worker */, p_leased_by_worker_id
         );
     END IF;
 

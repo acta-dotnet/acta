@@ -102,7 +102,7 @@ BEGIN
             )
             SELECT
                 d.event_code, now(), d.namespace_id,
-                50 /* EntityCode.Job */, d.job_id,
+                4 /* EntityCode.Job */, d.job_id,
                 d.definition_id, d.tenant_id, COALESCE(d.lineage_root_job_id, d.job_id),
                 p_leased_by_worker_id, d.execution_number, d.duration_ms,
                 d.event_message,
@@ -385,7 +385,7 @@ BEGIN
             event_code, created_at_utc, namespace_id, entity_code, entity_id,
             definition_id, tenant_id, lineage_root_job_id, execution_number, event_message, details_format_id, details)
         SELECT
-            100 /* EventCode.SchedulePaused */, now(), p.namespace_id, 50 /* EntityCode.Job */, p.job_id,
+            100 /* EventCode.SchedulePaused */, now(), p.namespace_id, 4 /* EntityCode.Job */, p.job_id,
             p.definition_id, p.tenant_id, p.lineage_root_job_id, p.execution_number, 'Paused by the firing failure policy: the last firing failed for good.',
             1 /* JobPayloadFormat.Json */, convert_to('{"schedule":"' || p.schedule_name || '","reason":"firing-failed"}', 'UTF8')
         FROM paused p;
@@ -403,7 +403,7 @@ BEGIN
     )
     SELECT
         c.event_code, now(), j.namespace_id,
-        50 /* EntityCode.Job */, r.job_id,
+        4 /* EntityCode.Job */, r.job_id,
         j.definition_id, j.tenant_id, COALESCE(j.lineage_root_job_id, r.job_id),
         p_leased_by_worker_id, r.execution_number, c.duration_ms,
         c.event_message,
@@ -474,7 +474,7 @@ BEGIN
         )
         SELECT
             k.event_code, now(), j.namespace_id,
-            50 /* EntityCode.Job */, r.job_id,
+            4 /* EntityCode.Job */, r.job_id,
             j.definition_id, j.tenant_id, COALESCE(j.lineage_root_job_id, r.job_id),
             p_leased_by_worker_id, r.execution_number,
             c.event_message,
@@ -625,7 +625,7 @@ BEGIN
             )
             SELECT
                 80 /* EventCode.JobSignalRaised */, now(), s.namespace_id,
-                50 /* EntityCode.Job */, s.parent_job_id,
+                4 /* EntityCode.Job */, s.parent_job_id,
                 s.definition_id, s.tenant_id, COALESCE(s.lineage_root_job_id, s.parent_job_id),
                 s.parent_execution,
                 CASE
@@ -673,7 +673,7 @@ BEGIN
             )
             SELECT
                 72 /* EventCode.JobResumed */, now(), w.namespace_id,
-                50 /* EntityCode.Job */, w.parent_job_id,
+                4 /* EntityCode.Job */, w.parent_job_id,
                 w.definition_id, w.tenant_id, COALESCE(w.lineage_root_job_id, w.parent_job_id),
                 w.parent_execution,
                 1 /* JobPayloadFormat.Json */, convert_to('{"reason":"signal-released"}', 'UTF8')

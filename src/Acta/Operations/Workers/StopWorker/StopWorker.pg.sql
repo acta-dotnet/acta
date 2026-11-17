@@ -21,6 +21,6 @@ SELECT
     now(),
     @p_namespace_id,
     s.worker_id,
-    130 /* EntityCode.Worker */,
+    7 /* EntityCode.Worker */,
     s.worker_id
 FROM stopped s;

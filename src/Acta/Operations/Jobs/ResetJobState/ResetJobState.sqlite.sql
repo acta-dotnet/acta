@@ -22,7 +22,7 @@ SELECT
     81 /* EventCode.JobStateReset */,
     {{now}},
     j.namespace_id,
-    50 /* EntityCode.Job */,
+    4 /* EntityCode.Job */,
     j.job_id,
     j.definition_id,
     j.tenant_id,

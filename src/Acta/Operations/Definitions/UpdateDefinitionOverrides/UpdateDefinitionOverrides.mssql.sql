@@ -123,7 +123,7 @@ BEGIN TRY
     )
     VALUES (
         30 /* EventCode.DefinitionOverridesUpdated */, @now, @ns,
-        30 /* EntityCode.Definition */, @p_definition_id,
+        3 /* EntityCode.Definition */, @p_definition_id,
         @p_definition_id,
         @p_event_message, @p_actor, @p_details_format_id, @p_details
     );

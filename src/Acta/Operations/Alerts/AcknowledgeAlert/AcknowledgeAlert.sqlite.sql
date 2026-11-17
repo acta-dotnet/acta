@@ -30,7 +30,7 @@ SELECT
     140 /* EventCode.AlertAcknowledged */,
     t.now_utc,
     t.namespace_id,
-    10 /* EntityCode.Alert */,
+    1 /* EntityCode.Alert */,
     t.alert_id,
     j.definition_id,
     j.tenant_id,

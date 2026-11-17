@@ -247,7 +247,7 @@ INSERT INTO {{schema}}.events (
     event_code, created_at_utc, namespace_id, entity_code, entity_id,
     definition_id, tenant_id, lineage_root_job_id, execution_number, event_message, details_format_id, details)
 SELECT
-    100 /* EventCode.SchedulePaused */, (SELECT now_utc FROM temp._ces_done LIMIT 1), p.namespace_id, 50 /* EntityCode.Job */, p.job_id,
+    100 /* EventCode.SchedulePaused */, (SELECT now_utc FROM temp._ces_done LIMIT 1), p.namespace_id, 4 /* EntityCode.Job */, p.job_id,
     p.definition_id, p.tenant_id, p.lineage_root_job_id, p.execution_number, 'Paused by the firing failure policy: the last firing failed for good.',
     1 /* JobPayloadFormat.Json */, CAST('{"schedule":"' || p.schedule_name || '","reason":"firing-failed"}' AS BLOB)
 FROM temp._ces_policy_paused p;
@@ -261,7 +261,7 @@ INSERT INTO {{schema}}.events (
     definition_id, tenant_id, lineage_root_job_id, worker_id, execution_number, duration_ms,
     event_message, details_format_id, details)
 SELECT
-    x.event_code, (SELECT now_utc FROM temp._ces_done LIMIT 1), x.namespace_id, 50 /* EntityCode.Job */, x.job_id,
+    x.event_code, (SELECT now_utc FROM temp._ces_done LIMIT 1), x.namespace_id, 4 /* EntityCode.Job */, x.job_id,
     x.definition_id, x.tenant_id, COALESCE(x.lineage_root_job_id, x.job_id), @p_leased_by_worker_id, x.execution_number, x.duration_ms,
     x.event_message,
     CASE WHEN x.details IS NULL THEN 0 /* JobPayloadFormat.None */ ELSE 1 /* JobPayloadFormat.Json */ END,
@@ -323,7 +323,7 @@ INSERT INTO {{schema}}.events (
     definition_id, tenant_id, lineage_root_job_id, worker_id, execution_number,
     event_message, details_format_id, details)
 SELECT
-    k.shape_code, (SELECT now_utc FROM temp._ces_done LIMIT 1), k.namespace_id, 50 /* EntityCode.Job */, k.job_id,
+    k.shape_code, (SELECT now_utc FROM temp._ces_done LIMIT 1), k.namespace_id, 4 /* EntityCode.Job */, k.job_id,
     k.definition_id, k.tenant_id, COALESCE(k.lineage_root_job_id, k.job_id), @p_leased_by_worker_id, k.execution_number,
     k.event_message,
     CASE WHEN k.reason IS NULL THEN 0 /* JobPayloadFormat.None */ ELSE 1 /* JobPayloadFormat.Json */ END,
@@ -414,7 +414,7 @@ INSERT INTO {{schema}}.events (
     definition_id, tenant_id, lineage_root_job_id, execution_number,
     event_message, details_format_id, details)
 SELECT
-    80 /* EventCode.JobSignalRaised */, (SELECT now_utc FROM temp._ces_done LIMIT 1), pj.namespace_id, 50 /* EntityCode.Job */, d.parent_job_id,
+    80 /* EventCode.JobSignalRaised */, (SELECT now_utc FROM temp._ces_done LIMIT 1), pj.namespace_id, 4 /* EntityCode.Job */, d.parent_job_id,
     pj.definition_id, pj.tenant_id, COALESCE(pj.lineage_root_job_id, d.parent_job_id), pr.execution_number,
     -- The landing names the child as its parent named it, how it ended, and the child's own message.
     substr(
@@ -453,7 +453,7 @@ WHERE
     AND pj.event_recording_code = 20 /* EventRecordingCode.Audit */
 UNION ALL
 SELECT DISTINCT
-    72 /* EventCode.JobResumed */, (SELECT now_utc FROM temp._ces_done LIMIT 1), pj.namespace_id, 50 /* EntityCode.Job */, d.parent_job_id,
+    72 /* EventCode.JobResumed */, (SELECT now_utc FROM temp._ces_done LIMIT 1), pj.namespace_id, 4 /* EntityCode.Job */, d.parent_job_id,
     pj.definition_id, pj.tenant_id, COALESCE(pj.lineage_root_job_id, d.parent_job_id), pr.execution_number,
     NULL, 1 /* JobPayloadFormat.Json */, CAST('{"reason":"signal-released"}' AS BLOB)
 FROM temp._ces_done d

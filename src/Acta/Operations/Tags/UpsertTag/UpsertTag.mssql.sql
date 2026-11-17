@@ -17,19 +17,19 @@ BEGIN TRY
     IF @entry_trancount = 0
         BEGIN TRANSACTION;
 
-    IF @p_entity_code = 120 /* EntityCode.Tenant */
+    IF @p_entity_code = 6 /* EntityCode.Tenant */
         SELECT @entity_id = CONVERT(BIGINT, t.tenant_id)
         FROM {{schema}}.tenants t WITH (UPDLOCK, ROWLOCK)
         WHERE t.tenant_name = @p_lookup_name;
-    ELSE IF @p_entity_code = 80 /* EntityCode.Namespace */
+    ELSE IF @p_entity_code = 5 /* EntityCode.Namespace */
         SELECT @entity_id = CONVERT(BIGINT, n.namespace_id)
         FROM {{schema}}.namespaces n WITH (UPDLOCK, ROWLOCK)
         WHERE n.namespace_name = @p_lookup_name;
-    ELSE IF @p_entity_code = 30 /* EntityCode.Definition */
+    ELSE IF @p_entity_code = 3 /* EntityCode.Definition */
         SELECT @entity_id = CONVERT(BIGINT, d.definition_id)
         FROM {{schema}}.definitions d WITH (UPDLOCK, ROWLOCK)
         WHERE d.definition_id = @p_lookup_id;
-    ELSE IF @p_entity_code = 50 /* EntityCode.Job */
+    ELSE IF @p_entity_code = 4 /* EntityCode.Job */
         SELECT @entity_id = CONVERT(BIGINT, j.job_id)
         FROM {{schema}}.jobs j WITH (UPDLOCK, ROWLOCK)
         WHERE j.job_id = @p_lookup_id;

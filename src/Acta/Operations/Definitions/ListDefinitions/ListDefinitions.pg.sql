@@ -33,7 +33,7 @@ WHERE
             SELECT 1
             FROM {{schema}}.tags tg
             WHERE
-                tg.entity_code = 30 /* EntityCode.Definition */ AND tg.entity_id = jd.definition_id
+                tg.entity_code = 3 /* EntityCode.Definition */ AND tg.entity_id = jd.definition_id
                 AND tg.tag_name = f.value ->> 'tag_name'
                 AND ((f.value ->> 'tag_value_search') IS NULL OR tg.tag_value_search = f.value ->> 'tag_value_search')
         )
@@ -66,7 +66,7 @@ SELECT CASE WHEN @p_include_total IS NOT NULL THEN (
                 SELECT 1
                 FROM {{schema}}.tags tg
                 WHERE
-                    tg.entity_code = 30 /* EntityCode.Definition */ AND tg.entity_id = jd.definition_id
+                    tg.entity_code = 3 /* EntityCode.Definition */ AND tg.entity_id = jd.definition_id
                     AND tg.tag_name = f.value ->> 'tag_name'
                     AND ((f.value ->> 'tag_value_search') IS NULL OR tg.tag_value_search = f.value ->> 'tag_value_search')
             )

@@ -153,7 +153,7 @@ BEGIN TRY
     )
     SELECT
         107 /* EventCode.ScheduleRetimed */, @now, @p_namespace_id,
-        50 /* EntityCode.Job */, s.job_id,
+        4 /* EntityCode.Job */, s.job_id,
         s.definition_id, j.tenant_id, COALESCE(j.lineage_root_job_id, j.job_id),
         r.execution_number,
         1 /* JobPayloadFormat.Json */, CAST('{"schedule":"' + s.schedule_name + '"}' AS VARBINARY(MAX))
@@ -172,7 +172,7 @@ BEGIN TRY
     )
     SELECT
         107 /* EventCode.ScheduleRetimed */, @now, @p_namespace_id,
-        30 /* EntityCode.Definition */, s.definition_id,
+        3 /* EntityCode.Definition */, s.definition_id,
         s.definition_id,
         1 /* JobPayloadFormat.Json */, CAST('{"schedule":"' + s.schedule_name + '"}' AS VARBINARY(MAX))
     FROM @p_schedules AS src
@@ -378,7 +378,7 @@ BEGIN TRY
     )
     SELECT
         109 /* EventCode.ScheduleOrphaned */, @now, @p_namespace_id,
-        CASE WHEN js.job_id IS NULL THEN 30 /* EntityCode.Definition */ ELSE 50 /* EntityCode.Job */ END,
+        CASE WHEN js.job_id IS NULL THEN 3 /* EntityCode.Definition */ ELSE 4 /* EntityCode.Job */ END,
         COALESCE(js.job_id, js.definition_id),
         js.definition_id, j.tenant_id, COALESCE(j.lineage_root_job_id, j.job_id),
         COALESCE(r.execution_number, 0),

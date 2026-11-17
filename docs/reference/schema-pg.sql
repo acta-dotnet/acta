@@ -12,7 +12,7 @@
 -- present and leaves the data in place. Over a database a newer release upgraded, the script stops
 -- before changing anything. A later 1.x release upgrades a 1.x database with
 -- its own migrations, carried in its own copy of this script. A database provisioned from an
--- init migration other than M20261117165621_init has no upgrade path: provision a new one.
+-- init migration other than M20261117170100_init has no upgrade path: provision a new one.
 --
 -- Run it with a client that stops at the first error, which is what makes the transaction below a
 -- guarantee: psql -v ON_ERROR_STOP=1. A client that runs on past a failed statement would reach the
@@ -41,14 +41,14 @@ DO $$
 BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
-        WHERE name NOT IN ('M20261117165621_init')
+        WHERE name NOT IN ('M20261117170100_init')
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
 END
 $$;
 
--- ===== BEGIN M20261117165621_init =====
+-- ===== BEGIN M20261117170100_init =====
 CREATE SCHEMA IF NOT EXISTS acta;
 
 -- alerts
@@ -1008,7 +1008,7 @@ BEGIN
             )
             SELECT
                 d.event_code, now(), d.namespace_id,
-                50 /* EntityCode.Job */, d.job_id,
+                4 /* EntityCode.Job */, d.job_id,
                 d.definition_id, d.tenant_id, COALESCE(d.lineage_root_job_id, d.job_id),
                 p_leased_by_worker_id, d.execution_number, d.duration_ms,
                 d.event_message,
@@ -1291,7 +1291,7 @@ BEGIN
             event_code, created_at_utc, namespace_id, entity_code, entity_id,
             definition_id, tenant_id, lineage_root_job_id, execution_number, event_message, details_format_id, details)
         SELECT
-            100 /* EventCode.SchedulePaused */, now(), p.namespace_id, 50 /* EntityCode.Job */, p.job_id,
+            100 /* EventCode.SchedulePaused */, now(), p.namespace_id, 4 /* EntityCode.Job */, p.job_id,
             p.definition_id, p.tenant_id, p.lineage_root_job_id, p.execution_number, 'Paused by the firing failure policy: the last firing failed for good.',
             1 /* JobPayloadFormat.Json */, convert_to('{"schedule":"' || p.schedule_name || '","reason":"firing-failed"}', 'UTF8')
         FROM paused p;
@@ -1309,7 +1309,7 @@ BEGIN
     )
     SELECT
         c.event_code, now(), j.namespace_id,
-        50 /* EntityCode.Job */, r.job_id,
+        4 /* EntityCode.Job */, r.job_id,
         j.definition_id, j.tenant_id, COALESCE(j.lineage_root_job_id, r.job_id),
         p_leased_by_worker_id, r.execution_number, c.duration_ms,
         c.event_message,
@@ -1380,7 +1380,7 @@ BEGIN
         )
         SELECT
             k.event_code, now(), j.namespace_id,
-            50 /* EntityCode.Job */, r.job_id,
+            4 /* EntityCode.Job */, r.job_id,
             j.definition_id, j.tenant_id, COALESCE(j.lineage_root_job_id, r.job_id),
             p_leased_by_worker_id, r.execution_number,
             c.event_message,
@@ -1531,7 +1531,7 @@ BEGIN
             )
             SELECT
                 80 /* EventCode.JobSignalRaised */, now(), s.namespace_id,
-                50 /* EntityCode.Job */, s.parent_job_id,
+                4 /* EntityCode.Job */, s.parent_job_id,
                 s.definition_id, s.tenant_id, COALESCE(s.lineage_root_job_id, s.parent_job_id),
                 s.parent_execution,
                 CASE
@@ -1579,7 +1579,7 @@ BEGIN
             )
             SELECT
                 72 /* EventCode.JobResumed */, now(), w.namespace_id,
-                50 /* EntityCode.Job */, w.parent_job_id,
+                4 /* EntityCode.Job */, w.parent_job_id,
                 w.definition_id, w.tenant_id, COALESCE(w.lineage_root_job_id, w.parent_job_id),
                 w.parent_execution,
                 1 /* JobPayloadFormat.Json */, convert_to('{"reason":"signal-released"}', 'UTF8')
@@ -2048,7 +2048,7 @@ BEGIN
             0);
 
         INSERT INTO acta.tags (entity_code, entity_id, tag_name, tag_value, tag_value_search)
-        SELECT 50 /* EntityCode.Job */, v_job_id, t.tag_name, t.tag_value, t.tag_value_search
+        SELECT 4 /* EntityCode.Job */, v_job_id, t.tag_name, t.tag_value, t.tag_value_search
         FROM unnest(p_tag_name, p_tag_value, p_tag_value_search) AS t(tag_name, tag_value, tag_value_search);
 
         RETURN QUERY SELECT 0, v_job_id, p_job_ref, 1 /* EnqueueJobAction.Inserted */;
@@ -2607,7 +2607,7 @@ BEGIN
     ),
     tag_insert AS (
         INSERT INTO acta.tags (entity_code, entity_id, tag_name, tag_value, tag_value_search)
-        SELECT 50 /* EntityCode.Job */, e.job_id, t.tag_name, t.tag_value, t.tag_value_search
+        SELECT 4 /* EntityCode.Job */, e.job_id, t.tag_name, t.tag_value, t.tag_value_search
         FROM unnest(p_tag_ordinal, p_tag_name, p_tag_value, p_tag_value_search) AS t(ordinal, tag_name, tag_value, tag_value_search)
         INNER JOIN _enq_rows e ON e.ordinal = t.ordinal
         INNER JOIN inserted i ON i.job_id = e.job_id
@@ -2714,7 +2714,7 @@ BEGIN
         INSERT INTO acta.events (event_code, created_at_utc, namespace_id, worker_id, entity_code, entity_id)
         VALUES (
             120 /* EventCode.WorkerStarted */, now(), v_namespace_id, p_leased_by_worker_id,
-            130 /* EntityCode.Worker */, p_leased_by_worker_id
+            7 /* EntityCode.Worker */, p_leased_by_worker_id
         );
     END IF;
 
@@ -2887,7 +2887,7 @@ BEGIN
                     FROM acta.events e
                     JOIN acta.definitions d ON d.definition_id = e.definition_id
                     WHERE
-                        e.entity_code = 50 /* EntityCode.Job */
+                        e.entity_code = 4 /* EntityCode.Job */
                         AND e.entity_id = j.job_id
                         AND e.created_at_utc >= v_floor_utc
                         AND (e.created_at_utc > v_floor_utc OR e.event_id > v_floor_id)
@@ -2914,7 +2914,7 @@ BEGIN
         IF v_rows > 0 THEN
             DELETE FROM acta.tags
             WHERE
-                entity_code = 50 /* EntityCode.Job */
+                entity_code = 4 /* EntityCode.Job */
                 AND entity_id = ANY(v_ids);
             -- The job's settled alerts go with it, so no alert outlives its job (docs/sql-internals.md, "Alert lock order").
             DELETE FROM acta.alerts a WHERE a.job_id = ANY(v_ids);
@@ -2936,7 +2936,7 @@ BEGIN
                 e.namespace_id = p_namespace_id
                 AND e.created_at_utc <= p_cutoff_utc
                 AND NOT (
-                    e.entity_code = 50 /* EntityCode.Job */
+                    e.entity_code = 4 /* EntityCode.Job */
                     AND e.created_at_utc >= v_floor_utc
                     AND (e.created_at_utc > v_floor_utc OR e.event_id > v_floor_id)
                     AND (
@@ -3258,7 +3258,7 @@ BEGIN
             80 /* EventCode.JobSignalRaised */,
             v_now,
             v_namespace_id,
-            50 /* EntityCode.Job */,
+            4 /* EntityCode.Job */,
             p_job_id,
             v_definition_id,
             v_tenant_id,
@@ -3299,7 +3299,7 @@ BEGIN
                 72 /* EventCode.JobResumed */,
                 v_now,
                 v_namespace_id,
-                50 /* EntityCode.Job */,
+                4 /* EntityCode.Job */,
                 p_job_id,
                 v_definition_id,
                 v_tenant_id,
@@ -3507,7 +3507,7 @@ BEGIN
         72 /* EventCode.JobResumed */,
         now(),
         j.namespace_id,
-        50 /* EntityCode.Job */,
+        4 /* EntityCode.Job */,
         j.job_id,
         j.definition_id,
         j.tenant_id,
@@ -3615,7 +3615,7 @@ BEGIN
             CASE WHEN r.new_status = 200 /* JobStatusCode.Failed */ THEN 44 /* EventCode.JobFailed */ ELSE 42 /* EventCode.JobExecutionOrphaned */ END,
             now(),
             r.namespace_id,
-            50 /* EntityCode.Job */,
+            4 /* EntityCode.Job */,
             r.job_id,
             r.definition_id,
             r.tenant_id,
@@ -3727,7 +3727,7 @@ BEGIN
             event_code, created_at_utc, namespace_id, entity_code, entity_id,
             definition_id, tenant_id, lineage_root_job_id, execution_number, event_message, details_format_id, details)
         SELECT
-            100 /* EventCode.SchedulePaused */, now(), p.namespace_id, 50 /* EntityCode.Job */, p.job_id,
+            100 /* EventCode.SchedulePaused */, now(), p.namespace_id, 4 /* EntityCode.Job */, p.job_id,
             p.definition_id, p.tenant_id, p.lineage_root_job_id, p.execution_number, 'Paused by the firing failure policy: the last firing failed for good.',
             1 /* JobPayloadFormat.Json */, convert_to('{"schedule":"' || p.schedule_name || '","reason":"firing-failed"}', 'UTF8')
         FROM policy_paused p
@@ -4193,7 +4193,7 @@ BEGIN
         )
         SELECT
             83 /* EventCode.JobWaitExpired */, v_now, j.namespace_id,
-            50 /* EntityCode.Job */, j.job_id,
+            4 /* EntityCode.Job */, j.job_id,
             j.definition_id, j.tenant_id, COALESCE(j.lineage_root_job_id, j.job_id),
             p_leased_by_worker_id, p_execution_number,
             'The wait for '
@@ -4385,7 +4385,7 @@ SELECT
     e.created_at_utc,
     ns.namespace_name,
     e.namespace_id,
-    CASE e.entity_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'alert' WHEN 15 THEN 'calendar' WHEN 20 THEN 'checkpoint' WHEN 30 THEN 'definition' WHEN 40 THEN 'event' WHEN 50 THEN 'job' WHEN 60 THEN 'lane' WHEN 70 THEN 'lock' WHEN 80 THEN 'namespace' WHEN 90 THEN 'schedule' WHEN 100 THEN 'step' WHEN 110 THEN 'tag' WHEN 120 THEN 'tenant' WHEN 130 THEN 'worker' END AS entity,
+    CASE e.entity_code WHEN 0 THEN 'unspecified' WHEN 1 THEN 'alert' WHEN 2 THEN 'calendar' WHEN 3 THEN 'definition' WHEN 4 THEN 'job' WHEN 5 THEN 'namespace' WHEN 6 THEN 'tenant' WHEN 7 THEN 'worker' END AS entity,
     e.entity_code,
     e.entity_id,
     CASE e.event_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'tenant.suspended' WHEN 11 THEN 'tenant.resumed' WHEN 12 THEN 'tenant.updated' WHEN 20 THEN 'namespace.suspended' WHEN 21 THEN 'namespace.resumed' WHEN 22 THEN 'namespace.updated' WHEN 23 THEN 'namespace.deployed' WHEN 30 THEN 'definition.overrides-updated' WHEN 31 THEN 'definition.retired' WHEN 40 THEN 'job.execution-succeeded' WHEN 41 THEN 'job.execution-failed' WHEN 42 THEN 'job.execution-orphaned' WHEN 43 THEN 'job.execution-yielded' WHEN 44 THEN 'job.failed' WHEN 60 THEN 'job.suspended' WHEN 61 THEN 'job.rescheduled' WHEN 62 THEN 'job.slept' WHEN 70 THEN 'job.cancelled' WHEN 71 THEN 'job.paused' WHEN 72 THEN 'job.resumed' WHEN 73 THEN 'job.restarted' WHEN 74 THEN 'job.reprioritized' WHEN 75 THEN 'job.purged' WHEN 76 THEN 'job.input-updated' WHEN 80 THEN 'job.signal-raised' WHEN 81 THEN 'job.state-reset' WHEN 82 THEN 'job.signal-cleared' WHEN 83 THEN 'job.wait-expired' WHEN 90 THEN 'job.note-recorded' WHEN 100 THEN 'schedule.paused' WHEN 101 THEN 'schedule.resumed' WHEN 102 THEN 'schedule.pause-expired' WHEN 104 THEN 'schedule.triggered' WHEN 105 THEN 'schedule.admitted' WHEN 106 THEN 'schedule.skipped' WHEN 107 THEN 'schedule.retimed' WHEN 108 THEN 'schedule.evaluation-failed' WHEN 109 THEN 'schedule.orphaned' WHEN 110 THEN 'calendar.draft-saved' WHEN 111 THEN 'calendar.published' WHEN 112 THEN 'calendar.archived' WHEN 120 THEN 'worker.started' WHEN 121 THEN 'worker.stopped' WHEN 122 THEN 'worker.died' WHEN 140 THEN 'alert.acknowledged' WHEN 141 THEN 'alert.resolved' WHEN 180 THEN 'outbox.requeued' WHEN 181 THEN 'outbox.discarded' END AS event,
@@ -4413,7 +4413,7 @@ FROM acta.events AS e
 JOIN acta.namespaces AS ns ON ns.namespace_id = e.namespace_id
 LEFT JOIN acta.definitions AS d ON d.definition_id = e.definition_id
 LEFT JOIN acta.tenants AS t
-    ON t.tenant_id = COALESCE(e.tenant_id, CASE WHEN e.entity_code = 120 /* EntityCode.Tenant */ THEN e.entity_id END)
+    ON t.tenant_id = COALESCE(e.tenant_id, CASE WHEN e.entity_code = 6 /* EntityCode.Tenant */ THEN e.entity_id END)
 LEFT JOIN acta.jobs AS root ON root.job_id = e.lineage_root_job_id
 LEFT JOIN acta.workers AS wkr ON wkr.worker_id = e.worker_id;
 
@@ -4544,7 +4544,7 @@ JOIN acta.definitions AS d ON d.definition_id = j.definition_id;
 
 CREATE OR REPLACE VIEW acta.tags_view AS
 SELECT
-    CASE t.entity_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'alert' WHEN 15 THEN 'calendar' WHEN 20 THEN 'checkpoint' WHEN 30 THEN 'definition' WHEN 40 THEN 'event' WHEN 50 THEN 'job' WHEN 60 THEN 'lane' WHEN 70 THEN 'lock' WHEN 80 THEN 'namespace' WHEN 90 THEN 'schedule' WHEN 100 THEN 'step' WHEN 110 THEN 'tag' WHEN 120 THEN 'tenant' WHEN 130 THEN 'worker' END AS entity,
+    CASE t.entity_code WHEN 0 THEN 'unspecified' WHEN 1 THEN 'alert' WHEN 2 THEN 'calendar' WHEN 3 THEN 'definition' WHEN 4 THEN 'job' WHEN 5 THEN 'namespace' WHEN 6 THEN 'tenant' WHEN 7 THEN 'worker' END AS entity,
     t.entity_code,
     t.entity_id,
     t.tag_name,
@@ -4574,10 +4574,10 @@ JOIN acta.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO acta.migrations (name)
-VALUES ('M20261117165621_init')
+VALUES ('M20261117170100_init')
 ON CONFLICT (name) DO NOTHING;
 
--- ===== END M20261117165621_init =====
+-- ===== END M20261117170100_init =====
 
 COMMIT;
 

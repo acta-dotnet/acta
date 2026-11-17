@@ -38,7 +38,7 @@ BEGIN TRY
             @p_event_code,
             SYSUTCDATETIME(),
             j.namespace_id,
-            50 /* EntityCode.Job */,
+            4 /* EntityCode.Job */,
             j.job_id,
             j.definition_id,
             j.tenant_id,

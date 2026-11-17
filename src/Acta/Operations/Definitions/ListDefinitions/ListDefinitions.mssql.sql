@@ -32,7 +32,7 @@ WHERE
         WHERE NOT EXISTS (
             SELECT 1 FROM {{schema}}.tags tg
             WHERE
-                tg.entity_code = 30 /* EntityCode.Definition */ AND tg.entity_id = jd.definition_id
+                tg.entity_code = 3 /* EntityCode.Definition */ AND tg.entity_id = jd.definition_id
                 AND tg.tag_name = f.tag_name
                 AND (f.tag_value_search IS NULL OR tg.tag_value_search = f.tag_value_search)
         )
@@ -67,7 +67,7 @@ SELECT
                 WHERE NOT EXISTS (
                     SELECT 1 FROM {{schema}}.tags tg
                     WHERE
-                        tg.entity_code = 30 /* EntityCode.Definition */ AND tg.entity_id = jd.definition_id
+                        tg.entity_code = 3 /* EntityCode.Definition */ AND tg.entity_id = jd.definition_id
                         AND tg.tag_name = f.tag_name
                         AND (f.tag_value_search IS NULL OR tg.tag_value_search = f.tag_value_search)
                 )

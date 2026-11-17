@@ -527,7 +527,7 @@ BEGIN
     ),
     tag_insert AS (
         INSERT INTO {{schema}}.tags (entity_code, entity_id, tag_name, tag_value, tag_value_search)
-        SELECT 50 /* EntityCode.Job */, e.job_id, t.tag_name, t.tag_value, t.tag_value_search
+        SELECT 4 /* EntityCode.Job */, e.job_id, t.tag_name, t.tag_value, t.tag_value_search
         FROM unnest(p_tag_ordinal, p_tag_name, p_tag_value, p_tag_value_search) AS t(ordinal, tag_name, tag_value, tag_value_search)
         INNER JOIN _enq_rows e ON e.ordinal = t.ordinal
         INNER JOIN inserted i ON i.job_id = e.job_id

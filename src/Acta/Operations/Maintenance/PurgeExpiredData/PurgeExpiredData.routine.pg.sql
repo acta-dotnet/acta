@@ -95,7 +95,7 @@ BEGIN
                     FROM {{schema}}.events e
                     JOIN {{schema}}.definitions d ON d.definition_id = e.definition_id
                     WHERE
-                        e.entity_code = 50 /* EntityCode.Job */
+                        e.entity_code = 4 /* EntityCode.Job */
                         AND e.entity_id = j.job_id
                         AND e.created_at_utc >= v_floor_utc
                         AND (e.created_at_utc > v_floor_utc OR e.event_id > v_floor_id)
@@ -122,7 +122,7 @@ BEGIN
         IF v_rows > 0 THEN
             DELETE FROM {{schema}}.tags
             WHERE
-                entity_code = 50 /* EntityCode.Job */
+                entity_code = 4 /* EntityCode.Job */
                 AND entity_id = ANY(v_ids);
             -- The job's settled alerts go with it, so no alert outlives its job (docs/sql-internals.md, "Alert lock order").
             DELETE FROM {{schema}}.alerts a WHERE a.job_id = ANY(v_ids);
@@ -144,7 +144,7 @@ BEGIN
                 e.namespace_id = p_namespace_id
                 AND e.created_at_utc <= p_cutoff_utc
                 AND NOT (
-                    e.entity_code = 50 /* EntityCode.Job */
+                    e.entity_code = 4 /* EntityCode.Job */
                     AND e.created_at_utc >= v_floor_utc
                     AND (e.created_at_utc > v_floor_utc OR e.event_id > v_floor_id)
                     AND (

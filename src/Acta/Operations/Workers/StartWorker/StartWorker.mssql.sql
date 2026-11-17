@@ -63,7 +63,7 @@ BEGIN TRY
         SET @worker_id = CAST(SCOPE_IDENTITY() AS INT);
 
         INSERT INTO {{schema}}.events (event_code, created_at_utc, namespace_id, worker_id, entity_code, entity_id)
-        VALUES (120 /* EventCode.WorkerStarted */, @now, @ns_id, @worker_id, 130 /* EntityCode.Worker */, @worker_id);
+        VALUES (120 /* EventCode.WorkerStarted */, @now, @ns_id, @worker_id, 7 /* EntityCode.Worker */, @worker_id);
     END;
 
     SELECT

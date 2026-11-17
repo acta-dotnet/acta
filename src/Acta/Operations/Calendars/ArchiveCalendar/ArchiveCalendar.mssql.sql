@@ -84,7 +84,7 @@ BEGIN TRY
                     )
                     VALUES (
                         112 /* EventCode.CalendarArchived */, @now, @namespace_id,
-                        15 /* EntityCode.Calendar */, @calendar_id,
+                        2 /* EntityCode.Calendar */, @calendar_id,
                         @p_event_message, @p_actor, @p_details_format_id, @p_details
                     );
                 END;

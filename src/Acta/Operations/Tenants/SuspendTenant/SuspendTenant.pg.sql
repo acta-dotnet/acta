@@ -21,7 +21,7 @@ audit AS (
     )
     SELECT
         10 /* EventCode.TenantSuspended */, now(), 1,
-        120 /* EntityCode.Tenant */, c.tenant_id,
+        6 /* EntityCode.Tenant */, c.tenant_id,
         @p_event_message, @p_actor, @p_details_format_id, @p_details
     FROM changed c
 )

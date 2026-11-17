@@ -101,7 +101,7 @@ SELECT
     61 /* EventCode.JobRescheduled */,
     {{now}},
     j.namespace_id,
-    50 /* EntityCode.Job */,
+    4 /* EntityCode.Job */,
     j.job_id,
     j.definition_id,
     j.tenant_id,

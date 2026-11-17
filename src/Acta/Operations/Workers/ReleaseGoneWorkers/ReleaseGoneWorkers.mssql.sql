@@ -35,7 +35,7 @@ BEGIN TRY
         SYSUTCDATETIME(),
         d.namespace_id,
         d.worker_id,
-        130 /* EntityCode.Worker */,
+        7 /* EntityCode.Worker */,
         d.worker_id
     FROM @dead d;
 
