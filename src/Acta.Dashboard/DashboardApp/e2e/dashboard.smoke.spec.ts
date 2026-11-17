@@ -1,6 +1,25 @@
+import { readFileSync } from 'node:fs';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page, type Route } from '@playwright/test';
 import { routeMetadata, type RouteName } from '../src/routes';
+
+// The API refuses a query parameter a route does not declare, so the mock does too: each route's declared names,
+// from the OpenAPI document, keyed by method and by the path as a pattern.
+type OpenApiOperation = { parameters?: { name: string; in: string }[] };
+const openApi = JSON.parse(readFileSync(new URL('../../../../docs/reference/openapi.json', import.meta.url), 'utf8')) as {
+  paths: Record<string, Record<string, OpenApiOperation>>;
+};
+const declaredQueries = Object.entries(openApi.paths).flatMap(([template, operations]) =>
+  Object.entries(operations).map(([method, operation]) => ({
+    method: method.toUpperCase(),
+    path: new RegExp('^' + template.replace(/^\/v1\//, '').replace(/\{[^}]+\}/g, '[^/]+') + '$'),
+    names: new Set((operation.parameters ?? []).filter((p) => p.in === 'query').map((p) => p.name.toLowerCase()))
+  }))
+);
+const undeclaredQuery = (method: string, path: string, url: URL): string | undefined => {
+  const route = declaredQueries.find((r) => r.method === method && r.path.test(path));
+  return route && [...url.searchParams.keys()].find((name) => !route.names.has(name.toLowerCase()));
+};
 
 const jobRef = 'job_019f9b3509487d1b911f2020158384a3';
 const timestamp = '2026-07-14T08:00:00Z';
@@ -267,6 +286,10 @@ async function mockDashboard(
     const path = url.pathname.split('/api/v1/')[1] ?? '';
     const json = (body: unknown, status = 200) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
     options.onRequest?.(path);
+    const undeclared = undeclaredQuery(request.method(), path, url);
+    if (undeclared) {
+      return json({ title: 'Invalid request.', status: 400, detail: `Unknown query parameter '${undeclared}'.` }, 400);
+    }
     if (options.sessionEnded?.()) {
       return route.fulfill({ status: 401, body: '' });
     }

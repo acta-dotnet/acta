@@ -36,7 +36,8 @@ internal static class GetCapabilitiesEndpoint
             })
             .WithMetadata(new ActaOperationAttribute("getCapabilities", ActaPermissions.Read))
             .WithSummary("Read this host's API capabilities.")
-            .Produces<GetCapabilitiesResponse>(StatusCodes.Status200OK);
+            .Produces<GetCapabilitiesResponse>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest);
 
     /// <summary>The provider's code on the wire: the dialect token its SQL files carry.</summary>
     internal static string ProviderCode(DbProvider provider) =>

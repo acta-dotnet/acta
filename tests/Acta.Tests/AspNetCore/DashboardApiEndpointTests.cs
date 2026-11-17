@@ -914,7 +914,7 @@ public sealed class DashboardApiEndpointTests
     }
 
     [Fact]
-    public async Task Jobs_accepts_a_tenantName_filter_and_ignores_the_retired_tenantId()
+    public async Task Jobs_accepts_a_tenantName_filter_and_refuses_the_retired_tenantId()
     {
         var fakes = new FakeOperations();
         var (app, client) = await TestDashboardHost.StartAsync(fakes: fakes);
@@ -925,10 +925,10 @@ public sealed class DashboardApiEndpointTests
         Assert.Equal(HttpStatusCode.OK, ok.StatusCode);
         Assert.Equal("acme", fakes.Ledger.LastJobsQuery!.TenantName);
 
-        // tenantId left the wire: it is no longer bound, so it neither filters nor 400s.
+        // tenantId left the wire: the route no longer declares it, so it is refused by name and never filters.
         var retired = await client.GetAsync("/acta/api/v1/jobs?tenantId=abc", ct);
-        Assert.Equal(HttpStatusCode.OK, retired.StatusCode);
-        Assert.Null(fakes.Ledger.LastJobsQuery!.TenantId);
+        Assert.Equal(HttpStatusCode.BadRequest, retired.StatusCode);
+        Assert.Contains("Unknown query parameter 'tenantId'", await retired.Content.ReadAsStringAsync(ct), StringComparison.Ordinal);
     }
 
     [Fact]

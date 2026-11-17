@@ -15776,6 +15776,26 @@
               }
             }
           },
+          "400": {
+            "description": "A path or query parameter is malformed or missing; the problem's detail names it.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "getCapabilities": {
+                    "value": {
+                      "type": "https://tools.ietf.org/html/rfc9110#section-15.5.1",
+                      "title": "Invalid request.",
+                      "status": 400,
+                      "detail": "Unknown query parameter 'notDeclared'."
+                    }
+                  }
+                }
+              }
+            }
+          },
           "401": {
             "description": "The call carries no credential the host accepts."
           },

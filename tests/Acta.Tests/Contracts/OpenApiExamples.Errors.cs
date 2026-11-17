@@ -151,7 +151,7 @@ internal static partial class OpenApiExamples
     }
 
     // The ways to each status, in the order tried. A malformed route key, an empty body, a malformed or missing query value,
-    // then a call without its confirmation are the 400; a target the staged fakes know as missing, by route key or filter,
+    // a call without its confirmation, then a query parameter the route does not declare are the 400; a target the staged fakes know as missing, by route key or filter,
     // the 404; one they know as rejected, a stale expected version, or a rejected namespace in the body the 409.
     private static IEnumerable<Attempt> Attempts(int status, RouteEndpoint endpoint, int cap)
     {
@@ -178,6 +178,7 @@ internal static partial class OpenApiExamples
                     yield return new("no required query") { OmitRequiredQuery = true };
                 }
                 yield return new("unconfirmed") { Confirm = false, Body = _ => null };
+                yield return new("a query parameter it does not declare") { Query = One("notDeclared", "1") };
                 break;
             case 403:
                 yield return new("no permission") { Root = DeniedMount + "/api" + ActaEndpointRouteBuilderExtensions.ApiVersionSegment };

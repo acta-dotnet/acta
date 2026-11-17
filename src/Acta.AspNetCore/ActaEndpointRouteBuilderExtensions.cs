@@ -118,6 +118,7 @@ public static class ActaEndpointRouteBuilderExtensions
         api.ProducesProblem(StatusCodes.Status500InternalServerError);
         api.AddEndpointFilter(ApiFilters.ErrorBackstop);
         api.AddEndpointFilter(ApiFilters.NoStore);
+        api.AddEndpointFilter(ApiFilters.DeclaredQuery);
 
         // The empty-prefix group holds every control route and no read. Its routes are mapped whether or not controls are
         // on, so a client calling one on a read-only host learns why it was refused rather than reading a 404.

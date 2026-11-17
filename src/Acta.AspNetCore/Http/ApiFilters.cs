@@ -96,6 +96,28 @@ internal static class ApiFilters
         }
     }
 
+    /// <summary>
+    /// Refuses a query parameter the route does not declare, naming it: a mistyped filter must not answer as if no
+    /// filter had been sent. A name matches in any case, as a query string is read.
+    /// </summary>
+    public static async ValueTask<object?> DeclaredQuery(EndpointFilterInvocationContext context, EndpointFilterDelegate next)
+    {
+        var http = context.HttpContext;
+        if (http.Request.Query.Count > 0)
+        {
+            var declared = http.GetEndpoint()?.Metadata.GetOrderedMetadata<QueryParameterDoc>() ?? [];
+            foreach (var name in http.Request.Query.Keys)
+            {
+                if (!declared.Any(doc => string.Equals(doc.Name, name, StringComparison.OrdinalIgnoreCase)))
+                {
+                    return RouteTable.BadRequest($"Unknown query parameter '{name}'.");
+                }
+            }
+        }
+
+        return await next(context);
+    }
+
     public static async ValueTask<object?> NoStore(EndpointFilterInvocationContext context, EndpointFilterDelegate next)
     {
         context.HttpContext.Response.Headers.CacheControl = "no-store";

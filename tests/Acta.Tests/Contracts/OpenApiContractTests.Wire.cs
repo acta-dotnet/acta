@@ -216,7 +216,7 @@ public sealed partial class OpenApiContractTests
     }
 
     // A read with each route key in turn naming nothing it could address, with each query parameter in turn given a value
-    // of no type, and without its required query parameters.
+    // of no type, with a query parameter the route does not declare, and without its required query parameters.
     private static IEnumerable<string> MalformedReads(string path, JsonNode operation)
     {
         var url = ReadUrl(path, operation);
@@ -229,6 +229,7 @@ public sealed partial class OpenApiContractTests
             var name = parameter!["name"]!.GetValue<string>();
             yield return $"{url}{(url.Contains('?', StringComparison.Ordinal) ? '&' : '?')}{name}={Uri.EscapeDataString("Not A Value!")}";
         }
+        yield return $"{url}{(url.Contains('?', StringComparison.Ordinal) ? '&' : '?')}notDeclared=1";
         yield return url.Split('?')[0];
     }
 
@@ -369,6 +370,25 @@ public sealed partial class OpenApiContractTests
     /// A numeric id filter declares its least value, 1, because the server refuses a lower one: on the real operations an
     /// entityId of 0 answers 400.
     /// </summary>
+    [Fact]
+    public async Task A_query_parameter_a_route_does_not_declare_is_refused_by_name()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await WithSqliteHostAsync(async client =>
+        {
+            // The events filter is jobRef: a mistyped job must not answer the whole timeline.
+            using var mistyped = await client.GetAsync("/acta/api/v1/events?job=job_019f9b3509487d1b911f2020158384a3", ct);
+            Assert.Equal(HttpStatusCode.BadRequest, mistyped.StatusCode);
+            Assert.Contains("Unknown query parameter 'job'", await mistyped.Content.ReadAsStringAsync(ct), StringComparison.Ordinal);
+
+            // A route that takes no query parameter refuses one too, and a declared name binds in any case.
+            using var none = await client.GetAsync("/acta/api/v1/capabilities?verbose=1", ct);
+            Assert.Equal(HttpStatusCode.BadRequest, none.StatusCode);
+            using var declared = await client.GetAsync("/acta/api/v1/events?PAGESIZE=1", ct);
+            Assert.Equal(HttpStatusCode.OK, declared.StatusCode);
+        });
+    }
+
     [Fact]
     public async Task A_numeric_id_filter_declares_its_minimum_of_1()
     {
