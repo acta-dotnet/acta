@@ -77,7 +77,7 @@ public sealed class GetAlertFloorSpec : ActaRuntimeTestBase<ConformanceFixture, 
         var ct = TestContext.Current.CancellationToken;
         var projector = await AlertTestOps.RecurringSlotIdAsync(Services, TestNamespace, "sys.alerts", ct);
         var seeder = new ActaTestSeeder(Db);
-        var definitionId = await seeder.SeedJobDefinitionAsync(NamespaceId, Unique("gone-probe"), AlertProfileCode.OnTerminal, ct);
+        var definitionId = await seeder.SeedJobDefinitionAsync(NamespaceId, Unique("gone-probe"), AlertProfileCode.OnFinalFailure, ct);
         var (jobId, _) = await seeder.SeedJobAsync(NamespaceId, definitionId, ct: ct);
         var recorded = await StageFailureAsync(definitionId, jobId, ct);
         var arriving = await StageFailureAsync(definitionId, jobId, ct);

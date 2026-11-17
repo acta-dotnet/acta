@@ -40,7 +40,7 @@ namespace Acta.Tests.Conformance.Scenarios;
     "job-wait-signal",
     "lane-step",
     "lock-holder",
-    "on-terminal-probe",
+    "on-final-failure-probe",
     "purge-now",
     "rate-limited-probe",
     "recurring-ping",
@@ -63,7 +63,7 @@ public sealed class NamespaceIsolationSpec : ActaRuntimeTestBase<ConformanceFixt
 
         // Work the checks below act on, made before the hold so only the operation under test runs inside it.
         var tenant = (await Services.GetRequiredService<ITenants>().RegisterAsync(Unique("tenant"), ct: ct)).TenantName;
-        var failed = await Jobs.EnqueueAsync(Request("on-terminal-probe", null), ct);
+        var failed = await Jobs.EnqueueAsync(Request("on-final-failure-probe", null), ct);
         await RunToEndAsync(failed, ct);
         var alertsOwner = await EnqueueAndRunAsync("add-numbers", new AddNumbers(1, 2), ct);
         // Behind the projection's horizon, so the alerts pass below projects the failure.
@@ -566,7 +566,7 @@ public sealed class NamespaceIsolationSpec : ActaRuntimeTestBase<ConformanceFixt
         }
 
         var finished = await RunAsync(Of("add-numbers", new AddNumbers(1, 2)));
-        await RunAsync(Of("on-terminal-probe"));
+        await RunAsync(Of("on-final-failure-probe"));
         await RunAsync(Of("job-parent-one"));
         await RunAsync(Of("job-note"));
         await RunAsync(Of("concurrency-limit-probe"));

@@ -140,7 +140,7 @@ public sealed class AlertsJobPoisonEventTests
                 jobId,
                 DefinitionId: 7,
                 JobName: "probe",
-                AlertProfile: AlertProfileCode.OnTerminal,
+                AlertProfile: AlertProfileCode.OnFinalFailure,
                 AlertChannelName: null,
                 EventCode: EventCode.JobFailed,
                 EventMessage: "boom",

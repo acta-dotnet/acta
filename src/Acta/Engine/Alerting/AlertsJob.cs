@@ -380,7 +380,7 @@ internal sealed class AlertsJob(
 
         // Non-terminal failure (re-armed for retry, for the next occurrence, or back onto a wait whose
         // timeout it had already resolved when its worker died). Only OnFailure and the system
-        // profile alert on these; OnTerminal / Info stay quiet until the terminal transition. An attempt
+        // profile alert on these; OnFinalFailure / Info stay quiet until the terminal transition. An attempt
         // the worker itself aborted under lease or lock pressure is an infrastructure retry, not the job
         // failing, and raises nothing until it spends the budget.
         if (

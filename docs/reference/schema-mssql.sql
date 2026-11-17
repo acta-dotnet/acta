@@ -14,7 +14,7 @@
 -- present and leaves the data in place. Over a database a newer release upgraded, the script stops
 -- before changing anything. A later 1.x release upgrades a 1.x database with
 -- its own migrations, carried in its own copy of this script. A database provisioned from an
--- init migration other than M20261117143410_init has no upgrade path: provision a new one.
+-- init migration other than M20261117143832_init has no upgrade path: provision a new one.
 --
 -- Run it with a client that stops at the first error, which is what makes the transaction below a
 -- guarantee: sqlcmd -b, or SQLCMD mode with stop-on-error in SSMS. A client that runs on past a failed
@@ -57,7 +57,7 @@ GO
 -- ===== refuse a database a newer release already upgraded =====
 IF EXISTS (
     SELECT 1 FROM acta.migrations
-    WHERE name NOT IN ('M20261117143410_init')
+    WHERE name NOT IN ('M20261117143832_init')
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -65,7 +65,7 @@ BEGIN
     SET NOEXEC ON;
 END
 GO
--- ===== BEGIN M20261117143410_init =====
+-- ===== BEGIN M20261117143832_init =====
 SET QUOTED_IDENTIFIER ON;
 SET ANSI_NULLS ON;
 GO
@@ -5028,7 +5028,7 @@ SELECT
     d.event_recording_code,
     d.event_recording_code_override,
     d.event_recording_code_effective,
-    CASE d.alert_profile_code_effective WHEN 0 THEN 'none' WHEN 10 THEN 'on-failure' WHEN 20 THEN 'info' WHEN 30 THEN 'on-terminal' WHEN 40 THEN 'sys-critical' END AS alert_profile_effective,
+    CASE d.alert_profile_code_effective WHEN 0 THEN 'none' WHEN 10 THEN 'on-failure' WHEN 20 THEN 'info' WHEN 30 THEN 'on-final-failure' WHEN 40 THEN 'sys-critical' END AS alert_profile_effective,
     d.alert_profile_code,
     d.alert_profile_code_override,
     d.alert_profile_code_effective,
@@ -5274,11 +5274,11 @@ JOIN acta.namespaces AS ns ON ns.namespace_id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261117143410_init')
+IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261117143832_init')
 INSERT INTO acta.migrations (name)
-VALUES ('M20261117143410_init');
+VALUES ('M20261117143832_init');
 GO
--- ===== END M20261117143410_init =====
+-- ===== END M20261117143832_init =====
 GO
 COMMIT TRANSACTION;
 GO

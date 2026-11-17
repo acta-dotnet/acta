@@ -11,7 +11,7 @@ public sealed class AlertsJobReplayTests
     [Fact]
     public async Task Every_skip_is_read_and_replayed_in_event_order()
     {
-        var events = Enumerable.Range(1, 150).Select(i => Event(i, AlertProfileCode.OnTerminal)).ToArray();
+        var events = Enumerable.Range(1, 150).Select(i => Event(i, AlertProfileCode.OnFinalFailure)).ToArray();
         var attempts = new List<long>();
         using var services = Session(events, attempts).Services();
         var ctx = new RecordingJobContext();
@@ -51,7 +51,7 @@ public sealed class AlertsJobReplayTests
     [Fact]
     public async Task An_exhausted_budget_leaves_unprocessed_skips_for_the_next_pass()
     {
-        var e = Event(11, AlertProfileCode.OnTerminal);
+        var e = Event(11, AlertProfileCode.OnFinalFailure);
         var attempts = new List<long>();
         using var services = Session([e], attempts).Services();
         var ctx = new RecordingJobContext();

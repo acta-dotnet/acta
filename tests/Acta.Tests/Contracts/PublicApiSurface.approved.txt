@@ -219,7 +219,7 @@ enum Acta.AlertProfileCode : System.Byte
     Info = 20
     None = 0
     OnFailure = 10
-    OnTerminal = 30
+    OnFinalFailure = 30
     SysCritical = 40
 static class Acta.AlertProfileCodeExtensions
     static Acta.AlertProfileCode FromCode(System.String code)

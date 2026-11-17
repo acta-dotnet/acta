@@ -306,7 +306,7 @@ internal sealed class DefinitionEntity : IEntity<int>
 
     /// <summary>
     /// Automatic-alert behavior for state-mutating operations (<c>None</c> / <c>OnFailure</c> /
-    /// <c>Info</c> / <c>OnTerminal</c> / <c>SysCritical</c>).
+    /// <c>Info</c> / <c>OnFinalFailure</c> / <c>SysCritical</c>).
     /// </summary>
     [DbColumn("alert_profile_code")]
     public AlertProfileCode AlertProfile { get; internal set; }

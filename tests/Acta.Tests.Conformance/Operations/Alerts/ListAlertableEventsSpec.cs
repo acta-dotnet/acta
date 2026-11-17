@@ -123,7 +123,7 @@ public sealed class ListAlertableEventsSpec : ActaStorageTestBase<ConformanceFix
                     {
                         AlertChannelName = "ops",
                         AlertChannelNameOverride = "pager",
-                        AlertProfileOverride = AlertProfileCode.OnTerminal,
+                        AlertProfileOverride = AlertProfileCode.OnFinalFailure,
                     },
                 ct
             );
@@ -136,7 +136,7 @@ public sealed class ListAlertableEventsSpec : ActaStorageTestBase<ConformanceFix
         Assert.Equal(JobIdValue, row.JobId);
         Assert.Equal(DefId, row.DefinitionId);
         Assert.Equal("alertable-def", row.JobName);
-        Assert.Equal(AlertProfileCode.OnTerminal, row.AlertProfile);
+        Assert.Equal(AlertProfileCode.OnFinalFailure, row.AlertProfile);
         Assert.Equal("pager", row.AlertChannelName);
         Assert.Equal(EventCode.JobFailed, row.EventCode);
         Assert.Equal(EventReason.NonRetryableException, row.Reason());

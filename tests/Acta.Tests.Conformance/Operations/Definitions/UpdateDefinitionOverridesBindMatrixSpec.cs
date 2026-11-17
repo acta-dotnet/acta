@@ -87,7 +87,7 @@ public sealed class UpdateDefinitionOverridesBindMatrixSpec : ActaStorageTestBas
             DeadlineBehavior: DeadlineBehaviorCode.Advisory, // ≠ Strict base
             JobRetentionSeconds: 555, // distinct int 5
             EventRecording: EventRecordingCode.Audit, // ≠ Failures base
-            AlertProfile: AlertProfileCode.OnTerminal, // ≠ None base
+            AlertProfile: AlertProfileCode.OnFinalFailure, // ≠ None base
             AlertChannelName: channelName,
             RunbookUrl: runbookUrl,
             DisplayName: displayName,
@@ -120,7 +120,7 @@ public sealed class UpdateDefinitionOverridesBindMatrixSpec : ActaStorageTestBas
         Assert.Equal(DeadlineBehaviorCode.Advisory, after.DeadlineBehaviorOverride);
         Assert.Equal(555, after.JobRetentionSecondsOverride);
         Assert.Equal(EventRecordingCode.Audit, after.EventRecordingOverride);
-        Assert.Equal(AlertProfileCode.OnTerminal, after.AlertProfileOverride);
+        Assert.Equal(AlertProfileCode.OnFinalFailure, after.AlertProfileOverride);
         Assert.Equal(channelName, after.AlertChannelNameOverride);
         Assert.Equal(runbookUrl, after.RunbookUrlOverride);
         Assert.Equal(displayName, after.DisplayNameOverride);
@@ -135,7 +135,7 @@ public sealed class UpdateDefinitionOverridesBindMatrixSpec : ActaStorageTestBas
         Assert.Equal(DeadlineBehaviorCode.Advisory, after.DeadlineBehaviorEffective);
         Assert.Equal(555, after.JobRetentionSecondsEffective);
         Assert.Equal(EventRecordingCode.Audit, after.EventRecordingEffective);
-        Assert.Equal(AlertProfileCode.OnTerminal, after.AlertProfileEffective);
+        Assert.Equal(AlertProfileCode.OnFinalFailure, after.AlertProfileEffective);
         Assert.Equal(channelName, after.AlertChannelNameEffective);
         Assert.Equal(runbookUrl, after.RunbookUrlEffective);
         Assert.Equal(displayName, after.DisplayNameEffective);
@@ -169,7 +169,7 @@ public sealed class UpdateDefinitionOverridesBindMatrixSpec : ActaStorageTestBas
                 DeadlineBehavior: DeadlineBehaviorCode.Advisory,
                 JobRetentionSeconds: 555,
                 EventRecording: EventRecordingCode.Audit,
-                AlertProfile: AlertProfileCode.OnTerminal,
+                AlertProfile: AlertProfileCode.OnFinalFailure,
                 AlertChannelName: "chan-" + TestId,
                 RunbookUrl: "https://rb/" + TestId,
                 DisplayName: "Renamed By Operator",

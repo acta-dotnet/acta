@@ -187,7 +187,7 @@ internal static class JobPolicyValues
             0 => "None",
             10 => "OnFailure",
             20 => "Info",
-            30 => "OnTerminal",
+            30 => "OnFinalFailure",
             40 => "SysCritical",
             _ => null,
         };

@@ -4,10 +4,10 @@ using Acta;
 namespace TestJobs;
 
 /// <summary>
-/// Always-failing probe with <c>MaxAttempts = 2</c> and <c>AlertProfile = OnTerminal</c>. Non-terminal
+/// Always-failing probe with <c>MaxAttempts = 2</c> and <c>AlertProfile = OnFinalFailure</c>. Non-terminal
 /// failures are suppressed by the profile; only the terminal transition emits a FinalFailure alert.
 /// </summary>
-public static class OnTerminalProbe
+public static class OnFinalFailureProbe
 {
     private static readonly ConcurrentDictionary<string, int> _attempts = new(StringComparer.Ordinal);
 
@@ -15,12 +15,12 @@ public static class OnTerminalProbe
 
     public static int Attempts(string jobNamespace) => _attempts.TryGetValue(jobNamespace, out var n) ? n : 0;
 
-    [Job("on-terminal-probe", MaxAttempts = 2, Backoff = "0s", AlertProfile = AlertProfileCode.OnTerminal)]
+    [Job("on-final-failure-probe", MaxAttempts = 2, Backoff = "0s", AlertProfile = AlertProfileCode.OnFinalFailure)]
     public static async Task Run(JobContext ctx, CancellationToken ct)
     {
         _attempts.AddOrUpdate(ctx.JobNamespace, 1, static (_, n) => n + 1);
         await Task.Yield();
-        throw new InvalidOperationException("on-terminal-probe always fails.");
+        throw new InvalidOperationException("on-final-failure-probe always fails.");
     }
 }
 

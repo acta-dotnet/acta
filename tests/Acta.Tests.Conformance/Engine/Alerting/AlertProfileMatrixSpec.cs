@@ -7,7 +7,7 @@ using Xunit;
 namespace Acta.Tests.Conformance.Engine.Alerting;
 
 /// <summary>
-/// Conformance for alert profile gating: <c>OnTerminal</c> and <c>Info</c> profiles suppress
+/// Conformance for alert profile gating: <c>OnFinalFailure</c> and <c>Info</c> profiles suppress
 /// non-terminal failures and only emit on terminal transitions; <c>SysCritical</c> always emits
 /// at Critical severity for every failure transition; and a resolved FinalFailure alert stays resolved
 /// when the same deduplication key fires again - that firing opens a second incident row of its own.
@@ -18,26 +18,26 @@ namespace Acta.Tests.Conformance.Engine.Alerting;
     Area = "Alerts",
     Contract = "Each alert profile gates non-terminal emission and severity, and a re-fire on a resolved alert's key opens a fresh incident rather than re-opening it."
 )]
-[Deploys("info-alert-probe", "on-terminal-probe", "sys-critical-probe")]
+[Deploys("info-alert-probe", "on-final-failure-probe", "sys-critical-probe")]
 public sealed class AlertProfileMatrixSpec : ActaRuntimeTestBase<ConformanceFixture, JobsOf<AlertProfileMatrixSpec>>
 {
     private int NamespaceId => Runtime.RegisteredNamespaceIds[TestNamespace];
 
-    [Fact(DisplayName = "OnTerminal emits no alert on non-terminal failure then one FinalFailure Error on terminal")]
-    public async Task OnTerminal_skips_non_terminal_then_emits_final_failure_on_terminal()
+    [Fact(DisplayName = "OnFinalFailure emits no alert on non-terminal failure then one FinalFailure Error on terminal")]
+    public async Task OnFinalFailure_skips_non_terminal_then_emits_final_failure_on_terminal()
     {
         var ct = TestContext.Current.CancellationToken;
-        OnTerminalProbe.Reset(TestNamespace);
+        OnFinalFailureProbe.Reset(TestNamespace);
 
-        var job = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "on-terminal-probe", JobPayload.None), ct);
+        var job = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "on-final-failure-probe", JobPayload.None), ct);
 
-        // Attempt 1: non-terminal failure. OnTerminal suppresses it: zero alerts.
-        await AlertTestOps.RunUntilAttemptsAsync(Runtime, job, () => OnTerminalProbe.Attempts(TestNamespace), 1, ct);
+        // Attempt 1: non-terminal failure. OnFinalFailure suppresses it: zero alerts.
+        await AlertTestOps.RunUntilAttemptsAsync(Runtime, job, () => OnFinalFailureProbe.Attempts(TestNamespace), 1, ct);
         await RunAlertsAsync(job.JobId, ct);
         Assert.Empty(await ReadAlertsAsync(NamespaceId, ct));
 
-        // Attempt 2: terminal Failed. OnTerminal emits exactly one FinalFailure at Error.
-        await AlertTestOps.RunUntilAttemptsAsync(Runtime, job, () => OnTerminalProbe.Attempts(TestNamespace), 2, ct);
+        // Attempt 2: terminal Failed. OnFinalFailure emits exactly one FinalFailure at Error.
+        await AlertTestOps.RunUntilAttemptsAsync(Runtime, job, () => OnFinalFailureProbe.Attempts(TestNamespace), 2, ct);
         await RunAlertsAsync(job.JobId, ct);
 
         var alerts = await ReadAlertsAsync(NamespaceId, ct);
@@ -104,15 +104,15 @@ public sealed class AlertProfileMatrixSpec : ActaRuntimeTestBase<ConformanceFixt
         Assert.All(afterTerminal, a => Assert.Equal(AlertSeverityCode.Critical, a.SeverityCode));
     }
 
-    [Fact(DisplayName = "A resolved OnTerminal FinalFailure stays resolved and the same key's next firing opens a second incident")]
+    [Fact(DisplayName = "A resolved OnFinalFailure FinalFailure stays resolved and the same key's next firing opens a second incident")]
     public async Task Resolved_alert_is_not_reopened_by_a_later_raise_on_its_key()
     {
         var ct = TestContext.Current.CancellationToken;
-        OnTerminalProbe.Reset(TestNamespace);
+        OnFinalFailureProbe.Reset(TestNamespace);
 
         // Drive to terminal (2 attempts) to produce a FinalFailure alert.
-        var job = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "on-terminal-probe", JobPayload.None), ct);
-        await AlertTestOps.RunUntilAttemptsAsync(Runtime, job, () => OnTerminalProbe.Attempts(TestNamespace), 2, ct);
+        var job = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "on-final-failure-probe", JobPayload.None), ct);
+        await AlertTestOps.RunUntilAttemptsAsync(Runtime, job, () => OnFinalFailureProbe.Attempts(TestNamespace), 2, ct);
         await RunAlertsAsync(job.JobId, ct);
 
         // Capture the emitted alert's incident identity.

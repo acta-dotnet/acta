@@ -165,10 +165,10 @@
 ### Alert profiles gate emission and severity per profile
 - **Contract:** Each alert profile gates non-terminal emission and severity, and a re-fire on a resolved alert's key opens a fresh incident rather than re-opening it.
 - **Guarantees:**
-  - OnTerminal emits no alert on non-terminal failure then one FinalFailure Error on terminal
+  - OnFinalFailure emits no alert on non-terminal failure then one FinalFailure Error on terminal
   - Info emits no alert on non-terminal failure then one FinalFailure at Info severity on terminal
   - SysCritical emits Critical FirstFailure on non-terminal and Critical FinalFailure on terminal
-  - A resolved OnTerminal FinalFailure stays resolved and the same key's next firing opens a second incident
+  - A resolved OnFinalFailure FinalFailure stays resolved and the same key's next firing opens a second incident
 
 ### ThresholdReached fires once per incident at the exact occurrence
 - **Contract:** AlertsJob emits one ThresholdReached alert when occurrence_count hits the threshold, and the count restarts at 1 in the incident that opens after a resolution.

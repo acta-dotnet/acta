@@ -226,7 +226,7 @@ public sealed class AlertsJobDrainTests
         // Stamps climb with ids, one second apart, so the stream orders the same way by either half.
         public static DateTime Stamp(long eventId) => DateTime.UnixEpoch.AddSeconds(eventId);
 
-        // OnTerminal plus a terminal transition: one FinalFailure raise per event, with no escalation
+        // OnFinalFailure plus a terminal transition: one FinalFailure raise per event, with no escalation
         // arm and no resolution arm in play, so the raise count is the projected-event count.
         private static AlertableEvent Event(long eventId) =>
             new(
@@ -235,7 +235,7 @@ public sealed class AlertsJobDrainTests
                 JobId: 101,
                 DefinitionId: 7,
                 JobName: "probe",
-                AlertProfile: AlertProfileCode.OnTerminal,
+                AlertProfile: AlertProfileCode.OnFinalFailure,
                 AlertChannelName: null,
                 EventCode: EventCode.JobFailed,
                 EventMessage: "boom",

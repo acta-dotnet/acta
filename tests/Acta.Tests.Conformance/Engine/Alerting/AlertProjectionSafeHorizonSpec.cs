@@ -171,11 +171,14 @@ public sealed class AlertProjectionSafeHorizonSpec : ActaRuntimeTestBase<Conform
     }
 
     /// <summary>
-    /// One definition carrying the <c>OnTerminal</c> profile, unless a fact names another, and one job
+    /// One definition carrying the <c>OnFinalFailure</c> profile, unless a fact names another, and one job
     /// under it - the quietest alerting shape there is, so a single terminal-failure event means exactly
     /// one raise. The job doubles as the cursor's owner, standing in for the namespace's sys.alerts slot.
     /// </summary>
-    private async Task<AlertingSubject> SeedAlertingJobAsync(CancellationToken ct, AlertProfileCode profile = AlertProfileCode.OnTerminal)
+    private async Task<AlertingSubject> SeedAlertingJobAsync(
+        CancellationToken ct,
+        AlertProfileCode profile = AlertProfileCode.OnFinalFailure
+    )
     {
         var seeder = new ActaTestSeeder(Db);
         var definitionId = await seeder.SeedJobDefinitionAsync(NamespaceId, Unique("horizon-probe"), profile, ct);

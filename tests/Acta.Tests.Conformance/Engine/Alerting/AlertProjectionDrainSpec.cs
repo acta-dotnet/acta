@@ -161,7 +161,7 @@ public sealed class AlertProjectionDrainSpec : ActaRuntimeTestBase<ConformanceFi
     }
 
     /// <summary>
-    /// One definition carrying the <c>OnTerminal</c> profile and one job under it. <c>OnTerminal</c>
+    /// One definition carrying the <c>OnFinalFailure</c> profile and one job under it. <c>OnFinalFailure</c>
     /// with terminal-failure events is the quietest alerting shape there is: each event emits exactly
     /// one FinalFailure raise onto one incident, with no threshold escalation and no resolution to
     /// reason about, so the incident's occurrence count is a clean tally of projected events. The job
@@ -170,7 +170,7 @@ public sealed class AlertProjectionDrainSpec : ActaRuntimeTestBase<ConformanceFi
     private async Task<AlertingSubject> SeedAlertingJobAsync(CancellationToken ct)
     {
         var seeder = new ActaTestSeeder(Db);
-        var definitionId = await seeder.SeedJobDefinitionAsync(NamespaceId, Unique("drain-probe"), AlertProfileCode.OnTerminal, ct);
+        var definitionId = await seeder.SeedJobDefinitionAsync(NamespaceId, Unique("drain-probe"), AlertProfileCode.OnFinalFailure, ct);
         var (jobId, _) = await seeder.SeedJobAsync(NamespaceId, definitionId, ct: ct);
         return new AlertingSubject(definitionId, jobId);
     }

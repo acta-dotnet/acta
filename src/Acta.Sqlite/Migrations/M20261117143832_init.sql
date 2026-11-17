@@ -541,7 +541,7 @@ SELECT
     d.event_recording_code,
     d.event_recording_code_override,
     d.event_recording_code_effective,
-    CASE d.alert_profile_code_effective WHEN 0 THEN 'none' WHEN 10 THEN 'on-failure' WHEN 20 THEN 'info' WHEN 30 THEN 'on-terminal' WHEN 40 THEN 'sys-critical' END AS alert_profile_effective,
+    CASE d.alert_profile_code_effective WHEN 0 THEN 'none' WHEN 10 THEN 'on-failure' WHEN 20 THEN 'info' WHEN 30 THEN 'on-final-failure' WHEN 40 THEN 'sys-critical' END AS alert_profile_effective,
     d.alert_profile_code,
     d.alert_profile_code_override,
     d.alert_profile_code_effective,
@@ -771,5 +771,5 @@ JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261117143410_init')
+VALUES ('M20261117143832_init')
 ON CONFLICT (name) DO NOTHING;

@@ -32,7 +32,7 @@ public sealed class PersistedCodeContractTests
         AlertProfileCode.None=0|none
         AlertProfileCode.OnFailure=10|on-failure
         AlertProfileCode.Info=20|info
-        AlertProfileCode.OnTerminal=30|on-terminal
+        AlertProfileCode.OnFinalFailure=30|on-final-failure
         AlertProfileCode.SysCritical=40|sys-critical
         DefinitionStatusCode.Unspecified=0|unspecified
         DefinitionStatusCode.Active=10|active
@@ -207,7 +207,7 @@ public sealed class PersistedCodeContractTests
         WorkerStatusCode.Dead=200|dead
         """;
 
-    private const string ExpectedDescriptionHash = "3CA64CA6654152A9AC9F8E973E914FCDF7D9215573397E42AB207435486526E9";
+    private const string ExpectedDescriptionHash = "F083D98CBC59F9FAC648059407BA40FAB4201769A945112353F9F101C9365061";
 
     [Fact]
     public void Frozen_contract_covers_all_32_families_and_196_values()
