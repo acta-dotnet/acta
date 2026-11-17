@@ -22,10 +22,10 @@ public sealed class UpdateAlertDeliverySpec : ActaStorageTestBase<ConformanceFix
         var ct = TestContext.Current.CancellationToken;
         var raised = await RaiseAsync(ct);
 
-        Assert.True(await SettleAsync(raised.Id, raised.Version, AlertDeliveryStatusCode.RetryAfter, 2, FutureInstant, ct));
+        Assert.True(await SettleAsync(raised.Id, raised.Version, AlertDeliveryStatusCode.Retrying, 2, FutureInstant, ct));
 
         var settled = await RowAsync(raised.Id, ct);
-        Assert.Equal(AlertDeliveryStatusCode.RetryAfter, settled.DeliveryStatusCode);
+        Assert.Equal(AlertDeliveryStatusCode.Retrying, settled.DeliveryStatusCode);
         Assert.Equal(2, settled.RetryCount);
         Assert.Equal(FutureInstant, settled.RetryAfterUtc);
         Assert.Equal(raised.Version + 1, settled.Version);
@@ -69,7 +69,7 @@ public sealed class UpdateAlertDeliverySpec : ActaStorageTestBase<ConformanceFix
     {
         var ct = TestContext.Current.CancellationToken;
         var raised = await RaiseAsync(ct);
-        Assert.True(await SettleAsync(raised.Id, raised.Version, AlertDeliveryStatusCode.RetryAfter, 1, FutureInstant, ct));
+        Assert.True(await SettleAsync(raised.Id, raised.Version, AlertDeliveryStatusCode.Retrying, 1, FutureInstant, ct));
 
         Assert.True(await SettleAsync(raised.Id, raised.Version + 1, AlertDeliveryStatusCode.Delivered, 0, null, ct));
 

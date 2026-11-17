@@ -538,7 +538,7 @@ In production a deploy step applies Acta's migrations, never application startup
 
 ```
 $ ConnectionStrings__acta="<DDL login>" dotnet MyApp.dll jobs migrate
-applied M20261117143832_init to schema acta
+applied M20261117144345_init to schema acta
 namespace billing: 1.6.1+b81d04e (Production)
   added    sys.alerts
   added    sys.retention
@@ -1550,7 +1550,7 @@ worker still listed as Active.
 ```sql
 SELECT alert_id, namespace_name, job_id, job_ref, alert_severity, alert_kind, delivery_status, title, occurrence_count, retry_count, retry_after_utc
   FROM acta.alerts_view
- WHERE delivery_status IN ('pending', 'retry-after', 'failed')
+ WHERE delivery_status IN ('pending', 'retrying', 'failed')
  ORDER BY created_at_utc DESC;
 ```
 

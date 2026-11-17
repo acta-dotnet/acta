@@ -87,7 +87,7 @@ internal sealed class AlertsOperations(
 
     /// <summary>
     /// Reads the namespace's unresolved alerts due for delivery, both arms keyed off <c>retry_after_utc</c>:
-    /// Pending and RetryAfter once it has elapsed or is unset, Delivered and Failed once the reminder their
+    /// Pending and Retrying once it has elapsed or is unset, Delivered and Failed once the reminder their
     /// settlement scheduled is due; Suppressed is never reminded. Not <c>modified_at_utc</c>: every repeat
     /// re-stamps it, so a job failing faster than the reminder interval would never be reminded. Resolved
     /// rows are never sent; an attempt already in flight may still complete. An automatic alert is held while a
@@ -118,7 +118,7 @@ internal sealed class AlertsOperations(
     /// <summary>
     /// Resolves one job's open automatic failure alerts whose projection mark precedes
     /// <paramref name="sourceEventId"/>, the success or final failure driving it; a replay behind a newer failure, or a
-    /// second success, closes nothing. Closing settles delivery: Pending and RetryAfter become Suppressed and
+    /// second success, closes nothing. Closing settles delivery: Pending and Retrying become Suppressed and
     /// <c>retry_after_utc</c> is cleared, while a Delivered, Failed, or Suppressed row keeps the status that
     /// records what happened.
     /// </summary>

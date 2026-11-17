@@ -49,7 +49,7 @@ describe('AlertDetail', () => {
   });
 
   it('names a deferred send\'s next try as its next attempt', async () => {
-    serve(alert('retry-after', 2));
+    serve(alert('retrying', 2));
     render(AlertDetailHarness, { alertRef });
 
     expect(await screen.findByText('Next attempt')).toBeTruthy();

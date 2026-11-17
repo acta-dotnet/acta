@@ -14,8 +14,8 @@ public enum AlertDeliveryStatusCode : byte
     [Code("pending", "Raised; awaiting the first send attempt.")]
     Pending = 10,
 
-    [Code("retry-after", "Send deferred until the alert's retryAfterUtc.")]
-    RetryAfter = 20,
+    [Code("retrying", "A send failed and the next one is due at the alert's retryAfterUtc.")]
+    Retrying = 20,
 
     [Code("suppressed", "Intentionally not sent: the channel's policy on the sending process rejected delivery.")]
     Suppressed = 30,

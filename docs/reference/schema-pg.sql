@@ -12,7 +12,7 @@
 -- present and leaves the data in place. Over a database a newer release upgraded, the script stops
 -- before changing anything. A later 1.x release upgrades a 1.x database with
 -- its own migrations, carried in its own copy of this script. A database provisioned from an
--- init migration other than M20261117143832_init has no upgrade path: provision a new one.
+-- init migration other than M20261117144345_init has no upgrade path: provision a new one.
 --
 -- Run it with a client that stops at the first error, which is what makes the transaction below a
 -- guarantee: psql -v ON_ERROR_STOP=1. A client that runs on past a failed statement would reach the
@@ -41,14 +41,14 @@ DO $$
 BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
-        WHERE name NOT IN ('M20261117143832_init')
+        WHERE name NOT IN ('M20261117144345_init')
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
 END
 $$;
 
--- ===== BEGIN M20261117143832_init =====
+-- ===== BEGIN M20261117144345_init =====
 CREATE SCHEMA IF NOT EXISTS acta;
 
 -- alerts
@@ -2917,7 +2917,7 @@ BEGIN
                 -- A job stays while an alert of it is undelivered: the failure it reports has reached nobody yet.
                 AND NOT EXISTS (
                     SELECT 1 FROM acta.alerts a
-                    WHERE a.job_id = j.job_id AND a.delivery_status_code IN (10 /* AlertDeliveryStatusCode.Pending */, 20 /* AlertDeliveryStatusCode.RetryAfter */))
+                    WHERE a.job_id = j.job_id AND a.delivery_status_code IN (10 /* AlertDeliveryStatusCode.Pending */, 20 /* AlertDeliveryStatusCode.Retrying */))
             ORDER BY j.created_at_utc DESC, j.job_id DESC
             LIMIT p_batch_size
             FOR UPDATE OF j, r SKIP LOCKED) q;
@@ -2996,7 +2996,7 @@ BEGIN
             WHERE
                 namespace_id = p_namespace_id
                 AND created_at_utc <= p_cutoff_utc
-                AND delivery_status_code IN (10 /* AlertDeliveryStatusCode.Pending */, 20 /* AlertDeliveryStatusCode.RetryAfter */)
+                AND delivery_status_code IN (10 /* AlertDeliveryStatusCode.Pending */, 20 /* AlertDeliveryStatusCode.Retrying */)
             ORDER BY created_at_utc, alert_id
             LIMIT p_batch_size
             FOR UPDATE SKIP LOCKED) q;
@@ -4259,7 +4259,7 @@ SELECT
     a.alert_severity_code,
     CASE a.alert_kind_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'first-failure' WHEN 20 THEN 'threshold-reached' WHEN 30 THEN 'final-failure' WHEN 40 THEN 'manual' END AS alert_kind,
     a.alert_kind_code,
-    CASE a.delivery_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'pending' WHEN 20 THEN 'retry-after' WHEN 30 THEN 'suppressed' WHEN 100 THEN 'delivered' WHEN 200 THEN 'failed' END AS delivery_status,
+    CASE a.delivery_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'pending' WHEN 20 THEN 'retrying' WHEN 30 THEN 'suppressed' WHEN 100 THEN 'delivered' WHEN 200 THEN 'failed' END AS delivery_status,
     a.delivery_status_code,
     a.title,
     a.alert_message,
@@ -4592,10 +4592,10 @@ JOIN acta.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO acta.migrations (name)
-VALUES ('M20261117143832_init')
+VALUES ('M20261117144345_init')
 ON CONFLICT (name) DO NOTHING;
 
--- ===== END M20261117143832_init =====
+-- ===== END M20261117144345_init =====
 
 COMMIT;
 

@@ -291,7 +291,7 @@ export function parseUtcDateTimeInput(value: string): UtcDateTimeInputResult {
   return { ok: true, wire: date.toISOString() };
 }
 
-// Code-family enums arrive kebab-case on the wire ('ready', 'retry-after', 'critical').
+// Code-family enums arrive kebab-case on the wire ('ready', 'retrying', 'critical').
 export function statusClass(status: string): string {
   switch (status) {
     case 'succeeded':
@@ -310,7 +310,7 @@ export function statusClass(status: string): string {
     case 'suspended':
     case 'draining':
     case 'warning':
-    case 'retry-after':
+    case 'retrying':
       return 'warn';
     default:
       return '';
@@ -338,7 +338,7 @@ export function statusIcon(status: string): string {
     case 'draining':
       return 'pause';
     case 'warning':
-    case 'retry-after':
+    case 'retrying':
       return 'warn';
     case 'ready':
     case 'blocked':

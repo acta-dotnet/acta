@@ -177,7 +177,7 @@ internal sealed class AlertEntity : IEntity<long>
 
     /// <summary>
     /// Where the alert is in the delivery pipeline (<c>Pending</c> / <c>Suppressed</c> /
-    /// <c>Delivered</c> / <c>Failed</c> / <c>RetryAfter</c>).
+    /// <c>Delivered</c> / <c>Failed</c> / <c>Retrying</c>).
     /// </summary>
     [DbColumn("delivery_status_code")]
     public AlertDeliveryStatusCode DeliveryStatusCode { get; set; }

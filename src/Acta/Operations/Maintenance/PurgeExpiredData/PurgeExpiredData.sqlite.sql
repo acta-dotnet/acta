@@ -97,7 +97,7 @@ WHERE
     -- A job stays while an alert of it is undelivered: the failure it reports has reached nobody yet.
     AND NOT EXISTS (
         SELECT 1 FROM {{schema}}.alerts a
-        WHERE a.job_id = j.job_id AND a.delivery_status_code IN (10 /* AlertDeliveryStatusCode.Pending */, 20 /* AlertDeliveryStatusCode.RetryAfter */))
+        WHERE a.job_id = j.job_id AND a.delivery_status_code IN (10 /* AlertDeliveryStatusCode.Pending */, 20 /* AlertDeliveryStatusCode.Retrying */))
 ORDER BY j.created_at_utc DESC, j.job_id DESC
 LIMIT @p_batch_size;
 
@@ -164,7 +164,7 @@ WHERE
     @p_section = 4
     AND namespace_id = @p_namespace_id
     AND created_at_utc <= @p_cutoff_utc
-    AND delivery_status_code IN (10 /* AlertDeliveryStatusCode.Pending */, 20 /* AlertDeliveryStatusCode.RetryAfter */)
+    AND delivery_status_code IN (10 /* AlertDeliveryStatusCode.Pending */, 20 /* AlertDeliveryStatusCode.Retrying */)
 ORDER BY created_at_utc, alert_id
 LIMIT @p_batch_size;
 

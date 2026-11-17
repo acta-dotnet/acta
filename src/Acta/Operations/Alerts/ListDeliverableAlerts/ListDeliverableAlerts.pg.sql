@@ -23,7 +23,7 @@ WHERE
     AND (
         /* Arm 1 - first attempt or a due retry. */
         (
-            a.delivery_status_code IN (10 /* AlertDeliveryStatusCode.Pending */, 20 /* AlertDeliveryStatusCode.RetryAfter */)
+            a.delivery_status_code IN (10 /* AlertDeliveryStatusCode.Pending */, 20 /* AlertDeliveryStatusCode.Retrying */)
             AND (a.retry_after_utc IS NULL OR a.retry_after_utc <= now())
         )
         /* Arm 2 - reminder. Delivery settled, the incident did not, and the instant that settlement

@@ -1493,7 +1493,7 @@
   "Objects": {
     "mssql": {
       "access_job_checkpoint": "7447e07b01fb754fe915e0aa6ae45d7049a202938a0690147dde285fef01b5cd",
-      "alerts_view": "f91827286e18c2d0c3d7629f635358eb0cd64f667275b60be35a2b4d6992d4ab",
+      "alerts_view": "207b366c309ccf6cf8c59a568c1b3a63cf61d671affa64b2a550adfa71396195",
       "arm_or_consume_job_sleep_timer": "dacc198e04a53cfa0a39486ca42e6133a58a03447f0f5a703982b352b0d52543",
       "calendars_view": "bd5a920311aed994b9bf85b1e24fe4d74db59593e33407cbc5413b4214fbd2c9",
       "checkpoints_view": "798f62fb9c53ff43b262d949d37bfa428cae1d3ae0ee15ec9449d36b27a63cd1",
@@ -1507,7 +1507,7 @@
       "events_view": "8913857f9fd044d5d1a3f3038da43f5bd7076a24e0e0eaa8bd1b44ef6f9d5d7d",
       "extend_worker_leases": "bd11a1466107868428f4215f36594fb28a20aab206d2db9908c6f625495c05c8",
       "jobs_view": "6ed9dc1950cee7aaf18aabfa5cdbeb85b2d7f01ee02de8addb2266c677589a00",
-      "purge_expired_data": "b1b3fdffb6439c084ae2a0d18b17def11879ee29bd9e9b83962dc394ad7c11e4",
+      "purge_expired_data": "b4a4507319a263da9335d564188fdf15e11f3bb5b136e41c8b738ba2ed222456",
       "raise_job_signal": "2e0849ac1d264a0a8357fc1cb7a7925158beb6f268c8b459e8a04453c9ab0d2b",
       "reclaim_stuck_jobs": "52a0389caea6162bed6e3aa1e75be987a30a8146ab001c2783bdaa1b928d70ad",
       "reserve_rate": "6c670647c61105bf54f710e21222010bc21c5fb74db62825cce3495dd902fa22",
@@ -1520,7 +1520,7 @@
     },
     "pg": {
       "access_job_checkpoint": "a43167c7b687701d69e02d4a06f98931c5a826ee278a5c25c3446705277449af",
-      "alerts_view": "380ee32ecaf057603d201dfda22aa8b98fe4264a09f5c5a0fb8e910ee74dc442",
+      "alerts_view": "d8e65b624846d268effb0adb12f6396790329a9833f349d0a8814afab4992a81",
       "arm_or_consume_job_sleep_timer": "3d359af3d848bbad9b7ce24bcd99000cf28853b3510ce1df1ddf8471b0f8c766",
       "calendars_view": "c01af54b3e69d16b7de5a5e2bc25330fc1040445ecbbb4512cd29926eef1f155",
       "checkpoints_view": "34a025869cc5b4856a85b3e89039b8062cb1cae2d0267305184566a7db255e29",
@@ -1534,7 +1534,7 @@
       "events_view": "b1959b735a0288b7c6e3fee8404cf58ca4629511d82c531ea2a1349e3c43551e",
       "extend_worker_leases": "8a5afc7d8da253ef2c6cccebb8609473b1f37afd827b979a526d76222d8c4c51",
       "jobs_view": "3382106b99ee2e8e7ed4dda8ddf2068645ba7cfc1d26a33a246b3abdd907348e",
-      "purge_expired_data": "c9182d7dd6b40620bd3a9fe40ebcc8d9efb6cbb73989ab7d190a83e9cbd9598c",
+      "purge_expired_data": "eea4fd437dc9a491b44ad12447933b8977c351e71ed60214a20de9e06ec16a62",
       "raise_job_signal": "7eeb38981de6ae22d2a5dd04eba1340108bb51e91f6d15831a40ac541811eaa8",
       "reclaim_stuck_jobs": "4bc1364f5661c7628683cdfce00ed3200fbfd586c1f55810657195722e86652f",
       "reserve_rate": "147eb58a9780d3a3a0f0660d4d0301c93a2a310dfbff598c2996b88d71eb6543",
@@ -1546,7 +1546,7 @@
       "workers_view": "83b2b8503a31f125ebc4c2c1b362fe0f180c5f04c6f679e63225612fcafcfeaa"
     },
     "sqlite": {
-      "alerts_view": "f66281c28c1aecceae31cb531c06a141d5ad692b0c6c0474972f884621bfb0a8",
+      "alerts_view": "1568a5c29b46d9603267a8db93889e30ea85df25dba42822d729a7161fdb7c47",
       "calendars_view": "bf23bb7e792f01f033cbcf247a23f57f5f1458229d1ddd993b80806a1aec038d",
       "checkpoints_view": "51ec3b286c5fa5170b687dd137a98fc54ed3711c0401bd1be552da78a522452e",
       "definitions_view": "4c2394f618d238191a75e46cc284a33405b3365e361279b24e762e5b2b2ae057",

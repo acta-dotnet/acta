@@ -249,7 +249,7 @@ internal sealed class AlertDelivery(
                     return WriteSettlementAsync(a, AlertDeliveryStatusCode.Failed, nextRetryCount, nowUtc + _reminderInterval, ct);
                 }
                 var delaySeconds = BackoffSchedule.ComputeDelaySeconds(nextRetryCount, RetryBackoff);
-                return WriteSettlementAsync(a, AlertDeliveryStatusCode.RetryAfter, nextRetryCount, nowUtc.AddSeconds(delaySeconds), ct);
+                return WriteSettlementAsync(a, AlertDeliveryStatusCode.Retrying, nextRetryCount, nowUtc.AddSeconds(delaySeconds), ct);
 
             // Permanent: no channel, or no transport for its kind. Same reasoning as the exhausted arm -
             // the send failed, so the row stays on the reminder cadence until the incident closes.
@@ -273,8 +273,8 @@ internal sealed class AlertDelivery(
     /// Every settlement writes against the version the row carried at selection, and losing that compare-and-swap is
     /// correct: the row moved on and the newer state stands, settled by an operator resolve or a competing worker. The
     /// frequent partner is the raise path's collapse arm, which bumps the version when a repeat of the same condition
-    /// lands inside the send window, so this settle loses and the row keeps the state the read found (Pending, an
-    /// elapsed RetryAfter, or a settled row past its reminder), which the next pass selects again: a re-send, allowed
+    /// lands inside the send window, so this settle loses and the row keeps the state the read found (Pending, a
+    /// due Retrying, or a settled row past its reminder), which the next pass selects again: a re-send, allowed
     /// at least once, carrying the count the repeat wrote. No retry and no log line.
     /// </summary>
     private async Task WriteSettlementAsync(

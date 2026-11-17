@@ -27,7 +27,7 @@ BEGIN TRY
            cleared is cancelled rather than sent, which is what Suppressed already means. An already-settled
            row keeps its status: it records what actually happened to the send, and a resolve does not edit it. */
         delivery_status_code = CASE
-            WHEN a.delivery_status_code IN (10 /* AlertDeliveryStatusCode.Pending */, 20 /* AlertDeliveryStatusCode.RetryAfter */)
+            WHEN a.delivery_status_code IN (10 /* AlertDeliveryStatusCode.Pending */, 20 /* AlertDeliveryStatusCode.Retrying */)
                 THEN 30 /* AlertDeliveryStatusCode.Suppressed */
             ELSE a.delivery_status_code
         END,

@@ -111,7 +111,7 @@ public sealed class ListDeliverableAlertsSpec : ActaStorageTestBase<ConformanceF
     public async Task Unset_instant_is_due_only_on_the_retry_arm()
     {
         var ct = TestContext.Current.CancellationToken;
-        var retrying = await StageAsync(AlertDeliveryStatusCode.RetryAfter, ct);
+        var retrying = await StageAsync(AlertDeliveryStatusCode.Retrying, ct);
         await StageAsync(AlertDeliveryStatusCode.Delivered, ct);
         await StageAsync(AlertDeliveryStatusCode.Failed, ct);
 

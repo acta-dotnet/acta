@@ -50,7 +50,7 @@ SET
        declared cleared is cancelled, and an already-settled status stands as the record of what the
        send actually did. */
     delivery_status_code = CASE
-        WHEN delivery_status_code IN (10 /* AlertDeliveryStatusCode.Pending */, 20 /* AlertDeliveryStatusCode.RetryAfter */)
+        WHEN delivery_status_code IN (10 /* AlertDeliveryStatusCode.Pending */, 20 /* AlertDeliveryStatusCode.Retrying */)
             THEN 30 /* AlertDeliveryStatusCode.Suppressed */
         ELSE delivery_status_code
     END,

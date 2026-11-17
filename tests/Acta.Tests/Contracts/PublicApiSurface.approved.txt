@@ -166,7 +166,7 @@ enum Acta.AlertDeliveryStatusCode : System.Byte
     Delivered = 100
     Failed = 200
     Pending = 10
-    RetryAfter = 20
+    Retrying = 20
     Suppressed = 30
     Unspecified = 0
 static class Acta.AlertDeliveryStatusCodeExtensions

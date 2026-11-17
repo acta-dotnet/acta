@@ -125,7 +125,7 @@
 - **Contract:** Delivery selects unresolved rows whose retry_after_utc has come, on the retry arm or the reminder arm, and settles only at the version the read handed out.
 - **Guarantees:**
   - Pending alert is deliverable by channel name and settles Delivered
-  - RetryAfter redelivers only when due
+  - Retrying redelivers only when due
   - A freshly settled Failed row is not re-selected by the retry path
   - Suppressed is never redelivered, even carrying a due instant
   - An alert resolved before the deliver pass is not selected and its Pending row is Suppressed

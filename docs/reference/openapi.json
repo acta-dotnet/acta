@@ -15881,11 +15881,11 @@
           "pending"
         ],
         "type": "string",
-        "description": "Where an alert stands with its delivery to its channel.\n\nKnown values:\n- unspecified: Alert delivery status not recognized by this build; the row was written by a newer Acta.\n- pending: Raised; awaiting the first send attempt.\n- retry-after: Send deferred until the alert's retryAfterUtc.\n- suppressed: Intentionally not sent: the channel's policy on the sending process rejected delivery.\n- delivered: Sent to the channel's transport.\n- failed: Send attempt failed and the retry path is done with it; re-sent as a reminder while the incident stays unresolved.\n\nOther values may appear: keep a value this client does not know as it is.",
+        "description": "Where an alert stands with its delivery to its channel.\n\nKnown values:\n- unspecified: Alert delivery status not recognized by this build; the row was written by a newer Acta.\n- pending: Raised; awaiting the first send attempt.\n- retrying: A send failed and the next one is due at the alert's retryAfterUtc.\n- suppressed: Intentionally not sent: the channel's policy on the sending process rejected delivery.\n- delivered: Sent to the channel's transport.\n- failed: Send attempt failed and the retry path is done with it; re-sent as a reminder while the incident stays unresolved.\n\nOther values may appear: keep a value this client does not know as it is.",
         "x-acta-known-values": [
           "unspecified",
           "pending",
-          "retry-after",
+          "retrying",
           "suppressed",
           "delivered",
           "failed"

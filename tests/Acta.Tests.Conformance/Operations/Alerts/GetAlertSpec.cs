@@ -54,12 +54,12 @@ public sealed class GetAlertSpec : ActaRuntimeTestBase<ConformanceFixture, JobsO
             (
                 await Services
                     .GetRequiredService<AlertsOperations>()
-                    .UpdateAlertDeliveryAsync(raised.Id, raised.Version, AlertDeliveryStatusCode.RetryAfter, 3, retryAfter, ct)
+                    .UpdateAlertDeliveryAsync(raised.Id, raised.Version, AlertDeliveryStatusCode.Retrying, 3, retryAfter, ct)
             ).Updated
         );
         var settled = await Operations.Alerts.GetAsync(alertRef, ct);
         Assert.NotNull(settled);
-        Assert.Equal(AlertDeliveryStatusCode.RetryAfter, settled.DeliveryStatus);
+        Assert.Equal(AlertDeliveryStatusCode.Retrying, settled.DeliveryStatus);
         Assert.Equal(3, settled.RetryCount);
         Assert.Equal(retryAfter, settled.RetryAfterUtc);
 

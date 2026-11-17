@@ -152,7 +152,7 @@ BEGIN
                     SELECT a.job_id
                     FROM @alert_seen s
                     INNER JOIN {{schema}}.alerts a WITH (FORCESEEK (pk_alerts (alert_id))) ON a.alert_id = s.alert_id
-                    WHERE a.delivery_status_code IN (10 /* AlertDeliveryStatusCode.Pending */, 20 /* AlertDeliveryStatusCode.RetryAfter */)
+                    WHERE a.delivery_status_code IN (10 /* AlertDeliveryStatusCode.Pending */, 20 /* AlertDeliveryStatusCode.Retrying */)
                 );
 
                 -- Each delete below seeks its rows by job id: an unhinted plan can scan
@@ -289,7 +289,7 @@ BEGIN
                     AND created_at_utc <= @p_cutoff_utc
                     AND delivery_status_code IN (
                         10 /* AlertDeliveryStatusCode.Pending */,
-                        20 /* AlertDeliveryStatusCode.RetryAfter */
+                        20 /* AlertDeliveryStatusCode.Retrying */
                     )
                 ORDER BY created_at_utc, alert_id;
 
@@ -318,7 +318,7 @@ BEGIN
                     a.created_at_utc <= @p_cutoff_utc
                     AND a.delivery_status_code IN (
                         10 /* AlertDeliveryStatusCode.Pending */,
-                        20 /* AlertDeliveryStatusCode.RetryAfter */
+                        20 /* AlertDeliveryStatusCode.Retrying */
                     );
                 SET @rows = @@ROWCOUNT;
 

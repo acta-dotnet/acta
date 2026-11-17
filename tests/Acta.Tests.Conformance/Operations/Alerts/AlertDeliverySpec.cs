@@ -8,7 +8,7 @@ namespace Acta.Tests.Conformance.Operations.Alerts;
 /// <summary>
 /// Conformance for the delivery read + settle ops (<c>ListDeliverableAlerts</c> / <c>UpdateAlertDelivery</c>)
 /// against the incident model. Both arms of the read key off <c>retry_after_utc</c>: Pending and
-/// RetryAfter are due when their instant elapses or is unset, and an unresolved Delivered or Failed row
+/// Retrying are due when their instant elapses or is unset, and an unresolved Delivered or Failed row
 /// is due when the reminder its settlement scheduled arrives, while Suppressed never is. A repeat
 /// landing on the open incident does not move that schedule, which is the point of putting it there. A
 /// resolved row is selected on neither arm and its queued delivery is settled by the resolve, and
@@ -57,7 +57,7 @@ public sealed class AlertDeliverySpec : ActaStorageTestBase<ConformanceFixture>
         Assert.Equal(AlertDeliveryStatusCode.Delivered, row.DeliveryStatusCode);
     }
 
-    [Fact(DisplayName = "RetryAfter redelivers only when due")]
+    [Fact(DisplayName = "Retrying redelivers only when due")]
     public async Task Retryable_settle_parks_in_retry_after_and_redelivers_when_due()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -67,12 +67,12 @@ public sealed class AlertDeliverySpec : ActaStorageTestBase<ConformanceFixture>
         var due = Assert.Single(await DueAsync(ct));
 
         // Park with a future retry instant - not yet due, so the next read skips it.
-        Assert.True(await SettleAsync(due.AlertId, due.Version, AlertDeliveryStatusCode.RetryAfter, 1, FutureInstant, ct));
+        Assert.True(await SettleAsync(due.AlertId, due.Version, AlertDeliveryStatusCode.Retrying, 1, FutureInstant, ct));
         Assert.Empty(await DueAsync(ct));
 
         // Re-park with an elapsed instant - now due again, carrying the bumped retry count. The settle
         // rides the version the previous settle left behind, which is what the next selection would hand out.
-        Assert.True(await SettleAsync(due.AlertId, due.Version + 1, AlertDeliveryStatusCode.RetryAfter, 1, PastInstant, ct));
+        Assert.True(await SettleAsync(due.AlertId, due.Version + 1, AlertDeliveryStatusCode.Retrying, 1, PastInstant, ct));
         var again = Assert.Single(await DueAsync(ct));
         Assert.Equal(1, again.RetryCount);
         Assert.Equal(due.Version + 2, again.Version);
@@ -136,19 +136,19 @@ public sealed class AlertDeliverySpec : ActaStorageTestBase<ConformanceFixture>
 
         // One incident per starting status, each on its own job so one resolve closes exactly one row.
         var pending = await StageAsync(null, retryAfter: null, ct);
-        var retryAfter = await StageAsync(AlertDeliveryStatusCode.RetryAfter, FutureInstant, ct);
+        var retrying = await StageAsync(AlertDeliveryStatusCode.Retrying, FutureInstant, ct);
         var delivered = await StageAsync(AlertDeliveryStatusCode.Delivered, null, ct);
         var failed = await StageAsync(AlertDeliveryStatusCode.Failed, null, ct);
         var suppressed = await StageAsync(AlertDeliveryStatusCode.Suppressed, null, ct);
 
-        foreach (var jobId in new[] { pending, retryAfter, delivered, failed, suppressed })
+        foreach (var jobId in new[] { pending, retrying, delivered, failed, suppressed })
         {
             Assert.Equal(1, await ResolveAsync(jobId, ct));
         }
 
         var rows = (await ReadAlertsAsync(TestNamespaceId, ct)).ToDictionary(a => a.JobId!.Value);
         Assert.Equal(AlertDeliveryStatusCode.Suppressed, rows[pending].DeliveryStatusCode);
-        Assert.Equal(AlertDeliveryStatusCode.Suppressed, rows[retryAfter].DeliveryStatusCode);
+        Assert.Equal(AlertDeliveryStatusCode.Suppressed, rows[retrying].DeliveryStatusCode);
         Assert.Equal(AlertDeliveryStatusCode.Delivered, rows[delivered].DeliveryStatusCode);
         Assert.Equal(AlertDeliveryStatusCode.Failed, rows[failed].DeliveryStatusCode);
         Assert.Equal(AlertDeliveryStatusCode.Suppressed, rows[suppressed].DeliveryStatusCode);

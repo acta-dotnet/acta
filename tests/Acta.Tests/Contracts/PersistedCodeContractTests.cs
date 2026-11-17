@@ -15,7 +15,7 @@ public sealed class PersistedCodeContractTests
         AlertChannelStatusCode.Deprecated=240|deprecated
         AlertDeliveryStatusCode.Unspecified=0|unspecified
         AlertDeliveryStatusCode.Pending=10|pending
-        AlertDeliveryStatusCode.RetryAfter=20|retry-after
+        AlertDeliveryStatusCode.Retrying=20|retrying
         AlertDeliveryStatusCode.Suppressed=30|suppressed
         AlertDeliveryStatusCode.Delivered=100|delivered
         AlertDeliveryStatusCode.Failed=200|failed
@@ -207,7 +207,7 @@ public sealed class PersistedCodeContractTests
         WorkerStatusCode.Dead=200|dead
         """;
 
-    private const string ExpectedDescriptionHash = "F083D98CBC59F9FAC648059407BA40FAB4201769A945112353F9F101C9365061";
+    private const string ExpectedDescriptionHash = "51A97F5DCC2982BD1FB67192DEDCD26564B3389F13F91570A782212DFA5B460C";
 
     [Fact]
     public void Frozen_contract_covers_all_32_families_and_196_values()

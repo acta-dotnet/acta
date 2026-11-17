@@ -95,7 +95,7 @@ public sealed class PurgeExpiredDataSpec : ActaRuntimeTestBase<ConformanceFixtur
         var retrying = (await EnqueueAndRunAsync("purge-now", new PurgeProbe("retrying"), ct)).JobId;
         var told = (await EnqueueAndRunAsync("purge-now", new PurgeProbe("told"), ct)).JobId;
         await RaiseForJobAsync(waiting, AlertDeliveryStatusCode.Pending, key: null, ct);
-        await RaiseForJobAsync(retrying, AlertDeliveryStatusCode.RetryAfter, key: null, ct);
+        await RaiseForJobAsync(retrying, AlertDeliveryStatusCode.Retrying, key: null, ct);
         // Keyed, as every automatic alert is: on SQL Server its identity row is locked before the row.
         await RaiseForJobAsync(told, AlertDeliveryStatusCode.Delivered, Unique("told"), ct);
 
@@ -319,10 +319,10 @@ public sealed class PurgeExpiredDataSpec : ActaRuntimeTestBase<ConformanceFixtur
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
 
         // Null deduplication keys always insert, so these land as three distinct rows: one settled
-        // (Delivered) and two whose delivery never settled (Pending, RetryAfter).
+        // (Delivered) and two whose delivery never settled (Pending, Retrying).
         await RaiseAlertAsync(Db, TestNamespace, AlertDeliveryStatusCode.Delivered, ct);
         await RaiseAlertAsync(Db, TestNamespace, AlertDeliveryStatusCode.Pending, ct);
-        await RaiseAlertAsync(Db, TestNamespace, AlertDeliveryStatusCode.RetryAfter, ct);
+        await RaiseAlertAsync(Db, TestNamespace, AlertDeliveryStatusCode.Retrying, ct);
 
         // Inside the window nothing goes, and neither count moves - which is also the negative behind
         // the maintenance pass's one warning: no undelivered row purged, nothing to warn about.

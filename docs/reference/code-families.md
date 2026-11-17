@@ -85,7 +85,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 |---|---:|---|---|---|
 | `Unspecified` | 0 | `unspecified` | Alert delivery status not recognized by this build; the row was written by a newer Acta. | Active |
 | `Pending` | 10 | `pending` | Raised; awaiting the first send attempt. | Active |
-| `RetryAfter` | 20 | `retry-after` | Send deferred until the alert's retryAfterUtc. | Active |
+| `Retrying` | 20 | `retrying` | A send failed and the next one is due at the alert's retryAfterUtc. | Active |
 | `Suppressed` | 30 | `suppressed` | Intentionally not sent: the channel's policy on the sending process rejected delivery. | Active |
 | `Delivered` | 100 | `delivered` | Sent to the channel's transport. | Active |
 | `Failed` | 200 | `failed` | Send attempt failed and the retry path is done with it; re-sent as a reminder while the incident stays unresolved. | Active |

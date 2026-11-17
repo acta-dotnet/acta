@@ -78,11 +78,11 @@ public sealed class AlertDeliveryFailureSpec : ActaStorageTestBase<ConformanceFi
         await SeedChannelAsync(Db, "ch-throw", ThrowingKind, ct);
         await RaiseAlertAsync(Db, "ch-throw", jobId: null, ct);
 
-        // Pass 1: transport throws → Retryable → RetryAfter(50), retry_count=1.
+        // Pass 1: transport throws → Retryable → Retrying(50), retry_count=1.
         await RunDeliveryAsync(maxRetries: 5, ct);
 
         var row1 = Assert.Single(await ReadAlertsAsync(TestNamespaceId, ct));
-        Assert.Equal(AlertDeliveryStatusCode.RetryAfter, row1.DeliveryStatusCode);
+        Assert.Equal(AlertDeliveryStatusCode.Retrying, row1.DeliveryStatusCode);
         Assert.Equal(1, row1.RetryCount);
         Assert.NotNull(row1.RetryAfterUtc);
         Assert.True(row1.RetryAfterUtc > Clock.Now, "retry_after_utc must be in the future relative to when delivery ran");
@@ -92,7 +92,7 @@ public sealed class AlertDeliveryFailureSpec : ActaStorageTestBase<ConformanceFi
         await RunDeliveryAsync(maxRetries: 5, ct);
 
         var row2 = Assert.Single(await ReadAlertsAsync(TestNamespaceId, ct));
-        Assert.Equal(AlertDeliveryStatusCode.RetryAfter, row2.DeliveryStatusCode);
+        Assert.Equal(AlertDeliveryStatusCode.Retrying, row2.DeliveryStatusCode);
         Assert.Equal(2, row2.RetryCount);
         Assert.NotNull(row2.RetryAfterUtc);
     }
@@ -121,7 +121,7 @@ public sealed class AlertDeliveryFailureSpec : ActaStorageTestBase<ConformanceFi
             ct
         );
         var hung = Assert.Single(first, a => a.ChannelName == "ch-hang");
-        Assert.Equal((AlertDeliveryStatusCode.RetryAfter, 1), (hung.DeliveryStatusCode, hung.RetryCount));
+        Assert.Equal((AlertDeliveryStatusCode.Retrying, 1), (hung.DeliveryStatusCode, hung.RetryCount));
         Assert.Equal(AlertDeliveryStatusCode.Pending, Assert.Single(first, a => a.ChannelName == "ch-log").DeliveryStatusCode);
 
         // A pass with time to spare gives the hung endpoint its limit again and then reaches the alert behind it.
@@ -150,7 +150,7 @@ public sealed class AlertDeliveryFailureSpec : ActaStorageTestBase<ConformanceFi
 
         // One limit is spent on the dead endpoint, not one per alert queued for it: the second is left due and uncharged.
         var hung = (await ReadAlertsAsync(TestNamespaceId, ct)).Where(a => a.ChannelName == "ch-hang").OrderBy(a => a.Id).ToList();
-        Assert.Equal((AlertDeliveryStatusCode.RetryAfter, 1), (hung[0].DeliveryStatusCode, hung[0].RetryCount));
+        Assert.Equal((AlertDeliveryStatusCode.Retrying, 1), (hung[0].DeliveryStatusCode, hung[0].RetryCount));
         Assert.Equal((AlertDeliveryStatusCode.Pending, 0), (hung[1].DeliveryStatusCode, hung[1].RetryCount));
         var delivered = Assert.Single(await ReadAlertsAsync(TestNamespaceId, ct), a => a.ChannelName == "ch-log");
         Assert.Equal(AlertDeliveryStatusCode.Delivered, delivered.DeliveryStatusCode);
@@ -164,11 +164,11 @@ public sealed class AlertDeliveryFailureSpec : ActaStorageTestBase<ConformanceFi
         await SeedChannelAsync(Db, "ch-maxretry", ThrowingKind, ct);
         await RaiseAlertAsync(Db, "ch-maxretry", jobId: null, ct);
 
-        // maxRetries=2: pass 1 → retry_count=1 (1 < 2), RetryAfter.
+        // maxRetries=2: pass 1 → retry_count=1 (1 < 2), Retrying.
         await RunDeliveryAsync(maxRetries: 2, ct);
 
         var row1 = Assert.Single(await ReadAlertsAsync(TestNamespaceId, ct));
-        Assert.Equal(AlertDeliveryStatusCode.RetryAfter, row1.DeliveryStatusCode);
+        Assert.Equal(AlertDeliveryStatusCode.Retrying, row1.DeliveryStatusCode);
         Assert.Equal(1, row1.RetryCount);
 
         // Pass 2 → retry_count=2 (2 >= 2), terminal Failed.
@@ -452,7 +452,7 @@ public sealed class AlertDeliveryFailureSpec : ActaStorageTestBase<ConformanceFi
         await RunDeliveryAsync(maxRetries: 5, ct);
 
         var reminded = Assert.Single(await ReadAlertsAsync(TestNamespaceId, ct));
-        Assert.Equal(AlertDeliveryStatusCode.RetryAfter, reminded.DeliveryStatusCode);
+        Assert.Equal(AlertDeliveryStatusCode.Retrying, reminded.DeliveryStatusCode);
         Assert.Equal(1, reminded.RetryCount);
         Assert.NotNull(reminded.RetryAfterUtc);
     }

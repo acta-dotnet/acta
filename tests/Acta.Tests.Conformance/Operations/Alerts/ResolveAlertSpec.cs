@@ -109,7 +109,7 @@ public sealed class ResolveAlertSpec : ActaRuntimeTestBase<ConformanceFixture, J
                 await store.UpdateAlertDeliveryAsync(
                     queued.Id,
                     queued.Version,
-                    AlertDeliveryStatusCode.RetryAfter,
+                    AlertDeliveryStatusCode.Retrying,
                     retryCount: 2,
                     retryAfterUtc: new DateTime(2999, 1, 1, 0, 0, 0, DateTimeKind.Utc),
                     ct
