@@ -2,7 +2,7 @@
 
 `operations.Ledger` lists jobs with filters, pages through them by cursor, counts them, and answers the health counters an operator's screen opens with.
 
-- Section: Watch and control running work, step 4
+- Section: Watch and control running work, step 5
 - Program: `concepts/400-observability-and-alerts/409-operator-queries` in https://github.com/acta-dotnet/acta (one compiled project)
 - Status: Checked every release. Before each release, Acta Verify runs this program and checks that its output contains these lines.
 - Rules: [/llms.txt](/llms.txt) is the contract every handler follows, starting with the handler running again from its first line; read it before you copy code from here.

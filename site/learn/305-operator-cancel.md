@@ -2,7 +2,7 @@
 
 `CancelAsync` on a job's handle cancels it from outside its handler. Any process that holds an `IJobs` can do it, and a running handler's `CancellationToken` trips.
 
-- Section: Watch and control running work, step 5
+- Section: Watch and control running work, step 6
 - Program: `concepts/300-failure-and-recovery/305-operator-cancel` in https://github.com/acta-dotnet/acta (one compiled project)
 - Status: Checked every release. Before each release, Acta Verify runs this program and checks that its output contains these lines.
 - Rules: [/llms.txt](/llms.txt) is the contract every handler follows, starting with the handler running again from its first line; read it before you copy code from here.

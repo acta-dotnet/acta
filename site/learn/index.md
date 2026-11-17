@@ -74,6 +74,7 @@ Every way to start work: now, later, once only, by name, or many at a time.
 - [How to schedule, sleep, and reschedule to an exact instant](/learn/217-absolute-time-controls.md): Pin work to an instant instead of a delay: `ScheduleAsync(input, runAt)` starts a job then, `SleepUntilAsync` pauses a handler until then, and `RescheduleUntilAsync` runs the handler again then
 - [How to keep a repeated request from creating a second job](/learn/010-deduplication-key.md): A deduplication key makes an enqueue idempotent: a second enqueue with the same key answers the job that is already there
 - [How to allow one job per hour or per day](/learn/028-deduplication-time-buckets.md): A deduplication key built from a time bucket lets one job in per bucket: `DeduplicationKey.PerTimeBucket` here, with `PerHour` and `PerDay` as its fixed sizes
+- [How to save a record and start its job in one transaction](/learn/029-enqueue-in-transaction.md): `EnqueueAsync` takes your open transaction, so the order row and the job that fulfils it commit together, or neither exists
 - [How to find a job by its deduplication key](/learn/014-read-by-deduplication-key.md): `JobLookup.ByDeduplicationKey` finds a job by the key it was enqueued with, when you did not keep its ref
 - [How to choose between starting a job and waiting for it](/learn/015-call-vs-enqueue.md): `EnqueueAsync` returns as soon as the job is stored; `CallAsync` enqueues, waits, and returns the result
 - [How to enqueue many jobs in one round trip](/learn/019-batch-enqueue.md): `EnqueueJobsAsync` writes a whole list of jobs in one round trip to the database and answers their outcomes in request order
@@ -122,6 +123,7 @@ Steps and variables record what a handler finished, so a retry or a restart carr
 A waiting job is a row. No worker and no process stays busy while it waits.
 
 - [How to wait for an approval without holding a worker](/learn/204-wait-signal.md): A job parks on a named signal, holds no worker, and carries on when the signal is raised
+- [How to hold a sign-up until the email is confirmed](/learn/221-pending-signup.md): The job is the pending sign-up: Acta stores its input, a signal confirms it, and a deadline ends it with no account to clean up
 - [How to wait for time to pass without a running process](/learn/205-durable-sleep.md): A named sleep stores the due time, frees the worker, and wakes the job when the time comes
 - [How to read the outcome of a wait that can time out](/learn/311-call-outcome-timeout.md): `CallAsync` answers a `JobOutcome`: whether the wait timed out, whether the job failed, and the value when it succeeded
 
@@ -133,6 +135,7 @@ Fan out, join the results, and decide what a failed child means.
 - [How to call another job and use its result](/learn/213-call-child.md): `CallChildAsync` starts another job as a child, waits for it without holding a worker, and returns its result
 - [How to fan out over a list and merge the results](/learn/212-fan-out-join.md): `MapAsync` starts one child job per item of a list, waits for them all, and hands back each item's result for the parent to merge
 - [How to fan out to child jobs with Map or WaitChildren](/learn/215-map-wait-children.md): Two ways to fan out: `EnqueueChildAsync` with `WaitChildrenAsync` for a few named children, and `MapAsync` for one child per item of a list
+- [How to find the child job that handles one item](/learn/222-find-child-job.md): A child's name on the reads is its deduplication key, `{map}/{key}` for a child that a map started. List the parent's children and pick the one that carries the item's key
 - [How to handle child jobs that fail](/learn/219-child-failure-outcomes.md): A group of children never throws by itself. A failed child shows in the `Failed` list of the wait or the map, and `ThrowIfAnyFailed` is how the parent chooses to fail with it
 - [How to start a child job in another namespace](/learn/704-cross-namespace-child.md): A parent starts a child in another worker's namespace and waits across the boundary
 - [How to enqueue many independent jobs from a handler](/learn/601-fan-out.md): A handler takes `IJobs` and enqueues many independent jobs, each with a stable deduplication key. Nothing links them to the handler's job and nothing waits for them (compare 212's `MapAsync`)
@@ -158,6 +161,7 @@ Keep jobs that touch the same thing from running over each other.
 
 - [How to let one job at a time touch a resource](/learn/207-run-with-lock.md): `RunWithLockAsync` holds a named lock around a piece of work, so jobs that name the same lock take turns
 - [How to limit how many jobs run at once for one key](/learn/209-concurrency-key.md): A `ConcurrencyKey` on the enqueue lets one job at a time run for that key. `ConcurrencyLimit` on the job gives a key several slots, and `RateLimit` meters how often jobs start
+- [How to apply each customer's commands in order while other customers keep moving](/learn/223-lane-per-customer.md): A lane runs its jobs one at a time, in enqueue order. A lane per customer keeps each customer's commands in order and lets the customers run side by side
 
 ## Watch and control running work
 
@@ -165,6 +169,7 @@ Read what happened, find jobs, and cancel, pause, resume, or restart them.
 
 - [How to inspect a job from the command line](/learn/021-jobs-cli.md): The app's own binary answers `jobs info`, `events`, `explain`, and the control verbs for any job, read from the same database
 - [How to see your jobs in the dashboard](/learn/022-dashboard.md): `MapActa` serves the dashboard and its JSON API from your own app. Its controls are off until you turn them on
+- [How to show where each job is on your own page](/learn/415-own-status-page.md): `IJobs` reads one job for a page of your own: its status, a value the handler keeps for the screen, and a sentence that says why the job is where it is
 - [How to read why a job did what it did](/learn/404-read-event-timeline.md): The append-only event ledger answers why a job did what it did. `ListEventsAsync` with `LineageRoot` reads the timeline of a job and of every child it started
 - [How to list and page through jobs](/learn/409-operator-queries.md): `operations.Ledger` lists jobs with filters, pages through them by cursor, counts them, and answers the health counters an operator's screen opens with
 - [How to cancel a running job from outside](/learn/305-operator-cancel.md): `CancelAsync` on a job's handle cancels it from outside its handler. Any process that holds an `IJobs` can do it, and a running handler's `CancellationToken` trips
@@ -203,6 +208,7 @@ Split the API from the worker, add workers, and tune them.
 
 - [How to enqueue from a process that runs no worker](/learn/701-enqueue-only-reference.md): `Reference<TManifest>()` lets a process enqueue a namespace's jobs by type without running a worker for it. `Run<TManifest>()` is the process that executes them
 - [How to run two namespaces in one process](/learn/703-namespaces-in-one-process.md): Each `Run` starts a worker for one namespace. Two of them in one process share the process and the database, and never each other's jobs
+- [How to restart a crashed app on SQLite and get its work back](/learn/706-sqlite-restart.md): On SQLite a starting worker releases the work of processes on the same machine that have ended, so a restarted app takes a lost job back at once. Nothing has to be written for it; the crash spends one attempt
 - [How to recover the work of a killed worker](/learn/705-worker-crash-recovery.md): A worker process is killed in the middle of a job, and another worker reclaims the job once its lease has lapsed. The program runs on PostgreSQL or SQL Server
 - [How to run jobs under Native AOT](/learn/901-native-aot-json.md): A source-generated `JsonSerializerContext` given to `UseJsonPayloads` serializes payloads with no runtime reflection, and `JobPayload.Json(value, typeInfo)` builds a raw payload the same way
 - [How to wake workers across processes with Redis](/learn/903-redis-wakeup.md): `UseRedisWakeup` announces each enqueue over Redis, so a worker in another process starts the job within milliseconds instead of at its next poll

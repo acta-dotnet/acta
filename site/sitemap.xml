@@ -94,6 +94,9 @@
     <loc>https://useacta.net/learn/028-deduplication-time-buckets</loc>
   </url>
   <url>
+    <loc>https://useacta.net/learn/029-enqueue-in-transaction</loc>
+  </url>
+  <url>
     <loc>https://useacta.net/learn/014-read-by-deduplication-key</loc>
   </url>
   <url>
@@ -178,6 +181,9 @@
     <loc>https://useacta.net/learn/204-wait-signal</loc>
   </url>
   <url>
+    <loc>https://useacta.net/learn/221-pending-signup</loc>
+  </url>
+  <url>
     <loc>https://useacta.net/learn/205-durable-sleep</loc>
   </url>
   <url>
@@ -194,6 +200,9 @@
   </url>
   <url>
     <loc>https://useacta.net/learn/215-map-wait-children</loc>
+  </url>
+  <url>
+    <loc>https://useacta.net/learn/222-find-child-job</loc>
   </url>
   <url>
     <loc>https://useacta.net/learn/219-child-failure-outcomes</loc>
@@ -241,10 +250,16 @@
     <loc>https://useacta.net/learn/209-concurrency-key</loc>
   </url>
   <url>
+    <loc>https://useacta.net/learn/223-lane-per-customer</loc>
+  </url>
+  <url>
     <loc>https://useacta.net/learn/021-jobs-cli</loc>
   </url>
   <url>
     <loc>https://useacta.net/learn/022-dashboard</loc>
+  </url>
+  <url>
+    <loc>https://useacta.net/learn/415-own-status-page</loc>
   </url>
   <url>
     <loc>https://useacta.net/learn/404-read-event-timeline</loc>
@@ -314,6 +329,9 @@
   </url>
   <url>
     <loc>https://useacta.net/learn/703-namespaces-in-one-process</loc>
+  </url>
+  <url>
+    <loc>https://useacta.net/learn/706-sqlite-restart</loc>
   </url>
   <url>
     <loc>https://useacta.net/learn/705-worker-crash-recovery</loc>

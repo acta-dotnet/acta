@@ -2,7 +2,7 @@
 
 A `CorrelationKey` set on the enqueue travels with the job and with every child it starts. It is on the job row, in each handler's log scope, and a filter of the job list.
 
-- Section: Watch and control running work, step 12
+- Section: Watch and control running work, step 13
 - Program: `concepts/400-observability-and-alerts/408-correlation-id` in https://github.com/acta-dotnet/acta (one compiled project)
 - Status: Checked every release. Before each release, Acta Verify runs this program and checks that its output contains these lines.
 - Rules: [/llms.txt](/llms.txt) is the contract every handler follows, starting with the handler running again from its first line; read it before you copy code from here.

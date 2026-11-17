@@ -1,0 +1,397 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>How to hold a sign-up until the email is confirmed · Acta, durable execution for .NET</title>
+  <meta name="description" content="How to hold a sign-up until the email is confirmed with Acta, durable execution for .NET. The job is the pending sign-up: Acta stores its input, a signal confirms it, and a deadline ends it with no account to clean up." />
+  <link rel="canonical" href="https://useacta.net/learn/221-pending-signup" />
+  <meta name="theme-color" content="#0B0E15" />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="Acta for .NET" />
+  <meta property="og:title" content="How to hold a sign-up until the email is confirmed · Acta, durable execution for .NET" />
+  <meta property="og:description" content="How to hold a sign-up until the email is confirmed with Acta, durable execution for .NET. The job is the pending sign-up: Acta stores its input, a signal confirms it, and a deadline ends it with no account to clean up." />
+  <meta property="og:url" content="https://useacta.net/learn/221-pending-signup" />
+  <meta property="og:image" content="https://useacta.net/assets/social-card.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="Acta: durable execution for .NET. Postgres, SQL Server, SQLite." />
+  <meta name="twitter:card" content="summary_large_image" />
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"How to hold a sign-up until the email is confirmed","description":"How to hold a sign-up until the email is confirmed with Acta, durable execution for .NET. The job is the pending sign-up: Acta stores its input, a signal confirms it, and a deadline ends it with no account to clean up.","url":"https://useacta.net/learn/221-pending-signup","inLanguage":"en","articleSection":"Wait for people, events, and time","isPartOf":{"@type":"CollectionPage","name":"Learn Acta","url":"https://useacta.net/learn"},"about":{"@type":"SoftwareSourceCode","name":"Acta","programmingLanguage":"C#","codeRepository":"https://github.com/acta-dotnet/acta"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Learn Acta","item":"https://useacta.net/learn"},{"@type":"ListItem","position":2,"name":"Wait for people, events, and time","item":"https://useacta.net/learn#s-wait"},{"@type":"ListItem","position":3,"name":"How to hold a sign-up until the email is confirmed","item":"https://useacta.net/learn/221-pending-signup"}]}</script>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="alternate" type="text/plain" href="/llms.txt" title="Acta for coding agents" />
+  <link rel="alternate" type="text/markdown" href="/learn/221-pending-signup.md" title="This page as Markdown, for coding agents" />
+  <link rel="preload" href="/assets/fonts/fraunces-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="/assets/fonts/ibm-plex-sans-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="/assets/fonts/ibm-plex-mono-400-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <style>
+    /* Self-hosted latin subsets of the three families, preloaded and served immutable (see _headers),
+       so a reload paints them from cache with no swap and a first visit swaps them in as they land.
+       Fraunces and Plex Sans are variable files. */
+    @font-face { font-family: "Fraunces"; font-style: normal; font-weight: 400 600; font-display: swap; src: url(/assets/fonts/fraunces-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "Fraunces"; font-style: italic; font-weight: 400 500; font-display: swap; src: url(/assets/fonts/fraunces-italic-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "IBM Plex Sans"; font-style: normal; font-weight: 400 600; font-display: swap; src: url(/assets/fonts/ibm-plex-sans-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "IBM Plex Mono"; font-style: normal; font-weight: 400; font-display: swap; src: url(/assets/fonts/ibm-plex-mono-400-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "IBM Plex Mono"; font-style: normal; font-weight: 500; font-display: swap; src: url(/assets/fonts/ibm-plex-mono-500-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+  </style>
+  <link rel="stylesheet" href="/assets/site.css" />
+  <link rel="stylesheet" href="/assets/learn.css" />
+  <script src="/assets/theme.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#content">Skip to content</a>
+  <div class="chrome">
+    <div class="wrap chrome-inner">
+    <a class="brand site-brand" href="/" aria-label="Acta home"><svg viewBox="3.95 4.95 30.1 30.1" fill="none" stroke="currentColor" stroke-width="4.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 33 19 7 32 33" /><circle cx="19" cy="27" r="3" fill="currentColor" stroke="none" /></svg><span class="brand-word">Acta<span>.</span></span></a>
+    <span class="meta">Durable execution for .NET</span>
+    <nav aria-label="Primary links">
+      <a href="/start">Start</a>
+      <a href="/capabilities">Capabilities</a>
+      <a href="/benchmark">Benchmark</a>
+      <a href="/learn" aria-current="page">Learn</a>
+      <a href="https://github.com/acta-dotnet/acta" class="gh" aria-label="Acta on GitHub" title="Acta on GitHub"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><path fill="currentColor" d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"></path></svg></a>
+    </nav>
+    <span class="header-appearance" data-theme-controls></span>
+    </div>
+  </div>
+
+
+  <main id="content" data-howto="221">
+    <header class="wrap page-head howto-head">
+      <p class="record"><a href="/learn">learn acta</a><span aria-hidden="true">/</span><a href="/learn#s-wait">wait for people, events, and time</a></p>
+      <h1>How to hold a sign-up until the email is confirmed</h1>
+      <p class="lede">The job is the pending sign-up: Acta stores its input, a signal confirms it, and a deadline ends it with no account to clean up.</p>
+      <p class="howto-context">A how-to for Acta, durable execution for .NET. <a href="/start">New to Acta? Run your first durable job in five minutes.</a></p>
+      <div class="howto-meta">
+        <span class="status checked">Checked every release</span>
+        <a class="program" href="https://github.com/acta-dotnet/acta/tree/main/concepts/200-durable-execution/221-pending-signup"><code>concepts/200-durable-execution/221-pending-signup</code></a>
+        <div class="reader" role="group" aria-label="Read this page as">
+        <span class="reader-label">Read as</span>
+        <button type="button" data-reader="person" aria-pressed="true">a person</button>
+        <button type="button" data-reader="agent" aria-pressed="false" data-md="/learn/221-pending-signup.md">an agent</button>
+      </div>
+      </div>
+    </header>
+    <div class="wrap howto-body">
+      <article class="howto person-face">
+<div class="step"><h2><span class="step-n">1</span>Wait for the confirmation, with a deadline</h2>
+<p>The wait is a row with its deadline stored in the database, so no process has to stay alive for it. When nobody confirms in time, the job cancels itself: no user was ever written, so there is nothing to undo.</p>
+<figure class="listing"><figcaption><span class="file">pending-signup.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-1">Copy</button></figcaption><pre><code id="code-1">        Console.WriteLine(<span class="s">$&quot;[{input.Email}] confirmation email sent&quot;</span>);
+        <span class="k">return</span> Task.CompletedTask;
+    },
+    ct
+);
+
+<span class="hl"><span class="k">var</span> confirmed = <span class="k">await</span> ctx.WaitSignalAsync&lt;EmailConfirmed&gt;(<span class="s">&quot;email-confirmed&quot;</span>, input.ConfirmWithin, ct);</span>
+<span class="hl"><span class="k">if</span> (confirmed.TimedOut)</span>
+<span class="hl">{</span>
+<span class="hl">    Console.WriteLine(<span class="s">$&quot;[{input.Email}] not confirmed in time&quot;</span>);</span>
+<span class="hl">    <span class="k">await</span> ctx.CancelAsync(<span class="s">&quot;not confirmed in time&quot;</span>, ct);</span>
+<span class="hl">}</span>
+
+<span class="c">// Only now does the sign-up become a real user. The insert is keyed by the email, so a repeat of the step</span>
+<span class="c">// adds nothing.</span>
+<span class="k">await</span> ctx.RunStepAsync(
+    <span class="s">&quot;create-user&quot;</span>,
+    _ =&gt;</code></pre></figure>
+</div>
+<div class="step"><h2><span class="step-n">2</span>Create the user only after the confirmation</h2>
+<p>Only now does the sign-up become a real user. The insert is keyed by the email, so a repeat of the step adds nothing.</p>
+<figure class="listing"><figcaption><span class="file">pending-signup.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-2">Copy</button></figcaption><pre><code id="code-2">        <span class="k">if</span> (confirmed.TimedOut)
+        {
+            Console.WriteLine(<span class="s">$&quot;[{input.Email}] not confirmed in time&quot;</span>);
+            <span class="k">await</span> ctx.CancelAsync(<span class="s">&quot;not confirmed in time&quot;</span>, ct);
+        }
+
+<span class="hl">        <span class="k">await</span> ctx.RunStepAsync(</span>
+<span class="hl">            <span class="s">&quot;create-user&quot;</span>,</span>
+<span class="hl">            _ =&gt;</span>
+<span class="hl">            {</span>
+<span class="hl">                users.CreateIfAbsent(input.Email, input.DisplayName);</span>
+<span class="hl">                Console.WriteLine(<span class="s">$&quot;[{input.Email}] user created&quot;</span>);</span>
+<span class="hl">                <span class="k">return</span> Task.CompletedTask;</span>
+<span class="hl">            },</span>
+<span class="hl">            ct</span>
+<span class="hl">        );</span>
+    }
+}</code></pre></figure>
+</div>
+<div class="step"><h2><span class="step-n">3</span>Start the job when the form is submitted</h2>
+<p>The input is the pending sign-up, so there is no table of pending users. The one-time code also goes into the link of the email. Ada gets a day to confirm; Sam gets two seconds, so the program can show a sign-up that expires.</p>
+<figure class="listing"><figcaption><span class="file">pending-signup.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-3">Copy</button></figcaption><pre><code id="code-3"><span class="k">var</span> jobs = host.Services.GetRequiredService&lt;IJobs&gt;();
+<span class="k">var</span> users = host.Services.GetRequiredService&lt;UserStore&gt;();
+
+<span class="hl"><span class="k">var</span> ada = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> RegisterUser(<span class="s">&quot;ada@example.com&quot;</span>, <span class="s">&quot;Ada&quot;</span>, <span class="s">&quot;c0ffee&quot;</span>, TimeSpan.FromHours(24)));</span>
+
+<span class="k">var</span> sam = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> RegisterUser(<span class="s">&quot;sam@example.com&quot;</span>, <span class="s">&quot;Sam&quot;</span>, <span class="s">&quot;decade&quot;</span>, TimeSpan.FromSeconds(2)));
+
+<span class="k">while</span> ((<span class="k">await</span> jobs.GetAsync(ada))?.Status != JobStatusCode.Suspended)
+{
+    <span class="k">await</span> Task.Delay(50);
+}
+
+<span class="c">// A raise proves nothing about who sent it, so the code from the link is compared with the one stored in the job</span>
+<span class="c">// before the signal is raised. The raise answers what it did.</span>
+<span class="k">var</span> pending = <span class="k">await</span> jobs.GetInputAsync&lt;RegisterUser&gt;(ada);
+<span class="k">if</span> (pending.Code == <span class="s">&quot;c0ffee&quot;</span>)
+{
+    <span class="k">var</span> raised = <span class="k">await</span> jobs.RaiseSignalAsync(ada, <span class="s">&quot;email-confirmed&quot;</span>, <span class="k">new</span> EmailConfirmed(<span class="s">&quot;c0ffee&quot;</span>));
+    Console.WriteLine(<span class="s">$&quot;ada's click: {raised.Action}&quot;</span>);
+}
+
+<span class="k">await</span> ada.WaitAsync();
+<span class="k">await</span> sam.WaitAsync();
+Console.WriteLine(<span class="s">$&quot;ada@example.com: {(await jobs.GetAsync(ada))!.Status}&quot;</span>);
+Console.WriteLine(<span class="s">$&quot;sam@example.com: {(await jobs.GetAsync(sam))!.Status}&quot;</span>);
+Console.WriteLine(<span class="s">$&quot;users: {string.Join(&quot;, &quot;, users.Emails)}&quot;</span>);
+
+<span class="c">// A click on Sam's link after his sign-up has ended: the answer is not Applied, so the page must not say &quot;confirmed&quot;.</span>
+<span class="k">var</span> late = <span class="k">await</span> jobs.RaiseSignalAsync(sam, <span class="s">&quot;email-confirmed&quot;</span>, <span class="k">new</span> EmailConfirmed(<span class="s">&quot;decade&quot;</span>));
+Console.WriteLine(<span class="s">$&quot;sam's late click: {late.Action}&quot;</span>);</code></pre></figure>
+</div>
+<div class="step"><h2><span class="step-n">4</span>Confirm it from the link in the email</h2>
+<p>A raise proves nothing about who sent it, so the code from the link is compared with the one stored in the job before the signal is raised. The raise answers what it did.</p>
+<figure class="listing"><figcaption><span class="file">pending-signup.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-4">Copy</button></figcaption><pre><code id="code-4"><span class="k">var</span> jobs = host.Services.GetRequiredService&lt;IJobs&gt;();
+<span class="k">var</span> users = host.Services.GetRequiredService&lt;UserStore&gt;();
+
+<span class="c">// The input is the pending sign-up, so there is no table of pending users. The one-time code also goes into the</span>
+<span class="c">// link of the email. Ada gets a day to confirm; Sam gets two seconds, so the program can show a sign-up that expires.</span>
+<span class="k">var</span> ada = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> RegisterUser(<span class="s">&quot;ada@example.com&quot;</span>, <span class="s">&quot;Ada&quot;</span>, <span class="s">&quot;c0ffee&quot;</span>, TimeSpan.FromHours(24)));
+
+<span class="k">var</span> sam = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> RegisterUser(<span class="s">&quot;sam@example.com&quot;</span>, <span class="s">&quot;Sam&quot;</span>, <span class="s">&quot;decade&quot;</span>, TimeSpan.FromSeconds(2)));
+
+<span class="k">while</span> ((<span class="k">await</span> jobs.GetAsync(ada))?.Status != JobStatusCode.Suspended)
+{
+    <span class="k">await</span> Task.Delay(50);
+}
+
+<span class="hl"><span class="k">var</span> pending = <span class="k">await</span> jobs.GetInputAsync&lt;RegisterUser&gt;(ada);</span>
+<span class="hl"><span class="k">if</span> (pending.Code == <span class="s">&quot;c0ffee&quot;</span>)</span>
+<span class="hl">{</span>
+<span class="hl">    <span class="k">var</span> raised = <span class="k">await</span> jobs.RaiseSignalAsync(ada, <span class="s">&quot;email-confirmed&quot;</span>, <span class="k">new</span> EmailConfirmed(<span class="s">&quot;c0ffee&quot;</span>));</span>
+<span class="hl">    Console.WriteLine(<span class="s">$&quot;ada's click: {raised.Action}&quot;</span>);</span>
+<span class="hl">}</span>
+
+<span class="k">await</span> ada.WaitAsync();
+<span class="k">await</span> sam.WaitAsync();
+Console.WriteLine(<span class="s">$&quot;ada@example.com: {(await jobs.GetAsync(ada))!.Status}&quot;</span>);
+Console.WriteLine(<span class="s">$&quot;sam@example.com: {(await jobs.GetAsync(sam))!.Status}&quot;</span>);
+Console.WriteLine(<span class="s">$&quot;users: {string.Join(&quot;, &quot;, users.Emails)}&quot;</span>);
+
+<span class="c">// A click on Sam's link after his sign-up has ended: the answer is not Applied, so the page must not say &quot;confirmed&quot;.</span>
+<span class="k">var</span> late = <span class="k">await</span> jobs.RaiseSignalAsync(sam, <span class="s">&quot;email-confirmed&quot;</span>, <span class="k">new</span> EmailConfirmed(<span class="s">&quot;decade&quot;</span>));
+Console.WriteLine(<span class="s">$&quot;sam's late click: {late.Action}&quot;</span>);</code></pre></figure>
+</div>
+<div class="step"><h2><span class="step-n">5</span>Run it and check the output</h2>
+<p>From a clone of <a href="https://github.com/acta-dotnet/acta">the Acta repository</a>, with the .NET 10 SDK:</p>
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-5">Copy</button></figcaption><pre><code id="code-5">dotnet run --project concepts/200-durable-execution/221-pending-signup</code></pre></figure>
+<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button" data-copy-target="#code-6">Copy</button></figcaption><pre><code id="code-6">ada's click: Applied
+[ada@example.com] user created
+[sam@example.com] not confirmed in time
+sam@example.com: Cancelled
+users: ada@example.com
+sam's late click: Rejected</code></pre></figure>
+<p class="proof checked"><b>Checked every release.</b> Before each release, Acta Verify runs this program and checks that its output contains these lines.</p>
+</div>
+<div class="step plain-step"><h2>Remember</h2><ul class="rules"><li>Nothing real exists until <code>create-user</code> runs. An unconfirmed sign-up ends as a cancelled job and leaves no half-made account behind.</li><li>The deadline is stored once, as database time plus the timeout. Restarts and downtime never make it longer.</li><li>The handler runs from the top after the confirmation. The email is not sent again, because <code>send-confirmation</code> already has a recorded outcome.</li><li>Make <code>create-user</code> safe to repeat: insert only when the address is absent. A crash right after the insert runs the step again, and two submits of the form end as one account.</li><li>A finished job is kept with its input for its retention period: ninety days by default, seven here. Keep the input to what the work needs when it holds personal data.</li><li>In a web app the confirm link opens a page with a Confirm button that posts: mail scanners fetch the links they see, and a fetch must not confirm anything.</li></ul></div>
+<div class="step plain-step"><h2>Check yourself</h2><div class="check" data-answer="1"><p class="check-q">The app is redeployed twelve hours after the sign-up. What happens to the pending registration?</p><ol class="check-options"><li><button type="button">It is lost and the person has to sign up again</button></li><li><button type="button">Nothing: it is a suspended job, and the link still works</button></li><li><button type="button">The confirmation email is sent a second time</button></li></ol><details class="check-why"><summary>Show the answer</summary><p><b>Nothing: it is a suspended job, and the link still works.</b> The wait is a row with its deadline stored in the database. No process had to stay alive for it, and the email step is not repeated.</p></details></div><div class="check" data-answer="1"><p class="check-q">Nobody opens the link. What is left when the deadline has passed?</p><ol class="check-options"><li><button type="button">A user row that has to be deleted</button></li><li><button type="button">A cancelled job with its timeline, and no user</button></li><li><button type="button">A job that waits forever</button></li></ol><details class="check-why"><summary>Show the answer</summary><p><b>A cancelled job with its timeline, and no user.</b> The wait times out, the handler cancels the job, and <code>create-user</code> never runs. The job row stays for its retention period as the record of what happened.</p></details></div></div>
+<div class="step plain-step"><h2>The whole program</h2>
+<p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/concepts/200-durable-execution/221-pending-signup"><code>concepts/200-durable-execution/221-pending-signup</code></a>, as it is compiled.</p>
+<p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
+<details class="source-file"><summary><span class="file-name">pending-signup.cs</span><span class="file-size">121 lines</span></summary><figure class="listing"><figcaption><span class="file">pending-signup.cs</span><button class="copy" type="button" data-copy-target="#code-7">Copy</button></figcaption><pre><code id="code-7"><span class="c">// How to hold a sign-up until the email is confirmed</span>
+<span class="c">// The job is the pending sign-up: Acta stores its input, a signal confirms it, and a deadline ends it with no account</span>
+<span class="c">// to clean up.</span>
+<span class="k">using</span> System.Collections.Concurrent;
+<span class="k">using</span> Acta;
+<span class="k">using</span> Acta.Concepts.PendingSignup;
+<span class="k">using</span> Microsoft.Extensions.DependencyInjection;
+<span class="k">using</span> Microsoft.Extensions.Hosting;
+
+<span class="k">var</span> builder = Host.CreateApplicationBuilder(args);
+builder.Services.AddSingleton&lt;UserStore&gt;();
+
+builder.Services.UseActa(j =&gt;
+{
+    j.UseLocalDatabase(builder.Configuration);
+    j.Run&lt;PendingSignupJobs&gt;(<span class="s">&quot;pending-signup&quot;</span>);
+});
+
+<span class="k">using</span> <span class="k">var</span> host = builder.Build();
+<span class="k">await</span> host.StartAsync();
+
+<span class="k">var</span> jobs = host.Services.GetRequiredService&lt;IJobs&gt;();
+<span class="k">var</span> users = host.Services.GetRequiredService&lt;UserStore&gt;();
+
+<span class="c">// learn: 3. Start the job when the form is submitted</span>
+<span class="c">// The input is the pending sign-up, so there is no table of pending users. The one-time code also goes into the</span>
+<span class="c">// link of the email. Ada gets a day to confirm; Sam gets two seconds, so the program can show a sign-up that expires.</span>
+<span class="hl"><span class="k">var</span> ada = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> RegisterUser(<span class="s">&quot;ada@example.com&quot;</span>, <span class="s">&quot;Ada&quot;</span>, <span class="s">&quot;c0ffee&quot;</span>, TimeSpan.FromHours(24)));</span>
+
+<span class="c">// learn: end</span>
+<span class="k">var</span> sam = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> RegisterUser(<span class="s">&quot;sam@example.com&quot;</span>, <span class="s">&quot;Sam&quot;</span>, <span class="s">&quot;decade&quot;</span>, TimeSpan.FromSeconds(2)));
+
+<span class="k">while</span> ((<span class="k">await</span> jobs.GetAsync(ada))?.Status != JobStatusCode.Suspended)
+{
+    <span class="k">await</span> Task.Delay(50);
+}
+
+<span class="c">// learn: 4. Confirm it from the link in the email</span>
+<span class="c">// A raise proves nothing about who sent it, so the code from the link is compared with the one stored in the job</span>
+<span class="c">// before the signal is raised. The raise answers what it did.</span>
+<span class="hl"><span class="k">var</span> pending = <span class="k">await</span> jobs.GetInputAsync&lt;RegisterUser&gt;(ada);</span>
+<span class="hl"><span class="k">if</span> (pending.Code == <span class="s">&quot;c0ffee&quot;</span>)</span>
+<span class="hl">{</span>
+<span class="hl">    <span class="k">var</span> raised = <span class="k">await</span> jobs.RaiseSignalAsync(ada, <span class="s">&quot;email-confirmed&quot;</span>, <span class="k">new</span> EmailConfirmed(<span class="s">&quot;c0ffee&quot;</span>));</span>
+<span class="hl">    Console.WriteLine(<span class="s">$&quot;ada's click: {raised.Action}&quot;</span>);</span>
+<span class="hl">}</span>
+
+<span class="c">// learn: end</span>
+
+<span class="k">await</span> ada.WaitAsync();
+<span class="k">await</span> sam.WaitAsync();
+Console.WriteLine(<span class="s">$&quot;ada@example.com: {(await jobs.GetAsync(ada))!.Status}&quot;</span>);
+Console.WriteLine(<span class="s">$&quot;sam@example.com: {(await jobs.GetAsync(sam))!.Status}&quot;</span>);
+Console.WriteLine(<span class="s">$&quot;users: {string.Join(&quot;, &quot;, users.Emails)}&quot;</span>);
+
+<span class="c">// A click on Sam's link after his sign-up has ended: the answer is not Applied, so the page must not say &quot;confirmed&quot;.</span>
+<span class="k">var</span> late = <span class="k">await</span> jobs.RaiseSignalAsync(sam, <span class="s">&quot;email-confirmed&quot;</span>, <span class="k">new</span> EmailConfirmed(<span class="s">&quot;decade&quot;</span>));
+Console.WriteLine(<span class="s">$&quot;sam's late click: {late.Action}&quot;</span>);
+
+<span class="k">await</span> host.StopAsync();
+
+<span class="k">namespace</span> Acta.Concepts.PendingSignup
+{
+    <span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> RegisterUser(<span class="k">string</span> Email, <span class="k">string</span> DisplayName, <span class="k">string</span> Code, TimeSpan ConfirmWithin);
+
+    <span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> EmailConfirmed(<span class="k">string</span> Code);
+
+    <span class="c">/// &lt;summary&gt;The application's own users. Nothing reaches it before a sign-up is confirmed.&lt;/summary&gt;</span>
+    <span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> UserStore
+    {
+        <span class="k">private</span> <span class="k">readonly</span> ConcurrentDictionary&lt;<span class="k">string</span>, <span class="k">string</span>&gt; _users = <span class="k">new</span>();
+
+        <span class="k">public</span> IEnumerable&lt;<span class="k">string</span>&gt; Emails =&gt; _users.Keys.Order();
+
+        <span class="k">public</span> <span class="k">bool</span> CreateIfAbsent(<span class="k">string</span> email, <span class="k">string</span> displayName) =&gt; _users.TryAdd(email, displayName);
+    }
+
+    <span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> RegistrationJobs(UserStore users)
+    {
+        <span class="c">// The finished job is kept with its input for seven days, not the default ninety.</span>
+        <span class="a">[Job(<span class="s">&quot;register-user&quot;</span>, JobRetention = <span class="s">&quot;7d&quot;</span>)]</span>
+        <span class="k">public</span> <span class="k">async</span> Task Handle(RegisterUser input, JobContext ctx, CancellationToken ct)
+        {
+            <span class="k">await</span> ctx.RunStepAsync(
+                <span class="s">&quot;send-confirmation&quot;</span>,
+                _ =&gt;
+                {
+                    Console.WriteLine(<span class="s">$&quot;[{input.Email}] confirmation email sent&quot;</span>);
+                    <span class="k">return</span> Task.CompletedTask;
+                },
+                ct
+            );
+
+            <span class="c">// learn: 1. Wait for the confirmation, with a deadline</span>
+            <span class="c">// The wait is a row with its deadline stored in the database, so no process has to stay alive for it. When</span>
+            <span class="c">// nobody confirms in time, the job cancels itself: no user was ever written, so there is nothing to undo.</span>
+<span class="hl">            <span class="k">var</span> confirmed = <span class="k">await</span> ctx.WaitSignalAsync&lt;EmailConfirmed&gt;(<span class="s">&quot;email-confirmed&quot;</span>, input.ConfirmWithin, ct);</span>
+<span class="hl">            <span class="k">if</span> (confirmed.TimedOut)</span>
+<span class="hl">            {</span>
+<span class="hl">                Console.WriteLine(<span class="s">$&quot;[{input.Email}] not confirmed in time&quot;</span>);</span>
+<span class="hl">                <span class="k">await</span> ctx.CancelAsync(<span class="s">&quot;not confirmed in time&quot;</span>, ct);</span>
+<span class="hl">            }</span>
+            <span class="c">// learn: end</span>
+
+            <span class="c">// learn: 2. Create the user only after the confirmation</span>
+            <span class="c">// Only now does the sign-up become a real user. The insert is keyed by the email, so a repeat of the step</span>
+            <span class="c">// adds nothing.</span>
+<span class="hl">            <span class="k">await</span> ctx.RunStepAsync(</span>
+<span class="hl">                <span class="s">&quot;create-user&quot;</span>,</span>
+<span class="hl">                _ =&gt;</span>
+<span class="hl">                {</span>
+<span class="hl">                    users.CreateIfAbsent(input.Email, input.DisplayName);</span>
+<span class="hl">                    Console.WriteLine(<span class="s">$&quot;[{input.Email}] user created&quot;</span>);</span>
+<span class="hl">                    <span class="k">return</span> Task.CompletedTask;</span>
+<span class="hl">                },</span>
+<span class="hl">                ct</span>
+<span class="hl">            );</span>
+            <span class="c">// learn: end</span>
+        }
+    }
+}</code></pre></figure></details></div>
+<div class="step plain-step"><h2>Where to go next</h2><ul class="next-links"><li><a href="/learn/205-durable-sleep">How to wait for time to pass without a running process</a><span>Wait for people, events, and time</span></li></ul></div>
+      </article>
+      <article class="agent-face" hidden>
+        <figure class="listing agent"><figcaption><span class="file">/learn/221-pending-signup.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/221-pending-signup.md">Open</a><button class="copy" type="button" data-copy-target="#md-body">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
+        <p class="hint">This is the page an agent receives: the same how-to as plain Markdown, at this page's address with <code>.md</code> added.</p>
+      </article>
+      <aside class="howto-rail" aria-label="This section">
+        <p class="rail-head"><a href="/learn#s-wait">Wait for people, events, and time</a></p>
+        <ol>
+            <li><a href="/learn/204-wait-signal" data-id="204"><span class="rail-n">1</span>Wait for an approval without holding a worker</a></li>
+            <li aria-current="page"><a href="/learn/221-pending-signup" data-id="221"><span class="rail-n">2</span>Hold a sign-up until the email is confirmed</a></li>
+            <li><a href="/learn/205-durable-sleep" data-id="205"><span class="rail-n">3</span>Wait for time to pass without a running process</a></li>
+            <li><a href="/learn/311-call-outcome-timeout" data-id="311"><span class="rail-n">4</span>Read the outcome of a wait that can time out</a></li>
+        </ol>
+        <button class="button done-toggle" type="button" data-done-toggle="221" aria-pressed="false">Mark as done</button>
+        <p class="rail-turn"><a href="/learn/204-wait-signal" rel="prev">Previous</a><a href="/learn/205-durable-sleep" rel="next">Next</a></p>
+      </aside>
+    </div>
+    <section class="wrap newcomer" aria-labelledby="newcomer-title">
+      <h2 id="newcomer-title">New to Acta?</h2>
+      <p class="lede">Acta is durable execution for .NET: workflows and jobs that survive restarts, as a library inside your application with its durable state in your SQL database.</p>
+      <div class="actions">
+        <a class="button primary" href="/start">Run your first durable job in five minutes</a>
+        <a class="button" href="/learn">See every how-to</a>
+        <a class="button" href="/capabilities">Everything Acta does</a>
+      </div>
+    </section>
+    <footer class="site-footer">
+      <div class="wrap">
+        <div class="footer-grid">
+          <div class="footer-about">
+            <a class="site-brand" href="/" aria-label="Acta home"><svg viewBox="3.95 4.95 30.1 30.1" fill="none" stroke="currentColor" stroke-width="4.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 33 19 7 32 33" /><circle cx="19" cy="27" r="3" fill="currentColor" stroke="none" /></svg><span class="brand-word">Acta<span>.</span></span></a>
+            <p>Durable execution for .NET.</p>
+            <p>A library inside your application.<br />Durable state in your SQL database.</p>
+            <p class="footer-license">Apache-2.0 · built in the open</p>
+          </div>
+          <nav aria-label="Explore">
+            <p class="footer-head">Explore</p>
+            <a href="/how-it-works">How Acta works</a>
+            <a href="/capabilities">Capabilities</a>
+            <a href="/engine">Inside one worker</a>
+            <a href="/fleet">Workers and recovery</a>
+            <a href="/gates">Order and limits</a>
+            <a href="/benchmark">Benchmark and evidence</a>
+            <a href="/choosing">Choosing Acta</a>
+          </nav>
+          <nav aria-label="Build">
+            <p class="footer-head">Build</p>
+            <a href="/start">Get started</a>
+            <a href="/learn">Learn Acta</a>
+            <a href="https://github.com/acta-dotnet/acta/tree/main/docs">Documentation</a>
+            <a href="https://github.com/acta-dotnet/acta/tree/main/concepts">Runnable concepts</a>
+            <a href="https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md">Engineering labs</a>
+            <a href="/llms.txt">llms.txt for coding agents</a>
+          </nav>
+          <div class="footer-release">
+            <p class="footer-head">Release</p>
+            <p class="footer-version"><span class="release-dot" aria-hidden="true"></span><a href="https://github.com/acta-dotnet/acta/releases">1.0.0-rc.12 <span aria-hidden="true">↗</span></a><span>a release candidate</span></p>
+            <a href="https://github.com/acta-dotnet/acta/blob/main/docs/compatibility-and-support.md">Compatibility and support</a>
+            <a href="/support">Support Acta</a>
+            <a href="https://github.com/acta-dotnet/acta/blob/main/docs/known-limitations.md#stability-status">Stability status</a>
+            <a href="https://github.com/acta-dotnet/acta">Source on GitHub <span aria-hidden="true">↗</span></a>
+          </div>
+        </div>
+        <div class="footer-bottom">
+          <p>Created and maintained by <a href="https://www.linkedin.com/in/marko-voncina">Marko Vončina</a></p>
+          <span data-theme-controls></span>
+        </div>
+      </div>
+    </footer>
+  </main>
+  <p class="sr-only" id="copy-status" aria-live="polite"></p>
+  <script src="/assets/learn.js"></script>
+</body>
+</html>

@@ -2,7 +2,7 @@
 
 A job names the format its payload is stored in. This program runs custom formats side by side and compares their serialization time, enqueue time, readability, and stored bytes.
 
-- Section: Start jobs, step 17
+- Section: Start jobs, step 18
 - Program: `concepts/500-payloads/501-payload-formats` in https://github.com/acta-dotnet/acta (one compiled project)
 - Status: Checked every release. Before each release, Acta Verify runs this program and checks that its output contains these lines.
 - Rules: [/llms.txt](/llms.txt) is the contract every handler follows, starting with the handler running again from its first line; read it before you copy code from here.

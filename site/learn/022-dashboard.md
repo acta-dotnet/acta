@@ -143,7 +143,7 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## Next
 
-- [How to read why a job did what it did](/learn/404-read-event-timeline.md)
+- [How to show where each job is on your own page](/learn/415-own-status-page.md)
 
 ## More
 

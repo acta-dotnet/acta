@@ -114,7 +114,7 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## Next
 
-- [How to wait for time to pass without a running process](/learn/205-durable-sleep.md)
+- [How to hold a sign-up until the email is confirmed](/learn/221-pending-signup.md)
 
 ## More
 

@@ -34,6 +34,11 @@
     "Inserted - new bucket, new job.",
     "Two distinct jobs across buckets - done."
   ],
+  "029-enqueue-in-transaction": [
+    "[kept] order fulfilled",
+    "committed:   order row yes, job succeeded",
+    "rolled back: order row no, job none"
+  ],
   "101-recurring-job": ["[every-15-seconds] purged"],
   "102-interval-schedule": [" heartbeat"],
   "103-multiple-schedules": ["fired by [faster]", "fired by [fast, faster]"],
@@ -118,6 +123,21 @@
   "220-at-most-once-step": {
     "skip": "Needs two processes in turn, one that dies inside the at-most-once step and one that recovers it; Verify's faults/at-most-once scenario and StepAtMostOnceSpec prove the same behaviour."
   },
+  "221-pending-signup": [
+    "ada's click: Applied",
+    "[ada@example.com] user created",
+    "[sam@example.com] not confirmed in time",
+    "sam@example.com: Cancelled",
+    "users: ada@example.com",
+    "sam's late click: Rejected"
+  ],
+  "222-find-child-job": [
+    "2 of 3 invoices sent",
+    "invoice/5: succeeded",
+    "invoice/7: failed",
+    "invoice 7: Failed. the customer's address bounced"
+  ],
+  "223-lane-per-customer": ["customer a applied: 1, 2, 3", "customer b applied: 1, 2, 3", "customers side by side: yes"],
   "301-fail-job": ["status=Failed, failureCount=0"],
   "302-cancel-job": ["status=Cancelled"],
   "303-pause-job": ["status=Paused", "[v042] migration applied", "status=Succeeded"],
@@ -188,6 +208,7 @@
     "/suspend -> 200 OK",
     "/resume -> 200 OK"
   ],
+  "415-own-status-page": ["retrying  | stage: charging", "waiting   | stage: packing", "succeeded | stage: shipped"],
   "414-dashboard-sign-in": [
     "GET /acta/ -> 302 http://",
     "/sign-in?ReturnUrl=%2Facta%2F",
@@ -233,6 +254,12 @@
   "705-worker-crash-recovery": {
     "skip": "Needs PostgreSQL or SQL Server and two worker processes, one killed mid-job while the other reclaims its work; Verify's chaos scenario and WorkerCrashRecoveryChaosSpec prove the same behaviour."
   },
+  "706-sqlite-restart": [
+    "[first run] export of orders started, execution 1",
+    "[restarted] export of orders started, execution 2",
+    "final status: succeeded, executions: 2",
+    "Succeeded after 1 lost lease."
+  ],
   "901-native-aot-json": ["Processed order ORD-001 x3", "Status: Succeeded"],
   "903-redis-wakeup": {
     "skip": "Needs a Redis server and a second process that enqueues while this one waits; RedisWakeupTests and Verify's throughput-redis rate ladder prove the same behaviour."

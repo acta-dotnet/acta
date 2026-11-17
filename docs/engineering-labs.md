@@ -54,8 +54,8 @@ These labs, in order, cover the model end to end:
 | [`901-native-aot-json`](../concepts/900-runtime-and-tuning/901-native-aot-json/) | Jobs under Native AOT with source-generated JSON. |
 
 Beyond the labs, the [`concepts/`](../concepts/) ladder holds a runnable project for most concepts, from
-fundamentals through runtime tuning (lanes and the outbox are covered by the guides, not yet by a
-rung); [the concept ladder](#the-concept-ladder) below lists every rung.
+fundamentals through runtime tuning (the outbox is covered by the guides, not yet by a rung);
+[the concept ladder](#the-concept-ladder) below lists every rung.
 
 ## Engine-room proofs
 

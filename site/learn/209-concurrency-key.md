@@ -181,7 +181,7 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## Next
 
-- [How to inspect a job from the command line](/learn/021-jobs-cli.md)
+- [How to apply each customer's commands in order while other customers keep moving](/learn/223-lane-per-customer.md)
 
 ## More
 

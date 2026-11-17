@@ -30,6 +30,7 @@
         "217-absolute-time-controls",
         "010-deduplication-key",
         "028-deduplication-time-buckets",
+        "029-enqueue-in-transaction",
         "014-read-by-deduplication-key",
         "015-call-vs-enqueue",
         "019-batch-enqueue",
@@ -86,6 +87,7 @@
       "blurb": "A waiting job is a row. No worker and no process stays busy while it waits.",
       "howTos": [
         "204-wait-signal",
+        "221-pending-signup",
         "205-durable-sleep",
         "311-call-outcome-timeout"
       ]
@@ -99,6 +101,7 @@
         "213-call-child",
         "212-fan-out-join",
         "215-map-wait-children",
+        "222-find-child-job",
         "219-child-failure-outcomes",
         "704-cross-namespace-child",
         "601-fan-out",
@@ -127,7 +130,8 @@
       "blurb": "Keep jobs that touch the same thing from running over each other.",
       "howTos": [
         "207-run-with-lock",
-        "209-concurrency-key"
+        "209-concurrency-key",
+        "223-lane-per-customer"
       ],
       "more": { "href": "/gates", "text": "See order, limits, and pacing move in the interactive explainer" }
     },
@@ -138,6 +142,7 @@
       "howTos": [
         "021-jobs-cli",
         "022-dashboard",
+        "415-own-status-page",
         "404-read-event-timeline",
         "409-operator-queries",
         "305-operator-cancel",
@@ -182,6 +187,7 @@
       "howTos": [
         "701-enqueue-only-reference",
         "703-namespaces-in-one-process",
+        "706-sqlite-restart",
         "705-worker-crash-recovery",
         "901-native-aot-json",
         "903-redis-wakeup",
@@ -252,15 +258,18 @@
     "201-durable-checkout": "workflow order checkout saga orchestration",
     "202-durable-step": "step checkpoint idempotent replay record once",
     "203-durable-variable": "variable state watermark remember",
-    "204-wait-signal": "approval human signal event webhook wait manager review callback registration sign up signup register confirm email verification pending temporary state",
+    "204-wait-signal": "approval human signal event webhook wait manager review callback",
+    "221-pending-signup": "registration sign up signup register user confirm email verification pending temporary state expire onboarding activation",
     "205-durable-sleep": "sleep delay wait days weeks three later timer cool down send reminder follow up",
     "207-run-with-lock": "lock mutex serialize exclusive",
     "209-concurrency-key": "concurrency limit throttle per customer per tenant key at once",
+    "223-lane-per-customer": "lane order ordered fifo sequence serial in order one at a time per customer per account commands queue group",
     "210-step-retry": "compensate rollback undo saga last attempt",
     "211-child-jobs": "child jobs sub jobs parent workflow",
     "212-fan-out-join": "map reduce parallel fan out join aggregate chunks invoices items batch total sum combine",
     "213-call-child": "call child sub workflow result",
     "215-map-wait-children": "map wait children parallel fan out",
+    "222-find-child-job": "find child sub job item lookup which job name key one of many list children",
     "216-variable-lifecycle": "get or set compute once cache snapshot quote",
     "217-absolute-time-controls": "at a time datetime run at absolute instant date",
     "220-at-most-once-step": "exactly once at most once payment charge card twice double side effect duplicate",
@@ -278,10 +287,12 @@
     "412-tenant-scope": "tenant multi tenant customer",
     "413-http-api-authorization": "auth authorization permissions security policy",
     "414-dashboard-sign-in": "login sign in cookie auth roles",
+    "415-own-status-page": "status page ui screen own page progress state badge waiting retrying interrupted running stuck where is my job",
     "501-payload-formats": "json gzip serialization codec format",
     "602-chained-jobs": "pipeline stages sequence",
     "701-enqueue-only-reference": "producer only api enqueue reference",
     "705-worker-crash-recovery": "crash kill recovery lease failover high availability",
+    "706-sqlite-restart": "crash restart sqlite kill process recover lost job single file app desktop one process power cut",
     "801-testing-jobs": "unit test xunit integration test",
     "802-testing-durable-jobs": "test signal approval deterministic",
     "901-native-aot-json": "aot native trimming source generated json",
@@ -302,6 +313,7 @@
     "022-dashboard": "dashboard ui screen browser",
     "024-aspnet-enqueue-api": "http api endpoint post 202 poll rest web",
     "025-large-payload-reference": "blob file upload big payload s3 storage",
-    "028-deduplication-time-buckets": "throttle once per hour per day bucket"
+    "028-deduplication-time-buckets": "throttle once per hour per day bucket",
+    "029-enqueue-in-transaction": "transaction atomic commit rollback same transaction order row record database consistent outbox checkout"
   }
 }

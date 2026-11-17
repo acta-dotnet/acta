@@ -2,7 +2,7 @@
 
 `EventRecording` on the job decides which events it writes. `Audit`, the default, records every event. `Failures` records the failed and orphaned attempts, the success that recovers from a failure, what an enabled alert profile reads, a caller's controls of the job, and a schedule's pauses and manual triggers.
 
-- Section: Watch and control running work, step 14
+- Section: Watch and control running work, step 15
 - Program: `concepts/400-observability-and-alerts/407-event-recording` in https://github.com/acta-dotnet/acta (one compiled project)
 - Status: Checked every release. Before each release, Acta Verify runs this program and checks that its output contains these lines.
 - Rules: [/llms.txt](/llms.txt) is the contract every handler follows, starting with the handler running again from its first line; read it before you copy code from here.

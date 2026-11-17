@@ -67,6 +67,7 @@ internal sealed partial class LearnPages
                   <p class="ask-try"><span>Try</span>
                     <button type="button" data-ask="run a job at 08:00 Berlin time">run a job at 08:00 Berlin time</button>
                     <button type="button" data-ask="keep a service in sync">keep a service in sync</button>
+                    <button type="button" data-ask="hold a sign-up until it is confirmed">hold a sign-up until it is confirmed</button>
                     <button type="button" data-ask="wait for an approval">wait for an approval</button>
                     <button type="button" data-ask="stop retrying after three attempts">stop retrying after three attempts</button>
                   </p>

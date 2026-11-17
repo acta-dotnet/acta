@@ -2,7 +2,7 @@
 
 A named sleep stores the due time, frees the worker, and wakes the job when the time comes.
 
-- Section: Wait for people, events, and time, step 2
+- Section: Wait for people, events, and time, step 3
 - Program: `concepts/200-durable-execution/205-durable-sleep` in https://github.com/acta-dotnet/acta (one compiled project)
 - Status: Checked every release. Before each release, Acta Verify runs this program and checks that its output contains these lines.
 - Rules: [/llms.txt](/llms.txt) is the contract every handler follows; "Remember" below carries the rules that bite this task.

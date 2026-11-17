@@ -1,0 +1,401 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>How to show where each job is on your own page · Acta, durable execution for .NET</title>
+  <meta name="description" content="How to show where each job is on your own page with Acta, durable execution for .NET. IJobs reads one job for a page of your own: its status, a value the handler keeps for the screen, and a sentence that says why the job is where it is." />
+  <link rel="canonical" href="https://useacta.net/learn/415-own-status-page" />
+  <meta name="theme-color" content="#0B0E15" />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="Acta for .NET" />
+  <meta property="og:title" content="How to show where each job is on your own page · Acta, durable execution for .NET" />
+  <meta property="og:description" content="How to show where each job is on your own page with Acta, durable execution for .NET. IJobs reads one job for a page of your own: its status, a value the handler keeps for the screen, and a sentence that says why the job is where it is." />
+  <meta property="og:url" content="https://useacta.net/learn/415-own-status-page" />
+  <meta property="og:image" content="https://useacta.net/assets/social-card.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="Acta: durable execution for .NET. Postgres, SQL Server, SQLite." />
+  <meta name="twitter:card" content="summary_large_image" />
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"How to show where each job is on your own page","description":"How to show where each job is on your own page with Acta, durable execution for .NET. IJobs reads one job for a page of your own: its status, a value the handler keeps for the screen, and a sentence that says why the job is where it is.","url":"https://useacta.net/learn/415-own-status-page","inLanguage":"en","articleSection":"Watch and control running work","isPartOf":{"@type":"CollectionPage","name":"Learn Acta","url":"https://useacta.net/learn"},"about":{"@type":"SoftwareSourceCode","name":"Acta","programmingLanguage":"C#","codeRepository":"https://github.com/acta-dotnet/acta"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Learn Acta","item":"https://useacta.net/learn"},{"@type":"ListItem","position":2,"name":"Watch and control running work","item":"https://useacta.net/learn#s-operate"},{"@type":"ListItem","position":3,"name":"How to show where each job is on your own page","item":"https://useacta.net/learn/415-own-status-page"}]}</script>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="alternate" type="text/plain" href="/llms.txt" title="Acta for coding agents" />
+  <link rel="alternate" type="text/markdown" href="/learn/415-own-status-page.md" title="This page as Markdown, for coding agents" />
+  <link rel="preload" href="/assets/fonts/fraunces-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="/assets/fonts/ibm-plex-sans-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="/assets/fonts/ibm-plex-mono-400-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <style>
+    /* Self-hosted latin subsets of the three families, preloaded and served immutable (see _headers),
+       so a reload paints them from cache with no swap and a first visit swaps them in as they land.
+       Fraunces and Plex Sans are variable files. */
+    @font-face { font-family: "Fraunces"; font-style: normal; font-weight: 400 600; font-display: swap; src: url(/assets/fonts/fraunces-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "Fraunces"; font-style: italic; font-weight: 400 500; font-display: swap; src: url(/assets/fonts/fraunces-italic-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "IBM Plex Sans"; font-style: normal; font-weight: 400 600; font-display: swap; src: url(/assets/fonts/ibm-plex-sans-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "IBM Plex Mono"; font-style: normal; font-weight: 400; font-display: swap; src: url(/assets/fonts/ibm-plex-mono-400-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "IBM Plex Mono"; font-style: normal; font-weight: 500; font-display: swap; src: url(/assets/fonts/ibm-plex-mono-500-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+  </style>
+  <link rel="stylesheet" href="/assets/site.css" />
+  <link rel="stylesheet" href="/assets/learn.css" />
+  <script src="/assets/theme.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#content">Skip to content</a>
+  <div class="chrome">
+    <div class="wrap chrome-inner">
+    <a class="brand site-brand" href="/" aria-label="Acta home"><svg viewBox="3.95 4.95 30.1 30.1" fill="none" stroke="currentColor" stroke-width="4.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 33 19 7 32 33" /><circle cx="19" cy="27" r="3" fill="currentColor" stroke="none" /></svg><span class="brand-word">Acta<span>.</span></span></a>
+    <span class="meta">Durable execution for .NET</span>
+    <nav aria-label="Primary links">
+      <a href="/start">Start</a>
+      <a href="/capabilities">Capabilities</a>
+      <a href="/benchmark">Benchmark</a>
+      <a href="/learn" aria-current="page">Learn</a>
+      <a href="https://github.com/acta-dotnet/acta" class="gh" aria-label="Acta on GitHub" title="Acta on GitHub"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><path fill="currentColor" d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"></path></svg></a>
+    </nav>
+    <span class="header-appearance" data-theme-controls></span>
+    </div>
+  </div>
+
+
+  <main id="content" data-howto="415">
+    <header class="wrap page-head howto-head">
+      <p class="record"><a href="/learn">learn acta</a><span aria-hidden="true">/</span><a href="/learn#s-operate">watch and control running work</a></p>
+      <h1>How to show where each job is on your own page</h1>
+      <p class="lede"><code>IJobs</code> reads one job for a page of your own: its status, a value the handler keeps for the screen, and a sentence that says why the job is where it is.</p>
+      <p class="howto-context">A how-to for Acta, durable execution for .NET. <a href="/start">New to Acta? Run your first durable job in five minutes.</a></p>
+      <div class="howto-meta">
+        <span class="status checked">Checked every release</span>
+        <a class="program" href="https://github.com/acta-dotnet/acta/tree/main/concepts/400-observability-and-alerts/415-own-status-page"><code>concepts/400-observability-and-alerts/415-own-status-page</code></a>
+        <div class="reader" role="group" aria-label="Read this page as">
+        <span class="reader-label">Read as</span>
+        <button type="button" data-reader="person" aria-pressed="true">a person</button>
+        <button type="button" data-reader="agent" aria-pressed="false" data-md="/learn/415-own-status-page.md">an agent</button>
+      </div>
+      </div>
+    </header>
+    <div class="wrap howto-body">
+      <article class="howto person-face">
+<div class="step"><h2><span class="step-n">1</span>Keep what the screen shows in a variable</h2>
+<p>The status says where the job is in Acta's terms. What it is doing in your terms is a variable the handler writes as the work advances, inside the step, so a replay does not write it again.</p>
+<figure class="listing"><figcaption><span class="file">own-status-page.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-1">Copy</button></figcaption><pre><code id="code-1"><span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> PrepareOrder(<span class="k">string</span> OrderId);
+
+<span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> PrepareOrderJob
+{
+    <span class="a">[Job(<span class="s">&quot;prepare-order&quot;</span>, MaxAttempts = 3, Backoff = <span class="s">&quot;2s&quot;</span>)]</span>
+    <span class="k">public</span> <span class="k">async</span> Task Handle(PrepareOrder order, JobContext ctx, CancellationToken ct)
+    {
+        <span class="k">await</span> ctx.RunStepAsync(
+            <span class="s">&quot;charge&quot;</span>,
+            <span class="k">async</span> inner =&gt;
+            {
+<span class="hl">                <span class="k">await</span> ctx.SetVariableAsync(<span class="s">&quot;stage&quot;</span>, <span class="s">&quot;charging&quot;</span>, inner);</span>
+                <span class="k">if</span> (ctx.ExecutionNumber == 1)
+                {
+                    <span class="k">throw</span> <span class="k">new</span> InvalidOperationException(<span class="s">&quot;the payment provider timed out&quot;</span>);
+                }
+            },
+            ct
+        );
+
+        <span class="k">await</span> ctx.RunStepAsync(<span class="s">&quot;hand-to-warehouse&quot;</span>, <span class="k">async</span> inner =&gt; <span class="k">await</span> ctx.SetVariableAsync(<span class="s">&quot;stage&quot;</span>, <span class="s">&quot;packing&quot;</span>, inner), ct);
+        <span class="k">await</span> ctx.WaitSignalAsync(<span class="s">&quot;packed&quot;</span>, ct);
+        <span class="k">await</span> ctx.SetVariableAsync(<span class="s">&quot;stage&quot;</span>, <span class="s">&quot;shipped&quot;</span>, ct);
+    }
+}</code></pre></figure>
+</div>
+<div class="step"><h2><span class="step-n">2</span>Read the job, its stage, and the sentence that says why</h2>
+<p><code>GetAsync</code> answers the job's row, <code>GetVariableOrDefaultAsync</code> the value its handler keeps for the screen, and <code>ExplainAsync</code> a sentence a person can read. Each is a read of what the database holds now; none waits.</p>
+<figure class="listing"><figcaption><span class="file">own-status-page.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-2">Copy</button></figcaption><pre><code id="code-2"><span class="k">var</span> jobs = host.Services.GetRequiredService&lt;IJobs&gt;();
+<span class="k">var</span> order = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> PrepareOrder(<span class="s">&quot;order-7&quot;</span>));
+
+<span class="c">// The page is read three times: between two attempts, while the job waits for the warehouse, and when it is done.</span>
+<span class="k">await</span> UntilAsync(job =&gt; job.Status == JobStatusCode.Ready &amp;&amp; job.FailureCount &gt; 0);
+<span class="k">await</span> ShowAsync();
+
+<span class="k">await</span> UntilAsync(job =&gt; job.Status == JobStatusCode.Suspended);
+<span class="k">await</span> ShowAsync();
+
+<span class="k">await</span> jobs.RaiseSignalAsync(order, <span class="s">&quot;packed&quot;</span>, JobPayload.None, CancellationToken.None);
+<span class="k">await</span> order.WaitAsync();
+<span class="k">await</span> ShowAsync();
+
+<span class="k">await</span> host.StopAsync();
+
+<span class="k">async</span> Task ShowAsync()
+{
+<span class="hl">    <span class="k">var</span> job = (<span class="k">await</span> jobs.GetAsync(order))!;</span>
+<span class="hl">    <span class="k">var</span> stage = <span class="k">await</span> jobs.GetVariableOrDefaultAsync&lt;<span class="k">string</span>&gt;(order, <span class="s">&quot;stage&quot;</span>);</span>
+<span class="hl">    <span class="k">var</span> why = (<span class="k">await</span> jobs.ExplainAsync(order))!;</span>
+
+    <span class="c">// A waiting job is healthy, a ready job that has failed before is between retries, and `Executing` means claimed,</span>
+    <span class="c">// not that a process is alive: `LeaseLapsed` is true for a job whose worker stopped heartbeating.</span>
+    <span class="k">var</span> shown = job.Status <span class="k">switch</span>
+    {
+        JobStatusCode.Suspended =&gt; <span class="s">&quot;waiting&quot;</span>,
+        JobStatusCode.Ready <span class="k">when</span> job.FailureCount &gt; 0 =&gt; <span class="s">&quot;retrying&quot;</span>,
+        JobStatusCode.Executing <span class="k">when</span> job.LeaseLapsed =&gt; <span class="s">&quot;interrupted&quot;</span>,
+        JobStatusCode.Executing =&gt; <span class="s">&quot;running&quot;</span>,
+        _ =&gt; job.Status.Code,
+    };
+    Console.WriteLine(<span class="s">$&quot;{shown, -9} | stage: {stage, -8} | {why.Headline}&quot;</span>);
+}
+
+<span class="k">async</span> Task UntilAsync(Func&lt;GetJobResponse, <span class="k">bool</span>&gt; reached)
+{
+    <span class="k">using</span> <span class="k">var</span> timeout = <span class="k">new</span> CancellationTokenSource(TimeSpan.FromSeconds(30));
+    <span class="k">while</span> (<span class="k">await</span> jobs.GetAsync(order, timeout.Token) <span class="k">is</span> <span class="k">not</span> { } job || !reached(job))
+    {
+        <span class="k">await</span> Task.Delay(50, timeout.Token);
+    }
+}</code></pre></figure>
+</div>
+<div class="step"><h2><span class="step-n">3</span>Say the status in the page's own words</h2>
+<p>A waiting job is healthy, a ready job that has failed before is between retries, and <code>Executing</code> means claimed, not that a process is alive: <code>LeaseLapsed</code> is true for a job whose worker stopped heartbeating.</p>
+<figure class="listing"><figcaption><span class="file">own-status-page.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-3">Copy</button></figcaption><pre><code id="code-3"><span class="k">var</span> jobs = host.Services.GetRequiredService&lt;IJobs&gt;();
+<span class="k">var</span> order = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> PrepareOrder(<span class="s">&quot;order-7&quot;</span>));
+
+<span class="c">// The page is read three times: between two attempts, while the job waits for the warehouse, and when it is done.</span>
+<span class="k">await</span> UntilAsync(job =&gt; job.Status == JobStatusCode.Ready &amp;&amp; job.FailureCount &gt; 0);
+<span class="k">await</span> ShowAsync();
+
+<span class="k">await</span> UntilAsync(job =&gt; job.Status == JobStatusCode.Suspended);
+<span class="k">await</span> ShowAsync();
+
+<span class="k">await</span> jobs.RaiseSignalAsync(order, <span class="s">&quot;packed&quot;</span>, JobPayload.None, CancellationToken.None);
+<span class="k">await</span> order.WaitAsync();
+<span class="k">await</span> ShowAsync();
+
+<span class="k">await</span> host.StopAsync();
+
+<span class="k">async</span> Task ShowAsync()
+{
+    <span class="c">// `GetAsync` answers the job's row, `GetVariableOrDefaultAsync` the value its handler keeps for the screen, and</span>
+    <span class="c">// `ExplainAsync` a sentence a person can read. Each is a read of what the database holds now; none waits.</span>
+    <span class="k">var</span> job = (<span class="k">await</span> jobs.GetAsync(order))!;
+    <span class="k">var</span> stage = <span class="k">await</span> jobs.GetVariableOrDefaultAsync&lt;<span class="k">string</span>&gt;(order, <span class="s">&quot;stage&quot;</span>);
+    <span class="k">var</span> why = (<span class="k">await</span> jobs.ExplainAsync(order))!;
+
+<span class="hl">    <span class="k">var</span> shown = job.Status <span class="k">switch</span></span>
+<span class="hl">    {</span>
+<span class="hl">        JobStatusCode.Suspended =&gt; <span class="s">&quot;waiting&quot;</span>,</span>
+<span class="hl">        JobStatusCode.Ready <span class="k">when</span> job.FailureCount &gt; 0 =&gt; <span class="s">&quot;retrying&quot;</span>,</span>
+<span class="hl">        JobStatusCode.Executing <span class="k">when</span> job.LeaseLapsed =&gt; <span class="s">&quot;interrupted&quot;</span>,</span>
+<span class="hl">        JobStatusCode.Executing =&gt; <span class="s">&quot;running&quot;</span>,</span>
+<span class="hl">        _ =&gt; job.Status.Code,</span>
+<span class="hl">    };</span>
+    Console.WriteLine(<span class="s">$&quot;{shown, -9} | stage: {stage, -8} | {why.Headline}&quot;</span>);
+}
+
+<span class="k">async</span> Task UntilAsync(Func&lt;GetJobResponse, <span class="k">bool</span>&gt; reached)
+{
+    <span class="k">using</span> <span class="k">var</span> timeout = <span class="k">new</span> CancellationTokenSource(TimeSpan.FromSeconds(30));
+    <span class="k">while</span> (<span class="k">await</span> jobs.GetAsync(order, timeout.Token) <span class="k">is</span> <span class="k">not</span> { } job || !reached(job))
+    {
+        <span class="k">await</span> Task.Delay(50, timeout.Token);
+    }
+}</code></pre></figure>
+</div>
+<div class="step"><h2><span class="step-n">4</span>Run it and check the output</h2>
+<p>From a clone of <a href="https://github.com/acta-dotnet/acta">the Acta repository</a>, with the .NET 10 SDK:</p>
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-4">Copy</button></figcaption><pre><code id="code-4">dotnet run --project concepts/400-observability-and-alerts/415-own-status-page</code></pre></figure>
+<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button" data-copy-target="#code-5">Copy</button></figcaption><pre><code id="code-5">retrying  | stage: charging
+waiting   | stage: packing
+succeeded | stage: shipped</code></pre></figure>
+<p class="proof checked"><b>Checked every release.</b> Before each release, Acta Verify runs this program and checks that its output contains these lines.</p>
+</div>
+<div class="step plain-step"><h2>Remember</h2><ul class="rules"><li><code>executing</code> means claimed, not that a process is alive: <code>LeaseLapsed</code> is true for an executing job whose worker stopped heartbeating.</li><li>A sleeping job reads <code>ready</code> with a future <code>NextRunAtUtc</code>; a job waiting for a signal or a child reads <code>suspended</code>. Both are healthy.</li><li><code>ExecutionNumber</code> counts every claim of the job, each resume after a wait and each bounce off a full concurrency key included. Show <code>FailureCount</code> as the tries.</li><li>The text of a status is <code>job.Status.Code</code>, such as <code>suspended</code>. <code>ToString()</code> gives the C# name, <code>Suspended</code>.</li><li>Write the screen's value inside a step. A bare write before a wait runs again when the handler is entered again, and the page would step back for a moment.</li><li>These calls read one job. To find many, <a href="/learn/409-operator-queries">list and page through jobs</a>.</li></ul></div>
+<div class="step plain-step"><h2>Check yourself</h2><div class="check" data-answer="1"><p class="check-q">A job reads <code>executing</code>, its worker was killed, and its lease has run out. What should the page show?</p><ol class="check-options"><li><button type="button">Running</button></li><li><button type="button">Interrupted</button></li><li><button type="button">Failed</button></li></ol><details class="check-why"><summary>Show the answer</summary><p><b>Interrupted.</b> <code>executing</code> says a worker claimed the job, not that the worker is alive. <code>LeaseLapsed</code> is true once its lease has run out, and recovery brings the job back by itself; nothing has failed.</p></details></div></div>
+<div class="step plain-step"><h2>The whole program</h2>
+<p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/concepts/400-observability-and-alerts/415-own-status-page"><code>concepts/400-observability-and-alerts/415-own-status-page</code></a>, as it is compiled.</p>
+<p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
+<details class="source-file"><summary><span class="file-name">own-status-page.cs</span><span class="file-size">105 lines</span></summary><figure class="listing"><figcaption><span class="file">own-status-page.cs</span><button class="copy" type="button" data-copy-target="#code-6">Copy</button></figcaption><pre><code id="code-6"><span class="c">// How to show where each job is on your own page</span>
+<span class="c">// `IJobs` reads one job for a page of your own: its status, a value the handler keeps for the screen, and a sentence</span>
+<span class="c">// that says why the job is where it is.</span>
+<span class="k">using</span> Acta;
+<span class="k">using</span> Acta.Concepts.OwnStatusPage;
+<span class="k">using</span> Microsoft.Extensions.DependencyInjection;
+<span class="k">using</span> Microsoft.Extensions.Hosting;
+<span class="k">using</span> Microsoft.Extensions.Logging;
+
+<span class="k">var</span> builder = Host.CreateApplicationBuilder(args);
+
+builder.Services.UseActa(j =&gt;
+{
+    j.UseLocalDatabase(builder.Configuration);
+    j.Run&lt;OwnStatusPageJobs&gt;(<span class="s">&quot;own-status-page&quot;</span>);
+});
+
+<span class="c">// The first attempt fails on purpose, to show a job between retries; quiet the framework's warning for it.</span>
+builder.Logging.AddFilter(<span class="s">&quot;Acta&quot;</span>, LogLevel.Error);
+
+<span class="k">using</span> <span class="k">var</span> host = builder.Build();
+<span class="k">await</span> host.StartAsync();
+
+<span class="k">var</span> jobs = host.Services.GetRequiredService&lt;IJobs&gt;();
+<span class="k">var</span> order = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> PrepareOrder(<span class="s">&quot;order-7&quot;</span>));
+
+<span class="c">// The page is read three times: between two attempts, while the job waits for the warehouse, and when it is done.</span>
+<span class="k">await</span> UntilAsync(job =&gt; job.Status == JobStatusCode.Ready &amp;&amp; job.FailureCount &gt; 0);
+<span class="k">await</span> ShowAsync();
+
+<span class="k">await</span> UntilAsync(job =&gt; job.Status == JobStatusCode.Suspended);
+<span class="k">await</span> ShowAsync();
+
+<span class="k">await</span> jobs.RaiseSignalAsync(order, <span class="s">&quot;packed&quot;</span>, JobPayload.None, CancellationToken.None);
+<span class="k">await</span> order.WaitAsync();
+<span class="k">await</span> ShowAsync();
+
+<span class="k">await</span> host.StopAsync();
+
+<span class="k">async</span> Task ShowAsync()
+{
+    <span class="c">// learn: 2. Read the job, its stage, and the sentence that says why</span>
+    <span class="c">// `GetAsync` answers the job's row, `GetVariableOrDefaultAsync` the value its handler keeps for the screen, and</span>
+    <span class="c">// `ExplainAsync` a sentence a person can read. Each is a read of what the database holds now; none waits.</span>
+<span class="hl">    <span class="k">var</span> job = (<span class="k">await</span> jobs.GetAsync(order))!;</span>
+<span class="hl">    <span class="k">var</span> stage = <span class="k">await</span> jobs.GetVariableOrDefaultAsync&lt;<span class="k">string</span>&gt;(order, <span class="s">&quot;stage&quot;</span>);</span>
+<span class="hl">    <span class="k">var</span> why = (<span class="k">await</span> jobs.ExplainAsync(order))!;</span>
+    <span class="c">// learn: end</span>
+
+    <span class="c">// learn: 3. Say the status in the page's own words</span>
+    <span class="c">// A waiting job is healthy, a ready job that has failed before is between retries, and `Executing` means claimed,</span>
+    <span class="c">// not that a process is alive: `LeaseLapsed` is true for a job whose worker stopped heartbeating.</span>
+<span class="hl">    <span class="k">var</span> shown = job.Status <span class="k">switch</span></span>
+<span class="hl">    {</span>
+<span class="hl">        JobStatusCode.Suspended =&gt; <span class="s">&quot;waiting&quot;</span>,</span>
+<span class="hl">        JobStatusCode.Ready <span class="k">when</span> job.FailureCount &gt; 0 =&gt; <span class="s">&quot;retrying&quot;</span>,</span>
+<span class="hl">        JobStatusCode.Executing <span class="k">when</span> job.LeaseLapsed =&gt; <span class="s">&quot;interrupted&quot;</span>,</span>
+<span class="hl">        JobStatusCode.Executing =&gt; <span class="s">&quot;running&quot;</span>,</span>
+<span class="hl">        _ =&gt; job.Status.Code,</span>
+<span class="hl">    };</span>
+    <span class="c">// learn: end</span>
+    Console.WriteLine(<span class="s">$&quot;{shown, -9} | stage: {stage, -8} | {why.Headline}&quot;</span>);
+}
+
+<span class="k">async</span> Task UntilAsync(Func&lt;GetJobResponse, <span class="k">bool</span>&gt; reached)
+{
+    <span class="k">using</span> <span class="k">var</span> timeout = <span class="k">new</span> CancellationTokenSource(TimeSpan.FromSeconds(30));
+    <span class="k">while</span> (<span class="k">await</span> jobs.GetAsync(order, timeout.Token) <span class="k">is</span> <span class="k">not</span> { } job || !reached(job))
+    {
+        <span class="k">await</span> Task.Delay(50, timeout.Token);
+    }
+}
+
+<span class="k">namespace</span> Acta.Concepts.OwnStatusPage
+{
+    <span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> PrepareOrder(<span class="k">string</span> OrderId);
+
+    <span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> PrepareOrderJob
+    {
+        <span class="a">[Job(<span class="s">&quot;prepare-order&quot;</span>, MaxAttempts = 3, Backoff = <span class="s">&quot;2s&quot;</span>)]</span>
+        <span class="k">public</span> <span class="k">async</span> Task Handle(PrepareOrder order, JobContext ctx, CancellationToken ct)
+        {
+            <span class="k">await</span> ctx.RunStepAsync(
+                <span class="s">&quot;charge&quot;</span>,
+                <span class="k">async</span> inner =&gt;
+                {
+                    <span class="c">// learn: 1. Keep what the screen shows in a variable</span>
+                    <span class="c">// The status says where the job is in Acta's terms. What it is doing in your terms is a variable</span>
+                    <span class="c">// the handler writes as the work advances, inside the step, so a replay does not write it again.</span>
+<span class="hl">                    <span class="k">await</span> ctx.SetVariableAsync(<span class="s">&quot;stage&quot;</span>, <span class="s">&quot;charging&quot;</span>, inner);</span>
+                    <span class="c">// learn: end</span>
+                    <span class="k">if</span> (ctx.ExecutionNumber == 1)
+                    {
+                        <span class="k">throw</span> <span class="k">new</span> InvalidOperationException(<span class="s">&quot;the payment provider timed out&quot;</span>);
+                    }
+                },
+                ct
+            );
+
+            <span class="k">await</span> ctx.RunStepAsync(<span class="s">&quot;hand-to-warehouse&quot;</span>, <span class="k">async</span> inner =&gt; <span class="k">await</span> ctx.SetVariableAsync(<span class="s">&quot;stage&quot;</span>, <span class="s">&quot;packing&quot;</span>, inner), ct);
+            <span class="k">await</span> ctx.WaitSignalAsync(<span class="s">&quot;packed&quot;</span>, ct);
+            <span class="k">await</span> ctx.SetVariableAsync(<span class="s">&quot;stage&quot;</span>, <span class="s">&quot;shipped&quot;</span>, ct);
+        }
+    }
+}</code></pre></figure></details></div>
+<div class="step plain-step"><h2>Where to go next</h2><ul class="next-links"><li><a href="/learn/404-read-event-timeline">How to read why a job did what it did</a><span>Watch and control running work</span></li></ul></div>
+      </article>
+      <article class="agent-face" hidden>
+        <figure class="listing agent"><figcaption><span class="file">/learn/415-own-status-page.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/415-own-status-page.md">Open</a><button class="copy" type="button" data-copy-target="#md-body">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
+        <p class="hint">This is the page an agent receives: the same how-to as plain Markdown, at this page's address with <code>.md</code> added.</p>
+      </article>
+      <aside class="howto-rail" aria-label="This section">
+        <p class="rail-head"><a href="/learn#s-operate">Watch and control running work</a></p>
+        <ol>
+            <li><a href="/learn/021-jobs-cli" data-id="021"><span class="rail-n">1</span>Inspect a job from the command line</a></li>
+            <li><a href="/learn/022-dashboard" data-id="022"><span class="rail-n">2</span>See your jobs in the dashboard</a></li>
+            <li aria-current="page"><a href="/learn/415-own-status-page" data-id="415"><span class="rail-n">3</span>Show where each job is on your own page</a></li>
+            <li><a href="/learn/404-read-event-timeline" data-id="404"><span class="rail-n">4</span>Read why a job did what it did</a></li>
+            <li><a href="/learn/409-operator-queries" data-id="409"><span class="rail-n">5</span>List and page through jobs</a></li>
+            <li><a href="/learn/305-operator-cancel" data-id="305"><span class="rail-n">6</span>Cancel a running job from outside</a></li>
+            <li><a href="/learn/309-operator-resume" data-id="309"><span class="rail-n">7</span>Pause and resume a job from outside</a></li>
+            <li><a href="/learn/310-operator-restart" data-id="310"><span class="rail-n">8</span>Restart a failed job and keep its history</a></li>
+            <li><a href="/learn/410-http-api-controls" data-id="410"><span class="rail-n">9</span>Control jobs over HTTP</a></li>
+            <li><a href="/learn/413-http-api-authorization" data-id="413"><span class="rail-n">10</span>Require permissions on the HTTP API</a></li>
+            <li><a href="/learn/414-dashboard-sign-in" data-id="414"><span class="rail-n">11</span>Put the dashboard behind your sign-in</a></li>
+            <li><a href="/learn/412-tenant-scope" data-id="412"><span class="rail-n">12</span>Record which tenant a job is for</a></li>
+            <li><a href="/learn/408-correlation-id" data-id="408"><span class="rail-n">13</span>Carry a correlation key from parent to child</a></li>
+            <li><a href="/learn/401-pipeline-behavior" data-id="401"><span class="rail-n">14</span>Wrap every handler in your own middleware</a></li>
+            <li><a href="/learn/407-event-recording" data-id="407"><span class="rail-n">15</span>Choose how many events a job records</a></li>
+        </ol>
+        <button class="button done-toggle" type="button" data-done-toggle="415" aria-pressed="false">Mark as done</button>
+        <p class="rail-turn"><a href="/learn/022-dashboard" rel="prev">Previous</a><a href="/learn/404-read-event-timeline" rel="next">Next</a></p>
+      </aside>
+    </div>
+    <section class="wrap newcomer" aria-labelledby="newcomer-title">
+      <h2 id="newcomer-title">New to Acta?</h2>
+      <p class="lede">Acta is durable execution for .NET: workflows and jobs that survive restarts, as a library inside your application with its durable state in your SQL database.</p>
+      <div class="actions">
+        <a class="button primary" href="/start">Run your first durable job in five minutes</a>
+        <a class="button" href="/learn">See every how-to</a>
+        <a class="button" href="/capabilities">Everything Acta does</a>
+      </div>
+    </section>
+    <footer class="site-footer">
+      <div class="wrap">
+        <div class="footer-grid">
+          <div class="footer-about">
+            <a class="site-brand" href="/" aria-label="Acta home"><svg viewBox="3.95 4.95 30.1 30.1" fill="none" stroke="currentColor" stroke-width="4.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 33 19 7 32 33" /><circle cx="19" cy="27" r="3" fill="currentColor" stroke="none" /></svg><span class="brand-word">Acta<span>.</span></span></a>
+            <p>Durable execution for .NET.</p>
+            <p>A library inside your application.<br />Durable state in your SQL database.</p>
+            <p class="footer-license">Apache-2.0 · built in the open</p>
+          </div>
+          <nav aria-label="Explore">
+            <p class="footer-head">Explore</p>
+            <a href="/how-it-works">How Acta works</a>
+            <a href="/capabilities">Capabilities</a>
+            <a href="/engine">Inside one worker</a>
+            <a href="/fleet">Workers and recovery</a>
+            <a href="/gates">Order and limits</a>
+            <a href="/benchmark">Benchmark and evidence</a>
+            <a href="/choosing">Choosing Acta</a>
+          </nav>
+          <nav aria-label="Build">
+            <p class="footer-head">Build</p>
+            <a href="/start">Get started</a>
+            <a href="/learn">Learn Acta</a>
+            <a href="https://github.com/acta-dotnet/acta/tree/main/docs">Documentation</a>
+            <a href="https://github.com/acta-dotnet/acta/tree/main/concepts">Runnable concepts</a>
+            <a href="https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md">Engineering labs</a>
+            <a href="/llms.txt">llms.txt for coding agents</a>
+          </nav>
+          <div class="footer-release">
+            <p class="footer-head">Release</p>
+            <p class="footer-version"><span class="release-dot" aria-hidden="true"></span><a href="https://github.com/acta-dotnet/acta/releases">1.0.0-rc.12 <span aria-hidden="true">↗</span></a><span>a release candidate</span></p>
+            <a href="https://github.com/acta-dotnet/acta/blob/main/docs/compatibility-and-support.md">Compatibility and support</a>
+            <a href="/support">Support Acta</a>
+            <a href="https://github.com/acta-dotnet/acta/blob/main/docs/known-limitations.md#stability-status">Stability status</a>
+            <a href="https://github.com/acta-dotnet/acta">Source on GitHub <span aria-hidden="true">↗</span></a>
+          </div>
+        </div>
+        <div class="footer-bottom">
+          <p>Created and maintained by <a href="https://www.linkedin.com/in/marko-voncina">Marko Vončina</a></p>
+          <span data-theme-controls></span>
+        </div>
+      </div>
+    </footer>
+  </main>
+  <p class="sr-only" id="copy-status" aria-live="polite"></p>
+  <script src="/assets/learn.js"></script>
+</body>
+</html>

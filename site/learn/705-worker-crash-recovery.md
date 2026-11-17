@@ -2,7 +2,7 @@
 
 A worker process is killed in the middle of a job, and another worker reclaims the job once its lease has lapsed. The program runs on PostgreSQL or SQL Server.
 
-- Section: Deploy and scale, step 3
+- Section: Deploy and scale, step 4
 - Program: `concepts/700-topology-and-deployment/705-worker-crash-recovery` in https://github.com/acta-dotnet/acta (one compiled project)
 - Status: Proven by other suites. The release check does not run this program. Needs PostgreSQL or SQL Server and two worker processes, one killed mid-job while the other reclaims its work; Verify's chaos scenario and WorkerCrashRecoveryChaosSpec prove the same behaviour.
 - Rules: [/llms.txt](/llms.txt) is the contract every handler follows; "Remember" below carries the rules that bite this task.

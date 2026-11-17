@@ -2,7 +2,7 @@
 
 A group of children never throws by itself. A failed child shows in the `Failed` list of the wait or the map, and `ThrowIfAnyFailed` is how the parent chooses to fail with it.
 
-- Section: Split work across child jobs, step 5
+- Section: Split work across child jobs, step 6
 - Program: `concepts/200-durable-execution/219-child-failure-outcomes` in https://github.com/acta-dotnet/acta (one compiled project)
 - Status: Checked every release. Before each release, Acta Verify runs this program and checks that its output contains these lines.
 - Rules: [/llms.txt](/llms.txt) is the contract every handler follows; "Remember" below carries the rules that bite this task.

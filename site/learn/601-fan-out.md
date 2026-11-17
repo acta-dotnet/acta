@@ -2,7 +2,7 @@
 
 A handler takes `IJobs` and enqueues many independent jobs, each with a stable deduplication key. Nothing links them to the handler's job and nothing waits for them (compare 212's `MapAsync`).
 
-- Section: Split work across child jobs, step 7
+- Section: Split work across child jobs, step 8
 - Program: `concepts/600-job-composition/601-fan-out` in https://github.com/acta-dotnet/acta (one compiled project)
 - Status: Checked every release. Before each release, Acta Verify runs this program and checks that its output contains these lines.
 - Rules: [/llms.txt](/llms.txt) is the contract every handler follows, starting with the handler running again from its first line; read it before you copy code from here.

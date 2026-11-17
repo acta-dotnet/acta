@@ -2,7 +2,7 @@
 
 `TenantName` on the enqueue records which tenant a job is for. Its children inherit the tenant, the job list filters by it, and an enqueue for an unknown or a suspended tenant is refused.
 
-- Section: Watch and control running work, step 11
+- Section: Watch and control running work, step 12
 - Program: `concepts/400-observability-and-alerts/412-tenant-scope` in https://github.com/acta-dotnet/acta (one compiled project)
 - Status: Checked every release. Before each release, Acta Verify runs this program and checks that its output contains these lines.
 - Rules: [/llms.txt](/llms.txt) is the contract every handler follows, starting with the handler running again from its first line; read it before you copy code from here.

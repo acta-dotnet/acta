@@ -142,7 +142,7 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## Next
 
-- [How to handle child jobs that fail](/learn/219-child-failure-outcomes.md)
+- [How to find the child job that handles one item](/learn/222-find-child-job.md)
 
 ## More
 

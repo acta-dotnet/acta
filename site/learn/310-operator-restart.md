@@ -2,7 +2,7 @@
 
 `RestartAsync` runs a finished job again under the same identity. The failure budget is reset, the history is appended to, steps that succeeded are not run again, and the bare lines of the handler are.
 
-- Section: Watch and control running work, step 7
+- Section: Watch and control running work, step 8
 - Program: `concepts/300-failure-and-recovery/310-operator-restart` in https://github.com/acta-dotnet/acta (one compiled project)
 - Status: Checked every release. Before each release, Acta Verify runs this program and checks that its output contains these lines.
 - Rules: [/llms.txt](/llms.txt) is the contract every handler follows; "Remember" below carries the rules that bite this task.

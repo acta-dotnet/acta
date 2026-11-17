@@ -114,7 +114,7 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## Next
 
-- [How to recover the work of a killed worker](/learn/705-worker-crash-recovery.md)
+- [How to restart a crashed app on SQLite and get its work back](/learn/706-sqlite-restart.md)
 
 ## More
 

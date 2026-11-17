@@ -2,7 +2,7 @@
 
 `MaxConcurrentExecutors` caps how many jobs one worker runs at once, and `SafetyPollInterval` bounds how long an idle worker sleeps between looks at the database.
 
-- Section: Deploy and scale, step 6
+- Section: Deploy and scale, step 7
 - Program: `concepts/900-runtime-and-tuning/904-worker-tuning` in https://github.com/acta-dotnet/acta (one compiled project)
 - Status: Checked every release. Before each release, Acta Verify runs this program and checks that its output contains these lines.
 - Rules: [/llms.txt](/llms.txt) is the contract every handler follows, starting with the handler running again from its first line; read it before you copy code from here.

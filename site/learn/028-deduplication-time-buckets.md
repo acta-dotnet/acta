@@ -205,7 +205,7 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## Next
 
-- [How to find a job by its deduplication key](/learn/014-read-by-deduplication-key.md)
+- [How to save a record and start its job in one transaction](/learn/029-enqueue-in-transaction.md)
 
 ## More
 

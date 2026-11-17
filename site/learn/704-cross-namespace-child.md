@@ -2,7 +2,7 @@
 
 A parent starts a child in another worker's namespace and waits across the boundary.
 
-- Section: Split work across child jobs, step 6
+- Section: Split work across child jobs, step 7
 - Program: `concepts/700-topology-and-deployment/704-cross-namespace-child` in https://github.com/acta-dotnet/acta (one compiled project)
 - Status: Checked every release. Before each release, Acta Verify runs this program and checks that its output contains these lines.
 - Rules: [/llms.txt](/llms.txt) is the contract every handler follows, starting with the handler running again from its first line; read it before you copy code from here.

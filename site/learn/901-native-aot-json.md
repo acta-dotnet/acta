@@ -2,7 +2,7 @@
 
 A source-generated `JsonSerializerContext` given to `UseJsonPayloads` serializes payloads with no runtime reflection, and `JobPayload.Json(value, typeInfo)` builds a raw payload the same way.
 
-- Section: Deploy and scale, step 4
+- Section: Deploy and scale, step 5
 - Program: `concepts/900-runtime-and-tuning/901-native-aot-json` in https://github.com/acta-dotnet/acta (one compiled project)
 - Status: Checked every release. Before each release, Acta Verify runs this program and checks that its output contains these lines.
 - Rules: [/llms.txt](/llms.txt) is the contract every handler follows, starting with the handler running again from its first line; read it before you copy code from here.

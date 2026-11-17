@@ -27,6 +27,7 @@
     <Project Path="000-fundamentals/025-large-payload-reference/025-large-payload-reference.csproj" />
     <Project Path="000-fundamentals/026-first-job/026-first-job.csproj" />
     <Project Path="000-fundamentals/028-deduplication-time-buckets/028-deduplication-time-buckets.csproj" />
+    <Project Path="000-fundamentals/029-enqueue-in-transaction/029-enqueue-in-transaction.csproj" />
   </Folder>
   <Folder Name="/100-scheduling/">
     <Project Path="100-scheduling/101-recurring-job/101-recurring-job.csproj" />
@@ -60,6 +61,9 @@
     <Project Path="200-durable-execution/217-absolute-time-controls/217-absolute-time-controls.csproj" />
     <Project Path="200-durable-execution/219-child-failure-outcomes/219-child-failure-outcomes.csproj" />
     <Project Path="200-durable-execution/220-at-most-once-step/220-at-most-once-step.csproj" />
+    <Project Path="200-durable-execution/221-pending-signup/221-pending-signup.csproj" />
+    <Project Path="200-durable-execution/222-find-child-job/222-find-child-job.csproj" />
+    <Project Path="200-durable-execution/223-lane-per-customer/223-lane-per-customer.csproj" />
   </Folder>
   <Folder Name="/300-failure-and-recovery/">
     <Project Path="300-failure-and-recovery/301-fail-job/301-fail-job.csproj" />
@@ -90,6 +94,7 @@
     <Project Path="400-observability-and-alerts/412-tenant-scope/412-tenant-scope.csproj" />
     <Project Path="400-observability-and-alerts/413-http-api-authorization/413-http-api-authorization.csproj" />
     <Project Path="400-observability-and-alerts/414-dashboard-sign-in/414-dashboard-sign-in.csproj" />
+    <Project Path="400-observability-and-alerts/415-own-status-page/415-own-status-page.csproj" />
   </Folder>
   <Folder Name="/500-payloads/">
     <Project Path="500-payloads/501-payload-formats/501-payload-formats.csproj" />
@@ -103,6 +108,7 @@
     <Project Path="700-topology-and-deployment/703-namespaces-in-one-process/703-namespaces-in-one-process.csproj" />
     <Project Path="700-topology-and-deployment/704-cross-namespace-child/704-cross-namespace-child.csproj" />
     <Project Path="700-topology-and-deployment/705-worker-crash-recovery/705-worker-crash-recovery.csproj" />
+    <Project Path="700-topology-and-deployment/706-sqlite-restart/706-sqlite-restart.csproj" />
   </Folder>
   <Folder Name="/800-testing/">
     <Project Path="800-testing/801-testing-jobs/801-testing-jobs.csproj" />

@@ -2,7 +2,7 @@
 
 `RequirePermissions` has every route of the HTTP API check the host's policy named for its permission: read, enqueue, control, or admin. A caller with no credential gets 401, and one that lacks the permission gets 403 naming it.
 
-- Section: Watch and control running work, step 9
+- Section: Watch and control running work, step 10
 - Program: `concepts/400-observability-and-alerts/413-http-api-authorization` in https://github.com/acta-dotnet/acta (one compiled project)
 - Status: Checked every release. Before each release, Acta Verify runs this program and checks that its output contains these lines.
 - Rules: [/llms.txt](/llms.txt) is the contract every handler follows, starting with the handler running again from its first line; read it before you copy code from here.
