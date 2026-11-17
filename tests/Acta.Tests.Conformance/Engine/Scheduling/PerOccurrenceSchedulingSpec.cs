@@ -86,7 +86,7 @@ public sealed class PerOccurrenceManifest : IJobManifest
             MaxAttempts: 1,
             EventRecording: EventRecordingCode.Audit,
             AlertProfile: AlertProfileCode.None,
-            FiringFailurePolicy: fails ? FiringFailurePolicyCode.PauseScheduling : FiringFailurePolicyCode.Continue,
+            FiringFailurePolicy: fails ? FiringFailurePolicyCode.Pause : FiringFailurePolicyCode.Continue,
             ScheduledDelivery: ScheduledDeliveryCode.PerOccurrence,
             Invoker: fails
                     ? static async (_, _, ctx, ct) =>
@@ -333,7 +333,7 @@ public sealed class PerOccurrenceSchedulingSpec : ActaRuntimeTestBase<Conformanc
     }
 
     [Fact(
-        DisplayName = "A root that fails for good settles its envelope Failed, releases the charge, and pauses the schedules under PauseScheduling"
+        DisplayName = "A root that fails for good settles its envelope Failed, releases the charge, and pauses the schedules under Pause"
     )]
     public async Task A_failed_root_applies_the_firing_failure_policy()
     {

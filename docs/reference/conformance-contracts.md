@@ -2310,13 +2310,13 @@
   - A firing that spends its budget returns the slot to Idle, never Failed, and the next firing starts a fresh budget
   - Handler cancel terminates the whole slot to Cancelled and settles the firing
 
-### A firing that fails for good pauses the schedules under PauseScheduling, or not
-- **Contract:** A spent firing budget pauses a PauseScheduling definition's active schedules with the reason, on completion or reclaim, and leaves a Continue one scheduled.
+### A firing that fails for good pauses the schedules under Pause, or not
+- **Contract:** A spent firing budget pauses a Pause definition's active schedules with the reason, on completion or reclaim, and leaves a Continue one scheduled.
 - **Guarantees:**
-  - Under PauseScheduling the failed firing pauses the schedule with the reason, and a resume puts it back in front of the admitter
+  - Under Pause the failed firing pauses the schedule with the reason, and a resume puts it back in front of the admitter
   - Under Continue the failed firing leaves the schedule scheduled, and the next occurrence fires
   - An exception no retry can change fails the firing at once and leaves the permanent job for its next occurrence
-  - A handler's own fail lands the permanent job Failed and pauses no schedule, even under PauseScheduling
+  - A handler's own fail lands the permanent job Failed and pauses no schedule, even under Pause
   - A lost attempt that spends the budget applies the policy on reclaim as a completion would
   - The policy's pause is recorded below Audit, on a completion and on a reclaim
 
@@ -2399,7 +2399,7 @@
   - At MaxOutstanding a Skip schedule passes over the occurrence with the reason capacity and moves on
   - A cancel releases the charge, a restart takes it again, and a restart into a full schedule is Rejected
   - A manual trigger admits a charged root with an empty envelope, and a full schedule rejects it
-  - A root that fails for good settles its envelope Failed, releases the charge, and pauses the schedules under PauseScheduling
+  - A root that fails for good settles its envelope Failed, releases the charge, and pauses the schedules under Pause
   - Lost attempts that spend the budget settle their roots on reclaim as a completion would, pausing the schedule once
   - A suspended namespace holds its schedules: nothing is admitted, a trigger is rejected, and a resume hands them back to the admitter
   - A batch carrying a stale execution beside the current one of a charged root releases the charge once and records the current outcome

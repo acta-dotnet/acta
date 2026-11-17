@@ -249,7 +249,7 @@ internal static class JobPolicyReader
                     named,
                     FiringFailurePolicyIdToName,
                     DefaultFiringFailurePolicyName,
-                    "The policy is `FiringFailurePolicyCode.Continue` or `FiringFailurePolicyCode.PauseScheduling`.",
+                    "The policy is `FiringFailurePolicyCode.Continue` or `FiringFailurePolicyCode.Pause`.",
                     draft.FiringFailurePolicyName,
                     diagnostics,
                     location

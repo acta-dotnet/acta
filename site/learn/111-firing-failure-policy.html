@@ -4,20 +4,20 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>How to decide what a failed firing does to its schedule · Acta, durable execution for .NET</title>
-  <meta name="description" content="How to decide what a failed firing does to its schedule with Acta, durable execution for .NET. A firing that spends its retry budget returns the permanent job to Idle. FiringFailurePolicy says what happens to its schedules then: Continue, the default, fires the next occurrence as usual, and PauseScheduling pauses them, with the reason, until an operator resumes them." />
+  <meta name="description" content="How to decide what a failed firing does to its schedule with Acta, durable execution for .NET. A firing that spends its retry budget returns the permanent job to Idle. FiringFailurePolicy says what happens to its schedules then: Continue, the default, fires the next occurrence as usual, and Pause pauses them, with the reason, until an operator resumes them." />
   <link rel="canonical" href="https://useacta.net/learn/111-firing-failure-policy" />
   <meta name="theme-color" content="#0B0E15" />
   <meta property="og:type" content="article" />
   <meta property="og:site_name" content="Acta for .NET" />
   <meta property="og:title" content="How to decide what a failed firing does to its schedule · Acta, durable execution for .NET" />
-  <meta property="og:description" content="How to decide what a failed firing does to its schedule with Acta, durable execution for .NET. A firing that spends its retry budget returns the permanent job to Idle. FiringFailurePolicy says what happens to its schedules then: Continue, the default, fires the next occurrence as usual, and PauseScheduling pauses them, with the reason, until an operator resumes them." />
+  <meta property="og:description" content="How to decide what a failed firing does to its schedule with Acta, durable execution for .NET. A firing that spends its retry budget returns the permanent job to Idle. FiringFailurePolicy says what happens to its schedules then: Continue, the default, fires the next occurrence as usual, and Pause pauses them, with the reason, until an operator resumes them." />
   <meta property="og:url" content="https://useacta.net/learn/111-firing-failure-policy" />
   <meta property="og:image" content="https://useacta.net/assets/social-card.png" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
   <meta property="og:image:alt" content="Acta: durable execution for .NET. Postgres, SQL Server, SQLite." />
   <meta name="twitter:card" content="summary_large_image" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"How to decide what a failed firing does to its schedule","description":"How to decide what a failed firing does to its schedule with Acta, durable execution for .NET. A firing that spends its retry budget returns the permanent job to Idle. FiringFailurePolicy says what happens to its schedules then: Continue, the default, fires the next occurrence as usual, and PauseScheduling pauses them, with the reason, until an operator resumes them.","url":"https://useacta.net/learn/111-firing-failure-policy","inLanguage":"en","articleSection":"Run work on a schedule","isPartOf":{"@type":"CollectionPage","name":"Learn Acta","url":"https://useacta.net/learn"},"about":{"@type":"SoftwareSourceCode","name":"Acta","programmingLanguage":"C#","codeRepository":"https://github.com/acta-dotnet/acta"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"How to decide what a failed firing does to its schedule","description":"How to decide what a failed firing does to its schedule with Acta, durable execution for .NET. A firing that spends its retry budget returns the permanent job to Idle. FiringFailurePolicy says what happens to its schedules then: Continue, the default, fires the next occurrence as usual, and Pause pauses them, with the reason, until an operator resumes them.","url":"https://useacta.net/learn/111-firing-failure-policy","inLanguage":"en","articleSection":"Run work on a schedule","isPartOf":{"@type":"CollectionPage","name":"Learn Acta","url":"https://useacta.net/learn"},"about":{"@type":"SoftwareSourceCode","name":"Acta","programmingLanguage":"C#","codeRepository":"https://github.com/acta-dotnet/acta"}}</script>
   <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Learn Acta","item":"https://useacta.net/learn"},{"@type":"ListItem","position":2,"name":"Run work on a schedule","item":"https://useacta.net/learn#s-schedule"},{"@type":"ListItem","position":3,"name":"How to decide what a failed firing does to its schedule","item":"https://useacta.net/learn/111-firing-failure-policy"}]}</script>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   <link rel="alternate" type="text/plain" href="/llms.txt" title="Acta for coding agents" />
@@ -61,7 +61,7 @@
     <header class="wrap page-head howto-head">
       <p class="record"><a href="/learn">learn acta</a><span aria-hidden="true">/</span><a href="/learn#s-schedule">run work on a schedule</a></p>
       <h1>How to decide what a failed firing does to its schedule</h1>
-      <p class="lede">A firing that spends its retry budget returns the permanent job to <code>Idle</code>. <code>FiringFailurePolicy</code> says what happens to its schedules then: <code>Continue</code>, the default, fires the next occurrence as usual, and <code>PauseScheduling</code> pauses them, with the reason, until an operator resumes them.</p>
+      <p class="lede">A firing that spends its retry budget returns the permanent job to <code>Idle</code>. <code>FiringFailurePolicy</code> says what happens to its schedules then: <code>Continue</code>, the default, fires the next occurrence as usual, and <code>Pause</code> pauses them, with the reason, until an operator resumes them.</p>
       <p class="howto-context">A how-to for Acta, durable execution for .NET. <a href="/start">New to Acta? Run your first durable job in five minutes.</a></p>
       <div class="howto-meta">
         <span class="status checked">Checked every release</span>
@@ -82,7 +82,7 @@
 <span class="c">/// &lt;summary&gt;Firings of &lt;paramref name=&quot;job&quot;/&gt; that spent their budget here: two failed attempts each.&lt;/summary&gt;</span>
 <span class="k">public</span> <span class="k">static</span> <span class="k">int</span> SpentFirings(<span class="k">string</span> job) =&gt; FailedAttempts.GetValueOrDefault(job) / 2;
 
-<span class="hl"><span class="a">[Job(<span class="s">&quot;sync-prices-pausing&quot;</span>, MaxAttempts = 2, Backoff = <span class="s">&quot;1s&quot;</span>, FiringFailurePolicy = FiringFailurePolicyCode.PauseScheduling)]</span></span>
+<span class="hl"><span class="a">[Job(<span class="s">&quot;sync-prices-pausing&quot;</span>, MaxAttempts = 2, Backoff = <span class="s">&quot;1s&quot;</span>, FiringFailurePolicy = FiringFailurePolicyCode.Pause)]</span></span>
 <span class="a">[Schedule(<span class="s">&quot;every-second&quot;</span>, <span class="s">&quot;PT1S&quot;</span>)]</span>
 <span class="k">public</span> Task Pausing(CancellationToken ct) =&gt; FailAsync(<span class="s">&quot;sync-prices-pausing&quot;</span>);
 
@@ -104,7 +104,7 @@ sync-prices-continuing | active</code></pre></figure>
 <p class="hint"><code>UseLocalDatabase</code> and <code>LearnLab</code> are helpers of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
 <details class="source-file"><summary><span class="file-name">firing-failure-policy.cs</span><span class="file-size">112 lines</span></summary><figure class="listing"><figcaption><span class="file">firing-failure-policy.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to decide what a failed firing does to its schedule</span>
 <span class="c">// A firing that spends its retry budget returns the permanent job to `Idle`. `FiringFailurePolicy` says what happens</span>
-<span class="c">// to its schedules then: `Continue`, the default, fires the next occurrence as usual, and `PauseScheduling` pauses</span>
+<span class="c">// to its schedules then: `Continue`, the default, fires the next occurrence as usual, and `Pause` pauses</span>
 <span class="c">// them, with the reason, until an operator resumes them.</span>
 <span class="k">using</span> System.Collections.Concurrent;
 <span class="k">using</span> Acta;
@@ -198,7 +198,7 @@ Console.WriteLine(<span class="s">$&quot;sync-prices-continuing  spent {PriceFee
         <span class="c">// A firing retries under the job's budget like any attempt. The policy applies once that budget is spent; the</span>
         <span class="c">// second job below keeps the default, `Continue`. `FailAsync` in the bodies is the program's own helper that</span>
         <span class="c">// throws, so each attempt fails and retries; it is not `ctx.FailAsync`.</span>
-<span class="hl">        <span class="a">[Job(<span class="s">&quot;sync-prices-pausing&quot;</span>, MaxAttempts = 2, Backoff = <span class="s">&quot;1s&quot;</span>, FiringFailurePolicy = FiringFailurePolicyCode.PauseScheduling)]</span></span>
+<span class="hl">        <span class="a">[Job(<span class="s">&quot;sync-prices-pausing&quot;</span>, MaxAttempts = 2, Backoff = <span class="s">&quot;1s&quot;</span>, FiringFailurePolicy = FiringFailurePolicyCode.Pause)]</span></span>
         <span class="c">// learn: end</span>
         <span class="a">[Schedule(<span class="s">&quot;every-second&quot;</span>, <span class="s">&quot;PT1S&quot;</span>)]</span>
         <span class="k">public</span> Task Pausing(CancellationToken ct) =&gt; FailAsync(<span class="s">&quot;sync-prices-pausing&quot;</span>);

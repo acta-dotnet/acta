@@ -17268,11 +17268,11 @@
           "continue"
         ],
         "type": "string",
-        "description": "What happens to a scheduled definition's schedules when a firing fails for good: its attempts are spent, or an exception is not retryable.\n\nKnown values:\n- unspecified: Firing failure policy not recognized by this build; the row was written by a newer Acta.\n- continue: Default. A firing that fails for good leaves the definition's schedules scheduled; the next occurrence fires.\n- pause-scheduling: A firing that fails for good pauses every schedule of the definition with a pause message until an operator resumes them.\n\nOther values may appear: keep a value this client does not know as it is.",
+        "description": "What happens to a scheduled definition's schedules when a firing fails for good: its attempts are spent, or an exception is not retryable.\n\nKnown values:\n- unspecified: Firing failure policy not recognized by this build; the row was written by a newer Acta.\n- continue: Default. A firing that fails for good leaves the definition's schedules scheduled; the next occurrence fires.\n- pause: A firing that fails for good pauses every schedule of the definition with a pause message until an operator resumes them.\n\nOther values may appear: keep a value this client does not know as it is.",
         "x-acta-known-values": [
           "unspecified",
           "continue",
-          "pause-scheduling"
+          "pause"
         ]
       },
       "GetAlertResponse": {

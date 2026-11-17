@@ -321,7 +321,7 @@ internal sealed class DefinitionEntity : IEntity<int>
 
     /// <summary>
     /// What a firing that fails for good does to the definition's schedules (<c>Continue</c> /
-    /// <c>PauseScheduling</c>). Code-owned and deliberately without an override triple.
+    /// <c>Pause</c>). Code-owned and deliberately without an override triple.
     /// </summary>
     [DbColumn("firing_failure_policy_code")]
     public FiringFailurePolicyCode FiringFailurePolicy { get; internal set; }

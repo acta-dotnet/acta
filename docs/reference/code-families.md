@@ -272,7 +272,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 |---|---:|---|---|---|
 | `Unspecified` | 0 | `unspecified` | Firing failure policy not recognized by this build; the row was written by a newer Acta. | Active |
 | `Continue` | 10 | `continue` | Default. A firing that fails for good leaves the definition's schedules scheduled; the next occurrence fires. | Active |
-| `PauseScheduling` | 20 | `pause-scheduling` | A firing that fails for good pauses every schedule of the definition with a pause message until an operator resumes them. | Active |
+| `Pause` | 20 | `pause` | A firing that fails for good pauses every schedule of the definition with a pause message until an operator resumes them. | Active |
 
 ### `JobKindCode` · `job-kind` <a id="code-family-jobkindcode"></a>
 

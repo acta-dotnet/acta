@@ -545,7 +545,7 @@ SELECT
     d.alert_profile_code,
     d.alert_profile_code_override,
     d.alert_profile_code_effective,
-    CASE d.firing_failure_policy_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'continue' WHEN 20 THEN 'pause-scheduling' END AS firing_failure_policy,
+    CASE d.firing_failure_policy_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'continue' WHEN 20 THEN 'pause' END AS firing_failure_policy,
     d.firing_failure_policy_code,
     CASE d.scheduled_delivery_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'permanent' WHEN 20 THEN 'per-occurrence' END AS scheduled_delivery,
     d.scheduled_delivery_code,
@@ -771,5 +771,5 @@ JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261117142716_init')
+VALUES ('M20261117143410_init')
 ON CONFLICT (name) DO NOTHING;

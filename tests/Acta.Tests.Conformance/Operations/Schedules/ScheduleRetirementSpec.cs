@@ -74,7 +74,7 @@ public sealed class ScheduleRetirementSpec : ActaRuntimeTestBase<ConformanceFixt
     {
         var ct = TestContext.Current.CancellationToken;
         var jobName = Unique("retired-fail");
-        var defId = await CreateDefinitionAsync(jobName, ct, FiringFailurePolicyCode.PauseScheduling);
+        var defId = await CreateDefinitionAsync(jobName, ct, FiringFailurePolicyCode.Pause);
         await RegisterAsync(defId, jobName, [Slot("only", FloorSeconds(DateTime.UtcNow.AddHours(6)))], ct);
         var slotId = await SlotIdAsync(jobName, ct);
         var workerId = await LeaseInFlightAsync(slotId, ct);

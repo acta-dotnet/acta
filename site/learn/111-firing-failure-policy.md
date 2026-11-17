@@ -1,6 +1,6 @@
 # How to decide what a failed firing does to its schedule
 
-A firing that spends its retry budget returns the permanent job to `Idle`. `FiringFailurePolicy` says what happens to its schedules then: `Continue`, the default, fires the next occurrence as usual, and `PauseScheduling` pauses them, with the reason, until an operator resumes them.
+A firing that spends its retry budget returns the permanent job to `Idle`. `FiringFailurePolicy` says what happens to its schedules then: `Continue`, the default, fires the next occurrence as usual, and `Pause` pauses them, with the reason, until an operator resumes them.
 
 - Section: Run work on a schedule, step 9
 - Program: `learn/100-scheduling/111-firing-failure-policy` in https://github.com/acta-dotnet/acta (one compiled project)
@@ -17,7 +17,7 @@ A firing retries under the job's budget like any attempt. The policy applies onc
 The lines that matter:
 
 ```csharp
-[Job("sync-prices-pausing", MaxAttempts = 2, Backoff = "1s", FiringFailurePolicy = FiringFailurePolicyCode.PauseScheduling)]
+[Job("sync-prices-pausing", MaxAttempts = 2, Backoff = "1s", FiringFailurePolicy = FiringFailurePolicyCode.Pause)]
 ```
 
 In `firing-failure-policy.cs` (excerpt):
@@ -28,7 +28,7 @@ private static readonly ConcurrentDictionary<string, int> FailedAttempts = new()
 /// <summary>Firings of <paramref name="job"/> that spent their budget here: two failed attempts each.</summary>
 public static int SpentFirings(string job) => FailedAttempts.GetValueOrDefault(job) / 2;
 
-[Job("sync-prices-pausing", MaxAttempts = 2, Backoff = "1s", FiringFailurePolicy = FiringFailurePolicyCode.PauseScheduling)]
+[Job("sync-prices-pausing", MaxAttempts = 2, Backoff = "1s", FiringFailurePolicy = FiringFailurePolicyCode.Pause)]
 [Schedule("every-second", "PT1S")]
 public Task Pausing(CancellationToken ct) => FailAsync("sync-prices-pausing");
 

@@ -13,7 +13,7 @@ The how-to is [/learn/111-firing-failure-policy.md](/learn/111-firing-failure-po
 ```csharp
 // How to decide what a failed firing does to its schedule
 // A firing that spends its retry budget returns the permanent job to `Idle`. `FiringFailurePolicy` says what happens
-// to its schedules then: `Continue`, the default, fires the next occurrence as usual, and `PauseScheduling` pauses
+// to its schedules then: `Continue`, the default, fires the next occurrence as usual, and `Pause` pauses
 // them, with the reason, until an operator resumes them.
 using System.Collections.Concurrent;
 using Acta;
@@ -107,7 +107,7 @@ namespace Acta.Learn.FiringFailurePolicy
         // A firing retries under the job's budget like any attempt. The policy applies once that budget is spent; the
         // second job below keeps the default, `Continue`. `FailAsync` in the bodies is the program's own helper that
         // throws, so each attempt fails and retries; it is not `ctx.FailAsync`.
-        [Job("sync-prices-pausing", MaxAttempts = 2, Backoff = "1s", FiringFailurePolicy = FiringFailurePolicyCode.PauseScheduling)]
+        [Job("sync-prices-pausing", MaxAttempts = 2, Backoff = "1s", FiringFailurePolicy = FiringFailurePolicyCode.Pause)]
         // learn: end
         [Schedule("every-second", "PT1S")]
         public Task Pausing(CancellationToken ct) => FailAsync("sync-prices-pausing");

@@ -22,8 +22,8 @@ public enum FiringFailurePolicyCode : byte
     /// resumes it.
     /// </summary>
     [Code(
-        "pause-scheduling",
+        "pause",
         "A firing that fails for good pauses every schedule of the definition with a pause message until an operator resumes them."
     )]
-    PauseScheduling = 20,
+    Pause = 20,
 }

@@ -369,7 +369,7 @@ BEGIN
                     (j.job_kind_code = 20 /* JobKindCode.Permanent */ AND c.final_job_status_code = 40 /* JobStatusCode.Idle */ AND NOT c.succeeded)
                     OR (j.schedule_id IS NOT NULL AND r.job_status_code = 200 /* JobStatusCode.Failed */)
                 )
-                AND jd.firing_failure_policy_code = 20 /* FiringFailurePolicyCode.PauseScheduling */
+                AND jd.firing_failure_policy_code = 20 /* FiringFailurePolicyCode.Pause */
                 AND jd.definition_status_code = 10 /* DefinitionStatusCode.Active */
             RETURNING
                 js.schedule_id, js.schedule_name, j.job_id, j.namespace_id, j.definition_id, j.tenant_id,

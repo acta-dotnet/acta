@@ -7,7 +7,7 @@ namespace Acta.Tests.Conformance.Engine.Scheduling;
 
 /// <summary>
 /// PerOccurrence definitions that differ only in their attempt budget, each with one five-minute Wait schedule of
-/// capacity one. The firing failure policy is Continue, since under PauseScheduling a root that fails for good parks its
+/// capacity one. The firing failure policy is Continue, since under Pause a root that fails for good parks its
 /// schedule over the wake.
 /// </summary>
 public sealed class PerOccurrenceChargeManifest : IJobManifest

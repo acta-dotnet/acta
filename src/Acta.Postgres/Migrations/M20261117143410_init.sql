@@ -1224,7 +1224,7 @@ BEGIN
                     (j.job_kind_code = 20 /* JobKindCode.Permanent */ AND c.final_job_status_code = 40 /* JobStatusCode.Idle */ AND NOT c.succeeded)
                     OR (j.schedule_id IS NOT NULL AND r.job_status_code = 200 /* JobStatusCode.Failed */)
                 )
-                AND jd.firing_failure_policy_code = 20 /* FiringFailurePolicyCode.PauseScheduling */
+                AND jd.firing_failure_policy_code = 20 /* FiringFailurePolicyCode.Pause */
                 AND jd.definition_status_code = 10 /* DefinitionStatusCode.Active */
             RETURNING
                 js.schedule_id, js.schedule_name, j.job_id, j.namespace_id, j.definition_id, j.tenant_id,
@@ -3639,7 +3639,7 @@ BEGIN
             js.definition_id = jd.definition_id
             AND js.schedule_status_code = 10 /* ScheduleStatusCode.Active */
             AND (r.new_status = 40 /* JobStatusCode.Idle */ OR (r.new_status = 200 /* JobStatusCode.Failed */ AND r.schedule_id IS NOT NULL))
-            AND jd.firing_failure_policy_code = 20 /* FiringFailurePolicyCode.PauseScheduling */
+            AND jd.firing_failure_policy_code = 20 /* FiringFailurePolicyCode.Pause */
             AND jd.definition_status_code = 10 /* DefinitionStatusCode.Active */
         RETURNING
             js.schedule_id, js.schedule_name, r.job_id, r.namespace_id, r.definition_id, r.tenant_id,
@@ -4322,7 +4322,7 @@ SELECT
     d.alert_profile_code,
     d.alert_profile_code_override,
     d.alert_profile_code_effective,
-    CASE d.firing_failure_policy_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'continue' WHEN 20 THEN 'pause-scheduling' END AS firing_failure_policy,
+    CASE d.firing_failure_policy_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'continue' WHEN 20 THEN 'pause' END AS firing_failure_policy,
     d.firing_failure_policy_code,
     CASE d.scheduled_delivery_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'permanent' WHEN 20 THEN 'per-occurrence' END AS scheduled_delivery,
     d.scheduled_delivery_code,
@@ -4541,5 +4541,5 @@ JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261117142716_init')
+VALUES ('M20261117143410_init')
 ON CONFLICT (name) DO NOTHING;

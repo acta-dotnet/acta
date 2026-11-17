@@ -14,7 +14,7 @@
 -- present and leaves the data in place. Over a database a newer release upgraded, the script stops
 -- before changing anything. A later 1.x release upgrades a 1.x database with
 -- its own migrations, carried in its own copy of this script. A database provisioned from an
--- init migration other than M20261117142716_init has no upgrade path: provision a new one.
+-- init migration other than M20261117143410_init has no upgrade path: provision a new one.
 --
 -- Run it with a client that stops at the first error, which is what makes the transaction below a
 -- guarantee: sqlcmd -b, or SQLCMD mode with stop-on-error in SSMS. A client that runs on past a failed
@@ -57,7 +57,7 @@ GO
 -- ===== refuse a database a newer release already upgraded =====
 IF EXISTS (
     SELECT 1 FROM acta.migrations
-    WHERE name NOT IN ('M20261117142716_init')
+    WHERE name NOT IN ('M20261117143410_init')
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -65,7 +65,7 @@ BEGIN
     SET NOEXEC ON;
 END
 GO
--- ===== BEGIN M20261117142716_init =====
+-- ===== BEGIN M20261117143410_init =====
 SET QUOTED_IDENTIFIER ON;
 SET ANSI_NULLS ON;
 GO
@@ -1603,7 +1603,7 @@ BEGIN
                             (f.job_kind_code = 20 /* JobKindCode.Permanent */ AND f.job_status_code = 40 /* JobStatusCode.Idle */ AND f.succeeded = 0)
                             OR (f.schedule_id IS NOT NULL AND f.job_status_code = 200 /* JobStatusCode.Failed */)
                         )
-                        AND jd.firing_failure_policy_code = 20 /* FiringFailurePolicyCode.PauseScheduling */
+                        AND jd.firing_failure_policy_code = 20 /* FiringFailurePolicyCode.Pause */
                         AND jd.definition_status_code = 10 /* DefinitionStatusCode.Active */;
 
                     UPDATE st
@@ -4350,7 +4350,7 @@ BEGIN
         WHERE
             js.schedule_status_code = 10 /* ScheduleStatusCode.Active */
             AND (r.to_status_code = 40 /* JobStatusCode.Idle */ OR (r.to_status_code = 200 /* JobStatusCode.Failed */ AND r.schedule_id IS NOT NULL))
-            AND jd.firing_failure_policy_code = 20 /* FiringFailurePolicyCode.PauseScheduling */
+            AND jd.firing_failure_policy_code = 20 /* FiringFailurePolicyCode.Pause */
             AND jd.definition_status_code = 10 /* DefinitionStatusCode.Active */;
 
         UPDATE st
@@ -5032,7 +5032,7 @@ SELECT
     d.alert_profile_code,
     d.alert_profile_code_override,
     d.alert_profile_code_effective,
-    CASE d.firing_failure_policy_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'continue' WHEN 20 THEN 'pause-scheduling' END AS firing_failure_policy,
+    CASE d.firing_failure_policy_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'continue' WHEN 20 THEN 'pause' END AS firing_failure_policy,
     d.firing_failure_policy_code,
     CASE d.scheduled_delivery_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'permanent' WHEN 20 THEN 'per-occurrence' END AS scheduled_delivery,
     d.scheduled_delivery_code,
@@ -5274,11 +5274,11 @@ JOIN acta.namespaces AS ns ON ns.namespace_id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261117142716_init')
+IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261117143410_init')
 INSERT INTO acta.migrations (name)
-VALUES ('M20261117142716_init');
+VALUES ('M20261117143410_init');
 GO
--- ===== END M20261117142716_init =====
+-- ===== END M20261117143410_init =====
 GO
 COMMIT TRANSACTION;
 GO

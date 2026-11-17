@@ -197,7 +197,7 @@ internal static class JobPolicyValues
         id switch
         {
             10 => "Continue",
-            20 => "PauseScheduling",
+            20 => "Pause",
             _ => null,
         };
 

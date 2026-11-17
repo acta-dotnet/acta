@@ -147,7 +147,7 @@ public sealed class JobAttribute(string name) : Attribute
     /// <summary>
     /// What happens to a scheduled definition's schedules when a firing fails for good (its attempts are
     /// spent, or an exception is not retryable). <c>Continue</c>, the default, leaves them scheduled, so the
-    /// next occurrence fires; <c>PauseScheduling</c> pauses every schedule of the definition with a pause
+    /// next occurrence fires; <c>Pause</c> pauses every schedule of the definition with a pause
     /// message until an operator resumes them. Code-owned, with no operator override.
     /// </summary>
     public FiringFailurePolicyCode FiringFailurePolicy { get; init; } = FiringFailurePolicyCode.Continue;

@@ -302,7 +302,7 @@ INNER JOIN {{schema}}.definitions jd ON jd.definition_id = j.definition_id
 INNER JOIN {{schema}}.schedules js ON js.definition_id = jd.definition_id
 WHERE
     (rj.to_status = 40 /* JobStatusCode.Idle */ OR (rj.to_status = 200 /* JobStatusCode.Failed */ AND j.schedule_id IS NOT NULL))
-    AND jd.firing_failure_policy_code = 20 /* FiringFailurePolicyCode.PauseScheduling */
+    AND jd.firing_failure_policy_code = 20 /* FiringFailurePolicyCode.Pause */
     AND jd.definition_status_code = 10 /* DefinitionStatusCode.Active */
     AND js.schedule_status_code = 10 /* ScheduleStatusCode.Active */
 GROUP BY js.schedule_id;

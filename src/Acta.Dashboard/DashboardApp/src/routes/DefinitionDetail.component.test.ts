@@ -14,7 +14,7 @@ const definition = {
   resultTypeName: 'SendInvoiceResult',
   createdDeploymentVersion: '1.4.0+b81d04e',
   scheduledDelivery: 'per-occurrence',
-  firingFailurePolicy: 'pause-scheduling',
+  firingFailurePolicy: 'pause',
   priority: 'normal',
   priorityEffective: 'normal',
   maxAttempts: 5,
@@ -257,7 +257,7 @@ describe('DefinitionDetail retire', () => {
     render(DefinitionDetailHarness, { jobNamespace, jobName });
 
     expect(await screen.findByText('per-occurrence')).toBeTruthy();
-    expect(screen.getByText('pause-scheduling')).toBeTruthy();
+    expect(screen.getByText('pause')).toBeTruthy();
   });
 
   it('offers no override or retire action to a caller without admin', async () => {

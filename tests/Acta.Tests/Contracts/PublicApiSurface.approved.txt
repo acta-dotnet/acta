@@ -770,7 +770,7 @@ sealed record Acta.ExplainJobWait
     System.String? ChildName { get;init; }
 enum Acta.FiringFailurePolicyCode : System.Byte
     Continue = 10
-    PauseScheduling = 20
+    Pause = 20
     Unspecified = 0
 static class Acta.FiringFailurePolicyCodeExtensions
     static Acta.FiringFailurePolicyCode FromCode(System.String code)

@@ -872,7 +872,7 @@ public class ManifestGeneratorDiagnosticTests
 
             public static class Handler
             {
-                [Job("pausing", FiringFailurePolicy = FiringFailurePolicyCode.PauseScheduling)]
+                [Job("pausing", FiringFailurePolicy = FiringFailurePolicyCode.Pause)]
                 public static void Pausing() { }
 
                 [Job("continuing")]
@@ -883,7 +883,7 @@ public class ManifestGeneratorDiagnosticTests
 
         Assert.Empty(result.Diagnostics);
         var source = Assert.Single(result.GeneratedTrees).ToString();
-        Assert.Contains("FiringFailurePolicy: global::Acta.FiringFailurePolicyCode.PauseScheduling,", source);
+        Assert.Contains("FiringFailurePolicy: global::Acta.FiringFailurePolicyCode.Pause,", source);
         Assert.Contains("FiringFailurePolicy: global::Acta.FiringFailurePolicyCode.Continue,", source);
     }
 

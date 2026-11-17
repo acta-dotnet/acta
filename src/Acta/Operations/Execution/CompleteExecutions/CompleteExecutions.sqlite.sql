@@ -222,7 +222,7 @@ WHERE
         (j.job_kind_code = 20 /* JobKindCode.Permanent */ AND d.to_status = 40 /* JobStatusCode.Idle */ AND d.succeeded = 0)
         OR (j.schedule_id IS NOT NULL AND d.to_status = 200 /* JobStatusCode.Failed */)
     )
-    AND jd.firing_failure_policy_code = 20 /* FiringFailurePolicyCode.PauseScheduling */
+    AND jd.firing_failure_policy_code = 20 /* FiringFailurePolicyCode.Pause */
     AND jd.definition_status_code = 10 /* DefinitionStatusCode.Active */
     AND js.schedule_status_code = 10 /* ScheduleStatusCode.Active */
 GROUP BY js.schedule_id;

@@ -34,7 +34,7 @@ public sealed class FiringFailurePolicyManifest : IJobManifest
 
     public static JobDescriptorManifest Descriptors { get; } =
         new([
-            Descriptor(PausingJobName, FiringFailurePolicyCode.PauseScheduling),
+            Descriptor(PausingJobName, FiringFailurePolicyCode.Pause),
             Descriptor(ContinuingJobName, FiringFailurePolicyCode.Continue),
             Descriptor(NonRetryableJobName, FiringFailurePolicyCode.Continue) with
             {
@@ -46,7 +46,7 @@ public sealed class FiringFailurePolicyManifest : IJobManifest
                     return new JobHandlerOutput(false, null);
                 },
             },
-            Descriptor(SelfFailingJobName, FiringFailurePolicyCode.PauseScheduling) with
+            Descriptor(SelfFailingJobName, FiringFailurePolicyCode.Pause) with
             {
                 HandlerType = typeof(SelfFailingPingHandler),
                 Invoker = static async (_, _, ctx, ct) =>
@@ -100,15 +100,15 @@ public sealed class FiringFailurePolicyManifest : IJobManifest
 }
 
 /// <summary>
-/// What a firing that failed for good does to its definition's schedules: under PauseScheduling every active schedule
+/// What a firing that failed for good does to its definition's schedules: under Pause every active schedule
 /// is paused with the reason, on the completion that spent the budget and on the reclaim that did, and admits nothing
 /// until an operator resumes it; under Continue, the default, the schedules stay scheduled and the next occurrence fires.
 /// </summary>
 [ConformanceSpec(
     "schedule.firing-failure-policy",
-    "A firing that fails for good pauses the schedules under PauseScheduling, or not",
+    "A firing that fails for good pauses the schedules under Pause, or not",
     Area = "Scheduling",
-    Contract = "A spent firing budget pauses a PauseScheduling definition's active schedules with the reason, on completion or reclaim, and leaves a Continue one scheduled."
+    Contract = "A spent firing budget pauses a Pause definition's active schedules with the reason, on completion or reclaim, and leaves a Continue one scheduled."
 )]
 public sealed class FiringFailurePolicySpec : ActaRuntimeTestBase<ConformanceFixture, FiringFailurePolicyManifest>
 {
@@ -127,7 +127,7 @@ public sealed class FiringFailurePolicySpec : ActaRuntimeTestBase<ConformanceFix
     }
 
     [Fact(
-        DisplayName = "Under PauseScheduling the failed firing pauses the schedule with the reason, and a resume puts it back in front of the admitter"
+        DisplayName = "Under Pause the failed firing pauses the schedule with the reason, and a resume puts it back in front of the admitter"
     )]
     public async Task A_failed_firing_pauses_the_schedules_under_pause_scheduling()
     {
@@ -208,7 +208,7 @@ public sealed class FiringFailurePolicySpec : ActaRuntimeTestBase<ConformanceFix
         Assert.Equal(2, (await ReadJobAsync(slotId, ct)).ExecutionNumber);
     }
 
-    [Fact(DisplayName = "A handler's own fail lands the permanent job Failed and pauses no schedule, even under PauseScheduling")]
+    [Fact(DisplayName = "A handler's own fail lands the permanent job Failed and pauses no schedule, even under Pause")]
     public async Task A_handlers_own_fail_stops_the_job_and_pauses_nothing()
     {
         var ct = TestContext.Current.CancellationToken;
