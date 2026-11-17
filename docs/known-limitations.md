@@ -8,10 +8,11 @@ Acta 1.0 is in release candidates. rc.14 folded the candidates' migrations into 
 persisted codes their final ids, and until 1.0.0 a candidate may still change the schema, by a migration on
 that baseline, the way every 1.x release will on 1.0.0's, or by another re-cut
 ([release notes](./release-notes.md)). A database provisioned under another baseline is dropped and provisioned
-again: no migration translates one baseline into another. From 1.0.0 the public API,
-schema, and persisted codes are frozen, and the migration history with them: schema changes ship only
+again: no migration translates one baseline into another. From 1.0.0 the data model is frozen, the
+schema and the persisted codes, and the migration history with it: schema changes ship only
 as additive migrations and the baseline is never re-cut, so a database provisioned by a 1.x build
-upgrades by migration alone.
+upgrades by migration alone. The public API is not frozen with it; changes to it after 1.0.0 are kept
+minimal.
 
 Every baseline statement is existence-guarded, so a later build's re-cut baseline applied over a pre-1.0
 database would change nothing and keep, for example, an rc.9 database's 32-bit

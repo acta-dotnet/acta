@@ -480,8 +480,8 @@ worker's `last_seen_at_utc` first; recovery is automatic once the lease lapses.
 
 ## Production guide
 
-Production-facing checklist for running Acta safely. The public API, the schema, and the persisted
-codes are frozen at 1.0, and schema changes ship only as additive migrations, so this is the guidance
+Production-facing checklist for running Acta safely. The data model, the schema and the persisted
+codes, is frozen at 1.0, and schema changes ship only as additive migrations, so this is the guidance
 for production deployments, not for an evaluation.
 
 ### Production checklist
