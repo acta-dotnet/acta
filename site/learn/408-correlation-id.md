@@ -26,8 +26,6 @@ var outcome = await jobs.CallAsync<RunPipeline>(
 In `correlation-id.cs` (excerpt):
 
 ```csharp
-var jobs = host.Services.GetRequiredService<IJobs>();
-
 // The caller supplies a correlation id - a W3C trace id or any opaque string up to 64 chars.
 // A child started with no explicit correlation id inherits the parent's automatically.
 var correlationKey = $"trace-{Guid.NewGuid():N}";
@@ -37,25 +35,8 @@ var outcome = await jobs.CallAsync<RunPipeline>(
     new RunPipeline("demo"),
     new JobExecutionOptions { CorrelationKey = correlationKey, PollInterval = TimeSpan.FromMilliseconds(200) }
 );
-
 outcome.ThrowIfFailed();
 Console.WriteLine("pipeline done");
-
-// Operator read: CorrelationKey is both a ListJobsQuery filter and a ListJobsItem field, so one list
-// read pulls every job on a trace - parent and inherited children - with the id already on each row.
-// (It is also on GetJobResponse via GetAsync when you want the full per-job detail.)
-Console.WriteLine($"operator read: ListJobs filtered by CorrelationKey={correlationKey}");
-var operations = host.Services.GetRequiredService<IActaOperations>();
-
-// One list read finds the parent and the children that inherited its key.
-var trace = await operations.Ledger.ListJobsAsync(
-    new ListJobsQuery(JobNamespace: "correlation-id", CorrelationKey: correlationKey, PageSize: 10)
-);
-
-foreach (var item in trace.Items)
-{
-    Console.WriteLine($"  id={item.JobId} job={item.JobName} correlation_key={item.CorrelationKey}");
-}
 ```
 
 ## 2. Find every job of one trace
@@ -73,22 +54,6 @@ var trace = await operations.Ledger.ListJobsAsync(
 In `correlation-id.cs` (excerpt):
 
 ```csharp
-var jobs = host.Services.GetRequiredService<IJobs>();
-
-// The caller supplies a correlation id - a W3C trace id or any opaque string up to 64 chars.
-// A child started with no explicit correlation id inherits the parent's automatically.
-var correlationKey = $"trace-{Guid.NewGuid():N}";
-Console.WriteLine($"enqueueing parent with CorrelationKey={correlationKey}");
-
-// JobExecutionOptions extends JobEnqueueOptions, so CorrelationKey is an enqueue-time option here.
-var outcome = await jobs.CallAsync<RunPipeline>(
-    new RunPipeline("demo"),
-    new JobExecutionOptions { CorrelationKey = correlationKey, PollInterval = TimeSpan.FromMilliseconds(200) }
-);
-
-outcome.ThrowIfFailed();
-Console.WriteLine("pipeline done");
-
 // Operator read: CorrelationKey is both a ListJobsQuery filter and a ListJobsItem field, so one list
 // read pulls every job on a trace - parent and inherited children - with the id already on each row.
 // (It is also on GetJobResponse via GetAsync when you want the full per-job detail.)
@@ -98,11 +63,12 @@ var operations = host.Services.GetRequiredService<IActaOperations>();
 var trace = await operations.Ledger.ListJobsAsync(
     new ListJobsQuery(JobNamespace: "correlation-id", CorrelationKey: correlationKey, PageSize: 10)
 );
-
 foreach (var item in trace.Items)
 {
     Console.WriteLine($"  id={item.JobId} job={item.JobName} correlation_key={item.CorrelationKey}");
 }
+
+await host.StopAsync();
 ```
 
 ## 3. The job it acts on
@@ -110,10 +76,6 @@ foreach (var item in trace.Items)
 `correlation-id.cs` (excerpt):
 
 ```csharp
-public sealed record RunPipeline(string RunId);
-
-public sealed record ProcessStep(string RunId, int StepNumber);
-
 public sealed class PipelineHandler
 {
     private readonly ILogger<PipelineHandler> _log;
@@ -130,25 +92,6 @@ public sealed class PipelineHandler
         await context.CallChildAsync("step-1", new ProcessStep(input.RunId, 1), ct);
 
         _log.LogInformation("parent handler complete");
-    }
-}
-
-public sealed class StepHandler
-{
-    private readonly ILogger<StepHandler> _log;
-
-    public StepHandler(ILogger<StepHandler> log) => _log = log;
-
-    // The child inherits the parent's correlation id at enqueue (stored on its own job row).
-    // The framework opens the same ActaCorrelationKey scope for the child's attempt.
-    [Job("process-step")]
-    public void Handle(ProcessStep input)
-    {
-        _log.LogInformation(
-            "child handler: RunId={RunId} Step={StepNumber}; same ActaCorrelationKey in Scopes",
-            input.RunId,
-            input.StepNumber
-        );
     }
 }
 ```

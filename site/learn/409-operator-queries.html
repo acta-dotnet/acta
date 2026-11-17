@@ -57,7 +57,7 @@
   </div>
 
 
-  <main id="content" data-howto="409">
+  <main id="content">
     <header class="wrap page-head howto-head">
       <p class="record"><a href="/learn">learn acta</a><span aria-hidden="true">/</span><a href="/learn#s-operate">watch and control running work</a></p>
       <h1>How to list and page through jobs</h1>
@@ -77,25 +77,22 @@
       <article class="howto person-face">
 <div class="step"><h2><span class="step-n">1</span>List jobs with a filter</h2>
 <p>ListJobsAsync with a namespace filter: all jobs in this namespace, three to a page, with the total.</p>
-<figure class="listing"><figcaption><span class="file">operator-queries.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-1">Copy</button></figcaption><pre><code id="code-1">
-<span class="c">// Allow the worker to process the others.</span>
+<figure class="listing"><figcaption><span class="file">operator-queries.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// Allow the worker to process the others.</span>
 <span class="k">await</span> Task.Delay(800);
 
 Console.WriteLine(<span class="s">&quot;=== ListJobsAsync (namespace filter, page size 3) ===&quot;</span>);
 
 <span class="hl"><span class="k">var</span> page1 = <span class="k">await</span> queries.Ledger.ListJobsAsync(<span class="k">new</span> ListJobsQuery(JobNamespace: <span class="s">&quot;operator-queries&quot;</span>, PageSize: 3, IncludeTotal: <span class="k">true</span>));</span>
-
 Console.WriteLine(<span class="s">$&quot;Page 1: {page1.Items.Count} items, total={page1.TotalCount}, hasMore={page1.HasMore}&quot;</span>);
 <span class="k">foreach</span> (<span class="k">var</span> item <span class="k">in</span> page1.Items)
     Console.WriteLine(<span class="s">$&quot;  {item.JobRef} [{item.JobName}] status={item.Status}&quot;</span>);
 
-<span class="c">// ListJobsAsync with a status filter.</span></code></pre></figure>
+<span class="c">// ListJobsAsync with a status filter.</span>
+Console.WriteLine(<span class="s">&quot;=== ListJobsAsync (status=Cancelled filter) ===&quot;</span>);</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">2</span>Fetch the next page by its cursor</h2>
 <p>The same query with the cursor the last page handed back.</p>
-<figure class="listing"><figcaption><span class="file">operator-queries.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-2">Copy</button></figcaption><pre><code id="code-2">    Console.WriteLine(<span class="s">$&quot;  {item.JobRef} [{item.JobName}] status={item.Status}&quot;</span>);
-
-<span class="c">// ListJobsAsync keyset paging: fetch the second page via NextCursor.</span>
+<figure class="listing"><figcaption><span class="file">operator-queries.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// ListJobsAsync keyset paging: fetch the second page via NextCursor.</span>
 Console.WriteLine(<span class="s">&quot;=== Keyset paging: second page via NextCursor ===&quot;</span>);
 <span class="k">if</span> (page1.HasMore &amp;&amp; page1.NextCursor <span class="k">is</span> <span class="k">not</span> <span class="k">null</span>)
 {
@@ -107,42 +104,34 @@ Console.WriteLine(<span class="s">&quot;=== Keyset paging: second page via NextC
         Console.WriteLine(<span class="s">$&quot;  {item.JobRef} [{item.JobName}] status={item.Status}&quot;</span>);
 }
 <span class="k">else</span>
-{</code></pre></figure>
+{
+    Console.WriteLine(<span class="s">&quot;(All jobs fit on one page - NextCursor was null.)&quot;</span>);
+}</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">3</span>Read the health counters</h2>
 <p>GetOverviewAsync: one-shot health counters for the whole system. Schedules, workers, and alert lists also exist on IJobs; event-timeline depth lives in rung 404.</p>
-<figure class="listing"><figcaption><span class="file">operator-queries.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-3">Copy</button></figcaption><pre><code id="code-3">Console.WriteLine(<span class="s">&quot;=== IncludeTotal: total across namespace ===&quot;</span>);
-<span class="k">var</span> withTotal = <span class="k">await</span> queries.Ledger.ListJobsAsync(<span class="k">new</span> ListJobsQuery(JobNamespace: <span class="s">&quot;operator-queries&quot;</span>, PageSize: 1, IncludeTotal: <span class="k">true</span>));
+<figure class="listing"><figcaption><span class="file">operator-queries.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">var</span> withTotal = <span class="k">await</span> queries.Ledger.ListJobsAsync(<span class="k">new</span> ListJobsQuery(JobNamespace: <span class="s">&quot;operator-queries&quot;</span>, PageSize: 1, IncludeTotal: <span class="k">true</span>));
 Console.WriteLine(<span class="s">$&quot;TotalCount across namespace: {withTotal.TotalCount}&quot;</span>);
 
 Console.WriteLine(<span class="s">&quot;=== GetOverviewAsync (system-wide) ===&quot;</span>);
 
 <span class="hl"><span class="k">var</span> overview = <span class="k">await</span> operations.Ledger.GetOverviewAsync(<span class="k">new</span> GetOverviewQuery());</span>
-
 Console.WriteLine(<span class="s">$&quot;Ready={overview.ReadyCount} Executing={overview.ExecutingCount} Failed={overview.FailedCount}&quot;</span>);
-Console.WriteLine(<span class="s">$&quot;UnresolvedAlerts={overview.UnresolvedAlertCount} DeadWorkers={overview.DeadWorkerCount}&quot;</span>);</code></pre></figure>
+Console.WriteLine(<span class="s">$&quot;UnresolvedAlerts={overview.UnresolvedAlertCount} DeadWorkers={overview.DeadWorkerCount}&quot;</span>);
+
+<span class="k">await</span> host.StopAsync();</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">4</span>The job it acts on</h2>
-<figure class="listing"><figcaption><span class="file">operator-queries.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-4">Copy</button></figcaption><pre><code id="code-4"><span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> GenerateReport(<span class="k">string</span> ReportId);
-
-<span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> SendNotification(<span class="k">string</span> NotificationId);
-
-<span class="k">public</span> <span class="k">static</span> <span class="k">class</span> ReportJob
+<figure class="listing"><figcaption><span class="file">operator-queries.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">static</span> <span class="k">class</span> ReportJob
 {
     <span class="a">[Job(<span class="s">&quot;generate-report&quot;</span>)]</span>
     <span class="k">public</span> <span class="k">static</span> <span class="k">void</span> Handle(GenerateReport input) =&gt; Console.WriteLine(<span class="s">$&quot;[{input.ReportId}] report generated&quot;</span>);
-}
-
-<span class="k">public</span> <span class="k">static</span> <span class="k">class</span> NotificationJob
-{
-    <span class="a">[Job(<span class="s">&quot;send-notification&quot;</span>)]</span>
-    <span class="k">public</span> <span class="k">static</span> <span class="k">void</span> Handle(SendNotification input) =&gt; Console.WriteLine(<span class="s">$&quot;[{input.NotificationId}] notification sent&quot;</span>);
 }</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">5</span>Run it and check the output</h2>
 <p>From a clone of <a href="https://github.com/acta-dotnet/acta">the Acta repository</a>, with the .NET 10 SDK:</p>
-<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-5">Copy</button></figcaption><pre><code id="code-5">dotnet run --project concepts/400-observability-and-alerts/409-operator-queries</code></pre></figure>
-<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button" data-copy-target="#code-6">Copy</button></figcaption><pre><code id="code-6">[q3] report generated
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project concepts/400-observability-and-alerts/409-operator-queries</code></pre></figure>
+<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button">Copy</button></figcaption><pre><code>[q3] report generated
 [n2] notification sent
 Page 1: 3 items, total=7, hasMore=True
 Cancelled jobs: 1
@@ -154,7 +143,7 @@ TotalCount across namespace: 7</code></pre></figure>
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/concepts/400-observability-and-alerts/409-operator-queries"><code>concepts/400-observability-and-alerts/409-operator-queries</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">operator-queries.cs</span><span class="file-size">110 lines</span></summary><figure class="listing"><figcaption><span class="file">operator-queries.cs</span><button class="copy" type="button" data-copy-target="#code-7">Copy</button></figcaption><pre><code id="code-7"><span class="c">// How to list and page through jobs</span>
+<details class="source-file"><summary><span class="file-name">operator-queries.cs</span><span class="file-size">110 lines</span></summary><figure class="listing"><figcaption><span class="file">operator-queries.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to list and page through jobs</span>
 <span class="c">// `operations.Ledger` lists jobs with filters, pages through them by cursor, counts them, and answers the health</span>
 <span class="c">// counters an operator's screen opens with.</span>
 <span class="k">using</span> Acta;
@@ -263,11 +252,12 @@ Console.WriteLine(<span class="s">$&quot;UnresolvedAlerts={overview.UnresolvedAl
         <span class="a">[Job(<span class="s">&quot;send-notification&quot;</span>)]</span>
         <span class="k">public</span> <span class="k">static</span> <span class="k">void</span> Handle(SendNotification input) =&gt; Console.WriteLine(<span class="s">$&quot;[{input.NotificationId}] notification sent&quot;</span>);
     }
-}</code></pre></figure></details></div>
+}</code></pre></figure>
+</details></div>
 <div class="step plain-step"><h2>Where to go next</h2><ul class="next-links"><li><a href="/learn/305-operator-cancel">How to cancel a running job from outside</a><span>Watch and control running work</span></li></ul></div>
       </article>
       <article class="agent-face" hidden>
-        <figure class="listing agent"><figcaption><span class="file">/learn/409-operator-queries.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/409-operator-queries.md">Open</a><button class="copy" type="button" data-copy-target="#md-body">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
+        <figure class="listing agent"><figcaption><span class="file">/learn/409-operator-queries.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/409-operator-queries.md">Open</a><button class="copy" type="button">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
         <p class="hint">This is the page an agent receives: the same how-to as plain Markdown, at this page's address with <code>.md</code> added.</p>
       </article>
       <aside class="howto-rail" aria-label="This section">

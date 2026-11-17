@@ -15,7 +15,7 @@ var runId = firstRun ? args[1] : Guid.NewGuid().ToString("N");
 var exportKey = $"export-{runId}";
 
 var builder = Host.CreateApplicationBuilder(firstRun ? [] : args);
-var provider = builder.Configuration["Acta:Provider"] ?? Environment.GetEnvironmentVariable("ACTA_LOCAL_PROVIDER") ?? "sqlite";
+var provider = LocalDatabase.ResolveProvider(builder.Configuration);
 if (!LocalDatabase.IsSqlite(provider))
 {
     Console.WriteLine(
@@ -24,7 +24,7 @@ if (!LocalDatabase.IsSqlite(provider))
     return;
 }
 
-builder.Services.AddSingleton(new AppRun(firstRun ? "first run" : "restarted", firstRun));
+builder.Services.AddSingleton(new AppRun(firstRun));
 builder.Services.UseActa(j =>
 {
     j.UseLocalDatabase(builder.Configuration);
@@ -78,8 +78,11 @@ namespace Acta.Concepts.SqliteRestart
 {
     public sealed record Export(string What);
 
-    /// <summary>Which of the app's two runs this process is.</summary>
-    public sealed record AppRun(string Name, bool DiesMidJob);
+    /// <summary>Which of the app's two runs this process is. The first one dies in the middle of the job.</summary>
+    public sealed record AppRun(bool First)
+    {
+        public string Name => First ? "first run" : "restarted";
+    }
 
     public sealed class ExportJob(AppRun run)
     {
@@ -91,7 +94,7 @@ namespace Acta.Concepts.SqliteRestart
         public async Task Handle(Export input, JobContext ctx, CancellationToken ct)
         {
             Console.WriteLine($"[{run.Name}] export of {input.What} started, execution {ctx.ExecutionNumber}");
-            if (run.DiesMidJob)
+            if (run.First)
             {
                 Console.Out.Flush();
                 Process.GetCurrentProcess().Kill();

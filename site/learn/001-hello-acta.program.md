@@ -2,10 +2,6 @@
 
 The how-to is [/learn/001-hello-acta.md](/learn/001-hello-acta.md). This file holds every source file of `concepts/000-fundamentals/001-hello-acta` as it is compiled.
 
-## Not in the packages
-
-`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on any of the three databases. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
-
 ## The whole program
 
 ### hello-acta.cs

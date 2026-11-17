@@ -25,9 +25,6 @@ var published = await calendars.PublishAsync(officeHours, draft.Version!.Value, 
 In `calendar-catalog.cs` (excerpt):
 
 ```csharp
-// A family in sys is shared: every namespace binds it by its plain name.
-var officeHours = new CalendarLookup("sys", "office-hours");
-
 // Phase 1: the calendar is published before the job that binds it deploys, as an operator would do it from
 // the dashboard. An enqueue-only host (no Run<>) still bootstraps the schema, and the operations need no worker.
 {
@@ -44,18 +41,6 @@ var officeHours = new CalendarLookup("sys", "office-hours");
 
     await seedHost.StopAsync();
 }
-
-// Phase 2: the development start deploys tick, whose schedule names office-hours. The deploy checks that the family
-// has a published version, and the name resolves to the shared family's current version afresh at every evaluation.
-var builder = Host.CreateApplicationBuilder(args);
-builder.Services.UseActa(j =>
-{
-    j.UseLocalDatabase(builder.Configuration);
-    j.Run<CalendarCatalogJobs>("calendar-catalog");
-});
-
-using var host = builder.Build();
-await host.StartAsync();
 ```
 
 ## 2. Bind the schedule to the calendar by name
@@ -71,24 +56,6 @@ The lines that matter:
 In `calendar-catalog.cs` (excerpt):
 
 ```csharp
-public readonly record struct Tick;
-
-public static class Definitions
-{
-    public const string OpenAllDay = """
-        {"kind":"weekly-availability","timeZone":"UTC",
-         "weekly":[{"days":["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"],"windows":[["00:00","23:59:59"]]}]}
-        """;
-
-    // A date override replaces the weekday's windows for that date; none closes it.
-    public static string ClosedOn(string date) =>
-        $$$"""
-            {"kind":"weekly-availability","timeZone":"UTC",
-             "weekly":[{"days":["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"],"windows":[["00:00","23:59:59"]]}],
-             "dateOverrides":{"{{{date}}}":[]}}
-            """;
-}
-
 public sealed class TickJob
 {
     [Job("tick")]
@@ -115,22 +82,6 @@ Console.WriteLine($"Published: {result.Action}; retimed [{string.Join(", ", resu
 In `calendar-catalog.cs` (excerpt):
 
 ```csharp
-var operations = host.Services.GetRequiredService<IActaOperations>();
-Console.WriteLine("Ticking every 10s inside the open window...");
-await Task.Delay(TimeSpan.FromSeconds(25));
-
-// The operator closes today, editing the version they read: naming it as the expected latest version turns another
-// operator's save in between into a VersionConflict rather than a draft built on a stale read. The draft is previewed
-// beside the current version, then published: the bound schedule's cursor moves to the first instant inside the next window.
-var today = DateTime.UtcNow.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
-var read = (await operations.Calendars.GetAsync(officeHours))!;
-var closed = await operations.Calendars.SaveDraftAsync(
-    officeHours,
-    CalendarRoleCode.Availability,
-    Definitions.ClosedOn(today),
-    expectedLatestVersion: read.LatestVersion,
-    reasonMessage: $"Closed on {today}"
-);
 var preview = (await operations.Calendars.PreviewAsync(officeHours, closed.Version!.Value, count: 3))!;
 Console.WriteLine(
     $"Preview of version {closed.Version}: the next window opens {preview.Windows[0].StartUtc:O}; "
@@ -145,9 +96,6 @@ var schedule = (
     await operations.Schedules.ListAsync(new ListSchedulesQuery(JobNamespace: "calendar-catalog", JobName: "tick"))
 ).Items.Single();
 Console.WriteLine($"Next occurrence {schedule.NextOccurrenceAtUtc:O}.");
-
-Console.WriteLine("Watching 15s for a tick that must not come...");
-await Task.Delay(TimeSpan.FromSeconds(15));
 ```
 
 ## 4. Run it and check the output

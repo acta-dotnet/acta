@@ -11,7 +11,6 @@ internal sealed partial class LearnPages
 
     public string Hub()
     {
-        _text.StartPage();
         var sections = string.Join(
             '\n',
             _library.Sections.Select(section =>
@@ -42,7 +41,7 @@ internal sealed partial class LearnPages
             + string.Join(
                 ',',
                 _library.Ordered.Select(e =>
-                    $"{{\"id\":{Json(e.Id)},\"u\":{Json(e.Url)},\"t\":{Json(e.ShortTitle)},\"s\":{Json(e.Section.Title)},\"k\":{Json($"{_library.SearchWords.GetValueOrDefault(e.Folder, "")} {e.Name}".Trim())},\"x\":{Json(string.Join(' ', e.Flow.Select(step => step.Title)))},\"d\":{Json(LearnText.Plain(e.Summary))},\"m\":{Json(e.Lab ? "Lab" : "")}}}"
+                    $"{{\"u\":{Json(e.Url)},\"t\":{Json(e.ShortTitle)},\"s\":{Json(e.Section.Title)},\"k\":{Json($"{_library.SearchWords.GetValueOrDefault(e.Folder, "")} {e.Name}".Trim())},\"x\":{Json(string.Join(' ', e.Flow.Select(step => step.Title)))},\"d\":{Json(LearnText.Plain(e.Summary))},\"m\":{Json(e.Lab ? "Lab" : "")}}}"
                 )
             )
             + "]";
@@ -121,8 +120,8 @@ internal sealed partial class LearnPages
                     <div><b>The output is the answer key</b><p>A how-to names the lines its program must print. The release check reads the same lines, so the page and the code cannot drift apart.</p></div>
                   </div>
                   <div class="prompts">
-                    <figure class="listing"><figcaption><span class="note">Prompt: build from the how-tos</span><button class="copy" type="button" data-copy-target="#prompt-build">Copy</button></figcaption><pre><code id="prompt-build">Read https://useacta.net/llms.txt, then https://useacta.net/learn/index.md. Pick the how-tos that match this task and read each one as Markdown: [describe the task]. Build it, run it once, and show me its job ref and its jobs explain output.</code></pre></figure>
-                    <figure class="listing"><figcaption><span class="note">Prompt: teach me</span><button class="copy" type="button" data-copy-target="#prompt-teach">Copy</button></figcaption><pre><code id="prompt-teach">Read https://useacta.net/learn/index.md and take me through the short tour, one how-to at a time. After each one that has a check question, ask me the question before you show the answer.</code></pre></figure>
+                    <figure class="listing"><figcaption><span class="note">Prompt: build from the how-tos</span><button class="copy" type="button">Copy</button></figcaption><pre><code>Read https://useacta.net/llms.txt, then https://useacta.net/learn/index.md. Pick the how-tos that match this task and read each one as Markdown: [describe the task]. Build it, run it once, and show me its job ref and its jobs explain output.</code></pre></figure>
+                    <figure class="listing"><figcaption><span class="note">Prompt: teach me</span><button class="copy" type="button">Copy</button></figcaption><pre><code>Read https://useacta.net/learn/index.md and take me through the short tour, one how-to at a time. After each one that has a check question, ask me the question before you show the answer.</code></pre></figure>
                   </div>
                 </section>
 
@@ -143,7 +142,7 @@ internal sealed partial class LearnPages
                 </div>
 
                 <div class="wrap">{AgentFace("/learn/index.md")}</div>
-                <script type="application/json" id="how-to-index">{index.Replace("<", "\\u003c", StringComparison.Ordinal)}</script>
+                <script type="application/json" id="how-to-index">{index}</script>
             """;
         return Page(
             "Learn Acta · how-tos for durable workflows and jobs in .NET",
@@ -151,7 +150,6 @@ internal sealed partial class LearnPages
             "/learn",
             "/learn/index.md",
             body,
-            " data-hub",
             [
                 $"{{\"@context\":\"https://schema.org\",\"@type\":\"CollectionPage\",\"name\":\"Learn Acta\",\"url\":{Json(Origin + "/learn")},\"inLanguage\":\"en\",\"about\":{{\"@type\":\"SoftwareSourceCode\",\"name\":\"Acta\",\"programmingLanguage\":\"C#\",\"codeRepository\":{Json(Repository)}}}}}",
             ]

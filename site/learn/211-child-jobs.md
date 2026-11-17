@@ -25,21 +25,15 @@ var head = await context.EnqueueChildAsync("head", new RollSnowball("head", inpu
 In `child-jobs.cs` (excerpt):
 
 ```csharp
-// EnqueueChildAsync enqueues name-deduped child jobs; WaitChildrenAsync suspends the parent
-// (holding no executor) until every child is terminal; cancelling the parent cascades to children.
-// MapAsync does the same for a list of children in one call (lab 215).
-[Job("build-snowman")]
-public async Task<FinishedSnowman> Handle(BuildSnowman input, JobContext context, CancellationToken ct)
-{
-    var bottom = await context.EnqueueChildAsync("bottom", new RollSnowball("bottom", input.FailPart == "bottom"), ct);
-    var middle = await context.EnqueueChildAsync("middle", new RollSnowball("middle", input.FailPart == "middle"), ct);
-    var head = await context.EnqueueChildAsync("head", new RollSnowball("head", input.FailPart == "head"), ct);
+var bottom = await context.EnqueueChildAsync("bottom", new RollSnowball("bottom", input.FailPart == "bottom"), ct);
+var middle = await context.EnqueueChildAsync("middle", new RollSnowball("middle", input.FailPart == "middle"), ct);
+var head = await context.EnqueueChildAsync("head", new RollSnowball("head", input.FailPart == "head"), ct);
 
-    // The parent suspends, holding no executor, until every child is terminal. A failed child does not throw
-    // here: the wait lists it, and the parent decides.
-    var joined = await context.WaitChildrenAsync([bottom, middle, head], ct);
-    foreach (var outcome in joined.Failed)
-    {
+var joined = await context.WaitChildrenAsync([bottom, middle, head], ct);
+foreach (var outcome in joined.Failed)
+{
+    await context.FailAsync($"child {outcome.JobRef} ended {outcome.Status}; see its job events for the reason", ct);
+}
 ```
 
 ## 2. Wait for all of them, and decide what a failed child means
@@ -59,8 +53,6 @@ foreach (var outcome in joined.Failed)
 In `child-jobs.cs` (excerpt):
 
 ```csharp
-// On a replay of the parent, the same name answers the child that is already there, so no child starts
-// twice.
 var bottom = await context.EnqueueChildAsync("bottom", new RollSnowball("bottom", input.FailPart == "bottom"), ct);
 var middle = await context.EnqueueChildAsync("middle", new RollSnowball("middle", input.FailPart == "middle"), ct);
 var head = await context.EnqueueChildAsync("head", new RollSnowball("head", input.FailPart == "head"), ct);
@@ -91,21 +83,19 @@ var h = await context.GetChildResultAsync<Snowball>(head.JobId, ct);
 In `child-jobs.cs` (excerpt):
 
 ```csharp
-    var joined = await context.WaitChildrenAsync([bottom, middle, head], ct);
-    foreach (var outcome in joined.Failed)
-    {
-        await context.FailAsync($"child {outcome.JobRef} ended {outcome.Status}; see its job events for the reason", ct);
-    }
-
-    var b = await context.GetChildResultAsync<Snowball>(bottom.JobId, ct);
-    var m = await context.GetChildResultAsync<Snowball>(middle.JobId, ct);
-    var h = await context.GetChildResultAsync<Snowball>(head.JobId, ct);
-
-    var height = b.Diameter + m.Diameter + h.Diameter;
-    Console.WriteLine($"[{input.Name}] stacked {b.Diameter} + {m.Diameter} + {h.Diameter} = {height}cm tall");
-    return new FinishedSnowman(input.Name, height);
+var joined = await context.WaitChildrenAsync([bottom, middle, head], ct);
+foreach (var outcome in joined.Failed)
+{
+    await context.FailAsync($"child {outcome.JobRef} ended {outcome.Status}; see its job events for the reason", ct);
 }
 
+var b = await context.GetChildResultAsync<Snowball>(bottom.JobId, ct);
+var m = await context.GetChildResultAsync<Snowball>(middle.JobId, ct);
+var h = await context.GetChildResultAsync<Snowball>(head.JobId, ct);
+
+var height = b.Diameter + m.Diameter + h.Diameter;
+Console.WriteLine($"[{input.Name}] stacked {b.Diameter} + {m.Diameter} + {h.Diameter} = {height}cm tall");
+return new FinishedSnowman(input.Name, height);
 ```
 
 ## 4. Run it and check the output

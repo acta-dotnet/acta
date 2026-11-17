@@ -57,7 +57,7 @@
   </div>
 
 
-  <main id="content" data-howto="016">
+  <main id="content">
     <header class="wrap page-head howto-head">
       <p class="record"><a href="/learn">learn acta</a><span aria-hidden="true">/</span><a href="/learn#s-failure">decide what happens when work fails</a></p>
       <h1>How to limit how many times a job retries</h1>
@@ -77,9 +77,7 @@
       <article class="howto person-face">
 <div class="step"><h2><span class="step-n">1</span>Set the retry budget on the job</h2>
 <p>MaxAttempts caps attempts, the first included; &quot;0s&quot; skips backoff. After the last attempt the job ends Failed.</p>
-<figure class="listing"><figcaption><span class="file">max-attempts.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-1">Copy</button></figcaption><pre><code id="code-1"><span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> FlakyWork(<span class="k">string</span> Item);
-
-<span class="k">public</span> <span class="k">static</span> <span class="k">class</span> FlakyWorkJob
+<figure class="listing"><figcaption><span class="file">max-attempts.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">static</span> <span class="k">class</span> FlakyWorkJob
 {
 <span class="hl">    <span class="a">[Job(<span class="s">&quot;flaky-work&quot;</span>, MaxAttempts = 3, Backoff = <span class="s">&quot;0s&quot;</span>)]</span></span>
 <span class="hl">    <span class="k">public</span> <span class="k">static</span> Task Handle(FlakyWork input) =&gt; <span class="k">throw</span> <span class="k">new</span> InvalidOperationException(<span class="s">$&quot;Could not process {input.Item}.&quot;</span>);</span>
@@ -87,24 +85,37 @@
 </div>
 <div class="step"><h2><span class="step-n">2</span>Read how the job ended</h2>
 <p>The handler always throws; Acta makes up to MaxAttempts attempts, then transitions the job to Failed.</p>
-<figure class="listing"><figcaption><span class="file">max-attempts.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-2">Copy</button></figcaption><pre><code id="code-2"><span class="k">var</span> jobs = host.Services.GetRequiredService&lt;IJobs&gt;();
+<figure class="listing"><figcaption><span class="file">max-attempts.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">var</span> builder = Host.CreateApplicationBuilder(args);
+
+builder.Services.UseActa(j =&gt;
+{
+    j.UseLocalDatabase(builder.Configuration);
+    j.Run&lt;MaxAttemptsJobs&gt;(<span class="s">&quot;max-attempts&quot;</span>);
+});
+
+<span class="k">using</span> <span class="k">var</span> host = builder.Build();
+<span class="k">await</span> host.StartAsync();
+
+<span class="k">var</span> jobs = host.Services.GetRequiredService&lt;IJobs&gt;();
 
 <span class="hl"><span class="k">var</span> outcome = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> FlakyWork(<span class="s">&quot;widget&quot;</span>));</span>
 <span class="hl"><span class="k">await</span> Task.Delay(1500);</span>
 <span class="hl"><span class="k">var</span> snapshot = <span class="k">await</span> jobs.GetAsync(outcome);</span>
-<span class="hl">Console.WriteLine(<span class="s">$&quot;status={snapshot!.Status} failureCount={snapshot.FailureCount}&quot;</span>);</span></code></pre></figure>
+<span class="hl">Console.WriteLine(<span class="s">$&quot;status={snapshot!.Status} failureCount={snapshot.FailureCount}&quot;</span>);</span>
+
+<span class="k">await</span> host.StopAsync();</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">3</span>Run it and check the output</h2>
 <p>From a clone of <a href="https://github.com/acta-dotnet/acta">the Acta repository</a>, with the .NET 10 SDK:</p>
-<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-3">Copy</button></figcaption><pre><code id="code-3">dotnet run --project concepts/000-fundamentals/016-max-attempts</code></pre></figure>
-<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button" data-copy-target="#code-4">Copy</button></figcaption><pre><code id="code-4">status=Failed failureCount=3</code></pre></figure>
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project concepts/000-fundamentals/016-max-attempts</code></pre></figure>
+<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button">Copy</button></figcaption><pre><code>status=Failed failureCount=3</code></pre></figure>
 <p class="proof checked"><b>Checked every release.</b> Before each release, Acta Verify runs this program and checks that its output contains these lines.</p>
 </div>
 <div class="step plain-step"><h2>Remember</h2><ul class="rules"><li><code>FailureCount</code> counts the attempts that failed since the job last succeeded, a crash included. It reads 0 again when the job succeeds; the events keep every failure.</li><li>A crash spends an attempt: the attempt a dead worker held is reclaimed as a failed one.</li><li>With no <code>MaxAttempts</code>, a job gets 15 attempts, backing off from a minute to a day.</li></ul></div>
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/concepts/000-fundamentals/016-max-attempts"><code>concepts/000-fundamentals/016-max-attempts</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">max-attempts.cs</span><span class="file-size">44 lines</span></summary><figure class="listing"><figcaption><span class="file">max-attempts.cs</span><button class="copy" type="button" data-copy-target="#code-5">Copy</button></figcaption><pre><code id="code-5"><span class="c">// How to limit how many times a job retries</span>
+<details class="source-file"><summary><span class="file-name">max-attempts.cs</span><span class="file-size">44 lines</span></summary><figure class="listing"><figcaption><span class="file">max-attempts.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to limit how many times a job retries</span>
 <span class="c">// `MaxAttempts` on the job is its retry budget. When the last attempt fails, the job ends as `Failed`.</span>
 <span class="k">using</span> Acta;
 <span class="k">using</span> Acta.Concepts.MaxAttempts;
@@ -147,11 +158,12 @@ builder.Services.UseActa(j =&gt;
 <span class="hl">        <span class="k">public</span> <span class="k">static</span> Task Handle(FlakyWork input) =&gt; <span class="k">throw</span> <span class="k">new</span> InvalidOperationException(<span class="s">$&quot;Could not process {input.Item}.&quot;</span>);</span>
         <span class="c">// learn: end</span>
     }
-}</code></pre></figure></details></div>
+}</code></pre></figure>
+</details></div>
 <div class="step plain-step"><h2>Where to go next</h2><ul class="next-links"><li><a href="/learn/312-backoff-curve">How to set how long a job waits between retries</a><span>Decide what happens when work fails</span></li></ul></div>
       </article>
       <article class="agent-face" hidden>
-        <figure class="listing agent"><figcaption><span class="file">/learn/016-max-attempts.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/016-max-attempts.md">Open</a><button class="copy" type="button" data-copy-target="#md-body">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
+        <figure class="listing agent"><figcaption><span class="file">/learn/016-max-attempts.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/016-max-attempts.md">Open</a><button class="copy" type="button">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
         <p class="hint">This is the page an agent receives: the same how-to as plain Markdown, at this page's address with <code>.md</code> added.</p>
       </article>
       <aside class="howto-rail" aria-label="This section">

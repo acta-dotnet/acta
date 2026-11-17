@@ -14,7 +14,7 @@ A step can return a value. Each result is recorded once, so the next step takes 
 
 Typed durable steps: each result is recorded once, so on replay the chain rebuilds from recorded outputs and no step re-runs.
 
-The lines that matter:
+`step-chain.cs` (excerpt):
 
 ```csharp
 var fetched = await context.RunStepAsync(
@@ -29,36 +29,9 @@ var fetched = await context.RunStepAsync(
 );
 ```
 
-In `step-chain.cs` (excerpt):
-
-```csharp
-
-public sealed class IndexDocumentJob
-{
-    [Job("index-document")]
-    public async Task Handle(IndexDocument doc, JobContext context, CancellationToken ct)
-    {
-        var fetched = await context.RunStepAsync(
-            "fetch",
-            async inner =>
-            {
-                await Task.Delay(50, inner);
-                Console.WriteLine($"[{doc.DocId}] fetched");
-                return new FetchedDocument(doc.DocId, 4096);
-            },
-            ct
-        );
-
-        var extracted = await context.RunStepAsync(
-            "extract-text",
-            async inner =>
-            {
-                await Task.Delay(50, inner);
-```
-
 ## 2. Use it in the next step
 
-The lines that matter:
+`step-chain.cs` (excerpt):
 
 ```csharp
 var extracted = await context.RunStepAsync(
@@ -71,33 +44,6 @@ var extracted = await context.RunStepAsync(
     },
     ct
 );
-```
-
-In `step-chain.cs` (excerpt):
-
-```csharp
-        Console.WriteLine($"[{doc.DocId}] fetched");
-        return new FetchedDocument(doc.DocId, 4096);
-    },
-    ct
-);
-
-var extracted = await context.RunStepAsync(
-    "extract-text",
-    async inner =>
-    {
-        await Task.Delay(50, inner);
-        Console.WriteLine($"[{doc.DocId}] extracted text from {fetched.Bytes} bytes");
-        return new ExtractedText(doc.DocId, 600);
-    },
-    ct
-);
-
-var summary = await context.RunStepAsync(
-    "summarize",
-    async inner =>
-    {
-        await Task.Delay(50, inner);
 ```
 
 ## 3. Run it and check the output

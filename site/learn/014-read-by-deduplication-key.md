@@ -25,17 +25,20 @@ await jobs.EnqueueAsync(new SendWelcomeEmail("sam@example.com", "Sam"), o => o.D
 In `read-by-deduplication-key.cs` (excerpt):
 
 ```csharp
+using var host = builder.Build();
+await host.StartAsync();
+
 var jobs = host.Services.GetRequiredService<IJobs>();
 
 var businessKey = "welcome:sam";
 var finalKey = DeduplicationKey.ForDefinition("send-welcome-email", businessKey);
 await jobs.EnqueueAsync(new SendWelcomeEmail("sam@example.com", "Sam"), o => o.DeduplicationKey(finalKey));
 
-// Lookup uses the exact stored final key; it does not compose a definition name from a business key.
 var snapshot = await jobs.GetAsync(JobLookup.ByDeduplicationKey("read-by-deduplication-key", finalKey));
-
 Console.WriteLine($"Found job {snapshot!.JobRef} by deduplication key '{snapshot.DeduplicationKey}', status {snapshot.Status}.");
 Console.WriteLine("Worker is running - press Ctrl+C to stop.");
+
+await host.WaitForShutdownAsync();
 ```
 
 ## 2. Look the job up by that key
@@ -53,15 +56,16 @@ In `read-by-deduplication-key.cs` (excerpt):
 ```csharp
 var jobs = host.Services.GetRequiredService<IJobs>();
 
-// Typed options accept an exact final key; compose the definition-qualified key explicitly.
 var businessKey = "welcome:sam";
 var finalKey = DeduplicationKey.ForDefinition("send-welcome-email", businessKey);
 await jobs.EnqueueAsync(new SendWelcomeEmail("sam@example.com", "Sam"), o => o.DeduplicationKey(finalKey));
 
 var snapshot = await jobs.GetAsync(JobLookup.ByDeduplicationKey("read-by-deduplication-key", finalKey));
-
 Console.WriteLine($"Found job {snapshot!.JobRef} by deduplication key '{snapshot.DeduplicationKey}', status {snapshot.Status}.");
 Console.WriteLine("Worker is running - press Ctrl+C to stop.");
+
+await host.WaitForShutdownAsync();
+await host.StopAsync();
 ```
 
 ## 3. The job it acts on
@@ -69,8 +73,6 @@ Console.WriteLine("Worker is running - press Ctrl+C to stop.");
 `read-by-deduplication-key.cs` (excerpt):
 
 ```csharp
-public sealed record SendWelcomeEmail(string Email, string Name);
-
 public static class WelcomeJob
 {
     [Job("send-welcome-email")]

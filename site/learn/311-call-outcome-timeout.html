@@ -57,7 +57,7 @@
   </div>
 
 
-  <main id="content" data-howto="311">
+  <main id="content">
     <header class="wrap page-head howto-head">
       <p class="record"><a href="/learn">learn acta</a><span aria-hidden="true">/</span><a href="/learn#s-wait">wait for people, events, and time</a></p>
       <h1>How to read the outcome of a wait that can time out</h1>
@@ -77,127 +77,48 @@
       <article class="howto person-face">
 <div class="step"><h2><span class="step-n">1</span>Bound the wait and see whether it timed out</h2>
 <p>A slow handler with a short WaitTimeout: outcome.TimedOut is true. The job keeps running on the worker; the caller just stops waiting.</p>
-<figure class="listing"><figcaption><span class="file">call-outcome-timeout.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-1">Copy</button></figcaption><pre><code id="code-1"><span class="k">var</span> jobs = host.Services.GetRequiredService&lt;IJobs&gt;();
+<figure class="listing"><figcaption><span class="file">call-outcome-timeout.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">await</span> host.StartAsync();
+
+<span class="k">var</span> jobs = host.Services.GetRequiredService&lt;IJobs&gt;();
 
 Console.WriteLine(<span class="s">&quot;--- (a) timeout ---&quot;</span>);
 
 <span class="hl"><span class="k">var</span> opts = <span class="k">new</span> JobExecutionOptions { WaitTimeout = TimeSpan.FromMilliseconds(200), PollInterval = TimeSpan.FromMilliseconds(50) };</span>
 <span class="hl"><span class="k">var</span> timedOut = <span class="k">await</span> jobs.CallAsync(CallOutcomeTimeoutJobs.SlowReport(), opts);</span>
 <span class="hl">Console.WriteLine(<span class="s">$&quot;TimedOut: {timedOut.TimedOut}&quot;</span>);</span>
-
 Console.WriteLine(<span class="s">$&quot;Succeeded: {timedOut.Succeeded}&quot;</span>);
 
 Console.WriteLine(<span class="s">&quot;--- (b) failure ---&quot;</span>);
 
-<span class="c">// A failing handler: Status is Failed, ThrowIfFailed throws JobFailedException, and TryGetValue is false.</span>
 <span class="k">var</span> failed = <span class="k">await</span> jobs.CallAsync(CallOutcomeTimeoutJobs.FailingReport());
-Console.WriteLine(<span class="s">$&quot;Status: {failed.Status}&quot;</span>);
-
-<span class="k">try</span>
-{
-    failed.ThrowIfFailed();
-}
-<span class="k">catch</span> (JobFailedException ex)
-{
-    Console.WriteLine(<span class="s">$&quot;ThrowIfFailed threw: {ex.GetType().Name} job={ex.JobRef} status={ex.TerminalStatus}&quot;</span>);
-}
-Console.WriteLine(<span class="s">$&quot;TryGetValue: {failed.TryGetValue(out _)}&quot;</span>);
-
-Console.WriteLine(<span class="s">&quot;--- (c) success ---&quot;</span>);
-
-<span class="c">// On success, ValueOrThrow returns the handler's result.</span>
-<span class="k">var</span> success = <span class="k">await</span> jobs.CallAsync(CallOutcomeTimeoutJobs.SuccessReport());
-Console.WriteLine(<span class="s">$&quot;Succeeded: {success.Succeeded}&quot;</span>);
-<span class="k">var</span> result = success.ValueOrThrow();
-
-Console.WriteLine(<span class="s">$&quot;ValueOrThrow: {result.Summary}&quot;</span>);</code></pre></figure>
+Console.WriteLine(<span class="s">$&quot;Status: {failed.Status}&quot;</span>);</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">2</span>Read a job that failed</h2>
 <p>A failing handler: Status is Failed, ThrowIfFailed throws JobFailedException, and TryGetValue is false.</p>
-<figure class="listing"><figcaption><span class="file">call-outcome-timeout.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-2">Copy</button></figcaption><pre><code id="code-2"><span class="k">var</span> jobs = host.Services.GetRequiredService&lt;IJobs&gt;();
-
-Console.WriteLine(<span class="s">&quot;--- (a) timeout ---&quot;</span>);
-
-<span class="c">// A slow handler with a short WaitTimeout: outcome.TimedOut is true.</span>
-<span class="c">// The job keeps running on the worker; the caller just stops waiting.</span>
-<span class="k">var</span> opts = <span class="k">new</span> JobExecutionOptions { WaitTimeout = TimeSpan.FromMilliseconds(200), PollInterval = TimeSpan.FromMilliseconds(50) };
-<span class="k">var</span> timedOut = <span class="k">await</span> jobs.CallAsync(CallOutcomeTimeoutJobs.SlowReport(), opts);
+<figure class="listing"><figcaption><span class="file">call-outcome-timeout.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">var</span> timedOut = <span class="k">await</span> jobs.CallAsync(CallOutcomeTimeoutJobs.SlowReport(), opts);
 Console.WriteLine(<span class="s">$&quot;TimedOut: {timedOut.TimedOut}&quot;</span>);
-
 Console.WriteLine(<span class="s">$&quot;Succeeded: {timedOut.Succeeded}&quot;</span>);
 
 Console.WriteLine(<span class="s">&quot;--- (b) failure ---&quot;</span>);
 
 <span class="hl"><span class="k">var</span> failed = <span class="k">await</span> jobs.CallAsync(CallOutcomeTimeoutJobs.FailingReport());</span>
-<span class="hl">Console.WriteLine(<span class="s">$&quot;Status: {failed.Status}&quot;</span>);</span>
-
-<span class="k">try</span>
-{
-    failed.ThrowIfFailed();
-}
-<span class="k">catch</span> (JobFailedException ex)
-{
-    Console.WriteLine(<span class="s">$&quot;ThrowIfFailed threw: {ex.GetType().Name} job={ex.JobRef} status={ex.TerminalStatus}&quot;</span>);
-}
-Console.WriteLine(<span class="s">$&quot;TryGetValue: {failed.TryGetValue(out _)}&quot;</span>);
-
-Console.WriteLine(<span class="s">&quot;--- (c) success ---&quot;</span>);
-
-<span class="c">// On success, ValueOrThrow returns the handler's result.</span>
-<span class="k">var</span> success = <span class="k">await</span> jobs.CallAsync(CallOutcomeTimeoutJobs.SuccessReport());
-Console.WriteLine(<span class="s">$&quot;Succeeded: {success.Succeeded}&quot;</span>);
-<span class="k">var</span> result = success.ValueOrThrow();
-
-Console.WriteLine(<span class="s">$&quot;ValueOrThrow: {result.Summary}&quot;</span>);</code></pre></figure>
+<span class="hl">Console.WriteLine(<span class="s">$&quot;Status: {failed.Status}&quot;</span>);</span></code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">3</span>Take the value of a job that succeeded</h2>
 <p>On success, ValueOrThrow returns the handler's result.</p>
-<figure class="listing"><figcaption><span class="file">call-outcome-timeout.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-3">Copy</button></figcaption><pre><code id="code-3"><span class="k">var</span> jobs = host.Services.GetRequiredService&lt;IJobs&gt;();
-
-Console.WriteLine(<span class="s">&quot;--- (a) timeout ---&quot;</span>);
-
-<span class="c">// A slow handler with a short WaitTimeout: outcome.TimedOut is true.</span>
-<span class="c">// The job keeps running on the worker; the caller just stops waiting.</span>
-<span class="k">var</span> opts = <span class="k">new</span> JobExecutionOptions { WaitTimeout = TimeSpan.FromMilliseconds(200), PollInterval = TimeSpan.FromMilliseconds(50) };
-<span class="k">var</span> timedOut = <span class="k">await</span> jobs.CallAsync(CallOutcomeTimeoutJobs.SlowReport(), opts);
-Console.WriteLine(<span class="s">$&quot;TimedOut: {timedOut.TimedOut}&quot;</span>);
-
-Console.WriteLine(<span class="s">$&quot;Succeeded: {timedOut.Succeeded}&quot;</span>);
-
-Console.WriteLine(<span class="s">&quot;--- (b) failure ---&quot;</span>);
-
-<span class="c">// A failing handler: Status is Failed, ThrowIfFailed throws JobFailedException, and TryGetValue is false.</span>
-<span class="k">var</span> failed = <span class="k">await</span> jobs.CallAsync(CallOutcomeTimeoutJobs.FailingReport());
-Console.WriteLine(<span class="s">$&quot;Status: {failed.Status}&quot;</span>);
-
-<span class="k">try</span>
-{
-    failed.ThrowIfFailed();
-}
-<span class="k">catch</span> (JobFailedException ex)
-{
-    Console.WriteLine(<span class="s">$&quot;ThrowIfFailed threw: {ex.GetType().Name} job={ex.JobRef} status={ex.TerminalStatus}&quot;</span>);
-}
-Console.WriteLine(<span class="s">$&quot;TryGetValue: {failed.TryGetValue(out _)}&quot;</span>);
+<figure class="listing"><figcaption><span class="file">call-outcome-timeout.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code>Console.WriteLine(<span class="s">$&quot;TryGetValue: {failed.TryGetValue(out _)}&quot;</span>);
 
 Console.WriteLine(<span class="s">&quot;--- (c) success ---&quot;</span>);
 
 <span class="hl"><span class="k">var</span> success = <span class="k">await</span> jobs.CallAsync(CallOutcomeTimeoutJobs.SuccessReport());</span>
 <span class="hl">Console.WriteLine(<span class="s">$&quot;Succeeded: {success.Succeeded}&quot;</span>);</span>
 <span class="hl"><span class="k">var</span> result = success.ValueOrThrow();</span>
+Console.WriteLine(<span class="s">$&quot;ValueOrThrow: {result.Summary}&quot;</span>);
 
-Console.WriteLine(<span class="s">$&quot;ValueOrThrow: {result.Summary}&quot;</span>);</code></pre></figure>
+<span class="k">await</span> host.StopAsync();</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">4</span>The job it acts on</h2>
-<figure class="listing"><figcaption><span class="file">call-outcome-timeout.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-4">Copy</button></figcaption><pre><code id="code-4"><span class="k">public</span> <span class="k">readonly</span> <span class="k">record</span> <span class="k">struct</span> SlowReport;
-
-<span class="k">public</span> <span class="k">readonly</span> <span class="k">record</span> <span class="k">struct</span> FailingReport;
-
-<span class="k">public</span> <span class="k">readonly</span> <span class="k">record</span> <span class="k">struct</span> SuccessReport;
-
-<span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> ReportResult(<span class="k">string</span> Summary);
-
-<span class="k">public</span> <span class="k">static</span> <span class="k">class</span> SlowReportJob
+<figure class="listing"><figcaption><span class="file">call-outcome-timeout.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">static</span> <span class="k">class</span> SlowReportJob
 {
     <span class="a">[Job(<span class="s">&quot;slow-report&quot;</span>)]</span>
     <span class="k">public</span> <span class="k">static</span> <span class="k">async</span> Task&lt;ReportResult&gt; Handle(SlowReport input, CancellationToken ct)
@@ -205,30 +126,12 @@ Console.WriteLine(<span class="s">$&quot;ValueOrThrow: {result.Summary}&quot;</s
         <span class="k">await</span> Task.Delay(TimeSpan.FromSeconds(30), ct);
         <span class="k">return</span> <span class="k">new</span> ReportResult(<span class="s">&quot;done&quot;</span>);
     }
-}
-
-<span class="k">public</span> <span class="k">static</span> <span class="k">class</span> FailingReportJob
-{
-    <span class="a">[Job(<span class="s">&quot;failing-report&quot;</span>, MaxAttempts = 1)]</span>
-    <span class="k">public</span> <span class="k">static</span> Task&lt;ReportResult&gt; Handle(FailingReport input)
-    {
-        <span class="k">throw</span> <span class="k">new</span> InvalidOperationException(<span class="s">&quot;report source unavailable&quot;</span>);
-    }
-}
-
-<span class="k">public</span> <span class="k">static</span> <span class="k">class</span> SuccessReportJob
-{
-    <span class="a">[Job(<span class="s">&quot;success-report&quot;</span>)]</span>
-    <span class="k">public</span> <span class="k">static</span> Task&lt;ReportResult&gt; Handle(SuccessReport input)
-    {
-        <span class="k">return</span> Task.FromResult(<span class="k">new</span> ReportResult(<span class="s">&quot;all clear&quot;</span>));
-    }
 }</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">5</span>Run it and check the output</h2>
 <p>From a clone of <a href="https://github.com/acta-dotnet/acta">the Acta repository</a>, with the .NET 10 SDK:</p>
-<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-5">Copy</button></figcaption><pre><code id="code-5">dotnet run --project concepts/300-failure-and-recovery/311-call-outcome-timeout</code></pre></figure>
-<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button" data-copy-target="#code-6">Copy</button></figcaption><pre><code id="code-6">TimedOut: True
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project concepts/300-failure-and-recovery/311-call-outcome-timeout</code></pre></figure>
+<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button">Copy</button></figcaption><pre><code>TimedOut: True
 Status: Failed
 ThrowIfFailed threw: JobFailedException
 TryGetValue: False
@@ -239,7 +142,7 @@ ValueOrThrow: all clear</code></pre></figure>
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/concepts/300-failure-and-recovery/311-call-outcome-timeout"><code>concepts/300-failure-and-recovery/311-call-outcome-timeout</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">call-outcome-timeout.cs</span><span class="file-size">102 lines</span></summary><figure class="listing"><figcaption><span class="file">call-outcome-timeout.cs</span><button class="copy" type="button" data-copy-target="#code-7">Copy</button></figcaption><pre><code id="code-7"><span class="c">// How to read the outcome of a wait that can time out</span>
+<details class="source-file"><summary><span class="file-name">call-outcome-timeout.cs</span><span class="file-size">102 lines</span></summary><figure class="listing"><figcaption><span class="file">call-outcome-timeout.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to read the outcome of a wait that can time out</span>
 <span class="c">// `CallAsync` answers a `JobOutcome`: whether the wait timed out, whether the job failed, and the value when it</span>
 <span class="c">// succeeded.</span>
 <span class="k">using</span> Acta;
@@ -340,11 +243,12 @@ Console.WriteLine(<span class="s">$&quot;ValueOrThrow: {result.Summary}&quot;</s
             <span class="k">return</span> Task.FromResult(<span class="k">new</span> ReportResult(<span class="s">&quot;all clear&quot;</span>));
         }
     }
-}</code></pre></figure></details></div>
+}</code></pre></figure>
+</details></div>
 <div class="step plain-step"><h2>Where to go next</h2><ul class="next-links"><li><a href="/learn/211-child-jobs">How to start child jobs and wait for them</a><span>Split work across child jobs</span></li></ul></div>
       </article>
       <article class="agent-face" hidden>
-        <figure class="listing agent"><figcaption><span class="file">/learn/311-call-outcome-timeout.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/311-call-outcome-timeout.md">Open</a><button class="copy" type="button" data-copy-target="#md-body">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
+        <figure class="listing agent"><figcaption><span class="file">/learn/311-call-outcome-timeout.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/311-call-outcome-timeout.md">Open</a><button class="copy" type="button">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
         <p class="hint">This is the page an agent receives: the same how-to as plain Markdown, at this page's address with <code>.md</code> added.</p>
       </article>
       <aside class="howto-rail" aria-label="This section">

@@ -25,6 +25,8 @@ Console.WriteLine($"TimedOut: {timedOut.TimedOut}");
 In `call-outcome-timeout.cs` (excerpt):
 
 ```csharp
+await host.StartAsync();
+
 var jobs = host.Services.GetRequiredService<IJobs>();
 
 Console.WriteLine("--- (a) timeout ---");
@@ -32,33 +34,12 @@ Console.WriteLine("--- (a) timeout ---");
 var opts = new JobExecutionOptions { WaitTimeout = TimeSpan.FromMilliseconds(200), PollInterval = TimeSpan.FromMilliseconds(50) };
 var timedOut = await jobs.CallAsync(CallOutcomeTimeoutJobs.SlowReport(), opts);
 Console.WriteLine($"TimedOut: {timedOut.TimedOut}");
-
 Console.WriteLine($"Succeeded: {timedOut.Succeeded}");
 
 Console.WriteLine("--- (b) failure ---");
 
-// A failing handler: Status is Failed, ThrowIfFailed throws JobFailedException, and TryGetValue is false.
 var failed = await jobs.CallAsync(CallOutcomeTimeoutJobs.FailingReport());
 Console.WriteLine($"Status: {failed.Status}");
-
-try
-{
-    failed.ThrowIfFailed();
-}
-catch (JobFailedException ex)
-{
-    Console.WriteLine($"ThrowIfFailed threw: {ex.GetType().Name} job={ex.JobRef} status={ex.TerminalStatus}");
-}
-Console.WriteLine($"TryGetValue: {failed.TryGetValue(out _)}");
-
-Console.WriteLine("--- (c) success ---");
-
-// On success, ValueOrThrow returns the handler's result.
-var success = await jobs.CallAsync(CallOutcomeTimeoutJobs.SuccessReport());
-Console.WriteLine($"Succeeded: {success.Succeeded}");
-var result = success.ValueOrThrow();
-
-Console.WriteLine($"ValueOrThrow: {result.Summary}");
 ```
 
 ## 2. Read a job that failed
@@ -75,41 +56,14 @@ Console.WriteLine($"Status: {failed.Status}");
 In `call-outcome-timeout.cs` (excerpt):
 
 ```csharp
-var jobs = host.Services.GetRequiredService<IJobs>();
-
-Console.WriteLine("--- (a) timeout ---");
-
-// A slow handler with a short WaitTimeout: outcome.TimedOut is true.
-// The job keeps running on the worker; the caller just stops waiting.
-var opts = new JobExecutionOptions { WaitTimeout = TimeSpan.FromMilliseconds(200), PollInterval = TimeSpan.FromMilliseconds(50) };
 var timedOut = await jobs.CallAsync(CallOutcomeTimeoutJobs.SlowReport(), opts);
 Console.WriteLine($"TimedOut: {timedOut.TimedOut}");
-
 Console.WriteLine($"Succeeded: {timedOut.Succeeded}");
 
 Console.WriteLine("--- (b) failure ---");
 
 var failed = await jobs.CallAsync(CallOutcomeTimeoutJobs.FailingReport());
 Console.WriteLine($"Status: {failed.Status}");
-
-try
-{
-    failed.ThrowIfFailed();
-}
-catch (JobFailedException ex)
-{
-    Console.WriteLine($"ThrowIfFailed threw: {ex.GetType().Name} job={ex.JobRef} status={ex.TerminalStatus}");
-}
-Console.WriteLine($"TryGetValue: {failed.TryGetValue(out _)}");
-
-Console.WriteLine("--- (c) success ---");
-
-// On success, ValueOrThrow returns the handler's result.
-var success = await jobs.CallAsync(CallOutcomeTimeoutJobs.SuccessReport());
-Console.WriteLine($"Succeeded: {success.Succeeded}");
-var result = success.ValueOrThrow();
-
-Console.WriteLine($"ValueOrThrow: {result.Summary}");
 ```
 
 ## 3. Take the value of a job that succeeded
@@ -127,32 +81,6 @@ var result = success.ValueOrThrow();
 In `call-outcome-timeout.cs` (excerpt):
 
 ```csharp
-var jobs = host.Services.GetRequiredService<IJobs>();
-
-Console.WriteLine("--- (a) timeout ---");
-
-// A slow handler with a short WaitTimeout: outcome.TimedOut is true.
-// The job keeps running on the worker; the caller just stops waiting.
-var opts = new JobExecutionOptions { WaitTimeout = TimeSpan.FromMilliseconds(200), PollInterval = TimeSpan.FromMilliseconds(50) };
-var timedOut = await jobs.CallAsync(CallOutcomeTimeoutJobs.SlowReport(), opts);
-Console.WriteLine($"TimedOut: {timedOut.TimedOut}");
-
-Console.WriteLine($"Succeeded: {timedOut.Succeeded}");
-
-Console.WriteLine("--- (b) failure ---");
-
-// A failing handler: Status is Failed, ThrowIfFailed throws JobFailedException, and TryGetValue is false.
-var failed = await jobs.CallAsync(CallOutcomeTimeoutJobs.FailingReport());
-Console.WriteLine($"Status: {failed.Status}");
-
-try
-{
-    failed.ThrowIfFailed();
-}
-catch (JobFailedException ex)
-{
-    Console.WriteLine($"ThrowIfFailed threw: {ex.GetType().Name} job={ex.JobRef} status={ex.TerminalStatus}");
-}
 Console.WriteLine($"TryGetValue: {failed.TryGetValue(out _)}");
 
 Console.WriteLine("--- (c) success ---");
@@ -160,8 +88,9 @@ Console.WriteLine("--- (c) success ---");
 var success = await jobs.CallAsync(CallOutcomeTimeoutJobs.SuccessReport());
 Console.WriteLine($"Succeeded: {success.Succeeded}");
 var result = success.ValueOrThrow();
-
 Console.WriteLine($"ValueOrThrow: {result.Summary}");
+
+await host.StopAsync();
 ```
 
 ## 4. The job it acts on
@@ -169,14 +98,6 @@ Console.WriteLine($"ValueOrThrow: {result.Summary}");
 `call-outcome-timeout.cs` (excerpt):
 
 ```csharp
-public readonly record struct SlowReport;
-
-public readonly record struct FailingReport;
-
-public readonly record struct SuccessReport;
-
-public sealed record ReportResult(string Summary);
-
 public static class SlowReportJob
 {
     [Job("slow-report")]
@@ -184,24 +105,6 @@ public static class SlowReportJob
     {
         await Task.Delay(TimeSpan.FromSeconds(30), ct);
         return new ReportResult("done");
-    }
-}
-
-public static class FailingReportJob
-{
-    [Job("failing-report", MaxAttempts = 1)]
-    public static Task<ReportResult> Handle(FailingReport input)
-    {
-        throw new InvalidOperationException("report source unavailable");
-    }
-}
-
-public static class SuccessReportJob
-{
-    [Job("success-report")]
-    public static Task<ReportResult> Handle(SuccessReport input)
-    {
-        return Task.FromResult(new ReportResult("all clear"));
     }
 }
 ```

@@ -57,7 +57,7 @@
   </div>
 
 
-  <main id="content" data-howto="001">
+  <main id="content">
     <header class="wrap page-head howto-head">
       <p class="record"><a href="/learn">learn acta</a><span aria-hidden="true">/</span><a href="/learn#s-first-steps">take the first steps</a></p>
       <h1>How to run your first job</h1>
@@ -77,9 +77,7 @@
       <article class="howto person-face">
 <div class="step"><h2><span class="step-n">1</span>Write the job</h2>
 <p>A job is a method with <code>[Job(&quot;name&quot;)]</code> on it, and the record is its input. Acta stores the input as a row and calls the method with it.</p>
-<figure class="listing"><figcaption><span class="file">hello-acta.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-1">Copy</button></figcaption><pre><code id="code-1"><span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> Hello(<span class="k">string</span> Name);
-
-<span class="k">public</span> <span class="k">static</span> <span class="k">class</span> HelloJob
+<figure class="listing"><figcaption><span class="file">hello-acta.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">static</span> <span class="k">class</span> HelloJob
 {
 <span class="hl">    <span class="a">[Job(<span class="s">&quot;hello&quot;</span>)]</span></span>
 <span class="hl">    <span class="k">public</span> <span class="k">static</span> <span class="k">void</span> Handle(Hello input) =&gt; Console.WriteLine(<span class="s">$&quot;Hello, {input.Name}!&quot;</span>);</span>
@@ -87,7 +85,7 @@
 </div>
 <div class="step"><h2><span class="step-n">2</span>Register Acta and start a worker</h2>
 <p><code>UseSqlite</code> says where the job rows live: one file, no server. Swap it for <code>UsePostgres</code> or <code>UseSqlServer</code>, with that server's connection string, to target a server; later rungs fold this setup into <code>UseLocalDatabase</code>. <code>Run&lt;HelloActaJobs&gt;(&quot;hello-acta&quot;)</code> registers every job of the project under the namespace <code>hello-acta</code> and starts a worker for it. <code>HelloActaJobs</code> is generated at build time from the <code>[Job]</code> methods.</p>
-<figure class="listing"><figcaption><span class="file">hello-acta.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-2">Copy</button></figcaption><pre><code id="code-2"><span class="k">var</span> builder = Host.CreateApplicationBuilder(args);
+<figure class="listing"><figcaption><span class="file">hello-acta.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">var</span> builder = Host.CreateApplicationBuilder(args);
 
 builder.Services.UseActa(j =&gt;
 {
@@ -101,28 +99,34 @@ builder.Services.UseActa(j =&gt;
 });
 
 <span class="k">using</span> <span class="k">var</span> host = builder.Build();
-<span class="k">await</span> host.StartAsync();</code></pre></figure>
+<span class="k">await</span> host.StartAsync();
+
+<span class="k">var</span> jobs = host.Services.GetRequiredService&lt;IJobs&gt;();</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">3</span>Enqueue it</h2>
 <p><code>EnqueueAsync</code> writes the job as a row and returns. The type of the input picks the job, so there is no name string to get wrong.</p>
-<figure class="listing"><figcaption><span class="file">hello-acta.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-3">Copy</button></figcaption><pre><code id="code-3"><span class="k">var</span> jobs = host.Services.GetRequiredService&lt;IJobs&gt;();
+<figure class="listing"><figcaption><span class="file">hello-acta.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">using</span> <span class="k">var</span> host = builder.Build();
+<span class="k">await</span> host.StartAsync();
+
+<span class="k">var</span> jobs = host.Services.GetRequiredService&lt;IJobs&gt;();
 
 <span class="hl"><span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> Hello(<span class="s">&quot;World&quot;</span>));</span>
+Console.WriteLine(<span class="s">&quot;Enqueued. The worker is running - press Ctrl+C to stop.&quot;</span>);
 
-Console.WriteLine(<span class="s">&quot;Enqueued. The worker is running - press Ctrl+C to stop.&quot;</span>);</code></pre></figure>
+<span class="k">await</span> host.WaitForShutdownAsync();
+<span class="k">await</span> host.StopAsync();</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">4</span>Run it and check the output</h2>
 <p>From a clone of <a href="https://github.com/acta-dotnet/acta">the Acta repository</a>, with the .NET 10 SDK:</p>
-<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-4">Copy</button></figcaption><pre><code id="code-4">dotnet run --project concepts/000-fundamentals/001-hello-acta</code></pre></figure>
-<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button" data-copy-target="#code-5">Copy</button></figcaption><pre><code id="code-5">Hello, World!</code></pre></figure>
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project concepts/000-fundamentals/001-hello-acta</code></pre></figure>
+<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button">Copy</button></figcaption><pre><code>Hello, World!</code></pre></figure>
 <p class="proof checked"><b>Checked every release.</b> Before each release, Acta Verify runs this program and checks that its output contains these lines.</p>
 </div>
 <div class="step plain-step"><h2>Remember</h2><ul class="rules"><li>The name in <code>[Job(&quot;hello&quot;)]</code> goes into the database, the dashboard, and alerts. Keep it lowercase with dashes, and treat it as permanent once jobs exist under it.</li><li><code>MigrateOnStartup = true</code> is for your own machine. In production a deploy step runs <code>jobs migrate</code>.</li><li>The process that enqueues can also run the job. You can split the two later without changing the handler.</li></ul></div>
 <div class="step plain-step"><h2>Check yourself</h2><div class="check" data-answer="1"><p class="check-q"><code>EnqueueAsync</code> has returned and the worker has not picked the job up yet. Where is the job?</p><ol class="check-options"><li><button type="button">In the memory of the running process</button></li><li><button type="button">In a row of the SQLite file</button></li><li><button type="button">In a separate queue service</button></li></ol><details class="check-why"><summary>Show the answer</summary><p><b>In a row of the SQLite file.</b> The job is a durable row before anything runs it. Stop the process now and the row is still there for the next start.</p></details></div></div>
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/concepts/000-fundamentals/001-hello-acta"><code>concepts/000-fundamentals/001-hello-acta</code></a>, as it is compiled.</p>
-<p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">hello-acta.cs</span><span class="file-size">58 lines</span></summary><figure class="listing"><figcaption><span class="file">hello-acta.cs</span><button class="copy" type="button" data-copy-target="#code-6">Copy</button></figcaption><pre><code id="code-6"><span class="c">// How to run your first job</span>
+<details class="source-file"><summary><span class="file-name">hello-acta.cs</span><span class="file-size">58 lines</span></summary><figure class="listing"><figcaption><span class="file">hello-acta.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to run your first job</span>
 <span class="c">// One `[Job]` method, one enqueue, and a worker that runs it.</span>
 <span class="k">using</span> Acta;
 <span class="k">using</span> Acta.Concepts.HelloActa;
@@ -179,11 +183,12 @@ Console.WriteLine(<span class="s">&quot;Enqueued. The worker is running - press 
 <span class="hl">        <span class="k">public</span> <span class="k">static</span> <span class="k">void</span> Handle(Hello input) =&gt; Console.WriteLine(<span class="s">$&quot;Hello, {input.Name}!&quot;</span>);</span>
         <span class="c">// learn: end</span>
     }
-}</code></pre></figure></details></div>
+}</code></pre></figure>
+</details></div>
 <div class="step plain-step"><h2>Where to go next</h2><ul class="next-links"><li><a href="/learn/002-job-input">How to pass typed input to a job</a><span>Take the first steps</span></li></ul></div>
       </article>
       <article class="agent-face" hidden>
-        <figure class="listing agent"><figcaption><span class="file">/learn/001-hello-acta.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/001-hello-acta.md">Open</a><button class="copy" type="button" data-copy-target="#md-body">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
+        <figure class="listing agent"><figcaption><span class="file">/learn/001-hello-acta.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/001-hello-acta.md">Open</a><button class="copy" type="button">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
         <p class="hint">This is the page an agent receives: the same how-to as plain Markdown, at this page's address with <code>.md</code> added.</p>
       </article>
       <aside class="howto-rail" aria-label="This section">

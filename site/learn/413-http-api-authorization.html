@@ -57,7 +57,7 @@
   </div>
 
 
-  <main id="content" data-howto="413">
+  <main id="content">
     <header class="wrap page-head howto-head">
       <p class="record"><a href="/learn">learn acta</a><span aria-hidden="true">/</span><a href="/learn#s-operate">watch and control running work</a></p>
       <h1>How to require permissions on the HTTP API</h1>
@@ -77,18 +77,7 @@
       <article class="howto person-face">
 <div class="step"><h2><span class="step-n">1</span>Add one policy per permission</h2>
 <p>One policy per permission, each requiring a claim. Mapping throws when one of the four is missing.</p>
-<figure class="listing"><figcaption><span class="file">http-api-authorization.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-1">Copy</button></figcaption><pre><code id="code-1"><span class="k">var</span> builder = WebApplication.CreateBuilder(args);
-
-<span class="c">// Suppress framework noise so concept output stays readable.</span>
-builder.Logging.SetMinimumLevel(LogLevel.Warning);
-
-builder.Services.UseActa(j =&gt;
-{
-    j.UseLocalDatabase(builder.Configuration);
-    j.Run&lt;HttpApiAuthorizationJobs&gt;(<span class="s">&quot;http-api-authorization&quot;</span>);
-});
-
-<span class="c">// The host owns authentication: Acta ships none. This header scheme stands in for the host's own (cookies, JWT bearer</span>
+<figure class="listing"><figcaption><span class="file">http-api-authorization.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// The host owns authentication: Acta ships none. This header scheme stands in for the host's own (cookies, JWT bearer</span>
 <span class="c">// tokens, Windows) and believes the permission a caller names, which only a demo may do.</span>
 builder
     .Services.AddAuthentication(PermissionHeaderHandler.SchemeName)
@@ -105,62 +94,11 @@ builder
 <span class="c">// UseTestServer skips binding to a real port: the HttpClient talks in-process.</span>
 builder.WebHost.UseTestServer();
 
-<span class="k">var</span> app = builder.Build();
-
-<span class="c">// EnableControls maps the routes that write. RequirePermissions authorizes every route, reads included, against the</span>
-<span class="c">// policy named for the permission the route declares. LocalOnly stays on; under RequirePermissions, LocalOnly = false</span>
-<span class="c">// would let remote callers reach the API.</span>
-Console.WriteLine(<span class="s">&quot;knob: EnableControls = true     (the routes that write are mapped; off by default)&quot;</span>);
-Console.WriteLine(<span class="s">&quot;knob: RequirePermissions = true (each route needs the host's policy named for its permission)&quot;</span>);
-Console.WriteLine();
-
-<span class="c">// Every route, reads included, is then authorized against the policy named for the permission it declares.</span>
-app.MapActaApi(<span class="s">&quot;/acta/api&quot;</span>, options =&gt;
-{
-    options.EnableControls = <span class="k">true</span>;
-    options.RequirePermissions = <span class="k">true</span>;
-});
-
-<span class="k">await</span> app.StartAsync();</code></pre></figure>
+<span class="k">var</span> app = builder.Build();</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">2</span>Require the permissions on the API</h2>
 <p>Every route, reads included, is then authorized against the policy named for the permission it declares.</p>
-<figure class="listing"><figcaption><span class="file">http-api-authorization.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-2">Copy</button></figcaption><pre><code id="code-2"><span class="k">var</span> builder = WebApplication.CreateBuilder(args);
-
-<span class="c">// Suppress framework noise so concept output stays readable.</span>
-builder.Logging.SetMinimumLevel(LogLevel.Warning);
-
-builder.Services.UseActa(j =&gt;
-{
-    j.UseLocalDatabase(builder.Configuration);
-    j.Run&lt;HttpApiAuthorizationJobs&gt;(<span class="s">&quot;http-api-authorization&quot;</span>);
-});
-
-<span class="c">// The host owns authentication: Acta ships none. This header scheme stands in for the host's own (cookies, JWT bearer</span>
-<span class="c">// tokens, Windows) and believes the permission a caller names, which only a demo may do.</span>
-builder
-    .Services.AddAuthentication(PermissionHeaderHandler.SchemeName)
-    .AddScheme&lt;AuthenticationSchemeOptions, PermissionHeaderHandler&gt;(PermissionHeaderHandler.SchemeName, <span class="k">null</span>);
-
-<span class="c">// One policy per permission, each requiring a claim. Mapping throws when one of the four is missing.</span>
-builder.Services.AddAuthorization(options =&gt;
-{
-    options.AddPolicy(ActaPermissions.Read, policy =&gt; policy.RequireClaim(PermissionHeaderHandler.ClaimType, ActaPermissions.Read));
-    options.AddPolicy(ActaPermissions.Enqueue, policy =&gt; policy.RequireClaim(PermissionHeaderHandler.ClaimType, ActaPermissions.Enqueue));
-    options.AddPolicy(ActaPermissions.Control, policy =&gt; policy.RequireClaim(PermissionHeaderHandler.ClaimType, ActaPermissions.Control));
-    options.AddPolicy(ActaPermissions.Admin, policy =&gt; policy.RequireClaim(PermissionHeaderHandler.ClaimType, ActaPermissions.Admin));
-});
-
-<span class="c">// UseTestServer skips binding to a real port: the HttpClient talks in-process.</span>
-builder.WebHost.UseTestServer();
-
-<span class="k">var</span> app = builder.Build();
-
-<span class="c">// EnableControls maps the routes that write. RequirePermissions authorizes every route, reads included, against the</span>
-<span class="c">// policy named for the permission the route declares. LocalOnly stays on; under RequirePermissions, LocalOnly = false</span>
-<span class="c">// would let remote callers reach the API.</span>
-Console.WriteLine(<span class="s">&quot;knob: EnableControls = true     (the routes that write are mapped; off by default)&quot;</span>);
-Console.WriteLine(<span class="s">&quot;knob: RequirePermissions = true (each route needs the host's policy named for its permission)&quot;</span>);
+<figure class="listing"><figcaption><span class="file">http-api-authorization.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code>Console.WriteLine(<span class="s">&quot;knob: RequirePermissions = true (each route needs the host's policy named for its permission)&quot;</span>);
 Console.WriteLine();
 
 <span class="hl">app.MapActaApi(<span class="s">&quot;/acta/api&quot;</span>, options =&gt;</span>
@@ -169,45 +107,23 @@ Console.WriteLine();
 <span class="hl">    options.RequirePermissions = <span class="k">true</span>;</span>
 <span class="hl">});</span>
 
-<span class="k">await</span> app.StartAsync();</code></pre></figure>
+<span class="k">await</span> app.StartAsync();
+
+<span class="k">var</span> jobs = app.Services.GetRequiredService&lt;IJobs&gt;();
+<span class="k">var</span> client = app.GetTestClient();
+<span class="k">const</span> <span class="k">string</span> jobNamespace = <span class="s">&quot;http-api-authorization&quot;</span>;</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">3</span>The job it acts on</h2>
-<figure class="listing"><figcaption><span class="file">http-api-authorization.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-3">Copy</button></figcaption><pre><code id="code-3"><span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> SampleTask(<span class="k">string</span> Id);
-
-<span class="k">public</span> <span class="k">static</span> <span class="k">class</span> SampleTaskJob
+<figure class="listing"><figcaption><span class="file">http-api-authorization.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">static</span> <span class="k">class</span> SampleTaskJob
 {
     <span class="a">[Job(<span class="s">&quot;sample-task&quot;</span>)]</span>
     <span class="k">public</span> <span class="k">static</span> <span class="k">void</span> Handle(SampleTask input) { }
-}
-
-<span class="c">// Authenticates a caller as holding the one permission its X-Demo-Permission header names. A real host</span>
-<span class="c">// authenticates its users its own way and maps their roles or claims to the four policies.</span>
-<span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> PermissionHeaderHandler(
-    IOptionsMonitor&lt;AuthenticationSchemeOptions&gt; options,
-    ILoggerFactory logger,
-    UrlEncoder encoder
-) : AuthenticationHandler&lt;AuthenticationSchemeOptions&gt;(options, logger, encoder)
-{
-    <span class="k">public</span> <span class="k">const</span> <span class="k">string</span> SchemeName = <span class="s">&quot;PermissionHeader&quot;</span>;
-    <span class="k">public</span> <span class="k">const</span> <span class="k">string</span> HeaderName = <span class="s">&quot;X-Demo-Permission&quot;</span>;
-    <span class="k">public</span> <span class="k">const</span> <span class="k">string</span> ClaimType = <span class="s">&quot;permission&quot;</span>;
-
-    <span class="k">protected</span> <span class="k">override</span> Task&lt;AuthenticateResult&gt; HandleAuthenticateAsync()
-    {
-        <span class="k">if</span> (Request.Headers[HeaderName] <span class="k">is</span> <span class="k">not</span> [{ } permission])
-        {
-            <span class="k">return</span> Task.FromResult(AuthenticateResult.NoResult());
-        }
-
-        <span class="k">var</span> identity = <span class="k">new</span> ClaimsIdentity([<span class="k">new</span> Claim(ClaimTypes.Name, <span class="s">&quot;demo-caller&quot;</span>), <span class="k">new</span> Claim(ClaimType, permission)], SchemeName);
-        <span class="k">return</span> Task.FromResult(AuthenticateResult.Success(<span class="k">new</span> AuthenticationTicket(<span class="k">new</span> ClaimsPrincipal(identity), SchemeName)));
-    }
 }</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">4</span>Run it and check the output</h2>
 <p>From a clone of <a href="https://github.com/acta-dotnet/acta">the Acta repository</a>, with the .NET 10 SDK:</p>
-<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-4">Copy</button></figcaption><pre><code id="code-4">dotnet run --project concepts/400-observability-and-alerts/413-http-api-authorization</code></pre></figure>
-<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button" data-copy-target="#code-5">Copy</button></figcaption><pre><code id="code-5">GET /acta/api/v1/jobs -&gt; 401 Unauthorized
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project concepts/400-observability-and-alerts/413-http-api-authorization</code></pre></figure>
+<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button">Copy</button></figcaption><pre><code>GET /acta/api/v1/jobs -&gt; 401 Unauthorized
 GET /acta/api/v1/jobs -&gt; 200 OK
 /pause -&gt; 403 Forbidden: This operation needs the acta.control permission.
 POST /acta/api/v1/jobs -&gt; 201 Created
@@ -225,7 +141,7 @@ POST /acta/api/v1/jobs -&gt; 201 Created
 <ul class="plain"><li>With no credential, <code>GET /acta/api/v1/jobs</code> answers 401.</li><li><code>acta.read</code> reads the jobs list (200) and is refused pausing a job (403, whose detail names <code>acta.control</code>).</li><li><code>acta.enqueue</code> enqueues a job (201) and is refused pausing it (403).</li><li><code>acta.control</code> pauses it (200) and is refused purging it and suspending the namespace (403, naming <code>acta.admin</code>).</li><li><code>acta.admin</code> suspends and resumes the namespace (200).</li></ul>
 <p>Each operation names the permission it needs as <code>x-acta-permission</code> in the <a href="https://github.com/acta-dotnet/acta/blob/main/docs/reference/openapi.json">OpenAPI document</a>.</p>
 <h3>Run the experiment</h3>
-<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-6">Copy</button></figcaption><pre><code id="code-6">dotnet run --project concepts/400-observability-and-alerts/413-http-api-authorization</code></pre></figure>
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project concepts/400-observability-and-alerts/413-http-api-authorization</code></pre></figure>
 <p>It runs on the local SQLite database, like every rung, and exits when the calls are done.</p>
 <h3>Break it</h3>
 <p>Delete the <code>acta.admin</code> policy and run again: mapping throws, naming the missing policy, before the host serves a request. Put it back and add <code>options.ConfigureEndpoints = group =&gt; group.AllowAnonymous();</code> to the mapping: every call answers as before, because Acta evaluates the policies in its own endpoint filter, which an <code>AllowAnonymous</code> on the routes does not switch off.</p>
@@ -235,7 +151,7 @@ POST /acta/api/v1/jobs -&gt; 201 Created
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/concepts/400-observability-and-alerts/413-http-api-authorization"><code>concepts/400-observability-and-alerts/413-http-api-authorization</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">http-api-authorization.cs</span><span class="file-size">182 lines</span></summary><figure class="listing"><figcaption><span class="file">http-api-authorization.cs</span><button class="copy" type="button" data-copy-target="#code-7">Copy</button></figcaption><pre><code id="code-7"><span class="c">// How to require permissions on the HTTP API</span>
+<details class="source-file"><summary><span class="file-name">http-api-authorization.cs</span><span class="file-size">182 lines</span></summary><figure class="listing"><figcaption><span class="file">http-api-authorization.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to require permissions on the HTTP API</span>
 <span class="c">// `RequirePermissions` has every route of the HTTP API check the host's policy named for its permission: read,</span>
 <span class="c">// enqueue, control, or admin. A caller with no credential gets 401, and one that lacks the permission gets 403</span>
 <span class="c">// naming it.</span>
@@ -416,11 +332,12 @@ Console.WriteLine(<span class="s">&quot;Each operation's permission is x-acta-pe
             <span class="k">return</span> Task.FromResult(AuthenticateResult.Success(<span class="k">new</span> AuthenticationTicket(<span class="k">new</span> ClaimsPrincipal(identity), SchemeName)));
         }
     }
-}</code></pre></figure></details></div>
+}</code></pre></figure>
+</details></div>
 <div class="step plain-step"><h2>Where to go next</h2><ul class="next-links"><li><a href="/learn/414-dashboard-sign-in">How to put the dashboard behind your sign-in</a><span>Watch and control running work</span></li></ul></div>
       </article>
       <article class="agent-face" hidden>
-        <figure class="listing agent"><figcaption><span class="file">/learn/413-http-api-authorization.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/413-http-api-authorization.md">Open</a><button class="copy" type="button" data-copy-target="#md-body">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
+        <figure class="listing agent"><figcaption><span class="file">/learn/413-http-api-authorization.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/413-http-api-authorization.md">Open</a><button class="copy" type="button">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
         <p class="hint">This is the page an agent receives: the same how-to as plain Markdown, at this page's address with <code>.md</code> added.</p>
       </article>
       <aside class="howto-rail" aria-label="This section">

@@ -24,8 +24,6 @@ await Task.Delay(100, ct);
 In `cancellation-token.cs` (excerpt):
 
 ```csharp
-public sealed record SlowImport(int Batches);
-
 public static class ImportJob
 {
     // Acta trips the CancellationToken on shutdown or lease loss; the handler must observe it.

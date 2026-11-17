@@ -23,8 +23,6 @@ The lines that matter:
 In `deadline-strict.cs` (excerpt):
 
 ```csharp
-public sealed record GenerateReport(string Quarter);
-
 public static class GenerateReportJob
 {
     [Job("generate-report", Deadline = "2s")]

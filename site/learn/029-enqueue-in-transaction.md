@@ -18,7 +18,7 @@ The lines that matter:
 
 ```csharp
 EnqueueJobResponse committed;
-await using (var transaction = (SqliteTransaction)await connection.BeginTransactionAsync())
+await using (var transaction = connection.BeginTransaction())
 {
     await ExecuteAsync(transaction, "INSERT INTO shop_orders (order_id) VALUES (@id)", kept);
     committed = await jobs.EnqueueAsync(transaction, new FulfilOrder(kept));
@@ -36,18 +36,14 @@ var run = Guid.NewGuid().ToString("N")[..8];
 var (kept, dropped) = ($"order-{run}-kept", $"order-{run}-dropped");
 
 EnqueueJobResponse committed;
-await using (var transaction = (SqliteTransaction)await connection.BeginTransactionAsync())
+await using (var transaction = connection.BeginTransaction())
 {
     await ExecuteAsync(transaction, "INSERT INTO shop_orders (order_id) VALUES (@id)", kept);
     committed = await jobs.EnqueueAsync(transaction, new FulfilOrder(kept));
     await transaction.CommitAsync();
 }
 
-// The answer of an enqueue is provisional until the commit. After a rollback its job ref names nothing.
 EnqueueJobResponse rolledBack;
-await using (var transaction = (SqliteTransaction)await connection.BeginTransactionAsync())
-{
-    await ExecuteAsync(transaction, "INSERT INTO shop_orders (order_id) VALUES (@id)", dropped);
 ```
 
 ## 2. Roll back, and neither the record nor the job exists
@@ -58,7 +54,7 @@ The lines that matter:
 
 ```csharp
 EnqueueJobResponse rolledBack;
-await using (var transaction = (SqliteTransaction)await connection.BeginTransactionAsync())
+await using (var transaction = connection.BeginTransaction())
 {
     await ExecuteAsync(transaction, "INSERT INTO shop_orders (order_id) VALUES (@id)", dropped);
     rolledBack = await jobs.EnqueueAsync(transaction, new FulfilOrder(dropped));
@@ -69,14 +65,8 @@ await using (var transaction = (SqliteTransaction)await connection.BeginTransact
 In `enqueue-in-transaction.cs` (excerpt):
 
 ```csharp
-{
-    await ExecuteAsync(transaction, "INSERT INTO shop_orders (order_id) VALUES (@id)", kept);
-    committed = await jobs.EnqueueAsync(transaction, new FulfilOrder(kept));
-    await transaction.CommitAsync();
-}
-
 EnqueueJobResponse rolledBack;
-await using (var transaction = (SqliteTransaction)await connection.BeginTransactionAsync())
+await using (var transaction = connection.BeginTransaction())
 {
     await ExecuteAsync(transaction, "INSERT INTO shop_orders (order_id) VALUES (@id)", dropped);
     rolledBack = await jobs.EnqueueAsync(transaction, new FulfilOrder(dropped));
@@ -95,8 +85,6 @@ await host.StopAsync();
 `enqueue-in-transaction.cs` (excerpt):
 
 ```csharp
-public sealed record FulfilOrder(string OrderId);
-
 public static class FulfilOrderJob
 {
     [Job("fulfil-order")]

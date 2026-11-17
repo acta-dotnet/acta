@@ -31,6 +31,8 @@ return Results.Accepted(statusUrl, new StartImportResponse(job.JobRef, job.Actio
 In `Program.cs` (excerpt):
 
 ```csharp
+// POST writes a durable job and returns 202; the import runs on the worker after the request ends.
+// DeduplicationKey dedupes a retry with the same tenant/import id onto the same job.
 app.MapPost("/imports", async (StartImportRequest request, HttpContext http, IJobs jobs, CancellationToken ct) =>
 {
     var businessKey = $"import:{request.Tenant}:{request.ImportId}";
@@ -47,11 +49,6 @@ app.MapPost("/imports", async (StartImportRequest request, HttpContext http, IJo
 
     return Results.Accepted(statusUrl, new StartImportResponse(job.JobRef, job.Action.ToString(), statusUrl, correlationKey));
 });
-
-// GET polls the public JobRef; the result is read back only once the job is terminal.
-app.MapGet("/imports/{jobRef}", async (string jobRef, IJobs jobs, CancellationToken ct) =>
-{
-    if (!JobRef.TryParse(jobRef, out var parsed))
 ```
 
 ## 2. Read the status, and the result once the job has finished
@@ -77,29 +74,22 @@ if (snapshot.Status.IsTerminal)
 In `Program.cs` (excerpt):
 
 ```csharp
+if (!JobRef.TryParse(jobRef, out var parsed))
 {
-    if (!JobRef.TryParse(jobRef, out var parsed))
-    {
-        return Results.BadRequest(new { error = "Invalid job ref." });
-    }
+    return Results.BadRequest(new { error = "Invalid job ref." });
+}
 
-    var snapshot = await jobs.GetAsync(parsed, ct);
-    if (snapshot is null)
-    {
-        return Results.NotFound();
-    }
+var snapshot = await jobs.GetAsync(parsed, ct);
+if (snapshot is null)
+{
+    return Results.NotFound();
+}
 
-    ImportResult? result = null;
-    if (snapshot.Status.IsTerminal)
-    {
-        (_, result) = await jobs.TryGetResultAsync<ImportResult>(parsed, ct);
-    }
-
-    return Results.Ok(
-        new ImportStatusResponse(
-            snapshot.JobRef,
-            snapshot.Status.ToString(),
-            snapshot.DeduplicationKey,
+ImportResult? result = null;
+if (snapshot.Status.IsTerminal)
+{
+    (_, result) = await jobs.TryGetResultAsync<ImportResult>(parsed, ct);
+}
 ```
 
 ## 3. The job it acts on
@@ -107,23 +97,6 @@ In `Program.cs` (excerpt):
 `Program.cs` (excerpt):
 
 ```csharp
-public sealed record StartImportRequest(string Tenant, string ImportId, string FileName);
-
-public sealed record StartImportResponse(JobRef JobRef, string Action, string StatusUrl, string CorrelationKey);
-
-public sealed record ImportStatusResponse(
-    JobRef JobRef,
-    string Status,
-    string? DeduplicationKey,
-    DateTime CreatedAtUtc,
-    DateTime ModifiedAtUtc,
-    ImportResult? Result
-);
-
-public sealed record ImportCsv(string Tenant, string ImportId, string FileName);
-
-public sealed record ImportResult(int RowsImported);
-
 public static class ImportCsvJob
 {
     [Job("import-csv")]

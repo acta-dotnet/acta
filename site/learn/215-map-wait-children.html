@@ -57,7 +57,7 @@
   </div>
 
 
-  <main id="content" data-howto="215">
+  <main id="content">
     <header class="wrap page-head howto-head">
       <p class="record"><a href="/learn">learn acta</a><span aria-hidden="true">/</span><a href="/learn#s-children">split work across child jobs</a></p>
       <h1>How to fan out to child jobs with Map or WaitChildren</h1>
@@ -77,26 +77,18 @@
       <article class="howto person-face">
 <div class="step"><h2><span class="step-n">1</span>Enqueue a few named children and wait for them together</h2>
 <p>Independent analyzes, none needs another's result: enqueue each, and they run at once.</p>
-<figure class="listing"><figcaption><span class="file">map-wait-children.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-1">Copy</button></figcaption><pre><code id="code-1">
-<span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> PhotoJobs
-{
-    <span class="a">[Job(<span class="s">&quot;process-photo&quot;</span>)]</span>
-    <span class="k">public</span> <span class="k">async</span> Task&lt;PhotoResult&gt; Process(ProcessPhoto photo, JobContext context, CancellationToken ct)
-    {
-<span class="hl">        <span class="k">var</span> exif = <span class="k">await</span> context.EnqueueChildAsync(<span class="s">&quot;exif&quot;</span>, <span class="k">new</span> ExtractExif(photo.AssetId, photo.SourceUrl), ct);</span>
-<span class="hl">        <span class="k">var</span> blurhash = <span class="k">await</span> context.EnqueueChildAsync(<span class="s">&quot;blurhash&quot;</span>, <span class="k">new</span> ComputeBlurhash(photo.AssetId, photo.SourceUrl), ct);</span>
-<span class="hl">        <span class="k">var</span> moderation = <span class="k">await</span> context.EnqueueChildAsync(<span class="s">&quot;moderation&quot;</span>, <span class="k">new</span> ScanModeration(photo.AssetId, photo.SourceUrl), ct);</span>
-<span class="hl">        <span class="k">var</span> analyze = <span class="k">await</span> context.WaitChildrenAsync([exif, blurhash, moderation], ct);</span>
+<figure class="listing"><figcaption><span class="file">map-wait-children.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="hl"><span class="k">var</span> exif = <span class="k">await</span> context.EnqueueChildAsync(<span class="s">&quot;exif&quot;</span>, <span class="k">new</span> ExtractExif(photo.AssetId, photo.SourceUrl), ct);</span>
+<span class="hl"><span class="k">var</span> blurhash = <span class="k">await</span> context.EnqueueChildAsync(<span class="s">&quot;blurhash&quot;</span>, <span class="k">new</span> ComputeBlurhash(photo.AssetId, photo.SourceUrl), ct);</span>
+<span class="hl"><span class="k">var</span> moderation = <span class="k">await</span> context.EnqueueChildAsync(<span class="s">&quot;moderation&quot;</span>, <span class="k">new</span> ScanModeration(photo.AssetId, photo.SourceUrl), ct);</span>
+<span class="hl"><span class="k">var</span> analyze = <span class="k">await</span> context.WaitChildrenAsync([exif, blurhash, moderation], ct);</span>
 
-        analyze.ThrowIfAnyFailed();
+analyze.ThrowIfAnyFailed();
 
-        <span class="c">// Map: one resize per width, keyed by width so replay dedupes onto the same children.</span>
-        <span class="k">int</span>[] widths = [256, 512, 1024, 2048];
-        <span class="k">var</span> resized = <span class="k">await</span> context.MapAsync(</code></pre></figure>
+<span class="k">int</span>[] widths = [256, 512, 1024, 2048];</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">2</span>Map a list onto children, one per item</h2>
 <p>Map: one resize per width, keyed by width so replay dedupes onto the same children.</p>
-<figure class="listing"><figcaption><span class="file">map-wait-children.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-2">Copy</button></figcaption><pre><code id="code-2"><span class="k">var</span> blurhash = <span class="k">await</span> context.EnqueueChildAsync(<span class="s">&quot;blurhash&quot;</span>, <span class="k">new</span> ComputeBlurhash(photo.AssetId, photo.SourceUrl), ct);
+<figure class="listing"><figcaption><span class="file">map-wait-children.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">var</span> blurhash = <span class="k">await</span> context.EnqueueChildAsync(<span class="s">&quot;blurhash&quot;</span>, <span class="k">new</span> ComputeBlurhash(photo.AssetId, photo.SourceUrl), ct);
 <span class="k">var</span> moderation = <span class="k">await</span> context.EnqueueChildAsync(<span class="s">&quot;moderation&quot;</span>, <span class="k">new</span> ScanModeration(photo.AssetId, photo.SourceUrl), ct);
 <span class="k">var</span> analyze = <span class="k">await</span> context.WaitChildrenAsync([exif, blurhash, moderation], ct);
 
@@ -111,39 +103,32 @@ analyze.ThrowIfAnyFailed();
 <span class="hl">    ct</span>
 <span class="hl">);</span>
 
-<span class="c">// Resizes are best effort: report how many landed rather than failing the photo.</span>
 <span class="k">var</span> renditionsReady = resized.Items.Count(i =&gt; i.Outcome.Succeeded);
 
 <span class="c">// Two independent side effects, enqueued and waited for the same way.</span>
-<span class="k">var</span> cdn = <span class="k">await</span> context.EnqueueChildAsync(<span class="s">&quot;publish-cdn&quot;</span>, <span class="k">new</span> PublishCdn(photo.AssetId), ct);</code></pre></figure>
+<span class="k">var</span> cdn = <span class="k">await</span> context.EnqueueChildAsync(<span class="s">&quot;publish-cdn&quot;</span>, <span class="k">new</span> PublishCdn(photo.AssetId), ct);
+<span class="k">var</span> index = <span class="k">await</span> context.EnqueueChildAsync(<span class="s">&quot;update-index&quot;</span>, <span class="k">new</span> UpdateIndex(photo.AssetId), ct);</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">3</span>Count what landed instead of failing the parent</h2>
 <p>Resizes are best effort: report how many landed rather than failing the photo.</p>
-<figure class="listing"><figcaption><span class="file">map-wait-children.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-3">Copy</button></figcaption><pre><code id="code-3">    widths,
-    itemKey: width =&gt; width,
-    child: width =&gt; <span class="k">new</span> Resize(photo.AssetId, photo.SourceUrl, width),
-    ct
-);
-
-<span class="hl"><span class="k">var</span> renditionsReady = resized.Items.Count(i =&gt; i.Outcome.Succeeded);</span>
+<figure class="listing"><figcaption><span class="file">map-wait-children.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="hl"><span class="k">var</span> renditionsReady = resized.Items.Count(i =&gt; i.Outcome.Succeeded);</span>
 
 <span class="c">// Two independent side effects, enqueued and waited for the same way.</span>
 <span class="k">var</span> cdn = <span class="k">await</span> context.EnqueueChildAsync(<span class="s">&quot;publish-cdn&quot;</span>, <span class="k">new</span> PublishCdn(photo.AssetId), ct);
 <span class="k">var</span> index = <span class="k">await</span> context.EnqueueChildAsync(<span class="s">&quot;update-index&quot;</span>, <span class="k">new</span> UpdateIndex(photo.AssetId), ct);
-<span class="k">var</span> published = <span class="k">await</span> context.WaitChildrenAsync([cdn, index], ct);
-</code></pre></figure>
+<span class="k">var</span> published = <span class="k">await</span> context.WaitChildrenAsync([cdn, index], ct);</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">4</span>Run it and check the output</h2>
 <p>From a clone of <a href="https://github.com/acta-dotnet/acta">the Acta repository</a>, with the .NET 10 SDK:</p>
-<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-4">Copy</button></figcaption><pre><code id="code-4">dotnet run --project concepts/200-durable-execution/215-map-wait-children</code></pre></figure>
-<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button" data-copy-target="#code-5">Copy</button></figcaption><pre><code id="code-5">photo asset-42: 4 renditions ready, published=True</code></pre></figure>
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project concepts/200-durable-execution/215-map-wait-children</code></pre></figure>
+<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button">Copy</button></figcaption><pre><code>photo asset-42: 4 renditions ready, published=True</code></pre></figure>
 <p class="proof checked"><b>Checked every release.</b> Before each release, Acta Verify runs this program and checks that its output contains these lines.</p>
 </div>
 <div class="step plain-step"><h2>Remember</h2><ul class="rules"><li>A child's name on the job reads is its <code>DeduplicationKey</code>: the call's name for <code>EnqueueChildAsync</code>, <code>{map}/{key}</code> for a map's child.</li><li>A group waits for every child. It never fails fast and never cancels siblings.</li><li>The parent wakes only when the child it is waiting on lands, so it can run several times before the group is done. Keep the work before the wait in a step.</li></ul></div>
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/concepts/200-durable-execution/215-map-wait-children"><code>concepts/200-durable-execution/215-map-wait-children</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">map-wait-children.cs</span><span class="file-size">135 lines</span></summary><figure class="listing"><figcaption><span class="file">map-wait-children.cs</span><button class="copy" type="button" data-copy-target="#code-6">Copy</button></figcaption><pre><code id="code-6"><span class="c">// How to fan out to child jobs with Map or WaitChildren</span>
+<details class="source-file"><summary><span class="file-name">map-wait-children.cs</span><span class="file-size">135 lines</span></summary><figure class="listing"><figcaption><span class="file">map-wait-children.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to fan out to child jobs with Map or WaitChildren</span>
 <span class="c">// Two ways to fan out: `EnqueueChildAsync` with `WaitChildrenAsync` for a few named children, and `MapAsync` for one</span>
 <span class="c">// child per item of a list.</span>
 <span class="k">using</span> Acta;
@@ -277,11 +262,12 @@ Console.WriteLine(<span class="s">$&quot;photo {result.AssetId}: {result.Renditi
             Console.WriteLine(<span class="s">$&quot;search index updated for {request.AssetId}&quot;</span>);
         }
     }
-}</code></pre></figure></details></div>
+}</code></pre></figure>
+</details></div>
 <div class="step plain-step"><h2>Where to go next</h2><ul class="next-links"><li><a href="/learn/222-find-child-job">How to find the child job that handles one item</a><span>Split work across child jobs</span></li></ul></div>
       </article>
       <article class="agent-face" hidden>
-        <figure class="listing agent"><figcaption><span class="file">/learn/215-map-wait-children.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/215-map-wait-children.md">Open</a><button class="copy" type="button" data-copy-target="#md-body">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
+        <figure class="listing agent"><figcaption><span class="file">/learn/215-map-wait-children.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/215-map-wait-children.md">Open</a><button class="copy" type="button">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
         <p class="hint">This is the page an agent receives: the same how-to as plain Markdown, at this page's address with <code>.md</code> added.</p>
       </article>
       <aside class="howto-rail" aria-label="This section">

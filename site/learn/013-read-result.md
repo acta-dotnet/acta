@@ -24,6 +24,8 @@ Console.WriteLine($"right away:        {(early.Found ? early.Value!.Sum.ToString
 In `read-result.cs` (excerpt):
 
 ```csharp
+await host.StartAsync();
+
 var jobs = host.Services.GetRequiredService<IJobs>();
 
 var handle = await jobs.EnqueueAsync(new AddNumbers(20, 22));
@@ -33,7 +35,6 @@ Console.WriteLine($"right away:        {(early.Found ? early.Value!.Sum.ToString
 
 await handle.WaitAsync();
 
-// `GetResultAsync` returns the result, and throws when there is none.
 var done = await handle.GetResultAsync<AddNumbersResult>();
 Console.WriteLine($"after it finishes: {done.Sum}");
 ```
@@ -52,11 +53,6 @@ Console.WriteLine($"after it finishes: {done.Sum}");
 In `read-result.cs` (excerpt):
 
 ```csharp
-var jobs = host.Services.GetRequiredService<IJobs>();
-
-var handle = await jobs.EnqueueAsync(new AddNumbers(20, 22));
-
-// Both reads are point-in-time and never wait. `TryGetResultAsync` says whether a result exists yet.
 var early = await handle.TryGetResultAsync<AddNumbersResult>();
 Console.WriteLine($"right away:        {(early.Found ? early.Value!.Sum.ToString() : "no result yet")}");
 
@@ -64,6 +60,8 @@ await handle.WaitAsync();
 
 var done = await handle.GetResultAsync<AddNumbersResult>();
 Console.WriteLine($"after it finishes: {done.Sum}");
+
+await host.StopAsync();
 ```
 
 ## 3. The job it acts on
@@ -71,10 +69,6 @@ Console.WriteLine($"after it finishes: {done.Sum}");
 `read-result.cs` (excerpt):
 
 ```csharp
-public sealed record AddNumbers(int Left, int Right);
-
-public sealed record AddNumbersResult(int Sum);
-
 public static class AddNumbersJob
 {
     [Job("add-numbers")]

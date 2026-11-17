@@ -23,8 +23,6 @@ The lines that matter:
 In `interval-schedule.cs` (excerpt):
 
 ```csharp
-public readonly record struct Heartbeat;
-
 public sealed class HeartbeatJob
 {
     [Job("heartbeat")]

@@ -23,17 +23,6 @@ The lines that matter:
 In `event-recording.cs` (excerpt):
 
 ```csharp
-public sealed record AuditWork(string Id);
-
-public sealed record FailuresWork(string Id);
-
-public static class AuditWorkJob
-{
-    // Audit (default): a finished event is written for every execution.
-    [Job("audit-work", EventRecording = EventRecordingCode.Audit)]
-    public static void Handle(AuditWork input) => Console.WriteLine($"[{input.Id}] running at Audit level");
-}
-
 public static class FailuresWorkJob
 {
     [Job("failures-work", EventRecording = EventRecordingCode.Failures)]

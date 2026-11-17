@@ -23,19 +23,18 @@ var page1 = await queries.Ledger.ListJobsAsync(new ListJobsQuery(JobNamespace: "
 In `operator-queries.cs` (excerpt):
 
 ```csharp
-
 // Allow the worker to process the others.
 await Task.Delay(800);
 
 Console.WriteLine("=== ListJobsAsync (namespace filter, page size 3) ===");
 
 var page1 = await queries.Ledger.ListJobsAsync(new ListJobsQuery(JobNamespace: "operator-queries", PageSize: 3, IncludeTotal: true));
-
 Console.WriteLine($"Page 1: {page1.Items.Count} items, total={page1.TotalCount}, hasMore={page1.HasMore}");
 foreach (var item in page1.Items)
     Console.WriteLine($"  {item.JobRef} [{item.JobName}] status={item.Status}");
 
 // ListJobsAsync with a status filter.
+Console.WriteLine("=== ListJobsAsync (status=Cancelled filter) ===");
 ```
 
 ## 2. Fetch the next page by its cursor
@@ -53,8 +52,6 @@ var page2 = await queries.Ledger.ListJobsAsync(
 In `operator-queries.cs` (excerpt):
 
 ```csharp
-    Console.WriteLine($"  {item.JobRef} [{item.JobName}] status={item.Status}");
-
 // ListJobsAsync keyset paging: fetch the second page via NextCursor.
 Console.WriteLine("=== Keyset paging: second page via NextCursor ===");
 if (page1.HasMore && page1.NextCursor is not null)
@@ -68,6 +65,8 @@ if (page1.HasMore && page1.NextCursor is not null)
 }
 else
 {
+    Console.WriteLine("(All jobs fit on one page - NextCursor was null.)");
+}
 ```
 
 ## 3. Read the health counters
@@ -83,16 +82,16 @@ var overview = await operations.Ledger.GetOverviewAsync(new GetOverviewQuery());
 In `operator-queries.cs` (excerpt):
 
 ```csharp
-Console.WriteLine("=== IncludeTotal: total across namespace ===");
 var withTotal = await queries.Ledger.ListJobsAsync(new ListJobsQuery(JobNamespace: "operator-queries", PageSize: 1, IncludeTotal: true));
 Console.WriteLine($"TotalCount across namespace: {withTotal.TotalCount}");
 
 Console.WriteLine("=== GetOverviewAsync (system-wide) ===");
 
 var overview = await operations.Ledger.GetOverviewAsync(new GetOverviewQuery());
-
 Console.WriteLine($"Ready={overview.ReadyCount} Executing={overview.ExecutingCount} Failed={overview.FailedCount}");
 Console.WriteLine($"UnresolvedAlerts={overview.UnresolvedAlertCount} DeadWorkers={overview.DeadWorkerCount}");
+
+await host.StopAsync();
 ```
 
 ## 4. The job it acts on
@@ -100,20 +99,10 @@ Console.WriteLine($"UnresolvedAlerts={overview.UnresolvedAlertCount} DeadWorkers
 `operator-queries.cs` (excerpt):
 
 ```csharp
-public sealed record GenerateReport(string ReportId);
-
-public sealed record SendNotification(string NotificationId);
-
 public static class ReportJob
 {
     [Job("generate-report")]
     public static void Handle(GenerateReport input) => Console.WriteLine($"[{input.ReportId}] report generated");
-}
-
-public static class NotificationJob
-{
-    [Job("send-notification")]
-    public static void Handle(SendNotification input) => Console.WriteLine($"[{input.NotificationId}] notification sent");
 }
 ```
 

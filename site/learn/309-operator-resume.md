@@ -23,45 +23,16 @@ var pauseResult = await jobs.PauseAsync(handle, "review window");
 In `operator-resume.cs` (excerpt):
 
 ```csharp
-var jobs = host.Services.GetRequiredService<IJobs>();
-var queries = host.Services.GetRequiredService<IActaOperations>();
-
 // Enqueue with a 5-second delay so the job sits in a schedulable state and the pause lands before
 // the worker can claim it. The delay is resolved on the database clock (db_now + 5s).
 var handle = await jobs.ScheduleAsync(new ProcessReport("q3-summary"), TimeSpan.FromSeconds(5));
 Console.WriteLine($"Enqueued job {handle.JobRef} with a 5-second delay.");
 
 var pauseResult = await jobs.PauseAsync(handle, "review window");
-
 Console.WriteLine($"PauseAsync -> action={pauseResult.Action} status={pauseResult.Status}");
 
-// A resume moves the Paused job back to Ready at the due time it kept, so the worker claims it once the
-// 5-second delay is up.
 var resumeResult = await jobs.ResumeAsync(handle, "review complete");
-
 Console.WriteLine($"ResumeAsync -> action={resumeResult.Action} status={resumeResult.Status}");
-
-// Poll until the worker finishes the job (terminal status).
-JobStatusCode? status;
-do
-{
-    await Task.Delay(300);
-    status = (await jobs.GetStatusAsync(handle))?.Status;
-} while (status is not null && !status.Value.IsTerminal);
-
-Console.WriteLine($"Job finished with status={status}");
-
-// A pause of a terminal (Succeeded) job is Rejected, because terminal jobs cannot be paused.
-var rejectedResult = await jobs.PauseAsync(handle, "too late");
-Console.WriteLine($"PauseAsync on terminal -> action={rejectedResult.Action} blocking-status={rejectedResult.Status}");
-
-// Read the event timeline to confirm the pause and resume events with their message and details.
-var events = await queries.Ledger.ListEventsAsync(new ListEventsQuery(Job: handle));
-foreach (var ev in events.Items)
-{
-    if (ev.EventCode is EventCode.JobPaused or EventCode.JobResumed)
-        Console.WriteLine($"  event={ev.EventCode} message={ev.Message ?? "(none)"} details={ev.DetailsText ?? "(none)"}");
-}
 ```
 
 ## 2. Resume it
@@ -77,44 +48,16 @@ var resumeResult = await jobs.ResumeAsync(handle, "review complete");
 In `operator-resume.cs` (excerpt):
 
 ```csharp
-var jobs = host.Services.GetRequiredService<IJobs>();
-var queries = host.Services.GetRequiredService<IActaOperations>();
-
-// Enqueue with a 5-second delay so the job sits in a schedulable state and the pause lands before
-// the worker can claim it. The delay is resolved on the database clock (db_now + 5s).
-var handle = await jobs.ScheduleAsync(new ProcessReport("q3-summary"), TimeSpan.FromSeconds(5));
 Console.WriteLine($"Enqueued job {handle.JobRef} with a 5-second delay.");
 
-// The job is not yet claimable (delayed), so the transition is Applied.
 var pauseResult = await jobs.PauseAsync(handle, "review window");
-
 Console.WriteLine($"PauseAsync -> action={pauseResult.Action} status={pauseResult.Status}");
 
 var resumeResult = await jobs.ResumeAsync(handle, "review complete");
-
 Console.WriteLine($"ResumeAsync -> action={resumeResult.Action} status={resumeResult.Status}");
 
 // Poll until the worker finishes the job (terminal status).
 JobStatusCode? status;
-do
-{
-    await Task.Delay(300);
-    status = (await jobs.GetStatusAsync(handle))?.Status;
-} while (status is not null && !status.Value.IsTerminal);
-
-Console.WriteLine($"Job finished with status={status}");
-
-// A pause of a terminal (Succeeded) job is Rejected, because terminal jobs cannot be paused.
-var rejectedResult = await jobs.PauseAsync(handle, "too late");
-Console.WriteLine($"PauseAsync on terminal -> action={rejectedResult.Action} blocking-status={rejectedResult.Status}");
-
-// Read the event timeline to confirm the pause and resume events with their message and details.
-var events = await queries.Ledger.ListEventsAsync(new ListEventsQuery(Job: handle));
-foreach (var ev in events.Items)
-{
-    if (ev.EventCode is EventCode.JobPaused or EventCode.JobResumed)
-        Console.WriteLine($"  event={ev.EventCode} message={ev.Message ?? "(none)"} details={ev.DetailsText ?? "(none)"}");
-}
 ```
 
 ## 3. Read the answer: a finished job refuses
@@ -131,33 +74,6 @@ Console.WriteLine($"PauseAsync on terminal -> action={rejectedResult.Action} blo
 In `operator-resume.cs` (excerpt):
 
 ```csharp
-var jobs = host.Services.GetRequiredService<IJobs>();
-var queries = host.Services.GetRequiredService<IActaOperations>();
-
-// Enqueue with a 5-second delay so the job sits in a schedulable state and the pause lands before
-// the worker can claim it. The delay is resolved on the database clock (db_now + 5s).
-var handle = await jobs.ScheduleAsync(new ProcessReport("q3-summary"), TimeSpan.FromSeconds(5));
-Console.WriteLine($"Enqueued job {handle.JobRef} with a 5-second delay.");
-
-// The job is not yet claimable (delayed), so the transition is Applied.
-var pauseResult = await jobs.PauseAsync(handle, "review window");
-
-Console.WriteLine($"PauseAsync -> action={pauseResult.Action} status={pauseResult.Status}");
-
-// A resume moves the Paused job back to Ready at the due time it kept, so the worker claims it once the
-// 5-second delay is up.
-var resumeResult = await jobs.ResumeAsync(handle, "review complete");
-
-Console.WriteLine($"ResumeAsync -> action={resumeResult.Action} status={resumeResult.Status}");
-
-// Poll until the worker finishes the job (terminal status).
-JobStatusCode? status;
-do
-{
-    await Task.Delay(300);
-    status = (await jobs.GetStatusAsync(handle))?.Status;
-} while (status is not null && !status.Value.IsTerminal);
-
 Console.WriteLine($"Job finished with status={status}");
 
 var rejectedResult = await jobs.PauseAsync(handle, "too late");
@@ -165,11 +81,6 @@ Console.WriteLine($"PauseAsync on terminal -> action={rejectedResult.Action} blo
 
 // Read the event timeline to confirm the pause and resume events with their message and details.
 var events = await queries.Ledger.ListEventsAsync(new ListEventsQuery(Job: handle));
-foreach (var ev in events.Items)
-{
-    if (ev.EventCode is EventCode.JobPaused or EventCode.JobResumed)
-        Console.WriteLine($"  event={ev.EventCode} message={ev.Message ?? "(none)"} details={ev.DetailsText ?? "(none)"}");
-}
 ```
 
 ## 4. The job it acts on
@@ -177,8 +88,6 @@ foreach (var ev in events.Items)
 `operator-resume.cs` (excerpt):
 
 ```csharp
-public sealed record ProcessReport(string Name);
-
 public sealed class ProcessReportJob
 {
     [Job("process-report")]

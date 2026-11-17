@@ -29,12 +29,6 @@ builder.Services.AddAuthorization(options =>
 In `dashboard-sign-in.cs` (excerpt):
 
 ```csharp
-    {
-        cookie.LoginPath = "/sign-in";
-        cookie.ExpireTimeSpan = TimeSpan.FromMinutes(2);
-        cookie.SlidingExpiration = false;
-    });
-
 builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy(ActaPermissions.Read, policy => policy.RequireRole("Reader", "Operator", "Admin"));
@@ -42,12 +36,12 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy(ActaPermissions.Control, policy => policy.RequireRole("Operator", "Admin"));
     options.AddPolicy(ActaPermissions.Admin, policy => policy.RequireRole("Admin"));
 });
-
 builder.Services.AddAntiforgery();
 
 var app = builder.Build();
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseAntiforgery();
 ```
 
 ## 2. Require the permissions on the dashboard
@@ -66,12 +60,6 @@ app.MapActa("/acta", options =>
 In `dashboard-sign-in.cs` (excerpt):
 
 ```csharp
-    }
-
-    await http.SignOutAsync();
-    return Results.Redirect("/sign-in");
-});
-
 app.MapActa("/acta", options =>
 {
     options.EnableControls = true;
@@ -79,6 +67,9 @@ app.MapActa("/acta", options =>
 });
 
 await app.StartAsync();
+
+var jobs = app.Services.GetRequiredService<IJobs>();
+var namespaces = app.Services.GetRequiredService<INamespaces>();
 ```
 
 ## 3. The job it acts on
@@ -86,8 +77,6 @@ await app.StartAsync();
 `dashboard-sign-in.cs` (excerpt):
 
 ```csharp
-public sealed record SampleTask(string Id);
-
 public static class SampleTaskJob
 {
     [Job("sample-task")]

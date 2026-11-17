@@ -57,14 +57,14 @@
   </div>
 
 
-  <main id="content" data-howto="022">
+  <main id="content">
     <header class="wrap page-head howto-head">
       <p class="record"><a href="/learn">learn acta</a><span aria-hidden="true">/</span><a href="/learn#s-operate">watch and control running work</a></p>
       <h1>How to see your jobs in the dashboard</h1>
       <p class="lede"><code>MapActa</code> serves the dashboard and its JSON API from your own app. Its controls are off until you turn them on.</p>
       <p class="howto-context">A how-to for Acta, durable execution for .NET. <a href="/start">New to Acta? Run your first durable job in five minutes.</a></p>
       <div class="howto-meta">
-        <span class="status checked">Checked every release</span><span class="mark lab">Lab</span>
+        <span class="status checked">Checked every release</span><span class="mark">Lab</span>
         <a class="program" href="https://github.com/acta-dotnet/acta/tree/main/concepts/000-fundamentals/022-dashboard"><code>concepts/000-fundamentals/022-dashboard</code></a>
         <div class="reader" role="group" aria-label="Read this page as">
         <span class="reader-label">Read as</span>
@@ -77,16 +77,7 @@
       <article class="howto person-face">
 <div class="step"><h2><span class="step-n">1</span>Map the dashboard into your app</h2>
 <p><code>MapActa</code> adds the dashboard and its JSON API under the path you give. By default it answers local requests only, and its controls (pause, resume, cancel, restart) stay disabled until <code>EnableControls</code> is set.</p>
-<figure class="listing"><figcaption><span class="file">Program.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-1">Copy</button></figcaption><pre><code id="code-1"><span class="k">var</span> builder = WebApplication.CreateBuilder(args);
-<span class="k">var</span> lab = <span class="k">new</span> ConceptLab(builder.Configuration, args);
-
-builder.Services.UseActa(j =&gt;
-{
-    j.UseLocalDatabase(builder.Configuration);
-    j.Run&lt;DashboardSampleJobs&gt;(<span class="s">&quot;dashboard-sample&quot;</span>);
-});
-
-<span class="c">// The failed/retrying rows are intentional fixtures; preserve their evidence without startup stack-trace noise.</span>
+<figure class="listing"><figcaption><span class="file">Program.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// The failed/retrying rows are intentional fixtures; preserve their evidence without startup stack-trace noise.</span>
 builder.Logging.AddFilter(<span class="s">&quot;Acta&quot;</span>, LogLevel.Error);
 
 <span class="k">var</span> app = builder.Build();
@@ -94,24 +85,14 @@ builder.Logging.AddFilter(<span class="s">&quot;Acta&quot;</span>, LogLevel.Erro
 <span class="hl"><span class="k">var</span> enableControls = builder.Configuration.GetValue&lt;<span class="k">bool</span>&gt;(<span class="s">&quot;Acta:Dashboard:EnableControls&quot;</span>);</span>
 <span class="hl">app.MapActa(<span class="s">&quot;/acta&quot;</span>, options =&gt; options.EnableControls = enableControls);</span>
 
-<span class="k">await</span> app.StartAsync();</code></pre></figure>
+<span class="k">await</span> app.StartAsync();
+
+<span class="k">var</span> jobs = app.Services.GetRequiredService&lt;IJobs&gt;();
+<span class="k">var</span> successful = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> GreetVisitor(<span class="s">&quot;successful-visitor&quot;</span>));
+<span class="k">var</span> failed = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> BrokenImport(<span class="s">&quot;broken.csv&quot;</span>));</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">2</span>The job it acts on</h2>
-<figure class="listing"><figcaption><span class="file">Program.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-2">Copy</button></figcaption><pre><code id="code-2"><span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> GreetVisitor(<span class="k">string</span> Name);
-
-<span class="k">public</span> <span class="k">readonly</span> <span class="k">record</span> <span class="k">struct</span> HeartbeatTick;
-
-<span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> BrokenImport(<span class="k">string</span> FileName);
-
-<span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> RetryImport(<span class="k">string</span> FileName);
-
-<span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> AwaitApproval(<span class="k">string</span> InvoiceId);
-
-<span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> BuildPreview(<span class="k">string</span> CatalogId);
-
-<span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> RenderThumbnail(<span class="k">string</span> CatalogId);
-
-<span class="k">public</span> <span class="k">static</span> <span class="k">class</span> GreetVisitorJob
+<figure class="listing"><figcaption><span class="file">Program.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">static</span> <span class="k">class</span> GreetVisitorJob
 {
     <span class="a">[Job(<span class="s">&quot;greet-visitor&quot;</span>)]</span>
     <span class="k">public</span> <span class="k">static</span> <span class="k">async</span> Task&lt;<span class="k">string</span>&gt; Handle(GreetVisitor input, CancellationToken ct)
@@ -119,57 +100,12 @@ builder.Logging.AddFilter(<span class="s">&quot;Acta&quot;</span>, LogLevel.Erro
         <span class="k">await</span> Task.Delay(200, ct);
         <span class="k">return</span> <span class="s">$&quot;Hello, {input.Name}!&quot;</span>;
     }
-}
-
-<span class="k">public</span> <span class="k">static</span> <span class="k">class</span> BrokenImportJob
-{
-    <span class="a">[Job(<span class="s">&quot;broken-import&quot;</span>, MaxAttempts = 1)]</span>
-    <span class="k">public</span> <span class="k">static</span> Task Handle(BrokenImport input) =&gt; <span class="k">throw</span> <span class="k">new</span> InvalidDataException(<span class="s">$&quot;{input.FileName}: invalid header&quot;</span>);
-}
-
-<span class="k">public</span> <span class="k">static</span> <span class="k">class</span> RetryImportJob
-{
-    <span class="a">[Job(<span class="s">&quot;retry-import&quot;</span>, MaxAttempts = 5, Backoff = <span class="s">&quot;30s&quot;</span>)]</span>
-    <span class="k">public</span> <span class="k">static</span> Task Handle(RetryImport input) =&gt; <span class="k">throw</span> <span class="k">new</span> IOException(<span class="s">$&quot;{input.FileName}: upstream unavailable&quot;</span>);
-}
-
-<span class="k">public</span> <span class="k">static</span> <span class="k">class</span> AwaitApprovalJob
-{
-    <span class="a">[Job(<span class="s">&quot;await-approval&quot;</span>)]</span>
-    <span class="k">public</span> <span class="k">static</span> <span class="k">async</span> Task Handle(AwaitApproval input, JobContext context, CancellationToken ct)
-    {
-        Console.WriteLine(<span class="s">$&quot;[{input.InvoiceId}] waiting for approval&quot;</span>);
-        <span class="k">await</span> context.WaitSignalAsync(<span class="s">&quot;approval&quot;</span>, ct);
-    }
-}
-
-<span class="k">public</span> <span class="k">static</span> <span class="k">class</span> PreviewJob
-{
-    <span class="a">[Job(<span class="s">&quot;build-preview&quot;</span>)]</span>
-    <span class="k">public</span> <span class="k">static</span> <span class="k">async</span> Task Handle(BuildPreview input, JobContext context, CancellationToken ct)
-    {
-        <span class="k">await</span> context.CallChildAsync(<span class="s">&quot;thumbnail&quot;</span>, <span class="k">new</span> RenderThumbnail(input.CatalogId), ct);
-    }
-
-    <span class="a">[Job(<span class="s">&quot;render-thumbnail&quot;</span>)]</span>
-    <span class="k">public</span> <span class="k">static</span> <span class="k">async</span> Task Handle(RenderThumbnail input, CancellationToken ct)
-    {
-        <span class="k">await</span> Task.Delay(4000, ct);
-        Console.WriteLine(<span class="s">$&quot;[{input.CatalogId}] thumbnail rendered&quot;</span>);
-    }
-}
-
-<span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> HeartbeatJob
-{
-    <span class="a">[Job(<span class="s">&quot;heartbeat&quot;</span>)]</span>
-    <span class="a">[Schedule(<span class="s">&quot;every-15-seconds&quot;</span>, Cron.Every15Seconds)]</span>
-    <span class="k">public</span> Task Handle(HeartbeatTick input) =&gt; Task.Delay(50);
 }</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">3</span>Run it and check the output</h2>
 <p>From a clone of <a href="https://github.com/acta-dotnet/acta">the Acta repository</a>, with the .NET 10 SDK:</p>
-<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-3">Copy</button></figcaption><pre><code id="code-3">dotnet run --project concepts/000-fundamentals/022-dashboard</code></pre></figure>
-<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button" data-copy-target="#code-4">Copy</button></figcaption><pre><code id="code-4">[invoice-42] waiting for approval
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project concepts/000-fundamentals/022-dashboard</code></pre></figure>
+<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button">Copy</button></figcaption><pre><code>[invoice-42] waiting for approval
 Seeded success, failure, retry, signal, recurring, parent, and child states for inspection.
 Dashboard: http://127.0.0.1:</code></pre></figure>
 <p class="proof checked"><b>Checked every release.</b> Before each release, Acta Verify runs this program and checks that its output contains these lines.</p>
@@ -186,9 +122,9 @@ Dashboard: http://127.0.0.1:</code></pre></figure>
 <h3>Trade-offs</h3>
 <p>Embedding ties dashboard lifecycle and resource use to the host. It is not a substitute for centralized authentication, authorization, network policy, or fleet-wide aggregation. Enabling controls expands the application's operational attack surface.</p>
 <h3>Run the experiment</h3>
-<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-5">Copy</button></figcaption><pre><code id="code-5">dotnet run --project concepts/000-fundamentals/022-dashboard</code></pre></figure>
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project concepts/000-fundamentals/022-dashboard</code></pre></figure>
 <p>Then opt in locally and compare:</p>
-<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-6">Copy</button></figcaption><pre><code id="code-6">Acta__Dashboard__EnableControls=true dotnet run --project concepts/000-fundamentals/022-dashboard</code></pre></figure>
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>Acta__Dashboard__EnableControls=true dotnet run --project concepts/000-fundamentals/022-dashboard</code></pre></figure>
 <p>In PowerShell, set <code>$env:Acta__Dashboard__EnableControls='true'</code> first.</p>
 <h3>Rows to inspect</h3>
 <p>Run with <code>--all-columns</code> to execute the visible <code>SELECT *</code> Explore query first. The default Notice queries select the fields that prove the lesson, and the text below explains their meaning.</p>
@@ -203,7 +139,7 @@ Dashboard: http://127.0.0.1:</code></pre></figure>
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/concepts/000-fundamentals/022-dashboard"><code>concepts/000-fundamentals/022-dashboard</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> and <code>ConceptLab</code> are helpers of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">Program.cs</span><span class="file-size">157 lines</span></summary><figure class="listing"><figcaption><span class="file">Program.cs</span><button class="copy" type="button" data-copy-target="#code-7">Copy</button></figcaption><pre><code id="code-7"><span class="c">// How to see your jobs in the dashboard</span>
+<details class="source-file"><summary><span class="file-name">Program.cs</span><span class="file-size">157 lines</span></summary><figure class="listing"><figcaption><span class="file">Program.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to see your jobs in the dashboard</span>
 <span class="c">// `MapActa` serves the dashboard and its JSON API from your own app. Its controls are off until you turn them on.</span>
 <span class="k">using</span> Acta;
 <span class="k">using</span> Acta.Concepts.DashboardSample;
@@ -359,11 +295,12 @@ Console.WriteLine(<span class="s">&quot;Press Ctrl+C to stop.&quot;</span>);
         <span class="a">[Schedule(<span class="s">&quot;every-15-seconds&quot;</span>, Cron.Every15Seconds)]</span>
         <span class="k">public</span> Task Handle(HeartbeatTick input) =&gt; Task.Delay(50);
     }
-}</code></pre></figure></details></div>
+}</code></pre></figure>
+</details></div>
 <div class="step plain-step"><h2>Where to go next</h2><ul class="next-links"><li><a href="/learn/415-own-status-page">How to show where each job is on your own page</a><span>Watch and control running work</span></li></ul></div>
       </article>
       <article class="agent-face" hidden>
-        <figure class="listing agent"><figcaption><span class="file">/learn/022-dashboard.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/022-dashboard.md">Open</a><button class="copy" type="button" data-copy-target="#md-body">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
+        <figure class="listing agent"><figcaption><span class="file">/learn/022-dashboard.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/022-dashboard.md">Open</a><button class="copy" type="button">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
         <p class="hint">This is the page an agent receives: the same how-to as plain Markdown, at this page's address with <code>.md</code> added.</p>
       </article>
       <aside class="howto-rail" aria-label="This section">

@@ -23,16 +23,18 @@ var acmeId = (await operations.Tenants.RegisterAsync("acme", "Acme GmbH", "Activ
 In `tenant-scope.cs` (excerpt):
 
 ```csharp
+using var host = builder.Build();
+await host.StartAsync();
 var jobs = host.Services.GetRequiredService<IJobs>();
 var operations = host.Services.GetRequiredService<IActaOperations>();
 
 var acmeId = (await operations.Tenants.RegisterAsync("acme", "Acme GmbH", "Active customer used by the lab")).TenantId;
-
 await operations.Tenants.RegisterAsync("held-customer", "Held customer");
 await operations.Tenants.SuspendAsync("held-customer", "Held for the lab's rejection demo");
 
 var runId = $"tenant-scope-{Guid.CreateVersion7():N}";
 
+var parent = await jobs.EnqueueAsync(new ExportAccount("acme"), options => options.TenantName("acme").CorrelationKey(runId));
 ```
 
 ## 2. Name the tenant when you enqueue
@@ -46,14 +48,13 @@ var parent = await jobs.EnqueueAsync(new ExportAccount("acme"), options => optio
 In `tenant-scope.cs` (excerpt):
 
 ```csharp
-
+var acmeId = (await operations.Tenants.RegisterAsync("acme", "Acme GmbH", "Active customer used by the lab")).TenantId;
 await operations.Tenants.RegisterAsync("held-customer", "Held customer");
 await operations.Tenants.SuspendAsync("held-customer", "Held for the lab's rejection demo");
 
 var runId = $"tenant-scope-{Guid.CreateVersion7():N}";
 
 var parent = await jobs.EnqueueAsync(new ExportAccount("acme"), options => options.TenantName("acme").CorrelationKey(runId));
-
 var parentTerminal = await WaitForAsync(jobs, parent.JobId, static snapshot => snapshot.Status.IsTerminal, "tenant parent to finish");
 if (parentTerminal.Status != JobStatusCode.Succeeded)
 {
@@ -85,12 +86,9 @@ if (parentTerminal.Status != JobStatusCode.Succeeded)
 var byTenant = await operations.Ledger.ListJobsAsync(
     new ListJobsQuery(JobNamespace: jobNamespace, TenantId: acmeId, CorrelationKey: runId, IncludeTotal: true)
 );
-
 Console.WriteLine(
     $"Ledger tenant + correlation filter returned {byTenant.TotalCount} current-run Acme job(s): parent and inherited child."
 );
-
-foreach (var rejectedKey in new[] { "missing-customer", "held-customer" })
 ```
 
 ## 4. The job it acts on
@@ -98,12 +96,6 @@ foreach (var rejectedKey in new[] { "missing-customer", "held-customer" })
 `tenant-scope.cs` (excerpt):
 
 ```csharp
-public sealed record ExportAccount(string TenantName);
-
-public sealed record WriteExport(string TenantName);
-
-public sealed record TenantLifecycleProbe(string TenantName);
-
 public static class ExportAccountJob
 {
     [Job("export-account")]

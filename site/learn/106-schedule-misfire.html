@@ -57,14 +57,14 @@
   </div>
 
 
-  <main id="content" data-howto="106">
+  <main id="content">
     <header class="wrap page-head howto-head">
       <p class="record"><a href="/learn">learn acta</a><span aria-hidden="true">/</span><a href="/learn#s-schedule">run work on a schedule</a></p>
       <h1>How to decide what happens to runs a schedule missed</h1>
       <p class="lede">Missed occurrences are a business decision. Three schedules miss the same stretch while paused, and each one's misfire policy decides it differently: <code>Skip</code> runs at most the latest, <code>CatchUpOnce</code> runs one firing that covers them all, <code>CatchUpAll</code> runs every one in order.</p>
       <p class="howto-context">A how-to for Acta, durable execution for .NET. <a href="/start">New to Acta? Run your first durable job in five minutes.</a></p>
       <div class="howto-meta">
-        <span class="status checked">Checked every release</span><span class="mark lab">Lab</span>
+        <span class="status checked">Checked every release</span><span class="mark">Lab</span>
         <a class="program" href="https://github.com/acta-dotnet/acta/tree/main/concepts/100-scheduling/106-schedule-misfire"><code>concepts/100-scheduling/106-schedule-misfire</code></a>
         <div class="reader" role="group" aria-label="Read this page as">
         <span class="reader-label">Read as</span>
@@ -77,29 +77,7 @@
       <article class="howto person-face">
 <div class="step"><h2><span class="step-n">1</span>Choose the misfire strategy on the schedule</h2>
 <p><code>MisfireStrategy</code> says what the next admission pass does with the occurrences that came due while the schedule could not fire.</p>
-<figure class="listing"><figcaption><span class="file">schedule-misfire.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-1">Copy</button></figcaption><pre><code id="code-1"><span class="c">/// &lt;summary&gt;The occurrences each job's firings stood for, as the handler read them from its context.&lt;/summary&gt;</span>
-<span class="k">public</span> <span class="k">static</span> <span class="k">class</span> Firings
-{
-    <span class="k">private</span> <span class="k">static</span> <span class="k">readonly</span> ConcurrentQueue&lt;(<span class="k">string</span> Job, DateTime Occurrence, DateTime CoveredThrough)&gt; Seen = <span class="k">new</span>();
-
-    <span class="k">public</span> <span class="k">static</span> <span class="k">void</span> Record(JobContext ctx)
-    {
-        <span class="c">// A catch-up firing can cover a stretch: each triggering schedule gives its occurrence and the instant it</span>
-        <span class="c">// covers through.</span>
-        <span class="k">foreach</span> (<span class="k">var</span> schedule <span class="k">in</span> ctx.TriggeringSchedules)
-        {
-            Seen.Enqueue((ctx.JobName, schedule.OccurrenceAtUtc, schedule.CoveredThroughUtc));
-        }
-    }
-
-    <span class="k">public</span> <span class="k">static</span> <span class="k">void</span> Clear() =&gt; Seen.Clear();
-
-    <span class="c">/// &lt;summary&gt;The job's firings for occurrences at or before &lt;paramref name=&quot;through&quot;/&gt;, in the order they ran.&lt;/summary&gt;</span>
-    <span class="k">public</span> <span class="k">static</span> IReadOnlyList&lt;(DateTime Occurrence, DateTime CoveredThrough)&gt; Of(<span class="k">string</span> job, DateTime through) =&gt;
-        Seen.Where(f =&gt; f.Job == job &amp;&amp; f.Occurrence &lt;= through).Select(f =&gt; (f.Occurrence, f.CoveredThrough)).ToList();
-}
-
-<span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> MisfireJobs
+<figure class="listing"><figcaption><span class="file">schedule-misfire.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> MisfireJobs
 {
 <span class="hl">    <span class="a">[Job(<span class="s">&quot;skip-report&quot;</span>)]</span></span>
 <span class="hl">    <span class="a">[Schedule(<span class="s">&quot;every-second&quot;</span>, <span class="s">&quot;PT1S&quot;</span>, MisfireStrategy = MisfireStrategyCode.Skip)]</span></span>
@@ -122,7 +100,7 @@
 </div>
 <div class="step"><h2><span class="step-n">2</span>Read which occurrences a firing stands for</h2>
 <p>A catch-up firing can cover a stretch: each triggering schedule gives its occurrence and the instant it covers through.</p>
-<figure class="listing"><figcaption><span class="file">schedule-misfire.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-2">Copy</button></figcaption><pre><code id="code-2"><span class="c">/// &lt;summary&gt;The occurrences each job's firings stood for, as the handler read them from its context.&lt;/summary&gt;</span>
+<figure class="listing"><figcaption><span class="file">schedule-misfire.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">/// &lt;summary&gt;The occurrences each job's firings stood for, as the handler read them from its context.&lt;/summary&gt;</span>
 <span class="k">public</span> <span class="k">static</span> <span class="k">class</span> Firings
 {
     <span class="k">private</span> <span class="k">static</span> <span class="k">readonly</span> ConcurrentQueue&lt;(<span class="k">string</span> Job, DateTime Occurrence, DateTime CoveredThrough)&gt; Seen = <span class="k">new</span>();
@@ -140,35 +118,12 @@
     <span class="c">/// &lt;summary&gt;The job's firings for occurrences at or before &lt;paramref name=&quot;through&quot;/&gt;, in the order they ran.&lt;/summary&gt;</span>
     <span class="k">public</span> <span class="k">static</span> IReadOnlyList&lt;(DateTime Occurrence, DateTime CoveredThrough)&gt; Of(<span class="k">string</span> job, DateTime through) =&gt;
         Seen.Where(f =&gt; f.Job == job &amp;&amp; f.Occurrence &lt;= through).Select(f =&gt; (f.Occurrence, f.CoveredThrough)).ToList();
-}
-
-<span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> MisfireJobs
-{
-    <span class="c">// `MisfireStrategy` says what the next admission pass does with the occurrences that came due while the</span>
-    <span class="c">// schedule could not fire.</span>
-    <span class="a">[Job(<span class="s">&quot;skip-report&quot;</span>)]</span>
-    <span class="a">[Schedule(<span class="s">&quot;every-second&quot;</span>, <span class="s">&quot;PT1S&quot;</span>, MisfireStrategy = MisfireStrategyCode.Skip)]</span>
-    <span class="k">public</span> Task Skip(JobContext ctx, CancellationToken ct) =&gt; Run(ctx, ct);
-
-    <span class="a">[Job(<span class="s">&quot;catch-up-once-report&quot;</span>)]</span>
-    <span class="a">[Schedule(<span class="s">&quot;every-second&quot;</span>, <span class="s">&quot;PT1S&quot;</span>, MisfireStrategy = MisfireStrategyCode.CatchUpOnce)]</span>
-    <span class="k">public</span> Task CatchUpOnce(JobContext ctx, CancellationToken ct) =&gt; Run(ctx, ct);
-
-    <span class="a">[Job(<span class="s">&quot;catch-up-all-report&quot;</span>)]</span>
-    <span class="a">[Schedule(<span class="s">&quot;every-second&quot;</span>, <span class="s">&quot;PT1S&quot;</span>, MisfireStrategy = MisfireStrategyCode.CatchUpAll)]</span>
-    <span class="k">public</span> Task CatchUpAll(JobContext ctx, CancellationToken ct) =&gt; Run(ctx, ct);
-
-    <span class="k">private</span> <span class="k">static</span> <span class="k">async</span> Task Run(JobContext ctx, CancellationToken ct)
-    {
-        Firings.Record(ctx);
-        <span class="k">await</span> Task.Delay(50, ct);
-    }
 }</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">3</span>Run it and check the output</h2>
 <p>From a clone of <a href="https://github.com/acta-dotnet/acta">the Acta repository</a>, with the .NET 10 SDK:</p>
-<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-3">Copy</button></figcaption><pre><code id="code-3">dotnet run --project concepts/100-scheduling/106-schedule-misfire</code></pre></figure>
-<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button" data-copy-target="#code-4">Copy</button></figcaption><pre><code id="code-4">cursor kept: True
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project concepts/100-scheduling/106-schedule-misfire</code></pre></figure>
+<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button">Copy</button></figcaption><pre><code>cursor kept: True
 of them (at most the latest); the rest were skipped
 catch-up-once-report   ran 1 firing, covering
 one per missed occurrence, in order: True</code></pre></figure>
@@ -188,7 +143,7 @@ one per missed occurrence, in order: True</code></pre></figure>
 <h3>Trade-offs</h3>
 <p><code>Skip</code> loses missed work. <code>CatchUpOnce</code> keeps the stretch but not one execution per occurrence. <code>CatchUpAll</code> keeps every occurrence but runs them one after another on one permanent job, so a long outage becomes a long backlog; with <code>ScheduledDelivery = PerOccurrence</code> each one is a root job of its own.</p>
 <h3>Run the experiment</h3>
-<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-5">Copy</button></figcaption><pre><code id="code-5">dotnet run --project concepts/100-scheduling/106-schedule-misfire</code></pre></figure>
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project concepts/100-scheduling/106-schedule-misfire</code></pre></figure>
 <p>The program pauses three schedules that fire every second, lets about three occurrences pass, resumes them, and waits until each policy has decided the stretch. It prints how many firings each ran for the missed occurrences: <code>skip-report</code> at most one, <code>catch-up-once-report</code> one covering the stretch, and <code>catch-up-all-report</code> one per missed occurrence, in order.</p>
 <h3>Rows to inspect</h3>
 <p>Run with <code>--all-columns</code> to execute the visible <code>SELECT *</code> Explore query first. The default Notice queries select the fields that prove the lesson, and the text below explains their meaning.</p>
@@ -203,7 +158,7 @@ one per missed occurrence, in order: True</code></pre></figure>
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/concepts/100-scheduling/106-schedule-misfire"><code>concepts/100-scheduling/106-schedule-misfire</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> and <code>ConceptLab</code> are helpers of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">schedule-misfire.cs</span><span class="file-size">187 lines</span></summary><figure class="listing"><figcaption><span class="file">schedule-misfire.cs</span><button class="copy" type="button" data-copy-target="#code-6">Copy</button></figcaption><pre><code id="code-6"><span class="c">// How to decide what happens to runs a schedule missed</span>
+<details class="source-file"><summary><span class="file-name">schedule-misfire.cs</span><span class="file-size">187 lines</span></summary><figure class="listing"><figcaption><span class="file">schedule-misfire.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to decide what happens to runs a schedule missed</span>
 <span class="c">// Missed occurrences are a business decision. Three schedules miss the same stretch while paused, and each one's</span>
 <span class="c">// misfire policy decides it differently: `Skip` runs at most the latest, `CatchUpOnce` runs one firing that covers</span>
 <span class="c">// them all, `CatchUpAll` runs every one in order.</span>
@@ -389,11 +344,12 @@ Console.WriteLine(<span class="s">$&quot;catch-up-all-report    ran {all.Count} 
             <span class="k">await</span> Task.Delay(50, ct);
         }
     }
-}</code></pre></figure></details></div>
+}</code></pre></figure>
+</details></div>
 <div class="step plain-step"><h2>Where to go next</h2><ul class="next-links"><li><a href="/learn/105-schedule-control">How to pause and resume a schedule</a><span>Run work on a schedule</span></li></ul></div>
       </article>
       <article class="agent-face" hidden>
-        <figure class="listing agent"><figcaption><span class="file">/learn/106-schedule-misfire.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/106-schedule-misfire.md">Open</a><button class="copy" type="button" data-copy-target="#md-body">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
+        <figure class="listing agent"><figcaption><span class="file">/learn/106-schedule-misfire.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/106-schedule-misfire.md">Open</a><button class="copy" type="button">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
         <p class="hint">This is the page an agent receives: the same how-to as plain Markdown, at this page's address with <code>.md</code> added.</p>
       </article>
       <aside class="howto-rail" aria-label="This section">

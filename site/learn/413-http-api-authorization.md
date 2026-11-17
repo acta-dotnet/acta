@@ -29,17 +29,6 @@ builder.Services.AddAuthorization(options =>
 In `http-api-authorization.cs` (excerpt):
 
 ```csharp
-var builder = WebApplication.CreateBuilder(args);
-
-// Suppress framework noise so concept output stays readable.
-builder.Logging.SetMinimumLevel(LogLevel.Warning);
-
-builder.Services.UseActa(j =>
-{
-    j.UseLocalDatabase(builder.Configuration);
-    j.Run<HttpApiAuthorizationJobs>("http-api-authorization");
-});
-
 // The host owns authentication: Acta ships none. This header scheme stands in for the host's own (cookies, JWT bearer
 // tokens, Windows) and believes the permission a caller names, which only a demo may do.
 builder
@@ -58,22 +47,6 @@ builder.Services.AddAuthorization(options =>
 builder.WebHost.UseTestServer();
 
 var app = builder.Build();
-
-// EnableControls maps the routes that write. RequirePermissions authorizes every route, reads included, against the
-// policy named for the permission the route declares. LocalOnly stays on; under RequirePermissions, LocalOnly = false
-// would let remote callers reach the API.
-Console.WriteLine("knob: EnableControls = true     (the routes that write are mapped; off by default)");
-Console.WriteLine("knob: RequirePermissions = true (each route needs the host's policy named for its permission)");
-Console.WriteLine();
-
-// Every route, reads included, is then authorized against the policy named for the permission it declares.
-app.MapActaApi("/acta/api", options =>
-{
-    options.EnableControls = true;
-    options.RequirePermissions = true;
-});
-
-await app.StartAsync();
 ```
 
 ## 2. Require the permissions on the API
@@ -93,41 +66,6 @@ app.MapActaApi("/acta/api", options =>
 In `http-api-authorization.cs` (excerpt):
 
 ```csharp
-var builder = WebApplication.CreateBuilder(args);
-
-// Suppress framework noise so concept output stays readable.
-builder.Logging.SetMinimumLevel(LogLevel.Warning);
-
-builder.Services.UseActa(j =>
-{
-    j.UseLocalDatabase(builder.Configuration);
-    j.Run<HttpApiAuthorizationJobs>("http-api-authorization");
-});
-
-// The host owns authentication: Acta ships none. This header scheme stands in for the host's own (cookies, JWT bearer
-// tokens, Windows) and believes the permission a caller names, which only a demo may do.
-builder
-    .Services.AddAuthentication(PermissionHeaderHandler.SchemeName)
-    .AddScheme<AuthenticationSchemeOptions, PermissionHeaderHandler>(PermissionHeaderHandler.SchemeName, null);
-
-// One policy per permission, each requiring a claim. Mapping throws when one of the four is missing.
-builder.Services.AddAuthorization(options =>
-{
-    options.AddPolicy(ActaPermissions.Read, policy => policy.RequireClaim(PermissionHeaderHandler.ClaimType, ActaPermissions.Read));
-    options.AddPolicy(ActaPermissions.Enqueue, policy => policy.RequireClaim(PermissionHeaderHandler.ClaimType, ActaPermissions.Enqueue));
-    options.AddPolicy(ActaPermissions.Control, policy => policy.RequireClaim(PermissionHeaderHandler.ClaimType, ActaPermissions.Control));
-    options.AddPolicy(ActaPermissions.Admin, policy => policy.RequireClaim(PermissionHeaderHandler.ClaimType, ActaPermissions.Admin));
-});
-
-// UseTestServer skips binding to a real port: the HttpClient talks in-process.
-builder.WebHost.UseTestServer();
-
-var app = builder.Build();
-
-// EnableControls maps the routes that write. RequirePermissions authorizes every route, reads included, against the
-// policy named for the permission the route declares. LocalOnly stays on; under RequirePermissions, LocalOnly = false
-// would let remote callers reach the API.
-Console.WriteLine("knob: EnableControls = true     (the routes that write are mapped; off by default)");
 Console.WriteLine("knob: RequirePermissions = true (each route needs the host's policy named for its permission)");
 Console.WriteLine();
 
@@ -138,6 +76,10 @@ app.MapActaApi("/acta/api", options =>
 });
 
 await app.StartAsync();
+
+var jobs = app.Services.GetRequiredService<IJobs>();
+var client = app.GetTestClient();
+const string jobNamespace = "http-api-authorization";
 ```
 
 ## 3. The job it acts on
@@ -145,36 +87,10 @@ await app.StartAsync();
 `http-api-authorization.cs` (excerpt):
 
 ```csharp
-public sealed record SampleTask(string Id);
-
 public static class SampleTaskJob
 {
     [Job("sample-task")]
     public static void Handle(SampleTask input) { }
-}
-
-// Authenticates a caller as holding the one permission its X-Demo-Permission header names. A real host
-// authenticates its users its own way and maps their roles or claims to the four policies.
-public sealed class PermissionHeaderHandler(
-    IOptionsMonitor<AuthenticationSchemeOptions> options,
-    ILoggerFactory logger,
-    UrlEncoder encoder
-) : AuthenticationHandler<AuthenticationSchemeOptions>(options, logger, encoder)
-{
-    public const string SchemeName = "PermissionHeader";
-    public const string HeaderName = "X-Demo-Permission";
-    public const string ClaimType = "permission";
-
-    protected override Task<AuthenticateResult> HandleAuthenticateAsync()
-    {
-        if (Request.Headers[HeaderName] is not [{ } permission])
-        {
-            return Task.FromResult(AuthenticateResult.NoResult());
-        }
-
-        var identity = new ClaimsIdentity([new Claim(ClaimTypes.Name, "demo-caller"), new Claim(ClaimType, permission)], SchemeName);
-        return Task.FromResult(AuthenticateResult.Success(new AuthenticationTicket(new ClaimsPrincipal(identity), SchemeName)));
-    }
 }
 ```
 

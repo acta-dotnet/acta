@@ -14,26 +14,10 @@ The input is a record: Acta stores it with the job and hands it to the handler a
 
 The input is plain data. Acta serializes it, stores it with the job, and hands it to the handler.
 
-The lines that matter:
+`job-input.cs` (excerpt):
 
 ```csharp
 public sealed record PrintNameTag(string Name, string Workshop);
-```
-
-In `job-input.cs` (excerpt):
-
-```csharp
-public sealed record PrintNameTag(string Name, string Workshop);
-
-public static class PrintNameTagJob
-{
-    [Job("print-name-tag")]
-    public static async Task Handle(PrintNameTag tag, CancellationToken ct)
-    {
-        await Task.Delay(50, ct);
-        Console.WriteLine($"Printed name tag: {tag.Name} ({tag.Workshop})");
-    }
-}
 ```
 
 ## 2. Enqueue an instance of it
@@ -49,11 +33,24 @@ await jobs.EnqueueAsync(new PrintNameTag("Ada", "workshop"));
 In `job-input.cs` (excerpt):
 
 ```csharp
+var builder = Host.CreateApplicationBuilder(args);
+
+builder.Services.UseActa(j =>
+{
+    j.UseLocalDatabase(builder.Configuration);
+    j.Run<JobInputJobs>("job-input");
+});
+
+using var host = builder.Build();
+await host.StartAsync();
+
 var jobs = host.Services.GetRequiredService<IJobs>();
 
 await jobs.EnqueueAsync(new PrintNameTag("Ada", "workshop"));
-
 Console.WriteLine("Enqueued. Worker is running - press Ctrl+C to stop.");
+
+await host.WaitForShutdownAsync();
+await host.StopAsync();
 ```
 
 ## 3. Run it and check the output

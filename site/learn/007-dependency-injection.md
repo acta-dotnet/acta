@@ -30,45 +30,15 @@ builder.Services.UseActa(j =>
     j.UseLocalDatabase(builder.Configuration);
     j.Run<DependencyInjectionJobs>("dependency-injection");
 });
-
-using var host = builder.Build();
-await host.StartAsync();
 ```
 
 ## 2. Take it in the constructor of the handler's class
 
 Acta constructs a fresh handler instance per attempt, injecting constructor dependencies.
 
-The lines that matter:
+`dependency-injection.cs` (excerpt):
 
 ```csharp
-public sealed class WelcomeJob(IEmailSender sender)
-{
-    [Job("send-welcome-email")]
-    public async Task Handle(SendWelcomeEmail input, CancellationToken ct) =>
-        await sender.SendAsync(input.Email, $"Welcome, {input.Name}!", ct);
-}
-```
-
-In `dependency-injection.cs` (excerpt):
-
-```csharp
-public sealed record SendWelcomeEmail(string Email, string Name);
-
-public interface IEmailSender
-{
-    Task SendAsync(string to, string subject, CancellationToken ct);
-}
-
-public sealed class ConsoleEmailSender : IEmailSender
-{
-    public Task SendAsync(string to, string subject, CancellationToken ct)
-    {
-        Console.WriteLine($"[email] to={to} subject=\"{subject}\"");
-        return Task.CompletedTask;
-    }
-}
-
 public sealed class WelcomeJob(IEmailSender sender)
 {
     [Job("send-welcome-email")]

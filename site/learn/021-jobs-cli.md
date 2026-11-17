@@ -14,7 +14,7 @@ The app's own binary answers `jobs info`, `events`, `explain`, and the control v
 
 A first argument of `jobs` runs that verb against the app's database and exits; without it the process starts as a normal worker. The program needs no line of its own for this.
 
-The lines that matter:
+`jobs-cli.cs` (excerpt):
 
 ```csharp
 const string cli = "dotnet run --project concepts/000-fundamentals/021-jobs-cli -- jobs";
@@ -27,33 +27,6 @@ Console.WriteLine($"  {cli} resume {enqueued.JobRef}");
 Console.WriteLine($"  {cli} restart {enqueued.JobRef}");
 Console.WriteLine($"  {cli} debug {enqueued.JobRef}");
 Console.WriteLine($"  {cli} info    (no target: a read takes the copied ref from the clipboard)");
-```
-
-In `jobs-cli.cs` (excerpt):
-
-```csharp
-    {
-        throw new InvalidOperationException($"CLI fixture {snapshot.JobRef} ended {snapshot.Status} before reaching its signal wait.");
-    }
-    await Task.Delay(50, suspensionTimeout.Token);
-}
-
-const string cli = "dotnet run --project concepts/000-fundamentals/021-jobs-cli -- jobs";
-Console.WriteLine($"Enqueued signal-waiting job {enqueued.JobRef}. From another terminal, try:");
-Console.WriteLine($"  {cli} info {enqueued.JobRef}");
-Console.WriteLine($"  {cli} events {enqueued.JobRef}");
-Console.WriteLine($"  {cli} explain {enqueued.JobRef}");
-Console.WriteLine($"  {cli} pause {enqueued.JobRef} --reason \"hold for review\"");
-Console.WriteLine($"  {cli} resume {enqueued.JobRef}");
-Console.WriteLine($"  {cli} restart {enqueued.JobRef}");
-Console.WriteLine($"  {cli} debug {enqueued.JobRef}");
-Console.WriteLine($"  {cli} info    (no target: a read takes the copied ref from the clipboard)");
-
-await lab.ShowAllAsync(
-    "Explore the complete signal-waiting job record",
-    """
-    SELECT *
-    FROM jobs_view
 ```
 
 ## 2. The job it acts on
@@ -61,8 +34,6 @@ await lab.ShowAllAsync(
 `jobs-cli.cs` (excerpt):
 
 ```csharp
-public sealed record ReviewDocument(string DocumentId);
-
 public static class ReviewDocumentJob
 {
     [Job("review-document")]

@@ -33,6 +33,8 @@ await handle.WaitAsync();
 var snapshot = await jobs.GetAsync(handle);
 Console.WriteLine($"job={snapshot!.JobRef} name={snapshot.JobName} ns={snapshot.JobNamespace}");
 Console.WriteLine($"status={snapshot.Status} created={snapshot.CreatedAtUtc:O}");
+
+await host.StopAsync();
 ```
 
 ## 2. The job it acts on
@@ -40,8 +42,6 @@ Console.WriteLine($"status={snapshot.Status} created={snapshot.CreatedAtUtc:O}")
 `read-status.cs` (excerpt):
 
 ```csharp
-public sealed record SendWelcomeEmail(string Email, string Name);
-
 public static class WelcomeJob
 {
     [Job("send-welcome-email")]

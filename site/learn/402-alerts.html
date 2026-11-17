@@ -57,7 +57,7 @@
   </div>
 
 
-  <main id="content" data-howto="402">
+  <main id="content">
     <header class="wrap page-head howto-head">
       <p class="record"><a href="/learn">learn acta</a><span aria-hidden="true">/</span><a href="/learn#s-alerts">get told when something breaks</a></p>
       <h1>How to raise an alert from a handler</h1>
@@ -77,53 +77,47 @@
       <article class="howto person-face">
 <div class="step"><h2><span class="step-n">1</span>Raise the alert from the handler</h2>
 <p>No channel name routes to the implicit &quot;default&quot; channel (log transport). The database stores only the channel name; delivery configuration comes from worker startup.</p>
-<figure class="listing"><figcaption><span class="file">alerts.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-1">Copy</button></figcaption><pre><code id="code-1"><span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> VerifyBackup(<span class="k">string</span> FolderName, <span class="k">bool</span> Healthy);
-
-<span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> VerifyBackupJob
+<figure class="listing"><figcaption><span class="file">alerts.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="a">[Job(<span class="s">&quot;verify-backup&quot;</span>)]</span>
+<span class="k">public</span> <span class="k">async</span> Task Handle(VerifyBackup input, JobContext context, CancellationToken ct)
 {
-    <span class="a">[Job(<span class="s">&quot;verify-backup&quot;</span>)]</span>
-    <span class="k">public</span> <span class="k">async</span> Task Handle(VerifyBackup input, JobContext context, CancellationToken ct)
+    <span class="k">await</span> Task.Delay(50, ct);
+
+    <span class="k">if</span> (!input.Healthy)
     {
-        <span class="k">await</span> Task.Delay(50, ct);
-
-        <span class="k">if</span> (!input.Healthy)
-        {
-<span class="hl">            <span class="k">await</span> context.AlertAsync(</span>
-<span class="hl">                title: <span class="s">$&quot;Backup verification failed: {input.FolderName}&quot;</span>,</span>
-<span class="hl">                message: <span class="s">$&quot;The nightly backup of '{input.FolderName}' is missing or corrupt.&quot;</span>,</span>
-<span class="hl">                severityCode: AlertSeverityCode.Error,</span>
-<span class="hl">                deduplicationKey: <span class="s">$&quot;backup-failed:{input.FolderName}&quot;</span>,</span>
-<span class="hl">                ct: ct</span>
-<span class="hl">            );</span>
-            Console.WriteLine(<span class="s">$&quot;[{input.FolderName}] backup is bad - alert raised&quot;</span>);
-            <span class="k">return</span>;
-        }
-
-        Console.WriteLine(<span class="s">$&quot;[{input.FolderName}] backup verified OK&quot;</span>);
+<span class="hl">        <span class="k">await</span> context.AlertAsync(</span>
+<span class="hl">            title: <span class="s">$&quot;Backup verification failed: {input.FolderName}&quot;</span>,</span>
+<span class="hl">            message: <span class="s">$&quot;The nightly backup of '{input.FolderName}' is missing or corrupt.&quot;</span>,</span>
+<span class="hl">            severityCode: AlertSeverityCode.Error,</span>
+<span class="hl">            deduplicationKey: <span class="s">$&quot;backup-failed:{input.FolderName}&quot;</span>,</span>
+<span class="hl">            ct: ct</span>
+<span class="hl">        );</span>
+        Console.WriteLine(<span class="s">$&quot;[{input.FolderName}] backup is bad - alert raised&quot;</span>);
+        <span class="k">return</span>;
     }
+
+    Console.WriteLine(<span class="s">$&quot;[{input.FolderName}] backup verified OK&quot;</span>);
 }</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">2</span>Read the alerts back</h2>
 <p>An alert is a row: the list answers its severity, its channel, and whether it was delivered.</p>
-<figure class="listing"><figcaption><span class="file">alerts.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-2">Copy</button></figcaption><pre><code id="code-2"><span class="k">var</span> jobs = host.Services.GetRequiredService&lt;IJobs&gt;();
-
-<span class="c">// Handler raises an operator alert; read it back through the read-only operator query surface.</span>
+<figure class="listing"><figcaption><span class="file">alerts.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// Handler raises an operator alert; read it back through the read-only operator query surface.</span>
 <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> VerifyBackup(<span class="s">&quot;photos&quot;</span>, Healthy: <span class="k">false</span>));
 <span class="k">await</span> Task.Delay(800);
 
 <span class="k">var</span> queries = host.Services.GetRequiredService&lt;IActaOperations&gt;();
 
 <span class="hl"><span class="k">var</span> alerts = <span class="k">await</span> queries.Alerts.ListAsync(<span class="k">new</span> ListAlertsQuery(JobNamespace: <span class="s">&quot;alerts&quot;</span>));</span>
-
 <span class="k">foreach</span> (<span class="k">var</span> alert <span class="k">in</span> alerts.Items)
 {
     Console.WriteLine(<span class="s">$&quot;alert [{alert.Severity}] {alert.Title} -&gt; channel '{alert.ChannelName}', delivery {alert.DeliveryStatus}&quot;</span>);
-}</code></pre></figure>
+}
+
+<span class="k">await</span> host.StopAsync();</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">3</span>Run it and check the output</h2>
 <p>From a clone of <a href="https://github.com/acta-dotnet/acta">the Acta repository</a>, with the .NET 10 SDK:</p>
-<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-3">Copy</button></figcaption><pre><code id="code-3">dotnet run --project concepts/400-observability-and-alerts/402-alerts</code></pre></figure>
-<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button" data-copy-target="#code-4">Copy</button></figcaption><pre><code id="code-4">[photos] backup is bad - alert raised
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project concepts/400-observability-and-alerts/402-alerts</code></pre></figure>
+<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button">Copy</button></figcaption><pre><code>[photos] backup is bad - alert raised
 alert [Error] Backup verification failed: photos -&gt; channel 'default'</code></pre></figure>
 <p class="proof checked"><b>Checked every release.</b> Before each release, Acta Verify runs this program and checks that its output contains these lines.</p>
 </div>
@@ -131,7 +125,7 @@ alert [Error] Backup verification failed: photos -&gt; channel 'default'</code><
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/concepts/400-observability-and-alerts/402-alerts"><code>concepts/400-observability-and-alerts/402-alerts</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">alerts.cs</span><span class="file-size">71 lines</span></summary><figure class="listing"><figcaption><span class="file">alerts.cs</span><button class="copy" type="button" data-copy-target="#code-5">Copy</button></figcaption><pre><code id="code-5"><span class="c">// How to raise an alert from a handler</span>
+<details class="source-file"><summary><span class="file-name">alerts.cs</span><span class="file-size">71 lines</span></summary><figure class="listing"><figcaption><span class="file">alerts.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to raise an alert from a handler</span>
 <span class="c">// `AlertAsync` in a handler raises an alert for the people who operate the system, and `operations.Alerts` reads it</span>
 <span class="c">// back.</span>
 <span class="k">using</span> Acta;
@@ -201,11 +195,12 @@ builder.Services.UseActa(j =&gt;
             Console.WriteLine(<span class="s">$&quot;[{input.FolderName}] backup verified OK&quot;</span>);
         }
     }
-}</code></pre></figure></details></div>
+}</code></pre></figure>
+</details></div>
 <div class="step plain-step"><h2>Where to go next</h2><ul class="next-links"><li><a href="/learn/403-alert-channel">How to send alerts to your own channel</a><span>Get told when something breaks</span></li></ul></div>
       </article>
       <article class="agent-face" hidden>
-        <figure class="listing agent"><figcaption><span class="file">/learn/402-alerts.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/402-alerts.md">Open</a><button class="copy" type="button" data-copy-target="#md-body">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
+        <figure class="listing agent"><figcaption><span class="file">/learn/402-alerts.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/402-alerts.md">Open</a><button class="copy" type="button">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
         <p class="hint">This is the page an agent receives: the same how-to as plain Markdown, at this page's address with <code>.md</code> added.</p>
       </article>
       <aside class="howto-rail" aria-label="This section">

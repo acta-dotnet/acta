@@ -57,7 +57,7 @@
   </div>
 
 
-  <main id="content" data-howto="309">
+  <main id="content">
     <header class="wrap page-head howto-head">
       <p class="record"><a href="/learn">learn acta</a><span aria-hidden="true">/</span><a href="/learn#s-operate">watch and control running work</a></p>
       <h1>How to pause and resume a job from outside</h1>
@@ -77,133 +77,42 @@
       <article class="howto person-face">
 <div class="step"><h2><span class="step-n">1</span>Pause the job</h2>
 <p>The job is not yet claimable (delayed), so the transition is Applied.</p>
-<figure class="listing"><figcaption><span class="file">operator-resume.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-1">Copy</button></figcaption><pre><code id="code-1"><span class="k">var</span> jobs = host.Services.GetRequiredService&lt;IJobs&gt;();
-<span class="k">var</span> queries = host.Services.GetRequiredService&lt;IActaOperations&gt;();
-
-<span class="c">// Enqueue with a 5-second delay so the job sits in a schedulable state and the pause lands before</span>
+<figure class="listing"><figcaption><span class="file">operator-resume.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// Enqueue with a 5-second delay so the job sits in a schedulable state and the pause lands before</span>
 <span class="c">// the worker can claim it. The delay is resolved on the database clock (db_now + 5s).</span>
 <span class="k">var</span> handle = <span class="k">await</span> jobs.ScheduleAsync(<span class="k">new</span> ProcessReport(<span class="s">&quot;q3-summary&quot;</span>), TimeSpan.FromSeconds(5));
 Console.WriteLine(<span class="s">$&quot;Enqueued job {handle.JobRef} with a 5-second delay.&quot;</span>);
 
 <span class="hl"><span class="k">var</span> pauseResult = <span class="k">await</span> jobs.PauseAsync(handle, <span class="s">&quot;review window&quot;</span>);</span>
-
 Console.WriteLine(<span class="s">$&quot;PauseAsync -&gt; action={pauseResult.Action} status={pauseResult.Status}&quot;</span>);
 
-<span class="c">// A resume moves the Paused job back to Ready at the due time it kept, so the worker claims it once the</span>
-<span class="c">// 5-second delay is up.</span>
 <span class="k">var</span> resumeResult = <span class="k">await</span> jobs.ResumeAsync(handle, <span class="s">&quot;review complete&quot;</span>);
-
-Console.WriteLine(<span class="s">$&quot;ResumeAsync -&gt; action={resumeResult.Action} status={resumeResult.Status}&quot;</span>);
-
-<span class="c">// Poll until the worker finishes the job (terminal status).</span>
-JobStatusCode? status;
-<span class="k">do</span>
-{
-    <span class="k">await</span> Task.Delay(300);
-    status = (<span class="k">await</span> jobs.GetStatusAsync(handle))?.Status;
-} <span class="k">while</span> (status <span class="k">is</span> <span class="k">not</span> <span class="k">null</span> &amp;&amp; !status.Value.IsTerminal);
-
-Console.WriteLine(<span class="s">$&quot;Job finished with status={status}&quot;</span>);
-
-<span class="c">// A pause of a terminal (Succeeded) job is Rejected, because terminal jobs cannot be paused.</span>
-<span class="k">var</span> rejectedResult = <span class="k">await</span> jobs.PauseAsync(handle, <span class="s">&quot;too late&quot;</span>);
-Console.WriteLine(<span class="s">$&quot;PauseAsync on terminal -&gt; action={rejectedResult.Action} blocking-status={rejectedResult.Status}&quot;</span>);
-
-<span class="c">// Read the event timeline to confirm the pause and resume events with their message and details.</span>
-<span class="k">var</span> events = <span class="k">await</span> queries.Ledger.ListEventsAsync(<span class="k">new</span> ListEventsQuery(Job: handle));
-<span class="k">foreach</span> (<span class="k">var</span> ev <span class="k">in</span> events.Items)
-{
-    <span class="k">if</span> (ev.EventCode <span class="k">is</span> EventCode.JobPaused or EventCode.JobResumed)
-        Console.WriteLine(<span class="s">$&quot;  event={ev.EventCode} message={ev.Message ?? &quot;(none)&quot;} details={ev.DetailsText ?? &quot;(none)&quot;}&quot;</span>);
-}</code></pre></figure>
+Console.WriteLine(<span class="s">$&quot;ResumeAsync -&gt; action={resumeResult.Action} status={resumeResult.Status}&quot;</span>);</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">2</span>Resume it</h2>
 <p>A resume moves the Paused job back to Ready at the due time it kept, so the worker claims it once the 5-second delay is up.</p>
-<figure class="listing"><figcaption><span class="file">operator-resume.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-2">Copy</button></figcaption><pre><code id="code-2"><span class="k">var</span> jobs = host.Services.GetRequiredService&lt;IJobs&gt;();
-<span class="k">var</span> queries = host.Services.GetRequiredService&lt;IActaOperations&gt;();
+<figure class="listing"><figcaption><span class="file">operator-resume.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code>Console.WriteLine(<span class="s">$&quot;Enqueued job {handle.JobRef} with a 5-second delay.&quot;</span>);
 
-<span class="c">// Enqueue with a 5-second delay so the job sits in a schedulable state and the pause lands before</span>
-<span class="c">// the worker can claim it. The delay is resolved on the database clock (db_now + 5s).</span>
-<span class="k">var</span> handle = <span class="k">await</span> jobs.ScheduleAsync(<span class="k">new</span> ProcessReport(<span class="s">&quot;q3-summary&quot;</span>), TimeSpan.FromSeconds(5));
-Console.WriteLine(<span class="s">$&quot;Enqueued job {handle.JobRef} with a 5-second delay.&quot;</span>);
-
-<span class="c">// The job is not yet claimable (delayed), so the transition is Applied.</span>
 <span class="k">var</span> pauseResult = <span class="k">await</span> jobs.PauseAsync(handle, <span class="s">&quot;review window&quot;</span>);
-
 Console.WriteLine(<span class="s">$&quot;PauseAsync -&gt; action={pauseResult.Action} status={pauseResult.Status}&quot;</span>);
 
 <span class="hl"><span class="k">var</span> resumeResult = <span class="k">await</span> jobs.ResumeAsync(handle, <span class="s">&quot;review complete&quot;</span>);</span>
-
 Console.WriteLine(<span class="s">$&quot;ResumeAsync -&gt; action={resumeResult.Action} status={resumeResult.Status}&quot;</span>);
 
 <span class="c">// Poll until the worker finishes the job (terminal status).</span>
-JobStatusCode? status;
-<span class="k">do</span>
-{
-    <span class="k">await</span> Task.Delay(300);
-    status = (<span class="k">await</span> jobs.GetStatusAsync(handle))?.Status;
-} <span class="k">while</span> (status <span class="k">is</span> <span class="k">not</span> <span class="k">null</span> &amp;&amp; !status.Value.IsTerminal);
-
-Console.WriteLine(<span class="s">$&quot;Job finished with status={status}&quot;</span>);
-
-<span class="c">// A pause of a terminal (Succeeded) job is Rejected, because terminal jobs cannot be paused.</span>
-<span class="k">var</span> rejectedResult = <span class="k">await</span> jobs.PauseAsync(handle, <span class="s">&quot;too late&quot;</span>);
-Console.WriteLine(<span class="s">$&quot;PauseAsync on terminal -&gt; action={rejectedResult.Action} blocking-status={rejectedResult.Status}&quot;</span>);
-
-<span class="c">// Read the event timeline to confirm the pause and resume events with their message and details.</span>
-<span class="k">var</span> events = <span class="k">await</span> queries.Ledger.ListEventsAsync(<span class="k">new</span> ListEventsQuery(Job: handle));
-<span class="k">foreach</span> (<span class="k">var</span> ev <span class="k">in</span> events.Items)
-{
-    <span class="k">if</span> (ev.EventCode <span class="k">is</span> EventCode.JobPaused or EventCode.JobResumed)
-        Console.WriteLine(<span class="s">$&quot;  event={ev.EventCode} message={ev.Message ?? &quot;(none)&quot;} details={ev.DetailsText ?? &quot;(none)&quot;}&quot;</span>);
-}</code></pre></figure>
+JobStatusCode? status;</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">3</span>Read the answer: a finished job refuses</h2>
 <p>A pause of a terminal (Succeeded) job is Rejected, because terminal jobs cannot be paused.</p>
-<figure class="listing"><figcaption><span class="file">operator-resume.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-3">Copy</button></figcaption><pre><code id="code-3"><span class="k">var</span> jobs = host.Services.GetRequiredService&lt;IJobs&gt;();
-<span class="k">var</span> queries = host.Services.GetRequiredService&lt;IActaOperations&gt;();
-
-<span class="c">// Enqueue with a 5-second delay so the job sits in a schedulable state and the pause lands before</span>
-<span class="c">// the worker can claim it. The delay is resolved on the database clock (db_now + 5s).</span>
-<span class="k">var</span> handle = <span class="k">await</span> jobs.ScheduleAsync(<span class="k">new</span> ProcessReport(<span class="s">&quot;q3-summary&quot;</span>), TimeSpan.FromSeconds(5));
-Console.WriteLine(<span class="s">$&quot;Enqueued job {handle.JobRef} with a 5-second delay.&quot;</span>);
-
-<span class="c">// The job is not yet claimable (delayed), so the transition is Applied.</span>
-<span class="k">var</span> pauseResult = <span class="k">await</span> jobs.PauseAsync(handle, <span class="s">&quot;review window&quot;</span>);
-
-Console.WriteLine(<span class="s">$&quot;PauseAsync -&gt; action={pauseResult.Action} status={pauseResult.Status}&quot;</span>);
-
-<span class="c">// A resume moves the Paused job back to Ready at the due time it kept, so the worker claims it once the</span>
-<span class="c">// 5-second delay is up.</span>
-<span class="k">var</span> resumeResult = <span class="k">await</span> jobs.ResumeAsync(handle, <span class="s">&quot;review complete&quot;</span>);
-
-Console.WriteLine(<span class="s">$&quot;ResumeAsync -&gt; action={resumeResult.Action} status={resumeResult.Status}&quot;</span>);
-
-<span class="c">// Poll until the worker finishes the job (terminal status).</span>
-JobStatusCode? status;
-<span class="k">do</span>
-{
-    <span class="k">await</span> Task.Delay(300);
-    status = (<span class="k">await</span> jobs.GetStatusAsync(handle))?.Status;
-} <span class="k">while</span> (status <span class="k">is</span> <span class="k">not</span> <span class="k">null</span> &amp;&amp; !status.Value.IsTerminal);
-
-Console.WriteLine(<span class="s">$&quot;Job finished with status={status}&quot;</span>);
+<figure class="listing"><figcaption><span class="file">operator-resume.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code>Console.WriteLine(<span class="s">$&quot;Job finished with status={status}&quot;</span>);
 
 <span class="hl"><span class="k">var</span> rejectedResult = <span class="k">await</span> jobs.PauseAsync(handle, <span class="s">&quot;too late&quot;</span>);</span>
 <span class="hl">Console.WriteLine(<span class="s">$&quot;PauseAsync on terminal -&gt; action={rejectedResult.Action} blocking-status={rejectedResult.Status}&quot;</span>);</span>
 
 <span class="c">// Read the event timeline to confirm the pause and resume events with their message and details.</span>
-<span class="k">var</span> events = <span class="k">await</span> queries.Ledger.ListEventsAsync(<span class="k">new</span> ListEventsQuery(Job: handle));
-<span class="k">foreach</span> (<span class="k">var</span> ev <span class="k">in</span> events.Items)
-{
-    <span class="k">if</span> (ev.EventCode <span class="k">is</span> EventCode.JobPaused or EventCode.JobResumed)
-        Console.WriteLine(<span class="s">$&quot;  event={ev.EventCode} message={ev.Message ?? &quot;(none)&quot;} details={ev.DetailsText ?? &quot;(none)&quot;}&quot;</span>);
-}</code></pre></figure>
+<span class="k">var</span> events = <span class="k">await</span> queries.Ledger.ListEventsAsync(<span class="k">new</span> ListEventsQuery(Job: handle));</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">4</span>The job it acts on</h2>
-<figure class="listing"><figcaption><span class="file">operator-resume.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-4">Copy</button></figcaption><pre><code id="code-4"><span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> ProcessReport(<span class="k">string</span> Name);
-
-<span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> ProcessReportJob
+<figure class="listing"><figcaption><span class="file">operator-resume.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> ProcessReportJob
 {
     <span class="a">[Job(<span class="s">&quot;process-report&quot;</span>)]</span>
     <span class="k">public</span> <span class="k">async</span> Task Handle(ProcessReport input, CancellationToken ct)
@@ -216,8 +125,8 @@ Console.WriteLine(<span class="s">$&quot;Job finished with status={status}&quot;
 </div>
 <div class="step"><h2><span class="step-n">5</span>Run it and check the output</h2>
 <p>From a clone of <a href="https://github.com/acta-dotnet/acta">the Acta repository</a>, with the .NET 10 SDK:</p>
-<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-5">Copy</button></figcaption><pre><code id="code-5">dotnet run --project concepts/300-failure-and-recovery/309-operator-resume</code></pre></figure>
-<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button" data-copy-target="#code-6">Copy</button></figcaption><pre><code id="code-6">PauseAsync -&gt; action=Applied status=Paused
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project concepts/300-failure-and-recovery/309-operator-resume</code></pre></figure>
+<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button">Copy</button></figcaption><pre><code>PauseAsync -&gt; action=Applied status=Paused
 ResumeAsync -&gt; action=Applied status=Ready
 Job finished with status=Succeeded
 PauseAsync on terminal -&gt; action=Rejected blocking-status=Succeeded</code></pre></figure>
@@ -227,7 +136,7 @@ PauseAsync on terminal -&gt; action=Rejected blocking-status=Succeeded</code></p
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/concepts/300-failure-and-recovery/309-operator-resume"><code>concepts/300-failure-and-recovery/309-operator-resume</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">operator-resume.cs</span><span class="file-size">84 lines</span></summary><figure class="listing"><figcaption><span class="file">operator-resume.cs</span><button class="copy" type="button" data-copy-target="#code-7">Copy</button></figcaption><pre><code id="code-7"><span class="c">// How to pause and resume a job from outside</span>
+<details class="source-file"><summary><span class="file-name">operator-resume.cs</span><span class="file-size">84 lines</span></summary><figure class="listing"><figcaption><span class="file">operator-resume.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to pause and resume a job from outside</span>
 <span class="c">// `IJobs.PauseAsync` and `ResumeAsync` pause and resume a job from outside its handler. Each answers whether it was</span>
 <span class="c">// applied or rejected, and its reason lands on the job's timeline.</span>
 <span class="k">using</span> Acta;
@@ -310,11 +219,12 @@ Console.WriteLine(<span class="s">$&quot;Job finished with status={status}&quot;
             Console.WriteLine(<span class="s">$&quot;[{input.Name}] processing done&quot;</span>);
         }
     }
-}</code></pre></figure></details></div>
+}</code></pre></figure>
+</details></div>
 <div class="step plain-step"><h2>Where to go next</h2><ul class="next-links"><li><a href="/learn/310-operator-restart">How to restart a failed job and keep its history</a><span>Watch and control running work</span></li></ul></div>
       </article>
       <article class="agent-face" hidden>
-        <figure class="listing agent"><figcaption><span class="file">/learn/309-operator-resume.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/309-operator-resume.md">Open</a><button class="copy" type="button" data-copy-target="#md-body">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
+        <figure class="listing agent"><figcaption><span class="file">/learn/309-operator-resume.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/309-operator-resume.md">Open</a><button class="copy" type="button">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
         <p class="hint">This is the page an agent receives: the same how-to as plain Markdown, at this page's address with <code>.md</code> added.</p>
       </article>
       <aside class="howto-rail" aria-label="This section">

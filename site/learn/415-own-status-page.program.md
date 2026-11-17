@@ -44,7 +44,7 @@ await ShowAsync();
 await UntilAsync(job => job.Status == JobStatusCode.Suspended);
 await ShowAsync();
 
-await jobs.RaiseSignalAsync(order, "packed", JobPayload.None, CancellationToken.None);
+await jobs.RaiseSignalAsync(order, "packed", JobPayload.None);
 await order.WaitAsync();
 await ShowAsync();
 

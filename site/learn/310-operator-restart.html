@@ -57,14 +57,14 @@
   </div>
 
 
-  <main id="content" data-howto="310">
+  <main id="content">
     <header class="wrap page-head howto-head">
       <p class="record"><a href="/learn">learn acta</a><span aria-hidden="true">/</span><a href="/learn#s-operate">watch and control running work</a></p>
       <h1>How to restart a failed job and keep its history</h1>
       <p class="lede"><code>RestartAsync</code> runs a finished job again under the same identity. The failure budget is reset, the history is appended to, steps that succeeded are not run again, and the bare lines of the handler are.</p>
       <p class="howto-context">A how-to for Acta, durable execution for .NET. <a href="/start">New to Acta? Run your first durable job in five minutes.</a></p>
       <div class="howto-meta">
-        <span class="status checked">Checked every release</span><span class="mark lab">Lab</span>
+        <span class="status checked">Checked every release</span><span class="mark">Lab</span>
         <a class="program" href="https://github.com/acta-dotnet/acta/tree/main/concepts/300-failure-and-recovery/310-operator-restart"><code>concepts/300-failure-and-recovery/310-operator-restart</code></a>
         <div class="reader" role="group" aria-label="Read this page as">
         <span class="reader-label">Read as</span>
@@ -77,14 +77,12 @@
       <article class="howto person-face">
 <div class="step"><h2><span class="step-n">1</span>Restart the job under the same identity</h2>
 <p>RestartAsync re-arms the same job id: resets failure_count, clears retention, moves to Ready.</p>
-<figure class="listing"><figcaption><span class="file">operator-restart.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-1">Copy</button></figcaption><pre><code id="code-1">}
-Console.WriteLine(<span class="s">$&quot;terminal: status={snapshot!.Status} failureCount={snapshot.FailureCount} executionNumber={snapshot.ExecutionNumber}&quot;</span>);
+<figure class="listing"><figcaption><span class="file">operator-restart.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code>Console.WriteLine(<span class="s">$&quot;terminal: status={snapshot!.Status} failureCount={snapshot.FailureCount} executionNumber={snapshot.ExecutionNumber}&quot;</span>);
 <span class="k">await</span> ShowRestartStateAsync(lab, <span class="s">&quot;Before restart: one stable identity exhausted its failure budget&quot;</span>, outcome.JobId);
 
 FlakyReportJob.DataSourceFixed = <span class="k">true</span>;
 
 <span class="hl"><span class="k">var</span> result = <span class="k">await</span> jobs.RestartAsync(outcome, <span class="s">&quot;operator re-ran the report after the data fix&quot;</span>);</span>
-
 Console.WriteLine(<span class="s">$&quot;restart result: {result.Action} status={result.Status}&quot;</span>);
 
 <span class="c">// The worker may already have claimed the row; failure_count is reset regardless of that scheduling race.</span>
@@ -92,41 +90,36 @@ snapshot = <span class="k">await</span> jobs.GetAsync(outcome);
 Console.WriteLine(<span class="s">$&quot;immediately observed after restart: status={snapshot!.Status} failureCount={snapshot.FailureCount}&quot;</span>);</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">2</span>The job it acts on</h2>
-<figure class="listing"><figcaption><span class="file">operator-restart.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-2">Copy</button></figcaption><pre><code id="code-2"><span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> FlakyReport(<span class="k">string</span> Id);
+<figure class="listing"><figcaption><span class="file">operator-restart.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">private</span> <span class="k">static</span> <span class="k">int</span> _handlerEntries;
 
-<span class="k">public</span> <span class="k">static</span> <span class="k">class</span> FlakyReportJob
+<span class="k">public</span> <span class="k">static</span> <span class="k">bool</span> DataSourceFixed { <span class="k">get</span>; <span class="k">set</span>; }
+
+<span class="c">// MaxAttempts=3, 0s skips backoff so the budget exhausts quickly.</span>
+<span class="a">[Job(<span class="s">&quot;flaky-report&quot;</span>, MaxAttempts = 3, Backoff = <span class="s">&quot;0s&quot;</span>)]</span>
+<span class="k">public</span> <span class="k">static</span> <span class="k">async</span> Task Handle(FlakyReport input, JobContext context, CancellationToken ct)
 {
-    <span class="k">private</span> <span class="k">static</span> <span class="k">int</span> _handlerEntries;
-
-    <span class="k">public</span> <span class="k">static</span> <span class="k">bool</span> DataSourceFixed { <span class="k">get</span>; <span class="k">set</span>; }
-
-    <span class="c">// MaxAttempts=3, 0s skips backoff so the budget exhausts quickly.</span>
-    <span class="a">[Job(<span class="s">&quot;flaky-report&quot;</span>, MaxAttempts = 3, Backoff = <span class="s">&quot;0s&quot;</span>)]</span>
-    <span class="k">public</span> <span class="k">static</span> <span class="k">async</span> Task Handle(FlakyReport input, JobContext context, CancellationToken ct)
-    {
-        Console.WriteLine(<span class="s">$&quot;[{input.Id}] bare handler entry #{Interlocked.Increment(ref _handlerEntries)}&quot;</span>);
-        <span class="k">await</span> context.RunStepAsync(
-            <span class="s">&quot;prepare-report&quot;</span>,
-            _ =&gt;
-            {
-                Console.WriteLine(<span class="s">$&quot;[{input.Id}] preparation step body invoked; its recorded success can be reused&quot;</span>);
-                <span class="k">return</span> Task.CompletedTask;
-            },
-            ct
-        );
-
-        <span class="k">if</span> (!DataSourceFixed)
+    Console.WriteLine(<span class="s">$&quot;[{input.Id}] bare handler entry #{Interlocked.Increment(ref _handlerEntries)}&quot;</span>);
+    <span class="k">await</span> context.RunStepAsync(
+        <span class="s">&quot;prepare-report&quot;</span>,
+        _ =&gt;
         {
-            <span class="k">throw</span> <span class="k">new</span> InvalidOperationException(<span class="s">$&quot;[{input.Id}] data source unavailable&quot;</span>);
-        }
-        Console.WriteLine(<span class="s">$&quot;[{input.Id}] report generated after operator restart&quot;</span>);
+            Console.WriteLine(<span class="s">$&quot;[{input.Id}] preparation step body invoked; its recorded success can be reused&quot;</span>);
+            <span class="k">return</span> Task.CompletedTask;
+        },
+        ct
+    );
+
+    <span class="k">if</span> (!DataSourceFixed)
+    {
+        <span class="k">throw</span> <span class="k">new</span> InvalidOperationException(<span class="s">$&quot;[{input.Id}] data source unavailable&quot;</span>);
     }
+    Console.WriteLine(<span class="s">$&quot;[{input.Id}] report generated after operator restart&quot;</span>);
 }</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">3</span>Run it and check the output</h2>
 <p>From a clone of <a href="https://github.com/acta-dotnet/acta">the Acta repository</a>, with the .NET 10 SDK:</p>
-<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-3">Copy</button></figcaption><pre><code id="code-3">dotnet run --project concepts/300-failure-and-recovery/310-operator-restart</code></pre></figure>
-<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button" data-copy-target="#code-4">Copy</button></figcaption><pre><code id="code-4">terminal: status=Failed failureCount=3 executionNumber=3
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project concepts/300-failure-and-recovery/310-operator-restart</code></pre></figure>
+<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button">Copy</button></figcaption><pre><code>terminal: status=Failed failureCount=3 executionNumber=3
 restart result: Applied status=Ready
 immediately observed after restart: status=Ready failureCount=0
 [report-1] report generated after operator restart
@@ -145,7 +138,7 @@ re-run complete: status=Succeeded executionNumber=4</code></pre></figure>
 <h3>Trade-offs</h3>
 <p>Restart is not exactly-once recovery. Bare handler code and incomplete steps may execute again. Retaining step state is useful only if step names and meanings remain compatible with the restarted job.</p>
 <h3>Run the experiment</h3>
-<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-5">Copy</button></figcaption><pre><code id="code-5">dotnet run --project concepts/300-failure-and-recovery/310-operator-restart</code></pre></figure>
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project concepts/300-failure-and-recovery/310-operator-restart</code></pre></figure>
 <p>The job fails three times, the lab marks its dependency repaired, and an operator restart succeeds. Expected framework stack traces are suppressed so the four handler entries and durable state changes remain readable; <code>events_view</code> retains the complete failure evidence.</p>
 <h3>Rows to inspect</h3>
 <p>Run with <code>--all-columns</code> to execute the visible <code>SELECT *</code> Explore query first. The default Notice queries select the fields that prove the lesson, and the text below explains their meaning.</p>
@@ -160,7 +153,7 @@ re-run complete: status=Succeeded executionNumber=4</code></pre></figure>
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/concepts/300-failure-and-recovery/310-operator-restart"><code>concepts/300-failure-and-recovery/310-operator-restart</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> and <code>ConceptLab</code> are helpers of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">operator-restart.cs</span><span class="file-size">155 lines</span></summary><figure class="listing"><figcaption><span class="file">operator-restart.cs</span><button class="copy" type="button" data-copy-target="#code-6">Copy</button></figcaption><pre><code id="code-6"><span class="c">// How to restart a failed job and keep its history</span>
+<details class="source-file"><summary><span class="file-name">operator-restart.cs</span><span class="file-size">155 lines</span></summary><figure class="listing"><figcaption><span class="file">operator-restart.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to restart a failed job and keep its history</span>
 <span class="c">// `RestartAsync` runs a finished job again under the same identity. The failure budget is reset, the history is</span>
 <span class="c">// appended to, steps that succeeded are not run again, and the bare lines of the handler are.</span>
 <span class="k">using</span> Acta;
@@ -314,11 +307,12 @@ Console.WriteLine(<span class="s">$&quot;re-run complete: status={snapshot!.Stat
             Console.WriteLine(<span class="s">$&quot;[{input.Id}] report generated after operator restart&quot;</span>);
         }
     }
-}</code></pre></figure></details></div>
+}</code></pre></figure>
+</details></div>
 <div class="step plain-step"><h2>Where to go next</h2><ul class="next-links"><li><a href="/learn/410-http-api-controls">How to control jobs over HTTP</a><span>Watch and control running work</span></li></ul></div>
       </article>
       <article class="agent-face" hidden>
-        <figure class="listing agent"><figcaption><span class="file">/learn/310-operator-restart.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/310-operator-restart.md">Open</a><button class="copy" type="button" data-copy-target="#md-body">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
+        <figure class="listing agent"><figcaption><span class="file">/learn/310-operator-restart.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/310-operator-restart.md">Open</a><button class="copy" type="button">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
         <p class="hint">This is the page an agent receives: the same how-to as plain Markdown, at this page's address with <code>.md</code> added.</p>
       </article>
       <aside class="howto-rail" aria-label="This section">

@@ -8,29 +8,33 @@ namespace Acta.Emit.Features.Learn;
 /// <summary>
 /// The Markdown the how-tos are written in, read into the site's HTML: a program's comments and a README's rules take
 /// <c>`code`</c>, <c>**bold**</c> and links; a README's notes also take headings, lists, tables and fenced code. A
-/// link to another rung's folder becomes a link to that rung's how-to.
+/// link to another how-to's folder becomes a link to its page.
 /// </summary>
 internal sealed partial class LearnText(LearnLibrary library)
 {
     public const string Repository = "https://github.com/acta-dotnet/acta";
 
-    private int _listings;
-
-    /// <summary>Listing ids count from one on every page, so a new how-to leaves the other pages as they were.</summary>
-    public void StartPage() => _listings = 0;
-
-    public string NextListingId() => $"code-{++_listings}";
-
-    public string Listing(string? file, string? note, string bodyHtml, bool output = false)
+    /// <summary>The lines without the indent they all share.</summary>
+    public static List<string> Dedent(IEnumerable<string> lines)
     {
-        var id = NextListingId();
+        var all = lines.ToList();
+        var indent = all.Where(line => line.Trim().Length > 0)
+            .Select(line => line.Length - line.TrimStart(' ').Length)
+            .DefaultIfEmpty(0)
+            .Min();
+        return all.Select(line => line[Math.Min(indent, line.Length)..]).ToList();
+    }
+
+    /// <summary>A block of code with its caption and its copy button, which copies the block it stands on.</summary>
+    public static string Listing(string? file, string? note, string bodyHtml, bool output = false)
+    {
         var caption =
             (file is { Length: > 0 } ? $"<span class=\"file\">{Esc(file)}</span>" : "")
             + (note is { Length: > 0 } ? $"<span class=\"note\">{Esc(note)}</span>" : "");
-        return $"<figure class=\"listing{(output ? " output" : "")}\"><figcaption>{caption}<button class=\"copy\" type=\"button\" data-copy-target=\"#{id}\">Copy</button></figcaption><pre><code id=\"{id}\">{bodyHtml}</code></pre></figure>\n";
+        return $"<figure class=\"listing{(output ? " output" : "")}\"><figcaption>{caption}<button class=\"copy\" type=\"button\">Copy</button></figcaption><pre><code>{bodyHtml}</code></pre></figure>\n";
     }
 
-    /// <summary>Where a link leads from a page: another rung's how-to, the site itself, or the file on GitHub.</summary>
+    /// <summary>Where a link leads from a page: another how-to, the site itself, or the file on GitHub.</summary>
     public string LinkTarget(string href, string baseDir, bool markdown)
     {
         if (Absolute().IsMatch(href))
@@ -41,8 +45,8 @@ internal sealed partial class LearnText(LearnLibrary library)
         var file = parts[0];
         var hash = parts.Length > 1 ? parts[1] : "";
         var resolved = Normalize(baseDir.Length > 0 ? $"{baseDir}/{file}" : file);
-        var rung = RungPath().Match(resolved);
-        if (rung.Success && library.ById.TryGetValue(rung.Groups[1].Value, out var entry))
+        var howTo = HowToPath().Match(resolved);
+        if (howTo.Success && library.ById.TryGetValue(howTo.Groups[1].Value, out var entry))
         {
             return entry.Url + (markdown ? ".md" : "");
         }
@@ -102,10 +106,10 @@ internal sealed partial class LearnText(LearnLibrary library)
     public string MarkdownLinks(string text, string baseDir) =>
         MarkdownLink().Replace(text, m => $"[{m.Groups[1].Value}]({LinkTarget(m.Groups[2].Value, baseDir, markdown: true)})");
 
-    /// <summary>A README's notes as HTML, their headings starting below <paramref name="headingLevel"/>.</summary>
-    public string Blocks(string markdown, string baseDir, int headingLevel)
+    /// <summary>A README's notes as HTML, their headings one level down, under the page's own.</summary>
+    public string Blocks(string markdown, string baseDir)
     {
-        var lines = HtmlComment().Replace(markdown, "").Split('\n');
+        var lines = markdown.Split('\n');
         var html = new StringBuilder();
         var i = 0;
         while (i < lines.Length)
@@ -139,7 +143,7 @@ internal sealed partial class LearnText(LearnLibrary library)
             var heading = Heading().Match(line);
             if (heading.Success)
             {
-                var level = Math.Min(6, headingLevel + heading.Groups[1].Length - 2);
+                var level = heading.Groups[1].Length + 1;
                 html.Append(CultureInfo.InvariantCulture, $"<h{level}>{Inline(heading.Groups[2].Value, baseDir)}</h{level}>\n");
                 i++;
                 continue;
@@ -206,8 +210,8 @@ internal sealed partial class LearnText(LearnLibrary library)
     [GeneratedRegex(@"^(https?:|mailto:|#|/)")]
     private static partial Regex Absolute();
 
-    [GeneratedRegex(@"^concepts/[^/]+/(\d{3})-[a-z0-9-]+/?$")]
-    private static partial Regex RungPath();
+    [GeneratedRegex("^" + LearnLibrary.Root + @"/[^/]+/(\d{3})-[a-z0-9-]+/?$")]
+    private static partial Regex HowToPath();
 
     [GeneratedRegex(@"\[((?:`[^`]*`|[^\]`])+)\]\(([^)\s]+)\)")]
     private static partial Regex Link();
@@ -226,9 +230,6 @@ internal sealed partial class LearnText(LearnLibrary library)
 
     [GeneratedRegex(@"\x00(\d+)\x00")]
     private static partial Regex Held();
-
-    [GeneratedRegex(@"<!--[\s\S]*?-->")]
-    private static partial Regex HtmlComment();
 
     [GeneratedRegex(@"^(#{1,4}) (.+)$")]
     private static partial Regex Heading();

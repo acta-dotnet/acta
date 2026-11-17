@@ -30,8 +30,6 @@ The lines that matter:
 In `automatic-failure-alerts.cs` (excerpt):
 
 ```csharp
-public sealed record ProcessReport(string ReportId);
-
 public static class ProcessReportJob
 {
     [Job(

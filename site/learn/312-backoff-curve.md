@@ -23,8 +23,6 @@ The lines that matter:
 In `backoff-curve.cs` (excerpt):
 
 ```csharp
-public sealed record FlakyTransfer(string Id);
-
 public static class FlakyTransferJob
 {
     [Job("flaky-transfer", MaxAttempts = 4, Backoff = "1s..8s x2 exact")]

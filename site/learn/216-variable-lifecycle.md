@@ -31,54 +31,16 @@ var v1 = await context.GetOrSetVariableAsync(
 In `variable-lifecycle.cs` (excerpt):
 
 ```csharp
-public readonly record struct InspectVariables;
-
-public sealed class InspectVariablesJob
-{
-    [Job("inspect-variables")]
-    public async Task Handle(InspectVariables input, JobContext context, CancellationToken ct)
+var factoryCalls = 0;
+var v1 = await context.GetOrSetVariableAsync(
+    "counter",
+    () =>
     {
-        var factoryCalls = 0;
-        var v1 = await context.GetOrSetVariableAsync(
-            "counter",
-            () =>
-            {
-                factoryCalls++;
-                return 42;
-            },
-            ct
-        );
-        var v2 = await context.GetOrSetVariableAsync(
-            "counter",
-            () =>
-            {
-                factoryCalls++;
-                return 99;
-            },
-            ct
-        );
-        Console.WriteLine($"get-or-set: v1={v1} v2={v2} factory-calls={factoryCalls}");
-
-        // ExistsVariableAsync: the variable is present right after get-or-set.
-        var existsBefore = await context.ExistsVariableAsync("counter", ct);
-        Console.WriteLine($"exists before delete: {existsBefore}");
-
-        // DeleteVariableAsync removes the variable; Exists is false immediately after.
-        await context.DeleteVariableAsync("counter", ct);
-        var existsAfter = await context.ExistsVariableAsync("counter", ct);
-        Console.WriteLine($"exists after delete: {existsAfter}");
-
-        // GetVariableOrDefaultAsync with a default value: absent variable returns the supplied default.
-        var fallback = await context.GetVariableOrDefaultAsync("counter", "missing", ct);
-        Console.WriteLine($"default fallback: {fallback}");
-
-        // Raw JobPayload variable: store a pre-serialized payload; the format travels with the value.
-        var raw = JobPayload.Json("raw-value");
-        await context.SetVariableAsync("raw-var", raw, ct);
-        var rawBack = await context.GetVariableOrDefaultAsync<string>("raw-var", ct);
-        Console.WriteLine($"raw payload round-trip: {rawBack}");
-    }
-}
+        factoryCalls++;
+        return 42;
+    },
+    ct
+);
 ```
 
 ## 2. Delete a variable, and check whether one is there
@@ -95,54 +57,18 @@ var existsAfter = await context.ExistsVariableAsync("counter", ct);
 In `variable-lifecycle.cs` (excerpt):
 
 ```csharp
-public readonly record struct InspectVariables;
+Console.WriteLine($"get-or-set: v1={v1} v2={v2} factory-calls={factoryCalls}");
 
-public sealed class InspectVariablesJob
-{
-    [Job("inspect-variables")]
-    public async Task Handle(InspectVariables input, JobContext context, CancellationToken ct)
-    {
-        var factoryCalls = 0;
-        // GetOrSet: factory runs on the first call; the second call returns the stored value without invoking the factory.
-        var v1 = await context.GetOrSetVariableAsync(
-            "counter",
-            () =>
-            {
-                factoryCalls++;
-                return 42;
-            },
-            ct
-        );
-        var v2 = await context.GetOrSetVariableAsync(
-            "counter",
-            () =>
-            {
-                factoryCalls++;
-                return 99;
-            },
-            ct
-        );
-        Console.WriteLine($"get-or-set: v1={v1} v2={v2} factory-calls={factoryCalls}");
+// ExistsVariableAsync: the variable is present right after get-or-set.
+var existsBefore = await context.ExistsVariableAsync("counter", ct);
+Console.WriteLine($"exists before delete: {existsBefore}");
 
-        // ExistsVariableAsync: the variable is present right after get-or-set.
-        var existsBefore = await context.ExistsVariableAsync("counter", ct);
-        Console.WriteLine($"exists before delete: {existsBefore}");
+await context.DeleteVariableAsync("counter", ct);
+var existsAfter = await context.ExistsVariableAsync("counter", ct);
+Console.WriteLine($"exists after delete: {existsAfter}");
 
-        await context.DeleteVariableAsync("counter", ct);
-        var existsAfter = await context.ExistsVariableAsync("counter", ct);
-        Console.WriteLine($"exists after delete: {existsAfter}");
-
-        // GetVariableOrDefaultAsync with a default value: absent variable returns the supplied default.
-        var fallback = await context.GetVariableOrDefaultAsync("counter", "missing", ct);
-        Console.WriteLine($"default fallback: {fallback}");
-
-        // Raw JobPayload variable: store a pre-serialized payload; the format travels with the value.
-        var raw = JobPayload.Json("raw-value");
-        await context.SetVariableAsync("raw-var", raw, ct);
-        var rawBack = await context.GetVariableOrDefaultAsync<string>("raw-var", ct);
-        Console.WriteLine($"raw payload round-trip: {rawBack}");
-    }
-}
+var fallback = await context.GetVariableOrDefaultAsync("counter", "missing", ct);
+Console.WriteLine($"default fallback: {fallback}");
 ```
 
 ## 3. Read a variable that may not be there
@@ -158,54 +84,19 @@ var fallback = await context.GetVariableOrDefaultAsync("counter", "missing", ct)
 In `variable-lifecycle.cs` (excerpt):
 
 ```csharp
-public readonly record struct InspectVariables;
+Console.WriteLine($"exists before delete: {existsBefore}");
 
-public sealed class InspectVariablesJob
-{
-    [Job("inspect-variables")]
-    public async Task Handle(InspectVariables input, JobContext context, CancellationToken ct)
-    {
-        var factoryCalls = 0;
-        // GetOrSet: factory runs on the first call; the second call returns the stored value without invoking the factory.
-        var v1 = await context.GetOrSetVariableAsync(
-            "counter",
-            () =>
-            {
-                factoryCalls++;
-                return 42;
-            },
-            ct
-        );
-        var v2 = await context.GetOrSetVariableAsync(
-            "counter",
-            () =>
-            {
-                factoryCalls++;
-                return 99;
-            },
-            ct
-        );
-        Console.WriteLine($"get-or-set: v1={v1} v2={v2} factory-calls={factoryCalls}");
+await context.DeleteVariableAsync("counter", ct);
+var existsAfter = await context.ExistsVariableAsync("counter", ct);
+Console.WriteLine($"exists after delete: {existsAfter}");
 
-        // ExistsVariableAsync: the variable is present right after get-or-set.
-        var existsBefore = await context.ExistsVariableAsync("counter", ct);
-        Console.WriteLine($"exists before delete: {existsBefore}");
+var fallback = await context.GetVariableOrDefaultAsync("counter", "missing", ct);
+Console.WriteLine($"default fallback: {fallback}");
 
-        // DeleteVariableAsync removes the variable; Exists is false immediately after.
-        await context.DeleteVariableAsync("counter", ct);
-        var existsAfter = await context.ExistsVariableAsync("counter", ct);
-        Console.WriteLine($"exists after delete: {existsAfter}");
-
-        var fallback = await context.GetVariableOrDefaultAsync("counter", "missing", ct);
-        Console.WriteLine($"default fallback: {fallback}");
-
-        // Raw JobPayload variable: store a pre-serialized payload; the format travels with the value.
-        var raw = JobPayload.Json("raw-value");
-        await context.SetVariableAsync("raw-var", raw, ct);
-        var rawBack = await context.GetVariableOrDefaultAsync<string>("raw-var", ct);
-        Console.WriteLine($"raw payload round-trip: {rawBack}");
-    }
-}
+// Raw JobPayload variable: store a pre-serialized payload; the format travels with the value.
+var raw = JobPayload.Json("raw-value");
+await context.SetVariableAsync("raw-var", raw, ct);
+var rawBack = await context.GetVariableOrDefaultAsync<string>("raw-var", ct);
 ```
 
 ## 4. Run it and check the output

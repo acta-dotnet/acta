@@ -23,17 +23,54 @@ The lines that matter:
 In `step-retry.cs` (excerpt):
 
 ```csharp
-public sealed record FetchForecast(string City);
-
-public sealed class FetchForecastJob
+[Job("fetch-forecast", MaxAttempts = 3, Backoff = "1s")]
+public async Task Handle(FetchForecast input, JobContext context, CancellationToken ct)
 {
-    [Job("fetch-forecast", MaxAttempts = 3, Backoff = "1s")]
-    public async Task Handle(FetchForecast input, JobContext context, CancellationToken ct)
+    await context.RunStepAsync(
+        "reserve-slot",
+        async inner =>
+        {
+            Console.WriteLine($"[{input.City}] report slot reserved");
+            await Task.CompletedTask;
+        },
+        ct
+    );
+
+    try
     {
         await context.RunStepAsync(
-            "reserve-slot",
+            "call-weather-api",
             async inner =>
             {
+                Console.WriteLine($"[{input.City}] calling weather API (attempt {context.ExecutionNumber})");
+                await Task.Delay(50, inner);
+                if (input.City == "Atlantis" || context.ExecutionNumber < 3)
+                {
+                    throw new InvalidOperationException("weather API timeout");
+                }
+                Console.WriteLine($"[{input.City}] forecast: 18C, light rain");
+            },
+            ct
+        );
+    }
+    catch (Exception ex) when (context.EndsJob(ex))
+    {
+        // This failure ends the job, so give the slot back first. Best effort: a crash on the last attempt
+        // skips this block, which is why the release is a step of its own and safe to repeat.
+        await context.RunStepAsync(
+            "release-slot",
+            async inner =>
+            {
+                Console.WriteLine($"[{input.City}] report slot released; the job fails for good");
+                await Task.CompletedTask;
+            },
+            ct
+        );
+        throw;
+    }
+
+    Console.WriteLine($"[{input.City}] forecast stored");
+}
 ```
 
 ## 2. Compensate in a catch that fires only when the failure ends the job
@@ -63,31 +100,40 @@ catch (Exception ex) when (context.EndsJob(ex))
 In `step-retry.cs` (excerpt):
 
 ```csharp
-                    }
-                    Console.WriteLine($"[{input.City}] forecast: 18C, light rain");
-                },
-                ct
-            );
-        }
-        catch (Exception ex) when (context.EndsJob(ex))
+try
+{
+    await context.RunStepAsync(
+        "call-weather-api",
+        async inner =>
         {
-            // This failure ends the job, so give the slot back first. Best effort: a crash on the last attempt
-            // skips this block, which is why the release is a step of its own and safe to repeat.
-            await context.RunStepAsync(
-                "release-slot",
-                async inner =>
-                {
-                    Console.WriteLine($"[{input.City}] report slot released; the job fails for good");
-                    await Task.CompletedTask;
-                },
-                ct
-            );
-            throw;
-        }
-
-        Console.WriteLine($"[{input.City}] forecast stored");
-    }
+            Console.WriteLine($"[{input.City}] calling weather API (attempt {context.ExecutionNumber})");
+            await Task.Delay(50, inner);
+            if (input.City == "Atlantis" || context.ExecutionNumber < 3)
+            {
+                throw new InvalidOperationException("weather API timeout");
+            }
+            Console.WriteLine($"[{input.City}] forecast: 18C, light rain");
+        },
+        ct
+    );
 }
+catch (Exception ex) when (context.EndsJob(ex))
+{
+    // This failure ends the job, so give the slot back first. Best effort: a crash on the last attempt
+    // skips this block, which is why the release is a step of its own and safe to repeat.
+    await context.RunStepAsync(
+        "release-slot",
+        async inner =>
+        {
+            Console.WriteLine($"[{input.City}] report slot released; the job fails for good");
+            await Task.CompletedTask;
+        },
+        ct
+    );
+    throw;
+}
+
+Console.WriteLine($"[{input.City}] forecast stored");
 ```
 
 ## 3. Run it and check the output

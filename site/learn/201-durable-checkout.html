@@ -57,14 +57,14 @@
   </div>
 
 
-  <main id="content" data-howto="201">
+  <main id="content">
     <header class="wrap page-head howto-head">
       <p class="record"><a href="/learn">learn acta</a><span aria-hidden="true">/</span><a href="/learn#s-survive">make work survive a crash</a></p>
       <h1>How to build a checkout that waits for a review and a timer</h1>
       <p class="lede">One handler reads top to bottom as a checkout: wait for a fraud review, reserve, charge, wait out a settlement window, send the receipt. Each stage is a signal, a step, a variable, or a timer that survives a restart.</p>
       <p class="howto-context">A how-to for Acta, durable execution for .NET. <a href="/start">New to Acta? Run your first durable job in five minutes.</a></p>
       <div class="howto-meta">
-        <span class="status checked">Checked every release</span><span class="mark lab">Lab</span>
+        <span class="status checked">Checked every release</span><span class="mark">Lab</span>
         <a class="program" href="https://github.com/acta-dotnet/acta/tree/main/concepts/200-durable-execution/201-durable-checkout"><code>concepts/200-durable-execution/201-durable-checkout</code></a>
         <div class="reader" role="group" aria-label="Read this page as">
         <span class="reader-label">Read as</span>
@@ -77,33 +77,19 @@
       <article class="howto person-face">
 <div class="step"><h2><span class="step-n">1</span>Wait for the review before anything is charged</h2>
 <p>No thread or executor waits here. Acta stores the signal checkpoint, releases the lease, and re-enters this handler from the top after another actor raises the signal.</p>
-<figure class="listing"><figcaption><span class="file">Checkout.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-1">Copy</button></figcaption><pre><code id="code-1"><span class="a">[Job(<span class="s">&quot;checkout&quot;</span>)]</span>
-<span class="k">public</span> <span class="k">async</span> Task&lt;CheckoutResult&gt; Handle(Checkout order, JobContext context, CancellationToken ct)
-{
-    <span class="c">// The review comes first, so a rejected order has reserved and charged nothing and needs no refund.</span>
-    <span class="k">if</span> (order.Amount &gt;= 500m)
-    {
-<span class="hl">        <span class="k">var</span> decision = <span class="k">await</span> context.WaitSignalAsync&lt;FraudDecision&gt;(<span class="s">&quot;fraud-review&quot;</span>, ct);</span>
-<span class="hl">        <span class="k">if</span> (decision <span class="k">is</span> <span class="k">not</span> { Approved: <span class="k">true</span> })</span>
-<span class="hl">        {</span>
-<span class="hl">            <span class="k">await</span> context.CancelAsync(<span class="s">$&quot;fraud review rejected by {decision?.Reviewer}&quot;</span>, ct);</span>
-<span class="hl">        }</span>
+<figure class="listing"><figcaption><span class="file">Checkout.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="hl"><span class="k">var</span> decision = <span class="k">await</span> context.WaitSignalAsync&lt;FraudDecision&gt;(<span class="s">&quot;fraud-review&quot;</span>, ct);</span>
+<span class="hl"><span class="k">if</span> (decision <span class="k">is</span> <span class="k">not</span> { Approved: <span class="k">true</span> })</span>
+<span class="hl">{</span>
+<span class="hl">    <span class="k">await</span> context.CancelAsync(<span class="s">$&quot;fraud review rejected by {decision?.Reviewer}&quot;</span>, ct);</span>
+<span class="hl">}</span>
 
-        <span class="c">// Deliberately ordinary, repeat-safe diagnostic code: it runs after the signal replay and</span>
-        <span class="c">// again after the timer replay. External side effects belong in idempotent durable steps.</span>
-        Console.WriteLine(<span class="s">$&quot;[{order.OrderId}] approval observed by handler; reviewer={decision!.Reviewer}&quot;</span>);
-    }
-</code></pre></figure>
+<span class="c">// Deliberately ordinary, repeat-safe diagnostic code: it runs after the signal replay and</span>
+<span class="c">// again after the timer replay. External side effects belong in idempotent durable steps.</span>
+Console.WriteLine(<span class="s">$&quot;[{order.OrderId}] approval observed by handler; reviewer={decision!.Reviewer}&quot;</span>);</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">2</span>Put each outside call in a step</h2>
 <p>Normal durable steps replay completed outcomes, but an in-flight body can run again after a crash. These simulated external calls therefore carry stable deduplication keys. A real inventory, payment, or mail service must persist and honor the same contract.</p>
-<figure class="listing"><figcaption><span class="file">Checkout.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-2">Copy</button></figcaption><pre><code id="code-2">
-    <span class="c">// Deliberately ordinary, repeat-safe diagnostic code: it runs after the signal replay and</span>
-    <span class="c">// again after the timer replay. External side effects belong in idempotent durable steps.</span>
-    Console.WriteLine(<span class="s">$&quot;[{order.OrderId}] approval observed by handler; reviewer={decision!.Reviewer}&quot;</span>);
-}
-
-<span class="hl"><span class="k">await</span> context.RunStepAsync(</span>
+<figure class="listing"><figcaption><span class="file">Checkout.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="hl"><span class="k">await</span> context.RunStepAsync(</span>
 <span class="hl">    <span class="s">&quot;reserve-inventory&quot;</span>,</span>
 <span class="hl">    <span class="k">async</span> innerCt =&gt;</span>
 <span class="hl">    {</span>
@@ -111,50 +97,24 @@
 <span class="hl">        Console.WriteLine(<span class="s">$&quot;[{order.OrderId}] inventory request: deduplication-key=reservation:{order.OrderId}&quot;</span>);</span>
 <span class="hl">    },</span>
 <span class="hl">    ct</span>
-<span class="hl">);</span>
-
-<span class="k">var</span> charge = <span class="k">await</span> context.RunStepAsync(
-    <span class="s">&quot;charge-card&quot;</span>,
-    <span class="k">async</span> innerCt =&gt;
-    {
-        <span class="k">await</span> Task.Delay(150, innerCt);</code></pre></figure>
+<span class="hl">);</span></code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">3</span>Keep a value in a variable</h2>
 <p>Get-or-set demonstrates that the variable row is read, not rewritten, on handler re-entry.</p>
-<figure class="listing"><figcaption><span class="file">Checkout.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-3">Copy</button></figcaption><pre><code id="code-3">        Console.WriteLine(<span class="s">$&quot;[{order.OrderId}] payment request: deduplication-key=payment:{order.OrderId}&quot;</span>);
-        <span class="k">return</span> <span class="k">new</span> ChargeResult(<span class="s">$&quot;ch_{order.OrderId}&quot;</span>);
-    },
-    ct
-);
+<figure class="listing"><figcaption><span class="file">Checkout.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="hl"><span class="k">var</span> chargeId = <span class="k">await</span> context.GetOrSetVariableAsync(<span class="s">&quot;charge-id&quot;</span>, () =&gt; charge.ChargeId, ct);</span>
 
-<span class="hl"><span class="k">var</span> chargeId = <span class="k">await</span> context.GetOrSetVariableAsync(<span class="s">&quot;charge-id&quot;</span>, () =&gt; charge.ChargeId, ct);</span>
-
-<span class="c">// The named timer stores an intention in SQL. It does not preserve a process-local continuation.</span>
-<span class="k">await</span> context.SleepAsync(<span class="s">&quot;settlement-delay&quot;</span>, TimeSpan.FromSeconds(5), <span class="s">&quot;simulated settlement window&quot;</span>, ct);
-
-<span class="k">await</span> context.RunStepAsync(
-    <span class="s">&quot;send-receipt&quot;</span>,</code></pre></figure>
+<span class="k">await</span> context.SleepAsync(<span class="s">&quot;settlement-delay&quot;</span>, TimeSpan.FromSeconds(5), <span class="s">&quot;simulated settlement window&quot;</span>, ct);</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">4</span>Wait out the settlement window with a named timer</h2>
 <p>The named timer stores an intention in SQL. It does not preserve a process-local continuation.</p>
-<figure class="listing"><figcaption><span class="file">Checkout.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-4">Copy</button></figcaption><pre><code id="code-4">    ct
-);
+<figure class="listing"><figcaption><span class="file">Checkout.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">var</span> chargeId = <span class="k">await</span> context.GetOrSetVariableAsync(<span class="s">&quot;charge-id&quot;</span>, () =&gt; charge.ChargeId, ct);
 
-<span class="c">// Get-or-set demonstrates that the variable row is read, not rewritten, on handler re-entry.</span>
-<span class="k">var</span> chargeId = <span class="k">await</span> context.GetOrSetVariableAsync(<span class="s">&quot;charge-id&quot;</span>, () =&gt; charge.ChargeId, ct);
-
-<span class="hl"><span class="k">await</span> context.SleepAsync(<span class="s">&quot;settlement-delay&quot;</span>, TimeSpan.FromSeconds(5), <span class="s">&quot;simulated settlement window&quot;</span>, ct);</span>
-
-<span class="k">await</span> context.RunStepAsync(
-    <span class="s">&quot;send-receipt&quot;</span>,
-    <span class="k">async</span> innerCt =&gt;
-    {
-        <span class="k">var</span> storedChargeId = <span class="k">await</span> context.GetVariableAsync&lt;<span class="k">string</span>&gt;(<span class="s">&quot;charge-id&quot;</span>, innerCt);</code></pre></figure>
+<span class="hl"><span class="k">await</span> context.SleepAsync(<span class="s">&quot;settlement-delay&quot;</span>, TimeSpan.FromSeconds(5), <span class="s">&quot;simulated settlement window&quot;</span>, ct);</span></code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">5</span>Run it and check the output</h2>
 <p>From a clone of <a href="https://github.com/acta-dotnet/acta">the Acta repository</a>, with the .NET 10 SDK:</p>
-<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-5">Copy</button></figcaption><pre><code id="code-5">dotnet run --project concepts/200-durable-execution/201-durable-checkout</code></pre></figure>
-<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button" data-copy-target="#code-6">Copy</button></figcaption><pre><code id="code-6">fraud-review raised: approved
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project concepts/200-durable-execution/201-durable-checkout</code></pre></figure>
+<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button">Copy</button></figcaption><pre><code>fraud-review raised: approved
 approval observed by handler; reviewer=alice
 receipt request for ch_order-
 4. Done - one identity completed through three handler entries</code></pre></figure>
@@ -174,20 +134,20 @@ receipt request for ch_order-
 <p>The handler re-enters from the top after each durable wait. Completed steps replay their stored outcome, but a normal step body can still run again if the process dies after its external side effect and before Acta records completion. The example therefore passes stable deduplication keys to its simulated external systems. A real inventory, payment, or mail API must persist and honor those keys.</p>
 <p>Every named step and checkpoint is also a durable contract and an additional row. This is more explicit and inspectable than a process-local continuation, but it is not free and it is not exactly-once execution.</p>
 <h3>Run the experiment</h3>
-<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-7">Copy</button></figcaption><pre><code id="code-7">dotnet run --project concepts/200-durable-execution/201-durable-checkout</code></pre></figure>
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project concepts/200-durable-execution/201-durable-checkout</code></pre></figure>
 <p>The program creates one uniquely scoped checkout, holds it long enough to inspect the enqueue state, then walks automatically through four snapshots:</p>
 <ol class="plain"><li>Enqueued but not yet executed.</li><li>Suspended on fraud review with no worker lease.</li><li>Waiting on a durable settlement timer with no worker lease.</li><li>Done, with steps, checkpoints, result, split job and job-state rows, and events visible.</li></ol>
 <p>Use <code>--brief</code> to skip row output. Use <code>--all-columns</code> to add the complete <code>jobs_view</code> record at the fraud-review boundary.</p>
 <h3>Rows to inspect</h3>
 <p>The default Notice queries select only the fields that prove each claim. With <code>--all-columns</code>, the lab first runs this explicit Explore query:</p>
-<figure class="listing"><figcaption><span class="note">sql</span><button class="copy" type="button" data-copy-target="#code-8">Copy</button></figcaption><pre><code id="code-8">SELECT *
+<figure class="listing"><figcaption><span class="note">sql</span><button class="copy" type="button">Copy</button></figcaption><pre><code>SELECT *
 FROM jobs_view
 WHERE job_id = @jobId;</code></pre></figure>
 <p>The program primarily queries <code>jobs_view</code>, <code>steps_view</code>, <code>checkpoints_view</code>, and <code>events_view</code>. It goes one level deeper only to compare <code>jobs</code> with <code>jobs_state</code> and to show the result stored on the <code>jobs_state</code> row. Those base tables explain Acta's design; applications should normally use <code>IJobs</code>, and operational tooling should prefer the curated views. Base tables are not the storage compatibility contract.</p>
 <p>Notice that <code>execution_number</code> reaches three while every step keeps the one outcome it recorded. The plain approval log appears twice because signal and timer recovery both re-enter the handler; the completed step bodies are replay-skipped after their outcomes have been recorded.</p>
 <h3>Break it</h3>
 <p>Reject the fraud review:</p>
-<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-9">Copy</button></figcaption><pre><code id="code-9">dotnet run --project concepts/200-durable-execution/201-durable-checkout -- --reject</code></pre></figure>
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project concepts/200-durable-execution/201-durable-checkout -- --reject</code></pre></figure>
 <p>The same signal mechanism now ends the checkout as <code>cancelled</code>. The review runs before inventory and payment, so the resulting rows prove that nothing was reserved or charged: no step, timer, or terminal result was created.</p>
 <p>This lab does not stage a process kill. Use <a href="/learn/220-at-most-once-step"><code>220-at-most-once-step</code></a> for the ambiguous side-effect crash window and <a href="/learn/705-worker-crash-recovery"><code>705-worker-crash-recovery</code></a> for lease expiry and takeover by another worker.</p>
 <h3>When not to use</h3>
@@ -198,7 +158,7 @@ WHERE job_id = @jobId;</code></pre></figure>
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/concepts/200-durable-execution/201-durable-checkout"><code>concepts/200-durable-execution/201-durable-checkout</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> and <code>ConceptLab</code> are helpers of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">Program.cs</span><span class="file-size">29 lines</span></summary><figure class="listing"><figcaption><span class="file">Program.cs</span><button class="copy" type="button" data-copy-target="#code-10">Copy</button></figcaption><pre><code id="code-10"><span class="c">// How to build a checkout that waits for a review and a timer</span>
+<details class="source-file"><summary><span class="file-name">Program.cs</span><span class="file-size">29 lines</span></summary><figure class="listing"><figcaption><span class="file">Program.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to build a checkout that waits for a review and a timer</span>
 <span class="c">// One handler reads top to bottom as a checkout: wait for a fraud review, reserve, charge, wait out a settlement</span>
 <span class="c">// window, send the receipt. Each stage is a signal, a step, a variable, or a timer that survives a restart.</span>
 <span class="k">using</span> Acta;
@@ -226,8 +186,9 @@ builder.Services.UseActa(j =&gt;
 
 builder.Services.AddHostedService&lt;Primer&gt;();
 
-<span class="k">await</span> builder.Build().RunAsync();</code></pre></figure></details>
-<details class="source-file"><summary><span class="file-name">Checkout.cs</span><span class="file-size">83 lines</span></summary><figure class="listing"><figcaption><span class="file">Checkout.cs</span><button class="copy" type="button" data-copy-target="#code-11">Copy</button></figcaption><pre><code id="code-11"><span class="k">namespace</span> Acta.Concepts.DurableCheckout;
+<span class="k">await</span> builder.Build().RunAsync();</code></pre></figure>
+</details>
+<details class="source-file"><summary><span class="file-name">Checkout.cs</span><span class="file-size">83 lines</span></summary><figure class="listing"><figcaption><span class="file">Checkout.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">namespace</span> Acta.Concepts.DurableCheckout;
 
 <span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> Checkout(<span class="k">string</span> OrderId, <span class="k">decimal</span> Amount);
 
@@ -309,8 +270,9 @@ builder.Services.AddHostedService&lt;Primer&gt;();
 
         <span class="k">return</span> <span class="k">new</span> CheckoutResult(order.OrderId, chargeId);
     }
-}</code></pre></figure></details>
-<details class="source-file"><summary><span class="file-name">Primer.cs</span><span class="file-size">280 lines</span></summary><figure class="listing"><figcaption><span class="file">Primer.cs</span><button class="copy" type="button" data-copy-target="#code-12">Copy</button></figcaption><pre><code id="code-12"><span class="k">using</span> Acta.Labs;
+}</code></pre></figure>
+</details>
+<details class="source-file"><summary><span class="file-name">Primer.cs</span><span class="file-size">280 lines</span></summary><figure class="listing"><figcaption><span class="file">Primer.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">using</span> Acta.Labs;
 <span class="k">using</span> Microsoft.Extensions.Hosting;
 
 <span class="k">namespace</span> Acta.Concepts.DurableCheckout;
@@ -589,11 +551,12 @@ builder.Services.AddHostedService&lt;Primer&gt;();
             <span class="k">new</span> { jobId },
             ct
         );
-}</code></pre></figure></details></div>
+}</code></pre></figure>
+</details></div>
 <div class="step plain-step"><h2>Where to go next</h2><ul class="next-links"><li><a href="/learn/208-progress">How to report how far along a job is</a><span>Make work survive a crash</span></li></ul></div>
       </article>
       <article class="agent-face" hidden>
-        <figure class="listing agent"><figcaption><span class="file">/learn/201-durable-checkout.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/201-durable-checkout.md">Open</a><button class="copy" type="button" data-copy-target="#md-body">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
+        <figure class="listing agent"><figcaption><span class="file">/learn/201-durable-checkout.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/201-durable-checkout.md">Open</a><button class="copy" type="button">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
         <p class="hint">This is the page an agent receives: the same how-to as plain Markdown, at this page's address with <code>.md</code> added.</p>
       </article>
       <aside class="howto-rail" aria-label="This section">

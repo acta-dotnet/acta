@@ -57,14 +57,14 @@
   </div>
 
 
-  <main id="content" data-howto="202">
+  <main id="content">
     <header class="wrap page-head howto-head">
       <p class="record"><a href="/learn">learn acta</a><span aria-hidden="true">/</span><a href="/learn#s-survive">make work survive a crash</a></p>
       <h1>How to keep finished work from repeating on a retry</h1>
       <p class="lede">A named step records its outcome, so a retry returns it instead of doing the work again.</p>
       <p class="howto-context">A how-to for Acta, durable execution for .NET. <a href="/start">New to Acta? Run your first durable job in five minutes.</a></p>
       <div class="howto-meta">
-        <span class="status checked">Checked every release</span><span class="mark lab">Lab</span>
+        <span class="status checked">Checked every release</span><span class="mark">Lab</span>
         <a class="program" href="https://github.com/acta-dotnet/acta/tree/main/concepts/200-durable-execution/202-durable-step"><code>concepts/200-durable-execution/202-durable-step</code></a>
         <div class="reader" role="group" aria-label="Read this page as">
         <span class="reader-label">Read as</span>
@@ -77,77 +77,36 @@
       <article class="howto person-face">
 <div class="step"><h2><span class="step-n">1</span>Put the work in a named step</h2>
 <p><code>RunStepAsync</code> gives the work a name and records its outcome under that name. On a later run of the handler, a step with a recorded outcome returns it instead of running its body. In this controlled path the later failure happens after step success is durable, so execution two reuses that outcome. A process crash after the external request but before Acta records success could invoke a normal step body again.</p>
-<figure class="listing"><figcaption><span class="file">durable-step.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-1">Copy</button></figcaption><pre><code id="code-1"><span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> FreezeBox(<span class="k">string</span> BoxId);
+<figure class="listing"><figcaption><span class="file">durable-step.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="hl"><span class="k">await</span> context.RunStepAsync(</span>
+<span class="hl">    <span class="s">&quot;start-freeze-cycle&quot;</span>,</span>
+<span class="hl">    _ =&gt;</span>
+<span class="hl">    {</span>
+<span class="hl">        Console.WriteLine(<span class="s">$&quot;[{box.BoxId}] requesting START-FREEZE with stable deduplication key freeze:{box.BoxId}&quot;</span>);</span>
+<span class="hl">        <span class="k">return</span> Task.CompletedTask;</span>
+<span class="hl">    },</span>
+<span class="hl">    ct</span>
+<span class="hl">);</span>
 
-<span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> FreezeBoxJob
+<span class="k">if</span> (Interlocked.Increment(<span class="k">ref</span> _attempts) == 1)
 {
-    <span class="k">private</span> <span class="k">static</span> <span class="k">int</span> _attempts;
-
-    <span class="c">// MaxAttempts = 2: first attempt fails, second succeeds; retry waits 2s.</span>
-    <span class="a">[Job(<span class="s">&quot;freeze-box&quot;</span>, MaxAttempts = 2, Backoff = <span class="s">&quot;2s&quot;</span>)]</span>
-    <span class="k">public</span> <span class="k">async</span> Task Handle(FreezeBox box, JobContext context, CancellationToken ct)
-    {
-<span class="hl">        <span class="k">await</span> context.RunStepAsync(</span>
-<span class="hl">            <span class="s">&quot;start-freeze-cycle&quot;</span>,</span>
-<span class="hl">            _ =&gt;</span>
-<span class="hl">            {</span>
-<span class="hl">                Console.WriteLine(<span class="s">$&quot;[{box.BoxId}] requesting START-FREEZE with stable deduplication key freeze:{box.BoxId}&quot;</span>);</span>
-<span class="hl">                <span class="k">return</span> Task.CompletedTask;</span>
-<span class="hl">            },</span>
-<span class="hl">            ct</span>
-<span class="hl">        );</span>
-
-        <span class="c">// Fail the first attempt; the retry skips the already-started freeze cycle.</span>
-        <span class="k">if</span> (Interlocked.Increment(<span class="k">ref</span> _attempts) == 1)
-        {
-            Console.WriteLine(<span class="s">$&quot;[{box.BoxId}] thermostat hiccup - retrying...&quot;</span>);
-            <span class="k">throw</span> <span class="k">new</span> InvalidOperationException(<span class="s">&quot;simulated transient failure&quot;</span>);
-        }
-
-        Console.WriteLine(<span class="s">$&quot;[{box.BoxId}] box frozen&quot;</span>);
-    }
+    Console.WriteLine(<span class="s">$&quot;[{box.BoxId}] thermostat hiccup - retrying...&quot;</span>);
+    <span class="k">throw</span> <span class="k">new</span> InvalidOperationException(<span class="s">&quot;simulated transient failure&quot;</span>);
 }</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">2</span>Fail once after the step, and watch the retry skip it</h2>
 <p>Fail the first attempt; the retry skips the already-started freeze cycle.</p>
-<figure class="listing"><figcaption><span class="file">durable-step.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-2">Copy</button></figcaption><pre><code id="code-2"><span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> FreezeBox(<span class="k">string</span> BoxId);
+<figure class="listing"><figcaption><span class="file">durable-step.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="hl"><span class="k">if</span> (Interlocked.Increment(<span class="k">ref</span> _attempts) == 1)</span>
+<span class="hl">{</span>
+<span class="hl">    Console.WriteLine(<span class="s">$&quot;[{box.BoxId}] thermostat hiccup - retrying...&quot;</span>);</span>
+<span class="hl">    <span class="k">throw</span> <span class="k">new</span> InvalidOperationException(<span class="s">&quot;simulated transient failure&quot;</span>);</span>
+<span class="hl">}</span>
 
-<span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> FreezeBoxJob
-{
-    <span class="k">private</span> <span class="k">static</span> <span class="k">int</span> _attempts;
-
-    <span class="c">// MaxAttempts = 2: first attempt fails, second succeeds; retry waits 2s.</span>
-    <span class="a">[Job(<span class="s">&quot;freeze-box&quot;</span>, MaxAttempts = 2, Backoff = <span class="s">&quot;2s&quot;</span>)]</span>
-    <span class="k">public</span> <span class="k">async</span> Task Handle(FreezeBox box, JobContext context, CancellationToken ct)
-    {
-        <span class="c">// `RunStepAsync` gives the work a name and records its outcome under that name. On a later run of the</span>
-        <span class="c">// handler, a step with a recorded outcome returns it instead of running its body.</span>
-        <span class="c">// In this controlled path the later failure happens after step success is durable, so execution two reuses that outcome.</span>
-        <span class="c">// A process crash after the external request but before Acta records success could invoke a normal step body again.</span>
-        <span class="k">await</span> context.RunStepAsync(
-            <span class="s">&quot;start-freeze-cycle&quot;</span>,
-            _ =&gt;
-            {
-                Console.WriteLine(<span class="s">$&quot;[{box.BoxId}] requesting START-FREEZE with stable deduplication key freeze:{box.BoxId}&quot;</span>);
-                <span class="k">return</span> Task.CompletedTask;
-            },
-            ct
-        );
-
-<span class="hl">        <span class="k">if</span> (Interlocked.Increment(<span class="k">ref</span> _attempts) == 1)</span>
-<span class="hl">        {</span>
-<span class="hl">            Console.WriteLine(<span class="s">$&quot;[{box.BoxId}] thermostat hiccup - retrying...&quot;</span>);</span>
-<span class="hl">            <span class="k">throw</span> <span class="k">new</span> InvalidOperationException(<span class="s">&quot;simulated transient failure&quot;</span>);</span>
-<span class="hl">        }</span>
-
-        Console.WriteLine(<span class="s">$&quot;[{box.BoxId}] box frozen&quot;</span>);
-    }
-}</code></pre></figure>
+Console.WriteLine(<span class="s">$&quot;[{box.BoxId}] box frozen&quot;</span>);</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">3</span>Run it and check the output</h2>
 <p>From a clone of <a href="https://github.com/acta-dotnet/acta">the Acta repository</a>, with the .NET 10 SDK:</p>
-<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-3">Copy</button></figcaption><pre><code id="code-3">dotnet run --project concepts/200-durable-execution/202-durable-step</code></pre></figure>
-<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button" data-copy-target="#code-4">Copy</button></figcaption><pre><code id="code-4">[box-1] thermostat hiccup - retrying...
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project concepts/200-durable-execution/202-durable-step</code></pre></figure>
+<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button">Copy</button></figcaption><pre><code>[box-1] thermostat hiccup - retrying...
 [box-1] box frozen</code></pre></figure>
 <p class="proof checked"><b>Checked every release.</b> Before each release, Acta Verify runs this program and checks that its output contains these lines.</p>
 </div>
@@ -164,7 +123,7 @@
 <h3>Trade-offs</h3>
 <p>A normal step closes the replay gap only after completion is durable. It cannot atomically commit an external side effect and Acta's row. For the interrupted-at-most-once choice, continue with <a href="/learn/220-at-most-once-step"><code>220-at-most-once-step</code></a> rather than mistaking this lab for exactly-once.</p>
 <h3>Run the experiment</h3>
-<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-5">Copy</button></figcaption><pre><code id="code-5">dotnet run --project concepts/200-durable-execution/202-durable-step</code></pre></figure>
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project concepts/200-durable-execution/202-durable-step</code></pre></figure>
 <p>The handler fails once after <code>start-freeze-cycle</code>; the job reaches execution two, while this controlled failure-after-completion path invokes the body once and the step row stays <code>succeeded</code>. The stable external deduplication key in the example is still necessary for the crash-before-recording window.</p>
 <h3>Rows to inspect</h3>
 <p>Run with <code>--all-columns</code> to execute the visible <code>SELECT *</code> Explore query first. The default Notice queries select the fields that prove the lesson, and the text below explains their meaning.</p>
@@ -179,7 +138,7 @@
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/concepts/200-durable-execution/202-durable-step"><code>concepts/200-durable-execution/202-durable-step</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> and <code>ConceptLab</code> are helpers of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">durable-step.cs</span><span class="file-size">116 lines</span></summary><figure class="listing"><figcaption><span class="file">durable-step.cs</span><button class="copy" type="button" data-copy-target="#code-6">Copy</button></figcaption><pre><code id="code-6"><span class="c">// How to keep finished work from repeating on a retry</span>
+<details class="source-file"><summary><span class="file-name">durable-step.cs</span><span class="file-size">116 lines</span></summary><figure class="listing"><figcaption><span class="file">durable-step.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to keep finished work from repeating on a retry</span>
 <span class="c">// A named step records its outcome, so a retry returns it instead of doing the work again.</span>
 <span class="k">using</span> Acta;
 <span class="k">using</span> Acta.Concepts.DurableStep;
@@ -294,11 +253,12 @@ GetJobResponse? snapshot;
             Console.WriteLine(<span class="s">$&quot;[{box.BoxId}] box frozen&quot;</span>);
         }
     }
-}</code></pre></figure></details></div>
+}</code></pre></figure>
+</details></div>
 <div class="step plain-step"><h2>Where to go next</h2><ul class="next-links"><li><a href="/learn/206-step-chain">How to feed one step's result into the next</a><span>Make work survive a crash</span></li></ul></div>
       </article>
       <article class="agent-face" hidden>
-        <figure class="listing agent"><figcaption><span class="file">/learn/202-durable-step.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/202-durable-step.md">Open</a><button class="copy" type="button" data-copy-target="#md-body">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
+        <figure class="listing agent"><figcaption><span class="file">/learn/202-durable-step.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/202-durable-step.md">Open</a><button class="copy" type="button">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
         <p class="hint">This is the page an agent receives: the same how-to as plain Markdown, at this page's address with <code>.md</code> added.</p>
       </article>
       <aside class="howto-rail" aria-label="This section">

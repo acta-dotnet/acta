@@ -24,8 +24,6 @@ await context.RescheduleAsync(TimeSpan.FromSeconds(1), "resource not ready", ct)
 In `reschedule.cs` (excerpt):
 
 ```csharp
-public sealed record PollResource(string Url);
-
 public sealed class PollResourceJob
 {
     private static int _tries;

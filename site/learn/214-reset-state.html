@@ -57,7 +57,7 @@
   </div>
 
 
-  <main id="content" data-howto="214">
+  <main id="content">
     <header class="wrap page-head howto-head">
       <p class="record"><a href="/learn">learn acta</a><span aria-hidden="true">/</span><a href="/learn#s-schedule">run work on a schedule</a></p>
       <h1>How to start each firing of a recurring job clean</h1>
@@ -77,39 +77,14 @@
       <article class="howto person-face">
 <div class="step"><h2><span class="step-n">1</span>Clear the job's durable state as the last act of the firing</h2>
 <p>Clear this cycle's durable state so the next fire starts blank.</p>
-<figure class="listing"><figcaption><span class="file">reset-state.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-1">Copy</button></figcaption><pre><code id="code-1"><span class="k">public</span> <span class="k">readonly</span> <span class="k">record</span> <span class="k">struct</span> CollectMetrics;
+<figure class="listing"><figcaption><span class="file">reset-state.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code>Console.WriteLine(<span class="s">$&quot;{DateTime.UtcNow:HH:mm:ss} UTC cycle done  - 3 readings, avg {sum / 3}C&quot;</span>);
 
-<span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> MetricsMonitor
-{
-    <span class="c">// Each fire re-runs the same durable job, so variables persist across fires unless the handler</span>
-    <span class="c">// clears its durable state as the final act of the cycle.</span>
-    <span class="a">[Job(<span class="s">&quot;collect-metrics&quot;</span>, EventRecording = EventRecordingCode.Failures)]</span>
-    <span class="a">[Schedule(<span class="s">&quot;every-5-seconds&quot;</span>, <span class="s">&quot;PT5S&quot;</span>)]</span>
-    <span class="k">public</span> <span class="k">async</span> Task Handle(CollectMetrics input, JobContext context, CancellationToken ct)
-    {
-        <span class="c">// Reads 0 because the previous cycle's reset wiped this variable; without it, reads 3.</span>
-        <span class="k">var</span> carried = <span class="k">await</span> context.GetVariableOrDefaultAsync(<span class="s">&quot;reading-count&quot;</span>, 0, ct);
-        Console.WriteLine(<span class="s">$&quot;{DateTime.UtcNow:HH:mm:ss} UTC cycle start - {carried} readings carried over (0 means last cycle reset)&quot;</span>);
-
-        <span class="c">// Write each reading's count to durable state, so the reset below has something to clear.</span>
-        <span class="k">var</span> sum = 0;
-        <span class="k">for</span> (<span class="k">var</span> i = 1; i &lt;= 3; i++)
-        {
-            <span class="k">var</span> reading = Random.Shared.Next(18, 25);
-            sum += reading;
-            <span class="k">await</span> context.SetVariableAsync(<span class="s">&quot;reading-count&quot;</span>, i, ct);
-            <span class="k">await</span> Task.Delay(100, ct);
-        }
-        Console.WriteLine(<span class="s">$&quot;{DateTime.UtcNow:HH:mm:ss} UTC cycle done  - 3 readings, avg {sum / 3}C&quot;</span>);
-
-<span class="hl">        <span class="k">await</span> context.ResetStateAsync(ct);</span>
-    }
-}</code></pre></figure>
+<span class="hl"><span class="k">await</span> context.ResetStateAsync(ct);</span></code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">2</span>Run it and check the output</h2>
 <p>From a clone of <a href="https://github.com/acta-dotnet/acta">the Acta repository</a>, with the .NET 10 SDK:</p>
-<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-2">Copy</button></figcaption><pre><code id="code-2">dotnet run --project concepts/200-durable-execution/214-reset-state</code></pre></figure>
-<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button" data-copy-target="#code-3">Copy</button></figcaption><pre><code id="code-3">cycle start - 0 readings carried over (0 means last cycle reset)
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project concepts/200-durable-execution/214-reset-state</code></pre></figure>
+<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button">Copy</button></figcaption><pre><code>cycle start - 0 readings carried over (0 means last cycle reset)
 cycle done  - 3 readings, avg</code></pre></figure>
 <p class="proof checked"><b>Checked every release.</b> Before each release, Acta Verify runs this program and checks that its output contains these lines.</p>
 <p class="hint">This page shows the code. The rules it relies on, starting with the handler running again from its first line, are in <a href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#handler-contract">the handler contract</a>.</p>
@@ -117,7 +92,7 @@ cycle done  - 3 readings, avg</code></pre></figure>
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/concepts/200-durable-execution/214-reset-state"><code>concepts/200-durable-execution/214-reset-state</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">reset-state.cs</span><span class="file-size">52 lines</span></summary><figure class="listing"><figcaption><span class="file">reset-state.cs</span><button class="copy" type="button" data-copy-target="#code-4">Copy</button></figcaption><pre><code id="code-4"><span class="c">// How to start each firing of a recurring job clean</span>
+<details class="source-file"><summary><span class="file-name">reset-state.cs</span><span class="file-size">52 lines</span></summary><figure class="listing"><figcaption><span class="file">reset-state.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to start each firing of a recurring job clean</span>
 <span class="c">// A permanent job keeps its variables from one firing to the next. `ResetStateAsync` at the end of a firing clears</span>
 <span class="c">// them, so the next one starts blank.</span>
 <span class="k">using</span> Acta;
@@ -168,11 +143,12 @@ builder.Services.UseActa(j =&gt;
             <span class="c">// learn: end</span>
         }
     }
-}</code></pre></figure></details></div>
+}</code></pre></figure>
+</details></div>
 <div class="step plain-step"><h2>Where to go next</h2><ul class="next-links"><li><a href="/learn/109-continuous-synchronization">How to keep another system in sync with a permanent job</a><span>Keep another system in sync</span></li></ul></div>
       </article>
       <article class="agent-face" hidden>
-        <figure class="listing agent"><figcaption><span class="file">/learn/214-reset-state.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/214-reset-state.md">Open</a><button class="copy" type="button" data-copy-target="#md-body">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
+        <figure class="listing agent"><figcaption><span class="file">/learn/214-reset-state.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/214-reset-state.md">Open</a><button class="copy" type="button">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
         <p class="hint">This is the page an agent receives: the same how-to as plain Markdown, at this page's address with <code>.md</code> added.</p>
       </article>
       <aside class="howto-rail" aria-label="This section">

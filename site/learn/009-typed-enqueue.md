@@ -23,11 +23,24 @@ var handle = await jobs.EnqueueAsync(new GreetUser("Sam"));
 In `typed-enqueue.cs` (excerpt):
 
 ```csharp
+var builder = Host.CreateApplicationBuilder(args);
+
+builder.Services.UseActa(j =>
+{
+    j.UseLocalDatabase(builder.Configuration);
+    j.Run<TypedEnqueueJobs>("typed-enqueue");
+});
+
+using var host = builder.Build();
+await host.StartAsync();
+
 var jobs = host.Services.GetRequiredService<IJobs>();
 
 var handle = await jobs.EnqueueAsync(new GreetUser("Sam"));
-
 Console.WriteLine($"Enqueued job {handle.JobRef} ({handle.Action}). Worker is running - press Ctrl+C to stop.");
+
+await host.WaitForShutdownAsync();
+await host.StopAsync();
 ```
 
 ## 2. The job it acts on
@@ -35,8 +48,6 @@ Console.WriteLine($"Enqueued job {handle.JobRef} ({handle.Action}). Worker is ru
 `typed-enqueue.cs` (excerpt):
 
 ```csharp
-public sealed record GreetUser(string Name);
-
 public static class GreetUserJob
 {
     [Job("greet-user")]

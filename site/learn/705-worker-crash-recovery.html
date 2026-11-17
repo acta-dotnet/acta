@@ -57,14 +57,14 @@
   </div>
 
 
-  <main id="content" data-howto="705">
+  <main id="content">
     <header class="wrap page-head howto-head">
       <p class="record"><a href="/learn">learn acta</a><span aria-hidden="true">/</span><a href="/learn#s-deploy">deploy and scale</a></p>
       <h1>How to recover the work of a killed worker</h1>
       <p class="lede">A worker process is killed in the middle of a job, and another worker reclaims the job once its lease has lapsed. The program runs on PostgreSQL or SQL Server.</p>
       <p class="howto-context">A how-to for Acta, durable execution for .NET. <a href="/start">New to Acta? Run your first durable job in five minutes.</a></p>
       <div class="howto-meta">
-        <span class="status proven">Proven by other suites</span><span class="mark lab">Lab</span>
+        <span class="status proven">Proven by other suites</span><span class="mark">Lab</span>
         <a class="program" href="https://github.com/acta-dotnet/acta/tree/main/concepts/700-topology-and-deployment/705-worker-crash-recovery"><code>concepts/700-topology-and-deployment/705-worker-crash-recovery</code></a>
         <div class="reader" role="group" aria-label="Read this page as">
         <span class="reader-label">Read as</span>
@@ -77,54 +77,51 @@
       <article class="howto person-face">
 <div class="step"><h2><span class="step-n">1</span>Give the job a retry budget, because a crash spends an attempt</h2>
 <p>Nothing in the handler recovers the job. A worker that dies stops heartbeating, the lease on its job lapses, and another worker reclaims the job as a failed attempt and runs it again.</p>
-<figure class="listing"><figcaption><span class="file">worker-crash-recovery.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-1">Copy</button></figcaption><pre><code id="code-1"><span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> WorkerRole(<span class="k">string</span> Name, <span class="k">string</span> SessionId);
-
-<span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> CrashRecoveryProbe(<span class="k">string</span> ProbeId, <span class="k">string</span>? SessionId = <span class="k">null</span>);
-
-<span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> CrashRecoveryJob(WorkerRole role)
+<figure class="listing"><figcaption><span class="file">worker-crash-recovery.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="hl"><span class="a">[Job(<span class="s">&quot;crash-recovery-probe&quot;</span>, MaxAttempts = 3, Backoff = <span class="s">&quot;0s&quot;</span>)]</span></span>
+<span class="k">public</span> <span class="k">async</span> Task Handle(CrashRecoveryProbe input, CancellationToken ct)
 {
-<span class="hl">    <span class="a">[Job(<span class="s">&quot;crash-recovery-probe&quot;</span>, MaxAttempts = 3, Backoff = <span class="s">&quot;0s&quot;</span>)]</span></span>
-    <span class="k">public</span> <span class="k">async</span> Task Handle(CrashRecoveryProbe input, CancellationToken ct)
+    Console.WriteLine(<span class="s">$&quot;[{role.Name}] executing {input.ProbeId}; ordinary handler code is at-least-once.&quot;</span>);
+    <span class="k">if</span> (role.Name == <span class="s">&quot;worker-a&quot;</span> &amp;&amp; input.SessionId == role.SessionId)
     {
-        Console.WriteLine(<span class="s">$&quot;[{role.Name}] executing {input.ProbeId}; ordinary handler code is at-least-once.&quot;</span>);
-        <span class="k">if</span> (role.Name == <span class="s">&quot;worker-a&quot;</span> &amp;&amp; input.SessionId == role.SessionId)
-        {
-            Console.WriteLine(<span class="s">&quot;[worker-a] worst moment reached: side effect may have happened; process disappears before completion.&quot;</span>);
-            Console.Out.Flush();
-            Environment.FailFast(<span class="s">&quot;Intentional worker-a crash for the SQL recovery lab.&quot;</span>);
-        }
-
-        <span class="k">if</span> (role.Name == <span class="s">&quot;worker-a&quot;</span>)
-        {
-            <span class="k">var</span> staleSession = input.SessionId <span class="k">is</span> { Length: &gt;= 8 } ? input.SessionId[..8] : <span class="s">&quot;legacy&quot;</span>;
-            Console.WriteLine(<span class="s">$&quot;[worker-a] stale probe from session {staleSession} completed without crashing the current session.&quot;</span>);
-            <span class="k">return</span>;
-        }
-
-        <span class="k">await</span> Task.Delay(100, ct);
-        Console.WriteLine(<span class="s">&quot;[worker-b] replay completed; production code would need idempotency or durable steps.&quot;</span>);
+        Console.WriteLine(<span class="s">&quot;[worker-a] worst moment reached: side effect may have happened; process disappears before completion.&quot;</span>);
+        Console.Out.Flush();
+        Environment.FailFast(<span class="s">&quot;Intentional worker-a crash for the SQL recovery lab.&quot;</span>);
     }
+
+    <span class="k">if</span> (role.Name == <span class="s">&quot;worker-a&quot;</span>)
+    {
+        <span class="k">var</span> staleSession = input.SessionId <span class="k">is</span> { Length: &gt;= 8 } ? input.SessionId[..8] : <span class="s">&quot;legacy&quot;</span>;
+        Console.WriteLine(<span class="s">$&quot;[worker-a] stale probe from session {staleSession} completed without crashing the current session.&quot;</span>);
+        <span class="k">return</span>;
+    }
+
+    <span class="k">await</span> Task.Delay(100, ct);
+    Console.WriteLine(<span class="s">&quot;[worker-b] replay completed; production code would need idempotency or durable steps.&quot;</span>);
 }</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">2</span>Shorten the heartbeat only to watch the recovery</h2>
 <p>One knob shortens the whole coordination triple in proportion: a 1s beat gives a 4s lease and a 7s dead-worker window, which is what makes the kill below observable in seconds instead of minutes.</p>
-<figure class="listing"><figcaption><span class="file">worker-crash-recovery.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-2">Copy</button></figcaption><pre><code id="code-2">j.UseLocalDatabase(builder.Configuration, applyMigrations: mode == <span class="s">&quot;worker-a&quot;</span>);
-<span class="k">if</span> (mode <span class="k">is</span> <span class="s">&quot;worker-a&quot;</span> or <span class="s">&quot;worker-b&quot;</span>)
+<figure class="listing"><figcaption><span class="file">worker-crash-recovery.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code>builder.Services.UseActa(j =&gt;
 {
-    j.Run&lt;WorkerCrashRecoveryJobs&gt;(jobNamespace);
-    j.ConfigureOptions(o =&gt;
+    j.UseLocalDatabase(builder.Configuration, applyMigrations: mode == <span class="s">&quot;worker-a&quot;</span>);
+    <span class="k">if</span> (mode <span class="k">is</span> <span class="s">&quot;worker-a&quot;</span> or <span class="s">&quot;worker-b&quot;</span>)
     {
-<span class="hl">        o.HeartbeatInterval = TimeSpan.FromSeconds(1);</span>
-        o.DeploymentVersion = <span class="s">$&quot;{mode}:{sessionId[..8]}&quot;</span>;
-    });
-}
-<span class="k">else</span>
-{
-    j.Reference&lt;WorkerCrashRecoveryJobs&gt;(jobNamespace);</code></pre></figure>
+        j.Run&lt;WorkerCrashRecoveryJobs&gt;(jobNamespace);
+        j.ConfigureOptions(o =&gt;
+        {
+<span class="hl">            o.HeartbeatInterval = TimeSpan.FromSeconds(1);</span>
+            o.DeploymentVersion = <span class="s">$&quot;{mode}:{sessionId[..8]}&quot;</span>;
+        });
+    }
+    <span class="k">else</span>
+    {
+        j.Reference&lt;WorkerCrashRecoveryJobs&gt;(jobNamespace);
+    }
+});</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">3</span>Run it</h2>
 <p>From a clone of <a href="https://github.com/acta-dotnet/acta">the Acta repository</a>, with the .NET 10 SDK:</p>
-<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-3">Copy</button></figcaption><pre><code id="code-3">dotnet run --project concepts/700-topology-and-deployment/705-worker-crash-recovery</code></pre></figure>
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project concepts/700-topology-and-deployment/705-worker-crash-recovery</code></pre></figure>
 <p class="proof proven"><b>Proven by other suites.</b> The release check does not run this program. Needs PostgreSQL or SQL Server and two worker processes, one killed mid-job while the other reclaims its work; Verify's chaos scenario and WorkerCrashRecoveryChaosSpec prove the same behaviour.</p>
 </div>
 <div class="step plain-step"><h2>Remember</h2><ul class="rules"><li>On SQLite a restart brings a lost attempt back at once: a starting worker releases the work of processes on the same machine that have ended. A server database waits out the lease: three to about seven minutes with the default heartbeat.</li><li>The reclaim is <code>job.execution-orphaned</code> with the reason <code>lease-expired</code> on the timeline.</li><li>A crash counts against the retry budget, and a reclaimed job is due again at once, without the backoff.</li><li>A job that is waiting or sleeping holds no lease and needs no recovery.</li></ul></div>
@@ -140,7 +137,7 @@
 <p>Claim and completion traffic consume database capacity and compete with application traffic. Lease recovery is at-least-once, so handler work can repeat. This design targets application jobs, not high-throughput event streaming.</p>
 <h3>Run the experiment</h3>
 <p>This is intentionally a real distributed-provider lab, since its two workers run at once. One SQLite host recovers across restarts without waiting out the lease: its next start finds a predecessor on the same machine whose process has ended, marks it dead, and reclaims its job at once, as <a href="/learn/220-at-most-once-step">220</a> shows with its <code>crash</code> and <code>recover</code> runs. Set <code>ACTA_LOCAL_PROVIDER=postgres</code> or <code>sqlserver</code> plus <code>ACTA_TEST_PG</code>/<code>ACTA_TEST_MSSQL</code>, then use separate terminals:</p>
-<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-4">Copy</button></figcaption><pre><code id="code-4">dotnet run --project concepts/700-topology-and-deployment/705-worker-crash-recovery -- worker-a
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project concepts/700-topology-and-deployment/705-worker-crash-recovery -- worker-a
 dotnet run --project concepts/700-topology-and-deployment/705-worker-crash-recovery -- enqueue
 dotnet run --project concepts/700-topology-and-deployment/705-worker-crash-recovery -- inspect
 dotnet run --project concepts/700-topology-and-deployment/705-worker-crash-recovery -- worker-b</code></pre></figure>
@@ -158,7 +155,7 @@ dotnet run --project concepts/700-topology-and-deployment/705-worker-crash-recov
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/concepts/700-topology-and-deployment/705-worker-crash-recovery"><code>concepts/700-topology-and-deployment/705-worker-crash-recovery</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> and <code>ConceptLab</code> are helpers of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">worker-crash-recovery.cs</span><span class="file-size">224 lines</span></summary><figure class="listing"><figcaption><span class="file">worker-crash-recovery.cs</span><button class="copy" type="button" data-copy-target="#code-5">Copy</button></figcaption><pre><code id="code-5"><span class="c">// How to recover the work of a killed worker</span>
+<details class="source-file"><summary><span class="file-name">worker-crash-recovery.cs</span><span class="file-size">224 lines</span></summary><figure class="listing"><figcaption><span class="file">worker-crash-recovery.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to recover the work of a killed worker</span>
 <span class="c">// A worker process is killed in the middle of a job, and another worker reclaims the job once its lease has lapsed.</span>
 <span class="c">// The program runs on PostgreSQL or SQL Server.</span>
 <span class="k">using</span> Acta;
@@ -184,7 +181,7 @@ dotnet run --project concepts/700-topology-and-deployment/705-worker-crash-recov
     )
     .ToArray();
 <span class="k">var</span> builder = Host.CreateApplicationBuilder(hostArgs);
-<span class="k">var</span> provider = builder.Configuration[<span class="s">&quot;Acta:Provider&quot;</span>] ?? Environment.GetEnvironmentVariable(<span class="s">&quot;ACTA_LOCAL_PROVIDER&quot;</span>) ?? <span class="s">&quot;sqlite&quot;</span>;
+<span class="k">var</span> provider = LocalDatabase.ResolveProvider(builder.Configuration);
 <span class="k">if</span> (LocalDatabase.IsSqlite(provider))
 {
     Console.WriteLine(<span class="s">&quot;This lab intentionally requires PostgreSQL or SQL Server so two processes are real peer workers.&quot;</span>);
@@ -381,11 +378,12 @@ Console.WriteLine(<span class="s">&quot;Worker B is live. Waiting for A's short 
             Console.WriteLine(<span class="s">&quot;[worker-b] replay completed; production code would need idempotency or durable steps.&quot;</span>);
         }
     }
-}</code></pre></figure></details></div>
+}</code></pre></figure>
+</details></div>
 <div class="step plain-step"><h2>Where to go next</h2><ul class="next-links"><li><a href="/learn/901-native-aot-json">How to run jobs under Native AOT</a><span>Deploy and scale</span></li></ul></div>
       </article>
       <article class="agent-face" hidden>
-        <figure class="listing agent"><figcaption><span class="file">/learn/705-worker-crash-recovery.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/705-worker-crash-recovery.md">Open</a><button class="copy" type="button" data-copy-target="#md-body">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
+        <figure class="listing agent"><figcaption><span class="file">/learn/705-worker-crash-recovery.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/705-worker-crash-recovery.md">Open</a><button class="copy" type="button">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
         <p class="hint">This is the page an agent receives: the same how-to as plain Markdown, at this page's address with <code>.md</code> added.</p>
       </article>
       <aside class="howto-rail" aria-label="This section">

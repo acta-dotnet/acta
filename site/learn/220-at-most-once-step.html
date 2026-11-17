@@ -57,14 +57,14 @@
   </div>
 
 
-  <main id="content" data-howto="220">
+  <main id="content">
     <header class="wrap page-head howto-head">
       <p class="record"><a href="/learn">learn acta</a><span aria-hidden="true">/</span><a href="/learn#s-survive">make work survive a crash</a></p>
       <h1>How to refuse to repeat a side effect after a crash</h1>
       <p class="lede">An at-most-once step refuses to run its body a second time after a crash. The handler is told that the outcome is unknown, and reconciles.</p>
       <p class="howto-context">A how-to for Acta, durable execution for .NET. <a href="/start">New to Acta? Run your first durable job in five minutes.</a></p>
       <div class="howto-meta">
-        <span class="status proven">Proven by other suites</span><span class="mark lab">Lab</span>
+        <span class="status proven">Proven by other suites</span><span class="mark">Lab</span>
         <a class="program" href="https://github.com/acta-dotnet/acta/tree/main/concepts/200-durable-execution/220-at-most-once-step"><code>concepts/200-durable-execution/220-at-most-once-step</code></a>
         <div class="reader" role="group" aria-label="Read this page as">
         <span class="reader-label">Read as</span>
@@ -77,92 +77,41 @@
       <article class="howto person-face">
 <div class="step"><h2><span class="step-n">1</span>Mark the step at-most-once</h2>
 <p>The step's start is recorded before its body runs. When the process dies inside the body, the replay does not call it again: the step throws <code>StepInterruptedException</code> instead.</p>
-<figure class="listing"><figcaption><span class="file">at-most-once-step.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-1">Copy</button></figcaption><pre><code id="code-1"><span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> ChargeCard(<span class="k">string</span> OrderId, <span class="k">int</span> AmountCents);
-
-<span class="k">public</span> <span class="k">static</span> <span class="k">class</span> ChargeCardJob
-{
-    <span class="k">public</span> <span class="k">static</span> <span class="k">string</span> SideEffectFile(JobRef jobRef) =&gt;
-        Path.Combine(Path.GetTempPath(), <span class="s">$&quot;acta-at-most-once-side-effects-{jobRef}.log&quot;</span>);
-
-    <span class="a">[Job(<span class="s">&quot;charge-card&quot;</span>, MaxAttempts = 3, Backoff = <span class="s">&quot;0s&quot;</span>)]</span>
-    <span class="k">public</span> <span class="k">static</span> <span class="k">async</span> Task Handle(ChargeCard input, JobContext context, CancellationToken ct)
-    {
-        <span class="k">try</span>
-        {
-            <span class="k">await</span> context.RunStepAsync(
-                <span class="s">&quot;charge-card&quot;</span>,
-                _ =&gt;
-                {
-                    <span class="c">// Simulated external system: this write cannot share Acta's SQL transaction.</span>
-                    File.AppendAllText(SideEffectFile(context.JobRef), <span class="s">$&quot;{input.OrderId}:{input.AmountCents}{Environment.NewLine}&quot;</span>);
-                    Console.WriteLine(<span class="s">&quot;SIDE EFFECT COMMITTED. Terminating before Acta can record the step outcome...&quot;</span>);
-                    Console.Out.Flush();
-                    Environment.FailFast(<span class="s">&quot;Intentional at-most-once lab crash after the external side effect.&quot;</span>);
-                    <span class="k">return</span> Task.CompletedTask;
-                },
-<span class="hl">                options =&gt; options.AtMostOnce(),</span>
-                ct
-            );
-        }
-        <span class="c">// The side effect may or may not have happened. Ask the outside system, then decide.</span>
-        <span class="k">catch</span> (StepInterruptedException interrupted)
-        {
-            <span class="k">var</span> sideEffectFile = SideEffectFile(context.JobRef);
-            <span class="k">var</span> matchingCharges = File.Exists(sideEffectFile)
-                ? File.ReadLines(sideEffectFile).Count(line =&gt; line.StartsWith(input.OrderId + <span class="s">&quot;:&quot;</span>, StringComparison.Ordinal))
-                : 0;
-            Console.WriteLine(<span class="s">$&quot;{interrupted.StepName} is ambiguous; reconciliation found {matchingCharges} external charge(s).&quot;</span>);
-            Console.WriteLine(<span class="s">&quot;The handler owns this policy: compensate, confirm, alert, or continue.&quot;</span>);
-        }
-    }
-}</code></pre></figure>
+<figure class="listing"><figcaption><span class="file">at-most-once-step.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="hl">options =&gt; options.AtMostOnce(),</span>
+ct</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">2</span>Catch the interruption and reconcile</h2>
 <p>The side effect may or may not have happened. Ask the outside system, then decide.</p>
-<figure class="listing"><figcaption><span class="file">at-most-once-step.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-2">Copy</button></figcaption><pre><code id="code-2"><span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> ChargeCard(<span class="k">string</span> OrderId, <span class="k">int</span> AmountCents);
-
-<span class="k">public</span> <span class="k">static</span> <span class="k">class</span> ChargeCardJob
+<figure class="listing"><figcaption><span class="file">at-most-once-step.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">try</span>
 {
-    <span class="k">public</span> <span class="k">static</span> <span class="k">string</span> SideEffectFile(JobRef jobRef) =&gt;
-        Path.Combine(Path.GetTempPath(), <span class="s">$&quot;acta-at-most-once-side-effects-{jobRef}.log&quot;</span>);
-
-    <span class="a">[Job(<span class="s">&quot;charge-card&quot;</span>, MaxAttempts = 3, Backoff = <span class="s">&quot;0s&quot;</span>)]</span>
-    <span class="k">public</span> <span class="k">static</span> <span class="k">async</span> Task Handle(ChargeCard input, JobContext context, CancellationToken ct)
-    {
-        <span class="k">try</span>
+    <span class="k">await</span> context.RunStepAsync(
+        <span class="s">&quot;charge-card&quot;</span>,
+        _ =&gt;
         {
-            <span class="k">await</span> context.RunStepAsync(
-                <span class="s">&quot;charge-card&quot;</span>,
-                _ =&gt;
-                {
-                    <span class="c">// Simulated external system: this write cannot share Acta's SQL transaction.</span>
-                    File.AppendAllText(SideEffectFile(context.JobRef), <span class="s">$&quot;{input.OrderId}:{input.AmountCents}{Environment.NewLine}&quot;</span>);
-                    Console.WriteLine(<span class="s">&quot;SIDE EFFECT COMMITTED. Terminating before Acta can record the step outcome...&quot;</span>);
-                    Console.Out.Flush();
-                    Environment.FailFast(<span class="s">&quot;Intentional at-most-once lab crash after the external side effect.&quot;</span>);
-                    <span class="k">return</span> Task.CompletedTask;
-                },
-                <span class="c">// The step's start is recorded before its body runs. When the process dies inside the body, the</span>
-                <span class="c">// replay does not call it again: the step throws `StepInterruptedException` instead.</span>
-                options =&gt; options.AtMostOnce(),
-                ct
-            );
-        }
-<span class="hl">        <span class="k">catch</span> (StepInterruptedException interrupted)</span>
-<span class="hl">        {</span>
-<span class="hl">            <span class="k">var</span> sideEffectFile = SideEffectFile(context.JobRef);</span>
-<span class="hl">            <span class="k">var</span> matchingCharges = File.Exists(sideEffectFile)</span>
-<span class="hl">                ? File.ReadLines(sideEffectFile).Count(line =&gt; line.StartsWith(input.OrderId + <span class="s">&quot;:&quot;</span>, StringComparison.Ordinal))</span>
-<span class="hl">                : 0;</span>
-<span class="hl">            Console.WriteLine(<span class="s">$&quot;{interrupted.StepName} is ambiguous; reconciliation found {matchingCharges} external charge(s).&quot;</span>);</span>
-<span class="hl">            Console.WriteLine(<span class="s">&quot;The handler owns this policy: compensate, confirm, alert, or continue.&quot;</span>);</span>
-<span class="hl">        }</span>
-    }
-}</code></pre></figure>
+            <span class="c">// Simulated external system: this write cannot share Acta's SQL transaction.</span>
+            File.AppendAllText(SideEffectFile(context.JobRef), <span class="s">$&quot;{input.OrderId}:{input.AmountCents}{Environment.NewLine}&quot;</span>);
+            Console.WriteLine(<span class="s">&quot;SIDE EFFECT COMMITTED. Terminating before Acta can record the step outcome...&quot;</span>);
+            Console.Out.Flush();
+            Environment.FailFast(<span class="s">&quot;Intentional at-most-once lab crash after the external side effect.&quot;</span>);
+            <span class="k">return</span> Task.CompletedTask;
+        },
+        options =&gt; options.AtMostOnce(),
+        ct
+    );
+}
+<span class="hl"><span class="k">catch</span> (StepInterruptedException interrupted)</span>
+<span class="hl">{</span>
+<span class="hl">    <span class="k">var</span> sideEffectFile = SideEffectFile(context.JobRef);</span>
+<span class="hl">    <span class="k">var</span> matchingCharges = File.Exists(sideEffectFile)</span>
+<span class="hl">        ? File.ReadLines(sideEffectFile).Count(line =&gt; line.StartsWith(input.OrderId + <span class="s">&quot;:&quot;</span>, StringComparison.Ordinal))</span>
+<span class="hl">        : 0;</span>
+<span class="hl">    Console.WriteLine(<span class="s">$&quot;{interrupted.StepName} is ambiguous; reconciliation found {matchingCharges} external charge(s).&quot;</span>);</span>
+<span class="hl">    Console.WriteLine(<span class="s">&quot;The handler owns this policy: compensate, confirm, alert, or continue.&quot;</span>);</span>
+<span class="hl">}</span></code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">3</span>Run it</h2>
 <p>From a clone of <a href="https://github.com/acta-dotnet/acta">the Acta repository</a>, with the .NET 10 SDK:</p>
-<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-3">Copy</button></figcaption><pre><code id="code-3">dotnet run --project concepts/200-durable-execution/220-at-most-once-step</code></pre></figure>
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project concepts/200-durable-execution/220-at-most-once-step</code></pre></figure>
 <p class="proof proven"><b>Proven by other suites.</b> The release check does not run this program. Needs two processes in turn, one that dies inside the at-most-once step and one that recovers it; Verify's faults/at-most-once scenario and StepAtMostOnceSpec prove the same behaviour.</p>
 <p class="hint">This page shows the code. The rules it relies on, starting with the handler running again from its first line, are in <a href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#handler-contract">the handler contract</a>.</p>
 </div>
@@ -178,7 +127,7 @@
 <p>At-most-once exchanges possible duplication for possible omission/ambiguity. It does not prove that the side effect happened. That is why external idempotency plus a readable result is usually safer.</p>
 <h3>Run the experiment</h3>
 <p>Use the same configured database for both commands:</p>
-<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-4">Copy</button></figcaption><pre><code id="code-4">dotnet run --project concepts/200-durable-execution/220-at-most-once-step -- crash
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project concepts/200-durable-execution/220-at-most-once-step -- crash
 dotnet run --project concepts/200-durable-execution/220-at-most-once-step -- recover</code></pre></figure>
 <p>The first command intentionally exits non-zero after writing a simulated external charge. It creates a fresh durable identity and records that ref in a local current-run marker, so the two-command experiment can be repeated against the same database. The simulated external side-effect file is named by job ref, so evidence from another lab identity cannot be erased or counted as part of this one.</p>
 <h3>Rows to inspect</h3>
@@ -194,7 +143,7 @@ dotnet run --project concepts/200-durable-execution/220-at-most-once-step -- rec
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/concepts/200-durable-execution/220-at-most-once-step"><code>concepts/200-durable-execution/220-at-most-once-step</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> and <code>ConceptLab</code> are helpers of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">at-most-once-step.cs</span><span class="file-size">191 lines</span></summary><figure class="listing"><figcaption><span class="file">at-most-once-step.cs</span><button class="copy" type="button" data-copy-target="#code-5">Copy</button></figcaption><pre><code id="code-5"><span class="c">// How to refuse to repeat a side effect after a crash</span>
+<details class="source-file"><summary><span class="file-name">at-most-once-step.cs</span><span class="file-size">191 lines</span></summary><figure class="listing"><figcaption><span class="file">at-most-once-step.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to refuse to repeat a side effect after a crash</span>
 <span class="c">// An at-most-once step refuses to run its body a second time after a crash. The handler is told that the outcome is</span>
 <span class="c">// unknown, and reconciles.</span>
 <span class="k">using</span> Acta;
@@ -384,11 +333,12 @@ Console.WriteLine(<span class="s">$&quot;External side-effect records: {sideEffe
             <span class="c">// learn: end</span>
         }
     }
-}</code></pre></figure></details></div>
+}</code></pre></figure>
+</details></div>
 <div class="step plain-step"><h2>Where to go next</h2><ul class="next-links"><li><a href="/learn/201-durable-checkout">How to build a checkout that waits for a review and a timer</a><span>Make work survive a crash</span></li></ul></div>
       </article>
       <article class="agent-face" hidden>
-        <figure class="listing agent"><figcaption><span class="file">/learn/220-at-most-once-step.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/220-at-most-once-step.md">Open</a><button class="copy" type="button" data-copy-target="#md-body">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
+        <figure class="listing agent"><figcaption><span class="file">/learn/220-at-most-once-step.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/220-at-most-once-step.md">Open</a><button class="copy" type="button">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
         <p class="hint">This is the page an agent receives: the same how-to as plain Markdown, at this page's address with <code>.md</code> added.</p>
       </article>
       <aside class="howto-rail" aria-label="This section">

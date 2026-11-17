@@ -58,7 +58,6 @@ public sealed class LearnEmitterTests : IDisposable
               </main>
             """
         );
-        Write("site/sitemap.xml", "<urlset>\n</urlset>\n");
     }
 
     public void Dispose() => Directory.Delete(_root, recursive: true);
@@ -77,7 +76,7 @@ public sealed class LearnEmitterTests : IDisposable
         var twin = emitted["site/learn/001-first.md"];
         Assert.Contains("## 1. Enqueue the greeting", twin, StringComparison.Ordinal);
         Assert.Contains("Its output must contain:\n\n```text\nenqueued\n```", twin, StringComparison.Ordinal);
-        Assert.Contains("https://useacta.net/learn/001-first</loc>", emitted["site/sitemap.xml"], StringComparison.Ordinal);
+        Assert.Contains("https://useacta.net/learn/001-first</loc>", emitted["site/learn/sitemap.xml"], StringComparison.Ordinal);
         Assert.Contains(
             "| 001 | [first](../../concepts/000-basics/001-first/) |",
             emitted["docs/reference/concept-ladder.md"],
@@ -161,6 +160,44 @@ public sealed class LearnEmitterTests : IDisposable
     }
 
     [Fact]
+    public void A_step_in_a_long_type_shows_the_member_it_stands_on_and_no_long_neighbour()
+    {
+        var filler = string.Join('\n', Enumerable.Range(1, 20).Select(n => $"        Console.WriteLine({n});"));
+        Write(
+            $"{Rung}/first.cs",
+            $$"""
+            // How to greet someone
+            // One line says what the program shows.
+            public sealed class Jobs
+            {
+                // learn: Give the job a retry budget
+                [Job(
+                    "greet",
+                    MaxAttempts = 3
+                )]
+                // learn: end
+                public void Greet(Greet input)
+                {
+                    Console.WriteLine("enqueued");
+                }
+
+                [Job("other")]
+                public void Other(Other input)
+                {
+            {{filler}}
+                }
+            }
+            """
+        );
+
+        var twin = LearnEmitter.Emit(_root)["site/learn/001-first.md"];
+
+        Assert.Contains("    MaxAttempts = 3\n)]\npublic void Greet(Greet input)\n{", twin, StringComparison.Ordinal);
+        Assert.DoesNotContain("public void Other", twin, StringComparison.Ordinal);
+        Assert.DoesNotContain("public sealed class Jobs", twin, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void A_page_no_program_stands_behind_is_a_stray()
     {
         Write("site/learn/009-gone.html", "<html></html>");
@@ -178,11 +215,7 @@ public sealed class LearnEmitterTests : IDisposable
         var emitted = LearnEmitter.Emit(root);
 
         Assert.NotEmpty(emitted);
-        var stale = emitted
-            .Where(pair => !File.Exists(PathOf(root, pair.Key)) || Normalized(File.ReadAllText(PathOf(root, pair.Key))) != pair.Value)
-            .Select(pair => pair.Key)
-            .Concat(LearnEmitter.Strays(root, emitted))
-            .ToList();
+        var stale = LearnEmitter.Stale(root, emitted).Concat(LearnEmitter.Strays(root, emitted)).ToList();
         Assert.True(
             stale.Count == 0,
             "The how-tos no longer match the concept programs. Regenerate them: dotnet run --project tools/Acta.Emit -- docs\n  "
@@ -192,11 +225,9 @@ public sealed class LearnEmitterTests : IDisposable
 
     private static string Normalized(string text) => text.Replace("\r\n", "\n", StringComparison.Ordinal);
 
-    private static string PathOf(string root, string relative) => Path.Combine(root, relative.Replace('/', Path.DirectorySeparatorChar));
-
     private void Write(string relative, string text)
     {
-        var path = PathOf(_root, relative);
+        var path = LearnLibrary.PathOf(_root, relative);
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         File.WriteAllText(path, Normalized(text));
     }

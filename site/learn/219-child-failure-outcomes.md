@@ -28,24 +28,14 @@ foreach (var f in result.Failed)
 In `child-failure-outcomes.cs` (excerpt):
 
 ```csharp
-        ids,
-        itemKey: id => id,
-        child: id => new ProcessItem(id, ShouldFail: id == "item-b"),
-        ct
-    );
+var succeeded = result.Items.Count(i => i.Outcome.Succeeded);
 
-    var succeeded = result.Items.Count(i => i.Outcome.Succeeded);
-
-    foreach (var f in result.Failed)
-    {
-        Console.WriteLine($"  item {f.Key} failed (status={f.Outcome.Status}); continuing without it");
-    }
-
-    return new MapReport($"{succeeded}/{ids.Length} items succeeded");
+foreach (var f in result.Failed)
+{
+    Console.WriteLine($"  item {f.Key} failed (status={f.Outcome.Status}); continuing without it");
 }
 
-// FailAsync ends the job Failed at once, with no retry, and leaves MaxAttempts to absorb crashes; a thrown
-// exception would retry, and MaxAttempts = 1 would fail the job on its first crash too.
+return new MapReport($"{succeeded}/{ids.Length} items succeeded");
 ```
 
 ## 2. Or fail the parent with its failed child
@@ -61,6 +51,15 @@ result.ThrowIfAnyFailed();
 In `child-failure-outcomes.cs` (excerpt):
 
 ```csharp
+// Scenario 2: two children enqueued and waited for; one child fails. The handler calls
+// ThrowIfAnyFailed on the outcome, and the parent lands Failed at once, with no retry.
+[Job("run-join-escalated")]
+public async Task HandleJoinEscalated(RunJoinEscalated _, JobContext context, CancellationToken ct)
+{
+    var alpha = await context.EnqueueChildAsync("alpha", new RunChild("alpha", ShouldFail: false), ct);
+    var beta = await context.EnqueueChildAsync("beta", new RunChild("beta", ShouldFail: true), ct);
+
+    var result = await context.WaitChildrenAsync([alpha, beta], ct);
 
     foreach (var child in result.Failed)
     {
@@ -69,11 +68,6 @@ In `child-failure-outcomes.cs` (excerpt):
 
     result.ThrowIfAnyFailed();
 }
-
-// FailAsync, as in process-item: the failing child ends at once and keeps its budget for crashes.
-[Job("run-child")]
-public async Task RunChildHandler(RunChild input, JobContext context, CancellationToken ct)
-{
 ```
 
 ## 3. Run it and check the output

@@ -23,10 +23,6 @@ var sent = await ctx.MapAsync("invoice", batch.InvoiceIds, itemKey: id => id, ch
 In `find-child-job.cs` (excerpt):
 
 ```csharp
-public sealed record SendInvoices(int[] InvoiceIds);
-
-public sealed record SendInvoice(int InvoiceId);
-
 public sealed class InvoiceJobs
 {
     [Job("send-invoices")]
@@ -77,11 +73,11 @@ foreach (var child in children.Items.OrderBy(child => child.DeduplicationKey, St
     Console.WriteLine($"{child.DeduplicationKey}: {child.Status.Code}");
 }
 
-// The key is the one the map was given for that item, so a page that shows invoice 7 gets from the invoice to its
-// job, and from there to what the job did.
 var invoice7 = children.Items.Single(child => child.DeduplicationKey == "invoice/7");
 var why = (await jobs.ExplainAsync(invoice7.JobRef))!;
 Console.WriteLine($"invoice 7: {why.Headline} {why.Reason}");
+
+await host.StopAsync();
 ```
 
 ## 3. Pick the child that carries the item's key
@@ -99,13 +95,6 @@ Console.WriteLine($"invoice 7: {why.Headline} {why.Reason}");
 In `find-child-job.cs` (excerpt):
 
 ```csharp
-var jobs = host.Services.GetRequiredService<IJobs>();
-var operations = host.Services.GetRequiredService<IActaOperations>();
-
-var parent = await jobs.EnqueueAsync(new SendInvoices([5, 6, 7]));
-await parent.WaitAsync();
-
-// `Parent` restricts the job list to the children of one job. Each child shows the name it was started under.
 var children = await operations.Ledger.ListJobsAsync(new ListJobsQuery(Parent: parent));
 foreach (var child in children.Items.OrderBy(child => child.DeduplicationKey, StringComparer.Ordinal))
 {
@@ -115,6 +104,8 @@ foreach (var child in children.Items.OrderBy(child => child.DeduplicationKey, St
 var invoice7 = children.Items.Single(child => child.DeduplicationKey == "invoice/7");
 var why = (await jobs.ExplainAsync(invoice7.JobRef))!;
 Console.WriteLine($"invoice 7: {why.Headline} {why.Reason}");
+
+await host.StopAsync();
 ```
 
 ## 4. Run it and check the output

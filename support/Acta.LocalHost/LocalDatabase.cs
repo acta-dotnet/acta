@@ -32,10 +32,7 @@ public static class LocalDatabase
         bool applyMigrations = true
     )
     {
-        // Empty counts as unset at every rung of the fallback (a shell's VAR='' must not select the
-        // Postgres branch by producing an empty provider string): the zero-setup default stays SQLite.
-        provider ??= configuration["Acta:Provider"] ?? Environment.GetEnvironmentVariable("ACTA_LOCAL_PROVIDER");
-        provider = string.IsNullOrWhiteSpace(provider) ? "sqlite" : provider;
+        provider = string.IsNullOrWhiteSpace(provider) ? ResolveProvider(configuration) : provider;
         schema = NullIfWhiteSpace(schema) ?? NullIfWhiteSpace(configuration["Acta:Schema"]);
         var connectionString = ResolveConnectionString(configuration, provider, schema);
 
@@ -81,6 +78,17 @@ public static class LocalDatabase
         return jobs;
 
         static string? NullIfWhiteSpace(string? value) => string.IsNullOrWhiteSpace(value) ? null : value;
+    }
+
+    /// <summary>
+    /// The provider a local program runs on when it names none: config <c>Acta:Provider</c>, then env
+    /// <c>ACTA_LOCAL_PROVIDER</c>, then sqlite. Empty counts as unset (a shell's VAR='' must not select the
+    /// Postgres branch by producing an empty provider string): the zero-setup default stays SQLite.
+    /// </summary>
+    public static string ResolveProvider(IConfiguration configuration)
+    {
+        var provider = configuration["Acta:Provider"] ?? Environment.GetEnvironmentVariable("ACTA_LOCAL_PROVIDER");
+        return string.IsNullOrWhiteSpace(provider) ? "sqlite" : provider;
     }
 
     /// <summary>

@@ -24,8 +24,6 @@ public static Task Handle(FlakyWork input) => throw new InvalidOperationExceptio
 In `max-attempts.cs` (excerpt):
 
 ```csharp
-public sealed record FlakyWork(string Item);
-
 public static class FlakyWorkJob
 {
     [Job("flaky-work", MaxAttempts = 3, Backoff = "0s")]
@@ -49,12 +47,25 @@ Console.WriteLine($"status={snapshot!.Status} failureCount={snapshot.FailureCoun
 In `max-attempts.cs` (excerpt):
 
 ```csharp
+var builder = Host.CreateApplicationBuilder(args);
+
+builder.Services.UseActa(j =>
+{
+    j.UseLocalDatabase(builder.Configuration);
+    j.Run<MaxAttemptsJobs>("max-attempts");
+});
+
+using var host = builder.Build();
+await host.StartAsync();
+
 var jobs = host.Services.GetRequiredService<IJobs>();
 
 var outcome = await jobs.EnqueueAsync(new FlakyWork("widget"));
 await Task.Delay(1500);
 var snapshot = await jobs.GetAsync(outcome);
 Console.WriteLine($"status={snapshot!.Status} failureCount={snapshot.FailureCount}");
+
+await host.StopAsync();
 ```
 
 ## 3. Run it and check the output

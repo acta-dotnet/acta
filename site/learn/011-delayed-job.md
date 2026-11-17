@@ -23,12 +23,25 @@ var handle = await jobs.ScheduleAsync(new SendReminder("Sam"), TimeSpan.FromSeco
 In `delayed-job.cs` (excerpt):
 
 ```csharp
+var builder = Host.CreateApplicationBuilder(args);
+
+builder.Services.UseActa(j =>
+{
+    j.UseLocalDatabase(builder.Configuration);
+    j.Run<DelayedJobJobs>("delayed-job");
+});
+
+using var host = builder.Build();
+await host.StartAsync();
+
 var jobs = host.Services.GetRequiredService<IJobs>();
 
 var handle = await jobs.ScheduleAsync(new SendReminder("Sam"), TimeSpan.FromSeconds(5));
-
 Console.WriteLine($"Job {handle.JobRef} enqueued at {DateTime.UtcNow:HH:mm:ss}; runs in ~5s.");
 Console.WriteLine("Worker is running - press Ctrl+C to stop.");
+
+await host.WaitForShutdownAsync();
+await host.StopAsync();
 ```
 
 ## 2. The job it acts on
@@ -36,8 +49,6 @@ Console.WriteLine("Worker is running - press Ctrl+C to stop.");
 `delayed-job.cs` (excerpt):
 
 ```csharp
-public sealed record SendReminder(string Name);
-
 public static class ReminderJob
 {
     [Job("send-reminder")]

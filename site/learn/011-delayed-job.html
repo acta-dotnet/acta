@@ -57,7 +57,7 @@
   </div>
 
 
-  <main id="content" data-howto="011">
+  <main id="content">
     <header class="wrap page-head howto-head">
       <p class="record"><a href="/learn">learn acta</a><span aria-hidden="true">/</span><a href="/learn#s-start">start jobs</a></p>
       <h1>How to run a job once, later</h1>
@@ -77,17 +77,28 @@
       <article class="howto person-face">
 <div class="step"><h2><span class="step-n">1</span>Schedule the job instead of enqueueing it</h2>
 <p>ScheduleAsync counts the delay on the database clock (db_now + 5s); this host's clock does not affect timing.</p>
-<figure class="listing"><figcaption><span class="file">delayed-job.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-1">Copy</button></figcaption><pre><code id="code-1"><span class="k">var</span> jobs = host.Services.GetRequiredService&lt;IJobs&gt;();
+<figure class="listing"><figcaption><span class="file">delayed-job.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">var</span> builder = Host.CreateApplicationBuilder(args);
+
+builder.Services.UseActa(j =&gt;
+{
+    j.UseLocalDatabase(builder.Configuration);
+    j.Run&lt;DelayedJobJobs&gt;(<span class="s">&quot;delayed-job&quot;</span>);
+});
+
+<span class="k">using</span> <span class="k">var</span> host = builder.Build();
+<span class="k">await</span> host.StartAsync();
+
+<span class="k">var</span> jobs = host.Services.GetRequiredService&lt;IJobs&gt;();
 
 <span class="hl"><span class="k">var</span> handle = <span class="k">await</span> jobs.ScheduleAsync(<span class="k">new</span> SendReminder(<span class="s">&quot;Sam&quot;</span>), TimeSpan.FromSeconds(5));</span>
-
 Console.WriteLine(<span class="s">$&quot;Job {handle.JobRef} enqueued at {DateTime.UtcNow:HH:mm:ss}; runs in ~5s.&quot;</span>);
-Console.WriteLine(<span class="s">&quot;Worker is running - press Ctrl+C to stop.&quot;</span>);</code></pre></figure>
+Console.WriteLine(<span class="s">&quot;Worker is running - press Ctrl+C to stop.&quot;</span>);
+
+<span class="k">await</span> host.WaitForShutdownAsync();
+<span class="k">await</span> host.StopAsync();</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">2</span>The job it acts on</h2>
-<figure class="listing"><figcaption><span class="file">delayed-job.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-2">Copy</button></figcaption><pre><code id="code-2"><span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> SendReminder(<span class="k">string</span> Name);
-
-<span class="k">public</span> <span class="k">static</span> <span class="k">class</span> ReminderJob
+<figure class="listing"><figcaption><span class="file">delayed-job.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">static</span> <span class="k">class</span> ReminderJob
 {
     <span class="a">[Job(<span class="s">&quot;send-reminder&quot;</span>)]</span>
     <span class="k">public</span> <span class="k">static</span> <span class="k">void</span> Handle(SendReminder input) =&gt;
@@ -96,15 +107,15 @@ Console.WriteLine(<span class="s">&quot;Worker is running - press Ctrl+C to stop
 </div>
 <div class="step"><h2><span class="step-n">3</span>Run it and check the output</h2>
 <p>From a clone of <a href="https://github.com/acta-dotnet/acta">the Acta repository</a>, with the .NET 10 SDK:</p>
-<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-3">Copy</button></figcaption><pre><code id="code-3">dotnet run --project concepts/000-fundamentals/011-delayed-job</code></pre></figure>
-<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button" data-copy-target="#code-4">Copy</button></figcaption><pre><code id="code-4">Reminder fired for Sam at</code></pre></figure>
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project concepts/000-fundamentals/011-delayed-job</code></pre></figure>
+<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button">Copy</button></figcaption><pre><code>Reminder fired for Sam at</code></pre></figure>
 <p class="proof checked"><b>Checked every release.</b> Before each release, Acta Verify runs this program and checks that its output contains these lines.</p>
 </div>
 <div class="step plain-step"><h2>Remember</h2><ul class="rules"><li><code>ScheduleAsync(input, DateTimeOffset)</code> runs the job at an instant instead of after a delay. Work that recurs is a <code>[Schedule]</code>, not a job that schedules itself.</li></ul></div>
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/concepts/000-fundamentals/011-delayed-job"><code>concepts/000-fundamentals/011-delayed-job</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">delayed-job.cs</span><span class="file-size">43 lines</span></summary><figure class="listing"><figcaption><span class="file">delayed-job.cs</span><button class="copy" type="button" data-copy-target="#code-5">Copy</button></figcaption><pre><code id="code-5"><span class="c">// How to run a job once, later</span>
+<details class="source-file"><summary><span class="file-name">delayed-job.cs</span><span class="file-size">43 lines</span></summary><figure class="listing"><figcaption><span class="file">delayed-job.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to run a job once, later</span>
 <span class="c">// `ScheduleAsync(input, delay)` stores the job now and makes it due after the delay. No process has to stay alive</span>
 <span class="c">// until then.</span>
 <span class="k">using</span> Acta;
@@ -146,11 +157,12 @@ Console.WriteLine(<span class="s">&quot;Worker is running - press Ctrl+C to stop
         <span class="k">public</span> <span class="k">static</span> <span class="k">void</span> Handle(SendReminder input) =&gt;
             Console.WriteLine(<span class="s">$&quot;Reminder fired for {input.Name} at {DateTime.UtcNow:HH:mm:ss}.&quot;</span>);
     }
-}</code></pre></figure></details></div>
+}</code></pre></figure>
+</details></div>
 <div class="step plain-step"><h2>Where to go next</h2><ul class="next-links"><li><a href="/learn/217-absolute-time-controls">How to schedule, sleep, and reschedule to an exact instant</a><span>Start jobs</span></li></ul></div>
       </article>
       <article class="agent-face" hidden>
-        <figure class="listing agent"><figcaption><span class="file">/learn/011-delayed-job.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/011-delayed-job.md">Open</a><button class="copy" type="button" data-copy-target="#md-body">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
+        <figure class="listing agent"><figcaption><span class="file">/learn/011-delayed-job.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/011-delayed-job.md">Open</a><button class="copy" type="button">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
         <p class="hint">This is the page an agent receives: the same how-to as plain Markdown, at this page's address with <code>.md</code> added.</p>
       </article>
       <aside class="howto-rail" aria-label="This section">

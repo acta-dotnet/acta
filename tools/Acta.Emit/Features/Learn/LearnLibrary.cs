@@ -4,7 +4,7 @@ using System.Text.RegularExpressions;
 
 namespace Acta.Emit.Features.Learn;
 
-/// <summary>What stops the how-tos from being written: a rung with no title, no step, or no section, or a step left open.</summary>
+/// <summary>What stops the how-tos from being written: a how-to with no title, no step, or no section, or a step left open.</summary>
 internal sealed class LearnException(string message) : Exception(message);
 
 internal enum RowKind
@@ -21,11 +21,13 @@ internal sealed class SourceRow(string source, RowKind kind)
     public string Source { get; } = source;
     public RowKind Kind { get; set; } = kind;
     public int Step { get; set; } = -1;
+    public bool Blank => Source.Trim().Length == 0;
+    public int Indent => Source.Length - Source.TrimStart(' ').Length;
 }
 
 internal sealed record MarkedStep(string Title, int? Place, List<string> Prose, int At);
 
-internal sealed record ProgramHeader(string Title, string Summary, int Rows);
+internal sealed record ProgramHeader(string Title, string Summary);
 
 internal sealed class SourceFile(string name, string text)
 {
@@ -34,14 +36,11 @@ internal sealed class SourceFile(string name, string text)
     public ProgramHeader? Header { get; set; }
     public List<SourceRow> Rows { get; set; } = [];
     public List<MarkedStep> Steps { get; set; } = [];
-    public int LineCount => Text.Split('\n').Length;
 }
-
-internal sealed record Region(string Key, int From, int To);
 
 internal sealed record ShownRow(string Source, bool Emphasised);
 
-/// <summary>A step as a page shows it: the part of the program it stands in, with its own lines emphasised.</summary>
+/// <summary>A step as a page shows it: the piece of the program it stands in, with its own lines emphasised.</summary>
 internal sealed record FlowStep(string Title, string Prose, string File, IReadOnlyList<ShownRow> Rows, bool Part);
 
 internal sealed record CheckQuestion(string Question, IReadOnlyList<string> Options, int Answer, string Why);
@@ -58,7 +57,7 @@ internal sealed class LearnSection(string key, string title, string blurb, strin
     public List<HowTo> Entries { get; } = [];
 }
 
-/// <summary>One rung of <c>concepts/</c> as a how-to: what its program, its README and the run list say about it.</summary>
+/// <summary>One how-to: what its program, its README and the run list say about it.</summary>
 internal sealed class HowTo
 {
     public required string Id { get; init; }
@@ -66,7 +65,6 @@ internal sealed class HowTo
     public required string Band { get; init; }
     public required string Dir { get; init; }
     public required List<SourceFile> Files { get; init; }
-    public required bool IsTest { get; init; }
 
     /// <summary>The task as the program names it, "How to cancel a running job from outside".</summary>
     public required string Title { get; init; }
@@ -94,12 +92,23 @@ internal sealed class HowTo
 }
 
 /// <summary>
-/// Everything the how-tos are written from, read from the repository: each rung's program (its <c>// How to</c>
-/// header and its <c>// learn:</c> steps), its README, <c>concepts/learn.json</c>, and <c>concepts/concept-runs.json</c>.
+/// Everything the how-tos are written from, read from the repository: each how-to's program (its <c>// How to</c>
+/// header and its <c>// learn:</c> steps), its README, the sections file, and the run list.
 /// </summary>
 internal sealed partial class LearnLibrary
 {
-    public const string SectionsFile = "concepts/learn.json";
+    public const string Root = "concepts";
+    public const string SectionsFile = Root + "/learn.json";
+    public const string RunsFile = Root + "/concept-runs.json";
+
+    /// <summary>A piece that fits in this many lines is shown whole; a longer one is cut around the step's lines.</summary>
+    private const int WholePiece = 20;
+
+    /// <summary>How many lines either side of a step's own lines a cut reaches for neighbours that fit whole.</summary>
+    private const int Context = 6;
+
+    /// <summary>What the programs call that is the repository's, not the packages'; a page that shows one says so.</summary>
+    private static readonly string[] RepositoryHelpers = ["UseLocalDatabase", "ConceptLab"];
 
     public List<string> Bands { get; } = [];
     public Dictionary<string, HowTo> ById { get; } = new(StringComparer.Ordinal);
@@ -110,24 +119,27 @@ internal sealed partial class LearnLibrary
     public List<LookAlike> LookAlikes { get; } = [];
     public Dictionary<string, string> SearchWords { get; } = new(StringComparer.Ordinal);
 
-    public static string Read(string repoRoot, string relative) =>
-        File.ReadAllText(Path.Combine(repoRoot, relative.Replace('/', Path.DirectorySeparatorChar)))
-            .Replace("\r\n", "\n", StringComparison.Ordinal);
+    public static string PathOf(string repoRoot, string relative) =>
+        Path.Combine(repoRoot, relative.Replace('/', Path.DirectorySeparatorChar));
 
-    public static bool Exists(string repoRoot, string relative) =>
-        File.Exists(Path.Combine(repoRoot, relative.Replace('/', Path.DirectorySeparatorChar)));
+    public static string Read(string repoRoot, string relative)
+    {
+        var path = PathOf(repoRoot, relative);
+        return File.Exists(path)
+            ? File.ReadAllText(path).Replace("\r\n", "\n", StringComparison.Ordinal)
+            : throw new LearnException($"{relative} is missing");
+    }
 
     public static LearnLibrary Load(string repoRoot)
     {
         var library = new LearnLibrary();
-        using var runs = JsonDocument.Parse(Read(repoRoot, "concepts/concept-runs.json"));
-        var concepts = Path.Combine(repoRoot, "concepts");
-        foreach (var band in Folders(concepts).Where(name => BandFolder().IsMatch(name)))
+        using var runs = JsonDocument.Parse(Read(repoRoot, RunsFile));
+        foreach (var band in Folders(PathOf(repoRoot, Root)).Where(name => BandFolder().IsMatch(name)))
         {
             library.Bands.Add(band);
-            foreach (var folder in Folders(Path.Combine(concepts, band)).Where(name => RungFolder().IsMatch(name)))
+            foreach (var folder in Folders(PathOf(repoRoot, $"{Root}/{band}")).Where(name => HowToFolder().IsMatch(name)))
             {
-                var entry = ReadRung(repoRoot, band, folder, runs.RootElement);
+                var entry = ReadHowTo(repoRoot, band, folder, runs.RootElement);
                 if (library.ById.TryGetValue(entry.Id, out var other))
                 {
                     throw new LearnException($"{entry.Dir} and {other.Dir} share the number {entry.Id}");
@@ -136,8 +148,8 @@ internal sealed partial class LearnLibrary
             }
         }
 
-        using var learn = JsonDocument.Parse(Read(repoRoot, SectionsFile));
-        library.ReadSections(learn.RootElement);
+        using var sections = JsonDocument.Parse(Read(repoRoot, SectionsFile));
+        library.ReadSections(sections.RootElement);
         return library;
     }
 
@@ -203,15 +215,15 @@ internal sealed partial class LearnLibrary
     private HowTo Named(string folder, string where) =>
         ByFolder.TryGetValue(folder, out var entry)
             ? entry
-            : throw new LearnException($"{SectionsFile}: {where} names {folder}, which is not a rung");
+            : throw new LearnException($"{SectionsFile}: {where} names {folder}, which is not a how-to");
 
-    private static HowTo ReadRung(string repoRoot, string band, string folder, JsonElement runs)
+    private static HowTo ReadHowTo(string repoRoot, string band, string folder, JsonElement runs)
     {
-        var dir = $"concepts/{band}/{folder}";
+        var dir = $"{Root}/{band}/{folder}";
         var files = SourceFiles(repoRoot, dir);
         foreach (var file in files)
         {
-            file.Header = HeaderOf(file.Text);
+            (file.Header, file.Rows, file.Steps) = ReadMarkup(file.Text, $"{dir}/{file.Name}");
         }
         var headed = files.Where(file => file.Header is not null).ToList();
         if (headed.Count != 1)
@@ -225,15 +237,9 @@ internal sealed partial class LearnLibrary
         {
             throw new LearnException($"{dir}/{headed[0].Name}: the \"// How to\" line has no summary under it");
         }
-
         files = files.OrderBy(file => file.Header is null).ThenBy(file => file.Name, StringComparer.Ordinal).ToList();
-        foreach (var file in files)
-        {
-            ReadMarks(file, $"{dir}/{file.Name}");
-        }
 
         var isTest = band.StartsWith("800-", StringComparison.Ordinal);
-        var code = string.Join('\n', files.Select(file => file.Text));
         IReadOnlyList<string>? prints = null;
         string? skip = null;
         if (runs.TryGetProperty(folder, out var run))
@@ -249,9 +255,14 @@ internal sealed partial class LearnLibrary
         }
         if (prints is null && skip is null && !isTest)
         {
-            throw new LearnException($"{dir} has no checked output and no skip reason in concepts/concept-runs.json, and is not a test");
+            throw new LearnException($"{dir} has no checked output and no skip reason in {RunsFile}, and is not a test");
         }
 
+        // A helper counts when the program calls it, not when a comment names it.
+        var code = string.Join(
+            '\n',
+            files.SelectMany(file => file.Rows).Where(row => row.Kind == RowKind.Code && !IsComment(row)).Select(row => row.Source)
+        );
         var readme = ReadmeOf(repoRoot, dir);
         var entry = new HowTo
         {
@@ -260,7 +271,6 @@ internal sealed partial class LearnLibrary
             Band = band,
             Dir = dir,
             Files = files,
-            IsTest = isTest,
             Title = header.Title,
             ShortTitle = char.ToUpperInvariant(header.Title[7]) + header.Title[8..],
             Summary = header.Summary.EndsWith('.') ? header.Summary[..^1] : header.Summary,
@@ -269,9 +279,9 @@ internal sealed partial class LearnLibrary
             Prints = prints,
             Skip = skip,
             Command = isTest ? $"dotnet test {dir}" : $"dotnet run --project {dir}",
-            Helpers = new[] { (Word: "UseLocalDatabase", Shown: "`UseLocalDatabase`"), (Word: "ConceptLab", Shown: "`ConceptLab`") }
-                .Where(helper => code.Contains(helper.Word, StringComparison.Ordinal))
-                .Select(helper => helper.Shown)
+            Helpers = RepositoryHelpers
+                .Where(helper => code.Contains(helper, StringComparison.Ordinal))
+                .Select(helper => $"`{helper}`")
                 .ToList(),
             Lab = readme.Lab,
             Heading = readme.Heading,
@@ -298,7 +308,7 @@ internal sealed partial class LearnLibrary
 
         void Walk(string folder, string prefix)
         {
-            var path = Path.Combine(repoRoot, folder.Replace('/', Path.DirectorySeparatorChar));
+            var path = PathOf(repoRoot, folder);
             foreach (var sub in Directory.EnumerateDirectories(path).Select(p => Path.GetFileName(p)!))
             {
                 if (sub is not ("bin" or "obj" or "TestResults" or "Properties"))
@@ -315,44 +325,50 @@ internal sealed partial class LearnLibrary
 
     // ---- what a program says about itself ----
 
-    /// <summary>
-    /// The opening comment names the task and sums it up: a line starting <c>// How to</c>, then the comment lines of
-    /// the summary. A file the first-job guide shows keeps its <c>// File:</c> line above them.
-    /// </summary>
-    private static ProgramHeader? HeaderOf(string text)
-    {
-        var lines = text.Split('\n');
-        var i = 0;
-        while (i < lines.Length && lines[i].StartsWith("// File: ", StringComparison.Ordinal))
-        {
-            i++;
-        }
-        if (i >= lines.Length || !lines[i].StartsWith("// How to ", StringComparison.Ordinal))
-        {
-            return null;
-        }
-
-        var title = lines[i][3..].Trim();
-        var summary = new List<string>();
-        for (i++; i < lines.Length && lines[i].StartsWith("//", StringComparison.Ordinal) && !Mark().IsMatch(lines[i]); i++)
-        {
-            summary.Add(lines[i][2..].Trim());
-        }
-        return new ProgramHeader(title, string.Join(' ', summary).Trim(), i);
-    }
+    /// <summary>The program as it reads without its how-to markup: no <c>// How to</c> header and no <c>// learn:</c> lines.</summary>
+    public static string WithoutMarkup(string text) =>
+        string.Join(
+            '\n',
+            ReadMarkup(text.Replace("\r\n", "\n", StringComparison.Ordinal), "the program")
+                .Rows.Where(row => row.Kind is not (RowKind.Header or RowKind.Mark))
+                .Select(row => row.Source)
+        );
 
     /// <summary>
-    /// Reads the steps a program marks. <c>// learn: Title</c> opens a step, a number before the title places it among
-    /// the others, the comment lines right under it are its explanation, and <c>// learn: end</c> closes it.
+    /// Reads the markup a program carries. Its opening comment names the task and sums it up: a line starting
+    /// <c>// How to</c>, then the comment lines of the summary; a file the first-job guide shows keeps its
+    /// <c>// File:</c> line above them. <c>// learn: Title</c> opens a step, a number before the title places it among
+    /// the others, the comment lines right under it are its explanation, and <c>// learn: end</c> closes it. The blank
+    /// line the formatter sets above a closing mark belongs to the mark.
     /// </summary>
-    private static void ReadMarks(SourceFile file, string where)
+    private static (ProgramHeader? Header, List<SourceRow> Rows, List<MarkedStep> Steps) ReadMarkup(string text, string where)
     {
-        var headerRows = file.Header?.Rows ?? 0;
-        var rows = file
-            .Text.Split('\n')
-            .Select((source, n) => new SourceRow(source, n < headerRows ? RowKind.Header : RowKind.Code))
-            .ToList();
-        var found = new List<MarkedStep>();
+        var rows = text.Split('\n').Select(source => new SourceRow(source, RowKind.Code)).ToList();
+
+        ProgramHeader? header = null;
+        var at = 0;
+        while (at < rows.Count && rows[at].Source.StartsWith("// File: ", StringComparison.Ordinal))
+        {
+            at++;
+        }
+        if (at < rows.Count && rows[at].Source.StartsWith("// How to ", StringComparison.Ordinal))
+        {
+            var title = rows[at].Source[3..].Trim();
+            var summary = new List<string>();
+            rows[at].Kind = RowKind.Header;
+            for (
+                at++;
+                at < rows.Count && rows[at].Source.StartsWith("//", StringComparison.Ordinal) && !Mark().IsMatch(rows[at].Source);
+                at++
+            )
+            {
+                rows[at].Kind = RowKind.Header;
+                summary.Add(rows[at].Source[2..].Trim());
+            }
+            header = new ProgramHeader(title, string.Join(' ', summary).Trim());
+        }
+
+        var steps = new List<MarkedStep>();
         var open = -1;
         var prose = false;
         for (var n = 0; n < rows.Count; n++)
@@ -369,23 +385,25 @@ internal sealed partial class LearnLibrary
                     {
                         throw new LearnException($"{where}: \"learn: end\" with no step open");
                     }
+                    if (rows[n - 1].Blank)
+                    {
+                        rows[n - 1].Kind = RowKind.Mark;
+                    }
+                    if (!rows.Any(r => r.Step == open && r.Kind == RowKind.Code && !r.Blank))
+                    {
+                        throw new LearnException($"{where}: the step \"{steps[open].Title}\" marks no line of code");
+                    }
                     open = -1;
                     continue;
                 }
                 if (open >= 0)
                 {
-                    throw new LearnException($"{where}: the step \"{said}\" opens inside \"{found[open].Title}\"");
+                    throw new LearnException($"{where}: the step \"{said}\" opens inside \"{steps[open].Title}\"");
                 }
                 var placed = Placed().Match(said);
-                found.Add(
-                    new MarkedStep(
-                        placed.Success ? said[placed.Length..] : said,
-                        placed.Success ? int.Parse(placed.Groups[1].Value, CultureInfo.InvariantCulture) : null,
-                        [],
-                        n
-                    )
-                );
-                open = found.Count - 1;
+                int? place = placed.Success ? int.Parse(placed.Groups[1].Value, CultureInfo.InvariantCulture) : null;
+                steps.Add(new MarkedStep(placed.Success ? said[placed.Length..] : said, place, [], n));
+                open = steps.Count - 1;
                 prose = true;
                 continue;
             }
@@ -394,11 +412,11 @@ internal sealed partial class LearnLibrary
                 continue;
             }
             row.Step = open;
-            if (prose && row.Source.TrimStart().StartsWith("//", StringComparison.Ordinal))
+            if (prose && IsComment(row))
             {
                 row.Kind = RowKind.Prose;
                 var comment = row.Source.TrimStart()[2..];
-                found[open].Prose.Add(comment.Length > 0 && char.IsWhiteSpace(comment[0]) ? comment[1..] : comment);
+                steps[open].Prose.Add(comment.Length > 0 && char.IsWhiteSpace(comment[0]) ? comment[1..] : comment);
             }
             else
             {
@@ -407,136 +425,151 @@ internal sealed partial class LearnLibrary
         }
         if (open >= 0)
         {
-            throw new LearnException($"{where}: the step \"{found[open].Title}\" is never closed");
+            throw new LearnException($"{where}: the step \"{steps[open].Title}\" is never closed");
         }
+        return (header, rows, steps);
+    }
 
-        // A step is the lines from its first line of code to its last: blank lines at either end are not part of it.
-        for (var n = 0; n < found.Count; n++)
+    private static bool IsComment(SourceRow row) => row.Source.TrimStart().StartsWith("//", StringComparison.Ordinal);
+
+    // ---- which lines a step shows ----
+
+    /// <summary>
+    /// The piece of a file a line stands in: one type, or the statements the program opens with. The formatter lays
+    /// every program out the same way, so a type is a declaration at the left edge, or four spaces in when a block
+    /// namespace holds it, and it starts at the comments and attributes that stand on it. The level is the indent of
+    /// the piece's own statements or members.
+    /// </summary>
+    private static (int From, int To, int Level) PieceOf(List<SourceRow> rows, int at)
+    {
+        var cuts = new List<(int At, int Level)> { (0, 0) };
+        var typeIndent = 0;
+
+        // Where the comments and attributes that stand on the next declaration begin, or -1 when none are open.
+        var lead = -1;
+        for (var n = 0; n < rows.Count; n++)
         {
-            var own = rows.Where(row => row.Step == n && row.Kind == RowKind.Code).ToList();
-            var first = own.FindIndex(row => row.Source.Trim().Length > 0);
-            var last = own.FindLastIndex(row => row.Source.Trim().Length > 0);
-            if (first < 0)
+            var row = rows[n];
+            if (BlockNamespace().IsMatch(row.Source))
             {
-                throw new LearnException($"{where}: the step \"{found[n].Title}\" marks no line of code");
+                typeIndent = 4;
+                cuts.Add((n, 0));
+                lead = -1;
             }
-            for (var k = 0; k < own.Count; k++)
+            else if (typeIndent == 4 && row.Source == "}")
             {
-                if (k < first || k > last)
+                typeIndent = 0;
+                cuts.Add((n, 0));
+                lead = -1;
+            }
+            else if (row.Blank)
+            {
+                lead = -1;
+            }
+            else if (row.Indent == typeIndent)
+            {
+                if (TypeDeclaration().IsMatch(row.Source.AsSpan(typeIndent)))
                 {
-                    own[k].Step = -1;
+                    cuts.Add((lead >= 0 ? lead : n, typeIndent + 4));
+                    lead = -1;
+                }
+                else if (row.Source[typeIndent] is '/' or '[')
+                {
+                    lead = lead >= 0 ? lead : n;
+                }
+                else if (row.Source[typeIndent] is not (')' or ']'))
+                {
+                    lead = -1;
                 }
             }
         }
-
-        file.Rows = rows;
-        file.Steps = found;
+        var piece = cuts.FindLastIndex(cut => cut.At <= at);
+        return (cuts[piece].At, piece + 1 < cuts.Count ? cuts[piece + 1].At : rows.Count, cuts[piece].Level);
     }
 
-    /// <summary>The parts of a one-file program: what registers Acta, what the program does with the job, and the job itself.</summary>
-    private static List<Region> RegionsOf(SourceFile file)
-    {
-        var rows = file.Rows;
-        var ns = rows.FindIndex(row => NamespaceLine().IsMatch(row.Source));
-        while (ns >= 0 && (ns + 1 >= rows.Count || rows[ns + 1].Source != "{"))
-        {
-            ns = rows.FindIndex(ns + 1, row => NamespaceLine().IsMatch(row.Source));
-        }
-        if (ns < 0)
-        {
-            return [new Region("file", 0, rows.Count)];
-        }
-
-        var first = 0;
-        while (
-            first < ns
-            && (
-                rows[first].Kind == RowKind.Header
-                || rows[first].Source.StartsWith("using ", StringComparison.Ordinal)
-                || rows[first].Source.Trim().Length == 0
-            )
-        )
-        {
-            first++;
-        }
-        var started = rows.FindIndex(row => HostStarted().IsMatch(row.Source));
-        if (started >= ns)
-        {
-            started = -1;
-        }
-
-        var regions = new List<Region>();
-        var useFrom = first;
-        var useTo = ns;
-        if (started >= 0)
-        {
-            regions.Add(new Region("setup", first, started + 1));
-            useFrom = started + 1;
-        }
-        while (useTo > useFrom && (rows[useTo - 1].Source.Trim().Length == 0 || HostStopped().IsMatch(rows[useTo - 1].Source)))
-        {
-            useTo--;
-        }
-        while (useFrom < useTo && rows[useFrom].Source.Trim().Length == 0)
-        {
-            useFrom++;
-        }
-        if (useTo > useFrom)
-        {
-            regions.Add(new Region(started >= 0 ? "use" : "program", useFrom, useTo));
-        }
-        var jobTo = rows.Count;
-        while (jobTo > ns && rows[jobTo - 1].Source.Trim() != "}")
-        {
-            jobTo--;
-        }
-        regions.Add(new Region("job", ns + 2, jobTo - 1));
-        return regions;
-    }
-
-    private static (List<ShownRow> Rows, bool Part) Shown(
-        SourceFile file,
-        Region region,
-        Func<SourceRow, bool> emphasised,
-        Func<SourceRow, bool> hidden
+    /// <summary>
+    /// The lines of a piece as a step shows them. A short piece is shown whole, the opening statements without the
+    /// using directives above them. A long one is cut to the statements or members the lines in focus stand in; when
+    /// one of those alone is still long, it is cut again at the depth of the lines in focus.
+    /// </summary>
+    private static List<ShownRow> Shown(
+        List<SourceRow> rows,
+        (int From, int To, int Level) piece,
+        Func<SourceRow, bool> focus,
+        bool emphasise
     )
     {
-        var rows = file
-            .Rows.Skip(region.From)
-            .Take(region.To - region.From)
-            .Where(row => row.Kind is not (RowKind.Mark or RowKind.Header) && !hidden(row))
-            .Select(row => new ShownRow(row.Source, emphasised(row)))
-            .ToList();
-        while (rows.Count > 0 && rows[0].Source.Trim().Length == 0)
+        var shown = rows.GetRange(piece.From, piece.To - piece.From).Where(row => row.Kind == RowKind.Code).ToList();
+        if (piece is { From: 0, Level: 0 })
         {
-            rows.RemoveAt(0);
+            shown.RemoveRange(0, shown.TakeWhile(row => !focus(row) && (row.Blank || Preamble().IsMatch(row.Source))).Count());
         }
-        while (rows.Count > 0 && rows[^1].Source.Trim().Length == 0)
+        if (shown.Count > WholePiece)
         {
-            rows.RemoveAt(rows.Count - 1);
+            shown = Cut(shown, piece.Level, focus);
         }
-
-        // A mark that stood between two blank lines leaves them side by side: one is enough.
-        for (var n = rows.Count - 1; n > 0; n--)
+        if (shown.Count > WholePiece)
         {
-            if (rows[n].Source.Trim().Length == 0 && rows[n - 1].Source.Trim().Length == 0)
-            {
-                rows.RemoveAt(n);
-            }
+            shown = Cut(shown, shown.Where(row => focus(row) && !row.Blank).Min(row => row.Indent), focus);
         }
 
-        var whole = region.From == 0 && region.To == file.Rows.Count;
-        if (rows.Count <= 48 || !rows.Any(row => row.Emphasised))
-        {
-            return (rows, !whole);
-        }
-        var first = rows.FindIndex(row => row.Emphasised);
-        var last = rows.FindLastIndex(row => row.Emphasised);
-        var from = Math.Max(0, first - 6);
-        return (rows.GetRange(from, Math.Min(rows.Count, last + 7) - from), true);
+        var first = shown.FindIndex(row => !row.Blank);
+        var last = shown.FindLastIndex(row => !row.Blank);
+        return shown.GetRange(first, last - first + 1).Select(row => new ShownRow(row.Source, emphasise && focus(row))).ToList();
     }
 
-    /// <summary>The steps of a how-to are the steps its program marks, each shown inside the part of the program it stands in.</summary>
+    /// <summary>
+    /// The statements at <paramref name="level"/> that hold the lines in focus, with the neighbours that fit whole
+    /// within a few lines either side. A statement runs from the line that starts it, with the comments and attributes
+    /// that stand on it, to the line before the next; a line indented less belongs to the block around them and is
+    /// never taken, so a listing is whole statements of one block.
+    /// </summary>
+    private static List<SourceRow> Cut(List<SourceRow> rows, int level, Func<SourceRow, bool> focus)
+    {
+        bool Outside(int n) => !rows[n].Blank && rows[n].Indent < level;
+        bool Starts(int n) => !rows[n].Blank && rows[n].Indent == level && !Continues().IsMatch(rows[n].Source.AsSpan(level));
+
+        // A comment or an attribute, however many lines it takes, stands on the statement right under it.
+        var bounds = new List<int> { 0 };
+        var lead = false;
+        for (var n = 0; n < rows.Count; n++)
+        {
+            if (Outside(n))
+            {
+                bounds.Add(n);
+                lead = false;
+            }
+            else if (Starts(n))
+            {
+                if (!lead || rows[n - 1].Blank)
+                {
+                    bounds.Add(n);
+                }
+                lead = rows[n].Source[level] is '/' or '[';
+            }
+        }
+        bounds = bounds.Distinct().Append(rows.Count).ToList();
+        int End(int unit) => rows.FindLastIndex(bounds[unit + 1] - 1, bounds[unit + 1] - bounds[unit], row => !row.Blank);
+
+        var first = rows.FindIndex(row => focus(row));
+        var last = rows.FindLastIndex(row => focus(row));
+        var from = bounds.FindLastIndex(bound => bound <= first);
+        var to = bounds.FindLastIndex(bound => bound <= last);
+        while (from > 0 && !Outside(bounds[from - 1]) && bounds[from - 1] >= first - Context)
+        {
+            from--;
+        }
+        while (to + 2 < bounds.Count && !Outside(bounds[to + 1]) && End(to + 1) <= last + Context)
+        {
+            to++;
+        }
+        return rows.GetRange(bounds[from], bounds[to + 1] - bounds[from]);
+    }
+
+    /// <summary>
+    /// The steps of a how-to are the steps its program marks, each shown inside the piece of the program it stands in.
+    /// A one-file program whose steps all stand in its opening statements also shows the job those statements act on.
+    /// </summary>
     private static List<FlowStep> FlowOf(HowTo entry)
     {
         var marked = entry
@@ -549,41 +582,51 @@ internal sealed partial class LearnLibrary
         }
 
         var list = new List<FlowStep>();
-        var seen = new HashSet<string>(StringComparer.Ordinal);
+        var inType = false;
         foreach (var (file, step, n) in marked)
         {
-            var region = RegionsOf(file).FirstOrDefault(r => step.At >= r.From && step.At < r.To) ?? new Region("file", 0, file.Rows.Count);
-            seen.Add($"{file.Name}:{region.Key}");
-            var (rows, part) = Shown(
-                file,
-                region,
-                row => row.Step == n && row.Kind == RowKind.Code,
-                row => row.Step == n && row.Kind == RowKind.Prose
-            );
-            list.Add(new FlowStep(step.Title, string.Join(' ', step.Prose), file.Name, rows, part));
+            var piece = PieceOf(file.Rows, file.Rows.FindIndex(row => row.Step == n && row.Kind == RowKind.Code && !row.Blank));
+            inType |= piece.Level > 0;
+            list.Add(StepOf(step.Title, string.Join(' ', step.Prose), file, piece, row => row.Step == n, emphasise: true));
         }
 
-        if (entry.Files.Count == 1)
+        if (entry.Files is [var only] && !inType)
         {
-            var only = entry.Files[0];
-            var job = RegionsOf(only).FirstOrDefault(r => r.Key == "job");
-            if (job is not null && !seen.Contains($"{only.Name}:job"))
+            var job = only.Rows.Find(row =>
+                row.Kind == RowKind.Code && row.Source.TrimStart().StartsWith("[Job", StringComparison.Ordinal)
+            );
+            if (job is not null)
             {
-                var (rows, part) = Shown(only, job, _ => false, _ => false);
-                list.Add(new FlowStep("The job it acts on", "", only.Name, rows, part));
+                list.Add(
+                    StepOf("The job it acts on", "", only, PieceOf(only.Rows, only.Rows.IndexOf(job)), row => row == job, emphasise: false)
+                );
             }
         }
         return list;
     }
 
-    // ---- what a rung's README adds: rules to remember, questions to check yourself, and its notes ----
+    private static FlowStep StepOf(
+        string title,
+        string prose,
+        SourceFile file,
+        (int From, int To, int Level) piece,
+        Func<SourceRow, bool> focus,
+        bool emphasise
+    )
+    {
+        var rows = Shown(file.Rows, piece, focus, emphasise);
+        var whole = file.Rows.Count(row => row.Kind == RowKind.Code && !row.Blank);
+        return new FlowStep(title, prose, file.Name, rows, Part: rows.Count(row => row.Source.Trim().Length > 0) < whole);
+    }
+
+    // ---- what a how-to's README adds: rules to remember, questions to check yourself, and its notes ----
 
     private sealed record Readme(bool Lab, string? Heading, string Notes, IReadOnlyList<string> Rules, IReadOnlyList<CheckQuestion> Checks);
 
     private static Readme ReadmeOf(string repoRoot, string dir)
     {
         var file = $"{dir}/README.md";
-        if (!Exists(repoRoot, file))
+        if (!File.Exists(PathOf(repoRoot, file)))
         {
             return new Readme(false, null, "", [], []);
         }
@@ -693,7 +736,7 @@ internal sealed partial class LearnLibrary
     private static partial Regex BandFolder();
 
     [GeneratedRegex(@"^\d{3}-[a-z0-9-]+$")]
-    private static partial Regex RungFolder();
+    private static partial Regex HowToFolder();
 
     [GeneratedRegex(@"^\s*// learn: (.*)$")]
     private static partial Regex Mark();
@@ -702,13 +745,18 @@ internal sealed partial class LearnLibrary
     private static partial Regex Placed();
 
     [GeneratedRegex(@"^namespace [A-Za-z0-9_.]+$")]
-    private static partial Regex NamespaceLine();
+    private static partial Regex BlockNamespace();
 
-    [GeneratedRegex(@"^await (host|app)\.StartAsync\(\);")]
-    private static partial Regex HostStarted();
+    [GeneratedRegex(@"^(?:(?:public|internal|file|static|sealed|abstract|partial|readonly) )*(?:class|record|struct|interface|enum) ")]
+    private static partial Regex TypeDeclaration();
 
-    [GeneratedRegex(@"^await (host|app)\.(WaitForShutdownAsync|StopAsync)\(\);$")]
-    private static partial Regex HostStopped();
+    /// <summary>What stands above a program's first statement: its using directives and a guide file's name.</summary>
+    [GeneratedRegex(@"^(?:using (?:static )?[A-Za-z_][A-Za-z0-9_.]*(?: = [A-Za-z0-9_.<>, ]+)?;|// File: )")]
+    private static partial Regex Preamble();
+
+    /// <summary>A line that carries on the statement above it, though it stands at that statement's indent.</summary>
+    [GeneratedRegex(@"^(?:[{})\]]|(?:else|catch|finally)\b)")]
+    private static partial Regex Continues();
 
     [GeneratedRegex(@"<!--[\s\S]*?-->\s*")]
     private static partial Regex HtmlComment();

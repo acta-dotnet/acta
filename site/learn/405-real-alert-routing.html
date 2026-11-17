@@ -57,7 +57,7 @@
   </div>
 
 
-  <main id="content" data-howto="405">
+  <main id="content">
     <header class="wrap page-head howto-head">
       <p class="record"><a href="/learn">learn acta</a><span aria-hidden="true">/</span><a href="/learn#s-alerts">get told when something breaks</a></p>
       <h1>How to route alerts to Slack from configuration</h1>
@@ -77,72 +77,43 @@
       <article class="howto person-face">
 <div class="step"><h2><span class="step-n">1</span>Declare a Slack channel with its URL from configuration</h2>
 <p>Built-in Slack incoming-webhook transport, with the webhook URL from configuration (Alerts:SlackWebhookUrl). Without one the channel logs instead, so a plain run sends nothing. Acta SQL stores only channel_name = &quot;ops-slack&quot; either way. MinSeverity = Warning suppresses lower-severity alerts at delivery.</p>
-<figure class="listing"><figcaption><span class="file">real-alert-routing.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-1">Copy</button></figcaption><pre><code id="code-1"><span class="k">var</span> builder = Host.CreateApplicationBuilder(args);
+<figure class="listing"><figcaption><span class="file">real-alert-routing.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code>w.AddManifest&lt;RealAlertRoutingJobs&gt;();
 
-builder.Services.UseActa(j =&gt;
-{
-    j.UseLocalDatabase(builder.Configuration);
-
-    j.Run(<span class="s">&quot;real-alert-routing&quot;</span>, w =&gt;
-    {
-        w.AddManifest&lt;RealAlertRoutingJobs&gt;();
-
-<span class="hl">        <span class="k">var</span> webhookUrl = builder.Configuration[<span class="s">&quot;Alerts:SlackWebhookUrl&quot;</span>];</span>
-<span class="hl">        w.AddAlertChannel(</span>
-<span class="hl">            <span class="s">&quot;ops-slack&quot;</span>,</span>
-<span class="hl">            webhookUrl <span class="k">is</span> <span class="k">null</span> ? AlertTransportKinds.Log : AlertTransportKinds.SlackWebhook,</span>
-<span class="hl">            endpoint: webhookUrl ?? <span class="s">&quot;ops-slack&quot;</span>,</span>
-<span class="hl">            o =&gt;</span>
-<span class="hl">            {</span>
-<span class="hl">                o.MinSeverity = AlertSeverityCode.Warning;</span>
-<span class="hl">            }</span>
-<span class="hl">        );</span>
-    });
-});
-
-<span class="k">using</span> <span class="k">var</span> host = builder.Build();
-<span class="k">await</span> host.StartAsync();</code></pre></figure>
+<span class="hl"><span class="k">var</span> webhookUrl = builder.Configuration[<span class="s">&quot;Alerts:SlackWebhookUrl&quot;</span>];</span>
+<span class="hl">w.AddAlertChannel(</span>
+<span class="hl">    <span class="s">&quot;ops-slack&quot;</span>,</span>
+<span class="hl">    webhookUrl <span class="k">is</span> <span class="k">null</span> ? AlertTransportKinds.Log : AlertTransportKinds.SlackWebhook,</span>
+<span class="hl">    endpoint: webhookUrl ?? <span class="s">&quot;ops-slack&quot;</span>,</span>
+<span class="hl">    o =&gt;</span>
+<span class="hl">    {</span>
+<span class="hl">        o.MinSeverity = AlertSeverityCode.Warning;</span>
+<span class="hl">    }</span>
+<span class="hl">);</span></code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">2</span>Raise the alerts of one incident under one key</h2>
 <p>deduplicationKey ties repeats together onto one open incident row.</p>
-<figure class="listing"><figcaption><span class="file">real-alert-routing.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-2">Copy</button></figcaption><pre><code id="code-2"><span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> QueueDepthCheck(<span class="k">string</span> Queue, <span class="k">int</span> Depth);
-
-<span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> QueueDepthCheckJob
-{
-    <span class="a">[Job(<span class="s">&quot;queue-depth-check&quot;</span>)]</span>
-    <span class="k">public</span> <span class="k">async</span> Task Handle(QueueDepthCheck input, JobContext context, CancellationToken ct)
-    {
-        <span class="k">await</span> Task.Delay(50, ct);
-
-        <span class="k">if</span> (input.Depth &gt; 10_000)
-        {
-<span class="hl">            <span class="k">await</span> context.AlertAsync(</span>
-<span class="hl">                title: <span class="s">$&quot;Queue backlog: {input.Queue}&quot;</span>,</span>
-<span class="hl">                message: <span class="s">$&quot;'{input.Queue}' depth is {input.Depth}, above the 10k threshold.&quot;</span>,</span>
-<span class="hl">                severityCode: AlertSeverityCode.Error,</span>
-<span class="hl">                channelName: <span class="s">&quot;ops-slack&quot;</span>,</span>
-<span class="hl">                deduplicationKey: <span class="s">$&quot;queue-depth:{input.Queue}&quot;</span>,</span>
-<span class="hl">                ct: ct</span>
-<span class="hl">            );</span>
-            Console.WriteLine(<span class="s">$&quot;[{input.Queue}] depth {input.Depth} - alerted ops-slack&quot;</span>);
-            <span class="k">return</span>;
-        }
-
-        Console.WriteLine(<span class="s">$&quot;[{input.Queue}] depth {input.Depth} OK&quot;</span>);
-    }
-}</code></pre></figure>
+<figure class="listing"><figcaption><span class="file">real-alert-routing.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="hl"><span class="k">await</span> context.AlertAsync(</span>
+<span class="hl">    title: <span class="s">$&quot;Queue backlog: {input.Queue}&quot;</span>,</span>
+<span class="hl">    message: <span class="s">$&quot;'{input.Queue}' depth is {input.Depth}, above the 10k threshold.&quot;</span>,</span>
+<span class="hl">    severityCode: AlertSeverityCode.Error,</span>
+<span class="hl">    channelName: <span class="s">&quot;ops-slack&quot;</span>,</span>
+<span class="hl">    deduplicationKey: <span class="s">$&quot;queue-depth:{input.Queue}&quot;</span>,</span>
+<span class="hl">    ct: ct</span>
+<span class="hl">);</span>
+Console.WriteLine(<span class="s">$&quot;[{input.Queue}] depth {input.Depth} - alerted ops-slack&quot;</span>);
+<span class="k">return</span>;</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">3</span>Run it and check the output</h2>
 <p>From a clone of <a href="https://github.com/acta-dotnet/acta">the Acta repository</a>, with the .NET 10 SDK:</p>
-<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-3">Copy</button></figcaption><pre><code id="code-3">dotnet run --project concepts/400-observability-and-alerts/405-real-alert-routing</code></pre></figure>
-<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button" data-copy-target="#code-4">Copy</button></figcaption><pre><code id="code-4">alert [Error] Queue backlog: orders -&gt; 'ops-slack' x2</code></pre></figure>
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project concepts/400-observability-and-alerts/405-real-alert-routing</code></pre></figure>
+<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button">Copy</button></figcaption><pre><code>alert [Error] Queue backlog: orders -&gt; 'ops-slack' x2</code></pre></figure>
 <p class="proof checked"><b>Checked every release.</b> Before each release, Acta Verify runs this program and checks that its output contains these lines.</p>
 <p class="hint">This page shows the code. The rules it relies on, starting with the handler running again from its first line, are in <a href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#handler-contract">the handler contract</a>.</p>
 </div>
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/concepts/400-observability-and-alerts/405-real-alert-routing"><code>concepts/400-observability-and-alerts/405-real-alert-routing</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">real-alert-routing.cs</span><span class="file-size">90 lines</span></summary><figure class="listing"><figcaption><span class="file">real-alert-routing.cs</span><button class="copy" type="button" data-copy-target="#code-5">Copy</button></figcaption><pre><code id="code-5"><span class="c">// How to route alerts to Slack from configuration</span>
+<details class="source-file"><summary><span class="file-name">real-alert-routing.cs</span><span class="file-size">90 lines</span></summary><figure class="listing"><figcaption><span class="file">real-alert-routing.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to route alerts to Slack from configuration</span>
 <span class="c">// An alert channel posts to a Slack webhook whose URL comes from configuration, and logs when none is set. A</span>
 <span class="c">// deduplication key collapses repeats of one incident into one alert.</span>
 <span class="k">using</span> Acta;
@@ -231,11 +202,12 @@ builder.Services.UseActa(j =&gt;
             Console.WriteLine(<span class="s">$&quot;[{input.Queue}] depth {input.Depth} OK&quot;</span>);
         }
     }
-}</code></pre></figure></details></div>
+}</code></pre></figure>
+</details></div>
 <div class="step plain-step"><h2>Where to go next</h2><ul class="next-links"><li><a href="/learn/411-alert-escalation">How to escalate an alert as failures add up</a><span>Get told when something breaks</span></li></ul></div>
       </article>
       <article class="agent-face" hidden>
-        <figure class="listing agent"><figcaption><span class="file">/learn/405-real-alert-routing.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/405-real-alert-routing.md">Open</a><button class="copy" type="button" data-copy-target="#md-body">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
+        <figure class="listing agent"><figcaption><span class="file">/learn/405-real-alert-routing.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/405-real-alert-routing.md">Open</a><button class="copy" type="button">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
         <p class="hint">This is the page an agent receives: the same how-to as plain Markdown, at this page's address with <code>.md</code> added.</p>
       </article>
       <aside class="howto-rail" aria-label="This section">

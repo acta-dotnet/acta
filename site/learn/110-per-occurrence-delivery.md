@@ -24,40 +24,30 @@ The lines that matter:
 In `per-occurrence-delivery.cs` (excerpt):
 
 ```csharp
-public sealed class ImportJob
+public static int AtOnce => Volatile.Read(ref _atOnce);
+
+public static int MostAtOnce => Volatile.Read(ref _mostAtOnce);
+
+public static void Release() => Gate.TrySetResult();
+
+[Job("import-files", ScheduledDelivery = ScheduledDeliveryCode.PerOccurrence)]
+[Schedule("every-second", "PT1S", MaxOutstanding = 2, FullBehavior = ScheduleFullBehaviorCode.Drop)]
+public async Task Import(JobContext ctx, CancellationToken ct)
 {
-    private static readonly TaskCompletionSource Gate = new(TaskCreationOptions.RunContinuationsAsynchronously);
-    private static readonly Lock Counting = new();
-    private static int _atOnce;
-    private static int _mostAtOnce;
-
-    public static readonly ConcurrentQueue<JobRef> Finished = new();
-
-    public static int AtOnce => Volatile.Read(ref _atOnce);
-
-    public static int MostAtOnce => Volatile.Read(ref _mostAtOnce);
-
-    public static void Release() => Gate.TrySetResult();
-
-    [Job("import-files", ScheduledDelivery = ScheduledDeliveryCode.PerOccurrence)]
-    [Schedule("every-second", "PT1S", MaxOutstanding = 2, FullBehavior = ScheduleFullBehaviorCode.Drop)]
-    public async Task Import(JobContext ctx, CancellationToken ct)
+    lock (Counting)
+    {
+        _mostAtOnce = Math.Max(_mostAtOnce, ++_atOnce);
+    }
+    try
+    {
+        await Gate.Task.WaitAsync(ct);
+        Finished.Enqueue(ctx.JobRef);
+    }
+    finally
     {
         lock (Counting)
         {
-            _mostAtOnce = Math.Max(_mostAtOnce, ++_atOnce);
-        }
-        try
-        {
-            await Gate.Task.WaitAsync(ct);
-            Finished.Enqueue(ctx.JobRef);
-        }
-        finally
-        {
-            lock (Counting)
-            {
-                _atOnce--;
-            }
+            _atOnce--;
         }
     }
 }

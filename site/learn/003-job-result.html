@@ -57,7 +57,7 @@
   </div>
 
 
-  <main id="content" data-howto="003">
+  <main id="content">
     <header class="wrap page-head howto-head">
       <p class="record"><a href="/learn">learn acta</a><span aria-hidden="true">/</span><a href="/learn#s-first-steps">take the first steps</a></p>
       <h1>How to return a result and wait for it</h1>
@@ -77,11 +77,7 @@
       <article class="howto person-face">
 <div class="step"><h2><span class="step-n">1</span>Return the result from the handler</h2>
 <p>What the handler returns is stored with the job as its result.</p>
-<figure class="listing"><figcaption><span class="file">job-result.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-1">Copy</button></figcaption><pre><code id="code-1"><span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> AddNumbers(<span class="k">int</span> Left, <span class="k">int</span> Right);
-
-<span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> AddNumbersResult(<span class="k">int</span> Sum);
-
-<span class="k">public</span> <span class="k">static</span> <span class="k">class</span> AddNumbersJob
+<figure class="listing"><figcaption><span class="file">job-result.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">static</span> <span class="k">class</span> AddNumbersJob
 {
 <span class="hl">    <span class="a">[Job(<span class="s">&quot;add-numbers&quot;</span>)]</span></span>
 <span class="hl">    <span class="k">public</span> <span class="k">static</span> AddNumbersResult Handle(AddNumbers input) =&gt; <span class="k">new</span>(input.Left + input.Right);</span>
@@ -89,24 +85,37 @@
 </div>
 <div class="step"><h2><span class="step-n">2</span>Wait for the job and read its result</h2>
 <p>WaitAsync follows the job to its terminal state and carries the typed result.</p>
-<figure class="listing"><figcaption><span class="file">job-result.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-2">Copy</button></figcaption><pre><code id="code-2"><span class="k">var</span> jobs = host.Services.GetRequiredService&lt;IJobs&gt;();
+<figure class="listing"><figcaption><span class="file">job-result.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">var</span> builder = Host.CreateApplicationBuilder(args);
+
+builder.Services.UseActa(j =&gt;
+{
+    j.UseLocalDatabase(builder.Configuration);
+    j.Run&lt;JobResultJobs&gt;(<span class="s">&quot;job-result&quot;</span>);
+});
+
+<span class="k">using</span> <span class="k">var</span> host = builder.Build();
+<span class="k">await</span> host.StartAsync();
+
+<span class="k">var</span> jobs = host.Services.GetRequiredService&lt;IJobs&gt;();
 
 <span class="k">var</span> handle = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> AddNumbers(2, 3));
 
 <span class="hl"><span class="k">var</span> result = (<span class="k">await</span> handle.WaitAsync&lt;AddNumbersResult&gt;()).ValueOrThrow();</span>
-<span class="hl">Console.WriteLine(<span class="s">$&quot;2 + 3 = {result.Sum}&quot;</span>);</span></code></pre></figure>
+<span class="hl">Console.WriteLine(<span class="s">$&quot;2 + 3 = {result.Sum}&quot;</span>);</span>
+
+<span class="k">await</span> host.StopAsync();</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">3</span>Run it and check the output</h2>
 <p>From a clone of <a href="https://github.com/acta-dotnet/acta">the Acta repository</a>, with the .NET 10 SDK:</p>
-<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-3">Copy</button></figcaption><pre><code id="code-3">dotnet run --project concepts/000-fundamentals/003-job-result</code></pre></figure>
-<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button" data-copy-target="#code-4">Copy</button></figcaption><pre><code id="code-4">2 + 3 = 5</code></pre></figure>
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project concepts/000-fundamentals/003-job-result</code></pre></figure>
+<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button">Copy</button></figcaption><pre><code>2 + 3 = 5</code></pre></figure>
 <p class="proof checked"><b>Checked every release.</b> Before each release, Acta Verify runs this program and checks that its output contains these lines.</p>
 <p class="hint">This page shows the code. The rules it relies on, starting with the handler running again from its first line, are in <a href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#handler-contract">the handler contract</a>.</p>
 </div>
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/concepts/000-fundamentals/003-job-result"><code>concepts/000-fundamentals/003-job-result</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">job-result.cs</span><span class="file-size">47 lines</span></summary><figure class="listing"><figcaption><span class="file">job-result.cs</span><button class="copy" type="button" data-copy-target="#code-5">Copy</button></figcaption><pre><code id="code-5"><span class="c">// How to return a result and wait for it</span>
+<details class="source-file"><summary><span class="file-name">job-result.cs</span><span class="file-size">47 lines</span></summary><figure class="listing"><figcaption><span class="file">job-result.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to return a result and wait for it</span>
 <span class="c">// What the handler returns is stored with the job as its result. `WaitAsync&lt;T&gt;` follows the job to its end and hands</span>
 <span class="c">// the result back, typed.</span>
 <span class="k">using</span> Acta;
@@ -152,11 +161,12 @@ builder.Services.UseActa(j =&gt;
 <span class="hl">        <span class="k">public</span> <span class="k">static</span> AddNumbersResult Handle(AddNumbers input) =&gt; <span class="k">new</span>(input.Left + input.Right);</span>
         <span class="c">// learn: end</span>
     }
-}</code></pre></figure></details></div>
+}</code></pre></figure>
+</details></div>
 <div class="step plain-step"><h2>Where to go next</h2><ul class="next-links"><li><a href="/learn/007-dependency-injection">How to use your own services in a handler</a><span>Take the first steps</span></li></ul></div>
       </article>
       <article class="agent-face" hidden>
-        <figure class="listing agent"><figcaption><span class="file">/learn/003-job-result.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/003-job-result.md">Open</a><button class="copy" type="button" data-copy-target="#md-body">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
+        <figure class="listing agent"><figcaption><span class="file">/learn/003-job-result.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/003-job-result.md">Open</a><button class="copy" type="button">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
         <p class="hint">This is the page an agent receives: the same how-to as plain Markdown, at this page's address with <code>.md</code> added.</p>
       </article>
       <aside class="howto-rail" aria-label="This section">

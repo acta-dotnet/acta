@@ -42,11 +42,24 @@ await jobs.EnqueueAsync(ScalarInputJobs.Shout("durable jobs are simple"));
 In `scalar-input.cs` (excerpt):
 
 ```csharp
+var builder = Host.CreateApplicationBuilder(args);
+
+builder.Services.UseActa(j =>
+{
+    j.UseLocalDatabase(builder.Configuration);
+    j.Run<ScalarInputJobs>("scalar-input");
+});
+
+using var host = builder.Build();
+await host.StartAsync();
+
 var jobs = host.Services.GetRequiredService<IJobs>();
 
 await jobs.EnqueueAsync(ScalarInputJobs.Shout("durable jobs are simple"));
-
 Console.WriteLine("Enqueued. Worker is running - press Ctrl+C to stop.");
+
+await host.WaitForShutdownAsync();
+await host.StopAsync();
 ```
 
 ## 3. Run it and check the output

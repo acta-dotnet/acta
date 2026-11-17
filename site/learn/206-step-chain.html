@@ -57,7 +57,7 @@
   </div>
 
 
-  <main id="content" data-howto="206">
+  <main id="content">
     <header class="wrap page-head howto-head">
       <p class="record"><a href="/learn">learn acta</a><span aria-hidden="true">/</span><a href="/learn#s-survive">make work survive a crash</a></p>
       <h1>How to feed one step's result into the next</h1>
@@ -77,37 +77,19 @@
       <article class="howto person-face">
 <div class="step"><h2><span class="step-n">1</span>Return a value from a step</h2>
 <p>Typed durable steps: each result is recorded once, so on replay the chain rebuilds from recorded outputs and no step re-runs.</p>
-<figure class="listing"><figcaption><span class="file">step-chain.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-1">Copy</button></figcaption><pre><code id="code-1">
-<span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> IndexDocumentJob
-{
-    <span class="a">[Job(<span class="s">&quot;index-document&quot;</span>)]</span>
-    <span class="k">public</span> <span class="k">async</span> Task Handle(IndexDocument doc, JobContext context, CancellationToken ct)
-    {
-<span class="hl">        <span class="k">var</span> fetched = <span class="k">await</span> context.RunStepAsync(</span>
-<span class="hl">            <span class="s">&quot;fetch&quot;</span>,</span>
-<span class="hl">            <span class="k">async</span> inner =&gt;</span>
-<span class="hl">            {</span>
-<span class="hl">                <span class="k">await</span> Task.Delay(50, inner);</span>
-<span class="hl">                Console.WriteLine(<span class="s">$&quot;[{doc.DocId}] fetched&quot;</span>);</span>
-<span class="hl">                <span class="k">return</span> <span class="k">new</span> FetchedDocument(doc.DocId, 4096);</span>
-<span class="hl">            },</span>
-<span class="hl">            ct</span>
-<span class="hl">        );</span>
-
-        <span class="k">var</span> extracted = <span class="k">await</span> context.RunStepAsync(
-            <span class="s">&quot;extract-text&quot;</span>,
-            <span class="k">async</span> inner =&gt;
-            {
-                <span class="k">await</span> Task.Delay(50, inner);</code></pre></figure>
+<figure class="listing"><figcaption><span class="file">step-chain.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="hl"><span class="k">var</span> fetched = <span class="k">await</span> context.RunStepAsync(</span>
+<span class="hl">    <span class="s">&quot;fetch&quot;</span>,</span>
+<span class="hl">    <span class="k">async</span> inner =&gt;</span>
+<span class="hl">    {</span>
+<span class="hl">        <span class="k">await</span> Task.Delay(50, inner);</span>
+<span class="hl">        Console.WriteLine(<span class="s">$&quot;[{doc.DocId}] fetched&quot;</span>);</span>
+<span class="hl">        <span class="k">return</span> <span class="k">new</span> FetchedDocument(doc.DocId, 4096);</span>
+<span class="hl">    },</span>
+<span class="hl">    ct</span>
+<span class="hl">);</span></code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">2</span>Use it in the next step</h2>
-<figure class="listing"><figcaption><span class="file">step-chain.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-2">Copy</button></figcaption><pre><code id="code-2">        Console.WriteLine(<span class="s">$&quot;[{doc.DocId}] fetched&quot;</span>);
-        <span class="k">return</span> <span class="k">new</span> FetchedDocument(doc.DocId, 4096);
-    },
-    ct
-);
-
-<span class="hl"><span class="k">var</span> extracted = <span class="k">await</span> context.RunStepAsync(</span>
+<figure class="listing"><figcaption><span class="file">step-chain.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="hl"><span class="k">var</span> extracted = <span class="k">await</span> context.RunStepAsync(</span>
 <span class="hl">    <span class="s">&quot;extract-text&quot;</span>,</span>
 <span class="hl">    <span class="k">async</span> inner =&gt;</span>
 <span class="hl">    {</span>
@@ -116,25 +98,19 @@
 <span class="hl">        <span class="k">return</span> <span class="k">new</span> ExtractedText(doc.DocId, 600);</span>
 <span class="hl">    },</span>
 <span class="hl">    ct</span>
-<span class="hl">);</span>
-
-<span class="k">var</span> summary = <span class="k">await</span> context.RunStepAsync(
-    <span class="s">&quot;summarize&quot;</span>,
-    <span class="k">async</span> inner =&gt;
-    {
-        <span class="k">await</span> Task.Delay(50, inner);</code></pre></figure>
+<span class="hl">);</span></code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">3</span>Run it and check the output</h2>
 <p>From a clone of <a href="https://github.com/acta-dotnet/acta">the Acta repository</a>, with the .NET 10 SDK:</p>
-<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-3">Copy</button></figcaption><pre><code id="code-3">dotnet run --project concepts/200-durable-execution/206-step-chain</code></pre></figure>
-<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button" data-copy-target="#code-4">Copy</button></figcaption><pre><code id="code-4">[guide.pdf] done -&gt; 4096 bytes, 600 words, summary &quot;600-word digest&quot;</code></pre></figure>
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project concepts/200-durable-execution/206-step-chain</code></pre></figure>
+<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button">Copy</button></figcaption><pre><code>[guide.pdf] done -&gt; 4096 bytes, 600 words, summary &quot;600-word digest&quot;</code></pre></figure>
 <p class="proof checked"><b>Checked every release.</b> Before each release, Acta Verify runs this program and checks that its output contains these lines.</p>
 <p class="hint">This page shows the code. The rules it relies on, starting with the handler running again from its first line, are in <a href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#handler-contract">the handler contract</a>.</p>
 </div>
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/concepts/200-durable-execution/206-step-chain"><code>concepts/200-durable-execution/206-step-chain</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">step-chain.cs</span><span class="file-size">84 lines</span></summary><figure class="listing"><figcaption><span class="file">step-chain.cs</span><button class="copy" type="button" data-copy-target="#code-5">Copy</button></figcaption><pre><code id="code-5"><span class="c">// How to feed one step's result into the next</span>
+<details class="source-file"><summary><span class="file-name">step-chain.cs</span><span class="file-size">84 lines</span></summary><figure class="listing"><figcaption><span class="file">step-chain.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to feed one step's result into the next</span>
 <span class="c">// A step can return a value. Each result is recorded once, so the next step takes it as its input and a replay</span>
 <span class="c">// rebuilds the chain from the records.</span>
 <span class="k">using</span> Acta;
@@ -217,11 +193,12 @@ Console.WriteLine(<span class="s">&quot;Enqueued. Worker is running - press Ctrl
             Console.WriteLine(<span class="s">$&quot;[{doc.DocId}] done -&gt; {fetched.Bytes} bytes, {extracted.Words} words, summary \&quot;{summary.Text}\&quot;&quot;</span>);
         }
     }
-}</code></pre></figure></details></div>
+}</code></pre></figure>
+</details></div>
 <div class="step plain-step"><h2>Where to go next</h2><ul class="next-links"><li><a href="/learn/216-variable-lifecycle">How to compute a value once and reuse it</a><span>Make work survive a crash</span></li></ul></div>
       </article>
       <article class="agent-face" hidden>
-        <figure class="listing agent"><figcaption><span class="file">/learn/206-step-chain.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/206-step-chain.md">Open</a><button class="copy" type="button" data-copy-target="#md-body">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
+        <figure class="listing agent"><figcaption><span class="file">/learn/206-step-chain.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/206-step-chain.md">Open</a><button class="copy" type="button">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
         <p class="hint">This is the page an agent receives: the same how-to as plain Markdown, at this page's address with <code>.md</code> added.</p>
       </article>
       <aside class="howto-rail" aria-label="This section">

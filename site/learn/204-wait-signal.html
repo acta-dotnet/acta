@@ -57,14 +57,14 @@
   </div>
 
 
-  <main id="content" data-howto="204">
+  <main id="content">
     <header class="wrap page-head howto-head">
       <p class="record"><a href="/learn">learn acta</a><span aria-hidden="true">/</span><a href="/learn#s-wait">wait for people, events, and time</a></p>
       <h1>How to wait for an approval without holding a worker</h1>
       <p class="lede">A job parks on a named signal, holds no worker, and carries on when the signal is raised.</p>
       <p class="howto-context">A how-to for Acta, durable execution for .NET. <a href="/start">New to Acta? Run your first durable job in five minutes.</a></p>
       <div class="howto-meta">
-        <span class="status checked">Checked every release</span><span class="mark lab">Lab</span>
+        <span class="status checked">Checked every release</span><span class="mark">Lab</span>
         <a class="program" href="https://github.com/acta-dotnet/acta/tree/main/concepts/200-durable-execution/204-wait-signal"><code>concepts/200-durable-execution/204-wait-signal</code></a>
         <div class="reader" role="group" aria-label="Read this page as">
         <span class="reader-label">Read as</span>
@@ -77,11 +77,7 @@
       <article class="howto person-face">
 <div class="step"><h2><span class="step-n">1</span>Wait for a named signal in the handler</h2>
 <p><code>WaitSignalAsync</code> stores the wait as a row and ends this execution. The job reads <code>suspended</code>. Suspends (no executor held) until the named signal is raised, then re-enters with the latched payload.</p>
-<figure class="listing"><figcaption><span class="file">wait-signal.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-1">Copy</button></figcaption><pre><code id="code-1"><span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> ApproveExpense(<span class="k">string</span> Id, <span class="k">decimal</span> Amount);
-
-<span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> Decision(<span class="k">bool</span> Approved, <span class="k">string</span> By);
-
-<span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> ApproveExpenseJob
+<figure class="listing"><figcaption><span class="file">wait-signal.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> ApproveExpenseJob
 {
     <span class="a">[Job(<span class="s">&quot;approve-expense&quot;</span>)]</span>
     <span class="k">public</span> <span class="k">async</span> Task Handle(ApproveExpense expense, JobContext context, CancellationToken ct)
@@ -94,14 +90,7 @@
 </div>
 <div class="step"><h2><span class="step-n">2</span>Raise the signal when the answer arrives</h2>
 <p>Whoever learns the answer raises the signal by name on that job: an endpoint, another job, an operator. The value is stored, the job becomes ready, and the handler runs again from its first line. This time the wait returns the stored value.</p>
-<figure class="listing"><figcaption><span class="file">wait-signal.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-2">Copy</button></figcaption><pre><code id="code-2">}
-<span class="k">else</span>
-{
-    Console.WriteLine(<span class="s">&quot;Brief/non-interactive run: raising the approval signal automatically.&quot;</span>);
-}
-
-<span class="hl"><span class="k">await</span> jobs.RaiseSignalAsync(job, <span class="s">&quot;approval&quot;</span>, <span class="k">new</span> Decision(<span class="k">true</span>, <span class="s">&quot;alice&quot;</span>));</span>
-
+<figure class="listing"><figcaption><span class="file">wait-signal.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="hl"><span class="k">await</span> jobs.RaiseSignalAsync(job, <span class="s">&quot;approval&quot;</span>, <span class="k">new</span> Decision(<span class="k">true</span>, <span class="s">&quot;alice&quot;</span>));</span>
 Console.WriteLine(<span class="s">&quot;approved - the job resumes.&quot;</span>);
 <span class="k">var</span> terminal = <span class="k">await</span> WaitForAsync(jobs, job.JobId, <span class="k">static</span> snapshot =&gt; snapshot.Status.IsTerminal, <span class="s">&quot;signal-waiting job to finish&quot;</span>);
 EnsureDone(terminal);
@@ -110,8 +99,8 @@ EnsureDone(terminal);
 </div>
 <div class="step"><h2><span class="step-n">3</span>Run it and check the output</h2>
 <p>From a clone of <a href="https://github.com/acta-dotnet/acta">the Acta repository</a>, with the .NET 10 SDK:</p>
-<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-3">Copy</button></figcaption><pre><code id="code-3">dotnet run --project concepts/200-durable-execution/204-wait-signal</code></pre></figure>
-<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button" data-copy-target="#code-4">Copy</button></figcaption><pre><code id="code-4">Brief/non-interactive run: raising the approval signal automatically.
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project concepts/200-durable-execution/204-wait-signal</code></pre></figure>
+<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button">Copy</button></figcaption><pre><code>Brief/non-interactive run: raising the approval signal automatically.
 approved - the job resumes.
 [exp-1] expense for 4200.00 EUR APPROVED by alice</code></pre></figure>
 <p class="proof checked"><b>Checked every release.</b> Before each release, Acta Verify runs this program and checks that its output contains these lines.</p>
@@ -129,14 +118,14 @@ approved - the job resumes.
 <h3>Trade-offs</h3>
 <p>The handler starts from the top on execution two. Only durable steps and checkpoints suppress repeated work. Signals also require a reliable actor to raise the correct named latch and a policy for signals that never arrive.</p>
 <h3>Run the experiment</h3>
-<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-5">Copy</button></figcaption><pre><code id="code-5">dotnet run --project concepts/200-durable-execution/204-wait-signal</code></pre></figure>
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project concepts/200-durable-execution/204-wait-signal</code></pre></figure>
 <p>Press <code>S</code> when prompted. Use <code>--brief</code> for an automatic non-interactive run.</p>
 <h3>Rows to inspect</h3>
 <p>Run with <code>--all-columns</code> to execute the visible <code>SELECT *</code> Explore query first. The default Notice queries select the fields that prove the lesson, and the text below explains their meaning.</p>
 <p>Before the signal, <code>jobs_view</code> shows <code>suspended</code> with null worker/lease columns and <code>checkpoints_view</code> shows a pending signal. After the raise, the checkpoint contains the latched value and the same job finishes on execution two.</p>
 <h3>Break it</h3>
 <p>Run a real two-process recovery against one configured database:</p>
-<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-6">Copy</button></figcaption><pre><code id="code-6">dotnet run --project concepts/200-durable-execution/204-wait-signal -- start
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project concepts/200-durable-execution/204-wait-signal -- start
 dotnet run --project concepts/200-durable-execution/204-wait-signal -- inspect &lt;printed-job-ref&gt;
 dotnet run --project concepts/200-durable-execution/204-wait-signal -- raise &lt;printed-job-ref&gt;</code></pre></figure>
 <p><code>start</code> stops after suspension. <code>inspect</code> starts no worker and proves that the exact identity remains suspended and unleased. <code>raise</code> does not enqueue another job; it signals that identity and waits for its second execution to finish.</p>
@@ -148,7 +137,7 @@ dotnet run --project concepts/200-durable-execution/204-wait-signal -- raise &lt
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/concepts/200-durable-execution/204-wait-signal"><code>concepts/200-durable-execution/204-wait-signal</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> and <code>ConceptLab</code> are helpers of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">wait-signal.cs</span><span class="file-size">206 lines</span></summary><figure class="listing"><figcaption><span class="file">wait-signal.cs</span><button class="copy" type="button" data-copy-target="#code-7">Copy</button></figcaption><pre><code id="code-7"><span class="c">// How to wait for an approval without holding a worker</span>
+<details class="source-file"><summary><span class="file-name">wait-signal.cs</span><span class="file-size">206 lines</span></summary><figure class="listing"><figcaption><span class="file">wait-signal.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to wait for an approval without holding a worker</span>
 <span class="c">// A job parks on a named signal, holds no worker, and carries on when the signal is raised.</span>
 <span class="k">using</span> System.Globalization;
 <span class="k">using</span> Acta;
@@ -353,11 +342,12 @@ EnsureDone(terminal);
             Console.WriteLine(<span class="s">$&quot;[{expense.Id}] expense for {amount} EUR {(decision!.Approved ? &quot;APPROVED&quot; : &quot;rejected&quot;)} by {decision.By}&quot;</span>);
         }
     }
-}</code></pre></figure></details></div>
+}</code></pre></figure>
+</details></div>
 <div class="step plain-step"><h2>Where to go next</h2><ul class="next-links"><li><a href="/learn/221-pending-signup">How to hold a sign-up until the email is confirmed</a><span>Wait for people, events, and time</span></li></ul></div>
       </article>
       <article class="agent-face" hidden>
-        <figure class="listing agent"><figcaption><span class="file">/learn/204-wait-signal.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/204-wait-signal.md">Open</a><button class="copy" type="button" data-copy-target="#md-body">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
+        <figure class="listing agent"><figcaption><span class="file">/learn/204-wait-signal.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/204-wait-signal.md">Open</a><button class="copy" type="button">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
         <p class="hint">This is the page an agent receives: the same how-to as plain Markdown, at this page's address with <code>.md</code> added.</p>
       </article>
       <aside class="howto-rail" aria-label="This section">

@@ -21,7 +21,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
 var builder = Host.CreateApplicationBuilder(args);
-var provider = builder.Configuration["Acta:Provider"] ?? Environment.GetEnvironmentVariable("ACTA_LOCAL_PROVIDER") ?? "sqlite";
+var provider = LocalDatabase.ResolveProvider(builder.Configuration);
 if (!LocalDatabase.IsSqlite(provider))
 {
     Console.WriteLine("This rung keeps its orders table in the same SQLite file as Acta's tables.");
@@ -53,7 +53,7 @@ var (kept, dropped) = ($"order-{run}-kept", $"order-{run}-dropped");
 // The transaction is yours: Acta writes the job through it and never commits it, rolls it back, or retries it. No
 // worker sees the job before the commit.
 EnqueueJobResponse committed;
-await using (var transaction = (SqliteTransaction)await connection.BeginTransactionAsync())
+await using (var transaction = connection.BeginTransaction())
 {
     await ExecuteAsync(transaction, "INSERT INTO shop_orders (order_id) VALUES (@id)", kept);
     committed = await jobs.EnqueueAsync(transaction, new FulfilOrder(kept));
@@ -65,7 +65,7 @@ await using (var transaction = (SqliteTransaction)await connection.BeginTransact
 // learn: 2. Roll back, and neither the record nor the job exists
 // The answer of an enqueue is provisional until the commit. After a rollback its job ref names nothing.
 EnqueueJobResponse rolledBack;
-await using (var transaction = (SqliteTransaction)await connection.BeginTransactionAsync())
+await using (var transaction = connection.BeginTransaction())
 {
     await ExecuteAsync(transaction, "INSERT INTO shop_orders (order_id) VALUES (@id)", dropped);
     rolledBack = await jobs.EnqueueAsync(transaction, new FulfilOrder(dropped));

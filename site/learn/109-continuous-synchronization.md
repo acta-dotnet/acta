@@ -21,46 +21,29 @@ The lines that matter:
 [Schedule("every-5s", "PT5S")]
 ```
 
-In `SyncOrdersJob.cs`:
+In `SyncOrdersJob.cs` (excerpt):
 
 ```csharp
-namespace Acta.Concepts.ContinuousSynchronization;
+public const int BatchSize = 40;
 
-/// <summary>
-/// One permanent job keeps the local orders current. The schedule fires it every five seconds; a firing applies at
-/// most one batch of <see cref="BatchSize"/> changes and returns, so the job sits Idle between firings and no thread
-/// loops. The watermark, the id of the last shop change applied, is the job's own durable variable: Acta carries it
-/// across firings, retries, and workers, and the handler reads it at the top of every execution, so an attempt that
-/// dies after a batch is continued at the next batch by whichever worker runs the job next.
-/// </summary>
-public sealed class SyncOrdersJob(ShopFeed shop, OrderStore store, CrashSignal crash)
+[Job("sync-orders", MaxAttempts = 3, Backoff = "2s")]
+[Schedule("every-5s", "PT5S")]
+public async Task Sync(JobContext ctx, CancellationToken ct)
 {
-    public const int BatchSize = 40;
-
-    [Job("sync-orders", MaxAttempts = 3, Backoff = "2s")]
-    [Schedule("every-5s", "PT5S")]
-    public async Task Sync(JobContext ctx, CancellationToken ct)
+    var watermark = await ctx.GetVariableOrDefaultAsync("watermark", 0L, ct);
+    var changes = await shop.ChangesAfterAsync(watermark, BatchSize, ct);
+    if (changes.Count == 0)
     {
-        // The call to the service is a bare line on purpose: a read is safe to repeat, and on a permanent job a step
-        // would answer from an earlier firing's record. A firing that finds nothing returns; the next one comes on
-        // schedule.
-        var watermark = await ctx.GetVariableOrDefaultAsync("watermark", 0L, ct);
-        var changes = await shop.ChangesAfterAsync(watermark, BatchSize, ct);
-        if (changes.Count == 0)
-        {
-            Console.WriteLine($"[sync-orders] execution {ctx.ExecutionNumber}: up to date at change {watermark}");
-            return;
-        }
-
-        // The orders land first and the watermark after them: an attempt that dies between the two replays one batch,
-        // which the upsert absorbs; the other order would skip one.
-        await store.ApplyAsync(changes, ct);
-        var head = changes[^1].ChangeId;
-        await ctx.SetVariableAsync("watermark", head, ct);
-        Console.WriteLine($"[sync-orders] execution {ctx.ExecutionNumber}: {changes.Count} changes applied, watermark {head}");
-        // The lab's switch for killing the worker after a batch; a job of your own has no such line.
-        await crash.AfterBatchAsync(head, ct);
+        Console.WriteLine($"[sync-orders] execution {ctx.ExecutionNumber}: up to date at change {watermark}");
+        return;
     }
+
+    await store.ApplyAsync(changes, ct);
+    var head = changes[^1].ChangeId;
+    await ctx.SetVariableAsync("watermark", head, ct);
+    Console.WriteLine($"[sync-orders] execution {ctx.ExecutionNumber}: {changes.Count} changes applied, watermark {head}");
+    // The lab's switch for killing the worker after a batch; a job of your own has no such line.
+    await crash.AfterBatchAsync(head, ct);
 }
 ```
 
@@ -80,46 +63,21 @@ if (changes.Count == 0)
 }
 ```
 
-In `SyncOrdersJob.cs`:
+In `SyncOrdersJob.cs` (excerpt):
 
 ```csharp
-namespace Acta.Concepts.ContinuousSynchronization;
-
-/// <summary>
-/// One permanent job keeps the local orders current. The schedule fires it every five seconds; a firing applies at
-/// most one batch of <see cref="BatchSize"/> changes and returns, so the job sits Idle between firings and no thread
-/// loops. The watermark, the id of the last shop change applied, is the job's own durable variable: Acta carries it
-/// across firings, retries, and workers, and the handler reads it at the top of every execution, so an attempt that
-/// dies after a batch is continued at the next batch by whichever worker runs the job next.
-/// </summary>
-public sealed class SyncOrdersJob(ShopFeed shop, OrderStore store, CrashSignal crash)
+var watermark = await ctx.GetVariableOrDefaultAsync("watermark", 0L, ct);
+var changes = await shop.ChangesAfterAsync(watermark, BatchSize, ct);
+if (changes.Count == 0)
 {
-    public const int BatchSize = 40;
-
-    // The schedule fires the one permanent job every five seconds. A firing does one bounded batch and returns, so
-    // between firings the job is `Idle` and holds no thread.
-    [Job("sync-orders", MaxAttempts = 3, Backoff = "2s")]
-    [Schedule("every-5s", "PT5S")]
-    public async Task Sync(JobContext ctx, CancellationToken ct)
-    {
-        var watermark = await ctx.GetVariableOrDefaultAsync("watermark", 0L, ct);
-        var changes = await shop.ChangesAfterAsync(watermark, BatchSize, ct);
-        if (changes.Count == 0)
-        {
-            Console.WriteLine($"[sync-orders] execution {ctx.ExecutionNumber}: up to date at change {watermark}");
-            return;
-        }
-
-        // The orders land first and the watermark after them: an attempt that dies between the two replays one batch,
-        // which the upsert absorbs; the other order would skip one.
-        await store.ApplyAsync(changes, ct);
-        var head = changes[^1].ChangeId;
-        await ctx.SetVariableAsync("watermark", head, ct);
-        Console.WriteLine($"[sync-orders] execution {ctx.ExecutionNumber}: {changes.Count} changes applied, watermark {head}");
-        // The lab's switch for killing the worker after a batch; a job of your own has no such line.
-        await crash.AfterBatchAsync(head, ct);
-    }
+    Console.WriteLine($"[sync-orders] execution {ctx.ExecutionNumber}: up to date at change {watermark}");
+    return;
 }
+
+await store.ApplyAsync(changes, ct);
+var head = changes[^1].ChangeId;
+await ctx.SetVariableAsync("watermark", head, ct);
+Console.WriteLine($"[sync-orders] execution {ctx.ExecutionNumber}: {changes.Count} changes applied, watermark {head}");
 ```
 
 ## 3. Let the service hand out its changes in a fixed order
@@ -136,9 +94,6 @@ command.CommandText =
 In `ShopFeed.cs` (excerpt):
 
 ```csharp
-    throw new ShopUnavailableException();
-}
-
 await using var connection = new SqliteConnection(connectionString);
 await connection.OpenAsync(ct);
 await using var command = connection.CreateCommand();
@@ -148,8 +103,6 @@ command.Parameters.AddWithValue("@since", sinceChangeId);
 command.Parameters.AddWithValue("@take", take);
 var changes = new List<OrderChange>(take);
 await using var reader = await command.ExecuteReaderAsync(ct);
-while (await reader.ReadAsync(ct))
-{
 ```
 
 ## 4. Save the work first and the watermark after
@@ -164,46 +117,27 @@ var head = changes[^1].ChangeId;
 await ctx.SetVariableAsync("watermark", head, ct);
 ```
 
-In `SyncOrdersJob.cs`:
+In `SyncOrdersJob.cs` (excerpt):
 
 ```csharp
-namespace Acta.Concepts.ContinuousSynchronization;
-
-/// <summary>
-/// One permanent job keeps the local orders current. The schedule fires it every five seconds; a firing applies at
-/// most one batch of <see cref="BatchSize"/> changes and returns, so the job sits Idle between firings and no thread
-/// loops. The watermark, the id of the last shop change applied, is the job's own durable variable: Acta carries it
-/// across firings, retries, and workers, and the handler reads it at the top of every execution, so an attempt that
-/// dies after a batch is continued at the next batch by whichever worker runs the job next.
-/// </summary>
-public sealed class SyncOrdersJob(ShopFeed shop, OrderStore store, CrashSignal crash)
+[Job("sync-orders", MaxAttempts = 3, Backoff = "2s")]
+[Schedule("every-5s", "PT5S")]
+public async Task Sync(JobContext ctx, CancellationToken ct)
 {
-    public const int BatchSize = 40;
-
-    // The schedule fires the one permanent job every five seconds. A firing does one bounded batch and returns, so
-    // between firings the job is `Idle` and holds no thread.
-    [Job("sync-orders", MaxAttempts = 3, Backoff = "2s")]
-    [Schedule("every-5s", "PT5S")]
-    public async Task Sync(JobContext ctx, CancellationToken ct)
+    var watermark = await ctx.GetVariableOrDefaultAsync("watermark", 0L, ct);
+    var changes = await shop.ChangesAfterAsync(watermark, BatchSize, ct);
+    if (changes.Count == 0)
     {
-        // The call to the service is a bare line on purpose: a read is safe to repeat, and on a permanent job a step
-        // would answer from an earlier firing's record. A firing that finds nothing returns; the next one comes on
-        // schedule.
-        var watermark = await ctx.GetVariableOrDefaultAsync("watermark", 0L, ct);
-        var changes = await shop.ChangesAfterAsync(watermark, BatchSize, ct);
-        if (changes.Count == 0)
-        {
-            Console.WriteLine($"[sync-orders] execution {ctx.ExecutionNumber}: up to date at change {watermark}");
-            return;
-        }
-
-        await store.ApplyAsync(changes, ct);
-        var head = changes[^1].ChangeId;
-        await ctx.SetVariableAsync("watermark", head, ct);
-        Console.WriteLine($"[sync-orders] execution {ctx.ExecutionNumber}: {changes.Count} changes applied, watermark {head}");
-        // The lab's switch for killing the worker after a batch; a job of your own has no such line.
-        await crash.AfterBatchAsync(head, ct);
+        Console.WriteLine($"[sync-orders] execution {ctx.ExecutionNumber}: up to date at change {watermark}");
+        return;
     }
+
+    await store.ApplyAsync(changes, ct);
+    var head = changes[^1].ChangeId;
+    await ctx.SetVariableAsync("watermark", head, ct);
+    Console.WriteLine($"[sync-orders] execution {ctx.ExecutionNumber}: {changes.Count} changes applied, watermark {head}");
+    // The lab's switch for killing the worker after a batch; a job of your own has no such line.
+    await crash.AfterBatchAsync(head, ct);
 }
 ```
 
@@ -224,23 +158,18 @@ upsert.CommandText = """
 In `OrderStore.cs` (excerpt):
 
 ```csharp
-    {
-        throw new InvalidOperationException($"Change {change.ChangeId} carries a negative amount; the batch is refused.");
-    }
-
-    await using var upsert = connection.CreateCommand();
-    upsert.Transaction = (SqliteTransaction)transaction;
-    upsert.CommandText = """
-        INSERT INTO local_orders (order_id, status, amount_cents, last_change_id) VALUES (@order, @status, @amount, @change)
-        ON CONFLICT (order_id) DO UPDATE SET status = excluded.status, amount_cents = excluded.amount_cents, last_change_id = excluded.last_change_id
-        WHERE excluded.last_change_id > local_orders.last_change_id
-        """;
-    upsert.Parameters.AddWithValue("@order", change.OrderId);
-    upsert.Parameters.AddWithValue("@status", change.Status);
-    upsert.Parameters.AddWithValue("@amount", change.AmountCents);
-    upsert.Parameters.AddWithValue("@change", change.ChangeId);
-    await upsert.ExecuteNonQueryAsync(ct);
-}
+await using var upsert = connection.CreateCommand();
+upsert.Transaction = (SqliteTransaction)transaction;
+upsert.CommandText = """
+    INSERT INTO local_orders (order_id, status, amount_cents, last_change_id) VALUES (@order, @status, @amount, @change)
+    ON CONFLICT (order_id) DO UPDATE SET status = excluded.status, amount_cents = excluded.amount_cents, last_change_id = excluded.last_change_id
+    WHERE excluded.last_change_id > local_orders.last_change_id
+    """;
+upsert.Parameters.AddWithValue("@order", change.OrderId);
+upsert.Parameters.AddWithValue("@status", change.Status);
+upsert.Parameters.AddWithValue("@amount", change.AmountCents);
+upsert.Parameters.AddWithValue("@change", change.ChangeId);
+await upsert.ExecuteNonQueryAsync(ct);
 ```
 
 ## 6. Run it and check the output

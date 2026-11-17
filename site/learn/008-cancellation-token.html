@@ -57,7 +57,7 @@
   </div>
 
 
-  <main id="content" data-howto="008">
+  <main id="content">
     <header class="wrap page-head howto-head">
       <p class="record"><a href="/learn">learn acta</a><span aria-hidden="true">/</span><a href="/learn#s-failure">decide what happens when work fails</a></p>
       <h1>How to stop cleanly when a job is cancelled</h1>
@@ -77,9 +77,7 @@
       <article class="howto person-face">
 <div class="step"><h2><span class="step-n">1</span>Check the token between pieces of work, and pass it to what you await</h2>
 <p>A handler that ignores its token keeps running after the worker has been told to stop.</p>
-<figure class="listing"><figcaption><span class="file">cancellation-token.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-1">Copy</button></figcaption><pre><code id="code-1"><span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> SlowImport(<span class="k">int</span> Batches);
-
-<span class="k">public</span> <span class="k">static</span> <span class="k">class</span> ImportJob
+<figure class="listing"><figcaption><span class="file">cancellation-token.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">static</span> <span class="k">class</span> ImportJob
 {
     <span class="c">// Acta trips the CancellationToken on shutdown or lease loss; the handler must observe it.</span>
     <span class="a">[Job(<span class="s">&quot;slow-import&quot;</span>)]</span>
@@ -96,15 +94,15 @@
 </div>
 <div class="step"><h2><span class="step-n">2</span>Run it and check the output</h2>
 <p>From a clone of <a href="https://github.com/acta-dotnet/acta">the Acta repository</a>, with the .NET 10 SDK:</p>
-<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-2">Copy</button></figcaption><pre><code id="code-2">dotnet run --project concepts/000-fundamentals/008-cancellation-token</code></pre></figure>
-<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button" data-copy-target="#code-3">Copy</button></figcaption><pre><code id="code-3">Imported batch 3/3</code></pre></figure>
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project concepts/000-fundamentals/008-cancellation-token</code></pre></figure>
+<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button">Copy</button></figcaption><pre><code>Imported batch 3/3</code></pre></figure>
 <p class="proof checked"><b>Checked every release.</b> Before each release, Acta Verify runs this program and checks that its output contains these lines.</p>
 <p class="hint">This page shows the code. The rules it relies on, starting with the handler running again from its first line, are in <a href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#handler-contract">the handler contract</a>.</p>
 </div>
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/concepts/000-fundamentals/008-cancellation-token"><code>concepts/000-fundamentals/008-cancellation-token</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">cancellation-token.cs</span><span class="file-size">49 lines</span></summary><figure class="listing"><figcaption><span class="file">cancellation-token.cs</span><button class="copy" type="button" data-copy-target="#code-4">Copy</button></figcaption><pre><code id="code-4"><span class="c">// How to stop cleanly when a job is cancelled</span>
+<details class="source-file"><summary><span class="file-name">cancellation-token.cs</span><span class="file-size">49 lines</span></summary><figure class="listing"><figcaption><span class="file">cancellation-token.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to stop cleanly when a job is cancelled</span>
 <span class="c">// A handler takes a `CancellationToken` and passes it to everything it awaits, so a shutdown or a cancel ends it</span>
 <span class="c">// promptly.</span>
 <span class="k">using</span> Acta;
@@ -152,11 +150,12 @@ Console.WriteLine(<span class="s">&quot;Enqueued. Worker is running - press Ctrl
             }
         }
     }
-}</code></pre></figure></details></div>
+}</code></pre></figure>
+</details></div>
 <div class="step plain-step"><h2>Where to go next</h2><ul class="next-links"><li><a href="/learn/307-deadline-strict">How to drop a job that is past its deadline</a><span>Decide what happens when work fails</span></li></ul></div>
       </article>
       <article class="agent-face" hidden>
-        <figure class="listing agent"><figcaption><span class="file">/learn/008-cancellation-token.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/008-cancellation-token.md">Open</a><button class="copy" type="button" data-copy-target="#md-body">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
+        <figure class="listing agent"><figcaption><span class="file">/learn/008-cancellation-token.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/008-cancellation-token.md">Open</a><button class="copy" type="button">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
         <p class="hint">This is the page an agent receives: the same how-to as plain Markdown, at this page's address with <code>.md</code> added.</p>
       </article>
       <aside class="howto-rail" aria-label="This section">

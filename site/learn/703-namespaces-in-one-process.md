@@ -36,6 +36,8 @@ builder.Services.UseActa(j =>
 
 using var host = builder.Build();
 await host.StartAsync();
+
+var jobs = host.Services.GetRequiredService<IJobs>();
 ```
 
 ## 2. Name the namespace when you enqueue
@@ -69,8 +71,6 @@ for (var i = 1; i <= 3; i++)
         CancellationToken.None
     );
 }
-
-Console.WriteLine("Enqueued 3 orders into each region. Both workers drain in parallel - Ctrl+C to stop.");
 ```
 
 ## 3. The job it acts on
@@ -78,8 +78,6 @@ Console.WriteLine("Enqueued 3 orders into each region. Both workers drain in par
 `namespaces-in-one-process.cs` (excerpt):
 
 ```csharp
-public sealed record ProcessOrder(string OrderId);
-
 public static class ProcessOrderJob
 {
     [Job("process-order")]

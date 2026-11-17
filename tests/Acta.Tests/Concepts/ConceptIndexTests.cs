@@ -4,10 +4,9 @@ using Xunit;
 namespace Acta.Tests.Concepts;
 
 /// <summary>
-/// Keeps the concept ladder, the solution, and the tutorial index in sync. Every concept project on
-/// disk must be listed in <c>concepts/Concepts.slnx</c> (or solution builds silently skip it) and every
-/// numbered rung must have a row in the generated <c>docs/reference/concept-ladder.md</c> (or it is undiscoverable).
-/// The reverse direction is checked too: a solution path with no project on disk is a stale entry.
+/// Keeps the concept projects and their solution in sync. Every concept project on disk must be listed in
+/// <c>concepts/Concepts.slnx</c> (or solution builds silently skip it), and a solution path with no project on disk
+/// is a stale entry. That every program has its how-to and its row in the generated table is the emitter's own check.
 /// </summary>
 public sealed partial class ConceptIndexTests
 {
@@ -47,28 +46,6 @@ public sealed partial class ConceptIndexTests
             $"Concept projects missing from {SolutionPath} (solution builds will skip them):\n  " + string.Join("\n  ", missing)
         );
     }
-
-    [Fact]
-    public void EveryNumberedRungHasATutorialRow()
-    {
-        var repoRoot = ResolveRepoRoot();
-        var ladder = Ladder(repoRoot);
-
-        var missing = ConceptProjects(repoRoot)
-            .Where(p => RungFolder.IsMatch(p.Folder))
-            .Where(p => !ladder.Contains($"concepts/{p.Category}/{p.Folder}/)", StringComparison.Ordinal))
-            .Select(p => $"{p.Category}/{p.Folder}")
-            .OrderBy(path => path, StringComparer.Ordinal)
-            .ToList();
-
-        Assert.True(
-            missing.Count == 0,
-            "Concept rungs missing a row in docs/reference/concept-ladder.md (run `Acta.Emit docs`):\n  " + string.Join("\n  ", missing)
-        );
-    }
-
-    /// <summary>The generated <c>docs/reference/concept-ladder.md</c>, the one index of every rung.</summary>
-    internal static string Ladder(string repoRoot) => File.ReadAllText(Path.Combine(repoRoot, "docs", "reference", "concept-ladder.md"));
 
     [Fact]
     public void EverySolutionConceptPathExistsOnDisk()

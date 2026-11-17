@@ -57,7 +57,7 @@
   </div>
 
 
-  <main id="content" data-howto="801">
+  <main id="content">
     <header class="wrap page-head howto-head">
       <p class="record"><a href="/learn">learn acta</a><span aria-hidden="true">/</span><a href="/learn#s-test">test without sleeps or polling</a></p>
       <h1>How to test a handler with the test host</h1>
@@ -77,140 +77,64 @@
       <article class="howto person-face">
 <div class="step"><h2><span class="step-n">1</span>Start one test host for the test class</h2>
 <p>The fixture starts the host, and migrates its schema, once per test class rather than once per test.</p>
-<figure class="listing"><figcaption><span class="file">ActaHostFixture.cs</span><button class="copy" type="button" data-copy-target="#code-1">Copy</button></figcaption><pre><code id="code-1"><span class="c">// xUnit class fixture: one ActaTestHost (and its schema migration) per test class, not per [Fact].</span>
+<figure class="listing"><figcaption><span class="file">ActaHostFixture.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> IActaTestHost Host { <span class="k">get</span>; <span class="k">private</span> <span class="k">set</span>; } = <span class="k">null</span>!;
 
-<span class="k">using</span> Acta.Testing;
-<span class="k">using</span> Microsoft.Extensions.Configuration;
-<span class="k">using</span> Xunit;
-
-<span class="k">namespace</span> Acta.Concepts.Testing;
-
-<span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> ActaHostFixture : IAsyncLifetime
+<span class="k">public</span> <span class="k">async</span> ValueTask InitializeAsync()
 {
-    <span class="k">public</span> IActaTestHost Host { <span class="k">get</span>; <span class="k">private</span> <span class="k">set</span>; } = <span class="k">null</span>!;
+    <span class="k">var</span> configuration = <span class="k">new</span> ConfigurationBuilder().AddEnvironmentVariables().Build();
 
-    <span class="k">public</span> <span class="k">async</span> ValueTask InitializeAsync()
-    {
-        <span class="k">var</span> configuration = <span class="k">new</span> ConfigurationBuilder().AddEnvironmentVariables().Build();
-
-<span class="hl">        Host = <span class="k">await</span> ActaTestHost.StartAsync(</span>
-<span class="hl">            (j, schema) =&gt;</span>
-<span class="hl">            {</span>
-<span class="hl">                j.UseLocalDatabase(configuration, schema);</span>
-<span class="hl">                j.Run&lt;TestingJobs&gt;(<span class="s">&quot;testing-jobs&quot;</span>);</span>
-<span class="hl">            }</span>
-<span class="hl">        );</span>
-    }
-
-    <span class="k">public</span> <span class="k">async</span> ValueTask DisposeAsync()
-    {
-        <span class="k">if</span> (Host <span class="k">is</span> <span class="k">not</span> <span class="k">null</span>)
-        {
-            <span class="k">await</span> Host.DisposeAsync();
-        }
-    }
-}
-
-<span class="c">// Base for Acta tests: exposes the host, jobs, and the test cancellation token.</span>
-<span class="k">public</span> <span class="k">abstract</span> <span class="k">class</span> ActaTestBase(ActaHostFixture acta) : IClassFixture&lt;ActaHostFixture&gt;
-{
-    <span class="k">protected</span> IActaTestHost Host =&gt; acta.Host;
-
-    <span class="k">protected</span> IJobs Jobs =&gt; acta.Host.Jobs;
-
-    <span class="k">protected</span> <span class="k">static</span> CancellationToken Ct =&gt; TestContext.Current.CancellationToken;
+<span class="hl">    Host = <span class="k">await</span> ActaTestHost.StartAsync(</span>
+<span class="hl">        (j, schema) =&gt;</span>
+<span class="hl">        {</span>
+<span class="hl">            j.UseLocalDatabase(configuration, schema);</span>
+<span class="hl">            j.Run&lt;TestingJobs&gt;(<span class="s">&quot;testing-jobs&quot;</span>);</span>
+<span class="hl">        }</span>
+<span class="hl">    );</span>
 }</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">2</span>Drive one attempt and assert what became of it</h2>
 <p><code>RunOnceAsync</code> runs one attempt of that job and answers its outcome.</p>
-<figure class="listing"><figcaption><span class="file">EchoJobTests.cs</span><button class="copy" type="button" data-copy-target="#code-2">Copy</button></figcaption><pre><code id="code-2"><span class="k">using</span> Acta.Testing;
-<span class="k">using</span> Xunit;
-
-<span class="k">namespace</span> Acta.Concepts.Testing;
-
-<span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> EchoJobTests(ActaHostFixture acta) : ActaTestBase(acta)
+<figure class="listing"><figcaption><span class="file">EchoJobTests.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="a">[Fact]</span>
+<span class="k">public</span> <span class="k">async</span> Task Echo_runs_when_driven_and_returns_the_message()
 {
-    <span class="a">[Fact]</span>
-    <span class="k">public</span> <span class="k">async</span> Task Echo_runs_when_driven_and_returns_the_message()
-    {
-        <span class="k">var</span> enqueued = <span class="k">await</span> Jobs.EnqueueAsync(<span class="k">new</span> Echo(<span class="s">&quot;hello&quot;</span>), ct: Ct);
+    <span class="k">var</span> enqueued = <span class="k">await</span> Jobs.EnqueueAsync(<span class="k">new</span> Echo(<span class="s">&quot;hello&quot;</span>), ct: Ct);
 
-        <span class="c">// Nothing executes until the test drives a tick.</span>
-        Assert.Equal(JobStatusCode.Ready, (<span class="k">await</span> enqueued.GetStatusAsync(Ct))?.Status);
+    <span class="c">// Nothing executes until the test drives a tick.</span>
+    Assert.Equal(JobStatusCode.Ready, (<span class="k">await</span> enqueued.GetStatusAsync(Ct))?.Status);
 
-<span class="hl">        <span class="k">var</span> outcome = <span class="k">await</span> Host.RunOnceAsync(enqueued, Ct);</span>
+<span class="hl">    <span class="k">var</span> outcome = <span class="k">await</span> Host.RunOnceAsync(enqueued, Ct);</span>
 <span class="hl"> </span>
-<span class="hl">        Assert.Equal(ActaRunStatus.Completed, outcome);</span>
-        Assert.Equal(JobStatusCode.Succeeded, (<span class="k">await</span> enqueued.GetStatusAsync(Ct))?.Status);
-        <span class="k">var</span> result = <span class="k">await</span> enqueued.GetResultAsync&lt;EchoResult&gt;(Ct);
-        Assert.Equal(<span class="s">&quot;hello&quot;</span>, result.Message);
-    }
-
-    <span class="a">[Fact]</span>
-    <span class="k">public</span> <span class="k">async</span> Task Failing_echo_rearms_per_retry_then_settles_failed()
-    {
-        <span class="k">var</span> enqueued = <span class="k">await</span> Jobs.EnqueueAsync(<span class="k">new</span> Echo(<span class="s">&quot;boom&quot;</span>), ct: Ct);
-
-        <span class="c">// Attempts 1 and 2 throw; with retries left the job re-arms to Ready (due now), not Failed.</span>
-        Assert.Equal(ActaRunStatus.Rearmed, <span class="k">await</span> Host.RunOnceAsync(enqueued, Ct));
-        Assert.Equal(ActaRunStatus.Rearmed, <span class="k">await</span> Host.RunOnceAsync(enqueued, Ct));
-
-        <span class="c">// Attempt 3 spends the MaxAttempts budget: terminal Failed.</span>
-        Assert.Equal(ActaRunStatus.Failed, <span class="k">await</span> Host.RunOnceAsync(enqueued, Ct));
-        Assert.Equal(JobStatusCode.Failed, (<span class="k">await</span> enqueued.GetStatusAsync(Ct))?.Status);
-    }
+<span class="hl">    Assert.Equal(ActaRunStatus.Completed, outcome);</span>
+    Assert.Equal(JobStatusCode.Succeeded, (<span class="k">await</span> enqueued.GetStatusAsync(Ct))?.Status);
+    <span class="k">var</span> result = <span class="k">await</span> enqueued.GetResultAsync&lt;EchoResult&gt;(Ct);
+    Assert.Equal(<span class="s">&quot;hello&quot;</span>, result.Message);
 }</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">3</span>Assert each retry, then the final failure</h2>
 <p>Attempts 1 and 2 throw; with retries left the job re-arms to Ready (due now), not Failed.</p>
-<figure class="listing"><figcaption><span class="file">EchoJobTests.cs</span><button class="copy" type="button" data-copy-target="#code-3">Copy</button></figcaption><pre><code id="code-3"><span class="k">using</span> Acta.Testing;
-<span class="k">using</span> Xunit;
-
-<span class="k">namespace</span> Acta.Concepts.Testing;
-
-<span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> EchoJobTests(ActaHostFixture acta) : ActaTestBase(acta)
+<figure class="listing"><figcaption><span class="file">EchoJobTests.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="a">[Fact]</span>
+<span class="k">public</span> <span class="k">async</span> Task Failing_echo_rearms_per_retry_then_settles_failed()
 {
-    <span class="a">[Fact]</span>
-    <span class="k">public</span> <span class="k">async</span> Task Echo_runs_when_driven_and_returns_the_message()
-    {
-        <span class="k">var</span> enqueued = <span class="k">await</span> Jobs.EnqueueAsync(<span class="k">new</span> Echo(<span class="s">&quot;hello&quot;</span>), ct: Ct);
+    <span class="k">var</span> enqueued = <span class="k">await</span> Jobs.EnqueueAsync(<span class="k">new</span> Echo(<span class="s">&quot;boom&quot;</span>), ct: Ct);
 
-        <span class="c">// Nothing executes until the test drives a tick.</span>
-        Assert.Equal(JobStatusCode.Ready, (<span class="k">await</span> enqueued.GetStatusAsync(Ct))?.Status);
-
-        <span class="c">// `RunOnceAsync` runs one attempt of that job and answers its outcome.</span>
-        <span class="k">var</span> outcome = <span class="k">await</span> Host.RunOnceAsync(enqueued, Ct);
-
-        Assert.Equal(ActaRunStatus.Completed, outcome);
-        Assert.Equal(JobStatusCode.Succeeded, (<span class="k">await</span> enqueued.GetStatusAsync(Ct))?.Status);
-        <span class="k">var</span> result = <span class="k">await</span> enqueued.GetResultAsync&lt;EchoResult&gt;(Ct);
-        Assert.Equal(<span class="s">&quot;hello&quot;</span>, result.Message);
-    }
-
-    <span class="a">[Fact]</span>
-    <span class="k">public</span> <span class="k">async</span> Task Failing_echo_rearms_per_retry_then_settles_failed()
-    {
-        <span class="k">var</span> enqueued = <span class="k">await</span> Jobs.EnqueueAsync(<span class="k">new</span> Echo(<span class="s">&quot;boom&quot;</span>), ct: Ct);
-
-<span class="hl">        Assert.Equal(ActaRunStatus.Rearmed, <span class="k">await</span> Host.RunOnceAsync(enqueued, Ct));</span>
-<span class="hl">        Assert.Equal(ActaRunStatus.Rearmed, <span class="k">await</span> Host.RunOnceAsync(enqueued, Ct));</span>
+<span class="hl">    Assert.Equal(ActaRunStatus.Rearmed, <span class="k">await</span> Host.RunOnceAsync(enqueued, Ct));</span>
+<span class="hl">    Assert.Equal(ActaRunStatus.Rearmed, <span class="k">await</span> Host.RunOnceAsync(enqueued, Ct));</span>
 <span class="hl"> </span>
-<span class="hl">        <span class="c">// Attempt 3 spends the MaxAttempts budget: terminal Failed.</span></span>
-<span class="hl">        Assert.Equal(ActaRunStatus.Failed, <span class="k">await</span> Host.RunOnceAsync(enqueued, Ct));</span>
-        Assert.Equal(JobStatusCode.Failed, (<span class="k">await</span> enqueued.GetStatusAsync(Ct))?.Status);
-    }
+<span class="hl">    <span class="c">// Attempt 3 spends the MaxAttempts budget: terminal Failed.</span></span>
+<span class="hl">    Assert.Equal(ActaRunStatus.Failed, <span class="k">await</span> Host.RunOnceAsync(enqueued, Ct));</span>
+    Assert.Equal(JobStatusCode.Failed, (<span class="k">await</span> enqueued.GetStatusAsync(Ct))?.Status);
 }</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">4</span>Run it</h2>
 <p>From a clone of <a href="https://github.com/acta-dotnet/acta">the Acta repository</a>, with the .NET 10 SDK:</p>
-<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-4">Copy</button></figcaption><pre><code id="code-4">dotnet test concepts/800-testing/801-testing-jobs</code></pre></figure>
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet test concepts/800-testing/801-testing-jobs</code></pre></figure>
 <p class="proof checked"><b>Runs as a test.</b> This program is a test project: it passes or fails with the test suite.</p>
 <p class="hint">This page shows the code. The rules it relies on, starting with the handler running again from its first line, are in <a href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#handler-contract">the handler contract</a>.</p>
 </div>
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/concepts/800-testing/801-testing-jobs"><code>concepts/800-testing/801-testing-jobs</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">EchoJobTests.cs</span><span class="file-size">45 lines</span></summary><figure class="listing"><figcaption><span class="file">EchoJobTests.cs</span><button class="copy" type="button" data-copy-target="#code-5">Copy</button></figcaption><pre><code id="code-5"><span class="c">// How to test a handler with the test host</span>
+<details class="source-file"><summary><span class="file-name">EchoJobTests.cs</span><span class="file-size">45 lines</span></summary><figure class="listing"><figcaption><span class="file">EchoJobTests.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to test a handler with the test host</span>
 <span class="c">// `Acta.Testing` runs the real runtime on a real database with no background loop: `RunOnceAsync` decides when a job</span>
 <span class="c">// executes, so a test drives one attempt at a time. Run it with `dotnet test concepts/800-testing/801-testing-jobs`.</span>
 <span class="k">using</span> Acta.Testing;
@@ -254,8 +178,9 @@
         <span class="c">// learn: end</span>
         Assert.Equal(JobStatusCode.Failed, (<span class="k">await</span> enqueued.GetStatusAsync(Ct))?.Status);
     }
-}</code></pre></figure></details>
-<details class="source-file"><summary><span class="file-name">ActaHostFixture.cs</span><span class="file-size">46 lines</span></summary><figure class="listing"><figcaption><span class="file">ActaHostFixture.cs</span><button class="copy" type="button" data-copy-target="#code-6">Copy</button></figcaption><pre><code id="code-6"><span class="c">// xUnit class fixture: one ActaTestHost (and its schema migration) per test class, not per [Fact].</span>
+}</code></pre></figure>
+</details>
+<details class="source-file"><summary><span class="file-name">ActaHostFixture.cs</span><span class="file-size">46 lines</span></summary><figure class="listing"><figcaption><span class="file">ActaHostFixture.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// xUnit class fixture: one ActaTestHost (and its schema migration) per test class, not per [Fact].</span>
 
 <span class="k">using</span> Acta.Testing;
 <span class="k">using</span> Microsoft.Extensions.Configuration;
@@ -300,8 +225,9 @@
     <span class="k">protected</span> IJobs Jobs =&gt; acta.Host.Jobs;
 
     <span class="k">protected</span> <span class="k">static</span> CancellationToken Ct =&gt; TestContext.Current.CancellationToken;
-}</code></pre></figure></details>
-<details class="source-file"><summary><span class="file-name">EchoJob.cs</span><span class="file-size">14 lines</span></summary><figure class="listing"><figcaption><span class="file">EchoJob.cs</span><button class="copy" type="button" data-copy-target="#code-7">Copy</button></figcaption><pre><code id="code-7"><span class="k">namespace</span> Acta.Concepts.Testing;
+}</code></pre></figure>
+</details>
+<details class="source-file"><summary><span class="file-name">EchoJob.cs</span><span class="file-size">14 lines</span></summary><figure class="listing"><figcaption><span class="file">EchoJob.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">namespace</span> Acta.Concepts.Testing;
 
 <span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> Echo(<span class="k">string</span> Message);
 
@@ -314,11 +240,12 @@
     <span class="a">[Job(<span class="s">&quot;echo&quot;</span>, MaxAttempts = 3, Backoff = <span class="s">&quot;0s&quot;</span>)]</span>
     <span class="k">public</span> <span class="k">static</span> EchoResult Handle(Echo input) =&gt;
         input.Message == <span class="s">&quot;boom&quot;</span> ? <span class="k">throw</span> <span class="k">new</span> InvalidOperationException(<span class="s">&quot;echo cannot say boom&quot;</span>) : <span class="k">new</span>(input.Message);
-}</code></pre></figure></details></div>
+}</code></pre></figure>
+</details></div>
 <div class="step plain-step"><h2>Where to go next</h2><ul class="next-links"><li><a href="/learn/802-testing-durable-jobs">How to test a job that waits for a signal</a><span>Test without sleeps or polling</span></li></ul></div>
       </article>
       <article class="agent-face" hidden>
-        <figure class="listing agent"><figcaption><span class="file">/learn/801-testing-jobs.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/801-testing-jobs.md">Open</a><button class="copy" type="button" data-copy-target="#md-body">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
+        <figure class="listing agent"><figcaption><span class="file">/learn/801-testing-jobs.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/801-testing-jobs.md">Open</a><button class="copy" type="button">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
         <p class="hint">This is the page an agent receives: the same how-to as plain Markdown, at this page's address with <code>.md</code> added.</p>
       </article>
       <aside class="howto-rail" aria-label="This section">

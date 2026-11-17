@@ -24,12 +24,25 @@ var several = await jobs.EnqueueAsync(JobCallJobs.Greet("Ada", 3), o => o.Dedupl
 In `job-call.cs` (excerpt):
 
 ```csharp
+var builder = Host.CreateApplicationBuilder(args);
+
+builder.Services.UseActa(j =>
+{
+    j.UseLocalDatabase(builder.Configuration);
+    j.Run<JobCallJobs>("job-call");
+});
+
+using var host = builder.Build();
+await host.StartAsync();
+
 var jobs = host.Services.GetRequiredService<IJobs>();
 
 var single = await jobs.EnqueueAsync(JobCallJobs.Hello(new Hello("World")));
 var several = await jobs.EnqueueAsync(JobCallJobs.Greet("Ada", 3), o => o.DeduplicationKey("greet-ada"));
-
 Console.WriteLine($"Enqueued hello as {single.JobRef} and greet as {several.JobRef}.");
+
+await host.WaitForShutdownAsync();
+await host.StopAsync();
 ```
 
 ## 2. Give a handler several parameters
@@ -52,8 +65,6 @@ public static void Greet(string name, int times)
 In `job-call.cs` (excerpt):
 
 ```csharp
-public sealed record Hello(string Name);
-
 public static class HelloJobs
 {
     [Job("hello")]

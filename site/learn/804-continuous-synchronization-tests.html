@@ -57,7 +57,7 @@
   </div>
 
 
-  <main id="content" data-howto="804">
+  <main id="content">
     <header class="wrap page-head howto-head">
       <p class="record"><a href="/learn">learn acta</a><span aria-hidden="true">/</span><a href="/learn#s-test">test without sleeps or polling</a></p>
       <h1>How to test a recurring synchronization job</h1>
@@ -77,41 +77,24 @@
       <article class="howto person-face">
 <div class="step"><h2><span class="step-n">1</span>Make the schedule due and admit one firing</h2>
 <p>The test waits for no clock: it makes the schedule due, and one admission pass fires the permanent job.</p>
-<figure class="listing"><figcaption><span class="file">ContinuousSynchronizationTests.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-1">Copy</button></figcaption><pre><code id="code-1">    Assert.Equal(ActaRunStatus.Completed, <span class="k">await</span> FireAsync());
-    Assert.Equal(100, <span class="k">await</span> WatermarkAsync());
-}
-
-<span class="k">private</span> <span class="k">async</span> Task AdmitAsync()
+<figure class="listing"><figcaption><span class="file">ContinuousSynchronizationTests.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">private</span> <span class="k">async</span> Task AdmitAsync()
 {
 <span class="hl">    <span class="k">await</span> _host.ForceScheduleDueAsync(Schedule, Ct);</span>
 <span class="hl">    Assert.Equal(1, (<span class="k">await</span> _host.AdmitOnceAsync(Namespace, Ct)).Admitted);</span>
-}
-
-<span class="k">private</span> <span class="k">async</span> Task&lt;ActaRunStatus&gt; FireAsync()
-{
-    <span class="k">await</span> AdmitAsync();
-    <span class="k">return</span> <span class="k">await</span> _host.RunOnceAsync(_slot, Ct);</code></pre></figure>
+}</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">2</span>Drive the firing as one run</h2>
-<figure class="listing"><figcaption><span class="file">ContinuousSynchronizationTests.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-2">Copy</button></figcaption><pre><code id="code-2">    <span class="k">await</span> _host.ForceScheduleDueAsync(Schedule, Ct);
-    Assert.Equal(1, (<span class="k">await</span> _host.AdmitOnceAsync(Namespace, Ct)).Admitted);
-}
-
-<span class="k">private</span> <span class="k">async</span> Task&lt;ActaRunStatus&gt; FireAsync()
+<figure class="listing"><figcaption><span class="file">ContinuousSynchronizationTests.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">private</span> <span class="k">async</span> Task&lt;ActaRunStatus&gt; FireAsync()
 {
 <span class="hl">    <span class="k">await</span> AdmitAsync();</span>
 <span class="hl">    <span class="k">return</span> <span class="k">await</span> _host.RunOnceAsync(_slot, Ct);</span>
 }
 
-<span class="k">private</span> <span class="k">async</span> Task&lt;GetJobResponse&gt; JobAsync() =&gt; (<span class="k">await</span> _host.Jobs.GetAsync(_slot, Ct))!;
-
-<span class="c">/// &lt;summary&gt;The watermark as the operator sees it, 0 before the first batch: the job's one variable.&lt;/summary&gt;</span>
-<span class="k">private</span> <span class="k">async</span> Task&lt;<span class="k">long</span>&gt; WatermarkAsync()</code></pre></figure>
+<span class="k">private</span> <span class="k">async</span> Task&lt;GetJobResponse&gt; JobAsync() =&gt; (<span class="k">await</span> _host.Jobs.GetAsync(_slot, Ct))!;</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">3</span>Lose an attempt, and let recovery reclaim it</h2>
 <p>The lease lapses and recovery reclaims the firing: the job is Ready again, the attempt charged.</p>
-<figure class="listing"><figcaption><span class="file">ContinuousSynchronizationTests.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-3">Copy</button></figcaption><pre><code id="code-3"><span class="k">await</span> AdmitAsync();
-<span class="k">var</span> lost = _host.RunOnceAsync(_slot, Ct);
+<figure class="listing"><figcaption><span class="file">ContinuousSynchronizationTests.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">var</span> lost = _host.RunOnceAsync(_slot, Ct);
 <span class="k">await</span> _crash.Reached.Task.WaitAsync(TimeSpan.FromSeconds(30), Ct);
 Assert.Equal(40, <span class="k">await</span> WatermarkAsync());
 <span class="k">var</span> firing = <span class="k">await</span> FiringIdAsync();
@@ -128,13 +111,13 @@ _crash.Release.TrySetResult();
 </div>
 <div class="step"><h2><span class="step-n">4</span>Run it</h2>
 <p>From a clone of <a href="https://github.com/acta-dotnet/acta">the Acta repository</a>, with the .NET 10 SDK:</p>
-<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-4">Copy</button></figcaption><pre><code id="code-4">dotnet test concepts/800-testing/804-continuous-synchronization-tests</code></pre></figure>
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet test concepts/800-testing/804-continuous-synchronization-tests</code></pre></figure>
 <p class="proof checked"><b>Runs as a test.</b> This program is a test project: it passes or fails with the test suite.</p>
 <p class="hint">This page shows the code. The rules it relies on, starting with the handler running again from its first line, are in <a href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#handler-contract">the handler contract</a>.</p>
 </div>
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/concepts/800-testing/804-continuous-synchronization-tests"><code>concepts/800-testing/804-continuous-synchronization-tests</code></a>, as it is compiled.</p>
-<details class="source-file"><summary><span class="file-name">ContinuousSynchronizationTests.cs</span><span class="file-size">320 lines</span></summary><figure class="listing"><figcaption><span class="file">ContinuousSynchronizationTests.cs</span><button class="copy" type="button" data-copy-target="#code-5">Copy</button></figcaption><pre><code id="code-5"><span class="c">// How to test a recurring synchronization job</span>
+<details class="source-file"><summary><span class="file-name">ContinuousSynchronizationTests.cs</span><span class="file-size">320 lines</span></summary><figure class="listing"><figcaption><span class="file">ContinuousSynchronizationTests.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to test a recurring synchronization job</span>
 <span class="c">// The claims of the continuous-synchronization lab as tests: a schedule forced due and one firing driven at a time,</span>
 <span class="c">// one job identity across firings, the watermark kept on the job, a lost attempt reclaimed with the next execution</span>
 <span class="c">// continuing at the watermark, and a replayed, a failed, and a backlogged batch. Run it with `dotnet test`.</span>
@@ -453,11 +436,12 @@ _crash.Release.TrySetResult();
             <span class="k">throw</span> <span class="k">new</span> InvalidOperationException(<span class="s">&quot;The worker is gone.&quot;</span>);
         }
     }
-}</code></pre></figure></details></div>
+}</code></pre></figure>
+</details></div>
 <div class="step plain-step"><h2>Where to go next</h2><ul class="next-links"><li><a href="/learn/701-enqueue-only-reference">How to enqueue from a process that runs no worker</a><span>Deploy and scale</span></li></ul></div>
       </article>
       <article class="agent-face" hidden>
-        <figure class="listing agent"><figcaption><span class="file">/learn/804-continuous-synchronization-tests.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/804-continuous-synchronization-tests.md">Open</a><button class="copy" type="button" data-copy-target="#md-body">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
+        <figure class="listing agent"><figcaption><span class="file">/learn/804-continuous-synchronization-tests.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/804-continuous-synchronization-tests.md">Open</a><button class="copy" type="button">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
         <p class="hint">This is the page an agent receives: the same how-to as plain Markdown, at this page's address with <code>.md</code> added.</p>
       </article>
       <aside class="howto-rail" aria-label="This section">

@@ -57,7 +57,7 @@
   </div>
 
 
-  <main id="content" data-howto="408">
+  <main id="content">
     <header class="wrap page-head howto-head">
       <p class="record"><a href="/learn">learn acta</a><span aria-hidden="true">/</span><a href="/learn#s-operate">watch and control running work</a></p>
       <h1>How to carry a correlation key from parent to child</h1>
@@ -77,9 +77,7 @@
       <article class="howto person-face">
 <div class="step"><h2><span class="step-n">1</span>Set the correlation key when you enqueue</h2>
 <p>JobExecutionOptions extends JobEnqueueOptions, so CorrelationKey is an enqueue-time option here.</p>
-<figure class="listing"><figcaption><span class="file">correlation-id.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-1">Copy</button></figcaption><pre><code id="code-1"><span class="k">var</span> jobs = host.Services.GetRequiredService&lt;IJobs&gt;();
-
-<span class="c">// The caller supplies a correlation id - a W3C trace id or any opaque string up to 64 chars.</span>
+<figure class="listing"><figcaption><span class="file">correlation-id.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// The caller supplies a correlation id - a W3C trace id or any opaque string up to 64 chars.</span>
 <span class="c">// A child started with no explicit correlation id inherits the parent's automatically.</span>
 <span class="k">var</span> correlationKey = <span class="s">$&quot;trace-{Guid.NewGuid():N}&quot;</span>;
 Console.WriteLine(<span class="s">$&quot;enqueueing parent with CorrelationKey={correlationKey}&quot;</span>);
@@ -88,45 +86,12 @@ Console.WriteLine(<span class="s">$&quot;enqueueing parent with CorrelationKey={
 <span class="hl">    <span class="k">new</span> RunPipeline(<span class="s">&quot;demo&quot;</span>),</span>
 <span class="hl">    <span class="k">new</span> JobExecutionOptions { CorrelationKey = correlationKey, PollInterval = TimeSpan.FromMilliseconds(200) }</span>
 <span class="hl">);</span>
-
 outcome.ThrowIfFailed();
-Console.WriteLine(<span class="s">&quot;pipeline done&quot;</span>);
-
-<span class="c">// Operator read: CorrelationKey is both a ListJobsQuery filter and a ListJobsItem field, so one list</span>
-<span class="c">// read pulls every job on a trace - parent and inherited children - with the id already on each row.</span>
-<span class="c">// (It is also on GetJobResponse via GetAsync when you want the full per-job detail.)</span>
-Console.WriteLine(<span class="s">$&quot;operator read: ListJobs filtered by CorrelationKey={correlationKey}&quot;</span>);
-<span class="k">var</span> operations = host.Services.GetRequiredService&lt;IActaOperations&gt;();
-
-<span class="c">// One list read finds the parent and the children that inherited its key.</span>
-<span class="k">var</span> trace = <span class="k">await</span> operations.Ledger.ListJobsAsync(
-    <span class="k">new</span> ListJobsQuery(JobNamespace: <span class="s">&quot;correlation-id&quot;</span>, CorrelationKey: correlationKey, PageSize: 10)
-);
-
-<span class="k">foreach</span> (<span class="k">var</span> item <span class="k">in</span> trace.Items)
-{
-    Console.WriteLine(<span class="s">$&quot;  id={item.JobId} job={item.JobName} correlation_key={item.CorrelationKey}&quot;</span>);
-}</code></pre></figure>
+Console.WriteLine(<span class="s">&quot;pipeline done&quot;</span>);</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">2</span>Find every job of one trace</h2>
 <p>One list read finds the parent and the children that inherited its key.</p>
-<figure class="listing"><figcaption><span class="file">correlation-id.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-2">Copy</button></figcaption><pre><code id="code-2"><span class="k">var</span> jobs = host.Services.GetRequiredService&lt;IJobs&gt;();
-
-<span class="c">// The caller supplies a correlation id - a W3C trace id or any opaque string up to 64 chars.</span>
-<span class="c">// A child started with no explicit correlation id inherits the parent's automatically.</span>
-<span class="k">var</span> correlationKey = <span class="s">$&quot;trace-{Guid.NewGuid():N}&quot;</span>;
-Console.WriteLine(<span class="s">$&quot;enqueueing parent with CorrelationKey={correlationKey}&quot;</span>);
-
-<span class="c">// JobExecutionOptions extends JobEnqueueOptions, so CorrelationKey is an enqueue-time option here.</span>
-<span class="k">var</span> outcome = <span class="k">await</span> jobs.CallAsync&lt;RunPipeline&gt;(
-    <span class="k">new</span> RunPipeline(<span class="s">&quot;demo&quot;</span>),
-    <span class="k">new</span> JobExecutionOptions { CorrelationKey = correlationKey, PollInterval = TimeSpan.FromMilliseconds(200) }
-);
-
-outcome.ThrowIfFailed();
-Console.WriteLine(<span class="s">&quot;pipeline done&quot;</span>);
-
-<span class="c">// Operator read: CorrelationKey is both a ListJobsQuery filter and a ListJobsItem field, so one list</span>
+<figure class="listing"><figcaption><span class="file">correlation-id.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// Operator read: CorrelationKey is both a ListJobsQuery filter and a ListJobsItem field, so one list</span>
 <span class="c">// read pulls every job on a trace - parent and inherited children - with the id already on each row.</span>
 <span class="c">// (It is also on GetJobResponse via GetAsync when you want the full per-job detail.)</span>
 Console.WriteLine(<span class="s">$&quot;operator read: ListJobs filtered by CorrelationKey={correlationKey}&quot;</span>);
@@ -135,18 +100,15 @@ Console.WriteLine(<span class="s">$&quot;operator read: ListJobs filtered by Cor
 <span class="hl"><span class="k">var</span> trace = <span class="k">await</span> operations.Ledger.ListJobsAsync(</span>
 <span class="hl">    <span class="k">new</span> ListJobsQuery(JobNamespace: <span class="s">&quot;correlation-id&quot;</span>, CorrelationKey: correlationKey, PageSize: 10)</span>
 <span class="hl">);</span>
-
 <span class="k">foreach</span> (<span class="k">var</span> item <span class="k">in</span> trace.Items)
 {
     Console.WriteLine(<span class="s">$&quot;  id={item.JobId} job={item.JobName} correlation_key={item.CorrelationKey}&quot;</span>);
-}</code></pre></figure>
+}
+
+<span class="k">await</span> host.StopAsync();</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">3</span>The job it acts on</h2>
-<figure class="listing"><figcaption><span class="file">correlation-id.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-3">Copy</button></figcaption><pre><code id="code-3"><span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> RunPipeline(<span class="k">string</span> RunId);
-
-<span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> ProcessStep(<span class="k">string</span> RunId, <span class="k">int</span> StepNumber);
-
-<span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> PipelineHandler
+<figure class="listing"><figcaption><span class="file">correlation-id.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> PipelineHandler
 {
     <span class="k">private</span> <span class="k">readonly</span> ILogger&lt;PipelineHandler&gt; _log;
 
@@ -163,31 +125,12 @@ Console.WriteLine(<span class="s">$&quot;operator read: ListJobs filtered by Cor
 
         _log.LogInformation(<span class="s">&quot;parent handler complete&quot;</span>);
     }
-}
-
-<span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> StepHandler
-{
-    <span class="k">private</span> <span class="k">readonly</span> ILogger&lt;StepHandler&gt; _log;
-
-    <span class="k">public</span> StepHandler(ILogger&lt;StepHandler&gt; log) =&gt; _log = log;
-
-    <span class="c">// The child inherits the parent's correlation id at enqueue (stored on its own job row).</span>
-    <span class="c">// The framework opens the same ActaCorrelationKey scope for the child's attempt.</span>
-    <span class="a">[Job(<span class="s">&quot;process-step&quot;</span>)]</span>
-    <span class="k">public</span> <span class="k">void</span> Handle(ProcessStep input)
-    {
-        _log.LogInformation(
-            <span class="s">&quot;child handler: RunId={RunId} Step={StepNumber}; same ActaCorrelationKey in Scopes&quot;</span>,
-            input.RunId,
-            input.StepNumber
-        );
-    }
 }</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">4</span>Run it and check the output</h2>
 <p>From a clone of <a href="https://github.com/acta-dotnet/acta">the Acta repository</a>, with the .NET 10 SDK:</p>
-<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-4">Copy</button></figcaption><pre><code id="code-4">dotnet run --project concepts/400-observability-and-alerts/408-correlation-id</code></pre></figure>
-<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button" data-copy-target="#code-5">Copy</button></figcaption><pre><code id="code-5">same ActaCorrelationKey in Scopes
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project concepts/400-observability-and-alerts/408-correlation-id</code></pre></figure>
+<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button">Copy</button></figcaption><pre><code>same ActaCorrelationKey in Scopes
 &quot;ActaCorrelationKey&quot;:&quot;trace-
 pipeline done
 job=process-step correlation_key=trace-
@@ -198,7 +141,7 @@ job=run-pipeline correlation_key=trace-</code></pre></figure>
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/concepts/400-observability-and-alerts/408-correlation-id"><code>concepts/400-observability-and-alerts/408-correlation-id</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">correlation-id.cs</span><span class="file-size">111 lines</span></summary><figure class="listing"><figcaption><span class="file">correlation-id.cs</span><button class="copy" type="button" data-copy-target="#code-6">Copy</button></figcaption><pre><code id="code-6"><span class="c">// How to carry a correlation key from parent to child</span>
+<details class="source-file"><summary><span class="file-name">correlation-id.cs</span><span class="file-size">111 lines</span></summary><figure class="listing"><figcaption><span class="file">correlation-id.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to carry a correlation key from parent to child</span>
 <span class="c">// A `CorrelationKey` set on the enqueue travels with the job and with every child it starts. It is on the job row, in</span>
 <span class="c">// each handler's log scope, and a filter of the job list.</span>
 <span class="k">using</span> Acta;
@@ -308,11 +251,12 @@ Console.WriteLine(<span class="s">$&quot;operator read: ListJobs filtered by Cor
             );
         }
     }
-}</code></pre></figure></details></div>
+}</code></pre></figure>
+</details></div>
 <div class="step plain-step"><h2>Where to go next</h2><ul class="next-links"><li><a href="/learn/401-pipeline-behavior">How to wrap every handler in your own middleware</a><span>Watch and control running work</span></li></ul></div>
       </article>
       <article class="agent-face" hidden>
-        <figure class="listing agent"><figcaption><span class="file">/learn/408-correlation-id.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/408-correlation-id.md">Open</a><button class="copy" type="button" data-copy-target="#md-body">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
+        <figure class="listing agent"><figcaption><span class="file">/learn/408-correlation-id.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/408-correlation-id.md">Open</a><button class="copy" type="button">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
         <p class="hint">This is the page an agent receives: the same how-to as plain Markdown, at this page's address with <code>.md</code> added.</p>
       </article>
       <aside class="howto-rail" aria-label="This section">

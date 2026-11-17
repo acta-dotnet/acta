@@ -57,7 +57,7 @@
   </div>
 
 
-  <main id="content" data-howto="104">
+  <main id="content">
     <header class="wrap page-head howto-head">
       <p class="record"><a href="/learn">learn acta</a><span aria-hidden="true">/</span><a href="/learn#s-schedule">run work on a schedule</a></p>
       <h1>How to run a job every day at a set hour in your time zone</h1>
@@ -77,9 +77,7 @@
       <article class="howto person-face">
 <div class="step"><h2><span class="step-n">1</span>Write the hour as a cron and pin it to your time zone</h2>
 <p>The cron has five fields: minute, hour, day of month, month, day of week. <code>0 8 * * *</code> is 08:00 every day, and without a time zone that hour is read as UTC. TimeZoneId pins cron to wall-clock local time across DST switches (IANA or Windows ids; an unresolvable id fails the deploy, which a development start runs). For Berlin write <code>Europe/Berlin</code>.</p>
-<figure class="listing"><figcaption><span class="file">timezone-schedule.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-1">Copy</button></figcaption><pre><code id="code-1"><span class="k">public</span> <span class="k">readonly</span> <span class="k">record</span> <span class="k">struct</span> DailyDigest;
-
-<span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> DailyDigestJob
+<figure class="listing"><figcaption><span class="file">timezone-schedule.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> DailyDigestJob
 {
     <span class="a">[Job(<span class="s">&quot;daily-digest&quot;</span>)]</span>
 <span class="hl">    <span class="a">[Schedule(<span class="s">&quot;morning-ljubljana&quot;</span>, <span class="s">&quot;0 8 * * *&quot;</span>, TimeZoneId = <span class="s">&quot;Europe/Ljubljana&quot;</span>)]</span></span>
@@ -96,8 +94,8 @@
 </div>
 <div class="step"><h2><span class="step-n">2</span>Run it and check the output</h2>
 <p>From a clone of <a href="https://github.com/acta-dotnet/acta">the Acta repository</a>, with the .NET 10 SDK:</p>
-<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-2">Copy</button></figcaption><pre><code id="code-2">dotnet run --project concepts/100-scheduling/104-timezone-schedule</code></pre></figure>
-<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button" data-copy-target="#code-3">Copy</button></figcaption><pre><code id="code-3">fired by [demo-tick]</code></pre></figure>
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project concepts/100-scheduling/104-timezone-schedule</code></pre></figure>
+<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button">Copy</button></figcaption><pre><code>fired by [demo-tick]</code></pre></figure>
 <p class="proof checked"><b>Checked every release.</b> Before each release, Acta Verify runs this program and checks that its output contains these lines.</p>
 </div>
 <div class="step plain-step"><h2>Remember</h2><ul class="rules"><li>A schedule is written by a deploy: <code>jobs migrate</code> or <code>jobs deploy</code> in production, the development start on your own machine. Once a namespace has been deployed that way, a new or changed schedule takes <code>jobs deploy</code>.</li><li>A permanent job keeps its step results from one firing to the next. Put the firing in a step's name, <code>$&quot;send.f{ctx.FiringId:N}&quot;</code>, or the step that ran on Monday answers from its record on Tuesday.</li><li>A run that comes due while no worker is up is skipped by default. <a href="/learn/106-schedule-misfire">Decide what happens to runs a schedule missed</a> shows the other choices.</li><li>On the night the clocks change, a cron that names an hour they skip fires at the moment they jump, and one that names an hour they repeat fires once, in its first pass. An hour outside 01:00 to 03:00 local time meets neither in most zones.</li><li>A time zone id is an IANA or a Windows id. One that cannot be resolved fails the deploy, so a typo never ships a schedule that fires at the wrong hour.</li><li>An interval such as <code>&quot;PT15S&quot;</code> or <code>&quot;10s&quot;</code> is a fixed gap between firings and takes no time zone.</li><li>The handler does its bounded work and returns. Never loop or sleep inside it to wait for the next day: the schedule brings the next firing.</li><li>When each night is its own piece of business, with its own retries and result, <a href="/learn/110-per-occurrence-delivery">make every occurrence its own job</a>.</li><li><code>Cron.Hourly</code>, <code>Cron.DailyAt9</code>, <code>Cron.EveryMonday</code>, and <code>Cron.Every15Minutes</code> name common crons, so the usual cases need no cron string.</li><li>The line the release check reads comes from <code>demo-tick</code>, the interval schedule. The 08:00 schedule would take a day to show.</li></ul></div>
@@ -105,7 +103,7 @@
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/concepts/100-scheduling/104-timezone-schedule"><code>concepts/100-scheduling/104-timezone-schedule</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">timezone-schedule.cs</span><span class="file-size">49 lines</span></summary><figure class="listing"><figcaption><span class="file">timezone-schedule.cs</span><button class="copy" type="button" data-copy-target="#code-4">Copy</button></figcaption><pre><code id="code-4"><span class="c">// How to run a job every day at a set hour in your time zone</span>
+<details class="source-file"><summary><span class="file-name">timezone-schedule.cs</span><span class="file-size">49 lines</span></summary><figure class="listing"><figcaption><span class="file">timezone-schedule.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to run a job every day at a set hour in your time zone</span>
 <span class="c">// A cron with `TimeZoneId` fires at the same local hour all year: `0 8 * * *` in `Europe/Berlin` is 08:00 in Berlin,</span>
 <span class="c">// in summer and in winter.</span>
 <span class="k">using</span> Acta;
@@ -153,11 +151,12 @@ Console.WriteLine(<span class="s">&quot;the zoned one fires 08:00 Ljubljana wall
             <span class="k">return</span> Task.CompletedTask;
         }
     }
-}</code></pre></figure></details></div>
+}</code></pre></figure>
+</details></div>
 <div class="step plain-step"><h2>Where to go next</h2><ul class="next-links"><li><a href="/learn/102-interval-schedule">How to replace a timer loop with an interval schedule</a><span>Run work on a schedule</span></li></ul></div>
       </article>
       <article class="agent-face" hidden>
-        <figure class="listing agent"><figcaption><span class="file">/learn/104-timezone-schedule.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/104-timezone-schedule.md">Open</a><button class="copy" type="button" data-copy-target="#md-body">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
+        <figure class="listing agent"><figcaption><span class="file">/learn/104-timezone-schedule.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/104-timezone-schedule.md">Open</a><button class="copy" type="button">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
         <p class="hint">This is the page an agent receives: the same how-to as plain Markdown, at this page's address with <code>.md</code> added.</p>
       </article>
       <aside class="howto-rail" aria-label="This section">

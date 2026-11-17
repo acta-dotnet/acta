@@ -23,33 +23,26 @@ The lines that matter:
 In `worker-crash-recovery.cs` (excerpt):
 
 ```csharp
-public sealed record WorkerRole(string Name, string SessionId);
-
-public sealed record CrashRecoveryProbe(string ProbeId, string? SessionId = null);
-
-public sealed class CrashRecoveryJob(WorkerRole role)
+[Job("crash-recovery-probe", MaxAttempts = 3, Backoff = "0s")]
+public async Task Handle(CrashRecoveryProbe input, CancellationToken ct)
 {
-    [Job("crash-recovery-probe", MaxAttempts = 3, Backoff = "0s")]
-    public async Task Handle(CrashRecoveryProbe input, CancellationToken ct)
+    Console.WriteLine($"[{role.Name}] executing {input.ProbeId}; ordinary handler code is at-least-once.");
+    if (role.Name == "worker-a" && input.SessionId == role.SessionId)
     {
-        Console.WriteLine($"[{role.Name}] executing {input.ProbeId}; ordinary handler code is at-least-once.");
-        if (role.Name == "worker-a" && input.SessionId == role.SessionId)
-        {
-            Console.WriteLine("[worker-a] worst moment reached: side effect may have happened; process disappears before completion.");
-            Console.Out.Flush();
-            Environment.FailFast("Intentional worker-a crash for the SQL recovery lab.");
-        }
-
-        if (role.Name == "worker-a")
-        {
-            var staleSession = input.SessionId is { Length: >= 8 } ? input.SessionId[..8] : "legacy";
-            Console.WriteLine($"[worker-a] stale probe from session {staleSession} completed without crashing the current session.");
-            return;
-        }
-
-        await Task.Delay(100, ct);
-        Console.WriteLine("[worker-b] replay completed; production code would need idempotency or durable steps.");
+        Console.WriteLine("[worker-a] worst moment reached: side effect may have happened; process disappears before completion.");
+        Console.Out.Flush();
+        Environment.FailFast("Intentional worker-a crash for the SQL recovery lab.");
     }
+
+    if (role.Name == "worker-a")
+    {
+        var staleSession = input.SessionId is { Length: >= 8 } ? input.SessionId[..8] : "legacy";
+        Console.WriteLine($"[worker-a] stale probe from session {staleSession} completed without crashing the current session.");
+        return;
+    }
+
+    await Task.Delay(100, ct);
+    Console.WriteLine("[worker-b] replay completed; production code would need idempotency or durable steps.");
 }
 ```
 
@@ -66,19 +59,23 @@ o.HeartbeatInterval = TimeSpan.FromSeconds(1);
 In `worker-crash-recovery.cs` (excerpt):
 
 ```csharp
-j.UseLocalDatabase(builder.Configuration, applyMigrations: mode == "worker-a");
-if (mode is "worker-a" or "worker-b")
+builder.Services.UseActa(j =>
 {
-    j.Run<WorkerCrashRecoveryJobs>(jobNamespace);
-    j.ConfigureOptions(o =>
+    j.UseLocalDatabase(builder.Configuration, applyMigrations: mode == "worker-a");
+    if (mode is "worker-a" or "worker-b")
     {
-        o.HeartbeatInterval = TimeSpan.FromSeconds(1);
-        o.DeploymentVersion = $"{mode}:{sessionId[..8]}";
-    });
-}
-else
-{
-    j.Reference<WorkerCrashRecoveryJobs>(jobNamespace);
+        j.Run<WorkerCrashRecoveryJobs>(jobNamespace);
+        j.ConfigureOptions(o =>
+        {
+            o.HeartbeatInterval = TimeSpan.FromSeconds(1);
+            o.DeploymentVersion = $"{mode}:{sessionId[..8]}";
+        });
+    }
+    else
+    {
+        j.Reference<WorkerCrashRecoveryJobs>(jobNamespace);
+    }
+});
 ```
 
 ## 3. Run it

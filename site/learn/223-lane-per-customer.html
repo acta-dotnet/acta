@@ -57,7 +57,7 @@
   </div>
 
 
-  <main id="content" data-howto="223">
+  <main id="content">
     <header class="wrap page-head howto-head">
       <p class="record"><a href="/learn">learn acta</a><span aria-hidden="true">/</span><a href="/learn#s-limits">control order and load</a></p>
       <h1>How to apply each customer's commands in order while other customers keep moving</h1>
@@ -77,62 +77,18 @@
       <article class="howto person-face">
 <div class="step"><h2><span class="step-n">1</span>Name the customer's lane when you enqueue</h2>
 <p>The jobs of one lane run one at a time, in the order they were enqueued. Each customer has a lane of its own, so a slow command holds back that customer's next commands and nobody else's.</p>
-<figure class="listing"><figcaption><span class="file">lane-per-customer.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-1">Copy</button></figcaption><pre><code id="code-1"><span class="k">var</span> jobs = host.Services.GetRequiredService&lt;IJobs&gt;();
-<span class="k">string</span>[] customers = [<span class="s">&quot;a&quot;</span>, <span class="s">&quot;b&quot;</span>];
-
-<span class="k">var</span> commands = <span class="k">new</span> List&lt;JobHandle&gt;();
+<figure class="listing"><figcaption><span class="file">lane-per-customer.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">var</span> commands = <span class="k">new</span> List&lt;JobHandle&gt;();
 <span class="k">foreach</span> (<span class="k">var</span> number <span class="k">in</span> <span class="k">new</span>[] { 1, 2, 3 })
 {
     <span class="k">foreach</span> (<span class="k">var</span> customer <span class="k">in</span> customers)
     {
 <span class="hl">        commands.Add(<span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> ApplyCommand(customer, number), o =&gt; o.Lane(<span class="s">$&quot;customer-{customer}&quot;</span>)));</span>
     }
-}
-
-<span class="k">foreach</span> (<span class="k">var</span> command <span class="k">in</span> commands)
-{
-    <span class="k">await</span> command.WaitAsync();
-}
-
-<span class="k">foreach</span> (<span class="k">var</span> customer <span class="k">in</span> customers)
-{
-    Console.WriteLine(<span class="s">$&quot;customer {customer} applied: {string.Join(&quot;, &quot;, Applied.By(customer))}&quot;</span>);
-}
-Console.WriteLine(<span class="s">$&quot;customers side by side: {(Applied.MostAtOnce &gt; 1 ? &quot;yes&quot; : &quot;no&quot;)}&quot;</span>);</code></pre></figure>
+}</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">2</span>Let the first command be the slow one</h2>
 <p>Each customer's first command takes the longest. Without the lane the second and the third would be applied before it.</p>
-<figure class="listing"><figcaption><span class="file">lane-per-customer.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-2">Copy</button></figcaption><pre><code id="code-2"><span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> ApplyCommand(<span class="k">string</span> Customer, <span class="k">int</span> Number);
-
-<span class="c">/// &lt;summary&gt;What the handlers did, for the program to print: the order per customer and how many ran at once.&lt;/summary&gt;</span>
-<span class="k">public</span> <span class="k">static</span> <span class="k">class</span> Applied
-{
-    <span class="k">private</span> <span class="k">static</span> <span class="k">readonly</span> ConcurrentQueue&lt;ApplyCommand&gt; Commands = <span class="k">new</span>();
-    <span class="k">private</span> <span class="k">static</span> <span class="k">int</span> _atOnce;
-    <span class="k">private</span> <span class="k">static</span> <span class="k">int</span> _mostAtOnce;
-
-    <span class="k">public</span> <span class="k">static</span> <span class="k">int</span> MostAtOnce =&gt; Volatile.Read(<span class="k">ref</span> _mostAtOnce);
-
-    <span class="k">public</span> <span class="k">static</span> IEnumerable&lt;<span class="k">int</span>&gt; By(<span class="k">string</span> customer) =&gt; Commands.Where(c =&gt; c.Customer == customer).Select(c =&gt; c.Number);
-
-    <span class="k">public</span> <span class="k">static</span> <span class="k">void</span> Started()
-    {
-        <span class="k">var</span> now = Interlocked.Increment(<span class="k">ref</span> _atOnce);
-        <span class="k">int</span> most;
-        <span class="k">while</span> (now &gt; (most = Volatile.Read(<span class="k">ref</span> _mostAtOnce)))
-        {
-            Interlocked.CompareExchange(<span class="k">ref</span> _mostAtOnce, now, most);
-        }
-    }
-
-    <span class="k">public</span> <span class="k">static</span> <span class="k">void</span> Finished(ApplyCommand command)
-    {
-        Commands.Enqueue(command);
-        Interlocked.Decrement(<span class="k">ref</span> _atOnce);
-    }
-}
-
-<span class="k">public</span> <span class="k">static</span> <span class="k">class</span> ApplyCommandJob
+<figure class="listing"><figcaption><span class="file">lane-per-customer.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">static</span> <span class="k">class</span> ApplyCommandJob
 {
     <span class="a">[Job(<span class="s">&quot;apply-command&quot;</span>)]</span>
     <span class="k">public</span> <span class="k">static</span> <span class="k">async</span> Task Handle(ApplyCommand command, CancellationToken ct)
@@ -145,8 +101,8 @@ Console.WriteLine(<span class="s">$&quot;customers side by side: {(Applied.MostA
 </div>
 <div class="step"><h2><span class="step-n">3</span>Run it and check the output</h2>
 <p>From a clone of <a href="https://github.com/acta-dotnet/acta">the Acta repository</a>, with the .NET 10 SDK:</p>
-<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-3">Copy</button></figcaption><pre><code id="code-3">dotnet run --project concepts/200-durable-execution/223-lane-per-customer</code></pre></figure>
-<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button" data-copy-target="#code-4">Copy</button></figcaption><pre><code id="code-4">customer a applied: 1, 2, 3
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project concepts/200-durable-execution/223-lane-per-customer</code></pre></figure>
+<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button">Copy</button></figcaption><pre><code>customer a applied: 1, 2, 3
 customer b applied: 1, 2, 3
 customers side by side: yes</code></pre></figure>
 <p class="proof checked"><b>Checked every release.</b> Before each release, Acta Verify runs this program and checks that its output contains these lines.</p>
@@ -156,10 +112,9 @@ customers side by side: yes</code></pre></figure>
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/concepts/200-durable-execution/223-lane-per-customer"><code>concepts/200-durable-execution/223-lane-per-customer</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">lane-per-customer.cs</span><span class="file-size">96 lines</span></summary><figure class="listing"><figcaption><span class="file">lane-per-customer.cs</span><button class="copy" type="button" data-copy-target="#code-5">Copy</button></figcaption><pre><code id="code-5"><span class="c">// How to apply each customer's commands in order while other customers keep moving</span>
+<details class="source-file"><summary><span class="file-name">lane-per-customer.cs</span><span class="file-size">101 lines</span></summary><figure class="listing"><figcaption><span class="file">lane-per-customer.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to apply each customer's commands in order while other customers keep moving</span>
 <span class="c">// A lane runs its jobs one at a time, in enqueue order. A lane per customer keeps each customer's commands in order</span>
 <span class="c">// and lets the customers run side by side.</span>
-<span class="k">using</span> System.Collections.Concurrent;
 <span class="k">using</span> Acta;
 <span class="k">using</span> Acta.Concepts.LanePerCustomer;
 <span class="k">using</span> Microsoft.Extensions.DependencyInjection;
@@ -212,28 +167,34 @@ Console.WriteLine(<span class="s">$&quot;customers side by side: {(Applied.MostA
     <span class="c">/// &lt;summary&gt;What the handlers did, for the program to print: the order per customer and how many ran at once.&lt;/summary&gt;</span>
     <span class="k">public</span> <span class="k">static</span> <span class="k">class</span> Applied
     {
-        <span class="k">private</span> <span class="k">static</span> <span class="k">readonly</span> ConcurrentQueue&lt;ApplyCommand&gt; Commands = <span class="k">new</span>();
-        <span class="k">private</span> <span class="k">static</span> <span class="k">int</span> _atOnce;
-        <span class="k">private</span> <span class="k">static</span> <span class="k">int</span> _mostAtOnce;
+        <span class="k">private</span> <span class="k">static</span> <span class="k">readonly</span> List&lt;ApplyCommand&gt; Commands = [];
+        <span class="k">private</span> <span class="k">static</span> <span class="k">int</span> _running;
 
-        <span class="k">public</span> <span class="k">static</span> <span class="k">int</span> MostAtOnce =&gt; Volatile.Read(<span class="k">ref</span> _mostAtOnce);
+        <span class="k">public</span> <span class="k">static</span> <span class="k">int</span> MostAtOnce { <span class="k">get</span>; <span class="k">private</span> <span class="k">set</span>; }
 
-        <span class="k">public</span> <span class="k">static</span> IEnumerable&lt;<span class="k">int</span>&gt; By(<span class="k">string</span> customer) =&gt; Commands.Where(c =&gt; c.Customer == customer).Select(c =&gt; c.Number);
+        <span class="k">public</span> <span class="k">static</span> <span class="k">int</span>[] By(<span class="k">string</span> customer)
+        {
+            <span class="k">lock</span> (Commands)
+            {
+                <span class="k">return</span> Commands.Where(c =&gt; c.Customer == customer).Select(c =&gt; c.Number).ToArray();
+            }
+        }
 
         <span class="k">public</span> <span class="k">static</span> <span class="k">void</span> Started()
         {
-            <span class="k">var</span> now = Interlocked.Increment(<span class="k">ref</span> _atOnce);
-            <span class="k">int</span> most;
-            <span class="k">while</span> (now &gt; (most = Volatile.Read(<span class="k">ref</span> _mostAtOnce)))
+            <span class="k">lock</span> (Commands)
             {
-                Interlocked.CompareExchange(<span class="k">ref</span> _mostAtOnce, now, most);
+                MostAtOnce = Math.Max(MostAtOnce, ++_running);
             }
         }
 
         <span class="k">public</span> <span class="k">static</span> <span class="k">void</span> Finished(ApplyCommand command)
         {
-            Commands.Enqueue(command);
-            Interlocked.Decrement(<span class="k">ref</span> _atOnce);
+            <span class="k">lock</span> (Commands)
+            {
+                Commands.Add(command);
+                _running--;
+            }
         }
     }
 
@@ -251,11 +212,12 @@ Console.WriteLine(<span class="s">$&quot;customers side by side: {(Applied.MostA
             Applied.Finished(command);
         }
     }
-}</code></pre></figure></details></div>
+}</code></pre></figure>
+</details></div>
 <div class="step plain-step"><h2>Where to go next</h2><ul class="next-links"><li><a href="/learn/021-jobs-cli">How to inspect a job from the command line</a><span>Watch and control running work</span></li></ul></div>
       </article>
       <article class="agent-face" hidden>
-        <figure class="listing agent"><figcaption><span class="file">/learn/223-lane-per-customer.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/223-lane-per-customer.md">Open</a><button class="copy" type="button" data-copy-target="#md-body">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
+        <figure class="listing agent"><figcaption><span class="file">/learn/223-lane-per-customer.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/223-lane-per-customer.md">Open</a><button class="copy" type="button">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
         <p class="hint">This is the page an agent receives: the same how-to as plain Markdown, at this page's address with <code>.md</code> added.</p>
       </article>
       <aside class="howto-rail" aria-label="This section">

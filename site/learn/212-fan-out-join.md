@@ -29,50 +29,23 @@ var chunks = await context.MapAsync(
 In `fan-out-join.cs` (excerpt):
 
 ```csharp
-public sealed record AddNumbers(SumRange[] Chunks);
-
-public sealed record SumRange(long From, long To);
-
-public sealed record PartialSum(long Value);
-
-public sealed record SumResult(long Total);
-
-public sealed class AddNumbersJobs
+[Job("add-numbers")]
+public async Task<SumResult> Handle(AddNumbers request, JobContext context, CancellationToken ct)
 {
-    [Job("add-numbers")]
-    public async Task<SumResult> Handle(AddNumbers request, JobContext context, CancellationToken ct)
+    var chunks = await context.MapAsync(
+        "chunk",
+        request.Chunks,
+        itemKey: chunk => $"{chunk.From}-{chunk.To}",
+        child: chunk => FanOutJoinJobs.SumRange(chunk),
+        ct
+    );
+
+    if (!chunks.Succeeded)
     {
-        var chunks = await context.MapAsync(
-            "chunk",
-            request.Chunks,
-            itemKey: chunk => $"{chunk.From}-{chunk.To}",
-            child: chunk => FanOutJoinJobs.SumRange(chunk),
-            ct
-        );
-
-        // The map does not throw for a failed child; the parent asks, and decides.
-        if (!chunks.Succeeded)
-        {
-            await context.FailAsync("a chunk failed", ct);
-        }
-
-        return new SumResult(chunks.Items.Sum(item => item.Outcome.ValueOrThrow().Value));
+        await context.FailAsync("a chunk failed", ct);
     }
 
-    [Job("sum-range")]
-    public async Task<PartialSum> Sum(SumRange range, CancellationToken ct)
-    {
-        await Task.Delay(150, ct);
-
-        var sum = 0L;
-        for (var n = range.From; n <= range.To; n++)
-        {
-            sum += n;
-        }
-
-        Console.WriteLine($"chunk {range.From}..{range.To} = {sum}");
-        return new PartialSum(sum);
-    }
+    return new SumResult(chunks.Items.Sum(item => item.Outcome.ValueOrThrow().Value));
 }
 ```
 
@@ -94,52 +67,23 @@ return new SumResult(chunks.Items.Sum(item => item.Outcome.ValueOrThrow().Value)
 In `fan-out-join.cs` (excerpt):
 
 ```csharp
-public sealed record AddNumbers(SumRange[] Chunks);
-
-public sealed record SumRange(long From, long To);
-
-public sealed record PartialSum(long Value);
-
-public sealed record SumResult(long Total);
-
-public sealed class AddNumbersJobs
+[Job("add-numbers")]
+public async Task<SumResult> Handle(AddNumbers request, JobContext context, CancellationToken ct)
 {
-    [Job("add-numbers")]
-    public async Task<SumResult> Handle(AddNumbers request, JobContext context, CancellationToken ct)
+    var chunks = await context.MapAsync(
+        "chunk",
+        request.Chunks,
+        itemKey: chunk => $"{chunk.From}-{chunk.To}",
+        child: chunk => FanOutJoinJobs.SumRange(chunk),
+        ct
+    );
+
+    if (!chunks.Succeeded)
     {
-        // MapAsync starts one child per chunk and waits for all of them. Each child is keyed by its range,
-        // so a replay finds the same children by name. A child given as its generated call types the map,
-        // so each item's outcome carries the child's result and the merge reads no child by id.
-        var chunks = await context.MapAsync(
-            "chunk",
-            request.Chunks,
-            itemKey: chunk => $"{chunk.From}-{chunk.To}",
-            child: chunk => FanOutJoinJobs.SumRange(chunk),
-            ct
-        );
-
-        if (!chunks.Succeeded)
-        {
-            await context.FailAsync("a chunk failed", ct);
-        }
-
-        return new SumResult(chunks.Items.Sum(item => item.Outcome.ValueOrThrow().Value));
+        await context.FailAsync("a chunk failed", ct);
     }
 
-    [Job("sum-range")]
-    public async Task<PartialSum> Sum(SumRange range, CancellationToken ct)
-    {
-        await Task.Delay(150, ct);
-
-        var sum = 0L;
-        for (var n = range.From; n <= range.To; n++)
-        {
-            sum += n;
-        }
-
-        Console.WriteLine($"chunk {range.From}..{range.To} = {sum}");
-        return new PartialSum(sum);
-    }
+    return new SumResult(chunks.Items.Sum(item => item.Outcome.ValueOrThrow().Value));
 }
 ```
 

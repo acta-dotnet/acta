@@ -23,10 +23,6 @@ var decision = await context.WaitSignalAsync<Decision>("approval", ct);
 In `wait-signal.cs` (excerpt):
 
 ```csharp
-public sealed record ApproveExpense(string Id, decimal Amount);
-
-public sealed record Decision(bool Approved, string By);
-
 public sealed class ApproveExpenseJob
 {
     [Job("approve-expense")]
@@ -52,14 +48,7 @@ await jobs.RaiseSignalAsync(job, "approval", new Decision(true, "alice"));
 In `wait-signal.cs` (excerpt):
 
 ```csharp
-}
-else
-{
-    Console.WriteLine("Brief/non-interactive run: raising the approval signal automatically.");
-}
-
 await jobs.RaiseSignalAsync(job, "approval", new Decision(true, "alice"));
-
 Console.WriteLine("approved - the job resumes.");
 var terminal = await WaitForAsync(jobs, job.JobId, static snapshot => snapshot.Status.IsTerminal, "signal-waiting job to finish");
 EnsureDone(terminal);

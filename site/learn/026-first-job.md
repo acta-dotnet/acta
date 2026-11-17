@@ -27,20 +27,9 @@ public async Task<ShipmentLabel> Ship(ShipOrder input, CancellationToken ct) =>
 public Task Print(PrintLabel input, CancellationToken ct) => printer.PrintAsync(input.TrackingNumber, ct);
 ```
 
-In `Jobs.cs`:
+In `Jobs.cs` (excerpt):
 
 ```csharp
-// File: Jobs.cs
-using Acta;
-
-namespace Shipping;
-
-public sealed record ShipOrder(int OrderId);
-
-public sealed record ShipmentLabel(int OrderId, string Carrier, string TrackingNumber);
-
-public sealed record PrintLabel(string TrackingNumber);
-
 public sealed class OrderHandlers(Carrier carrier, LabelPrinter printer)
 {
     [Job("ship-order")]
@@ -71,9 +60,6 @@ app.MapPost("/orders/{orderId:int}", async (int orderId, IJobs jobs) =>
 In `Program.cs` (excerpt):
 
 ```csharp
-    j.Run<ShippingJobs>("shipping");
-});
-
 var app = builder.Build();
 app.MapActa("/acta"); // dashboard + JSON API; local-only by default, controls disabled
 
@@ -82,12 +68,6 @@ app.MapPost("/orders/{orderId:int}", async (int orderId, IJobs jobs) =>
     var job = await jobs.EnqueueAsync(new ShipOrder(orderId));
     return Results.Accepted($"/jobs/{job.JobRef}", new { job.JobRef });
 });
-
-// Enqueue through the generated call and follow: it names the job and carries the result type, so the handle is a
-// JobHandle<ShipmentLabel> and the label reads typed. The wait ends at the outcome or at the timeout, and a timeout
-// stops only the wait.
-app.MapPost("/orders/{orderId:int}/ship-now", async (int orderId, IJobs jobs) =>
-{
 ```
 
 ## 3. Enqueue and wait for the typed result
@@ -193,11 +173,11 @@ app.MapGet("/jobs/{jobRef}/explain", async (JobRef jobRef, IJobs jobs) =>
     await jobs.ExplainAsync(jobRef) is { } why ? Results.Ok(why) : Results.NotFound()
 );
 
-// Cancel: applied while the job has not finished; a cancelled job answers already-in-state, and any other finished one
-// answers rejected and keeps its outcome.
 app.MapPost("/jobs/{jobRef}/cancel", async (JobRef jobRef, IJobs jobs) =>
 {
     var cancelled = await jobs.CancelAsync(jobRef, reasonMessage: "cancelled from the orders API");
+    return Results.Ok(new { cancelled.Action, cancelled.Status });
+});
 ```
 
 ## 5. Cancel a job by its ref
@@ -217,7 +197,6 @@ app.MapPost("/jobs/{jobRef}/cancel", async (JobRef jobRef, IJobs jobs) =>
 In `Program.cs` (excerpt):
 
 ```csharp
-
 // Why: the status in words, the reason the last attempt failed, and what an operator can do next.
 app.MapGet("/jobs/{jobRef}/explain", async (JobRef jobRef, IJobs jobs) =>
     await jobs.ExplainAsync(jobRef) is { } why ? Results.Ok(why) : Results.NotFound()

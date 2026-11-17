@@ -57,14 +57,14 @@
   </div>
 
 
-  <main id="content" data-howto="021">
+  <main id="content">
     <header class="wrap page-head howto-head">
       <p class="record"><a href="/learn">learn acta</a><span aria-hidden="true">/</span><a href="/learn#s-operate">watch and control running work</a></p>
       <h1>How to inspect a job from the command line</h1>
       <p class="lede">The app's own binary answers <code>jobs info</code>, <code>events</code>, <code>explain</code>, and the control verbs for any job, read from the same database.</p>
       <p class="howto-context">A how-to for Acta, durable execution for .NET. <a href="/start">New to Acta? Run your first durable job in five minutes.</a></p>
       <div class="howto-meta">
-        <span class="status checked">Checked every release</span><span class="mark lab">Lab</span>
+        <span class="status checked">Checked every release</span><span class="mark">Lab</span>
         <a class="program" href="https://github.com/acta-dotnet/acta/tree/main/concepts/000-fundamentals/021-jobs-cli"><code>concepts/000-fundamentals/021-jobs-cli</code></a>
         <div class="reader" role="group" aria-label="Read this page as">
         <span class="reader-label">Read as</span>
@@ -77,13 +77,7 @@
       <article class="howto person-face">
 <div class="step"><h2><span class="step-n">1</span>Run the app's own binary with a jobs verb</h2>
 <p>A first argument of <code>jobs</code> runs that verb against the app's database and exits; without it the process starts as a normal worker. The program needs no line of its own for this.</p>
-<figure class="listing"><figcaption><span class="file">jobs-cli.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-1">Copy</button></figcaption><pre><code id="code-1">    {
-        <span class="k">throw</span> <span class="k">new</span> InvalidOperationException(<span class="s">$&quot;CLI fixture {snapshot.JobRef} ended {snapshot.Status} before reaching its signal wait.&quot;</span>);
-    }
-    <span class="k">await</span> Task.Delay(50, suspensionTimeout.Token);
-}
-
-<span class="hl"><span class="k">const</span> <span class="k">string</span> cli = <span class="s">&quot;dotnet run --project concepts/000-fundamentals/021-jobs-cli -- jobs&quot;</span>;</span>
+<figure class="listing"><figcaption><span class="file">jobs-cli.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="hl"><span class="k">const</span> <span class="k">string</span> cli = <span class="s">&quot;dotnet run --project concepts/000-fundamentals/021-jobs-cli -- jobs&quot;</span>;</span>
 <span class="hl">Console.WriteLine(<span class="s">$&quot;Enqueued signal-waiting job {enqueued.JobRef}. From another terminal, try:&quot;</span>);</span>
 <span class="hl">Console.WriteLine(<span class="s">$&quot;  {cli} info {enqueued.JobRef}&quot;</span>);</span>
 <span class="hl">Console.WriteLine(<span class="s">$&quot;  {cli} events {enqueued.JobRef}&quot;</span>);</span>
@@ -92,18 +86,10 @@
 <span class="hl">Console.WriteLine(<span class="s">$&quot;  {cli} resume {enqueued.JobRef}&quot;</span>);</span>
 <span class="hl">Console.WriteLine(<span class="s">$&quot;  {cli} restart {enqueued.JobRef}&quot;</span>);</span>
 <span class="hl">Console.WriteLine(<span class="s">$&quot;  {cli} debug {enqueued.JobRef}&quot;</span>);</span>
-<span class="hl">Console.WriteLine(<span class="s">$&quot;  {cli} info    (no target: a read takes the copied ref from the clipboard)&quot;</span>);</span>
-
-<span class="k">await</span> lab.ShowAllAsync(
-    <span class="s">&quot;Explore the complete signal-waiting job record&quot;</span>,
-    <span class="s">&quot;&quot;&quot;</span>
-<span class="s">    SELECT *</span>
-<span class="s">    FROM jobs_view</span></code></pre></figure>
+<span class="hl">Console.WriteLine(<span class="s">$&quot;  {cli} info    (no target: a read takes the copied ref from the clipboard)&quot;</span>);</span></code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">2</span>The job it acts on</h2>
-<figure class="listing"><figcaption><span class="file">jobs-cli.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-2">Copy</button></figcaption><pre><code id="code-2"><span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> ReviewDocument(<span class="k">string</span> DocumentId);
-
-<span class="k">public</span> <span class="k">static</span> <span class="k">class</span> ReviewDocumentJob
+<figure class="listing"><figcaption><span class="file">jobs-cli.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">static</span> <span class="k">class</span> ReviewDocumentJob
 {
     <span class="a">[Job(<span class="s">&quot;review-document&quot;</span>)]</span>
     <span class="k">public</span> <span class="k">static</span> <span class="k">async</span> Task Handle(ReviewDocument input, JobContext context, CancellationToken ct)
@@ -116,8 +102,8 @@
 </div>
 <div class="step"><h2><span class="step-n">3</span>Run it and check the output</h2>
 <p>From a clone of <a href="https://github.com/acta-dotnet/acta">the Acta repository</a>, with the .NET 10 SDK:</p>
-<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-3">Copy</button></figcaption><pre><code id="code-3">dotnet run --project concepts/000-fundamentals/021-jobs-cli</code></pre></figure>
-<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button" data-copy-target="#code-4">Copy</button></figcaption><pre><code id="code-4">[contract-42] indexed; waiting for legal approval
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project concepts/000-fundamentals/021-jobs-cli</code></pre></figure>
+<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button">Copy</button></figcaption><pre><code>[contract-42] indexed; waiting for legal approval
 | suspended</code></pre></figure>
 <p class="proof checked"><b>Checked every release.</b> Before each release, Acta Verify runs this program and checks that its output contains these lines.</p>
 </div>
@@ -134,9 +120,9 @@
 <p>Operators need access to the application artifact and its configuration/secrets. CLI availability is tied to that deployment, and direct mutation still needs organizational authorization and audit policy.</p>
 <h3>Run the experiment</h3>
 <p>Terminal 1:</p>
-<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-5">Copy</button></figcaption><pre><code id="code-5">dotnet run --project concepts/000-fundamentals/021-jobs-cli</code></pre></figure>
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project concepts/000-fundamentals/021-jobs-cli</code></pre></figure>
 <p>Use the printed job ref in terminal 2:</p>
-<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-6">Copy</button></figcaption><pre><code id="code-6">dotnet run --project concepts/000-fundamentals/021-jobs-cli -- jobs info &lt;job-ref&gt;
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project concepts/000-fundamentals/021-jobs-cli -- jobs info &lt;job-ref&gt;
 dotnet run --project concepts/000-fundamentals/021-jobs-cli -- jobs events &lt;job-ref&gt;
 dotnet run --project concepts/000-fundamentals/021-jobs-cli -- jobs explain &lt;job-ref&gt;
 dotnet run --project concepts/000-fundamentals/021-jobs-cli -- jobs debug &lt;job-ref&gt; --break</code></pre></figure>
@@ -153,7 +139,7 @@ dotnet run --project concepts/000-fundamentals/021-jobs-cli -- jobs debug &lt;jo
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/concepts/000-fundamentals/021-jobs-cli"><code>concepts/000-fundamentals/021-jobs-cli</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> and <code>ConceptLab</code> are helpers of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">jobs-cli.cs</span><span class="file-size">94 lines</span></summary><figure class="listing"><figcaption><span class="file">jobs-cli.cs</span><button class="copy" type="button" data-copy-target="#code-7">Copy</button></figcaption><pre><code id="code-7"><span class="c">// How to inspect a job from the command line</span>
+<details class="source-file"><summary><span class="file-name">jobs-cli.cs</span><span class="file-size">94 lines</span></summary><figure class="listing"><figcaption><span class="file">jobs-cli.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to inspect a job from the command line</span>
 <span class="c">// The app's own binary answers `jobs info`, `events`, `explain`, and the control verbs for any job, read from the</span>
 <span class="c">// same database.</span>
 <span class="k">using</span> Acta;
@@ -246,11 +232,12 @@ Console.WriteLine(<span class="s">&quot;Worker is running - press Ctrl+C to stop
             Console.WriteLine(<span class="s">$&quot;[{input.DocumentId}] approved&quot;</span>);
         }
     }
-}</code></pre></figure></details></div>
+}</code></pre></figure>
+</details></div>
 <div class="step plain-step"><h2>Where to go next</h2><ul class="next-links"><li><a href="/learn/022-dashboard">How to see your jobs in the dashboard</a><span>Watch and control running work</span></li></ul></div>
       </article>
       <article class="agent-face" hidden>
-        <figure class="listing agent"><figcaption><span class="file">/learn/021-jobs-cli.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/021-jobs-cli.md">Open</a><button class="copy" type="button" data-copy-target="#md-body">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
+        <figure class="listing agent"><figcaption><span class="file">/learn/021-jobs-cli.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/021-jobs-cli.md">Open</a><button class="copy" type="button">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
         <p class="hint">This is the page an agent receives: the same how-to as plain Markdown, at this page's address with <code>.md</code> added.</p>
       </article>
       <aside class="howto-rail" aria-label="This section">

@@ -23,8 +23,6 @@ The lines that matter:
 In `deadline-advisory.cs` (excerpt):
 
 ```csharp
-public sealed record GenerateReport(string Quarter);
-
 public static class GenerateReportJob
 {
     [Job("generate-report", Deadline = "2s", DeadlineBehavior = DeadlineBehaviorCode.Advisory)]
@@ -62,13 +60,8 @@ if (context.IsOverdue)
 In `deadline-advisory.cs` (excerpt):
 
 ```csharp
-public sealed record GenerateReport(string Quarter);
-
 public static class GenerateReportJob
 {
-    // Advisory makes the deadline informational: unlike Strict (307), the engine never cancels an
-    // overdue job. The handler reads context.IsOverdue (and context.TimeUntilDeadline) and degrades on its
-    // own; here it emits a quick summary instead of the expensive full report when it is late.
     [Job("generate-report", Deadline = "2s", DeadlineBehavior = DeadlineBehaviorCode.Advisory)]
     public static async Task Handle(GenerateReport input, JobContext context, CancellationToken ct)
     {

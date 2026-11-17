@@ -25,34 +25,14 @@ return new EpisodePublished(episode.EpisodeId, transcoded.ValueOrThrow().StreamU
 In `call-child.cs` (excerpt):
 
 ```csharp
-public sealed record PublishEpisode(string EpisodeId, string SourceUrl);
-
-public sealed record TranscodeVideo(string SourceUrl);
-
-public sealed record TranscodeResult(string StreamUrl);
-
-public sealed record EpisodePublished(string EpisodeId, string StreamUrl);
-
-public sealed class PublishingJobs
+// A child is a real job (own retry policy, queue identity, operator-visible), unlike a private
+// idempotent step (202).
+[Job("publish-episode")]
+public async Task<EpisodePublished> Handle(PublishEpisode episode, JobContext context, CancellationToken ct)
 {
-    // A child is a real job (own retry policy, queue identity, operator-visible), unlike a private
-    // idempotent step (202).
-    [Job("publish-episode")]
-    public async Task<EpisodePublished> Handle(PublishEpisode episode, JobContext context, CancellationToken ct)
-    {
-        var transcode = CallChildJobs.TranscodeVideo(new TranscodeVideo(episode.SourceUrl));
-        var transcoded = await context.CallChildAsync("transcode", transcode, ct);
-        return new EpisodePublished(episode.EpisodeId, transcoded.ValueOrThrow().StreamUrl);
-    }
-
-    [Job("transcode-video")]
-    public async Task<TranscodeResult> Transcode(TranscodeVideo video, CancellationToken ct)
-    {
-        await Task.Delay(400, ct);
-        var streamUrl = video.SourceUrl.Replace("raw/", "hls/").Replace(".mov", ".m3u8");
-        Console.WriteLine($"transcoded {video.SourceUrl} -> {streamUrl}");
-        return new TranscodeResult(streamUrl);
-    }
+    var transcode = CallChildJobs.TranscodeVideo(new TranscodeVideo(episode.SourceUrl));
+    var transcoded = await context.CallChildAsync("transcode", transcode, ct);
+    return new EpisodePublished(episode.EpisodeId, transcoded.ValueOrThrow().StreamUrl);
 }
 ```
 

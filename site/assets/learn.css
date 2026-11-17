@@ -100,8 +100,7 @@ a.door:hover { border-top-color: var(--verdi); }
 .rung:hover .rung-step { border-color: var(--verdi); color: var(--verdi); }
 .rung[data-done] .rung-step { background: var(--verdi); border-color: var(--verdi); color: var(--verdi-deep); font-weight: 500; }
 .rung-marks { display: flex; gap: 0.4rem; padding-top: 0.2rem; }
-.mark { padding: 0.12rem 0.6rem; border-radius: var(--r-pill); background: var(--panel); font-size: 0.74rem; font-weight: 500; color: var(--faint); white-space: nowrap; }
-.mark.lab { background: var(--verdi-wash); color: var(--verdi); }
+.mark { padding: 0.12rem 0.6rem; border-radius: var(--r-pill); background: var(--verdi-wash); font-size: 0.74rem; font-weight: 500; color: var(--verdi); white-space: nowrap; }
 .ladder-more { grid-column: 2; justify-self: start; margin: 0.6rem 0 0 3rem; white-space: normal; line-height: 1.5; }
 .ladder-ask { margin-top: 3rem; padding-top: 1.4rem; border-top: 1px solid var(--hair); max-width: none; }
 

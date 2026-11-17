@@ -25,14 +25,19 @@ var outcome = await jobs.EnqueueAsync(new SendWelcomeEmail("sam@example.com", "S
 In `tags.cs` (excerpt):
 
 ```csharp
+using var host = builder.Build();
+await host.StartAsync();
+
 var jobs = host.Services.GetRequiredService<IJobs>();
 
 var outcome = await jobs.EnqueueAsync(new SendWelcomeEmail("sam@example.com", "Sam"), o =>
     o.Tag("campaign", "spring").Tag("channel", "email")
 );
-
 Console.WriteLine($"Enqueued job {outcome.JobRef} with tags campaign=spring, channel=email.");
 Console.WriteLine("Worker is running - press Ctrl+C to stop.");
+
+await host.WaitForShutdownAsync();
+await host.StopAsync();
 ```
 
 ## 2. The job it acts on
@@ -40,8 +45,6 @@ Console.WriteLine("Worker is running - press Ctrl+C to stop.");
 `tags.cs` (excerpt):
 
 ```csharp
-public sealed record SendWelcomeEmail(string Email, string Name);
-
 public static class WelcomeJob
 {
     [Job("send-welcome-email")]

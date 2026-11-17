@@ -23,45 +23,8 @@ options => options.AtMostOnce(),
 In `at-most-once-step.cs` (excerpt):
 
 ```csharp
-public sealed record ChargeCard(string OrderId, int AmountCents);
-
-public static class ChargeCardJob
-{
-    public static string SideEffectFile(JobRef jobRef) =>
-        Path.Combine(Path.GetTempPath(), $"acta-at-most-once-side-effects-{jobRef}.log");
-
-    [Job("charge-card", MaxAttempts = 3, Backoff = "0s")]
-    public static async Task Handle(ChargeCard input, JobContext context, CancellationToken ct)
-    {
-        try
-        {
-            await context.RunStepAsync(
-                "charge-card",
-                _ =>
-                {
-                    // Simulated external system: this write cannot share Acta's SQL transaction.
-                    File.AppendAllText(SideEffectFile(context.JobRef), $"{input.OrderId}:{input.AmountCents}{Environment.NewLine}");
-                    Console.WriteLine("SIDE EFFECT COMMITTED. Terminating before Acta can record the step outcome...");
-                    Console.Out.Flush();
-                    Environment.FailFast("Intentional at-most-once lab crash after the external side effect.");
-                    return Task.CompletedTask;
-                },
-                options => options.AtMostOnce(),
-                ct
-            );
-        }
-        // The side effect may or may not have happened. Ask the outside system, then decide.
-        catch (StepInterruptedException interrupted)
-        {
-            var sideEffectFile = SideEffectFile(context.JobRef);
-            var matchingCharges = File.Exists(sideEffectFile)
-                ? File.ReadLines(sideEffectFile).Count(line => line.StartsWith(input.OrderId + ":", StringComparison.Ordinal))
-                : 0;
-            Console.WriteLine($"{interrupted.StepName} is ambiguous; reconciliation found {matchingCharges} external charge(s).");
-            Console.WriteLine("The handler owns this policy: compensate, confirm, alert, or continue.");
-        }
-    }
-}
+options => options.AtMostOnce(),
+ct
 ```
 
 ## 2. Catch the interruption and reconcile
@@ -85,45 +48,31 @@ catch (StepInterruptedException interrupted)
 In `at-most-once-step.cs` (excerpt):
 
 ```csharp
-public sealed record ChargeCard(string OrderId, int AmountCents);
-
-public static class ChargeCardJob
+try
 {
-    public static string SideEffectFile(JobRef jobRef) =>
-        Path.Combine(Path.GetTempPath(), $"acta-at-most-once-side-effects-{jobRef}.log");
-
-    [Job("charge-card", MaxAttempts = 3, Backoff = "0s")]
-    public static async Task Handle(ChargeCard input, JobContext context, CancellationToken ct)
-    {
-        try
+    await context.RunStepAsync(
+        "charge-card",
+        _ =>
         {
-            await context.RunStepAsync(
-                "charge-card",
-                _ =>
-                {
-                    // Simulated external system: this write cannot share Acta's SQL transaction.
-                    File.AppendAllText(SideEffectFile(context.JobRef), $"{input.OrderId}:{input.AmountCents}{Environment.NewLine}");
-                    Console.WriteLine("SIDE EFFECT COMMITTED. Terminating before Acta can record the step outcome...");
-                    Console.Out.Flush();
-                    Environment.FailFast("Intentional at-most-once lab crash after the external side effect.");
-                    return Task.CompletedTask;
-                },
-                // The step's start is recorded before its body runs. When the process dies inside the body, the
-                // replay does not call it again: the step throws `StepInterruptedException` instead.
-                options => options.AtMostOnce(),
-                ct
-            );
-        }
-        catch (StepInterruptedException interrupted)
-        {
-            var sideEffectFile = SideEffectFile(context.JobRef);
-            var matchingCharges = File.Exists(sideEffectFile)
-                ? File.ReadLines(sideEffectFile).Count(line => line.StartsWith(input.OrderId + ":", StringComparison.Ordinal))
-                : 0;
-            Console.WriteLine($"{interrupted.StepName} is ambiguous; reconciliation found {matchingCharges} external charge(s).");
-            Console.WriteLine("The handler owns this policy: compensate, confirm, alert, or continue.");
-        }
-    }
+            // Simulated external system: this write cannot share Acta's SQL transaction.
+            File.AppendAllText(SideEffectFile(context.JobRef), $"{input.OrderId}:{input.AmountCents}{Environment.NewLine}");
+            Console.WriteLine("SIDE EFFECT COMMITTED. Terminating before Acta can record the step outcome...");
+            Console.Out.Flush();
+            Environment.FailFast("Intentional at-most-once lab crash after the external side effect.");
+            return Task.CompletedTask;
+        },
+        options => options.AtMostOnce(),
+        ct
+    );
+}
+catch (StepInterruptedException interrupted)
+{
+    var sideEffectFile = SideEffectFile(context.JobRef);
+    var matchingCharges = File.Exists(sideEffectFile)
+        ? File.ReadLines(sideEffectFile).Count(line => line.StartsWith(input.OrderId + ":", StringComparison.Ordinal))
+        : 0;
+    Console.WriteLine($"{interrupted.StepName} is ambiguous; reconciliation found {matchingCharges} external charge(s).");
+    Console.WriteLine("The handler owns this policy: compensate, confirm, alert, or continue.");
 }
 ```
 

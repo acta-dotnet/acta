@@ -1,28 +1,28 @@
 using System.Text.RegularExpressions;
+using Acta.Emit.Features.Verify;
 
 namespace Acta.Emit.Features.Learn;
 
 /// <summary>
-/// The Learn section as files: one page, one Markdown twin and one program file per how-to, the library's front page,
-/// the index for agents, the <c>/learn/</c> entries of the sitemap, and the ladder table in the reference docs. Nothing
-/// here is edited by hand: a change to a program, a README or <c>concepts/learn.json</c> changes what is emitted.
+/// The Learn section as files: one page, one Markdown twin and one program file per how-to, the section's front page,
+/// the index for agents, the section's sitemap, and the table of how-tos in the reference docs. Nothing here is edited
+/// by hand: a change to a program, a README or the sections file changes what is emitted.
 /// </summary>
 internal static partial class LearnEmitter
 {
     private const string Pages = "site/learn";
-    private const string SiteMap = "site/sitemap.xml";
 
     /// <summary>The tutorial under <c>site/learn/</c> is written by hand, and lends the how-tos its header and footer.</summary>
     private static readonly string HandKept = Path.GetFileName(LearnPages.Tutorial);
 
     /// <summary>
-    /// Every emitted file by its repo-relative path. A root with no <c>concepts/learn.json</c> has no Learn section,
-    /// which is what the throwaway roots of the schema commands' tests are.
+    /// Every emitted file by its repo-relative path. A root with no programs has no Learn section, which is what the
+    /// throwaway roots of the schema commands' tests are.
     /// </summary>
     public static IReadOnlyDictionary<string, string> Emit(string repoRoot)
     {
         var emitted = new Dictionary<string, string>(StringComparer.Ordinal);
-        if (!LearnLibrary.Exists(repoRoot, LearnLibrary.SectionsFile))
+        if (!Directory.Exists(LearnLibrary.PathOf(repoRoot, LearnLibrary.Root)))
         {
             return emitted;
         }
@@ -37,21 +37,8 @@ internal static partial class LearnEmitter
         }
         emitted["site/learn.html"] = pages.Hub();
         emitted[$"{Pages}/index.md"] = pages.IndexMarkdown();
-        emitted["docs/reference/concept-ladder.md"] = pages.LadderDocument();
-
-        // Search engines get every how-to in the sitemap. The entries under /learn/ are rewritten on every run; the
-        // rest of the file is kept by hand.
-        var siteMap = LearnEntry().Replace(LearnLibrary.Read(repoRoot, SiteMap), "");
-        if (!siteMap.Contains("</urlset>", StringComparison.Ordinal))
-        {
-            throw new LearnException($"{SiteMap} has no </urlset>");
-        }
-        var urls = new[] { "/learn/" + Path.GetFileNameWithoutExtension(HandKept) }.Concat(library.Ordered.Select(entry => entry.Url));
-        emitted[SiteMap] = siteMap.Replace(
-            "</urlset>",
-            string.Concat(urls.Select(url => $"  <url>\n    <loc>https://useacta.net{url}</loc>\n  </url>\n")) + "</urlset>",
-            StringComparison.Ordinal
-        );
+        emitted[$"{Pages}/sitemap.xml"] = pages.SiteMap();
+        emitted[LearnPages.Table] = pages.TableDocument();
 
         foreach (var file in emitted.Keys.ToList())
         {
@@ -73,10 +60,22 @@ internal static partial class LearnEmitter
         return emitted;
     }
 
+    /// <summary>Emitted files that are missing on disk or no longer what would be emitted.</summary>
+    public static IReadOnlyList<string> Stale(string repoRoot, IReadOnlyDictionary<string, string> emitted) =>
+        emitted
+            .Where(pair =>
+            {
+                var path = LearnLibrary.PathOf(repoRoot, pair.Key);
+                return !File.Exists(path) || !CheckCommand.NewlineEqual(File.ReadAllText(path), pair.Value);
+            })
+            .Select(pair => pair.Key)
+            .Order(StringComparer.Ordinal)
+            .ToList();
+
     /// <summary>Files under <c>site/learn/</c> that no program stands behind any more.</summary>
     public static IReadOnlyList<string> Strays(string repoRoot, IReadOnlyDictionary<string, string> emitted)
     {
-        var directory = Path.Combine(repoRoot, "site", "learn");
+        var directory = LearnLibrary.PathOf(repoRoot, Pages);
         if (emitted.Count == 0 || !Directory.Exists(directory))
         {
             return [];
@@ -86,11 +85,11 @@ internal static partial class LearnEmitter
             .Select(path => Path.GetFileName(path)!)
             .Where(name => name != HandKept && !emitted.ContainsKey($"{Pages}/{name}"))
             .Select(name => $"{Pages}/{name}")
-            .OrderBy(name => name, StringComparer.Ordinal)
+            .Order(StringComparer.Ordinal)
             .ToList();
     }
 
-    /// <summary>Writes the section and removes its strays; answers how many files it wrote, or -1 when a rung stops it.</summary>
+    /// <summary>Writes the section and removes its strays; answers the exit code.</summary>
     public static int Write(string repoRoot)
     {
         IReadOnlyDictionary<string, string> emitted;
@@ -101,20 +100,24 @@ internal static partial class LearnEmitter
         catch (LearnException stop)
         {
             Console.Error.WriteLine($"  learn: {stop.Message}");
-            return -1;
+            return 1;
         }
 
         foreach (var stray in Strays(repoRoot, emitted))
         {
-            File.Delete(PathOf(repoRoot, stray));
+            File.Delete(LearnLibrary.PathOf(repoRoot, stray));
         }
         foreach (var (file, text) in emitted)
         {
-            var path = PathOf(repoRoot, file);
+            var path = LearnLibrary.PathOf(repoRoot, file);
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
             File.WriteAllText(path, text);
         }
-        return emitted.Count;
+        if (emitted.Count > 0)
+        {
+            Console.WriteLine($"  wrote {emitted.Count} files of the Learn section: the how-tos under {Pages} and {LearnPages.Table}");
+        }
+        return 0;
     }
 
     /// <summary>Compares what is on disk with what would be emitted; answers how many findings it printed.</summary>
@@ -131,15 +134,7 @@ internal static partial class LearnEmitter
             return 1;
         }
 
-        var stale = emitted
-            .Where(pair =>
-            {
-                var path = PathOf(repoRoot, pair.Key);
-                return !File.Exists(path) || File.ReadAllText(path).Replace("\r\n", "\n", StringComparison.Ordinal) != pair.Value;
-            })
-            .Select(pair => pair.Key)
-            .OrderBy(file => file, StringComparer.Ordinal)
-            .ToList();
+        var stale = Stale(repoRoot, emitted);
         var strays = Strays(repoRoot, emitted);
         foreach (var file in stale.Take(12))
         {
@@ -155,16 +150,10 @@ internal static partial class LearnEmitter
         }
         if (stale.Count == 0 && strays.Count == 0 && emitted.Count > 0)
         {
-            Console.WriteLine("  ok:      the how-tos match their programs, READMEs, and concepts/learn.json");
+            Console.WriteLine($"  ok:      the how-tos match their programs, READMEs, and {LearnLibrary.SectionsFile}");
         }
         return stale.Count + strays.Count;
     }
-
-    private static string PathOf(string repoRoot, string relative) =>
-        Path.Combine(repoRoot, relative.Replace('/', Path.DirectorySeparatorChar));
-
-    [GeneratedRegex(@"  <url>\n    <loc>https://useacta\.net/learn/[^<]*</loc>\n  </url>\n")]
-    private static partial Regex LearnEntry();
 
     [GeneratedRegex(@"(?:href=""|\]\()(/learn(?:/[^""#)\s]*)?)")]
     private static partial Regex LearnLink();

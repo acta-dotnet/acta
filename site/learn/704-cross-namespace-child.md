@@ -36,6 +36,8 @@ builder.Services.UseActa(j =>
 
 using var host = builder.Build();
 await host.StartAsync();
+
+var jobs = host.Services.GetRequiredService<IJobs>();
 ```
 
 ## 2. Name the child's namespace and job
@@ -57,44 +59,18 @@ var charge = await context.EnqueueChildAsync(
 In `cross-namespace-child.cs` (excerpt):
 
 ```csharp
-public sealed record PlaceOrder(string OrderId, decimal Amount);
+var charge = await context.EnqueueChildAsync(
+    "charge",
+    "billing",
+    "charge-payment",
+    JobPayload.Json(new ChargePayment(order.OrderId, order.Amount)),
+    ct: ct
+);
 
-public sealed record ChargePayment(string OrderId, decimal Amount);
-
-public sealed record PaymentReceipt(string TransactionId);
-
-public sealed record OrderConfirmation(string OrderId, string TransactionId);
-
-public sealed class OrderJobs
+var outcome = await context.WaitChildAsync(charge, ct);
+if (!outcome.Succeeded)
 {
-    [Job("place-order")]
-    public async Task<OrderConfirmation> Handle(PlaceOrder order, JobContext context, CancellationToken ct)
-    {
-        var charge = await context.EnqueueChildAsync(
-            "charge",
-            "billing",
-            "charge-payment",
-            JobPayload.Json(new ChargePayment(order.OrderId, order.Amount)),
-            ct: ct
-        );
-
-        var outcome = await context.WaitChildAsync(charge, ct);
-        if (!outcome.Succeeded)
-        {
-            await context.FailAsync($"billing declined ({outcome.Status}); see the child's job events for the reason", ct);
-        }
-
-        var receipt = await context.GetChildResultAsync<PaymentReceipt>(charge.JobId, ct);
-        return new OrderConfirmation(order.OrderId, receipt.TransactionId);
-    }
-
-    [Job("charge-payment")]
-    public async Task<PaymentReceipt> Charge(ChargePayment charge, CancellationToken ct)
-    {
-        await Task.Delay(200, ct);
-        Console.WriteLine($"[billing] charged {charge.Amount:0.00} EUR for {charge.OrderId}");
-        return new PaymentReceipt($"tx-{charge.OrderId}");
-    }
+    await context.FailAsync($"billing declined ({outcome.Status}); see the child's job events for the reason", ct);
 }
 ```
 
@@ -115,47 +91,14 @@ var receipt = await context.GetChildResultAsync<PaymentReceipt>(charge.JobId, ct
 In `cross-namespace-child.cs` (excerpt):
 
 ```csharp
-public sealed record PlaceOrder(string OrderId, decimal Amount);
-
-public sealed record ChargePayment(string OrderId, decimal Amount);
-
-public sealed record PaymentReceipt(string TransactionId);
-
-public sealed record OrderConfirmation(string OrderId, string TransactionId);
-
-public sealed class OrderJobs
+var outcome = await context.WaitChildAsync(charge, ct);
+if (!outcome.Succeeded)
 {
-    [Job("place-order")]
-    public async Task<OrderConfirmation> Handle(PlaceOrder order, JobContext context, CancellationToken ct)
-    {
-        // The raw EnqueueChildAsync overload names an explicit (namespace, job) route; the completion
-        // latch lands on the parent regardless of where the child ran.
-        var charge = await context.EnqueueChildAsync(
-            "charge",
-            "billing",
-            "charge-payment",
-            JobPayload.Json(new ChargePayment(order.OrderId, order.Amount)),
-            ct: ct
-        );
-
-        var outcome = await context.WaitChildAsync(charge, ct);
-        if (!outcome.Succeeded)
-        {
-            await context.FailAsync($"billing declined ({outcome.Status}); see the child's job events for the reason", ct);
-        }
-
-        var receipt = await context.GetChildResultAsync<PaymentReceipt>(charge.JobId, ct);
-        return new OrderConfirmation(order.OrderId, receipt.TransactionId);
-    }
-
-    [Job("charge-payment")]
-    public async Task<PaymentReceipt> Charge(ChargePayment charge, CancellationToken ct)
-    {
-        await Task.Delay(200, ct);
-        Console.WriteLine($"[billing] charged {charge.Amount:0.00} EUR for {charge.OrderId}");
-        return new PaymentReceipt($"tx-{charge.OrderId}");
-    }
+    await context.FailAsync($"billing declined ({outcome.Status}); see the child's job events for the reason", ct);
 }
+
+var receipt = await context.GetChildResultAsync<PaymentReceipt>(charge.JobId, ct);
+return new OrderConfirmation(order.OrderId, receipt.TransactionId);
 ```
 
 ## 4. Run it and check the output

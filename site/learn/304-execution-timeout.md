@@ -23,8 +23,6 @@ The lines that matter:
 In `execution-timeout.cs` (excerpt):
 
 ```csharp
-public sealed record SlowReport(string Name);
-
 public sealed class SlowReportJob
 {
     [Job("slow-report", ExecutionTimeout = "2s", MaxAttempts = 1)]
@@ -48,12 +46,8 @@ await Task.Delay(TimeSpan.FromSeconds(10), ct); // exceeds the 2s timeout, so ct
 In `execution-timeout.cs` (excerpt):
 
 ```csharp
-public sealed record SlowReport(string Name);
-
 public sealed class SlowReportJob
 {
-    // ExecutionTimeout caps a single attempt: after 2s the framework trips the CancellationToken
-    // and the attempt ends as a timeout.
     [Job("slow-report", ExecutionTimeout = "2s", MaxAttempts = 1)]
     public async Task Handle(SlowReport input, JobContext context, CancellationToken ct)
     {

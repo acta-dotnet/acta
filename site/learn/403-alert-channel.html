@@ -57,7 +57,7 @@
   </div>
 
 
-  <main id="content" data-howto="403">
+  <main id="content">
     <header class="wrap page-head howto-head">
       <p class="record"><a href="/learn">learn acta</a><span aria-hidden="true">/</span><a href="/learn#s-alerts">get told when something breaks</a></p>
       <h1>How to send alerts to your own channel</h1>
@@ -77,66 +77,35 @@
       <article class="howto person-face">
 <div class="step"><h2><span class="step-n">1</span>Declare the channel on the worker</h2>
 <p>Alert channels declare process-local delivery configuration. Alert rows persist only the selected channel name; endpoints and secrets stay in app configuration. MinSeverity = Warning suppresses lower-severity alerts at delivery.</p>
-<figure class="listing"><figcaption><span class="file">alert-channel.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-1">Copy</button></figcaption><pre><code id="code-1"><span class="k">var</span> builder = Host.CreateApplicationBuilder(args);
+<figure class="listing"><figcaption><span class="file">alert-channel.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code>w.AddManifest&lt;AlertChannelJobs&gt;();
 
-builder.Services.UseActa(j =&gt;
-{
-    j.UseLocalDatabase(builder.Configuration);
-
-    <span class="c">// Use the namespace-plus-configure worker registration form so alert channels can be declared</span>
-    <span class="c">// through the worker builder.</span>
-    j.Run(<span class="s">&quot;alert-channel&quot;</span>, w =&gt;
-    {
-        w.AddManifest&lt;AlertChannelJobs&gt;();
-
-<span class="hl">        w.AddAlertChannel(</span>
-<span class="hl">            <span class="s">&quot;ops&quot;</span>,</span>
-<span class="hl">            AlertTransportKinds.Log,</span>
-<span class="hl">            endpoint: <span class="s">&quot;ops&quot;</span>, <span class="c">// the log transport ignores the endpoint; a Slack channel passes its URL here</span></span>
-<span class="hl">            o =&gt;</span>
-<span class="hl">            {</span>
-<span class="hl">                o.MinSeverity = AlertSeverityCode.Warning;</span>
-<span class="hl">            }</span>
-<span class="hl">        );</span>
-    });
-});
-
-<span class="k">using</span> <span class="k">var</span> host = builder.Build();
-<span class="k">await</span> host.StartAsync();</code></pre></figure>
+<span class="hl">w.AddAlertChannel(</span>
+<span class="hl">    <span class="s">&quot;ops&quot;</span>,</span>
+<span class="hl">    AlertTransportKinds.Log,</span>
+<span class="hl">    endpoint: <span class="s">&quot;ops&quot;</span>, <span class="c">// the log transport ignores the endpoint; a Slack channel passes its URL here</span></span>
+<span class="hl">    o =&gt;</span>
+<span class="hl">    {</span>
+<span class="hl">        o.MinSeverity = AlertSeverityCode.Warning;</span>
+<span class="hl">    }</span>
+<span class="hl">);</span></code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">2</span>Name the channel when you raise the alert</h2>
 <p>Route to the &quot;ops&quot; channel instead of the default.</p>
-<figure class="listing"><figcaption><span class="file">alert-channel.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-2">Copy</button></figcaption><pre><code id="code-2"><span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> CheckDiskSpace(<span class="k">string</span> Server, <span class="k">int</span> FreePercent);
-
-<span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> CheckDiskSpaceJob
-{
-    <span class="a">[Job(<span class="s">&quot;check-disk-space&quot;</span>)]</span>
-    <span class="k">public</span> <span class="k">async</span> Task Handle(CheckDiskSpace input, JobContext context, CancellationToken ct)
-    {
-        <span class="k">await</span> Task.Delay(50, ct);
-
-        <span class="k">if</span> (input.FreePercent &lt; 10)
-        {
-<span class="hl">            <span class="k">await</span> context.AlertAsync(</span>
-<span class="hl">                title: <span class="s">$&quot;Low disk space on {input.Server}&quot;</span>,</span>
-<span class="hl">                message: <span class="s">$&quot;Only {input.FreePercent}% free on {input.Server}.&quot;</span>,</span>
-<span class="hl">                severityCode: AlertSeverityCode.Error,</span>
-<span class="hl">                channelName: <span class="s">&quot;ops&quot;</span>,</span>
-<span class="hl">                deduplicationKey: <span class="s">$&quot;disk:{input.Server}&quot;</span>,</span>
-<span class="hl">                ct: ct</span>
-<span class="hl">            );</span>
-            Console.WriteLine(<span class="s">$&quot;[{input.Server}] low disk - alerted ops ({input.FreePercent}% free)&quot;</span>);
-            <span class="k">return</span>;
-        }
-
-        Console.WriteLine(<span class="s">$&quot;[{input.Server}] disk OK ({input.FreePercent}% free)&quot;</span>);
-    }
-}</code></pre></figure>
+<figure class="listing"><figcaption><span class="file">alert-channel.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="hl"><span class="k">await</span> context.AlertAsync(</span>
+<span class="hl">    title: <span class="s">$&quot;Low disk space on {input.Server}&quot;</span>,</span>
+<span class="hl">    message: <span class="s">$&quot;Only {input.FreePercent}% free on {input.Server}.&quot;</span>,</span>
+<span class="hl">    severityCode: AlertSeverityCode.Error,</span>
+<span class="hl">    channelName: <span class="s">&quot;ops&quot;</span>,</span>
+<span class="hl">    deduplicationKey: <span class="s">$&quot;disk:{input.Server}&quot;</span>,</span>
+<span class="hl">    ct: ct</span>
+<span class="hl">);</span>
+Console.WriteLine(<span class="s">$&quot;[{input.Server}] low disk - alerted ops ({input.FreePercent}% free)&quot;</span>);
+<span class="k">return</span>;</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">3</span>Run it and check the output</h2>
 <p>From a clone of <a href="https://github.com/acta-dotnet/acta">the Acta repository</a>, with the .NET 10 SDK:</p>
-<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-3">Copy</button></figcaption><pre><code id="code-3">dotnet run --project concepts/400-observability-and-alerts/403-alert-channel</code></pre></figure>
-<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button" data-copy-target="#code-4">Copy</button></figcaption><pre><code id="code-4">[db-server] low disk - alerted ops (4% free)
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project concepts/400-observability-and-alerts/403-alert-channel</code></pre></figure>
+<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button">Copy</button></figcaption><pre><code>[db-server] low disk - alerted ops (4% free)
 alert [Error] Low disk space on db-server -&gt; channel 'ops'</code></pre></figure>
 <p class="proof checked"><b>Checked every release.</b> Before each release, Acta Verify runs this program and checks that its output contains these lines.</p>
 <p class="hint">This page shows the code. The rules it relies on, starting with the handler running again from its first line, are in <a href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#handler-contract">the handler contract</a>.</p>
@@ -144,7 +113,7 @@ alert [Error] Low disk space on db-server -&gt; channel 'ops'</code></pre></figu
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/concepts/400-observability-and-alerts/403-alert-channel"><code>concepts/400-observability-and-alerts/403-alert-channel</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">alert-channel.cs</span><span class="file-size">85 lines</span></summary><figure class="listing"><figcaption><span class="file">alert-channel.cs</span><button class="copy" type="button" data-copy-target="#code-5">Copy</button></figcaption><pre><code id="code-5"><span class="c">// How to send alerts to your own channel</span>
+<details class="source-file"><summary><span class="file-name">alert-channel.cs</span><span class="file-size">85 lines</span></summary><figure class="listing"><figcaption><span class="file">alert-channel.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to send alerts to your own channel</span>
 <span class="c">// `AddAlertChannel` declares where alerts go, under a name of your choice, and an alert names the channel it is for.</span>
 <span class="k">using</span> Acta;
 <span class="k">using</span> Acta.Concepts.AlertChannel;
@@ -228,11 +197,12 @@ builder.Services.UseActa(j =&gt;
             Console.WriteLine(<span class="s">$&quot;[{input.Server}] disk OK ({input.FreePercent}% free)&quot;</span>);
         }
     }
-}</code></pre></figure></details></div>
+}</code></pre></figure>
+</details></div>
 <div class="step plain-step"><h2>Where to go next</h2><ul class="next-links"><li><a href="/learn/405-real-alert-routing">How to route alerts to Slack from configuration</a><span>Get told when something breaks</span></li></ul></div>
       </article>
       <article class="agent-face" hidden>
-        <figure class="listing agent"><figcaption><span class="file">/learn/403-alert-channel.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/403-alert-channel.md">Open</a><button class="copy" type="button" data-copy-target="#md-body">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
+        <figure class="listing agent"><figcaption><span class="file">/learn/403-alert-channel.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/403-alert-channel.md">Open</a><button class="copy" type="button">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
         <p class="hint">This is the page an agent receives: the same how-to as plain Markdown, at this page's address with <code>.md</code> added.</p>
       </article>
       <aside class="howto-rail" aria-label="This section">

@@ -44,21 +44,9 @@ internal sealed partial class LearnPages
 
     // ---- shared page pieces ----
 
-    private string Page(
-        string title,
-        string description,
-        string url,
-        string md,
-        string body,
-        string attrs,
-        IEnumerable<string> structuredData
-    )
+    private string Page(string title, string description, string url, string md, string body, IEnumerable<string> structuredData)
     {
-        var structured = string.Concat(
-            structuredData.Select(json =>
-                $"\n  <script type=\"application/ld+json\">{json.Replace("<", "\\u003c", StringComparison.Ordinal)}</script>"
-            )
-        );
+        var structured = string.Concat(structuredData.Select(json => $"\n  <script type=\"application/ld+json\">{json}</script>"));
         return $"""
             <!doctype html>
             <html lang="en">
@@ -90,7 +78,7 @@ internal sealed partial class LearnPages
             </head>
             <body>
             {_chrome}
-              <main id="content"{attrs}>
+              <main id="content">
             {body}
             {_footer}
               </main>
@@ -114,7 +102,7 @@ internal sealed partial class LearnPages
     private static string AgentFace(string md) =>
         $"""
             <article class="agent-face" hidden>
-                    <figure class="listing agent"><figcaption><span class="file">{md}</span><span class="note" data-md-size></span><a class="copy" href="{md}">Open</a><button class="copy" type="button" data-copy-target="#md-body">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
+                    <figure class="listing agent"><figcaption><span class="file">{md}</span><span class="note" data-md-size></span><a class="copy" href="{md}">Open</a><button class="copy" type="button">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
                     <p class="hint">This is the page an agent receives: the same how-to as plain Markdown, at this page's address with <code>.md</code> added.</p>
                   </article>
             """;
@@ -122,33 +110,13 @@ internal sealed partial class LearnPages
     /// <summary>A listing whose emphasised lines carry a band.</summary>
     private static string RowsHtml(IReadOnlyList<ShownRow> rows)
     {
-        var indent = Math.Min(99, rows.Where(row => row.Source.Trim().Length > 0).Select(Indent).DefaultIfEmpty(99).Min());
-        var lines = Colour(string.Join('\n', rows.Select(row => row.Source[Math.Min(indent, row.Source.Length)..]))).Split('\n');
+        var lines = Colour(string.Join('\n', LearnText.Dedent(rows.Select(row => row.Source)))).Split('\n');
         return string.Join(
             '\n',
             lines.Select(
-                (line, n) =>
-                    n < rows.Count && rows[n].Emphasised && Count(line, "<span") == Count(line, "</span>")
-                        ? $"<span class=\"hl\">{(line.Length > 0 ? line : " ")}</span>"
-                        : line
+                (line, n) => n < rows.Count && rows[n].Emphasised ? $"<span class=\"hl\">{(line.Length > 0 ? line : " ")}</span>" : line
             )
         );
-    }
-
-    private static int Indent(ShownRow row) => row.Source.Length - row.Source.TrimStart(' ').Length;
-
-    private static int Count(string text, string part)
-    {
-        var count = 0;
-        for (
-            var at = text.IndexOf(part, StringComparison.Ordinal);
-            at >= 0;
-            at = text.IndexOf(part, at + part.Length, StringComparison.Ordinal)
-        )
-        {
-            count++;
-        }
-        return count;
     }
 
     private static (string Key, string Label, string Text) StatusOf(HowTo entry) =>
@@ -161,7 +129,7 @@ internal sealed partial class LearnPages
         : entry.Skip is not null ? ("proven", "Proven by other suites", $"The release check does not run this program. {entry.Skip}")
         : ("checked", "Runs as a test", "This program is a test project: it passes or fails with the test suite.");
 
-    private static string Marks(HowTo entry) => entry.Lab ? "<span class=\"mark lab\">Lab</span>" : "";
+    private static string Marks(HowTo entry) => entry.Lab ? "<span class=\"mark\">Lab</span>" : "";
 
     // ---- one how-to: the person's page ----
 
@@ -172,17 +140,17 @@ internal sealed partial class LearnPages
                 (
                     step.Title,
                     (step.Prose.Length > 0 ? $"<p>{_text.Inline(step.Prose, entry.Dir)}</p>\n" : "")
-                        + _text.Listing(step.File, step.Part ? "excerpt" : "", RowsHtml(step.Rows))
+                        + LearnText.Listing(step.File, step.Part ? "excerpt" : "", RowsHtml(step.Rows))
                 )
             )
             .ToList();
         var status = StatusOf(entry);
         var run =
             $"<p>From a clone of <a href=\"{Repository}\">the Acta repository</a>, with the .NET 10 SDK:</p>\n"
-            + _text.Listing(null, "Terminal", Esc(entry.Command));
+            + LearnText.Listing(null, "Terminal", Esc(entry.Command));
         if (entry.Prints is not null)
         {
-            run += _text.Listing(null, "Its output must contain", Esc(string.Join('\n', entry.Prints)), output: true);
+            run += LearnText.Listing(null, "Its output must contain", Esc(string.Join('\n', entry.Prints)), output: true);
         }
         run += $"<p class=\"proof {status.Key}\"><b>{Esc(status.Label)}.</b> {Esc(status.Text)}</p>\n";
         if (entry.Rules.Count == 0)
@@ -229,7 +197,7 @@ internal sealed partial class LearnPages
             html.Append("</div>\n");
         }
 
-        // A rung's notes stay on the page, folded, so the how-to above them stays short.
+        // The notes stay on the page, folded, so the how-to above them stays short.
         if (entry.Notes.Length > 0)
         {
             var summary = entry.Lab ? LabPrefix().Replace(entry.Heading ?? "", "The lab behind it: ") : "Notes on the program";
@@ -238,7 +206,7 @@ internal sealed partial class LearnPages
                 : "";
             html.Append(
                 CultureInfo.InvariantCulture,
-                $"<details class=\"step lab-notes\"><summary>{_text.Inline(summary)}</summary>\n{lab}{_text.Blocks(entry.Notes, entry.Dir, 3)}</details>\n"
+                $"<details class=\"step lab-notes\"><summary>{_text.Inline(summary)}</summary>\n{lab}{_text.Blocks(entry.Notes, entry.Dir)}</details>\n"
             );
         }
 
@@ -251,9 +219,8 @@ internal sealed partial class LearnPages
             '\n',
             entry.Files.Select(file =>
             {
-                var id = _text.NextListingId();
                 var rows = file.Rows.Select(row => new ShownRow(row.Source, row.Kind == RowKind.Code && row.Step >= 0)).ToList();
-                return $"<details class=\"source-file\"><summary><span class=\"file-name\">{Esc(file.Name)}</span><span class=\"file-size\">{file.LineCount} lines</span></summary><figure class=\"listing\"><figcaption><span class=\"file\">{Esc(file.Name)}</span><button class=\"copy\" type=\"button\" data-copy-target=\"#{id}\">Copy</button></figcaption><pre><code id=\"{id}\">{RowsHtml(rows)}</code></pre></figure></details>";
+                return $"<details class=\"source-file\"><summary><span class=\"file-name\">{Esc(file.Name)}</span><span class=\"file-size\">{file.Rows.Count} lines</span></summary>{LearnText.Listing(file.Name, null, RowsHtml(rows))}</details>";
             })
         );
         html.Append(
@@ -272,7 +239,6 @@ internal sealed partial class LearnPages
 
     public string HowToPage(HowTo entry)
     {
-        _text.StartPage();
         var status = StatusOf(entry);
         var section = entry.Section;
         var rail = string.Join(
@@ -329,18 +295,10 @@ internal sealed partial class LearnPages
             $"{{\"@context\":\"https://schema.org\",\"@type\":\"TechArticle\",\"headline\":{Json(entry.Title)},\"description\":{Json(description)},\"url\":{Json(Origin + entry.Url)},\"inLanguage\":\"en\",\"articleSection\":{Json(section.Title)},\"isPartOf\":{{\"@type\":\"CollectionPage\",\"name\":\"Learn Acta\",\"url\":{Json(Origin + "/learn")}}},\"about\":{about}}}",
             $"{{\"@context\":\"https://schema.org\",\"@type\":\"BreadcrumbList\",\"itemListElement\":[{{\"@type\":\"ListItem\",\"position\":1,\"name\":\"Learn Acta\",\"item\":{Json(Origin + "/learn")}}},{{\"@type\":\"ListItem\",\"position\":2,\"name\":{Json(section.Title)},\"item\":{Json($"{Origin}/learn#s-{section.Key}")}}},{{\"@type\":\"ListItem\",\"position\":3,\"name\":{Json(entry.Title)},\"item\":{Json(Origin + entry.Url)}}}]}}",
         ];
-        return Page(
-            $"{entry.Title} · Acta, durable execution for .NET",
-            description,
-            entry.Url,
-            entry.Url + ".md",
-            body,
-            $" data-howto=\"{entry.Id}\"",
-            structuredData
-        );
+        return Page($"{entry.Title} · Acta, durable execution for .NET", description, entry.Url, entry.Url + ".md", body, structuredData);
     }
 
-    /// <summary>A string as a JSON value, written the way the browser's own serializer writes it.</summary>
+    /// <summary>A string as a JSON value that is safe inside a script element: no <c>&lt;</c> can close the element early.</summary>
     private static string Json(string value)
     {
         var json = new StringBuilder("\"");
@@ -350,6 +308,7 @@ internal sealed partial class LearnPages
                 c switch
                 {
                     '"' => "\\\"",
+                    '<' => "\\u003c",
                     '\\' => "\\\\",
                     '\b' => "\\b",
                     '\f' => "\\f",

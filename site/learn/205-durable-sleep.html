@@ -57,14 +57,14 @@
   </div>
 
 
-  <main id="content" data-howto="205">
+  <main id="content">
     <header class="wrap page-head howto-head">
       <p class="record"><a href="/learn">learn acta</a><span aria-hidden="true">/</span><a href="/learn#s-wait">wait for people, events, and time</a></p>
       <h1>How to wait for time to pass without a running process</h1>
       <p class="lede">A named sleep stores the due time, frees the worker, and wakes the job when the time comes.</p>
       <p class="howto-context">A how-to for Acta, durable execution for .NET. <a href="/start">New to Acta? Run your first durable job in five minutes.</a></p>
       <div class="howto-meta">
-        <span class="status checked">Checked every release</span><span class="mark lab">Lab</span>
+        <span class="status checked">Checked every release</span><span class="mark">Lab</span>
         <a class="program" href="https://github.com/acta-dotnet/acta/tree/main/concepts/200-durable-execution/205-durable-sleep"><code>concepts/200-durable-execution/205-durable-sleep</code></a>
         <div class="reader" role="group" aria-label="Read this page as">
         <span class="reader-label">Read as</span>
@@ -77,9 +77,7 @@
       <article class="howto person-face">
 <div class="step"><h2><span class="step-n">1</span>Sleep by name in the handler</h2>
 <p><code>SleepAsync</code> stores the due time as a row, frees the worker, and ends this execution. When the time comes the handler runs again from its first line, and the sleep, now over, lets it carry on.</p>
-<figure class="listing"><figcaption><span class="file">durable-sleep.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-1">Copy</button></figcaption><pre><code id="code-1"><span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> SendFollowUp(<span class="k">string</span> UserEmail, <span class="k">int</span> CoolDownSeconds);
-
-<span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> FollowUpJob
+<figure class="listing"><figcaption><span class="file">durable-sleep.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> FollowUpJob
 {
     <span class="a">[Job(<span class="s">&quot;send-follow-up&quot;</span>)]</span>
     <span class="k">public</span> <span class="k">async</span> Task Handle(SendFollowUp input, JobContext context, CancellationToken ct)
@@ -95,8 +93,8 @@
 </div>
 <div class="step"><h2><span class="step-n">2</span>Run it and check the output</h2>
 <p>From a clone of <a href="https://github.com/acta-dotnet/acta">the Acta repository</a>, with the .NET 10 SDK:</p>
-<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-2">Copy</button></figcaption><pre><code id="code-2">dotnet run --project concepts/200-durable-execution/205-durable-sleep</code></pre></figure>
-<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button" data-copy-target="#code-3">Copy</button></figcaption><pre><code id="code-3">preserving the cool-down in a durable timer
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project concepts/200-durable-execution/205-durable-sleep</code></pre></figure>
+<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button">Copy</button></figcaption><pre><code>preserving the cool-down in a durable timer
 follow-up is due; delivery still needs its own idempotency policy</code></pre></figure>
 <p class="proof checked"><b>Checked every release.</b> Before each release, Acta Verify runs this program and checks that its output contains these lines.</p>
 </div>
@@ -113,14 +111,14 @@ follow-up is due; delivery still needs its own idempotency policy</code></pre></
 <h3>Trade-offs</h3>
 <p>Re-entry starts at the top; bare code before the sleep runs again. Wake-up precision is bounded by the database clock and worker polling/wakeup behavior, and every timer adds durable rows and scheduling work. Code after the sleep can also repeat if the process dies after its external side effect but before job completion. Durable sleep preserves a due intention; it does not make later delivery exactly once.</p>
 <h3>Run the experiment</h3>
-<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-4">Copy</button></figcaption><pre><code id="code-4">dotnet run --project concepts/200-durable-execution/205-durable-sleep</code></pre></figure>
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project concepts/200-durable-execution/205-durable-sleep</code></pre></figure>
 <p>The lab uses a three-second timer so both phases finish quickly.</p>
 <h3>Rows to inspect</h3>
 <p>Run with <code>--all-columns</code> to execute the visible <code>SELECT *</code> Explore query first. The default Notice queries select the fields that prove the lesson, and the text below explains their meaning.</p>
 <p><code>jobs_view</code> shows a future <code>next_run_at_utc</code> and no lease while <code>checkpoints_view</code> carries the timer. The same job later reaches done with a higher execution number. Views are for operations and learning; application code should normally use <code>IJobs</code>.</p>
 <h3>Break it</h3>
 <p>Run a real process boundary against one configured database:</p>
-<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-5">Copy</button></figcaption><pre><code id="code-5">dotnet run --project concepts/200-durable-execution/205-durable-sleep -- start
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project concepts/200-durable-execution/205-durable-sleep -- start
 dotnet run --project concepts/200-durable-execution/205-durable-sleep -- inspect &lt;printed-job-ref&gt;
 dotnet run --project concepts/200-durable-execution/205-durable-sleep -- recover &lt;printed-job-ref&gt;</code></pre></figure>
 <p><code>start</code> persists a fifteen-second timer and exits. <code>inspect</code> starts no worker and proves the same job is still stored without a lease. <code>recover</code> enqueues nothing: it starts a worker and waits for that exact identity to re-enter and finish. Contrast this with <code>Task.Delay</code>, whose process-local continuation would have disappeared.</p>
@@ -132,7 +130,7 @@ dotnet run --project concepts/200-durable-execution/205-durable-sleep -- recover
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/concepts/200-durable-execution/205-durable-sleep"><code>concepts/200-durable-execution/205-durable-sleep</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> and <code>ConceptLab</code> are helpers of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">durable-sleep.cs</span><span class="file-size">181 lines</span></summary><figure class="listing"><figcaption><span class="file">durable-sleep.cs</span><button class="copy" type="button" data-copy-target="#code-6">Copy</button></figcaption><pre><code id="code-6"><span class="c">// How to wait for time to pass without a running process</span>
+<details class="source-file"><summary><span class="file-name">durable-sleep.cs</span><span class="file-size">181 lines</span></summary><figure class="listing"><figcaption><span class="file">durable-sleep.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to wait for time to pass without a running process</span>
 <span class="c">// A named sleep stores the due time, frees the worker, and wakes the job when the time comes.</span>
 <span class="k">using</span> Acta;
 <span class="k">using</span> Acta.Concepts.DurableSleep;
@@ -312,11 +310,12 @@ EnsureDone(terminal);
             Console.WriteLine(<span class="s">$&quot;[{input.UserEmail}] follow-up is due; delivery still needs its own idempotency policy&quot;</span>);
         }
     }
-}</code></pre></figure></details></div>
+}</code></pre></figure>
+</details></div>
 <div class="step plain-step"><h2>Where to go next</h2><ul class="next-links"><li><a href="/learn/311-call-outcome-timeout">How to read the outcome of a wait that can time out</a><span>Wait for people, events, and time</span></li></ul></div>
       </article>
       <article class="agent-face" hidden>
-        <figure class="listing agent"><figcaption><span class="file">/learn/205-durable-sleep.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/205-durable-sleep.md">Open</a><button class="copy" type="button" data-copy-target="#md-body">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
+        <figure class="listing agent"><figcaption><span class="file">/learn/205-durable-sleep.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/205-durable-sleep.md">Open</a><button class="copy" type="button">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
         <p class="hint">This is the page an agent receives: the same how-to as plain Markdown, at this page's address with <code>.md</code> added.</p>
       </article>
       <aside class="howto-rail" aria-label="This section">

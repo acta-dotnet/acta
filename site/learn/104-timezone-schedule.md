@@ -23,8 +23,6 @@ The lines that matter:
 In `timezone-schedule.cs` (excerpt):
 
 ```csharp
-public readonly record struct DailyDigest;
-
 public sealed class DailyDigestJob
 {
     [Job("daily-digest")]

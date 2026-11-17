@@ -57,7 +57,7 @@
   </div>
 
 
-  <main id="content" data-howto="013">
+  <main id="content">
     <header class="wrap page-head howto-head">
       <p class="record"><a href="/learn">learn acta</a><span aria-hidden="true">/</span><a href="/learn#s-first-steps">take the first steps</a></p>
       <h1>How to read a job's result</h1>
@@ -77,7 +77,9 @@
       <article class="howto person-face">
 <div class="step"><h2><span class="step-n">1</span>Ask whether a result exists yet</h2>
 <p>Both reads are point-in-time and never wait. <code>TryGetResultAsync</code> says whether a result exists yet.</p>
-<figure class="listing"><figcaption><span class="file">read-result.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-1">Copy</button></figcaption><pre><code id="code-1"><span class="k">var</span> jobs = host.Services.GetRequiredService&lt;IJobs&gt;();
+<figure class="listing"><figcaption><span class="file">read-result.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">await</span> host.StartAsync();
+
+<span class="k">var</span> jobs = host.Services.GetRequiredService&lt;IJobs&gt;();
 
 <span class="k">var</span> handle = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> AddNumbers(20, 22));
 
@@ -86,31 +88,23 @@
 
 <span class="k">await</span> handle.WaitAsync();
 
-<span class="c">// `GetResultAsync` returns the result, and throws when there is none.</span>
 <span class="k">var</span> done = <span class="k">await</span> handle.GetResultAsync&lt;AddNumbersResult&gt;();
 Console.WriteLine(<span class="s">$&quot;after it finishes: {done.Sum}&quot;</span>);</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">2</span>Read the result you expect</h2>
 <p><code>GetResultAsync</code> returns the result, and throws when there is none.</p>
-<figure class="listing"><figcaption><span class="file">read-result.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-2">Copy</button></figcaption><pre><code id="code-2"><span class="k">var</span> jobs = host.Services.GetRequiredService&lt;IJobs&gt;();
-
-<span class="k">var</span> handle = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> AddNumbers(20, 22));
-
-<span class="c">// Both reads are point-in-time and never wait. `TryGetResultAsync` says whether a result exists yet.</span>
-<span class="k">var</span> early = <span class="k">await</span> handle.TryGetResultAsync&lt;AddNumbersResult&gt;();
+<figure class="listing"><figcaption><span class="file">read-result.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">var</span> early = <span class="k">await</span> handle.TryGetResultAsync&lt;AddNumbersResult&gt;();
 Console.WriteLine(<span class="s">$&quot;right away:        {(early.Found ? early.Value!.Sum.ToString() : &quot;no result yet&quot;)}&quot;</span>);
 
 <span class="k">await</span> handle.WaitAsync();
 
 <span class="hl"><span class="k">var</span> done = <span class="k">await</span> handle.GetResultAsync&lt;AddNumbersResult&gt;();</span>
-<span class="hl">Console.WriteLine(<span class="s">$&quot;after it finishes: {done.Sum}&quot;</span>);</span></code></pre></figure>
+<span class="hl">Console.WriteLine(<span class="s">$&quot;after it finishes: {done.Sum}&quot;</span>);</span>
+
+<span class="k">await</span> host.StopAsync();</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">3</span>The job it acts on</h2>
-<figure class="listing"><figcaption><span class="file">read-result.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-3">Copy</button></figcaption><pre><code id="code-3"><span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> AddNumbers(<span class="k">int</span> Left, <span class="k">int</span> Right);
-
-<span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> AddNumbersResult(<span class="k">int</span> Sum);
-
-<span class="k">public</span> <span class="k">static</span> <span class="k">class</span> AddNumbersJob
+<figure class="listing"><figcaption><span class="file">read-result.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">static</span> <span class="k">class</span> AddNumbersJob
 {
     <span class="a">[Job(<span class="s">&quot;add-numbers&quot;</span>)]</span>
     <span class="k">public</span> <span class="k">static</span> <span class="k">async</span> Task&lt;AddNumbersResult&gt; Handle(AddNumbers input, CancellationToken ct)
@@ -122,8 +116,8 @@ Console.WriteLine(<span class="s">$&quot;right away:        {(early.Found ? earl
 </div>
 <div class="step"><h2><span class="step-n">4</span>Run it and check the output</h2>
 <p>From a clone of <a href="https://github.com/acta-dotnet/acta">the Acta repository</a>, with the .NET 10 SDK:</p>
-<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-4">Copy</button></figcaption><pre><code id="code-4">dotnet run --project concepts/000-fundamentals/013-read-result</code></pre></figure>
-<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button" data-copy-target="#code-5">Copy</button></figcaption><pre><code id="code-5">right away:        no result yet
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project concepts/000-fundamentals/013-read-result</code></pre></figure>
+<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button">Copy</button></figcaption><pre><code>right away:        no result yet
 after it finishes: 42</code></pre></figure>
 <p class="proof checked"><b>Checked every release.</b> Before each release, Acta Verify runs this program and checks that its output contains these lines.</p>
 </div>
@@ -131,7 +125,7 @@ after it finishes: 42</code></pre></figure>
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/concepts/000-fundamentals/013-read-result"><code>concepts/000-fundamentals/013-read-result</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">read-result.cs</span><span class="file-size">56 lines</span></summary><figure class="listing"><figcaption><span class="file">read-result.cs</span><button class="copy" type="button" data-copy-target="#code-6">Copy</button></figcaption><pre><code id="code-6"><span class="c">// How to read a job's result</span>
+<details class="source-file"><summary><span class="file-name">read-result.cs</span><span class="file-size">56 lines</span></summary><figure class="listing"><figcaption><span class="file">read-result.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to read a job's result</span>
 <span class="c">// `TryGetResultAsync&lt;T&gt;` finds nothing before Succeeded; `GetResultAsync&lt;T&gt;` returns the result you expect.</span>
 <span class="k">using</span> Acta;
 <span class="k">using</span> Acta.Concepts.ReadResult;
@@ -186,11 +180,12 @@ builder.Services.UseActa(j =&gt;
             <span class="k">return</span> <span class="k">new</span> AddNumbersResult(input.Left + input.Right);
         }
     }
-}</code></pre></figure></details></div>
+}</code></pre></figure>
+</details></div>
 <div class="step plain-step"><h2>Where to go next</h2><ul class="next-links"><li><a href="/learn/024-aspnet-enqueue-api">How to start a job from an HTTP endpoint and poll it</a><span>Take the first steps</span></li></ul></div>
       </article>
       <article class="agent-face" hidden>
-        <figure class="listing agent"><figcaption><span class="file">/learn/013-read-result.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/013-read-result.md">Open</a><button class="copy" type="button" data-copy-target="#md-body">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
+        <figure class="listing agent"><figcaption><span class="file">/learn/013-read-result.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/013-read-result.md">Open</a><button class="copy" type="button">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
         <p class="hint">This is the page an agent receives: the same how-to as plain Markdown, at this page's address with <code>.md</code> added.</p>
       </article>
       <aside class="howto-rail" aria-label="This section">

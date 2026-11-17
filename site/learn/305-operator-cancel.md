@@ -36,6 +36,8 @@ Console.WriteLine($"cancel result: {result.Action}");
 await handle.WaitAsync();
 var snapshot = await jobs.GetAsync(handle);
 Console.WriteLine($"final status: {snapshot!.Status}");
+
+await host.StopAsync();
 ```
 
 ## 2. Pass the token to the work, so the cancel can stop it
@@ -51,8 +53,6 @@ await Task.Delay(TimeSpan.FromSeconds(30), ct); // operator cancels mid-run, so 
 In `operator-cancel.cs` (excerpt):
 
 ```csharp
-public sealed record BigExport(string Id);
-
 public sealed class BigExportJob
 {
     [Job("big-export")]

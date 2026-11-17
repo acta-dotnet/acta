@@ -32,8 +32,6 @@ await context.RunWithLockAsync(
 In `run-with-lock.cs` (excerpt):
 
 ```csharp
-public sealed record UpdateInventory(string Sku);
-
 public sealed class UpdateInventoryJob
 {
     [Job("update-inventory")]

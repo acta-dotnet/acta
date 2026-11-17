@@ -27,8 +27,6 @@ if (migration.NeedsApproval)
 In `pause-job.cs` (excerpt):
 
 ```csharp
-public sealed record ApplyMigration(string Version, bool NeedsApproval);
-
 public sealed class ApplyMigrationJob
 {
     [Job("apply-migration")]
@@ -57,11 +55,6 @@ await jobs.ResumeAsync(outcome, "approved");
 In `pause-job.cs` (excerpt):
 
 ```csharp
-var jobs = host.Services.GetRequiredService<IJobs>();
-
-var outcome = await jobs.EnqueueAsync(new ApplyMigration("v042", NeedsApproval: true));
-await Task.Delay(500);
-
 var snapshot = await jobs.GetAsync(outcome);
 Console.WriteLine($"status={snapshot!.Status}");
 Console.WriteLine("The job is parked. Resuming it as-is would replay the handler and park it again, so the");
@@ -69,9 +62,10 @@ Console.WriteLine("operator records the approval in the input first, then resume
 
 await jobs.UpdateInputAsync(outcome, JobPayload.Json(new ApplyMigration("v042", NeedsApproval: false)), "approved by ops");
 await jobs.ResumeAsync(outcome, "approved");
-
 await Task.Delay(500);
 Console.WriteLine($"status={(await jobs.GetAsync(outcome))!.Status}");
+
+await host.StopAsync();
 ```
 
 ## 3. Run it and check the output

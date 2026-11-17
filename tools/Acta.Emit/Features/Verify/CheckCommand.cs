@@ -92,7 +92,7 @@ internal static class CheckCommand
         return 0;
     }
 
-    private static bool NewlineEqual(string a, string b) =>
+    internal static bool NewlineEqual(string a, string b) =>
         string.Equals(a.ReplaceLineEndings("\n"), b.ReplaceLineEndings("\n"), StringComparison.Ordinal);
 
     private static string Canon(SchemaSnapshot s) =>

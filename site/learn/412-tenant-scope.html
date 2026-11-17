@@ -57,14 +57,14 @@
   </div>
 
 
-  <main id="content" data-howto="412">
+  <main id="content">
     <header class="wrap page-head howto-head">
       <p class="record"><a href="/learn">learn acta</a><span aria-hidden="true">/</span><a href="/learn#s-operate">watch and control running work</a></p>
       <h1>How to record which tenant a job is for</h1>
       <p class="lede"><code>TenantName</code> on the enqueue records which tenant a job is for. Its children inherit the tenant, the job list filters by it, and an enqueue for an unknown or a suspended tenant is refused.</p>
       <p class="howto-context">A how-to for Acta, durable execution for .NET. <a href="/start">New to Acta? Run your first durable job in five minutes.</a></p>
       <div class="howto-meta">
-        <span class="status checked">Checked every release</span><span class="mark lab">Lab</span>
+        <span class="status checked">Checked every release</span><span class="mark">Lab</span>
         <a class="program" href="https://github.com/acta-dotnet/acta/tree/main/concepts/400-observability-and-alerts/412-tenant-scope"><code>concepts/400-observability-and-alerts/412-tenant-scope</code></a>
         <div class="reader" role="group" aria-label="Read this page as">
         <span class="reader-label">Read as</span>
@@ -77,26 +77,27 @@
       <article class="howto person-face">
 <div class="step"><h2><span class="step-n">1</span>Register the tenant</h2>
 <p>A tenant is a row in the catalog. An enqueue names it, and the name must resolve to a tenant that is not suspended.</p>
-<figure class="listing"><figcaption><span class="file">tenant-scope.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-1">Copy</button></figcaption><pre><code id="code-1"><span class="k">var</span> jobs = host.Services.GetRequiredService&lt;IJobs&gt;();
+<figure class="listing"><figcaption><span class="file">tenant-scope.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">using</span> <span class="k">var</span> host = builder.Build();
+<span class="k">await</span> host.StartAsync();
+<span class="k">var</span> jobs = host.Services.GetRequiredService&lt;IJobs&gt;();
 <span class="k">var</span> operations = host.Services.GetRequiredService&lt;IActaOperations&gt;();
 
 <span class="hl"><span class="k">var</span> acmeId = (<span class="k">await</span> operations.Tenants.RegisterAsync(<span class="s">&quot;acme&quot;</span>, <span class="s">&quot;Acme GmbH&quot;</span>, <span class="s">&quot;Active customer used by the lab&quot;</span>)).TenantId;</span>
-
 <span class="k">await</span> operations.Tenants.RegisterAsync(<span class="s">&quot;held-customer&quot;</span>, <span class="s">&quot;Held customer&quot;</span>);
 <span class="k">await</span> operations.Tenants.SuspendAsync(<span class="s">&quot;held-customer&quot;</span>, <span class="s">&quot;Held for the lab's rejection demo&quot;</span>);
 
 <span class="k">var</span> runId = <span class="s">$&quot;tenant-scope-{Guid.CreateVersion7():N}&quot;</span>;
-</code></pre></figure>
+
+<span class="k">var</span> parent = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> ExportAccount(<span class="s">&quot;acme&quot;</span>), options =&gt; options.TenantName(<span class="s">&quot;acme&quot;</span>).CorrelationKey(runId));</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">2</span>Name the tenant when you enqueue</h2>
-<figure class="listing"><figcaption><span class="file">tenant-scope.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-2">Copy</button></figcaption><pre><code id="code-2">
+<figure class="listing"><figcaption><span class="file">tenant-scope.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">var</span> acmeId = (<span class="k">await</span> operations.Tenants.RegisterAsync(<span class="s">&quot;acme&quot;</span>, <span class="s">&quot;Acme GmbH&quot;</span>, <span class="s">&quot;Active customer used by the lab&quot;</span>)).TenantId;
 <span class="k">await</span> operations.Tenants.RegisterAsync(<span class="s">&quot;held-customer&quot;</span>, <span class="s">&quot;Held customer&quot;</span>);
 <span class="k">await</span> operations.Tenants.SuspendAsync(<span class="s">&quot;held-customer&quot;</span>, <span class="s">&quot;Held for the lab's rejection demo&quot;</span>);
 
 <span class="k">var</span> runId = <span class="s">$&quot;tenant-scope-{Guid.CreateVersion7():N}&quot;</span>;
 
 <span class="hl"><span class="k">var</span> parent = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> ExportAccount(<span class="s">&quot;acme&quot;</span>), options =&gt; options.TenantName(<span class="s">&quot;acme&quot;</span>).CorrelationKey(runId));</span>
-
 <span class="k">var</span> parentTerminal = <span class="k">await</span> WaitForAsync(jobs, parent.JobId, <span class="k">static</span> snapshot =&gt; snapshot.Status.IsTerminal, <span class="s">&quot;tenant parent to finish&quot;</span>);
 <span class="k">if</span> (parentTerminal.Status != JobStatusCode.Succeeded)
 {
@@ -105,7 +106,7 @@
 </div>
 <div class="step"><h2><span class="step-n">3</span>List the jobs of one tenant</h2>
 <p>The filter finds the parent and the child that inherited its tenant.</p>
-<figure class="listing"><figcaption><span class="file">tenant-scope.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-3">Copy</button></figcaption><pre><code id="code-3"><span class="k">var</span> parentTerminal = <span class="k">await</span> WaitForAsync(jobs, parent.JobId, <span class="k">static</span> snapshot =&gt; snapshot.Status.IsTerminal, <span class="s">&quot;tenant parent to finish&quot;</span>);
+<figure class="listing"><figcaption><span class="file">tenant-scope.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">var</span> parentTerminal = <span class="k">await</span> WaitForAsync(jobs, parent.JobId, <span class="k">static</span> snapshot =&gt; snapshot.Status.IsTerminal, <span class="s">&quot;tenant parent to finish&quot;</span>);
 <span class="k">if</span> (parentTerminal.Status != JobStatusCode.Succeeded)
 {
     <span class="k">throw</span> <span class="k">new</span> InvalidOperationException(<span class="s">$&quot;Tenant parent {parentTerminal.JobRef} ended {parentTerminal.Status}.&quot;</span>);
@@ -114,21 +115,12 @@
 <span class="hl"><span class="k">var</span> byTenant = <span class="k">await</span> operations.Ledger.ListJobsAsync(</span>
 <span class="hl">    <span class="k">new</span> ListJobsQuery(JobNamespace: jobNamespace, TenantId: acmeId, CorrelationKey: runId, IncludeTotal: <span class="k">true</span>)</span>
 <span class="hl">);</span>
-
 Console.WriteLine(
     <span class="s">$&quot;Ledger tenant + correlation filter returned {byTenant.TotalCount} current-run Acme job(s): parent and inherited child.&quot;</span>
-);
-
-<span class="k">foreach</span> (<span class="k">var</span> rejectedKey <span class="k">in</span> <span class="k">new</span>[] { <span class="s">&quot;missing-customer&quot;</span>, <span class="s">&quot;held-customer&quot;</span> })</code></pre></figure>
+);</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">4</span>The job it acts on</h2>
-<figure class="listing"><figcaption><span class="file">tenant-scope.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-4">Copy</button></figcaption><pre><code id="code-4"><span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> ExportAccount(<span class="k">string</span> TenantName);
-
-<span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> WriteExport(<span class="k">string</span> TenantName);
-
-<span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> TenantLifecycleProbe(<span class="k">string</span> TenantName);
-
-<span class="k">public</span> <span class="k">static</span> <span class="k">class</span> ExportAccountJob
+<figure class="listing"><figcaption><span class="file">tenant-scope.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">static</span> <span class="k">class</span> ExportAccountJob
 {
     <span class="a">[Job(<span class="s">&quot;export-account&quot;</span>)]</span>
     <span class="k">public</span> <span class="k">static</span> <span class="k">async</span> Task Handle(ExportAccount input, JobContext context, CancellationToken ct)
@@ -147,8 +139,8 @@ Console.WriteLine(
 </div>
 <div class="step"><h2><span class="step-n">5</span>Run it and check the output</h2>
 <p>From a clone of <a href="https://github.com/acta-dotnet/acta">the Acta repository</a>, with the .NET 10 SDK:</p>
-<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-5">Copy</button></figcaption><pre><code id="code-5">dotnet run --project concepts/400-observability-and-alerts/412-tenant-scope</code></pre></figure>
-<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button" data-copy-target="#code-6">Copy</button></figcaption><pre><code id="code-6">wrote account export for acme
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project concepts/400-observability-and-alerts/412-tenant-scope</code></pre></figure>
+<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button">Copy</button></figcaption><pre><code>wrote account export for acme
 returned 2 current-run Acme job(s): parent and inherited child.
 enqueue for 'missing-customer' rejected: TenantUnknown
 enqueue for 'held-customer' rejected: TenantSuspended</code></pre></figure>
@@ -166,13 +158,13 @@ enqueue for 'held-customer' rejected: TenantSuspended</code></pre></figure>
 <h3>Trade-offs</h3>
 <p>A shared database/catalog is an audit and control boundary, not hard data isolation. Existing in-flight jobs are not cancelled when a tenant is suspended. Tenant cardinality and query/index pressure still land on the shared store.</p>
 <h3>Run the experiment</h3>
-<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-7">Copy</button></figcaption><pre><code id="code-7">dotnet run --project concepts/400-observability-and-alerts/412-tenant-scope</code></pre></figure>
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project concepts/400-observability-and-alerts/412-tenant-scope</code></pre></figure>
 <h3>Rows to inspect</h3>
 <p>Run with <code>--all-columns</code> to execute the visible <code>SELECT *</code> Explore query first. The default Notice queries select the fields that prove the lesson, and the text below explains their meaning.</p>
 <p>The lab uses <code>jobs_view</code> and <code>events_view</code>, joining the internal tenant catalog only to decode the tenant name. It proves parent/child inheritance and also exercises the operator ledger read <code>IActaOperations.Ledger.ListJobsAsync</code> with its tenant filter and a fresh correlation key, so repeated runs still report exactly the current parent and child. Application code should use <code>IActaOperations.Tenants</code> and <code>IJobs</code>; the underlying catalog table is not a compatibility contract.</p>
 <h3>Break it</h3>
 <p>The default run rejects both an unknown and an already suspended tenant. Also run:</p>
-<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-8">Copy</button></figcaption><pre><code id="code-8">dotnet run --project concepts/400-observability-and-alerts/412-tenant-scope -- --suspend-active</code></pre></figure>
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project concepts/400-observability-and-alerts/412-tenant-scope -- --suspend-active</code></pre></figure>
 <p>The mode accepts one delayed job while <code>acme</code> is active, suspends the tenant, proves a new enqueue is rejected, and then proves the already accepted job was not cancelled. It resumes <code>acme</code> afterward so the shared local database remains repeatable.</p>
 <h3>When not to use</h3>
 <p>Use separate databases or stronger infrastructure isolation for regulatory/data-residency boundaries. Use queue partitioning when tenant ordering and throughput isolation are the primary goals. Tags are enough when the label needs no validation or lifecycle.</p>
@@ -182,7 +174,7 @@ enqueue for 'held-customer' rejected: TenantSuspended</code></pre></figure>
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/concepts/400-observability-and-alerts/412-tenant-scope"><code>concepts/400-observability-and-alerts/412-tenant-scope</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> and <code>ConceptLab</code> are helpers of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">tenant-scope.cs</span><span class="file-size">184 lines</span></summary><figure class="listing"><figcaption><span class="file">tenant-scope.cs</span><button class="copy" type="button" data-copy-target="#code-9">Copy</button></figcaption><pre><code id="code-9"><span class="c">// How to record which tenant a job is for</span>
+<details class="source-file"><summary><span class="file-name">tenant-scope.cs</span><span class="file-size">184 lines</span></summary><figure class="listing"><figcaption><span class="file">tenant-scope.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to record which tenant a job is for</span>
 <span class="c">// `TenantName` on the enqueue records which tenant a job is for. Its children inherit the tenant, the job list</span>
 <span class="c">// filters by it, and an enqueue for an unknown or a suspended tenant is refused.</span>
 <span class="k">using</span> Acta;
@@ -365,11 +357,12 @@ Console.WriteLine(
         <span class="k">public</span> <span class="k">static</span> <span class="k">void</span> Probe(TenantLifecycleProbe input) =&gt;
             Console.WriteLine(<span class="s">$&quot;work accepted before suspension still ran for {input.TenantName}&quot;</span>);
     }
-}</code></pre></figure></details></div>
+}</code></pre></figure>
+</details></div>
 <div class="step plain-step"><h2>Where to go next</h2><ul class="next-links"><li><a href="/learn/408-correlation-id">How to carry a correlation key from parent to child</a><span>Watch and control running work</span></li></ul></div>
       </article>
       <article class="agent-face" hidden>
-        <figure class="listing agent"><figcaption><span class="file">/learn/412-tenant-scope.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/412-tenant-scope.md">Open</a><button class="copy" type="button" data-copy-target="#md-body">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
+        <figure class="listing agent"><figcaption><span class="file">/learn/412-tenant-scope.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/412-tenant-scope.md">Open</a><button class="copy" type="button">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
         <p class="hint">This is the page an agent receives: the same how-to as plain Markdown, at this page's address with <code>.md</code> added.</p>
       </article>
       <aside class="howto-rail" aria-label="This section">

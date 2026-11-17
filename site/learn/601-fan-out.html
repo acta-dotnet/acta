@@ -57,7 +57,7 @@
   </div>
 
 
-  <main id="content" data-howto="601">
+  <main id="content">
     <header class="wrap page-head howto-head">
       <p class="record"><a href="/learn">learn acta</a><span aria-hidden="true">/</span><a href="/learn#s-children">split work across child jobs</a></p>
       <h1>How to enqueue many independent jobs from a handler</h1>
@@ -77,11 +77,7 @@
       <article class="howto person-face">
 <div class="step"><h2><span class="step-n">1</span>Enqueue each job with a key taken from what it is</h2>
 <p>The handler can be retried, and a replay runs the whole loop again. With a stable key the replay gets the existing job back instead of a second copy.</p>
-<figure class="listing"><figcaption><span class="file">fan-out.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-1">Copy</button></figcaption><pre><code id="code-1"><span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> MakeAlbumThumbnails(<span class="k">string</span> AlbumId, <span class="k">int</span> PhotoCount);
-
-<span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> MakeThumbnail(<span class="k">int</span> PhotoIndex);
-
-<span class="c">// Inject IJobs to fan a big task out into many small durable jobs the worker drains in parallel.</span>
+<figure class="listing"><figcaption><span class="file">fan-out.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// Inject IJobs to fan a big task out into many small durable jobs the worker drains in parallel.</span>
 <span class="c">//</span>
 <span class="c">// Every enqueued job carries a deduplication key derived from what it is, not from when it was created.</span>
 <span class="c">// This handler is retryable, and the fan-out happens before it completes: a crash mid-loop replays</span>
@@ -99,18 +95,12 @@
 <span class="hl">            <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> MakeThumbnail(photo), o =&gt; o.DeduplicationKey(<span class="s">$&quot;thumbnail-{input.AlbumId}-{photo}&quot;</span>), ct);</span>
 <span class="hl">        }</span>
     }
-}
-
-<span class="k">public</span> <span class="k">static</span> <span class="k">class</span> MakeThumbnailJob
-{
-    <span class="a">[Job(<span class="s">&quot;make-thumbnail&quot;</span>)]</span>
-    <span class="k">public</span> <span class="k">static</span> <span class="k">void</span> Handle(MakeThumbnail input) =&gt; Console.WriteLine(<span class="s">$&quot;  made thumbnail for photo #{input.PhotoIndex}&quot;</span>);
 }</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">2</span>Run it and check the output</h2>
 <p>From a clone of <a href="https://github.com/acta-dotnet/acta">the Acta repository</a>, with the .NET 10 SDK:</p>
-<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-2">Copy</button></figcaption><pre><code id="code-2">dotnet run --project concepts/600-job-composition/601-fan-out</code></pre></figure>
-<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button" data-copy-target="#code-3">Copy</button></figcaption><pre><code id="code-3">fanning out 5 thumbnail jobs
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project concepts/600-job-composition/601-fan-out</code></pre></figure>
+<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button">Copy</button></figcaption><pre><code>fanning out 5 thumbnail jobs
 made thumbnail for photo #1
 made thumbnail for photo #2
 made thumbnail for photo #3
@@ -122,7 +112,7 @@ made thumbnail for photo #5</code></pre></figure>
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/concepts/600-job-composition/601-fan-out"><code>concepts/600-job-composition/601-fan-out</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">fan-out.cs</span><span class="file-size">63 lines</span></summary><figure class="listing"><figcaption><span class="file">fan-out.cs</span><button class="copy" type="button" data-copy-target="#code-4">Copy</button></figcaption><pre><code id="code-4"><span class="c">// How to enqueue many independent jobs from a handler</span>
+<details class="source-file"><summary><span class="file-name">fan-out.cs</span><span class="file-size">63 lines</span></summary><figure class="listing"><figcaption><span class="file">fan-out.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to enqueue many independent jobs from a handler</span>
 <span class="c">// A handler takes `IJobs` and enqueues many independent jobs, each with a stable deduplication key. Nothing links</span>
 <span class="c">// them to the handler's job and nothing waits for them (compare 212's `MapAsync`).</span>
 <span class="k">using</span> Acta;
@@ -184,11 +174,12 @@ Console.WriteLine(<span class="s">&quot;Enqueued. Worker is running - press Ctrl
         <span class="a">[Job(<span class="s">&quot;make-thumbnail&quot;</span>)]</span>
         <span class="k">public</span> <span class="k">static</span> <span class="k">void</span> Handle(MakeThumbnail input) =&gt; Console.WriteLine(<span class="s">$&quot;  made thumbnail for photo #{input.PhotoIndex}&quot;</span>);
     }
-}</code></pre></figure></details></div>
+}</code></pre></figure>
+</details></div>
 <div class="step plain-step"><h2>Where to go next</h2><ul class="next-links"><li><a href="/learn/602-chained-jobs">How to chain jobs into a pipeline</a><span>Split work across child jobs</span></li></ul></div>
       </article>
       <article class="agent-face" hidden>
-        <figure class="listing agent"><figcaption><span class="file">/learn/601-fan-out.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/601-fan-out.md">Open</a><button class="copy" type="button" data-copy-target="#md-body">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
+        <figure class="listing agent"><figcaption><span class="file">/learn/601-fan-out.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/601-fan-out.md">Open</a><button class="copy" type="button">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
         <p class="hint">This is the page an agent receives: the same how-to as plain Markdown, at this page's address with <code>.md</code> added.</p>
       </article>
       <aside class="howto-rail" aria-label="This section">

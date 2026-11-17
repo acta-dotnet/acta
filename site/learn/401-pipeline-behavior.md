@@ -27,18 +27,6 @@ return result;
 In `pipeline-behavior.cs` (excerpt):
 
 ```csharp
-public sealed record GreetUser(string Name);
-
-public static class GreetUserJob
-{
-    [Job("greet-user")]
-    public static async Task Handle(GreetUser input, CancellationToken ct)
-    {
-        await Task.Delay(100, ct);
-        Console.WriteLine($"  Hi, {input.Name}!");
-    }
-}
-
 // Wraps every handler invocation; first registered is outermost. Resolved per attempt, so it can
 // take constructor dependencies (including the scoped JobContext).
 public sealed class TimingBehavior : IJobPipelineBehavior
@@ -83,6 +71,14 @@ builder.Services.UseActa(j =>
 
 using var host = builder.Build();
 await host.StartAsync();
+
+var jobs = host.Services.GetRequiredService<IJobs>();
+
+await jobs.EnqueueAsync(new GreetUser("Sam"));
+Console.WriteLine("Enqueued. Worker is running - press Ctrl+C to stop.");
+
+await host.WaitForShutdownAsync();
+await host.StopAsync();
 ```
 
 ## 3. Run it and check the output

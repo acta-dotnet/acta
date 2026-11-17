@@ -26,13 +26,15 @@ var outcomes = (await jobs.EnqueueJobsAsync(requests)).Jobs;
 In `batch-enqueue.cs` (excerpt):
 
 ```csharp
+using var host = builder.Build();
+await host.StartAsync();
+
 var jobs = host.Services.GetRequiredService<IJobs>();
 
 var requests = Enumerable.Range(1, 500).Select(_ => new EnqueueJobRequest("batch-enqueue", "ping")).ToList();
 
 var sw = Stopwatch.StartNew();
 var outcomes = (await jobs.EnqueueJobsAsync(requests)).Jobs;
-
 sw.Stop();
 Console.WriteLine(
     $"Enqueued {outcomes.Count} jobs in one round-trip in {sw.ElapsedMilliseconds} ms (ids {outcomes[0].JobId}..{outcomes[^1].JobId})."

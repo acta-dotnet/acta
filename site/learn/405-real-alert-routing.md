@@ -32,31 +32,18 @@ w.AddAlertChannel(
 In `real-alert-routing.cs` (excerpt):
 
 ```csharp
-var builder = Host.CreateApplicationBuilder(args);
+w.AddManifest<RealAlertRoutingJobs>();
 
-builder.Services.UseActa(j =>
-{
-    j.UseLocalDatabase(builder.Configuration);
-
-    j.Run("real-alert-routing", w =>
+var webhookUrl = builder.Configuration["Alerts:SlackWebhookUrl"];
+w.AddAlertChannel(
+    "ops-slack",
+    webhookUrl is null ? AlertTransportKinds.Log : AlertTransportKinds.SlackWebhook,
+    endpoint: webhookUrl ?? "ops-slack",
+    o =>
     {
-        w.AddManifest<RealAlertRoutingJobs>();
-
-        var webhookUrl = builder.Configuration["Alerts:SlackWebhookUrl"];
-        w.AddAlertChannel(
-            "ops-slack",
-            webhookUrl is null ? AlertTransportKinds.Log : AlertTransportKinds.SlackWebhook,
-            endpoint: webhookUrl ?? "ops-slack",
-            o =>
-            {
-                o.MinSeverity = AlertSeverityCode.Warning;
-            }
-        );
-    });
-});
-
-using var host = builder.Build();
-await host.StartAsync();
+        o.MinSeverity = AlertSeverityCode.Warning;
+    }
+);
 ```
 
 ## 2. Raise the alerts of one incident under one key
@@ -79,32 +66,16 @@ await context.AlertAsync(
 In `real-alert-routing.cs` (excerpt):
 
 ```csharp
-public sealed record QueueDepthCheck(string Queue, int Depth);
-
-public sealed class QueueDepthCheckJob
-{
-    [Job("queue-depth-check")]
-    public async Task Handle(QueueDepthCheck input, JobContext context, CancellationToken ct)
-    {
-        await Task.Delay(50, ct);
-
-        if (input.Depth > 10_000)
-        {
-            await context.AlertAsync(
-                title: $"Queue backlog: {input.Queue}",
-                message: $"'{input.Queue}' depth is {input.Depth}, above the 10k threshold.",
-                severityCode: AlertSeverityCode.Error,
-                channelName: "ops-slack",
-                deduplicationKey: $"queue-depth:{input.Queue}",
-                ct: ct
-            );
-            Console.WriteLine($"[{input.Queue}] depth {input.Depth} - alerted ops-slack");
-            return;
-        }
-
-        Console.WriteLine($"[{input.Queue}] depth {input.Depth} OK");
-    }
-}
+await context.AlertAsync(
+    title: $"Queue backlog: {input.Queue}",
+    message: $"'{input.Queue}' depth is {input.Depth}, above the 10k threshold.",
+    severityCode: AlertSeverityCode.Error,
+    channelName: "ops-slack",
+    deduplicationKey: $"queue-depth:{input.Queue}",
+    ct: ct
+);
+Console.WriteLine($"[{input.Queue}] depth {input.Depth} - alerted ops-slack");
+return;
 ```
 
 ## 3. Run it and check the output

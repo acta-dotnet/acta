@@ -24,10 +24,6 @@ public static AddNumbersResult Handle(AddNumbers input) => new(input.Left + inpu
 In `job-result.cs` (excerpt):
 
 ```csharp
-public sealed record AddNumbers(int Left, int Right);
-
-public sealed record AddNumbersResult(int Sum);
-
 public static class AddNumbersJob
 {
     [Job("add-numbers")]
@@ -49,12 +45,25 @@ Console.WriteLine($"2 + 3 = {result.Sum}");
 In `job-result.cs` (excerpt):
 
 ```csharp
+var builder = Host.CreateApplicationBuilder(args);
+
+builder.Services.UseActa(j =>
+{
+    j.UseLocalDatabase(builder.Configuration);
+    j.Run<JobResultJobs>("job-result");
+});
+
+using var host = builder.Build();
+await host.StartAsync();
+
 var jobs = host.Services.GetRequiredService<IJobs>();
 
 var handle = await jobs.EnqueueAsync(new AddNumbers(2, 3));
 
 var result = (await handle.WaitAsync<AddNumbersResult>()).ValueOrThrow();
 Console.WriteLine($"2 + 3 = {result.Sum}");
+
+await host.StopAsync();
 ```
 
 ## 3. Run it and check the output

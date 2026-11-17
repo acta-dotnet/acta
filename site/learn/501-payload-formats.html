@@ -57,14 +57,14 @@
   </div>
 
 
-  <main id="content" data-howto="501">
+  <main id="content">
     <header class="wrap page-head howto-head">
       <p class="record"><a href="/learn">learn acta</a><span aria-hidden="true">/</span><a href="/learn#s-start">start jobs</a></p>
       <h1>How to choose a payload format for a job</h1>
       <p class="lede">A job names the format its payload is stored in. This program runs custom formats side by side and compares their serialization time, enqueue time, readability, and stored bytes.</p>
       <p class="howto-context">A how-to for Acta, durable execution for .NET. <a href="/start">New to Acta? Run your first durable job in five minutes.</a></p>
       <div class="howto-meta">
-        <span class="status checked">Checked every release</span><span class="mark lab">Lab</span>
+        <span class="status checked">Checked every release</span><span class="mark">Lab</span>
         <a class="program" href="https://github.com/acta-dotnet/acta/tree/main/concepts/500-payloads/501-payload-formats"><code>concepts/500-payloads/501-payload-formats</code></a>
         <div class="reader" role="group" aria-label="Read this page as">
         <span class="reader-label">Read as</span>
@@ -77,9 +77,7 @@
       <article class="howto person-face">
 <div class="step"><h2><span class="step-n">1</span>Give each format a name and an id</h2>
 <p>The name is what a job writes in its attribute, so it is a constant.</p>
-<figure class="listing"><figcaption><span class="file">PayloadFormats.cs</span><button class="copy" type="button" data-copy-target="#code-1">Copy</button></figcaption><pre><code id="code-1"><span class="k">namespace</span> Acta.Concepts.PayloadFormats;
-
-<span class="c">/// &lt;summary&gt;</span>
+<figure class="listing"><figcaption><span class="file">PayloadFormats.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">/// &lt;summary&gt;</span>
 <span class="c">/// Format names and ids for the two custom serializers. The kebab-case names are &lt;c&gt;const string&lt;/c&gt;</span>
 <span class="c">/// because &lt;c&gt;[Job(Format = ...)]&lt;/c&gt; needs a compile-time constant, and hand-written because the</span>
 <span class="c">/// source generator reads them as ordinary source while building descriptors.</span>
@@ -95,11 +93,7 @@
 </div>
 <div class="step"><h2><span class="step-n">2</span>Register a serializer for each format</h2>
 <p>A custom format is an <code>IJobPayloadSerializer</code> in the application's container.</p>
-<figure class="listing"><figcaption><span class="file">Program.cs</span><button class="copy" type="button" data-copy-target="#code-2">Copy</button></figcaption><pre><code id="code-2"><span class="k">using</span> Acta;
-<span class="k">using</span> Acta.Concepts.PayloadFormats;
-<span class="k">using</span> Acta.Labs;
-
-<span class="k">var</span> builder = Host.CreateApplicationBuilder(args);
+<figure class="listing"><figcaption><span class="file">Program.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">var</span> builder = Host.CreateApplicationBuilder(args);
 builder.Services.AddSingleton(<span class="k">new</span> ConceptLab(builder.Configuration, args));
 
 <span class="hl">builder.Services.AddSingleton&lt;IJobPayloadSerializer, ScalarV1Serializer&gt;();</span>
@@ -115,14 +109,7 @@ builder.Services.AddHostedService&lt;Primer&gt;();
 <span class="k">await</span> builder.Build().RunAsync();</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">3</span>Name the format on the job</h2>
-<figure class="listing"><figcaption><span class="file">EchoGzip.cs</span><button class="copy" type="button" data-copy-target="#code-3">Copy</button></figcaption><pre><code id="code-3"><span class="k">namespace</span> Acta.Concepts.PayloadFormats;
-
-<span class="c">/// &lt;summary&gt;</span>
-<span class="c">/// Guid in a thin record, encoded with &lt;c&gt;json-gzip&lt;/c&gt;; at this size gzip framing makes it the largest wire format.</span>
-<span class="c">/// &lt;/summary&gt;</span>
-<span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> EchoGzip(Guid Value);
-
-<span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> EchoGzipHandler
+<figure class="listing"><figcaption><span class="file">EchoGzip.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> EchoGzipHandler
 {
     <span class="k">public</span> <span class="k">const</span> <span class="k">int</span> TargetCount = 250;
     <span class="k">private</span> <span class="k">static</span> <span class="k">long</span> _count;
@@ -141,8 +128,8 @@ builder.Services.AddHostedService&lt;Primer&gt;();
 </div>
 <div class="step"><h2><span class="step-n">4</span>Run it and check the output</h2>
 <p>From a clone of <a href="https://github.com/acta-dotnet/acta">the Acta repository</a>, with the .NET 10 SDK:</p>
-<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-4">Copy</button></figcaption><pre><code id="code-4">dotnet run --project concepts/500-payloads/501-payload-formats</code></pre></figure>
-<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button" data-copy-target="#code-5">Copy</button></figcaption><pre><code id="code-5">echo-json      [250/250]
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project concepts/500-payloads/501-payload-formats</code></pre></figure>
+<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button">Copy</button></figcaption><pre><code>echo-json      [250/250]
 echo-scalar    [250/250]
 echo-gzip      [250/250]</code></pre></figure>
 <p class="proof checked"><b>Checked every release.</b> Before each release, Acta Verify runs this program and checks that its output contains these lines.</p>
@@ -159,7 +146,7 @@ echo-gzip      [250/250]</code></pre></figure>
 <h3>Trade-offs</h3>
 <p>Every long-lived format needs compatibility, deployment-order, and migration discipline. Compact custom formats reduce operator readability, and compression may cost more CPU than the saved storage is worth.</p>
 <h3>Run the experiment</h3>
-<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-6">Copy</button></figcaption><pre><code id="code-6">dotnet run --project concepts/500-payloads/501-payload-formats</code></pre></figure>
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project concepts/500-payloads/501-payload-formats</code></pre></figure>
 <p>The program runs a built-in JSON baseline plus two custom formats, gzip JSON and a custom scalar, times serialization separately from the batch-enqueue round trip, waits for completion, and executes the printed byte-size comparison. Both custom serializers are plain .NET with no package: a binary codec plugs into the same <code>IJobPayloadSerializer</code> seam. Every run gets a fresh correlation key, so completion waits and measurements exclude historical rows.</p>
 <h3>Rows to inspect</h3>
 <p>Run with <code>--all-columns</code> to execute the visible <code>SELECT *</code> Explore query first. The default Notice queries select the fields that prove the lesson, and the text below explains their meaning.</p>
@@ -174,7 +161,7 @@ echo-gzip      [250/250]</code></pre></figure>
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/concepts/500-payloads/501-payload-formats"><code>concepts/500-payloads/501-payload-formats</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> and <code>ConceptLab</code> are helpers of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">Program.cs</span><span class="file-size">25 lines</span></summary><figure class="listing"><figcaption><span class="file">Program.cs</span><button class="copy" type="button" data-copy-target="#code-7">Copy</button></figcaption><pre><code id="code-7"><span class="c">// How to choose a payload format for a job</span>
+<details class="source-file"><summary><span class="file-name">Program.cs</span><span class="file-size">25 lines</span></summary><figure class="listing"><figcaption><span class="file">Program.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to choose a payload format for a job</span>
 <span class="c">// A job names the format its payload is stored in. This program runs custom formats side by side and compares their</span>
 <span class="c">// serialization time, enqueue time, readability, and stored bytes.</span>
 <span class="k">using</span> Acta;
@@ -198,8 +185,9 @@ builder.Services.UseActa(j =&gt;
 });
 builder.Services.AddHostedService&lt;Primer&gt;();
 
-<span class="k">await</span> builder.Build().RunAsync();</code></pre></figure></details>
-<details class="source-file"><summary><span class="file-name">Echo.cs</span><span class="file-size">21 lines</span></summary><figure class="listing"><figcaption><span class="file">Echo.cs</span><button class="copy" type="button" data-copy-target="#code-8">Copy</button></figcaption><pre><code id="code-8"><span class="k">namespace</span> Acta.Concepts.PayloadFormats;
+<span class="k">await</span> builder.Build().RunAsync();</code></pre></figure>
+</details>
+<details class="source-file"><summary><span class="file-name">Echo.cs</span><span class="file-size">21 lines</span></summary><figure class="listing"><figcaption><span class="file">Echo.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">namespace</span> Acta.Concepts.PayloadFormats;
 
 <span class="c">/// &lt;summary&gt;</span>
 <span class="c">/// Echo a Guid via &lt;c&gt;scalar-v1&lt;/c&gt;: 16 bytes on the wire in each direction.</span>
@@ -219,8 +207,9 @@ builder.Services.AddHostedService&lt;Primer&gt;();
         }
         <span class="k">return</span> Task.FromResult(input);
     }
-}</code></pre></figure></details>
-<details class="source-file"><summary><span class="file-name">EchoGzip.cs</span><span class="file-size">25 lines</span></summary><figure class="listing"><figcaption><span class="file">EchoGzip.cs</span><button class="copy" type="button" data-copy-target="#code-9">Copy</button></figcaption><pre><code id="code-9"><span class="k">namespace</span> Acta.Concepts.PayloadFormats;
+}</code></pre></figure>
+</details>
+<details class="source-file"><summary><span class="file-name">EchoGzip.cs</span><span class="file-size">25 lines</span></summary><figure class="listing"><figcaption><span class="file">EchoGzip.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">namespace</span> Acta.Concepts.PayloadFormats;
 
 <span class="c">/// &lt;summary&gt;</span>
 <span class="c">/// Guid in a thin record, encoded with &lt;c&gt;json-gzip&lt;/c&gt;; at this size gzip framing makes it the largest wire format.</span>
@@ -244,8 +233,9 @@ builder.Services.AddHostedService&lt;Primer&gt;();
         }
         <span class="k">return</span> Task.FromResult(input);
     }
-}</code></pre></figure></details>
-<details class="source-file"><summary><span class="file-name">EchoJson.cs</span><span class="file-size">21 lines</span></summary><figure class="listing"><figcaption><span class="file">EchoJson.cs</span><button class="copy" type="button" data-copy-target="#code-10">Copy</button></figcaption><pre><code id="code-10"><span class="k">namespace</span> Acta.Concepts.PayloadFormats;
+}</code></pre></figure>
+</details>
+<details class="source-file"><summary><span class="file-name">EchoJson.cs</span><span class="file-size">21 lines</span></summary><figure class="listing"><figcaption><span class="file">EchoJson.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">namespace</span> Acta.Concepts.PayloadFormats;
 
 <span class="c">/// &lt;summary&gt;A normal JSON baseline: human-readable in &lt;c&gt;jobs_view&lt;/c&gt;, with no custom serializer.&lt;/summary&gt;</span>
 <span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> EchoJson(Guid Value);
@@ -265,8 +255,9 @@ builder.Services.AddHostedService&lt;Primer&gt;();
         }
         <span class="k">return</span> Task.FromResult(input);
     }
-}</code></pre></figure></details>
-<details class="source-file"><summary><span class="file-name">PayloadFormats.cs</span><span class="file-size">18 lines</span></summary><figure class="listing"><figcaption><span class="file">PayloadFormats.cs</span><button class="copy" type="button" data-copy-target="#code-11">Copy</button></figcaption><pre><code id="code-11"><span class="k">namespace</span> Acta.Concepts.PayloadFormats;
+}</code></pre></figure>
+</details>
+<details class="source-file"><summary><span class="file-name">PayloadFormats.cs</span><span class="file-size">18 lines</span></summary><figure class="listing"><figcaption><span class="file">PayloadFormats.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">namespace</span> Acta.Concepts.PayloadFormats;
 
 <span class="c">/// &lt;summary&gt;</span>
 <span class="c">/// Format names and ids for the two custom serializers. The kebab-case names are &lt;c&gt;const string&lt;/c&gt;</span>
@@ -283,8 +274,9 @@ builder.Services.AddHostedService&lt;Primer&gt;();
 <span class="hl">    <span class="k">public</span> <span class="k">static</span> <span class="k">readonly</span> JobPayloadFormat ScalarV1Format = JobPayloadFormat.Custom(128, ScalarV1);</span>
 <span class="hl">    <span class="k">public</span> <span class="k">static</span> <span class="k">readonly</span> JobPayloadFormat JsonGzipFormat = JobPayloadFormat.Custom(130, JsonGzip);</span>
     <span class="c">// learn: end</span>
-}</code></pre></figure></details>
-<details class="source-file"><summary><span class="file-name">Primer.cs</span><span class="file-size">119 lines</span></summary><figure class="listing"><figcaption><span class="file">Primer.cs</span><button class="copy" type="button" data-copy-target="#code-12">Copy</button></figcaption><pre><code id="code-12"><span class="k">using</span> System.Diagnostics;
+}</code></pre></figure>
+</details>
+<details class="source-file"><summary><span class="file-name">Primer.cs</span><span class="file-size">119 lines</span></summary><figure class="listing"><figcaption><span class="file">Primer.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">using</span> System.Diagnostics;
 <span class="k">using</span> Acta.Labs;
 
 <span class="k">namespace</span> Acta.Concepts.PayloadFormats;
@@ -402,8 +394,9 @@ builder.Services.AddHostedService&lt;Primer&gt;();
             <span class="s">$&quot;  {jobName, -14} serialize={serializeTimer.ElapsedMilliseconds, 4} ms  enqueue={enqueueTimer.ElapsedMilliseconds, 4} ms  rows={outcomes.Count}&quot;</span>
         );
     }
-}</code></pre></figure></details>
-<details class="source-file"><summary><span class="file-name">Serializers/JsonGzipSerializer.cs</span><span class="file-size">53 lines</span></summary><figure class="listing"><figcaption><span class="file">Serializers/JsonGzipSerializer.cs</span><button class="copy" type="button" data-copy-target="#code-13">Copy</button></figcaption><pre><code id="code-13"><span class="k">using</span> System.IO.Compression;
+}</code></pre></figure>
+</details>
+<details class="source-file"><summary><span class="file-name">Serializers/JsonGzipSerializer.cs</span><span class="file-size">53 lines</span></summary><figure class="listing"><figcaption><span class="file">Serializers/JsonGzipSerializer.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">using</span> System.IO.Compression;
 <span class="k">using</span> System.Runtime.InteropServices;
 <span class="k">using</span> System.Text.Json;
 
@@ -455,8 +448,9 @@ builder.Services.AddHostedService&lt;Primer&gt;();
 
         <span class="k">return</span> JsonSerializer.Deserialize&lt;T&gt;(gzip, _json) ?? <span class="k">throw</span> <span class="k">new</span> JsonException(<span class="s">$&quot;Could not deserialize {typeof(T).FullName}.&quot;</span>);
     }
-}</code></pre></figure></details>
-<details class="source-file"><summary><span class="file-name">Serializers/ScalarV1Serializer.cs</span><span class="file-size">152 lines</span></summary><figure class="listing"><figcaption><span class="file">Serializers/ScalarV1Serializer.cs</span><button class="copy" type="button" data-copy-target="#code-14">Copy</button></figcaption><pre><code id="code-14"><span class="k">using</span> System.Buffers.Binary;
+}</code></pre></figure>
+</details>
+<details class="source-file"><summary><span class="file-name">Serializers/ScalarV1Serializer.cs</span><span class="file-size">152 lines</span></summary><figure class="listing"><figcaption><span class="file">Serializers/ScalarV1Serializer.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">using</span> System.Buffers.Binary;
 <span class="k">using</span> System.Runtime.CompilerServices;
 <span class="k">using</span> System.Text;
 
@@ -607,11 +601,12 @@ builder.Services.AddHostedService&lt;Primer&gt;();
             <span class="k">throw</span> <span class="k">new</span> FormatException(<span class="s">$&quot;Invalid scalar-v1 {type.Name} length. Expected {expected} bytes, got {actual}.&quot;</span>);
         }
     }
-}</code></pre></figure></details></div>
+}</code></pre></figure>
+</details></div>
 <div class="step plain-step"><h2>Where to go next</h2><ul class="next-links"><li><a href="/learn/101-recurring-job">How to run a job on a repeating schedule</a><span>Run work on a schedule</span></li></ul></div>
       </article>
       <article class="agent-face" hidden>
-        <figure class="listing agent"><figcaption><span class="file">/learn/501-payload-formats.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/501-payload-formats.md">Open</a><button class="copy" type="button" data-copy-target="#md-body">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
+        <figure class="listing agent"><figcaption><span class="file">/learn/501-payload-formats.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/501-payload-formats.md">Open</a><button class="copy" type="button">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
         <p class="hint">This is the page an agent receives: the same how-to as plain Markdown, at this page's address with <code>.md</code> added.</p>
       </article>
       <aside class="howto-rail" aria-label="This section">

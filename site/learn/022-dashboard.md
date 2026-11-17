@@ -24,15 +24,6 @@ app.MapActa("/acta", options => options.EnableControls = enableControls);
 In `Program.cs` (excerpt):
 
 ```csharp
-var builder = WebApplication.CreateBuilder(args);
-var lab = new ConceptLab(builder.Configuration, args);
-
-builder.Services.UseActa(j =>
-{
-    j.UseLocalDatabase(builder.Configuration);
-    j.Run<DashboardSampleJobs>("dashboard-sample");
-});
-
 // The failed/retrying rows are intentional fixtures; preserve their evidence without startup stack-trace noise.
 builder.Logging.AddFilter("Acta", LogLevel.Error);
 
@@ -42,6 +33,10 @@ var enableControls = builder.Configuration.GetValue<bool>("Acta:Dashboard:Enable
 app.MapActa("/acta", options => options.EnableControls = enableControls);
 
 await app.StartAsync();
+
+var jobs = app.Services.GetRequiredService<IJobs>();
+var successful = await jobs.EnqueueAsync(new GreetVisitor("successful-visitor"));
+var failed = await jobs.EnqueueAsync(new BrokenImport("broken.csv"));
 ```
 
 ## 2. The job it acts on
@@ -49,20 +44,6 @@ await app.StartAsync();
 `Program.cs` (excerpt):
 
 ```csharp
-public sealed record GreetVisitor(string Name);
-
-public readonly record struct HeartbeatTick;
-
-public sealed record BrokenImport(string FileName);
-
-public sealed record RetryImport(string FileName);
-
-public sealed record AwaitApproval(string InvoiceId);
-
-public sealed record BuildPreview(string CatalogId);
-
-public sealed record RenderThumbnail(string CatalogId);
-
 public static class GreetVisitorJob
 {
     [Job("greet-visitor")]
@@ -71,51 +52,6 @@ public static class GreetVisitorJob
         await Task.Delay(200, ct);
         return $"Hello, {input.Name}!";
     }
-}
-
-public static class BrokenImportJob
-{
-    [Job("broken-import", MaxAttempts = 1)]
-    public static Task Handle(BrokenImport input) => throw new InvalidDataException($"{input.FileName}: invalid header");
-}
-
-public static class RetryImportJob
-{
-    [Job("retry-import", MaxAttempts = 5, Backoff = "30s")]
-    public static Task Handle(RetryImport input) => throw new IOException($"{input.FileName}: upstream unavailable");
-}
-
-public static class AwaitApprovalJob
-{
-    [Job("await-approval")]
-    public static async Task Handle(AwaitApproval input, JobContext context, CancellationToken ct)
-    {
-        Console.WriteLine($"[{input.InvoiceId}] waiting for approval");
-        await context.WaitSignalAsync("approval", ct);
-    }
-}
-
-public static class PreviewJob
-{
-    [Job("build-preview")]
-    public static async Task Handle(BuildPreview input, JobContext context, CancellationToken ct)
-    {
-        await context.CallChildAsync("thumbnail", new RenderThumbnail(input.CatalogId), ct);
-    }
-
-    [Job("render-thumbnail")]
-    public static async Task Handle(RenderThumbnail input, CancellationToken ct)
-    {
-        await Task.Delay(4000, ct);
-        Console.WriteLine($"[{input.CatalogId}] thumbnail rendered");
-    }
-}
-
-public sealed class HeartbeatJob
-{
-    [Job("heartbeat")]
-    [Schedule("every-15-seconds", Cron.Every15Seconds)]
-    public Task Handle(HeartbeatTick input) => Task.Delay(50);
 }
 ```
 

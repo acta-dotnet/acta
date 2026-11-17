@@ -23,28 +23,23 @@ await context.SetProgressAsync(percent, ct);
 In `progress.cs` (excerpt):
 
 ```csharp
-public sealed record ImportFile(string Name, int Rows);
-
-public sealed class ImportFileJob
+[Job("import-file")]
+public async Task Handle(ImportFile input, JobContext context, CancellationToken ct)
 {
-    [Job("import-file")]
-    public async Task Handle(ImportFile input, JobContext context, CancellationToken ct)
+    for (var row = 1; row <= input.Rows; row++)
     {
-        for (var row = 1; row <= input.Rows; row++)
-        {
-            await Task.Delay(100, ct);
+        await Task.Delay(100, ct);
 
-            var percent = row * 100 / input.Rows;
+        var percent = row * 100 / input.Rows;
 
-            await context.SetProgressAsync(percent, ct);
+        await context.SetProgressAsync(percent, ct);
 
-            var filled = percent / 10;
-            Console.Write($"\r[{input.Name}] [{new string('#', filled)}{new string('-', 10 - filled)}] {percent, 3}%");
-        }
-
-        Console.WriteLine();
-        Console.WriteLine($"[{input.Name}] import complete");
+        var filled = percent / 10;
+        Console.Write($"\r[{input.Name}] [{new string('#', filled)}{new string('-', 10 - filled)}] {percent, 3}%");
     }
+
+    Console.WriteLine();
+    Console.WriteLine($"[{input.Name}] import complete");
 }
 ```
 

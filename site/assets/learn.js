@@ -6,17 +6,17 @@
     set(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* a private window keeps nothing */ } },
   };
 
+  // A copy button copies the listing it stands on.
   const copyStatus = document.getElementById('copy-status');
   document.addEventListener('click', async event => {
     const button = event.target.closest('button.copy');
-    const target = button && document.querySelector(button.dataset.copyTarget);
-    if (!target) return;
+    if (!button) return;
     try {
-      await navigator.clipboard.writeText(target.textContent);
+      await navigator.clipboard.writeText(button.closest('.listing').querySelector('code').textContent);
       button.textContent = 'Copied'; button.dataset.copied = '';
-      if (copyStatus) copyStatus.textContent = 'Copied to the clipboard.';
+      copyStatus.textContent = 'Copied to the clipboard.';
     } catch { button.textContent = 'Select and copy'; }
-    setTimeout(() => { button.textContent = 'Copy'; delete button.dataset.copied; if (copyStatus) copyStatus.textContent = ''; }, 1600);
+    setTimeout(() => { button.textContent = 'Copy'; delete button.dataset.copied; copyStatus.textContent = ''; }, 1600);
   });
 
   // The same page as a person reads it, or as the Markdown an agent receives.
@@ -40,12 +40,10 @@
       document.querySelector('[data-md-size]').textContent = `${(new Blob([text]).size / 1024).toFixed(1)} KB, about ${tokens.toLocaleString('en')} tokens`;
     } catch { body.textContent = `Could not load ${url}.`; }
   }
-  if (readers.length && personFace && agentFace) {
-    readers.forEach(button => button.addEventListener('click', () => readAs(button.dataset.reader)));
-    if (store.get('acta-learn-reader', 'person') === 'agent') readAs('agent');
-  }
+  readers.forEach(button => button.addEventListener('click', () => readAs(button.dataset.reader)));
+  if (store.get('acta-learn-reader', 'person') === 'agent') readAs('agent');
 
-  // Done marks: a filled step on every ladder that lists the how-to.
+  // Done marks: a filled step in every list that names the how-to.
   const done = new Set(store.get('acta-learn-done', []));
   const doneToggle = document.querySelector('[data-done-toggle]');
   function paintDone() {
@@ -81,14 +79,13 @@
   // The question on the hub: words in, the how-tos that answer them out.
   const ask = document.getElementById('ask'), indexSource = document.getElementById('how-to-index');
   if (!ask || !indexSource) return;
-  // /learn used to be the tutorial: a link to one of its sections is sent on to where the tutorial lives now.
-  const tutorial = ['build', 'create', 'data', 'job', 'wiring', 'first-report', 'dashboard', 'retries', 'steps', 'shutdown', 'crash', 'your-app', 'next'];
-  if (tutorial.includes(location.hash.slice(1))) { location.replace('/learn/first-project' + location.hash); return; }
+  // /learn used to be the tutorial: a link to a place this page does not have is sent on to where the tutorial lives now.
+  if (location.hash.length > 1 && !document.getElementById(location.hash.slice(1))) { location.replace('/learn/first-project' + location.hash); return; }
   const results = document.getElementById('ask-results');
   const filler = new Set('a an the to of in on at for with and or how do does i my is it its be can until that this when from by as into acta job jobs some only like process'.split(' '));
   const stem = word => word.replace(/ies$/, 'y').replace(/(ing|ed|es|s)$/, '') || word;
   const words = text => text.toLowerCase().split(/[^a-z0-9:]+/).filter(Boolean).map(stem);
-  const index = JSON.parse(indexSource.textContent).map((entry, order) => ({ entry, order, fields: [[words(entry.t), 6], [words(entry.k), 4], [words(entry.d), 2], [words(entry.s), 2], [words(entry.x || ''), 1]] }));
+  const index = JSON.parse(indexSource.textContent).map((entry, order) => ({ entry, order, fields: [[words(entry.t), 6], [words(entry.k), 4], [words(entry.d), 2], [words(entry.s), 2], [words(entry.x), 1]] }));
   const matches = (query, word) => word.startsWith(query) || (word.length >= 4 && query.startsWith(word));
   const escapeHtml = text => text.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   let active = -1;

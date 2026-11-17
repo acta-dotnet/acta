@@ -31,35 +31,20 @@ await context.RunStepAsync(
 In `durable-step.cs` (excerpt):
 
 ```csharp
-public sealed record FreezeBox(string BoxId);
-
-public sealed class FreezeBoxJob
-{
-    private static int _attempts;
-
-    // MaxAttempts = 2: first attempt fails, second succeeds; retry waits 2s.
-    [Job("freeze-box", MaxAttempts = 2, Backoff = "2s")]
-    public async Task Handle(FreezeBox box, JobContext context, CancellationToken ct)
+await context.RunStepAsync(
+    "start-freeze-cycle",
+    _ =>
     {
-        await context.RunStepAsync(
-            "start-freeze-cycle",
-            _ =>
-            {
-                Console.WriteLine($"[{box.BoxId}] requesting START-FREEZE with stable deduplication key freeze:{box.BoxId}");
-                return Task.CompletedTask;
-            },
-            ct
-        );
+        Console.WriteLine($"[{box.BoxId}] requesting START-FREEZE with stable deduplication key freeze:{box.BoxId}");
+        return Task.CompletedTask;
+    },
+    ct
+);
 
-        // Fail the first attempt; the retry skips the already-started freeze cycle.
-        if (Interlocked.Increment(ref _attempts) == 1)
-        {
-            Console.WriteLine($"[{box.BoxId}] thermostat hiccup - retrying...");
-            throw new InvalidOperationException("simulated transient failure");
-        }
-
-        Console.WriteLine($"[{box.BoxId}] box frozen");
-    }
+if (Interlocked.Increment(ref _attempts) == 1)
+{
+    Console.WriteLine($"[{box.BoxId}] thermostat hiccup - retrying...");
+    throw new InvalidOperationException("simulated transient failure");
 }
 ```
 
@@ -80,39 +65,13 @@ if (Interlocked.Increment(ref _attempts) == 1)
 In `durable-step.cs` (excerpt):
 
 ```csharp
-public sealed record FreezeBox(string BoxId);
-
-public sealed class FreezeBoxJob
+if (Interlocked.Increment(ref _attempts) == 1)
 {
-    private static int _attempts;
-
-    // MaxAttempts = 2: first attempt fails, second succeeds; retry waits 2s.
-    [Job("freeze-box", MaxAttempts = 2, Backoff = "2s")]
-    public async Task Handle(FreezeBox box, JobContext context, CancellationToken ct)
-    {
-        // `RunStepAsync` gives the work a name and records its outcome under that name. On a later run of the
-        // handler, a step with a recorded outcome returns it instead of running its body.
-        // In this controlled path the later failure happens after step success is durable, so execution two reuses that outcome.
-        // A process crash after the external request but before Acta records success could invoke a normal step body again.
-        await context.RunStepAsync(
-            "start-freeze-cycle",
-            _ =>
-            {
-                Console.WriteLine($"[{box.BoxId}] requesting START-FREEZE with stable deduplication key freeze:{box.BoxId}");
-                return Task.CompletedTask;
-            },
-            ct
-        );
-
-        if (Interlocked.Increment(ref _attempts) == 1)
-        {
-            Console.WriteLine($"[{box.BoxId}] thermostat hiccup - retrying...");
-            throw new InvalidOperationException("simulated transient failure");
-        }
-
-        Console.WriteLine($"[{box.BoxId}] box frozen");
-    }
+    Console.WriteLine($"[{box.BoxId}] thermostat hiccup - retrying...");
+    throw new InvalidOperationException("simulated transient failure");
 }
+
+Console.WriteLine($"[{box.BoxId}] box frozen");
 ```
 
 ## 3. Run it and check the output

@@ -57,7 +57,7 @@
   </div>
 
 
-  <main id="content" data-howto="024">
+  <main id="content">
     <header class="wrap page-head howto-head">
       <p class="record"><a href="/learn">learn acta</a><span aria-hidden="true">/</span><a href="/learn#s-first-steps">take the first steps</a></p>
       <h1>How to start a job from an HTTP endpoint and poll it</h1>
@@ -77,7 +77,9 @@
       <article class="howto person-face">
 <div class="step"><h2><span class="step-n">1</span>Enqueue in the POST and answer 202 with the job's ref</h2>
 <p>The job is a durable row before the response leaves, and the worker runs it after the request has ended. The ref goes into the address the client polls.</p>
-<figure class="listing"><figcaption><span class="file">Program.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-1">Copy</button></figcaption><pre><code id="code-1">app.MapPost(<span class="s">&quot;/imports&quot;</span>, <span class="k">async</span> (StartImportRequest request, HttpContext http, IJobs jobs, CancellationToken ct) =&gt;
+<figure class="listing"><figcaption><span class="file">Program.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// POST writes a durable job and returns 202; the import runs on the worker after the request ends.</span>
+<span class="c">// DeduplicationKey dedupes a retry with the same tenant/import id onto the same job.</span>
+app.MapPost(<span class="s">&quot;/imports&quot;</span>, <span class="k">async</span> (StartImportRequest request, HttpContext http, IJobs jobs, CancellationToken ct) =&gt;
 {
     <span class="k">var</span> businessKey = <span class="s">$&quot;import:{request.Tenant}:{request.ImportId}&quot;</span>;
     <span class="k">var</span> deduplicationKey = DeduplicationKey.ForDefinition(<span class="s">&quot;import-csv&quot;</span>, businessKey);
@@ -92,58 +94,29 @@
 <span class="hl">    <span class="k">var</span> statusUrl = <span class="s">$&quot;/imports/{job.JobRef}&quot;</span>;</span>
 <span class="hl"> </span>
 <span class="hl">    <span class="k">return</span> Results.Accepted(statusUrl, <span class="k">new</span> StartImportResponse(job.JobRef, job.Action.ToString(), statusUrl, correlationKey));</span>
-});
-
-<span class="c">// GET polls the public JobRef; the result is read back only once the job is terminal.</span>
-app.MapGet(<span class="s">&quot;/imports/{jobRef}&quot;</span>, <span class="k">async</span> (<span class="k">string</span> jobRef, IJobs jobs, CancellationToken ct) =&gt;
-{
-    <span class="k">if</span> (!JobRef.TryParse(jobRef, <span class="k">out</span> <span class="k">var</span> parsed))</code></pre></figure>
+});</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">2</span>Read the status, and the result once the job has finished</h2>
 <p><code>GetAsync</code> answers null for a ref that names no job. A result exists only once the job has succeeded, so the read waits for a terminal status.</p>
-<figure class="listing"><figcaption><span class="file">Program.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-2">Copy</button></figcaption><pre><code id="code-2">{
-    <span class="k">if</span> (!JobRef.TryParse(jobRef, <span class="k">out</span> <span class="k">var</span> parsed))
-    {
-        <span class="k">return</span> Results.BadRequest(<span class="k">new</span> { error = <span class="s">&quot;Invalid job ref.&quot;</span> });
-    }
+<figure class="listing"><figcaption><span class="file">Program.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">if</span> (!JobRef.TryParse(jobRef, <span class="k">out</span> <span class="k">var</span> parsed))
+{
+    <span class="k">return</span> Results.BadRequest(<span class="k">new</span> { error = <span class="s">&quot;Invalid job ref.&quot;</span> });
+}
 
-<span class="hl">    <span class="k">var</span> snapshot = <span class="k">await</span> jobs.GetAsync(parsed, ct);</span>
-<span class="hl">    <span class="k">if</span> (snapshot <span class="k">is</span> <span class="k">null</span>)</span>
-<span class="hl">    {</span>
-<span class="hl">        <span class="k">return</span> Results.NotFound();</span>
-<span class="hl">    }</span>
+<span class="hl"><span class="k">var</span> snapshot = <span class="k">await</span> jobs.GetAsync(parsed, ct);</span>
+<span class="hl"><span class="k">if</span> (snapshot <span class="k">is</span> <span class="k">null</span>)</span>
+<span class="hl">{</span>
+<span class="hl">    <span class="k">return</span> Results.NotFound();</span>
+<span class="hl">}</span>
 <span class="hl"> </span>
-<span class="hl">    ImportResult? result = <span class="k">null</span>;</span>
-<span class="hl">    <span class="k">if</span> (snapshot.Status.IsTerminal)</span>
-<span class="hl">    {</span>
-<span class="hl">        (_, result) = <span class="k">await</span> jobs.TryGetResultAsync&lt;ImportResult&gt;(parsed, ct);</span>
-<span class="hl">    }</span>
-
-    <span class="k">return</span> Results.Ok(
-        <span class="k">new</span> ImportStatusResponse(
-            snapshot.JobRef,
-            snapshot.Status.ToString(),
-            snapshot.DeduplicationKey,</code></pre></figure>
+<span class="hl">ImportResult? result = <span class="k">null</span>;</span>
+<span class="hl"><span class="k">if</span> (snapshot.Status.IsTerminal)</span>
+<span class="hl">{</span>
+<span class="hl">    (_, result) = <span class="k">await</span> jobs.TryGetResultAsync&lt;ImportResult&gt;(parsed, ct);</span>
+<span class="hl">}</span></code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">3</span>The job it acts on</h2>
-<figure class="listing"><figcaption><span class="file">Program.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-3">Copy</button></figcaption><pre><code id="code-3"><span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> StartImportRequest(<span class="k">string</span> Tenant, <span class="k">string</span> ImportId, <span class="k">string</span> FileName);
-
-<span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> StartImportResponse(JobRef JobRef, <span class="k">string</span> Action, <span class="k">string</span> StatusUrl, <span class="k">string</span> CorrelationKey);
-
-<span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> ImportStatusResponse(
-    JobRef JobRef,
-    <span class="k">string</span> Status,
-    <span class="k">string</span>? DeduplicationKey,
-    DateTime CreatedAtUtc,
-    DateTime ModifiedAtUtc,
-    ImportResult? Result
-);
-
-<span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> ImportCsv(<span class="k">string</span> Tenant, <span class="k">string</span> ImportId, <span class="k">string</span> FileName);
-
-<span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> ImportResult(<span class="k">int</span> RowsImported);
-
-<span class="k">public</span> <span class="k">static</span> <span class="k">class</span> ImportCsvJob
+<figure class="listing"><figcaption><span class="file">Program.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">static</span> <span class="k">class</span> ImportCsvJob
 {
     <span class="a">[Job(<span class="s">&quot;import-csv&quot;</span>)]</span>
     <span class="k">public</span> <span class="k">static</span> <span class="k">async</span> Task&lt;ImportResult&gt; Handle(ImportCsv input, CancellationToken ct)
@@ -156,15 +129,15 @@ app.MapGet(<span class="s">&quot;/imports/{jobRef}&quot;</span>, <span class="k"
 </div>
 <div class="step"><h2><span class="step-n">4</span>Run it and check the output</h2>
 <p>From a clone of <a href="https://github.com/acta-dotnet/acta">the Acta repository</a>, with the .NET 10 SDK:</p>
-<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-4">Copy</button></figcaption><pre><code id="code-4">dotnet run --project concepts/000-fundamentals/024-aspnet-enqueue-api</code></pre></figure>
-<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button" data-copy-target="#code-5">Copy</button></figcaption><pre><code id="code-5">Then poll GET /imports/{jobRef}</code></pre></figure>
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project concepts/000-fundamentals/024-aspnet-enqueue-api</code></pre></figure>
+<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button">Copy</button></figcaption><pre><code>Then poll GET /imports/{jobRef}</code></pre></figure>
 <p class="proof checked"><b>Checked every release.</b> Before each release, Acta Verify runs this program and checks that its output contains these lines.</p>
 <p class="hint">This page shows the code. The rules it relies on, starting with the handler running again from its first line, are in <a href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#handler-contract">the handler contract</a>.</p>
 </div>
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/concepts/000-fundamentals/024-aspnet-enqueue-api"><code>concepts/000-fundamentals/024-aspnet-enqueue-api</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">Program.cs</span><span class="file-size">110 lines</span></summary><figure class="listing"><figcaption><span class="file">Program.cs</span><button class="copy" type="button" data-copy-target="#code-6">Copy</button></figcaption><pre><code id="code-6"><span class="c">// How to start a job from an HTTP endpoint and poll it</span>
+<details class="source-file"><summary><span class="file-name">Program.cs</span><span class="file-size">110 lines</span></summary><figure class="listing"><figcaption><span class="file">Program.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to start a job from an HTTP endpoint and poll it</span>
 <span class="c">// A POST stores the job and answers 202 with its ref; a GET reads the status and, once the job has finished, the</span>
 <span class="c">// result.</span>
 <span class="k">using</span> Acta;
@@ -273,11 +246,12 @@ Console.WriteLine(<span class="s">&quot;Then poll GET /imports/{jobRef}&quot;</s
             <span class="k">return</span> <span class="k">new</span> ImportResult(RowsImported: 42);
         }
     }
-}</code></pre></figure></details></div>
+}</code></pre></figure>
+</details></div>
 <div class="step plain-step"><h2>Where to go next</h2><ul class="next-links"><li><a href="/learn/026-first-job">How to build the first-job guide's app</a><span>Take the first steps</span></li></ul></div>
       </article>
       <article class="agent-face" hidden>
-        <figure class="listing agent"><figcaption><span class="file">/learn/024-aspnet-enqueue-api.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/024-aspnet-enqueue-api.md">Open</a><button class="copy" type="button" data-copy-target="#md-body">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
+        <figure class="listing agent"><figcaption><span class="file">/learn/024-aspnet-enqueue-api.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/024-aspnet-enqueue-api.md">Open</a><button class="copy" type="button">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
         <p class="hint">This is the page an agent receives: the same how-to as plain Markdown, at this page's address with <code>.md</code> added.</p>
       </article>
       <aside class="howto-rail" aria-label="This section">

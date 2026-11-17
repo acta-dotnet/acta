@@ -23,8 +23,6 @@ var syncedAt = await context.GetOrSetVariableAsync("synced-at-utc", () => DateTi
 In `durable-variable.cs` (excerpt):
 
 ```csharp
-public sealed record SyncUsers(string Source);
-
 public sealed class SyncUsersJob
 {
     private static int _attempts;

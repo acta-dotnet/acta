@@ -57,7 +57,7 @@
   </div>
 
 
-  <main id="content" data-howto="903">
+  <main id="content">
     <header class="wrap page-head howto-head">
       <p class="record"><a href="/learn">learn acta</a><span aria-hidden="true">/</span><a href="/learn#s-deploy">deploy and scale</a></p>
       <h1>How to wake workers across processes with Redis</h1>
@@ -77,56 +77,12 @@
       <article class="howto person-face">
 <div class="step"><h2><span class="step-n">1</span>Turn the Redis wake-up on in every process</h2>
 <p>Redis pub/sub wake: an enqueue in any process wakes workers in every process. Redis is a latency accelerator, not a correctness dependency; if it's down, workers fall back to the poll floor.</p>
-<figure class="listing"><figcaption><span class="file">redis-wakeup.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-1">Copy</button></figcaption><pre><code id="code-1"><span class="c">// Two roles (&quot;worker&quot;/&quot;enqueue&quot;) so a wake can cross a process boundary via Redis.</span>
-<span class="k">var</span> role = args.Length &gt; 0 ? args[0] : <span class="s">&quot;worker&quot;</span>;
+<figure class="listing"><figcaption><span class="file">redis-wakeup.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code>j.UseLocalDatabase(builder.Configuration);
 
-<span class="c">// No args to the builder: a bare &quot;worker&quot;/&quot;enqueue&quot; would trip the command-line config parser.</span>
-<span class="k">var</span> builder = Host.CreateApplicationBuilder();
-
-<span class="k">var</span> redis = builder.Configuration.GetConnectionString(<span class="s">&quot;redis&quot;</span>) ?? Environment.GetEnvironmentVariable(<span class="s">&quot;ACTA_TEST_REDIS&quot;</span>) ?? <span class="s">&quot;localhost:6379&quot;</span>;
-
-builder.Services.UseActa(j =&gt;
-{
-    j.UseLocalDatabase(builder.Configuration);
-
-<span class="hl">    j.UseRedisWakeup(redis);</span>
-
-    <span class="k">if</span> (role == <span class="s">&quot;enqueue&quot;</span>)
-    {
-        <span class="c">// Reference gives typed enqueue with no worker loop in this process.</span>
-        j.Reference&lt;RedisWakeupJobs&gt;(<span class="s">&quot;redis-wakeup&quot;</span>);
-    }
-    <span class="k">else</span>
-    {
-        j.Run&lt;RedisWakeupJobs&gt;(<span class="s">&quot;redis-wakeup&quot;</span>);
-
-        <span class="c">// Poll once a minute on purpose: a millisecond start then proves it was the Redis wake, not the poll.</span>
-        j.ConfigureOptions(o =&gt; o.SafetyPollInterval = TimeSpan.FromSeconds(60));
-    }
-});
-
-<span class="k">using</span> <span class="k">var</span> host = builder.Build();
-
-<span class="k">if</span> (role == <span class="s">&quot;enqueue&quot;</span>)
-{
-    <span class="k">await</span> host.StartAsync();
-    <span class="k">var</span> jobs = host.Services.GetRequiredService&lt;IJobs&gt;();
-    <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> Ping(DateTime.Now.ToString(<span class="s">&quot;HH:mm:ss.fff&quot;</span>)));
-    Console.WriteLine(<span class="s">&quot;Enqueued a ping. A worker in another process should print it within milliseconds.&quot;</span>);
-    <span class="k">await</span> host.StopAsync();
-    <span class="k">return</span>;
-}
-
-Console.WriteLine(<span class="s">&quot;Worker running (it polls only every 60s). In another terminal, enqueue a ping:&quot;</span>);
-Console.WriteLine(<span class="s">&quot;  dotnet run --project concepts/900-runtime-and-tuning/903-redis-wakeup -- enqueue&quot;</span>);
-Console.WriteLine(<span class="s">&quot;It shows up here almost instantly - that is the Redis wake, not the poll. Ctrl+C to stop.&quot;</span>);
-
-<span class="k">await</span> host.StartAsync();</code></pre></figure>
+<span class="hl">j.UseRedisWakeup(redis);</span></code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">2</span>The job it acts on</h2>
-<figure class="listing"><figcaption><span class="file">redis-wakeup.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-2">Copy</button></figcaption><pre><code id="code-2"><span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> Ping(<span class="k">string</span> EnqueuedAt);
-
-<span class="k">public</span> <span class="k">static</span> <span class="k">class</span> PingJob
+<figure class="listing"><figcaption><span class="file">redis-wakeup.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">static</span> <span class="k">class</span> PingJob
 {
     <span class="a">[Job(<span class="s">&quot;ping&quot;</span>)]</span>
     <span class="k">public</span> <span class="k">static</span> <span class="k">void</span> Handle(Ping input) =&gt;
@@ -135,14 +91,14 @@ Console.WriteLine(<span class="s">&quot;It shows up here almost instantly - that
 </div>
 <div class="step"><h2><span class="step-n">3</span>Run it</h2>
 <p>From a clone of <a href="https://github.com/acta-dotnet/acta">the Acta repository</a>, with the .NET 10 SDK:</p>
-<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-3">Copy</button></figcaption><pre><code id="code-3">dotnet run --project concepts/900-runtime-and-tuning/903-redis-wakeup</code></pre></figure>
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project concepts/900-runtime-and-tuning/903-redis-wakeup</code></pre></figure>
 <p class="proof proven"><b>Proven by other suites.</b> The release check does not run this program. Needs a Redis server and a second process that enqueues while this one waits; RedisWakeupTests and Verify's throughput-redis rate ladder prove the same behaviour.</p>
 <p class="hint">This page shows the code. The rules it relies on, starting with the handler running again from its first line, are in <a href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#handler-contract">the handler contract</a>.</p>
 </div>
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/concepts/900-runtime-and-tuning/903-redis-wakeup"><code>concepts/900-runtime-and-tuning/903-redis-wakeup</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">redis-wakeup.cs</span><span class="file-size">73 lines</span></summary><figure class="listing"><figcaption><span class="file">redis-wakeup.cs</span><button class="copy" type="button" data-copy-target="#code-4">Copy</button></figcaption><pre><code id="code-4"><span class="c">// How to wake workers across processes with Redis</span>
+<details class="source-file"><summary><span class="file-name">redis-wakeup.cs</span><span class="file-size">73 lines</span></summary><figure class="listing"><figcaption><span class="file">redis-wakeup.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to wake workers across processes with Redis</span>
 <span class="c">// `UseRedisWakeup` announces each enqueue over Redis, so a worker in another process starts the job within</span>
 <span class="c">// milliseconds instead of at its next poll.</span>
 <span class="k">using</span> Acta;
@@ -214,11 +170,12 @@ Console.WriteLine(<span class="s">&quot;It shows up here almost instantly - that
         <span class="k">public</span> <span class="k">static</span> <span class="k">void</span> Handle(Ping input) =&gt;
             Console.WriteLine(<span class="s">$&quot;{DateTime.Now:HH:mm:ss.fff} woke and ran a ping enqueued at {input.EnqueuedAt}&quot;</span>);
     }
-}</code></pre></figure></details></div>
+}</code></pre></figure>
+</details></div>
 <div class="step plain-step"><h2>Where to go next</h2><ul class="next-links"><li><a href="/learn/904-worker-tuning">How to set how many jobs a worker runs at once</a><span>Deploy and scale</span></li></ul></div>
       </article>
       <article class="agent-face" hidden>
-        <figure class="listing agent"><figcaption><span class="file">/learn/903-redis-wakeup.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/903-redis-wakeup.md">Open</a><button class="copy" type="button" data-copy-target="#md-body">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
+        <figure class="listing agent"><figcaption><span class="file">/learn/903-redis-wakeup.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/903-redis-wakeup.md">Open</a><button class="copy" type="button">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
         <p class="hint">This is the page an agent receives: the same how-to as plain Markdown, at this page's address with <code>.md</code> added.</p>
       </article>
       <aside class="howto-rail" aria-label="This section">

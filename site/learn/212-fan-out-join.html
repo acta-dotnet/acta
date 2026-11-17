@@ -57,7 +57,7 @@
   </div>
 
 
-  <main id="content" data-howto="212">
+  <main id="content">
     <header class="wrap page-head howto-head">
       <p class="record"><a href="/learn">learn acta</a><span aria-hidden="true">/</span><a href="/learn#s-children">split work across child jobs</a></p>
       <h1>How to fan out over a list and merge the results</h1>
@@ -77,113 +77,57 @@
       <article class="howto person-face">
 <div class="step"><h2><span class="step-n">1</span>Map the list onto child jobs</h2>
 <p>MapAsync starts one child per chunk and waits for all of them. Each child is keyed by its range, so a replay finds the same children by name. A child given as its generated call types the map, so each item's outcome carries the child's result and the merge reads no child by id.</p>
-<figure class="listing"><figcaption><span class="file">fan-out-join.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-1">Copy</button></figcaption><pre><code id="code-1"><span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> AddNumbers(SumRange[] Chunks);
-
-<span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> SumRange(<span class="k">long</span> From, <span class="k">long</span> To);
-
-<span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> PartialSum(<span class="k">long</span> Value);
-
-<span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> SumResult(<span class="k">long</span> Total);
-
-<span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> AddNumbersJobs
+<figure class="listing"><figcaption><span class="file">fan-out-join.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="a">[Job(<span class="s">&quot;add-numbers&quot;</span>)]</span>
+<span class="k">public</span> <span class="k">async</span> Task&lt;SumResult&gt; Handle(AddNumbers request, JobContext context, CancellationToken ct)
 {
-    <span class="a">[Job(<span class="s">&quot;add-numbers&quot;</span>)]</span>
-    <span class="k">public</span> <span class="k">async</span> Task&lt;SumResult&gt; Handle(AddNumbers request, JobContext context, CancellationToken ct)
+<span class="hl">    <span class="k">var</span> chunks = <span class="k">await</span> context.MapAsync(</span>
+<span class="hl">        <span class="s">&quot;chunk&quot;</span>,</span>
+<span class="hl">        request.Chunks,</span>
+<span class="hl">        itemKey: chunk =&gt; <span class="s">$&quot;{chunk.From}-{chunk.To}&quot;</span>,</span>
+<span class="hl">        child: chunk =&gt; FanOutJoinJobs.SumRange(chunk),</span>
+<span class="hl">        ct</span>
+<span class="hl">    );</span>
+
+    <span class="k">if</span> (!chunks.Succeeded)
     {
-<span class="hl">        <span class="k">var</span> chunks = <span class="k">await</span> context.MapAsync(</span>
-<span class="hl">            <span class="s">&quot;chunk&quot;</span>,</span>
-<span class="hl">            request.Chunks,</span>
-<span class="hl">            itemKey: chunk =&gt; <span class="s">$&quot;{chunk.From}-{chunk.To}&quot;</span>,</span>
-<span class="hl">            child: chunk =&gt; FanOutJoinJobs.SumRange(chunk),</span>
-<span class="hl">            ct</span>
-<span class="hl">        );</span>
-
-        <span class="c">// The map does not throw for a failed child; the parent asks, and decides.</span>
-        <span class="k">if</span> (!chunks.Succeeded)
-        {
-            <span class="k">await</span> context.FailAsync(<span class="s">&quot;a chunk failed&quot;</span>, ct);
-        }
-
-        <span class="k">return</span> <span class="k">new</span> SumResult(chunks.Items.Sum(item =&gt; item.Outcome.ValueOrThrow().Value));
+        <span class="k">await</span> context.FailAsync(<span class="s">&quot;a chunk failed&quot;</span>, ct);
     }
 
-    <span class="a">[Job(<span class="s">&quot;sum-range&quot;</span>)]</span>
-    <span class="k">public</span> <span class="k">async</span> Task&lt;PartialSum&gt; Sum(SumRange range, CancellationToken ct)
-    {
-        <span class="k">await</span> Task.Delay(150, ct);
-
-        <span class="k">var</span> sum = 0L;
-        <span class="k">for</span> (<span class="k">var</span> n = range.From; n &lt;= range.To; n++)
-        {
-            sum += n;
-        }
-
-        Console.WriteLine(<span class="s">$&quot;chunk {range.From}..{range.To} = {sum}&quot;</span>);
-        <span class="k">return</span> <span class="k">new</span> PartialSum(sum);
-    }
+    <span class="k">return</span> <span class="k">new</span> SumResult(chunks.Items.Sum(item =&gt; item.Outcome.ValueOrThrow().Value));
 }</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">2</span>Stop if a child failed, then merge the results</h2>
 <p>The map does not throw for a failed child; the parent asks, and decides.</p>
-<figure class="listing"><figcaption><span class="file">fan-out-join.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-2">Copy</button></figcaption><pre><code id="code-2"><span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> AddNumbers(SumRange[] Chunks);
-
-<span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> SumRange(<span class="k">long</span> From, <span class="k">long</span> To);
-
-<span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> PartialSum(<span class="k">long</span> Value);
-
-<span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> SumResult(<span class="k">long</span> Total);
-
-<span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> AddNumbersJobs
+<figure class="listing"><figcaption><span class="file">fan-out-join.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="a">[Job(<span class="s">&quot;add-numbers&quot;</span>)]</span>
+<span class="k">public</span> <span class="k">async</span> Task&lt;SumResult&gt; Handle(AddNumbers request, JobContext context, CancellationToken ct)
 {
-    <span class="a">[Job(<span class="s">&quot;add-numbers&quot;</span>)]</span>
-    <span class="k">public</span> <span class="k">async</span> Task&lt;SumResult&gt; Handle(AddNumbers request, JobContext context, CancellationToken ct)
-    {
-        <span class="c">// MapAsync starts one child per chunk and waits for all of them. Each child is keyed by its range,</span>
-        <span class="c">// so a replay finds the same children by name. A child given as its generated call types the map,</span>
-        <span class="c">// so each item's outcome carries the child's result and the merge reads no child by id.</span>
-        <span class="k">var</span> chunks = <span class="k">await</span> context.MapAsync(
-            <span class="s">&quot;chunk&quot;</span>,
-            request.Chunks,
-            itemKey: chunk =&gt; <span class="s">$&quot;{chunk.From}-{chunk.To}&quot;</span>,
-            child: chunk =&gt; FanOutJoinJobs.SumRange(chunk),
-            ct
-        );
+    <span class="k">var</span> chunks = <span class="k">await</span> context.MapAsync(
+        <span class="s">&quot;chunk&quot;</span>,
+        request.Chunks,
+        itemKey: chunk =&gt; <span class="s">$&quot;{chunk.From}-{chunk.To}&quot;</span>,
+        child: chunk =&gt; FanOutJoinJobs.SumRange(chunk),
+        ct
+    );
 
-<span class="hl">        <span class="k">if</span> (!chunks.Succeeded)</span>
-<span class="hl">        {</span>
-<span class="hl">            <span class="k">await</span> context.FailAsync(<span class="s">&quot;a chunk failed&quot;</span>, ct);</span>
-<span class="hl">        }</span>
+<span class="hl">    <span class="k">if</span> (!chunks.Succeeded)</span>
+<span class="hl">    {</span>
+<span class="hl">        <span class="k">await</span> context.FailAsync(<span class="s">&quot;a chunk failed&quot;</span>, ct);</span>
+<span class="hl">    }</span>
 <span class="hl"> </span>
-<span class="hl">        <span class="k">return</span> <span class="k">new</span> SumResult(chunks.Items.Sum(item =&gt; item.Outcome.ValueOrThrow().Value));</span>
-    }
-
-    <span class="a">[Job(<span class="s">&quot;sum-range&quot;</span>)]</span>
-    <span class="k">public</span> <span class="k">async</span> Task&lt;PartialSum&gt; Sum(SumRange range, CancellationToken ct)
-    {
-        <span class="k">await</span> Task.Delay(150, ct);
-
-        <span class="k">var</span> sum = 0L;
-        <span class="k">for</span> (<span class="k">var</span> n = range.From; n &lt;= range.To; n++)
-        {
-            sum += n;
-        }
-
-        Console.WriteLine(<span class="s">$&quot;chunk {range.From}..{range.To} = {sum}&quot;</span>);
-        <span class="k">return</span> <span class="k">new</span> PartialSum(sum);
-    }
+<span class="hl">    <span class="k">return</span> <span class="k">new</span> SumResult(chunks.Items.Sum(item =&gt; item.Outcome.ValueOrThrow().Value));</span>
 }</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">3</span>Run it and check the output</h2>
 <p>From a clone of <a href="https://github.com/acta-dotnet/acta">the Acta repository</a>, with the .NET 10 SDK:</p>
-<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-3">Copy</button></figcaption><pre><code id="code-3">dotnet run --project concepts/200-durable-execution/212-fan-out-join</code></pre></figure>
-<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button" data-copy-target="#code-4">Copy</button></figcaption><pre><code id="code-4">sum 1..1000 = 500500</code></pre></figure>
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project concepts/200-durable-execution/212-fan-out-join</code></pre></figure>
+<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button">Copy</button></figcaption><pre><code>sum 1..1000 = 500500</code></pre></figure>
 <p class="proof checked"><b>Checked every release.</b> Before each release, Acta Verify runs this program and checks that its output contains these lines.</p>
 </div>
 <div class="step plain-step"><h2>Remember</h2><ul class="rules"><li>A child's name on the job reads is its <code>DeduplicationKey</code>: <code>{map}/{key}</code> for a map's child. List a parent's children with <code>acta.Ledger.ListJobsAsync(new ListJobsQuery(Parent: parent.JobRef))</code>.</li><li>A failed or cancelled child never throws in the parent by itself. The wait answers an outcome: call <code>ThrowIfAnyFailed()</code> to fail with it, or branch on <code>Failed</code>.</li><li>The parent wakes only when the child it is waiting on lands, so it can run several times before the group is done. Keep the work before the wait in a step.</li><li>A group does not limit how many of its children run at once; that is <code>ConcurrencyLimit</code> on the child's definition.</li></ul></div>
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/concepts/200-durable-execution/212-fan-out-join"><code>concepts/200-durable-execution/212-fan-out-join</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">fan-out-join.cs</span><span class="file-size">84 lines</span></summary><figure class="listing"><figcaption><span class="file">fan-out-join.cs</span><button class="copy" type="button" data-copy-target="#code-5">Copy</button></figcaption><pre><code id="code-5"><span class="c">// How to fan out over a list and merge the results</span>
+<details class="source-file"><summary><span class="file-name">fan-out-join.cs</span><span class="file-size">84 lines</span></summary><figure class="listing"><figcaption><span class="file">fan-out-join.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to fan out over a list and merge the results</span>
 <span class="c">// `MapAsync` starts one child job per item of a list, waits for them all, and hands back each item's result for the</span>
 <span class="c">// parent to merge.</span>
 <span class="k">using</span> Acta;
@@ -266,11 +210,12 @@ Console.WriteLine(<span class="s">$&quot;sum 1..1000 = {outcome.Value!.Total}&qu
             <span class="k">return</span> <span class="k">new</span> PartialSum(sum);
         }
     }
-}</code></pre></figure></details></div>
+}</code></pre></figure>
+</details></div>
 <div class="step plain-step"><h2>Where to go next</h2><ul class="next-links"><li><a href="/learn/215-map-wait-children">How to fan out to child jobs with Map or WaitChildren</a><span>Split work across child jobs</span></li></ul></div>
       </article>
       <article class="agent-face" hidden>
-        <figure class="listing agent"><figcaption><span class="file">/learn/212-fan-out-join.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/212-fan-out-join.md">Open</a><button class="copy" type="button" data-copy-target="#md-body">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
+        <figure class="listing agent"><figcaption><span class="file">/learn/212-fan-out-join.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/212-fan-out-join.md">Open</a><button class="copy" type="button">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
         <p class="hint">This is the page an agent receives: the same how-to as plain Markdown, at this page's address with <code>.md</code> added.</p>
       </article>
       <aside class="howto-rail" aria-label="This section">

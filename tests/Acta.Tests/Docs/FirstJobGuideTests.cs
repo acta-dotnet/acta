@@ -1,3 +1,4 @@
+using Acta.Emit.Features.Learn;
 using Xunit;
 
 namespace Acta.Tests.Docs;
@@ -33,43 +34,9 @@ public sealed class FirstJobGuideTests
         {
             var file = File.ReadAllText(Path.Combine(DocSampleExtraction.RepoRoot, path.Replace('/', Path.DirectorySeparatorChar)));
             Assert.True(
-                WithoutHowToMarkup(DocSampleExtraction.Normalize(file)) == DocSampleExtraction.Normalize(blocks[name]),
+                LearnLibrary.WithoutMarkup(DocSampleExtraction.Normalize(file)) == DocSampleExtraction.Normalize(blocks[name]),
                 $"{Guide}'s {name} block differs from {path}; the guide shows the rung's file verbatim."
             );
         }
-    }
-
-    /// <summary>
-    /// The file as the guide shows it: without the <c>// How to</c> comment that names the rung's task and without the
-    /// <c>// learn:</c> lines that mark its steps. A mark the formatter set between two blank lines takes one of them
-    /// with it.
-    /// </summary>
-    private static string WithoutHowToMarkup(string file)
-    {
-        var lines = file.Split('\n').ToList();
-        var title = lines.FindIndex(line => line.StartsWith("// How to ", StringComparison.Ordinal));
-        if (title >= 0)
-        {
-            var end = title + 1;
-            while (end < lines.Count && lines[end].StartsWith("//", StringComparison.Ordinal))
-            {
-                end++;
-            }
-            lines.RemoveRange(title, end - title);
-        }
-
-        for (var i = lines.Count - 1; i >= 0; i--)
-        {
-            if (!lines[i].TrimStart().StartsWith("// learn: ", StringComparison.Ordinal))
-            {
-                continue;
-            }
-            lines.RemoveAt(i);
-            if (i > 0 && i < lines.Count && lines[i - 1].Length == 0 && lines[i].Length == 0)
-            {
-                lines.RemoveAt(i);
-            }
-        }
-        return string.Join('\n', lines);
     }
 }

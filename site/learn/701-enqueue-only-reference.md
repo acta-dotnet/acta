@@ -23,25 +23,6 @@ j.Reference<EnqueueOnlyReferenceJobs>("enqueue-only-reference");
 In `enqueue-only-reference.cs` (excerpt):
 
 ```csharp
-// In production, these are two separate processes (see demos/ApiWorkerSplit).
-// One process here so the rung is self-contained and runnable without a second terminal.
-
-// Worker host: owns the namespace - declares its jobs, runs the claim loop, executes them.
-var workerBuilder = Host.CreateApplicationBuilder(args);
-workerBuilder.Services.UseActa(j =>
-{
-    j.UseLocalDatabase(workerBuilder.Configuration);
-    j.Run<EnqueueOnlyReferenceJobs>("enqueue-only-reference");
-});
-using var workerHost = workerBuilder.Build();
-await workerHost.StartAsync();
-
-Console.WriteLine("Worker host started: owns the namespace, runs the claim loop.");
-
-// Frontend host: Reference only - no claim loop, so it never runs a handler. This demo keeps both hosts in one
-// assembly; a real frontend references only the shared manifest and contracts.
-// Any process that can reach the same database and knows the manifest type can enqueue.
-var frontendBuilder = Host.CreateApplicationBuilder(args);
 frontendBuilder.Services.UseActa(j =>
 {
     j.UseLocalDatabase(frontendBuilder.Configuration);
@@ -51,24 +32,6 @@ using var frontendHost = frontendBuilder.Build();
 await frontendHost.StartAsync();
 
 Console.WriteLine("Frontend host started: Reference only - no worker, so no handler runs here.");
-
-// Enqueue from the frontend host; it can reach the job type through the reference.
-var frontendJobs = frontendHost.Services.GetRequiredService<IJobs>();
-
-// The job is a row in the shared database; the worker process claims it from there.
-var handle = await frontendJobs.EnqueueAsync(new WelcomeUser("alice"));
-
-Console.WriteLine($"Frontend enqueued job {handle.JobRef} (action={handle.Action})");
-
-// WaitAsync returns as soon as the worker finishes the job; the frontend reads the same database.
-Console.WriteLine("Waiting for worker to drain...");
-await handle.WaitAsync();
-
-var snapshot = await frontendJobs.GetAsync(handle);
-Console.WriteLine($"Job status after worker drain: {snapshot!.Status}");
-
-await frontendHost.StopAsync();
-await workerHost.StopAsync();
 ```
 
 ## 2. Enqueue as usual
@@ -84,52 +47,17 @@ var handle = await frontendJobs.EnqueueAsync(new WelcomeUser("alice"));
 In `enqueue-only-reference.cs` (excerpt):
 
 ```csharp
-// In production, these are two separate processes (see demos/ApiWorkerSplit).
-// One process here so the rung is self-contained and runnable without a second terminal.
-
-// Worker host: owns the namespace - declares its jobs, runs the claim loop, executes them.
-var workerBuilder = Host.CreateApplicationBuilder(args);
-workerBuilder.Services.UseActa(j =>
-{
-    j.UseLocalDatabase(workerBuilder.Configuration);
-    j.Run<EnqueueOnlyReferenceJobs>("enqueue-only-reference");
-});
-using var workerHost = workerBuilder.Build();
-await workerHost.StartAsync();
-
-Console.WriteLine("Worker host started: owns the namespace, runs the claim loop.");
-
-// Frontend host: Reference only - no claim loop, so it never runs a handler. This demo keeps both hosts in one
-// assembly; a real frontend references only the shared manifest and contracts.
-// Any process that can reach the same database and knows the manifest type can enqueue.
-var frontendBuilder = Host.CreateApplicationBuilder(args);
-frontendBuilder.Services.UseActa(j =>
-{
-    j.UseLocalDatabase(frontendBuilder.Configuration);
-    // `Reference` makes the jobs enqueueable by type and starts no claim loop, so this process never runs a handler.
-    j.Reference<EnqueueOnlyReferenceJobs>("enqueue-only-reference");
-});
-using var frontendHost = frontendBuilder.Build();
-await frontendHost.StartAsync();
-
 Console.WriteLine("Frontend host started: Reference only - no worker, so no handler runs here.");
 
 // Enqueue from the frontend host; it can reach the job type through the reference.
 var frontendJobs = frontendHost.Services.GetRequiredService<IJobs>();
 
 var handle = await frontendJobs.EnqueueAsync(new WelcomeUser("alice"));
-
 Console.WriteLine($"Frontend enqueued job {handle.JobRef} (action={handle.Action})");
 
 // WaitAsync returns as soon as the worker finishes the job; the frontend reads the same database.
 Console.WriteLine("Waiting for worker to drain...");
 await handle.WaitAsync();
-
-var snapshot = await frontendJobs.GetAsync(handle);
-Console.WriteLine($"Job status after worker drain: {snapshot!.Status}");
-
-await frontendHost.StopAsync();
-await workerHost.StopAsync();
 ```
 
 ## 3. The job it acts on
@@ -137,8 +65,6 @@ await workerHost.StopAsync();
 `enqueue-only-reference.cs` (excerpt):
 
 ```csharp
-public sealed record WelcomeUser(string Username);
-
 public static class WelcomeUserJob
 {
     [Job("welcome-user")]

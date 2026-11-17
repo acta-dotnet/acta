@@ -45,7 +45,7 @@ public sealed partial class ConceptLab
         Brief = arguments.Contains("--brief", StringComparer.OrdinalIgnoreCase);
         AllColumns = arguments.Contains("--all-columns", StringComparer.OrdinalIgnoreCase);
         _pause = arguments.Contains("--pause", StringComparer.OrdinalIgnoreCase);
-        _provider = configuration["Acta:Provider"] ?? Environment.GetEnvironmentVariable("ACTA_LOCAL_PROVIDER") ?? "sqlite";
+        _provider = LocalDatabase.ResolveProvider(configuration);
         _provider = string.IsNullOrWhiteSpace(_provider) ? "sqlite" : _provider;
         var configuredSchema = schema ?? configuration["Acta:Schema"];
         configuredSchema = string.IsNullOrWhiteSpace(configuredSchema) ? null : configuredSchema;

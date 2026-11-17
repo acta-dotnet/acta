@@ -23,8 +23,6 @@ await context.FailAsync("file is corrupt and cannot be processed", ct);
 In `fail-job.cs` (excerpt):
 
 ```csharp
-public sealed record ProcessUpload(string FileName, bool Corrupt);
-
 public sealed class ProcessUploadJob
 {
     // FailAsync is terminal even with MaxAttempts = 5: it ends the job, it does not retry.

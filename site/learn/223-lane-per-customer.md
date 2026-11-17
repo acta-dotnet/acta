@@ -23,9 +23,6 @@ commands.Add(await jobs.EnqueueAsync(new ApplyCommand(customer, number), o => o.
 In `lane-per-customer.cs` (excerpt):
 
 ```csharp
-var jobs = host.Services.GetRequiredService<IJobs>();
-string[] customers = ["a", "b"];
-
 var commands = new List<JobHandle>();
 foreach (var number in new[] { 1, 2, 3 })
 {
@@ -34,17 +31,6 @@ foreach (var number in new[] { 1, 2, 3 })
         commands.Add(await jobs.EnqueueAsync(new ApplyCommand(customer, number), o => o.Lane($"customer-{customer}")));
     }
 }
-
-foreach (var command in commands)
-{
-    await command.WaitAsync();
-}
-
-foreach (var customer in customers)
-{
-    Console.WriteLine($"customer {customer} applied: {string.Join(", ", Applied.By(customer))}");
-}
-Console.WriteLine($"customers side by side: {(Applied.MostAtOnce > 1 ? "yes" : "no")}");
 ```
 
 ## 2. Let the first command be the slow one
@@ -60,36 +46,6 @@ await Task.Delay(command.Number == 1 ? 400 : 50, ct);
 In `lane-per-customer.cs` (excerpt):
 
 ```csharp
-public sealed record ApplyCommand(string Customer, int Number);
-
-/// <summary>What the handlers did, for the program to print: the order per customer and how many ran at once.</summary>
-public static class Applied
-{
-    private static readonly ConcurrentQueue<ApplyCommand> Commands = new();
-    private static int _atOnce;
-    private static int _mostAtOnce;
-
-    public static int MostAtOnce => Volatile.Read(ref _mostAtOnce);
-
-    public static IEnumerable<int> By(string customer) => Commands.Where(c => c.Customer == customer).Select(c => c.Number);
-
-    public static void Started()
-    {
-        var now = Interlocked.Increment(ref _atOnce);
-        int most;
-        while (now > (most = Volatile.Read(ref _mostAtOnce)))
-        {
-            Interlocked.CompareExchange(ref _mostAtOnce, now, most);
-        }
-    }
-
-    public static void Finished(ApplyCommand command)
-    {
-        Commands.Enqueue(command);
-        Interlocked.Decrement(ref _atOnce);
-    }
-}
-
 public static class ApplyCommandJob
 {
     [Job("apply-command")]
@@ -147,4 +103,4 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## More
 
-- [The whole program](/learn/223-lane-per-customer.program.md): every file as compiled, 96 lines.
+- [The whole program](/learn/223-lane-per-customer.program.md): every file as compiled, 101 lines.

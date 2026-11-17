@@ -23,8 +23,6 @@ await context.CancelAsync("source feed no longer exists", ct);
 In `cancel-job.cs` (excerpt):
 
 ```csharp
-public sealed record ImportFeed(string Url, bool SourceGone);
-
 public sealed class ImportFeedJob
 {
     [Job("import-feed", MaxAttempts = 5)]

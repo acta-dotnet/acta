@@ -57,7 +57,7 @@
   </div>
 
 
-  <main id="content" data-howto="404">
+  <main id="content">
     <header class="wrap page-head howto-head">
       <p class="record"><a href="/learn">learn acta</a><span aria-hidden="true">/</span><a href="/learn#s-operate">watch and control running work</a></p>
       <h1>How to read why a job did what it did</h1>
@@ -77,16 +77,7 @@
       <article class="howto person-face">
 <div class="step"><h2><span class="step-n">1</span>Read the timeline of the job and its children</h2>
 <p>Query the full lineage event timeline scoped to the lineage root (the parent job). Events are returned newest-first; reverse to print in chronological order.</p>
-<figure class="listing"><figcaption><span class="file">read-event-timeline.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-1">Copy</button></figcaption><pre><code id="code-1"><span class="k">var</span> jobs = host.Services.GetRequiredService&lt;IJobs&gt;();
-<span class="k">var</span> queries = host.Services.GetRequiredService&lt;IActaOperations&gt;();
-
-<span class="c">// Enqueue the parent; it will start a child that deliberately fails.</span>
-Console.WriteLine(<span class="s">&quot;enqueuing parent job...&quot;</span>);
-<span class="k">var</span> parent = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> RunReport(<span class="s">&quot;q4-2024&quot;</span>));
-
-<span class="c">// Wait for the lineage to reach a terminal state.</span>
-Console.WriteLine(<span class="s">&quot;waiting for lineage to finish...&quot;</span>);
-<span class="k">var</span> finished = <span class="k">await</span> parent.WaitAsync();
+<figure class="listing"><figcaption><span class="file">read-event-timeline.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">var</span> finished = <span class="k">await</span> parent.WaitAsync();
 
 Console.WriteLine(<span class="s">$&quot;parent finished with status: {finished.Status}&quot;</span>);
 
@@ -94,7 +85,6 @@ Console.WriteLine(<span class="s">&quot;event timeline for the lineage:&quot;</s
 
 <span class="hl"><span class="k">var</span> eventsPage = <span class="k">await</span> queries.Ledger.ListEventsAsync(<span class="k">new</span> ListEventsQuery(LineageRoot: parent, PageSize: 100));</span>
 <span class="hl"><span class="k">var</span> events = eventsPage.Items.Reverse().ToList();</span>
-
 <span class="k">foreach</span> (<span class="k">var</span> e <span class="k">in</span> events)
 {
     <span class="k">var</span> details = e.DetailsText <span class="k">is</span> { } d ? <span class="s">$&quot; {d}&quot;</span> : <span class="s">&quot;&quot;</span>;
@@ -103,36 +93,22 @@ Console.WriteLine(<span class="s">&quot;event timeline for the lineage:&quot;</s
 }</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">2</span>The job it acts on</h2>
-<figure class="listing"><figcaption><span class="file">read-event-timeline.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-2">Copy</button></figcaption><pre><code id="code-2"><span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> RunReport(<span class="k">string</span> Period);
-
-<span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> CollectData(<span class="k">string</span> Period);
-
-<span class="k">public</span> <span class="k">static</span> <span class="k">class</span> ReportingJobs
+<figure class="listing"><figcaption><span class="file">read-event-timeline.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// Parent starts a child that gathers data; the child fails deliberately to show a failure reason on the timeline.</span>
+<span class="a">[Job(<span class="s">&quot;run-report&quot;</span>, MaxAttempts = 1)]</span>
+<span class="k">public</span> <span class="k">static</span> <span class="k">async</span> Task HandleParent(RunReport input, JobContext context, CancellationToken ct)
 {
-    <span class="c">// Parent starts a child that gathers data; the child fails deliberately to show a failure reason on the timeline.</span>
-    <span class="a">[Job(<span class="s">&quot;run-report&quot;</span>, MaxAttempts = 1)]</span>
-    <span class="k">public</span> <span class="k">static</span> <span class="k">async</span> Task HandleParent(RunReport input, JobContext context, CancellationToken ct)
+    Console.WriteLine(<span class="s">$&quot;[run-report] starting data collection for {input.Period}&quot;</span>);
+    <span class="k">var</span> collected = <span class="k">await</span> context.CallChildAsync(<span class="s">&quot;collect&quot;</span>, <span class="k">new</span> CollectData(input.Period), ct);
+    <span class="k">if</span> (!collected.Succeeded)
     {
-        Console.WriteLine(<span class="s">$&quot;[run-report] starting data collection for {input.Period}&quot;</span>);
-        <span class="k">var</span> collected = <span class="k">await</span> context.CallChildAsync(<span class="s">&quot;collect&quot;</span>, <span class="k">new</span> CollectData(input.Period), ct);
-        <span class="k">if</span> (!collected.Succeeded)
-        {
-            <span class="k">await</span> context.FailAsync(<span class="s">$&quot;data collection failed for {input.Period}&quot;</span>, ct);
-        }
-    }
-
-    <span class="a">[Job(<span class="s">&quot;collect-data&quot;</span>, MaxAttempts = 1)]</span>
-    <span class="k">public</span> <span class="k">static</span> Task HandleChild(CollectData input, JobContext context, CancellationToken ct)
-    {
-        Console.WriteLine(<span class="s">$&quot;[collect-data] data origin unavailable for {input.Period}&quot;</span>);
-        <span class="k">return</span> context.FailAsync(<span class="s">&quot;data origin unavailable&quot;</span>, ct);
+        <span class="k">await</span> context.FailAsync(<span class="s">$&quot;data collection failed for {input.Period}&quot;</span>, ct);
     }
 }</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">3</span>Run it and check the output</h2>
 <p>From a clone of <a href="https://github.com/acta-dotnet/acta">the Acta repository</a>, with the .NET 10 SDK:</p>
-<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-3">Copy</button></figcaption><pre><code id="code-3">dotnet run --project concepts/400-observability-and-alerts/404-read-event-timeline</code></pre></figure>
-<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button" data-copy-target="#code-4">Copy</button></figcaption><pre><code id="code-4">parent finished with status: Failed
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project concepts/400-observability-and-alerts/404-read-event-timeline</code></pre></figure>
+<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button">Copy</button></figcaption><pre><code>parent finished with status: Failed
 (data collection failed for q4-2024)
 (data origin unavailable)</code></pre></figure>
 <p class="proof checked"><b>Checked every release.</b> Before each release, Acta Verify runs this program and checks that its output contains these lines.</p>
@@ -141,7 +117,7 @@ Console.WriteLine(<span class="s">&quot;event timeline for the lineage:&quot;</s
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/concepts/400-observability-and-alerts/404-read-event-timeline"><code>concepts/400-observability-and-alerts/404-read-event-timeline</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">read-event-timeline.cs</span><span class="file-size">78 lines</span></summary><figure class="listing"><figcaption><span class="file">read-event-timeline.cs</span><button class="copy" type="button" data-copy-target="#code-5">Copy</button></figcaption><pre><code id="code-5"><span class="c">// How to read why a job did what it did</span>
+<details class="source-file"><summary><span class="file-name">read-event-timeline.cs</span><span class="file-size">78 lines</span></summary><figure class="listing"><figcaption><span class="file">read-event-timeline.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to read why a job did what it did</span>
 <span class="c">// The append-only event ledger answers why a job did what it did. `ListEventsAsync` with `LineageRoot` reads the</span>
 <span class="c">// timeline of a job and of every child it started.</span>
 <span class="k">using</span> Acta;
@@ -218,11 +194,12 @@ Console.WriteLine(<span class="s">&quot;event timeline for the lineage:&quot;</s
             <span class="k">return</span> context.FailAsync(<span class="s">&quot;data origin unavailable&quot;</span>, ct);
         }
     }
-}</code></pre></figure></details></div>
+}</code></pre></figure>
+</details></div>
 <div class="step plain-step"><h2>Where to go next</h2><ul class="next-links"><li><a href="/learn/409-operator-queries">How to list and page through jobs</a><span>Watch and control running work</span></li></ul></div>
       </article>
       <article class="agent-face" hidden>
-        <figure class="listing agent"><figcaption><span class="file">/learn/404-read-event-timeline.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/404-read-event-timeline.md">Open</a><button class="copy" type="button" data-copy-target="#md-body">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
+        <figure class="listing agent"><figcaption><span class="file">/learn/404-read-event-timeline.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/404-read-event-timeline.md">Open</a><button class="copy" type="button">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
         <p class="hint">This is the page an agent receives: the same how-to as plain Markdown, at this page's address with <code>.md</code> added.</p>
       </article>
       <aside class="howto-rail" aria-label="This section">

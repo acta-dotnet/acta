@@ -1,5 +1,6 @@
 User-agent: *
 Allow: /
 Sitemap: https://useacta.net/sitemap.xml
+Sitemap: https://useacta.net/learn/sitemap.xml
 # Coding agents: the machine-readable overview is at https://useacta.net/llms.txt
 # How-tos as Markdown, listed by task: https://useacta.net/learn/index.md

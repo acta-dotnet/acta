@@ -31,12 +31,6 @@ internal static class DocsCommand
             Console.WriteLine($"  wrote {schemaPath}");
         }
 
-        var learn = LearnEmitter.Write(repoRoot);
-        if (learn > 0)
-        {
-            Console.WriteLine($"  wrote {learn} files of the Learn section: the how-tos under site/learn and the concept ladder");
-        }
-
-        return learn < 0 ? 1 : 0;
+        return LearnEmitter.Write(repoRoot);
     }
 }

@@ -57,7 +57,7 @@
   </div>
 
 
-  <main id="content" data-howto="015">
+  <main id="content">
     <header class="wrap page-head howto-head">
       <p class="record"><a href="/learn">learn acta</a><span aria-hidden="true">/</span><a href="/learn#s-start">start jobs</a></p>
       <h1>How to choose between starting a job and waiting for it</h1>
@@ -77,36 +77,33 @@
       <article class="howto person-face">
 <div class="step"><h2><span class="step-n">1</span>Start a job and carry on</h2>
 <p>EnqueueAsync returns immediately, before the job runs.</p>
-<figure class="listing"><figcaption><span class="file">call-vs-enqueue.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-1">Copy</button></figcaption><pre><code id="code-1"><span class="k">var</span> jobs = host.Services.GetRequiredService&lt;IJobs&gt;();
+<figure class="listing"><figcaption><span class="file">call-vs-enqueue.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">using</span> <span class="k">var</span> host = builder.Build();
+<span class="k">await</span> host.StartAsync();
+
+<span class="k">var</span> jobs = host.Services.GetRequiredService&lt;IJobs&gt;();
 
 <span class="hl"><span class="k">var</span> enqueued = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> AddNumbers(1, 1));</span>
-
 Console.WriteLine(<span class="s">$&quot;EnqueueAsync returned right away: job {enqueued.JobRef}, status {(await enqueued.GetStatusAsync())?.Status}&quot;</span>);
 
-<span class="c">// CallAsync enqueues, then waits and returns the result. (See 013-read-result for the read-back path.)</span>
 <span class="k">var</span> executed = <span class="k">await</span> jobs.CallAsync(CallVsEnqueueJobs.AddNumbers(<span class="k">new</span> AddNumbers(2, 2)));
+Console.WriteLine(<span class="s">$&quot;CallAsync waited and returned: job {executed.JobId}, result {executed.ValueOrThrow().Sum}&quot;</span>);
 
-Console.WriteLine(<span class="s">$&quot;CallAsync waited and returned: job {executed.JobId}, result {executed.ValueOrThrow().Sum}&quot;</span>);</code></pre></figure>
+<span class="k">await</span> host.StopAsync();</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">2</span>Start a job and wait for its result</h2>
 <p>CallAsync enqueues, then waits and returns the result. (See 013-read-result for the read-back path.)</p>
-<figure class="listing"><figcaption><span class="file">call-vs-enqueue.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-2">Copy</button></figcaption><pre><code id="code-2"><span class="k">var</span> jobs = host.Services.GetRequiredService&lt;IJobs&gt;();
+<figure class="listing"><figcaption><span class="file">call-vs-enqueue.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">var</span> jobs = host.Services.GetRequiredService&lt;IJobs&gt;();
 
-<span class="c">// EnqueueAsync returns immediately, before the job runs.</span>
 <span class="k">var</span> enqueued = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> AddNumbers(1, 1));
-
 Console.WriteLine(<span class="s">$&quot;EnqueueAsync returned right away: job {enqueued.JobRef}, status {(await enqueued.GetStatusAsync())?.Status}&quot;</span>);
 
 <span class="hl"><span class="k">var</span> executed = <span class="k">await</span> jobs.CallAsync(CallVsEnqueueJobs.AddNumbers(<span class="k">new</span> AddNumbers(2, 2)));</span>
+Console.WriteLine(<span class="s">$&quot;CallAsync waited and returned: job {executed.JobId}, result {executed.ValueOrThrow().Sum}&quot;</span>);
 
-Console.WriteLine(<span class="s">$&quot;CallAsync waited and returned: job {executed.JobId}, result {executed.ValueOrThrow().Sum}&quot;</span>);</code></pre></figure>
+<span class="k">await</span> host.StopAsync();</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">3</span>The job it acts on</h2>
-<figure class="listing"><figcaption><span class="file">call-vs-enqueue.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-3">Copy</button></figcaption><pre><code id="code-3"><span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> AddNumbers(<span class="k">int</span> Left, <span class="k">int</span> Right);
-
-<span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> AddNumbersResult(<span class="k">int</span> Sum);
-
-<span class="k">public</span> <span class="k">static</span> <span class="k">class</span> AddNumbersJob
+<figure class="listing"><figcaption><span class="file">call-vs-enqueue.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">static</span> <span class="k">class</span> AddNumbersJob
 {
     <span class="a">[Job(<span class="s">&quot;add-numbers&quot;</span>)]</span>
     <span class="k">public</span> <span class="k">static</span> <span class="k">async</span> Task&lt;AddNumbersResult&gt; Handle(AddNumbers input, CancellationToken ct)
@@ -118,8 +115,8 @@ Console.WriteLine(<span class="s">$&quot;CallAsync waited and returned: job {exe
 </div>
 <div class="step"><h2><span class="step-n">4</span>Run it and check the output</h2>
 <p>From a clone of <a href="https://github.com/acta-dotnet/acta">the Acta repository</a>, with the .NET 10 SDK:</p>
-<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-4">Copy</button></figcaption><pre><code id="code-4">dotnet run --project concepts/000-fundamentals/015-call-vs-enqueue</code></pre></figure>
-<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button" data-copy-target="#code-5">Copy</button></figcaption><pre><code id="code-5">EnqueueAsync returned right away
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project concepts/000-fundamentals/015-call-vs-enqueue</code></pre></figure>
+<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button">Copy</button></figcaption><pre><code>EnqueueAsync returned right away
 CallAsync waited and returned
 , result 4</code></pre></figure>
 <p class="proof checked"><b>Checked every release.</b> Before each release, Acta Verify runs this program and checks that its output contains these lines.</p>
@@ -128,7 +125,7 @@ CallAsync waited and returned
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/concepts/000-fundamentals/015-call-vs-enqueue"><code>concepts/000-fundamentals/015-call-vs-enqueue</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">call-vs-enqueue.cs</span><span class="file-size">52 lines</span></summary><figure class="listing"><figcaption><span class="file">call-vs-enqueue.cs</span><button class="copy" type="button" data-copy-target="#code-6">Copy</button></figcaption><pre><code id="code-6"><span class="c">// How to choose between starting a job and waiting for it</span>
+<details class="source-file"><summary><span class="file-name">call-vs-enqueue.cs</span><span class="file-size">52 lines</span></summary><figure class="listing"><figcaption><span class="file">call-vs-enqueue.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to choose between starting a job and waiting for it</span>
 <span class="c">// `EnqueueAsync` returns as soon as the job is stored; `CallAsync` enqueues, waits, and returns the result.</span>
 <span class="k">using</span> Acta;
 <span class="k">using</span> Acta.Concepts.CallVsEnqueue;
@@ -179,11 +176,12 @@ Console.WriteLine(<span class="s">$&quot;CallAsync waited and returned: job {exe
             <span class="k">return</span> <span class="k">new</span> AddNumbersResult(input.Left + input.Right);
         }
     }
-}</code></pre></figure></details></div>
+}</code></pre></figure>
+</details></div>
 <div class="step plain-step"><h2>Where to go next</h2><ul class="next-links"><li><a href="/learn/019-batch-enqueue">How to enqueue many jobs in one round trip</a><span>Start jobs</span></li></ul></div>
       </article>
       <article class="agent-face" hidden>
-        <figure class="listing agent"><figcaption><span class="file">/learn/015-call-vs-enqueue.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/015-call-vs-enqueue.md">Open</a><button class="copy" type="button" data-copy-target="#md-body">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
+        <figure class="listing agent"><figcaption><span class="file">/learn/015-call-vs-enqueue.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/015-call-vs-enqueue.md">Open</a><button class="copy" type="button">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
         <p class="hint">This is the page an agent receives: the same how-to as plain Markdown, at this page's address with <code>.md</code> added.</p>
       </article>
       <aside class="howto-rail" aria-label="This section">

@@ -24,11 +24,13 @@ var second = await jobs.EnqueueAsync(new RebuildIndex("acme"), o => o.Concurrenc
 In `concurrency-key.cs` (excerpt):
 
 ```csharp
+using var host = builder.Build();
+await host.StartAsync();
+
 var jobs = host.Services.GetRequiredService<IJobs>();
 
 var first = await jobs.EnqueueAsync(new RebuildIndex("acme"), o => o.ConcurrencyKey("rebuild:acme"));
 var second = await jobs.EnqueueAsync(new RebuildIndex("acme"), o => o.ConcurrencyKey("rebuild:acme"));
-
 Console.WriteLine("Enqueued two jobs with the same concurrency key.");
 
 long ownerJobId;
@@ -49,25 +51,6 @@ The lines that matter:
 In `concurrency-key.cs` (excerpt):
 
 ```csharp
-public sealed record RebuildIndex(string Tenant);
-
-public sealed record ReindexShard(int Shard);
-
-public sealed record PingEndpoint(int Sequence);
-
-public sealed class PingEndpointJob
-{
-    // RateLimit is the other admission gate: five starts a second across the namespace's workers, metered
-    // on the definition name because no RateName was given. Like ConcurrencyLimit it is an
-    // operator-overridable policy value on the definitions row.
-    [Job("ping-endpoint", RateLimit = "5/s")]
-    public Task Handle(PingEndpoint input, CancellationToken ct)
-    {
-        Console.WriteLine($"ping {input.Sequence} at {DateTime.UtcNow:HH:mm:ss.fff}");
-        return Task.CompletedTask;
-    }
-}
-
 public sealed class ReindexShardJob
 {
     [Job("reindex-shard", ConcurrencyLimit = 2)]
@@ -76,20 +59,6 @@ public sealed class ReindexShardJob
         Console.WriteLine($"shard {input.Shard} started");
         await Task.Delay(1000, ct);
         Console.WriteLine($"shard {input.Shard} finished");
-    }
-}
-
-public sealed class RebuildIndexJob
-{
-    private static int _n;
-
-    [Job("rebuild-index")]
-    public async Task Handle(RebuildIndex input, CancellationToken ct)
-    {
-        var n = Interlocked.Increment(ref _n);
-        Console.WriteLine($"[{input.Tenant}] rebuild #{n} started");
-        await Task.Delay(3000, ct);
-        Console.WriteLine($"[{input.Tenant}] rebuild #{n} finished");
     }
 }
 ```
@@ -107,12 +76,6 @@ The lines that matter:
 In `concurrency-key.cs` (excerpt):
 
 ```csharp
-public sealed record RebuildIndex(string Tenant);
-
-public sealed record ReindexShard(int Shard);
-
-public sealed record PingEndpoint(int Sequence);
-
 public sealed class PingEndpointJob
 {
     [Job("ping-endpoint", RateLimit = "5/s")]
@@ -120,33 +83,6 @@ public sealed class PingEndpointJob
     {
         Console.WriteLine($"ping {input.Sequence} at {DateTime.UtcNow:HH:mm:ss.fff}");
         return Task.CompletedTask;
-    }
-}
-
-public sealed class ReindexShardJob
-{
-    // ConcurrencyLimit is a per-definition policy value, so an operator can raise or lower it on the
-    // definitions row without a deploy. Two at a time, whatever the fleet size.
-    [Job("reindex-shard", ConcurrencyLimit = 2)]
-    public async Task Handle(ReindexShard input, CancellationToken ct)
-    {
-        Console.WriteLine($"shard {input.Shard} started");
-        await Task.Delay(1000, ct);
-        Console.WriteLine($"shard {input.Shard} finished");
-    }
-}
-
-public sealed class RebuildIndexJob
-{
-    private static int _n;
-
-    [Job("rebuild-index")]
-    public async Task Handle(RebuildIndex input, CancellationToken ct)
-    {
-        var n = Interlocked.Increment(ref _n);
-        Console.WriteLine($"[{input.Tenant}] rebuild #{n} started");
-        await Task.Delay(3000, ct);
-        Console.WriteLine($"[{input.Tenant}] rebuild #{n} finished");
     }
 }
 ```

@@ -14,7 +14,6 @@ The how-to is [/learn/223-lane-per-customer.md](/learn/223-lane-per-customer.md)
 // How to apply each customer's commands in order while other customers keep moving
 // A lane runs its jobs one at a time, in enqueue order. A lane per customer keeps each customer's commands in order
 // and lets the customers run side by side.
-using System.Collections.Concurrent;
 using Acta;
 using Acta.Concepts.LanePerCustomer;
 using Microsoft.Extensions.DependencyInjection;
@@ -67,28 +66,34 @@ namespace Acta.Concepts.LanePerCustomer
     /// <summary>What the handlers did, for the program to print: the order per customer and how many ran at once.</summary>
     public static class Applied
     {
-        private static readonly ConcurrentQueue<ApplyCommand> Commands = new();
-        private static int _atOnce;
-        private static int _mostAtOnce;
+        private static readonly List<ApplyCommand> Commands = [];
+        private static int _running;
 
-        public static int MostAtOnce => Volatile.Read(ref _mostAtOnce);
+        public static int MostAtOnce { get; private set; }
 
-        public static IEnumerable<int> By(string customer) => Commands.Where(c => c.Customer == customer).Select(c => c.Number);
+        public static int[] By(string customer)
+        {
+            lock (Commands)
+            {
+                return Commands.Where(c => c.Customer == customer).Select(c => c.Number).ToArray();
+            }
+        }
 
         public static void Started()
         {
-            var now = Interlocked.Increment(ref _atOnce);
-            int most;
-            while (now > (most = Volatile.Read(ref _mostAtOnce)))
+            lock (Commands)
             {
-                Interlocked.CompareExchange(ref _mostAtOnce, now, most);
+                MostAtOnce = Math.Max(MostAtOnce, ++_running);
             }
         }
 
         public static void Finished(ApplyCommand command)
         {
-            Commands.Enqueue(command);
-            Interlocked.Decrement(ref _atOnce);
+            lock (Commands)
+            {
+                Commands.Add(command);
+                _running--;
+            }
         }
     }
 

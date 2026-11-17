@@ -23,30 +23,25 @@ await ctx.SetVariableAsync("stage", "charging", inner);
 In `own-status-page.cs` (excerpt):
 
 ```csharp
-public sealed record PrepareOrder(string OrderId);
-
-public sealed class PrepareOrderJob
+[Job("prepare-order", MaxAttempts = 3, Backoff = "2s")]
+public async Task Handle(PrepareOrder order, JobContext ctx, CancellationToken ct)
 {
-    [Job("prepare-order", MaxAttempts = 3, Backoff = "2s")]
-    public async Task Handle(PrepareOrder order, JobContext ctx, CancellationToken ct)
-    {
-        await ctx.RunStepAsync(
-            "charge",
-            async inner =>
+    await ctx.RunStepAsync(
+        "charge",
+        async inner =>
+        {
+            await ctx.SetVariableAsync("stage", "charging", inner);
+            if (ctx.ExecutionNumber == 1)
             {
-                await ctx.SetVariableAsync("stage", "charging", inner);
-                if (ctx.ExecutionNumber == 1)
-                {
-                    throw new InvalidOperationException("the payment provider timed out");
-                }
-            },
-            ct
-        );
+                throw new InvalidOperationException("the payment provider timed out");
+            }
+        },
+        ct
+    );
 
-        await ctx.RunStepAsync("hand-to-warehouse", async inner => await ctx.SetVariableAsync("stage", "packing", inner), ct);
-        await ctx.WaitSignalAsync("packed", ct);
-        await ctx.SetVariableAsync("stage", "shipped", ct);
-    }
+    await ctx.RunStepAsync("hand-to-warehouse", async inner => await ctx.SetVariableAsync("stage", "packing", inner), ct);
+    await ctx.WaitSignalAsync("packed", ct);
+    await ctx.SetVariableAsync("stage", "shipped", ct);
 }
 ```
 
@@ -54,60 +49,12 @@ public sealed class PrepareOrderJob
 
 `GetAsync` answers the job's row, `GetVariableOrDefaultAsync` the value its handler keeps for the screen, and `ExplainAsync` a sentence a person can read. Each is a read of what the database holds now; none waits.
 
-The lines that matter:
+`own-status-page.cs` (excerpt):
 
 ```csharp
 var job = (await jobs.GetAsync(order))!;
 var stage = await jobs.GetVariableOrDefaultAsync<string>(order, "stage");
 var why = (await jobs.ExplainAsync(order))!;
-```
-
-In `own-status-page.cs` (excerpt):
-
-```csharp
-var jobs = host.Services.GetRequiredService<IJobs>();
-var order = await jobs.EnqueueAsync(new PrepareOrder("order-7"));
-
-// The page is read three times: between two attempts, while the job waits for the warehouse, and when it is done.
-await UntilAsync(job => job.Status == JobStatusCode.Ready && job.FailureCount > 0);
-await ShowAsync();
-
-await UntilAsync(job => job.Status == JobStatusCode.Suspended);
-await ShowAsync();
-
-await jobs.RaiseSignalAsync(order, "packed", JobPayload.None, CancellationToken.None);
-await order.WaitAsync();
-await ShowAsync();
-
-await host.StopAsync();
-
-async Task ShowAsync()
-{
-    var job = (await jobs.GetAsync(order))!;
-    var stage = await jobs.GetVariableOrDefaultAsync<string>(order, "stage");
-    var why = (await jobs.ExplainAsync(order))!;
-
-    // A waiting job is healthy, a ready job that has failed before is between retries, and `Executing` means claimed,
-    // not that a process is alive: `LeaseLapsed` is true for a job whose worker stopped heartbeating.
-    var shown = job.Status switch
-    {
-        JobStatusCode.Suspended => "waiting",
-        JobStatusCode.Ready when job.FailureCount > 0 => "retrying",
-        JobStatusCode.Executing when job.LeaseLapsed => "interrupted",
-        JobStatusCode.Executing => "running",
-        _ => job.Status.Code,
-    };
-    Console.WriteLine($"{shown, -9} | stage: {stage, -8} | {why.Headline}");
-}
-
-async Task UntilAsync(Func<GetJobResponse, bool> reached)
-{
-    using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-    while (await jobs.GetAsync(order, timeout.Token) is not { } job || !reached(job))
-    {
-        await Task.Delay(50, timeout.Token);
-    }
-}
 ```
 
 ## 3. Say the status in the page's own words
@@ -130,26 +77,8 @@ var shown = job.Status switch
 In `own-status-page.cs` (excerpt):
 
 ```csharp
-var jobs = host.Services.GetRequiredService<IJobs>();
-var order = await jobs.EnqueueAsync(new PrepareOrder("order-7"));
-
-// The page is read three times: between two attempts, while the job waits for the warehouse, and when it is done.
-await UntilAsync(job => job.Status == JobStatusCode.Ready && job.FailureCount > 0);
-await ShowAsync();
-
-await UntilAsync(job => job.Status == JobStatusCode.Suspended);
-await ShowAsync();
-
-await jobs.RaiseSignalAsync(order, "packed", JobPayload.None, CancellationToken.None);
-await order.WaitAsync();
-await ShowAsync();
-
-await host.StopAsync();
-
 async Task ShowAsync()
 {
-    // `GetAsync` answers the job's row, `GetVariableOrDefaultAsync` the value its handler keeps for the screen, and
-    // `ExplainAsync` a sentence a person can read. Each is a read of what the database holds now; none waits.
     var job = (await jobs.GetAsync(order))!;
     var stage = await jobs.GetVariableOrDefaultAsync<string>(order, "stage");
     var why = (await jobs.ExplainAsync(order))!;
@@ -163,15 +92,6 @@ async Task ShowAsync()
         _ => job.Status.Code,
     };
     Console.WriteLine($"{shown, -9} | stage: {stage, -8} | {why.Headline}");
-}
-
-async Task UntilAsync(Func<GetJobResponse, bool> reached)
-{
-    using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-    while (await jobs.GetAsync(order, timeout.Token) is not { } job || !reached(job))
-    {
-        await Task.Delay(50, timeout.Token);
-    }
 }
 ```
 

@@ -27,30 +27,22 @@ if (decision is not { Approved: true })
 In `Checkout.cs` (excerpt):
 
 ```csharp
-[Job("checkout")]
-public async Task<CheckoutResult> Handle(Checkout order, JobContext context, CancellationToken ct)
+var decision = await context.WaitSignalAsync<FraudDecision>("fraud-review", ct);
+if (decision is not { Approved: true })
 {
-    // The review comes first, so a rejected order has reserved and charged nothing and needs no refund.
-    if (order.Amount >= 500m)
-    {
-        var decision = await context.WaitSignalAsync<FraudDecision>("fraud-review", ct);
-        if (decision is not { Approved: true })
-        {
-            await context.CancelAsync($"fraud review rejected by {decision?.Reviewer}", ct);
-        }
+    await context.CancelAsync($"fraud review rejected by {decision?.Reviewer}", ct);
+}
 
-        // Deliberately ordinary, repeat-safe diagnostic code: it runs after the signal replay and
-        // again after the timer replay. External side effects belong in idempotent durable steps.
-        Console.WriteLine($"[{order.OrderId}] approval observed by handler; reviewer={decision!.Reviewer}");
-    }
-
+// Deliberately ordinary, repeat-safe diagnostic code: it runs after the signal replay and
+// again after the timer replay. External side effects belong in idempotent durable steps.
+Console.WriteLine($"[{order.OrderId}] approval observed by handler; reviewer={decision!.Reviewer}");
 ```
 
 ## 2. Put each outside call in a step
 
 Normal durable steps replay completed outcomes, but an in-flight body can run again after a crash. These simulated external calls therefore carry stable deduplication keys. A real inventory, payment, or mail service must persist and honor the same contract.
 
-The lines that matter:
+`Checkout.cs` (excerpt):
 
 ```csharp
 await context.RunStepAsync(
@@ -62,32 +54,6 @@ await context.RunStepAsync(
     },
     ct
 );
-```
-
-In `Checkout.cs` (excerpt):
-
-```csharp
-
-    // Deliberately ordinary, repeat-safe diagnostic code: it runs after the signal replay and
-    // again after the timer replay. External side effects belong in idempotent durable steps.
-    Console.WriteLine($"[{order.OrderId}] approval observed by handler; reviewer={decision!.Reviewer}");
-}
-
-await context.RunStepAsync(
-    "reserve-inventory",
-    async innerCt =>
-    {
-        await Task.Delay(150, innerCt);
-        Console.WriteLine($"[{order.OrderId}] inventory request: deduplication-key=reservation:{order.OrderId}");
-    },
-    ct
-);
-
-var charge = await context.RunStepAsync(
-    "charge-card",
-    async innerCt =>
-    {
-        await Task.Delay(150, innerCt);
 ```
 
 ## 3. Keep a value in a variable
@@ -103,19 +69,9 @@ var chargeId = await context.GetOrSetVariableAsync("charge-id", () => charge.Cha
 In `Checkout.cs` (excerpt):
 
 ```csharp
-        Console.WriteLine($"[{order.OrderId}] payment request: deduplication-key=payment:{order.OrderId}");
-        return new ChargeResult($"ch_{order.OrderId}");
-    },
-    ct
-);
-
 var chargeId = await context.GetOrSetVariableAsync("charge-id", () => charge.ChargeId, ct);
 
-// The named timer stores an intention in SQL. It does not preserve a process-local continuation.
 await context.SleepAsync("settlement-delay", TimeSpan.FromSeconds(5), "simulated settlement window", ct);
-
-await context.RunStepAsync(
-    "send-receipt",
 ```
 
 ## 4. Wait out the settlement window with a named timer
@@ -131,19 +87,9 @@ await context.SleepAsync("settlement-delay", TimeSpan.FromSeconds(5), "simulated
 In `Checkout.cs` (excerpt):
 
 ```csharp
-    ct
-);
-
-// Get-or-set demonstrates that the variable row is read, not rewritten, on handler re-entry.
 var chargeId = await context.GetOrSetVariableAsync("charge-id", () => charge.ChargeId, ct);
 
 await context.SleepAsync("settlement-delay", TimeSpan.FromSeconds(5), "simulated settlement window", ct);
-
-await context.RunStepAsync(
-    "send-receipt",
-    async innerCt =>
-    {
-        var storedChargeId = await context.GetVariableAsync<string>("charge-id", innerCt);
 ```
 
 ## 5. Run it and check the output

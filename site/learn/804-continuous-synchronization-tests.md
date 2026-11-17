@@ -24,20 +24,11 @@ Assert.Equal(1, (await _host.AdmitOnceAsync(Namespace, Ct)).Admitted);
 In `ContinuousSynchronizationTests.cs` (excerpt):
 
 ```csharp
-    Assert.Equal(ActaRunStatus.Completed, await FireAsync());
-    Assert.Equal(100, await WatermarkAsync());
-}
-
 private async Task AdmitAsync()
 {
     await _host.ForceScheduleDueAsync(Schedule, Ct);
     Assert.Equal(1, (await _host.AdmitOnceAsync(Namespace, Ct)).Admitted);
 }
-
-private async Task<ActaRunStatus> FireAsync()
-{
-    await AdmitAsync();
-    return await _host.RunOnceAsync(_slot, Ct);
 ```
 
 ## 2. Drive the firing as one run
@@ -52,10 +43,6 @@ return await _host.RunOnceAsync(_slot, Ct);
 In `ContinuousSynchronizationTests.cs` (excerpt):
 
 ```csharp
-    await _host.ForceScheduleDueAsync(Schedule, Ct);
-    Assert.Equal(1, (await _host.AdmitOnceAsync(Namespace, Ct)).Admitted);
-}
-
 private async Task<ActaRunStatus> FireAsync()
 {
     await AdmitAsync();
@@ -63,9 +50,6 @@ private async Task<ActaRunStatus> FireAsync()
 }
 
 private async Task<GetJobResponse> JobAsync() => (await _host.Jobs.GetAsync(_slot, Ct))!;
-
-/// <summary>The watermark as the operator sees it, 0 before the first batch: the job's one variable.</summary>
-private async Task<long> WatermarkAsync()
 ```
 
 ## 3. Lose an attempt, and let recovery reclaim it
@@ -83,7 +67,6 @@ Assert.Equal(JobStatusCode.Ready, (await JobAsync()).Status);
 In `ContinuousSynchronizationTests.cs` (excerpt):
 
 ```csharp
-await AdmitAsync();
 var lost = _host.RunOnceAsync(_slot, Ct);
 await _crash.Reached.Task.WaitAsync(TimeSpan.FromSeconds(30), Ct);
 Assert.Equal(40, await WatermarkAsync());

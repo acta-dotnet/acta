@@ -57,7 +57,7 @@
   </div>
 
 
-  <main id="content" data-howto="602">
+  <main id="content">
     <header class="wrap page-head howto-head">
       <p class="record"><a href="/learn">learn acta</a><span aria-hidden="true">/</span><a href="/learn#s-children">split work across child jobs</a></p>
       <h1>How to chain jobs into a pipeline</h1>
@@ -77,21 +77,7 @@
       <article class="howto person-face">
 <div class="step"><h2><span class="step-n">1</span>Enqueue the next stage as the last act of this one</h2>
 <p>The enqueue happens before this stage completes, so a replay repeats it. The key, taken from the document, makes the repeat answer the existing job.</p>
-<figure class="listing"><figcaption><span class="file">chained-jobs.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-1">Copy</button></figcaption><pre><code id="code-1"><span class="c">// Each stage enqueues the next. Unlike 206's in-handler step chain, every stage is its own durable</span>
-<span class="c">// job, so a crash mid-pipeline re-runs only the in-flight stage; stages already finished are not</span>
-<span class="c">// re-executed.</span>
-<span class="c">//</span>
-<span class="c">// What a crash CAN repeat is the handoff itself. The enqueue happens before the stage completes,</span>
-<span class="c">// so a replay enqueues the next stage again. Each handoff therefore carries a deduplication key</span>
-<span class="c">// derived from the document, which makes the replay return the existing job rather than a second</span>
-<span class="c">// pipeline running beside the first.</span>
-<span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> IngestDocument(<span class="k">string</span> FileName);
-
-<span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> RenderPdf(<span class="k">string</span> FileName);
-
-<span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> ArchiveFile(<span class="k">string</span> FileName);
-
-<span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> IngestDocumentJob(IJobs jobs)
+<figure class="listing"><figcaption><span class="file">chained-jobs.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> IngestDocumentJob(IJobs jobs)
 {
     <span class="a">[Job(<span class="s">&quot;ingest-document&quot;</span>)]</span>
     <span class="k">public</span> <span class="k">async</span> Task Handle(IngestDocument input, CancellationToken ct)
@@ -99,28 +85,12 @@
         Console.WriteLine(<span class="s">$&quot;ingested {input.FileName}&quot;</span>);
 <span class="hl">        <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> RenderPdf(input.FileName), o =&gt; o.DeduplicationKey(<span class="s">$&quot;render-{input.FileName}&quot;</span>), ct);</span>
     }
-}
-
-<span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> RenderPdfJob(IJobs jobs)
-{
-    <span class="a">[Job(<span class="s">&quot;render-pdf&quot;</span>)]</span>
-    <span class="k">public</span> <span class="k">async</span> Task Handle(RenderPdf input, CancellationToken ct)
-    {
-        Console.WriteLine(<span class="s">$&quot;rendered {input.FileName} -&gt; PDF&quot;</span>);
-        <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> ArchiveFile(input.FileName), o =&gt; o.DeduplicationKey(<span class="s">$&quot;archive-{input.FileName}&quot;</span>), ct);
-    }
-}
-
-<span class="k">public</span> <span class="k">static</span> <span class="k">class</span> ArchiveFileJob
-{
-    <span class="a">[Job(<span class="s">&quot;archive-file&quot;</span>)]</span>
-    <span class="k">public</span> <span class="k">static</span> <span class="k">void</span> Handle(ArchiveFile input) =&gt; Console.WriteLine(<span class="s">$&quot;archived {input.FileName} - pipeline done&quot;</span>);
 }</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">2</span>Run it and check the output</h2>
 <p>From a clone of <a href="https://github.com/acta-dotnet/acta">the Acta repository</a>, with the .NET 10 SDK:</p>
-<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-2">Copy</button></figcaption><pre><code id="code-2">dotnet run --project concepts/600-job-composition/602-chained-jobs</code></pre></figure>
-<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button" data-copy-target="#code-3">Copy</button></figcaption><pre><code id="code-3">ingested report.md
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project concepts/600-job-composition/602-chained-jobs</code></pre></figure>
+<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button">Copy</button></figcaption><pre><code>ingested report.md
 rendered report.md -&gt; PDF
 archived report.md - pipeline done</code></pre></figure>
 <p class="proof checked"><b>Checked every release.</b> Before each release, Acta Verify runs this program and checks that its output contains these lines.</p>
@@ -129,7 +99,7 @@ archived report.md - pipeline done</code></pre></figure>
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/concepts/600-job-composition/602-chained-jobs"><code>concepts/600-job-composition/602-chained-jobs</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">chained-jobs.cs</span><span class="file-size">73 lines</span></summary><figure class="listing"><figcaption><span class="file">chained-jobs.cs</span><button class="copy" type="button" data-copy-target="#code-4">Copy</button></figcaption><pre><code id="code-4"><span class="c">// How to chain jobs into a pipeline</span>
+<details class="source-file"><summary><span class="file-name">chained-jobs.cs</span><span class="file-size">73 lines</span></summary><figure class="listing"><figcaption><span class="file">chained-jobs.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to chain jobs into a pipeline</span>
 <span class="c">// Each stage is a job of its own that enqueues the next one, with a deduplication key so a replayed handoff starts</span>
 <span class="c">// no second pipeline.</span>
 <span class="k">using</span> Acta;
@@ -201,11 +171,12 @@ Console.WriteLine(<span class="s">&quot;Enqueued the first stage. Worker is runn
         <span class="a">[Job(<span class="s">&quot;archive-file&quot;</span>)]</span>
         <span class="k">public</span> <span class="k">static</span> <span class="k">void</span> Handle(ArchiveFile input) =&gt; Console.WriteLine(<span class="s">$&quot;archived {input.FileName} - pipeline done&quot;</span>);
     }
-}</code></pre></figure></details></div>
+}</code></pre></figure>
+</details></div>
 <div class="step plain-step"><h2>Where to go next</h2><ul class="next-links"><li><a href="/learn/016-max-attempts">How to limit how many times a job retries</a><span>Decide what happens when work fails</span></li></ul></div>
       </article>
       <article class="agent-face" hidden>
-        <figure class="listing agent"><figcaption><span class="file">/learn/602-chained-jobs.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/602-chained-jobs.md">Open</a><button class="copy" type="button" data-copy-target="#md-body">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
+        <figure class="listing agent"><figcaption><span class="file">/learn/602-chained-jobs.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/602-chained-jobs.md">Open</a><button class="copy" type="button">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
         <p class="hint">This is the page an agent receives: the same how-to as plain Markdown, at this page's address with <code>.md</code> added.</p>
       </article>
       <aside class="howto-rail" aria-label="This section">

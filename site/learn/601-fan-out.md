@@ -27,10 +27,6 @@ for (var i = 1; i <= input.PhotoCount; i++)
 In `fan-out.cs` (excerpt):
 
 ```csharp
-public sealed record MakeAlbumThumbnails(string AlbumId, int PhotoCount);
-
-public sealed record MakeThumbnail(int PhotoIndex);
-
 // Inject IJobs to fan a big task out into many small durable jobs the worker drains in parallel.
 //
 // Every enqueued job carries a deduplication key derived from what it is, not from when it was created.
@@ -49,12 +45,6 @@ public sealed class MakeAlbumThumbnailsJob(IJobs jobs)
             await jobs.EnqueueAsync(new MakeThumbnail(photo), o => o.DeduplicationKey($"thumbnail-{input.AlbumId}-{photo}"), ct);
         }
     }
-}
-
-public static class MakeThumbnailJob
-{
-    [Job("make-thumbnail")]
-    public static void Handle(MakeThumbnail input) => Console.WriteLine($"  made thumbnail for photo #{input.PhotoIndex}");
 }
 ```
 

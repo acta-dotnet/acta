@@ -70,7 +70,7 @@ internal static partial class CSharpColour
                 var depth = 0;
                 while (j < src.Length)
                 {
-                    if (StartsString(src, j, anyPrefix: true))
+                    if (StartsString(src, j))
                     {
                         j = StringEnd(src, j);
                         continue;
@@ -93,7 +93,7 @@ internal static partial class CSharpColour
                 continue;
             }
             lineStart = false;
-            if (StartsString(src, i, anyPrefix: false))
+            if (StartsString(src, i))
             {
                 var end = StringEnd(src, i);
                 Push(html, "s", src[i..end]);
@@ -144,25 +144,16 @@ internal static partial class CSharpColour
 
     /// <summary>
     /// Whether a string literal opens at <paramref name="i"/>: a quote, or a quote behind one or two of <c>$</c> and
-    /// <c>@</c>. Inside an attribute the scan is looser and takes a quote that is the third character too.
+    /// <c>@</c>.
     /// </summary>
-    private static bool StartsString(string src, int i, bool anyPrefix)
+    private static bool StartsString(string src, int i)
     {
-        if (src[i] == '"')
-        {
-            return true;
-        }
-        if (src[i] is not ('$' or '@'))
-        {
-            return false;
-        }
         var j = i;
-        while (j < src.Length && j < i + 3 && src[j] is '$' or '@')
+        while (j < src.Length && j < i + 2 && src[j] is '$' or '@')
         {
             j++;
         }
-        var prefix = j - i;
-        return j < src.Length && j < i + 3 && src[j] == '"' && (anyPrefix || prefix is 1 or 2);
+        return j < src.Length && src[j] == '"';
     }
 
     /// <summary>The index just past the string literal that opens at <paramref name="i"/>, prefixes included.</summary>

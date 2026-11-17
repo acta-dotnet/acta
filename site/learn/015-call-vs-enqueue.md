@@ -23,16 +23,18 @@ var enqueued = await jobs.EnqueueAsync(new AddNumbers(1, 1));
 In `call-vs-enqueue.cs` (excerpt):
 
 ```csharp
+using var host = builder.Build();
+await host.StartAsync();
+
 var jobs = host.Services.GetRequiredService<IJobs>();
 
 var enqueued = await jobs.EnqueueAsync(new AddNumbers(1, 1));
-
 Console.WriteLine($"EnqueueAsync returned right away: job {enqueued.JobRef}, status {(await enqueued.GetStatusAsync())?.Status}");
 
-// CallAsync enqueues, then waits and returns the result. (See 013-read-result for the read-back path.)
 var executed = await jobs.CallAsync(CallVsEnqueueJobs.AddNumbers(new AddNumbers(2, 2)));
-
 Console.WriteLine($"CallAsync waited and returned: job {executed.JobId}, result {executed.ValueOrThrow().Sum}");
+
+await host.StopAsync();
 ```
 
 ## 2. Start a job and wait for its result
@@ -50,14 +52,13 @@ In `call-vs-enqueue.cs` (excerpt):
 ```csharp
 var jobs = host.Services.GetRequiredService<IJobs>();
 
-// EnqueueAsync returns immediately, before the job runs.
 var enqueued = await jobs.EnqueueAsync(new AddNumbers(1, 1));
-
 Console.WriteLine($"EnqueueAsync returned right away: job {enqueued.JobRef}, status {(await enqueued.GetStatusAsync())?.Status}");
 
 var executed = await jobs.CallAsync(CallVsEnqueueJobs.AddNumbers(new AddNumbers(2, 2)));
-
 Console.WriteLine($"CallAsync waited and returned: job {executed.JobId}, result {executed.ValueOrThrow().Sum}");
+
+await host.StopAsync();
 ```
 
 ## 3. The job it acts on
@@ -65,10 +66,6 @@ Console.WriteLine($"CallAsync waited and returned: job {executed.JobId}, result 
 `call-vs-enqueue.cs` (excerpt):
 
 ```csharp
-public sealed record AddNumbers(int Left, int Right);
-
-public sealed record AddNumbersResult(int Sum);
-
 public static class AddNumbersJob
 {
     [Job("add-numbers")]

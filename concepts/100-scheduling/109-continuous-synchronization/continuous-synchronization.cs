@@ -59,7 +59,7 @@ if (mode == "outage")
 // The mode word and the lab switches are not configuration; everything else still reaches the host.
 var hostArgs = args.Where(a => a != mode && a is not "--brief" and not "--pause" and not "--all-columns").ToArray();
 var builder = Host.CreateApplicationBuilder(hostArgs);
-var provider = builder.Configuration["Acta:Provider"] ?? Environment.GetEnvironmentVariable("ACTA_LOCAL_PROVIDER") ?? "sqlite";
+var provider = LocalDatabase.ResolveProvider(builder.Configuration);
 if (!LocalDatabase.IsSqlite(provider))
 {
     Console.WriteLine("This lab runs on embedded SQLite: its shop feed and local orders live in the same file as Acta's tables.");

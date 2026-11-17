@@ -57,7 +57,7 @@
   </div>
 
 
-  <main id="content" data-howto="802">
+  <main id="content">
     <header class="wrap page-head howto-head">
       <p class="record"><a href="/learn">learn acta</a><span aria-hidden="true">/</span><a href="/learn#s-test">test without sleeps or polling</a></p>
       <h1>How to test a job that waits for a signal</h1>
@@ -77,149 +77,77 @@
       <article class="howto person-face">
 <div class="step"><h2><span class="step-n">1</span>Drive the job to its wait</h2>
 <p>First tick: reserve runs, then the job suspends waiting for approval (re-armed, not done).</p>
-<figure class="listing"><figcaption><span class="file">OrderTests.cs</span><button class="copy" type="button" data-copy-target="#code-1">Copy</button></figcaption><pre><code id="code-1"><span class="k">using</span> Acta.Testing;
-<span class="k">using</span> Xunit;
-
-<span class="k">namespace</span> Acta.Concepts.TestingDurable;
-
-<span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> OrderTests(ActaHostFixture acta) : ActaTestBase(acta)
+<figure class="listing"><figcaption><span class="file">OrderTests.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="a">[Fact]</span>
+<span class="k">public</span> <span class="k">async</span> Task Order_reserves_once_waits_for_approval_then_charges()
 {
-    <span class="a">[Fact]</span>
-    <span class="k">public</span> <span class="k">async</span> Task Order_reserves_once_waits_for_approval_then_charges()
-    {
-        <span class="k">var</span> enqueued = <span class="k">await</span> Jobs.EnqueueAsync(<span class="k">new</span> PlaceOrder(<span class="s">&quot;o-1&quot;</span>, 99m), ct: Ct);
+    <span class="k">var</span> enqueued = <span class="k">await</span> Jobs.EnqueueAsync(<span class="k">new</span> PlaceOrder(<span class="s">&quot;o-1&quot;</span>, 99m), ct: Ct);
 
-<span class="hl">        Assert.Equal(ActaRunStatus.Rearmed, <span class="k">await</span> Host.RunOnceAsync(enqueued, Ct));</span>
-<span class="hl">        Assert.Equal(JobStatusCode.Suspended, (<span class="k">await</span> enqueued.GetStatusAsync(Ct))?.Status);</span>
+<span class="hl">    Assert.Equal(ActaRunStatus.Rearmed, <span class="k">await</span> Host.RunOnceAsync(enqueued, Ct));</span>
+<span class="hl">    Assert.Equal(JobStatusCode.Suspended, (<span class="k">await</span> enqueued.GetStatusAsync(Ct))?.Status);</span>
 
-        <span class="c">// The approval API raises a typed decision; the job moves to Ready.</span>
-        <span class="k">var</span> raise = <span class="k">await</span> Jobs.RaiseSignalAsync(enqueued, <span class="s">&quot;approval&quot;</span>, <span class="k">new</span> ApprovalDecision(<span class="k">true</span>, <span class="s">&quot;alice&quot;</span>), Ct);
-        Assert.Equal(ControlAction.Applied, raise.Action);
+    <span class="k">var</span> raise = <span class="k">await</span> Jobs.RaiseSignalAsync(enqueued, <span class="s">&quot;approval&quot;</span>, <span class="k">new</span> ApprovalDecision(<span class="k">true</span>, <span class="s">&quot;alice&quot;</span>), Ct);
+    Assert.Equal(ControlAction.Applied, raise.Action);
 
-        <span class="c">// Second tick: the job replays (reserve is NOT re-run), the signal is Set, charge runs, Done.</span>
-        Assert.Equal(ActaRunStatus.Completed, <span class="k">await</span> Host.RunOnceAsync(enqueued, Ct));
-        Assert.Equal(JobStatusCode.Succeeded, (<span class="k">await</span> enqueued.GetStatusAsync(Ct))?.Status);
+    Assert.Equal(ActaRunStatus.Completed, <span class="k">await</span> Host.RunOnceAsync(enqueued, Ct));
+    Assert.Equal(JobStatusCode.Succeeded, (<span class="k">await</span> enqueued.GetStatusAsync(Ct))?.Status);
 
-        <span class="k">var</span> result = <span class="k">await</span> enqueued.GetResultAsync&lt;OrderResult&gt;(Ct);
-        Assert.True(result.Charged);
-        Assert.Equal(1, Warehouse.ReservationsFor(<span class="s">&quot;o-1&quot;</span>)); <span class="c">// reserve ran exactly once across the replay</span>
-    }
-
-    <span class="a">[Fact]</span>
-    <span class="k">public</span> <span class="k">async</span> Task Rejected_order_completes_without_charging()
-    {
-        <span class="k">var</span> enqueued = <span class="k">await</span> Jobs.EnqueueAsync(<span class="k">new</span> PlaceOrder(<span class="s">&quot;o-2&quot;</span>, 50m), ct: Ct);
-
-        Assert.Equal(ActaRunStatus.Rearmed, <span class="k">await</span> Host.RunOnceAsync(enqueued, Ct));
-
-        <span class="k">await</span> Jobs.RaiseSignalAsync(enqueued, <span class="s">&quot;approval&quot;</span>, <span class="k">new</span> ApprovalDecision(<span class="k">false</span>, <span class="s">&quot;bob&quot;</span>), Ct);
-
-        Assert.Equal(ActaRunStatus.Completed, <span class="k">await</span> Host.RunOnceAsync(enqueued, Ct));
-        <span class="k">var</span> result = <span class="k">await</span> enqueued.GetResultAsync&lt;OrderResult&gt;(Ct);
-        Assert.False(result.Charged);
-    }
+    <span class="k">var</span> result = <span class="k">await</span> enqueued.GetResultAsync&lt;OrderResult&gt;(Ct);
+    Assert.True(result.Charged);
+    Assert.Equal(1, Warehouse.ReservationsFor(<span class="s">&quot;o-1&quot;</span>)); <span class="c">// reserve ran exactly once across the replay</span>
 }</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">2</span>Raise the signal from the test</h2>
 <p>The approval API raises a typed decision; the job moves to Ready.</p>
-<figure class="listing"><figcaption><span class="file">OrderTests.cs</span><button class="copy" type="button" data-copy-target="#code-2">Copy</button></figcaption><pre><code id="code-2"><span class="k">using</span> Acta.Testing;
-<span class="k">using</span> Xunit;
-
-<span class="k">namespace</span> Acta.Concepts.TestingDurable;
-
-<span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> OrderTests(ActaHostFixture acta) : ActaTestBase(acta)
+<figure class="listing"><figcaption><span class="file">OrderTests.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="a">[Fact]</span>
+<span class="k">public</span> <span class="k">async</span> Task Order_reserves_once_waits_for_approval_then_charges()
 {
-    <span class="a">[Fact]</span>
-    <span class="k">public</span> <span class="k">async</span> Task Order_reserves_once_waits_for_approval_then_charges()
-    {
-        <span class="k">var</span> enqueued = <span class="k">await</span> Jobs.EnqueueAsync(<span class="k">new</span> PlaceOrder(<span class="s">&quot;o-1&quot;</span>, 99m), ct: Ct);
+    <span class="k">var</span> enqueued = <span class="k">await</span> Jobs.EnqueueAsync(<span class="k">new</span> PlaceOrder(<span class="s">&quot;o-1&quot;</span>, 99m), ct: Ct);
 
-        <span class="c">// First tick: reserve runs, then the job suspends waiting for approval (re-armed, not done).</span>
-        Assert.Equal(ActaRunStatus.Rearmed, <span class="k">await</span> Host.RunOnceAsync(enqueued, Ct));
-        Assert.Equal(JobStatusCode.Suspended, (<span class="k">await</span> enqueued.GetStatusAsync(Ct))?.Status);
+    Assert.Equal(ActaRunStatus.Rearmed, <span class="k">await</span> Host.RunOnceAsync(enqueued, Ct));
+    Assert.Equal(JobStatusCode.Suspended, (<span class="k">await</span> enqueued.GetStatusAsync(Ct))?.Status);
 
-<span class="hl">        <span class="k">var</span> raise = <span class="k">await</span> Jobs.RaiseSignalAsync(enqueued, <span class="s">&quot;approval&quot;</span>, <span class="k">new</span> ApprovalDecision(<span class="k">true</span>, <span class="s">&quot;alice&quot;</span>), Ct);</span>
-<span class="hl">        Assert.Equal(ControlAction.Applied, raise.Action);</span>
+<span class="hl">    <span class="k">var</span> raise = <span class="k">await</span> Jobs.RaiseSignalAsync(enqueued, <span class="s">&quot;approval&quot;</span>, <span class="k">new</span> ApprovalDecision(<span class="k">true</span>, <span class="s">&quot;alice&quot;</span>), Ct);</span>
+<span class="hl">    Assert.Equal(ControlAction.Applied, raise.Action);</span>
 
-        <span class="c">// Second tick: the job replays (reserve is NOT re-run), the signal is Set, charge runs, Done.</span>
-        Assert.Equal(ActaRunStatus.Completed, <span class="k">await</span> Host.RunOnceAsync(enqueued, Ct));
-        Assert.Equal(JobStatusCode.Succeeded, (<span class="k">await</span> enqueued.GetStatusAsync(Ct))?.Status);
+    Assert.Equal(ActaRunStatus.Completed, <span class="k">await</span> Host.RunOnceAsync(enqueued, Ct));
+    Assert.Equal(JobStatusCode.Succeeded, (<span class="k">await</span> enqueued.GetStatusAsync(Ct))?.Status);
 
-        <span class="k">var</span> result = <span class="k">await</span> enqueued.GetResultAsync&lt;OrderResult&gt;(Ct);
-        Assert.True(result.Charged);
-        Assert.Equal(1, Warehouse.ReservationsFor(<span class="s">&quot;o-1&quot;</span>)); <span class="c">// reserve ran exactly once across the replay</span>
-    }
-
-    <span class="a">[Fact]</span>
-    <span class="k">public</span> <span class="k">async</span> Task Rejected_order_completes_without_charging()
-    {
-        <span class="k">var</span> enqueued = <span class="k">await</span> Jobs.EnqueueAsync(<span class="k">new</span> PlaceOrder(<span class="s">&quot;o-2&quot;</span>, 50m), ct: Ct);
-
-        Assert.Equal(ActaRunStatus.Rearmed, <span class="k">await</span> Host.RunOnceAsync(enqueued, Ct));
-
-        <span class="k">await</span> Jobs.RaiseSignalAsync(enqueued, <span class="s">&quot;approval&quot;</span>, <span class="k">new</span> ApprovalDecision(<span class="k">false</span>, <span class="s">&quot;bob&quot;</span>), Ct);
-
-        Assert.Equal(ActaRunStatus.Completed, <span class="k">await</span> Host.RunOnceAsync(enqueued, Ct));
-        <span class="k">var</span> result = <span class="k">await</span> enqueued.GetResultAsync&lt;OrderResult&gt;(Ct);
-        Assert.False(result.Charged);
-    }
+    <span class="k">var</span> result = <span class="k">await</span> enqueued.GetResultAsync&lt;OrderResult&gt;(Ct);
+    Assert.True(result.Charged);
+    Assert.Equal(1, Warehouse.ReservationsFor(<span class="s">&quot;o-1&quot;</span>)); <span class="c">// reserve ran exactly once across the replay</span>
 }</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">3</span>Drive it again, and assert that it finished</h2>
 <p>Second tick: the job replays (reserve is NOT re-run), the signal is Set, charge runs, Done.</p>
-<figure class="listing"><figcaption><span class="file">OrderTests.cs</span><button class="copy" type="button" data-copy-target="#code-3">Copy</button></figcaption><pre><code id="code-3"><span class="k">using</span> Acta.Testing;
-<span class="k">using</span> Xunit;
-
-<span class="k">namespace</span> Acta.Concepts.TestingDurable;
-
-<span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> OrderTests(ActaHostFixture acta) : ActaTestBase(acta)
+<figure class="listing"><figcaption><span class="file">OrderTests.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="a">[Fact]</span>
+<span class="k">public</span> <span class="k">async</span> Task Order_reserves_once_waits_for_approval_then_charges()
 {
-    <span class="a">[Fact]</span>
-    <span class="k">public</span> <span class="k">async</span> Task Order_reserves_once_waits_for_approval_then_charges()
-    {
-        <span class="k">var</span> enqueued = <span class="k">await</span> Jobs.EnqueueAsync(<span class="k">new</span> PlaceOrder(<span class="s">&quot;o-1&quot;</span>, 99m), ct: Ct);
+    <span class="k">var</span> enqueued = <span class="k">await</span> Jobs.EnqueueAsync(<span class="k">new</span> PlaceOrder(<span class="s">&quot;o-1&quot;</span>, 99m), ct: Ct);
 
-        <span class="c">// First tick: reserve runs, then the job suspends waiting for approval (re-armed, not done).</span>
-        Assert.Equal(ActaRunStatus.Rearmed, <span class="k">await</span> Host.RunOnceAsync(enqueued, Ct));
-        Assert.Equal(JobStatusCode.Suspended, (<span class="k">await</span> enqueued.GetStatusAsync(Ct))?.Status);
+    Assert.Equal(ActaRunStatus.Rearmed, <span class="k">await</span> Host.RunOnceAsync(enqueued, Ct));
+    Assert.Equal(JobStatusCode.Suspended, (<span class="k">await</span> enqueued.GetStatusAsync(Ct))?.Status);
 
-        <span class="c">// The approval API raises a typed decision; the job moves to Ready.</span>
-        <span class="k">var</span> raise = <span class="k">await</span> Jobs.RaiseSignalAsync(enqueued, <span class="s">&quot;approval&quot;</span>, <span class="k">new</span> ApprovalDecision(<span class="k">true</span>, <span class="s">&quot;alice&quot;</span>), Ct);
-        Assert.Equal(ControlAction.Applied, raise.Action);
+    <span class="k">var</span> raise = <span class="k">await</span> Jobs.RaiseSignalAsync(enqueued, <span class="s">&quot;approval&quot;</span>, <span class="k">new</span> ApprovalDecision(<span class="k">true</span>, <span class="s">&quot;alice&quot;</span>), Ct);
+    Assert.Equal(ControlAction.Applied, raise.Action);
 
-<span class="hl">        Assert.Equal(ActaRunStatus.Completed, <span class="k">await</span> Host.RunOnceAsync(enqueued, Ct));</span>
-<span class="hl">        Assert.Equal(JobStatusCode.Succeeded, (<span class="k">await</span> enqueued.GetStatusAsync(Ct))?.Status);</span>
+<span class="hl">    Assert.Equal(ActaRunStatus.Completed, <span class="k">await</span> Host.RunOnceAsync(enqueued, Ct));</span>
+<span class="hl">    Assert.Equal(JobStatusCode.Succeeded, (<span class="k">await</span> enqueued.GetStatusAsync(Ct))?.Status);</span>
 
-        <span class="k">var</span> result = <span class="k">await</span> enqueued.GetResultAsync&lt;OrderResult&gt;(Ct);
-        Assert.True(result.Charged);
-        Assert.Equal(1, Warehouse.ReservationsFor(<span class="s">&quot;o-1&quot;</span>)); <span class="c">// reserve ran exactly once across the replay</span>
-    }
-
-    <span class="a">[Fact]</span>
-    <span class="k">public</span> <span class="k">async</span> Task Rejected_order_completes_without_charging()
-    {
-        <span class="k">var</span> enqueued = <span class="k">await</span> Jobs.EnqueueAsync(<span class="k">new</span> PlaceOrder(<span class="s">&quot;o-2&quot;</span>, 50m), ct: Ct);
-
-        Assert.Equal(ActaRunStatus.Rearmed, <span class="k">await</span> Host.RunOnceAsync(enqueued, Ct));
-
-        <span class="k">await</span> Jobs.RaiseSignalAsync(enqueued, <span class="s">&quot;approval&quot;</span>, <span class="k">new</span> ApprovalDecision(<span class="k">false</span>, <span class="s">&quot;bob&quot;</span>), Ct);
-
-        Assert.Equal(ActaRunStatus.Completed, <span class="k">await</span> Host.RunOnceAsync(enqueued, Ct));
-        <span class="k">var</span> result = <span class="k">await</span> enqueued.GetResultAsync&lt;OrderResult&gt;(Ct);
-        Assert.False(result.Charged);
-    }
+    <span class="k">var</span> result = <span class="k">await</span> enqueued.GetResultAsync&lt;OrderResult&gt;(Ct);
+    Assert.True(result.Charged);
+    Assert.Equal(1, Warehouse.ReservationsFor(<span class="s">&quot;o-1&quot;</span>)); <span class="c">// reserve ran exactly once across the replay</span>
 }</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">4</span>Run it</h2>
 <p>From a clone of <a href="https://github.com/acta-dotnet/acta">the Acta repository</a>, with the .NET 10 SDK:</p>
-<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-4">Copy</button></figcaption><pre><code id="code-4">dotnet test concepts/800-testing/802-testing-durable-jobs</code></pre></figure>
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet test concepts/800-testing/802-testing-durable-jobs</code></pre></figure>
 <p class="proof checked"><b>Runs as a test.</b> This program is a test project: it passes or fails with the test suite.</p>
 <p class="hint">This page shows the code. The rules it relies on, starting with the handler running again from its first line, are in <a href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#handler-contract">the handler contract</a>.</p>
 </div>
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/concepts/800-testing/802-testing-durable-jobs"><code>concepts/800-testing/802-testing-durable-jobs</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">OrderTests.cs</span><span class="file-size">53 lines</span></summary><figure class="listing"><figcaption><span class="file">OrderTests.cs</span><button class="copy" type="button" data-copy-target="#code-5">Copy</button></figcaption><pre><code id="code-5"><span class="c">// How to test a job that waits for a signal</span>
+<details class="source-file"><summary><span class="file-name">OrderTests.cs</span><span class="file-size">53 lines</span></summary><figure class="listing"><figcaption><span class="file">OrderTests.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to test a job that waits for a signal</span>
 <span class="c">// Each `RunOnceAsync` drives exactly one attempt, so the suspend on a signal and the resume after its raise are two</span>
 <span class="c">// explicit ticks, and the test asserts that the step before the wait ran once across the replay. Run it with</span>
 <span class="c">// `dotnet test concepts/800-testing/802-testing-durable-jobs`.</span>
@@ -271,8 +199,9 @@
         <span class="k">var</span> result = <span class="k">await</span> enqueued.GetResultAsync&lt;OrderResult&gt;(Ct);
         Assert.False(result.Charged);
     }
-}</code></pre></figure></details>
-<details class="source-file"><summary><span class="file-name">ActaHostFixture.cs</span><span class="file-size">49 lines</span></summary><figure class="listing"><figcaption><span class="file">ActaHostFixture.cs</span><button class="copy" type="button" data-copy-target="#code-6">Copy</button></figcaption><pre><code id="code-6"><span class="c">// xUnit class fixture: one ActaTestHost per test class, like 801, for a durable multi-step job.</span>
+}</code></pre></figure>
+</details>
+<details class="source-file"><summary><span class="file-name">ActaHostFixture.cs</span><span class="file-size">49 lines</span></summary><figure class="listing"><figcaption><span class="file">ActaHostFixture.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// xUnit class fixture: one ActaTestHost per test class, like 801, for a durable multi-step job.</span>
 
 <span class="k">using</span> Acta.Testing;
 <span class="k">using</span> Microsoft.Extensions.Configuration;
@@ -320,8 +249,9 @@
     <span class="k">protected</span> Warehouse Warehouse =&gt; acta.Warehouse;
 
     <span class="k">protected</span> <span class="k">static</span> CancellationToken Ct =&gt; TestContext.Current.CancellationToken;
-}</code></pre></figure></details>
-<details class="source-file"><summary><span class="file-name">OrderJob.cs</span><span class="file-size">50 lines</span></summary><figure class="listing"><figcaption><span class="file">OrderJob.cs</span><button class="copy" type="button" data-copy-target="#code-7">Copy</button></figcaption><pre><code id="code-7"><span class="c">// Durable multi-step job under test: reserve stock, wait for an approval signal, then charge.</span>
+}</code></pre></figure>
+</details>
+<details class="source-file"><summary><span class="file-name">OrderJob.cs</span><span class="file-size">50 lines</span></summary><figure class="listing"><figcaption><span class="file">OrderJob.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// Durable multi-step job under test: reserve stock, wait for an approval signal, then charge.</span>
 
 <span class="k">using</span> System.Collections.Concurrent;
 
@@ -370,11 +300,12 @@
         <span class="k">await</span> context.RunStepAsync(<span class="s">&quot;charge&quot;</span>, _ =&gt; Task.CompletedTask, ct);
         <span class="k">return</span> <span class="k">new</span> OrderResult(order.OrderId, Charged: <span class="k">true</span>);
     }
-}</code></pre></figure></details></div>
+}</code></pre></figure>
+</details></div>
 <div class="step plain-step"><h2>Where to go next</h2><ul class="next-links"><li><a href="/learn/803-first-job-tests">How to test the first-job guide's app</a><span>Test without sleeps or polling</span></li></ul></div>
       </article>
       <article class="agent-face" hidden>
-        <figure class="listing agent"><figcaption><span class="file">/learn/802-testing-durable-jobs.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/802-testing-durable-jobs.md">Open</a><button class="copy" type="button" data-copy-target="#md-body">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
+        <figure class="listing agent"><figcaption><span class="file">/learn/802-testing-durable-jobs.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/802-testing-durable-jobs.md">Open</a><button class="copy" type="button">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
         <p class="hint">This is the page an agent receives: the same how-to as plain Markdown, at this page's address with <code>.md</code> added.</p>
       </article>
       <aside class="howto-rail" aria-label="This section">

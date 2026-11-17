@@ -24,8 +24,6 @@ The lines that matter:
 In `recurring-job.cs` (excerpt):
 
 ```csharp
-public readonly record struct PurgeStaleSessions;
-
 public sealed class PurgeStaleSessionsJob
 {
     [Job("purge-stale-sessions", EventRecording = EventRecordingCode.Failures)]

@@ -24,8 +24,6 @@ The lines that matter:
 In `multiple-schedules.cs` (excerpt):
 
 ```csharp
-public readonly record struct Report;
-
 public sealed class ReportJob
 {
     [Job("report")]
@@ -54,13 +52,9 @@ Console.WriteLine(
 In `multiple-schedules.cs` (excerpt):
 
 ```csharp
-public readonly record struct Report;
-
 public sealed class ReportJob
 {
     [Job("report")]
-    // Several [Schedule]s share one permanent job; schedules due at the same instant coalesce
-    // into ONE execution, and context.TriggeringSchedules reports which fired.
     [Schedule("fast", "PT10S")]
     [Schedule("faster", "PT5S")]
     public Task Handle(Report input, JobContext context, CancellationToken ct)

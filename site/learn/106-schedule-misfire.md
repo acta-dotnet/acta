@@ -33,28 +33,6 @@ public Task CatchUpAll(JobContext ctx, CancellationToken ct) => Run(ctx, ct);
 In `schedule-misfire.cs` (excerpt):
 
 ```csharp
-/// <summary>The occurrences each job's firings stood for, as the handler read them from its context.</summary>
-public static class Firings
-{
-    private static readonly ConcurrentQueue<(string Job, DateTime Occurrence, DateTime CoveredThrough)> Seen = new();
-
-    public static void Record(JobContext ctx)
-    {
-        // A catch-up firing can cover a stretch: each triggering schedule gives its occurrence and the instant it
-        // covers through.
-        foreach (var schedule in ctx.TriggeringSchedules)
-        {
-            Seen.Enqueue((ctx.JobName, schedule.OccurrenceAtUtc, schedule.CoveredThroughUtc));
-        }
-    }
-
-    public static void Clear() => Seen.Clear();
-
-    /// <summary>The job's firings for occurrences at or before <paramref name="through"/>, in the order they ran.</summary>
-    public static IReadOnlyList<(DateTime Occurrence, DateTime CoveredThrough)> Of(string job, DateTime through) =>
-        Seen.Where(f => f.Job == job && f.Occurrence <= through).Select(f => (f.Occurrence, f.CoveredThrough)).ToList();
-}
-
 public sealed class MisfireJobs
 {
     [Job("skip-report")]
@@ -111,29 +89,6 @@ public static class Firings
     /// <summary>The job's firings for occurrences at or before <paramref name="through"/>, in the order they ran.</summary>
     public static IReadOnlyList<(DateTime Occurrence, DateTime CoveredThrough)> Of(string job, DateTime through) =>
         Seen.Where(f => f.Job == job && f.Occurrence <= through).Select(f => (f.Occurrence, f.CoveredThrough)).ToList();
-}
-
-public sealed class MisfireJobs
-{
-    // `MisfireStrategy` says what the next admission pass does with the occurrences that came due while the
-    // schedule could not fire.
-    [Job("skip-report")]
-    [Schedule("every-second", "PT1S", MisfireStrategy = MisfireStrategyCode.Skip)]
-    public Task Skip(JobContext ctx, CancellationToken ct) => Run(ctx, ct);
-
-    [Job("catch-up-once-report")]
-    [Schedule("every-second", "PT1S", MisfireStrategy = MisfireStrategyCode.CatchUpOnce)]
-    public Task CatchUpOnce(JobContext ctx, CancellationToken ct) => Run(ctx, ct);
-
-    [Job("catch-up-all-report")]
-    [Schedule("every-second", "PT1S", MisfireStrategy = MisfireStrategyCode.CatchUpAll)]
-    public Task CatchUpAll(JobContext ctx, CancellationToken ct) => Run(ctx, ct);
-
-    private static async Task Run(JobContext ctx, CancellationToken ct)
-    {
-        Firings.Record(ctx);
-        await Task.Delay(50, ct);
-    }
 }
 ```
 

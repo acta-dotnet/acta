@@ -57,7 +57,7 @@
   </div>
 
 
-  <main id="content" data-howto="026">
+  <main id="content">
     <header class="wrap page-head howto-head">
       <p class="record"><a href="/learn">learn acta</a><span aria-hidden="true">/</span><a href="/learn#s-first-steps">take the first steps</a></p>
       <h1>How to build the first-job guide's app</h1>
@@ -77,18 +77,7 @@
       <article class="howto person-face">
 <div class="step"><h2><span class="step-n">1</span>Write the jobs: one that retries and returns a result, one that fails for good</h2>
 <p>A result-bearing job: its handler books the shipment and returns the label. The default policy, 15 attempts with backoff from one minute, suits a flaky carrier: a timeout costs an attempt, not the order.</p>
-<figure class="listing"><figcaption><span class="file">Jobs.cs</span><button class="copy" type="button" data-copy-target="#code-1">Copy</button></figcaption><pre><code id="code-1"><span class="c">// File: Jobs.cs</span>
-<span class="k">using</span> Acta;
-
-<span class="k">namespace</span> Shipping;
-
-<span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> ShipOrder(<span class="k">int</span> OrderId);
-
-<span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> ShipmentLabel(<span class="k">int</span> OrderId, <span class="k">string</span> Carrier, <span class="k">string</span> TrackingNumber);
-
-<span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> PrintLabel(<span class="k">string</span> TrackingNumber);
-
-<span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> OrderHandlers(Carrier carrier, LabelPrinter printer)
+<figure class="listing"><figcaption><span class="file">Jobs.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> OrderHandlers(Carrier carrier, LabelPrinter printer)
 {
 <span class="hl">    <span class="a">[Job(<span class="s">&quot;ship-order&quot;</span>)]</span></span>
 <span class="hl">    <span class="k">public</span> <span class="k">async</span> Task&lt;ShipmentLabel&gt; Ship(ShipOrder input, CancellationToken ct) =&gt;</span>
@@ -102,27 +91,18 @@
 </div>
 <div class="step"><h2><span class="step-n">2</span>Enqueue from an endpoint and answer with the job's ref</h2>
 <p>Enqueue by the input's type: nothing here reads the result, so the input is all the enqueue needs. The ref in the response is the job's public identity: logs, support, and the URLs below all carry it, never the numeric id.</p>
-<figure class="listing"><figcaption><span class="file">Program.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-2">Copy</button></figcaption><pre><code id="code-2">    j.Run&lt;ShippingJobs&gt;(<span class="s">&quot;shipping&quot;</span>);
-});
-
-<span class="k">var</span> app = builder.Build();
+<figure class="listing"><figcaption><span class="file">Program.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">var</span> app = builder.Build();
 app.MapActa(<span class="s">&quot;/acta&quot;</span>); <span class="c">// dashboard + JSON API; local-only by default, controls disabled</span>
 
 <span class="hl">app.MapPost(<span class="s">&quot;/orders/{orderId:int}&quot;</span>, <span class="k">async</span> (<span class="k">int</span> orderId, IJobs jobs) =&gt;</span>
 <span class="hl">{</span>
 <span class="hl">    <span class="k">var</span> job = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> ShipOrder(orderId));</span>
 <span class="hl">    <span class="k">return</span> Results.Accepted(<span class="s">$&quot;/jobs/{job.JobRef}&quot;</span>, <span class="k">new</span> { job.JobRef });</span>
-<span class="hl">});</span>
-
-<span class="c">// Enqueue through the generated call and follow: it names the job and carries the result type, so the handle is a</span>
-<span class="c">// JobHandle&lt;ShipmentLabel&gt; and the label reads typed. The wait ends at the outcome or at the timeout, and a timeout</span>
-<span class="c">// stops only the wait.</span>
-app.MapPost(<span class="s">&quot;/orders/{orderId:int}/ship-now&quot;</span>, <span class="k">async</span> (<span class="k">int</span> orderId, IJobs jobs) =&gt;
-{</code></pre></figure>
+<span class="hl">});</span></code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">3</span>Enqueue and wait for the typed result</h2>
 <p>Enqueue through the generated call and follow: it names the job and carries the result type, so the handle is a JobHandle&lt;ShipmentLabel&gt; and the label reads typed. The wait ends at the outcome or at the timeout, and a timeout stops only the wait.</p>
-<figure class="listing"><figcaption><span class="file">Program.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-3">Copy</button></figcaption><pre><code id="code-3">app.MapPost(<span class="s">&quot;/orders/{orderId:int}&quot;</span>, <span class="k">async</span> (<span class="k">int</span> orderId, IJobs jobs) =&gt;
+<figure class="listing"><figcaption><span class="file">Program.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code>app.MapPost(<span class="s">&quot;/orders/{orderId:int}&quot;</span>, <span class="k">async</span> (<span class="k">int</span> orderId, IJobs jobs) =&gt;
 {
     <span class="k">var</span> job = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> ShipOrder(orderId));
     <span class="k">return</span> Results.Accepted(<span class="s">$&quot;/jobs/{job.JobRef}&quot;</span>, <span class="k">new</span> { job.JobRef });
@@ -145,7 +125,7 @@ app.MapPost(<span class="s">&quot;/labels/{trackingNumber}&quot;</span>, <span c
 </div>
 <div class="step"><h2><span class="step-n">4</span>Read the status, the result, and the reason</h2>
 <p>Status by ref. A JobRef binds straight from the route, so a malformed ref answers 400 before the handler runs. A job keeps its row after it finishes, so this answers for the retention period.</p>
-<figure class="listing"><figcaption><span class="file">Program.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-4">Copy</button></figcaption><pre><code id="code-4">app.MapPost(<span class="s">&quot;/labels/{trackingNumber}&quot;</span>, <span class="k">async</span> (<span class="k">string</span> trackingNumber, IJobs jobs) =&gt;
+<figure class="listing"><figcaption><span class="file">Program.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code>app.MapPost(<span class="s">&quot;/labels/{trackingNumber}&quot;</span>, <span class="k">async</span> (<span class="k">string</span> trackingNumber, IJobs jobs) =&gt;
 {
     <span class="k">var</span> job = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> PrintLabel(trackingNumber));
     <span class="k">return</span> Results.Accepted(<span class="s">$&quot;/jobs/{job.JobRef}&quot;</span>, <span class="k">new</span> { job.JobRef });
@@ -173,16 +153,15 @@ app.MapPost(<span class="s">&quot;/labels/{trackingNumber}&quot;</span>, <span c
 <span class="hl">    <span class="k">await</span> jobs.ExplainAsync(jobRef) <span class="k">is</span> { } why ? Results.Ok(why) : Results.NotFound()</span>
 <span class="hl">);</span>
 
-<span class="c">// Cancel: applied while the job has not finished; a cancelled job answers already-in-state, and any other finished one</span>
-<span class="c">// answers rejected and keeps its outcome.</span>
 app.MapPost(<span class="s">&quot;/jobs/{jobRef}/cancel&quot;</span>, <span class="k">async</span> (JobRef jobRef, IJobs jobs) =&gt;
 {
-    <span class="k">var</span> cancelled = <span class="k">await</span> jobs.CancelAsync(jobRef, reasonMessage: <span class="s">&quot;cancelled from the orders API&quot;</span>);</code></pre></figure>
+    <span class="k">var</span> cancelled = <span class="k">await</span> jobs.CancelAsync(jobRef, reasonMessage: <span class="s">&quot;cancelled from the orders API&quot;</span>);
+    <span class="k">return</span> Results.Ok(<span class="k">new</span> { cancelled.Action, cancelled.Status });
+});</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">5</span>Cancel a job by its ref</h2>
 <p>Cancel: applied while the job has not finished; a cancelled job answers already-in-state, and any other finished one answers rejected and keeps its outcome.</p>
-<figure class="listing"><figcaption><span class="file">Program.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-5">Copy</button></figcaption><pre><code id="code-5">
-<span class="c">// Why: the status in words, the reason the last attempt failed, and what an operator can do next.</span>
+<figure class="listing"><figcaption><span class="file">Program.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// Why: the status in words, the reason the last attempt failed, and what an operator can do next.</span>
 app.MapGet(<span class="s">&quot;/jobs/{jobRef}/explain&quot;</span>, <span class="k">async</span> (JobRef jobRef, IJobs jobs) =&gt;
     <span class="k">await</span> jobs.ExplainAsync(jobRef) <span class="k">is</span> { } why ? Results.Ok(why) : Results.NotFound()
 );
@@ -201,15 +180,15 @@ app.MapPost(<span class="s">&quot;/carrier/flaky&quot;</span>, (Carrier carrier)
 </div>
 <div class="step"><h2><span class="step-n">6</span>Run it and check the output</h2>
 <p>From a clone of <a href="https://github.com/acta-dotnet/acta">the Acta repository</a>, with the .NET 10 SDK:</p>
-<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-6">Copy</button></figcaption><pre><code id="code-6">dotnet run --project concepts/000-fundamentals/026-first-job</code></pre></figure>
-<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button" data-copy-target="#code-7">Copy</button></figcaption><pre><code id="code-7">Acta worker started in namespace (shipping)
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project concepts/000-fundamentals/026-first-job</code></pre></figure>
+<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button">Copy</button></figcaption><pre><code>Acta worker started in namespace (shipping)
 Now listening on: http://127.0.0.1:</code></pre></figure>
 <p class="proof checked"><b>Checked every release.</b> Before each release, Acta Verify runs this program and checks that its output contains these lines.</p>
 <p class="hint">This page shows the code. The rules it relies on, starting with the handler running again from its first line, are in <a href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#handler-contract">the handler contract</a>.</p>
 </div>
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/concepts/000-fundamentals/026-first-job"><code>concepts/000-fundamentals/026-first-job</code></a>, as it is compiled.</p>
-<details class="source-file"><summary><span class="file-name">Program.cs</span><span class="file-size">102 lines</span></summary><figure class="listing"><figcaption><span class="file">Program.cs</span><button class="copy" type="button" data-copy-target="#code-8">Copy</button></figcaption><pre><code id="code-8"><span class="c">// File: Program.cs</span>
+<details class="source-file"><summary><span class="file-name">Program.cs</span><span class="file-size">102 lines</span></summary><figure class="listing"><figcaption><span class="file">Program.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// File: Program.cs</span>
 <span class="c">// How to build the first-job guide's app</span>
 <span class="c">// The first-job guide's app verbatim: typed result, a failure that is final and one that retries, explanation, cancel,</span>
 <span class="c">// and a wait that times out without stopping the job.</span>
@@ -310,8 +289,9 @@ app.MapPost(<span class="s">&quot;/labels/{trackingNumber}&quot;</span>, <span c
 app.MapPost(<span class="s">&quot;/printer/offline&quot;</span>, (LabelPrinter printer) =&gt; printer.Online = <span class="k">false</span>);
 app.MapPost(<span class="s">&quot;/printer/online&quot;</span>, (LabelPrinter printer) =&gt; printer.Online = <span class="k">true</span>);
 app.MapPost(<span class="s">&quot;/carrier/flaky&quot;</span>, (Carrier carrier) =&gt; carrier.TimeoutsLeft = 1);
-app.Run();</code></pre></figure></details>
-<details class="source-file"><summary><span class="file-name">Carrier.cs</span><span class="file-size">19 lines</span></summary><figure class="listing"><figcaption><span class="file">Carrier.cs</span><button class="copy" type="button" data-copy-target="#code-9">Copy</button></figcaption><pre><code id="code-9"><span class="c">// File: Carrier.cs</span>
+app.Run();</code></pre></figure>
+</details>
+<details class="source-file"><summary><span class="file-name">Carrier.cs</span><span class="file-size">19 lines</span></summary><figure class="listing"><figcaption><span class="file">Carrier.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// File: Carrier.cs</span>
 <span class="k">namespace</span> Shipping;
 
 <span class="k">public</span> <span class="k">class</span> Carrier
@@ -329,8 +309,9 @@ app.Run();</code></pre></figure></details>
         }
         <span class="k">return</span> Task.FromResult(<span class="s">$&quot;AP{orderId:D8}&quot;</span>);
     }
-}</code></pre></figure></details>
-<details class="source-file"><summary><span class="file-name">Jobs.cs</span><span class="file-size">26 lines</span></summary><figure class="listing"><figcaption><span class="file">Jobs.cs</span><button class="copy" type="button" data-copy-target="#code-10">Copy</button></figcaption><pre><code id="code-10"><span class="c">// File: Jobs.cs</span>
+}</code></pre></figure>
+</details>
+<details class="source-file"><summary><span class="file-name">Jobs.cs</span><span class="file-size">26 lines</span></summary><figure class="listing"><figcaption><span class="file">Jobs.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// File: Jobs.cs</span>
 <span class="k">using</span> Acta;
 
 <span class="k">namespace</span> Shipping;
@@ -355,8 +336,9 @@ app.Run();</code></pre></figure></details>
 <span class="hl">    <span class="a">[Job(<span class="s">&quot;print-label&quot;</span>, MaxAttempts = 1)]</span></span>
 <span class="hl">    <span class="k">public</span> Task Print(PrintLabel input, CancellationToken ct) =&gt; printer.PrintAsync(input.TrackingNumber, ct);</span>
     <span class="c">// learn: end</span>
-}</code></pre></figure></details>
-<details class="source-file"><summary><span class="file-name">LabelPrinter.cs</span><span class="file-size">11 lines</span></summary><figure class="listing"><figcaption><span class="file">LabelPrinter.cs</span><button class="copy" type="button" data-copy-target="#code-11">Copy</button></figcaption><pre><code id="code-11"><span class="c">// File: LabelPrinter.cs</span>
+}</code></pre></figure>
+</details>
+<details class="source-file"><summary><span class="file-name">LabelPrinter.cs</span><span class="file-size">11 lines</span></summary><figure class="listing"><figcaption><span class="file">LabelPrinter.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// File: LabelPrinter.cs</span>
 <span class="k">namespace</span> Shipping;
 
 <span class="k">public</span> <span class="k">class</span> LabelPrinter
@@ -366,11 +348,12 @@ app.Run();</code></pre></figure></details>
     <span class="c">// Virtual so a test can stand in for it; the real printer client goes here.</span>
     <span class="k">public</span> <span class="k">virtual</span> Task PrintAsync(<span class="k">string</span> trackingNumber, CancellationToken ct) =&gt;
         Online ? Task.CompletedTask : <span class="k">throw</span> <span class="k">new</span> InvalidOperationException(<span class="s">$&quot;Printer offline; label {trackingNumber} not printed.&quot;</span>);
-}</code></pre></figure></details></div>
+}</code></pre></figure>
+</details></div>
 <div class="step plain-step"><h2>Where to go next</h2><ul class="next-links"><li><a href="/learn/009-typed-enqueue">How to enqueue by the input's type</a><span>Start jobs</span></li></ul></div>
       </article>
       <article class="agent-face" hidden>
-        <figure class="listing agent"><figcaption><span class="file">/learn/026-first-job.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/026-first-job.md">Open</a><button class="copy" type="button" data-copy-target="#md-body">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
+        <figure class="listing agent"><figcaption><span class="file">/learn/026-first-job.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/026-first-job.md">Open</a><button class="copy" type="button">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
         <p class="hint">This is the page an agent receives: the same how-to as plain Markdown, at this page's address with <code>.md</code> added.</p>
       </article>
       <aside class="howto-rail" aria-label="This section">

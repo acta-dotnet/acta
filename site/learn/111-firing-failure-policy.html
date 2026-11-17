@@ -57,7 +57,7 @@
   </div>
 
 
-  <main id="content" data-howto="111">
+  <main id="content">
     <header class="wrap page-head howto-head">
       <p class="record"><a href="/learn">learn acta</a><span aria-hidden="true">/</span><a href="/learn#s-schedule">run work on a schedule</a></p>
       <h1>How to decide what a failed firing does to its schedule</h1>
@@ -77,32 +77,23 @@
       <article class="howto person-face">
 <div class="step"><h2><span class="step-n">1</span>Pause the schedule when a firing fails for good</h2>
 <p>A firing retries under the job's budget like any attempt. The policy applies once that budget is spent; the second job below keeps the default, <code>Continue</code>.</p>
-<figure class="listing"><figcaption><span class="file">firing-failure-policy.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-1">Copy</button></figcaption><pre><code id="code-1"><span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> PriceFeedJobs
-{
-    <span class="k">private</span> <span class="k">static</span> <span class="k">readonly</span> ConcurrentDictionary&lt;<span class="k">string</span>, <span class="k">int</span>&gt; FailedAttempts = <span class="k">new</span>();
+<figure class="listing"><figcaption><span class="file">firing-failure-policy.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">private</span> <span class="k">static</span> <span class="k">readonly</span> ConcurrentDictionary&lt;<span class="k">string</span>, <span class="k">int</span>&gt; FailedAttempts = <span class="k">new</span>();
 
-    <span class="c">/// &lt;summary&gt;Firings of &lt;paramref name=&quot;job&quot;/&gt; that spent their budget here: two failed attempts each.&lt;/summary&gt;</span>
-    <span class="k">public</span> <span class="k">static</span> <span class="k">int</span> SpentFirings(<span class="k">string</span> job) =&gt; FailedAttempts.GetValueOrDefault(job) / 2;
+<span class="c">/// &lt;summary&gt;Firings of &lt;paramref name=&quot;job&quot;/&gt; that spent their budget here: two failed attempts each.&lt;/summary&gt;</span>
+<span class="k">public</span> <span class="k">static</span> <span class="k">int</span> SpentFirings(<span class="k">string</span> job) =&gt; FailedAttempts.GetValueOrDefault(job) / 2;
 
-<span class="hl">    <span class="a">[Job(<span class="s">&quot;sync-prices-pausing&quot;</span>, MaxAttempts = 2, Backoff = <span class="s">&quot;1s&quot;</span>, FiringFailurePolicy = FiringFailurePolicyCode.PauseScheduling)]</span></span>
-    <span class="a">[Schedule(<span class="s">&quot;every-second&quot;</span>, <span class="s">&quot;PT1S&quot;</span>)]</span>
-    <span class="k">public</span> Task Pausing(CancellationToken ct) =&gt; FailAsync(<span class="s">&quot;sync-prices-pausing&quot;</span>);
+<span class="hl"><span class="a">[Job(<span class="s">&quot;sync-prices-pausing&quot;</span>, MaxAttempts = 2, Backoff = <span class="s">&quot;1s&quot;</span>, FiringFailurePolicy = FiringFailurePolicyCode.PauseScheduling)]</span></span>
+<span class="a">[Schedule(<span class="s">&quot;every-second&quot;</span>, <span class="s">&quot;PT1S&quot;</span>)]</span>
+<span class="k">public</span> Task Pausing(CancellationToken ct) =&gt; FailAsync(<span class="s">&quot;sync-prices-pausing&quot;</span>);
 
-    <span class="a">[Job(<span class="s">&quot;sync-prices-continuing&quot;</span>, MaxAttempts = 2, Backoff = <span class="s">&quot;1s&quot;</span>)]</span>
-    <span class="a">[Schedule(<span class="s">&quot;every-second&quot;</span>, <span class="s">&quot;PT1S&quot;</span>)]</span>
-    <span class="k">public</span> Task Continuing(CancellationToken ct) =&gt; FailAsync(<span class="s">&quot;sync-prices-continuing&quot;</span>);
-
-    <span class="k">private</span> <span class="k">static</span> Task FailAsync(<span class="k">string</span> job)
-    {
-        FailedAttempts.AddOrUpdate(job, 1, (_, n) =&gt; n + 1);
-        <span class="k">throw</span> <span class="k">new</span> InvalidOperationException(<span class="s">&quot;The price feed is down.&quot;</span>);
-    }
-}</code></pre></figure>
+<span class="a">[Job(<span class="s">&quot;sync-prices-continuing&quot;</span>, MaxAttempts = 2, Backoff = <span class="s">&quot;1s&quot;</span>)]</span>
+<span class="a">[Schedule(<span class="s">&quot;every-second&quot;</span>, <span class="s">&quot;PT1S&quot;</span>)]</span>
+<span class="k">public</span> Task Continuing(CancellationToken ct) =&gt; FailAsync(<span class="s">&quot;sync-prices-continuing&quot;</span>);</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">2</span>Run it and check the output</h2>
 <p>From a clone of <a href="https://github.com/acta-dotnet/acta">the Acta repository</a>, with the .NET 10 SDK:</p>
-<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-2">Copy</button></figcaption><pre><code id="code-2">dotnet run --project concepts/100-scheduling/111-firing-failure-policy</code></pre></figure>
-<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button" data-copy-target="#code-3">Copy</button></figcaption><pre><code id="code-3">then its schedule paused
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project concepts/100-scheduling/111-firing-failure-policy</code></pre></figure>
+<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button">Copy</button></figcaption><pre><code>then its schedule paused
 and is still scheduled
 sync-prices-continuing | active</code></pre></figure>
 <p class="proof checked"><b>Checked every release.</b> Before each release, Acta Verify runs this program and checks that its output contains these lines.</p>
@@ -111,7 +102,7 @@ sync-prices-continuing | active</code></pre></figure>
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/concepts/100-scheduling/111-firing-failure-policy"><code>concepts/100-scheduling/111-firing-failure-policy</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> and <code>ConceptLab</code> are helpers of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">firing-failure-policy.cs</span><span class="file-size">111 lines</span></summary><figure class="listing"><figcaption><span class="file">firing-failure-policy.cs</span><button class="copy" type="button" data-copy-target="#code-4">Copy</button></figcaption><pre><code id="code-4"><span class="c">// How to decide what a failed firing does to its schedule</span>
+<details class="source-file"><summary><span class="file-name">firing-failure-policy.cs</span><span class="file-size">111 lines</span></summary><figure class="listing"><figcaption><span class="file">firing-failure-policy.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to decide what a failed firing does to its schedule</span>
 <span class="c">// A firing that spends its retry budget returns the permanent job to `Idle`. `FiringFailurePolicy` says what happens</span>
 <span class="c">// to its schedules then: `Continue`, the default, fires the next occurrence as usual, and `PauseScheduling` pauses</span>
 <span class="c">// them, with the reason, until an operator resumes them.</span>
@@ -221,11 +212,12 @@ Console.WriteLine(<span class="s">$&quot;sync-prices-continuing  spent {PriceFee
             <span class="k">throw</span> <span class="k">new</span> InvalidOperationException(<span class="s">&quot;The price feed is down.&quot;</span>);
         }
     }
-}</code></pre></figure></details></div>
+}</code></pre></figure>
+</details></div>
 <div class="step plain-step"><h2>Where to go next</h2><ul class="next-links"><li><a href="/learn/214-reset-state">How to start each firing of a recurring job clean</a><span>Run work on a schedule</span></li></ul></div>
       </article>
       <article class="agent-face" hidden>
-        <figure class="listing agent"><figcaption><span class="file">/learn/111-firing-failure-policy.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/111-firing-failure-policy.md">Open</a><button class="copy" type="button" data-copy-target="#md-body">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
+        <figure class="listing agent"><figcaption><span class="file">/learn/111-firing-failure-policy.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/111-firing-failure-policy.md">Open</a><button class="copy" type="button">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
         <p class="hint">This is the page an agent receives: the same how-to as plain Markdown, at this page's address with <code>.md</code> added.</p>
       </article>
       <aside class="howto-rail" aria-label="This section">

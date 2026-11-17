@@ -57,14 +57,14 @@
   </div>
 
 
-  <main id="content" data-howto="211">
+  <main id="content">
     <header class="wrap page-head howto-head">
       <p class="record"><a href="/learn">learn acta</a><span aria-hidden="true">/</span><a href="/learn#s-children">split work across child jobs</a></p>
       <h1>How to start child jobs and wait for them</h1>
       <p class="lede">A parent starts child jobs by name, suspends without holding a worker until every child has finished, and reads their results.</p>
       <p class="howto-context">A how-to for Acta, durable execution for .NET. <a href="/start">New to Acta? Run your first durable job in five minutes.</a></p>
       <div class="howto-meta">
-        <span class="status checked">Checked every release</span><span class="mark lab">Lab</span>
+        <span class="status checked">Checked every release</span><span class="mark">Lab</span>
         <a class="program" href="https://github.com/acta-dotnet/acta/tree/main/concepts/200-durable-execution/211-child-jobs"><code>concepts/200-durable-execution/211-child-jobs</code></a>
         <div class="reader" role="group" aria-label="Read this page as">
         <span class="reader-label">Read as</span>
@@ -77,27 +77,19 @@
       <article class="howto person-face">
 <div class="step"><h2><span class="step-n">1</span>Start each child under a name</h2>
 <p>On a replay of the parent, the same name answers the child that is already there, so no child starts twice.</p>
-<figure class="listing"><figcaption><span class="file">child-jobs.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-1">Copy</button></figcaption><pre><code id="code-1"><span class="c">// EnqueueChildAsync enqueues name-deduped child jobs; WaitChildrenAsync suspends the parent</span>
-<span class="c">// (holding no executor) until every child is terminal; cancelling the parent cascades to children.</span>
-<span class="c">// MapAsync does the same for a list of children in one call (lab 215).</span>
-<span class="a">[Job(<span class="s">&quot;build-snowman&quot;</span>)]</span>
-<span class="k">public</span> <span class="k">async</span> Task&lt;FinishedSnowman&gt; Handle(BuildSnowman input, JobContext context, CancellationToken ct)
-{
-<span class="hl">    <span class="k">var</span> bottom = <span class="k">await</span> context.EnqueueChildAsync(<span class="s">&quot;bottom&quot;</span>, <span class="k">new</span> RollSnowball(<span class="s">&quot;bottom&quot;</span>, input.FailPart == <span class="s">&quot;bottom&quot;</span>), ct);</span>
-<span class="hl">    <span class="k">var</span> middle = <span class="k">await</span> context.EnqueueChildAsync(<span class="s">&quot;middle&quot;</span>, <span class="k">new</span> RollSnowball(<span class="s">&quot;middle&quot;</span>, input.FailPart == <span class="s">&quot;middle&quot;</span>), ct);</span>
-<span class="hl">    <span class="k">var</span> head = <span class="k">await</span> context.EnqueueChildAsync(<span class="s">&quot;head&quot;</span>, <span class="k">new</span> RollSnowball(<span class="s">&quot;head&quot;</span>, input.FailPart == <span class="s">&quot;head&quot;</span>), ct);</span>
+<figure class="listing"><figcaption><span class="file">child-jobs.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="hl"><span class="k">var</span> bottom = <span class="k">await</span> context.EnqueueChildAsync(<span class="s">&quot;bottom&quot;</span>, <span class="k">new</span> RollSnowball(<span class="s">&quot;bottom&quot;</span>, input.FailPart == <span class="s">&quot;bottom&quot;</span>), ct);</span>
+<span class="hl"><span class="k">var</span> middle = <span class="k">await</span> context.EnqueueChildAsync(<span class="s">&quot;middle&quot;</span>, <span class="k">new</span> RollSnowball(<span class="s">&quot;middle&quot;</span>, input.FailPart == <span class="s">&quot;middle&quot;</span>), ct);</span>
+<span class="hl"><span class="k">var</span> head = <span class="k">await</span> context.EnqueueChildAsync(<span class="s">&quot;head&quot;</span>, <span class="k">new</span> RollSnowball(<span class="s">&quot;head&quot;</span>, input.FailPart == <span class="s">&quot;head&quot;</span>), ct);</span>
 
-    <span class="c">// The parent suspends, holding no executor, until every child is terminal. A failed child does not throw</span>
-    <span class="c">// here: the wait lists it, and the parent decides.</span>
-    <span class="k">var</span> joined = <span class="k">await</span> context.WaitChildrenAsync([bottom, middle, head], ct);
-    <span class="k">foreach</span> (<span class="k">var</span> outcome <span class="k">in</span> joined.Failed)
-    {</code></pre></figure>
+<span class="k">var</span> joined = <span class="k">await</span> context.WaitChildrenAsync([bottom, middle, head], ct);
+<span class="k">foreach</span> (<span class="k">var</span> outcome <span class="k">in</span> joined.Failed)
+{
+    <span class="k">await</span> context.FailAsync(<span class="s">$&quot;child {outcome.JobRef} ended {outcome.Status}; see its job events for the reason&quot;</span>, ct);
+}</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">2</span>Wait for all of them, and decide what a failed child means</h2>
 <p>The parent suspends, holding no executor, until every child is terminal. A failed child does not throw here: the wait lists it, and the parent decides.</p>
-<figure class="listing"><figcaption><span class="file">child-jobs.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-2">Copy</button></figcaption><pre><code id="code-2"><span class="c">// On a replay of the parent, the same name answers the child that is already there, so no child starts</span>
-<span class="c">// twice.</span>
-<span class="k">var</span> bottom = <span class="k">await</span> context.EnqueueChildAsync(<span class="s">&quot;bottom&quot;</span>, <span class="k">new</span> RollSnowball(<span class="s">&quot;bottom&quot;</span>, input.FailPart == <span class="s">&quot;bottom&quot;</span>), ct);
+<figure class="listing"><figcaption><span class="file">child-jobs.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">var</span> bottom = <span class="k">await</span> context.EnqueueChildAsync(<span class="s">&quot;bottom&quot;</span>, <span class="k">new</span> RollSnowball(<span class="s">&quot;bottom&quot;</span>, input.FailPart == <span class="s">&quot;bottom&quot;</span>), ct);
 <span class="k">var</span> middle = <span class="k">await</span> context.EnqueueChildAsync(<span class="s">&quot;middle&quot;</span>, <span class="k">new</span> RollSnowball(<span class="s">&quot;middle&quot;</span>, input.FailPart == <span class="s">&quot;middle&quot;</span>), ct);
 <span class="k">var</span> head = <span class="k">await</span> context.EnqueueChildAsync(<span class="s">&quot;head&quot;</span>, <span class="k">new</span> RollSnowball(<span class="s">&quot;head&quot;</span>, input.FailPart == <span class="s">&quot;head&quot;</span>), ct);
 
@@ -114,26 +106,24 @@
 <span class="k">var</span> height = b.Diameter + m.Diameter + h.Diameter;</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">3</span>Read each child's result</h2>
-<figure class="listing"><figcaption><span class="file">child-jobs.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-3">Copy</button></figcaption><pre><code id="code-3">    <span class="k">var</span> joined = <span class="k">await</span> context.WaitChildrenAsync([bottom, middle, head], ct);
-    <span class="k">foreach</span> (<span class="k">var</span> outcome <span class="k">in</span> joined.Failed)
-    {
-        <span class="k">await</span> context.FailAsync(<span class="s">$&quot;child {outcome.JobRef} ended {outcome.Status}; see its job events for the reason&quot;</span>, ct);
-    }
-
-<span class="hl">    <span class="k">var</span> b = <span class="k">await</span> context.GetChildResultAsync&lt;Snowball&gt;(bottom.JobId, ct);</span>
-<span class="hl">    <span class="k">var</span> m = <span class="k">await</span> context.GetChildResultAsync&lt;Snowball&gt;(middle.JobId, ct);</span>
-<span class="hl">    <span class="k">var</span> h = <span class="k">await</span> context.GetChildResultAsync&lt;Snowball&gt;(head.JobId, ct);</span>
-
-    <span class="k">var</span> height = b.Diameter + m.Diameter + h.Diameter;
-    Console.WriteLine(<span class="s">$&quot;[{input.Name}] stacked {b.Diameter} + {m.Diameter} + {h.Diameter} = {height}cm tall&quot;</span>);
-    <span class="k">return</span> <span class="k">new</span> FinishedSnowman(input.Name, height);
+<figure class="listing"><figcaption><span class="file">child-jobs.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">var</span> joined = <span class="k">await</span> context.WaitChildrenAsync([bottom, middle, head], ct);
+<span class="k">foreach</span> (<span class="k">var</span> outcome <span class="k">in</span> joined.Failed)
+{
+    <span class="k">await</span> context.FailAsync(<span class="s">$&quot;child {outcome.JobRef} ended {outcome.Status}; see its job events for the reason&quot;</span>, ct);
 }
-</code></pre></figure>
+
+<span class="hl"><span class="k">var</span> b = <span class="k">await</span> context.GetChildResultAsync&lt;Snowball&gt;(bottom.JobId, ct);</span>
+<span class="hl"><span class="k">var</span> m = <span class="k">await</span> context.GetChildResultAsync&lt;Snowball&gt;(middle.JobId, ct);</span>
+<span class="hl"><span class="k">var</span> h = <span class="k">await</span> context.GetChildResultAsync&lt;Snowball&gt;(head.JobId, ct);</span>
+
+<span class="k">var</span> height = b.Diameter + m.Diameter + h.Diameter;
+Console.WriteLine(<span class="s">$&quot;[{input.Name}] stacked {b.Diameter} + {m.Diameter} + {h.Diameter} = {height}cm tall&quot;</span>);
+<span class="k">return</span> <span class="k">new</span> FinishedSnowman(input.Name, height);</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">4</span>Run it and check the output</h2>
 <p>From a clone of <a href="https://github.com/acta-dotnet/acta">the Acta repository</a>, with the .NET 10 SDK:</p>
-<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-4">Copy</button></figcaption><pre><code id="code-4">dotnet run --project concepts/200-durable-execution/211-child-jobs</code></pre></figure>
-<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button" data-copy-target="#code-5">Copy</button></figcaption><pre><code id="code-5">[Frosty] stacked 60 + 40 + 20 = 120cm tall
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project concepts/200-durable-execution/211-child-jobs</code></pre></figure>
+<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button">Copy</button></figcaption><pre><code>[Frosty] stacked 60 + 40 + 20 = 120cm tall
 snowman finished: FinishedSnowman { Name = Frosty, HeightCm = 120 }</code></pre></figure>
 <p class="proof checked"><b>Checked every release.</b> Before each release, Acta Verify runs this program and checks that its output contains these lines.</p>
 <p class="hint">This page shows the code. The rules it relies on, starting with the handler running again from its first line, are in <a href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#handler-contract">the handler contract</a>.</p>
@@ -150,13 +140,13 @@ snowman finished: FinishedSnowman { Name = Frosty, HeightCm = 120 }</code></pre>
 <h3>Trade-offs</h3>
 <p>Independent jobs create more rows, claims, serialization, and failure policy than steps. The parent handler still replays, and child names/latches are durable contract keys.</p>
 <h3>Run the experiment</h3>
-<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-6">Copy</button></figcaption><pre><code id="code-6">dotnet run --project concepts/200-durable-execution/211-child-jobs</code></pre></figure>
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project concepts/200-durable-execution/211-child-jobs</code></pre></figure>
 <h3>Rows to inspect</h3>
 <p>Run with <code>--all-columns</code> to execute the visible <code>SELECT *</code> Explore query first. The default Notice queries select the fields that prove the lesson, and the text below explains their meaning.</p>
 <p>While children run, <code>jobs_view</code> shows a suspended, unleased parent plus independently executing children linked by <code>parent_job_id</code>/<code>lineage_root_job_id</code>. <code>checkpoints_view</code> shows pending child latches. The final snapshot proves the parent resumed on a later execution.</p>
 <h3>Break it</h3>
 <p>Run the built-in child failure:</p>
-<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-7">Copy</button></figcaption><pre><code id="code-7">dotnet run --project concepts/200-durable-execution/211-child-jobs -- --fail-child</code></pre></figure>
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project concepts/200-durable-execution/211-child-jobs -- --fail-child</code></pre></figure>
 <p>The head child exhausts two attempts, the parent resumes from its latch and ends failed, and the program prints both terminal rows instead of waiting only for success. Expected framework stack traces are suppressed; <code>events_view</code> retains the complete failure evidence. Continue with lab 219 for explicit child-failure outcome policy.</p>
 <h3>When not to use</h3>
 <p>Prefer steps when work belongs to one identity, needs no independent ownership, and row/claim overhead matters. Prefer child jobs for separate retries, parallelism, observability, or worker namespaces. Use a workflow engine for very large or externally authored graphs.</p>
@@ -166,7 +156,7 @@ snowman finished: FinishedSnowman { Name = Frosty, HeightCm = 120 }</code></pre>
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/concepts/200-durable-execution/211-child-jobs"><code>concepts/200-durable-execution/211-child-jobs</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> and <code>ConceptLab</code> are helpers of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">child-jobs.cs</span><span class="file-size">207 lines</span></summary><figure class="listing"><figcaption><span class="file">child-jobs.cs</span><button class="copy" type="button" data-copy-target="#code-8">Copy</button></figcaption><pre><code id="code-8"><span class="c">// How to start child jobs and wait for them</span>
+<details class="source-file"><summary><span class="file-name">child-jobs.cs</span><span class="file-size">207 lines</span></summary><figure class="listing"><figcaption><span class="file">child-jobs.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to start child jobs and wait for them</span>
 <span class="c">// A parent starts child jobs by name, suspends without holding a worker until every child has finished, and reads</span>
 <span class="c">// their results.</span>
 <span class="k">using</span> Acta;
@@ -372,11 +362,12 @@ builder.Services.UseActa(j =&gt;
             <span class="k">return</span> <span class="k">new</span> Snowball(input.Part, diameter);
         }
     }
-}</code></pre></figure></details></div>
+}</code></pre></figure>
+</details></div>
 <div class="step plain-step"><h2>Where to go next</h2><ul class="next-links"><li><a href="/learn/213-call-child">How to call another job and use its result</a><span>Split work across child jobs</span></li></ul></div>
       </article>
       <article class="agent-face" hidden>
-        <figure class="listing agent"><figcaption><span class="file">/learn/211-child-jobs.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/211-child-jobs.md">Open</a><button class="copy" type="button" data-copy-target="#md-body">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
+        <figure class="listing agent"><figcaption><span class="file">/learn/211-child-jobs.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/211-child-jobs.md">Open</a><button class="copy" type="button">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
         <p class="hint">This is the page an agent receives: the same how-to as plain Markdown, at this page's address with <code>.md</code> added.</p>
       </article>
       <aside class="howto-rail" aria-label="This section">

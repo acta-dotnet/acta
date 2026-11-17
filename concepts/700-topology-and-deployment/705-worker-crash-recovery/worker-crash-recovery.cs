@@ -24,7 +24,7 @@ var hostArgs = args.Where(a =>
     )
     .ToArray();
 var builder = Host.CreateApplicationBuilder(hostArgs);
-var provider = builder.Configuration["Acta:Provider"] ?? Environment.GetEnvironmentVariable("ACTA_LOCAL_PROVIDER") ?? "sqlite";
+var provider = LocalDatabase.ResolveProvider(builder.Configuration);
 if (LocalDatabase.IsSqlite(provider))
 {
     Console.WriteLine("This lab intentionally requires PostgreSQL or SQL Server so two processes are real peer workers.");

@@ -57,7 +57,7 @@
   </div>
 
 
-  <main id="content" data-howto="105">
+  <main id="content">
     <header class="wrap page-head howto-head">
       <p class="record"><a href="/learn">learn acta</a><span aria-hidden="true">/</span><a href="/learn#s-schedule">run work on a schedule</a></p>
       <h1>How to pause and resume a schedule</h1>
@@ -77,132 +77,61 @@
       <article class="howto person-face">
 <div class="step"><h2><span class="step-n">1</span>Name the schedule</h2>
 <p>A schedule is named by its namespace, its job, and its own name. The development start deploys the schedule before the worker starts, so its row exists once StartAsync returns.</p>
-<figure class="listing"><figcaption><span class="file">schedule-control.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-1">Copy</button></figcaption><pre><code id="code-1"><span class="k">var</span> schedules = host.Services.GetRequiredService&lt;IActaOperations&gt;().Schedules;
+<figure class="listing"><figcaption><span class="file">schedule-control.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">using</span> <span class="k">var</span> host = builder.Build();
+<span class="k">await</span> host.StartAsync();
+
+<span class="k">var</span> schedules = host.Services.GetRequiredService&lt;IActaOperations&gt;().Schedules;
 <span class="k">var</span> queries = host.Services.GetRequiredService&lt;IActaOperations&gt;();
 
 <span class="hl"><span class="k">var</span> lookup = <span class="k">new</span> ScheduleLookup(<span class="s">&quot;schedule-control&quot;</span>, <span class="s">&quot;hourly-report&quot;</span>, <span class="s">&quot;every-hour&quot;</span>);</span>
 
 Console.WriteLine(<span class="s">&quot;Pausing schedule indefinitely...&quot;</span>);
 
-<span class="c">// An indefinite pause: the schedule does not fire until an operator explicitly resumes it.</span>
 <span class="k">var</span> r1 = <span class="k">await</span> schedules.PauseAsync(lookup, untilUtc: <span class="k">null</span>, reasonMessage: <span class="s">&quot;maintenance window&quot;</span>);
-
-Console.WriteLine(<span class="s">$&quot;After indefinite pause: status={r1.Status} next-run={r1.NextOccurrenceAtUtc?.ToString(&quot;O&quot;) ?? &quot;(none)&quot;}&quot;</span>);
-
-<span class="c">// A timed pause: the scheduler resumes the schedule by itself when the timestamp passes.</span>
-<span class="k">var</span> resumeAt = DateTime.UtcNow.AddHours(2);
-Console.WriteLine(<span class="s">$&quot;Replacing with timed pause until {resumeAt:O}...&quot;</span>);
-<span class="k">var</span> r2 = <span class="k">await</span> schedules.PauseAsync(lookup, untilUtc: resumeAt, reasonMessage: <span class="s">&quot;drain window&quot;</span>);
-
-Console.WriteLine(<span class="s">$&quot;After timed pause: status={r2.Status} paused-until={r2.PausedUntilUtc?.ToString(&quot;O&quot;) ?? &quot;(none)&quot;}&quot;</span>);
-
-Console.WriteLine(<span class="s">&quot;Resuming schedule...&quot;</span>);
-
-<span class="c">// A resume clears the pause and keeps the cursor; the next admission pass decides any missed occurrence.</span>
-<span class="k">var</span> r3 = <span class="k">await</span> schedules.ResumeAsync(lookup, reasonMessage: <span class="s">&quot;drain complete&quot;</span>);
-
-Console.WriteLine(<span class="s">$&quot;After resume: status={r3.Status} next-run={r3.NextOccurrenceAtUtc?.ToString(&quot;O&quot;) ?? &quot;(none)&quot;}&quot;</span>);
-
-<span class="c">// Confirm via the query surface that the schedule is active again and has a next-run time.</span>
-<span class="k">var</span> page = <span class="k">await</span> queries.Schedules.ListAsync(<span class="k">new</span> ListSchedulesQuery(JobNamespace: <span class="s">&quot;schedule-control&quot;</span>));
-<span class="k">var</span> item = page.Items.FirstOrDefault(i =&gt; i.ScheduleName == <span class="s">&quot;every-hour&quot;</span>);
-Console.WriteLine(<span class="s">$&quot;Query confirms: status={item?.Status} next-run={item?.NextOccurrenceAtUtc?.ToString(&quot;O&quot;) ?? &quot;(none)&quot;}&quot;</span>);</code></pre></figure>
+Console.WriteLine(<span class="s">$&quot;After indefinite pause: status={r1.Status} next-run={r1.NextOccurrenceAtUtc?.ToString(&quot;O&quot;) ?? &quot;(none)&quot;}&quot;</span>);</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">2</span>Pause it until someone resumes it</h2>
 <p>An indefinite pause: the schedule does not fire until an operator explicitly resumes it.</p>
-<figure class="listing"><figcaption><span class="file">schedule-control.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-2">Copy</button></figcaption><pre><code id="code-2"><span class="k">var</span> schedules = host.Services.GetRequiredService&lt;IActaOperations&gt;().Schedules;
-<span class="k">var</span> queries = host.Services.GetRequiredService&lt;IActaOperations&gt;();
+<figure class="listing"><figcaption><span class="file">schedule-control.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">var</span> queries = host.Services.GetRequiredService&lt;IActaOperations&gt;();
 
-<span class="c">// A schedule is named by its namespace, its job, and its own name.</span>
-<span class="c">// The development start deploys the schedule before the worker starts, so its row exists once StartAsync returns.</span>
 <span class="k">var</span> lookup = <span class="k">new</span> ScheduleLookup(<span class="s">&quot;schedule-control&quot;</span>, <span class="s">&quot;hourly-report&quot;</span>, <span class="s">&quot;every-hour&quot;</span>);
 
 Console.WriteLine(<span class="s">&quot;Pausing schedule indefinitely...&quot;</span>);
 
 <span class="hl"><span class="k">var</span> r1 = <span class="k">await</span> schedules.PauseAsync(lookup, untilUtc: <span class="k">null</span>, reasonMessage: <span class="s">&quot;maintenance window&quot;</span>);</span>
-
 Console.WriteLine(<span class="s">$&quot;After indefinite pause: status={r1.Status} next-run={r1.NextOccurrenceAtUtc?.ToString(&quot;O&quot;) ?? &quot;(none)&quot;}&quot;</span>);
 
-<span class="c">// A timed pause: the scheduler resumes the schedule by itself when the timestamp passes.</span>
 <span class="k">var</span> resumeAt = DateTime.UtcNow.AddHours(2);
 Console.WriteLine(<span class="s">$&quot;Replacing with timed pause until {resumeAt:O}...&quot;</span>);
 <span class="k">var</span> r2 = <span class="k">await</span> schedules.PauseAsync(lookup, untilUtc: resumeAt, reasonMessage: <span class="s">&quot;drain window&quot;</span>);
-
-Console.WriteLine(<span class="s">$&quot;After timed pause: status={r2.Status} paused-until={r2.PausedUntilUtc?.ToString(&quot;O&quot;) ?? &quot;(none)&quot;}&quot;</span>);
-
-Console.WriteLine(<span class="s">&quot;Resuming schedule...&quot;</span>);
-
-<span class="c">// A resume clears the pause and keeps the cursor; the next admission pass decides any missed occurrence.</span>
-<span class="k">var</span> r3 = <span class="k">await</span> schedules.ResumeAsync(lookup, reasonMessage: <span class="s">&quot;drain complete&quot;</span>);
-
-Console.WriteLine(<span class="s">$&quot;After resume: status={r3.Status} next-run={r3.NextOccurrenceAtUtc?.ToString(&quot;O&quot;) ?? &quot;(none)&quot;}&quot;</span>);
-
-<span class="c">// Confirm via the query surface that the schedule is active again and has a next-run time.</span>
-<span class="k">var</span> page = <span class="k">await</span> queries.Schedules.ListAsync(<span class="k">new</span> ListSchedulesQuery(JobNamespace: <span class="s">&quot;schedule-control&quot;</span>));
-<span class="k">var</span> item = page.Items.FirstOrDefault(i =&gt; i.ScheduleName == <span class="s">&quot;every-hour&quot;</span>);
-Console.WriteLine(<span class="s">$&quot;Query confirms: status={item?.Status} next-run={item?.NextOccurrenceAtUtc?.ToString(&quot;O&quot;) ?? &quot;(none)&quot;}&quot;</span>);</code></pre></figure>
+Console.WriteLine(<span class="s">$&quot;After timed pause: status={r2.Status} paused-until={r2.PausedUntilUtc?.ToString(&quot;O&quot;) ?? &quot;(none)&quot;}&quot;</span>);</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">3</span>Or pause it until an instant</h2>
 <p>A timed pause: the scheduler resumes the schedule by itself when the timestamp passes.</p>
-<figure class="listing"><figcaption><span class="file">schedule-control.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-3">Copy</button></figcaption><pre><code id="code-3"><span class="k">var</span> schedules = host.Services.GetRequiredService&lt;IActaOperations&gt;().Schedules;
-<span class="k">var</span> queries = host.Services.GetRequiredService&lt;IActaOperations&gt;();
+<figure class="listing"><figcaption><span class="file">schedule-control.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code>Console.WriteLine(<span class="s">&quot;Pausing schedule indefinitely...&quot;</span>);
 
-<span class="c">// A schedule is named by its namespace, its job, and its own name.</span>
-<span class="c">// The development start deploys the schedule before the worker starts, so its row exists once StartAsync returns.</span>
-<span class="k">var</span> lookup = <span class="k">new</span> ScheduleLookup(<span class="s">&quot;schedule-control&quot;</span>, <span class="s">&quot;hourly-report&quot;</span>, <span class="s">&quot;every-hour&quot;</span>);
-
-Console.WriteLine(<span class="s">&quot;Pausing schedule indefinitely...&quot;</span>);
-
-<span class="c">// An indefinite pause: the schedule does not fire until an operator explicitly resumes it.</span>
 <span class="k">var</span> r1 = <span class="k">await</span> schedules.PauseAsync(lookup, untilUtc: <span class="k">null</span>, reasonMessage: <span class="s">&quot;maintenance window&quot;</span>);
-
 Console.WriteLine(<span class="s">$&quot;After indefinite pause: status={r1.Status} next-run={r1.NextOccurrenceAtUtc?.ToString(&quot;O&quot;) ?? &quot;(none)&quot;}&quot;</span>);
 
 <span class="hl"><span class="k">var</span> resumeAt = DateTime.UtcNow.AddHours(2);</span>
 <span class="hl">Console.WriteLine(<span class="s">$&quot;Replacing with timed pause until {resumeAt:O}...&quot;</span>);</span>
 <span class="hl"><span class="k">var</span> r2 = <span class="k">await</span> schedules.PauseAsync(lookup, untilUtc: resumeAt, reasonMessage: <span class="s">&quot;drain window&quot;</span>);</span>
-
 Console.WriteLine(<span class="s">$&quot;After timed pause: status={r2.Status} paused-until={r2.PausedUntilUtc?.ToString(&quot;O&quot;) ?? &quot;(none)&quot;}&quot;</span>);
 
 Console.WriteLine(<span class="s">&quot;Resuming schedule...&quot;</span>);
 
-<span class="c">// A resume clears the pause and keeps the cursor; the next admission pass decides any missed occurrence.</span>
 <span class="k">var</span> r3 = <span class="k">await</span> schedules.ResumeAsync(lookup, reasonMessage: <span class="s">&quot;drain complete&quot;</span>);
-
-Console.WriteLine(<span class="s">$&quot;After resume: status={r3.Status} next-run={r3.NextOccurrenceAtUtc?.ToString(&quot;O&quot;) ?? &quot;(none)&quot;}&quot;</span>);
-
-<span class="c">// Confirm via the query surface that the schedule is active again and has a next-run time.</span>
-<span class="k">var</span> page = <span class="k">await</span> queries.Schedules.ListAsync(<span class="k">new</span> ListSchedulesQuery(JobNamespace: <span class="s">&quot;schedule-control&quot;</span>));
-<span class="k">var</span> item = page.Items.FirstOrDefault(i =&gt; i.ScheduleName == <span class="s">&quot;every-hour&quot;</span>);
-Console.WriteLine(<span class="s">$&quot;Query confirms: status={item?.Status} next-run={item?.NextOccurrenceAtUtc?.ToString(&quot;O&quot;) ?? &quot;(none)&quot;}&quot;</span>);</code></pre></figure>
+Console.WriteLine(<span class="s">$&quot;After resume: status={r3.Status} next-run={r3.NextOccurrenceAtUtc?.ToString(&quot;O&quot;) ?? &quot;(none)&quot;}&quot;</span>);</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">4</span>Resume it</h2>
 <p>A resume clears the pause and keeps the cursor; the next admission pass decides any missed occurrence.</p>
-<figure class="listing"><figcaption><span class="file">schedule-control.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-4">Copy</button></figcaption><pre><code id="code-4"><span class="k">var</span> schedules = host.Services.GetRequiredService&lt;IActaOperations&gt;().Schedules;
-<span class="k">var</span> queries = host.Services.GetRequiredService&lt;IActaOperations&gt;();
-
-<span class="c">// A schedule is named by its namespace, its job, and its own name.</span>
-<span class="c">// The development start deploys the schedule before the worker starts, so its row exists once StartAsync returns.</span>
-<span class="k">var</span> lookup = <span class="k">new</span> ScheduleLookup(<span class="s">&quot;schedule-control&quot;</span>, <span class="s">&quot;hourly-report&quot;</span>, <span class="s">&quot;every-hour&quot;</span>);
-
-Console.WriteLine(<span class="s">&quot;Pausing schedule indefinitely...&quot;</span>);
-
-<span class="c">// An indefinite pause: the schedule does not fire until an operator explicitly resumes it.</span>
-<span class="k">var</span> r1 = <span class="k">await</span> schedules.PauseAsync(lookup, untilUtc: <span class="k">null</span>, reasonMessage: <span class="s">&quot;maintenance window&quot;</span>);
-
-Console.WriteLine(<span class="s">$&quot;After indefinite pause: status={r1.Status} next-run={r1.NextOccurrenceAtUtc?.ToString(&quot;O&quot;) ?? &quot;(none)&quot;}&quot;</span>);
-
-<span class="c">// A timed pause: the scheduler resumes the schedule by itself when the timestamp passes.</span>
-<span class="k">var</span> resumeAt = DateTime.UtcNow.AddHours(2);
-Console.WriteLine(<span class="s">$&quot;Replacing with timed pause until {resumeAt:O}...&quot;</span>);
+<figure class="listing"><figcaption><span class="file">schedule-control.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code>Console.WriteLine(<span class="s">$&quot;Replacing with timed pause until {resumeAt:O}...&quot;</span>);
 <span class="k">var</span> r2 = <span class="k">await</span> schedules.PauseAsync(lookup, untilUtc: resumeAt, reasonMessage: <span class="s">&quot;drain window&quot;</span>);
-
 Console.WriteLine(<span class="s">$&quot;After timed pause: status={r2.Status} paused-until={r2.PausedUntilUtc?.ToString(&quot;O&quot;) ?? &quot;(none)&quot;}&quot;</span>);
 
 Console.WriteLine(<span class="s">&quot;Resuming schedule...&quot;</span>);
 
 <span class="hl"><span class="k">var</span> r3 = <span class="k">await</span> schedules.ResumeAsync(lookup, reasonMessage: <span class="s">&quot;drain complete&quot;</span>);</span>
-
 Console.WriteLine(<span class="s">$&quot;After resume: status={r3.Status} next-run={r3.NextOccurrenceAtUtc?.ToString(&quot;O&quot;) ?? &quot;(none)&quot;}&quot;</span>);
 
 <span class="c">// Confirm via the query surface that the schedule is active again and has a next-run time.</span>
@@ -211,9 +140,7 @@ Console.WriteLine(<span class="s">$&quot;After resume: status={r3.Status} next-r
 Console.WriteLine(<span class="s">$&quot;Query confirms: status={item?.Status} next-run={item?.NextOccurrenceAtUtc?.ToString(&quot;O&quot;) ?? &quot;(none)&quot;}&quot;</span>);</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">5</span>The job it acts on</h2>
-<figure class="listing"><figcaption><span class="file">schedule-control.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-5">Copy</button></figcaption><pre><code id="code-5"><span class="k">public</span> <span class="k">readonly</span> <span class="k">record</span> <span class="k">struct</span> GenerateHourlyReport;
-
-<span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> HourlyReportJob
+<figure class="listing"><figcaption><span class="file">schedule-control.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> HourlyReportJob
 {
     <span class="c">// 1h interval: will not fire during the short demo run, so only schedule-control is exercised.</span>
     <span class="a">[Job(<span class="s">&quot;hourly-report&quot;</span>, EventRecording = EventRecordingCode.Failures)]</span>
@@ -227,8 +154,8 @@ Console.WriteLine(<span class="s">$&quot;Query confirms: status={item?.Status} n
 </div>
 <div class="step"><h2><span class="step-n">6</span>Run it and check the output</h2>
 <p>From a clone of <a href="https://github.com/acta-dotnet/acta">the Acta repository</a>, with the .NET 10 SDK:</p>
-<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-6">Copy</button></figcaption><pre><code id="code-6">dotnet run --project concepts/100-scheduling/105-schedule-control</code></pre></figure>
-<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button" data-copy-target="#code-7">Copy</button></figcaption><pre><code id="code-7">After indefinite pause: status=Paused
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project concepts/100-scheduling/105-schedule-control</code></pre></figure>
+<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button">Copy</button></figcaption><pre><code>After indefinite pause: status=Paused
 After timed pause: status=Paused paused-until=
 After resume: status=Active
 Query confirms: status=Active</code></pre></figure>
@@ -238,7 +165,7 @@ Query confirms: status=Active</code></pre></figure>
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/concepts/100-scheduling/105-schedule-control"><code>concepts/100-scheduling/105-schedule-control</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">schedule-control.cs</span><span class="file-size">78 lines</span></summary><figure class="listing"><figcaption><span class="file">schedule-control.cs</span><button class="copy" type="button" data-copy-target="#code-8">Copy</button></figcaption><pre><code id="code-8"><span class="c">// How to pause and resume a schedule</span>
+<details class="source-file"><summary><span class="file-name">schedule-control.cs</span><span class="file-size">78 lines</span></summary><figure class="listing"><figcaption><span class="file">schedule-control.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to pause and resume a schedule</span>
 <span class="c">// `operations.Schedules` pauses a schedule from outside the handler, for good or until an instant, and resumes it.</span>
 <span class="k">using</span> Acta;
 <span class="k">using</span> Acta.Concepts.ScheduleControl;
@@ -315,11 +242,12 @@ Console.WriteLine(<span class="s">$&quot;Query confirms: status={item?.Status} n
             Console.WriteLine(<span class="s">&quot;hourly report generated&quot;</span>);
         }
     }
-}</code></pre></figure></details></div>
+}</code></pre></figure>
+</details></div>
 <div class="step plain-step"><h2>Where to go next</h2><ul class="next-links"><li><a href="/learn/108-calendar-catalog">How to drive a schedule from a published calendar</a><span>Run work on a schedule</span></li></ul></div>
       </article>
       <article class="agent-face" hidden>
-        <figure class="listing agent"><figcaption><span class="file">/learn/105-schedule-control.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/105-schedule-control.md">Open</a><button class="copy" type="button" data-copy-target="#md-body">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
+        <figure class="listing agent"><figcaption><span class="file">/learn/105-schedule-control.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/105-schedule-control.md">Open</a><button class="copy" type="button">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
         <p class="hint">This is the page an agent receives: the same how-to as plain Markdown, at this page's address with <code>.md</code> added.</p>
       </article>
       <aside class="howto-rail" aria-label="This section">

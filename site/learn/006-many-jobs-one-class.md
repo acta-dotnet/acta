@@ -58,13 +58,18 @@ await jobs.EnqueueAsync(ManyJobsOneClassJobs.Halve(9.0));
 In `many-jobs-one-class.cs` (excerpt):
 
 ```csharp
+using var host = builder.Build();
+await host.StartAsync();
+
 var jobs = host.Services.GetRequiredService<IJobs>();
 
 await jobs.EnqueueAsync(ManyJobsOneClassJobs.Shout("acta"));
 await jobs.EnqueueAsync(ManyJobsOneClassJobs.DoubleIt(21));
 await jobs.EnqueueAsync(ManyJobsOneClassJobs.Halve(9.0));
-
 Console.WriteLine("Enqueued 3 jobs. Worker is running - press Ctrl+C to stop.");
+
+await host.WaitForShutdownAsync();
+await host.StopAsync();
 ```
 
 ## 3. Run it and check the output

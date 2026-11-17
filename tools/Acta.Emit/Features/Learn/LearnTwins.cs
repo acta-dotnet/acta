@@ -1,27 +1,22 @@
 using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
+using Acta.Emit.Features.Docs;
 
 namespace Acta.Emit.Features.Learn;
 
 /// <summary>
 /// What an agent reads: every how-to as plain Markdown at its page's address with <c>.md</c> added, its whole program
-/// in a second file, the index of them all, and the ladder table in the repository's reference docs.
+/// in a second file, the index of them all, the section's sitemap, and the table of how-tos in the repository's
+/// reference docs.
 /// </summary>
 internal sealed partial class LearnPages
 {
     private static string Fence(string text, string lang = "csharp") => $"```{lang}\n{text}\n```\n";
 
-    private static string PlainRows(IEnumerable<ShownRow> rows)
-    {
-        var lines = string.Join('\n', rows.Select(row => row.Source)).Split('\n');
-        var indent = lines
-            .Where(line => line.Trim().Length > 0)
-            .Select(line => line.Length - line.TrimStart(' ').Length)
-            .DefaultIfEmpty(int.MaxValue)
-            .Min();
-        return string.Join('\n', lines.Select(line => line[Math.Min(indent, line.Length)..]));
-    }
+    public const string Table = "docs/reference/concept-ladder.md";
+
+    private static string PlainRows(IEnumerable<ShownRow> rows) => string.Join('\n', LearnText.Dedent(rows.Select(row => row.Source)));
 
     private string NotInPackages(HowTo entry)
     {
@@ -95,7 +90,7 @@ internal sealed partial class LearnPages
         }
 
         // The how-to ends here. What a reader rarely needs sits in a second file, so the first one stays small.
-        var lines = entry.Files.Sum(file => file.LineCount);
+        var lines = entry.Files.Sum(file => file.Rows.Count);
         md.Append(
             CultureInfo.InvariantCulture,
             $"## More\n\n- [The whole program{(entry.Notes.Length > 0 ? " and its notes" : "")}]({entry.Url}.program.md): every file as compiled, {lines} lines{(entry.Lab ? ", and the notes on the design, the rows to inspect, and how to break it" : "")}.\n"
@@ -157,8 +152,14 @@ internal sealed partial class LearnPages
         return md.ToString();
     }
 
-    /// <summary>The ladder as a table in the repository's reference docs: every rung by number, with its how-to.</summary>
-    public string LadderDocument()
+    /// <summary>Search engines get every how-to. The rest of the site, the tutorial included, is in the hand-kept sitemap.</summary>
+    public string SiteMap() =>
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n"
+        + string.Concat(_library.Ordered.Select(entry => $"  <url>\n    <loc>{Origin}{entry.Url}</loc>\n  </url>\n"))
+        + "</urlset>\n";
+
+    /// <summary>The table in the repository's reference docs: every how-to by number, with its page.</summary>
+    public string TableDocument()
     {
         var md = new StringBuilder(
             "# The concept ladder\n\nEvery rung is a small program in [`concepts/`](../../concepts/) that teaches one task, numbered in bands so the ladder can grow without renumbering. Each rung is also a how-to at [useacta.net/learn](https://useacta.net/learn), written from the same program: its title and its one-line summary are the program's opening comment.\n\nThis file is generated. Regenerate it with `dotnet run --project tools/Acta.Emit -- docs`.\n"
@@ -173,7 +174,7 @@ internal sealed partial class LearnPages
             {
                 md.Append(
                     CultureInfo.InvariantCulture,
-                    $"| {e.Id} | [{e.Name}](../../{e.Dir}/) | [{e.ShortTitle}]({Origin}{e.Url}) | {(e.Lab ? "**Engineering Lab.** " : "")}{e.Summary.Replace("|", "\\|", StringComparison.Ordinal)} |\n"
+                    $"| {e.Id} | [{e.Name}](../../{e.Dir}/) | [{e.ShortTitle}]({Origin}{e.Url}) | {(e.Lab ? "**Engineering Lab.** " : "")}{MarkdownEscape.Cell(e.Summary)} |\n"
                 );
             }
         }

@@ -24,11 +24,9 @@ public static readonly JobPayloadFormat ScalarV1Format = JobPayloadFormat.Custom
 public static readonly JobPayloadFormat JsonGzipFormat = JobPayloadFormat.Custom(130, JsonGzip);
 ```
 
-In `PayloadFormats.cs`:
+In `PayloadFormats.cs` (excerpt):
 
 ```csharp
-namespace Acta.Concepts.PayloadFormats;
-
 /// <summary>
 /// Format names and ids for the two custom serializers. The kebab-case names are <c>const string</c>
 /// because <c>[Job(Format = ...)]</c> needs a compile-time constant, and hand-written because the
@@ -55,13 +53,9 @@ builder.Services.AddSingleton<IJobPayloadSerializer, ScalarV1Serializer>();
 builder.Services.AddSingleton<IJobPayloadSerializer, JsonGzipSerializer>();
 ```
 
-In `Program.cs`:
+In `Program.cs` (excerpt):
 
 ```csharp
-using Acta;
-using Acta.Concepts.PayloadFormats;
-using Acta.Labs;
-
 var builder = Host.CreateApplicationBuilder(args);
 builder.Services.AddSingleton(new ConceptLab(builder.Configuration, args));
 
@@ -86,16 +80,9 @@ The lines that matter:
 [Job("echo-gzip", Format = PayloadFormats.JsonGzip)]
 ```
 
-In `EchoGzip.cs`:
+In `EchoGzip.cs` (excerpt):
 
 ```csharp
-namespace Acta.Concepts.PayloadFormats;
-
-/// <summary>
-/// Guid in a thin record, encoded with <c>json-gzip</c>; at this size gzip framing makes it the largest wire format.
-/// </summary>
-public sealed record EchoGzip(Guid Value);
-
 public sealed class EchoGzipHandler
 {
     public const int TargetCount = 250;

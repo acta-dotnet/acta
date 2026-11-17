@@ -24,15 +24,6 @@ var events = eventsPage.Items.Reverse().ToList();
 In `read-event-timeline.cs` (excerpt):
 
 ```csharp
-var jobs = host.Services.GetRequiredService<IJobs>();
-var queries = host.Services.GetRequiredService<IActaOperations>();
-
-// Enqueue the parent; it will start a child that deliberately fails.
-Console.WriteLine("enqueuing parent job...");
-var parent = await jobs.EnqueueAsync(new RunReport("q4-2024"));
-
-// Wait for the lineage to reach a terminal state.
-Console.WriteLine("waiting for lineage to finish...");
 var finished = await parent.WaitAsync();
 
 Console.WriteLine($"parent finished with status: {finished.Status}");
@@ -41,7 +32,6 @@ Console.WriteLine("event timeline for the lineage:");
 
 var eventsPage = await queries.Ledger.ListEventsAsync(new ListEventsQuery(LineageRoot: parent, PageSize: 100));
 var events = eventsPage.Items.Reverse().ToList();
-
 foreach (var e in events)
 {
     var details = e.DetailsText is { } d ? $" {d}" : "";
@@ -55,29 +45,15 @@ foreach (var e in events)
 `read-event-timeline.cs` (excerpt):
 
 ```csharp
-public sealed record RunReport(string Period);
-
-public sealed record CollectData(string Period);
-
-public static class ReportingJobs
+// Parent starts a child that gathers data; the child fails deliberately to show a failure reason on the timeline.
+[Job("run-report", MaxAttempts = 1)]
+public static async Task HandleParent(RunReport input, JobContext context, CancellationToken ct)
 {
-    // Parent starts a child that gathers data; the child fails deliberately to show a failure reason on the timeline.
-    [Job("run-report", MaxAttempts = 1)]
-    public static async Task HandleParent(RunReport input, JobContext context, CancellationToken ct)
+    Console.WriteLine($"[run-report] starting data collection for {input.Period}");
+    var collected = await context.CallChildAsync("collect", new CollectData(input.Period), ct);
+    if (!collected.Succeeded)
     {
-        Console.WriteLine($"[run-report] starting data collection for {input.Period}");
-        var collected = await context.CallChildAsync("collect", new CollectData(input.Period), ct);
-        if (!collected.Succeeded)
-        {
-            await context.FailAsync($"data collection failed for {input.Period}", ct);
-        }
-    }
-
-    [Job("collect-data", MaxAttempts = 1)]
-    public static Task HandleChild(CollectData input, JobContext context, CancellationToken ct)
-    {
-        Console.WriteLine($"[collect-data] data origin unavailable for {input.Period}");
-        return context.FailAsync("data origin unavailable", ct);
+        await context.FailAsync($"data collection failed for {input.Period}", ct);
     }
 }
 ```

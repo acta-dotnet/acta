@@ -57,7 +57,7 @@
   </div>
 
 
-  <main id="content" data-howto="414">
+  <main id="content">
     <header class="wrap page-head howto-head">
       <p class="record"><a href="/learn">learn acta</a><span aria-hidden="true">/</span><a href="/learn#s-operate">watch and control running work</a></p>
       <h1>How to put the dashboard behind your sign-in</h1>
@@ -77,46 +77,35 @@
       <article class="howto person-face">
 <div class="step"><h2><span class="step-n">1</span>Map your roles to the four permissions</h2>
 <p>The roles are the host's own. Acta asks for one policy per permission, and mapping throws when one of the four is missing.</p>
-<figure class="listing"><figcaption><span class="file">dashboard-sign-in.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-1">Copy</button></figcaption><pre><code id="code-1">    {
-        cookie.LoginPath = <span class="s">&quot;/sign-in&quot;</span>;
-        cookie.ExpireTimeSpan = TimeSpan.FromMinutes(2);
-        cookie.SlidingExpiration = <span class="k">false</span>;
-    });
-
-<span class="hl">builder.Services.AddAuthorization(options =&gt;</span>
+<figure class="listing"><figcaption><span class="file">dashboard-sign-in.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="hl">builder.Services.AddAuthorization(options =&gt;</span>
 <span class="hl">{</span>
 <span class="hl">    options.AddPolicy(ActaPermissions.Read, policy =&gt; policy.RequireRole(<span class="s">&quot;Reader&quot;</span>, <span class="s">&quot;Operator&quot;</span>, <span class="s">&quot;Admin&quot;</span>));</span>
 <span class="hl">    options.AddPolicy(ActaPermissions.Enqueue, policy =&gt; policy.RequireRole(<span class="s">&quot;Operator&quot;</span>, <span class="s">&quot;Admin&quot;</span>));</span>
 <span class="hl">    options.AddPolicy(ActaPermissions.Control, policy =&gt; policy.RequireRole(<span class="s">&quot;Operator&quot;</span>, <span class="s">&quot;Admin&quot;</span>));</span>
 <span class="hl">    options.AddPolicy(ActaPermissions.Admin, policy =&gt; policy.RequireRole(<span class="s">&quot;Admin&quot;</span>));</span>
 <span class="hl">});</span>
-
 builder.Services.AddAntiforgery();
 
 <span class="k">var</span> app = builder.Build();
 app.UseAuthentication();
-app.UseAuthorization();</code></pre></figure>
+app.UseAuthorization();
+app.UseAntiforgery();</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">2</span>Require the permissions on the dashboard</h2>
 <p>RequirePermissions has Acta check every route, the dashboard's pages included, against the policy named for its permission. With no session a page is sent to the sign-in above, and an API call answers 401 with no redirect, which the dashboard shows as an ended session. LocalOnly and the control confirmation stay on.</p>
-<figure class="listing"><figcaption><span class="file">dashboard-sign-in.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-2">Copy</button></figcaption><pre><code id="code-2">    }
-
-    <span class="k">await</span> http.SignOutAsync();
-    <span class="k">return</span> Results.Redirect(<span class="s">&quot;/sign-in&quot;</span>);
-});
-
-<span class="hl">app.MapActa(<span class="s">&quot;/acta&quot;</span>, options =&gt;</span>
+<figure class="listing"><figcaption><span class="file">dashboard-sign-in.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="hl">app.MapActa(<span class="s">&quot;/acta&quot;</span>, options =&gt;</span>
 <span class="hl">{</span>
 <span class="hl">    options.EnableControls = <span class="k">true</span>;</span>
 <span class="hl">    options.RequirePermissions = <span class="k">true</span>;</span>
 });
 
-<span class="k">await</span> app.StartAsync();</code></pre></figure>
+<span class="k">await</span> app.StartAsync();
+
+<span class="k">var</span> jobs = app.Services.GetRequiredService&lt;IJobs&gt;();
+<span class="k">var</span> namespaces = app.Services.GetRequiredService&lt;INamespaces&gt;();</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">3</span>The job it acts on</h2>
-<figure class="listing"><figcaption><span class="file">dashboard-sign-in.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-3">Copy</button></figcaption><pre><code id="code-3"><span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> SampleTask(<span class="k">string</span> Id);
-
-<span class="k">public</span> <span class="k">static</span> <span class="k">class</span> SampleTaskJob
+<figure class="listing"><figcaption><span class="file">dashboard-sign-in.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">static</span> <span class="k">class</span> SampleTaskJob
 {
     <span class="a">[Job(<span class="s">&quot;sample-task&quot;</span>)]</span>
     <span class="k">public</span> <span class="k">static</span> <span class="k">void</span> Handle(SampleTask input) { }
@@ -124,8 +113,8 @@ app.UseAuthorization();</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">4</span>Run it and check the output</h2>
 <p>From a clone of <a href="https://github.com/acta-dotnet/acta">the Acta repository</a>, with the .NET 10 SDK:</p>
-<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-4">Copy</button></figcaption><pre><code id="code-4">dotnet run --project concepts/400-observability-and-alerts/414-dashboard-sign-in</code></pre></figure>
-<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button" data-copy-target="#code-5">Copy</button></figcaption><pre><code id="code-5">GET /acta/ -&gt; 302 http://
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project concepts/400-observability-and-alerts/414-dashboard-sign-in</code></pre></figure>
+<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button">Copy</button></figcaption><pre><code>GET /acta/ -&gt; 302 http://
 /sign-in?ReturnUrl=%2Facta%2F
 GET /acta/api/v1/jobs -&gt; 401
 POST /sign-in -&gt; 400
@@ -154,7 +143,7 @@ GET /acta/api/v1/capabilities -&gt; 401</code></pre></figure>
 <ul class="plain"><li>Nobody signed in: the dashboard redirects to <code>/sign-in</code>, the API answers 401, and a sign-in post without its antiforgery token answers 400.</li><li>Reader reads the jobs list (200), holds <code>acta.read</code> alone, and is refused a pause sent by hand (403, naming <code>acta.control</code>); the job stays as it was.</li><li>Operator pauses the job (200 <code>applied</code>, and the job reads back Paused) and is refused suspending the namespace (403, naming <code>acta.admin</code>).</li><li>Admin suspends and resumes the namespace (200 <code>applied</code> each, read back).</li><li>After sign-out the API answers 401 again.</li></ul>
 <p>A 200 alone would not show a change, since a control that finds nothing to do also answers 200, with <code>already-in-state</code>: the run prints each answer's action and reads the state back.</p>
 <h3>Run the experiment</h3>
-<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-6">Copy</button></figcaption><pre><code id="code-6">dotnet run --project concepts/400-observability-and-alerts/414-dashboard-sign-in</code></pre></figure>
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project concepts/400-observability-and-alerts/414-dashboard-sign-in</code></pre></figure>
 <p>Then open the address it prints and sign in as <code>reader</code>, <code>operator</code> or <code>admin</code>; each one's password is its name.</p>
 <ul class="plain"><li>As reader the dashboard is marked read-only and shows no controls. As operator the paused job can be resumed.</li><li>A session lasts two minutes and is never renewed. Leave the dashboard open: it says the session has ended, and a reload goes through the sign-in page and comes back.</li><li>Sign out, or change user, at <code>/sign-in</code>.</li></ul>
 <h3>What a real host changes</h3>
@@ -167,7 +156,7 @@ GET /acta/api/v1/capabilities -&gt; 401</code></pre></figure>
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/concepts/400-observability-and-alerts/414-dashboard-sign-in"><code>concepts/400-observability-and-alerts/414-dashboard-sign-in</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">dashboard-sign-in.cs</span><span class="file-size">243 lines</span></summary><figure class="listing"><figcaption><span class="file">dashboard-sign-in.cs</span><button class="copy" type="button" data-copy-target="#code-7">Copy</button></figcaption><pre><code id="code-7"><span class="c">// How to put the dashboard behind your sign-in</span>
+<details class="source-file"><summary><span class="file-name">dashboard-sign-in.cs</span><span class="file-size">243 lines</span></summary><figure class="listing"><figcaption><span class="file">dashboard-sign-in.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to put the dashboard behind your sign-in</span>
 <span class="c">// The dashboard and its API sit behind the host's own sign-in. The host maps its roles to Acta's four permissions;</span>
 <span class="c">// with no session a page goes to the sign-in, and an API call answers 401.</span>
 <span class="k">using</span> System.Net;
@@ -409,11 +398,12 @@ HttpClient Browser() =&gt; <span class="k">new</span>(<span class="k">new</span>
         <span class="a">[Job(<span class="s">&quot;sample-task&quot;</span>)]</span>
         <span class="k">public</span> <span class="k">static</span> <span class="k">void</span> Handle(SampleTask input) { }
     }
-}</code></pre></figure></details></div>
+}</code></pre></figure>
+</details></div>
 <div class="step plain-step"><h2>Where to go next</h2><ul class="next-links"><li><a href="/learn/412-tenant-scope">How to record which tenant a job is for</a><span>Watch and control running work</span></li></ul></div>
       </article>
       <article class="agent-face" hidden>
-        <figure class="listing agent"><figcaption><span class="file">/learn/414-dashboard-sign-in.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/414-dashboard-sign-in.md">Open</a><button class="copy" type="button" data-copy-target="#md-body">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
+        <figure class="listing agent"><figcaption><span class="file">/learn/414-dashboard-sign-in.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/414-dashboard-sign-in.md">Open</a><button class="copy" type="button">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
         <p class="hint">This is the page an agent receives: the same how-to as plain Markdown, at this page's address with <code>.md</code> added.</p>
       </article>
       <aside class="howto-rail" aria-label="This section">

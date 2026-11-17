@@ -23,14 +23,12 @@ var result = await jobs.RestartAsync(outcome, "operator re-ran the report after 
 In `operator-restart.cs` (excerpt):
 
 ```csharp
-}
 Console.WriteLine($"terminal: status={snapshot!.Status} failureCount={snapshot.FailureCount} executionNumber={snapshot.ExecutionNumber}");
 await ShowRestartStateAsync(lab, "Before restart: one stable identity exhausted its failure budget", outcome.JobId);
 
 FlakyReportJob.DataSourceFixed = true;
 
 var result = await jobs.RestartAsync(outcome, "operator re-ran the report after the data fix");
-
 Console.WriteLine($"restart result: {result.Action} status={result.Status}");
 
 // The worker may already have claimed the row; failure_count is reset regardless of that scheduling race.
@@ -43,35 +41,30 @@ Console.WriteLine($"immediately observed after restart: status={snapshot!.Status
 `operator-restart.cs` (excerpt):
 
 ```csharp
-public sealed record FlakyReport(string Id);
+private static int _handlerEntries;
 
-public static class FlakyReportJob
+public static bool DataSourceFixed { get; set; }
+
+// MaxAttempts=3, 0s skips backoff so the budget exhausts quickly.
+[Job("flaky-report", MaxAttempts = 3, Backoff = "0s")]
+public static async Task Handle(FlakyReport input, JobContext context, CancellationToken ct)
 {
-    private static int _handlerEntries;
-
-    public static bool DataSourceFixed { get; set; }
-
-    // MaxAttempts=3, 0s skips backoff so the budget exhausts quickly.
-    [Job("flaky-report", MaxAttempts = 3, Backoff = "0s")]
-    public static async Task Handle(FlakyReport input, JobContext context, CancellationToken ct)
-    {
-        Console.WriteLine($"[{input.Id}] bare handler entry #{Interlocked.Increment(ref _handlerEntries)}");
-        await context.RunStepAsync(
-            "prepare-report",
-            _ =>
-            {
-                Console.WriteLine($"[{input.Id}] preparation step body invoked; its recorded success can be reused");
-                return Task.CompletedTask;
-            },
-            ct
-        );
-
-        if (!DataSourceFixed)
+    Console.WriteLine($"[{input.Id}] bare handler entry #{Interlocked.Increment(ref _handlerEntries)}");
+    await context.RunStepAsync(
+        "prepare-report",
+        _ =>
         {
-            throw new InvalidOperationException($"[{input.Id}] data source unavailable");
-        }
-        Console.WriteLine($"[{input.Id}] report generated after operator restart");
+            Console.WriteLine($"[{input.Id}] preparation step body invoked; its recorded success can be reused");
+            return Task.CompletedTask;
+        },
+        ct
+    );
+
+    if (!DataSourceFixed)
+    {
+        throw new InvalidOperationException($"[{input.Id}] data source unavailable");
     }
+    Console.WriteLine($"[{input.Id}] report generated after operator restart");
 }
 ```
 

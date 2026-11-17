@@ -23,8 +23,6 @@ await context.SleepAsync("cool-down", TimeSpan.FromSeconds(input.CoolDownSeconds
 In `durable-sleep.cs` (excerpt):
 
 ```csharp
-public sealed record SendFollowUp(string UserEmail, int CoolDownSeconds);
-
 public sealed class FollowUpJob
 {
     [Job("send-follow-up")]

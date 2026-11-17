@@ -14,7 +14,7 @@ The job is the pending sign-up: Acta stores its input, a signal confirms it, and
 
 The wait is a row with its deadline stored in the database, so no process has to stay alive for it. When nobody confirms in time, the job cancels itself: no user was ever written, so there is nothing to undo.
 
-The lines that matter:
+`pending-signup.cs` (excerpt):
 
 ```csharp
 var confirmed = await ctx.WaitSignalAsync<EmailConfirmed>("email-confirmed", input.ConfirmWithin, ct);
@@ -23,29 +23,6 @@ if (confirmed.TimedOut)
     Console.WriteLine($"[{input.Email}] not confirmed in time");
     await ctx.CancelAsync("not confirmed in time", ct);
 }
-```
-
-In `pending-signup.cs` (excerpt):
-
-```csharp
-        Console.WriteLine($"[{input.Email}] confirmation email sent");
-        return Task.CompletedTask;
-    },
-    ct
-);
-
-var confirmed = await ctx.WaitSignalAsync<EmailConfirmed>("email-confirmed", input.ConfirmWithin, ct);
-if (confirmed.TimedOut)
-{
-    Console.WriteLine($"[{input.Email}] not confirmed in time");
-    await ctx.CancelAsync("not confirmed in time", ct);
-}
-
-// Only now does the sign-up become a real user. The insert is keyed by the email, so a repeat of the step
-// adds nothing.
-await ctx.RunStepAsync(
-    "create-user",
-    _ =>
 ```
 
 ## 2. Create the user only after the confirmation
@@ -70,24 +47,22 @@ await ctx.RunStepAsync(
 In `pending-signup.cs` (excerpt):
 
 ```csharp
-        if (confirmed.TimedOut)
-        {
-            Console.WriteLine($"[{input.Email}] not confirmed in time");
-            await ctx.CancelAsync("not confirmed in time", ct);
-        }
-
-        await ctx.RunStepAsync(
-            "create-user",
-            _ =>
-            {
-                users.CreateIfAbsent(input.Email, input.DisplayName);
-                Console.WriteLine($"[{input.Email}] user created");
-                return Task.CompletedTask;
-            },
-            ct
-        );
-    }
+if (confirmed.TimedOut)
+{
+    Console.WriteLine($"[{input.Email}] not confirmed in time");
+    await ctx.CancelAsync("not confirmed in time", ct);
 }
+
+await ctx.RunStepAsync(
+    "create-user",
+    _ =>
+    {
+        users.CreateIfAbsent(input.Email, input.DisplayName);
+        Console.WriteLine($"[{input.Email}] user created");
+        return Task.CompletedTask;
+    },
+    ct
+);
 ```
 
 ## 3. Start the job when the form is submitted
@@ -103,36 +78,16 @@ var ada = await jobs.EnqueueAsync(new RegisterUser("ada@example.com", "Ada", "c0
 In `pending-signup.cs` (excerpt):
 
 ```csharp
+using var host = builder.Build();
+await host.StartAsync();
+
 var jobs = host.Services.GetRequiredService<IJobs>();
 var users = host.Services.GetRequiredService<UserStore>();
 
 var ada = await jobs.EnqueueAsync(new RegisterUser("ada@example.com", "Ada", "c0ffee", TimeSpan.FromHours(24)));
-
 var sam = await jobs.EnqueueAsync(new RegisterUser("sam@example.com", "Sam", "decade", TimeSpan.FromSeconds(2)));
 
-while ((await jobs.GetAsync(ada))?.Status != JobStatusCode.Suspended)
-{
-    await Task.Delay(50);
-}
-
-// A raise proves nothing about who sent it, so the code from the link is compared with the one stored in the job
-// before the signal is raised. The raise answers what it did.
-var pending = await jobs.GetInputAsync<RegisterUser>(ada);
-if (pending.Code == "c0ffee")
-{
-    var raised = await jobs.RaiseSignalAsync(ada, "email-confirmed", new EmailConfirmed("c0ffee"));
-    Console.WriteLine($"ada's click: {raised.Action}");
-}
-
-await ada.WaitAsync();
-await sam.WaitAsync();
-Console.WriteLine($"ada@example.com: {(await jobs.GetAsync(ada))!.Status}");
-Console.WriteLine($"sam@example.com: {(await jobs.GetAsync(sam))!.Status}");
-Console.WriteLine($"users: {string.Join(", ", users.Emails)}");
-
-// A click on Sam's link after his sign-up has ended: the answer is not Applied, so the page must not say "confirmed".
-var late = await jobs.RaiseSignalAsync(sam, "email-confirmed", new EmailConfirmed("decade"));
-Console.WriteLine($"sam's late click: {late.Action}");
+using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
 ```
 
 ## 4. Confirm it from the link in the email
@@ -153,18 +108,10 @@ if (pending.Code == "c0ffee")
 In `pending-signup.cs` (excerpt):
 
 ```csharp
-var jobs = host.Services.GetRequiredService<IJobs>();
-var users = host.Services.GetRequiredService<UserStore>();
-
-// The input is the pending sign-up, so there is no table of pending users. The one-time code also goes into the
-// link of the email. Ada gets a day to confirm; Sam gets two seconds, so the program can show a sign-up that expires.
-var ada = await jobs.EnqueueAsync(new RegisterUser("ada@example.com", "Ada", "c0ffee", TimeSpan.FromHours(24)));
-
-var sam = await jobs.EnqueueAsync(new RegisterUser("sam@example.com", "Sam", "decade", TimeSpan.FromSeconds(2)));
-
-while ((await jobs.GetAsync(ada))?.Status != JobStatusCode.Suspended)
+using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+while ((await jobs.GetAsync(ada, timeout.Token))?.Status != JobStatusCode.Suspended)
 {
-    await Task.Delay(50);
+    await Task.Delay(50, timeout.Token);
 }
 
 var pending = await jobs.GetInputAsync<RegisterUser>(ada);
@@ -179,10 +126,6 @@ await sam.WaitAsync();
 Console.WriteLine($"ada@example.com: {(await jobs.GetAsync(ada))!.Status}");
 Console.WriteLine($"sam@example.com: {(await jobs.GetAsync(sam))!.Status}");
 Console.WriteLine($"users: {string.Join(", ", users.Emails)}");
-
-// A click on Sam's link after his sign-up has ended: the answer is not Applied, so the page must not say "confirmed".
-var late = await jobs.RaiseSignalAsync(sam, "email-confirmed", new EmailConfirmed("decade"));
-Console.WriteLine($"sam's late click: {late.Action}");
 ```
 
 ## 5. Run it and check the output
@@ -238,4 +181,4 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## More
 
-- [The whole program](/learn/221-pending-signup.program.md): every file as compiled, 121 lines.
+- [The whole program](/learn/221-pending-signup.program.md): every file as compiled, 122 lines.

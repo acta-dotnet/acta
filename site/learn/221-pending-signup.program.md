@@ -43,9 +43,10 @@ var ada = await jobs.EnqueueAsync(new RegisterUser("ada@example.com", "Ada", "c0
 // learn: end
 var sam = await jobs.EnqueueAsync(new RegisterUser("sam@example.com", "Sam", "decade", TimeSpan.FromSeconds(2)));
 
-while ((await jobs.GetAsync(ada))?.Status != JobStatusCode.Suspended)
+using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+while ((await jobs.GetAsync(ada, timeout.Token))?.Status != JobStatusCode.Suspended)
 {
-    await Task.Delay(50);
+    await Task.Delay(50, timeout.Token);
 }
 
 // learn: 4. Confirm it from the link in the email
@@ -85,7 +86,7 @@ namespace Acta.Concepts.PendingSignup
 
         public IEnumerable<string> Emails => _users.Keys.Order();
 
-        public bool CreateIfAbsent(string email, string displayName) => _users.TryAdd(email, displayName);
+        public void CreateIfAbsent(string email, string displayName) => _users.TryAdd(email, displayName);
     }
 
     public sealed class RegistrationJobs(UserStore users)

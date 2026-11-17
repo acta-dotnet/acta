@@ -57,7 +57,7 @@
   </div>
 
 
-  <main id="content" data-howto="407">
+  <main id="content">
     <header class="wrap page-head howto-head">
       <p class="record"><a href="/learn">learn acta</a><span aria-hidden="true">/</span><a href="/learn#s-operate">watch and control running work</a></p>
       <h1>How to choose how many events a job records</h1>
@@ -77,18 +77,7 @@
       <article class="howto person-face">
 <div class="step"><h2><span class="step-n">1</span>Record only failures for a job that runs often</h2>
 <p>Failures: a failure writes an event, and so does the success that answers one; a run that succeeds after no failure leaves none. Use it for high-frequency definitions to keep events lean.</p>
-<figure class="listing"><figcaption><span class="file">event-recording.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-1">Copy</button></figcaption><pre><code id="code-1"><span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> AuditWork(<span class="k">string</span> Id);
-
-<span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> FailuresWork(<span class="k">string</span> Id);
-
-<span class="k">public</span> <span class="k">static</span> <span class="k">class</span> AuditWorkJob
-{
-    <span class="c">// Audit (default): a finished event is written for every execution.</span>
-    <span class="a">[Job(<span class="s">&quot;audit-work&quot;</span>, EventRecording = EventRecordingCode.Audit)]</span>
-    <span class="k">public</span> <span class="k">static</span> <span class="k">void</span> Handle(AuditWork input) =&gt; Console.WriteLine(<span class="s">$&quot;[{input.Id}] running at Audit level&quot;</span>);
-}
-
-<span class="k">public</span> <span class="k">static</span> <span class="k">class</span> FailuresWorkJob
+<figure class="listing"><figcaption><span class="file">event-recording.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">static</span> <span class="k">class</span> FailuresWorkJob
 {
 <span class="hl">    <span class="a">[Job(<span class="s">&quot;failures-work&quot;</span>, EventRecording = EventRecordingCode.Failures)]</span></span>
     <span class="k">public</span> <span class="k">static</span> <span class="k">void</span> Handle(FailuresWork input) =&gt; Console.WriteLine(<span class="s">$&quot;[{input.Id}] running at Failures level&quot;</span>);
@@ -96,8 +85,8 @@
 </div>
 <div class="step"><h2><span class="step-n">2</span>Run it and check the output</h2>
 <p>From a clone of <a href="https://github.com/acta-dotnet/acta">the Acta repository</a>, with the .NET 10 SDK:</p>
-<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-2">Copy</button></figcaption><pre><code id="code-2">dotnet run --project concepts/400-observability-and-alerts/407-event-recording</code></pre></figure>
-<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button" data-copy-target="#code-3">Copy</button></figcaption><pre><code id="code-3">Audit level  -&gt; event count: 1
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project concepts/400-observability-and-alerts/407-event-recording</code></pre></figure>
+<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button">Copy</button></figcaption><pre><code>Audit level  -&gt; event count: 1
 Failures level -&gt; event count: 0</code></pre></figure>
 <p class="proof checked"><b>Checked every release.</b> Before each release, Acta Verify runs this program and checks that its output contains these lines.</p>
 <p class="hint">This page shows the code. The rules it relies on, starting with the handler running again from its first line, are in <a href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#handler-contract">the handler contract</a>.</p>
@@ -105,7 +94,7 @@ Failures level -&gt; event count: 0</code></pre></figure>
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/concepts/400-observability-and-alerts/407-event-recording"><code>concepts/400-observability-and-alerts/407-event-recording</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">event-recording.cs</span><span class="file-size">62 lines</span></summary><figure class="listing"><figcaption><span class="file">event-recording.cs</span><button class="copy" type="button" data-copy-target="#code-4">Copy</button></figcaption><pre><code id="code-4"><span class="c">// How to choose how many events a job records</span>
+<details class="source-file"><summary><span class="file-name">event-recording.cs</span><span class="file-size">62 lines</span></summary><figure class="listing"><figcaption><span class="file">event-recording.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to choose how many events a job records</span>
 <span class="c">// `EventRecording` on the job decides which events it writes. `Audit`, the default, records every event. `Failures`</span>
 <span class="c">// records the failed and orphaned attempts, the success that recovers from a failure, what an enabled alert profile</span>
 <span class="c">// reads, a caller's controls of the job, and a schedule's pauses and manual triggers.</span>
@@ -166,11 +155,12 @@ Console.WriteLine(
         <span class="c">// learn: end</span>
         <span class="k">public</span> <span class="k">static</span> <span class="k">void</span> Handle(FailuresWork input) =&gt; Console.WriteLine(<span class="s">$&quot;[{input.Id}] running at Failures level&quot;</span>);
     }
-}</code></pre></figure></details></div>
+}</code></pre></figure>
+</details></div>
 <div class="step plain-step"><h2>Where to go next</h2><ul class="next-links"><li><a href="/learn/406-automatic-failure-alerts">How to get an alert when a job fails</a><span>Get told when something breaks</span></li></ul></div>
       </article>
       <article class="agent-face" hidden>
-        <figure class="listing agent"><figcaption><span class="file">/learn/407-event-recording.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/407-event-recording.md">Open</a><button class="copy" type="button" data-copy-target="#md-body">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
+        <figure class="listing agent"><figcaption><span class="file">/learn/407-event-recording.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/407-event-recording.md">Open</a><button class="copy" type="button">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
         <p class="hint">This is the page an agent receives: the same how-to as plain Markdown, at this page's address with <code>.md</code> added.</p>
       </article>
       <aside class="howto-rail" aria-label="This section">

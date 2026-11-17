@@ -24,8 +24,6 @@ public static void Handle(Hello input) => Console.WriteLine($"Hello, {input.Name
 In `hello-acta.cs` (excerpt):
 
 ```csharp
-public sealed record Hello(string Name);
-
 public static class HelloJob
 {
     [Job("hello")]
@@ -67,6 +65,8 @@ builder.Services.UseActa(j =>
 
 using var host = builder.Build();
 await host.StartAsync();
+
+var jobs = host.Services.GetRequiredService<IJobs>();
 ```
 
 ## 3. Enqueue it
@@ -82,11 +82,16 @@ await jobs.EnqueueAsync(new Hello("World"));
 In `hello-acta.cs` (excerpt):
 
 ```csharp
+using var host = builder.Build();
+await host.StartAsync();
+
 var jobs = host.Services.GetRequiredService<IJobs>();
 
 await jobs.EnqueueAsync(new Hello("World"));
-
 Console.WriteLine("Enqueued. The worker is running - press Ctrl+C to stop.");
+
+await host.WaitForShutdownAsync();
+await host.StopAsync();
 ```
 
 ## 4. Run it and check the output
@@ -118,10 +123,6 @@ Checked every release. Before each release, Acta Verify runs this program and ch
    - b) In a row of the SQLite file
    - c) In a separate queue service
    - Answer: b. The job is a durable row before anything runs it. Stop the process now and the row is still there for the next start.
-
-## Not in the packages
-
-`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on any of the three databases. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## Next
 

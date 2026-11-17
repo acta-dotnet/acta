@@ -57,7 +57,7 @@
   </div>
 
 
-  <main id="content" data-howto="222">
+  <main id="content">
     <header class="wrap page-head howto-head">
       <p class="record"><a href="/learn">learn acta</a><span aria-hidden="true">/</span><a href="/learn#s-children">split work across child jobs</a></p>
       <h1>How to find the child job that handles one item</h1>
@@ -77,11 +77,7 @@
       <article class="howto person-face">
 <div class="step"><h2><span class="step-n">1</span>Start each child under the item's own key</h2>
 <p><code>itemKey</code> names each child after its item. The name is stored as the child's deduplication key, and it is how a replay of the parent and a reader from outside find the same child.</p>
-<figure class="listing"><figcaption><span class="file">find-child-job.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-1">Copy</button></figcaption><pre><code id="code-1"><span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> SendInvoices(<span class="k">int</span>[] InvoiceIds);
-
-<span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> SendInvoice(<span class="k">int</span> InvoiceId);
-
-<span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> InvoiceJobs
+<figure class="listing"><figcaption><span class="file">find-child-job.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> InvoiceJobs
 {
     <span class="a">[Job(<span class="s">&quot;send-invoices&quot;</span>)]</span>
     <span class="k">public</span> <span class="k">async</span> Task Handle(SendInvoices batch, JobContext ctx, CancellationToken ct)
@@ -103,7 +99,7 @@
 </div>
 <div class="step"><h2><span class="step-n">2</span>List the parent's children</h2>
 <p><code>Parent</code> restricts the job list to the children of one job. Each child shows the name it was started under.</p>
-<figure class="listing"><figcaption><span class="file">find-child-job.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-2">Copy</button></figcaption><pre><code id="code-2"><span class="k">var</span> jobs = host.Services.GetRequiredService&lt;IJobs&gt;();
+<figure class="listing"><figcaption><span class="file">find-child-job.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">var</span> jobs = host.Services.GetRequiredService&lt;IJobs&gt;();
 <span class="k">var</span> operations = host.Services.GetRequiredService&lt;IActaOperations&gt;();
 
 <span class="k">var</span> parent = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> SendInvoices([5, 6, 7]));
@@ -115,22 +111,15 @@
 <span class="hl">    Console.WriteLine(<span class="s">$&quot;{child.DeduplicationKey}: {child.Status.Code}&quot;</span>);</span>
 <span class="hl">}</span>
 
-<span class="c">// The key is the one the map was given for that item, so a page that shows invoice 7 gets from the invoice to its</span>
-<span class="c">// job, and from there to what the job did.</span>
 <span class="k">var</span> invoice7 = children.Items.Single(child =&gt; child.DeduplicationKey == <span class="s">&quot;invoice/7&quot;</span>);
 <span class="k">var</span> why = (<span class="k">await</span> jobs.ExplainAsync(invoice7.JobRef))!;
-Console.WriteLine(<span class="s">$&quot;invoice 7: {why.Headline} {why.Reason}&quot;</span>);</code></pre></figure>
+Console.WriteLine(<span class="s">$&quot;invoice 7: {why.Headline} {why.Reason}&quot;</span>);
+
+<span class="k">await</span> host.StopAsync();</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">3</span>Pick the child that carries the item's key</h2>
 <p>The key is the one the map was given for that item, so a page that shows invoice 7 gets from the invoice to its job, and from there to what the job did.</p>
-<figure class="listing"><figcaption><span class="file">find-child-job.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-3">Copy</button></figcaption><pre><code id="code-3"><span class="k">var</span> jobs = host.Services.GetRequiredService&lt;IJobs&gt;();
-<span class="k">var</span> operations = host.Services.GetRequiredService&lt;IActaOperations&gt;();
-
-<span class="k">var</span> parent = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> SendInvoices([5, 6, 7]));
-<span class="k">await</span> parent.WaitAsync();
-
-<span class="c">// `Parent` restricts the job list to the children of one job. Each child shows the name it was started under.</span>
-<span class="k">var</span> children = <span class="k">await</span> operations.Ledger.ListJobsAsync(<span class="k">new</span> ListJobsQuery(Parent: parent));
+<figure class="listing"><figcaption><span class="file">find-child-job.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">var</span> children = <span class="k">await</span> operations.Ledger.ListJobsAsync(<span class="k">new</span> ListJobsQuery(Parent: parent));
 <span class="k">foreach</span> (<span class="k">var</span> child <span class="k">in</span> children.Items.OrderBy(child =&gt; child.DeduplicationKey, StringComparer.Ordinal))
 {
     Console.WriteLine(<span class="s">$&quot;{child.DeduplicationKey}: {child.Status.Code}&quot;</span>);
@@ -138,12 +127,14 @@ Console.WriteLine(<span class="s">$&quot;invoice 7: {why.Headline} {why.Reason}&
 
 <span class="hl"><span class="k">var</span> invoice7 = children.Items.Single(child =&gt; child.DeduplicationKey == <span class="s">&quot;invoice/7&quot;</span>);</span>
 <span class="hl"><span class="k">var</span> why = (<span class="k">await</span> jobs.ExplainAsync(invoice7.JobRef))!;</span>
-<span class="hl">Console.WriteLine(<span class="s">$&quot;invoice 7: {why.Headline} {why.Reason}&quot;</span>);</span></code></pre></figure>
+<span class="hl">Console.WriteLine(<span class="s">$&quot;invoice 7: {why.Headline} {why.Reason}&quot;</span>);</span>
+
+<span class="k">await</span> host.StopAsync();</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">4</span>Run it and check the output</h2>
 <p>From a clone of <a href="https://github.com/acta-dotnet/acta">the Acta repository</a>, with the .NET 10 SDK:</p>
-<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-4">Copy</button></figcaption><pre><code id="code-4">dotnet run --project concepts/200-durable-execution/222-find-child-job</code></pre></figure>
-<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button" data-copy-target="#code-5">Copy</button></figcaption><pre><code id="code-5">2 of 3 invoices sent
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project concepts/200-durable-execution/222-find-child-job</code></pre></figure>
+<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button">Copy</button></figcaption><pre><code>2 of 3 invoices sent
 invoice/5: succeeded
 invoice/7: failed
 invoice 7: Failed. the customer's address bounced</code></pre></figure>
@@ -154,7 +145,7 @@ invoice 7: Failed. the customer's address bounced</code></pre></figure>
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/concepts/200-durable-execution/222-find-child-job"><code>concepts/200-durable-execution/222-find-child-job</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">find-child-job.cs</span><span class="file-size">80 lines</span></summary><figure class="listing"><figcaption><span class="file">find-child-job.cs</span><button class="copy" type="button" data-copy-target="#code-6">Copy</button></figcaption><pre><code id="code-6"><span class="c">// How to find the child job that handles one item</span>
+<details class="source-file"><summary><span class="file-name">find-child-job.cs</span><span class="file-size">80 lines</span></summary><figure class="listing"><figcaption><span class="file">find-child-job.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to find the child job that handles one item</span>
 <span class="c">// A child's name on the reads is its deduplication key, `{map}/{key}` for a child that a map started. List the</span>
 <span class="c">// parent's children and pick the one that carries the item's key.</span>
 <span class="k">using</span> Acta;
@@ -233,11 +224,12 @@ builder.Logging.AddFilter(<span class="s">&quot;Acta&quot;</span>, LogLevel.Erro
             Console.WriteLine(<span class="s">$&quot;invoice {invoice.InvoiceId} sent&quot;</span>);
         }
     }
-}</code></pre></figure></details></div>
+}</code></pre></figure>
+</details></div>
 <div class="step plain-step"><h2>Where to go next</h2><ul class="next-links"><li><a href="/learn/219-child-failure-outcomes">How to handle child jobs that fail</a><span>Split work across child jobs</span></li></ul></div>
       </article>
       <article class="agent-face" hidden>
-        <figure class="listing agent"><figcaption><span class="file">/learn/222-find-child-job.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/222-find-child-job.md">Open</a><button class="copy" type="button" data-copy-target="#md-body">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
+        <figure class="listing agent"><figcaption><span class="file">/learn/222-find-child-job.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/222-find-child-job.md">Open</a><button class="copy" type="button">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
         <p class="hint">This is the page an agent receives: the same how-to as plain Markdown, at this page's address with <code>.md</code> added.</p>
       </article>
       <aside class="howto-rail" aria-label="This section">

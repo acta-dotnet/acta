@@ -57,7 +57,7 @@
   </div>
 
 
-  <main id="content" data-howto="219">
+  <main id="content">
     <header class="wrap page-head howto-head">
       <p class="record"><a href="/learn">learn acta</a><span aria-hidden="true">/</span><a href="/learn#s-children">split work across child jobs</a></p>
       <h1>How to handle child jobs that fail</h1>
@@ -77,45 +77,39 @@
       <article class="howto person-face">
 <div class="step"><h2><span class="step-n">1</span>Carry on without the items that failed</h2>
 <p>The map does not throw for a failed item. <code>Failed</code> lists them, and this parent returns a partial result and lands Succeeded.</p>
-<figure class="listing"><figcaption><span class="file">child-failure-outcomes.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-1">Copy</button></figcaption><pre><code id="code-1">        ids,
-        itemKey: id =&gt; id,
-        child: id =&gt; <span class="k">new</span> ProcessItem(id, ShouldFail: id == <span class="s">&quot;item-b&quot;</span>),
-        ct
-    );
-
-<span class="hl">    <span class="k">var</span> succeeded = result.Items.Count(i =&gt; i.Outcome.Succeeded);</span>
+<figure class="listing"><figcaption><span class="file">child-failure-outcomes.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="hl"><span class="k">var</span> succeeded = result.Items.Count(i =&gt; i.Outcome.Succeeded);</span>
 <span class="hl"> </span>
-<span class="hl">    <span class="k">foreach</span> (<span class="k">var</span> f <span class="k">in</span> result.Failed)</span>
-<span class="hl">    {</span>
-<span class="hl">        Console.WriteLine(<span class="s">$&quot;  item {f.Key} failed (status={f.Outcome.Status}); continuing without it&quot;</span>);</span>
-<span class="hl">    }</span>
+<span class="hl"><span class="k">foreach</span> (<span class="k">var</span> f <span class="k">in</span> result.Failed)</span>
+<span class="hl">{</span>
+<span class="hl">    Console.WriteLine(<span class="s">$&quot;  item {f.Key} failed (status={f.Outcome.Status}); continuing without it&quot;</span>);</span>
+<span class="hl">}</span>
 
-    <span class="k">return</span> <span class="k">new</span> MapReport(<span class="s">$&quot;{succeeded}/{ids.Length} items succeeded&quot;</span>);
-}
-
-<span class="c">// FailAsync ends the job Failed at once, with no retry, and leaves MaxAttempts to absorb crashes; a thrown</span>
-<span class="c">// exception would retry, and MaxAttempts = 1 would fail the job on its first crash too.</span></code></pre></figure>
+<span class="k">return</span> <span class="k">new</span> MapReport(<span class="s">$&quot;{succeeded}/{ids.Length} items succeeded&quot;</span>);</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">2</span>Or fail the parent with its failed child</h2>
 <p>ThrowIfAnyFailed throws ChildGroupException; the parent lands Failed.</p>
-<figure class="listing"><figcaption><span class="file">child-failure-outcomes.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-2">Copy</button></figcaption><pre><code id="code-2">
+<figure class="listing"><figcaption><span class="file">child-failure-outcomes.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// Scenario 2: two children enqueued and waited for; one child fails. The handler calls</span>
+<span class="c">// ThrowIfAnyFailed on the outcome, and the parent lands Failed at once, with no retry.</span>
+<span class="a">[Job(<span class="s">&quot;run-join-escalated&quot;</span>)]</span>
+<span class="k">public</span> <span class="k">async</span> Task HandleJoinEscalated(RunJoinEscalated _, JobContext context, CancellationToken ct)
+{
+    <span class="k">var</span> alpha = <span class="k">await</span> context.EnqueueChildAsync(<span class="s">&quot;alpha&quot;</span>, <span class="k">new</span> RunChild(<span class="s">&quot;alpha&quot;</span>, ShouldFail: <span class="k">false</span>), ct);
+    <span class="k">var</span> beta = <span class="k">await</span> context.EnqueueChildAsync(<span class="s">&quot;beta&quot;</span>, <span class="k">new</span> RunChild(<span class="s">&quot;beta&quot;</span>, ShouldFail: <span class="k">true</span>), ct);
+
+    <span class="k">var</span> result = <span class="k">await</span> context.WaitChildrenAsync([alpha, beta], ct);
+
     <span class="k">foreach</span> (<span class="k">var</span> child <span class="k">in</span> result.Failed)
     {
         Console.WriteLine(<span class="s">$&quot;  child {child.JobRef} failed (status={child.Status})&quot;</span>);
     }
 
 <span class="hl">    result.ThrowIfAnyFailed();</span>
-}
-
-<span class="c">// FailAsync, as in process-item: the failing child ends at once and keeps its budget for crashes.</span>
-<span class="a">[Job(<span class="s">&quot;run-child&quot;</span>)]</span>
-<span class="k">public</span> <span class="k">async</span> Task RunChildHandler(RunChild input, JobContext context, CancellationToken ct)
-{</code></pre></figure>
+}</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">3</span>Run it and check the output</h2>
 <p>From a clone of <a href="https://github.com/acta-dotnet/acta">the Acta repository</a>, with the .NET 10 SDK:</p>
-<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-3">Copy</button></figcaption><pre><code id="code-3">dotnet run --project concepts/200-durable-execution/219-child-failure-outcomes</code></pre></figure>
-<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button" data-copy-target="#code-4">Copy</button></figcaption><pre><code id="code-4">item item-b failed (status=Failed); continuing without it
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project concepts/200-durable-execution/219-child-failure-outcomes</code></pre></figure>
+<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button">Copy</button></figcaption><pre><code>item item-b failed (status=Failed); continuing without it
 parent: Succeeded, report: 2/3 items succeeded
 parent: Failed (expected Failed)</code></pre></figure>
 <p class="proof checked"><b>Checked every release.</b> Before each release, Acta Verify runs this program and checks that its output contains these lines.</p>
@@ -124,7 +118,7 @@ parent: Failed (expected Failed)</code></pre></figure>
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/concepts/200-durable-execution/219-child-failure-outcomes"><code>concepts/200-durable-execution/219-child-failure-outcomes</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">child-failure-outcomes.cs</span><span class="file-size">133 lines</span></summary><figure class="listing"><figcaption><span class="file">child-failure-outcomes.cs</span><button class="copy" type="button" data-copy-target="#code-5">Copy</button></figcaption><pre><code id="code-5"><span class="c">// How to handle child jobs that fail</span>
+<details class="source-file"><summary><span class="file-name">child-failure-outcomes.cs</span><span class="file-size">133 lines</span></summary><figure class="listing"><figcaption><span class="file">child-failure-outcomes.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to handle child jobs that fail</span>
 <span class="c">// A group of children never throws by itself. A failed child shows in the `Failed` list of the wait or the map, and</span>
 <span class="c">// `ThrowIfAnyFailed` is how the parent chooses to fail with it.</span>
 <span class="k">using</span> Acta;
@@ -256,11 +250,12 @@ Console.WriteLine(<span class="s">$&quot;parent: {joinOutcome.Status} (expected 
             Console.WriteLine(<span class="s">$&quot;  child {input.Name}: done&quot;</span>);
         }
     }
-}</code></pre></figure></details></div>
+}</code></pre></figure>
+</details></div>
 <div class="step plain-step"><h2>Where to go next</h2><ul class="next-links"><li><a href="/learn/704-cross-namespace-child">How to start a child job in another namespace</a><span>Split work across child jobs</span></li></ul></div>
       </article>
       <article class="agent-face" hidden>
-        <figure class="listing agent"><figcaption><span class="file">/learn/219-child-failure-outcomes.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/219-child-failure-outcomes.md">Open</a><button class="copy" type="button" data-copy-target="#md-body">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
+        <figure class="listing agent"><figcaption><span class="file">/learn/219-child-failure-outcomes.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/219-child-failure-outcomes.md">Open</a><button class="copy" type="button">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
         <p class="hint">This is the page an agent receives: the same how-to as plain Markdown, at this page's address with <code>.md</code> added.</p>
       </article>
       <aside class="howto-rail" aria-label="This section">

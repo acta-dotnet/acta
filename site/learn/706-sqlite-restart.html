@@ -57,7 +57,7 @@
   </div>
 
 
-  <main id="content" data-howto="706">
+  <main id="content">
     <header class="wrap page-head howto-head">
       <p class="record"><a href="/learn">learn acta</a><span aria-hidden="true">/</span><a href="/learn#s-deploy">deploy and scale</a></p>
       <h1>How to restart a crashed app on SQLite and get its work back</h1>
@@ -77,18 +77,13 @@
       <article class="howto person-face">
 <div class="step"><h2><span class="step-n">1</span>Give the job a retry budget, because a crash spends an attempt</h2>
 <p>The attempt a dead process held is taken back as a failed one. With one attempt only, the crash would end the job instead of handing it to the restarted app.</p>
-<figure class="listing"><figcaption><span class="file">sqlite-restart.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-1">Copy</button></figcaption><pre><code id="code-1"><span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> Export(<span class="k">string</span> What);
-
-<span class="c">/// &lt;summary&gt;Which of the app's two runs this process is.&lt;/summary&gt;</span>
-<span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> AppRun(<span class="k">string</span> Name, <span class="k">bool</span> DiesMidJob);
-
-<span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> ExportJob(AppRun run)
+<figure class="listing"><figcaption><span class="file">sqlite-restart.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> ExportJob(AppRun run)
 {
 <span class="hl">    <span class="a">[Job(<span class="s">&quot;export&quot;</span>, MaxAttempts = 3)]</span></span>
     <span class="k">public</span> <span class="k">async</span> Task Handle(Export input, JobContext ctx, CancellationToken ct)
     {
         Console.WriteLine(<span class="s">$&quot;[{run.Name}] export of {input.What} started, execution {ctx.ExecutionNumber}&quot;</span>);
-        <span class="k">if</span> (run.DiesMidJob)
+        <span class="k">if</span> (run.First)
         {
             Console.Out.Flush();
             Process.GetCurrentProcess().Kill();
@@ -101,66 +96,26 @@
 </div>
 <div class="step"><h2><span class="step-n">2</span>Start the app again</h2>
 <p>There is no recovery call to make. A worker that starts on SQLite releases the work of processes on the same machine that have ended, so the export the dead process held is due at once and this process runs it.</p>
-<figure class="listing"><figcaption><span class="file">sqlite-restart.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-2">Copy</button></figcaption><pre><code id="code-2"><span class="c">// The program plays the app twice. Started plainly it is the restarted app; before that it starts a copy of itself,</span>
-<span class="c">// &quot;first-run&quot;, which enqueues an export and is killed in the middle of it.</span>
-<span class="k">var</span> firstRun = args <span class="k">is</span> [<span class="s">&quot;first-run&quot;</span>, _];
-<span class="k">var</span> runId = firstRun ? args[1] : Guid.NewGuid().ToString(<span class="s">&quot;N&quot;</span>);
-<span class="k">var</span> exportKey = <span class="s">$&quot;export-{runId}&quot;</span>;
+<figure class="listing"><figcaption><span class="file">sqlite-restart.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="hl"><span class="k">using</span> <span class="k">var</span> host = builder.Build();</span>
+<span class="hl"><span class="k">await</span> host.StartAsync();</span>
 
-<span class="k">var</span> builder = Host.CreateApplicationBuilder(firstRun ? [] : args);
-<span class="k">var</span> provider = builder.Configuration[<span class="s">&quot;Acta:Provider&quot;</span>] ?? Environment.GetEnvironmentVariable(<span class="s">&quot;ACTA_LOCAL_PROVIDER&quot;</span>) ?? <span class="s">&quot;sqlite&quot;</span>;
-<span class="k">if</span> (!LocalDatabase.IsSqlite(provider))
-{
-    Console.WriteLine(
-        <span class="s">&quot;This rung is about SQLite. On PostgreSQL or SQL Server a lost job waits out its lease: see 705-worker-crash-recovery.&quot;</span>
-    );
-    <span class="k">return</span>;
-}
-
-builder.Services.AddSingleton(<span class="k">new</span> AppRun(firstRun ? <span class="s">&quot;first run&quot;</span> : <span class="s">&quot;restarted&quot;</span>, firstRun));
-builder.Services.UseActa(j =&gt;
-{
-    j.UseLocalDatabase(builder.Configuration);
-    j.Run&lt;SqliteRestartJobs&gt;(<span class="s">&quot;sqlite-restart&quot;</span>);
-});
-
-<span class="c">// The lost attempt is reported as a warning when it is taken back; the program prints what matters itself.</span>
-builder.Logging.AddFilter(<span class="s">&quot;Acta&quot;</span>, LogLevel.Error);
-
-<span class="k">if</span> (!firstRun)
-{
-    <span class="k">var</span> app = Environment.ProcessPath!;
-    <span class="k">var</span> arguments = Path.GetFileNameWithoutExtension(app) == <span class="s">&quot;dotnet&quot;</span> ? <span class="s">$&quot;\&quot;{Environment.GetCommandLineArgs()[0]}\&quot; &quot;</span> : <span class="s">&quot;&quot;</span>;
-    <span class="k">using</span> <span class="k">var</span> first = Process.Start(<span class="k">new</span> ProcessStartInfo(app, <span class="s">$&quot;{arguments}first-run {runId}&quot;</span>) { UseShellExecute = <span class="k">false</span> })!;
-    <span class="k">await</span> first.WaitForExitAsync();
-    Console.WriteLine(<span class="s">&quot;[first run] the process is gone, in the middle of the export&quot;</span>);
-}
-
-<span class="hl"><span class="k">using</span> <span class="k">var</span> host = builder.Build();</span>
-<span class="hl"><span class="k">await</span> host.StartAsync();</span></code></pre></figure>
+<span class="k">var</span> jobs = host.Services.GetRequiredService&lt;IJobs&gt;();</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">3</span>Read that the same job finished</h2>
 <p>The job the first run enqueued is found by its key. It is one job with two executions: the one that was lost and the one that finished.</p>
-<figure class="listing"><figcaption><span class="file">sqlite-restart.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-3">Copy</button></figcaption><pre><code id="code-3"><span class="k">var</span> jobs = host.Services.GetRequiredService&lt;IJobs&gt;();
-
-<span class="k">if</span> (firstRun)
-{
-    <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> Export(<span class="s">&quot;orders&quot;</span>), o =&gt; o.DeduplicationKey(exportKey));
-    <span class="k">await</span> host.WaitForShutdownAsync();
-    <span class="k">return</span>;
-}
-
-<span class="hl"><span class="k">var</span> export = JobLookup.ByDeduplicationKey(<span class="s">&quot;sqlite-restart&quot;</span>, exportKey);</span>
+<figure class="listing"><figcaption><span class="file">sqlite-restart.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="hl"><span class="k">var</span> export = JobLookup.ByDeduplicationKey(<span class="s">&quot;sqlite-restart&quot;</span>, exportKey);</span>
 <span class="hl"><span class="k">await</span> jobs.WaitAsync(export);</span>
 <span class="hl"><span class="k">var</span> job = (<span class="k">await</span> jobs.GetAsync(export))!;</span>
 <span class="hl"><span class="k">var</span> why = (<span class="k">await</span> jobs.ExplainAsync(export))!;</span>
 <span class="hl">Console.WriteLine(<span class="s">$&quot;final status: {job.Status.Code}, executions: {job.ExecutionNumber}&quot;</span>);</span>
-<span class="hl">Console.WriteLine(why.Headline);</span></code></pre></figure>
+<span class="hl">Console.WriteLine(why.Headline);</span>
+
+<span class="k">await</span> host.StopAsync();</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">4</span>Run it and check the output</h2>
 <p>From a clone of <a href="https://github.com/acta-dotnet/acta">the Acta repository</a>, with the .NET 10 SDK:</p>
-<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-4">Copy</button></figcaption><pre><code id="code-4">dotnet run --project concepts/700-topology-and-deployment/706-sqlite-restart</code></pre></figure>
-<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button" data-copy-target="#code-5">Copy</button></figcaption><pre><code id="code-5">[first run] export of orders started, execution 1
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project concepts/700-topology-and-deployment/706-sqlite-restart</code></pre></figure>
+<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button">Copy</button></figcaption><pre><code>[first run] export of orders started, execution 1
 [restarted] export of orders started, execution 2
 final status: succeeded, executions: 2
 Succeeded after 1 lost lease.</code></pre></figure>
@@ -171,7 +126,7 @@ Succeeded after 1 lost lease.</code></pre></figure>
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/concepts/700-topology-and-deployment/706-sqlite-restart"><code>concepts/700-topology-and-deployment/706-sqlite-restart</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">sqlite-restart.cs</span><span class="file-size">104 lines</span></summary><figure class="listing"><figcaption><span class="file">sqlite-restart.cs</span><button class="copy" type="button" data-copy-target="#code-6">Copy</button></figcaption><pre><code id="code-6"><span class="c">// How to restart a crashed app on SQLite and get its work back</span>
+<details class="source-file"><summary><span class="file-name">sqlite-restart.cs</span><span class="file-size">107 lines</span></summary><figure class="listing"><figcaption><span class="file">sqlite-restart.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to restart a crashed app on SQLite and get its work back</span>
 <span class="c">// On SQLite a starting worker releases the work of processes on the same machine that have ended, so a restarted app</span>
 <span class="c">// takes a lost job back at once. Nothing has to be written for it; the crash spends one attempt.</span>
 <span class="k">using</span> System.Diagnostics;
@@ -188,7 +143,7 @@ Succeeded after 1 lost lease.</code></pre></figure>
 <span class="k">var</span> exportKey = <span class="s">$&quot;export-{runId}&quot;</span>;
 
 <span class="k">var</span> builder = Host.CreateApplicationBuilder(firstRun ? [] : args);
-<span class="k">var</span> provider = builder.Configuration[<span class="s">&quot;Acta:Provider&quot;</span>] ?? Environment.GetEnvironmentVariable(<span class="s">&quot;ACTA_LOCAL_PROVIDER&quot;</span>) ?? <span class="s">&quot;sqlite&quot;</span>;
+<span class="k">var</span> provider = LocalDatabase.ResolveProvider(builder.Configuration);
 <span class="k">if</span> (!LocalDatabase.IsSqlite(provider))
 {
     Console.WriteLine(
@@ -197,7 +152,7 @@ Succeeded after 1 lost lease.</code></pre></figure>
     <span class="k">return</span>;
 }
 
-builder.Services.AddSingleton(<span class="k">new</span> AppRun(firstRun ? <span class="s">&quot;first run&quot;</span> : <span class="s">&quot;restarted&quot;</span>, firstRun));
+builder.Services.AddSingleton(<span class="k">new</span> AppRun(firstRun));
 builder.Services.UseActa(j =&gt;
 {
     j.UseLocalDatabase(builder.Configuration);
@@ -251,8 +206,11 @@ builder.Logging.AddFilter(<span class="s">&quot;Acta&quot;</span>, LogLevel.Erro
 {
     <span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> Export(<span class="k">string</span> What);
 
-    <span class="c">/// &lt;summary&gt;Which of the app's two runs this process is.&lt;/summary&gt;</span>
-    <span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> AppRun(<span class="k">string</span> Name, <span class="k">bool</span> DiesMidJob);
+    <span class="c">/// &lt;summary&gt;Which of the app's two runs this process is. The first one dies in the middle of the job.&lt;/summary&gt;</span>
+    <span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> AppRun(<span class="k">bool</span> First)
+    {
+        <span class="k">public</span> <span class="k">string</span> Name =&gt; First ? <span class="s">&quot;first run&quot;</span> : <span class="s">&quot;restarted&quot;</span>;
+    }
 
     <span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> ExportJob(AppRun run)
     {
@@ -264,7 +222,7 @@ builder.Logging.AddFilter(<span class="s">&quot;Acta&quot;</span>, LogLevel.Erro
         <span class="k">public</span> <span class="k">async</span> Task Handle(Export input, JobContext ctx, CancellationToken ct)
         {
             Console.WriteLine(<span class="s">$&quot;[{run.Name}] export of {input.What} started, execution {ctx.ExecutionNumber}&quot;</span>);
-            <span class="k">if</span> (run.DiesMidJob)
+            <span class="k">if</span> (run.First)
             {
                 Console.Out.Flush();
                 Process.GetCurrentProcess().Kill();
@@ -274,11 +232,12 @@ builder.Logging.AddFilter(<span class="s">&quot;Acta&quot;</span>, LogLevel.Erro
             Console.WriteLine(<span class="s">$&quot;[{run.Name}] export of {input.What} finished&quot;</span>);
         }
     }
-}</code></pre></figure></details></div>
+}</code></pre></figure>
+</details></div>
 <div class="step plain-step"><h2>Where to go next</h2><ul class="next-links"><li><a href="/learn/705-worker-crash-recovery">How to recover the work of a killed worker</a><span>Deploy and scale</span></li></ul></div>
       </article>
       <article class="agent-face" hidden>
-        <figure class="listing agent"><figcaption><span class="file">/learn/706-sqlite-restart.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/706-sqlite-restart.md">Open</a><button class="copy" type="button" data-copy-target="#md-body">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
+        <figure class="listing agent"><figcaption><span class="file">/learn/706-sqlite-restart.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/706-sqlite-restart.md">Open</a><button class="copy" type="button">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
         <p class="hint">This is the page an agent receives: the same how-to as plain Markdown, at this page's address with <code>.md</code> added.</p>
       </article>
       <aside class="howto-rail" aria-label="This section">

@@ -52,11 +52,24 @@ await jobs.EnqueueAsync(NoInputJobJobs.Heartbeat());
 In `no-input-job.cs` (excerpt):
 
 ```csharp
+var builder = Host.CreateApplicationBuilder(args);
+
+builder.Services.UseActa(j =>
+{
+    j.UseLocalDatabase(builder.Configuration);
+    j.Run<NoInputJobJobs>("no-input-job");
+});
+
+using var host = builder.Build();
+await host.StartAsync();
+
 var jobs = host.Services.GetRequiredService<IJobs>();
 
 await jobs.EnqueueAsync(NoInputJobJobs.Heartbeat());
-
 Console.WriteLine("Enqueued. Worker is running - press Ctrl+C to stop.");
+
+await host.WaitForShutdownAsync();
+await host.StopAsync();
 ```
 
 ## 3. Run it and check the output

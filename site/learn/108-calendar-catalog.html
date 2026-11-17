@@ -57,7 +57,7 @@
   </div>
 
 
-  <main id="content" data-howto="108">
+  <main id="content">
     <header class="wrap page-head howto-head">
       <p class="record"><a href="/learn">learn acta</a><span aria-hidden="true">/</span><a href="/learn#s-schedule">run work on a schedule</a></p>
       <h1>How to drive a schedule from a published calendar</h1>
@@ -77,10 +77,7 @@
       <article class="howto person-face">
 <div class="step"><h2><span class="step-n">1</span>Save the calendar as a draft and publish it</h2>
 <p>A deploy step names no versions, so it runs again as it is: a definition the latest version already holds saves nothing and answers AlreadyInState with that version, and publishing the current version again changes nothing.</p>
-<figure class="listing"><figcaption><span class="file">calendar-catalog.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-1">Copy</button></figcaption><pre><code id="code-1"><span class="c">// A family in sys is shared: every namespace binds it by its plain name.</span>
-<span class="k">var</span> officeHours = <span class="k">new</span> CalendarLookup(<span class="s">&quot;sys&quot;</span>, <span class="s">&quot;office-hours&quot;</span>);
-
-<span class="c">// Phase 1: the calendar is published before the job that binds it deploys, as an operator would do it from</span>
+<figure class="listing"><figcaption><span class="file">calendar-catalog.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// Phase 1: the calendar is published before the job that binds it deploys, as an operator would do it from</span>
 <span class="c">// the dashboard. An enqueue-only host (no Run&lt;&gt;) still bootstraps the schema, and the operations need no worker.</span>
 {
     <span class="k">var</span> seed = Host.CreateApplicationBuilder(args);
@@ -95,41 +92,11 @@
     Console.WriteLine(<span class="s">$&quot;Published: {published.Action}, version {published.Version} is current&quot;</span>);
 
     <span class="k">await</span> seedHost.StopAsync();
-}
-
-<span class="c">// Phase 2: the development start deploys tick, whose schedule names office-hours. The deploy checks that the family</span>
-<span class="c">// has a published version, and the name resolves to the shared family's current version afresh at every evaluation.</span>
-<span class="k">var</span> builder = Host.CreateApplicationBuilder(args);
-builder.Services.UseActa(j =&gt;
-{
-    j.UseLocalDatabase(builder.Configuration);
-    j.Run&lt;CalendarCatalogJobs&gt;(<span class="s">&quot;calendar-catalog&quot;</span>);
-});
-
-<span class="k">using</span> <span class="k">var</span> host = builder.Build();
-<span class="k">await</span> host.StartAsync();</code></pre></figure>
+}</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">2</span>Bind the schedule to the calendar by name</h2>
 <p><code>Availability</code> names the calendar. The schedule fires only inside the windows its current version opens.</p>
-<figure class="listing"><figcaption><span class="file">calendar-catalog.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-2">Copy</button></figcaption><pre><code id="code-2"><span class="k">public</span> <span class="k">readonly</span> <span class="k">record</span> <span class="k">struct</span> Tick;
-
-<span class="k">public</span> <span class="k">static</span> <span class="k">class</span> Definitions
-{
-    <span class="k">public</span> <span class="k">const</span> <span class="k">string</span> OpenAllDay = <span class="s">&quot;&quot;&quot;</span>
-<span class="s">        {&quot;kind&quot;:&quot;weekly-availability&quot;,&quot;timeZone&quot;:&quot;UTC&quot;,</span>
-<span class="s">         &quot;weekly&quot;:[{&quot;days&quot;:[&quot;Monday&quot;,&quot;Tuesday&quot;,&quot;Wednesday&quot;,&quot;Thursday&quot;,&quot;Friday&quot;,&quot;Saturday&quot;,&quot;Sunday&quot;],&quot;windows&quot;:[[&quot;00:00&quot;,&quot;23:59:59&quot;]]}]}</span>
-<span class="s">        &quot;&quot;&quot;</span>;
-
-    <span class="c">// A date override replaces the weekday's windows for that date; none closes it.</span>
-    <span class="k">public</span> <span class="k">static</span> <span class="k">string</span> ClosedOn(<span class="k">string</span> date) =&gt;
-        $<span class="s">$$&quot;&quot;&quot;</span>
-<span class="s">            {&quot;kind&quot;:&quot;weekly-availability&quot;,&quot;timeZone&quot;:&quot;UTC&quot;,</span>
-<span class="s">             &quot;weekly&quot;:[{&quot;days&quot;:[&quot;Monday&quot;,&quot;Tuesday&quot;,&quot;Wednesday&quot;,&quot;Thursday&quot;,&quot;Friday&quot;,&quot;Saturday&quot;,&quot;Sunday&quot;],&quot;windows&quot;:[[&quot;00:00&quot;,&quot;23:59:59&quot;]]}],</span>
-<span class="s">             &quot;dateOverrides&quot;:{&quot;{{{date}}}&quot;:[]}}</span>
-<span class="s">            &quot;&quot;&quot;</span>;
-}
-
-<span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> TickJob
+<figure class="listing"><figcaption><span class="file">calendar-catalog.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> TickJob
 {
     <span class="a">[Job(<span class="s">&quot;tick&quot;</span>)]</span>
 <span class="hl">    <span class="a">[Schedule(<span class="s">&quot;every-10s-in-hours&quot;</span>, <span class="s">&quot;PT10S&quot;</span>, Availability = <span class="s">&quot;office-hours&quot;</span>)]</span></span>
@@ -142,23 +109,7 @@ builder.Services.UseActa(j =&gt;
 </div>
 <div class="step"><h2><span class="step-n">3</span>Publish a change and let it retime the schedule</h2>
 <p>The publication moves the cursor of every schedule bound to the calendar, in the same transaction.</p>
-<figure class="listing"><figcaption><span class="file">calendar-catalog.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-3">Copy</button></figcaption><pre><code id="code-3"><span class="k">var</span> operations = host.Services.GetRequiredService&lt;IActaOperations&gt;();
-Console.WriteLine(<span class="s">&quot;Ticking every 10s inside the open window...&quot;</span>);
-<span class="k">await</span> Task.Delay(TimeSpan.FromSeconds(25));
-
-<span class="c">// The operator closes today, editing the version they read: naming it as the expected latest version turns another</span>
-<span class="c">// operator's save in between into a VersionConflict rather than a draft built on a stale read. The draft is previewed</span>
-<span class="c">// beside the current version, then published: the bound schedule's cursor moves to the first instant inside the next window.</span>
-<span class="k">var</span> today = DateTime.UtcNow.ToString(<span class="s">&quot;yyyy-MM-dd&quot;</span>, CultureInfo.InvariantCulture);
-<span class="k">var</span> read = (<span class="k">await</span> operations.Calendars.GetAsync(officeHours))!;
-<span class="k">var</span> closed = <span class="k">await</span> operations.Calendars.SaveDraftAsync(
-    officeHours,
-    CalendarRoleCode.Availability,
-    Definitions.ClosedOn(today),
-    expectedLatestVersion: read.LatestVersion,
-    reasonMessage: <span class="s">$&quot;Closed on {today}&quot;</span>
-);
-<span class="k">var</span> preview = (<span class="k">await</span> operations.Calendars.PreviewAsync(officeHours, closed.Version!.Value, count: 3))!;
+<figure class="listing"><figcaption><span class="file">calendar-catalog.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">var</span> preview = (<span class="k">await</span> operations.Calendars.PreviewAsync(officeHours, closed.Version!.Value, count: 3))!;
 Console.WriteLine(
     <span class="s">$&quot;Preview of version {closed.Version}: the next window opens {preview.Windows[0].StartUtc:O}; &quot;</span>
         + <span class="s">$&quot;{preview.SchedulesTotal} bound schedule(s), {preview.OverdueTotal} overdue&quot;</span>
@@ -171,15 +122,12 @@ Console.WriteLine(
 <span class="k">var</span> schedule = (
     <span class="k">await</span> operations.Schedules.ListAsync(<span class="k">new</span> ListSchedulesQuery(JobNamespace: <span class="s">&quot;calendar-catalog&quot;</span>, JobName: <span class="s">&quot;tick&quot;</span>))
 ).Items.Single();
-Console.WriteLine(<span class="s">$&quot;Next occurrence {schedule.NextOccurrenceAtUtc:O}.&quot;</span>);
-
-Console.WriteLine(<span class="s">&quot;Watching 15s for a tick that must not come...&quot;</span>);
-<span class="k">await</span> Task.Delay(TimeSpan.FromSeconds(15));</code></pre></figure>
+Console.WriteLine(<span class="s">$&quot;Next occurrence {schedule.NextOccurrenceAtUtc:O}.&quot;</span>);</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">4</span>Run it and check the output</h2>
 <p>From a clone of <a href="https://github.com/acta-dotnet/acta">the Acta repository</a>, with the .NET 10 SDK:</p>
-<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-4">Copy</button></figcaption><pre><code id="code-4">dotnet run --project concepts/100-scheduling/108-calendar-catalog</code></pre></figure>
-<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button" data-copy-target="#code-5">Copy</button></figcaption><pre><code id="code-5">Published: Applied, version 1 is current
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project concepts/100-scheduling/108-calendar-catalog</code></pre></figure>
+<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button">Copy</button></figcaption><pre><code>Published: Applied, version 1 is current
  UTC tick
 Published: Applied; retimed [calendar-catalog/tick/every-10s-in-hours]
 Watching 15s for a tick that must not come...</code></pre></figure>
@@ -189,7 +137,7 @@ Watching 15s for a tick that must not come...</code></pre></figure>
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/concepts/100-scheduling/108-calendar-catalog"><code>concepts/100-scheduling/108-calendar-catalog</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">calendar-catalog.cs</span><span class="file-size">118 lines</span></summary><figure class="listing"><figcaption><span class="file">calendar-catalog.cs</span><button class="copy" type="button" data-copy-target="#code-6">Copy</button></figcaption><pre><code id="code-6"><span class="c">// How to drive a schedule from a published calendar</span>
+<details class="source-file"><summary><span class="file-name">calendar-catalog.cs</span><span class="file-size">118 lines</span></summary><figure class="listing"><figcaption><span class="file">calendar-catalog.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to drive a schedule from a published calendar</span>
 <span class="c">// A calendar is data that an operator publishes through `operations.Calendars`. A schedule binds it by name, and a</span>
 <span class="c">// later publication retimes every schedule bound to it in one transaction while workers run.</span>
 <span class="k">using</span> System.Globalization;
@@ -306,11 +254,12 @@ Console.WriteLine(<span class="s">&quot;Watching 15s for a tick that must not co
             <span class="k">return</span> Task.CompletedTask;
         }
     }
-}</code></pre></figure></details></div>
+}</code></pre></figure>
+</details></div>
 <div class="step plain-step"><h2>Where to go next</h2><ul class="next-links"><li><a href="/learn/110-per-occurrence-delivery">How to make every occurrence its own job</a><span>Run work on a schedule</span></li></ul></div>
       </article>
       <article class="agent-face" hidden>
-        <figure class="listing agent"><figcaption><span class="file">/learn/108-calendar-catalog.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/108-calendar-catalog.md">Open</a><button class="copy" type="button" data-copy-target="#md-body">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
+        <figure class="listing agent"><figcaption><span class="file">/learn/108-calendar-catalog.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/108-calendar-catalog.md">Open</a><button class="copy" type="button">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
         <p class="hint">This is the page an agent receives: the same how-to as plain Markdown, at this page's address with <code>.md</code> added.</p>
       </article>
       <aside class="howto-rail" aria-label="This section">
