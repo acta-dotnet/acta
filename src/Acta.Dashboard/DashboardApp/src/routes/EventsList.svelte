@@ -34,12 +34,12 @@
     'alert.acknowledged', 'alert.resolved',
     'outbox.requeued', 'outbox.discarded'
   ];
-  const ENTITY_KINDS = ['alert', 'calendar', 'definition', 'job', 'namespace', 'tenant', 'worker'];
+  const ENTITIES = ['alert', 'calendar', 'definition', 'job', 'namespace', 'tenant', 'worker'];
 
   // tenantName and jobRef arrive only by link (a tenant's or a job's page); the bar edits the rest.
   const filters = createUrlFilters(
-    { eventCode: 'eventCode', entityKind: 'entityKind', tenantName: 'tenantName', jobRef: 'jobRef', createdFrom: 'from', createdTo: 'to' },
-    { eventCode: '', entityKind: '', tenantName: '', jobRef: '', createdFrom: '', createdTo: '' }
+    { eventCode: 'eventCode', entity: 'entity', tenantName: 'tenantName', jobRef: 'jobRef', createdFrom: 'from', createdTo: 'to' },
+    { eventCode: '', entity: '', tenantName: '', jobRef: '', createdFrom: '', createdTo: '' }
   );
 
   // The datetime-local inputs are read as UTC wall-clock (the dashboard's convention: operators enter
@@ -57,7 +57,7 @@
   let requestFilters = $derived({
     jobNamespace: $scope,
     eventCode: $filters.eventCode,
-    entityKind: $filters.entityKind,
+    entity: $filters.entity,
     tenantName: $filters.tenantName,
     jobRef: $filters.jobRef,
     createdFromUtc: toUtcIso($filters.createdFrom),
@@ -71,7 +71,7 @@
       {
         namespace: $scope,
         eventCode: $filters.eventCode,
-        entityKind: $filters.entityKind,
+        entity: $filters.entity,
         jobRef: $filters.jobRef,
         tenantName: $filters.tenantName,
         createdFromUtc: toUtcIso($filters.createdFrom),
@@ -86,7 +86,7 @@
     [
       $scope ? { label: 'Namespace', value: $scope, onRemove: () => setScope('') } : null,
       $filters.eventCode ? { label: 'Event', value: $filters.eventCode, onRemove: () => filters.patch({ eventCode: '' }) } : null,
-      $filters.entityKind ? { label: 'Subject', value: $filters.entityKind, onRemove: () => filters.patch({ entityKind: '' }) } : null,
+      $filters.entity ? { label: 'Subject', value: $filters.entity, onRemove: () => filters.patch({ entity: '' }) } : null,
       $filters.jobRef ? { label: 'Job', value: $filters.jobRef, onRemove: () => filters.patch({ jobRef: '' }) } : null,
       $filters.tenantName ? { label: 'Tenant', value: $filters.tenantName, onRemove: () => filters.patch({ tenantName: '' }) } : null,
       $filters.createdFrom ? { label: 'From (UTC)', value: $filters.createdFrom.replace('T', ' '), onRemove: () => filters.patch({ createdFrom: '' }) } : null,
@@ -123,9 +123,9 @@
       </label>
       <label>
         Subject
-        <select value={$filters.entityKind} onchange={(event) => filters.patch({ entityKind: event.currentTarget.value })}>
+        <select value={$filters.entity} onchange={(event) => filters.patch({ entity: event.currentTarget.value })}>
           <option value="">Any</option>
-          {#each ENTITY_KINDS as kind}<option value={kind}>{kind}</option>{/each}
+          {#each ENTITIES as kind}<option value={kind}>{kind}</option>{/each}
         </select>
       </label>
       <label>
@@ -157,12 +157,12 @@
     {/snippet}
     <!-- The subject links where the row carries its ref; otherwise its kind and numeric id name it. -->
     {#snippet subjectCell(evt)}
-      {#if evt.entityKind === 'job' && evt.jobRef}
+      {#if evt.entity === 'job' && evt.jobRef}
         <JobRef value={evt.jobRef} href={routes.job(evt.jobRef, { namespace: evt.jobNamespace })} copy />
-      {:else if evt.entityKind === 'worker' && evt.workerRef}
+      {:else if evt.entity === 'worker' && evt.workerRef}
         <JobRef value={evt.workerRef} href={routes.worker(evt.workerRef, { namespace: evt.jobNamespace })} />
       {:else}
-        <span class="dim">{evt.entityKind} #{displayFormatter.number(evt.entityId)}</span>
+        <span class="dim">{evt.entity} #{displayFormatter.number(evt.entityId)}</span>
       {/if}
     {/snippet}
     {#snippet nameCell(evt)}

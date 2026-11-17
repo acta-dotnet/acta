@@ -383,10 +383,7 @@ public sealed partial class OpenApiContractTests
         var answered = HttpStatusCode.OK;
         await WithSqliteHostAsync(async client =>
         {
-            using var response = await client.GetAsync(
-                "/acta/api/v1/events?entityKind=job&entityId=0",
-                TestContext.Current.CancellationToken
-            );
+            using var response = await client.GetAsync("/acta/api/v1/events?entity=job&entityId=0", TestContext.Current.CancellationToken);
             answered = response.StatusCode;
         });
 

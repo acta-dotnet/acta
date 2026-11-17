@@ -293,7 +293,7 @@ internal static class StagedFakes
         EventCode: EventCode.JobExecutionFailed,
         CreatedAtUtc: At,
         JobNamespace: "billing",
-        EntityKind: EntityCode.Job,
+        Entity: EntityCode.Job,
         EntityId: 42,
         JobName: "send-invoice",
         JobRef: FakeJobs.FoundJobRef,

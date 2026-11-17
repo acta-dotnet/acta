@@ -14970,7 +14970,7 @@
             }
           },
           {
-            "name": "entityKind",
+            "name": "entity",
             "in": "query",
             "description": "Only events about this kind of subject.",
             "schema": {
@@ -14980,7 +14980,7 @@
           {
             "name": "entityId",
             "in": "query",
-            "description": "Only events about this subject id; requires entityKind.",
+            "description": "Only events about this subject id; requires entity.",
             "schema": {
               "minimum": 1,
               "type": "integer",
@@ -15044,7 +15044,7 @@
           {
             "name": "includeTotal",
             "in": "query",
-            "description": "Also compute the row count; accepted only together with jobRef, or with entityKind and entityId.",
+            "description": "Also compute the row count; accepted only together with jobRef, or with entity and entityId.",
             "schema": {
               "type": "boolean"
             }
@@ -15067,7 +15067,7 @@
                           "eventCode": "job.execution-failed",
                           "createdAtUtc": "2026-06-12T06:00:00Z",
                           "jobNamespace": "billing",
-                          "entityKind": "job",
+                          "entity": "job",
                           "entityId": 42,
                           "jobName": "send-invoice",
                           "jobRef": "job_00000000000000000000000000000042",
@@ -15270,7 +15270,7 @@
                           "eventCode": "job.execution-failed",
                           "createdAtUtc": "2026-06-12T06:00:00Z",
                           "jobNamespace": "billing",
-                          "entityKind": "job",
+                          "entity": "job",
                           "entityId": 42,
                           "jobName": "send-invoice",
                           "jobRef": "job_00000000000000000000000000000042",
@@ -15476,7 +15476,7 @@
                           "eventCode": "job.execution-failed",
                           "createdAtUtc": "2026-06-12T06:00:00Z",
                           "jobNamespace": "billing",
-                          "entityKind": "job",
+                          "entity": "job",
                           "entityId": 42,
                           "jobName": "send-invoice",
                           "jobRef": "job_00000000000000000000000000000042",
@@ -19657,7 +19657,7 @@
           "eventCode",
           "createdAtUtc",
           "jobNamespace",
-          "entityKind",
+          "entity",
           "entityId",
           "jobName",
           "jobRef",
@@ -19690,7 +19690,7 @@
             "type": "string",
             "description": "The namespace the event was recorded in."
           },
-          "entityKind": {
+          "entity": {
             "description": "The kind of thing the event is about.",
             "$ref": "#/components/schemas/EntityCode"
           },
@@ -19784,7 +19784,7 @@
             "description": "The event's details as text, when it has any."
           }
         },
-        "description": "One event in a page. It names what it is about by entityKind and entityId; the refs and names beside them are null when absent, or once their row is gone."
+        "description": "One event in a page. It names what it is about by entity and entityId; the refs and names beside them are null when absent, or once their row is gone."
       },
       "ListEventsResponse": {
         "required": [

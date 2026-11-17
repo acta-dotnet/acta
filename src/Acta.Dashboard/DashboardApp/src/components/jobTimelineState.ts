@@ -6,7 +6,7 @@ interface TimelineEvent {
   eventCode?: string | null;
   executionNumber?: number | null;
   detailsText?: string | null;
-  entityKind?: string | null;
+  entity?: string | null;
   entityId?: number | null;
   actor?: string | null;
 }
@@ -100,7 +100,7 @@ export function timelinePresentation(evt: TimelineEvent, events: readonly Timeli
  */
 export function timelineActor(evt: TimelineEvent): string | null {
   if (!evt.actor) return null;
-  return evt.entityKind === 'job' && evt.actor === String(evt.entityId) ? 'the job' : evt.actor;
+  return evt.entity === 'job' && evt.actor === String(evt.entityId) ? 'the job' : evt.actor;
 }
 
 /** A job status folded onto the shared tone classes, for the hero and lineage dots. */

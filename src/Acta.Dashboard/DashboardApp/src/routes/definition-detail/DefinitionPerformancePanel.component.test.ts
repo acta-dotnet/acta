@@ -70,7 +70,7 @@ const deployed = (url: URL, afterMs: number, deploymentVersion: string, previous
   eventCode: 'namespace.deployed',
   createdAtUtc: new Date(Date.parse(url.searchParams.get('createdFromUtc')!) + afterMs).toISOString(),
   jobNamespace: 'billing',
-  entityKind: 'namespace',
+  entity: 'namespace',
   entityId: 1,
   jobName: null,
   jobRef: null,

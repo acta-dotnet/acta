@@ -11,7 +11,7 @@ function event(overrides: Partial<EventItem>): EventItem {
     eventCode: 'job.execution-succeeded',
     createdAtUtc: '2026-08-09T10:00:0' + (seq % 10) + 'Z',
     jobNamespace: 'billing',
-    entityKind: 'job',
+    entity: 'job',
     entityId: 7,
     jobName: 'send-invoice',
     jobRef: 'job_x',

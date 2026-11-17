@@ -19,7 +19,7 @@ const event = (eventId: number, createdAtUtc: string, message: string | null = n
   detailsText,
   eventCode: `event-${eventId}`,
   jobNamespace: 'billing',
-  entityKind: 'job',
+  entity: 'job',
   entityId: 1,
   jobName: 'invoice',
   jobRef: 'job_1',

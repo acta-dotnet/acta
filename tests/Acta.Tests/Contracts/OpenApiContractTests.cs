@@ -74,7 +74,7 @@ public sealed partial class OpenApiContractTests
         // Ledger positions, counters, and the concurrency token.
         "eventId",
         "executionNumber",
-        // An event's subject id beside its entityKind: the subject outlives its row (a purged job's tombstone still
+        // An event's subject id beside its entity: the subject outlives its row (a purged job's tombstone still
         // names it), so no ref can stand in for it.
         "entityId",
         "occurrenceCount",
@@ -405,7 +405,7 @@ public sealed partial class OpenApiContractTests
         }
 
         Assert.Contains("eventCode", filters);
-        Assert.Contains("entityKind", filters);
+        Assert.Contains("entity", filters);
         Assert.True(filters.Count > 10, $"only {filters.Count} code filters; the walk is broken.");
         Assert.True(wrong.Count == 0, string.Join("\n", wrong));
     }

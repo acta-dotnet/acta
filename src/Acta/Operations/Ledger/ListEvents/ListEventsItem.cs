@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 namespace Acta;
 
 /// <summary>
-/// One event in a page. It names what it is about by entityKind and entityId; the refs and names beside them are null when absent, or
+/// One event in a page. It names what it is about by entity and entityId; the refs and names beside them are null when absent, or
 /// once their row is gone.
 /// </summary>
 /// <param name="LineageRootJobId">The lineage root job's internal id; the JSON omits it and carries lineageRootJobRef.</param>
@@ -14,7 +14,7 @@ namespace Acta;
 /// <param name="EventCode">What happened, as a dotted code such as job.purged.</param>
 /// <param name="CreatedAtUtc">When the row was created, in UTC.</param>
 /// <param name="JobNamespace">The namespace the event was recorded in.</param>
-/// <param name="EntityKind">The kind of thing the event is about.</param>
+/// <param name="Entity">The kind of thing the event is about.</param>
 /// <param name="EntityId">The internal numeric id of the thing the event is about; it is the one internal id the API carries, because a
 /// purged job's events still name it.</param>
 /// <param name="JobName">The name of the definition of the job the event is about, when it is about a job.</param>
@@ -34,7 +34,7 @@ public sealed record ListEventsItem(
     EventCode EventCode,
     DateTime CreatedAtUtc,
     string JobNamespace,
-    EntityCode EntityKind,
+    EntityCode Entity,
     long EntityId,
     string? JobName,
     JobRef? JobRef,

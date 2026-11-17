@@ -41,7 +41,7 @@ function failed(executionNumber: number): EventItem {
     eventCode: 'job.execution-failed',
     createdAtUtc: '2026-07-14T07:58:00Z',
     jobNamespace: 'billing',
-    entityKind: 'job',
+    entity: 'job',
     entityId: 42,
     jobName: 'send-invoice',
     jobRef: 'job_019f9b3509487d1b911f2020158384a3',

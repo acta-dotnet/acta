@@ -87,7 +87,7 @@ export function jobsListSql(filters: JobsSqlFilters, dialect: SqlDialect = {}): 
 export interface EventsSqlFilters {
   namespace?: string;
   eventCode?: string;
-  entityKind?: string;
+  entity?: string;
   jobRef?: string;
   tenantName?: string;
   createdFromUtc?: string;
@@ -99,7 +99,7 @@ export function eventsListSql(filters: EventsSqlFilters, dialect: SqlDialect = {
   const schema = dialect.schema ?? 'acta';
   if (text(filters.namespace)) predicates.push({ column: 'namespace_name', op: '=', value: name(filters.namespace) });
   if (text(filters.eventCode)) predicates.push({ column: 'event', op: '=', value: text(filters.eventCode) });
-  if (text(filters.entityKind)) predicates.push({ column: 'entity', op: '=', value: text(filters.entityKind) });
+  if (text(filters.entity)) predicates.push({ column: 'entity', op: '=', value: text(filters.entity) });
   // events_view stores no job ref: a job's events are the job subject's, its id looked up by ref.
   if (text(filters.jobRef)) {
     predicates.push({

@@ -163,7 +163,7 @@ export interface Paged<T> {
 }
 
 // One ledger event, as every events read returns it (the /events feed, a job's timeline, a definition's
-// trail). The subject is the kebab `entityKind` plus its numeric `entityId`, the one id the wire carries;
+// trail). The subject is the kebab `entity` plus its numeric `entityId`, the one id the wire carries;
 // `jobRef` is set while a job subject's row exists. `message` is human text only, `actor` is who performed an
 // operator action (null for what the engine or a worker did), and `detailsText` is the details payload decoded
 // to text, usually a small JSON object of machine-readable text facts: read it with eventFacts.
@@ -172,7 +172,7 @@ export interface EventItem {
   eventCode: string;
   createdAtUtc: string;
   jobNamespace: string;
-  entityKind: string;
+  entity: string;
   entityId: number;
   jobName: string | null;
   jobRef: string | null;

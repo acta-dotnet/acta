@@ -318,22 +318,22 @@ public sealed class ListEventsFilterMatrixSpec : ActaRuntimeTestBase<Conformance
         Assert.NotEmpty(byJob);
         Assert.All(byJob, e =>
         {
-            Assert.Equal(EntityCode.Job, e.EntityKind);
+            Assert.Equal(EntityCode.Job, e.Entity);
             Assert.Equal(j1, e.EntityId);
         });
 
         var bySubject = (
-            await queries.Ledger.ListEventsAsync(new ListEventsQuery(EntityKind: EntityCode.Job, EntityId: j1, PageSize: 100), ct)
+            await queries.Ledger.ListEventsAsync(new ListEventsQuery(Entity: EntityCode.Job, EntityId: j1, PageSize: 100), ct)
         ).Items;
         Assert.Equal(byJob.Select(e => e.EventId).ToHashSet(), [.. bySubject.Select(e => e.EventId)]);
 
         var byKind = (
             await queries.Ledger.ListEventsAsync(
-                new ListEventsQuery(JobNamespace: TestNamespace, EntityKind: EntityCode.Job, PageSize: 100),
+                new ListEventsQuery(JobNamespace: TestNamespace, Entity: EntityCode.Job, PageSize: 100),
                 ct
             )
         ).Items;
-        Assert.All(byKind, e => Assert.Equal(EntityCode.Job, e.EntityKind));
+        Assert.All(byKind, e => Assert.Equal(EntityCode.Job, e.Entity));
         Assert.Contains(byKind, e => e.EntityId == j1);
         Assert.Contains(byKind, e => e.EntityId == j2);
     }

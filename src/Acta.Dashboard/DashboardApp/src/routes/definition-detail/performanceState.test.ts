@@ -223,7 +223,7 @@ const deployed = (createdAtUtc: string, details: Record<string, string> | null):
   eventCode: 'namespace.deployed',
   createdAtUtc,
   jobNamespace: 'billing',
-  entityKind: 'namespace',
+  entity: 'namespace',
   entityId: 1,
   jobName: null,
   jobRef: null,

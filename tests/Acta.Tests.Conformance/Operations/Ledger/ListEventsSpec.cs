@@ -51,7 +51,7 @@ public sealed class ListEventsSpec : ActaRuntimeTestBase<ConformanceFixture, Job
         } while (cursor is not null);
 
         Assert.NotEmpty(seen);
-        Assert.All(seen, e => Assert.Equal((EntityCode.Job, jobId), (e.EntityKind, e.EntityId)));
+        Assert.All(seen, e => Assert.Equal((EntityCode.Job, jobId), (e.Entity, e.EntityId)));
         for (var i = 1; i < seen.Count; i++)
         {
             var ordered =
@@ -101,7 +101,7 @@ public sealed class ListEventsSpec : ActaRuntimeTestBase<ConformanceFixture, Job
 
         Assert.NotEmpty(rows);
         Assert.True(rows.Count <= 2);
-        Assert.All(rows, row => Assert.Equal((EntityCode.Job, jobId), (row.EntityKind, row.EntityId)));
+        Assert.All(rows, row => Assert.Equal((EntityCode.Job, jobId), (row.Entity, row.EntityId)));
         Assert.Equal(expectedTotal, total);
         for (var i = 1; i < rows.Count; i++)
         {

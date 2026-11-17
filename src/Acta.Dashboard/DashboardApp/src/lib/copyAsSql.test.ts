@@ -81,7 +81,7 @@ test('eventsListSql filters code families through the decoded columns and a time
     eventsListSql({
       namespace: 'billing',
       eventCode: 'job.cancelled',
-      entityKind: 'job',
+      entity: 'job',
       createdFromUtc: '2026-07-01T00:00:00.000Z',
       createdToUtc: '2026-07-22T00:00:00.000Z'
     }),

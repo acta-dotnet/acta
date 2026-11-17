@@ -80,7 +80,7 @@ internal static class LedgerEndpoints
                             JobNamespace: query.Text("jobNamespace"),
                             EventCode: query.EventCode("eventCode"),
                             TenantName: query.Text("tenantName"),
-                            EntityKind: query.Code("entityKind", EntityCodeExtensions.FromCode),
+                            Entity: query.Code("entity", EntityCodeExtensions.FromCode),
                             EntityId: query.Long("entityId"),
                             CreatedFromUtc: query.DateTime("createdFromUtc"),
                             CreatedToUtc: query.DateTime("createdToUtc"),
@@ -116,7 +116,7 @@ internal static class LedgerEndpoints
                         CodeKind: "event"
                     ),
                     new QueryParameterDoc(
-                        "entityKind",
+                        "entity",
                         QueryParameterKind.String,
                         "Only events about this kind of subject.",
                         CodeKind: "entity"
@@ -124,7 +124,7 @@ internal static class LedgerEndpoints
                     new QueryParameterDoc(
                         "entityId",
                         QueryParameterKind.Long,
-                        "Only events about this subject id; requires entityKind.",
+                        "Only events about this subject id; requires entity.",
                         Minimum: 1
                     ),
                     new QueryParameterDoc("tenantName", QueryParameterKind.String, "Only events stamped with this tenant name."),
@@ -135,7 +135,7 @@ internal static class LedgerEndpoints
                     new QueryParameterDoc(
                         "includeTotal",
                         QueryParameterKind.Bool,
-                        "Also compute the row count; accepted only together with jobRef, or with entityKind and entityId."
+                        "Also compute the row count; accepted only together with jobRef, or with entity and entityId."
                     ),
                 ]
             )

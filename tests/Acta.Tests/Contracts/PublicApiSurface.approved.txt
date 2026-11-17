@@ -1859,8 +1859,8 @@ sealed record Acta.ListDefinitionsResponse : Acta.IPagedResponse<Acta.ListDefini
     System.Nullable<System.Int64> TotalCount { get;init; }
     System.String? NextCursor { get;init; }
 sealed record Acta.ListEventsItem
-    .ctor(System.Int64 EventId, Acta.EventCode EventCode, System.DateTime CreatedAtUtc, System.String JobNamespace, Acta.EntityCode EntityKind, System.Int64 EntityId, System.String? JobName, System.Nullable<Acta.JobRef> JobRef, System.Nullable<System.Int64> LineageRootJobId, System.Nullable<Acta.JobRef> LineageRootJobRef, System.Nullable<System.Int32> DefinitionId, System.Nullable<System.Int32> TenantId, System.String? TenantName, System.Nullable<System.Int32> WorkerId, System.Nullable<Acta.WorkerRef> WorkerRef, System.Nullable<System.Int64> ExecutionNumber, System.Nullable<System.Int32> DurationMs, System.String? Message, System.String? Actor, System.String? DetailsText)
-    Acta.EntityCode EntityKind { get;init; }
+    .ctor(System.Int64 EventId, Acta.EventCode EventCode, System.DateTime CreatedAtUtc, System.String JobNamespace, Acta.EntityCode Entity, System.Int64 EntityId, System.String? JobName, System.Nullable<Acta.JobRef> JobRef, System.Nullable<System.Int64> LineageRootJobId, System.Nullable<Acta.JobRef> LineageRootJobRef, System.Nullable<System.Int32> DefinitionId, System.Nullable<System.Int32> TenantId, System.String? TenantName, System.Nullable<System.Int32> WorkerId, System.Nullable<Acta.WorkerRef> WorkerRef, System.Nullable<System.Int64> ExecutionNumber, System.Nullable<System.Int32> DurationMs, System.String? Message, System.String? Actor, System.String? DetailsText)
+    Acta.EntityCode Entity { get;init; }
     Acta.EventCode EventCode { get;init; }
     System.DateTime CreatedAtUtc { get;init; }
     System.Int64 EntityId { get;init; }
@@ -1881,9 +1881,9 @@ sealed record Acta.ListEventsItem
     System.String? Message { get;init; }
     System.String? TenantName { get;init; }
 sealed record Acta.ListEventsQuery
-    .ctor(System.Nullable<Acta.JobLookup> Job = null, System.Nullable<Acta.JobLookup> LineageRoot = null, System.String? JobNamespace = null, System.Nullable<Acta.EventCode> EventCode = null, System.Nullable<Acta.EntityCode> EntityKind = null, System.Nullable<System.Int64> EntityId = null, System.Nullable<System.Int32> DefinitionId = null, System.Nullable<System.Int32> TenantId = null, System.String? TenantName = null, System.Nullable<Acta.WorkerRef> Worker = null, System.Nullable<System.DateTime> CreatedFromUtc = null, System.Nullable<System.DateTime> CreatedToUtc = null, System.Nullable<System.Int32> PageSize = null, System.String? Cursor = null, System.Boolean IncludeTotal = false)
+    .ctor(System.Nullable<Acta.JobLookup> Job = null, System.Nullable<Acta.JobLookup> LineageRoot = null, System.String? JobNamespace = null, System.Nullable<Acta.EventCode> EventCode = null, System.Nullable<Acta.EntityCode> Entity = null, System.Nullable<System.Int64> EntityId = null, System.Nullable<System.Int32> DefinitionId = null, System.Nullable<System.Int32> TenantId = null, System.String? TenantName = null, System.Nullable<Acta.WorkerRef> Worker = null, System.Nullable<System.DateTime> CreatedFromUtc = null, System.Nullable<System.DateTime> CreatedToUtc = null, System.Nullable<System.Int32> PageSize = null, System.String? Cursor = null, System.Boolean IncludeTotal = false)
     System.Boolean IncludeTotal { get;init; }
-    System.Nullable<Acta.EntityCode> EntityKind { get;init; }
+    System.Nullable<Acta.EntityCode> Entity { get;init; }
     System.Nullable<Acta.EventCode> EventCode { get;init; }
     System.Nullable<Acta.JobLookup> Job { get;init; }
     System.Nullable<Acta.JobLookup> LineageRoot { get;init; }
