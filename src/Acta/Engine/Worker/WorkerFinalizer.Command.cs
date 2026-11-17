@@ -260,13 +260,14 @@ internal sealed partial class WorkerFinalizer
     /// Stable low-cardinality tag value for the executions/duration metrics. Kept off ToString() so
     /// an enum rename can't silently rename an operator-facing metric dimension.
     /// </summary>
-    private static string OutcomeTag(CompletionKind outcome) =>
-        outcome switch
+    internal static string OutcomeTag(ExecutionCompletion completion) =>
+        completion.Outcome switch
         {
             CompletionKind.Succeeded => "succeeded",
             CompletionKind.Failed => "failed",
             CompletionKind.Rescheduled => "rescheduled",
-            CompletionKind.Suspended => "suspended",
+            // A suspension that names no signal is a sleep, as the event it writes says.
+            CompletionKind.Suspended => completion.WaitSignalName is null ? "slept" : "suspended",
             CompletionKind.Cancelled => "cancelled",
             CompletionKind.Paused => "paused",
             _ => "unknown",

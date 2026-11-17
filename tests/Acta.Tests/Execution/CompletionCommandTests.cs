@@ -133,4 +133,14 @@ public sealed class CompletionCommandTests
         Assert.Equal((byte)JobStatusCode.Failed, oneShot.HandlerStatusCode);
         Assert.Null(oneShot.FinalStatus);
     }
+
+    [Fact]
+    public void The_metric_counts_a_sleep_as_slept_and_a_wait_as_suspended()
+    {
+        var sleep = new ExecutionCompletion(CompletionKind.Suspended) { RescheduleResumeAtUtc = DateTime.UnixEpoch };
+        var wait = new ExecutionCompletion(CompletionKind.Suspended) { WaitSignalName = "approval" };
+
+        Assert.Equal("slept", WorkerFinalizer.OutcomeTag(sleep));
+        Assert.Equal("suspended", WorkerFinalizer.OutcomeTag(wait));
+    }
 }

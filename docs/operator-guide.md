@@ -799,7 +799,7 @@ seconds for the two lags that can run to hours, `acta.alerts.lag` and `acta.sche
 
 | Instrument | Unit | What it measures |
 | --- | --- | --- |
-| `acta.executions` | execution | Completed job executions, tagged by outcome: succeeded, failed, rescheduled, suspended, cancelled, or paused. |
+| `acta.executions` | execution | Completed job executions, tagged by outcome: succeeded, failed, rescheduled, slept, suspended, cancelled, or paused. |
 | `acta.executions.duration` | ms | Handler execution duration. |
 | `acta.claims` | claim | Claim attempts, tagged by result: claimed (counted per job) or nothing-claimed, which an idle poll records too. |
 | `acta.steps` | step | Durable step outcomes, tagged by outcome: succeeded (the body ran), reused (answered from its record), failed, or interrupted. Measured on the handler's own flow. |

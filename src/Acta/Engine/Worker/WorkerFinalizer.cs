@@ -504,13 +504,7 @@ internal sealed partial class WorkerFinalizer(
                 // The reason tag is the attempt's EventReason kebab (null on a plain success).
                 if (landed && entry.Descriptor is { } descriptor)
                 {
-                    metrics?.RecordExecution(
-                        ns,
-                        descriptor.JobName,
-                        OutcomeTag(completion.Outcome),
-                        completion.Reason,
-                        completion.DurationMs
-                    );
+                    metrics?.RecordExecution(ns, descriptor.JobName, OutcomeTag(completion), completion.Reason, completion.DurationMs);
                 }
             }
             catch (Exception ex) when (ex is not OperationCanceledException || !hostCt.IsCancellationRequested)
