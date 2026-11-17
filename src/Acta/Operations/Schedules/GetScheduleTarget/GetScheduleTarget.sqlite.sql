@@ -26,5 +26,5 @@ INNER JOIN {{schema}}.schedules t ON t.definition_id = d.definition_id AND t.sch
 INNER JOIN {{schema}}.schedules_state st ON st.schedule_id = t.schedule_id
 WHERE
     n.namespace_name = @p_namespace_name
-    AND t.schedule_status_code <> 230 /* ScheduleStatusCode.Orphaned */
+    AND t.schedule_status_code <> 240 /* ScheduleStatusCode.Orphaned */
     AND d.definition_status_code <> 240 /* DefinitionStatusCode.Retired */;

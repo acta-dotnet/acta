@@ -20,5 +20,5 @@ public enum ScheduleStatusCode : byte
     Paused = 30,
 
     [Code("orphaned", "The application's code no longer declares the schedule; it cannot fire, be paused, or be resumed.")]
-    Orphaned = 230,
+    Orphaned = 240,
 }

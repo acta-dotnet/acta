@@ -148,7 +148,7 @@ WHERE
     @p_section = 3
     AND namespace_id = @p_namespace_id
     AND created_at_utc <= @p_cutoff_utc
-    AND delivery_status_code IN (30 /* AlertDeliveryStatusCode.Suppressed */, 100 /* AlertDeliveryStatusCode.Delivered */, 200 /* AlertDeliveryStatusCode.Failed */)
+    AND delivery_status_code IN (150 /* AlertDeliveryStatusCode.Suppressed */, 100 /* AlertDeliveryStatusCode.Delivered */, 200 /* AlertDeliveryStatusCode.Failed */)
 ORDER BY created_at_utc, alert_id
 LIMIT @p_batch_size;
 

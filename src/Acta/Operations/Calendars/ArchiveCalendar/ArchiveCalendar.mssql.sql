@@ -43,7 +43,7 @@ BEGIN TRY
             WHERE
                 @namespace_id <> 1 /* NameSyntax.SystemNamespaceId */
                 AND d.namespace_id = @namespace_id
-                AND s.schedule_status_code <> 230 /* ScheduleStatusCode.Orphaned */
+                AND s.schedule_status_code <> 240 /* ScheduleStatusCode.Orphaned */
                 AND d.definition_status_code <> 240 /* DefinitionStatusCode.Retired */
                 AND (
                     (
@@ -59,7 +59,7 @@ BEGIN TRY
                     FROM {{schema}}.schedules s
                     INNER JOIN {{schema}}.definitions d ON d.definition_id = s.definition_id
                     WHERE
-                        s.schedule_status_code <> 230 /* ScheduleStatusCode.Orphaned */
+                        s.schedule_status_code <> 240 /* ScheduleStatusCode.Orphaned */
                         AND d.definition_status_code <> 240 /* DefinitionStatusCode.Retired */
                         AND (
                             (

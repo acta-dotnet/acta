@@ -148,7 +148,7 @@ enum Acta.AlertDeliveryStatusCode : System.Byte
     Failed = 200
     Pending = 10
     Retrying = 20
-    Suppressed = 30
+    Suppressed = 150
     Unspecified = 0
 static class Acta.AlertDeliveryStatusCodeExtensions
     static Acta.AlertDeliveryStatusCode FromCode(System.String code)
@@ -315,7 +315,7 @@ enum Acta.CalendarStatusCode : System.Byte
     Archived = 240
     Draft = 10
     Published = 20
-    Superseded = 30
+    Superseded = 150
     Unspecified = 0
 static class Acta.CalendarStatusCodeExtensions
     static Acta.CalendarStatusCode FromCode(System.String code)
@@ -2530,7 +2530,7 @@ sealed record Acta.ScheduleLookup
     System.String ScheduleName { get;init; }
 enum Acta.ScheduleStatusCode : System.Byte
     Active = 10
-    Orphaned = 230
+    Orphaned = 240
     Paused = 30
     Unspecified = 0
 static class Acta.ScheduleStatusCodeExtensions

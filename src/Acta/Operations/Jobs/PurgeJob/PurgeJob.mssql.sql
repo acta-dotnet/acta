@@ -50,7 +50,7 @@ BEGIN TRY
             SELECT 1
             FROM {{schema}}.schedules sc
             INNER JOIN {{schema}}.definitions d ON d.definition_id = sc.definition_id
-            WHERE sc.job_id = @p_job_id AND sc.schedule_status_code <> 230 /* ScheduleStatusCode.Orphaned */
+            WHERE sc.job_id = @p_job_id AND sc.schedule_status_code <> 240 /* ScheduleStatusCode.Orphaned */
                 AND d.definition_status_code <> 240 /* DefinitionStatusCode.Retired */
         ) THEN 0
         ELSE 1

@@ -428,7 +428,7 @@ SELECT
     a.alert_severity_code,
     CASE a.alert_kind_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'first-failure' WHEN 20 THEN 'threshold-reached' WHEN 30 THEN 'final-failure' WHEN 40 THEN 'manual' END AS alert_kind,
     a.alert_kind_code,
-    CASE a.delivery_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'pending' WHEN 20 THEN 'retrying' WHEN 30 THEN 'suppressed' WHEN 100 THEN 'delivered' WHEN 200 THEN 'failed' END AS delivery_status,
+    CASE a.delivery_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'pending' WHEN 20 THEN 'retrying' WHEN 100 THEN 'delivered' WHEN 150 THEN 'suppressed' WHEN 200 THEN 'failed' END AS delivery_status,
     a.delivery_status_code,
     a.title,
     a.alert_message,
@@ -456,7 +456,7 @@ SELECT
     c.version,
     CASE c.calendar_role_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'occurrence' WHEN 20 THEN 'availability' END AS calendar_role,
     c.calendar_role_code,
-    CASE c.calendar_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'draft' WHEN 20 THEN 'published' WHEN 30 THEN 'superseded' WHEN 240 THEN 'archived' END AS calendar_status,
+    CASE c.calendar_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'draft' WHEN 20 THEN 'published' WHEN 150 THEN 'superseded' WHEN 240 THEN 'archived' END AS calendar_status,
     c.calendar_status_code,
     c.content_hash,
     strftime('%Y-%m-%dT%H:%M:%fZ', c.created_at_utc / 1000.0, 'unixepoch') AS created_at_utc,
@@ -675,7 +675,7 @@ SELECT
     s.definition_id,
     d.definition_name,
     s.schedule_name,
-    CASE s.schedule_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'active' WHEN 30 THEN 'paused' WHEN 230 THEN 'orphaned' END AS schedule_status,
+    CASE s.schedule_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'active' WHEN 30 THEN 'paused' WHEN 240 THEN 'orphaned' END AS schedule_status,
     s.schedule_status_code,
     s.expression,
     s.time_zone_id,
@@ -771,5 +771,5 @@ JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261117164810_init')
+VALUES ('M20261117165216_init')
 ON CONFLICT (name) DO NOTHING;

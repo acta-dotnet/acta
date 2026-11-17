@@ -58,7 +58,7 @@ BEGIN TRY
            what the send actually did. */
         delivery_status_code = CASE
             WHEN delivery_status_code IN (10 /* AlertDeliveryStatusCode.Pending */, 20 /* AlertDeliveryStatusCode.Retrying */)
-                THEN 30 /* AlertDeliveryStatusCode.Suppressed */
+                THEN 150 /* AlertDeliveryStatusCode.Suppressed */
             ELSE delivery_status_code
         END,
         retry_after_utc = NULL,

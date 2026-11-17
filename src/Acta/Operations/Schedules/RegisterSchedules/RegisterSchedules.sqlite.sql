@@ -147,7 +147,7 @@ FROM temp._reg_schedules src
 JOIN {{schema}}.schedules s ON s.definition_id = src.definition_id AND s.schedule_name = src.schedule_name
 JOIN {{schema}}.jobs j ON j.job_id = s.job_id
 JOIN {{schema}}.jobs_state r ON r.job_id = s.job_id
-WHERE (s.timing_fingerprint <> src.timing_fingerprint OR s.schedule_status_code = 230 /* ScheduleStatusCode.Orphaned */);
+WHERE (s.timing_fingerprint <> src.timing_fingerprint OR s.schedule_status_code = 240 /* ScheduleStatusCode.Orphaned */);
 
 -- A schedule with no slot records its retime against its definition.
 INSERT INTO {{schema}}.events (
@@ -158,7 +158,7 @@ SELECT
     s.definition_id, 1 /* JobPayloadFormat.Json */, CAST('{"schedule":"' || s.schedule_name || '"}' AS BLOB)
 FROM temp._reg_schedules src
 JOIN {{schema}}.schedules s ON s.definition_id = src.definition_id AND s.schedule_name = src.schedule_name
-WHERE s.job_id IS NULL AND (s.timing_fingerprint <> src.timing_fingerprint OR s.schedule_status_code = 230 /* ScheduleStatusCode.Orphaned */);
+WHERE s.job_id IS NULL AND (s.timing_fingerprint <> src.timing_fingerprint OR s.schedule_status_code = 240 /* ScheduleStatusCode.Orphaned */);
 
 -- The cursor is written on a retime, from the plan, and on a comeback from orphaning, which the plan seeded from now. A
 -- cursor the plan copied from the stored one is never written back: the plan read it unlocked, and another host's
@@ -176,7 +176,7 @@ WHERE
     st.schedule_id = s.schedule_id
     AND (
         s.timing_fingerprint <> src.timing_fingerprint
-        OR s.schedule_status_code = 230 /* ScheduleStatusCode.Orphaned */
+        OR s.schedule_status_code = 240 /* ScheduleStatusCode.Orphaned */
     );
 
 -- A parked schedule waits for a settlement, or for the wake its pausing expiry set. A declaration that changes its
@@ -216,7 +216,7 @@ SET
     availability_calendar_name = src.availability_calendar_name,
     start_at_utc = src.start_at_utc,
     end_before_utc = src.end_before_utc,
-    schedule_status_code = CASE WHEN tgt.schedule_status_code = 230 /* ScheduleStatusCode.Orphaned */
+    schedule_status_code = CASE WHEN tgt.schedule_status_code = 240 /* ScheduleStatusCode.Orphaned */
         THEN 10 /* ScheduleStatusCode.Active */
         ELSE tgt.schedule_status_code END,
     description = src.description,
@@ -227,7 +227,7 @@ JOIN {{schema}}.schedules cur ON cur.definition_id = src.definition_id AND cur.s
 WHERE
     tgt.schedule_id = cur.schedule_id
     AND (
-        tgt.schedule_status_code = 230 /* ScheduleStatusCode.Orphaned */
+        tgt.schedule_status_code = 240 /* ScheduleStatusCode.Orphaned */
         OR tgt.expression IS NOT src.expression
         OR tgt.time_zone_id IS NOT src.time_zone_id
         OR tgt.expression_kind_code IS NOT src.expression_kind_code
@@ -317,7 +317,7 @@ SELECT js.schedule_id
 FROM json_each(@p_definitions) d
 JOIN {{schema}}.schedules js ON js.definition_id = json_extract(d.value, '$.definition_id')
 WHERE
-    js.schedule_status_code <> 230 /* ScheduleStatusCode.Orphaned */
+    js.schedule_status_code <> 240 /* ScheduleStatusCode.Orphaned */
     AND NOT EXISTS (
         SELECT 1
         FROM temp._reg_schedules src
@@ -328,7 +328,7 @@ WHERE
 
 UPDATE {{schema}}.schedules AS js
 SET
-    schedule_status_code = 230 /* ScheduleStatusCode.Orphaned */,
+    schedule_status_code = 240 /* ScheduleStatusCode.Orphaned */,
     paused_until_utc = NULL,
     pause_message = NULL,
     modified_at_utc = {{now}},

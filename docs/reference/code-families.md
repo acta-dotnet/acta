@@ -76,8 +76,8 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `Unspecified` | 0 | `unspecified` | Alert delivery status not recognized by this build; the row was written by a newer Acta. | Active |
 | `Pending` | 10 | `pending` | Raised; awaiting the first send attempt. | Active |
 | `Retrying` | 20 | `retrying` | A send failed and the next one is due at the alert's retryAfterUtc. | Active |
-| `Suppressed` | 30 | `suppressed` | Intentionally not sent: the channel's policy on the sending process rejected delivery. | Active |
 | `Delivered` | 100 | `delivered` | Sent to the channel's transport. | Active |
+| `Suppressed` | 150 | `suppressed` | Intentionally not sent: the channel's policy on the sending process rejected delivery, or the alert was resolved before its send. | Active |
 | `Failed` | 200 | `failed` | Send attempt failed and the retry path is done with it; re-sent as a reminder while the incident stays unresolved. | Active |
 
 ### `AlertKindCode` · `alert-kind` <a id="code-family-alertkindcode"></a>
@@ -126,7 +126,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `Unspecified` | 0 | `unspecified` | Calendar status not recognized by this build; the row was written by a newer Acta. | Active |
 | `Draft` | 10 | `draft` | A saved version that was never published; no schedule follows it. | Active |
 | `Published` | 20 | `published` | The family's current version, the one its catalog-bound schedules follow. | Active |
-| `Superseded` | 30 | `superseded` | A version that was current until a newer one was published; history still refers to it. | Active |
+| `Superseded` | 150 | `superseded` | A version that was current until a newer one was published; history still refers to it. | Active |
 | `Archived` | 240 | `archived` | The family's current version, retired; the family has no current version until another is published. | Active |
 
 ### `CheckpointKindCode` · `checkpoint-kind` <a id="code-family-checkpointkindcode"></a>
@@ -381,7 +381,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `Unspecified` | 0 | `unspecified` | Schedule status not recognized by this build; the row was written by a newer Acta. | Active |
 | `Active` | 10 | `active` | The schedule fires. | Active |
 | `Paused` | 30 | `paused` | Paused, by an operator or by the engine under a firing failure policy or an expiry action; it does not fire until it is resumed, or until pausedUntilUtc passes when that is set. | Active |
-| `Orphaned` | 230 | `orphaned` | The application's code no longer declares the schedule; it cannot fire, be paused, or be resumed. | Active |
+| `Orphaned` | 240 | `orphaned` | The application's code no longer declares the schedule; it cannot fire, be paused, or be resumed. | Active |
 
 ### `ScheduledDeliveryCode` · `scheduled-delivery` <a id="code-family-scheduleddeliverycode"></a>
 

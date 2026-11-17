@@ -16,7 +16,7 @@ SELECT
         INNER JOIN {{schema}}.definitions d ON d.definition_id = s.definition_id
         WHERE
             (s.namespace_id = f.namespace_id OR f.namespace_id = 1 /* NameSyntax.SystemNamespaceId */)
-            AND s.schedule_status_code <> 230 /* ScheduleStatusCode.Orphaned */
+            AND s.schedule_status_code <> 240 /* ScheduleStatusCode.Orphaned */
             AND d.definition_status_code <> 240 /* DefinitionStatusCode.Retired */
             AND (
                 (

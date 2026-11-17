@@ -6,7 +6,7 @@ FROM {{schema}}.schedules js
 INNER JOIN {{schema}}.definitions d ON d.definition_id = js.definition_id
 WHERE
     js.schedule_id = @p_schedule_id
-    AND js.schedule_status_code <> 230 /* ScheduleStatusCode.Orphaned */
+    AND js.schedule_status_code <> 240 /* ScheduleStatusCode.Orphaned */
     AND d.definition_status_code <> 240 /* DefinitionStatusCode.Retired */;
 
 -- Recorded against the slot, or against the definition when the schedule has none.

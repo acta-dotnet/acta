@@ -98,7 +98,7 @@ BEGIN TRY
     IF @valid = 1
     BEGIN
         UPDATE {{schema}}.calendars
-        SET calendar_status_code = 30 /* CalendarStatusCode.Superseded */, modified_at_utc = @now
+        SET calendar_status_code = 150 /* CalendarStatusCode.Superseded */, modified_at_utc = @now
         WHERE calendar_id = @current_id;
 
         UPDATE {{schema}}.calendars

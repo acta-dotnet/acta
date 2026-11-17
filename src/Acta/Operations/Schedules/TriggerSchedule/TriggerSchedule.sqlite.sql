@@ -25,7 +25,7 @@ LEFT JOIN {{schema}}.checkpoints cp
     ON cp.job_id = r.job_id AND cp.checkpoint_kind_code = 60 /* CheckpointKindCode.Firing */ AND cp.checkpoint_name = 'sys.firing'
 WHERE
     js.schedule_id = @p_schedule_id
-    AND js.schedule_status_code <> 230 /* ScheduleStatusCode.Orphaned */
+    AND js.schedule_status_code <> 240 /* ScheduleStatusCode.Orphaned */
     AND d.definition_status_code <> 240 /* DefinitionStatusCode.Retired */;
 
 UPDATE {{schema}}.jobs_state

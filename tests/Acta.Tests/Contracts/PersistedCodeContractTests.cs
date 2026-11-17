@@ -12,8 +12,8 @@ public sealed class PersistedCodeContractTests
         AlertDeliveryStatusCode.Unspecified=0|unspecified
         AlertDeliveryStatusCode.Pending=10|pending
         AlertDeliveryStatusCode.Retrying=20|retrying
-        AlertDeliveryStatusCode.Suppressed=30|suppressed
         AlertDeliveryStatusCode.Delivered=100|delivered
+        AlertDeliveryStatusCode.Suppressed=150|suppressed
         AlertDeliveryStatusCode.Failed=200|failed
         AlertKindCode.Unspecified=0|unspecified
         AlertKindCode.FirstFailure=10|first-failure
@@ -154,7 +154,7 @@ public sealed class PersistedCodeContractTests
         ScheduleStatusCode.Unspecified=0|unspecified
         ScheduleStatusCode.Active=10|active
         ScheduleStatusCode.Paused=30|paused
-        ScheduleStatusCode.Orphaned=230|orphaned
+        ScheduleStatusCode.Orphaned=240|orphaned
         ScheduledDeliveryCode.Unspecified=0|unspecified
         ScheduledDeliveryCode.Permanent=10|permanent
         ScheduledDeliveryCode.PerOccurrence=20|per-occurrence
@@ -170,7 +170,7 @@ public sealed class PersistedCodeContractTests
         CalendarStatusCode.Unspecified=0|unspecified
         CalendarStatusCode.Draft=10|draft
         CalendarStatusCode.Published=20|published
-        CalendarStatusCode.Superseded=30|superseded
+        CalendarStatusCode.Superseded=150|superseded
         CalendarStatusCode.Archived=240|archived
         OverdueDecisionCode.Unspecified=0|unspecified
         OverdueDecisionCode.Refuse=10|refuse
@@ -207,7 +207,7 @@ public sealed class PersistedCodeContractTests
         WorkerStatusCode.Dead=200|dead
         """;
 
-    private const string ExpectedDescriptionHash = "767A7E318C40B7C1448FC92CF698721CF9C6DAAA9A353F9A569A3FA427AFFAE4";
+    private const string ExpectedDescriptionHash = "C7F077372A2BFD1604BFCB205E424F5DFD0A141C2912F75068973F5D2355462B";
 
     [Fact]
     public void Frozen_contract_covers_every_family_and_value()

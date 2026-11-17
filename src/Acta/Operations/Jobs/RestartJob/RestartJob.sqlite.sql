@@ -82,7 +82,7 @@ WHERE
         JOIN {{schema}}.definitions d ON d.definition_id = js.definition_id
         WHERE
             j.job_id = @p_job_id
-            AND js.schedule_status_code <> 230 /* ScheduleStatusCode.Orphaned */
+            AND js.schedule_status_code <> 240 /* ScheduleStatusCode.Orphaned */
             AND d.definition_status_code <> 240 /* DefinitionStatusCode.Retired */
             AND st.outstanding_count < js.max_outstanding
     );

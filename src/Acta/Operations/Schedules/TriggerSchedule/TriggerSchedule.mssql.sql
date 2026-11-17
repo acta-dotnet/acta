@@ -51,7 +51,7 @@ BEGIN TRY
     INNER JOIN {{schema}}.schedules_state st ON st.schedule_id = js.schedule_id
     WHERE
         js.schedule_id = @p_schedule_id
-        AND js.schedule_status_code <> 230 /* ScheduleStatusCode.Orphaned */
+        AND js.schedule_status_code <> 240 /* ScheduleStatusCode.Orphaned */
         AND d.definition_status_code <> 240 /* DefinitionStatusCode.Retired */;
 
     -- Only an Idle slot takes a manual firing: a busy one is Rejected rather than queued behind, and a held, cancelled,

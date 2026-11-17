@@ -23,7 +23,7 @@ public enum CalendarStatusCode : byte
 
     /// <summary>A version that was current until a newer one was published; history still pins it.</summary>
     [Code("superseded", "A version that was current until a newer one was published; history still refers to it.")]
-    Superseded = 30,
+    Superseded = 150,
 
     /// <summary>The family's current version, retired: the family has no current version until another is published.</summary>
     [Code("archived", "The family's current version, retired; the family has no current version until another is published.")]

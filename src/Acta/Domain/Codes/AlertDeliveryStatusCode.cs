@@ -17,11 +17,14 @@ public enum AlertDeliveryStatusCode : byte
     [Code("retrying", "A send failed and the next one is due at the alert's retryAfterUtc.")]
     Retrying = 20,
 
-    [Code("suppressed", "Intentionally not sent: the channel's policy on the sending process rejected delivery.")]
-    Suppressed = 30,
-
     [Code("delivered", "Sent to the channel's transport.")]
     Delivered = 100,
+
+    [Code(
+        "suppressed",
+        "Intentionally not sent: the channel's policy on the sending process rejected delivery, or the alert was resolved before its send."
+    )]
+    Suppressed = 150,
 
     [Code("failed", "Send attempt failed and the retry path is done with it; re-sent as a reminder while the incident stays unresolved.")]
     Failed = 200,

@@ -28,5 +28,5 @@ INNER JOIN {{schema}}.schedules t WITH (FORCESEEK (ux_schedules_definition_name 
 INNER JOIN {{schema}}.schedules_state st WITH (FORCESEEK) ON st.schedule_id = t.schedule_id
 WHERE
     n.namespace_name = @p_namespace_name
-    AND t.schedule_status_code <> 230 /* ScheduleStatusCode.Orphaned */
+    AND t.schedule_status_code <> 240 /* ScheduleStatusCode.Orphaned */
     AND d.definition_status_code <> 240 /* DefinitionStatusCode.Retired */;

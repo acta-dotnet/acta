@@ -12,7 +12,7 @@
 -- present and leaves the data in place. Over a database a newer release upgraded, the script stops
 -- before changing anything. A later 1.x release upgrades a 1.x database with
 -- its own migrations, carried in its own copy of this script. A database provisioned from an
--- init migration other than M20261117164810_init has no upgrade path: provision a new one.
+-- init migration other than M20261117165216_init has no upgrade path: provision a new one.
 --
 -- Run it with a client that stops at the first error, which is what makes the transaction below a
 -- guarantee: psql -v ON_ERROR_STOP=1. A client that runs on past a failed statement would reach the
@@ -41,14 +41,14 @@ DO $$
 BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
-        WHERE name NOT IN ('M20261117164810_init')
+        WHERE name NOT IN ('M20261117165216_init')
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
 END
 $$;
 
--- ===== BEGIN M20261117164810_init =====
+-- ===== BEGIN M20261117165216_init =====
 CREATE SCHEMA IF NOT EXISTS acta;
 
 -- alerts
@@ -2963,7 +2963,7 @@ BEGIN
             WHERE
                 namespace_id = p_namespace_id
                 AND created_at_utc <= p_cutoff_utc
-                AND delivery_status_code IN (30 /* AlertDeliveryStatusCode.Suppressed */, 100 /* AlertDeliveryStatusCode.Delivered */, 200 /* AlertDeliveryStatusCode.Failed */)
+                AND delivery_status_code IN (150 /* AlertDeliveryStatusCode.Suppressed */, 100 /* AlertDeliveryStatusCode.Delivered */, 200 /* AlertDeliveryStatusCode.Failed */)
             ORDER BY created_at_utc, alert_id
             LIMIT p_batch_size
             FOR UPDATE SKIP LOCKED) q;
@@ -4241,7 +4241,7 @@ SELECT
     a.alert_severity_code,
     CASE a.alert_kind_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'first-failure' WHEN 20 THEN 'threshold-reached' WHEN 30 THEN 'final-failure' WHEN 40 THEN 'manual' END AS alert_kind,
     a.alert_kind_code,
-    CASE a.delivery_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'pending' WHEN 20 THEN 'retrying' WHEN 30 THEN 'suppressed' WHEN 100 THEN 'delivered' WHEN 200 THEN 'failed' END AS delivery_status,
+    CASE a.delivery_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'pending' WHEN 20 THEN 'retrying' WHEN 100 THEN 'delivered' WHEN 150 THEN 'suppressed' WHEN 200 THEN 'failed' END AS delivery_status,
     a.delivery_status_code,
     a.title,
     a.alert_message,
@@ -4268,7 +4268,7 @@ SELECT
     c.version,
     CASE c.calendar_role_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'occurrence' WHEN 20 THEN 'availability' END AS calendar_role,
     c.calendar_role_code,
-    CASE c.calendar_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'draft' WHEN 20 THEN 'published' WHEN 30 THEN 'superseded' WHEN 240 THEN 'archived' END AS calendar_status,
+    CASE c.calendar_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'draft' WHEN 20 THEN 'published' WHEN 150 THEN 'superseded' WHEN 240 THEN 'archived' END AS calendar_status,
     c.calendar_status_code,
     c.content_hash,
     c.created_at_utc,
@@ -4481,7 +4481,7 @@ SELECT
     s.definition_id,
     d.definition_name,
     s.schedule_name,
-    CASE s.schedule_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'active' WHEN 30 THEN 'paused' WHEN 230 THEN 'orphaned' END AS schedule_status,
+    CASE s.schedule_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'active' WHEN 30 THEN 'paused' WHEN 240 THEN 'orphaned' END AS schedule_status,
     s.schedule_status_code,
     s.expression,
     s.time_zone_id,
@@ -4574,10 +4574,10 @@ JOIN acta.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO acta.migrations (name)
-VALUES ('M20261117164810_init')
+VALUES ('M20261117165216_init')
 ON CONFLICT (name) DO NOTHING;
 
--- ===== END M20261117164810_init =====
+-- ===== END M20261117165216_init =====
 
 COMMIT;
 

@@ -145,7 +145,7 @@ WITH capacity AS (
     WHERE
         s.recharge
         AND s.action = 1 /* ControlAction.Applied */
-        AND js.schedule_status_code <> 230 /* ScheduleStatusCode.Orphaned */
+        AND js.schedule_status_code <> 240 /* ScheduleStatusCode.Orphaned */
         AND d.definition_status_code <> 240 /* DefinitionStatusCode.Retired */
         AND st.outstanding_count < js.max_outstanding
     FOR UPDATE OF st

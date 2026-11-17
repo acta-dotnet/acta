@@ -53,7 +53,7 @@ WHERE EXISTS (
             AND s.schedule_id NOT IN (SELECT r.schedule_id FROM _pub_rows r));
 
 UPDATE {{schema}}.calendars
-SET calendar_status_code = 30 /* CalendarStatusCode.Superseded */, modified_at_utc = {{now}}
+SET calendar_status_code = 150 /* CalendarStatusCode.Superseded */, modified_at_utc = {{now}}
 WHERE calendar_id = (SELECT t.current_id FROM _pub_target t) AND EXISTS (SELECT 1 FROM _pub_valid);
 
 UPDATE {{schema}}.calendars

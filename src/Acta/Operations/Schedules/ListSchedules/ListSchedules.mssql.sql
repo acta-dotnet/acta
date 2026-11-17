@@ -36,7 +36,7 @@ IF @p_live_only IS NOT NULL
         LEFT JOIN {{schema}}.jobs sj WITH (FORCESEEK) ON sj.job_id = s.job_id
         WHERE
             st.next_occurrence_at_utc IS NOT NULL
-            AND s.schedule_status_code <> 230 /* ScheduleStatusCode.Orphaned */
+            AND s.schedule_status_code <> 240 /* ScheduleStatusCode.Orphaned */
             AND jd.definition_status_code <> 240 /* DefinitionStatusCode.Retired */
             AND (@p_namespace_name IS NULL OR ns.namespace_name = @p_namespace_name)
             AND (@p_job_name IS NULL OR jd.definition_name = @p_job_name)
@@ -57,7 +57,7 @@ IF @p_live_only IS NOT NULL
                 JOIN {{schema}}.definitions jd WITH (FORCESEEK) ON jd.definition_id = s.definition_id
                 WHERE
                     st.next_occurrence_at_utc IS NOT NULL
-                    AND s.schedule_status_code <> 230 /* ScheduleStatusCode.Orphaned */
+                    AND s.schedule_status_code <> 240 /* ScheduleStatusCode.Orphaned */
                     AND jd.definition_status_code <> 240 /* DefinitionStatusCode.Retired */
                     AND (@p_namespace_name IS NULL OR ns.namespace_name = @p_namespace_name)
                     AND (@p_job_name IS NULL OR jd.definition_name = @p_job_name)

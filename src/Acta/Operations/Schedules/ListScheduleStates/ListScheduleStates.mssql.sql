@@ -16,5 +16,5 @@ LEFT JOIN {{schema}}.jobs_state r WITH (FORCESEEK) ON r.job_id = t.job_id
 WHERE
     d.namespace_id = @p_namespace_id
     AND t.namespace_id = @p_namespace_id
-    AND t.schedule_status_code <> 230 /* ScheduleStatusCode.Orphaned */
+    AND t.schedule_status_code <> 240 /* ScheduleStatusCode.Orphaned */
     AND d.definition_status_code <> 240 /* DefinitionStatusCode.Retired */;

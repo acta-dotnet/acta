@@ -27,7 +27,7 @@ SELECT
             FROM {{schema}}.schedules s WITH (READCOMMITTEDLOCK, READPAST, ROWLOCK)
             INNER JOIN {{schema}}.definitions d WITH (READCOMMITTEDLOCK, READPAST, ROWLOCK) ON d.definition_id = s.definition_id
             WHERE
-                s.schedule_status_code <> 230 /* ScheduleStatusCode.Orphaned */
+                s.schedule_status_code <> 240 /* ScheduleStatusCode.Orphaned */
                 AND d.definition_status_code <> 240 /* DefinitionStatusCode.Retired */
                 AND (
                     (
@@ -44,7 +44,7 @@ SELECT
                 ON s.definition_id = d.definition_id
             WHERE
                 d.namespace_id = f.namespace_id
-                AND s.schedule_status_code <> 230 /* ScheduleStatusCode.Orphaned */
+                AND s.schedule_status_code <> 240 /* ScheduleStatusCode.Orphaned */
                 AND d.definition_status_code <> 240 /* DefinitionStatusCode.Retired */
                 AND (
                     (

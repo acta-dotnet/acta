@@ -41,7 +41,7 @@ FROM (
         WHERE
             @p_live_only IS NOT NULL
             AND st.next_occurrence_at_utc IS NOT NULL
-            AND s.schedule_status_code <> 230 /* ScheduleStatusCode.Orphaned */
+            AND s.schedule_status_code <> 240 /* ScheduleStatusCode.Orphaned */
             AND jd.definition_status_code <> 240 /* DefinitionStatusCode.Retired */
             AND (
                 @p_namespace_name IS NULL
@@ -112,7 +112,7 @@ SELECT CASE WHEN @p_include_total IS NOT NULL THEN (
         JOIN {{schema}}.definitions jd ON jd.definition_id = s.definition_id
         WHERE
             st.next_occurrence_at_utc IS NOT NULL
-            AND s.schedule_status_code <> 230 /* ScheduleStatusCode.Orphaned */
+            AND s.schedule_status_code <> 240 /* ScheduleStatusCode.Orphaned */
             AND jd.definition_status_code <> 240 /* DefinitionStatusCode.Retired */
             AND (
                 @p_namespace_name IS NULL

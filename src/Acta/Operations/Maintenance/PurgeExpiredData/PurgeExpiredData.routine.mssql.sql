@@ -238,7 +238,7 @@ BEGIN
                     namespace_id = @p_namespace_id
                     AND created_at_utc <= @p_cutoff_utc
                     AND delivery_status_code IN (
-                        30 /* AlertDeliveryStatusCode.Suppressed */,
+                        150 /* AlertDeliveryStatusCode.Suppressed */,
                         100 /* AlertDeliveryStatusCode.Delivered */,
                         200 /* AlertDeliveryStatusCode.Failed */
                     )
@@ -268,7 +268,7 @@ BEGIN
                 WHERE
                     a.created_at_utc <= @p_cutoff_utc
                     AND a.delivery_status_code IN (
-                        30 /* AlertDeliveryStatusCode.Suppressed */,
+                        150 /* AlertDeliveryStatusCode.Suppressed */,
                         100 /* AlertDeliveryStatusCode.Delivered */,
                         200 /* AlertDeliveryStatusCode.Failed */
                     );
