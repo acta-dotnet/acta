@@ -6,7 +6,7 @@ DROP TABLE IF EXISTS pg_temp._resume_schedule_slot;
 DROP TABLE IF EXISTS pg_temp._resume_schedule_target;
 CREATE TEMP TABLE _resume_schedule_lock (granted INT NOT NULL) ON COMMIT DROP;
 CREATE TEMP TABLE _resume_schedule_slot (job_id BIGINT NOT NULL, execution_number BIGINT NOT NULL) ON COMMIT DROP;
-CREATE TEMP TABLE _resume_schedule_target (schedule_id INT NOT NULL) ON COMMIT DROP;
+CREATE TEMP TABLE _resume_schedule_target (schedule_id INT NOT NULL, unchanged BOOLEAN NOT NULL) ON COMMIT DROP;
 
 INSERT INTO _resume_schedule_lock (granted)
 SELECT 1
@@ -22,8 +22,11 @@ FROM {{schema}}.jobs_state r
 WHERE r.job_id = (SELECT js.job_id FROM {{schema}}.schedules js WHERE js.schedule_id = @p_schedule_id)
 FOR UPDATE;
 
-INSERT INTO _resume_schedule_target (schedule_id)
-SELECT js.schedule_id
+-- A resume of a schedule that is not paused writes nothing.
+INSERT INTO _resume_schedule_target (schedule_id, unchanged)
+SELECT
+    js.schedule_id,
+    js.schedule_status_code <> 30 /* ScheduleStatusCode.Paused */
 FROM {{schema}}.schedules js
 INNER JOIN {{schema}}.definitions d ON d.definition_id = js.definition_id
 WHERE
@@ -39,7 +42,7 @@ SET
     pause_message = NULL,
     modified_at_utc = now(),
     version = version + 1
-WHERE schedule_id IN (SELECT t.schedule_id FROM _resume_schedule_target t);
+WHERE schedule_id IN (SELECT t.schedule_id FROM _resume_schedule_target t WHERE NOT t.unchanged);
 
 UPDATE {{schema}}.schedules_state
 SET
@@ -48,7 +51,7 @@ SET
     evaluation_status_code = 60 /* ScheduleEvaluationStatusCode.Resumed */,
     version = version + 1,
     modified_at_utc = now()
-WHERE schedule_id IN (SELECT t.schedule_id FROM _resume_schedule_target t);
+WHERE schedule_id IN (SELECT t.schedule_id FROM _resume_schedule_target t WHERE NOT t.unchanged);
 
 -- Recorded against the slot, or against the definition when the schedule has none.
 INSERT INTO {{schema}}.events (
@@ -68,10 +71,15 @@ SELECT
 FROM _resume_schedule_target t
 INNER JOIN {{schema}}.schedules js ON js.schedule_id = t.schedule_id
 LEFT JOIN {{schema}}.jobs j ON j.job_id = js.job_id
-LEFT JOIN _resume_schedule_slot s ON s.job_id = js.job_id;
+LEFT JOIN _resume_schedule_slot s ON s.job_id = js.job_id
+WHERE NOT t.unchanged;
 
 SELECT
-    CASE WHEN t.schedule_id IS NULL THEN 2 /* ControlAction.NotFound */ ELSE 1 /* ControlAction.Applied */ END::SMALLINT AS action,
+    CASE
+        WHEN t.schedule_id IS NULL THEN 2 /* ControlAction.NotFound */
+        WHEN t.unchanged THEN 6 /* ControlAction.AlreadyInState */
+        ELSE 1 /* ControlAction.Applied */
+    END::SMALLINT AS action,
     js.schedule_status_code AS status,
     js.paused_until_utc,
     st.next_occurrence_at_utc,

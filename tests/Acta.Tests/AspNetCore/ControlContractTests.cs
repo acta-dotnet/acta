@@ -101,7 +101,7 @@ public sealed class ControlContractTests
         .. Enqueue(),
         .. ScheduleVerb("pause", typeof(PauseScheduleResponse)),
         .. ScheduleVerb("resume", typeof(ResumeScheduleResponse), rejects: false),
-        .. ScheduleVerb("trigger", typeof(TriggerScheduleResponse)),
+        .. ScheduleVerb("trigger", typeof(TriggerScheduleResponse), repeats: false),
         .. CalendarVerb(
             "drafts",
             typeof(SaveCalendarDraftResponse),
@@ -402,9 +402,10 @@ public sealed class ControlContractTests
         ];
     }
 
-    // A schedule name of "missing" reads as absent and "rejected" as a forbidden transition, so pause and
-    // trigger stage their three outcomes by name. Resume refuses no transition, so it has no 409.
-    private static IEnumerable<Case> ScheduleVerb(string verb, Type declared, bool rejects = true)
+    // A schedule name of "missing" reads as absent, "rejected" as a forbidden transition and "unchanged" as already
+    // as asked, so each verb stages its outcomes by name. Resume refuses no transition, so it has no 409, and a
+    // trigger always fires, so it never answers already-in-state.
+    private static IEnumerable<Case> ScheduleVerb(string verb, Type declared, bool rejects = true, bool repeats = true)
     {
         var route = $"/schedules/{{jobNamespace}}/{{jobName}}/{{scheduleName}}/{verb}";
         string Path(string scheduleName) => $"/schedules/billing/send-invoice/{scheduleName}/{verb}";
@@ -413,8 +414,11 @@ public sealed class ControlContractTests
             Schedule(route, "applied", Path("nightly"), StatusCodes.Status200OK, declared, "applied", Reason),
             Schedule(route, "rejected", Path("rejected"), StatusCodes.Status409Conflict, declared, "rejected", Reason),
             Schedule(route, "not-found", Path("missing"), StatusCodes.Status404NotFound, declared, "not-found", Reason),
+            Schedule(route, "already-in-state", Path("unchanged"), StatusCodes.Status200OK, declared, "already-in-state", Reason),
         ];
-        return rows.Where(row => rejects || row.Status != StatusCodes.Status409Conflict);
+        return rows.Where(row =>
+            (rejects || row.Status != StatusCodes.Status409Conflict) && (repeats || row.Outcome != "already-in-state")
+        );
     }
 
     private static Case Schedule(

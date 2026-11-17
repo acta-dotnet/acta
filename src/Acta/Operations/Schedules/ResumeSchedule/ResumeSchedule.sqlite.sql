@@ -1,7 +1,10 @@
 DROP TABLE IF EXISTS temp._rs_target;
 
+-- A resume of a schedule that is not paused writes nothing.
 CREATE TEMP TABLE _rs_target AS
-SELECT js.schedule_id
+SELECT
+    js.schedule_id,
+    js.schedule_status_code <> 30 /* ScheduleStatusCode.Paused */ AS unchanged
 FROM {{schema}}.schedules js
 INNER JOIN {{schema}}.definitions d ON d.definition_id = js.definition_id
 WHERE
@@ -39,7 +42,8 @@ SELECT
 FROM temp._rs_target t
 JOIN {{schema}}.schedules js ON js.schedule_id = t.schedule_id
 LEFT JOIN {{schema}}.jobs j ON j.job_id = js.job_id
-LEFT JOIN {{schema}}.jobs_state r ON r.job_id = js.job_id;
+LEFT JOIN {{schema}}.jobs_state r ON r.job_id = js.job_id
+WHERE t.unchanged = 0;
 
 UPDATE {{schema}}.schedules
 SET
@@ -48,7 +52,7 @@ SET
     pause_message = NULL,
     modified_at_utc = {{now}},
     version = version + 1
-WHERE schedule_id IN (SELECT t.schedule_id FROM temp._rs_target t);
+WHERE schedule_id IN (SELECT t.schedule_id FROM temp._rs_target t WHERE t.unchanged = 0);
 
 UPDATE {{schema}}.schedules_state
 SET
@@ -57,12 +61,13 @@ SET
     evaluation_status_code = 60 /* ScheduleEvaluationStatusCode.Resumed */,
     version = version + 1,
     modified_at_utc = {{now}}
-WHERE schedule_id IN (SELECT t.schedule_id FROM temp._rs_target t);
+WHERE schedule_id IN (SELECT t.schedule_id FROM temp._rs_target t WHERE t.unchanged = 0);
 
 
 SELECT
     CASE
         WHEN t.schedule_id IS NULL THEN 2 /* ControlAction.NotFound */
+        WHEN t.unchanged = 1 THEN 6 /* ControlAction.AlreadyInState */
         ELSE 1 /* ControlAction.Applied */
     END AS action,
     js.schedule_status_code AS status,

@@ -309,6 +309,7 @@ await operations.Schedules.ResumeAsync(nightly, reasonMessage: "maintenance comp
 ```
 
 - Pausing a schedule takes it out of admission without moving its cursor. An indefinite pause needs a resume; a timed pause ends by itself, and the admitter applies the misfire policy as of its end.
+- A pause that changes nothing, of a schedule already paused until the same instant, and a resume of a schedule that is not paused answer `AlreadyInState` and record no event. A pause with another end moves the pause and is recorded.
 - Pausing the permanent job (`IJobs.PauseAsync`) stops all its schedules until an operator resumes, restarts, or cancels it; worker restarts and deploys leave it paused, and trigger-now is rejected.
 - A permanent job whose schedules are all paused or removed sits `Idle` with nothing due until a schedule offers a run.
 - Rescheduling a permanent job (`IJobs.RescheduleAsync`, the dashboard's Run now, or `POST /jobs/{jobRef}/reschedule` with no instant) runs it now: an `Idle` one, or a Paused one with no firing outstanding, takes a manual firing at the instant, the same firing a schedule trigger admits and rejected the same way in a suspended namespace, and returns to `Idle` when it settles; one mid-firing keeps its firing and moves its instant.

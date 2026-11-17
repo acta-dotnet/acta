@@ -120,6 +120,7 @@ internal sealed class FakeSchedules : ISchedules
         {
             "missing" => response(ControlAction.NotFound, null),
             "rejected" => response(ControlAction.Rejected, ScheduleStatusCode.Paused),
+            "unchanged" => response(ControlAction.AlreadyInState, ScheduleStatusCode.Paused),
             _ => null,
         };
 

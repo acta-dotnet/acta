@@ -313,6 +313,39 @@ public sealed class PauseScheduleSpec : ActaStorageTestBase<ConformanceFixture>
     }
 
     // An operator's pause changes what runs, so it leaves its event whatever the definition records.
+    [Fact(DisplayName = "A pause or a resume that changes nothing answers AlreadyInState and records no event")]
+    public async Task A_pause_or_a_resume_that_changes_nothing_writes_nothing()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var (db, dialect) = Store();
+        var now = FloorSeconds(await NowAsync(ct));
+        var jobName = Unique("repeat");
+        var defId = await CreateDefinitionAsync(db, dialect, jobName, ct);
+        await RegisterAsync(db, dialect, defId, jobName, [Slot("only", now.AddMinutes(30))], ct);
+        var lookup = Lookup(jobName, "only");
+        var until = now.AddMinutes(10);
+
+        var paused = await Schedules.PauseAsync(lookup, untilUtc: until, ct: ct);
+        var again = await Schedules.PauseAsync(lookup, untilUtc: until, ct: ct);
+        Assert.Equal(ControlAction.Applied, paused.Action);
+        Assert.Equal(ControlAction.AlreadyInState, again.Action);
+        Assert.Equal((ScheduleStatusCode.Paused, until, paused.Version), (again.Status, again.PausedUntilUtc, again.Version));
+
+        // Another end is a change: the pause moves and is recorded.
+        var moved = await Schedules.PauseAsync(lookup, untilUtc: until.AddMinutes(5), ct: ct);
+        Assert.Equal(ControlAction.Applied, moved.Action);
+
+        var resumed = await Schedules.ResumeAsync(lookup, ct: ct);
+        var resumedAgain = await Schedules.ResumeAsync(lookup, ct: ct);
+        Assert.Equal(ControlAction.Applied, resumed.Action);
+        Assert.Equal(ControlAction.AlreadyInState, resumedAgain.Action);
+        Assert.Equal((ScheduleStatusCode.Active, resumed.Version), (resumedAgain.Status, resumedAgain.Version));
+
+        var events = await GetEventsByJobId.Run(Services, await SlotIdAsync(jobName, ct), ct);
+        Assert.Equal(2, events.Count(e => e.EventCode == EventCode.SchedulePaused));
+        Assert.Single(events, e => e.EventCode == EventCode.ScheduleResumed);
+    }
+
     [Theory(DisplayName = "Pause and resume are recorded against the slot job at every recording level")]
     [InlineData(EventRecordingCode.Audit)]
     [InlineData(EventRecordingCode.Failures)]

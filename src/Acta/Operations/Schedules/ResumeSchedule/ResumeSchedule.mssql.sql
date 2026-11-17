@@ -7,7 +7,7 @@ BEGIN TRY
         BEGIN TRANSACTION;
 
     DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
-    DECLARE @found BIT = 0, @status TINYINT, @paused DATETIME2(7), @next DATETIME2(7), @version INT;
+    DECLARE @found BIT = 0, @unchanged BIT = 0, @status TINYINT, @paused DATETIME2(7), @next DATETIME2(7), @version INT;
     DECLARE @ns INT, @def INT, @slot BIGINT, @lineage BIGINT, @en BIGINT;
     DECLARE @lock_result INT, @lock_resource NVARCHAR(255);
 
@@ -31,7 +31,10 @@ BEGIN TRY
     FROM {{schema}}.jobs_state r WITH (UPDLOCK, ROWLOCK)
     WHERE r.job_id = @slot;
 
-    SELECT @found = 1
+    -- A resume of a schedule that is not paused writes nothing.
+    SELECT
+        @found = 1,
+        @unchanged = CASE WHEN js.schedule_status_code <> 30 /* ScheduleStatusCode.Paused */ THEN 1 ELSE 0 END
     FROM {{schema}}.schedules js WITH (UPDLOCK, ROWLOCK)
     INNER JOIN {{schema}}.definitions d ON d.definition_id = js.definition_id
     WHERE
@@ -48,6 +51,20 @@ BEGIN TRY
                 CAST(NULL AS DATETIME2(7)) AS paused_until_utc,
                 CAST(NULL AS DATETIME2(7)) AS next_occurrence_at_utc,
                 CAST(NULL AS INT) AS version;
+            GOTO Finish;
+        END;
+
+    IF @unchanged = 1
+        BEGIN
+            SELECT
+                CAST(6 /* ControlAction.AlreadyInState */ AS TINYINT) AS action,
+                js.schedule_status_code AS status,
+                js.paused_until_utc,
+                st.next_occurrence_at_utc,
+                js.version AS version
+            FROM {{schema}}.schedules js
+            INNER JOIN {{schema}}.schedules_state st ON st.schedule_id = js.schedule_id
+            WHERE js.schedule_id = @p_schedule_id;
             GOTO Finish;
         END;
 
