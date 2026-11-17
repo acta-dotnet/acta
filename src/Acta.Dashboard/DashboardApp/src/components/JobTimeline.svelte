@@ -15,6 +15,7 @@
   let {
     events = [],
     nextRunAtUtc = null,
+    nextRunLabel = 'Next run',
     hasMore = false,
     loadingMore = false,
     onLoadMore = () => {},
@@ -137,7 +138,7 @@
             <li class="t-neutral future">
               <span class="rail-node ghost"><Icon name="clock" /></span>
               <div class="rail-body">
-                <div class="rail-title">Next run</div>
+                <div class="rail-title">{nextRunLabel}</div>
                 <div class="rail-code">due {displayFormatter.rowTimestamp(nextRunAtUtc)}</div>
               </div>
               <span class="rail-when"><RelativeTime value={nextRunAtUtc} /></span>

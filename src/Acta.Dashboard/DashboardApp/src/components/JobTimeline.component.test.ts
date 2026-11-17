@@ -32,4 +32,15 @@ describe('JobTimeline', () => {
     render(JobTimeline, { props: { events: [landing] } });
     expect(screen.getByRole('link', { name: 'open the child' }).getAttribute('href')).toContain(child);
   });
+
+  it('calls the instant ahead a run unless the page says what it is', () => {
+    const { unmount } = render(JobTimeline, { props: { events, nextRunAtUtc: '2026-07-14T10:00:00Z' } });
+    expect(screen.getByText('Next run')).toBeTruthy();
+    unmount();
+
+    // A waiting job's instant is its wait's deadline: nothing runs then unless the wait times out.
+    render(JobTimeline, { props: { events, nextRunAtUtc: '2026-07-14T10:00:00Z', nextRunLabel: 'Times out' } });
+    expect(screen.getByText('Times out')).toBeTruthy();
+    expect(screen.queryByText('Next run')).toBeNull();
+  });
 });

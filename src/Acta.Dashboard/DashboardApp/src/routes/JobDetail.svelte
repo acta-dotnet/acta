@@ -240,7 +240,7 @@
       <FocusDisclosure title="Activity" hint={hasExecutions ? heroAttempt : 'Events and history'} bind:open={activityOpen} id="job-activity">
         <div hidden={executionsOpen}>
         {#key focusExecution}
-          <JobEventsPanel bind:this={eventsPanel} jobRef={job.jobRef} polling={!TERMINAL_STATUSES.includes(job.status)} nextRunAtUtc={TERMINAL_STATUSES.includes(job.status) ? null : job.nextRunAtUtc} initialAttempt={focusExecution} onEventsChange={(loaded) => (events = loaded)} />
+          <JobEventsPanel bind:this={eventsPanel} jobRef={job.jobRef} polling={!TERMINAL_STATUSES.includes(job.status)} nextRunAtUtc={TERMINAL_STATUSES.includes(job.status) ? null : job.nextRunAtUtc} nextRunLabel={job.status === 'suspended' ? 'Times out' : 'Next run'} initialAttempt={focusExecution} onEventsChange={(loaded) => (events = loaded)} />
         {/key}
         </div>
         {#if hasExecutions}
