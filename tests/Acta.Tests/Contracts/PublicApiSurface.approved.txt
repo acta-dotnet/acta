@@ -1530,6 +1530,7 @@ class Acta.JobOutcome
     System.String? FailureMessage { get; }
     System.Void ThrowIfFailed()
 sealed class Acta.JobOutcome<T> : Acta.JobOutcome where T : notnull
+    System.Boolean Succeeded { get; }
     System.Boolean TryGetValue(out T value)
     T ValueOrThrow()
     T? Value { get; }

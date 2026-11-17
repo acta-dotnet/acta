@@ -21,4 +21,13 @@ public class JobOutcomeTests
         Assert.Equal((7L, Ref), (timedOut.JobId, timedOut.JobRef));
         Assert.Contains(Ref.ToString(), timedOut.Message, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void Succeeded_tells_the_compiler_the_value_is_set()
+    {
+        var outcome = JobOutcome<string>.Landed(7, Ref, "printed");
+
+        // No '!' on Value: this line compiles only because Succeeded says the value is not null.
+        Assert.Equal(7, outcome.Succeeded ? outcome.Value.Length : 0);
+    }
 }

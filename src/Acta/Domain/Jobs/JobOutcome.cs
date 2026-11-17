@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace Acta;
 
 /// <summary>
@@ -82,6 +84,10 @@ public sealed class JobOutcome<T> : JobOutcome
     }
 
     public T? Value { get; }
+
+    /// <inheritdoc cref="JobOutcome.Succeeded"/>
+    [MemberNotNullWhen(true, nameof(Value))]
+    public new bool Succeeded => base.Succeeded;
 
     /// <summary>True + sets <paramref name="value"/> on <see cref="JobOutcome.Succeeded"/>; false otherwise.</summary>
     public bool TryGetValue(out T value)
