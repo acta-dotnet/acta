@@ -149,7 +149,7 @@
   let messageKind = $state('');
   let busy = $state(false);
   let confirming = $state<'publish' | 'archive' | null>(null);
-  let overdueDecision = $state<'refuse' | 'discard'>('refuse');
+  let overdueDecision = $state<'refuse' | 'skip'>('refuse');
   let showJson = $state(false);
 
   let weekly = $derived(editing ? weeklyFromJson(draftText) : null);
@@ -297,8 +297,8 @@
         : `Version ${version} becomes current and up to ${impact.retimed} bound ${impact.retimed === 1 ? 'schedule is' : 'schedules are'} retimed to it in one transaction; each cursor moves to the first occurrence after now.`;
     if (impact.overdue === 0) return retimes;
     const overdue =
-      overdueDecision === 'discard'
-        ? ` The ${impact.overdue} overdue ${impact.overdue === 1 ? 'occurrence is' : 'occurrences are'} discarded and audited as skipped.`
+      overdueDecision === 'skip'
+        ? ` The ${impact.overdue} overdue ${impact.overdue === 1 ? 'occurrence is' : 'occurrences are'} skipped and audited.`
         : ` The publication is refused while ${impact.overdue} ${impact.overdue === 1 ? 'schedule holds' : 'schedules hold'} an overdue occurrence.`;
     return retimes + overdue;
   });
@@ -384,7 +384,7 @@
                 <fieldset class="overdue-choice">
                   <legend>{impact.overdue} bound {impact.overdue === 1 ? 'schedule holds' : 'schedules hold'} an overdue occurrence</legend>
                   <label><input type="radio" bind:group={overdueDecision} value="refuse" /> Refuse the publication until they drain</label>
-                  <label><input type="radio" bind:group={overdueDecision} value="discard" /> Discard them, audited as skipped</label>
+                  <label><input type="radio" bind:group={overdueDecision} value="skip" /> Skip them, each audited</label>
                 </fieldset>
               {/if}
             {/if}

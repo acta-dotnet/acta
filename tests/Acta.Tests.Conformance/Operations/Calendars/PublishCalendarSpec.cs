@@ -81,14 +81,14 @@ public sealed class PublishCalendarManifest : IJobManifest
 /// The catalog as a schedule's source, by name: the admitter resolves the name to the family's current published
 /// version and fires its instants; a publication retimes every schedule that names the family from the new version
 /// atomically and audits the move; an undecided overdue occurrence refuses the publication unless the
-/// caller discards it, audited as a skipped range; a stale expected version is a conflict, and none is no check;
+/// caller skips it, audited as a range; a stale expected version is a conflict, and none is no check;
 /// publishing the current version again changes nothing; a preview shows the candidate beside the current version.
 /// </summary>
 [ConformanceSpec(
     "calendar.publish",
     "A catalog calendar sources a schedule and a publication retimes every bound one",
     Area = "Scheduling",
-    Contract = "A schedule follows the catalog's current version by name, and a publication retimes every bound schedule atomically, refusing or discarding an overdue backlog."
+    Contract = "A schedule follows the catalog's current version by name, and a publication retimes every bound schedule atomically, refusing or skipping an overdue backlog."
 )]
 public sealed class PublishCalendarSpec : ActaRuntimeTestBase<ConformanceFixture, PublishCalendarManifest>
 {
@@ -191,8 +191,8 @@ public sealed class PublishCalendarSpec : ActaRuntimeTestBase<ConformanceFixture
         Assert.Empty(await EventsAsync(slotId, EventCode.ScheduleRetimed, ct));
     }
 
-    [Fact(DisplayName = "An overdue occurrence refuses a publication until the caller discards it as a skipped range")]
-    public async Task An_overdue_occurrence_refuses_or_is_discarded()
+    [Fact(DisplayName = "An overdue occurrence refuses a publication until the caller skips it as an audited range")]
+    public async Task An_overdue_occurrence_refuses_or_is_skipped()
     {
         var ct = TestContext.Current.CancellationToken;
         await PauseAsync(PublishCalendarManifest.OfficeJobName, ct);
@@ -212,9 +212,9 @@ public sealed class PublishCalendarSpec : ActaRuntimeTestBase<ConformanceFixture
         Assert.Equal(Start.AddMinutes(1), Assert.Single(await ScheduleTestOps.ReadAsync(Db, slotId, ct)).NextOccurrenceAtUtc);
         Assert.Equal(CalendarStatusCode.Draft, (await Calendars.GetAsync(Days, 2, ct))!.ShownStatus);
 
-        var discarded = await Calendars.PublishAsync(Days, 2, expectedCurrentVersion: 1, OverdueDecisionCode.Discard, ct: ct);
+        var published = await Calendars.PublishAsync(Days, 2, expectedCurrentVersion: 1, OverdueDecisionCode.Skip, ct: ct);
 
-        Assert.Equal(ControlAction.Applied, discarded.Action);
+        Assert.Equal(ControlAction.Applied, published.Action);
         var schedule = Assert.Single(await ScheduleTestOps.ReadAsync(Db, slotId, ct));
         Assert.Equal(Start.AddMinutes(20), schedule.NextOccurrenceAtUtc);
         var skipped = Assert.Single(await EventsAsync(slotId, EventCode.ScheduleSkipped, ct));
@@ -224,7 +224,7 @@ public sealed class PublishCalendarSpec : ActaRuntimeTestBase<ConformanceFixture
     }
 
     [Fact(
-        DisplayName = "An admission planned before a publication discarded its overdue occurrence applies nothing, and the cursor is the publication's"
+        DisplayName = "An admission planned before a publication skipped its overdue occurrence applies nothing, and the cursor is the publication's"
     )]
     public async Task An_admission_planned_before_a_publication_applies_nothing()
     {
@@ -244,14 +244,14 @@ public sealed class PublishCalendarSpec : ActaRuntimeTestBase<ConformanceFixture
         var plan = ScheduleAdmitter.Plan(namespaceId, due.Schedules, Clock.UtcNow, resolve);
         Assert.True(Assert.Single(plan.Groups).Admit);
 
-        // The publication lands first: it discards the occurrence and moves the cursor to the new version's instant.
+        // The publication lands first: it skips the occurrence and moves the cursor to the new version's instant.
         Assert.Equal(
             ControlAction.Applied,
             (await Calendars.SaveDraftAsync(Days, CalendarRoleCode.Occurrence, Instants(20), 1, ct: ct)).Action
         );
         Assert.Equal(
             ControlAction.Applied,
-            (await Calendars.PublishAsync(Days, 2, expectedCurrentVersion: 1, OverdueDecisionCode.Discard, ct: ct)).Action
+            (await Calendars.PublishAsync(Days, 2, expectedCurrentVersion: 1, OverdueDecisionCode.Skip, ct: ct)).Action
         );
 
         var late = await Services.GetRequiredService<AdmitScheduleFiringsHandler>().HandleAsync(plan, ct);

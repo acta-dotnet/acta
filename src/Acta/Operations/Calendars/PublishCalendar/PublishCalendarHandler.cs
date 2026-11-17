@@ -7,7 +7,7 @@ namespace Acta;
 /// <see cref="ICalendars.PublishAsync"/>: plans a publication in C# from a snapshot, then applies it atomically. The
 /// plan compiles the candidate and resolves each bound schedule's calendars as they stand, retimes every schedule that
 /// names the family (its first occurrence after the database clock, from the candidate), and decides the overdue
-/// occurrences the old source left undecided: refused, or discarded as an audited skipped range. A fence another
+/// occurrences the old source left undecided: refused, or skipped as an audited range. A fence another
 /// writer moved replans. Publishing the current version plans and writes nothing.
 /// </summary>
 internal sealed class PublishCalendarHandler(
@@ -32,9 +32,9 @@ internal sealed class PublishCalendarHandler(
             throw new ArgumentOutOfRangeException(nameof(command), command.CandidateVersion, "The candidate is a version of at least 1.");
         }
 
-        if (command.Overdue is not (OverdueDecisionCode.Refuse or OverdueDecisionCode.Discard))
+        if (command.Overdue is not (OverdueDecisionCode.Refuse or OverdueDecisionCode.Skip))
         {
-            throw new ArgumentOutOfRangeException(nameof(command), command.Overdue, "The overdue decision is Refuse or Discard.");
+            throw new ArgumentOutOfRangeException(nameof(command), command.Overdue, "The overdue decision is Refuse or Skip.");
         }
 
         PublishCalendarResponse? last = null;
@@ -161,7 +161,7 @@ internal sealed class PublishCalendarHandler(
                     current?.Version,
                     [],
                     overdue,
-                    $"{overdue.Count} schedule(s) hold undecided overdue occurrences under version {current?.Version ?? 0}; drain them, or publish with the Discard decision."
+                    $"{overdue.Count} schedule(s) hold undecided overdue occurrences under version {current?.Version ?? 0}; drain them, or publish with the Skip decision."
                 );
             }
 

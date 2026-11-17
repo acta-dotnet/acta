@@ -60,7 +60,7 @@ UPDATE {{schema}}.calendars
 SET calendar_status_code = 20 /* CalendarStatusCode.Published */, published_at_utc = {{now}}, modified_at_utc = {{now}}
 WHERE calendar_id = (SELECT t.candidate_id FROM _pub_target t) AND EXISTS (SELECT 1 FROM _pub_valid);
 
--- The retime events are written before the cursor moves, as registration does: the discarded range first, then
+-- The retime events are written before the cursor moves, as registration does: the skipped range first, then
 -- the retime, each from the details the plan carries.
 INSERT INTO {{schema}}.events (
     event_code, created_at_utc, namespace_id,

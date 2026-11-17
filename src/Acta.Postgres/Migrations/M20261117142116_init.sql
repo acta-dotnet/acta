@@ -4541,5 +4541,5 @@ JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261117141417_init')
+VALUES ('M20261117142116_init')
 ON CONFLICT (name) DO NOTHING;

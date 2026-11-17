@@ -191,7 +191,7 @@ public enum EventCode : byte
 
     [Code(
         "schedule.skipped",
-        "A range of the schedule's occurrences was decided without work: the misfire policy skipped it, it expired, the schedule was full, its calendar no longer produces it, or a calendar publication discarded it; details carry the schedule, the range, and the reason."
+        "A range of the schedule's occurrences was decided without work: the misfire policy skipped it, it expired, the schedule was full, its calendar no longer produces it, or a calendar publication skipped it; details carry the schedule, the range, and the reason."
     )]
     ScheduleSkipped = 106,
 

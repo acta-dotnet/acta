@@ -2136,13 +2136,13 @@
   - The current version and the asked-for draft read back with their definitions; an unknown family reads nothing
 
 ### A catalog calendar sources a schedule and a publication retimes every bound one
-- **Contract:** A schedule follows the catalog's current version by name, and a publication retimes every bound schedule atomically, refusing or discarding an overdue backlog.
+- **Contract:** A schedule follows the catalog's current version by name, and a publication retimes every bound schedule atomically, refusing or skipping an overdue backlog.
 - **Guarantees:**
   - A schedule resolves the catalog's current version by name and fires its instants
   - A publication with no expected version retimes every bound schedule from the new version and audits the retime
   - A publication leaves a bound schedule this build cannot read as it is
-  - An overdue occurrence refuses a publication until the caller discards it as a skipped range
-  - An admission planned before a publication discarded its overdue occurrence applies nothing, and the cursor is the publication's
+  - An overdue occurrence refuses a publication until the caller skips it as an audited range
+  - An admission planned before a publication skipped its overdue occurrence applies nothing, and the cursor is the publication's
   - An apply whose plan misses a schedule naming the family rejects, and the publication plans it again
   - A publication is a conflict on a stale expected version and rejected for a version that is no draft
   - Publishing the current version again is AlreadyInState and leaves every bound schedule as it was, an overdue one under Refuse included

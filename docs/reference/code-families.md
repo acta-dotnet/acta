@@ -237,7 +237,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `SchedulePauseExpired` | 102 | `schedule.pause-expired` | A timed pause ended and the scheduler resumed the schedule. The details carry the schedule name. | Active |
 | `ScheduleTriggered` | 104 | `schedule.triggered` | An operator fired the schedule's job by hand; the schedule's own timing did not move. The details carry the schedule name. | Active |
 | `ScheduleAdmitted` | 105 | `schedule.admitted` | The scheduler chose one of the schedule's occurrences to fire; the details carry the schedule, the occurrence, the time through which the schedule is decided, and the firing id. | Active |
-| `ScheduleSkipped` | 106 | `schedule.skipped` | A range of the schedule's occurrences was decided without work: the misfire policy skipped it, it expired, the schedule was full, its calendar no longer produces it, or a calendar publication discarded it; details carry the schedule, the range, and the reason. | Active |
+| `ScheduleSkipped` | 106 | `schedule.skipped` | A range of the schedule's occurrences was decided without work: the misfire policy skipped it, it expired, the schedule was full, its calendar no longer produces it, or a calendar publication skipped it; details carry the schedule, the range, and the reason. | Active |
 | `ScheduleRetimed` | 107 | `schedule.retimed` | A deploy changed the schedule's timing or declared again a schedule it had dropped, or a calendar it names was published; the undecided occurrences of the old timing were discarded and the schedule continues from the first occurrence of the new one. The details carry the schedule name. | Active |
 | `ScheduleEvaluationFailed` | 108 | `schedule.evaluation-failed` | The schedule's next occurrence could not be computed, so it admits nothing and is tried again every minute; the message is the error and the details carry the schedule. Recorded whatever the event recording level, when the schedule enters the error. | Active |
 | `ScheduleOrphaned` | 109 | `schedule.orphaned` | A deploy dropped the schedule: its definition no longer declares it, so it fires nothing and keeps its history. The details carry the schedule name. Recorded whatever the event recording level. | Active |
@@ -348,7 +348,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 |---|---:|---|---|---|
 | `Unspecified` | 0 | `unspecified` | Overdue decision not recognized by this build; the value was written by a newer Acta. | Active |
 | `Refuse` | 10 | `refuse` | A publication with undecided overdue occurrences on a dependent schedule is rejected. | Active |
-| `Discard` | 20 | `discard` | The undecided overdue occurrences of the old version are recorded as skipped, and the new version's occurrences start after now. | Active |
+| `Skip` | 20 | `skip` | The undecided overdue occurrences of the old version are recorded as skipped, and the new version's occurrences start after now. | Active |
 
 ### `ScheduleEvaluationStatusCode` · `schedule-evaluation-status` <a id="code-family-scheduleevaluationstatuscode"></a>
 

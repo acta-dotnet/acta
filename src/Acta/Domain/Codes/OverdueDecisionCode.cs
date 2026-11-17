@@ -19,8 +19,8 @@ public enum OverdueDecisionCode : byte
 
     /// <summary>The old stream's undecided prefix is audited as skipped, and the new stream starts after now.</summary>
     [Code(
-        "discard",
+        "skip",
         "The undecided overdue occurrences of the old version are recorded as skipped, and the new version's occurrences start after now."
     )]
-    Discard = 20,
+    Skip = 20,
 }

@@ -174,7 +174,7 @@ public sealed class PersistedCodeContractTests
         CalendarStatusCode.Archived=240|archived
         OverdueDecisionCode.Unspecified=0|unspecified
         OverdueDecisionCode.Refuse=10|refuse
-        OverdueDecisionCode.Discard=20|discard
+        OverdueDecisionCode.Skip=20|skip
         ScheduleEvaluationStatusCode.Unspecified=0|unspecified
         ScheduleEvaluationStatusCode.Scheduled=10|scheduled
         ScheduleEvaluationStatusCode.WaitingForCapacity=20|waiting-for-capacity
@@ -207,7 +207,7 @@ public sealed class PersistedCodeContractTests
         WorkerStatusCode.Dead=200|dead
         """;
 
-    private const string ExpectedDescriptionHash = "E64ACBCBFE36DC7D9810F6265C5306A058BF3AD331CBE3A010AA8FC0D561A108";
+    private const string ExpectedDescriptionHash = "7B8208769A4491FA14690BFBDD60BA75F132565C4CFD9B39EC2C1CCE73E8F106";
 
     [Fact]
     public void Frozen_contract_covers_all_32_families_and_196_values()

@@ -71,7 +71,7 @@ public interface ICalendars
     /// Applied records <c>calendar.published</c>. The version already current answers AlreadyInState, whatever the expected version,
     /// and retimes nothing. NotFound when the version is not the family's. <paramref name="expectedCurrentVersion"/>, when given, is
     /// the current version the caller saw, 0 for none; another is VersionConflict. A bound schedule holding an undecided overdue
-    /// occurrence is Rejected under <see cref="OverdueDecisionCode.Refuse"/> and skipped as an audited range under <see cref="OverdueDecisionCode.Discard"/>.
+    /// occurrence is Rejected under <see cref="OverdueDecisionCode.Refuse"/> and skipped as an audited range under <see cref="OverdueDecisionCode.Skip"/>.
     /// </summary>
     ValueTask<PublishCalendarResponse> PublishAsync(
         CalendarLookup calendar,

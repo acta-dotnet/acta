@@ -254,7 +254,7 @@ The workflow keeps a calendar's definition beside the code that names it:
 - `PreviewAsync` forecasts a version beside the current one and lists up to 100 bound schedules with an overdue flag, overdue ones first, with `SchedulesTotal` and `OverdueTotal` counting them all; `ListDependentsAsync` pages every one.
 - `PublishAsync` makes a draft current and retimes every schedule that names the family in its scope, in one transaction: each cursor seeds from the new version's first occurrence after now, and `schedule.retimed` is recorded. A paused schedule is retimed and stays paused, and an orphaned one is left as it is. A family that more than 200 schedules bind is refused.
 - Publishing the version already current answers `AlreadyInState` and changes nothing: no schedule is retimed, no event is recorded, and an overdue occurrence does not refuse it. Two publications of one draft at once publish it once, and the second answers `AlreadyInState`.
-- A schedule holding an undecided overdue occurrence refuses the publication (`OverdueDecisionCode.Refuse`, the default) until it is drained; under `OverdueDecisionCode.Discard` the occurrence is audited as `schedule.skipped` with the reason `retimed`.
+- A schedule holding an undecided overdue occurrence refuses the publication (`OverdueDecisionCode.Refuse`, the default) until it is drained; under `OverdueDecisionCode.Skip` the occurrence is audited as `schedule.skipped` with the reason `retimed`.
 - `ArchiveAsync` retires the current version of a family no live schedule names.
 
 ## Backfill

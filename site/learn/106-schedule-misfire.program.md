@@ -119,7 +119,7 @@ Console.WriteLine(
 Console.WriteLine($"catch-up-all-report    ran {all.Count} firings, one per missed occurrence, in order: {Ordered(all)}");
 
 await lab.ShowAsync(
-    "Each policy's first decision after the resume: Skip's discarded range, CatchUpOnce's covering firing, CatchUpAll's first",
+    "Each policy's first decision after the resume: Skip's skipped range, CatchUpOnce's covering firing, CatchUpAll's first",
     """
     SELECT definition_name, event, details_text
     FROM events_view

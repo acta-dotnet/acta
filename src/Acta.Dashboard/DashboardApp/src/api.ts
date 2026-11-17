@@ -644,7 +644,7 @@ export async function publishCalendar(
   calendarName: string,
   expectedCurrentVersion: number,
   candidateVersion: number,
-  overdueDecision: 'refuse' | 'discard',
+  overdueDecision: 'refuse' | 'skip',
   note?: string
 ): Promise<CalendarPublishResponse> {
   return controlRequest<CalendarPublishResponse>(

@@ -2267,8 +2267,8 @@ sealed class Acta.OutcomeUnknownException : Acta.ActaException
     .ctor(System.String message)
     .ctor(System.String message, System.Exception? innerException)
 enum Acta.OverdueDecisionCode : System.Byte
-    Discard = 20
     Refuse = 10
+    Skip = 20
     Unspecified = 0
 static class Acta.OverdueDecisionCodeExtensions
     static Acta.OverdueDecisionCode FromCode(System.String code)

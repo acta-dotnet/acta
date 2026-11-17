@@ -266,7 +266,7 @@ Console.WriteLine(
 Console.WriteLine(<span class="s">$&quot;catch-up-all-report    ran {all.Count} firings, one per missed occurrence, in order: {Ordered(all)}&quot;</span>);
 
 <span class="k">await</span> lab.ShowAsync(
-    <span class="s">&quot;Each policy's first decision after the resume: Skip's discarded range, CatchUpOnce's covering firing, CatchUpAll's first&quot;</span>,
+    <span class="s">&quot;Each policy's first decision after the resume: Skip's skipped range, CatchUpOnce's covering firing, CatchUpAll's first&quot;</span>,
     <span class="s">&quot;&quot;&quot;</span>
 <span class="s">    SELECT definition_name, event, details_text</span>
 <span class="s">    FROM events_view</span>
