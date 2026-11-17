@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>How to keep a schedule inside office hours · Acta, durable execution for .NET</title>
+  <meta name="description" content="How to keep a schedule inside office hours with Acta, durable execution for .NET. An availability calendar is the open time a schedule may fire in: windows by weekday, with a date closed or given other hours. A schedule names it, and an occurrence outside every window is left out, never moved." />
+  <link rel="canonical" href="https://useacta.net/learn/112-office-hours" />
+  <meta name="theme-color" content="#0B0E15" />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="Acta for .NET" />
+  <meta property="og:title" content="How to keep a schedule inside office hours · Acta, durable execution for .NET" />
+  <meta property="og:description" content="How to keep a schedule inside office hours with Acta, durable execution for .NET. An availability calendar is the open time a schedule may fire in: windows by weekday, with a date closed or given other hours. A schedule names it, and an occurrence outside every window is left out, never moved." />
+  <meta property="og:url" content="https://useacta.net/learn/112-office-hours" />
+  <meta property="og:image" content="https://useacta.net/assets/social-card.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="Acta: durable execution for .NET. Postgres, SQL Server, SQLite." />
+  <meta name="twitter:card" content="summary_large_image" />
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"How to keep a schedule inside office hours","description":"How to keep a schedule inside office hours with Acta, durable execution for .NET. An availability calendar is the open time a schedule may fire in: windows by weekday, with a date closed or given other hours. A schedule names it, and an occurrence outside every window is left out, never moved.","url":"https://useacta.net/learn/112-office-hours","inLanguage":"en","articleSection":"Run work on a schedule","isPartOf":{"@type":"CollectionPage","name":"Learn Acta","url":"https://useacta.net/learn"},"about":{"@type":"SoftwareSourceCode","name":"Acta","programmingLanguage":"C#","codeRepository":"https://github.com/acta-dotnet/acta"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Learn Acta","item":"https://useacta.net/learn"},{"@type":"ListItem","position":2,"name":"Run work on a schedule","item":"https://useacta.net/learn#s-schedule"},{"@type":"ListItem","position":3,"name":"How to keep a schedule inside office hours","item":"https://useacta.net/learn/112-office-hours"}]}</script>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="alternate" type="text/plain" href="/llms.txt" title="Acta for coding agents" />
+  <link rel="alternate" type="text/markdown" href="/learn/112-office-hours.md" title="This page as Markdown, for coding agents" />
+  <link rel="preload" href="/assets/fonts/fraunces-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="/assets/fonts/ibm-plex-sans-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="/assets/fonts/ibm-plex-mono-400-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <style>
+    /* Self-hosted latin subsets of the three families, preloaded and served immutable (see _headers),
+       so a reload paints them from cache with no swap and a first visit swaps them in as they land.
+       Fraunces and Plex Sans are variable files. */
+    @font-face { font-family: "Fraunces"; font-style: normal; font-weight: 400 600; font-display: swap; src: url(/assets/fonts/fraunces-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "Fraunces"; font-style: italic; font-weight: 400 500; font-display: swap; src: url(/assets/fonts/fraunces-italic-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "IBM Plex Sans"; font-style: normal; font-weight: 400 600; font-display: swap; src: url(/assets/fonts/ibm-plex-sans-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "IBM Plex Mono"; font-style: normal; font-weight: 400; font-display: swap; src: url(/assets/fonts/ibm-plex-mono-400-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "IBM Plex Mono"; font-style: normal; font-weight: 500; font-display: swap; src: url(/assets/fonts/ibm-plex-mono-500-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+  </style>
+  <link rel="stylesheet" href="/assets/site.css" />
+  <link rel="stylesheet" href="/assets/learn.css" />
+  <script src="/assets/theme.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#content">Skip to content</a>
+  <div class="chrome">
+    <div class="wrap chrome-inner">
+    <a class="brand site-brand" href="/" aria-label="Acta home"><svg viewBox="3.95 4.95 30.1 30.1" fill="none" stroke="currentColor" stroke-width="4.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 33 19 7 32 33" /><circle cx="19" cy="27" r="3" fill="currentColor" stroke="none" /></svg><span class="brand-word">Acta<span>.</span></span></a>
+    <span class="meta">Durable execution for .NET</span>
+    <nav aria-label="Primary links">
+      <a href="/start">Start</a>
+      <a href="/capabilities">Capabilities</a>
+      <a href="/benchmark">Benchmark</a>
+      <a href="/learn" aria-current="page">Learn</a>
+      <a href="https://github.com/acta-dotnet/acta" class="gh" aria-label="Acta on GitHub" title="Acta on GitHub"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><path fill="currentColor" d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"></path></svg></a>
+    </nav>
+    <span class="header-appearance" data-theme-controls></span>
+    </div>
+  </div>
+
+
+  <main id="content">
+    <header class="wrap page-head howto-head">
+      <p class="record"><a href="/learn">learn acta</a><span aria-hidden="true">/</span><a href="/learn#s-schedule">run work on a schedule</a></p>
+      <h1>How to keep a schedule inside office hours</h1>
+      <p class="lede">An availability calendar is the open time a schedule may fire in: windows by weekday, with a date closed or given other hours. A schedule names it, and an occurrence outside every window is left out, never moved.</p>
+      <p class="howto-context">A how-to for Acta, durable execution for .NET. <a href="/start">New to Acta? Run your first durable job in five minutes.</a></p>
+      <div class="howto-meta">
+        <span class="status checked">Checked every release</span>
+        <a class="program" href="https://github.com/acta-dotnet/acta/tree/main/learn/100-scheduling/112-office-hours"><code>learn/100-scheduling/112-office-hours</code></a>
+        <div class="reader" role="group" aria-label="Read this page as">
+        <span class="reader-label">Read as</span>
+        <button type="button" data-reader="person" aria-pressed="true">a person</button>
+        <button type="button" data-reader="agent" aria-pressed="false" data-md="/learn/112-office-hours.md">an agent</button>
+      </div>
+      </div>
+    </header>
+    <div class="wrap howto-body">
+      <article class="howto person-face">
+<div class="step"><h2><span class="step-n">1</span>Write the hours as a calendar definition</h2>
+<p>A <code>weekly-availability</code> definition opens windows by weekday. <code>dateOverrides</code> replaces one date's windows: the Friday before the holiday closes at noon, and <code>[]</code> closes the holiday itself. <code>&quot;timeZone&quot;: &quot;schedule&quot;</code> reads the hours in the zone of the schedule that names the calendar.</p>
+<figure class="listing"><figcaption><span class="file">office-hours.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">static</span> <span class="k">class</span> Definitions
+{
+<span class="hl">    <span class="k">public</span> <span class="k">const</span> <span class="k">string</span> OfficeHours = <span class="s">&quot;&quot;&quot;</span></span>
+<span class="hl"><span class="s">        {</span></span>
+<span class="hl"><span class="s">          &quot;kind&quot;: &quot;weekly-availability&quot;,</span></span>
+<span class="hl"><span class="s">          &quot;timeZone&quot;: &quot;schedule&quot;,</span></span>
+<span class="hl"><span class="s">          &quot;weekly&quot;: [</span></span>
+<span class="hl"><span class="s">            { &quot;days&quot;: [&quot;Monday&quot;, &quot;Tuesday&quot;, &quot;Wednesday&quot;, &quot;Thursday&quot;, &quot;Friday&quot;], &quot;windows&quot;: [[&quot;09:00&quot;, &quot;12:00&quot;], [&quot;13:00&quot;, &quot;17:00&quot;]] }</span></span>
+<span class="hl"><span class="s">          ],</span></span>
+<span class="hl"><span class="s">          &quot;dateOverrides&quot;: { &quot;2027-10-29&quot;: [[&quot;09:00&quot;, &quot;12:00&quot;]], &quot;2027-11-01&quot;: [] }</span></span>
+<span class="hl"><span class="s">        }</span></span>
+<span class="hl"><span class="s">        &quot;&quot;&quot;</span>;</span>
+}</code></pre></figure>
+</div>
+<div class="step"><h2><span class="step-n">2</span>Preview the draft, then publish it</h2>
+<p>The preview answers the draft's next windows from any instant, in the zone you name, so the hours can be read before a schedule follows them. This one starts on the Friday before a public holiday.</p>
+<figure class="listing"><figcaption><span class="file">office-hours.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">var</span> calendars = seedHost.Services.GetRequiredService&lt;IActaOperations&gt;().Calendars;
+
+<span class="hl"><span class="k">var</span> draft = <span class="k">await</span> calendars.SaveDraftAsync(officeHours, CalendarRoleCode.Availability, Definitions.OfficeHours);</span>
+<span class="hl"><span class="k">var</span> friday = <span class="k">new</span> DateTimeOffset(2027, 10, 29, 0, 0, 0, TimeSpan.Zero);</span>
+<span class="hl"><span class="k">var</span> preview = (<span class="k">await</span> calendars.PreviewAsync(officeHours, draft.Version!.Value, friday, count: 5, timeZoneId: <span class="s">&quot;Europe/Ljubljana&quot;</span>))!;</span>
+<span class="hl"><span class="k">foreach</span> (<span class="k">var</span> window <span class="k">in</span> preview.Windows)</span>
+<span class="hl">{</span>
+<span class="hl">    Console.WriteLine(<span class="s">$&quot;open {Local(window.StartUtc, &quot;ddd yyyy-MM-dd HH:mm&quot;)} to {Local(window.EndUtc!.Value, &quot;HH:mm&quot;)}&quot;</span>);</span>
+<span class="hl">}</span>
+<span class="hl"> </span>
+<span class="hl"><span class="k">await</span> calendars.PublishAsync(officeHours, draft.Version.Value, reasonMessage: <span class="s">&quot;Office hours&quot;</span>);</span>
+current = draft.Version.Value;
+
+<span class="k">await</span> seedHost.StopAsync();</code></pre></figure>
+</div>
+<div class="step"><h2><span class="step-n">3</span>Name the calendar on the schedule</h2>
+<p><code>Availability</code> names the calendar, and <code>TimeZoneId</code> is the zone its hours are read in. A tick outside the windows is left out; the next one inside them fires.</p>
+<figure class="listing"><figcaption><span class="file">office-hours.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> SyncCrmJob
+{
+    <span class="a">[Job(<span class="s">&quot;sync-crm&quot;</span>)]</span>
+<span class="hl">    <span class="a">[Schedule(<span class="s">&quot;quarter-hourly&quot;</span>, <span class="s">&quot;*/15 * * * *&quot;</span>, Availability = <span class="s">&quot;office-hours&quot;</span>, TimeZoneId = <span class="s">&quot;Europe/Ljubljana&quot;</span>)]</span></span>
+    <span class="k">public</span> Task Handle(SyncCrm input, CancellationToken ct)
+    {
+        Console.WriteLine(<span class="s">$&quot;{DateTime.UtcNow:HH:mm:ss} UTC synced the CRM&quot;</span>);
+        <span class="k">return</span> Task.CompletedTask;
+    }
+}</code></pre></figure>
+</div>
+<div class="step"><h2><span class="step-n">4</span>Run it and check the output</h2>
+<p>From a clone of <a href="https://github.com/acta-dotnet/acta">the Acta repository</a>, with the .NET 10 SDK:</p>
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project learn/100-scheduling/112-office-hours</code></pre></figure>
+<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button">Copy</button></figcaption><pre><code>open Fri 2027-10-29 09:00 to 12:00
+open Tue 2027-11-02 09:00 to 12:00
+open Tue 2027-11-02 13:00 to 17:00
+inside office hours: True</code></pre></figure>
+<p class="proof checked"><b>Checked every release.</b> Before each release, Acta Verify runs this program and checks that its output contains these lines.</p>
+<p class="hint">This page shows the code. The rules it relies on, starting with the handler running again from its first line, are in <a href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#handler-contract">the handler contract</a>.</p>
+</div>
+<div class="step plain-step"><h2>The whole program</h2>
+<p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/learn/100-scheduling/112-office-hours"><code>learn/100-scheduling/112-office-hours</code></a>, as it is compiled.</p>
+<p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
+<details class="source-file"><summary><span class="file-name">office-hours.cs</span><span class="file-size">105 lines</span></summary><figure class="listing"><figcaption><span class="file">office-hours.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to keep a schedule inside office hours</span>
+<span class="c">// An availability calendar is the open time a schedule may fire in: windows by weekday, with a date closed or given</span>
+<span class="c">// other hours. A schedule names it, and an occurrence outside every window is left out, never moved.</span>
+<span class="k">using</span> System.Globalization;
+<span class="k">using</span> Acta;
+<span class="k">using</span> Acta.Learn.OfficeHours;
+<span class="k">using</span> Microsoft.Extensions.DependencyInjection;
+<span class="k">using</span> Microsoft.Extensions.Hosting;
+
+<span class="c">// A family in sys is shared: every namespace binds it by its plain name.</span>
+<span class="k">var</span> officeHours = <span class="k">new</span> CalendarLookup(<span class="s">&quot;sys&quot;</span>, <span class="s">&quot;office-hours&quot;</span>);
+<span class="k">var</span> zone = TimeZoneInfo.FindSystemTimeZoneById(<span class="s">&quot;Europe/Ljubljana&quot;</span>);
+<span class="k">string</span> Local(DateTime utc, <span class="k">string</span> format) =&gt;
+    TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(utc, DateTimeKind.Utc), zone).ToString(format, CultureInfo.InvariantCulture);
+
+<span class="c">// Phase 1: a deploy step publishes the calendar before the jobs that name it start. An enqueue-only host (no Run&lt;&gt;)</span>
+<span class="c">// still bootstraps the schema, and the operations need no worker.</span>
+<span class="k">long</span> current;
+{
+    <span class="k">var</span> seed = Host.CreateApplicationBuilder(args);
+    seed.Services.UseActa(j =&gt; j.UseLocalDatabase(seed.Configuration));
+    <span class="k">using</span> <span class="k">var</span> seedHost = seed.Build();
+    <span class="k">await</span> seedHost.StartAsync();
+
+    <span class="k">var</span> calendars = seedHost.Services.GetRequiredService&lt;IActaOperations&gt;().Calendars;
+
+    <span class="c">// learn: 2. Preview the draft, then publish it</span>
+    <span class="c">// The preview answers the draft's next windows from any instant, in the zone you name, so the hours can be read</span>
+    <span class="c">// before a schedule follows them. This one starts on the Friday before a public holiday.</span>
+<span class="hl">    <span class="k">var</span> draft = <span class="k">await</span> calendars.SaveDraftAsync(officeHours, CalendarRoleCode.Availability, Definitions.OfficeHours);</span>
+<span class="hl">    <span class="k">var</span> friday = <span class="k">new</span> DateTimeOffset(2027, 10, 29, 0, 0, 0, TimeSpan.Zero);</span>
+<span class="hl">    <span class="k">var</span> preview = (<span class="k">await</span> calendars.PreviewAsync(officeHours, draft.Version!.Value, friday, count: 5, timeZoneId: <span class="s">&quot;Europe/Ljubljana&quot;</span>))!;</span>
+<span class="hl">    <span class="k">foreach</span> (<span class="k">var</span> window <span class="k">in</span> preview.Windows)</span>
+<span class="hl">    {</span>
+<span class="hl">        Console.WriteLine(<span class="s">$&quot;open {Local(window.StartUtc, &quot;ddd yyyy-MM-dd HH:mm&quot;)} to {Local(window.EndUtc!.Value, &quot;HH:mm&quot;)}&quot;</span>);</span>
+<span class="hl">    }</span>
+<span class="hl"> </span>
+<span class="hl">    <span class="k">await</span> calendars.PublishAsync(officeHours, draft.Version.Value, reasonMessage: <span class="s">&quot;Office hours&quot;</span>);</span>
+    <span class="c">// learn: end</span>
+    current = draft.Version.Value;
+
+    <span class="k">await</span> seedHost.StopAsync();
+}
+
+<span class="c">// Phase 2: the start deploys sync-crm, whose schedule names office-hours. The deploy checks that the family has a</span>
+<span class="c">// published version.</span>
+<span class="k">var</span> builder = Host.CreateApplicationBuilder(args);
+builder.Services.UseActa(j =&gt;
+{
+    j.UseLocalDatabase(builder.Configuration);
+    j.Run&lt;OfficeHoursJobs&gt;(<span class="s">&quot;crm&quot;</span>);
+});
+
+<span class="k">using</span> <span class="k">var</span> host = builder.Build();
+<span class="k">await</span> host.StartAsync();
+
+<span class="c">// The cron ticks every quarter of an hour, day and night; the schedule's next occurrence is the first tick inside a</span>
+<span class="c">// window. The namespace also lists the system jobs' schedules (alerts, retention), so the read names the job.</span>
+<span class="k">var</span> operations = host.Services.GetRequiredService&lt;IActaOperations&gt;();
+<span class="k">var</span> schedule = (<span class="k">await</span> operations.Schedules.ListAsync(<span class="k">new</span> ListSchedulesQuery(JobNamespace: <span class="s">&quot;crm&quot;</span>, JobName: <span class="s">&quot;sync-crm&quot;</span>))).Items.Single();
+<span class="k">var</span> next = schedule.NextOccurrenceAtUtc!.Value;
+<span class="k">var</span> from = <span class="k">new</span> DateTimeOffset(next, TimeSpan.Zero);
+<span class="k">var</span> open = (<span class="k">await</span> operations.Calendars.PreviewAsync(officeHours, current, from, count: 1, timeZoneId: <span class="s">&quot;Europe/Ljubljana&quot;</span>))!.Windows[0];
+Console.WriteLine(<span class="s">$&quot;Next firing {Local(next, &quot;ddd yyyy-MM-dd HH:mm&quot;)}; inside office hours: {open.StartUtc &lt;= next &amp;&amp; next &lt; open.EndUtc}&quot;</span>);
+
+<span class="k">await</span> host.StopAsync();
+
+<span class="k">namespace</span> Acta.Learn.OfficeHours
+{
+    <span class="k">public</span> <span class="k">readonly</span> <span class="k">record</span> <span class="k">struct</span> SyncCrm;
+
+    <span class="k">public</span> <span class="k">static</span> <span class="k">class</span> Definitions
+    {
+        <span class="c">// learn: 1. Write the hours as a calendar definition</span>
+        <span class="c">// A `weekly-availability` definition opens windows by weekday. `dateOverrides` replaces one date's windows:</span>
+        <span class="c">// the Friday before the holiday closes at noon, and `[]` closes the holiday itself. `&quot;timeZone&quot;: &quot;schedule&quot;`</span>
+        <span class="c">// reads the hours in the zone of the schedule that names the calendar.</span>
+<span class="hl">        <span class="k">public</span> <span class="k">const</span> <span class="k">string</span> OfficeHours = <span class="s">&quot;&quot;&quot;</span></span>
+<span class="hl"><span class="s">            {</span></span>
+<span class="hl"><span class="s">              &quot;kind&quot;: &quot;weekly-availability&quot;,</span></span>
+<span class="hl"><span class="s">              &quot;timeZone&quot;: &quot;schedule&quot;,</span></span>
+<span class="hl"><span class="s">              &quot;weekly&quot;: [</span></span>
+<span class="hl"><span class="s">                { &quot;days&quot;: [&quot;Monday&quot;, &quot;Tuesday&quot;, &quot;Wednesday&quot;, &quot;Thursday&quot;, &quot;Friday&quot;], &quot;windows&quot;: [[&quot;09:00&quot;, &quot;12:00&quot;], [&quot;13:00&quot;, &quot;17:00&quot;]] }</span></span>
+<span class="hl"><span class="s">              ],</span></span>
+<span class="hl"><span class="s">              &quot;dateOverrides&quot;: { &quot;2027-10-29&quot;: [[&quot;09:00&quot;, &quot;12:00&quot;]], &quot;2027-11-01&quot;: [] }</span></span>
+<span class="hl"><span class="s">            }</span></span>
+<span class="hl"><span class="s">            &quot;&quot;&quot;</span>;</span>
+        <span class="c">// learn: end</span>
+    }
+
+    <span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> SyncCrmJob
+    {
+        <span class="a">[Job(<span class="s">&quot;sync-crm&quot;</span>)]</span>
+        <span class="c">// learn: 3. Name the calendar on the schedule</span>
+        <span class="c">// `Availability` names the calendar, and `TimeZoneId` is the zone its hours are read in. A tick outside the</span>
+        <span class="c">// windows is left out; the next one inside them fires.</span>
+<span class="hl">        <span class="a">[Schedule(<span class="s">&quot;quarter-hourly&quot;</span>, <span class="s">&quot;*/15 * * * *&quot;</span>, Availability = <span class="s">&quot;office-hours&quot;</span>, TimeZoneId = <span class="s">&quot;Europe/Ljubljana&quot;</span>)]</span></span>
+        <span class="c">// learn: end</span>
+        <span class="k">public</span> Task Handle(SyncCrm input, CancellationToken ct)
+        {
+            Console.WriteLine(<span class="s">$&quot;{DateTime.UtcNow:HH:mm:ss} UTC synced the CRM&quot;</span>);
+            <span class="k">return</span> Task.CompletedTask;
+        }
+    }
+}</code></pre></figure>
+</details></div>
+<div class="step plain-step"><h2>Where to go next</h2><ul class="next-links"><li><a href="/learn/113-business-day-schedule">How to run a job on the last business day of each month</a><span>Run work on a schedule</span></li></ul></div>
+      </article>
+      <article class="agent-face" hidden>
+        <figure class="listing agent"><figcaption><span class="file">/learn/112-office-hours.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/112-office-hours.md">Open</a><button class="copy" type="button">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
+        <p class="hint">This is the page an agent receives: the same how-to as plain Markdown, at this page's address with <code>.md</code> added.</p>
+      </article>
+      <aside class="howto-rail" aria-label="This section">
+        <p class="rail-head"><a href="/learn#s-schedule">Run work on a schedule</a></p>
+        <ol>
+            <li><a href="/learn/101-recurring-job" data-id="101"><span class="rail-n">1</span>Run a job on a repeating schedule</a></li>
+            <li><a href="/learn/104-timezone-schedule" data-id="104"><span class="rail-n">2</span>Run a job every day at a set hour in your time zone</a></li>
+            <li><a href="/learn/102-interval-schedule" data-id="102"><span class="rail-n">3</span>Replace a timer loop with an interval schedule</a></li>
+            <li><a href="/learn/103-multiple-schedules" data-id="103"><span class="rail-n">4</span>Give one job several schedules</a></li>
+            <li><a href="/learn/106-schedule-misfire" data-id="106"><span class="rail-n">5</span>Decide what happens to runs a schedule missed</a></li>
+            <li><a href="/learn/105-schedule-control" data-id="105"><span class="rail-n">6</span>Pause and resume a schedule</a></li>
+            <li><a href="/learn/108-calendar-catalog" data-id="108"><span class="rail-n">7</span>Drive a schedule from a published calendar</a></li>
+            <li aria-current="page"><a href="/learn/112-office-hours" data-id="112"><span class="rail-n">8</span>Keep a schedule inside office hours</a></li>
+            <li><a href="/learn/113-business-day-schedule" data-id="113"><span class="rail-n">9</span>Run a job on the last business day of each month</a></li>
+            <li><a href="/learn/114-holiday-calendar" data-id="114"><span class="rail-n">10</span>Skip public holidays on a daily schedule</a></li>
+            <li><a href="/learn/110-per-occurrence-delivery" data-id="110"><span class="rail-n">11</span>Make every occurrence its own job</a></li>
+            <li><a href="/learn/111-firing-failure-policy" data-id="111"><span class="rail-n">12</span>Decide what a failed firing does to its schedule</a></li>
+            <li><a href="/learn/214-reset-state" data-id="214"><span class="rail-n">13</span>Start each firing of a recurring job clean</a></li>
+        </ol>
+        <button class="button done-toggle" type="button" data-done-toggle="112" aria-pressed="false">Mark as done</button>
+        <p class="rail-turn"><a href="/learn/108-calendar-catalog" rel="prev">Previous</a><a href="/learn/113-business-day-schedule" rel="next">Next</a></p>
+      </aside>
+    </div>
+    <section class="wrap newcomer" aria-labelledby="newcomer-title">
+      <h2 id="newcomer-title">New to Acta?</h2>
+      <p class="lede">Acta is durable execution for .NET: workflows and jobs that survive restarts, as a library inside your application with its durable state in your SQL database.</p>
+      <div class="actions">
+        <a class="button primary" href="/start">Run your first durable job in five minutes</a>
+        <a class="button" href="/learn">See every how-to</a>
+        <a class="button" href="/capabilities">Everything Acta does</a>
+      </div>
+    </section>
+    <footer class="site-footer">
+      <div class="wrap">
+        <div class="footer-grid">
+          <div class="footer-about">
+            <a class="site-brand" href="/" aria-label="Acta home"><svg viewBox="3.95 4.95 30.1 30.1" fill="none" stroke="currentColor" stroke-width="4.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 33 19 7 32 33" /><circle cx="19" cy="27" r="3" fill="currentColor" stroke="none" /></svg><span class="brand-word">Acta<span>.</span></span></a>
+            <p>Durable execution for .NET.</p>
+            <p>A library inside your application.<br />Durable state in your SQL database.</p>
+            <p class="footer-license">Apache-2.0 · built in the open</p>
+          </div>
+          <nav aria-label="Explore">
+            <p class="footer-head">Explore</p>
+            <a href="/how-it-works">How Acta works</a>
+            <a href="/capabilities">Capabilities</a>
+            <a href="/engine">Inside one worker</a>
+            <a href="/fleet">Workers and recovery</a>
+            <a href="/gates">Order and limits</a>
+            <a href="/benchmark">Benchmark and evidence</a>
+            <a href="/choosing">Choosing Acta</a>
+          </nav>
+          <nav aria-label="Build">
+            <p class="footer-head">Build</p>
+            <a href="/start">Get started</a>
+            <a href="/learn">Learn Acta</a>
+            <a href="https://github.com/acta-dotnet/acta/tree/main/docs">Documentation</a>
+            <a href="https://github.com/acta-dotnet/acta/tree/main/learn">How-to programs</a>
+            <a href="https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md">Engineering labs</a>
+            <a href="/llms.txt">llms.txt for coding agents</a>
+          </nav>
+          <div class="footer-release">
+            <p class="footer-head">Release</p>
+            <p class="footer-version"><span class="release-dot" aria-hidden="true"></span><a href="https://github.com/acta-dotnet/acta/releases">1.0.0-rc.12 <span aria-hidden="true">↗</span></a><span>a release candidate</span></p>
+            <a href="https://github.com/acta-dotnet/acta/blob/main/docs/compatibility-and-support.md">Compatibility</a>
+            <a href="/support">Support Acta</a>
+            <a href="https://github.com/acta-dotnet/acta/blob/main/docs/known-limitations.md#stability-status">Stability status</a>
+            <a href="https://github.com/acta-dotnet/acta">Source on GitHub <span aria-hidden="true">↗</span></a>
+          </div>
+        </div>
+        <div class="footer-bottom">
+          <p>Created and maintained by <a href="https://www.linkedin.com/in/marko-voncina">Marko Vončina</a></p>
+          <span data-theme-controls></span>
+        </div>
+      </div>
+    </footer>
+  </main>
+  <p class="sr-only" id="copy-status" aria-live="polite"></p>
+  <script src="/assets/learn.js"></script>
+</body>
+</html>

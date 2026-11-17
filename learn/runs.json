@@ -72,6 +72,24 @@
     "were skipped while full, each audited as schedule.skipped with the reason capacity"
   ],
   "111-firing-failure-policy": ["then its schedule paused", "and is still scheduled", "sync-prices-continuing | active"],
+  "112-office-hours": [
+    "open Fri 2027-10-29 09:00 to 12:00",
+    "open Tue 2027-11-02 09:00 to 12:00",
+    "open Tue 2027-11-02 13:00 to 17:00",
+    "inside office hours: True"
+  ],
+  "113-business-day-schedule": [
+    "settles Fri 2027-10-29 16:00",
+    "settles Tue 2027-11-30 16:00",
+    "settles Thu 2027-12-30 16:00",
+    "the calendar's next instant: True"
+  ],
+  "114-holiday-calendar": [
+    "reports Fri 2027-10-29 08:00",
+    "reports Tue 2027-11-02 08:00",
+    "reports Wed 2027-11-03 08:00",
+    "the calendar's next instant: True"
+  ],
   "201-durable-checkout": [
     "fraud-review raised: approved",
     "approval observed by handler; reviewer=alice",

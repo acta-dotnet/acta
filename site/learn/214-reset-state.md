@@ -2,7 +2,7 @@
 
 A permanent job keeps its variables and step results from one firing to the next. `ResetStateAsync` as the firing's last line clears them, so the next one starts blank.
 
-- Section: Run work on a schedule, step 10
+- Section: Run work on a schedule, step 13
 - Program: `learn/200-durable-execution/214-reset-state` in https://github.com/acta-dotnet/acta (one compiled project)
 - Status: Checked every release. Before each release, Acta Verify runs this program and checks that its output contains these lines.
 - Rules: [/llms.txt](/llms.txt) is the contract every handler follows, starting with the handler running again from its first line; read it before you copy code from here.

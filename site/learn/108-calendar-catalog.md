@@ -117,7 +117,7 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## Next
 
-- [How to make every occurrence its own job](/learn/110-per-occurrence-delivery.md)
+- [How to keep a schedule inside office hours](/learn/112-office-hours.md)
 
 ## More
 

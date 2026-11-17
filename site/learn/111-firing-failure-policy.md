@@ -2,7 +2,7 @@
 
 A firing that spends its retry budget returns the permanent job to `Idle`. `FiringFailurePolicy` says what happens to its schedules then: `Continue`, the default, fires the next occurrence as usual, and `Pause` pauses them, with the reason, until an operator resumes them.
 
-- Section: Run work on a schedule, step 9
+- Section: Run work on a schedule, step 12
 - Program: `learn/100-scheduling/111-firing-failure-policy` in https://github.com/acta-dotnet/acta (one compiled project)
 - Status: Checked every release. Before each release, Acta Verify runs this program and checks that its output contains these lines.
 - Rules: [/llms.txt](/llms.txt) is the contract every handler follows, starting with the handler running again from its first line; read it before you copy code from here.
