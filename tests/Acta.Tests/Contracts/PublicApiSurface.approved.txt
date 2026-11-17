@@ -362,7 +362,7 @@ sealed record Acta.CancelJobResponse : Acta.IJobControlResponse
     System.Nullable<Acta.JobStatusCode> Status { get;init; }
     System.Nullable<System.Int64> Version { get;init; }
 enum Acta.CheckpointKindCode : System.Byte
-    ChildLatch = 50
+    Child = 50
     Firing = 60
     Progress = 40
     Signal = 20

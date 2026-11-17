@@ -119,7 +119,7 @@ BEGIN
                     INSERT INTO @checkpoint_locks (name)
                     SELECT CONCAT(N'{{schema}}.checkpoint:', c.job_id, N':', k.kind_code, N':', c.wait_signal_name)
                     FROM @p_batch c
-                    CROSS JOIN (VALUES (20 /* CheckpointKindCode.Signal */), (50 /* CheckpointKindCode.ChildLatch */)) k (kind_code)
+                    CROSS JOIN (VALUES (20 /* CheckpointKindCode.Signal */), (50 /* CheckpointKindCode.Child */)) k (kind_code)
                     WHERE c.wait_signal_name IS NOT NULL
                     UNION
                     SELECT CONCAT(N'{{schema}}.checkpoint:', x.parent_job_id, N':50:sys.child.', x.job_id)
@@ -147,7 +147,7 @@ BEGIN
                 LEFT JOIN {{schema}}.checkpoints s WITH (UPDLOCK, FORCESEEK)
                     ON
                         s.job_id = x.job_id
-                        AND s.checkpoint_kind_code IN (20 /* CheckpointKindCode.Signal */, 50 /* CheckpointKindCode.ChildLatch */)
+                        AND s.checkpoint_kind_code IN (20 /* CheckpointKindCode.Signal */, 50 /* CheckpointKindCode.Child */)
                         AND s.checkpoint_name = c.wait_signal_name
                 OPTION (FORCE ORDER, LOOP JOIN);
             END
@@ -564,7 +564,7 @@ BEGIN
                     SET latch_state = s.checkpoint_status_code
                     FROM #parents p
                     LEFT JOIN {{schema}}.checkpoints s WITH (UPDLOCK, FORCESEEK)
-                        ON s.job_id = p.parent_job_id AND s.checkpoint_kind_code = 50 /* CheckpointKindCode.ChildLatch */ AND s.checkpoint_name = p.latch_name
+                        ON s.job_id = p.parent_job_id AND s.checkpoint_kind_code = 50 /* CheckpointKindCode.Child */ AND s.checkpoint_name = p.latch_name
                     OPTION (FORCE ORDER, LOOP JOIN);
 
                     UPDATE p
@@ -585,7 +585,7 @@ BEGIN
                         version = s.version + 1
                     FROM #parents p
                     INNER JOIN {{schema}}.checkpoints s WITH (FORCESEEK)
-                        ON s.job_id = p.parent_job_id AND s.checkpoint_kind_code = 50 /* CheckpointKindCode.ChildLatch */ AND s.checkpoint_name = p.latch_name
+                        ON s.job_id = p.parent_job_id AND s.checkpoint_kind_code = 50 /* CheckpointKindCode.Child */ AND s.checkpoint_name = p.latch_name
                     WHERE p.latch_state <> 30 /* CheckpointStatusCode.Expired */;
 
                     INSERT INTO {{schema}}.checkpoints (
@@ -593,7 +593,7 @@ BEGIN
                         created_at_utc, modified_at_utc, version
                     )
                     SELECT
-                        p.parent_job_id, 50 /* CheckpointKindCode.ChildLatch */, p.latch_name,
+                        p.parent_job_id, 50 /* CheckpointKindCode.Child */, p.latch_name,
                         20 /* CheckpointStatusCode.Set */, 1 /* JobPayloadFormat.Json */, p.envelope,
                         @now, @now, 0
                     FROM #parents p

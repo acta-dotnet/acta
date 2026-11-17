@@ -9,7 +9,7 @@ LEFT JOIN {{schema}}.jobs c
     ON c.job_id =CASE WHEN js.checkpoint_name ~ '^sys\.child\.[0-9]+$' THEN substring(js.checkpoint_name from 11)::bigint END
 LEFT JOIN {{schema}}.jobs_state cr ON cr.job_id = c.job_id
 WHERE
-    js.checkpoint_kind_code = 50 /* CheckpointKindCode.ChildLatch */
+    js.checkpoint_kind_code = 50 /* CheckpointKindCode.Child */
     AND js.checkpoint_name ~ '^sys\.child\.[0-9]+$'
     AND js.checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */
     -- A terminal parent waits on nothing, and a job that is not the parent's child never raises the latch.

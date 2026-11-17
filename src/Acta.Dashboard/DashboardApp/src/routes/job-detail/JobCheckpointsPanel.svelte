@@ -8,7 +8,7 @@
   import { displayFormatter } from '../../format.ts';
   import { jobControlMessage } from '../../lib/controlMessages.ts';
 
-  // Checkpoints (variables, signals, timers, progress, child-latches) come from the aggregate detail read's first
+  // Checkpoints (variables, signals, timers, progress, children) come from the aggregate detail read's first
   // page; a value payload expands inline, and a larger set says so. A signal row carries a Clear action where the
   // server would take it: for a control-capable caller, on a finished job or a permanent job between firings, never on
   // a system job, whose signals are commands it has yet to apply.

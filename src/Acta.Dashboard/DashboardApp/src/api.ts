@@ -733,7 +733,7 @@ export interface JobDetailView {
   workersTotal?: number;
 }
 
-// One checkpoint row (variable/signal/timer/progress/child-latch); kind and state are kebab code
+// One checkpoint row (variable/signal/timer/progress/child); kind and state are kebab code
 // strings. `value` carries the format-dispatched payload shape when the checkpoint holds one.
 export interface JobCheckpoint {
   kind: string;

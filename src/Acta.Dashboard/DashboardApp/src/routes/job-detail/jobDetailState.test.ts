@@ -51,11 +51,11 @@ test('child rollup is deterministic by count then status', () => {
   ]);
 });
 
-test('a child latch wait reads as a child job, not as a timer', () => {
+test('a child wait reads as a child job, not as a timer', () => {
   // The wire value is the kebab code the CheckpointKindCode converter writes, and the checkpoint name is
   // the framework key the parent's latch is stored under.
-  assert.deepEqual(activeWaitLabel('child-latch', 'sys.child.42'), { kind: 'child job', name: '42' });
-  assert.deepEqual(activeWaitLabel('child-latch', 'sys.child.42', 'echo'), { kind: 'child', name: 'echo' });
+  assert.deepEqual(activeWaitLabel('child', 'sys.child.42'), { kind: 'child job', name: '42' });
+  assert.deepEqual(activeWaitLabel('child', 'sys.child.42', 'echo'), { kind: 'child', name: 'echo' });
   assert.deepEqual(activeWaitLabel('signal', 'approval'), { kind: 'signal', name: 'approval' });
   assert.deepEqual(activeWaitLabel('timer', 'nightly'), { kind: 'timer', name: 'nightly' });
 });
@@ -71,7 +71,7 @@ test('an unfamiliar wait kind names itself instead of borrowing another kind nam
   // whether the kind was a signal.
   assert.deepEqual(activeWaitLabel('Progress', 'sys.progress'), { kind: 'progress', name: 'sys.progress' });
   // A child latch whose name is not the framework key keeps the name verbatim, as the explainer does.
-  assert.deepEqual(activeWaitLabel('child-latch', 'legacy-latch'), { kind: 'child latch', name: 'legacy-latch' });
+  assert.deepEqual(activeWaitLabel('child', 'legacy-latch'), { kind: 'child', name: 'legacy-latch' });
 });
 
 test('payload format labels known and unknown ids', () => {

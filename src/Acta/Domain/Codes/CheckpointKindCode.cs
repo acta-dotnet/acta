@@ -4,7 +4,7 @@ namespace Acta;
 
 /// <summary>
 /// What a checkpoint holds: one of the durable values a job keeps between attempts. Names are separate for each kind, so a variable never
-/// collides with a signal or a child latch of the same name.
+/// collides with a signal or a child of the same name.
 /// </summary>
 /// <remarks>One table, <c>checkpoints</c>, holds every kind, keyed by <c>(job_id, checkpoint_kind_code, checkpoint_name)</c>.</remarks>
 [JsonConverter(typeof(CheckpointKindCodeJsonConverter))]
@@ -30,9 +30,9 @@ public enum CheckpointKindCode : byte
     [Code("progress", "The job's progress, one per job; the last write wins.")]
     Progress = 40,
 
-    /// <summary>Child terminal-outcome latch raised on the parent when a child lands terminal.</summary>
-    [Code("child-latch", "The latch a parent job holds for one child's outcome; pending while awaited, set when the child ends.")]
-    ChildLatch = 50,
+    /// <summary>A child's outcome, recorded on its parent when the child ends.</summary>
+    [Code("child", "One child's outcome as its parent holds it; pending while awaited, set when the child ends.")]
+    Child = 50,
 
     /// <summary>
     /// The engine's firing envelope, one <c>sys.firing</c> checkpoint per scheduled job: the contributing schedules and

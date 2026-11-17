@@ -88,14 +88,14 @@ SELECT
     @p_execution_number,
     'The wait for '
     || CASE
-        WHEN @p_checkpoint_kind_code = 50 /* CheckpointKindCode.ChildLatch */
+        WHEN @p_checkpoint_kind_code = 50 /* CheckpointKindCode.Child */
             THEN 'child ' || COALESCE('''' || ch.deduplication_key || '''', 'job ' || substr(@p_checkpoint_name, 11))
         ELSE 'signal ''' || @p_checkpoint_name || ''''
     END || ' expired.',
     1 /* JobPayloadFormat.Json */,
     CAST(
         json_object(
-            'kind', CASE WHEN @p_checkpoint_kind_code = 50 /* CheckpointKindCode.ChildLatch */ THEN 'child-latch' ELSE 'signal' END,
+            'kind', CASE WHEN @p_checkpoint_kind_code = 50 /* CheckpointKindCode.Child */ THEN 'child' ELSE 'signal' END,
             'name', @p_checkpoint_name,
             'dueAtUtc', strftime('%Y-%m-%dT%H:%M:%fZ', c.due_at_utc / 1000.0, 'unixepoch')
         ) AS BLOB
@@ -104,7 +104,7 @@ FROM {{schema}}.checkpoints c
 JOIN {{schema}}.jobs j ON j.job_id = c.job_id
 LEFT JOIN {{schema}}.jobs ch
     ON
-        @p_checkpoint_kind_code = 50 /* CheckpointKindCode.ChildLatch */
+        @p_checkpoint_kind_code = 50 /* CheckpointKindCode.Child */
         AND ch.parent_job_id = j.job_id
         -- A seek on the child's id, the latch name's tail, so no sibling row is read.
         AND ch.job_id = CAST(substr(@p_checkpoint_name, 11) AS INTEGER)

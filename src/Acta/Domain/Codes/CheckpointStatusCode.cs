@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 namespace Acta;
 
 /// <summary>
-/// Where a checkpoint that has a status stands. A signal or child latch is pending until it is set or its wait expires; a timer is
+/// Where a checkpoint that has a status stands. A signal or a child is pending until it is set or its wait expires; a timer is
 /// pending until it is consumed; a firing is pending until it succeeds, fails, or is cancelled. Variables and progress have no status.
 /// </summary>
 [JsonConverter(typeof(CheckpointStatusCodeJsonConverter))]
@@ -17,7 +17,7 @@ public enum CheckpointStatusCode : byte
     [Code("pending", "Awaited or armed; the checkpoint has not been satisfied yet.")]
     Pending = 10,
 
-    /// <summary>Raised: the payload is stored and a waiting job proceeds (signals, child latches).</summary>
+    /// <summary>Raised: the payload is stored and a waiting job proceeds (signals, children).</summary>
     [Code("set", "Raised; the payload is stored and a waiting job proceeds.")]
     Set = 20,
 

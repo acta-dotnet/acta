@@ -90,7 +90,7 @@ public sealed class PersistedCodeContractTests
         CheckpointKindCode.Signal=20|signal
         CheckpointKindCode.Timer=30|timer
         CheckpointKindCode.Progress=40|progress
-        CheckpointKindCode.ChildLatch=50|child-latch
+        CheckpointKindCode.Child=50|child
         CheckpointKindCode.Firing=60|firing
         CheckpointStatusCode.Unspecified=0|unspecified
         CheckpointStatusCode.Pending=10|pending
@@ -207,7 +207,7 @@ public sealed class PersistedCodeContractTests
         WorkerStatusCode.Dead=200|dead
         """;
 
-    private const string ExpectedDescriptionHash = "2E87DCB03E55D6305F9219BCE6E00B4AE8FEC12EF485FAEC004FCBC95E0B395B";
+    private const string ExpectedDescriptionHash = "E23504169E7C9C30E37833DA339C5951FBDAECDBD2448DFABFBFD8C10ECE12BB";
 
     [Fact]
     public void Frozen_contract_covers_all_32_families_and_196_values()

@@ -34,7 +34,7 @@ export interface JobWait {
   kind: string;
   name: string;
   dueAtUtc: string | null;
-  // A child-latch wait names its child, by ref and by the name its parent gave it; absent for other waits.
+  // A child wait names its child, by ref and by the name its parent gave it; absent for other waits.
   childJobRef?: string | null;
   childName?: string | null;
 }

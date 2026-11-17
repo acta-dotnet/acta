@@ -2,7 +2,7 @@ namespace Acta;
 
 /// <summary>
 /// Durable signals, as the engine raises and waits on them. The kind is <c>Signal</c> for user signals
-/// and <c>ChildLatch</c> for system child latches; both flow through the same checkpoint machinery.
+/// and <c>Child</c> for a child's outcome; both flow through the same checkpoint machinery.
 /// </summary>
 internal sealed class SignalsOperations(RaiseJobSignalHandler raiseJobSignal, WaitJobSignalHandler waitJobSignal)
 {

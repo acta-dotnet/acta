@@ -70,7 +70,7 @@ await lab.ShowAsync(
     new { rootJobId = outcome.JobId }
 );
 await lab.ShowAsync(
-    "The waiting parent owns child-latch checkpoints and no worker",
+    "The waiting parent owns child checkpoints and no worker",
     """
     SELECT checkpoint_name, checkpoint_kind, checkpoint_status
     FROM checkpoints_view

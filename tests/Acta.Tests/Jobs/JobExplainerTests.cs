@@ -131,12 +131,12 @@ public class JobExplainerTests
     {
         var data = Data(
             Header(JobStatusCode.Suspended),
-            checkpoints: [Checkpoint(CheckpointKindCode.ChildLatch, "sys.child.4242", CheckpointStatusCode.Pending)]
+            checkpoints: [Checkpoint(CheckpointKindCode.Child, "sys.child.4242", CheckpointStatusCode.Pending)]
         );
 
         var x = ExplainJobHandler.Explain(data, Now);
 
-        Assert.Equal(CheckpointKindCode.ChildLatch, x.ActiveWait!.Kind);
+        Assert.Equal(CheckpointKindCode.Child, x.ActiveWait!.Kind);
         Assert.Equal("sys.child.4242", x.ActiveWait.Name);
         // The id is what an operator can look up; the slot's spelling is framework bookkeeping.
         Assert.Contains("waiting for child job 4242", x.Headline, StringComparison.Ordinal);
@@ -157,7 +157,7 @@ public class JobExplainerTests
     {
         var data = Data(
             Header(JobStatusCode.Suspended),
-            checkpoints: [Checkpoint(CheckpointKindCode.ChildLatch, "sys.child.7", CheckpointStatusCode.Pending, Now.AddMinutes(30))]
+            checkpoints: [Checkpoint(CheckpointKindCode.Child, "sys.child.7", CheckpointStatusCode.Pending, Now.AddMinutes(30))]
         );
 
         var x = ExplainJobHandler.Explain(data, Now);

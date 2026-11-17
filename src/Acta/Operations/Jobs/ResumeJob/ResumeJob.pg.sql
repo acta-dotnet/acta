@@ -81,7 +81,7 @@ SET
             FROM {{schema}}.checkpoints cp
             WHERE
                 cp.job_id = r.job_id
-                AND cp.checkpoint_kind_code IN (20 /* CheckpointKindCode.Signal */, 50 /* CheckpointKindCode.ChildLatch */)
+                AND cp.checkpoint_kind_code IN (20 /* CheckpointKindCode.Signal */, 50 /* CheckpointKindCode.Child */)
                 AND cp.due_at_utc = r.next_run_at_utc
         ) THEN now()
         ELSE GREATEST(r.next_run_at_utc, now())

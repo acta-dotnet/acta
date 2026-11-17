@@ -1312,7 +1312,7 @@ BEGIN
                     INSERT INTO @checkpoint_locks (name)
                     SELECT CONCAT(N'{{schema}}.checkpoint:', c.job_id, N':', k.kind_code, N':', c.wait_signal_name)
                     FROM @p_batch c
-                    CROSS JOIN (VALUES (20 /* CheckpointKindCode.Signal */), (50 /* CheckpointKindCode.ChildLatch */)) k (kind_code)
+                    CROSS JOIN (VALUES (20 /* CheckpointKindCode.Signal */), (50 /* CheckpointKindCode.Child */)) k (kind_code)
                     WHERE c.wait_signal_name IS NOT NULL
                     UNION
                     SELECT CONCAT(N'{{schema}}.checkpoint:', x.parent_job_id, N':50:sys.child.', x.job_id)
@@ -1340,7 +1340,7 @@ BEGIN
                 LEFT JOIN {{schema}}.checkpoints s WITH (UPDLOCK, FORCESEEK)
                     ON
                         s.job_id = x.job_id
-                        AND s.checkpoint_kind_code IN (20 /* CheckpointKindCode.Signal */, 50 /* CheckpointKindCode.ChildLatch */)
+                        AND s.checkpoint_kind_code IN (20 /* CheckpointKindCode.Signal */, 50 /* CheckpointKindCode.Child */)
                         AND s.checkpoint_name = c.wait_signal_name
                 OPTION (FORCE ORDER, LOOP JOIN);
             END
@@ -1757,7 +1757,7 @@ BEGIN
                     SET latch_state = s.checkpoint_status_code
                     FROM #parents p
                     LEFT JOIN {{schema}}.checkpoints s WITH (UPDLOCK, FORCESEEK)
-                        ON s.job_id = p.parent_job_id AND s.checkpoint_kind_code = 50 /* CheckpointKindCode.ChildLatch */ AND s.checkpoint_name = p.latch_name
+                        ON s.job_id = p.parent_job_id AND s.checkpoint_kind_code = 50 /* CheckpointKindCode.Child */ AND s.checkpoint_name = p.latch_name
                     OPTION (FORCE ORDER, LOOP JOIN);
 
                     UPDATE p
@@ -1778,7 +1778,7 @@ BEGIN
                         version = s.version + 1
                     FROM #parents p
                     INNER JOIN {{schema}}.checkpoints s WITH (FORCESEEK)
-                        ON s.job_id = p.parent_job_id AND s.checkpoint_kind_code = 50 /* CheckpointKindCode.ChildLatch */ AND s.checkpoint_name = p.latch_name
+                        ON s.job_id = p.parent_job_id AND s.checkpoint_kind_code = 50 /* CheckpointKindCode.Child */ AND s.checkpoint_name = p.latch_name
                     WHERE p.latch_state <> 30 /* CheckpointStatusCode.Expired */;
 
                     INSERT INTO {{schema}}.checkpoints (
@@ -1786,7 +1786,7 @@ BEGIN
                         created_at_utc, modified_at_utc, version
                     )
                     SELECT
-                        p.parent_job_id, 50 /* CheckpointKindCode.ChildLatch */, p.latch_name,
+                        p.parent_job_id, 50 /* CheckpointKindCode.Child */, p.latch_name,
                         20 /* CheckpointStatusCode.Set */, 1 /* JobPayloadFormat.Json */, p.envelope,
                         @now, @now, 0
                     FROM #parents p
@@ -3666,7 +3666,7 @@ BEGIN
         -- It still takes a child's latch, which a restart of it reads, and is not woken.
         IF
             @from_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
-            AND @p_checkpoint_kind_code <> 50 /* CheckpointKindCode.ChildLatch */
+            AND @p_checkpoint_kind_code <> 50 /* CheckpointKindCode.Child */
             BEGIN
 
                 SELECT
@@ -3702,7 +3702,7 @@ BEGIN
         -- same value and rejected with another or at an expired wait, while a child's latch keeps rewriting. Lengths are
         -- compared too, so a value that differs only in trailing zero bytes is never taken for the same one.
         IF
-            @p_checkpoint_kind_code <> 50 /* CheckpointKindCode.ChildLatch */
+            @p_checkpoint_kind_code <> 50 /* CheckpointKindCode.Child */
             AND @existing IN (20 /* CheckpointStatusCode.Set */, 30 /* CheckpointStatusCode.Expired */)
             BEGIN
                 SELECT
@@ -4094,7 +4094,7 @@ BEGIN
                     FROM {{schema}}.checkpoints c WITH (FORCESEEK)
                     WHERE
                         c.job_id = r.job_id
-                        AND c.checkpoint_kind_code IN (20 /* CheckpointKindCode.Signal */, 50 /* CheckpointKindCode.ChildLatch */)
+                        AND c.checkpoint_kind_code IN (20 /* CheckpointKindCode.Signal */, 50 /* CheckpointKindCode.Child */)
                         AND c.checkpoint_status_code = 30 /* CheckpointStatusCode.Expired */
                         AND c.due_at_utc = r.next_run_at_utc
                 ) THEN 1 ELSE 0 END AS wait_resolved,
@@ -4791,7 +4791,7 @@ BEGIN
                 @p_leased_by_worker_id, @p_execution_number,
                 N'The wait for '
                 + CASE
-                    WHEN @p_checkpoint_kind_code = 50 /* CheckpointKindCode.ChildLatch */
+                    WHEN @p_checkpoint_kind_code = 50 /* CheckpointKindCode.Child */
                         THEN N'child ' + COALESCE(
                             N'''' + ch.deduplication_key COLLATE DATABASE_DEFAULT + N'''',
                             N'job ' + SUBSTRING(@p_checkpoint_name, 11, 128)
@@ -4801,14 +4801,14 @@ BEGIN
                 1 /* JobPayloadFormat.Json */,
                 CAST(
                     '{"kind":"'
-                    + CASE WHEN @p_checkpoint_kind_code = 50 /* CheckpointKindCode.ChildLatch */ THEN 'child-latch' ELSE 'signal' END
+                    + CASE WHEN @p_checkpoint_kind_code = 50 /* CheckpointKindCode.Child */ THEN 'child' ELSE 'signal' END
                     + '","name":"' + @p_checkpoint_name + '","dueAtUtc":"' + CONVERT(VARCHAR(23), @expired_due, 126) + 'Z"}'
                     AS VARBINARY(MAX)
                 )
             FROM {{schema}}.jobs j
             LEFT JOIN {{schema}}.jobs ch
                 ON
-                    @p_checkpoint_kind_code = 50 /* CheckpointKindCode.ChildLatch */
+                    @p_checkpoint_kind_code = 50 /* CheckpointKindCode.Child */
                     AND ch.parent_job_id = j.job_id
                     -- A seek on the child's id, the latch name's tail, so no sibling row is read or waited on.
                     AND ch.job_id = TRY_CAST(SUBSTRING(@p_checkpoint_name, 11, 20) AS BIGINT)
@@ -4888,7 +4888,7 @@ SELECT
     ns.namespace_name,
     d.definition_name,
     c.checkpoint_name,
-    CASE c.checkpoint_kind_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'variable' WHEN 20 THEN 'signal' WHEN 30 THEN 'timer' WHEN 40 THEN 'progress' WHEN 50 THEN 'child-latch' WHEN 60 THEN 'firing' END AS checkpoint_kind,
+    CASE c.checkpoint_kind_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'variable' WHEN 20 THEN 'signal' WHEN 30 THEN 'timer' WHEN 40 THEN 'progress' WHEN 50 THEN 'child' WHEN 60 THEN 'firing' END AS checkpoint_kind,
     c.checkpoint_kind_code,
     CASE c.checkpoint_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'pending' WHEN 20 THEN 'set' WHEN 30 THEN 'expired' WHEN 100 THEN 'consumed' WHEN 110 THEN 'succeeded' WHEN 120 THEN 'failed' WHEN 130 THEN 'cancelled' END AS checkpoint_status,
     c.checkpoint_status_code,
@@ -5206,7 +5206,7 @@ JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE name = 'M20261117144817_init')
+IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE name = 'M20261117145837_init')
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261117144817_init');
+VALUES ('M20261117145837_init');
 GO

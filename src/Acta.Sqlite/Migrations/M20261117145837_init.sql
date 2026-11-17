@@ -473,7 +473,7 @@ SELECT
     ns.namespace_name,
     d.definition_name,
     c.checkpoint_name,
-    CASE c.checkpoint_kind_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'variable' WHEN 20 THEN 'signal' WHEN 30 THEN 'timer' WHEN 40 THEN 'progress' WHEN 50 THEN 'child-latch' WHEN 60 THEN 'firing' END AS checkpoint_kind,
+    CASE c.checkpoint_kind_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'variable' WHEN 20 THEN 'signal' WHEN 30 THEN 'timer' WHEN 40 THEN 'progress' WHEN 50 THEN 'child' WHEN 60 THEN 'firing' END AS checkpoint_kind,
     c.checkpoint_kind_code,
     CASE c.checkpoint_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'pending' WHEN 20 THEN 'set' WHEN 30 THEN 'expired' WHEN 100 THEN 'consumed' WHEN 110 THEN 'succeeded' WHEN 120 THEN 'failed' WHEN 130 THEN 'cancelled' END AS checkpoint_status,
     c.checkpoint_status_code,
@@ -771,5 +771,5 @@ JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261117144817_init')
+VALUES ('M20261117145837_init')
 ON CONFLICT (name) DO NOTHING;

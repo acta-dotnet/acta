@@ -42,7 +42,7 @@ public sealed class ChildTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, J
         // The child latch carries the deadline exactly as a signal checkpoint does, and the Suspended parent
         // caches it so the claim can wake at that instant.
         var latch = Assert.Single(await ReadSignalsAsync(parent.JobId, ct));
-        Assert.Equal(CheckpointKindCode.ChildLatch, latch.Kind);
+        Assert.Equal(CheckpointKindCode.Child, latch.Kind);
         Assert.NotNull(latch.DueAtUtc);
         Assert.Equal(latch.DueAtUtc, (await ReadJobAsync(parent.JobId, ct)).NextRunAtUtc);
 
@@ -126,7 +126,7 @@ public sealed class ChildTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, J
         // The expiry reaches the parent's timeline once, naming the child as the parent named it.
         var expired = await ReadSingleEventAsync(parent.JobId, EventCode.JobWaitExpired, ct);
         Assert.Equal("The wait for child 'slow' expired.", expired.EventMessage);
-        Assert.Equal(("child-latch", $"sys.child.{slow}"), (EventDetail(expired, "kind"), EventDetail(expired, "name")));
+        Assert.Equal(("child", $"sys.child.{slow}"), (EventDetail(expired, "kind"), EventDetail(expired, "name")));
 
         foreach (var cancelledId in (long[])[slow, grandchild])
         {
@@ -330,7 +330,7 @@ public sealed class ChildTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, J
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(parent, ct));
 
         var latch = Assert.Single(await ReadSignalsAsync(parent.JobId, ct));
-        Assert.Equal(CheckpointKindCode.ChildLatch, latch.Kind);
+        Assert.Equal(CheckpointKindCode.Child, latch.Kind);
         Assert.Equal(CheckpointStatusCode.Pending, latch.Status);
         Assert.Null(latch.DueAtUtc);
 
@@ -382,7 +382,7 @@ public sealed class ChildTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, J
         var past = DateTime.UtcNow.AddMinutes(-1);
         await db.ExecuteRawAsync(
             "UPDATE {schema}.checkpoints SET due_at_utc = @p_due"
-                + " WHERE job_id = @p_id AND checkpoint_kind_code = 50 /* CheckpointKindCode.ChildLatch */ AND checkpoint_name = @p_name",
+                + " WHERE job_id = @p_id AND checkpoint_kind_code = 50 /* CheckpointKindCode.Child */ AND checkpoint_name = @p_name",
             ct,
             ("@p_due", past),
             ("@p_id", parentId),
@@ -404,7 +404,7 @@ public sealed class ChildTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, J
         var past = DateTime.UtcNow.AddMinutes(-1);
         await db.ExecuteRawAsync(
             "UPDATE {schema}.checkpoints SET checkpoint_status_code = @p_status, due_at_utc = @p_due "
-                + "WHERE job_id = @p_id AND checkpoint_kind_code = 50 /* CheckpointKindCode.ChildLatch */ AND checkpoint_name = @p_name",
+                + "WHERE job_id = @p_id AND checkpoint_kind_code = 50 /* CheckpointKindCode.Child */ AND checkpoint_name = @p_name",
             ct,
             ("@p_status", (byte)CheckpointStatusCode.Expired),
             ("@p_due", past),

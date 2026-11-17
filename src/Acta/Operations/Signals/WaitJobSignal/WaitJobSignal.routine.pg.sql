@@ -163,14 +163,14 @@ BEGIN
             p_leased_by_worker_id, p_execution_number,
             'The wait for '
             || CASE
-                WHEN p_checkpoint_kind_code = 50 /* CheckpointKindCode.ChildLatch */
+                WHEN p_checkpoint_kind_code = 50 /* CheckpointKindCode.Child */
                     THEN 'child ' || COALESCE('''' || ch.deduplication_key || '''', 'job ' || substr(p_checkpoint_name, 11))
                 ELSE 'signal ''' || p_checkpoint_name || ''''
             END || ' expired.',
             1 /* JobPayloadFormat.Json */,
             convert_to(
                 json_build_object(
-                    'kind', CASE WHEN p_checkpoint_kind_code = 50 /* CheckpointKindCode.ChildLatch */ THEN 'child-latch' ELSE 'signal' END,
+                    'kind', CASE WHEN p_checkpoint_kind_code = 50 /* CheckpointKindCode.Child */ THEN 'child' ELSE 'signal' END,
                     'name', p_checkpoint_name,
                     'dueAtUtc', to_char(v_expired_due AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')
                 )::text,
@@ -180,7 +180,7 @@ BEGIN
         -- A seek on the child's id, the latch name's tail, so no sibling row is read.
         LEFT JOIN {{schema}}.jobs ch
             ON
-                p_checkpoint_kind_code = 50 /* CheckpointKindCode.ChildLatch */
+                p_checkpoint_kind_code = 50 /* CheckpointKindCode.Child */
                 AND ch.job_id = substring(p_checkpoint_name FROM '^sys\.child\.([0-9]{1,18})$')::BIGINT
                 AND ch.parent_job_id = j.job_id
         WHERE j.job_id = p_job_id AND j.event_recording_code = 20 /* EventRecordingCode.Audit */;

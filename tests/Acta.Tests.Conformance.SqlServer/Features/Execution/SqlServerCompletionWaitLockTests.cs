@@ -44,7 +44,7 @@ public sealed class SqlServerCompletionWaitLockTests
                 + " VALUES (@p_job_id, @p_kind, @p_name, @p_status, 0)",
             ct,
             ("@p_job_id", claimed.JobId),
-            ("@p_kind", (byte)CheckpointKindCode.ChildLatch),
+            ("@p_kind", (byte)CheckpointKindCode.Child),
             ("@p_name", "gp"),
             ("@p_status", (byte)CheckpointStatusCode.Pending)
         );

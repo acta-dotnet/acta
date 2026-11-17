@@ -393,7 +393,7 @@ public sealed class ChildGroupTimeoutSpec : ActaRuntimeTestBase<ConformanceFixtu
         var latch = Assert.Single(await ReadLatchesAsync(bounded.JobId, ct));
         var boundedMap = await Jobs.GetLineageMapAsync(bounded, ct: ct);
         Assert.NotNull(boundedMap!.ActiveWait);
-        Assert.Equal(CheckpointKindCode.ChildLatch, boundedMap.ActiveWait!.Kind);
+        Assert.Equal(CheckpointKindCode.Child, boundedMap.ActiveWait!.Kind);
         Assert.Equal(latch.CheckpointName, boundedMap.ActiveWait.Name);
         Assert.Equal(latch.DueAtUtc, boundedMap.ActiveWait.DueAtUtc);
 
@@ -402,7 +402,7 @@ public sealed class ChildGroupTimeoutSpec : ActaRuntimeTestBase<ConformanceFixtu
 
         var unboundedMap = await Jobs.GetLineageMapAsync(unbounded, ct: ct);
         Assert.NotNull(unboundedMap!.ActiveWait);
-        Assert.Equal(CheckpointKindCode.ChildLatch, unboundedMap.ActiveWait!.Kind);
+        Assert.Equal(CheckpointKindCode.Child, unboundedMap.ActiveWait!.Kind);
         Assert.Null(unboundedMap.ActiveWait.DueAtUtc);
 
         // The child is named as its parent called it, by name and ref, on every read of the wait.
@@ -483,7 +483,7 @@ public sealed class ChildGroupTimeoutSpec : ActaRuntimeTestBase<ConformanceFixtu
     }
 
     private async Task<IReadOnlyList<CheckpointEntity>> ReadLatchesAsync(long jobId, CancellationToken ct) =>
-        [.. (await ReadSignalsAsync(jobId, ct)).Where(c => c.Kind == CheckpointKindCode.ChildLatch)];
+        [.. (await ReadSignalsAsync(jobId, ct)).Where(c => c.Kind == CheckpointKindCode.Child)];
 
     // A member's latch is armed with the group's stored instant itself, so its due is that instant to the
     // millisecond every provider stores, however long the walk took to reach it.
@@ -538,7 +538,7 @@ public sealed class ChildGroupTimeoutSpec : ActaRuntimeTestBase<ConformanceFixtu
         var past = DateTime.UtcNow.AddMinutes(-1);
         await Db.ExecuteRawAsync(
             "UPDATE {schema}.checkpoints SET due_at_utc = @p_due"
-                + " WHERE job_id = @p_id AND checkpoint_kind_code = 50 /* CheckpointKindCode.ChildLatch */ AND checkpoint_name = @p_name",
+                + " WHERE job_id = @p_id AND checkpoint_kind_code = 50 /* CheckpointKindCode.Child */ AND checkpoint_name = @p_name",
             ct,
             ("@p_due", past),
             ("@p_id", parentId),

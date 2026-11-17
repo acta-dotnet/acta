@@ -63,7 +63,7 @@ BEGIN
     -- It still takes a child's latch, which a restart of it reads, and is not woken.
     IF
         v_from_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
-        AND p_checkpoint_kind_code <> 50 /* CheckpointKindCode.ChildLatch */
+        AND p_checkpoint_kind_code <> 50 /* CheckpointKindCode.Child */
     THEN
         RETURN QUERY SELECT
             CASE
@@ -106,7 +106,7 @@ BEGIN
     -- in state, and another value, or any raise at a wait that expired, is rejected. A child's latch keeps rewriting,
     -- since a restarted child's next landing must reach its parent.
     IF
-        p_checkpoint_kind_code <> 50 /* CheckpointKindCode.ChildLatch */
+        p_checkpoint_kind_code <> 50 /* CheckpointKindCode.Child */
         AND v_existing IN (20 /* CheckpointStatusCode.Set */, 30 /* CheckpointStatusCode.Expired */)
     THEN
         RETURN QUERY SELECT

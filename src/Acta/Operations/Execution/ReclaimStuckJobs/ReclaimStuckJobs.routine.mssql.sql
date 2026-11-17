@@ -232,7 +232,7 @@ BEGIN
                     FROM {{schema}}.checkpoints c WITH (FORCESEEK)
                     WHERE
                         c.job_id = r.job_id
-                        AND c.checkpoint_kind_code IN (20 /* CheckpointKindCode.Signal */, 50 /* CheckpointKindCode.ChildLatch */)
+                        AND c.checkpoint_kind_code IN (20 /* CheckpointKindCode.Signal */, 50 /* CheckpointKindCode.Child */)
                         AND c.checkpoint_status_code = 30 /* CheckpointStatusCode.Expired */
                         AND c.due_at_utc = r.next_run_at_utc
                 ) THEN 1 ELSE 0 END AS wait_resolved,

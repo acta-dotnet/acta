@@ -145,9 +145,9 @@ internal sealed class GetJobLineageMapHandler(GetJobIdHandler getJobId, IDbSessi
         }
         foreach (var c in checkpoints)
         {
-            if (c.Kind == CheckpointKindCode.ChildLatch && c.Status == CheckpointStatusCode.Pending)
+            if (c.Kind == CheckpointKindCode.Child && c.Status == CheckpointStatusCode.Pending)
             {
-                return new GetJobLineageMapWait(CheckpointKindCode.ChildLatch, c.CheckpointName, c.DueAtUtc, c.ChildJobRef, c.ChildName);
+                return new GetJobLineageMapWait(CheckpointKindCode.Child, c.CheckpointName, c.DueAtUtc, c.ChildJobRef, c.ChildName);
             }
         }
         foreach (var c in checkpoints)

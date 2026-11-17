@@ -147,7 +147,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `Signal` | 20 | `signal` | A signal; pending while awaited, set once raised. | Active |
 | `Timer` | 30 | `timer` | A durable sleep timer; pending until due, consumed when the handler runs again past the due time. | Active |
 | `Progress` | 40 | `progress` | The job's progress, one per job; the last write wins. | Active |
-| `ChildLatch` | 50 | `child-latch` | The latch a parent job holds for one child's outcome; pending while awaited, set when the child ends. | Active |
+| `Child` | 50 | `child` | One child's outcome as its parent holds it; pending while awaited, set when the child ends. | Active |
 | `Firing` | 60 | `firing` | The record of one scheduled firing of a permanent job or of a per-occurrence job; pending while outstanding, then settled with the outcome. It survives a handler's state reset. | Active |
 
 ### `CheckpointStatusCode` · `checkpoint-status` <a id="code-family-checkpointstatuscode"></a>

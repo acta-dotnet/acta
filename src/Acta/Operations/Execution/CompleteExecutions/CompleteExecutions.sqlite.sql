@@ -70,7 +70,7 @@ SET
             SELECT s.checkpoint_status_code FROM {{schema}}.checkpoints s
             WHERE
                 s.job_id = temp._ces_done.job_id
-                AND s.checkpoint_kind_code IN (20 /* CheckpointKindCode.Signal */, 50 /* CheckpointKindCode.ChildLatch */)
+                AND s.checkpoint_kind_code IN (20 /* CheckpointKindCode.Signal */, 50 /* CheckpointKindCode.Child */)
                 AND s.checkpoint_name = temp._ces_done.wait_signal_name
         ),
         20 /* CheckpointStatusCode.Set */
@@ -79,7 +79,7 @@ SET
         SELECT s.due_at_utc FROM {{schema}}.checkpoints s
         WHERE
             s.job_id = temp._ces_done.job_id
-            AND s.checkpoint_kind_code IN (20 /* CheckpointKindCode.Signal */, 50 /* CheckpointKindCode.ChildLatch */)
+            AND s.checkpoint_kind_code IN (20 /* CheckpointKindCode.Signal */, 50 /* CheckpointKindCode.Child */)
             AND s.checkpoint_name = temp._ces_done.wait_signal_name
     )
 WHERE wait_signal_name IS NOT NULL;
@@ -390,7 +390,7 @@ SET
         SELECT l.checkpoint_status_code FROM {{schema}}.checkpoints l
         WHERE
             l.job_id = temp._ces_done.parent_job_id
-            AND l.checkpoint_kind_code = 50 /* CheckpointKindCode.ChildLatch */
+            AND l.checkpoint_kind_code = 50 /* CheckpointKindCode.Child */
             AND l.checkpoint_name = 'sys.child.' || temp._ces_done.job_id
     )
 WHERE
@@ -402,7 +402,7 @@ INSERT INTO {{schema}}.checkpoints (
 )
 SELECT
     d.parent_job_id,
-    50 /* CheckpointKindCode.ChildLatch */,
+    50 /* CheckpointKindCode.Child */,
     'sys.child.' || d.job_id,
     20 /* CheckpointStatusCode.Set */,
     1 /* JobPayloadFormat.Json */,

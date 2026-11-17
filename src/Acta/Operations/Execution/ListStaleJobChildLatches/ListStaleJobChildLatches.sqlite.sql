@@ -13,7 +13,7 @@ LEFT JOIN
         = CASE WHEN SUBSTR(js.checkpoint_name, 11) GLOB '*[^0-9]*' OR SUBSTR(js.checkpoint_name, 11) = '' THEN NULL ELSE CAST(SUBSTR(js.checkpoint_name, 11) AS INTEGER) END
 LEFT JOIN {{schema}}.jobs_state cr ON cr.job_id = c.job_id
 WHERE
-    js.checkpoint_kind_code = 50 /* CheckpointKindCode.ChildLatch */
+    js.checkpoint_kind_code = 50 /* CheckpointKindCode.Child */
     AND js.checkpoint_name LIKE 'sys.child.%'
     AND SUBSTR(js.checkpoint_name, 11) <> '' AND SUBSTR(js.checkpoint_name, 11) NOT GLOB '*[^0-9]*'
     AND js.checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */

@@ -213,7 +213,7 @@ builder.Services.UseActa(j =&gt;
     <span class="k">new</span> { rootJobId = outcome.JobId }
 );
 <span class="k">await</span> lab.ShowAsync(
-    <span class="s">&quot;The waiting parent owns child-latch checkpoints and no worker&quot;</span>,
+    <span class="s">&quot;The waiting parent owns child checkpoints and no worker&quot;</span>,
     <span class="s">&quot;&quot;&quot;</span>
 <span class="s">    SELECT checkpoint_name, checkpoint_kind, checkpoint_status</span>
 <span class="s">    FROM checkpoints_view</span>

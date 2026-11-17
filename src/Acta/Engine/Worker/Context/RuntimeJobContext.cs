@@ -281,7 +281,7 @@ internal sealed partial class RuntimeJobContext(
     )
     {
         var kind = name.StartsWith(RaiseChildLatch.NamePrefix, StringComparison.Ordinal)
-            ? CheckpointKindCode.ChildLatch
+            ? CheckpointKindCode.Child
             : CheckpointKindCode.Signal;
         var decision = await FencedAsync(() => _signals.WaitJobSignalAsync(Fence, kind, name, timeoutSeconds, dueAtUtc, ct));
         if (decision.Outcome == WaitJobSignalOutcomeCode.SuspendPending)
@@ -293,7 +293,7 @@ internal sealed partial class RuntimeJobContext(
             WaitJobSignalOutcomeCode.ContinueSet => new SignalCheckpointState(decision.ValueFormatId, decision.Value),
             // The host locks the checkpoint and finalizes the attempt Suspended (or Ready if a raise won the race).
             WaitJobSignalOutcomeCode.SuspendPending => throw Thrown(
-                kind == CheckpointKindCode.ChildLatch ? ChildPending(name) : new SignalSuspendSignal(name)
+                kind == CheckpointKindCode.Child ? ChildPending(name) : new SignalSuspendSignal(name)
             ),
             WaitJobSignalOutcomeCode.TimedOut => new SignalCheckpointState(0, null, TimedOut: true),
             _ => throw new InvalidOperationException($"wait_job_signal returned an unknown outcome for job {JobId}, signal '{name}'."),

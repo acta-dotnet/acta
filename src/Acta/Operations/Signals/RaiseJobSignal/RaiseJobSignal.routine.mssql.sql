@@ -68,7 +68,7 @@ BEGIN
         -- It still takes a child's latch, which a restart of it reads, and is not woken.
         IF
             @from_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
-            AND @p_checkpoint_kind_code <> 50 /* CheckpointKindCode.ChildLatch */
+            AND @p_checkpoint_kind_code <> 50 /* CheckpointKindCode.Child */
             BEGIN
 
                 SELECT
@@ -104,7 +104,7 @@ BEGIN
         -- same value and rejected with another or at an expired wait, while a child's latch keeps rewriting. Lengths are
         -- compared too, so a value that differs only in trailing zero bytes is never taken for the same one.
         IF
-            @p_checkpoint_kind_code <> 50 /* CheckpointKindCode.ChildLatch */
+            @p_checkpoint_kind_code <> 50 /* CheckpointKindCode.Child */
             AND @existing IN (20 /* CheckpointStatusCode.Set */, 30 /* CheckpointStatusCode.Expired */)
             BEGIN
                 SELECT

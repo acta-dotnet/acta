@@ -99,7 +99,7 @@ internal sealed class ExplainJobHandler(GetJobIdHandler getJobId, IDbSession ses
                         actions.Add(Move("raise-signal", $"raise signal \"{wait.Name}\""));
                         actions.Add(Move("cancel", "cancel the job"));
                         break;
-                    case CheckpointKindCode.ChildLatch:
+                    case CheckpointKindCode.Child:
                     {
                         // No raise-signal action: the sys.child latch is framework-owned and the raise
                         // verb rejects that name, so offering it would suggest a move that cannot work.
@@ -289,9 +289,9 @@ internal sealed class ExplainJobHandler(GetJobIdHandler getJobId, IDbSession ses
         }
         foreach (var c in checkpoints)
         {
-            if (c.CheckpointKind == CheckpointKindCode.ChildLatch && c.CheckpointStatus == CheckpointStatusCode.Pending)
+            if (c.CheckpointKind == CheckpointKindCode.Child && c.CheckpointStatus == CheckpointStatusCode.Pending)
             {
-                return new ExplainJobWait(CheckpointKindCode.ChildLatch, c.CheckpointName, c.DueAtUtc, c.ChildJobRef, c.ChildName);
+                return new ExplainJobWait(CheckpointKindCode.Child, c.CheckpointName, c.DueAtUtc, c.ChildJobRef, c.ChildName);
             }
         }
         return FindTimer(checkpoints);
@@ -315,7 +315,7 @@ internal sealed class ExplainJobHandler(GetJobIdHandler getJobId, IDbSession ses
                 : $"child {childRef}"
             : wait.Name.StartsWith(RaiseChildLatch.NamePrefix, StringComparison.Ordinal)
                 ? $"child job {wait.Name[RaiseChildLatch.NamePrefix.Length..]}"
-                : $"child latch \"{wait.Name}\"";
+                : $"child \"{wait.Name}\"";
 
     /// <summary>The CLI's lookup for the child: its ref, or " id:{id}" by the latch name, since a bare number reads as a deduplication key.</summary>
     private static string ChildLookup(ExplainJobWait wait) =>

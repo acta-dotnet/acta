@@ -16440,14 +16440,14 @@
           "variable"
         ],
         "type": "string",
-        "description": "What a checkpoint holds: one of the durable values a job keeps between attempts. Names are separate for each kind, so a variable never collides with a signal or a child latch of the same name.\n\nKnown values:\n- unspecified: Checkpoint kind not recognized by this build; the row was written by a newer Acta.\n- variable: A variable a handler sets; the last write wins.\n- signal: A signal; pending while awaited, set once raised.\n- timer: A durable sleep timer; pending until due, consumed when the handler runs again past the due time.\n- progress: The job's progress, one per job; the last write wins.\n- child-latch: The latch a parent job holds for one child's outcome; pending while awaited, set when the child ends.\n- firing: The record of one scheduled firing of a permanent job or of a per-occurrence job; pending while outstanding, then settled with the outcome. It survives a handler's state reset.\n\nOther values may appear: keep a value this client does not know as it is.",
+        "description": "What a checkpoint holds: one of the durable values a job keeps between attempts. Names are separate for each kind, so a variable never collides with a signal or a child of the same name.\n\nKnown values:\n- unspecified: Checkpoint kind not recognized by this build; the row was written by a newer Acta.\n- variable: A variable a handler sets; the last write wins.\n- signal: A signal; pending while awaited, set once raised.\n- timer: A durable sleep timer; pending until due, consumed when the handler runs again past the due time.\n- progress: The job's progress, one per job; the last write wins.\n- child: One child's outcome as its parent holds it; pending while awaited, set when the child ends.\n- firing: The record of one scheduled firing of a permanent job or of a per-occurrence job; pending while outstanding, then settled with the outcome. It survives a handler's state reset.\n\nOther values may appear: keep a value this client does not know as it is.",
         "x-acta-known-values": [
           "unspecified",
           "variable",
           "signal",
           "timer",
           "progress",
-          "child-latch",
+          "child",
           "firing"
         ]
       },
@@ -16456,7 +16456,7 @@
           "pending"
         ],
         "type": "string",
-        "description": "Where a checkpoint that has a status stands. A signal or child latch is pending until it is set or its wait expires; a timer is pending until it is consumed; a firing is pending until it succeeds, fails, or is cancelled. Variables and progress have no status.\n\nKnown values:\n- unspecified: Checkpoint status not recognized by this build; the row was written by a newer Acta.\n- pending: Awaited or armed; the checkpoint has not been satisfied yet.\n- set: Raised; the payload is stored and a waiting job proceeds.\n- expired: The wait ran past its timeout and was settled as timed out; a raise after that skips it.\n- consumed: The due time was reached; the handler ran again, consumed the timer, and proceeded.\n- succeeded: The firing settled successfully; it stays the job's last outcome until the next firing replaces it.\n- failed: The firing settled as a final failure; it stays the job's last outcome until the next firing replaces it.\n- cancelled: The firing settled by cancellation; it stays the job's last outcome until the next firing replaces it.\n\nOther values may appear: keep a value this client does not know as it is.",
+        "description": "Where a checkpoint that has a status stands. A signal or a child is pending until it is set or its wait expires; a timer is pending until it is consumed; a firing is pending until it succeeds, fails, or is cancelled. Variables and progress have no status.\n\nKnown values:\n- unspecified: Checkpoint status not recognized by this build; the row was written by a newer Acta.\n- pending: Awaited or armed; the checkpoint has not been satisfied yet.\n- set: Raised; the payload is stored and a waiting job proceeds.\n- expired: The wait ran past its timeout and was settled as timed out; a raise after that skips it.\n- consumed: The due time was reached; the handler ran again, consumed the timer, and proceeded.\n- succeeded: The firing settled successfully; it stays the job's last outcome until the next firing replaces it.\n- failed: The firing settled as a final failure; it stays the job's last outcome until the next firing replaces it.\n- cancelled: The firing settled by cancellation; it stays the job's last outcome until the next firing replaces it.\n\nOther values may appear: keep a value this client does not know as it is.",
         "x-acta-known-values": [
           "unspecified",
           "pending",
@@ -17231,12 +17231,12 @@
         "type": "object",
         "properties": {
           "kind": {
-            "description": "What the job waits on: a signal, a child latch, or a timer.",
+            "description": "What the job waits on: a signal, a child, or a timer.",
             "$ref": "#/components/schemas/CheckpointKindCode"
           },
           "name": {
             "type": "string",
-            "description": "The name of the signal, child latch, or timer the job waits on."
+            "description": "The name of the signal, child, or timer the job waits on."
           },
           "dueAtUtc": {
             "type": [
@@ -17251,7 +17251,7 @@
               "null",
               "string"
             ],
-            "description": "The ref of the child a child-latch wait waits on; null for any other wait, or once the child is purged."
+            "description": "The ref of the child a child wait waits on; null for any other wait, or once the child is purged."
           },
           "childName": {
             "type": [
@@ -18299,12 +18299,12 @@
         "type": "object",
         "properties": {
           "kind": {
-            "description": "What the job waits on: a signal, a child latch, or a timer.",
+            "description": "What the job waits on: a signal, a child, or a timer.",
             "$ref": "#/components/schemas/CheckpointKindCode"
           },
           "name": {
             "type": "string",
-            "description": "The name of the signal, child latch, or timer the job waits on."
+            "description": "The name of the signal, child, or timer the job waits on."
           },
           "dueAtUtc": {
             "type": [
@@ -18319,7 +18319,7 @@
               "null",
               "string"
             ],
-            "description": "The ref of the child a child-latch wait waits on; null for any other wait, or once the child is purged."
+            "description": "The ref of the child a child wait waits on; null for any other wait, or once the child is purged."
           },
           "childName": {
             "type": [
@@ -18329,7 +18329,7 @@
             "description": "The name the parent gave that child, the call's name or {map}/{key}; null where childJobRef is, and for a child the parent gave no name."
           }
         },
-        "description": "The durable wait the focused Job is blocked on: a signal, child latch, or timer, and its due instant."
+        "description": "The durable wait the focused Job is blocked on: a signal, child, or timer, and its due instant."
       },
       "GetJobResponse": {
         "required": [

@@ -203,7 +203,7 @@ public abstract class ActaTestBase<TFixture> : IAsyncLifetime
     private protected async Task<IReadOnlyList<CheckpointEntity>> ReadSignalsAsync(long jobId, CancellationToken ct)
     {
         return await Db.From<CheckpointEntity>()
-            .Where(s => s.JobId == jobId && (s.Kind == CheckpointKindCode.Signal || s.Kind == CheckpointKindCode.ChildLatch))
+            .Where(s => s.JobId == jobId && (s.Kind == CheckpointKindCode.Signal || s.Kind == CheckpointKindCode.Child))
             .ToListAsync(ct);
     }
 

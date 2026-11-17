@@ -51,7 +51,7 @@ WHERE
     c.job_id = @p_job_id
     AND c.checkpoint_kind_code = @p_checkpoint_kind_code
     AND c.checkpoint_name = @p_checkpoint_name
-    AND @p_checkpoint_kind_code <> 50 /* CheckpointKindCode.ChildLatch */
+    AND @p_checkpoint_kind_code <> 50 /* CheckpointKindCode.Child */
     AND c.checkpoint_status_code IN (20 /* CheckpointStatusCode.Set */, 30 /* CheckpointStatusCode.Expired */);
 
 -- A child's landing names the child as its parent named it, and how it ended; a purged child keeps its id.
@@ -90,7 +90,7 @@ WHERE
             -- A finished job takes no signal, but still a child's latch, which a restart of it reads.
             AND (
                 r.job_status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
-                OR @p_checkpoint_kind_code = 50 /* CheckpointKindCode.ChildLatch */
+                OR @p_checkpoint_kind_code = 50 /* CheckpointKindCode.Child */
             )
     )
     AND NOT EXISTS (SELECT 1 FROM temp._raise_expired)
@@ -160,7 +160,7 @@ WHERE
     j.job_id = @p_job_id
     AND (
         r.job_status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
-        OR @p_checkpoint_kind_code = 50 /* CheckpointKindCode.ChildLatch */
+        OR @p_checkpoint_kind_code = 50 /* CheckpointKindCode.Child */
     )
     AND j.event_recording_code = 20 /* EventRecordingCode.Audit */
     AND NOT EXISTS (SELECT 1 FROM temp._raise_stale)
@@ -224,7 +224,7 @@ SELECT
         WHEN (SELECT s.action FROM temp._raise_settled s) = 6 /* ControlAction.AlreadyInState */ THEN 6 /* ControlAction.AlreadyInState */
         WHEN
             r.job_status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
-            AND @p_checkpoint_kind_code <> 50 /* CheckpointKindCode.ChildLatch */
+            AND @p_checkpoint_kind_code <> 50 /* CheckpointKindCode.Child */
             THEN 3 /* ControlAction.Rejected */
         WHEN EXISTS (SELECT 1 FROM temp._raise_settled) THEN (SELECT s.action FROM temp._raise_settled s)
         ELSE 1 /* ControlAction.Applied */

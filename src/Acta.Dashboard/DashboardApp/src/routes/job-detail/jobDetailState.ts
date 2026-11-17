@@ -79,13 +79,13 @@ export function childRollup(children: readonly JobLineageNode[]): [string, numbe
   return [...counts.entries()].sort(([aStatus, aCount], [bStatus, bCount]) => bCount - aCount || aStatus.localeCompare(bStatus));
 }
 
-/** The child-latch name the framework writes on the parent: `sys.child.{childJobId}`. */
+/** The child checkpoint's name the framework writes on the parent: `sys.child.{childJobId}`. */
 const childLatchPrefix = 'sys.child.';
 
 /**
  * How an active durable wait reads on a job panel: the word for its kind, plus the part worth setting
  * in monospace. Mirrors the server explainer's phrasing so `jobs explain` and the dashboard describe
- * the same wait the same way. A child latch's name is a framework key rather than anything a
+ * the same wait the same way. A child checkpoint's name is a framework key rather than anything a
  * handler chose, so a child reads by the name its parent gave it, and `sys.child.42` as `child job 42` without one.
  */
 export function activeWaitLabel(kind: string, name: string, childName?: string | null): { kind: string; name: string } {
@@ -94,9 +94,9 @@ export function activeWaitLabel(kind: string, name: string, childName?: string |
       return { kind: 'signal', name };
     case 'timer':
       return { kind: 'timer', name };
-    case 'child-latch':
+    case 'child':
       if (childName) return { kind: 'child', name: childName };
-      return name.startsWith(childLatchPrefix) ? { kind: 'child job', name: name.slice(childLatchPrefix.length) } : { kind: 'child latch', name };
+      return name.startsWith(childLatchPrefix) ? { kind: 'child job', name: name.slice(childLatchPrefix.length) } : { kind: 'child', name };
     default:
       // An unrecognized kind says its own name rather than borrowing another's. The panels previously
       // asked only "is it a signal?" and called everything else a timer, which is how a parent parked

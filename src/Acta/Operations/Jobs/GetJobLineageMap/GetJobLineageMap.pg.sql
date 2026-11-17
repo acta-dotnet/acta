@@ -62,7 +62,7 @@ WHERE s.job_id = @p_job_id
 ORDER BY s.created_at_utc DESC, s.step_name DESC
 LIMIT @p_step_limit;
 
--- 4) Focus job checkpoints (signal / timer / variable / progress / child-latch), for the active wait; a child latch
+-- 4) Focus job checkpoints (signal / timer / variable / progress / child), for the active wait; a child latch
 -- names its child, the direct child its name carries.
 SELECT
     c.checkpoint_kind_code AS kind, c.checkpoint_name, c.checkpoint_status_code AS status, c.due_at_utc,
@@ -70,7 +70,7 @@ SELECT
 FROM {{schema}}.checkpoints c
 LEFT JOIN {{schema}}.jobs ch
     ON
-        c.checkpoint_kind_code = 50 /* CheckpointKindCode.ChildLatch */
+        c.checkpoint_kind_code = 50 /* CheckpointKindCode.Child */
         AND ch.parent_job_id = c.job_id
         -- A seek on the child's id, the latch name's tail, so no sibling row is read.
         AND ch.job_id = substring(c.checkpoint_name FROM '^sys\.child\.([0-9]{1,18})$')::BIGINT

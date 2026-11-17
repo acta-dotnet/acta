@@ -32,7 +32,7 @@ internal static class RaiseChildLatch
         var outcome = await signals.RaiseJobSignalAsync(
             new RaiseJobSignalCheckpoint(
                 parentJobId,
-                CheckpointKindCode.ChildLatch,
+                CheckpointKindCode.Child,
                 latchName,
                 JobPayloadFormat.Json.Id,
                 envelope,

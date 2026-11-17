@@ -91,7 +91,7 @@ public sealed class TestHostHelpersSpec : ActaTestBase<ConformanceFixture>
 
         // The helper reads the awaited checkpoint by kind, so a child latch stages exactly like a signal does;
         // its name is the framework-owned sys.child key rather than anything the handler chose.
-        var latch = Assert.Single(await CheckpointsAsync(host, parent.JobId, CheckpointKindCode.ChildLatch, ct));
+        var latch = Assert.Single(await CheckpointsAsync(host, parent.JobId, CheckpointKindCode.Child, ct));
         Assert.NotNull(latch.DueAtUtc);
 
         await host.ForceWaitTimeoutDueAsync(parent, latch.CheckpointName, ct);
@@ -100,7 +100,7 @@ public sealed class TestHostHelpersSpec : ActaTestBase<ConformanceFixture>
         Assert.True((await host.Jobs.GetResultAsync<ChildWaitReport>(JobLookup.ById(parent.JobId), ct)).TimedOut);
         Assert.Equal(
             CheckpointStatusCode.Expired,
-            Assert.Single(await CheckpointsAsync(host, parent.JobId, CheckpointKindCode.ChildLatch, ct)).Status
+            Assert.Single(await CheckpointsAsync(host, parent.JobId, CheckpointKindCode.Child, ct)).Status
         );
     }
 

@@ -323,7 +323,7 @@ public static class ActaTestHost
             var waits = await Db.From<CheckpointEntity>()
                 .Where(c =>
                     c.JobId == jobId
-                    && (c.Kind == CheckpointKindCode.Signal || c.Kind == CheckpointKindCode.ChildLatch)
+                    && (c.Kind == CheckpointKindCode.Signal || c.Kind == CheckpointKindCode.Child)
                     && c.Status == CheckpointStatusCode.Pending
                 )
                 .ToListAsync(ct);
@@ -554,10 +554,7 @@ internal static class WaitTimeoutStaging
 
         await db.From<CheckpointEntity>()
             .Where(c =>
-                c.JobId == jobId
-                && c.Kind == CheckpointKindCode.ChildLatch
-                && c.Status == CheckpointStatusCode.Pending
-                && c.DueAtUtc != null
+                c.JobId == jobId && c.Kind == CheckpointKindCode.Child && c.Status == CheckpointStatusCode.Pending && c.DueAtUtc != null
             )
             .UpdateOnlyAsync(() => new CheckpointEntity { DueAtUtc = dueAtUtc, ModifiedAtUtc = DbFn.UtcNow }, ct);
 

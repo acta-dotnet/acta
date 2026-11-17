@@ -380,14 +380,14 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
         Assert.Equal(1, await InsertAsync("ok-variable", CheckpointKindCode.Variable, null, null));
         Assert.Equal(1, await InsertAsync("ok-progress", CheckpointKindCode.Progress, null, null));
         Assert.Equal(1, await InsertAsync("ok-signal", CheckpointKindCode.Signal, CheckpointStatusCode.Pending, due));
-        Assert.Equal(1, await InsertAsync("ok-latch", CheckpointKindCode.ChildLatch, CheckpointStatusCode.Set, null));
+        Assert.Equal(1, await InsertAsync("ok-latch", CheckpointKindCode.Child, CheckpointStatusCode.Set, null));
         Assert.Equal(1, await InsertAsync("ok-timer", CheckpointKindCode.Timer, CheckpointStatusCode.Pending, due));
         Assert.Equal(1, await InsertAsync("ok-timer-consumed", CheckpointKindCode.Timer, CheckpointStatusCode.Consumed, due));
 
         // A stateful kind with no status. This is the shape the stateful arms admitted while they
         // tested membership alone: `NULL IN (...)` is unknown, and a CHECK passes on unknown.
         await Assert.ThrowsAnyAsync<DbException>(() => InsertAsync("bad-signal-null", CheckpointKindCode.Signal, null, due));
-        await Assert.ThrowsAnyAsync<DbException>(() => InsertAsync("bad-latch-null", CheckpointKindCode.ChildLatch, null, null));
+        await Assert.ThrowsAnyAsync<DbException>(() => InsertAsync("bad-latch-null", CheckpointKindCode.Child, null, null));
         await Assert.ThrowsAnyAsync<DbException>(() => InsertAsync("bad-timer-null", CheckpointKindCode.Timer, null, due));
 
         // A stateless kind carrying either of the columns bound to the stateful arms.

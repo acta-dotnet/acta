@@ -114,7 +114,7 @@ BEGIN TRY
                 FROM {{schema}}.checkpoints cp WITH (FORCESEEK)
                 WHERE
                     cp.job_id = @p_job_id
-                    AND cp.checkpoint_kind_code IN (20 /* CheckpointKindCode.Signal */, 50 /* CheckpointKindCode.ChildLatch */)
+                    AND cp.checkpoint_kind_code IN (20 /* CheckpointKindCode.Signal */, 50 /* CheckpointKindCode.Child */)
                     AND cp.due_at_utc = jobs_state.next_run_at_utc
             ) THEN @now
             WHEN next_run_at_utc > @now THEN next_run_at_utc

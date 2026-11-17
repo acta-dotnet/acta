@@ -136,7 +136,7 @@ FROM (
     FROM {{schema}}.checkpoints c
     LEFT JOIN {{schema}}.jobs ch
         ON
-            c.checkpoint_kind_code = 50 /* CheckpointKindCode.ChildLatch */
+            c.checkpoint_kind_code = 50 /* CheckpointKindCode.Child */
             AND ch.parent_job_id = c.job_id
             -- A seek on the child's id, the latch name's tail, so no sibling row is read.
             AND ch.job_id = substring(c.checkpoint_name FROM '^sys\.child\.([0-9]{1,18})$')::BIGINT

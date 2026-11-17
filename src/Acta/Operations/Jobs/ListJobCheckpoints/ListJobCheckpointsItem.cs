@@ -1,8 +1,8 @@
 namespace Acta;
 
 /// <summary>
-/// One durable checkpoint of a job: a user variable, signal, sleep timer, progress, or child
-/// latch, told apart by <see cref="Kind"/>. <see cref="Status"/> is Pending, Set or Expired for a signal or child latch,
+/// One durable checkpoint of a job: a user variable, signal, sleep timer, progress, or child's
+/// outcome, told apart by <see cref="Kind"/>. <see cref="Status"/> is Pending, Set or Expired for a signal or a child,
 /// Pending or Consumed for a timer, and null for the stateless kinds. <see cref="DueAtUtc"/> is a timer's due instant or a
 /// bounded wait's deadline, <see cref="Value"/> is null when the checkpoint carries no payload, and <see cref="ModifiedAtUtc"/> moves on
 /// any write. User checkpoints are named in dotted kebab, system ones <c>sys.*</c>.

@@ -11,7 +11,7 @@ LEFT JOIN {{schema}}.jobs c
     ON c.job_id =TRY_CAST(SUBSTRING(js.checkpoint_name, 11, 20) AS BIGINT)
 LEFT JOIN {{schema}}.jobs_state cr WITH (READCOMMITTEDLOCK, READPAST) ON cr.job_id = c.job_id
 WHERE
-    js.checkpoint_kind_code = 50 /* CheckpointKindCode.ChildLatch */
+    js.checkpoint_kind_code = 50 /* CheckpointKindCode.Child */
     AND js.checkpoint_name LIKE 'sys.child.%'
     AND TRY_CAST(SUBSTRING(js.checkpoint_name, 11, 20) AS BIGINT) IS NOT NULL
     AND js.checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */

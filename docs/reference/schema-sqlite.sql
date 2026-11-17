@@ -15,7 +15,7 @@
 -- before changing anything, in a client that halts on an error (sqlite3 -bail). A later 1.x
 -- release upgrades a 1.x database with
 -- its own migrations, carried in its own copy of this script. A database provisioned from an
--- init migration other than M20261117144817_init has no upgrade path: provision a new one.
+-- init migration other than M20261117145837_init has no upgrade path: provision a new one.
 --
 -- Run it with a client that stops at the first error, which is what makes the transaction below a
 -- guarantee: sqlite3 -bail. A client that runs on past a failed statement would reach the history
@@ -53,11 +53,11 @@ CREATE TEMP TABLE release_guard (
 INSERT INTO release_guard
 SELECT EXISTS (
     SELECT 1 FROM main.migrations
-    WHERE name NOT IN ('M20261117144817_init')
+    WHERE name NOT IN ('M20261117145837_init')
 );
 DROP TABLE release_guard;
 
--- ===== BEGIN M20261117144817_init =====
+-- ===== BEGIN M20261117145837_init =====
 CREATE TABLE IF NOT EXISTS main.alerts (
     alert_id integer PRIMARY KEY AUTOINCREMENT,
     alert_ref text NOT NULL,
@@ -530,7 +530,7 @@ SELECT
     ns.namespace_name,
     d.definition_name,
     c.checkpoint_name,
-    CASE c.checkpoint_kind_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'variable' WHEN 20 THEN 'signal' WHEN 30 THEN 'timer' WHEN 40 THEN 'progress' WHEN 50 THEN 'child-latch' WHEN 60 THEN 'firing' END AS checkpoint_kind,
+    CASE c.checkpoint_kind_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'variable' WHEN 20 THEN 'signal' WHEN 30 THEN 'timer' WHEN 40 THEN 'progress' WHEN 50 THEN 'child' WHEN 60 THEN 'firing' END AS checkpoint_kind,
     c.checkpoint_kind_code,
     CASE c.checkpoint_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'pending' WHEN 20 THEN 'set' WHEN 30 THEN 'expired' WHEN 100 THEN 'consumed' WHEN 110 THEN 'succeeded' WHEN 120 THEN 'failed' WHEN 130 THEN 'cancelled' END AS checkpoint_status,
     c.checkpoint_status_code,
@@ -828,10 +828,10 @@ JOIN main.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO main.migrations (name)
-VALUES ('M20261117144817_init')
+VALUES ('M20261117145837_init')
 ON CONFLICT (name) DO NOTHING;
 
--- ===== END M20261117144817_init =====
+-- ===== END M20261117145837_init =====
 
 COMMIT;
 

@@ -12,7 +12,7 @@
 -- present and leaves the data in place. Over a database a newer release upgraded, the script stops
 -- before changing anything. A later 1.x release upgrades a 1.x database with
 -- its own migrations, carried in its own copy of this script. A database provisioned from an
--- init migration other than M20261117144817_init has no upgrade path: provision a new one.
+-- init migration other than M20261117145837_init has no upgrade path: provision a new one.
 --
 -- Run it with a client that stops at the first error, which is what makes the transaction below a
 -- guarantee: psql -v ON_ERROR_STOP=1. A client that runs on past a failed statement would reach the
@@ -41,14 +41,14 @@ DO $$
 BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
-        WHERE name NOT IN ('M20261117144817_init')
+        WHERE name NOT IN ('M20261117145837_init')
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
 END
 $$;
 
--- ===== BEGIN M20261117144817_init =====
+-- ===== BEGIN M20261117145837_init =====
 CREATE SCHEMA IF NOT EXISTS acta;
 
 -- alerts
@@ -1080,7 +1080,7 @@ BEGIN
         FROM acta.checkpoints s
         INNER JOIN unnest(p_job_ids, p_wait_signal_names) AS w (job_id, wait_signal_name)
             ON s.job_id = w.job_id AND s.checkpoint_name = w.wait_signal_name
-        WHERE s.checkpoint_kind_code IN (20 /* CheckpointKindCode.Signal */, 50 /* CheckpointKindCode.ChildLatch */)
+        WHERE s.checkpoint_kind_code IN (20 /* CheckpointKindCode.Signal */, 50 /* CheckpointKindCode.Child */)
         ORDER BY s.job_id
         FOR UPDATE OF s;
     END IF;
@@ -1115,7 +1115,7 @@ BEGIN
             ON
                 c.wait_signal_name IS NOT NULL
                 AND s.job_id = r.job_id
-                AND s.checkpoint_kind_code IN (20 /* CheckpointKindCode.Signal */, 50 /* CheckpointKindCode.ChildLatch */)
+                AND s.checkpoint_kind_code IN (20 /* CheckpointKindCode.Signal */, 50 /* CheckpointKindCode.Child */)
                 AND s.checkpoint_name = c.wait_signal_name
         WHERE
             r.job_status_code = 50 /* JobStatusCode.Executing */
@@ -1447,7 +1447,7 @@ BEGIN
         PERFORM 1
         FROM acta.checkpoints s
         INNER JOIN acta.jobs j ON s.job_id = j.parent_job_id AND s.checkpoint_name = 'sys.child.' || j.job_id::text
-        WHERE j.job_id = ANY (v_children) AND s.checkpoint_kind_code = 50 /* CheckpointKindCode.ChildLatch */
+        WHERE j.job_id = ANY (v_children) AND s.checkpoint_kind_code = 50 /* CheckpointKindCode.Child */
         ORDER BY s.job_id, s.checkpoint_name
         FOR UPDATE OF s;
 
@@ -1497,7 +1497,7 @@ BEGIN
             LEFT JOIN acta.checkpoints l
                 ON
                     l.job_id = j.parent_job_id
-                    AND l.checkpoint_kind_code = 50 /* CheckpointKindCode.ChildLatch */
+                    AND l.checkpoint_kind_code = 50 /* CheckpointKindCode.Child */
                     AND l.checkpoint_name = 'sys.child.' || r.job_id::text
             WHERE
                 c.job_id = ANY (v_children)
@@ -1510,7 +1510,7 @@ BEGIN
             )
             SELECT
                 s.parent_job_id,
-                50 /* CheckpointKindCode.ChildLatch */,
+                50 /* CheckpointKindCode.Child */,
                 'sys.child.' || s.child_job_id::text,
                 20 /* CheckpointStatusCode.Set */,
                 1 /* JobPayloadFormat.Json */,
@@ -3133,7 +3133,7 @@ BEGIN
     -- It still takes a child's latch, which a restart of it reads, and is not woken.
     IF
         v_from_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
-        AND p_checkpoint_kind_code <> 50 /* CheckpointKindCode.ChildLatch */
+        AND p_checkpoint_kind_code <> 50 /* CheckpointKindCode.Child */
     THEN
         RETURN QUERY SELECT
             CASE
@@ -3176,7 +3176,7 @@ BEGIN
     -- in state, and another value, or any raise at a wait that expired, is rejected. A child's latch keeps rewriting,
     -- since a restarted child's next landing must reach its parent.
     IF
-        p_checkpoint_kind_code <> 50 /* CheckpointKindCode.ChildLatch */
+        p_checkpoint_kind_code <> 50 /* CheckpointKindCode.Child */
         AND v_existing IN (20 /* CheckpointStatusCode.Set */, 30 /* CheckpointStatusCode.Expired */)
     THEN
         RETURN QUERY SELECT
@@ -3560,7 +3560,7 @@ BEGIN
                 FROM acta.checkpoints c
                 WHERE
                     c.job_id = r.job_id
-                    AND c.checkpoint_kind_code IN (20 /* CheckpointKindCode.Signal */, 50 /* CheckpointKindCode.ChildLatch */)
+                    AND c.checkpoint_kind_code IN (20 /* CheckpointKindCode.Signal */, 50 /* CheckpointKindCode.Child */)
                     AND c.checkpoint_status_code = 30 /* CheckpointStatusCode.Expired */
                     AND c.due_at_utc = r.next_run_at_utc
             ) AS wait_resolved,
@@ -4216,14 +4216,14 @@ BEGIN
             p_leased_by_worker_id, p_execution_number,
             'The wait for '
             || CASE
-                WHEN p_checkpoint_kind_code = 50 /* CheckpointKindCode.ChildLatch */
+                WHEN p_checkpoint_kind_code = 50 /* CheckpointKindCode.Child */
                     THEN 'child ' || COALESCE('''' || ch.deduplication_key || '''', 'job ' || substr(p_checkpoint_name, 11))
                 ELSE 'signal ''' || p_checkpoint_name || ''''
             END || ' expired.',
             1 /* JobPayloadFormat.Json */,
             convert_to(
                 json_build_object(
-                    'kind', CASE WHEN p_checkpoint_kind_code = 50 /* CheckpointKindCode.ChildLatch */ THEN 'child-latch' ELSE 'signal' END,
+                    'kind', CASE WHEN p_checkpoint_kind_code = 50 /* CheckpointKindCode.Child */ THEN 'child' ELSE 'signal' END,
                     'name', p_checkpoint_name,
                     'dueAtUtc', to_char(v_expired_due AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')
                 )::text,
@@ -4233,7 +4233,7 @@ BEGIN
         -- A seek on the child's id, the latch name's tail, so no sibling row is read.
         LEFT JOIN acta.jobs ch
             ON
-                p_checkpoint_kind_code = 50 /* CheckpointKindCode.ChildLatch */
+                p_checkpoint_kind_code = 50 /* CheckpointKindCode.Child */
                 AND ch.job_id = substring(p_checkpoint_name FROM '^sys\.child\.([0-9]{1,18})$')::BIGINT
                 AND ch.parent_job_id = j.job_id
         WHERE j.job_id = p_job_id AND j.event_recording_code = 20 /* EventRecordingCode.Audit */;
@@ -4302,7 +4302,7 @@ SELECT
     ns.namespace_name,
     d.definition_name,
     c.checkpoint_name,
-    CASE c.checkpoint_kind_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'variable' WHEN 20 THEN 'signal' WHEN 30 THEN 'timer' WHEN 40 THEN 'progress' WHEN 50 THEN 'child-latch' WHEN 60 THEN 'firing' END AS checkpoint_kind,
+    CASE c.checkpoint_kind_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'variable' WHEN 20 THEN 'signal' WHEN 30 THEN 'timer' WHEN 40 THEN 'progress' WHEN 50 THEN 'child' WHEN 60 THEN 'firing' END AS checkpoint_kind,
     c.checkpoint_kind_code,
     CASE c.checkpoint_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'pending' WHEN 20 THEN 'set' WHEN 30 THEN 'expired' WHEN 100 THEN 'consumed' WHEN 110 THEN 'succeeded' WHEN 120 THEN 'failed' WHEN 130 THEN 'cancelled' END AS checkpoint_status,
     c.checkpoint_status_code,
@@ -4592,10 +4592,10 @@ JOIN acta.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO acta.migrations (name)
-VALUES ('M20261117144817_init')
+VALUES ('M20261117145837_init')
 ON CONFLICT (name) DO NOTHING;
 
--- ===== END M20261117144817_init =====
+-- ===== END M20261117145837_init =====
 
 COMMIT;
 

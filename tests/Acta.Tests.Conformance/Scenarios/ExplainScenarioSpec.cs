@@ -76,11 +76,11 @@ public sealed class ExplainScenarioSpec : ActaRuntimeTestBase<ConformanceFixture
 
         var x = await Jobs.ExplainAsync(JobLookup.ById(parent.JobId), ct);
 
-        // The live path, not just the pure function: this also proves the ChildLatch rows reach the
+        // The live path, not just the pure function: this also proves the Child rows reach the
         // explanation projection at all, which no signal-only fact could show.
         Assert.NotNull(x);
         Assert.Equal(JobStatusCode.Suspended, x!.Status);
-        Assert.Equal(CheckpointKindCode.ChildLatch, x.ActiveWait!.Kind);
+        Assert.Equal(CheckpointKindCode.Child, x.ActiveWait!.Kind);
         Assert.Equal($"sys.child.{child.Id}", x.ActiveWait.Name);
         Assert.NotNull(x.ActiveWait.DueAtUtc);
         Assert.Contains($"waiting for child '{child.DeduplicationKey}' ({new JobRef(child.JobRef)})", x.Headline, StringComparison.Ordinal);

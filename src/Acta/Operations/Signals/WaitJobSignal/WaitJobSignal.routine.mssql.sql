@@ -148,7 +148,7 @@ BEGIN
                 @p_leased_by_worker_id, @p_execution_number,
                 N'The wait for '
                 + CASE
-                    WHEN @p_checkpoint_kind_code = 50 /* CheckpointKindCode.ChildLatch */
+                    WHEN @p_checkpoint_kind_code = 50 /* CheckpointKindCode.Child */
                         THEN N'child ' + COALESCE(
                             N'''' + ch.deduplication_key COLLATE DATABASE_DEFAULT + N'''',
                             N'job ' + SUBSTRING(@p_checkpoint_name, 11, 128)
@@ -158,14 +158,14 @@ BEGIN
                 1 /* JobPayloadFormat.Json */,
                 CAST(
                     '{"kind":"'
-                    + CASE WHEN @p_checkpoint_kind_code = 50 /* CheckpointKindCode.ChildLatch */ THEN 'child-latch' ELSE 'signal' END
+                    + CASE WHEN @p_checkpoint_kind_code = 50 /* CheckpointKindCode.Child */ THEN 'child' ELSE 'signal' END
                     + '","name":"' + @p_checkpoint_name + '","dueAtUtc":"' + CONVERT(VARCHAR(23), @expired_due, 126) + 'Z"}'
                     AS VARBINARY(MAX)
                 )
             FROM {{schema}}.jobs j
             LEFT JOIN {{schema}}.jobs ch
                 ON
-                    @p_checkpoint_kind_code = 50 /* CheckpointKindCode.ChildLatch */
+                    @p_checkpoint_kind_code = 50 /* CheckpointKindCode.Child */
                     AND ch.parent_job_id = j.job_id
                     -- A seek on the child's id, the latch name's tail, so no sibling row is read or waited on.
                     AND ch.job_id = TRY_CAST(SUBSTRING(@p_checkpoint_name, 11, 20) AS BIGINT)

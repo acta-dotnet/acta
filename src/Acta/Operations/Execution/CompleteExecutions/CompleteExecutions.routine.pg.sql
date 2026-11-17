@@ -174,7 +174,7 @@ BEGIN
         FROM {{schema}}.checkpoints s
         INNER JOIN unnest(p_job_ids, p_wait_signal_names) AS w (job_id, wait_signal_name)
             ON s.job_id = w.job_id AND s.checkpoint_name = w.wait_signal_name
-        WHERE s.checkpoint_kind_code IN (20 /* CheckpointKindCode.Signal */, 50 /* CheckpointKindCode.ChildLatch */)
+        WHERE s.checkpoint_kind_code IN (20 /* CheckpointKindCode.Signal */, 50 /* CheckpointKindCode.Child */)
         ORDER BY s.job_id
         FOR UPDATE OF s;
     END IF;
@@ -209,7 +209,7 @@ BEGIN
             ON
                 c.wait_signal_name IS NOT NULL
                 AND s.job_id = r.job_id
-                AND s.checkpoint_kind_code IN (20 /* CheckpointKindCode.Signal */, 50 /* CheckpointKindCode.ChildLatch */)
+                AND s.checkpoint_kind_code IN (20 /* CheckpointKindCode.Signal */, 50 /* CheckpointKindCode.Child */)
                 AND s.checkpoint_name = c.wait_signal_name
         WHERE
             r.job_status_code = 50 /* JobStatusCode.Executing */
@@ -541,7 +541,7 @@ BEGIN
         PERFORM 1
         FROM {{schema}}.checkpoints s
         INNER JOIN {{schema}}.jobs j ON s.job_id = j.parent_job_id AND s.checkpoint_name = 'sys.child.' || j.job_id::text
-        WHERE j.job_id = ANY (v_children) AND s.checkpoint_kind_code = 50 /* CheckpointKindCode.ChildLatch */
+        WHERE j.job_id = ANY (v_children) AND s.checkpoint_kind_code = 50 /* CheckpointKindCode.Child */
         ORDER BY s.job_id, s.checkpoint_name
         FOR UPDATE OF s;
 
@@ -591,7 +591,7 @@ BEGIN
             LEFT JOIN {{schema}}.checkpoints l
                 ON
                     l.job_id = j.parent_job_id
-                    AND l.checkpoint_kind_code = 50 /* CheckpointKindCode.ChildLatch */
+                    AND l.checkpoint_kind_code = 50 /* CheckpointKindCode.Child */
                     AND l.checkpoint_name = 'sys.child.' || r.job_id::text
             WHERE
                 c.job_id = ANY (v_children)
@@ -604,7 +604,7 @@ BEGIN
             )
             SELECT
                 s.parent_job_id,
-                50 /* CheckpointKindCode.ChildLatch */,
+                50 /* CheckpointKindCode.Child */,
                 'sys.child.' || s.child_job_id::text,
                 20 /* CheckpointStatusCode.Set */,
                 1 /* JobPayloadFormat.Json */,

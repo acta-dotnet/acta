@@ -103,7 +103,7 @@ public sealed class RaiseJobSignalSpec : ActaRuntimeTestBase<ConformanceFixture,
             .RaiseJobSignalAsync(
                 new RaiseJobSignalCheckpoint(
                     parent.JobId,
-                    CheckpointKindCode.ChildLatch,
+                    CheckpointKindCode.Child,
                     $"sys.child.{long.MaxValue}",
                     0,
                     null,

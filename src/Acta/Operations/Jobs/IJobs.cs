@@ -266,8 +266,8 @@ public interface IJobs
     ValueTask<GetJobResultResponse?> GetResultAsync(JobLookup job, CancellationToken ct = default);
 
     /// <summary>
-    /// One page of the durable checkpoints (variables, signals, sleep timers, progress, child
-    /// latches) recorded for <see cref="ListJobCheckpointsQuery.Job"/>, by kind, then name. A job with no checkpoints, or no
+    /// One page of the durable checkpoints (variables, signals, sleep timers, progress, children's
+    /// outcomes) recorded for <see cref="ListJobCheckpointsQuery.Job"/>, by kind, then name. A job with no checkpoints, or no
     /// job at all, answers an empty page. Non-blocking point-in-time read.
     /// </summary>
     ValueTask<ListJobCheckpointsResponse> ListCheckpointsAsync(ListJobCheckpointsQuery query, CancellationToken ct = default);
