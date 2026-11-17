@@ -76,7 +76,7 @@
     <div class="wrap howto-body">
       <article class="howto person-face">
 <div class="step"><h2><span class="step-n">1</span>Deliver each occurrence as a job of its own</h2>
-<p>Each occurrence is an ordinary root job with a ref, retries, and result of its own. <code>MaxOutstanding</code> bounds how many may be unfinished at once, and a full schedule set to <code>Drop</code> skips an occurrence, audited as <code>schedule.skipped</code> with the reason <code>capacity</code>. Unset, <code>MaxOutstanding</code> is 1 and <code>FullBehavior</code> is <code>Wait</code>, which holds an occurrence until one finishes. The body here only counts how many run at once; a job of your own does the occurrence's work there.</p>
+<p>Each occurrence is an ordinary root job with a ref, retries, and result of its own. <code>MaxOutstanding</code> bounds how many may be unfinished at once, and a full schedule set to <code>Skip</code> passes over an occurrence, audited as <code>schedule.skipped</code> with the reason <code>capacity</code>. Unset, <code>MaxOutstanding</code> is 1 and <code>FullBehavior</code> is <code>Wait</code>, which holds an occurrence until one finishes. The body here only counts how many run at once; a job of your own does the occurrence's work there.</p>
 <figure class="listing"><figcaption><span class="file">per-occurrence-delivery.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">static</span> <span class="k">int</span> AtOnce =&gt; Volatile.Read(<span class="k">ref</span> _atOnce);
 
 <span class="k">public</span> <span class="k">static</span> <span class="k">int</span> MostAtOnce =&gt; Volatile.Read(<span class="k">ref</span> _mostAtOnce);
@@ -84,7 +84,7 @@
 <span class="k">public</span> <span class="k">static</span> <span class="k">void</span> Release() =&gt; Gate.TrySetResult();
 
 <span class="hl"><span class="a">[Job(<span class="s">&quot;import-files&quot;</span>, ScheduledDelivery = ScheduledDeliveryCode.PerOccurrence)]</span></span>
-<span class="hl"><span class="a">[Schedule(<span class="s">&quot;every-second&quot;</span>, <span class="s">&quot;PT1S&quot;</span>, MaxOutstanding = 2, FullBehavior = ScheduleFullBehaviorCode.Drop)]</span></span>
+<span class="hl"><span class="a">[Schedule(<span class="s">&quot;every-second&quot;</span>, <span class="s">&quot;PT1S&quot;</span>, MaxOutstanding = 2, FullBehavior = ScheduleFullBehaviorCode.Skip)]</span></span>
 <span class="k">public</span> <span class="k">async</span> Task Import(JobContext ctx, CancellationToken ct)
 {
     <span class="k">lock</span> (Counting)
@@ -110,7 +110,7 @@
 <figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project learn/100-scheduling/110-per-occurrence-delivery</code></pre></figure>
 <figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button">Copy</button></figcaption><pre><code>different jobs, one per occurrence
 at most 2 were unfinished at once
-were dropped while full, each audited as schedule.skipped with the reason capacity</code></pre></figure>
+were skipped while full, each audited as schedule.skipped with the reason capacity</code></pre></figure>
 <p class="proof checked"><b>Checked every release.</b> Before each release, Acta Verify runs this program and checks that its output contains these lines.</p>
 <p class="hint">This page shows the code. The rules it relies on, starting with the handler running again from its first line, are in <a href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#handler-contract">the handler contract</a>.</p>
 </div>
@@ -142,7 +142,7 @@ builder.Services.UseActa(j =&gt;
 <span class="k">await</span> host.StartAsync();
 <span class="k">var</span> operations = host.Services.GetRequiredService&lt;IActaOperations&gt;();
 
-<span class="c">// Each import holds until released, so the schedule fills: two roots run, and the occurrences behind them are dropped.</span>
+<span class="c">// Each import holds until released, so the schedule fills: two roots run, and the occurrences behind them are skipped.</span>
 Console.WriteLine(<span class="s">&quot;Every second the schedule admits a root of its own; each import holds until released...&quot;</span>);
 <span class="k">using</span> <span class="k">var</span> fillTimeout = <span class="k">new</span> CancellationTokenSource(TimeSpan.FromSeconds(30));
 <span class="k">while</span> (ImportJob.AtOnce &lt; 2 || <span class="k">await</span> CapacitySkipsAsync() == 0)
@@ -159,19 +159,19 @@ ImportJob.Release();
     <span class="k">await</span> Task.Delay(100, drainTimeout.Token);
 }
 <span class="k">await</span> operations.Schedules.PauseAsync(<span class="k">new</span> ScheduleLookup(jobNamespace, <span class="s">&quot;import-files&quot;</span>, <span class="s">&quot;every-second&quot;</span>), reasonMessage: <span class="s">&quot;how-to done&quot;</span>);
-<span class="k">var</span> dropped = <span class="k">await</span> CapacitySkipsAsync();
+<span class="k">var</span> skipped = <span class="k">await</span> CapacitySkipsAsync();
 
 Console.WriteLine();
 Console.WriteLine(<span class="s">&quot;--- What the imports saw ---&quot;</span>);
 <span class="k">var</span> refs = ImportJob.Finished.Distinct().Count();
 Console.WriteLine(<span class="s">$&quot;{ImportJob.Finished.Count} imports finished, as {refs} different jobs, one per occurrence&quot;</span>);
 Console.WriteLine(<span class="s">$&quot;at most {ImportJob.MostAtOnce} were unfinished at once&quot;</span>);
-Console.WriteLine(<span class="s">$&quot;{dropped} occurrences were dropped while full, each audited as schedule.skipped with the reason capacity&quot;</span>);
+Console.WriteLine(<span class="s">$&quot;{skipped} occurrences were skipped while full, each audited as schedule.skipped with the reason capacity&quot;</span>);
 <span class="k">await</span> ShowAsync(lab, <span class="s">&quot;After the release&quot;</span>);
 
 <span class="k">await</span> host.StopAsync();
 
-<span class="c">// The occurrences the full schedule dropped, as the ledger audits them.</span>
+<span class="c">// The occurrences the full schedule skipped, as the ledger audits them.</span>
 <span class="k">async</span> Task&lt;<span class="k">int</span>&gt; CapacitySkipsAsync()
 {
     <span class="k">var</span> skips = <span class="k">await</span> operations.Ledger.ListEventsAsync(
@@ -202,7 +202,7 @@ Console.WriteLine(<span class="s">$&quot;{dropped} occurrences were dropped whil
         <span class="k">new</span> { jobNamespace = <span class="s">&quot;per-occurrence&quot;</span> }
     );
     <span class="k">await</span> lab.ShowAsync(
-        <span class="s">$&quot;{title}: occurrences dropped because the schedule was full&quot;</span>,
+        <span class="s">$&quot;{title}: occurrences skipped because the schedule was full&quot;</span>,
         <span class="s">&quot;&quot;&quot;</span>
 <span class="s">        SELECT event, details_text</span>
 <span class="s">        FROM events_view</span>
@@ -233,12 +233,12 @@ Console.WriteLine(<span class="s">$&quot;{dropped} occurrences were dropped whil
 
         <span class="c">// learn: Deliver each occurrence as a job of its own</span>
         <span class="c">// Each occurrence is an ordinary root job with a ref, retries, and result of its own.</span>
-        <span class="c">// `MaxOutstanding` bounds how many may be unfinished at once, and a full schedule set to `Drop` skips an</span>
+        <span class="c">// `MaxOutstanding` bounds how many may be unfinished at once, and a full schedule set to `Skip` passes over an</span>
         <span class="c">// occurrence, audited as `schedule.skipped` with the reason `capacity`. Unset, `MaxOutstanding` is 1 and</span>
         <span class="c">// `FullBehavior` is `Wait`, which holds an occurrence until one finishes. The body here only counts how</span>
         <span class="c">// many run at once; a job of your own does the occurrence's work there.</span>
 <span class="hl">        <span class="a">[Job(<span class="s">&quot;import-files&quot;</span>, ScheduledDelivery = ScheduledDeliveryCode.PerOccurrence)]</span></span>
-<span class="hl">        <span class="a">[Schedule(<span class="s">&quot;every-second&quot;</span>, <span class="s">&quot;PT1S&quot;</span>, MaxOutstanding = 2, FullBehavior = ScheduleFullBehaviorCode.Drop)]</span></span>
+<span class="hl">        <span class="a">[Schedule(<span class="s">&quot;every-second&quot;</span>, <span class="s">&quot;PT1S&quot;</span>, MaxOutstanding = 2, FullBehavior = ScheduleFullBehaviorCode.Skip)]</span></span>
         <span class="c">// learn: end</span>
         <span class="k">public</span> <span class="k">async</span> Task Import(JobContext ctx, CancellationToken ct)
         {

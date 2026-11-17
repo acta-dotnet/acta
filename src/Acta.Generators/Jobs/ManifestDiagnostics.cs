@@ -507,7 +507,7 @@ internal static class ManifestDiagnostics
     public static DiagnosticRecord InvalidScheduleFullBehavior(DiscoveredJob job, string scheduleName, byte fullBehaviorId) =>
         new(
             "ACTA0124",
-            $"`[Schedule(\"{scheduleName}\")]` on `[Job(\"{job.JobName}\")]` sets `FullBehavior` to `{fullBehaviorId}`. The behavior is `ScheduleFullBehaviorCode.Wait` or `ScheduleFullBehaviorCode.Drop`.",
+            $"`[Schedule(\"{scheduleName}\")]` on `[Job(\"{job.JobName}\")]` sets `FullBehavior` to `{fullBehaviorId}`. The behavior is `ScheduleFullBehaviorCode.Wait` or `ScheduleFullBehaviorCode.Skip`.",
             job.Location
         );
 

@@ -15,6 +15,6 @@ public enum ScheduleFullBehaviorCode : byte
     Wait = 10,
 
     /// <summary>The occurrence is skipped, audited, and the schedule moves on.</summary>
-    [Code("drop", "An occurrence of a full schedule is skipped, audited, and the schedule moves on.")]
-    Drop = 20,
+    [Code("skip", "An occurrence of a full schedule is skipped, audited, and the schedule moves on.")]
+    Skip = 20,
 }

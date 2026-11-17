@@ -235,7 +235,7 @@ internal sealed class ScheduleAdmitter(
             }
 
             slotRows.Add(Row(ordinal, s, e, admittedDetails, SkippedDetails(s, e)));
-            Decide(decisions, ordinal, e, dropped: false, nowUtc);
+            Decide(decisions, ordinal, e, atCapacity: false, nowUtc);
         }
 
         if (slotRows.Count == 0)
@@ -259,8 +259,8 @@ internal sealed class ScheduleAdmitter(
 
     /// <summary>
     /// A per-occurrence schedule is a group of its own: an admitted occurrence becomes a fresh root, keyed so the same
-    /// occurrence is never admitted twice. At <c>MaxOutstanding</c> the schedule waits for a settlement, or under Drop
-    /// skips the occurrence with the reason <c>capacity</c> and moves on.
+    /// occurrence is never admitted twice. At <c>MaxOutstanding</c> the schedule waits for a settlement, or under Skip passes
+    /// over the occurrence with the reason <c>capacity</c> and moves on.
     /// </summary>
     private static void PlanOccurrence(
         DueSchedule s,
@@ -273,7 +273,7 @@ internal sealed class ScheduleAdmitter(
     )
     {
         var full = s.OutstandingCount >= s.MaxOutstanding;
-        var capacity = full && s.FullBehavior != ScheduleFullBehaviorCode.Drop ? AdmissionCapacity.Full : AdmissionCapacity.Available;
+        var capacity = full && s.FullBehavior != ScheduleFullBehaviorCode.Skip ? AdmissionCapacity.Full : AdmissionCapacity.Available;
         var e = Evaluate(s, capacity, nowUtc, resolve, log);
         if (!e.Changes(Cursor(s), s.EvaluationStatus, s.NextEvaluationAtUtc))
         {
@@ -306,21 +306,21 @@ internal sealed class ScheduleAdmitter(
 
         groups.Add(group);
         rows.Add(Row(ordinal, s, e, admittedDetails, skippedDetails));
-        Decide(decisions, ordinal, e, dropped: full && e.Admit is not null, nowUtc);
+        Decide(decisions, ordinal, e, atCapacity: full && e.Admit is not null, nowUtc);
     }
 
     /// <summary>
     /// The decisions one evaluation took, for the meter; a range skipped or expired before an admitted occurrence
-    /// counts too, and an occurrence dropped at capacity counts as skipped rather than admitted.
+    /// counts too, and an occurrence skipped at capacity counts as skipped rather than admitted.
     /// </summary>
-    private static void Decide(List<PlannedMeasurement>? decisions, int ordinal, ScheduleEvaluation e, bool dropped, DateTime nowUtc)
+    private static void Decide(List<PlannedMeasurement>? decisions, int ordinal, ScheduleEvaluation e, bool atCapacity, DateTime nowUtc)
     {
         if (decisions is null)
         {
             return;
         }
 
-        if (e.SkippedFromUtc is not null || dropped)
+        if (e.SkippedFromUtc is not null || atCapacity)
         {
             decisions.Add(new PlannedMeasurement(ordinal, "skipped", null));
         }
@@ -330,7 +330,7 @@ internal sealed class ScheduleAdmitter(
             decisions.Add(new PlannedMeasurement(ordinal, "expired", null));
         }
 
-        if (!dropped && e.Admit is { } admit)
+        if (!atCapacity && e.Admit is { } admit)
         {
             decisions.Add(new PlannedMeasurement(ordinal, "admitted", nowUtc - admit.OccurrenceAtUtc));
         }

@@ -84,7 +84,7 @@ describe('JobNextRun', () => {
     expect(showsTime(container, '2099-01-01T10:05:00Z')).toBe(true);
   });
 
-  // Under Skip the hourly schedule drops 09:05 and fires at 10:05; under a catch-up policy it fires at 10:00. The
+  // Under Skip the hourly schedule skips 09:05 and fires at 10:05; under a catch-up policy it fires at 10:00. The
   // detail carries no misfire policy, so the page names the known 10:02 firing and that hourly may come first.
   it('names the known firing and a timed pause that may fire first once it resumes before it', () => {
     const schedules = [
@@ -122,7 +122,7 @@ describe('JobNextRun', () => {
     expect(queryByText('No schedule is set to fire it.')).toBeNull();
   });
 
-  // An occurrence already past is one the scheduler has not admitted yet: under Skip it drops it for the next one, so
+  // An occurrence already past is one the scheduler has not admitted yet: under Skip it skips it for the next one, so
   // the page cannot rank it as a firing.
   it('names an overdue schedule as one that may fire first, not as the next firing', () => {
     const schedules = [schedule('daily', 'active', '2000-01-01T09:00:00Z'), schedule('noon', 'active', '2099-01-01T12:00:00Z')];

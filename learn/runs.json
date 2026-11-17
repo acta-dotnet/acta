@@ -69,7 +69,7 @@
   "110-per-occurrence-delivery": [
     "different jobs, one per occurrence",
     "at most 2 were unfinished at once",
-    "were dropped while full, each audited as schedule.skipped with the reason capacity"
+    "were skipped while full, each audited as schedule.skipped with the reason capacity"
   ],
   "111-firing-failure-policy": ["then its schedule paused", "and is still scheduled", "sync-prices-continuing | active"],
   "201-durable-checkout": [

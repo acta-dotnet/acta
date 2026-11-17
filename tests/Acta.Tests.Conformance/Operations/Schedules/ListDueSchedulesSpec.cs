@@ -121,7 +121,7 @@ public sealed class ListDueSchedulesSpec : ActaStorageTestBase<ConformanceFixtur
     {
         var ct = TestContext.Current.CancellationToken;
         var now = FloorSeconds(DateTime.UtcNow);
-        // Two backlogs an hour deep fill the page. A pass drops one occurrence of each and leaves the next, still an
+        // Two backlogs an hour deep fill the page. A pass skips one occurrence of each and leaves the next, still an
         // hour due; the third schedule came due a minute ago, later than anything the two have left.
         var backlogs = new[]
         {
@@ -147,7 +147,7 @@ public sealed class ListDueSchedulesSpec : ActaStorageTestBase<ConformanceFixtur
 
     /// <summary>
     /// Registers a per-occurrence definition whose one per-minute CatchUpAll schedule sits at <paramref name="cursor"/>,
-    /// full and dropping, so a pass decides one occurrence of it and admits nothing; returns the schedule's id.
+    /// full and skipping, so a pass decides one occurrence of it and admits nothing; returns the schedule's id.
     /// </summary>
     private async Task<int> RegisterBacklogAsync(string jobName, DateTime cursor, CancellationToken ct)
     {
@@ -161,7 +161,7 @@ public sealed class ListDueSchedulesSpec : ActaStorageTestBase<ConformanceFixtur
             ScheduleExpressionKindCode.Cron,
             null,
             cursor,
-            FullBehavior: ScheduleFullBehaviorCode.Drop
+            FullBehavior: ScheduleFullBehaviorCode.Skip
         );
         var definition = new DefinitionSchedules(
             NamespaceId: TestNamespaceId,

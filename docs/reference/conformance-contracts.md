@@ -2391,12 +2391,12 @@
   - Under Skip an occurrence inside a timed pause stays skipped when the pause ends on a busy job that frees inside the grace
 
 ### A PerOccurrence schedule admits roots charged to it and settles them once
-- **Contract:** A PerOccurrence schedule admits each occurrence as a root charged to it, releases the charge once per terminalization, and waits or drops when full.
+- **Contract:** A PerOccurrence schedule admits each occurrence as a root charged to it, releases the charge once per terminalization, and waits or skips when full.
 - **Guarantees:**
   - An admitted occurrence is a Ready root with the schedule as provenance, one charge, and its own envelope, settled on completion
   - A per-occurrence root past its Strict deadline is cancelled at admission and releases its charge
   - At MaxOutstanding a Wait schedule parks until a settlement wakes it, then admits the waiting occurrence
-  - At MaxOutstanding a Drop schedule skips the occurrence with the reason capacity and moves on
+  - At MaxOutstanding a Skip schedule passes over the occurrence with the reason capacity and moves on
   - A cancel releases the charge, a restart takes it again, and a restart into a full schedule is Rejected
   - A manual trigger admits a charged root with an empty envelope, and a full schedule rejects it
   - A root that fails for good settles its envelope Failed, releases the charge, and pauses the schedules under PauseScheduling

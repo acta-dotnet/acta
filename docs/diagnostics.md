@@ -140,7 +140,7 @@ Use a parameterless record for the input: `public sealed record NightlyClose;`.
 
 **Invalid `[Schedule]` policy value.** `MaxOutstanding` below 1, or a `FullBehavior` or
 `MisfireStrategy` that is not one of the code's members. The strategies are `Skip`, `CatchUpOnce`,
-`CatchUpLatest`, and `CatchUpAll`; the behaviors `Wait` and `Drop`.
+`CatchUpLatest`, and `CatchUpAll`; the behaviors `Wait` and `Skip`.
 
 ## ACTA0125 <a id="acta0125"></a>
 

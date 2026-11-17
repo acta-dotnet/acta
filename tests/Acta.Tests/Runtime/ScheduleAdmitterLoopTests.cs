@@ -49,13 +49,13 @@ public sealed class ScheduleAdmitterLoopTests
     }
 
     [Fact]
-    public async Task A_pass_that_dropped_at_capacity_and_left_more_due_is_followed_at_once()
+    public async Task A_pass_that_skipped_at_capacity_and_left_more_due_is_followed_at_once()
     {
         using var script = new Script(
             horizons: [Now, Now, null],
             dueLists:
             [
-                [Due() with { OutstandingCount = 1, FullBehavior = ScheduleFullBehaviorCode.Drop }],
+                [Due() with { OutstandingCount = 1, FullBehavior = ScheduleFullBehaviorCode.Skip }],
                 [],
             ],
             applied: true

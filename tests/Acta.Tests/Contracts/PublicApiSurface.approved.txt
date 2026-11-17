@@ -2528,7 +2528,7 @@ sealed class Acta.ScheduleExpressionKindCodeJsonConverter : System.Text.Json.Ser
     Acta.ScheduleExpressionKindCode Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
     System.Void Write(System.Text.Json.Utf8JsonWriter writer, Acta.ScheduleExpressionKindCode value, System.Text.Json.JsonSerializerOptions options)
 enum Acta.ScheduleFullBehaviorCode : System.Byte
-    Drop = 20
+    Skip = 20
     Unspecified = 0
     Wait = 10
 static class Acta.ScheduleFullBehaviorCodeExtensions

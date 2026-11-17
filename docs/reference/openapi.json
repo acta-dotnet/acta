@@ -22183,11 +22183,11 @@
           "wait"
         ],
         "type": "string",
-        "description": "What a due occurrence does when its schedule already has its maximum of unsettled occurrences.\n\nKnown values:\n- unspecified: Schedule full behavior not recognized by this build; the row was written by a newer Acta.\n- wait: Default. An occurrence of a full schedule stays undecided until a settlement frees capacity.\n- drop: An occurrence of a full schedule is skipped, audited, and the schedule moves on.\n\nOther values may appear: keep a value this client does not know as it is.",
+        "description": "What a due occurrence does when its schedule already has its maximum of unsettled occurrences.\n\nKnown values:\n- unspecified: Schedule full behavior not recognized by this build; the row was written by a newer Acta.\n- wait: Default. An occurrence of a full schedule stays undecided until a settlement frees capacity.\n- skip: An occurrence of a full schedule is skipped, audited, and the schedule moves on.\n\nOther values may appear: keep a value this client does not know as it is.",
         "x-acta-known-values": [
           "unspecified",
           "wait",
-          "drop"
+          "skip"
         ]
       },
       "ScheduleStatusCode": {

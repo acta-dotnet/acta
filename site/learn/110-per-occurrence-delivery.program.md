@@ -36,7 +36,7 @@ using var host = builder.Build();
 await host.StartAsync();
 var operations = host.Services.GetRequiredService<IActaOperations>();
 
-// Each import holds until released, so the schedule fills: two roots run, and the occurrences behind them are dropped.
+// Each import holds until released, so the schedule fills: two roots run, and the occurrences behind them are skipped.
 Console.WriteLine("Every second the schedule admits a root of its own; each import holds until released...");
 using var fillTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
 while (ImportJob.AtOnce < 2 || await CapacitySkipsAsync() == 0)
@@ -53,19 +53,19 @@ while (ImportJob.Finished.Count < 4)
     await Task.Delay(100, drainTimeout.Token);
 }
 await operations.Schedules.PauseAsync(new ScheduleLookup(jobNamespace, "import-files", "every-second"), reasonMessage: "how-to done");
-var dropped = await CapacitySkipsAsync();
+var skipped = await CapacitySkipsAsync();
 
 Console.WriteLine();
 Console.WriteLine("--- What the imports saw ---");
 var refs = ImportJob.Finished.Distinct().Count();
 Console.WriteLine($"{ImportJob.Finished.Count} imports finished, as {refs} different jobs, one per occurrence");
 Console.WriteLine($"at most {ImportJob.MostAtOnce} were unfinished at once");
-Console.WriteLine($"{dropped} occurrences were dropped while full, each audited as schedule.skipped with the reason capacity");
+Console.WriteLine($"{skipped} occurrences were skipped while full, each audited as schedule.skipped with the reason capacity");
 await ShowAsync(lab, "After the release");
 
 await host.StopAsync();
 
-// The occurrences the full schedule dropped, as the ledger audits them.
+// The occurrences the full schedule skipped, as the ledger audits them.
 async Task<int> CapacitySkipsAsync()
 {
     var skips = await operations.Ledger.ListEventsAsync(
@@ -96,7 +96,7 @@ static async Task ShowAsync(LearnLab lab, string title)
         new { jobNamespace = "per-occurrence" }
     );
     await lab.ShowAsync(
-        $"{title}: occurrences dropped because the schedule was full",
+        $"{title}: occurrences skipped because the schedule was full",
         """
         SELECT event, details_text
         FROM events_view
@@ -127,12 +127,12 @@ namespace Acta.Learn.PerOccurrenceDelivery
 
         // learn: Deliver each occurrence as a job of its own
         // Each occurrence is an ordinary root job with a ref, retries, and result of its own.
-        // `MaxOutstanding` bounds how many may be unfinished at once, and a full schedule set to `Drop` skips an
+        // `MaxOutstanding` bounds how many may be unfinished at once, and a full schedule set to `Skip` passes over an
         // occurrence, audited as `schedule.skipped` with the reason `capacity`. Unset, `MaxOutstanding` is 1 and
         // `FullBehavior` is `Wait`, which holds an occurrence until one finishes. The body here only counts how
         // many run at once; a job of your own does the occurrence's work there.
         [Job("import-files", ScheduledDelivery = ScheduledDeliveryCode.PerOccurrence)]
-        [Schedule("every-second", "PT1S", MaxOutstanding = 2, FullBehavior = ScheduleFullBehaviorCode.Drop)]
+        [Schedule("every-second", "PT1S", MaxOutstanding = 2, FullBehavior = ScheduleFullBehaviorCode.Skip)]
         // learn: end
         public async Task Import(JobContext ctx, CancellationToken ct)
         {

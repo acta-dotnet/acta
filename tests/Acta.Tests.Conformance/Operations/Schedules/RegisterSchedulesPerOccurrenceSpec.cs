@@ -30,14 +30,14 @@ public sealed class RegisterSchedulesPerOccurrenceSpec : ActaStorageTestBase<Con
         var defId = await CreateDefinitionAsync(jobName, ct);
         var cursor = FloorSeconds(DateTime.UtcNow.AddHours(6));
 
-        var slots = await RegisterAsync(defId, [Slot("only", cursor, 3, ScheduleFullBehaviorCode.Drop)], ct);
+        var slots = await RegisterAsync(defId, [Slot("only", cursor, 3, ScheduleFullBehaviorCode.Skip)], ct);
 
         Assert.DoesNotContain(defId, slots.Keys);
         Assert.Null(await ScheduleTestOps.TrySlotIdAsync(Db, TestNamespaceId, jobName, ct));
         var (config, state) = await ScheduleAsync(defId, "only", ct);
         Assert.Null(config.JobId);
         Assert.Equal(3, config.MaxOutstanding);
-        Assert.Equal(ScheduleFullBehaviorCode.Drop, config.FullBehavior);
+        Assert.Equal(ScheduleFullBehaviorCode.Skip, config.FullBehavior);
         Assert.Equal(0, state.OutstandingCount);
         Assert.Equal(cursor, state.NextOccurrenceAtUtc);
 

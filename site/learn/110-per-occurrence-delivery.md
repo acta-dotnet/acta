@@ -12,13 +12,13 @@
 
 ## 1. Deliver each occurrence as a job of its own
 
-Each occurrence is an ordinary root job with a ref, retries, and result of its own. `MaxOutstanding` bounds how many may be unfinished at once, and a full schedule set to `Drop` skips an occurrence, audited as `schedule.skipped` with the reason `capacity`. Unset, `MaxOutstanding` is 1 and `FullBehavior` is `Wait`, which holds an occurrence until one finishes. The body here only counts how many run at once; a job of your own does the occurrence's work there.
+Each occurrence is an ordinary root job with a ref, retries, and result of its own. `MaxOutstanding` bounds how many may be unfinished at once, and a full schedule set to `Skip` passes over an occurrence, audited as `schedule.skipped` with the reason `capacity`. Unset, `MaxOutstanding` is 1 and `FullBehavior` is `Wait`, which holds an occurrence until one finishes. The body here only counts how many run at once; a job of your own does the occurrence's work there.
 
 The lines that matter:
 
 ```csharp
 [Job("import-files", ScheduledDelivery = ScheduledDeliveryCode.PerOccurrence)]
-[Schedule("every-second", "PT1S", MaxOutstanding = 2, FullBehavior = ScheduleFullBehaviorCode.Drop)]
+[Schedule("every-second", "PT1S", MaxOutstanding = 2, FullBehavior = ScheduleFullBehaviorCode.Skip)]
 ```
 
 In `per-occurrence-delivery.cs` (excerpt):
@@ -31,7 +31,7 @@ public static int MostAtOnce => Volatile.Read(ref _mostAtOnce);
 public static void Release() => Gate.TrySetResult();
 
 [Job("import-files", ScheduledDelivery = ScheduledDeliveryCode.PerOccurrence)]
-[Schedule("every-second", "PT1S", MaxOutstanding = 2, FullBehavior = ScheduleFullBehaviorCode.Drop)]
+[Schedule("every-second", "PT1S", MaxOutstanding = 2, FullBehavior = ScheduleFullBehaviorCode.Skip)]
 public async Task Import(JobContext ctx, CancellationToken ct)
 {
     lock (Counting)
@@ -66,7 +66,7 @@ Its output must contain:
 ```text
 different jobs, one per occurrence
 at most 2 were unfinished at once
-were dropped while full, each audited as schedule.skipped with the reason capacity
+were skipped while full, each audited as schedule.skipped with the reason capacity
 ```
 
 Checked every release. Before each release, Acta Verify runs this program and checks that its output contains these lines.

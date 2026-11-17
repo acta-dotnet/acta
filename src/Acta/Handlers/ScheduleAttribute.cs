@@ -103,7 +103,7 @@ public sealed class ScheduleAttribute : Attribute
     /// <summary>
     /// What an occurrence does when the schedule is at <see cref="MaxOutstanding"/>: <c>Wait</c> keeps it undecided
     /// until a settlement frees capacity, when <see cref="MisfireStrategy"/> decides the held-back occurrences
-    /// (<c>CatchUpAll</c> keeps every one); <c>Drop</c> skips it, audited, and moves on.
+    /// (<c>CatchUpAll</c> keeps every one); <c>Skip</c> passes over it, audited, and moves on.
     /// </summary>
     public ScheduleFullBehaviorCode FullBehavior { get; init; } = ScheduleFullBehaviorCode.Wait;
 

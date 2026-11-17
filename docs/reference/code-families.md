@@ -385,7 +385,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 |---|---:|---|---|---|
 | `Unspecified` | 0 | `unspecified` | Schedule full behavior not recognized by this build; the row was written by a newer Acta. | Active |
 | `Wait` | 10 | `wait` | Default. An occurrence of a full schedule stays undecided until a settlement frees capacity. | Active |
-| `Drop` | 20 | `drop` | An occurrence of a full schedule is skipped, audited, and the schedule moves on. | Active |
+| `Skip` | 20 | `skip` | An occurrence of a full schedule is skipped, audited, and the schedule moves on. | Active |
 
 ### `ScheduleStatusCode` · `schedule-status` <a id="code-family-schedulestatuscode"></a>
 

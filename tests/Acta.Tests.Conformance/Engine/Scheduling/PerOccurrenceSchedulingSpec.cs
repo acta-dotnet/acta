@@ -27,7 +27,7 @@ internal static class WaitingRootHandler
 public sealed class PerOccurrenceManifest : IJobManifest
 {
     public const string WaitingJobName = "roots-wait";
-    public const string DroppingJobName = "roots-drop";
+    public const string SkippingJobName = "roots-skip";
     public const string ControlledJobName = "roots-control";
     public const string TriggeredJobName = "roots-trigger";
     public const string FailingJobName = "roots-fail";
@@ -47,7 +47,7 @@ public sealed class PerOccurrenceManifest : IJobManifest
     public static JobDescriptorManifest Descriptors { get; } =
         new([
             Descriptor(WaitingJobName, 1, ScheduleFullBehaviorCode.Wait, fails: false),
-            Descriptor(DroppingJobName, 1, ScheduleFullBehaviorCode.Drop, fails: false),
+            Descriptor(SkippingJobName, 1, ScheduleFullBehaviorCode.Skip, fails: false),
             Descriptor(ControlledJobName, 1, ScheduleFullBehaviorCode.Wait, fails: false),
             Descriptor(TriggeredJobName, 1, ScheduleFullBehaviorCode.Wait, fails: false),
             Descriptor(FailingJobName, 2, ScheduleFullBehaviorCode.Wait, fails: true),
@@ -133,14 +133,14 @@ public sealed class PerOccurrenceManifest : IJobManifest
 /// <summary>
 /// A PerOccurrence definition's schedule admits each occurrence as a fresh ordinary root charged to the schedule: the
 /// root carries the schedule as provenance and a one-contributor envelope, every terminalization releases the charge
-/// once, a full schedule waits or drops by its declared behavior, a restart re-charges, a manual trigger is charged,
+/// once, a full schedule waits or skips by its declared behavior, a restart re-charges, a manual trigger is charged,
 /// a root that fails for good applies the firing failure policy, and a suspended namespace holds its schedules.
 /// </summary>
 [ConformanceSpec(
     "schedule.per-occurrence",
     "A PerOccurrence schedule admits roots charged to it and settles them once",
     Area = "Scheduling",
-    Contract = "A PerOccurrence schedule admits each occurrence as a root charged to it, releases the charge once per terminalization, and waits or drops when full."
+    Contract = "A PerOccurrence schedule admits each occurrence as a root charged to it, releases the charge once per terminalization, and waits or skips when full."
 )]
 public sealed class PerOccurrenceSchedulingSpec : ActaRuntimeTestBase<ConformanceFixture, PerOccurrenceManifest>
 {
@@ -255,18 +255,18 @@ public sealed class PerOccurrenceSchedulingSpec : ActaRuntimeTestBase<Conformanc
         await ScheduleTestOps.AssertChargeIsPendingEnvelopesAsync(Db, schedule.Id, ct);
     }
 
-    [Fact(DisplayName = "At MaxOutstanding a Drop schedule skips the occurrence with the reason capacity and moves on")]
-    public async Task A_full_schedule_drops_the_occurrence()
+    [Fact(DisplayName = "At MaxOutstanding a Skip schedule passes over the occurrence with the reason capacity and moves on")]
+    public async Task A_full_schedule_skips_the_occurrence()
     {
         var ct = TestContext.Current.CancellationToken;
-        var (schedule, state) = await ScheduleAsync(PerOccurrenceManifest.DroppingJobName, ct);
+        var (schedule, state) = await ScheduleAsync(PerOccurrenceManifest.SkippingJobName, ct);
         var occurrence = state.NextOccurrenceAtUtc!.Value;
         await AdmitAtAsync(occurrence, ct);
 
         await AdmitAtAsync(occurrence.AddMinutes(5), ct);
 
         Assert.Single(await RootsAsync(schedule.Id, ct));
-        (_, state) = await ScheduleAsync(PerOccurrenceManifest.DroppingJobName, ct);
+        (_, state) = await ScheduleAsync(PerOccurrenceManifest.SkippingJobName, ct);
         Assert.Equal(ScheduleEvaluationStatusCode.Scheduled, state.EvaluationStatus);
         Assert.Equal(occurrence.AddMinutes(10), state.NextOccurrenceAtUtc);
         Assert.Equal(1, state.OutstandingCount);

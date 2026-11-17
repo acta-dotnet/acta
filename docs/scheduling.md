@@ -102,13 +102,13 @@ is the roots whose firing is still pending, so only the settlement that ends a r
 A restart of a finished root takes the charge again and is Rejected when the schedule is full or gone, and
 a root that lands `Failed` is a firing that failed for good under `FiringFailurePolicy`. At the limit,
 `Wait` leaves the occurrence undecided and parks the schedule until a settlement wakes it, when the
-misfire policy decides the backlog; `Drop` skips the occurrence with the audited reason `capacity`
+misfire policy decides the backlog; `Skip` passes over the occurrence with the audited reason `capacity`
 (`schedule.skipped`) and advances. A `Permanent` definition's schedules allow exactly 1 (`ACTA0125`).
 
 A per-occurrence schedule's decisions that make no root, a skip or an ended pause, are audited against the
 definition; an admission or a manual trigger is audited against the root. The
 [per-occurrence-delivery how-to](../learn/100-scheduling/110-per-occurrence-delivery/) runs one at a
-limit of two, dropping what arrives while it is full. A `PerOccurrence` definition
+limit of two, skipping what arrives while it is full. A `PerOccurrence` definition
 declares no lane. Its deadline counts from each root's admission, not from its occurrence, so a root admitted
 late under catch-up or `FullBehavior = Wait` starts its clock late.
 

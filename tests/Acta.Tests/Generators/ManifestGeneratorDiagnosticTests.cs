@@ -1260,7 +1260,7 @@ public class ManifestGeneratorDiagnosticTests
             public static class Handler
             {
                 [Job("per-occurrence", ScheduledDelivery = ScheduledDeliveryCode.PerOccurrence)]
-                [Schedule("tick", Cron.Hourly, MaxOutstanding = 3, FullBehavior = ScheduleFullBehaviorCode.Drop)]
+                [Schedule("tick", Cron.Hourly, MaxOutstanding = 3, FullBehavior = ScheduleFullBehaviorCode.Skip)]
                 public static void PerOccurrence() { }
 
                 [Job("permanent")]
@@ -1273,7 +1273,7 @@ public class ManifestGeneratorDiagnosticTests
         Assert.Empty(result.Diagnostics);
         var source = Assert.Single(result.GeneratedTrees).ToString();
         Assert.Contains("MaxOutstanding: 3,", source);
-        Assert.Contains("FullBehavior: global::Acta.ScheduleFullBehaviorCode.Drop,", source);
+        Assert.Contains("FullBehavior: global::Acta.ScheduleFullBehaviorCode.Skip,", source);
         Assert.Contains("MaxOutstanding: 1,", source);
         Assert.Contains("FullBehavior: global::Acta.ScheduleFullBehaviorCode.Wait,", source);
     }

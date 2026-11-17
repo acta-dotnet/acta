@@ -538,7 +538,7 @@ In production a deploy step applies Acta's migrations, never application startup
 
 ```
 $ ConnectionStrings__acta="<DDL login>" dotnet MyApp.dll jobs migrate
-applied M20261117140757_init to schema acta
+applied M20261117141417_init to schema acta
 namespace billing: 1.6.1+b81d04e (Production)
   added    sys.alerts
   added    sys.retention
@@ -1493,7 +1493,7 @@ two. `next_occurrence_at_utc` is the next instant the schedule is due; an orphan
 schedule of a retired definition, has none. `next_evaluation_at_utc` and `evaluation_status` say when
 and why the admitter next looks; the permanent job carries no cursor of its own and sits `idle` between firings.
 `outstanding_count` is a per-occurrence schedule's roots not yet settled, bounded by `max_outstanding`,
-and `full_behavior` says whether a due occurrence waits or is dropped at that bound. Each such root names
+and `full_behavior` says whether a due occurrence waits or is skipped at that bound. Each such root names
 its schedule in `jobs_view.schedule_id`.
 
 ### Per-Occurrence Capacity Drift

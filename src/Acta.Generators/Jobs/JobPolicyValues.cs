@@ -215,7 +215,7 @@ internal static class JobPolicyValues
         id switch
         {
             10 => "Wait",
-            20 => "Drop",
+            20 => "Skip",
             _ => null,
         };
 

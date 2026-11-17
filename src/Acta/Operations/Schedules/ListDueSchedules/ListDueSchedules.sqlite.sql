@@ -24,7 +24,7 @@ WITH due AS (
             10 /* MisfireStrategyCode.CatchUpOnce */, 20 /* MisfireStrategyCode.Skip */,
             30 /* MisfireStrategyCode.CatchUpLatest */, 40 /* MisfireStrategyCode.CatchUpAll */
         )
-        AND ds.full_behavior_code IN (10 /* ScheduleFullBehaviorCode.Wait */, 20 /* ScheduleFullBehaviorCode.Drop */)
+        AND ds.full_behavior_code IN (10 /* ScheduleFullBehaviorCode.Wait */, 20 /* ScheduleFullBehaviorCode.Skip */)
         AND (
             ds.expire_action_code IS NULL
             OR ds.expire_action_code IN (10 /* ScheduleExpireActionCode.Discard */, 20 /* ScheduleExpireActionCode.Pause */)
@@ -82,7 +82,7 @@ WHERE
         10 /* MisfireStrategyCode.CatchUpOnce */, 20 /* MisfireStrategyCode.Skip */,
         30 /* MisfireStrategyCode.CatchUpLatest */, 40 /* MisfireStrategyCode.CatchUpAll */
     )
-    AND s.full_behavior_code IN (10 /* ScheduleFullBehaviorCode.Wait */, 20 /* ScheduleFullBehaviorCode.Drop */)
+    AND s.full_behavior_code IN (10 /* ScheduleFullBehaviorCode.Wait */, 20 /* ScheduleFullBehaviorCode.Skip */)
     AND (
         s.expire_action_code IS NULL
         OR s.expire_action_code IN (10 /* ScheduleExpireActionCode.Discard */, 20 /* ScheduleExpireActionCode.Pause */)
