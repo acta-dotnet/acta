@@ -86,10 +86,10 @@ sealed record Acta.Testing.ActaAdmissionReport
     .ctor(System.Int32 Admitted)
     System.Int32 Admitted { get;init; }
 sealed record Acta.Testing.ActaRecoveryReport
-    .ctor(System.Int32 DeadWorkersMarked, System.Int32 ReclaimedJobs, System.Int32 ReleasedChildLatches)
+    .ctor(System.Int32 DeadWorkersMarked, System.Int32 ReclaimedJobs, System.Int32 ReleasedChildWaits)
     System.Int32 DeadWorkersMarked { get;init; }
     System.Int32 ReclaimedJobs { get;init; }
-    System.Int32 ReleasedChildLatches { get;init; }
+    System.Int32 ReleasedChildWaits { get;init; }
 enum Acta.Testing.ActaRunStatus : System.Byte
     Completed = 2
     Failed = 3

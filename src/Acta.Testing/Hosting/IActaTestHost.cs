@@ -113,7 +113,7 @@ public enum ActaRunStatus : byte
 /// <summary>
 /// What one test-driven recovery pass for a namespace changed.
 /// </summary>
-public sealed record ActaRecoveryReport(int DeadWorkersMarked, int ReclaimedJobs, int ReleasedChildLatches);
+public sealed record ActaRecoveryReport(int DeadWorkersMarked, int ReclaimedJobs, int ReleasedChildWaits);
 
 /// <summary>What one test-driven admission pass for a namespace admitted: permanent-job firings and per-occurrence roots together.</summary>
 public sealed record ActaAdmissionReport(int Admitted);
