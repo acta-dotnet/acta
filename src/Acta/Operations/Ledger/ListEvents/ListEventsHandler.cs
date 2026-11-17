@@ -16,9 +16,11 @@ internal sealed class ListEventsHandler(GetJobIdHandler getJobId, GetWorkerHandl
         {
             throw new InvalidQueryException("EntityId on ListEvents requires Entity; an id names a row only within its kind.");
         }
-        if (query.IncludeTotal && query.Job is null && query.EntityId is null)
+        if (query.IncludeTotal && query.Job is null && query.LineageRoot is null && query.EntityId is null)
         {
-            throw new InvalidQueryException("IncludeTotal on ListEvents requires Job or EntityId; a global event count is unbounded work.");
+            throw new InvalidQueryException(
+                "IncludeTotal on ListEvents requires Job, LineageRoot or EntityId; a global event count is unbounded work."
+            );
         }
 
         QueryValidation.ValidatePositiveId((long?)query.TenantId, nameof(query.TenantId));

@@ -104,12 +104,14 @@ public sealed class ListEventsFilterMatrixSpec : ActaRuntimeTestBase<Conformance
         // events.lineage_root_job_id = COALESCE(job.lineage_root_job_id, job.job_id), so both root and child
         // events share lineage_root_job_id = rootId; unrelated events carry their own id.
         var lineagePage = await queries.Ledger.ListEventsAsync(
-            new ListEventsQuery(LineageRoot: roots[0].JobRef, JobNamespace: TestNamespace, PageSize: 100),
+            new ListEventsQuery(LineageRoot: roots[0].JobRef, JobNamespace: TestNamespace, PageSize: 100, IncludeTotal: true),
             ct
         );
         var lineageIds = lineagePage.Items.Select(e => e.EventId).ToHashSet();
 
         Assert.Equal([.. rootEvents.Union(childEvents)], lineageIds);
+        // One tree is bounded, so its events can be counted.
+        Assert.Equal(lineageIds.Count, lineagePage.TotalCount);
     }
 
     [Fact(DisplayName = "JobNamespace filter scopes events to exactly one namespace")]
