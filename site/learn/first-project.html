@@ -371,7 +371,7 @@ app.Run();</code></pre>
           <figcaption><span class="note">Terminal 1</span><button class="copy" type="button" aria-label="Copy the run command">Copy</button></figcaption>
           <pre><code>dotnet run --urls http://localhost:5080</code></pre>
         </figure>
-        <p>Among the startup lines you should see <code>Now listening on: http://localhost:5080</code>, and a few lines from <code>WorkerRuntime</code> saying the claim loop and heartbeat have started: that is the worker. A new <code>reports.db</code> file has appeared in the project folder.</p>
+        <p>Among the startup lines you should see <code>Now listening on: http://localhost:5080</code>, and <code>Acta worker started in namespace (reports)</code> with its settings: that is the worker. A new <code>reports.db</code> file has appeared in the project folder.</p>
         <p>In a second terminal, ask for August. On Windows PowerShell, type <code>curl.exe</code> rather than <code>curl</code>, because <code>curl</code> there is an alias for a different command.</p>
         <figure class="listing">
           <figcaption><span class="note">Terminal 2</span><button class="copy" type="button" aria-label="Copy the report request">Copy</button></figcaption>
@@ -416,7 +416,7 @@ Total:  5,426.50
   South         926.25
   West        2,840.00</code></pre>
         </figure>
-        <p>Terminal 1 shows the handler's two log lines, <code>execution 1: building the 2026-08 report</code> and <code>wrote ...</code>, followed by Acta noting the job as completed. It is worth pausing on the order of events, because everything later depends on it. The endpoint wrote a row describing the job and returned. The worker, polling the same database, claimed the row, which marked it as taken by this process for a limited time called a <strong>lease</strong>. It ran the handler, then wrote the outcome and the result back to the row. At every moment, the question "what happened to that report?" had an answer in <code>reports.db</code>, not just in the memory of a running process.</p>
+        <p>Terminal 1 shows the handler's two log lines, <code>execution 1: building the 2026-08 report</code> and <code>wrote ...</code>. Acta logs nothing for a success; the row is where it is recorded. It is worth pausing on the order of events, because everything later depends on it. The endpoint wrote a row describing the job and returned. The worker, polling the same database, claimed the row, which marked it as taken by this process for a limited time called a <strong>lease</strong>. It ran the handler, then wrote the outcome and the result back to the row. At every moment, the question "what happened to that report?" had an answer in <code>reports.db</code>, not just in the memory of a running process.</p>
       </section>
 
       <section id="dashboard" aria-labelledby="dashboard-title">
@@ -447,7 +447,7 @@ Total:  5,426.50
           <figcaption><span class="note">Terminal 2</span><button class="copy" type="button" aria-label="Copy the September request">Copy</button></figcaption>
           <pre><code>curl -X POST "http://localhost:5080/reports?month=2026-09"</code></pre>
         </figure>
-        <p>Terminal 1 now shows the handler starting, a warning with the <code>FileNotFoundException</code> and its stack trace, and a line saying the job was re-armed. Ten seconds later the same thing happens with <code>execution 2</code>, then <code>execution 3</code>. Open the job in the dashboard:</p>
+        <p>Terminal 1 now shows the handler starting, and a warning that the handler threw and that the job retries in ten seconds (the stack trace is logged at Debug). Ten seconds later the same thing happens with <code>execution 2</code>, then <code>execution 3</code>. Open the job in the dashboard:</p>
         <figure class="shot">
           <a href="/assets/learn-retrying.webp" title="Open the full-size screenshot"><img src="/assets/learn-retrying.webp" width="1600" height="1100" loading="lazy" alt="The dashboard's page for the September job. Its status reads Ready, scheduled to run in 9s, with the message Could not find file and the path of sales-2026-09.csv, then Next run in 9s, attempt 4, and 4 consecutive failures, fails permanently at 10. The Activity timeline below lists each failed attempt and its reschedule." /></a>
           <figcaption>The September job between attempts. Ready, with a next-run time, is how a waiting retry looks.</figcaption>
@@ -477,7 +477,7 @@ Total:  5,426.50
 1103,South,310.00
 1104,North,2045.60</code></pre>
         </figure>
-        <p>Within ten seconds the next attempt finds the file, the log shows <code>wrote ...</code>, and the status endpoint reports the job as Succeeded, in our run with <code>"executions": 6</code> and <code>"failures": 5</code>. Nobody resubmitted anything. The request made earlier was kept as a row, the row remembered it was unfinished, and the retry policy kept offering it to the handler until the world outside had caught up. You may also notice a log line starting <code>Acta alert</code>: by default a failing job raises an alert, and without a configured channel the alert is written to the log.</p>
+        <p>Within ten seconds the next attempt finds the file, the log shows <code>wrote ...</code>, and the status endpoint reports the job as Succeeded, in our run with <code>"executions": 6</code> and <code>"failures": 0</code>: a success resets the count of failures, and the timeline keeps all five. Nobody resubmitted anything. The request made earlier was kept as a row, the row remembered it was unfinished, and the retry policy kept offering it to the handler until the world outside had caught up. You may also notice a log line starting <code>Acta alert</code>: by default a failing job raises an alert, and without a configured channel the alert is written to the log.</p>
         <p>Had the file never arrived, the tenth failure would have left the job in the Failed state, still in the database with its whole history, for an operator to inspect and, with controls enabled, restart.</p>
       </section>
 
@@ -612,7 +612,7 @@ info: Reports.SalesReportJobs[0]
 
       <section id="crash" aria-labelledby="crash-title">
         <h2 id="crash-title">Pulling the plug</h2>
-        <p>Start the app once more and request September. Watch Terminal 1: when <code>loading sales for 2026-09</code> appears, the first step has finished and the handler is inside the fifteen-second pause in <code>write-report</code>. Within that window, kill the process from Terminal 2 without giving it any chance to clean up:</p>
+        <p>Start the app once more and request September. Watch Terminal 1: a moment after <code>loading sales for 2026-09</code> appears, the first step has finished and the handler is inside the fifteen-second pause in <code>write-report</code>. Within that window, kill the process from Terminal 2 without giving it any chance to clean up:</p>
         <figure class="listing">
           <figcaption><span class="note">Windows PowerShell</span><button class="copy" type="button" aria-label="Copy the Windows kill command">Copy</button></figcaption>
           <pre><code>Stop-Process -Name Reports -Force</code></pre>
@@ -646,7 +646,7 @@ Next actions:
 - Cancel the job if it should not continue.</code></pre>
         </figure>
         <p>The job still claims to be executing, because the process running it never said otherwise, but its lease has expired and nothing has renewed it. The first step's outcome is recorded; the second step started and never finished. Run the command in the first seconds after the kill and you will see "Lease expires in 5s" instead: until the lease runs out, a dead process and a slow one look the same, and Acta waits before deciding.</p>
-        <p>Now restart the app in Terminal 1 with the same command, against the same <code>reports.db</code>. Enqueue nothing. Recovery rides the worker's heartbeat and runs once a lease, eight seconds here, so within seconds the new process finds the expired lease, marks the old attempt as orphaned, returns the job to Ready, and claims it. If you came here quickly from the earlier sections, give it up to three minutes this first time: those runs used the default heartbeat and scheduled the next recovery pass one of their own, longer leases ahead, and that pass has to come due once before the eight-second rhythm takes over.</p>
+        <p>Now restart the app in Terminal 1 with the same command, against the same <code>reports.db</code>. Enqueue nothing. On SQLite a starting worker does not wait for the lease: it sees that the process that held the job has ended, marks the old attempt as orphaned, returns the job to Ready, and claims it as it starts. On a server database, where the dead process may be on another machine, a peer worker does the same once the lease has run out.</p>
         <figure class="listing output">
           <figcaption><span class="note">Terminal 1 after the restart, from our test run (trimmed)</span></figcaption>
           <pre><code>info: Reports.SalesReportJobs[0]
@@ -654,12 +654,12 @@ Next actions:
 info: Reports.SalesReportJobs[0]
       job_01a0de3ba88d7865813e4d7d4a2826fb wrote D:\tmp\acta-learn\walk\Reports\reports\sales-2026-09-job_01a0de3ba88d7865813e4d7d4a2826fb.txt</code></pre>
         </figure>
-        <p>Look at what is there and what is missing. It is the same job ref as before the crash. It says <code>execution 2</code>, because the handler was started again from its first line: the opening log statement ran a second time. The <code>loading sales</code> line did not appear, because <code>load-sales</code> had a recorded result, and <code>RunStepAsync</code> returned it instead of reading the CSV again. <code>write-report</code> had no recorded outcome, so it ran in full, pause included, and wrote the file. In our run the app came back a few seconds after 15:01 UTC, just missing that minute's recovery pass; the 15:02 pass reclaimed the job, and the report was written fifteen seconds later.</p>
+        <p>Look at what is there and what is missing. It is the same job ref as before the crash. It says <code>execution 2</code>, because the handler was started again from its first line: the opening log statement ran a second time. The <code>loading sales</code> line did not appear, because <code>load-sales</code> had a recorded result, and <code>RunStepAsync</code> returned it instead of reading the CSV again. <code>write-report</code> had no recorded outcome, so it ran in full, pause included, and wrote the file. The restart reclaimed the job as it started, and the report was written fifteen seconds later.</p>
         <figure class="shot">
           <a href="/assets/learn-recovered.webp" title="Open the full-size screenshot"><img src="/assets/learn-recovered.webp" width="1600" height="1070" loading="lazy" alt="The dashboard's page for the recovered job, with Executions open under Activity. Execution 2 succeeded in about 15 seconds on one worker. Execution 1, on a different worker, is marked Orphaned with the reason lease-expired: Worker lease expired; reclaimed by crash recovery." /></a>
           <figcaption>One job, two executions on two different worker processes. The first was orphaned by the kill and reclaimed by crash recovery.</figcaption>
         </figure>
-        <p>Executions, under Activity, tells the story in two rows, each with its own worker ref, because every run of the application registers as a new worker. Technical details lists both steps as "succeeded and will not rerun", and its recorded failures read 1 consecutive failure: an attempt lost to a dead process counts against the retry budget like any other failed attempt.</p>
+        <p>Executions, under Activity, tells the story in two rows, each with its own worker ref, because every run of the application registers as a new worker. Technical details lists both steps as "succeeded and will not rerun", and the lost attempt stays on the timeline: an attempt lost to a dead process counts against the retry budget like any other failed attempt, until a success resets the count.</p>
         <p>Now remove the <code>Task.Delay</code> line and its comment from <code>write-report</code>. Its work is done.</p>
       </section>
 
@@ -670,7 +670,7 @@ info: Reports.SalesReportJobs[0]
         <p>A few choices in this tutorial were made for a laptop and deserve a second look before real traffic arrives.</p>
         <ul class="plain">
           <li><strong>Schema.</strong> Leave <code>MigrateOnStartup</code> off outside Development and run <code>jobs migrate</code> from your deployment pipeline, which applies the schema and deploys your jobs, as described in <a href="https://github.com/acta-dotnet/acta/blob/main/docs/operator-guide.md#migration-ownership">the production guide</a>.</li>
-          <li><strong>Heartbeat and demo code.</strong> The two-second heartbeat is for demonstrations; with the default, a crashed process's jobs are reclaimed within about seven minutes rather than seconds. The <code>Task.Delay</code> should already be gone.</li>
+          <li><strong>Heartbeat and demo code.</strong> The two-second heartbeat is for demonstrations. With the default, a peer worker reclaims a crashed process's jobs within about seven minutes; on SQLite the restarted app takes them back as it starts. The <code>Task.Delay</code> should already be gone.</li>
           <li><strong>The dashboard.</strong> It stays local-only and read-only until you change it. To reach it from other machines, turn off <code>LocalOnly</code> and put it behind your own authentication and authorization; enable controls only there. The guide's section on <a href="https://github.com/acta-dotnet/acta/blob/main/docs/operator-guide.md#dashboard-exposure-and-auth">dashboard exposure</a> shows how.</li>
           <li><strong>The database.</strong> SQLite is an embedded, single-machine store. When the application runs on more than one server, switch to <code>Acta.Postgres</code> or <code>Acta.SqlServer</code> and <code>UsePostgres</code> or <code>UseSqlServer</code>; the jobs themselves do not change.</li>
           <li><strong>Where results go.</strong> Our reports land on the local disk, which is fine for one machine. Across several servers, write them to shared storage and keep only a reference in the job's result.</li>

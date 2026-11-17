@@ -56,7 +56,8 @@ namespace Acta.Learn.FanOutJoin
             // learn: end
 
             // learn: 2. Stop if a child failed, then merge the results
-            // The map does not throw for a failed child; the parent asks, and decides.
+            // The map does not throw for a failed child; the parent asks, and decides. `FailAsync` ends the handler
+            // there, so the merge runs only when every chunk succeeded.
             if (!chunks.Succeeded)
             {
                 await context.FailAsync("a chunk failed", ct);

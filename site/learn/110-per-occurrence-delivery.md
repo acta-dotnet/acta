@@ -12,7 +12,7 @@
 
 ## 1. Deliver each occurrence as a job of its own
 
-Each occurrence is an ordinary root job with a ref, retries, and result of its own. `MaxOutstanding` bounds how many may be unfinished at once, and a full schedule set to `Drop` skips an occurrence, audited as `schedule.skipped` with the reason `capacity`.
+Each occurrence is an ordinary root job with a ref, retries, and result of its own. `MaxOutstanding` bounds how many may be unfinished at once, and a full schedule set to `Drop` skips an occurrence, audited as `schedule.skipped` with the reason `capacity`. Unset, `MaxOutstanding` is 1 and `FullBehavior` is `Wait`, which holds an occurrence until one finishes. The body here only counts how many run at once; a job of your own does the occurrence's work there.
 
 The lines that matter:
 
@@ -73,7 +73,7 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## Not in the packages
 
-`UseLocalDatabase` and `LearnLab` are helpers of the Acta repository (`support/`), used so every program runs on any of the three databases and prints its rows. Do not copy them into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` and `LearnLab` are helpers of the Acta repository (`support/`), used so every program runs on SQLite, PostgreSQL or SQL Server and prints its rows. Do not copy them into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## Next
 
@@ -81,4 +81,4 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## More
 
-- [The whole program](/learn/110-per-occurrence-delivery.program.md): every file as compiled, 142 lines.
+- [The whole program](/learn/110-per-occurrence-delivery.program.md): every file as compiled, 144 lines.

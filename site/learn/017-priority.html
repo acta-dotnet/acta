@@ -76,13 +76,8 @@
     <div class="wrap howto-body">
       <article class="howto person-face">
 <div class="step"><h2><span class="step-n">1</span>Set the priority when you enqueue</h2>
-<p><code>Priority</code> is an option of the enqueue. When several jobs are due at once, the worker claims the one with the higher priority first, whichever arrived first.</p>
-<figure class="listing"><figcaption><span class="file">priority.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">foreach</span> (<span class="k">var</span> n <span class="k">in</span> <span class="k">new</span>[] { 2, 3, 4, 5 })
-{
-    <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> GenerateReport(<span class="s">$&quot;bulk-{n}&quot;</span>), o =&gt; o.Priority(JobPriorityCode.Bulk).NextRunAt(together));
-}
-
-<span class="hl"><span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> GenerateReport(<span class="s">&quot;URGENT&quot;</span>), o =&gt; o.Priority(JobPriorityCode.High).NextRunAt(together));</span>
+<p><code>Priority</code> is an option of the enqueue. When several jobs are due at once, the worker claims the one with the higher priority first, whichever arrived first. <code>together</code> is one instant a moment ahead that every job here shares, so they all come due at once.</p>
+<figure class="listing"><figcaption><span class="file">priority.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="hl"><span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> GenerateReport(<span class="s">&quot;URGENT&quot;</span>), o =&gt; o.Priority(JobPriorityCode.High).NextRunAt(together));</span>
 Console.WriteLine(<span class="s">&quot;Enqueued. Worker is running - press Ctrl+C to stop.&quot;</span>);
 
 <span class="k">await</span> host.WaitForShutdownAsync();
@@ -109,7 +104,7 @@ Console.WriteLine(<span class="s">&quot;Enqueued. Worker is running - press Ctrl
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/learn/000-fundamentals/017-priority"><code>learn/000-fundamentals/017-priority</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">priority.cs</span><span class="file-size">57 lines</span></summary><figure class="listing"><figcaption><span class="file">priority.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to run urgent jobs first</span>
+<details class="source-file"><summary><span class="file-name">priority.cs</span><span class="file-size">58 lines</span></summary><figure class="listing"><figcaption><span class="file">priority.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to run urgent jobs first</span>
 <span class="c">// A priority on the enqueue decides which of the jobs that are due at once a worker claims first.</span>
 <span class="k">using</span> Acta;
 <span class="k">using</span> Acta.Learn.Priority;
@@ -143,7 +138,8 @@ builder.Services.UseActa(j =&gt;
 
 <span class="c">// learn: Set the priority when you enqueue</span>
 <span class="c">// `Priority` is an option of the enqueue. When several jobs are due at once, the worker claims the one with the</span>
-<span class="c">// higher priority first, whichever arrived first.</span>
+<span class="c">// higher priority first, whichever arrived first. `together` is one instant a moment ahead that every job here</span>
+<span class="c">// shares, so they all come due at once.</span>
 <span class="hl"><span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> GenerateReport(<span class="s">&quot;URGENT&quot;</span>), o =&gt; o.Priority(JobPriorityCode.High).NextRunAt(together));</span>
 
 <span class="c">// learn: end</span>

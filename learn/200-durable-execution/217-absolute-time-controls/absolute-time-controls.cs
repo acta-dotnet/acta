@@ -87,7 +87,8 @@ namespace Acta.Learn.AbsoluteTimeControls
             {
                 // learn: 3. Run the handler again at an instant, without spending a retry
                 // RescheduleUntilAsync re-arms the job to an absolute instant without burning the
-                // retry budget; the handler restarts from the top on the next claim.
+                // retry budget; the handler restarts from the top on the next claim. The call ends this execution
+                // there, so the line after the `if` runs only on the run it schedules.
                 Console.WriteLine($"[poll-external] not ready; rescheduling to absolute instant {input.RescheduleUntil:HH:mm:ss.fff} UTC");
                 await context.RescheduleUntilAsync(input.RescheduleUntil, "external batch not ready", ct);
                 // learn: end

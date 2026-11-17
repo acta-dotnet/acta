@@ -12,7 +12,7 @@ A parent starts a child in another worker's namespace and waits across the bound
 
 ## 1. Run a worker for each namespace
 
-A child can target ANY registered namespace; the completion latch still releases the parent across the boundary.
+A child can target any registered namespace: the parent's wait is released when the child finishes, whichever namespace ran it.
 
 The lines that matter:
 
@@ -42,7 +42,7 @@ var jobs = host.Services.GetRequiredService<IJobs>();
 
 ## 2. Name the child's namespace and job
 
-The raw EnqueueChildAsync overload names an explicit (namespace, job) route; the completion latch lands on the parent regardless of where the child ran.
+The raw EnqueueChildAsync overload names an explicit (namespace, job) route. The first argument is the child's name: on a re-entry the same name finds the child already enqueued, so it is sent once.
 
 The lines that matter:
 
@@ -120,7 +120,7 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## Not in the packages
 
-`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on any of the three databases. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on SQLite, PostgreSQL or SQL Server. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## Next
 

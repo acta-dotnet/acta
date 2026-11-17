@@ -4,7 +4,7 @@ The how-to is [/learn/101-recurring-job.md](/learn/101-recurring-job.md). This f
 
 ## Not in the packages
 
-`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on any of the three databases. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on SQLite, PostgreSQL or SQL Server. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## The whole program
 
@@ -35,9 +35,11 @@ namespace Acta.Learn.Recurring
     public sealed class PurgeStaleSessionsJob
     {
         // learn: Put a schedule on the job
-        // `[Schedule]` takes a name and a cron, here one of the `Cron` constants.
-        // One permanent job fires on the cadence, and each successful fire's count replaces the last one stored;
-        // EventRecordingCode.Failures writes no event for a fire that succeeds with no failure before it.
+        // `[Schedule]` takes a name and a cron, here one of the `Cron` constants, read in UTC unless `TimeZoneId`
+        // says otherwise. One permanent job fires on the cadence, and the count each firing returns replaces the
+        // result the last one stored. `EventRecording = Failures` is optional: it keeps a frequent schedule from
+        // writing an event for every firing that succeeds. Nothing enqueues a scheduled job, so its input is an
+        // empty record.
         [Job("purge-stale-sessions", EventRecording = EventRecordingCode.Failures)]
         [Schedule("every-15-seconds", Cron.Every15Seconds)]
         // learn: end

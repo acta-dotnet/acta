@@ -1,6 +1,6 @@
 // How to limit how many jobs run at once for one key
 // A `ConcurrencyKey` on the enqueue lets one job at a time run for that key. `ConcurrencyLimit` on the job gives a
-// key several slots, and `RateLimit` meters how often jobs start.
+// key several slots, and `RateLimit` meters how often attempts are admitted.
 using Acta;
 using Acta.Labs;
 using Acta.Learn.ConcurrencyKey;
@@ -213,8 +213,8 @@ namespace Acta.Learn.ConcurrencyKey
     public sealed class PingEndpointJob
     {
         // learn: 3. Limit how often jobs start
-        // RateLimit is the other admission gate: five starts a second across the namespace's workers, metered
-        // on the definition name because no RateName was given. Like ConcurrencyLimit it is an
+        // RateLimit is the other admission gate: five admissions a second across the namespace's workers, every
+        // execution taking a turn, a retry included. It is metered on the definition name because no RateName was given. Like ConcurrencyLimit it is an
         // operator-overridable policy value on the definitions row.
         [Job("ping-endpoint", RateLimit = "5/s")]
         // learn: end

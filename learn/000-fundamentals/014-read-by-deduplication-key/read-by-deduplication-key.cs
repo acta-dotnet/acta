@@ -19,7 +19,8 @@ await host.StartAsync();
 var jobs = host.Services.GetRequiredService<IJobs>();
 
 // learn: 1. Enqueue with a key you can build again later
-// Typed options accept an exact final key; compose the definition-qualified key explicitly.
+// A typed enqueue stores its key exactly as given. This one puts the job's name in front with
+// `DeduplicationKey.ForDefinition`; whatever key you choose, build it the same way where you look the job up.
 var businessKey = "welcome:sam";
 var finalKey = DeduplicationKey.ForDefinition("send-welcome-email", businessKey);
 await jobs.EnqueueAsync(new SendWelcomeEmail("sam@example.com", "Sam"), o => o.DeduplicationKey(finalKey));
@@ -27,7 +28,8 @@ await jobs.EnqueueAsync(new SendWelcomeEmail("sam@example.com", "Sam"), o => o.D
 // learn: end
 
 // learn: 2. Look the job up by that key
-// Lookup uses the exact stored final key; it does not compose a definition name from a business key.
+// The first argument is the namespace the job was enqueued in, the name given to `Run<...>`; the second is the key
+// exactly as stored. The lookup composes nothing from a business key.
 var snapshot = await jobs.GetAsync(JobLookup.ByDeduplicationKey("read-by-deduplication-key", finalKey));
 
 // learn: end

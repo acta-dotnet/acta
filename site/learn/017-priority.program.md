@@ -4,7 +4,7 @@ The how-to is [/learn/017-priority.md](/learn/017-priority.md). This file holds 
 
 ## Not in the packages
 
-`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on any of the three databases. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on SQLite, PostgreSQL or SQL Server. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## The whole program
 
@@ -45,7 +45,8 @@ foreach (var n in new[] { 2, 3, 4, 5 })
 
 // learn: Set the priority when you enqueue
 // `Priority` is an option of the enqueue. When several jobs are due at once, the worker claims the one with the
-// higher priority first, whichever arrived first.
+// higher priority first, whichever arrived first. `together` is one instant a moment ahead that every job here
+// shares, so they all come due at once.
 await jobs.EnqueueAsync(new GenerateReport("URGENT"), o => o.Priority(JobPriorityCode.High).NextRunAt(together));
 
 // learn: end

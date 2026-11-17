@@ -86,12 +86,7 @@
 <span class="hl"><span class="k">var</span> runAt = now.AddSeconds(2);</span>
 <span class="hl">Console.WriteLine(<span class="s">$&quot;Part 1 - ScheduleAsync: enqueuing GenerateReport to run at {runAt:HH:mm:ss.fff} UTC&quot;</span>);</span>
 <span class="hl"><span class="k">var</span> report = <span class="k">await</span> jobs.ScheduleAsync(<span class="k">new</span> GenerateReport(<span class="s">&quot;q1&quot;</span>, SleepUntil: now.AddSeconds(4)), runAt);</span>
-Console.WriteLine(<span class="s">$&quot;  job {report.JobRef} is Ready, due later; worker will not claim it before {runAt:HH:mm:ss.fff}&quot;</span>);
-
-<span class="c">// --- Part 2: RescheduleUntilAsync ---</span>
-<span class="c">// The polling job starts immediately, parks itself until a specific instant on the first run,</span>
-<span class="c">// then observes readiness and completes on the second run.</span>
-<span class="k">var</span> rescheduleAt = now.AddSeconds(2);</code></pre></figure>
+Console.WriteLine(<span class="s">$&quot;  job {report.JobRef} is Ready, due later; worker will not claim it before {runAt:HH:mm:ss.fff}&quot;</span>);</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">2</span>Pause a handler until an instant</h2>
 <p>SleepUntilAsync arms a named durable timer at an absolute instant; on replay after the instant passes the named timer is already consumed and the handler continues.</p>
@@ -110,7 +105,7 @@ Console.WriteLine(<span class="s">$&quot;  job {report.JobRef} is Ready, due lat
 }</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">3</span>Run the handler again at an instant, without spending a retry</h2>
-<p>RescheduleUntilAsync re-arms the job to an absolute instant without burning the retry budget; the handler restarts from the top on the next claim.</p>
+<p>RescheduleUntilAsync re-arms the job to an absolute instant without burning the retry budget; the handler restarts from the top on the next claim. The call ends this execution there, so the line after the <code>if</code> runs only on the run it schedules.</p>
 <figure class="listing"><figcaption><span class="file">absolute-time-controls.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> PollExternalJob
 {
     <span class="k">private</span> <span class="k">static</span> <span class="k">int</span> _runs;
@@ -144,7 +139,7 @@ PollExternal final status:   Succeeded</code></pre></figure>
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/learn/200-durable-execution/217-absolute-time-controls"><code>learn/200-durable-execution/217-absolute-time-controls</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">absolute-time-controls.cs</span><span class="file-size">99 lines</span></summary><figure class="listing"><figcaption><span class="file">absolute-time-controls.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to schedule, sleep, and reschedule to an exact instant</span>
+<details class="source-file"><summary><span class="file-name">absolute-time-controls.cs</span><span class="file-size">100 lines</span></summary><figure class="listing"><figcaption><span class="file">absolute-time-controls.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to schedule, sleep, and reschedule to an exact instant</span>
 <span class="c">// Pin work to an instant instead of a delay: `ScheduleAsync(input, runAt)` starts a job then, `SleepUntilAsync`</span>
 <span class="c">// pauses a handler until then, and `RescheduleUntilAsync` runs the handler again then.</span>
 <span class="k">using</span> Acta;
@@ -233,7 +228,8 @@ Console.WriteLine(<span class="s">$&quot;PollExternal final status:   {pollSnap!
             {
                 <span class="c">// learn: 3. Run the handler again at an instant, without spending a retry</span>
                 <span class="c">// RescheduleUntilAsync re-arms the job to an absolute instant without burning the</span>
-                <span class="c">// retry budget; the handler restarts from the top on the next claim.</span>
+                <span class="c">// retry budget; the handler restarts from the top on the next claim. The call ends this execution</span>
+                <span class="c">// there, so the line after the `if` runs only on the run it schedules.</span>
 <span class="hl">                Console.WriteLine(<span class="s">$&quot;[poll-external] not ready; rescheduling to absolute instant {input.RescheduleUntil:HH:mm:ss.fff} UTC&quot;</span>);</span>
 <span class="hl">                <span class="k">await</span> context.RescheduleUntilAsync(input.RescheduleUntil, <span class="s">&quot;external batch not ready&quot;</span>, ct);</span>
                 <span class="c">// learn: end</span>

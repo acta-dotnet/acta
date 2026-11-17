@@ -1,6 +1,6 @@
 # How to choose a payload format for a job
 
-A job names the format its payload is stored in. This program runs custom formats side by side and compares their serialization time, enqueue time, readability, and stored bytes.
+A job names the format its payload is stored in: JSON by default, or a format of your own. This program adds two custom formats, `scalar-v1` and `json-gzip`, and runs the same echo job through each.
 
 - Section: Start jobs, step 18
 - Program: `learn/500-payloads/501-payload-formats` in https://github.com/acta-dotnet/acta (one compiled project)
@@ -12,7 +12,7 @@ A job names the format its payload is stored in. This program runs custom format
 
 ## 1. Give each format a name and an id
 
-The name is what a job writes in its attribute, so it is a constant.
+The name is what a job writes in its attribute, so it is a constant. The id is stored with every payload: pick one from 128 to 255 and never change it. The ids below 128 are Acta's own.
 
 The lines that matter:
 
@@ -121,7 +121,7 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## Not in the packages
 
-`UseLocalDatabase` and `LearnLab` are helpers of the Acta repository (`support/`), used so every program runs on any of the three databases and prints its rows. Do not copy them into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` and `LearnLab` are helpers of the Acta repository (`support/`), used so every program runs on SQLite, PostgreSQL or SQL Server and prints its rows. Do not copy them into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## Next
 
@@ -129,4 +129,4 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## More
 
-- [The whole program and its notes](/learn/501-payload-formats.program.md): every file as compiled, 434 lines, and the notes on the design, the rows to inspect, and how to break it.
+- [The whole program and its notes](/learn/501-payload-formats.program.md): every file as compiled, 435 lines, and the notes on the design, the rows to inspect, and how to break it.

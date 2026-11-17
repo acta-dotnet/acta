@@ -76,7 +76,7 @@
     <div class="wrap howto-body">
       <article class="howto person-face">
 <div class="step"><h2><span class="step-n">1</span>Make the deadline advisory</h2>
-<p>Advisory makes the deadline informational: unlike Strict (307), the engine never cancels an overdue job. The handler reads context.IsOverdue (and context.TimeUntilDeadline) and degrades on its own; here it emits a quick summary instead of the expensive full report when it is late.</p>
+<p>Advisory makes the deadline informational: unlike Strict (307), the engine never cancels an overdue job. The handler reads context.IsOverdue (and context.TimeUntilDeadline) and degrades on its own; here it emits a quick summary instead of the expensive full report when it is late. To show an overdue job the program holds the first run past the deadline, as 307 does.</p>
 <figure class="listing"><figcaption><span class="file">deadline-advisory.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">static</span> <span class="k">class</span> GenerateReportJob
 {
 <span class="hl">    <span class="a">[Job(<span class="s">&quot;generate-report&quot;</span>, Deadline = <span class="s">&quot;2s&quot;</span>, DeadlineBehavior = DeadlineBehaviorCode.Advisory)]</span></span>
@@ -127,7 +127,7 @@
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/learn/300-failure-and-recovery/308-deadline-advisory"><code>learn/300-failure-and-recovery/308-deadline-advisory</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">deadline-advisory.cs</span><span class="file-size">68 lines</span></summary><figure class="listing"><figcaption><span class="file">deadline-advisory.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to run an overdue job in a reduced mode</span>
+<details class="source-file"><summary><span class="file-name">deadline-advisory.cs</span><span class="file-size">69 lines</span></summary><figure class="listing"><figcaption><span class="file">deadline-advisory.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to run an overdue job in a reduced mode</span>
 <span class="c">// With `DeadlineBehavior = Advisory` an overdue job still runs. The handler reads `IsOverdue` and chooses a reduced</span>
 <span class="c">// path.</span>
 <span class="k">using</span> Acta;
@@ -174,7 +174,8 @@ Console.WriteLine(<span class="s">$&quot;[{DateTime.UtcNow:HH:mm:ss}] status={sn
         <span class="c">// learn: 1. Make the deadline advisory</span>
         <span class="c">// Advisory makes the deadline informational: unlike Strict (307), the engine never cancels an</span>
         <span class="c">// overdue job. The handler reads context.IsOverdue (and context.TimeUntilDeadline) and degrades on its</span>
-        <span class="c">// own; here it emits a quick summary instead of the expensive full report when it is late.</span>
+        <span class="c">// own; here it emits a quick summary instead of the expensive full report when it is late. To show an</span>
+        <span class="c">// overdue job the program holds the first run past the deadline, as 307 does.</span>
 <span class="hl">        <span class="a">[Job(<span class="s">&quot;generate-report&quot;</span>, Deadline = <span class="s">&quot;2s&quot;</span>, DeadlineBehavior = DeadlineBehaviorCode.Advisory)]</span></span>
         <span class="c">// learn: end</span>
         <span class="k">public</span> <span class="k">static</span> <span class="k">async</span> Task Handle(GenerateReport input, JobContext context, CancellationToken ct)

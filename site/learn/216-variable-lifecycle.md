@@ -57,8 +57,6 @@ var existsAfter = await context.ExistsVariableAsync("counter", ct);
 In `variable-lifecycle.cs` (excerpt):
 
 ```csharp
-Console.WriteLine($"get-or-set: v1={v1} v2={v2} factory-calls={factoryCalls}");
-
 // ExistsVariableAsync: the variable is present right after get-or-set.
 var existsBefore = await context.ExistsVariableAsync("counter", ct);
 Console.WriteLine($"exists before delete: {existsBefore}");
@@ -84,19 +82,12 @@ var fallback = await context.GetVariableOrDefaultAsync("counter", "missing", ct)
 In `variable-lifecycle.cs` (excerpt):
 
 ```csharp
-Console.WriteLine($"exists before delete: {existsBefore}");
-
 await context.DeleteVariableAsync("counter", ct);
 var existsAfter = await context.ExistsVariableAsync("counter", ct);
 Console.WriteLine($"exists after delete: {existsAfter}");
 
 var fallback = await context.GetVariableOrDefaultAsync("counter", "missing", ct);
 Console.WriteLine($"default fallback: {fallback}");
-
-// Raw JobPayload variable: store a pre-serialized payload; the format travels with the value.
-var raw = JobPayload.Json("raw-value");
-await context.SetVariableAsync("raw-var", raw, ct);
-var rawBack = await context.GetVariableOrDefaultAsync<string>("raw-var", ct);
 ```
 
 ## 4. Run it and check the output
@@ -125,7 +116,7 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## Not in the packages
 
-`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on any of the three databases. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on SQLite, PostgreSQL or SQL Server. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## Next
 

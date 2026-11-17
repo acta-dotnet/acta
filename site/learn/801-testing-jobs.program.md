@@ -4,7 +4,7 @@ The how-to is [/learn/801-testing-jobs.md](/learn/801-testing-jobs.md). This fil
 
 ## Not in the packages
 
-`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on any of the three databases. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on SQLite, PostgreSQL or SQL Server. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## The whole program
 
@@ -46,7 +46,9 @@ public sealed class EchoJobTests(ActaHostFixture acta) : ActaTestBase(acta)
         var enqueued = await Jobs.EnqueueAsync(new Echo("boom"), ct: Ct);
 
         // learn: 3. Assert each retry, then the final failure
-        // Attempts 1 and 2 throw; with retries left the job re-arms to Ready (due now), not Failed.
+        // Attempts 1 and 2 throw; with retries left the job re-arms to Ready, not Failed. The job declares
+        // `MaxAttempts = 3, Backoff = "0s"`, so each retry is due at once; under the default backoff a test
+        // makes it due with `ForceJobDueAsync`, as how-to 803 does.
         Assert.Equal(ActaRunStatus.Rearmed, await Host.RunOnceAsync(enqueued, Ct));
         Assert.Equal(ActaRunStatus.Rearmed, await Host.RunOnceAsync(enqueued, Ct));
 

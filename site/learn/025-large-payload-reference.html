@@ -81,9 +81,7 @@
 </div>
 <div class="step"><h2><span class="step-n">2</span>Enqueue the reference</h2>
 <p>The input is the durable pointer plus verification contract, not the file itself.</p>
-<figure class="listing"><figcaption><span class="file">large-payload-reference.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">await</span> File.WriteAllTextAsync(exportPath, <span class="s">&quot;id,name\n1,Sam\n2,Alex\n&quot;</span>);
-
-<span class="k">var</span> bytes = <span class="k">await</span> File.ReadAllBytesAsync(exportPath);
+<figure class="listing"><figcaption><span class="file">large-payload-reference.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">var</span> bytes = <span class="k">await</span> File.ReadAllBytesAsync(exportPath);
 <span class="k">var</span> sha256 = Convert.ToHexStringLower(SHA256.HashData(bytes));
 
 <span class="hl"><span class="k">var</span> outcome = <span class="k">await</span> jobs.EnqueueAsync(</span>
@@ -107,7 +105,7 @@ Console.WriteLine(<span class="s">&quot;Worker is running - press Ctrl+C to stop
 <span class="hl">    <span class="k">var</span> sha256 = Convert.ToHexStringLower(SHA256.HashData(bytes));</span>
 <span class="hl">    <span class="k">if</span> (bytes.LongLength != input.SizeBytes || sha256 != input.Sha256)</span>
 <span class="hl">    {</span>
-<span class="hl">        <span class="c">// A mismatched reference will not fix itself on retry - fail loudly.</span></span>
+<span class="hl">        <span class="c">// A plain throw is retried under the job's budget; `ctx.FailAsync` fails a mismatch for good.</span></span>
 <span class="hl">        <span class="k">throw</span> <span class="k">new</span> InvalidOperationException(<span class="s">$&quot;Reference {input.BlobUri} failed size/checksum verification.&quot;</span>);</span>
 <span class="hl">    }</span>
 
@@ -195,7 +193,7 @@ Console.WriteLine(<span class="s">&quot;Worker is running - press Ctrl+C to stop
 <span class="hl">            <span class="k">var</span> sha256 = Convert.ToHexStringLower(SHA256.HashData(bytes));</span>
 <span class="hl">            <span class="k">if</span> (bytes.LongLength != input.SizeBytes || sha256 != input.Sha256)</span>
 <span class="hl">            {</span>
-<span class="hl">                <span class="c">// A mismatched reference will not fix itself on retry - fail loudly.</span></span>
+<span class="hl">                <span class="c">// A plain throw is retried under the job's budget; `ctx.FailAsync` fails a mismatch for good.</span></span>
 <span class="hl">                <span class="k">throw</span> <span class="k">new</span> InvalidOperationException(<span class="s">$&quot;Reference {input.BlobUri} failed size/checksum verification.&quot;</span>);</span>
 <span class="hl">            }</span>
             <span class="c">// learn: end</span>

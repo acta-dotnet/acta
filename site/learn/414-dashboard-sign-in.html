@@ -99,10 +99,7 @@ app.UseAntiforgery();</code></pre></figure>
 <span class="hl">    options.RequirePermissions = <span class="k">true</span>;</span>
 });
 
-<span class="k">await</span> app.StartAsync();
-
-<span class="k">var</span> jobs = app.Services.GetRequiredService&lt;IJobs&gt;();
-<span class="k">var</span> namespaces = app.Services.GetRequiredService&lt;INamespaces&gt;();</code></pre></figure>
+<span class="k">await</span> app.StartAsync();</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">3</span>The job it acts on</h2>
 <figure class="listing"><figcaption><span class="file">dashboard-sign-in.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">static</span> <span class="k">class</span> SampleTaskJob

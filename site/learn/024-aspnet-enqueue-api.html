@@ -97,7 +97,7 @@ app.MapPost(<span class="s">&quot;/imports&quot;</span>, <span class="k">async</
 });</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">2</span>Read the status, and the result once the job has finished</h2>
-<p><code>GetAsync</code> answers null for a ref that names no job. A result exists only once the job has succeeded, so the read waits for a terminal status.</p>
+<p><code>GetAsync</code> answers null for a ref that names no job. A result exists only once the job has succeeded, so the endpoint reads it only when the status is terminal; neither read waits. <code>parsed</code> is the route's text turned into a <code>JobRef</code> by <code>JobRef.TryParse</code>.</p>
 <figure class="listing"><figcaption><span class="file">Program.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">if</span> (!JobRef.TryParse(jobRef, <span class="k">out</span> <span class="k">var</span> parsed))
 {
     <span class="k">return</span> Results.BadRequest(<span class="k">new</span> { error = <span class="s">&quot;Invalid job ref.&quot;</span> });
@@ -137,7 +137,7 @@ app.MapPost(<span class="s">&quot;/imports&quot;</span>, <span class="k">async</
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/learn/000-fundamentals/024-aspnet-enqueue-api"><code>learn/000-fundamentals/024-aspnet-enqueue-api</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">Program.cs</span><span class="file-size">110 lines</span></summary><figure class="listing"><figcaption><span class="file">Program.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to start a job from an HTTP endpoint and poll it</span>
+<details class="source-file"><summary><span class="file-name">Program.cs</span><span class="file-size">111 lines</span></summary><figure class="listing"><figcaption><span class="file">Program.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to start a job from an HTTP endpoint and poll it</span>
 <span class="c">// A POST stores the job and answers 202 with its ref; a GET reads the status and, once the job has finished, the</span>
 <span class="c">// result.</span>
 <span class="k">using</span> Acta;
@@ -186,7 +186,8 @@ app.MapGet(<span class="s">&quot;/imports/{jobRef}&quot;</span>, <span class="k"
 
     <span class="c">// learn: 2. Read the status, and the result once the job has finished</span>
     <span class="c">// `GetAsync` answers null for a ref that names no job. A result exists only once the job has succeeded, so the</span>
-    <span class="c">// read waits for a terminal status.</span>
+    <span class="c">// endpoint reads it only when the status is terminal; neither read waits. `parsed` is the route's text turned</span>
+    <span class="c">// into a `JobRef` by `JobRef.TryParse`.</span>
 <span class="hl">    <span class="k">var</span> snapshot = <span class="k">await</span> jobs.GetAsync(parsed, ct);</span>
 <span class="hl">    <span class="k">if</span> (snapshot <span class="k">is</span> <span class="k">null</span>)</span>
 <span class="hl">    {</span>

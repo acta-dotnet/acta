@@ -25,8 +25,6 @@ Console.WriteLine($"TimedOut: {timedOut.TimedOut}");
 In `call-outcome-timeout.cs` (excerpt):
 
 ```csharp
-await host.StartAsync();
-
 var jobs = host.Services.GetRequiredService<IJobs>();
 
 Console.WriteLine("--- (a) timeout ---");
@@ -37,9 +35,6 @@ Console.WriteLine($"TimedOut: {timedOut.TimedOut}");
 Console.WriteLine($"Succeeded: {timedOut.Succeeded}");
 
 Console.WriteLine("--- (b) failure ---");
-
-var failed = await jobs.CallAsync(CallOutcomeTimeoutJobs.FailingReport());
-Console.WriteLine($"Status: {failed.Status}");
 ```
 
 ## 2. Read a job that failed
@@ -51,24 +46,40 @@ The lines that matter:
 ```csharp
 var failed = await jobs.CallAsync(CallOutcomeTimeoutJobs.FailingReport());
 Console.WriteLine($"Status: {failed.Status}");
+try
+{
+    failed.ThrowIfFailed();
+}
+catch (JobFailedException ex)
+{
+    Console.WriteLine($"ThrowIfFailed threw: {ex.GetType().Name} job={ex.JobRef} status={ex.TerminalStatus}");
+}
+Console.WriteLine($"TryGetValue: {failed.TryGetValue(out _)}");
 ```
 
 In `call-outcome-timeout.cs` (excerpt):
 
 ```csharp
-var timedOut = await jobs.CallAsync(CallOutcomeTimeoutJobs.SlowReport(), opts);
-Console.WriteLine($"TimedOut: {timedOut.TimedOut}");
-Console.WriteLine($"Succeeded: {timedOut.Succeeded}");
-
 Console.WriteLine("--- (b) failure ---");
 
 var failed = await jobs.CallAsync(CallOutcomeTimeoutJobs.FailingReport());
 Console.WriteLine($"Status: {failed.Status}");
+try
+{
+    failed.ThrowIfFailed();
+}
+catch (JobFailedException ex)
+{
+    Console.WriteLine($"ThrowIfFailed threw: {ex.GetType().Name} job={ex.JobRef} status={ex.TerminalStatus}");
+}
+Console.WriteLine($"TryGetValue: {failed.TryGetValue(out _)}");
+
+Console.WriteLine("--- (c) success ---");
 ```
 
 ## 3. Take the value of a job that succeeded
 
-On success, ValueOrThrow returns the handler's result.
+On success, ValueOrThrow returns the handler's result, here the `ReportResult("all clear")` the job returns.
 
 The lines that matter:
 
@@ -81,8 +92,6 @@ var result = success.ValueOrThrow();
 In `call-outcome-timeout.cs` (excerpt):
 
 ```csharp
-Console.WriteLine($"TryGetValue: {failed.TryGetValue(out _)}");
-
 Console.WriteLine("--- (c) success ---");
 
 var success = await jobs.CallAsync(CallOutcomeTimeoutJobs.SuccessReport());
@@ -131,7 +140,7 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## Not in the packages
 
-`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on any of the three databases. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on SQLite, PostgreSQL or SQL Server. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## Next
 

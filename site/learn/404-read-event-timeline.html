@@ -76,10 +76,8 @@
     <div class="wrap howto-body">
       <article class="howto person-face">
 <div class="step"><h2><span class="step-n">1</span>Read the timeline of the job and its children</h2>
-<p>Query the full lineage event timeline scoped to the lineage root (the parent job). Events are returned newest-first; reverse to print in chronological order.</p>
-<figure class="listing"><figcaption><span class="file">read-event-timeline.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">var</span> finished = <span class="k">await</span> parent.WaitAsync();
-
-Console.WriteLine(<span class="s">$&quot;parent finished with status: {finished.Status}&quot;</span>);
+<p>Query the full lineage event timeline scoped to the lineage root (the parent job). Events are returned newest-first; reverse to print in chronological order. The parent starts a <code>collect</code> child that fails with &quot;data origin unavailable&quot;, which is the reason the timeline shows.</p>
+<figure class="listing"><figcaption><span class="file">read-event-timeline.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code>Console.WriteLine(<span class="s">$&quot;parent finished with status: {finished.Status}&quot;</span>);
 
 Console.WriteLine(<span class="s">&quot;event timeline for the lineage:&quot;</span>);
 
@@ -117,7 +115,7 @@ Console.WriteLine(<span class="s">&quot;event timeline for the lineage:&quot;</s
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/learn/400-observability-and-alerts/404-read-event-timeline"><code>learn/400-observability-and-alerts/404-read-event-timeline</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">read-event-timeline.cs</span><span class="file-size">78 lines</span></summary><figure class="listing"><figcaption><span class="file">read-event-timeline.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to read why a job did what it did</span>
+<details class="source-file"><summary><span class="file-name">read-event-timeline.cs</span><span class="file-size">79 lines</span></summary><figure class="listing"><figcaption><span class="file">read-event-timeline.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to read why a job did what it did</span>
 <span class="c">// The append-only event ledger answers why a job did what it did. `ListEventsAsync` with `LineageRoot` reads the</span>
 <span class="c">// timeline of a job and of every child it started.</span>
 <span class="k">using</span> Acta;
@@ -153,7 +151,8 @@ Console.WriteLine(<span class="s">&quot;event timeline for the lineage:&quot;</s
 
 <span class="c">// learn: Read the timeline of the job and its children</span>
 <span class="c">// Query the full lineage event timeline scoped to the lineage root (the parent job).</span>
-<span class="c">// Events are returned newest-first; reverse to print in chronological order.</span>
+<span class="c">// Events are returned newest-first; reverse to print in chronological order. The parent starts a `collect`</span>
+<span class="c">// child that fails with &quot;data origin unavailable&quot;, which is the reason the timeline shows.</span>
 <span class="hl"><span class="k">var</span> eventsPage = <span class="k">await</span> queries.Ledger.ListEventsAsync(<span class="k">new</span> ListEventsQuery(LineageRoot: parent, PageSize: 100));</span>
 <span class="hl"><span class="k">var</span> events = eventsPage.Items.Reverse().ToList();</span>
 

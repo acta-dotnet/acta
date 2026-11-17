@@ -18,6 +18,8 @@ builder.Services.UseActa(j =>
         w.AddManifest<AlertChannelJobs>();
 
         // learn: 1. Declare the channel on the worker
+        // `w` is the worker builder of `j.Run("alert-channel", w => { w.AddManifest<AlertChannelJobs>(); ... })`,
+        // the form of `Run` that takes more than a manifest.
         // Alert channels declare process-local delivery configuration. Alert rows persist only
         // the selected channel name; endpoints and secrets stay in app configuration.
         // MinSeverity = Warning suppresses lower-severity alerts at delivery.

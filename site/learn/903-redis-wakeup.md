@@ -12,7 +12,7 @@
 
 ## 1. Turn the Redis wake-up on in every process
 
-Redis pub/sub wake: an enqueue in any process wakes workers in every process. Redis is a latency accelerator, not a correctness dependency; if it's down, workers fall back to the poll floor.
+Redis pub/sub wake: an enqueue in any process wakes workers in every process. Redis is a latency accelerator, not a correctness dependency; if it's down, workers fall back to polling at their `SafetyPollInterval`. `redis` is a StackExchange.Redis configuration string such as "localhost:6379", and the call comes from the `Acta.Redis` package.
 
 The lines that matter:
 
@@ -53,7 +53,7 @@ Proven by other suites. The release check does not run this program. Needs a Red
 
 ## Not in the packages
 
-`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on any of the three databases. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on SQLite, PostgreSQL or SQL Server. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## Next
 
@@ -61,4 +61,4 @@ Proven by other suites. The release check does not run this program. Needs a Red
 
 ## More
 
-- [The whole program](/learn/903-redis-wakeup.program.md): every file as compiled, 73 lines.
+- [The whole program](/learn/903-redis-wakeup.program.md): every file as compiled, 75 lines.

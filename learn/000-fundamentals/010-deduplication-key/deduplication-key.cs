@@ -23,7 +23,8 @@ var businessKey = $"welcome:{Guid.NewGuid():N}";
 var finalKey = DeduplicationKey.ForDefinition("send-welcome-email", businessKey);
 
 // learn: 1. Give the enqueue a key that names the request
-// The raw builder knows the definition name, so Deduplicate(businessKey) is the primary API there.
+// `Deduplicate(businessKey)` on the raw builder stores the key with the job's name in front, so one business key
+// used by two jobs never collides.
 var request = JobRequestBuilder
     .Create("deduplication-key", "send-welcome-email")
     .Json(new SendWelcomeEmail("sam@example.com", "Sam"))
@@ -35,8 +36,9 @@ var first = await jobs.EnqueueAsync(request, CancellationToken.None);
 // learn: end
 
 // learn: 2. Repeat the enqueue and get the same job back
-// Typed options do not know the routed definition yet, so they accept the exact final key. The
-// equivalent composed key converges on the same job, and this second enqueue is deduplicated.
+// A typed enqueue stores its key exactly as given, so to meet the first job it passes the same composed key. Two
+// typed enqueues need only pass the same string to `DeduplicationKey(...)`. This second enqueue answers the first
+// job, deduplicated.
 var second = await jobs.EnqueueAsync(new SendWelcomeEmail("sam@example.com", "Sam"), o => o.DeduplicationKey(finalKey));
 
 // learn: end

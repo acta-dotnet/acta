@@ -4,7 +4,7 @@ The how-to is [/learn/025-large-payload-reference.md](/learn/025-large-payload-r
 
 ## Not in the packages
 
-`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on any of the three databases. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on SQLite, PostgreSQL or SQL Server. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## The whole program
 
@@ -77,7 +77,7 @@ namespace Acta.Learn.LargePayloadReference
             var sha256 = Convert.ToHexStringLower(SHA256.HashData(bytes));
             if (bytes.LongLength != input.SizeBytes || sha256 != input.Sha256)
             {
-                // A mismatched reference will not fix itself on retry - fail loudly.
+                // A plain throw is retried under the job's budget; `ctx.FailAsync` fails a mismatch for good.
                 throw new InvalidOperationException($"Reference {input.BlobUri} failed size/checksum verification.");
             }
             // learn: end

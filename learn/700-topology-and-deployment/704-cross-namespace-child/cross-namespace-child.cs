@@ -12,8 +12,8 @@ builder.Services.UseActa(j =>
     j.UseLocalDatabase(builder.Configuration);
 
     // learn: 1. Run a worker for each namespace
-    // A child can target ANY registered namespace; the completion latch still releases the parent
-    // across the boundary.
+    // A child can target any registered namespace: the parent's wait is released when the child finishes,
+    // whichever namespace ran it.
     j.Run<CrossNamespaceChildJobs>("storefront");
     j.Run<CrossNamespaceChildJobs>("billing");
     // learn: end
@@ -59,8 +59,8 @@ namespace Acta.Learn.CrossNamespaceChild
         public async Task<OrderConfirmation> Handle(PlaceOrder order, JobContext context, CancellationToken ct)
         {
             // learn: 2. Name the child's namespace and job
-            // The raw EnqueueChildAsync overload names an explicit (namespace, job) route; the completion
-            // latch lands on the parent regardless of where the child ran.
+            // The raw EnqueueChildAsync overload names an explicit (namespace, job) route. The first argument is
+            // the child's name: on a re-entry the same name finds the child already enqueued, so it is sent once.
             var charge = await context.EnqueueChildAsync(
                 "charge",
                 "billing",

@@ -98,10 +98,7 @@ builder.WebHost.UseTestServer();
 </div>
 <div class="step"><h2><span class="step-n">2</span>Require the permissions on the API</h2>
 <p>Every route, reads included, is then authorized against the policy named for the permission it declares.</p>
-<figure class="listing"><figcaption><span class="file">http-api-authorization.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code>Console.WriteLine(<span class="s">&quot;knob: RequirePermissions = true (each route needs the host's policy named for its permission)&quot;</span>);
-Console.WriteLine();
-
-<span class="hl">app.MapActaApi(<span class="s">&quot;/acta/api&quot;</span>, options =&gt;</span>
+<figure class="listing"><figcaption><span class="file">http-api-authorization.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="hl">app.MapActaApi(<span class="s">&quot;/acta/api&quot;</span>, options =&gt;</span>
 <span class="hl">{</span>
 <span class="hl">    options.EnableControls = <span class="k">true</span>;</span>
 <span class="hl">    options.RequirePermissions = <span class="k">true</span>;</span>

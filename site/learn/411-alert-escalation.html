@@ -76,7 +76,7 @@
     <div class="wrap howto-body">
       <article class="howto person-face">
 <div class="step"><h2><span class="step-n">1</span>Set the failure count that escalates</h2>
-<p>AlertFailureThreshold = 2: the ThresholdReached alert fires when OccurrenceCount reaches 2.</p>
+<p>AlertFailureThreshold = 2: the ThresholdReached alert fires when OccurrenceCount reaches 2. It is a <code>JobsOptions</code> setting for the whole host, 3 by default.</p>
 <figure class="listing"><figcaption><span class="file">alert-escalation.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">var</span> builder = Host.CreateApplicationBuilder(args);
 
 builder.Services.UseActa(j =&gt;
@@ -105,8 +105,9 @@ builder.Services.UseActa(j =&gt;
 <div class="step"><h2><span class="step-n">3</span>The job it acts on</h2>
 <figure class="listing"><figcaption><span class="file">alert-escalation.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> UnstableReportJob
 {
-    <span class="c">// AlertProfile = OnFailure (default): automatic failure alerts on every retryable failure</span>
-    <span class="c">// and a separate FinalFailure alert when the attempt budget is exhausted.</span>
+    <span class="c">// AlertProfile = OnFailure (default): the first failure raises a FirstFailure alert and repeats count</span>
+    <span class="c">// up on it, the count reaching AlertFailureThreshold raises ThresholdReached, and the last attempt</span>
+    <span class="c">// raises FinalFailure.</span>
     <span class="a">[Job(<span class="s">&quot;unstable-report&quot;</span>, MaxAttempts = 4, Backoff = <span class="s">&quot;0s&quot;</span>)]</span>
     <span class="k">public</span> <span class="k">static</span> Task Handle(UnstableReport input, CancellationToken ct)
     {
@@ -128,7 +129,7 @@ builder.Services.UseActa(j =&gt;
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/learn/400-observability-and-alerts/411-alert-escalation"><code>learn/400-observability-and-alerts/411-alert-escalation</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">alert-escalation.cs</span><span class="file-size">87 lines</span></summary><figure class="listing"><figcaption><span class="file">alert-escalation.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to escalate an alert as failures add up</span>
+<details class="source-file"><summary><span class="file-name">alert-escalation.cs</span><span class="file-size">89 lines</span></summary><figure class="listing"><figcaption><span class="file">alert-escalation.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to escalate an alert as failures add up</span>
 <span class="c">// Automatic failure alerts escalate in stages: the first failure, the failure count reaching</span>
 <span class="c">// `AlertFailureThreshold`, and the final failure when the retry budget is spent.</span>
 <span class="k">using</span> Acta;
@@ -143,7 +144,8 @@ builder.Services.UseActa(j =&gt;
     j.UseLocalDatabase(builder.Configuration);
 
     <span class="c">// learn: 1. Set the failure count that escalates</span>
-    <span class="c">// AlertFailureThreshold = 2: the ThresholdReached alert fires when OccurrenceCount reaches 2.</span>
+    <span class="c">// AlertFailureThreshold = 2: the ThresholdReached alert fires when OccurrenceCount reaches 2. It is a</span>
+    <span class="c">// `JobsOptions` setting for the whole host, 3 by default.</span>
 <span class="hl">    j.ConfigureOptions(o =&gt; o.AlertFailureThreshold = 2);</span>
     <span class="c">// learn: end</span>
 
@@ -205,8 +207,9 @@ Console.WriteLine(<span class="s">$&quot;alerts ({alertItems.Count}):&quot;</spa
 
     <span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> UnstableReportJob
     {
-        <span class="c">// AlertProfile = OnFailure (default): automatic failure alerts on every retryable failure</span>
-        <span class="c">// and a separate FinalFailure alert when the attempt budget is exhausted.</span>
+        <span class="c">// AlertProfile = OnFailure (default): the first failure raises a FirstFailure alert and repeats count</span>
+        <span class="c">// up on it, the count reaching AlertFailureThreshold raises ThresholdReached, and the last attempt</span>
+        <span class="c">// raises FinalFailure.</span>
         <span class="a">[Job(<span class="s">&quot;unstable-report&quot;</span>, MaxAttempts = 4, Backoff = <span class="s">&quot;0s&quot;</span>)]</span>
         <span class="k">public</span> <span class="k">static</span> Task Handle(UnstableReport input, CancellationToken ct)
         {

@@ -1,6 +1,6 @@
 # How to cut off an attempt that runs too long
 
-`ExecutionTimeout` caps one attempt: when the time is up, the handler's `CancellationToken` trips and the attempt ends as a timeout.
+`ExecutionTimeout` caps one attempt: when the time is up, the handler's `CancellationToken` trips and the cut spends an attempt.
 
 - Section: Decide what happens when work fails, step 6
 - Program: `learn/300-failure-and-recovery/304-execution-timeout` in https://github.com/acta-dotnet/acta (one compiled project)
@@ -12,7 +12,7 @@
 
 ## 1. Set the timeout on the job
 
-ExecutionTimeout caps a single attempt: after 2s the framework trips the CancellationToken and the attempt ends as a timeout.
+ExecutionTimeout caps a single attempt: after 2s the framework trips the CancellationToken. The cut spends an attempt, and with MaxAttempts = 1 the job ends `Failed`.
 
 The lines that matter:
 
@@ -77,7 +77,7 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## Not in the packages
 
-`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on any of the three databases. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on SQLite, PostgreSQL or SQL Server. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## Next
 

@@ -76,7 +76,7 @@
     <div class="wrap howto-body">
       <article class="howto person-face">
 <div class="step"><h2><span class="step-n">1</span>Declare the channel on the worker</h2>
-<p>Alert channels declare process-local delivery configuration. Alert rows persist only the selected channel name; endpoints and secrets stay in app configuration. MinSeverity = Warning suppresses lower-severity alerts at delivery.</p>
+<p><code>w</code> is the worker builder of <code>j.Run(&quot;alert-channel&quot;, w =&gt; { w.AddManifest&lt;AlertChannelJobs&gt;(); ... })</code>, the form of <code>Run</code> that takes more than a manifest. Alert channels declare process-local delivery configuration. Alert rows persist only the selected channel name; endpoints and secrets stay in app configuration. MinSeverity = Warning suppresses lower-severity alerts at delivery.</p>
 <figure class="listing"><figcaption><span class="file">alert-channel.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code>w.AddManifest&lt;AlertChannelJobs&gt;();
 
 <span class="hl">w.AddAlertChannel(</span>
@@ -113,7 +113,7 @@ alert [Error] Low disk space on db-server -&gt; channel 'ops'</code></pre></figu
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/learn/400-observability-and-alerts/403-alert-channel"><code>learn/400-observability-and-alerts/403-alert-channel</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">alert-channel.cs</span><span class="file-size">85 lines</span></summary><figure class="listing"><figcaption><span class="file">alert-channel.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to send alerts to your own channel</span>
+<details class="source-file"><summary><span class="file-name">alert-channel.cs</span><span class="file-size">87 lines</span></summary><figure class="listing"><figcaption><span class="file">alert-channel.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to send alerts to your own channel</span>
 <span class="c">// `AddAlertChannel` declares where alerts go, under a name of your choice, and an alert names the channel it is for.</span>
 <span class="k">using</span> Acta;
 <span class="k">using</span> Acta.Learn.AlertChannel;
@@ -133,6 +133,8 @@ builder.Services.UseActa(j =&gt;
         w.AddManifest&lt;AlertChannelJobs&gt;();
 
         <span class="c">// learn: 1. Declare the channel on the worker</span>
+        <span class="c">// `w` is the worker builder of `j.Run(&quot;alert-channel&quot;, w =&gt; { w.AddManifest&lt;AlertChannelJobs&gt;(); ... })`,</span>
+        <span class="c">// the form of `Run` that takes more than a manifest.</span>
         <span class="c">// Alert channels declare process-local delivery configuration. Alert rows persist only</span>
         <span class="c">// the selected channel name; endpoints and secrets stay in app configuration.</span>
         <span class="c">// MinSeverity = Warning suppresses lower-severity alerts at delivery.</span>

@@ -1,6 +1,6 @@
 # How to choose between starting a job and waiting for it
 
-`EnqueueAsync` returns as soon as the job is stored; `CallAsync` enqueues, waits, and returns the result.
+`EnqueueAsync` returns as soon as the job is stored; `CallAsync` enqueues, waits, and returns the job's outcome.
 
 - Section: Start jobs, step 13
 - Program: `learn/000-fundamentals/015-call-vs-enqueue` in https://github.com/acta-dotnet/acta (one compiled project)
@@ -39,7 +39,7 @@ await host.StopAsync();
 
 ## 2. Start a job and wait for its result
 
-CallAsync enqueues, then waits and returns the result. (See 013-read-result for the read-back path.)
+CallAsync enqueues, then waits for the job and returns its outcome: `ValueOrThrow()` gives the result, or throws when the job failed or the wait timed out. It holds its caller that long, and a timeout stops only the wait; inside a handler, call `ctx.CallChildAsync` instead (213).
 
 The lines that matter:
 
@@ -97,7 +97,7 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## Not in the packages
 
-`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on any of the three databases. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on SQLite, PostgreSQL or SQL Server. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## Next
 
@@ -105,4 +105,4 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## More
 
-- [The whole program](/learn/015-call-vs-enqueue.program.md): every file as compiled, 52 lines.
+- [The whole program](/learn/015-call-vs-enqueue.program.md): every file as compiled, 54 lines.

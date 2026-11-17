@@ -91,8 +91,8 @@ namespace Acta.Learn.AutomaticFailureAlerts
         // AlertProfile = OnFailure + AlertChannelName routes automatic alerts to the "default"
         // log channel. RunbookUrl surfaces on the delivered alert log line (LogAlertTransport prints
         // runbook=...), not on list queries.
-        // Backoff = 0s skips wait between retries; the 2 s delay in the handler
-        // gives the driver a window to cancel during the third attempt.
+        // Backoff = 0s skips the wait between retries. The program cancels the job during its third
+        // attempt, so the alert stays at the FirstFailure stage.
         [Job(
             "process-report",
             AlertProfile = AlertProfileCode.OnFailure,

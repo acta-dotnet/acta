@@ -4,20 +4,20 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>How to decide what happens to runs a schedule missed · Acta, durable execution for .NET</title>
-  <meta name="description" content="How to decide what happens to runs a schedule missed with Acta, durable execution for .NET. Missed occurrences are a business decision. Three schedules miss the same stretch while paused, and each one's misfire policy decides it differently: Skip runs at most the latest, CatchUpOnce runs one firing that covers them all, CatchUpAll runs every one in order." />
+  <meta name="description" content="How to decide what happens to runs a schedule missed with Acta, durable execution for .NET. Missed occurrences are a business decision, and MisfireStrategy on the schedule makes it. Three schedules miss the same stretch while paused: Skip, the default, drops them and fires only a latest one less than a minute overdue, CatchUpOnce runs one firing that covers them all, and CatchUpAll runs every one in order." />
   <link rel="canonical" href="https://useacta.net/learn/106-schedule-misfire" />
   <meta name="theme-color" content="#0B0E15" />
   <meta property="og:type" content="article" />
   <meta property="og:site_name" content="Acta for .NET" />
   <meta property="og:title" content="How to decide what happens to runs a schedule missed · Acta, durable execution for .NET" />
-  <meta property="og:description" content="How to decide what happens to runs a schedule missed with Acta, durable execution for .NET. Missed occurrences are a business decision. Three schedules miss the same stretch while paused, and each one's misfire policy decides it differently: Skip runs at most the latest, CatchUpOnce runs one firing that covers them all, CatchUpAll runs every one in order." />
+  <meta property="og:description" content="How to decide what happens to runs a schedule missed with Acta, durable execution for .NET. Missed occurrences are a business decision, and MisfireStrategy on the schedule makes it. Three schedules miss the same stretch while paused: Skip, the default, drops them and fires only a latest one less than a minute overdue, CatchUpOnce runs one firing that covers them all, and CatchUpAll runs every one in order." />
   <meta property="og:url" content="https://useacta.net/learn/106-schedule-misfire" />
   <meta property="og:image" content="https://useacta.net/assets/social-card.png" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
   <meta property="og:image:alt" content="Acta: durable execution for .NET. Postgres, SQL Server, SQLite." />
   <meta name="twitter:card" content="summary_large_image" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"How to decide what happens to runs a schedule missed","description":"How to decide what happens to runs a schedule missed with Acta, durable execution for .NET. Missed occurrences are a business decision. Three schedules miss the same stretch while paused, and each one's misfire policy decides it differently: Skip runs at most the latest, CatchUpOnce runs one firing that covers them all, CatchUpAll runs every one in order.","url":"https://useacta.net/learn/106-schedule-misfire","inLanguage":"en","articleSection":"Run work on a schedule","isPartOf":{"@type":"CollectionPage","name":"Learn Acta","url":"https://useacta.net/learn"},"about":{"@type":"SoftwareSourceCode","name":"Acta","programmingLanguage":"C#","codeRepository":"https://github.com/acta-dotnet/acta"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"How to decide what happens to runs a schedule missed","description":"How to decide what happens to runs a schedule missed with Acta, durable execution for .NET. Missed occurrences are a business decision, and MisfireStrategy on the schedule makes it. Three schedules miss the same stretch while paused: Skip, the default, drops them and fires only a latest one less than a minute overdue, CatchUpOnce runs one firing that covers them all, and CatchUpAll runs every one in order.","url":"https://useacta.net/learn/106-schedule-misfire","inLanguage":"en","articleSection":"Run work on a schedule","isPartOf":{"@type":"CollectionPage","name":"Learn Acta","url":"https://useacta.net/learn"},"about":{"@type":"SoftwareSourceCode","name":"Acta","programmingLanguage":"C#","codeRepository":"https://github.com/acta-dotnet/acta"}}</script>
   <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Learn Acta","item":"https://useacta.net/learn"},{"@type":"ListItem","position":2,"name":"Run work on a schedule","item":"https://useacta.net/learn#s-schedule"},{"@type":"ListItem","position":3,"name":"How to decide what happens to runs a schedule missed","item":"https://useacta.net/learn/106-schedule-misfire"}]}</script>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   <link rel="alternate" type="text/plain" href="/llms.txt" title="Acta for coding agents" />
@@ -61,7 +61,7 @@
     <header class="wrap page-head howto-head">
       <p class="record"><a href="/learn">learn acta</a><span aria-hidden="true">/</span><a href="/learn#s-schedule">run work on a schedule</a></p>
       <h1>How to decide what happens to runs a schedule missed</h1>
-      <p class="lede">Missed occurrences are a business decision. Three schedules miss the same stretch while paused, and each one's misfire policy decides it differently: <code>Skip</code> runs at most the latest, <code>CatchUpOnce</code> runs one firing that covers them all, <code>CatchUpAll</code> runs every one in order.</p>
+      <p class="lede">Missed occurrences are a business decision, and <code>MisfireStrategy</code> on the schedule makes it. Three schedules miss the same stretch while paused: <code>Skip</code>, the default, drops them and fires only a latest one less than a minute overdue, <code>CatchUpOnce</code> runs one firing that covers them all, and <code>CatchUpAll</code> runs every one in order.</p>
       <p class="howto-context">A how-to for Acta, durable execution for .NET. <a href="/start">New to Acta? Run your first durable job in five minutes.</a></p>
       <div class="howto-meta">
         <span class="status checked">Checked every release</span><span class="mark">Lab</span>
@@ -159,9 +159,9 @@ one per missed occurrence, in order: True</code></pre></figure>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/learn/100-scheduling/106-schedule-misfire"><code>learn/100-scheduling/106-schedule-misfire</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> and <code>LearnLab</code> are helpers of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
 <details class="source-file"><summary><span class="file-name">schedule-misfire.cs</span><span class="file-size">187 lines</span></summary><figure class="listing"><figcaption><span class="file">schedule-misfire.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to decide what happens to runs a schedule missed</span>
-<span class="c">// Missed occurrences are a business decision. Three schedules miss the same stretch while paused, and each one's</span>
-<span class="c">// misfire policy decides it differently: `Skip` runs at most the latest, `CatchUpOnce` runs one firing that covers</span>
-<span class="c">// them all, `CatchUpAll` runs every one in order.</span>
+<span class="c">// Missed occurrences are a business decision, and `MisfireStrategy` on the schedule makes it. Three schedules miss</span>
+<span class="c">// the same stretch while paused: `Skip`, the default, drops them and fires only a latest one less than a minute</span>
+<span class="c">// overdue, `CatchUpOnce` runs one firing that covers them all, and `CatchUpAll` runs every one in order.</span>
 <span class="k">using</span> System.Collections.Concurrent;
 <span class="k">using</span> Acta;
 <span class="k">using</span> Acta.Labs;

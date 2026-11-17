@@ -107,7 +107,7 @@
 | suspended</code></pre></figure>
 <p class="proof checked"><b>Checked every release.</b> Before each release, Acta Verify runs this program and checks that its output contains these lines.</p>
 </div>
-<div class="step plain-step"><h2>Remember</h2><ul class="rules"><li>The command runs against the app's own database and exits without starting a worker. Code before <code>app.Run</code> still runs, so guard host-only startup work with <code>if (args is not [&quot;jobs&quot;, ..])</code>.</li><li>Start with <code>explain</code> for anything stuck, waiting, or failed.</li></ul></div>
+<div class="step plain-step"><h2>Remember</h2><ul class="rules"><li>The command runs against the app's own database and exits without starting a worker. Code before <code>app.Run</code> still runs, so guard host-only startup work with <code>if (!args.Contains(&quot;jobs&quot;))</code>.</li><li>Start with <code>explain</code> for anything stuck, waiting, or failed.</li></ul></div>
 <details class="step lab-notes"><summary>The lab behind it: the worker binary is its own admin tool</summary>
 <p>This program is an Engineering Lab: beside the how-to it prints the rows that show what happened, and its notes weigh the design against the alternatives.</p>
 <h3>The problem</h3>

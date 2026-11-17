@@ -1,6 +1,6 @@
 # How to test a recurring synchronization job
 
-The claims of the continuous-synchronization lab as tests: a schedule forced due and one firing driven at a time, one job identity across firings, the watermark kept on the job, a lost attempt reclaimed with the next execution continuing at the watermark, and a replayed, a failed, and a backlogged batch. Run it with `dotnet test`.
+Tests for the permanent synchronization job of [109-continuous-synchronization](/learn/109-continuous-synchronization.md): a schedule forced due and one firing driven at a time, and a lost attempt reclaimed with the next execution continuing at the watermark. Run it with `dotnet test learn/800-testing/804-continuous-synchronization-tests`.
 
 - Section: Test without sleeps or polling, step 4
 - Program: `learn/800-testing/804-continuous-synchronization-tests` in https://github.com/acta-dotnet/acta (one compiled project)
@@ -56,31 +56,12 @@ private async Task<GetJobResponse> JobAsync() => (await _host.Jobs.GetAsync(_slo
 
 The lease lapses and recovery reclaims the firing: the job is Ready again, the attempt charged.
 
-The lines that matter:
+`ContinuousSynchronizationTests.cs` (excerpt):
 
 ```csharp
 await _host.ExpireExecutionLeaseAsync(_slot, Ct);
 Assert.Equal(1, (await _host.RunRecoveryOnceAsync(Namespace, Ct)).ReclaimedJobs);
 Assert.Equal(JobStatusCode.Ready, (await JobAsync()).Status);
-```
-
-In `ContinuousSynchronizationTests.cs` (excerpt):
-
-```csharp
-var lost = _host.RunOnceAsync(_slot, Ct);
-await _crash.Reached.Task.WaitAsync(TimeSpan.FromSeconds(30), Ct);
-Assert.Equal(40, await WatermarkAsync());
-var firing = await FiringIdAsync();
-
-await _host.ExpireExecutionLeaseAsync(_slot, Ct);
-Assert.Equal(1, (await _host.RunRecoveryOnceAsync(Namespace, Ct)).ReclaimedJobs);
-Assert.Equal(JobStatusCode.Ready, (await JobAsync()).Status);
-
-// The dead attempt ends and its late outcome is fenced out. The next execution re-enters from the top, reads
-// the watermark the lost one wrote, and applies the batch it owed: in the same drive, which re-claims the
-// reclaimed row, or in a fresh one when that drive claimed nothing more.
-_crash.Release.TrySetResult();
-var outcome = await lost;
 ```
 
 ## 4. Run it
@@ -99,4 +80,4 @@ Runs as a test. This program is a test project: it passes or fails with the test
 
 ## More
 
-- [The whole program](/learn/804-continuous-synchronization-tests.program.md): every file as compiled, 320 lines.
+- [The whole program](/learn/804-continuous-synchronization-tests.program.md): every file as compiled, 321 lines.

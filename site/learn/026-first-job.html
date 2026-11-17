@@ -170,13 +170,7 @@ app.MapGet(<span class="s">&quot;/jobs/{jobRef}/explain&quot;</span>, <span clas
 <span class="hl">{</span>
 <span class="hl">    <span class="k">var</span> cancelled = <span class="k">await</span> jobs.CancelAsync(jobRef, reasonMessage: <span class="s">&quot;cancelled from the orders API&quot;</span>);</span>
 <span class="hl">    <span class="k">return</span> Results.Ok(<span class="k">new</span> { cancelled.Action, cancelled.Status });</span>
-<span class="hl">});</span>
-
-<span class="c">// Switches that provoke the two failures: an offline printer fails print-label for good, and a flaky carrier times</span>
-<span class="c">// out the next booking once, which ship-order retries about a minute later.</span>
-app.MapPost(<span class="s">&quot;/printer/offline&quot;</span>, (LabelPrinter printer) =&gt; printer.Online = <span class="k">false</span>);
-app.MapPost(<span class="s">&quot;/printer/online&quot;</span>, (LabelPrinter printer) =&gt; printer.Online = <span class="k">true</span>);
-app.MapPost(<span class="s">&quot;/carrier/flaky&quot;</span>, (Carrier carrier) =&gt; carrier.TimeoutsLeft = 1);</code></pre></figure>
+<span class="hl">});</span></code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">6</span>Run it and check the output</h2>
 <p>From a clone of <a href="https://github.com/acta-dotnet/acta">the Acta repository</a>, with the .NET 10 SDK:</p>

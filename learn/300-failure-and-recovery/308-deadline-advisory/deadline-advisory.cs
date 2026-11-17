@@ -45,7 +45,8 @@ namespace Acta.Learn.DeadlineAdvisory
         // learn: 1. Make the deadline advisory
         // Advisory makes the deadline informational: unlike Strict (307), the engine never cancels an
         // overdue job. The handler reads context.IsOverdue (and context.TimeUntilDeadline) and degrades on its
-        // own; here it emits a quick summary instead of the expensive full report when it is late.
+        // own; here it emits a quick summary instead of the expensive full report when it is late. To show an
+        // overdue job the program holds the first run past the deadline, as 307 does.
         [Job("generate-report", Deadline = "2s", DeadlineBehavior = DeadlineBehaviorCode.Advisory)]
         // learn: end
         public static async Task Handle(GenerateReport input, JobContext context, CancellationToken ct)

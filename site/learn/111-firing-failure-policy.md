@@ -12,7 +12,7 @@ A firing that spends its retry budget returns the permanent job to `Idle`. `Firi
 
 ## 1. Pause the schedule when a firing fails for good
 
-A firing retries under the job's budget like any attempt. The policy applies once that budget is spent; the second job below keeps the default, `Continue`.
+A firing retries under the job's budget like any attempt. The policy applies once that budget is spent; the second job below keeps the default, `Continue`. `FailAsync` in the bodies is the program's own helper that throws, so each attempt fails and retries; it is not `ctx.FailAsync`.
 
 The lines that matter:
 
@@ -57,7 +57,7 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## Not in the packages
 
-`UseLocalDatabase` and `LearnLab` are helpers of the Acta repository (`support/`), used so every program runs on any of the three databases and prints its rows. Do not copy them into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` and `LearnLab` are helpers of the Acta repository (`support/`), used so every program runs on SQLite, PostgreSQL or SQL Server and prints its rows. Do not copy them into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## Next
 
@@ -65,4 +65,4 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## More
 
-- [The whole program](/learn/111-firing-failure-policy.program.md): every file as compiled, 111 lines.
+- [The whole program](/learn/111-firing-failure-policy.program.md): every file as compiled, 112 lines.

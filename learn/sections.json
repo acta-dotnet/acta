@@ -210,7 +210,7 @@
       "ask": "Something has to happen later",
       "pick": [
         { "howTo": "011-delayed-job", "when": "a whole job that starts later" },
-        { "howTo": "205-durable-sleep", "when": "a pause inside a job that has already begun" },
+        { "howTo": "205-durable-sleep", "when": "a wait inside a job that has already begun" },
         { "howTo": "217-absolute-time-controls", "when": "an exact instant instead of a delay" }
       ]
     },

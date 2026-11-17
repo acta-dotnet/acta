@@ -4,7 +4,7 @@ The how-to is [/learn/214-reset-state.md](/learn/214-reset-state.md). This file 
 
 ## Not in the packages
 
-`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on any of the three databases. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on SQLite, PostgreSQL or SQL Server. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## The whole program
 
@@ -12,8 +12,8 @@ The how-to is [/learn/214-reset-state.md](/learn/214-reset-state.md). This file 
 
 ```csharp
 // How to start each firing of a recurring job clean
-// A permanent job keeps its variables from one firing to the next. `ResetStateAsync` at the end of a firing clears
-// them, so the next one starts blank.
+// A permanent job keeps its variables and step results from one firing to the next. `ResetStateAsync` as the
+// firing's last line clears them, so the next one starts blank.
 using Acta;
 using Acta.Learn.ResetState;
 using Microsoft.Extensions.Hosting;
@@ -57,7 +57,8 @@ namespace Acta.Learn.ResetState
             Console.WriteLine($"{DateTime.UtcNow:HH:mm:ss} UTC cycle done  - 3 readings, avg {sum / 3}C");
 
             // learn: Clear the job's durable state as the last act of the firing
-            // Clear this cycle's durable state so the next fire starts blank.
+            // Clear the firing's durable state as its last line, so the next firing starts blank. Never at the top: a
+            // reset there also runs on every retry and replay of the same firing and erases its progress.
             await context.ResetStateAsync(ct);
             // learn: end
         }

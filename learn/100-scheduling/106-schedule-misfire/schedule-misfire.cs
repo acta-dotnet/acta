@@ -1,7 +1,7 @@
 // How to decide what happens to runs a schedule missed
-// Missed occurrences are a business decision. Three schedules miss the same stretch while paused, and each one's
-// misfire policy decides it differently: `Skip` runs at most the latest, `CatchUpOnce` runs one firing that covers
-// them all, `CatchUpAll` runs every one in order.
+// Missed occurrences are a business decision, and `MisfireStrategy` on the schedule makes it. Three schedules miss
+// the same stretch while paused: `Skip`, the default, drops them and fires only a latest one less than a minute
+// overdue, `CatchUpOnce` runs one firing that covers them all, and `CatchUpAll` runs every one in order.
 using System.Collections.Concurrent;
 using Acta;
 using Acta.Labs;

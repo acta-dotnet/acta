@@ -79,7 +79,7 @@ public async Task Echo_runs_when_driven_and_returns_the_message()
 
 ## 3. Assert each retry, then the final failure
 
-Attempts 1 and 2 throw; with retries left the job re-arms to Ready (due now), not Failed.
+Attempts 1 and 2 throw; with retries left the job re-arms to Ready, not Failed. The job declares `MaxAttempts = 3, Backoff = "0s"`, so each retry is due at once; under the default backoff a test makes it due with `ForceJobDueAsync`, as how-to 803 does.
 
 The lines that matter:
 
@@ -120,7 +120,7 @@ Runs as a test. This program is a test project: it passes or fails with the test
 
 ## Not in the packages
 
-`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on any of the three databases. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on SQLite, PostgreSQL or SQL Server. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## Next
 
@@ -128,4 +128,4 @@ Runs as a test. This program is a test project: it passes or fails with the test
 
 ## More
 
-- [The whole program](/learn/801-testing-jobs.program.md): every file as compiled, 105 lines.
+- [The whole program](/learn/801-testing-jobs.program.md): every file as compiled, 107 lines.

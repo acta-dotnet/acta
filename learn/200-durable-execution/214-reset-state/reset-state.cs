@@ -1,6 +1,6 @@
 // How to start each firing of a recurring job clean
-// A permanent job keeps its variables from one firing to the next. `ResetStateAsync` at the end of a firing clears
-// them, so the next one starts blank.
+// A permanent job keeps its variables and step results from one firing to the next. `ResetStateAsync` as the
+// firing's last line clears them, so the next one starts blank.
 using Acta;
 using Acta.Learn.ResetState;
 using Microsoft.Extensions.Hosting;
@@ -44,7 +44,8 @@ namespace Acta.Learn.ResetState
             Console.WriteLine($"{DateTime.UtcNow:HH:mm:ss} UTC cycle done  - 3 readings, avg {sum / 3}C");
 
             // learn: Clear the job's durable state as the last act of the firing
-            // Clear this cycle's durable state so the next fire starts blank.
+            // Clear the firing's durable state as its last line, so the next firing starts blank. Never at the top: a
+            // reset there also runs on every retry and replay of the same firing and erases its progress.
             await context.ResetStateAsync(ct);
             // learn: end
         }

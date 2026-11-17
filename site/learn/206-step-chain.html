@@ -76,7 +76,7 @@
     <div class="wrap howto-body">
       <article class="howto person-face">
 <div class="step"><h2><span class="step-n">1</span>Return a value from a step</h2>
-<p>Typed durable steps: each result is recorded once, so on replay the chain rebuilds from recorded outputs and no step re-runs.</p>
+<p>Typed durable steps: each result is recorded once, so on replay the chain rebuilds from recorded outputs and no step re-runs. A body that returns null, or a result over <code>MaxInlinePayloadBytes</code>, fails the job for good, since a retry would run the finished body again.</p>
 <figure class="listing"><figcaption><span class="file">step-chain.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="hl"><span class="k">var</span> fetched = <span class="k">await</span> context.RunStepAsync(</span>
 <span class="hl">    <span class="s">&quot;fetch&quot;</span>,</span>
 <span class="hl">    <span class="k">async</span> inner =&gt;</span>
@@ -110,7 +110,7 @@
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/learn/200-durable-execution/206-step-chain"><code>learn/200-durable-execution/206-step-chain</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">step-chain.cs</span><span class="file-size">84 lines</span></summary><figure class="listing"><figcaption><span class="file">step-chain.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to feed one step's result into the next</span>
+<details class="source-file"><summary><span class="file-name">step-chain.cs</span><span class="file-size">86 lines</span></summary><figure class="listing"><figcaption><span class="file">step-chain.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to feed one step's result into the next</span>
 <span class="c">// A step can return a value. Each result is recorded once, so the next step takes it as its input and a replay</span>
 <span class="c">// rebuilds the chain from the records.</span>
 <span class="k">using</span> Acta;
@@ -153,7 +153,9 @@ Console.WriteLine(<span class="s">&quot;Enqueued. Worker is running - press Ctrl
         <span class="k">public</span> <span class="k">async</span> Task Handle(IndexDocument doc, JobContext context, CancellationToken ct)
         {
             <span class="c">// learn: 1. Return a value from a step</span>
-            <span class="c">// Typed durable steps: each result is recorded once, so on replay the chain rebuilds from recorded outputs and no step re-runs.</span>
+            <span class="c">// Typed durable steps: each result is recorded once, so on replay the chain rebuilds from recorded outputs</span>
+            <span class="c">// and no step re-runs. A body that returns null, or a result over `MaxInlinePayloadBytes`, fails the job</span>
+            <span class="c">// for good, since a retry would run the finished body again.</span>
 <span class="hl">            <span class="k">var</span> fetched = <span class="k">await</span> context.RunStepAsync(</span>
 <span class="hl">                <span class="s">&quot;fetch&quot;</span>,</span>
 <span class="hl">                <span class="k">async</span> inner =&gt;</span>

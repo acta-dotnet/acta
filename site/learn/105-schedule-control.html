@@ -92,9 +92,7 @@ Console.WriteLine(<span class="s">$&quot;After indefinite pause: status={r1.Stat
 </div>
 <div class="step"><h2><span class="step-n">2</span>Pause it until someone resumes it</h2>
 <p>An indefinite pause: the schedule does not fire until an operator explicitly resumes it.</p>
-<figure class="listing"><figcaption><span class="file">schedule-control.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">var</span> queries = host.Services.GetRequiredService&lt;IActaOperations&gt;();
-
-<span class="k">var</span> lookup = <span class="k">new</span> ScheduleLookup(<span class="s">&quot;schedule-control&quot;</span>, <span class="s">&quot;hourly-report&quot;</span>, <span class="s">&quot;every-hour&quot;</span>);
+<figure class="listing"><figcaption><span class="file">schedule-control.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">var</span> lookup = <span class="k">new</span> ScheduleLookup(<span class="s">&quot;schedule-control&quot;</span>, <span class="s">&quot;hourly-report&quot;</span>, <span class="s">&quot;every-hour&quot;</span>);
 
 Console.WriteLine(<span class="s">&quot;Pausing schedule indefinitely...&quot;</span>);
 
@@ -125,11 +123,7 @@ Console.WriteLine(<span class="s">$&quot;After resume: status={r3.Status} next-r
 </div>
 <div class="step"><h2><span class="step-n">4</span>Resume it</h2>
 <p>A resume clears the pause and keeps the cursor; the next admission pass decides any missed occurrence.</p>
-<figure class="listing"><figcaption><span class="file">schedule-control.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code>Console.WriteLine(<span class="s">$&quot;Replacing with timed pause until {resumeAt:O}...&quot;</span>);
-<span class="k">var</span> r2 = <span class="k">await</span> schedules.PauseAsync(lookup, untilUtc: resumeAt, reasonMessage: <span class="s">&quot;drain window&quot;</span>);
-Console.WriteLine(<span class="s">$&quot;After timed pause: status={r2.Status} paused-until={r2.PausedUntilUtc?.ToString(&quot;O&quot;) ?? &quot;(none)&quot;}&quot;</span>);
-
-Console.WriteLine(<span class="s">&quot;Resuming schedule...&quot;</span>);
+<figure class="listing"><figcaption><span class="file">schedule-control.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code>Console.WriteLine(<span class="s">&quot;Resuming schedule...&quot;</span>);
 
 <span class="hl"><span class="k">var</span> r3 = <span class="k">await</span> schedules.ResumeAsync(lookup, reasonMessage: <span class="s">&quot;drain complete&quot;</span>);</span>
 Console.WriteLine(<span class="s">$&quot;After resume: status={r3.Status} next-run={r3.NextOccurrenceAtUtc?.ToString(&quot;O&quot;) ?? &quot;(none)&quot;}&quot;</span>);

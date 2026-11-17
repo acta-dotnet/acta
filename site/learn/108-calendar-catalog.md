@@ -12,7 +12,7 @@ A calendar is data that an operator publishes through `operations.Calendars`. A 
 
 ## 1. Save the calendar as a draft and publish it
 
-A deploy step names no versions, so it runs again as it is: a definition the latest version already holds saves nothing and answers AlreadyInState with that version, and publishing the current version again changes nothing.
+A calendar is a JSON definition saved as a draft, then published. `officeHours` names the family `office-hours` in `sys`, which every namespace binds by its plain name, and `Definitions.OpenAllDay` is a definition open all day, every day. A deploy step names no versions, so it runs again as it is: a definition the latest version already holds saves nothing and answers AlreadyInState with that version, and publishing the current version again changes nothing.
 
 The lines that matter:
 
@@ -70,7 +70,7 @@ public sealed class TickJob
 
 ## 3. Publish a change and let it retime the schedule
 
-The publication moves the cursor of every schedule bound to the calendar, in the same transaction.
+The publication moves the cursor of every schedule bound to the calendar, in the same transaction. `closed` is the draft saved just above, whose definition has no window today.
 
 The lines that matter:
 
@@ -82,12 +82,6 @@ Console.WriteLine($"Published: {result.Action}; retimed [{string.Join(", ", resu
 In `calendar-catalog.cs` (excerpt):
 
 ```csharp
-var preview = (await operations.Calendars.PreviewAsync(officeHours, closed.Version!.Value, count: 3))!;
-Console.WriteLine(
-    $"Preview of version {closed.Version}: the next window opens {preview.Windows[0].StartUtc:O}; "
-        + $"{preview.SchedulesTotal} bound schedule(s), {preview.OverdueTotal} overdue"
-);
-
 var result = await operations.Calendars.PublishAsync(officeHours, closed.Version.Value, reasonMessage: $"Closed on {today}");
 Console.WriteLine($"Published: {result.Action}; retimed [{string.Join(", ", result.RetimedSchedules)}]");
 
@@ -119,7 +113,7 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## Not in the packages
 
-`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on any of the three databases. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on SQLite, PostgreSQL or SQL Server. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## Next
 
@@ -127,4 +121,4 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## More
 
-- [The whole program](/learn/108-calendar-catalog.program.md): every file as compiled, 118 lines.
+- [The whole program](/learn/108-calendar-catalog.program.md): every file as compiled, 122 lines.

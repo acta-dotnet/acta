@@ -32,9 +32,6 @@ var page1 = await queries.Ledger.ListJobsAsync(new ListJobsQuery(JobNamespace: "
 Console.WriteLine($"Page 1: {page1.Items.Count} items, total={page1.TotalCount}, hasMore={page1.HasMore}");
 foreach (var item in page1.Items)
     Console.WriteLine($"  {item.JobRef} [{item.JobName}] status={item.Status}");
-
-// ListJobsAsync with a status filter.
-Console.WriteLine("=== ListJobsAsync (status=Cancelled filter) ===");
 ```
 
 ## 2. Fetch the next page by its cursor
@@ -71,7 +68,7 @@ else
 
 ## 3. Read the health counters
 
-GetOverviewAsync: one-shot health counters for the whole system. Schedules, workers, and alert lists also exist on IJobs; event-timeline depth lives in how-to 404.
+GetOverviewAsync: one-shot health counters for the whole system. Schedules, workers, and alerts are listed through `operations.Schedules`, `operations.Workers` and `operations.Alerts`; the event timeline is how-to 404. `queries` above and `operations` here are the same `IActaOperations` from the host's services.
 
 The lines that matter:
 
@@ -82,9 +79,6 @@ var overview = await operations.Ledger.GetOverviewAsync(new GetOverviewQuery());
 In `operator-queries.cs` (excerpt):
 
 ```csharp
-var withTotal = await queries.Ledger.ListJobsAsync(new ListJobsQuery(JobNamespace: "operator-queries", PageSize: 1, IncludeTotal: true));
-Console.WriteLine($"TotalCount across namespace: {withTotal.TotalCount}");
-
 Console.WriteLine("=== GetOverviewAsync (system-wide) ===");
 
 var overview = await operations.Ledger.GetOverviewAsync(new GetOverviewQuery());
@@ -129,7 +123,7 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## Not in the packages
 
-`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on any of the three databases. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on SQLite, PostgreSQL or SQL Server. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## Next
 
@@ -137,4 +131,4 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## More
 
-- [The whole program](/learn/409-operator-queries.program.md): every file as compiled, 110 lines.
+- [The whole program](/learn/409-operator-queries.program.md): every file as compiled, 112 lines.

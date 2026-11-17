@@ -86,9 +86,7 @@
 <span class="k">await</span> operations.Tenants.RegisterAsync(<span class="s">&quot;held-customer&quot;</span>, <span class="s">&quot;Held customer&quot;</span>);
 <span class="k">await</span> operations.Tenants.SuspendAsync(<span class="s">&quot;held-customer&quot;</span>, <span class="s">&quot;Held for the lab's rejection demo&quot;</span>);
 
-<span class="k">var</span> runId = <span class="s">$&quot;tenant-scope-{Guid.CreateVersion7():N}&quot;</span>;
-
-<span class="k">var</span> parent = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> ExportAccount(<span class="s">&quot;acme&quot;</span>), options =&gt; options.TenantName(<span class="s">&quot;acme&quot;</span>).CorrelationKey(runId));</code></pre></figure>
+<span class="k">var</span> runId = <span class="s">$&quot;tenant-scope-{Guid.CreateVersion7():N}&quot;</span>;</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">2</span>Name the tenant when you enqueue</h2>
 <figure class="listing"><figcaption><span class="file">tenant-scope.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">var</span> acmeId = (<span class="k">await</span> operations.Tenants.RegisterAsync(<span class="s">&quot;acme&quot;</span>, <span class="s">&quot;Acme GmbH&quot;</span>, <span class="s">&quot;Active customer used by the lab&quot;</span>)).TenantId;
@@ -106,13 +104,7 @@
 </div>
 <div class="step"><h2><span class="step-n">3</span>List the jobs of one tenant</h2>
 <p>The filter finds the parent and the child that inherited its tenant.</p>
-<figure class="listing"><figcaption><span class="file">tenant-scope.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">var</span> parentTerminal = <span class="k">await</span> WaitForAsync(jobs, parent.JobId, <span class="k">static</span> snapshot =&gt; snapshot.Status.IsTerminal, <span class="s">&quot;tenant parent to finish&quot;</span>);
-<span class="k">if</span> (parentTerminal.Status != JobStatusCode.Succeeded)
-{
-    <span class="k">throw</span> <span class="k">new</span> InvalidOperationException(<span class="s">$&quot;Tenant parent {parentTerminal.JobRef} ended {parentTerminal.Status}.&quot;</span>);
-}
-
-<span class="hl"><span class="k">var</span> byTenant = <span class="k">await</span> operations.Ledger.ListJobsAsync(</span>
+<figure class="listing"><figcaption><span class="file">tenant-scope.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="hl"><span class="k">var</span> byTenant = <span class="k">await</span> operations.Ledger.ListJobsAsync(</span>
 <span class="hl">    <span class="k">new</span> ListJobsQuery(JobNamespace: jobNamespace, TenantId: acmeId, CorrelationKey: runId, IncludeTotal: <span class="k">true</span>)</span>
 <span class="hl">);</span>
 Console.WriteLine(

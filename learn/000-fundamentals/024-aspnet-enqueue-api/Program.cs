@@ -47,7 +47,8 @@ app.MapGet("/imports/{jobRef}", async (string jobRef, IJobs jobs, CancellationTo
 
     // learn: 2. Read the status, and the result once the job has finished
     // `GetAsync` answers null for a ref that names no job. A result exists only once the job has succeeded, so the
-    // read waits for a terminal status.
+    // endpoint reads it only when the status is terminal; neither read waits. `parsed` is the route's text turned
+    // into a `JobRef` by `JobRef.TryParse`.
     var snapshot = await jobs.GetAsync(parsed, ct);
     if (snapshot is null)
     {

@@ -4,7 +4,7 @@ The how-to is [/learn/304-execution-timeout.md](/learn/304-execution-timeout.md)
 
 ## Not in the packages
 
-`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on any of the three databases. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on SQLite, PostgreSQL or SQL Server. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## The whole program
 
@@ -12,8 +12,8 @@ The how-to is [/learn/304-execution-timeout.md](/learn/304-execution-timeout.md)
 
 ```csharp
 // How to cut off an attempt that runs too long
-// `ExecutionTimeout` caps one attempt: when the time is up, the handler's `CancellationToken` trips and the attempt
-// ends as a timeout.
+// `ExecutionTimeout` caps one attempt: when the time is up, the handler's `CancellationToken` trips and the cut
+// spends an attempt.
 using Acta;
 using Acta.Learn.ExecutionTimeout;
 using Microsoft.Extensions.DependencyInjection;
@@ -51,8 +51,8 @@ namespace Acta.Learn.ExecutionTimeout
     public sealed class SlowReportJob
     {
         // learn: 1. Set the timeout on the job
-        // ExecutionTimeout caps a single attempt: after 2s the framework trips the CancellationToken
-        // and the attempt ends as a timeout.
+        // ExecutionTimeout caps a single attempt: after 2s the framework trips the CancellationToken. The cut
+        // spends an attempt, and with MaxAttempts = 1 the job ends `Failed`.
         [Job("slow-report", ExecutionTimeout = "2s", MaxAttempts = 1)]
         // learn: end
         public async Task Handle(SlowReport input, JobContext context, CancellationToken ct)

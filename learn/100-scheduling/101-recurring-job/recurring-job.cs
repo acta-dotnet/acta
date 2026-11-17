@@ -22,9 +22,11 @@ namespace Acta.Learn.Recurring
     public sealed class PurgeStaleSessionsJob
     {
         // learn: Put a schedule on the job
-        // `[Schedule]` takes a name and a cron, here one of the `Cron` constants.
-        // One permanent job fires on the cadence, and each successful fire's count replaces the last one stored;
-        // EventRecordingCode.Failures writes no event for a fire that succeeds with no failure before it.
+        // `[Schedule]` takes a name and a cron, here one of the `Cron` constants, read in UTC unless `TimeZoneId`
+        // says otherwise. One permanent job fires on the cadence, and the count each firing returns replaces the
+        // result the last one stored. `EventRecording = Failures` is optional: it keeps a frequent schedule from
+        // writing an event for every firing that succeeds. Nothing enqueues a scheduled job, so its input is an
+        // empty record.
         [Job("purge-stale-sessions", EventRecording = EventRecordingCode.Failures)]
         [Schedule("every-15-seconds", Cron.Every15Seconds)]
         // learn: end

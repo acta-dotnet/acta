@@ -244,7 +244,7 @@ client reads `action`, the resulting `status`, and the row's `version` without s
 | `reschedule` | A | A | A | A | A | 409 | 409 | 409 | 409 | Ready at the new instant, or Blocked behind its lane; an Idle permanent job takes a manual firing |
 | `reprioritize` | A | A | A | A | A | A | 409 | 409 | 409 | Priority changed, status untouched |
 | `input` (amend) | A | A | A | A | A | 409 | A | A | A | Input replaced, format round-tripped |
-| `signal` | A | A | A | A | A | A | 409 | 409 | 409 | Signal set; a Suspended job that waits on it goes Ready, and one that waits on something else stays Suspended |
+| `signal` | A | A | A | A | A | A | 409 | 409 | 409 | Signal set; a Suspended job that waits on it goes Ready, and one that waits on something else stays Suspended. A repeat with the same value answers already in state, on a finished job too; another value, or a raise after the wait expired, is rejected |
 
 Repeating a verb is a no-op only where the table says so. **`pause` and `cancel` are idempotent**: a
 Paused job stays Paused and a Cancelled job stays Cancelled, answered already in state with no event and
@@ -473,8 +473,8 @@ marks silent workers Dead after `WorkerDeadAfter`, and re-raises any child-compl
 left pending; `sys.retention` runs the purge. A lost attempt is therefore reclaimed on the first pass after its lease
 lapses: one to two leases after its worker's last heartbeat, plus up to a heartbeat for the pass (180 to about 400 seconds at the default
 heartbeat), at the latest on the pass that marks the worker Dead. The namespace's row keeps the pass's due time, so a
-restarted host keeps the cadence instead of running a pass at its start, and a single host on SQLite reclaims its killed
-predecessor's jobs the same way. If a job looks stuck in `Executing`, check the
+restarted host keeps the cadence instead of running a pass at its start. SQLite is the exception: a starting worker
+releases the work of ended processes on the same machine and runs a pass at once. If a job looks stuck in `Executing`, check the
 worker's `last_seen_at_utc` first; recovery is automatic once the lease lapses.
 
 ## Production guide
@@ -1180,8 +1180,8 @@ Check the signal name and target identity:
 - A signal name is a name like any other: dotted kebab-case, trimmed and lowercased, so `Payment.Received` and `payment.received` are one signal. It is scoped to one job.
 - A terminal job rejects new signals.
 - A paused job records the signal but stays paused.
-- A raise that arrives after a bounded wait timed out releases nothing; its event reads "Signal not
-  applied: the wait had already expired."
+- A raise that arrives after a bounded wait timed out releases nothing: it answers `Rejected` with the
+  reason `wait-expired`.
 - HTTP signal endpoints require controls to be enabled and the same confirmation as other control
   requests: the header `X-Acta-Control: true`, a JSON content type, or a `Bearer` authorization header.
   It is the cross-site request forgery barrier, not authentication.

@@ -76,7 +76,7 @@
     <div class="wrap howto-body">
       <article class="howto person-face">
 <div class="step"><h2><span class="step-n">1</span>Record only failures for a job that runs often</h2>
-<p>Failures: a failure writes an event, and so does the success that answers one; a run that succeeds after no failure leaves none. Use it for high-frequency definitions to keep events lean.</p>
+<p>Failures: a failure writes an event, and so does the success that answers one; a run that succeeds after no failure leaves none. Use it for high-frequency definitions to keep events lean. The program also runs <code>audit-work</code> at the default level and counts the events of both.</p>
 <figure class="listing"><figcaption><span class="file">event-recording.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">static</span> <span class="k">class</span> FailuresWorkJob
 {
 <span class="hl">    <span class="a">[Job(<span class="s">&quot;failures-work&quot;</span>, EventRecording = EventRecordingCode.Failures)]</span></span>
@@ -94,7 +94,7 @@ Failures level -&gt; event count: 0</code></pre></figure>
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/learn/400-observability-and-alerts/407-event-recording"><code>learn/400-observability-and-alerts/407-event-recording</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">event-recording.cs</span><span class="file-size">62 lines</span></summary><figure class="listing"><figcaption><span class="file">event-recording.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to choose how many events a job records</span>
+<details class="source-file"><summary><span class="file-name">event-recording.cs</span><span class="file-size">63 lines</span></summary><figure class="listing"><figcaption><span class="file">event-recording.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to choose how many events a job records</span>
 <span class="c">// `EventRecording` on the job decides which events it writes. `Audit`, the default, records every event. `Failures`</span>
 <span class="c">// records the failed and orphaned attempts, the success that recovers from a failure, what an enabled alert profile</span>
 <span class="c">// reads, a caller's controls of the job, and a schedule's pauses and manual triggers.</span>
@@ -151,6 +151,7 @@ Console.WriteLine(
         <span class="c">// learn: Record only failures for a job that runs often</span>
         <span class="c">// Failures: a failure writes an event, and so does the success that answers one; a run that</span>
         <span class="c">// succeeds after no failure leaves none. Use it for high-frequency definitions to keep events lean.</span>
+        <span class="c">// The program also runs `audit-work` at the default level and counts the events of both.</span>
 <span class="hl">        <span class="a">[Job(<span class="s">&quot;failures-work&quot;</span>, EventRecording = EventRecordingCode.Failures)]</span></span>
         <span class="c">// learn: end</span>
         <span class="k">public</span> <span class="k">static</span> <span class="k">void</span> Handle(FailuresWork input) =&gt; Console.WriteLine(<span class="s">$&quot;[{input.Id}] running at Failures level&quot;</span>);

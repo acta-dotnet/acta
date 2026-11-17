@@ -9,8 +9,8 @@ The how-to is [/learn/803-first-job-tests.md](/learn/803-first-job-tests.md). Th
 ```csharp
 // File: ShippingTests.cs
 // How to test the first-job guide's app
-// The first-job guide's test verbatim: the real runtime on a throwaway SQLite file, driven one tick at a time, with a
-// retry made due at once.
+// The test of the first-job app ([026-first-job](../../000-fundamentals/026-first-job/)), as the first-job guide
+// shows it: the real runtime on a throwaway SQLite file, driven one tick at a time, with a retry made due at once.
 using Acta;
 using Acta.Sqlite;
 using Acta.Testing;

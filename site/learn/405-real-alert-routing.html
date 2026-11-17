@@ -91,7 +91,7 @@
 <span class="hl">);</span></code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">2</span>Raise the alerts of one incident under one key</h2>
-<p>deduplicationKey ties repeats together onto one open incident row.</p>
+<p>deduplicationKey ties repeats together onto one open incident row. The program enqueues two checks of the same queue: both raise under one key and fold into one alert that counts two.</p>
 <figure class="listing"><figcaption><span class="file">real-alert-routing.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="hl"><span class="k">await</span> context.AlertAsync(</span>
 <span class="hl">    title: <span class="s">$&quot;Queue backlog: {input.Queue}&quot;</span>,</span>
 <span class="hl">    message: <span class="s">$&quot;'{input.Queue}' depth is {input.Depth}, above the 10k threshold.&quot;</span>,</span>
@@ -113,7 +113,7 @@ Console.WriteLine(<span class="s">$&quot;[{input.Queue}] depth {input.Depth} - a
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/learn/400-observability-and-alerts/405-real-alert-routing"><code>learn/400-observability-and-alerts/405-real-alert-routing</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">real-alert-routing.cs</span><span class="file-size">90 lines</span></summary><figure class="listing"><figcaption><span class="file">real-alert-routing.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to route alerts to Slack from configuration</span>
+<details class="source-file"><summary><span class="file-name">real-alert-routing.cs</span><span class="file-size">91 lines</span></summary><figure class="listing"><figcaption><span class="file">real-alert-routing.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to route alerts to Slack from configuration</span>
 <span class="c">// An alert channel posts to a Slack webhook whose URL comes from configuration, and logs when none is set. A</span>
 <span class="c">// deduplication key collapses repeats of one incident into one alert.</span>
 <span class="k">using</span> Acta;
@@ -185,7 +185,8 @@ builder.Services.UseActa(j =&gt;
             <span class="k">if</span> (input.Depth &gt; 10_000)
             {
                 <span class="c">// learn: 2. Raise the alerts of one incident under one key</span>
-                <span class="c">// deduplicationKey ties repeats together onto one open incident row.</span>
+                <span class="c">// deduplicationKey ties repeats together onto one open incident row. The program enqueues two</span>
+                <span class="c">// checks of the same queue: both raise under one key and fold into one alert that counts two.</span>
 <span class="hl">                <span class="k">await</span> context.AlertAsync(</span>
 <span class="hl">                    title: <span class="s">$&quot;Queue backlog: {input.Queue}&quot;</span>,</span>
 <span class="hl">                    message: <span class="s">$&quot;'{input.Queue}' depth is {input.Depth}, above the 10k threshold.&quot;</span>,</span>

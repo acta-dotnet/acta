@@ -1,6 +1,6 @@
 # How to decide what happens to runs a schedule missed
 
-Missed occurrences are a business decision. Three schedules miss the same stretch while paused, and each one's misfire policy decides it differently: `Skip` runs at most the latest, `CatchUpOnce` runs one firing that covers them all, `CatchUpAll` runs every one in order.
+Missed occurrences are a business decision, and `MisfireStrategy` on the schedule makes it. Three schedules miss the same stretch while paused: `Skip`, the default, drops them and fires only a latest one less than a minute overdue, `CatchUpOnce` runs one firing that covers them all, and `CatchUpAll` runs every one in order.
 
 - Section: Run work on a schedule, step 5
 - Program: `learn/100-scheduling/106-schedule-misfire` in https://github.com/acta-dotnet/acta (one compiled project)
@@ -113,7 +113,7 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## Not in the packages
 
-`UseLocalDatabase` and `LearnLab` are helpers of the Acta repository (`support/`), used so every program runs on any of the three databases and prints its rows. Do not copy them into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` and `LearnLab` are helpers of the Acta repository (`support/`), used so every program runs on SQLite, PostgreSQL or SQL Server and prints its rows. Do not copy them into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## Next
 

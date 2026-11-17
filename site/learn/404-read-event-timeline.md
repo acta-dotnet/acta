@@ -12,7 +12,7 @@ The append-only event ledger answers why a job did what it did. `ListEventsAsync
 
 ## 1. Read the timeline of the job and its children
 
-Query the full lineage event timeline scoped to the lineage root (the parent job). Events are returned newest-first; reverse to print in chronological order.
+Query the full lineage event timeline scoped to the lineage root (the parent job). Events are returned newest-first; reverse to print in chronological order. The parent starts a `collect` child that fails with "data origin unavailable", which is the reason the timeline shows.
 
 The lines that matter:
 
@@ -24,8 +24,6 @@ var events = eventsPage.Items.Reverse().ToList();
 In `read-event-timeline.cs` (excerpt):
 
 ```csharp
-var finished = await parent.WaitAsync();
-
 Console.WriteLine($"parent finished with status: {finished.Status}");
 
 Console.WriteLine("event timeline for the lineage:");
@@ -84,7 +82,7 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## Not in the packages
 
-`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on any of the three databases. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on SQLite, PostgreSQL or SQL Server. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## Next
 
@@ -92,4 +90,4 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## More
 
-- [The whole program](/learn/404-read-event-timeline.program.md): every file as compiled, 78 lines.
+- [The whole program](/learn/404-read-event-timeline.program.md): every file as compiled, 79 lines.

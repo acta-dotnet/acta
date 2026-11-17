@@ -77,11 +77,7 @@
       <article class="howto person-face">
 <div class="step"><h2><span class="step-n">1</span>Mount the API and turn the controls on</h2>
 <p>Every route that changes a job is off until the host sets <code>EnableControls</code>.</p>
-<figure class="listing"><figcaption><span class="file">http-api-controls.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code>Console.WriteLine(<span class="s">&quot;knob: LocalOnly = true        (default: non-loopback or non-localhost requests get 403)&quot;</span>);
-Console.WriteLine(<span class="s">&quot;knob: ConfigureEndpoints      (hook for RequireAuthorization in production)&quot;</span>);
-Console.WriteLine();
-
-<span class="hl">app.MapActaApi(<span class="s">&quot;/acta/api&quot;</span>, options =&gt;</span>
+<figure class="listing"><figcaption><span class="file">http-api-controls.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="hl">app.MapActaApi(<span class="s">&quot;/acta/api&quot;</span>, options =&gt;</span>
 <span class="hl">{</span>
 <span class="hl">    options.EnableControls = <span class="k">true</span>;</span>
 
@@ -96,9 +92,7 @@ Console.WriteLine();
 </div>
 <div class="step"><h2><span class="step-n">2</span>Confirm the control request</h2>
 <p>A control passes with the <code>X-Acta-Control: true</code> header, a JSON content type, or a Bearer authorization header. A form post from another site can send none of the three.</p>
-<figure class="listing"><figcaption><span class="file">http-api-controls.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code>Console.WriteLine(<span class="s">$&quot;  -&gt; {(int)rejectedResponse.StatusCode} {rejectedResponse.StatusCode}&quot;</span>);
-
-<span class="c">// With X-Acta-Control: true the bodyless call is confirmed and the verb is applied.</span>
+<figure class="listing"><figcaption><span class="file">http-api-controls.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// With X-Acta-Control: true the bodyless call is confirmed and the verb is applied.</span>
 Console.WriteLine();
 Console.WriteLine(<span class="s">&quot;POST pause WITH X-Acta-Control: true:&quot;</span>);
 
@@ -108,9 +102,7 @@ Console.WriteLine(<span class="s">&quot;POST pause WITH X-Acta-Control: true:&qu
 Console.WriteLine(<span class="s">$&quot;  -&gt; {(int)appliedResponse.StatusCode} {appliedResponse.StatusCode}&quot;</span>);
 
 <span class="k">var</span> snapshot = <span class="k">await</span> jobs.GetAsync(jobRef);
-Console.WriteLine(<span class="s">$&quot;  job status after pause: {snapshot!.Status}&quot;</span>);
-
-Console.WriteLine();</code></pre></figure>
+Console.WriteLine(<span class="s">$&quot;  job status after pause: {snapshot!.Status}&quot;</span>);</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">3</span>The job it acts on</h2>
 <figure class="listing"><figcaption><span class="file">http-api-controls.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">static</span> <span class="k">class</span> SampleTaskJob

@@ -20,7 +20,9 @@ var jobs = host.Services.GetRequiredService<IJobs>();
 
 // learn: 1. Name the namespace and the job in a request
 // Raw request names (namespace, job) explicitly, for a caller without the manifest, such as a gateway relaying
-// a request body. An in-process caller with an ambiguous input type uses the generated call instead (023).
+// a request body. An in-process caller with an ambiguous input type uses the generated call instead (023). A caller
+// that holds only the JSON text passes it as it came, `JobPayload.CopyBytes(JobPayloadFormat.Json, bytes)`:
+// `JobPayload.Json(text)` would store the text as one JSON string.
 var request = new EnqueueJobRequest(
     JobNamespace: "raw-enqueue",
     JobName: "send-welcome-email",

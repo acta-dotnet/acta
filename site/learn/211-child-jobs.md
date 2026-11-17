@@ -38,7 +38,7 @@ foreach (var outcome in joined.Failed)
 
 ## 2. Wait for all of them, and decide what a failed child means
 
-The parent suspends, holding no executor, until every child is terminal. A failed child does not throw here: the wait lists it, and the parent decides.
+The parent parks, holding no executor, and wakes as the children it waits on land, so it can run again more than once before every child is terminal. A failed child does not throw here: the wait lists it, and the parent decides. `FailAsync` ends the handler there, so the results are read only when all three succeeded.
 
 The lines that matter:
 
@@ -66,8 +66,6 @@ foreach (var outcome in joined.Failed)
 var b = await context.GetChildResultAsync<Snowball>(bottom.JobId, ct);
 var m = await context.GetChildResultAsync<Snowball>(middle.JobId, ct);
 var h = await context.GetChildResultAsync<Snowball>(head.JobId, ct);
-
-var height = b.Diameter + m.Diameter + h.Diameter;
 ```
 
 ## 3. Read each child's result
@@ -117,7 +115,7 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## Not in the packages
 
-`UseLocalDatabase` and `LearnLab` are helpers of the Acta repository (`support/`), used so every program runs on any of the three databases and prints its rows. Do not copy them into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` and `LearnLab` are helpers of the Acta repository (`support/`), used so every program runs on SQLite, PostgreSQL or SQL Server and prints its rows. Do not copy them into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## Next
 
@@ -125,4 +123,4 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## More
 
-- [The whole program and its notes](/learn/211-child-jobs.program.md): every file as compiled, 207 lines, and the notes on the design, the rows to inspect, and how to break it.
+- [The whole program and its notes](/learn/211-child-jobs.program.md): every file as compiled, 209 lines, and the notes on the design, the rows to inspect, and how to break it.

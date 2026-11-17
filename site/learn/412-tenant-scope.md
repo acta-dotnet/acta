@@ -33,8 +33,6 @@ await operations.Tenants.RegisterAsync("held-customer", "Held customer");
 await operations.Tenants.SuspendAsync("held-customer", "Held for the lab's rejection demo");
 
 var runId = $"tenant-scope-{Guid.CreateVersion7():N}";
-
-var parent = await jobs.EnqueueAsync(new ExportAccount("acme"), options => options.TenantName("acme").CorrelationKey(runId));
 ```
 
 ## 2. Name the tenant when you enqueue
@@ -77,12 +75,6 @@ var byTenant = await operations.Ledger.ListJobsAsync(
 In `tenant-scope.cs` (excerpt):
 
 ```csharp
-var parentTerminal = await WaitForAsync(jobs, parent.JobId, static snapshot => snapshot.Status.IsTerminal, "tenant parent to finish");
-if (parentTerminal.Status != JobStatusCode.Succeeded)
-{
-    throw new InvalidOperationException($"Tenant parent {parentTerminal.JobRef} ended {parentTerminal.Status}.");
-}
-
 var byTenant = await operations.Ledger.ListJobsAsync(
     new ListJobsQuery(JobNamespace: jobNamespace, TenantId: acmeId, CorrelationKey: runId, IncludeTotal: true)
 );
@@ -135,7 +127,7 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## Not in the packages
 
-`UseLocalDatabase` and `LearnLab` are helpers of the Acta repository (`support/`), used so every program runs on any of the three databases and prints its rows. Do not copy them into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` and `LearnLab` are helpers of the Acta repository (`support/`), used so every program runs on SQLite, PostgreSQL or SQL Server and prints its rows. Do not copy them into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## Next
 

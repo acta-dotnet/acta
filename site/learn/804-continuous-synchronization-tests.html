@@ -4,20 +4,20 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>How to test a recurring synchronization job · Acta, durable execution for .NET</title>
-  <meta name="description" content="How to test a recurring synchronization job with Acta, durable execution for .NET. The claims of the continuous-synchronization lab as tests: a schedule forced due and one firing driven at a time, one job identity across firings, the watermark kept on the job, a lost attempt reclaimed with the next execution continuing at the watermark, and a replayed, a failed, and a backlogged batch. Run it with dotnet test." />
+  <meta name="description" content="How to test a recurring synchronization job with Acta, durable execution for .NET. Tests for the permanent synchronization job of 109-continuous-synchronization: a schedule forced due and one firing driven at a time, and a lost attempt reclaimed with the next execution continuing at the watermark. Run it with dotnet test learn/800-testing/804-continuous-synchronization-tests." />
   <link rel="canonical" href="https://useacta.net/learn/804-continuous-synchronization-tests" />
   <meta name="theme-color" content="#0B0E15" />
   <meta property="og:type" content="article" />
   <meta property="og:site_name" content="Acta for .NET" />
   <meta property="og:title" content="How to test a recurring synchronization job · Acta, durable execution for .NET" />
-  <meta property="og:description" content="How to test a recurring synchronization job with Acta, durable execution for .NET. The claims of the continuous-synchronization lab as tests: a schedule forced due and one firing driven at a time, one job identity across firings, the watermark kept on the job, a lost attempt reclaimed with the next execution continuing at the watermark, and a replayed, a failed, and a backlogged batch. Run it with dotnet test." />
+  <meta property="og:description" content="How to test a recurring synchronization job with Acta, durable execution for .NET. Tests for the permanent synchronization job of 109-continuous-synchronization: a schedule forced due and one firing driven at a time, and a lost attempt reclaimed with the next execution continuing at the watermark. Run it with dotnet test learn/800-testing/804-continuous-synchronization-tests." />
   <meta property="og:url" content="https://useacta.net/learn/804-continuous-synchronization-tests" />
   <meta property="og:image" content="https://useacta.net/assets/social-card.png" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
   <meta property="og:image:alt" content="Acta: durable execution for .NET. Postgres, SQL Server, SQLite." />
   <meta name="twitter:card" content="summary_large_image" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"How to test a recurring synchronization job","description":"How to test a recurring synchronization job with Acta, durable execution for .NET. The claims of the continuous-synchronization lab as tests: a schedule forced due and one firing driven at a time, one job identity across firings, the watermark kept on the job, a lost attempt reclaimed with the next execution continuing at the watermark, and a replayed, a failed, and a backlogged batch. Run it with dotnet test.","url":"https://useacta.net/learn/804-continuous-synchronization-tests","inLanguage":"en","articleSection":"Test without sleeps or polling","isPartOf":{"@type":"CollectionPage","name":"Learn Acta","url":"https://useacta.net/learn"},"about":{"@type":"SoftwareSourceCode","name":"Acta","programmingLanguage":"C#","codeRepository":"https://github.com/acta-dotnet/acta"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"How to test a recurring synchronization job","description":"How to test a recurring synchronization job with Acta, durable execution for .NET. Tests for the permanent synchronization job of 109-continuous-synchronization: a schedule forced due and one firing driven at a time, and a lost attempt reclaimed with the next execution continuing at the watermark. Run it with dotnet test learn/800-testing/804-continuous-synchronization-tests.","url":"https://useacta.net/learn/804-continuous-synchronization-tests","inLanguage":"en","articleSection":"Test without sleeps or polling","isPartOf":{"@type":"CollectionPage","name":"Learn Acta","url":"https://useacta.net/learn"},"about":{"@type":"SoftwareSourceCode","name":"Acta","programmingLanguage":"C#","codeRepository":"https://github.com/acta-dotnet/acta"}}</script>
   <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Learn Acta","item":"https://useacta.net/learn"},{"@type":"ListItem","position":2,"name":"Test without sleeps or polling","item":"https://useacta.net/learn#s-test"},{"@type":"ListItem","position":3,"name":"How to test a recurring synchronization job","item":"https://useacta.net/learn/804-continuous-synchronization-tests"}]}</script>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   <link rel="alternate" type="text/plain" href="/llms.txt" title="Acta for coding agents" />
@@ -61,7 +61,7 @@
     <header class="wrap page-head howto-head">
       <p class="record"><a href="/learn">learn acta</a><span aria-hidden="true">/</span><a href="/learn#s-test">test without sleeps or polling</a></p>
       <h1>How to test a recurring synchronization job</h1>
-      <p class="lede">The claims of the continuous-synchronization lab as tests: a schedule forced due and one firing driven at a time, one job identity across firings, the watermark kept on the job, a lost attempt reclaimed with the next execution continuing at the watermark, and a replayed, a failed, and a backlogged batch. Run it with <code>dotnet test</code>.</p>
+      <p class="lede">Tests for the permanent synchronization job of <a href="/learn/109-continuous-synchronization">109-continuous-synchronization</a>: a schedule forced due and one firing driven at a time, and a lost attempt reclaimed with the next execution continuing at the watermark. Run it with <code>dotnet test learn/800-testing/804-continuous-synchronization-tests</code>.</p>
       <p class="howto-context">A how-to for Acta, durable execution for .NET. <a href="/start">New to Acta? Run your first durable job in five minutes.</a></p>
       <div class="howto-meta">
         <span class="status checked">Runs as a test</span>
@@ -94,20 +94,9 @@
 </div>
 <div class="step"><h2><span class="step-n">3</span>Lose an attempt, and let recovery reclaim it</h2>
 <p>The lease lapses and recovery reclaims the firing: the job is Ready again, the attempt charged.</p>
-<figure class="listing"><figcaption><span class="file">ContinuousSynchronizationTests.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">var</span> lost = _host.RunOnceAsync(_slot, Ct);
-<span class="k">await</span> _crash.Reached.Task.WaitAsync(TimeSpan.FromSeconds(30), Ct);
-Assert.Equal(40, <span class="k">await</span> WatermarkAsync());
-<span class="k">var</span> firing = <span class="k">await</span> FiringIdAsync();
-
-<span class="hl"><span class="k">await</span> _host.ExpireExecutionLeaseAsync(_slot, Ct);</span>
+<figure class="listing"><figcaption><span class="file">ContinuousSynchronizationTests.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="hl"><span class="k">await</span> _host.ExpireExecutionLeaseAsync(_slot, Ct);</span>
 <span class="hl">Assert.Equal(1, (<span class="k">await</span> _host.RunRecoveryOnceAsync(Namespace, Ct)).ReclaimedJobs);</span>
-<span class="hl">Assert.Equal(JobStatusCode.Ready, (<span class="k">await</span> JobAsync()).Status);</span>
-
-<span class="c">// The dead attempt ends and its late outcome is fenced out. The next execution re-enters from the top, reads</span>
-<span class="c">// the watermark the lost one wrote, and applies the batch it owed: in the same drive, which re-claims the</span>
-<span class="c">// reclaimed row, or in a fresh one when that drive claimed nothing more.</span>
-_crash.Release.TrySetResult();
-<span class="k">var</span> outcome = <span class="k">await</span> lost;</code></pre></figure>
+<span class="hl">Assert.Equal(JobStatusCode.Ready, (<span class="k">await</span> JobAsync()).Status);</span></code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">4</span>Run it</h2>
 <p>From a clone of <a href="https://github.com/acta-dotnet/acta">the Acta repository</a>, with the .NET 10 SDK:</p>
@@ -117,10 +106,11 @@ _crash.Release.TrySetResult();
 </div>
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/learn/800-testing/804-continuous-synchronization-tests"><code>learn/800-testing/804-continuous-synchronization-tests</code></a>, as it is compiled.</p>
-<details class="source-file"><summary><span class="file-name">ContinuousSynchronizationTests.cs</span><span class="file-size">320 lines</span></summary><figure class="listing"><figcaption><span class="file">ContinuousSynchronizationTests.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to test a recurring synchronization job</span>
-<span class="c">// The claims of the continuous-synchronization lab as tests: a schedule forced due and one firing driven at a time,</span>
-<span class="c">// one job identity across firings, the watermark kept on the job, a lost attempt reclaimed with the next execution</span>
-<span class="c">// continuing at the watermark, and a replayed, a failed, and a backlogged batch. Run it with `dotnet test`.</span>
+<details class="source-file"><summary><span class="file-name">ContinuousSynchronizationTests.cs</span><span class="file-size">321 lines</span></summary><figure class="listing"><figcaption><span class="file">ContinuousSynchronizationTests.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to test a recurring synchronization job</span>
+<span class="c">// Tests for the permanent synchronization job of</span>
+<span class="c">// [109-continuous-synchronization](../../100-scheduling/109-continuous-synchronization/): a schedule forced due and</span>
+<span class="c">// one firing driven at a time, and a lost attempt reclaimed with the next execution continuing at the watermark. Run</span>
+<span class="c">// it with `dotnet test learn/800-testing/804-continuous-synchronization-tests`.</span>
 <span class="k">using</span> System.Text.Json;
 <span class="k">using</span> Acta;
 <span class="k">using</span> Acta.Learn.ContinuousSynchronization;

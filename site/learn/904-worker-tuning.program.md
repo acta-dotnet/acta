@@ -4,7 +4,7 @@ The how-to is [/learn/904-worker-tuning.md](/learn/904-worker-tuning.md). This f
 
 ## Not in the packages
 
-`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on any of the three databases. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on SQLite, PostgreSQL or SQL Server. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## The whole program
 
@@ -32,14 +32,14 @@ builder.Services.UseActa(j =>
         // learn: 1. Cap how many jobs the worker runs at once
         // Cap simultaneous in-flight executions at Cap. Each claim takes only as many rows as there are
         // free executors, so excess work stays Ready in the database until an executor frees. Fixed at startup;
-        // not autoscaled.
+        // not autoscaled. The program sets `Cap` to 3.
         o.MaxConcurrentExecutors = Cap;
         // learn: end
 
         // learn: 2. Bound how long an idle worker sleeps
-        // Upper bound on idle claim-loop sleep. Minimum allowed value is 1s (the validator rejects
-        // lower values as a DB-traffic guard). The wakeup signal fires immediately after the batch
-        // enqueue below, so the poll interval is not on the critical path for this run.
+        // Upper bound on idle claim-loop sleep. 1s is the default and the minimum (the validator rejects
+        // lower values as a DB-traffic guard). An enqueue wakes the worker at once, so the interval only
+        // matters for work nothing announced.
         o.SafetyPollInterval = TimeSpan.FromSeconds(1);
         // learn: end
     });

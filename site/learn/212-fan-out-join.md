@@ -51,7 +51,7 @@ public async Task<SumResult> Handle(AddNumbers request, JobContext context, Canc
 
 ## 2. Stop if a child failed, then merge the results
 
-The map does not throw for a failed child; the parent asks, and decides.
+The map does not throw for a failed child; the parent asks, and decides. `FailAsync` ends the handler there, so the merge runs only when every chunk succeeded.
 
 The lines that matter:
 
@@ -112,7 +112,7 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## Not in the packages
 
-`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on any of the three databases. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on SQLite, PostgreSQL or SQL Server. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## Next
 
@@ -120,4 +120,4 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## More
 
-- [The whole program](/learn/212-fan-out-join.program.md): every file as compiled, 84 lines.
+- [The whole program](/learn/212-fan-out-join.program.md): every file as compiled, 85 lines.

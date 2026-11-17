@@ -12,7 +12,7 @@ A deduplication key built from a time bucket lets one job in per bucket: `Dedupl
 
 ## 1. Build the key from the time bucket
 
-The key carries the bucket its instant falls in, so every enqueue inside the same half hour composes the same key.
+The key carries the bucket its instant falls in, so every enqueue inside the same half hour composes the same key. `bucketSize` is thirty minutes and `instantA` a fixed instant, so the run repeats. `PerHour(job, businessKey)` and `PerDay(job, businessKey)` are the fixed sizes, and every bucket is counted in UTC.
 
 The lines that matter:
 
@@ -24,9 +24,6 @@ var first = await jobs.EnqueueAsync(new NightlySummary("acme"), o => o.Deduplica
 In `deduplication-time-buckets.cs` (excerpt):
 
 ```csharp
-var instantA = new DateTimeOffset(2025, 6, 1, 10, 00, 00, TimeSpan.Zero); // bucket 10:00-10:30
-var instantB = new DateTimeOffset(2025, 6, 1, 10, 45, 00, TimeSpan.Zero); // bucket 10:30-11:00
-
 // --- Within the same bucket: two enqueues collapse to one job ---
 Console.WriteLine("Enqueueing twice in the same 30-minute bucket...");
 
@@ -120,7 +117,7 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## Not in the packages
 
-`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on any of the three databases. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on SQLite, PostgreSQL or SQL Server. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## Next
 
@@ -128,4 +125,4 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## More
 
-- [The whole program](/learn/028-deduplication-time-buckets.program.md): every file as compiled, 76 lines.
+- [The whole program](/learn/028-deduplication-time-buckets.program.md): every file as compiled, 78 lines.

@@ -32,7 +32,8 @@ foreach (var n in new[] { 2, 3, 4, 5 })
 
 // learn: Set the priority when you enqueue
 // `Priority` is an option of the enqueue. When several jobs are due at once, the worker claims the one with the
-// higher priority first, whichever arrived first.
+// higher priority first, whichever arrived first. `together` is one instant a moment ahead that every job here
+// shares, so they all come due at once.
 await jobs.EnqueueAsync(new GenerateReport("URGENT"), o => o.Priority(JobPriorityCode.High).NextRunAt(together));
 
 // learn: end

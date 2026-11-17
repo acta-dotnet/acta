@@ -76,7 +76,7 @@
     <div class="wrap howto-body">
       <article class="howto person-face">
 <div class="step"><h2><span class="step-n">1</span>Wait for the confirmation, with a deadline</h2>
-<p>The wait is a row with its deadline stored in the database, so no process has to stay alive for it. When nobody confirms in time, the job cancels itself: no user was ever written, so there is nothing to undo.</p>
+<p>The wait is a row with its deadline stored in the database, so no process has to stay alive for it. When nobody confirms in time, the job cancels itself: no user was ever written, so there is nothing to undo. <code>CancelAsync</code> ends the handler there, so the lines after it run only for a confirmed sign-up.</p>
 <figure class="listing"><figcaption><span class="file">pending-signup.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="hl"><span class="k">var</span> confirmed = <span class="k">await</span> ctx.WaitSignalAsync&lt;EmailConfirmed&gt;(<span class="s">&quot;email-confirmed&quot;</span>, input.ConfirmWithin, ct);</span>
 <span class="hl"><span class="k">if</span> (confirmed.TimedOut)</span>
 <span class="hl">{</span>
@@ -86,13 +86,7 @@
 </div>
 <div class="step"><h2><span class="step-n">2</span>Create the user only after the confirmation</h2>
 <p>Only now does the sign-up become a real user. The insert is keyed by the email, so a repeat of the step adds nothing.</p>
-<figure class="listing"><figcaption><span class="file">pending-signup.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">if</span> (confirmed.TimedOut)
-{
-    Console.WriteLine(<span class="s">$&quot;[{input.Email}] not confirmed in time&quot;</span>);
-    <span class="k">await</span> ctx.CancelAsync(<span class="s">&quot;not confirmed in time&quot;</span>, ct);
-}
-
-<span class="hl"><span class="k">await</span> ctx.RunStepAsync(</span>
+<figure class="listing"><figcaption><span class="file">pending-signup.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="hl"><span class="k">await</span> ctx.RunStepAsync(</span>
 <span class="hl">    <span class="s">&quot;create-user&quot;</span>,</span>
 <span class="hl">    _ =&gt;</span>
 <span class="hl">    {</span>
@@ -112,9 +106,7 @@
 <span class="k">var</span> users = host.Services.GetRequiredService&lt;UserStore&gt;();
 
 <span class="hl"><span class="k">var</span> ada = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> RegisterUser(<span class="s">&quot;ada@example.com&quot;</span>, <span class="s">&quot;Ada&quot;</span>, <span class="s">&quot;c0ffee&quot;</span>, TimeSpan.FromHours(24)));</span>
-<span class="k">var</span> sam = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> RegisterUser(<span class="s">&quot;sam@example.com&quot;</span>, <span class="s">&quot;Sam&quot;</span>, <span class="s">&quot;decade&quot;</span>, TimeSpan.FromSeconds(2)));
-
-<span class="k">using</span> <span class="k">var</span> timeout = <span class="k">new</span> CancellationTokenSource(TimeSpan.FromSeconds(30));</code></pre></figure>
+<span class="k">var</span> sam = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> RegisterUser(<span class="s">&quot;sam@example.com&quot;</span>, <span class="s">&quot;Sam&quot;</span>, <span class="s">&quot;decade&quot;</span>, TimeSpan.FromSeconds(2)));</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">4</span>Confirm it from the link in the email</h2>
 <p>A raise proves nothing about who sent it, so the code from the link is compared with the one stored in the job before the signal is raised. The raise answers what it did.</p>
@@ -148,12 +140,12 @@ users: ada@example.com
 sam's late click: Rejected</code></pre></figure>
 <p class="proof checked"><b>Checked every release.</b> Before each release, Acta Verify runs this program and checks that its output contains these lines.</p>
 </div>
-<div class="step plain-step"><h2>Remember</h2><ul class="rules"><li>Nothing real exists until <code>create-user</code> runs. An unconfirmed sign-up ends as a cancelled job and leaves no half-made account behind.</li><li>The deadline is stored once, as database time plus the timeout. Restarts and downtime never make it longer.</li><li>The handler runs from the top after the confirmation. The email is not sent again, because <code>send-confirmation</code> already has a recorded outcome.</li><li>Make <code>create-user</code> safe to repeat: insert only when the address is absent. A crash right after the insert runs the step again, and two submits of the form end as one account.</li><li>A finished job is kept with its input for its retention period: ninety days by default, seven here. Keep the input to what the work needs when it holds personal data.</li><li>In a web app the confirm link opens a page with a Confirm button that posts: mail scanners fetch the links they see, and a fetch must not confirm anything.</li></ul></div>
+<div class="step plain-step"><h2>Remember</h2><ul class="rules"><li>Nothing real exists until <code>create-user</code> runs. An unconfirmed sign-up ends as a cancelled job and leaves no half-made account behind.</li><li>The deadline is stored once, as database time plus the timeout. Restarts and downtime never make it longer.</li><li>The handler runs from the top after the confirmation. The email is not sent again, because the step that sends it already has a recorded outcome.</li><li>Make <code>create-user</code> safe to repeat: insert only when the address is absent. A crash right after the insert runs the step again, and two submits of the form end as one account.</li><li>A finished job is kept with its input for its retention period: ninety days by default, seven here, through <code>[Job(&quot;register-user&quot;, JobRetention = &quot;7d&quot;)]</code>. Keep the input to what the work needs when it holds personal data.</li><li>In a web app the confirm link opens a page with a Confirm button that posts: mail scanners fetch the links they see, and a fetch must not confirm anything.</li></ul></div>
 <div class="step plain-step"><h2>Check yourself</h2><div class="check" data-answer="1"><p class="check-q">The app is redeployed twelve hours after the sign-up. What happens to the pending registration?</p><ol class="check-options"><li><button type="button">It is lost and the person has to sign up again</button></li><li><button type="button">Nothing: it is a suspended job, and the link still works</button></li><li><button type="button">The confirmation email is sent a second time</button></li></ol><details class="check-why"><summary>Show the answer</summary><p><b>Nothing: it is a suspended job, and the link still works.</b> The wait is a row with its deadline stored in the database. No process had to stay alive for it, and the email step is not repeated.</p></details></div><div class="check" data-answer="1"><p class="check-q">Nobody opens the link. What is left when the deadline has passed?</p><ol class="check-options"><li><button type="button">A user row that has to be deleted</button></li><li><button type="button">A cancelled job with its timeline, and no user</button></li><li><button type="button">A job that waits forever</button></li></ol><details class="check-why"><summary>Show the answer</summary><p><b>A cancelled job with its timeline, and no user.</b> The wait times out, the handler cancels the job, and <code>create-user</code> never runs. The job row stays for its retention period as the record of what happened.</p></details></div></div>
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/learn/200-durable-execution/221-pending-signup"><code>learn/200-durable-execution/221-pending-signup</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">pending-signup.cs</span><span class="file-size">122 lines</span></summary><figure class="listing"><figcaption><span class="file">pending-signup.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to hold a sign-up until the email is confirmed</span>
+<details class="source-file"><summary><span class="file-name">pending-signup.cs</span><span class="file-size">123 lines</span></summary><figure class="listing"><figcaption><span class="file">pending-signup.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to hold a sign-up until the email is confirmed</span>
 <span class="c">// The job is the pending sign-up: Acta stores its input, a signal confirms it, and a deadline ends it with no account</span>
 <span class="c">// to clean up.</span>
 <span class="k">using</span> System.Collections.Concurrent;
@@ -250,6 +242,7 @@ Console.WriteLine(<span class="s">$&quot;sam's late click: {late.Action}&quot;</
             <span class="c">// learn: 1. Wait for the confirmation, with a deadline</span>
             <span class="c">// The wait is a row with its deadline stored in the database, so no process has to stay alive for it. When</span>
             <span class="c">// nobody confirms in time, the job cancels itself: no user was ever written, so there is nothing to undo.</span>
+            <span class="c">// `CancelAsync` ends the handler there, so the lines after it run only for a confirmed sign-up.</span>
 <span class="hl">            <span class="k">var</span> confirmed = <span class="k">await</span> ctx.WaitSignalAsync&lt;EmailConfirmed&gt;(<span class="s">&quot;email-confirmed&quot;</span>, input.ConfirmWithin, ct);</span>
 <span class="hl">            <span class="k">if</span> (confirmed.TimedOut)</span>
 <span class="hl">            {</span>

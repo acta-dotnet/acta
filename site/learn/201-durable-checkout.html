@@ -76,7 +76,7 @@
     <div class="wrap howto-body">
       <article class="howto person-face">
 <div class="step"><h2><span class="step-n">1</span>Wait for the review before anything is charged</h2>
-<p>No thread or executor waits here. Acta stores the signal checkpoint, releases the lease, and re-enters this handler from the top after another actor raises the signal.</p>
+<p>No thread or executor waits here. Acta stores the signal checkpoint, releases the lease, and re-enters this handler from the top after another actor raises the signal. <code>CancelAsync</code> ends the handler there, so the lines after it run only for an approved order.</p>
 <figure class="listing"><figcaption><span class="file">Checkout.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="hl"><span class="k">var</span> decision = <span class="k">await</span> context.WaitSignalAsync&lt;FraudDecision&gt;(<span class="s">&quot;fraud-review&quot;</span>, ct);</span>
 <span class="hl"><span class="k">if</span> (decision <span class="k">is</span> <span class="k">not</span> { Approved: <span class="k">true</span> })</span>
 <span class="hl">{</span>
@@ -188,7 +188,7 @@ builder.Services.AddHostedService&lt;Primer&gt;();
 
 <span class="k">await</span> builder.Build().RunAsync();</code></pre></figure>
 </details>
-<details class="source-file"><summary><span class="file-name">Checkout.cs</span><span class="file-size">83 lines</span></summary><figure class="listing"><figcaption><span class="file">Checkout.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">namespace</span> Acta.Learn.DurableCheckout;
+<details class="source-file"><summary><span class="file-name">Checkout.cs</span><span class="file-size">84 lines</span></summary><figure class="listing"><figcaption><span class="file">Checkout.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">namespace</span> Acta.Learn.DurableCheckout;
 
 <span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> Checkout(<span class="k">string</span> OrderId, <span class="k">decimal</span> Amount);
 
@@ -208,7 +208,8 @@ builder.Services.AddHostedService&lt;Primer&gt;();
         {
             <span class="c">// learn: 1. Wait for the review before anything is charged</span>
             <span class="c">// No thread or executor waits here. Acta stores the signal checkpoint, releases the lease,</span>
-            <span class="c">// and re-enters this handler from the top after another actor raises the signal.</span>
+            <span class="c">// and re-enters this handler from the top after another actor raises the signal. `CancelAsync`</span>
+            <span class="c">// ends the handler there, so the lines after it run only for an approved order.</span>
 <span class="hl">            <span class="k">var</span> decision = <span class="k">await</span> context.WaitSignalAsync&lt;FraudDecision&gt;(<span class="s">&quot;fraud-review&quot;</span>, ct);</span>
 <span class="hl">            <span class="k">if</span> (decision <span class="k">is</span> <span class="k">not</span> { Approved: <span class="k">true</span> })</span>
 <span class="hl">            {</span>

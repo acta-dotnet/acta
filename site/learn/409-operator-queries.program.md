@@ -4,7 +4,7 @@ The how-to is [/learn/409-operator-queries.md](/learn/409-operator-queries.md). 
 
 ## Not in the packages
 
-`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on any of the three databases. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on SQLite, PostgreSQL or SQL Server. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## The whole program
 
@@ -94,7 +94,9 @@ Console.WriteLine("=== GetOverviewAsync (system-wide) ===");
 
 // learn: 3. Read the health counters
 // GetOverviewAsync: one-shot health counters for the whole system.
-// Schedules, workers, and alert lists also exist on IJobs; event-timeline depth lives in how-to 404.
+// Schedules, workers, and alerts are listed through `operations.Schedules`, `operations.Workers` and
+// `operations.Alerts`; the event timeline is how-to 404. `queries` above and `operations` here are the same
+// `IActaOperations` from the host's services.
 var overview = await operations.Ledger.GetOverviewAsync(new GetOverviewQuery());
 
 // learn: end

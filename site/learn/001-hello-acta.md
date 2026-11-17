@@ -113,6 +113,7 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 ## Remember
 
 - The name in `[Job("hello")]` goes into the database, the dashboard, and alerts. Keep it lowercase with dashes, and treat it as permanent once jobs exist under it.
+- The namespace in `Run<HelloActaJobs>("hello-acta")` is permanent too: every job is stored under it and there is no rename. Name it for the work the app owns, such as `billing`, not for an environment or a version.
 - `MigrateOnStartup = true` is for your own machine. In production a deploy step runs `jobs migrate`.
 - The process that enqueues can also run the job. You can split the two later without changing the handler.
 

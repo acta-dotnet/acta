@@ -92,7 +92,8 @@ namespace Acta.Learn.FiringFailurePolicy
 
         // learn: Pause the schedule when a firing fails for good
         // A firing retries under the job's budget like any attempt. The policy applies once that budget is spent; the
-        // second job below keeps the default, `Continue`.
+        // second job below keeps the default, `Continue`. `FailAsync` in the bodies is the program's own helper that
+        // throws, so each attempt fails and retries; it is not `ctx.FailAsync`.
         [Job("sync-prices-pausing", MaxAttempts = 2, Backoff = "1s", FiringFailurePolicy = FiringFailurePolicyCode.PauseScheduling)]
         // learn: end
         [Schedule("every-second", "PT1S")]

@@ -23,9 +23,6 @@ var result = await jobs.RestartAsync(outcome, "operator re-ran the report after 
 In `operator-restart.cs` (excerpt):
 
 ```csharp
-Console.WriteLine($"terminal: status={snapshot!.Status} failureCount={snapshot.FailureCount} executionNumber={snapshot.ExecutionNumber}");
-await ShowRestartStateAsync(lab, "Before restart: one stable identity exhausted its failure budget", outcome.JobId);
-
 FlakyReportJob.DataSourceFixed = true;
 
 var result = await jobs.RestartAsync(outcome, "operator re-ran the report after the data fix");
@@ -95,7 +92,7 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## Not in the packages
 
-`UseLocalDatabase` and `LearnLab` are helpers of the Acta repository (`support/`), used so every program runs on any of the three databases and prints its rows. Do not copy them into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` and `LearnLab` are helpers of the Acta repository (`support/`), used so every program runs on SQLite, PostgreSQL or SQL Server and prints its rows. Do not copy them into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## Next
 

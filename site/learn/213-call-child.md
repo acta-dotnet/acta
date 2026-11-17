@@ -1,6 +1,6 @@
 # How to call another job and use its result
 
-`CallChildAsync` starts another job as a child, waits for it without holding a worker, and returns its result.
+`CallChildAsync` starts another job as a child, waits for it without holding a worker, and returns its outcome, whose `ValueOrThrow()` is the result.
 
 - Section: Split work across child jobs, step 2
 - Program: `learn/200-durable-execution/213-call-child` in https://github.com/acta-dotnet/acta (one compiled project)
@@ -54,7 +54,7 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## Not in the packages
 
-`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on any of the three databases. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on SQLite, PostgreSQL or SQL Server. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## Next
 
@@ -62,4 +62,4 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## More
 
-- [The whole program](/learn/213-call-child.program.md): every file as compiled, 63 lines.
+- [The whole program](/learn/213-call-child.program.md): every file as compiled, 64 lines.

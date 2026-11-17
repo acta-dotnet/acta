@@ -19,14 +19,14 @@ builder.Services.UseActa(j =>
         // learn: 1. Cap how many jobs the worker runs at once
         // Cap simultaneous in-flight executions at Cap. Each claim takes only as many rows as there are
         // free executors, so excess work stays Ready in the database until an executor frees. Fixed at startup;
-        // not autoscaled.
+        // not autoscaled. The program sets `Cap` to 3.
         o.MaxConcurrentExecutors = Cap;
         // learn: end
 
         // learn: 2. Bound how long an idle worker sleeps
-        // Upper bound on idle claim-loop sleep. Minimum allowed value is 1s (the validator rejects
-        // lower values as a DB-traffic guard). The wakeup signal fires immediately after the batch
-        // enqueue below, so the poll interval is not on the critical path for this run.
+        // Upper bound on idle claim-loop sleep. 1s is the default and the minimum (the validator rejects
+        // lower values as a DB-traffic guard). An enqueue wakes the worker at once, so the interval only
+        // matters for work nothing announced.
         o.SafetyPollInterval = TimeSpan.FromSeconds(1);
         // learn: end
     });

@@ -4,7 +4,7 @@ The how-to is [/learn/213-call-child.md](/learn/213-call-child.md). This file ho
 
 ## Not in the packages
 
-`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on any of the three databases. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on SQLite, PostgreSQL or SQL Server. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## The whole program
 
@@ -12,7 +12,8 @@ The how-to is [/learn/213-call-child.md](/learn/213-call-child.md). This file ho
 
 ```csharp
 // How to call another job and use its result
-// `CallChildAsync` starts another job as a child, waits for it without holding a worker, and returns its result.
+// `CallChildAsync` starts another job as a child, waits for it without holding a worker, and returns its outcome,
+// whose `ValueOrThrow()` is the result.
 using Acta;
 using Acta.Learn.CallChild;
 using Microsoft.Extensions.DependencyInjection;

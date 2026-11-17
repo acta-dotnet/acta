@@ -90,28 +90,36 @@ Console.WriteLine(<span class="s">$&quot;ResumeAsync -&gt; action={resumeResult.
 </div>
 <div class="step"><h2><span class="step-n">2</span>Resume it</h2>
 <p>A resume moves the Paused job back to Ready at the due time it kept, so the worker claims it once the 5-second delay is up.</p>
-<figure class="listing"><figcaption><span class="file">operator-resume.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code>Console.WriteLine(<span class="s">$&quot;Enqueued job {handle.JobRef} with a 5-second delay.&quot;</span>);
-
-<span class="k">var</span> pauseResult = <span class="k">await</span> jobs.PauseAsync(handle, <span class="s">&quot;review window&quot;</span>);
+<figure class="listing"><figcaption><span class="file">operator-resume.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">var</span> pauseResult = <span class="k">await</span> jobs.PauseAsync(handle, <span class="s">&quot;review window&quot;</span>);
 Console.WriteLine(<span class="s">$&quot;PauseAsync -&gt; action={pauseResult.Action} status={pauseResult.Status}&quot;</span>);
 
 <span class="hl"><span class="k">var</span> resumeResult = <span class="k">await</span> jobs.ResumeAsync(handle, <span class="s">&quot;review complete&quot;</span>);</span>
-Console.WriteLine(<span class="s">$&quot;ResumeAsync -&gt; action={resumeResult.Action} status={resumeResult.Status}&quot;</span>);
-
-<span class="c">// Poll until the worker finishes the job (terminal status).</span>
-JobStatusCode? status;</code></pre></figure>
+Console.WriteLine(<span class="s">$&quot;ResumeAsync -&gt; action={resumeResult.Action} status={resumeResult.Status}&quot;</span>);</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">3</span>Read the answer: a finished job refuses</h2>
 <p>A pause of a terminal (Succeeded) job is Rejected, because terminal jobs cannot be paused.</p>
 <figure class="listing"><figcaption><span class="file">operator-resume.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code>Console.WriteLine(<span class="s">$&quot;Job finished with status={status}&quot;</span>);
 
 <span class="hl"><span class="k">var</span> rejectedResult = <span class="k">await</span> jobs.PauseAsync(handle, <span class="s">&quot;too late&quot;</span>);</span>
-<span class="hl">Console.WriteLine(<span class="s">$&quot;PauseAsync on terminal -&gt; action={rejectedResult.Action} blocking-status={rejectedResult.Status}&quot;</span>);</span>
-
-<span class="c">// Read the event timeline to confirm the pause and resume events with their message and details.</span>
-<span class="k">var</span> events = <span class="k">await</span> queries.Ledger.ListEventsAsync(<span class="k">new</span> ListEventsQuery(Job: handle));</code></pre></figure>
+<span class="hl">Console.WriteLine(<span class="s">$&quot;PauseAsync on terminal -&gt; action={rejectedResult.Action} blocking-status={rejectedResult.Status}&quot;</span>);</span></code></pre></figure>
 </div>
-<div class="step"><h2><span class="step-n">4</span>The job it acts on</h2>
+<div class="step"><h2><span class="step-n">4</span>Read the reasons on the timeline</h2>
+<p>Each control leaves an event that carries the reason it was given.</p>
+<figure class="listing"><figcaption><span class="file">operator-resume.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code>Console.WriteLine(<span class="s">$&quot;Job finished with status={status}&quot;</span>);
+
+<span class="k">var</span> rejectedResult = <span class="k">await</span> jobs.PauseAsync(handle, <span class="s">&quot;too late&quot;</span>);
+Console.WriteLine(<span class="s">$&quot;PauseAsync on terminal -&gt; action={rejectedResult.Action} blocking-status={rejectedResult.Status}&quot;</span>);
+
+<span class="hl"><span class="k">var</span> events = <span class="k">await</span> queries.Ledger.ListEventsAsync(<span class="k">new</span> ListEventsQuery(Job: handle));</span>
+<span class="hl"><span class="k">foreach</span> (<span class="k">var</span> ev <span class="k">in</span> events.Items)</span>
+<span class="hl">{</span>
+<span class="hl">    <span class="k">if</span> (ev.EventCode <span class="k">is</span> EventCode.JobPaused or EventCode.JobResumed)</span>
+<span class="hl">        Console.WriteLine(<span class="s">$&quot;  event={ev.EventCode} message={ev.Message ?? &quot;(none)&quot;} details={ev.DetailsText ?? &quot;(none)&quot;}&quot;</span>);</span>
+<span class="hl">}</span>
+
+<span class="k">await</span> host.StopAsync();</code></pre></figure>
+</div>
+<div class="step"><h2><span class="step-n">5</span>The job it acts on</h2>
 <figure class="listing"><figcaption><span class="file">operator-resume.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> ProcessReportJob
 {
     <span class="a">[Job(<span class="s">&quot;process-report&quot;</span>)]</span>
@@ -123,7 +131,7 @@ JobStatusCode? status;</code></pre></figure>
     }
 }</code></pre></figure>
 </div>
-<div class="step"><h2><span class="step-n">5</span>Run it and check the output</h2>
+<div class="step"><h2><span class="step-n">6</span>Run it and check the output</h2>
 <p>From a clone of <a href="https://github.com/acta-dotnet/acta">the Acta repository</a>, with the .NET 10 SDK:</p>
 <figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project learn/300-failure-and-recovery/309-operator-resume</code></pre></figure>
 <figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button">Copy</button></figcaption><pre><code>PauseAsync -&gt; action=Applied status=Paused
@@ -136,7 +144,7 @@ PauseAsync on terminal -&gt; action=Rejected blocking-status=Succeeded</code></p
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/learn/300-failure-and-recovery/309-operator-resume"><code>learn/300-failure-and-recovery/309-operator-resume</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">operator-resume.cs</span><span class="file-size">84 lines</span></summary><figure class="listing"><figcaption><span class="file">operator-resume.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to pause and resume a job from outside</span>
+<details class="source-file"><summary><span class="file-name">operator-resume.cs</span><span class="file-size">87 lines</span></summary><figure class="listing"><figcaption><span class="file">operator-resume.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to pause and resume a job from outside</span>
 <span class="c">// `IJobs.PauseAsync` and `ResumeAsync` pause and resume a job from outside its handler. Each answers whether it was</span>
 <span class="c">// applied or rejected, and its reason lands on the job's timeline.</span>
 <span class="k">using</span> Acta;
@@ -195,13 +203,16 @@ Console.WriteLine(<span class="s">$&quot;Job finished with status={status}&quot;
 
 <span class="c">// learn: end</span>
 
-<span class="c">// Read the event timeline to confirm the pause and resume events with their message and details.</span>
-<span class="k">var</span> events = <span class="k">await</span> queries.Ledger.ListEventsAsync(<span class="k">new</span> ListEventsQuery(Job: handle));
-<span class="k">foreach</span> (<span class="k">var</span> ev <span class="k">in</span> events.Items)
-{
-    <span class="k">if</span> (ev.EventCode <span class="k">is</span> EventCode.JobPaused or EventCode.JobResumed)
-        Console.WriteLine(<span class="s">$&quot;  event={ev.EventCode} message={ev.Message ?? &quot;(none)&quot;} details={ev.DetailsText ?? &quot;(none)&quot;}&quot;</span>);
-}
+<span class="c">// learn: 4. Read the reasons on the timeline</span>
+<span class="c">// Each control leaves an event that carries the reason it was given.</span>
+<span class="hl"><span class="k">var</span> events = <span class="k">await</span> queries.Ledger.ListEventsAsync(<span class="k">new</span> ListEventsQuery(Job: handle));</span>
+<span class="hl"><span class="k">foreach</span> (<span class="k">var</span> ev <span class="k">in</span> events.Items)</span>
+<span class="hl">{</span>
+<span class="hl">    <span class="k">if</span> (ev.EventCode <span class="k">is</span> EventCode.JobPaused or EventCode.JobResumed)</span>
+<span class="hl">        Console.WriteLine(<span class="s">$&quot;  event={ev.EventCode} message={ev.Message ?? &quot;(none)&quot;} details={ev.DetailsText ?? &quot;(none)&quot;}&quot;</span>);</span>
+<span class="hl">}</span>
+
+<span class="c">// learn: end</span>
 
 <span class="k">await</span> host.StopAsync();
 

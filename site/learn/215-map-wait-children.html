@@ -82,17 +82,11 @@
 <span class="hl"><span class="k">var</span> moderation = <span class="k">await</span> context.EnqueueChildAsync(<span class="s">&quot;moderation&quot;</span>, <span class="k">new</span> ScanModeration(photo.AssetId, photo.SourceUrl), ct);</span>
 <span class="hl"><span class="k">var</span> analyze = <span class="k">await</span> context.WaitChildrenAsync([exif, blurhash, moderation], ct);</span>
 
-analyze.ThrowIfAnyFailed();
-
-<span class="k">int</span>[] widths = [256, 512, 1024, 2048];</code></pre></figure>
+analyze.ThrowIfAnyFailed();</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">2</span>Map a list onto children, one per item</h2>
 <p>Map: one resize per width, keyed by width so replay dedupes onto the same children.</p>
-<figure class="listing"><figcaption><span class="file">map-wait-children.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">var</span> blurhash = <span class="k">await</span> context.EnqueueChildAsync(<span class="s">&quot;blurhash&quot;</span>, <span class="k">new</span> ComputeBlurhash(photo.AssetId, photo.SourceUrl), ct);
-<span class="k">var</span> moderation = <span class="k">await</span> context.EnqueueChildAsync(<span class="s">&quot;moderation&quot;</span>, <span class="k">new</span> ScanModeration(photo.AssetId, photo.SourceUrl), ct);
-<span class="k">var</span> analyze = <span class="k">await</span> context.WaitChildrenAsync([exif, blurhash, moderation], ct);
-
-analyze.ThrowIfAnyFailed();
+<figure class="listing"><figcaption><span class="file">map-wait-children.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code>analyze.ThrowIfAnyFailed();
 
 <span class="hl"><span class="k">int</span>[] widths = [256, 512, 1024, 2048];</span>
 <span class="hl"><span class="k">var</span> resized = <span class="k">await</span> context.MapAsync(</span>
@@ -103,11 +97,7 @@ analyze.ThrowIfAnyFailed();
 <span class="hl">    ct</span>
 <span class="hl">);</span>
 
-<span class="k">var</span> renditionsReady = resized.Items.Count(i =&gt; i.Outcome.Succeeded);
-
-<span class="c">// Two independent side effects, enqueued and waited for the same way.</span>
-<span class="k">var</span> cdn = <span class="k">await</span> context.EnqueueChildAsync(<span class="s">&quot;publish-cdn&quot;</span>, <span class="k">new</span> PublishCdn(photo.AssetId), ct);
-<span class="k">var</span> index = <span class="k">await</span> context.EnqueueChildAsync(<span class="s">&quot;update-index&quot;</span>, <span class="k">new</span> UpdateIndex(photo.AssetId), ct);</code></pre></figure>
+<span class="k">var</span> renditionsReady = resized.Items.Count(i =&gt; i.Outcome.Succeeded);</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">3</span>Count what landed instead of failing the parent</h2>
 <p>Resizes are best effort: report how many landed rather than failing the photo.</p>

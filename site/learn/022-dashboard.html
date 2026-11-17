@@ -85,11 +85,7 @@ builder.Logging.AddFilter(<span class="s">&quot;Acta&quot;</span>, LogLevel.Erro
 <span class="hl"><span class="k">var</span> enableControls = builder.Configuration.GetValue&lt;<span class="k">bool</span>&gt;(<span class="s">&quot;Acta:Dashboard:EnableControls&quot;</span>);</span>
 <span class="hl">app.MapActa(<span class="s">&quot;/acta&quot;</span>, options =&gt; options.EnableControls = enableControls);</span>
 
-<span class="k">await</span> app.StartAsync();
-
-<span class="k">var</span> jobs = app.Services.GetRequiredService&lt;IJobs&gt;();
-<span class="k">var</span> successful = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> GreetVisitor(<span class="s">&quot;successful-visitor&quot;</span>));
-<span class="k">var</span> failed = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> BrokenImport(<span class="s">&quot;broken.csv&quot;</span>));</code></pre></figure>
+<span class="k">await</span> app.StartAsync();</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">2</span>The job it acts on</h2>
 <figure class="listing"><figcaption><span class="file">Program.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">static</span> <span class="k">class</span> GreetVisitorJob

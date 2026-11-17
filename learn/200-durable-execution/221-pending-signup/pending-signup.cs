@@ -95,6 +95,7 @@ namespace Acta.Learn.PendingSignup
             // learn: 1. Wait for the confirmation, with a deadline
             // The wait is a row with its deadline stored in the database, so no process has to stay alive for it. When
             // nobody confirms in time, the job cancels itself: no user was ever written, so there is nothing to undo.
+            // `CancelAsync` ends the handler there, so the lines after it run only for a confirmed sign-up.
             var confirmed = await ctx.WaitSignalAsync<EmailConfirmed>("email-confirmed", input.ConfirmWithin, ct);
             if (confirmed.TimedOut)
             {

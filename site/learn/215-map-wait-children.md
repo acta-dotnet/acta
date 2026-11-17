@@ -32,8 +32,6 @@ var moderation = await context.EnqueueChildAsync("moderation", new ScanModeratio
 var analyze = await context.WaitChildrenAsync([exif, blurhash, moderation], ct);
 
 analyze.ThrowIfAnyFailed();
-
-int[] widths = [256, 512, 1024, 2048];
 ```
 
 ## 2. Map a list onto children, one per item
@@ -56,10 +54,6 @@ var resized = await context.MapAsync(
 In `map-wait-children.cs` (excerpt):
 
 ```csharp
-var blurhash = await context.EnqueueChildAsync("blurhash", new ComputeBlurhash(photo.AssetId, photo.SourceUrl), ct);
-var moderation = await context.EnqueueChildAsync("moderation", new ScanModeration(photo.AssetId, photo.SourceUrl), ct);
-var analyze = await context.WaitChildrenAsync([exif, blurhash, moderation], ct);
-
 analyze.ThrowIfAnyFailed();
 
 int[] widths = [256, 512, 1024, 2048];
@@ -72,10 +66,6 @@ var resized = await context.MapAsync(
 );
 
 var renditionsReady = resized.Items.Count(i => i.Outcome.Succeeded);
-
-// Two independent side effects, enqueued and waited for the same way.
-var cdn = await context.EnqueueChildAsync("publish-cdn", new PublishCdn(photo.AssetId), ct);
-var index = await context.EnqueueChildAsync("update-index", new UpdateIndex(photo.AssetId), ct);
 ```
 
 ## 3. Count what landed instead of failing the parent
@@ -123,7 +113,7 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## Not in the packages
 
-`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on any of the three databases. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on SQLite, PostgreSQL or SQL Server. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## Next
 

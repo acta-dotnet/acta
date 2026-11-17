@@ -8,9 +8,10 @@ The how-to is [/learn/804-continuous-synchronization-tests.md](/learn/804-contin
 
 ```csharp
 // How to test a recurring synchronization job
-// The claims of the continuous-synchronization lab as tests: a schedule forced due and one firing driven at a time,
-// one job identity across firings, the watermark kept on the job, a lost attempt reclaimed with the next execution
-// continuing at the watermark, and a replayed, a failed, and a backlogged batch. Run it with `dotnet test`.
+// Tests for the permanent synchronization job of
+// [109-continuous-synchronization](../../100-scheduling/109-continuous-synchronization/): a schedule forced due and
+// one firing driven at a time, and a lost attempt reclaimed with the next execution continuing at the watermark. Run
+// it with `dotnet test learn/800-testing/804-continuous-synchronization-tests`.
 using System.Text.Json;
 using Acta;
 using Acta.Learn.ContinuousSynchronization;

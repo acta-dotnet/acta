@@ -76,7 +76,7 @@
     <div class="wrap howto-body">
       <article class="howto person-face">
 <div class="step"><h2><span class="step-n">1</span>Give the job a deadline</h2>
-<p>Deadline is the whole-job budget measured from creation, stable across retries (unlike 304's ExecutionTimeout, which caps a single attempt). Strict is the default: an overdue job is cancelled at admission, and a retry that would land past the deadline is refused re-arm.</p>
+<p>Deadline is the whole-job budget measured from creation, stable across retries (unlike 304's ExecutionTimeout, which caps a single attempt). Strict is the default: an overdue job is cancelled at admission, and a retry that would land past the deadline is refused re-arm. To show an overdue job the program holds the first run past the deadline: <code>jobs.ScheduleAsync(new GenerateReport(&quot;q3&quot;), TimeSpan.FromSeconds(4))</code>.</p>
 <figure class="listing"><figcaption><span class="file">deadline-strict.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">static</span> <span class="k">class</span> GenerateReportJob
 {
 <span class="hl">    <span class="a">[Job(<span class="s">&quot;generate-report&quot;</span>, Deadline = <span class="s">&quot;2s&quot;</span>)]</span></span>
@@ -95,7 +95,7 @@
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/learn/300-failure-and-recovery/307-deadline-strict"><code>learn/300-failure-and-recovery/307-deadline-strict</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">deadline-strict.cs</span><span class="file-size">60 lines</span></summary><figure class="listing"><figcaption><span class="file">deadline-strict.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to drop a job that is past its deadline</span>
+<details class="source-file"><summary><span class="file-name">deadline-strict.cs</span><span class="file-size">62 lines</span></summary><figure class="listing"><figcaption><span class="file">deadline-strict.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to drop a job that is past its deadline</span>
 <span class="c">// A `Deadline` is the whole job's budget, measured from its creation. Under the default, strict behaviour an overdue</span>
 <span class="c">// job is cancelled before its handler runs.</span>
 <span class="k">using</span> Acta;
@@ -148,7 +148,9 @@ Console.WriteLine(<span class="s">$&quot;[{DateTime.UtcNow:HH:mm:ss}] status={sn
         <span class="c">// learn: Give the job a deadline</span>
         <span class="c">// Deadline is the whole-job budget measured from creation, stable across retries (unlike 304's</span>
         <span class="c">// ExecutionTimeout, which caps a single attempt). Strict is the default: an overdue job is</span>
-        <span class="c">// cancelled at admission, and a retry that would land past the deadline is refused re-arm.</span>
+        <span class="c">// cancelled at admission, and a retry that would land past the deadline is refused re-arm. To show an</span>
+        <span class="c">// overdue job the program holds the first run past the deadline:</span>
+        <span class="c">// `jobs.ScheduleAsync(new GenerateReport(&quot;q3&quot;), TimeSpan.FromSeconds(4))`.</span>
 <span class="hl">        <span class="a">[Job(<span class="s">&quot;generate-report&quot;</span>, Deadline = <span class="s">&quot;2s&quot;</span>)]</span></span>
         <span class="c">// learn: end</span>
         <span class="k">public</span> <span class="k">static</span> <span class="k">void</span> Handle(GenerateReport input) =&gt;

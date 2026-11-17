@@ -76,7 +76,7 @@
     <div class="wrap howto-body">
       <article class="howto person-face">
 <div class="step"><h2><span class="step-n">1</span>Deliver each occurrence as a job of its own</h2>
-<p>Each occurrence is an ordinary root job with a ref, retries, and result of its own. <code>MaxOutstanding</code> bounds how many may be unfinished at once, and a full schedule set to <code>Drop</code> skips an occurrence, audited as <code>schedule.skipped</code> with the reason <code>capacity</code>.</p>
+<p>Each occurrence is an ordinary root job with a ref, retries, and result of its own. <code>MaxOutstanding</code> bounds how many may be unfinished at once, and a full schedule set to <code>Drop</code> skips an occurrence, audited as <code>schedule.skipped</code> with the reason <code>capacity</code>. Unset, <code>MaxOutstanding</code> is 1 and <code>FullBehavior</code> is <code>Wait</code>, which holds an occurrence until one finishes. The body here only counts how many run at once; a job of your own does the occurrence's work there.</p>
 <figure class="listing"><figcaption><span class="file">per-occurrence-delivery.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">static</span> <span class="k">int</span> AtOnce =&gt; Volatile.Read(<span class="k">ref</span> _atOnce);
 
 <span class="k">public</span> <span class="k">static</span> <span class="k">int</span> MostAtOnce =&gt; Volatile.Read(<span class="k">ref</span> _mostAtOnce);
@@ -117,7 +117,7 @@ were dropped while full, each audited as schedule.skipped with the reason capaci
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/learn/100-scheduling/110-per-occurrence-delivery"><code>learn/100-scheduling/110-per-occurrence-delivery</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> and <code>LearnLab</code> are helpers of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">per-occurrence-delivery.cs</span><span class="file-size">142 lines</span></summary><figure class="listing"><figcaption><span class="file">per-occurrence-delivery.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to make every occurrence its own job</span>
+<details class="source-file"><summary><span class="file-name">per-occurrence-delivery.cs</span><span class="file-size">144 lines</span></summary><figure class="listing"><figcaption><span class="file">per-occurrence-delivery.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to make every occurrence its own job</span>
 <span class="c">// `ScheduledDelivery = PerOccurrence` makes each occurrence a root job of its own, with its own ref, retries, result,</span>
 <span class="c">// and retention. `MaxOutstanding` bounds how many may be unfinished at once.</span>
 <span class="k">using</span> System.Collections.Concurrent;
@@ -234,7 +234,9 @@ Console.WriteLine(<span class="s">$&quot;{dropped} occurrences were dropped whil
         <span class="c">// learn: Deliver each occurrence as a job of its own</span>
         <span class="c">// Each occurrence is an ordinary root job with a ref, retries, and result of its own.</span>
         <span class="c">// `MaxOutstanding` bounds how many may be unfinished at once, and a full schedule set to `Drop` skips an</span>
-        <span class="c">// occurrence, audited as `schedule.skipped` with the reason `capacity`.</span>
+        <span class="c">// occurrence, audited as `schedule.skipped` with the reason `capacity`. Unset, `MaxOutstanding` is 1 and</span>
+        <span class="c">// `FullBehavior` is `Wait`, which holds an occurrence until one finishes. The body here only counts how</span>
+        <span class="c">// many run at once; a job of your own does the occurrence's work there.</span>
 <span class="hl">        <span class="a">[Job(<span class="s">&quot;import-files&quot;</span>, ScheduledDelivery = ScheduledDeliveryCode.PerOccurrence)]</span></span>
 <span class="hl">        <span class="a">[Schedule(<span class="s">&quot;every-second&quot;</span>, <span class="s">&quot;PT1S&quot;</span>, MaxOutstanding = 2, FullBehavior = ScheduleFullBehaviorCode.Drop)]</span></span>
         <span class="c">// learn: end</span>

@@ -22,7 +22,9 @@ builder.Services.UseActa(j =>
 
     // learn: Turn the Redis wake-up on in every process
     // Redis pub/sub wake: an enqueue in any process wakes workers in every process. Redis is a
-    // latency accelerator, not a correctness dependency; if it's down, workers fall back to the poll floor.
+    // latency accelerator, not a correctness dependency; if it's down, workers fall back to polling at their
+    // `SafetyPollInterval`. `redis` is a StackExchange.Redis configuration string such as "localhost:6379", and
+    // the call comes from the `Acta.Redis` package.
     j.UseRedisWakeup(redis);
     // learn: end
 

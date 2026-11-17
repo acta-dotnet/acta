@@ -12,7 +12,7 @@
 
 ## 1. Build the requests and enqueue them together
 
-EnqueueJobsAsync writes the whole batch in one round-trip; outcomes return in request order.
+EnqueueJobsAsync writes the whole batch in one round-trip; outcomes return in request order. Two requests with one deduplication key in the same batch throw before anything is written.
 
 The lines that matter:
 
@@ -72,7 +72,7 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## Not in the packages
 
-`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on any of the three databases. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on SQLite, PostgreSQL or SQL Server. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## Next
 
@@ -80,4 +80,4 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## More
 
-- [The whole program](/learn/019-batch-enqueue.program.md): every file as compiled, 47 lines.
+- [The whole program](/learn/019-batch-enqueue.program.md): every file as compiled, 48 lines.

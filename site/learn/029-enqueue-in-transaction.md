@@ -12,7 +12,7 @@
 
 ## 1. Insert the record and enqueue its job on one transaction
 
-The transaction is yours: Acta writes the job through it and never commits it, rolls it back, or retries it. No worker sees the job before the commit.
+`connection` is a `SqliteConnection` the program opens on Acta's own connection string, so the orders table and Acta's tables are in one database. The transaction is yours: Acta writes the job through it and never commits it, rolls it back, or retries it. No worker sees the job before the commit.
 
 The lines that matter:
 
@@ -29,8 +29,6 @@ await using (var transaction = connection.BeginTransaction())
 In `enqueue-in-transaction.cs` (excerpt):
 
 ```csharp
-await ExecuteAsync(null, "CREATE TABLE IF NOT EXISTS shop_orders (order_id TEXT PRIMARY KEY)");
-
 // A run of its own, so a second run against the same file adds its own two orders.
 var run = Guid.NewGuid().ToString("N")[..8];
 var (kept, dropped) = ($"order-{run}-kept", $"order-{run}-dropped");
@@ -42,8 +40,6 @@ await using (var transaction = connection.BeginTransaction())
     committed = await jobs.EnqueueAsync(transaction, new FulfilOrder(kept));
     await transaction.CommitAsync();
 }
-
-EnqueueJobResponse rolledBack;
 ```
 
 ## 2. Roll back, and neither the record nor the job exists
@@ -129,7 +125,7 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## Not in the packages
 
-`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on any of the three databases. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on SQLite, PostgreSQL or SQL Server. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## Next
 
@@ -137,4 +133,4 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## More
 
-- [The whole program](/learn/029-enqueue-in-transaction.program.md): every file as compiled, 101 lines.
+- [The whole program](/learn/029-enqueue-in-transaction.program.md): every file as compiled, 103 lines.

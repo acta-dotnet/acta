@@ -4,7 +4,7 @@ The how-to is [/learn/901-native-aot-json.md](/learn/901-native-aot-json.md). Th
 
 ## Not in the packages
 
-`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on any of the three databases. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on SQLite, PostgreSQL or SQL Server. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## The whole program
 
@@ -13,7 +13,8 @@ The how-to is [/learn/901-native-aot-json.md](/learn/901-native-aot-json.md). Th
 ```csharp
 // How to run jobs under Native AOT
 // A source-generated `JsonSerializerContext` given to `UseJsonPayloads` serializes payloads with no runtime
-// reflection, and `JobPayload.Json(value, typeInfo)` builds a raw payload the same way.
+// reflection, and `JobPayload.Json(value, typeInfo)` builds a raw payload the same way. The program runs on the JIT:
+// it shows the registration an AOT publish needs, and the publish itself is proven by the repository's own gate.
 
 // The NativeAOT publish itself is proven by the repository's own gate
 // (tests/Acta.Tests/Architecture/NativeAotPublishTests.cs, gated by ACTA_AOT_PUBLISH_TEST), which publishes

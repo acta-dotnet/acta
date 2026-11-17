@@ -4,7 +4,7 @@ The how-to is [/learn/407-event-recording.md](/learn/407-event-recording.md). Th
 
 ## Not in the packages
 
-`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on any of the three databases. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on SQLite, PostgreSQL or SQL Server. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## The whole program
 
@@ -68,6 +68,7 @@ namespace Acta.Learn.EventRecording
         // learn: Record only failures for a job that runs often
         // Failures: a failure writes an event, and so does the success that answers one; a run that
         // succeeds after no failure leaves none. Use it for high-frequency definitions to keep events lean.
+        // The program also runs `audit-work` at the default level and counts the events of both.
         [Job("failures-work", EventRecording = EventRecordingCode.Failures)]
         // learn: end
         public static void Handle(FailuresWork input) => Console.WriteLine($"[{input.Id}] running at Failures level");

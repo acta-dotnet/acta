@@ -1,6 +1,6 @@
 // How to report how far along a job is
-// `SetProgressAsync` stores how far the job has come, where a status page or the dashboard reads it while the job
-// runs.
+// `SetProgressAsync` stores how far the job has come as the checkpoint `sys.progress`, which the dashboard lists
+// while the job runs.
 using Acta;
 using Acta.Learn.Progress;
 using Microsoft.Extensions.DependencyInjection;
@@ -41,7 +41,8 @@ namespace Acta.Learn.Progress
                 var percent = row * 100 / input.Rows;
 
                 // learn: Store the progress as the work advances
-                // Writes durable state read out-of-band (the sys.progress checkpoint), not by the caller.
+                // Each call replaces the last value. The dashboard shows it with the job's checkpoints; a page of your
+                // own reads a variable instead (415).
                 await context.SetProgressAsync(percent, ct);
                 // learn: end
 

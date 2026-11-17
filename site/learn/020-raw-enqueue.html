@@ -76,7 +76,7 @@
     <div class="wrap howto-body">
       <article class="howto person-face">
 <div class="step"><h2><span class="step-n">1</span>Name the namespace and the job in a request</h2>
-<p>Raw request names (namespace, job) explicitly, for a caller without the manifest, such as a gateway relaying a request body. An in-process caller with an ambiguous input type uses the generated call instead (023).</p>
+<p>Raw request names (namespace, job) explicitly, for a caller without the manifest, such as a gateway relaying a request body. An in-process caller with an ambiguous input type uses the generated call instead (023). A caller that holds only the JSON text passes it as it came, <code>JobPayload.CopyBytes(JobPayloadFormat.Json, bytes)</code>: <code>JobPayload.Json(text)</code> would store the text as one JSON string.</p>
 <figure class="listing"><figcaption><span class="file">raw-enqueue.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">using</span> <span class="k">var</span> host = builder.Build();
 <span class="k">await</span> host.StartAsync();
 
@@ -126,7 +126,7 @@ Sent welcome email to Sam &lt;sam@example.com&gt;</code></pre></figure>
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/learn/000-fundamentals/020-raw-enqueue"><code>learn/000-fundamentals/020-raw-enqueue</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">raw-enqueue.cs</span><span class="file-size">51 lines</span></summary><figure class="listing"><figcaption><span class="file">raw-enqueue.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to enqueue a job by its name</span>
+<details class="source-file"><summary><span class="file-name">raw-enqueue.cs</span><span class="file-size">53 lines</span></summary><figure class="listing"><figcaption><span class="file">raw-enqueue.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to enqueue a job by its name</span>
 <span class="c">// An `EnqueueJobRequest` names the namespace and the job as strings, for a caller that does not have the job's types.</span>
 <span class="k">using</span> Acta;
 <span class="k">using</span> Acta.Learn.RawEnqueue;
@@ -148,7 +148,9 @@ builder.Services.UseActa(j =&gt;
 
 <span class="c">// learn: 1. Name the namespace and the job in a request</span>
 <span class="c">// Raw request names (namespace, job) explicitly, for a caller without the manifest, such as a gateway relaying</span>
-<span class="c">// a request body. An in-process caller with an ambiguous input type uses the generated call instead (023).</span>
+<span class="c">// a request body. An in-process caller with an ambiguous input type uses the generated call instead (023). A caller</span>
+<span class="c">// that holds only the JSON text passes it as it came, `JobPayload.CopyBytes(JobPayloadFormat.Json, bytes)`:</span>
+<span class="c">// `JobPayload.Json(text)` would store the text as one JSON string.</span>
 <span class="hl"><span class="k">var</span> request = <span class="k">new</span> EnqueueJobRequest(</span>
 <span class="hl">    JobNamespace: <span class="s">&quot;raw-enqueue&quot;</span>,</span>
 <span class="hl">    JobName: <span class="s">&quot;send-welcome-email&quot;</span>,</span>

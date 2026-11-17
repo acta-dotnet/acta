@@ -386,6 +386,48 @@
       </figure>
     </section>
 
+    <section class="wrap" id="explain">
+      <p class="record">Explain</p>
+      <h2>Ask a job why, and it answers in words.</h2>
+      <p class="lede">One read of a job's row, its lease, its steps, and its last failure says what happened and what to do next. It is the first thing to open for a job that is stuck, waiting, or failed: on the job's page in the dashboard, from the command line, or from code.</p>
+      <figure class="shot">
+        <div class="shot-media" tabindex="0" aria-label="Dashboard screenshot; horizontally scrollable on small screens">
+          <img data-theme="dark" src="assets/dash-dark-explain.webp" alt="Acta operator dashboard, dark theme: the page of a print-label job in the shipping namespace. Its status is Failed, and the first panel reads: Failed after 1 attempt. Printer offline; label AP00001042 not printed. Below it are Activity, Stored data, and Technical details." loading="lazy" width="2720" height="1200" />
+          <img data-theme="light" src="assets/dash-light-explain.webp" alt="Acta operator dashboard, light theme: the page of a print-label job in the shipping namespace. Its status is Failed, and the first panel reads: Failed after 1 attempt. Printer offline; label AP00001042 not printed. Below it are Activity, Stored data, and Technical details." loading="lazy" width="2720" height="1200" />
+        </div>
+      </figure>
+      <div class="answers">
+        <div class="panel">
+          <div class="panel-tab output">jobs explain · the same job, from the command line</div>
+          <pre><code>job_01a1e8f26abf799faddc628d4d43fef4  shipping/print-label
+Failed after 1 attempt.
+
+Reason:
+- Printer offline; label AP00001042 not printed.
+
+Last activity:
+- Last executed on worker wrk_01a1e8f2… (version 1.0.0).
+
+Next actions:
+- Inspect the timeline with 'jobs events'.
+- Restart the job only after the underlying cause is fixed.</code></pre>
+        </div>
+        <div class="panel">
+          <div class="panel-tab output">jobs explain · a job that waits for a person</div>
+          <pre><code>job_01a1e8e75db8773582acdff65aaba15c  jobs-cli/review-document
+Suspended, waiting for signal "legal-approval".
+
+Last activity:
+- Last executed on worker wrk_01a1e8e7… (version 1.0.0).
+
+Next actions:
+- Raise signal "legal-approval".
+- Cancel the job.</code></pre>
+        </div>
+      </div>
+      <p class="hint">Both jobs are from programs you can run: the failed label is <a href="/learn/026-first-job">the first-job app</a> with its printer switched off, and the waiting review is <a href="/learn/021-jobs-cli">how to inspect a job from the command line</a>. In code the same answer is <code>IJobs.ExplainAsync</code>.</p>
+    </section>
+
     <section class="wrap" id="numbers">
       <p class="record">Numbers</p>
       <div class="split">

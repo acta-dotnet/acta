@@ -4,7 +4,7 @@ The how-to is [/learn/405-real-alert-routing.md](/learn/405-real-alert-routing.m
 
 ## Not in the packages
 
-`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on any of the three databases. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on SQLite, PostgreSQL or SQL Server. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## The whole program
 
@@ -83,7 +83,8 @@ namespace Acta.Learn.RealAlertRouting
             if (input.Depth > 10_000)
             {
                 // learn: 2. Raise the alerts of one incident under one key
-                // deduplicationKey ties repeats together onto one open incident row.
+                // deduplicationKey ties repeats together onto one open incident row. The program enqueues two
+                // checks of the same queue: both raise under one key and fold into one alert that counts two.
                 await context.AlertAsync(
                     title: $"Queue backlog: {input.Queue}",
                     message: $"'{input.Queue}' depth is {input.Depth}, above the 10k threshold.",

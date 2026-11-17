@@ -164,6 +164,7 @@ pre { font-size: 11px; padding: 23px; line-height: 1.85; }
 #numbers { margin-top: 16px; position: relative; }
 #numbers::before { content: ''; position: absolute; inset: 0 48px; background: var(--panel); border: 1px solid var(--hair); border-radius: 12px; z-index: -1; }
 #numbers > * { margin-inline: 32px; }
+.answers { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 32px; align-items: start; }
 .split { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: center; }
 .split .lede { font-size: 13px; }
 .bench-line { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; font-variant-numeric: tabular-nums; }
@@ -202,6 +203,7 @@ pre { font-size: 11px; padding: 23px; line-height: 1.85; }
   .split { gap: 32px; }
 }
 @media (max-width: 900px) {
+  .answers { grid-template-columns: 1fr; }
   .hero { padding-top: 48px; }
   .hero-grid { grid-template-columns: 1fr; gap: 40px; }
   .hero-copy { max-width: 650px; }

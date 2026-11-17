@@ -4,7 +4,7 @@ The how-to is [/learn/208-progress.md](/learn/208-progress.md). This file holds 
 
 ## Not in the packages
 
-`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on any of the three databases. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on SQLite, PostgreSQL or SQL Server. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## The whole program
 
@@ -12,8 +12,8 @@ The how-to is [/learn/208-progress.md](/learn/208-progress.md). This file holds 
 
 ```csharp
 // How to report how far along a job is
-// `SetProgressAsync` stores how far the job has come, where a status page or the dashboard reads it while the job
-// runs.
+// `SetProgressAsync` stores how far the job has come as the checkpoint `sys.progress`, which the dashboard lists
+// while the job runs.
 using Acta;
 using Acta.Learn.Progress;
 using Microsoft.Extensions.DependencyInjection;
@@ -54,7 +54,8 @@ namespace Acta.Learn.Progress
                 var percent = row * 100 / input.Rows;
 
                 // learn: Store the progress as the work advances
-                // Writes durable state read out-of-band (the sys.progress checkpoint), not by the caller.
+                // Each call replaces the last value. The dashboard shows it with the job's checkpoints; a page of your
+                // own reads a variable instead (415).
                 await context.SetProgressAsync(percent, ct);
                 // learn: end
 

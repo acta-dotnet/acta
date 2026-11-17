@@ -207,12 +207,6 @@ app.MapPost("/jobs/{jobRef}/cancel", async (JobRef jobRef, IJobs jobs) =>
     var cancelled = await jobs.CancelAsync(jobRef, reasonMessage: "cancelled from the orders API");
     return Results.Ok(new { cancelled.Action, cancelled.Status });
 });
-
-// Switches that provoke the two failures: an offline printer fails print-label for good, and a flaky carrier times
-// out the next booking once, which ship-order retries about a minute later.
-app.MapPost("/printer/offline", (LabelPrinter printer) => printer.Online = false);
-app.MapPost("/printer/online", (LabelPrinter printer) => printer.Online = true);
-app.MapPost("/carrier/flaky", (Carrier carrier) => carrier.TimeoutsLeft = 1);
 ```
 
 ## 6. Run it and check the output

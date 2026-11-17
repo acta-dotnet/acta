@@ -4,20 +4,20 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>How to cut off an attempt that runs too long · Acta, durable execution for .NET</title>
-  <meta name="description" content="How to cut off an attempt that runs too long with Acta, durable execution for .NET. ExecutionTimeout caps one attempt: when the time is up, the handler's CancellationToken trips and the attempt ends as a timeout." />
+  <meta name="description" content="How to cut off an attempt that runs too long with Acta, durable execution for .NET. ExecutionTimeout caps one attempt: when the time is up, the handler's CancellationToken trips and the cut spends an attempt." />
   <link rel="canonical" href="https://useacta.net/learn/304-execution-timeout" />
   <meta name="theme-color" content="#0B0E15" />
   <meta property="og:type" content="article" />
   <meta property="og:site_name" content="Acta for .NET" />
   <meta property="og:title" content="How to cut off an attempt that runs too long · Acta, durable execution for .NET" />
-  <meta property="og:description" content="How to cut off an attempt that runs too long with Acta, durable execution for .NET. ExecutionTimeout caps one attempt: when the time is up, the handler's CancellationToken trips and the attempt ends as a timeout." />
+  <meta property="og:description" content="How to cut off an attempt that runs too long with Acta, durable execution for .NET. ExecutionTimeout caps one attempt: when the time is up, the handler's CancellationToken trips and the cut spends an attempt." />
   <meta property="og:url" content="https://useacta.net/learn/304-execution-timeout" />
   <meta property="og:image" content="https://useacta.net/assets/social-card.png" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
   <meta property="og:image:alt" content="Acta: durable execution for .NET. Postgres, SQL Server, SQLite." />
   <meta name="twitter:card" content="summary_large_image" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"How to cut off an attempt that runs too long","description":"How to cut off an attempt that runs too long with Acta, durable execution for .NET. ExecutionTimeout caps one attempt: when the time is up, the handler's CancellationToken trips and the attempt ends as a timeout.","url":"https://useacta.net/learn/304-execution-timeout","inLanguage":"en","articleSection":"Decide what happens when work fails","isPartOf":{"@type":"CollectionPage","name":"Learn Acta","url":"https://useacta.net/learn"},"about":{"@type":"SoftwareSourceCode","name":"Acta","programmingLanguage":"C#","codeRepository":"https://github.com/acta-dotnet/acta"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"How to cut off an attempt that runs too long","description":"How to cut off an attempt that runs too long with Acta, durable execution for .NET. ExecutionTimeout caps one attempt: when the time is up, the handler's CancellationToken trips and the cut spends an attempt.","url":"https://useacta.net/learn/304-execution-timeout","inLanguage":"en","articleSection":"Decide what happens when work fails","isPartOf":{"@type":"CollectionPage","name":"Learn Acta","url":"https://useacta.net/learn"},"about":{"@type":"SoftwareSourceCode","name":"Acta","programmingLanguage":"C#","codeRepository":"https://github.com/acta-dotnet/acta"}}</script>
   <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Learn Acta","item":"https://useacta.net/learn"},{"@type":"ListItem","position":2,"name":"Decide what happens when work fails","item":"https://useacta.net/learn#s-failure"},{"@type":"ListItem","position":3,"name":"How to cut off an attempt that runs too long","item":"https://useacta.net/learn/304-execution-timeout"}]}</script>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   <link rel="alternate" type="text/plain" href="/llms.txt" title="Acta for coding agents" />
@@ -61,7 +61,7 @@
     <header class="wrap page-head howto-head">
       <p class="record"><a href="/learn">learn acta</a><span aria-hidden="true">/</span><a href="/learn#s-failure">decide what happens when work fails</a></p>
       <h1>How to cut off an attempt that runs too long</h1>
-      <p class="lede"><code>ExecutionTimeout</code> caps one attempt: when the time is up, the handler's <code>CancellationToken</code> trips and the attempt ends as a timeout.</p>
+      <p class="lede"><code>ExecutionTimeout</code> caps one attempt: when the time is up, the handler's <code>CancellationToken</code> trips and the cut spends an attempt.</p>
       <p class="howto-context">A how-to for Acta, durable execution for .NET. <a href="/start">New to Acta? Run your first durable job in five minutes.</a></p>
       <div class="howto-meta">
         <span class="status checked">Checked every release</span>
@@ -76,7 +76,7 @@
     <div class="wrap howto-body">
       <article class="howto person-face">
 <div class="step"><h2><span class="step-n">1</span>Set the timeout on the job</h2>
-<p>ExecutionTimeout caps a single attempt: after 2s the framework trips the CancellationToken and the attempt ends as a timeout.</p>
+<p>ExecutionTimeout caps a single attempt: after 2s the framework trips the CancellationToken. The cut spends an attempt, and with MaxAttempts = 1 the job ends <code>Failed</code>.</p>
 <figure class="listing"><figcaption><span class="file">execution-timeout.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> SlowReportJob
 {
 <span class="hl">    <span class="a">[Job(<span class="s">&quot;slow-report&quot;</span>, ExecutionTimeout = <span class="s">&quot;2s&quot;</span>, MaxAttempts = 1)]</span></span>
@@ -112,8 +112,8 @@ status=Failed</code></pre></figure>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/learn/300-failure-and-recovery/304-execution-timeout"><code>learn/300-failure-and-recovery/304-execution-timeout</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
 <details class="source-file"><summary><span class="file-name">execution-timeout.cs</span><span class="file-size">54 lines</span></summary><figure class="listing"><figcaption><span class="file">execution-timeout.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to cut off an attempt that runs too long</span>
-<span class="c">// `ExecutionTimeout` caps one attempt: when the time is up, the handler's `CancellationToken` trips and the attempt</span>
-<span class="c">// ends as a timeout.</span>
+<span class="c">// `ExecutionTimeout` caps one attempt: when the time is up, the handler's `CancellationToken` trips and the cut</span>
+<span class="c">// spends an attempt.</span>
 <span class="k">using</span> Acta;
 <span class="k">using</span> Acta.Learn.ExecutionTimeout;
 <span class="k">using</span> Microsoft.Extensions.DependencyInjection;
@@ -151,8 +151,8 @@ Console.WriteLine(<span class="s">$&quot;status={snapshot!.Status}&quot;</span>)
     <span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> SlowReportJob
     {
         <span class="c">// learn: 1. Set the timeout on the job</span>
-        <span class="c">// ExecutionTimeout caps a single attempt: after 2s the framework trips the CancellationToken</span>
-        <span class="c">// and the attempt ends as a timeout.</span>
+        <span class="c">// ExecutionTimeout caps a single attempt: after 2s the framework trips the CancellationToken. The cut</span>
+        <span class="c">// spends an attempt, and with MaxAttempts = 1 the job ends `Failed`.</span>
 <span class="hl">        <span class="a">[Job(<span class="s">&quot;slow-report&quot;</span>, ExecutionTimeout = <span class="s">&quot;2s&quot;</span>, MaxAttempts = 1)]</span></span>
         <span class="c">// learn: end</span>
         <span class="k">public</span> <span class="k">async</span> Task Handle(SlowReport input, JobContext context, CancellationToken ct)

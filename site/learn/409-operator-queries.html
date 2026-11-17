@@ -85,10 +85,7 @@ Console.WriteLine(<span class="s">&quot;=== ListJobsAsync (namespace filter, pag
 <span class="hl"><span class="k">var</span> page1 = <span class="k">await</span> queries.Ledger.ListJobsAsync(<span class="k">new</span> ListJobsQuery(JobNamespace: <span class="s">&quot;operator-queries&quot;</span>, PageSize: 3, IncludeTotal: <span class="k">true</span>));</span>
 Console.WriteLine(<span class="s">$&quot;Page 1: {page1.Items.Count} items, total={page1.TotalCount}, hasMore={page1.HasMore}&quot;</span>);
 <span class="k">foreach</span> (<span class="k">var</span> item <span class="k">in</span> page1.Items)
-    Console.WriteLine(<span class="s">$&quot;  {item.JobRef} [{item.JobName}] status={item.Status}&quot;</span>);
-
-<span class="c">// ListJobsAsync with a status filter.</span>
-Console.WriteLine(<span class="s">&quot;=== ListJobsAsync (status=Cancelled filter) ===&quot;</span>);</code></pre></figure>
+    Console.WriteLine(<span class="s">$&quot;  {item.JobRef} [{item.JobName}] status={item.Status}&quot;</span>);</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">2</span>Fetch the next page by its cursor</h2>
 <p>The same query with the cursor the last page handed back.</p>
@@ -109,11 +106,8 @@ Console.WriteLine(<span class="s">&quot;=== Keyset paging: second page via NextC
 }</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">3</span>Read the health counters</h2>
-<p>GetOverviewAsync: one-shot health counters for the whole system. Schedules, workers, and alert lists also exist on IJobs; event-timeline depth lives in how-to 404.</p>
-<figure class="listing"><figcaption><span class="file">operator-queries.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">var</span> withTotal = <span class="k">await</span> queries.Ledger.ListJobsAsync(<span class="k">new</span> ListJobsQuery(JobNamespace: <span class="s">&quot;operator-queries&quot;</span>, PageSize: 1, IncludeTotal: <span class="k">true</span>));
-Console.WriteLine(<span class="s">$&quot;TotalCount across namespace: {withTotal.TotalCount}&quot;</span>);
-
-Console.WriteLine(<span class="s">&quot;=== GetOverviewAsync (system-wide) ===&quot;</span>);
+<p>GetOverviewAsync: one-shot health counters for the whole system. Schedules, workers, and alerts are listed through <code>operations.Schedules</code>, <code>operations.Workers</code> and <code>operations.Alerts</code>; the event timeline is how-to 404. <code>queries</code> above and <code>operations</code> here are the same <code>IActaOperations</code> from the host's services.</p>
+<figure class="listing"><figcaption><span class="file">operator-queries.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code>Console.WriteLine(<span class="s">&quot;=== GetOverviewAsync (system-wide) ===&quot;</span>);
 
 <span class="hl"><span class="k">var</span> overview = <span class="k">await</span> operations.Ledger.GetOverviewAsync(<span class="k">new</span> GetOverviewQuery());</span>
 Console.WriteLine(<span class="s">$&quot;Ready={overview.ReadyCount} Executing={overview.ExecutingCount} Failed={overview.FailedCount}&quot;</span>);
@@ -143,7 +137,7 @@ TotalCount across namespace: 7</code></pre></figure>
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/learn/400-observability-and-alerts/409-operator-queries"><code>learn/400-observability-and-alerts/409-operator-queries</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">operator-queries.cs</span><span class="file-size">110 lines</span></summary><figure class="listing"><figcaption><span class="file">operator-queries.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to list and page through jobs</span>
+<details class="source-file"><summary><span class="file-name">operator-queries.cs</span><span class="file-size">112 lines</span></summary><figure class="listing"><figcaption><span class="file">operator-queries.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to list and page through jobs</span>
 <span class="c">// `operations.Ledger` lists jobs with filters, pages through them by cursor, counts them, and answers the health</span>
 <span class="c">// counters an operator's screen opens with.</span>
 <span class="k">using</span> Acta;
@@ -226,7 +220,9 @@ Console.WriteLine(<span class="s">&quot;=== GetOverviewAsync (system-wide) ===&q
 
 <span class="c">// learn: 3. Read the health counters</span>
 <span class="c">// GetOverviewAsync: one-shot health counters for the whole system.</span>
-<span class="c">// Schedules, workers, and alert lists also exist on IJobs; event-timeline depth lives in how-to 404.</span>
+<span class="c">// Schedules, workers, and alerts are listed through `operations.Schedules`, `operations.Workers` and</span>
+<span class="c">// `operations.Alerts`; the event timeline is how-to 404. `queries` above and `operations` here are the same</span>
+<span class="c">// `IActaOperations` from the host's services.</span>
 <span class="hl"><span class="k">var</span> overview = <span class="k">await</span> operations.Ledger.GetOverviewAsync(<span class="k">new</span> GetOverviewQuery());</span>
 
 <span class="c">// learn: end</span>

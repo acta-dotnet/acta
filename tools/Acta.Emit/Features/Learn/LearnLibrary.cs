@@ -553,8 +553,8 @@ internal sealed partial class LearnLibrary
 
         var first = rows.FindIndex(row => focus(row));
         var last = rows.FindLastIndex(row => focus(row));
-        var from = bounds.FindLastIndex(bound => bound <= first);
-        var to = bounds.FindLastIndex(bound => bound <= last);
+        var (ownFrom, ownTo) = (bounds.FindLastIndex(bound => bound <= first), bounds.FindLastIndex(bound => bound <= last));
+        var (from, to) = (ownFrom, ownTo);
         while (from > 0 && !Outside(bounds[from - 1]) && bounds[from - 1] >= first - Context)
         {
             from--;
@@ -562,6 +562,17 @@ internal sealed partial class LearnLibrary
         while (to + 2 < bounds.Count && !Outside(bounds[to + 1]) && End(to + 1) <= last + Context)
         {
             to++;
+        }
+
+        // A neighbour comes with the whole run of statements it stands in, up to a blank line, or not at all: a
+        // declaration without the loop that uses it explains nothing.
+        while (from < ownFrom && bounds[from] > 0 && !rows[bounds[from] - 1].Blank && !Outside(bounds[from] - 1))
+        {
+            from++;
+        }
+        while (to > ownTo && bounds[to + 1] < rows.Count && !rows[bounds[to + 1] - 1].Blank && !Outside(bounds[to + 1]))
+        {
+            to--;
         }
         return rows.GetRange(bounds[from], bounds[to + 1] - bounds[from]);
     }

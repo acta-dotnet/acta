@@ -4,7 +4,7 @@ The how-to is [/learn/029-enqueue-in-transaction.md](/learn/029-enqueue-in-trans
 
 ## Not in the packages
 
-`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on any of the three databases. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on SQLite, PostgreSQL or SQL Server. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## The whole program
 
@@ -50,6 +50,8 @@ var run = Guid.NewGuid().ToString("N")[..8];
 var (kept, dropped) = ($"order-{run}-kept", $"order-{run}-dropped");
 
 // learn: 1. Insert the record and enqueue its job on one transaction
+// `connection` is a `SqliteConnection` the program opens on Acta's own connection string, so the orders table and
+// Acta's tables are in one database.
 // The transaction is yours: Acta writes the job through it and never commits it, rolls it back, or retries it. No
 // worker sees the job before the commit.
 EnqueueJobResponse committed;

@@ -76,7 +76,7 @@
     <div class="wrap howto-body">
       <article class="howto person-face">
 <div class="step"><h2><span class="step-n">1</span>Say on the job when its failures alert, and where</h2>
-<p>AlertProfile = OnFailure + AlertChannelName routes automatic alerts to the &quot;default&quot; log channel. RunbookUrl surfaces on the delivered alert log line (LogAlertTransport prints runbook=...), not on list queries. Backoff = 0s skips wait between retries; the 2 s delay in the handler gives the driver a window to cancel during the third attempt.</p>
+<p>AlertProfile = OnFailure + AlertChannelName routes automatic alerts to the &quot;default&quot; log channel. RunbookUrl surfaces on the delivered alert log line (LogAlertTransport prints runbook=...), not on list queries. Backoff = 0s skips the wait between retries. The program cancels the job during its third attempt, so the alert stays at the FirstFailure stage.</p>
 <figure class="listing"><figcaption><span class="file">automatic-failure-alerts.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">static</span> <span class="k">class</span> ProcessReportJob
 {
 <span class="hl">    <span class="a">[Job(</span></span>
@@ -198,8 +198,8 @@ ListAlertsResponse? alertPage = <span class="k">null</span>;
         <span class="c">// AlertProfile = OnFailure + AlertChannelName routes automatic alerts to the &quot;default&quot;</span>
         <span class="c">// log channel. RunbookUrl surfaces on the delivered alert log line (LogAlertTransport prints</span>
         <span class="c">// runbook=...), not on list queries.</span>
-        <span class="c">// Backoff = 0s skips wait between retries; the 2 s delay in the handler</span>
-        <span class="c">// gives the driver a window to cancel during the third attempt.</span>
+        <span class="c">// Backoff = 0s skips the wait between retries. The program cancels the job during its third</span>
+        <span class="c">// attempt, so the alert stays at the FirstFailure stage.</span>
 <span class="hl">        <span class="a">[Job(</span></span>
 <span class="hl"><span class="a">            <span class="s">&quot;process-report&quot;</span>,</span></span>
 <span class="hl"><span class="a">            AlertProfile = AlertProfileCode.OnFailure,</span></span>

@@ -4,7 +4,7 @@ The how-to is [/learn/411-alert-escalation.md](/learn/411-alert-escalation.md). 
 
 ## Not in the packages
 
-`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on any of the three databases. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on SQLite, PostgreSQL or SQL Server. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## The whole program
 
@@ -26,7 +26,8 @@ builder.Services.UseActa(j =>
     j.UseLocalDatabase(builder.Configuration);
 
     // learn: 1. Set the failure count that escalates
-    // AlertFailureThreshold = 2: the ThresholdReached alert fires when OccurrenceCount reaches 2.
+    // AlertFailureThreshold = 2: the ThresholdReached alert fires when OccurrenceCount reaches 2. It is a
+    // `JobsOptions` setting for the whole host, 3 by default.
     j.ConfigureOptions(o => o.AlertFailureThreshold = 2);
     // learn: end
 
@@ -88,8 +89,9 @@ namespace Acta.Learn.AlertEscalation
 
     public sealed class UnstableReportJob
     {
-        // AlertProfile = OnFailure (default): automatic failure alerts on every retryable failure
-        // and a separate FinalFailure alert when the attempt budget is exhausted.
+        // AlertProfile = OnFailure (default): the first failure raises a FirstFailure alert and repeats count
+        // up on it, the count reaching AlertFailureThreshold raises ThresholdReached, and the last attempt
+        // raises FinalFailure.
         [Job("unstable-report", MaxAttempts = 4, Backoff = "0s")]
         public static Task Handle(UnstableReport input, CancellationToken ct)
         {

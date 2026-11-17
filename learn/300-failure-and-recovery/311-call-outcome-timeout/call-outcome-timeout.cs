@@ -37,8 +37,6 @@ Console.WriteLine("--- (b) failure ---");
 // A failing handler: Status is Failed, ThrowIfFailed throws JobFailedException, and TryGetValue is false.
 var failed = await jobs.CallAsync(CallOutcomeTimeoutJobs.FailingReport());
 Console.WriteLine($"Status: {failed.Status}");
-
-// learn: end
 try
 {
     failed.ThrowIfFailed();
@@ -49,10 +47,12 @@ catch (JobFailedException ex)
 }
 Console.WriteLine($"TryGetValue: {failed.TryGetValue(out _)}");
 
+// learn: end
+
 Console.WriteLine("--- (c) success ---");
 
 // learn: 3. Take the value of a job that succeeded
-// On success, ValueOrThrow returns the handler's result.
+// On success, ValueOrThrow returns the handler's result, here the `ReportResult("all clear")` the job returns.
 var success = await jobs.CallAsync(CallOutcomeTimeoutJobs.SuccessReport());
 Console.WriteLine($"Succeeded: {success.Succeeded}");
 var result = success.ValueOrThrow();

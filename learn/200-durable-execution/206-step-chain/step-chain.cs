@@ -41,7 +41,9 @@ namespace Acta.Learn.StepChain
         public async Task Handle(IndexDocument doc, JobContext context, CancellationToken ct)
         {
             // learn: 1. Return a value from a step
-            // Typed durable steps: each result is recorded once, so on replay the chain rebuilds from recorded outputs and no step re-runs.
+            // Typed durable steps: each result is recorded once, so on replay the chain rebuilds from recorded outputs
+            // and no step re-runs. A body that returns null, or a result over `MaxInlinePayloadBytes`, fails the job
+            // for good, since a retry would run the finished body again.
             var fetched = await context.RunStepAsync(
                 "fetch",
                 async inner =>

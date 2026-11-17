@@ -76,7 +76,7 @@
     <div class="wrap howto-body">
       <article class="howto person-face">
 <div class="step"><h2><span class="step-n">1</span>Run a worker for each namespace</h2>
-<p>A child can target ANY registered namespace; the completion latch still releases the parent across the boundary.</p>
+<p>A child can target any registered namespace: the parent's wait is released when the child finishes, whichever namespace ran it.</p>
 <figure class="listing"><figcaption><span class="file">cross-namespace-child.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">var</span> builder = Host.CreateApplicationBuilder(args);
 
 builder.Services.UseActa(j =&gt;
@@ -93,7 +93,7 @@ builder.Services.UseActa(j =&gt;
 <span class="k">var</span> jobs = host.Services.GetRequiredService&lt;IJobs&gt;();</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">2</span>Name the child's namespace and job</h2>
-<p>The raw EnqueueChildAsync overload names an explicit (namespace, job) route; the completion latch lands on the parent regardless of where the child ran.</p>
+<p>The raw EnqueueChildAsync overload names an explicit (namespace, job) route. The first argument is the child's name: on a re-entry the same name finds the child already enqueued, so it is sent once.</p>
 <figure class="listing"><figcaption><span class="file">cross-namespace-child.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="hl"><span class="k">var</span> charge = <span class="k">await</span> context.EnqueueChildAsync(</span>
 <span class="hl">    <span class="s">&quot;charge&quot;</span>,</span>
 <span class="hl">    <span class="s">&quot;billing&quot;</span>,</span>
@@ -143,8 +143,8 @@ builder.Services.UseActa(j =&gt;
     j.UseLocalDatabase(builder.Configuration);
 
     <span class="c">// learn: 1. Run a worker for each namespace</span>
-    <span class="c">// A child can target ANY registered namespace; the completion latch still releases the parent</span>
-    <span class="c">// across the boundary.</span>
+    <span class="c">// A child can target any registered namespace: the parent's wait is released when the child finishes,</span>
+    <span class="c">// whichever namespace ran it.</span>
 <span class="hl">    j.Run&lt;CrossNamespaceChildJobs&gt;(<span class="s">&quot;storefront&quot;</span>);</span>
 <span class="hl">    j.Run&lt;CrossNamespaceChildJobs&gt;(<span class="s">&quot;billing&quot;</span>);</span>
     <span class="c">// learn: end</span>
@@ -190,8 +190,8 @@ Console.WriteLine(<span class="s">$&quot;order finished: {await jobs.GetResultAs
         <span class="k">public</span> <span class="k">async</span> Task&lt;OrderConfirmation&gt; Handle(PlaceOrder order, JobContext context, CancellationToken ct)
         {
             <span class="c">// learn: 2. Name the child's namespace and job</span>
-            <span class="c">// The raw EnqueueChildAsync overload names an explicit (namespace, job) route; the completion</span>
-            <span class="c">// latch lands on the parent regardless of where the child ran.</span>
+            <span class="c">// The raw EnqueueChildAsync overload names an explicit (namespace, job) route. The first argument is</span>
+            <span class="c">// the child's name: on a re-entry the same name finds the child already enqueued, so it is sent once.</span>
 <span class="hl">            <span class="k">var</span> charge = <span class="k">await</span> context.EnqueueChildAsync(</span>
 <span class="hl">                <span class="s">&quot;charge&quot;</span>,</span>
 <span class="hl">                <span class="s">&quot;billing&quot;</span>,</span>

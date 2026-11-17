@@ -98,13 +98,13 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## Remember
 
-- The line runs again on every re-entry of the handler: without a `deduplicationKey` each run inserts another alert. Raise it in a step, or give it a key.
+- The `AlertAsync` call is a bare line, so it runs again on every re-entry of the handler: without a `deduplicationKey` each run inserts another alert. Raise it in a step, or give it a key.
 - `AlertAsync` answers its `AlertRef`, and `acta.Alerts.ResolveAsync(alertRef)` resolves it. An alert raised with a key resolves with `ctx.ResolveAlertAsync(key, ct)`.
 - The row is written at once; delivery to the channel runs on the `sys.alerts` pass, within about a minute.
 
 ## Not in the packages
 
-`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on any of the three databases. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on SQLite, PostgreSQL or SQL Server. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## Next
 

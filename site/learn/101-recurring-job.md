@@ -12,7 +12,7 @@
 
 ## 1. Put a schedule on the job
 
-`[Schedule]` takes a name and a cron, here one of the `Cron` constants. One permanent job fires on the cadence, and each successful fire's count replaces the last one stored; EventRecordingCode.Failures writes no event for a fire that succeeds with no failure before it.
+`[Schedule]` takes a name and a cron, here one of the `Cron` constants, read in UTC unless `TimeZoneId` says otherwise. One permanent job fires on the cadence, and the count each firing returns replaces the result the last one stored. `EventRecording = Failures` is optional: it keeps a frequent schedule from writing an event for every firing that succeeds. Nothing enqueues a scheduled job, so its input is an empty record.
 
 The lines that matter:
 
@@ -64,7 +64,7 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## Not in the packages
 
-`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on any of the three databases. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on SQLite, PostgreSQL or SQL Server. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## Next
 
@@ -72,4 +72,4 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## More
 
-- [The whole program](/learn/101-recurring-job.program.md): every file as compiled, 41 lines.
+- [The whole program](/learn/101-recurring-job.program.md): every file as compiled, 43 lines.

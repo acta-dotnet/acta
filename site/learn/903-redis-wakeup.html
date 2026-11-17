@@ -76,7 +76,7 @@
     <div class="wrap howto-body">
       <article class="howto person-face">
 <div class="step"><h2><span class="step-n">1</span>Turn the Redis wake-up on in every process</h2>
-<p>Redis pub/sub wake: an enqueue in any process wakes workers in every process. Redis is a latency accelerator, not a correctness dependency; if it's down, workers fall back to the poll floor.</p>
+<p>Redis pub/sub wake: an enqueue in any process wakes workers in every process. Redis is a latency accelerator, not a correctness dependency; if it's down, workers fall back to polling at their <code>SafetyPollInterval</code>. <code>redis</code> is a StackExchange.Redis configuration string such as &quot;localhost:6379&quot;, and the call comes from the <code>Acta.Redis</code> package.</p>
 <figure class="listing"><figcaption><span class="file">redis-wakeup.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code>j.UseLocalDatabase(builder.Configuration);
 
 <span class="hl">j.UseRedisWakeup(redis);</span></code></pre></figure>
@@ -98,7 +98,7 @@
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/learn/900-runtime-and-tuning/903-redis-wakeup"><code>learn/900-runtime-and-tuning/903-redis-wakeup</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">redis-wakeup.cs</span><span class="file-size">73 lines</span></summary><figure class="listing"><figcaption><span class="file">redis-wakeup.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to wake workers across processes with Redis</span>
+<details class="source-file"><summary><span class="file-name">redis-wakeup.cs</span><span class="file-size">75 lines</span></summary><figure class="listing"><figcaption><span class="file">redis-wakeup.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to wake workers across processes with Redis</span>
 <span class="c">// `UseRedisWakeup` announces each enqueue over Redis, so a worker in another process starts the job within</span>
 <span class="c">// milliseconds instead of at its next poll.</span>
 <span class="k">using</span> Acta;
@@ -122,7 +122,9 @@ builder.Services.UseActa(j =&gt;
 
     <span class="c">// learn: Turn the Redis wake-up on in every process</span>
     <span class="c">// Redis pub/sub wake: an enqueue in any process wakes workers in every process. Redis is a</span>
-    <span class="c">// latency accelerator, not a correctness dependency; if it's down, workers fall back to the poll floor.</span>
+    <span class="c">// latency accelerator, not a correctness dependency; if it's down, workers fall back to polling at their</span>
+    <span class="c">// `SafetyPollInterval`. `redis` is a StackExchange.Redis configuration string such as &quot;localhost:6379&quot;, and</span>
+    <span class="c">// the call comes from the `Acta.Redis` package.</span>
 <span class="hl">    j.UseRedisWakeup(redis);</span>
     <span class="c">// learn: end</span>
 

@@ -33,7 +33,9 @@ public sealed class EchoJobTests(ActaHostFixture acta) : ActaTestBase(acta)
         var enqueued = await Jobs.EnqueueAsync(new Echo("boom"), ct: Ct);
 
         // learn: 3. Assert each retry, then the final failure
-        // Attempts 1 and 2 throw; with retries left the job re-arms to Ready (due now), not Failed.
+        // Attempts 1 and 2 throw; with retries left the job re-arms to Ready, not Failed. The job declares
+        // `MaxAttempts = 3, Backoff = "0s"`, so each retry is due at once; under the default backoff a test
+        // makes it due with `ForceJobDueAsync`, as how-to 803 does.
         Assert.Equal(ActaRunStatus.Rearmed, await Host.RunOnceAsync(enqueued, Ct));
         Assert.Equal(ActaRunStatus.Rearmed, await Host.RunOnceAsync(enqueued, Ct));
 

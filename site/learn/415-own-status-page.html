@@ -100,9 +100,24 @@
 </div>
 <div class="step"><h2><span class="step-n">2</span>Read the job, its stage, and the sentence that says why</h2>
 <p><code>GetAsync</code> answers the job's row, <code>GetVariableOrDefaultAsync</code> the value its handler keeps for the screen, and <code>ExplainAsync</code> a sentence a person can read. Each is a read of what the database holds now; none waits.</p>
-<figure class="listing"><figcaption><span class="file">own-status-page.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="hl"><span class="k">var</span> job = (<span class="k">await</span> jobs.GetAsync(order))!;</span>
-<span class="hl"><span class="k">var</span> stage = <span class="k">await</span> jobs.GetVariableOrDefaultAsync&lt;<span class="k">string</span>&gt;(order, <span class="s">&quot;stage&quot;</span>);</span>
-<span class="hl"><span class="k">var</span> why = (<span class="k">await</span> jobs.ExplainAsync(order))!;</span></code></pre></figure>
+<figure class="listing"><figcaption><span class="file">own-status-page.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">await</span> host.StopAsync();
+
+<span class="k">async</span> Task ShowAsync()
+{
+<span class="hl">    <span class="k">var</span> job = (<span class="k">await</span> jobs.GetAsync(order))!;</span>
+<span class="hl">    <span class="k">var</span> stage = <span class="k">await</span> jobs.GetVariableOrDefaultAsync&lt;<span class="k">string</span>&gt;(order, <span class="s">&quot;stage&quot;</span>);</span>
+<span class="hl">    <span class="k">var</span> why = (<span class="k">await</span> jobs.ExplainAsync(order))!;</span>
+
+    <span class="k">var</span> shown = job.Status <span class="k">switch</span>
+    {
+        JobStatusCode.Suspended =&gt; <span class="s">&quot;waiting&quot;</span>,
+        JobStatusCode.Ready <span class="k">when</span> job.FailureCount &gt; 0 =&gt; <span class="s">&quot;retrying&quot;</span>,
+        JobStatusCode.Executing <span class="k">when</span> job.LeaseLapsed =&gt; <span class="s">&quot;interrupted&quot;</span>,
+        JobStatusCode.Executing =&gt; <span class="s">&quot;running&quot;</span>,
+        _ =&gt; job.Status.Code,
+    };
+    Console.WriteLine(<span class="s">$&quot;{shown, -9} | stage: {stage, -8} | {why.Headline}&quot;</span>);
+}</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">3</span>Say the status in the page's own words</h2>
 <p>A waiting job is healthy, a ready job that has failed before is between retries, and <code>Executing</code> means claimed, not that a process is alive: <code>LeaseLapsed</code> is true for a job whose worker stopped heartbeating.</p>

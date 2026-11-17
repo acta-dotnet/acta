@@ -34,7 +34,8 @@ Console.WriteLine("event timeline for the lineage:");
 
 // learn: Read the timeline of the job and its children
 // Query the full lineage event timeline scoped to the lineage root (the parent job).
-// Events are returned newest-first; reverse to print in chronological order.
+// Events are returned newest-first; reverse to print in chronological order. The parent starts a `collect`
+// child that fails with "data origin unavailable", which is the reason the timeline shows.
 var eventsPage = await queries.Ledger.ListEventsAsync(new ListEventsQuery(LineageRoot: parent, PageSize: 100));
 var events = eventsPage.Items.Reverse().ToList();
 

@@ -4,20 +4,20 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>How to test the first-job guide's app · Acta, durable execution for .NET</title>
-  <meta name="description" content="How to test the first-job guide's app with Acta, durable execution for .NET. The first-job guide's test verbatim: the real runtime on a throwaway SQLite file, driven one tick at a time, with a retry made due at once." />
+  <meta name="description" content="How to test the first-job guide's app with Acta, durable execution for .NET. The test of the first-job app (026-first-job), as the first-job guide shows it: the real runtime on a throwaway SQLite file, driven one tick at a time, with a retry made due at once." />
   <link rel="canonical" href="https://useacta.net/learn/803-first-job-tests" />
   <meta name="theme-color" content="#0B0E15" />
   <meta property="og:type" content="article" />
   <meta property="og:site_name" content="Acta for .NET" />
   <meta property="og:title" content="How to test the first-job guide's app · Acta, durable execution for .NET" />
-  <meta property="og:description" content="How to test the first-job guide's app with Acta, durable execution for .NET. The first-job guide's test verbatim: the real runtime on a throwaway SQLite file, driven one tick at a time, with a retry made due at once." />
+  <meta property="og:description" content="How to test the first-job guide's app with Acta, durable execution for .NET. The test of the first-job app (026-first-job), as the first-job guide shows it: the real runtime on a throwaway SQLite file, driven one tick at a time, with a retry made due at once." />
   <meta property="og:url" content="https://useacta.net/learn/803-first-job-tests" />
   <meta property="og:image" content="https://useacta.net/assets/social-card.png" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
   <meta property="og:image:alt" content="Acta: durable execution for .NET. Postgres, SQL Server, SQLite." />
   <meta name="twitter:card" content="summary_large_image" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"How to test the first-job guide's app","description":"How to test the first-job guide's app with Acta, durable execution for .NET. The first-job guide's test verbatim: the real runtime on a throwaway SQLite file, driven one tick at a time, with a retry made due at once.","url":"https://useacta.net/learn/803-first-job-tests","inLanguage":"en","articleSection":"Test without sleeps or polling","isPartOf":{"@type":"CollectionPage","name":"Learn Acta","url":"https://useacta.net/learn"},"about":{"@type":"SoftwareSourceCode","name":"Acta","programmingLanguage":"C#","codeRepository":"https://github.com/acta-dotnet/acta"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"How to test the first-job guide's app","description":"How to test the first-job guide's app with Acta, durable execution for .NET. The test of the first-job app (026-first-job), as the first-job guide shows it: the real runtime on a throwaway SQLite file, driven one tick at a time, with a retry made due at once.","url":"https://useacta.net/learn/803-first-job-tests","inLanguage":"en","articleSection":"Test without sleeps or polling","isPartOf":{"@type":"CollectionPage","name":"Learn Acta","url":"https://useacta.net/learn"},"about":{"@type":"SoftwareSourceCode","name":"Acta","programmingLanguage":"C#","codeRepository":"https://github.com/acta-dotnet/acta"}}</script>
   <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Learn Acta","item":"https://useacta.net/learn"},{"@type":"ListItem","position":2,"name":"Test without sleeps or polling","item":"https://useacta.net/learn#s-test"},{"@type":"ListItem","position":3,"name":"How to test the first-job guide's app","item":"https://useacta.net/learn/803-first-job-tests"}]}</script>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   <link rel="alternate" type="text/plain" href="/llms.txt" title="Acta for coding agents" />
@@ -61,7 +61,7 @@
     <header class="wrap page-head howto-head">
       <p class="record"><a href="/learn">learn acta</a><span aria-hidden="true">/</span><a href="/learn#s-test">test without sleeps or polling</a></p>
       <h1>How to test the first-job guide's app</h1>
-      <p class="lede">The first-job guide's test verbatim: the real runtime on a throwaway SQLite file, driven one tick at a time, with a retry made due at once.</p>
+      <p class="lede">The test of the first-job app (<a href="/learn/026-first-job">026-first-job</a>), as the first-job guide shows it: the real runtime on a throwaway SQLite file, driven one tick at a time, with a retry made due at once.</p>
       <p class="howto-context">A how-to for Acta, durable execution for .NET. <a href="/start">New to Acta? Run your first durable job in five minutes.</a></p>
       <div class="howto-meta">
         <span class="status checked">Runs as a test</span>
@@ -77,19 +77,24 @@
       <article class="howto person-face">
 <div class="step"><h2><span class="step-n">1</span>Start the real runtime on a throwaway database</h2>
 <p>The real runtime on a throwaway SQLite file; no claim loop runs, so nothing executes until a test drives a tick.</p>
-<figure class="listing"><figcaption><span class="file">ShippingTests.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="hl">_host = <span class="k">await</span> ActaTestHost.StartAsync(</span>
-<span class="hl">    (j, _) =&gt;</span>
-<span class="hl">    {</span>
-<span class="hl">        j.UseSqlite(sqlite =&gt;</span>
+<figure class="listing"><figcaption><span class="file">ShippingTests.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">private</span> <span class="k">static</span> CancellationToken Ct =&gt; TestContext.Current.CancellationToken;
+
+<span class="k">public</span> <span class="k">async</span> ValueTask InitializeAsync()
+{
+<span class="hl">    _host = <span class="k">await</span> ActaTestHost.StartAsync(</span>
+<span class="hl">        (j, _) =&gt;</span>
 <span class="hl">        {</span>
-<span class="hl">            sqlite.ConnectionString = <span class="s">$&quot;Data Source={_database}&quot;</span>;</span>
-<span class="hl">            sqlite.MigrateOnStartup = <span class="k">true</span>;</span>
-<span class="hl">        });</span>
-<span class="hl">        j.Run&lt;ShippingJobs&gt;(<span class="s">&quot;shipping&quot;</span>);</span>
-<span class="hl">    },</span>
-<span class="hl">    <span class="k">new</span> ActaTestHostOptions { ConfigureServices = services =&gt; services.AddSingleton(_carrier).AddSingleton(_printer) },</span>
-<span class="hl">    Ct</span>
-<span class="hl">);</span></code></pre></figure>
+<span class="hl">            j.UseSqlite(sqlite =&gt;</span>
+<span class="hl">            {</span>
+<span class="hl">                sqlite.ConnectionString = <span class="s">$&quot;Data Source={_database}&quot;</span>;</span>
+<span class="hl">                sqlite.MigrateOnStartup = <span class="k">true</span>;</span>
+<span class="hl">            });</span>
+<span class="hl">            j.Run&lt;ShippingJobs&gt;(<span class="s">&quot;shipping&quot;</span>);</span>
+<span class="hl">        },</span>
+<span class="hl">        <span class="k">new</span> ActaTestHostOptions { ConfigureServices = services =&gt; services.AddSingleton(_carrier).AddSingleton(_printer) },</span>
+<span class="hl">        Ct</span>
+<span class="hl">    );</span>
+}</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">2</span>Drive one tick and read the typed result</h2>
 <figure class="listing"><figcaption><span class="file">ShippingTests.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="a">[Fact]</span>
@@ -129,8 +134,8 @@
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/learn/800-testing/803-first-job-tests"><code>learn/800-testing/803-first-job-tests</code></a>, as it is compiled.</p>
 <details class="source-file"><summary><span class="file-name">ShippingTests.cs</span><span class="file-size">117 lines</span></summary><figure class="listing"><figcaption><span class="file">ShippingTests.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// File: ShippingTests.cs</span>
 <span class="c">// How to test the first-job guide's app</span>
-<span class="c">// The first-job guide's test verbatim: the real runtime on a throwaway SQLite file, driven one tick at a time, with a</span>
-<span class="c">// retry made due at once.</span>
+<span class="c">// The test of the first-job app ([026-first-job](../../000-fundamentals/026-first-job/)), as the first-job guide</span>
+<span class="c">// shows it: the real runtime on a throwaway SQLite file, driven one tick at a time, with a retry made due at once.</span>
 <span class="k">using</span> Acta;
 <span class="k">using</span> Acta.Sqlite;
 <span class="k">using</span> Acta.Testing;

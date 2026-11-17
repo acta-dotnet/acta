@@ -55,6 +55,7 @@ namespace Acta.Learn.EventRecording
         // learn: Record only failures for a job that runs often
         // Failures: a failure writes an event, and so does the success that answers one; a run that
         // succeeds after no failure leaves none. Use it for high-frequency definitions to keep events lean.
+        // The program also runs `audit-work` at the default level and counts the events of both.
         [Job("failures-work", EventRecording = EventRecordingCode.Failures)]
         // learn: end
         public static void Handle(FailuresWork input) => Console.WriteLine($"[{input.Id}] running at Failures level");

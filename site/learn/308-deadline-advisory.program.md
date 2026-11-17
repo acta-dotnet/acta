@@ -4,7 +4,7 @@ The how-to is [/learn/308-deadline-advisory.md](/learn/308-deadline-advisory.md)
 
 ## Not in the packages
 
-`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on any of the three databases. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on SQLite, PostgreSQL or SQL Server. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## The whole program
 
@@ -58,7 +58,8 @@ namespace Acta.Learn.DeadlineAdvisory
         // learn: 1. Make the deadline advisory
         // Advisory makes the deadline informational: unlike Strict (307), the engine never cancels an
         // overdue job. The handler reads context.IsOverdue (and context.TimeUntilDeadline) and degrades on its
-        // own; here it emits a quick summary instead of the expensive full report when it is late.
+        // own; here it emits a quick summary instead of the expensive full report when it is late. To show an
+        // overdue job the program holds the first run past the deadline, as 307 does.
         [Job("generate-report", Deadline = "2s", DeadlineBehavior = DeadlineBehaviorCode.Advisory)]
         // learn: end
         public static async Task Handle(GenerateReport input, JobContext context, CancellationToken ct)

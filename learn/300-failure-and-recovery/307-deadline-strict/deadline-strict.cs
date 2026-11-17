@@ -51,7 +51,9 @@ namespace Acta.Learn.DeadlineStrict
         // learn: Give the job a deadline
         // Deadline is the whole-job budget measured from creation, stable across retries (unlike 304's
         // ExecutionTimeout, which caps a single attempt). Strict is the default: an overdue job is
-        // cancelled at admission, and a retry that would land past the deadline is refused re-arm.
+        // cancelled at admission, and a retry that would land past the deadline is refused re-arm. To show an
+        // overdue job the program holds the first run past the deadline:
+        // `jobs.ScheduleAsync(new GenerateReport("q3"), TimeSpan.FromSeconds(4))`.
         [Job("generate-report", Deadline = "2s")]
         // learn: end
         public static void Handle(GenerateReport input) =>

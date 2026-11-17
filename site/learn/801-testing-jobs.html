@@ -111,7 +111,7 @@
 }</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">3</span>Assert each retry, then the final failure</h2>
-<p>Attempts 1 and 2 throw; with retries left the job re-arms to Ready (due now), not Failed.</p>
+<p>Attempts 1 and 2 throw; with retries left the job re-arms to Ready, not Failed. The job declares <code>MaxAttempts = 3, Backoff = &quot;0s&quot;</code>, so each retry is due at once; under the default backoff a test makes it due with <code>ForceJobDueAsync</code>, as how-to 803 does.</p>
 <figure class="listing"><figcaption><span class="file">EchoJobTests.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="a">[Fact]</span>
 <span class="k">public</span> <span class="k">async</span> Task Failing_echo_rearms_per_retry_then_settles_failed()
 {
@@ -134,7 +134,7 @@
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/learn/800-testing/801-testing-jobs"><code>learn/800-testing/801-testing-jobs</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">EchoJobTests.cs</span><span class="file-size">45 lines</span></summary><figure class="listing"><figcaption><span class="file">EchoJobTests.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to test a handler with the test host</span>
+<details class="source-file"><summary><span class="file-name">EchoJobTests.cs</span><span class="file-size">47 lines</span></summary><figure class="listing"><figcaption><span class="file">EchoJobTests.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to test a handler with the test host</span>
 <span class="c">// `Acta.Testing` runs the real runtime on a real database with no background loop: `RunOnceAsync` decides when a job</span>
 <span class="c">// executes, so a test drives one attempt at a time. Run it with `dotnet test learn/800-testing/801-testing-jobs`.</span>
 <span class="k">using</span> Acta.Testing;
@@ -169,7 +169,9 @@
         <span class="k">var</span> enqueued = <span class="k">await</span> Jobs.EnqueueAsync(<span class="k">new</span> Echo(<span class="s">&quot;boom&quot;</span>), ct: Ct);
 
         <span class="c">// learn: 3. Assert each retry, then the final failure</span>
-        <span class="c">// Attempts 1 and 2 throw; with retries left the job re-arms to Ready (due now), not Failed.</span>
+        <span class="c">// Attempts 1 and 2 throw; with retries left the job re-arms to Ready, not Failed. The job declares</span>
+        <span class="c">// `MaxAttempts = 3, Backoff = &quot;0s&quot;`, so each retry is due at once; under the default backoff a test</span>
+        <span class="c">// makes it due with `ForceJobDueAsync`, as how-to 803 does.</span>
 <span class="hl">        Assert.Equal(ActaRunStatus.Rearmed, <span class="k">await</span> Host.RunOnceAsync(enqueued, Ct));</span>
 <span class="hl">        Assert.Equal(ActaRunStatus.Rearmed, <span class="k">await</span> Host.RunOnceAsync(enqueued, Ct));</span>
 <span class="hl"> </span>

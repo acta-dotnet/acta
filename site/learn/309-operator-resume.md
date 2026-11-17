@@ -48,16 +48,11 @@ var resumeResult = await jobs.ResumeAsync(handle, "review complete");
 In `operator-resume.cs` (excerpt):
 
 ```csharp
-Console.WriteLine($"Enqueued job {handle.JobRef} with a 5-second delay.");
-
 var pauseResult = await jobs.PauseAsync(handle, "review window");
 Console.WriteLine($"PauseAsync -> action={pauseResult.Action} status={pauseResult.Status}");
 
 var resumeResult = await jobs.ResumeAsync(handle, "review complete");
 Console.WriteLine($"ResumeAsync -> action={resumeResult.Action} status={resumeResult.Status}");
-
-// Poll until the worker finishes the job (terminal status).
-JobStatusCode? status;
 ```
 
 ## 3. Read the answer: a finished job refuses
@@ -78,12 +73,42 @@ Console.WriteLine($"Job finished with status={status}");
 
 var rejectedResult = await jobs.PauseAsync(handle, "too late");
 Console.WriteLine($"PauseAsync on terminal -> action={rejectedResult.Action} blocking-status={rejectedResult.Status}");
-
-// Read the event timeline to confirm the pause and resume events with their message and details.
-var events = await queries.Ledger.ListEventsAsync(new ListEventsQuery(Job: handle));
 ```
 
-## 4. The job it acts on
+## 4. Read the reasons on the timeline
+
+Each control leaves an event that carries the reason it was given.
+
+The lines that matter:
+
+```csharp
+var events = await queries.Ledger.ListEventsAsync(new ListEventsQuery(Job: handle));
+foreach (var ev in events.Items)
+{
+    if (ev.EventCode is EventCode.JobPaused or EventCode.JobResumed)
+        Console.WriteLine($"  event={ev.EventCode} message={ev.Message ?? "(none)"} details={ev.DetailsText ?? "(none)"}");
+}
+```
+
+In `operator-resume.cs` (excerpt):
+
+```csharp
+Console.WriteLine($"Job finished with status={status}");
+
+var rejectedResult = await jobs.PauseAsync(handle, "too late");
+Console.WriteLine($"PauseAsync on terminal -> action={rejectedResult.Action} blocking-status={rejectedResult.Status}");
+
+var events = await queries.Ledger.ListEventsAsync(new ListEventsQuery(Job: handle));
+foreach (var ev in events.Items)
+{
+    if (ev.EventCode is EventCode.JobPaused or EventCode.JobResumed)
+        Console.WriteLine($"  event={ev.EventCode} message={ev.Message ?? "(none)"} details={ev.DetailsText ?? "(none)"}");
+}
+
+await host.StopAsync();
+```
+
+## 5. The job it acts on
 
 `operator-resume.cs` (excerpt):
 
@@ -100,7 +125,7 @@ public sealed class ProcessReportJob
 }
 ```
 
-## 5. Run it and check the output
+## 6. Run it and check the output
 
 From a clone of the repository, with the .NET 10 SDK:
 
@@ -121,7 +146,7 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## Not in the packages
 
-`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on any of the three databases. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on SQLite, PostgreSQL or SQL Server. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## Next
 
@@ -129,4 +154,4 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## More
 
-- [The whole program](/learn/309-operator-resume.program.md): every file as compiled, 84 lines.
+- [The whole program](/learn/309-operator-resume.program.md): every file as compiled, 87 lines.

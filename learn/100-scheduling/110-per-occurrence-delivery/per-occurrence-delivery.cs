@@ -115,7 +115,9 @@ namespace Acta.Learn.PerOccurrenceDelivery
         // learn: Deliver each occurrence as a job of its own
         // Each occurrence is an ordinary root job with a ref, retries, and result of its own.
         // `MaxOutstanding` bounds how many may be unfinished at once, and a full schedule set to `Drop` skips an
-        // occurrence, audited as `schedule.skipped` with the reason `capacity`.
+        // occurrence, audited as `schedule.skipped` with the reason `capacity`. Unset, `MaxOutstanding` is 1 and
+        // `FullBehavior` is `Wait`, which holds an occurrence until one finishes. The body here only counts how
+        // many run at once; a job of your own does the occurrence's work there.
         [Job("import-files", ScheduledDelivery = ScheduledDeliveryCode.PerOccurrence)]
         [Schedule("every-second", "PT1S", MaxOutstanding = 2, FullBehavior = ScheduleFullBehaviorCode.Drop)]
         // learn: end

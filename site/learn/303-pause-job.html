@@ -76,7 +76,7 @@
     <div class="wrap howto-body">
       <article class="howto person-face">
 <div class="step"><h2><span class="step-n">1</span>Pause the job from its handler</h2>
-<p>Resume replays the handler from the top with the job's current input, so the approval is recorded where the replay reads it: the operator amends the input (IJobs.UpdateInputAsync works on a Paused job) and then resumes. A signal (WaitSignalAsync, RaiseSignalAsync) is the other shape of a human-in-the-loop gate.</p>
+<p><code>PauseAsync</code> ends the attempt where it stands and parks the job as <code>Paused</code> until someone resumes it. The lines after it run only after the resume, when the handler starts again from its first line.</p>
 <figure class="listing"><figcaption><span class="file">pause-job.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> ApplyMigrationJob
 {
     <span class="a">[Job(<span class="s">&quot;apply-migration&quot;</span>)]</span>
@@ -93,6 +93,7 @@
 }</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">2</span>Record the approval in the input, then resume</h2>
+<p>Resume replays the handler from the top with the job's current input, so a plain resume would park the job again. The operator records the approval first: <code>IJobs.UpdateInputAsync</code> works on a Paused job, and the resume then reads the amended input. <code>outcome</code> is the handle the enqueue answered. A signal (<code>WaitSignalAsync</code>, <code>RaiseSignalAsync</code>) is the other shape of a gate a person opens.</p>
 <figure class="listing"><figcaption><span class="file">pause-job.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">var</span> snapshot = <span class="k">await</span> jobs.GetAsync(outcome);
 Console.WriteLine(<span class="s">$&quot;status={snapshot!.Status}&quot;</span>);
 Console.WriteLine(<span class="s">&quot;The job is parked. Resuming it as-is would replay the handler and park it again, so the&quot;</span>);
@@ -117,7 +118,7 @@ status=Succeeded</code></pre></figure>
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/learn/300-failure-and-recovery/303-pause-job"><code>learn/300-failure-and-recovery/303-pause-job</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">pause-job.cs</span><span class="file-size">63 lines</span></summary><figure class="listing"><figcaption><span class="file">pause-job.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to pause a job from inside its handler</span>
+<details class="source-file"><summary><span class="file-name">pause-job.cs</span><span class="file-size">66 lines</span></summary><figure class="listing"><figcaption><span class="file">pause-job.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to pause a job from inside its handler</span>
 <span class="c">// `PauseAsync` in a handler parks the job as `Paused` until someone resumes it.</span>
 <span class="k">using</span> Acta;
 <span class="k">using</span> Acta.Learn.PauseJob;
@@ -146,6 +147,10 @@ Console.WriteLine(<span class="s">&quot;The job is parked. Resuming it as-is wou
 Console.WriteLine(<span class="s">&quot;operator records the approval in the input first, then resumes.&quot;</span>);
 
 <span class="c">// learn: 2. Record the approval in the input, then resume</span>
+<span class="c">// Resume replays the handler from the top with the job's current input, so a plain resume would park the job</span>
+<span class="c">// again. The operator records the approval first: `IJobs.UpdateInputAsync` works on a Paused job, and the resume</span>
+<span class="c">// then reads the amended input. `outcome` is the handle the enqueue answered. A signal (`WaitSignalAsync`,</span>
+<span class="c">// `RaiseSignalAsync`) is the other shape of a gate a person opens.</span>
 <span class="hl"><span class="k">await</span> jobs.UpdateInputAsync(outcome, JobPayload.Json(<span class="k">new</span> ApplyMigration(<span class="s">&quot;v042&quot;</span>, NeedsApproval: <span class="k">false</span>)), <span class="s">&quot;approved by ops&quot;</span>);</span>
 <span class="hl"><span class="k">await</span> jobs.ResumeAsync(outcome, <span class="s">&quot;approved&quot;</span>);</span>
 
@@ -165,10 +170,9 @@ Console.WriteLine(<span class="s">$&quot;status={(await jobs.GetAsync(outcome))!
         <span class="k">public</span> <span class="k">async</span> Task Handle(ApplyMigration migration, JobContext context, CancellationToken ct)
         {
             <span class="c">// learn: 1. Pause the job from its handler</span>
-            <span class="c">// Resume replays the handler from the top with the job's current input, so the approval is</span>
-            <span class="c">// recorded where the replay reads it: the operator amends the input (IJobs.UpdateInputAsync</span>
-            <span class="c">// works on a Paused job) and then resumes. A signal (WaitSignalAsync, RaiseSignalAsync) is the</span>
-            <span class="c">// other shape of a human-in-the-loop gate.</span>
+            <span class="c">// `PauseAsync` ends the attempt where it stands and parks the job as `Paused` until someone</span>
+            <span class="c">// resumes it. The lines after it run only after the resume, when the handler starts again from</span>
+            <span class="c">// its first line.</span>
 <span class="hl">            <span class="k">if</span> (migration.NeedsApproval)</span>
 <span class="hl">            {</span>
 <span class="hl">                <span class="k">await</span> context.PauseAsync(<span class="s">&quot;waiting for operator approval&quot;</span>, ct);</span>

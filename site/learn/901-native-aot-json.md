@@ -1,6 +1,6 @@
 # How to run jobs under Native AOT
 
-A source-generated `JsonSerializerContext` given to `UseJsonPayloads` serializes payloads with no runtime reflection, and `JobPayload.Json(value, typeInfo)` builds a raw payload the same way.
+A source-generated `JsonSerializerContext` given to `UseJsonPayloads` serializes payloads with no runtime reflection, and `JobPayload.Json(value, typeInfo)` builds a raw payload the same way. The program runs on the JIT: it shows the registration an AOT publish needs, and the publish itself is proven by the repository's own gate.
 
 - Section: Deploy and scale, step 5
 - Program: `learn/900-runtime-and-tuning/901-native-aot-json` in https://github.com/acta-dotnet/acta (one compiled project)
@@ -61,8 +61,6 @@ var payload = JobPayload.Json(new ProcessOrder("ORD-001", 3), AotPayloadContext.
 In `native-aot-json.cs` (excerpt):
 
 ```csharp
-await host.StartAsync();
-
 var jobs = host.Services.GetRequiredService<IJobs>();
 
 Console.WriteLine("Enqueuing with source-generated type info (no reflection)...");
@@ -95,7 +93,7 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## Not in the packages
 
-`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on any of the three databases. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on SQLite, PostgreSQL or SQL Server. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## Next
 
@@ -103,4 +101,4 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## More
 
-- [The whole program](/learn/901-native-aot-json.program.md): every file as compiled, 71 lines.
+- [The whole program](/learn/901-native-aot-json.program.md): every file as compiled, 72 lines.

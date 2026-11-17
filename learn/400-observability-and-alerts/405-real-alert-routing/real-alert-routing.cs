@@ -70,7 +70,8 @@ namespace Acta.Learn.RealAlertRouting
             if (input.Depth > 10_000)
             {
                 // learn: 2. Raise the alerts of one incident under one key
-                // deduplicationKey ties repeats together onto one open incident row.
+                // deduplicationKey ties repeats together onto one open incident row. The program enqueues two
+                // checks of the same queue: both raise under one key and fold into one alert that counts two.
                 await context.AlertAsync(
                     title: $"Queue backlog: {input.Queue}",
                     message: $"'{input.Queue}' depth is {input.Depth}, above the 10k threshold.",

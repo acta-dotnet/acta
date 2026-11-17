@@ -12,7 +12,7 @@ A step can return a value. Each result is recorded once, so the next step takes 
 
 ## 1. Return a value from a step
 
-Typed durable steps: each result is recorded once, so on replay the chain rebuilds from recorded outputs and no step re-runs.
+Typed durable steps: each result is recorded once, so on replay the chain rebuilds from recorded outputs and no step re-runs. A body that returns null, or a result over `MaxInlinePayloadBytes`, fails the job for good, since a retry would run the finished body again.
 
 `step-chain.cs` (excerpt):
 
@@ -64,7 +64,7 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## Not in the packages
 
-`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on any of the three databases. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on SQLite, PostgreSQL or SQL Server. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## Next
 
@@ -72,4 +72,4 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## More
 
-- [The whole program](/learn/206-step-chain.program.md): every file as compiled, 84 lines.
+- [The whole program](/learn/206-step-chain.program.md): every file as compiled, 86 lines.

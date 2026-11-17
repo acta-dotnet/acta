@@ -4,7 +4,7 @@ The how-to is [/learn/108-calendar-catalog.md](/learn/108-calendar-catalog.md). 
 
 ## Not in the packages
 
-`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on any of the three databases. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on SQLite, PostgreSQL or SQL Server. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## The whole program
 
@@ -33,6 +33,9 @@ var officeHours = new CalendarLookup("sys", "office-hours");
 
     var calendars = seedHost.Services.GetRequiredService<IActaOperations>().Calendars;
     // learn: 1. Save the calendar as a draft and publish it
+    // A calendar is a JSON definition saved as a draft, then published. `officeHours` names the family
+    // `office-hours` in `sys`, which every namespace binds by its plain name, and `Definitions.OpenAllDay` is a
+    // definition open all day, every day.
     // A deploy step names no versions, so it runs again as it is: a definition the latest version already holds saves
     // nothing and answers AlreadyInState with that version, and publishing the current version again changes nothing.
     var draft = await calendars.SaveDraftAsync(officeHours, CalendarRoleCode.Availability, Definitions.OpenAllDay);
@@ -79,7 +82,8 @@ Console.WriteLine(
 );
 
 // learn: 3. Publish a change and let it retime the schedule
-// The publication moves the cursor of every schedule bound to the calendar, in the same transaction.
+// The publication moves the cursor of every schedule bound to the calendar, in the same transaction. `closed` is the
+// draft saved just above, whose definition has no window today.
 var result = await operations.Calendars.PublishAsync(officeHours, closed.Version.Value, reasonMessage: $"Closed on {today}");
 Console.WriteLine($"Published: {result.Action}; retimed [{string.Join(", ", result.RetimedSchedules)}]");
 

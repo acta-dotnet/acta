@@ -6,7 +6,7 @@ Read /llms.txt first. It is the contract: the rules every handler follows. This 
 
 ## How to use a how-to
 
-- The numbered steps are what you write. The code is lifted from the program named on the page, so it compiles as shown.
+- The numbered steps are what you write. The code is lifted from the program named on the page, which compiles; an excerpt can use a name declared outside it, and the whole-program file declares every one.
 - "Its output must contain" lists the lines the program prints when the task works. The release check reads the same lines.
 - `UseLocalDatabase` and `LearnLab` appear in the programs' host code. They are helpers of the repository, not of the packages: in an application write `UseSqlite`, `UsePostgres` or `UseSqlServer`.
 - Rows printed by a lab come from SQL views, the operator's contract. Application code reads the same facts through `IJobs` and `IActaOperations`.
@@ -28,7 +28,7 @@ Read /llms.txt first. It is the contract: the rules every handler follows. This 
 
 - Something has to happen later:
   - a whole job that starts later: [How to run a job once, later](/learn/011-delayed-job.md)
-  - a pause inside a job that has already begun: [How to wait for time to pass without a running process](/learn/205-durable-sleep.md)
+  - a wait inside a job that has already begun: [How to wait for time to pass without a running process](/learn/205-durable-sleep.md)
   - an exact instant instead of a delay: [How to schedule, sleep, and reschedule to an exact instant](/learn/217-absolute-time-controls.md)
 - Work must not happen twice:
   - work that finished must not repeat on a retry: [How to keep finished work from repeating on a retry](/learn/202-durable-step.md)
@@ -76,12 +76,12 @@ Every way to start work: now, later, once only, by name, or many at a time.
 - [How to allow one job per hour or per day](/learn/028-deduplication-time-buckets.md): A deduplication key built from a time bucket lets one job in per bucket: `DeduplicationKey.PerTimeBucket` here, with `PerHour` and `PerDay` as its fixed sizes
 - [How to save a record and start its job in one transaction](/learn/029-enqueue-in-transaction.md): `EnqueueAsync` takes your open transaction, so the order row and the job that fulfils it commit together, or neither exists
 - [How to find a job by its deduplication key](/learn/014-read-by-deduplication-key.md): `JobLookup.ByDeduplicationKey` finds a job by the key it was enqueued with, when you did not keep its ref
-- [How to choose between starting a job and waiting for it](/learn/015-call-vs-enqueue.md): `EnqueueAsync` returns as soon as the job is stored; `CallAsync` enqueues, waits, and returns the result
+- [How to choose between starting a job and waiting for it](/learn/015-call-vs-enqueue.md): `EnqueueAsync` returns as soon as the job is stored; `CallAsync` enqueues, waits, and returns the job's outcome
 - [How to enqueue many jobs in one round trip](/learn/019-batch-enqueue.md): `EnqueueJobsAsync` writes a whole list of jobs in one round trip to the database and answers their outcomes in request order
 - [How to run urgent jobs first](/learn/017-priority.md): A priority on the enqueue decides which of the jobs that are due at once a worker claims first
 - [How to label jobs so you can find them](/learn/018-tags.md): Tags are name and value labels set on the enqueue, for filtering and grouping jobs in queries and in the dashboard
 - [How to pass a large file by reference](/learn/025-large-payload-reference.md): Keep a big file in blob storage and enqueue a reference to it, with its checksum and size, instead of the bytes
-- [How to choose a payload format for a job](/learn/501-payload-formats.md): A job names the format its payload is stored in. This program runs custom formats side by side and compares their serialization time, enqueue time, readability, and stored bytes
+- [How to choose a payload format for a job](/learn/501-payload-formats.md): A job names the format its payload is stored in: JSON by default, or a format of your own. This program adds two custom formats, `scalar-v1` and `json-gzip`, and runs the same echo job through each
 
 ## Run work on a schedule
 
@@ -91,12 +91,12 @@ Recurring work as one permanent job: by cron, by interval, in a time zone, or fr
 - [How to run a job every day at a set hour in your time zone](/learn/104-timezone-schedule.md): A cron with `TimeZoneId` fires at the same local hour all year: `0 8 * * *` in `Europe/Berlin` is 08:00 in Berlin, in summer and in winter
 - [How to replace a timer loop with an interval schedule](/learn/102-interval-schedule.md): An interval schedule, such as `10s`, runs a job at a fixed gap, where a timer loop in a hosted service would otherwise stand
 - [How to give one job several schedules](/learn/103-multiple-schedules.md): Several `[Schedule]` attributes on one job share one permanent job, and schedules that come due together fire it once
-- [How to decide what happens to runs a schedule missed](/learn/106-schedule-misfire.md): Missed occurrences are a business decision. Three schedules miss the same stretch while paused, and each one's misfire policy decides it differently: `Skip` runs at most the latest, `CatchUpOnce` runs one firing that covers them all, `CatchUpAll` runs every one in order
+- [How to decide what happens to runs a schedule missed](/learn/106-schedule-misfire.md): Missed occurrences are a business decision, and `MisfireStrategy` on the schedule makes it. Three schedules miss the same stretch while paused: `Skip`, the default, drops them and fires only a latest one less than a minute overdue, `CatchUpOnce` runs one firing that covers them all, and `CatchUpAll` runs every one in order
 - [How to pause and resume a schedule](/learn/105-schedule-control.md): `operations.Schedules` pauses a schedule from outside the handler, for good or until an instant, and resumes it
 - [How to drive a schedule from a published calendar](/learn/108-calendar-catalog.md): A calendar is data that an operator publishes through `operations.Calendars`. A schedule binds it by name, and a later publication retimes every schedule bound to it in one transaction while workers run
 - [How to make every occurrence its own job](/learn/110-per-occurrence-delivery.md): `ScheduledDelivery = PerOccurrence` makes each occurrence a root job of its own, with its own ref, retries, result, and retention. `MaxOutstanding` bounds how many may be unfinished at once
 - [How to decide what a failed firing does to its schedule](/learn/111-firing-failure-policy.md): A firing that spends its retry budget returns the permanent job to `Idle`. `FiringFailurePolicy` says what happens to its schedules then: `Continue`, the default, fires the next occurrence as usual, and `PauseScheduling` pauses them, with the reason, until an operator resumes them
-- [How to start each firing of a recurring job clean](/learn/214-reset-state.md): A permanent job keeps its variables from one firing to the next. `ResetStateAsync` at the end of a firing clears them, so the next one starts blank
+- [How to start each firing of a recurring job clean](/learn/214-reset-state.md): A permanent job keeps its variables and step results from one firing to the next. `ResetStateAsync` as the firing's last line clears them, so the next one starts blank
 
 ## Keep another system in sync
 
@@ -116,7 +116,7 @@ Steps and variables record what a handler finished, so a retry or a restart carr
 - [How to compensate when the last attempt fails](/learn/210-step-retry.md): A failing step retries through its job, and a `catch` on `EndsJob` compensates before the failure ends the job
 - [How to refuse to repeat a side effect after a crash](/learn/220-at-most-once-step.md): An at-most-once step refuses to run its body a second time after a crash. The handler is told that the outcome is unknown, and reconciles
 - [How to build a checkout that waits for a review and a timer](/learn/201-durable-checkout.md): One handler reads top to bottom as a checkout: wait for a fraud review, reserve, charge, wait out a settlement window, send the receipt. Each stage is a signal, a step, a variable, or a timer that survives a restart
-- [How to report how far along a job is](/learn/208-progress.md): `SetProgressAsync` stores how far the job has come, where a status page or the dashboard reads it while the job runs
+- [How to report how far along a job is](/learn/208-progress.md): `SetProgressAsync` stores how far the job has come as the checkpoint `sys.progress`, which the dashboard lists while the job runs
 
 ## Wait for people, events, and time
 
@@ -132,7 +132,7 @@ A waiting job is a row. No worker and no process stays busy while it waits.
 Fan out, join the results, and decide what a failed child means.
 
 - [How to start child jobs and wait for them](/learn/211-child-jobs.md): A parent starts child jobs by name, suspends without holding a worker until every child has finished, and reads their results
-- [How to call another job and use its result](/learn/213-call-child.md): `CallChildAsync` starts another job as a child, waits for it without holding a worker, and returns its result
+- [How to call another job and use its result](/learn/213-call-child.md): `CallChildAsync` starts another job as a child, waits for it without holding a worker, and returns its outcome, whose `ValueOrThrow()` is the result
 - [How to fan out over a list and merge the results](/learn/212-fan-out-join.md): `MapAsync` starts one child job per item of a list, waits for them all, and hands back each item's result for the parent to merge
 - [How to fan out to child jobs with Map or WaitChildren](/learn/215-map-wait-children.md): Two ways to fan out: `EnqueueChildAsync` with `WaitChildrenAsync` for a few named children, and `MapAsync` for one child per item of a list
 - [How to find the child job that handles one item](/learn/222-find-child-job.md): A child's name on the reads is its deduplication key, `{map}/{key}` for a child that a map started. List the parent's children and pick the one that carries the item's key
@@ -150,8 +150,8 @@ Retries, backoff, timeouts, deadlines, and ending a job on purpose.
 - [How to fail a job for good, with no retry](/learn/301-fail-job.md): `FailAsync` ends the job as `Failed` at once, whatever its retry budget. A thrown exception would be retried
 - [How to cancel a job from inside its handler](/learn/302-cancel-job.md): `CancelAsync` in a handler ends the job as `Cancelled`: terminal, not a failure, so no retry and no alert follow
 - [How to pause a job from inside its handler](/learn/303-pause-job.md): `PauseAsync` in a handler parks the job as `Paused` until someone resumes it
-- [How to cut off an attempt that runs too long](/learn/304-execution-timeout.md): `ExecutionTimeout` caps one attempt: when the time is up, the handler's `CancellationToken` trips and the attempt ends as a timeout
-- [How to stop cleanly when a job is cancelled](/learn/008-cancellation-token.md): A handler takes a `CancellationToken` and passes it to everything it awaits, so a shutdown or a cancel ends it promptly
+- [How to cut off an attempt that runs too long](/learn/304-execution-timeout.md): `ExecutionTimeout` caps one attempt: when the time is up, the handler's `CancellationToken` trips and the cut spends an attempt
+- [How to stop cleanly when a job is cancelled](/learn/008-cancellation-token.md): A handler takes a `CancellationToken` and passes it to everything it awaits, so a cancel, a timeout, or a shutdown that outlasts the host's grace period ends it promptly
 - [How to drop a job that is past its deadline](/learn/307-deadline-strict.md): A `Deadline` is the whole job's budget, measured from its creation. Under the default, strict behaviour an overdue job is cancelled before its handler runs
 - [How to run an overdue job in a reduced mode](/learn/308-deadline-advisory.md): With `DeadlineBehavior = Advisory` an overdue job still runs. The handler reads `IsOverdue` and chooses a reduced path
 
@@ -160,7 +160,7 @@ Retries, backoff, timeouts, deadlines, and ending a job on purpose.
 Keep jobs that touch the same thing from running over each other.
 
 - [How to let one job at a time touch a resource](/learn/207-run-with-lock.md): `RunWithLockAsync` holds a named lock around a piece of work, so jobs that name the same lock take turns
-- [How to limit how many jobs run at once for one key](/learn/209-concurrency-key.md): A `ConcurrencyKey` on the enqueue lets one job at a time run for that key. `ConcurrencyLimit` on the job gives a key several slots, and `RateLimit` meters how often jobs start
+- [How to limit how many jobs run at once for one key](/learn/209-concurrency-key.md): A `ConcurrencyKey` on the enqueue lets one job at a time run for that key. `ConcurrencyLimit` on the job gives a key several slots, and `RateLimit` meters how often attempts are admitted
 - [How to apply each customer's commands in order while other customers keep moving](/learn/223-lane-per-customer.md): A lane runs its jobs one at a time, in enqueue order. A lane per customer keeps each customer's commands in order and lets the customers run side by side
 
 ## Watch and control running work
@@ -199,8 +199,8 @@ The real runtime on a throwaway database, driven one tick at a time.
 
 - [How to test a handler with the test host](/learn/801-testing-jobs.md): `Acta.Testing` runs the real runtime on a real database with no background loop: `RunOnceAsync` decides when a job executes, so a test drives one attempt at a time. Run it with `dotnet test learn/800-testing/801-testing-jobs`
 - [How to test a job that waits for a signal](/learn/802-testing-durable-jobs.md): Each `RunOnceAsync` drives exactly one attempt, so the suspend on a signal and the resume after its raise are two explicit ticks, and the test asserts that the step before the wait ran once across the replay. Run it with `dotnet test learn/800-testing/802-testing-durable-jobs`
-- [How to test the first-job guide's app](/learn/803-first-job-tests.md): The first-job guide's test verbatim: the real runtime on a throwaway SQLite file, driven one tick at a time, with a retry made due at once
-- [How to test a recurring synchronization job](/learn/804-continuous-synchronization-tests.md): The claims of the continuous-synchronization lab as tests: a schedule forced due and one firing driven at a time, one job identity across firings, the watermark kept on the job, a lost attempt reclaimed with the next execution continuing at the watermark, and a replayed, a failed, and a backlogged batch. Run it with `dotnet test`
+- [How to test the first-job guide's app](/learn/803-first-job-tests.md): The test of the first-job app ([026-first-job](/learn/026-first-job.md)), as the first-job guide shows it: the real runtime on a throwaway SQLite file, driven one tick at a time, with a retry made due at once
+- [How to test a recurring synchronization job](/learn/804-continuous-synchronization-tests.md): Tests for the permanent synchronization job of [109-continuous-synchronization](/learn/109-continuous-synchronization.md): a schedule forced due and one firing driven at a time, and a lost attempt reclaimed with the next execution continuing at the watermark. Run it with `dotnet test learn/800-testing/804-continuous-synchronization-tests`
 
 ## Deploy and scale
 
@@ -210,7 +210,7 @@ Split the API from the worker, add workers, and tune them.
 - [How to run two namespaces in one process](/learn/703-namespaces-in-one-process.md): Each `Run` starts a worker for one namespace. Two of them in one process share the process and the database, and never each other's jobs
 - [How to restart a crashed app on SQLite and get its work back](/learn/706-sqlite-restart.md): On SQLite a starting worker releases the work of processes on the same machine that have ended, so a restarted app takes a lost job back at once. Nothing has to be written for it; the crash spends one attempt
 - [How to recover the work of a killed worker](/learn/705-worker-crash-recovery.md): A worker process is killed in the middle of a job, and another worker reclaims the job once its lease has lapsed. The program runs on PostgreSQL or SQL Server
-- [How to run jobs under Native AOT](/learn/901-native-aot-json.md): A source-generated `JsonSerializerContext` given to `UseJsonPayloads` serializes payloads with no runtime reflection, and `JobPayload.Json(value, typeInfo)` builds a raw payload the same way
+- [How to run jobs under Native AOT](/learn/901-native-aot-json.md): A source-generated `JsonSerializerContext` given to `UseJsonPayloads` serializes payloads with no runtime reflection, and `JobPayload.Json(value, typeInfo)` builds a raw payload the same way. The program runs on the JIT: it shows the registration an AOT publish needs, and the publish itself is proven by the repository's own gate
 - [How to wake workers across processes with Redis](/learn/903-redis-wakeup.md): `UseRedisWakeup` announces each enqueue over Redis, so a worker in another process starts the job within milliseconds instead of at its next poll
 - [How to set how many jobs a worker runs at once](/learn/904-worker-tuning.md): `MaxConcurrentExecutors` caps how many jobs one worker runs at once, and `SafetyPollInterval` bounds how long an idle worker sleeps between looks at the database
 

@@ -4,7 +4,7 @@ The how-to is [/learn/221-pending-signup.md](/learn/221-pending-signup.md). This
 
 ## Not in the packages
 
-`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on any of the three databases. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on SQLite, PostgreSQL or SQL Server. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## The whole program
 
@@ -108,6 +108,7 @@ namespace Acta.Learn.PendingSignup
             // learn: 1. Wait for the confirmation, with a deadline
             // The wait is a row with its deadline stored in the database, so no process has to stay alive for it. When
             // nobody confirms in time, the job cancels itself: no user was ever written, so there is nothing to undo.
+            // `CancelAsync` ends the handler there, so the lines after it run only for a confirmed sign-up.
             var confirmed = await ctx.WaitSignalAsync<EmailConfirmed>("email-confirmed", input.ConfirmWithin, ct);
             if (confirmed.TimedOut)
             {

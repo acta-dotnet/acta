@@ -107,12 +107,7 @@
 <span class="hl">{</span>
 <span class="hl">    Console.WriteLine(<span class="s">$&quot;[sync-orders] execution {ctx.ExecutionNumber}: up to date at change {watermark}&quot;</span>);</span>
 <span class="hl">    <span class="k">return</span>;</span>
-<span class="hl">}</span>
-
-<span class="k">await</span> store.ApplyAsync(changes, ct);
-<span class="k">var</span> head = changes[^1].ChangeId;
-<span class="k">await</span> ctx.SetVariableAsync(<span class="s">&quot;watermark&quot;</span>, head, ct);
-Console.WriteLine(<span class="s">$&quot;[sync-orders] execution {ctx.ExecutionNumber}: {changes.Count} changes applied, watermark {head}&quot;</span>);</code></pre></figure>
+<span class="hl">}</span></code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">3</span>Let the service hand out its changes in a fixed order</h2>
 <p>The pattern needs one thing from the service: changes come in a fixed order, and a caller can ask for the ones after the last one it saw. An API with a <code>since</code> or a cursor parameter fits the same way.</p>
@@ -120,11 +115,7 @@ Console.WriteLine(<span class="s">$&quot;[sync-orders] execution {ctx.ExecutionN
 <span class="k">await</span> connection.OpenAsync(ct);
 <span class="k">await</span> <span class="k">using</span> <span class="k">var</span> command = connection.CreateCommand();
 <span class="hl">command.CommandText =</span>
-<span class="hl">    <span class="s">&quot;SELECT change_id, order_id, status, amount_cents FROM shop_changes WHERE change_id &gt; @since ORDER BY change_id LIMIT @take&quot;</span>;</span>
-command.Parameters.AddWithValue(<span class="s">&quot;@since&quot;</span>, sinceChangeId);
-command.Parameters.AddWithValue(<span class="s">&quot;@take&quot;</span>, take);
-<span class="k">var</span> changes = <span class="k">new</span> List&lt;OrderChange&gt;(take);
-<span class="k">await</span> <span class="k">using</span> <span class="k">var</span> reader = <span class="k">await</span> command.ExecuteReaderAsync(ct);</code></pre></figure>
+<span class="hl">    <span class="s">&quot;SELECT change_id, order_id, status, amount_cents FROM shop_changes WHERE change_id &gt; @since ORDER BY change_id LIMIT @take&quot;</span>;</span></code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">4</span>Save the work first and the watermark after</h2>
 <p>The orders land first and the watermark after them: an attempt that dies between the two replays one batch, which the upsert absorbs; the other order would skip one.</p>

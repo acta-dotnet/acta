@@ -76,7 +76,7 @@
     <div class="wrap howto-body">
       <article class="howto person-face">
 <div class="step"><h2><span class="step-n">1</span>Pause the schedule when a firing fails for good</h2>
-<p>A firing retries under the job's budget like any attempt. The policy applies once that budget is spent; the second job below keeps the default, <code>Continue</code>.</p>
+<p>A firing retries under the job's budget like any attempt. The policy applies once that budget is spent; the second job below keeps the default, <code>Continue</code>. <code>FailAsync</code> in the bodies is the program's own helper that throws, so each attempt fails and retries; it is not <code>ctx.FailAsync</code>.</p>
 <figure class="listing"><figcaption><span class="file">firing-failure-policy.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">private</span> <span class="k">static</span> <span class="k">readonly</span> ConcurrentDictionary&lt;<span class="k">string</span>, <span class="k">int</span>&gt; FailedAttempts = <span class="k">new</span>();
 
 <span class="c">/// &lt;summary&gt;Firings of &lt;paramref name=&quot;job&quot;/&gt; that spent their budget here: two failed attempts each.&lt;/summary&gt;</span>
@@ -102,7 +102,7 @@ sync-prices-continuing | active</code></pre></figure>
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/learn/100-scheduling/111-firing-failure-policy"><code>learn/100-scheduling/111-firing-failure-policy</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> and <code>LearnLab</code> are helpers of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">firing-failure-policy.cs</span><span class="file-size">111 lines</span></summary><figure class="listing"><figcaption><span class="file">firing-failure-policy.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to decide what a failed firing does to its schedule</span>
+<details class="source-file"><summary><span class="file-name">firing-failure-policy.cs</span><span class="file-size">112 lines</span></summary><figure class="listing"><figcaption><span class="file">firing-failure-policy.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to decide what a failed firing does to its schedule</span>
 <span class="c">// A firing that spends its retry budget returns the permanent job to `Idle`. `FiringFailurePolicy` says what happens</span>
 <span class="c">// to its schedules then: `Continue`, the default, fires the next occurrence as usual, and `PauseScheduling` pauses</span>
 <span class="c">// them, with the reason, until an operator resumes them.</span>
@@ -196,7 +196,8 @@ Console.WriteLine(<span class="s">$&quot;sync-prices-continuing  spent {PriceFee
 
         <span class="c">// learn: Pause the schedule when a firing fails for good</span>
         <span class="c">// A firing retries under the job's budget like any attempt. The policy applies once that budget is spent; the</span>
-        <span class="c">// second job below keeps the default, `Continue`.</span>
+        <span class="c">// second job below keeps the default, `Continue`. `FailAsync` in the bodies is the program's own helper that</span>
+        <span class="c">// throws, so each attempt fails and retries; it is not `ctx.FailAsync`.</span>
 <span class="hl">        <span class="a">[Job(<span class="s">&quot;sync-prices-pausing&quot;</span>, MaxAttempts = 2, Backoff = <span class="s">&quot;1s&quot;</span>, FiringFailurePolicy = FiringFailurePolicyCode.PauseScheduling)]</span></span>
         <span class="c">// learn: end</span>
         <span class="a">[Schedule(<span class="s">&quot;every-second&quot;</span>, <span class="s">&quot;PT1S&quot;</span>)]</span>

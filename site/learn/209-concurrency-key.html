@@ -4,20 +4,20 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>How to limit how many jobs run at once for one key · Acta, durable execution for .NET</title>
-  <meta name="description" content="How to limit how many jobs run at once for one key with Acta, durable execution for .NET. A ConcurrencyKey on the enqueue lets one job at a time run for that key. ConcurrencyLimit on the job gives a key several slots, and RateLimit meters how often jobs start." />
+  <meta name="description" content="How to limit how many jobs run at once for one key with Acta, durable execution for .NET. A ConcurrencyKey on the enqueue lets one job at a time run for that key. ConcurrencyLimit on the job gives a key several slots, and RateLimit meters how often attempts are admitted." />
   <link rel="canonical" href="https://useacta.net/learn/209-concurrency-key" />
   <meta name="theme-color" content="#0B0E15" />
   <meta property="og:type" content="article" />
   <meta property="og:site_name" content="Acta for .NET" />
   <meta property="og:title" content="How to limit how many jobs run at once for one key · Acta, durable execution for .NET" />
-  <meta property="og:description" content="How to limit how many jobs run at once for one key with Acta, durable execution for .NET. A ConcurrencyKey on the enqueue lets one job at a time run for that key. ConcurrencyLimit on the job gives a key several slots, and RateLimit meters how often jobs start." />
+  <meta property="og:description" content="How to limit how many jobs run at once for one key with Acta, durable execution for .NET. A ConcurrencyKey on the enqueue lets one job at a time run for that key. ConcurrencyLimit on the job gives a key several slots, and RateLimit meters how often attempts are admitted." />
   <meta property="og:url" content="https://useacta.net/learn/209-concurrency-key" />
   <meta property="og:image" content="https://useacta.net/assets/social-card.png" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
   <meta property="og:image:alt" content="Acta: durable execution for .NET. Postgres, SQL Server, SQLite." />
   <meta name="twitter:card" content="summary_large_image" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"How to limit how many jobs run at once for one key","description":"How to limit how many jobs run at once for one key with Acta, durable execution for .NET. A ConcurrencyKey on the enqueue lets one job at a time run for that key. ConcurrencyLimit on the job gives a key several slots, and RateLimit meters how often jobs start.","url":"https://useacta.net/learn/209-concurrency-key","inLanguage":"en","articleSection":"Control order and load","isPartOf":{"@type":"CollectionPage","name":"Learn Acta","url":"https://useacta.net/learn"},"about":{"@type":"SoftwareSourceCode","name":"Acta","programmingLanguage":"C#","codeRepository":"https://github.com/acta-dotnet/acta"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"How to limit how many jobs run at once for one key","description":"How to limit how many jobs run at once for one key with Acta, durable execution for .NET. A ConcurrencyKey on the enqueue lets one job at a time run for that key. ConcurrencyLimit on the job gives a key several slots, and RateLimit meters how often attempts are admitted.","url":"https://useacta.net/learn/209-concurrency-key","inLanguage":"en","articleSection":"Control order and load","isPartOf":{"@type":"CollectionPage","name":"Learn Acta","url":"https://useacta.net/learn"},"about":{"@type":"SoftwareSourceCode","name":"Acta","programmingLanguage":"C#","codeRepository":"https://github.com/acta-dotnet/acta"}}</script>
   <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Learn Acta","item":"https://useacta.net/learn"},{"@type":"ListItem","position":2,"name":"Control order and load","item":"https://useacta.net/learn#s-limits"},{"@type":"ListItem","position":3,"name":"How to limit how many jobs run at once for one key","item":"https://useacta.net/learn/209-concurrency-key"}]}</script>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   <link rel="alternate" type="text/plain" href="/llms.txt" title="Acta for coding agents" />
@@ -61,7 +61,7 @@
     <header class="wrap page-head howto-head">
       <p class="record"><a href="/learn">learn acta</a><span aria-hidden="true">/</span><a href="/learn#s-limits">control order and load</a></p>
       <h1>How to limit how many jobs run at once for one key</h1>
-      <p class="lede">A <code>ConcurrencyKey</code> on the enqueue lets one job at a time run for that key. <code>ConcurrencyLimit</code> on the job gives a key several slots, and <code>RateLimit</code> meters how often jobs start.</p>
+      <p class="lede">A <code>ConcurrencyKey</code> on the enqueue lets one job at a time run for that key. <code>ConcurrencyLimit</code> on the job gives a key several slots, and <code>RateLimit</code> meters how often attempts are admitted.</p>
       <p class="howto-context">A how-to for Acta, durable execution for .NET. <a href="/start">New to Acta? Run your first durable job in five minutes.</a></p>
       <div class="howto-meta">
         <span class="status checked">Checked every release</span><span class="mark">Lab</span>
@@ -84,11 +84,7 @@
 
 <span class="hl"><span class="k">var</span> first = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> RebuildIndex(<span class="s">&quot;acme&quot;</span>), o =&gt; o.ConcurrencyKey(<span class="s">&quot;rebuild:acme&quot;</span>));</span>
 <span class="hl"><span class="k">var</span> second = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> RebuildIndex(<span class="s">&quot;acme&quot;</span>), o =&gt; o.ConcurrencyKey(<span class="s">&quot;rebuild:acme&quot;</span>));</span>
-Console.WriteLine(<span class="s">&quot;Enqueued two jobs with the same concurrency key.&quot;</span>);
-
-<span class="k">long</span> ownerJobId;
-<span class="k">long</span> competitorJobId;
-<span class="k">using</span> <span class="k">var</span> admissionTimeout = <span class="k">new</span> CancellationTokenSource(TimeSpan.FromSeconds(30));</code></pre></figure>
+Console.WriteLine(<span class="s">&quot;Enqueued two jobs with the same concurrency key.&quot;</span>);</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">2</span>Let several run at once, up to a limit</h2>
 <p>ConcurrencyLimit is a per-definition policy value, so an operator can raise or lower it on the definitions row without a deploy. Two at a time, whatever the fleet size.</p>
@@ -104,7 +100,7 @@ Console.WriteLine(<span class="s">&quot;Enqueued two jobs with the same concurre
 }</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">3</span>Limit how often jobs start</h2>
-<p>RateLimit is the other admission gate: five starts a second across the namespace's workers, metered on the definition name because no RateName was given. Like ConcurrencyLimit it is an operator-overridable policy value on the definitions row.</p>
+<p>RateLimit is the other admission gate: five admissions a second across the namespace's workers, every execution taking a turn, a retry included. It is metered on the definition name because no RateName was given. Like ConcurrencyLimit it is an operator-overridable policy value on the definitions row.</p>
 <figure class="listing"><figcaption><span class="file">concurrency-key.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> PingEndpointJob
 {
 <span class="hl">    <span class="a">[Job(<span class="s">&quot;ping-endpoint&quot;</span>, RateLimit = <span class="s">&quot;5/s&quot;</span>)]</span></span>
@@ -158,7 +154,7 @@ shard 3 finished</code></pre></figure>
 <p class="hint"><code>UseLocalDatabase</code> and <code>LearnLab</code> are helpers of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
 <details class="source-file"><summary><span class="file-name">concurrency-key.cs</span><span class="file-size">256 lines</span></summary><figure class="listing"><figcaption><span class="file">concurrency-key.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to limit how many jobs run at once for one key</span>
 <span class="c">// A `ConcurrencyKey` on the enqueue lets one job at a time run for that key. `ConcurrencyLimit` on the job gives a</span>
-<span class="c">// key several slots, and `RateLimit` meters how often jobs start.</span>
+<span class="c">// key several slots, and `RateLimit` meters how often attempts are admitted.</span>
 <span class="k">using</span> Acta;
 <span class="k">using</span> Acta.Labs;
 <span class="k">using</span> Acta.Learn.ConcurrencyKey;
@@ -371,8 +367,8 @@ Console.WriteLine(<span class="s">&quot;Enqueued twelve jobs against a definitio
     <span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> PingEndpointJob
     {
         <span class="c">// learn: 3. Limit how often jobs start</span>
-        <span class="c">// RateLimit is the other admission gate: five starts a second across the namespace's workers, metered</span>
-        <span class="c">// on the definition name because no RateName was given. Like ConcurrencyLimit it is an</span>
+        <span class="c">// RateLimit is the other admission gate: five admissions a second across the namespace's workers, every</span>
+        <span class="c">// execution taking a turn, a retry included. It is metered on the definition name because no RateName was given. Like ConcurrencyLimit it is an</span>
         <span class="c">// operator-overridable policy value on the definitions row.</span>
 <span class="hl">        <span class="a">[Job(<span class="s">&quot;ping-endpoint&quot;</span>, RateLimit = <span class="s">&quot;5/s&quot;</span>)]</span></span>
         <span class="c">// learn: end</span>

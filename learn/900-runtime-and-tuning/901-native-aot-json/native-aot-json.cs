@@ -1,6 +1,7 @@
 // How to run jobs under Native AOT
 // A source-generated `JsonSerializerContext` given to `UseJsonPayloads` serializes payloads with no runtime
-// reflection, and `JobPayload.Json(value, typeInfo)` builds a raw payload the same way.
+// reflection, and `JobPayload.Json(value, typeInfo)` builds a raw payload the same way. The program runs on the JIT:
+// it shows the registration an AOT publish needs, and the publish itself is proven by the repository's own gate.
 
 // The NativeAOT publish itself is proven by the repository's own gate
 // (tests/Acta.Tests/Architecture/NativeAotPublishTests.cs, gated by ACTA_AOT_PUBLISH_TEST), which publishes

@@ -49,12 +49,35 @@ public async Task Handle(PrepareOrder order, JobContext ctx, CancellationToken c
 
 `GetAsync` answers the job's row, `GetVariableOrDefaultAsync` the value its handler keeps for the screen, and `ExplainAsync` a sentence a person can read. Each is a read of what the database holds now; none waits.
 
-`own-status-page.cs` (excerpt):
+The lines that matter:
 
 ```csharp
 var job = (await jobs.GetAsync(order))!;
 var stage = await jobs.GetVariableOrDefaultAsync<string>(order, "stage");
 var why = (await jobs.ExplainAsync(order))!;
+```
+
+In `own-status-page.cs` (excerpt):
+
+```csharp
+await host.StopAsync();
+
+async Task ShowAsync()
+{
+    var job = (await jobs.GetAsync(order))!;
+    var stage = await jobs.GetVariableOrDefaultAsync<string>(order, "stage");
+    var why = (await jobs.ExplainAsync(order))!;
+
+    var shown = job.Status switch
+    {
+        JobStatusCode.Suspended => "waiting",
+        JobStatusCode.Ready when job.FailureCount > 0 => "retrying",
+        JobStatusCode.Executing when job.LeaseLapsed => "interrupted",
+        JobStatusCode.Executing => "running",
+        _ => job.Status.Code,
+    };
+    Console.WriteLine($"{shown, -9} | stage: {stage, -8} | {why.Headline}");
+}
 ```
 
 ## 3. Say the status in the page's own words
@@ -132,7 +155,7 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## Not in the packages
 
-`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on any of the three databases. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on SQLite, PostgreSQL or SQL Server. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## Next
 

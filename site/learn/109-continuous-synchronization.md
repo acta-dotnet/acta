@@ -51,7 +51,7 @@ public async Task Sync(JobContext ctx, CancellationToken ct)
 
 The call to the service is a bare line on purpose: a read is safe to repeat, and on a permanent job a step would answer from an earlier firing's record. A firing that finds nothing returns; the next one comes on schedule.
 
-The lines that matter:
+`SyncOrdersJob.cs` (excerpt):
 
 ```csharp
 var watermark = await ctx.GetVariableOrDefaultAsync("watermark", 0L, ct);
@@ -61,23 +61,6 @@ if (changes.Count == 0)
     Console.WriteLine($"[sync-orders] execution {ctx.ExecutionNumber}: up to date at change {watermark}");
     return;
 }
-```
-
-In `SyncOrdersJob.cs` (excerpt):
-
-```csharp
-var watermark = await ctx.GetVariableOrDefaultAsync("watermark", 0L, ct);
-var changes = await shop.ChangesAfterAsync(watermark, BatchSize, ct);
-if (changes.Count == 0)
-{
-    Console.WriteLine($"[sync-orders] execution {ctx.ExecutionNumber}: up to date at change {watermark}");
-    return;
-}
-
-await store.ApplyAsync(changes, ct);
-var head = changes[^1].ChangeId;
-await ctx.SetVariableAsync("watermark", head, ct);
-Console.WriteLine($"[sync-orders] execution {ctx.ExecutionNumber}: {changes.Count} changes applied, watermark {head}");
 ```
 
 ## 3. Let the service hand out its changes in a fixed order
@@ -99,10 +82,6 @@ await connection.OpenAsync(ct);
 await using var command = connection.CreateCommand();
 command.CommandText =
     "SELECT change_id, order_id, status, amount_cents FROM shop_changes WHERE change_id > @since ORDER BY change_id LIMIT @take";
-command.Parameters.AddWithValue("@since", sinceChangeId);
-command.Parameters.AddWithValue("@take", take);
-var changes = new List<OrderChange>(take);
-await using var reader = await command.ExecuteReaderAsync(ct);
 ```
 
 ## 4. Save the work first and the watermark after
@@ -214,7 +193,7 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## Not in the packages
 
-`UseLocalDatabase` and `LearnLab` are helpers of the Acta repository (`support/`), used so every program runs on any of the three databases and prints its rows. Do not copy them into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` and `LearnLab` are helpers of the Acta repository (`support/`), used so every program runs on SQLite, PostgreSQL or SQL Server and prints its rows. Do not copy them into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## Next
 

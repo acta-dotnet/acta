@@ -1,6 +1,6 @@
 # How to start each firing of a recurring job clean
 
-A permanent job keeps its variables from one firing to the next. `ResetStateAsync` at the end of a firing clears them, so the next one starts blank.
+A permanent job keeps its variables and step results from one firing to the next. `ResetStateAsync` as the firing's last line clears them, so the next one starts blank.
 
 - Section: Run work on a schedule, step 10
 - Program: `learn/200-durable-execution/214-reset-state` in https://github.com/acta-dotnet/acta (one compiled project)
@@ -12,19 +12,11 @@ A permanent job keeps its variables from one firing to the next. `ResetStateAsyn
 
 ## 1. Clear the job's durable state as the last act of the firing
 
-Clear this cycle's durable state so the next fire starts blank.
+Clear the firing's durable state as its last line, so the next firing starts blank. Never at the top: a reset there also runs on every retry and replay of the same firing and erases its progress.
 
-The lines that matter:
-
-```csharp
-await context.ResetStateAsync(ct);
-```
-
-In `reset-state.cs` (excerpt):
+`reset-state.cs` (excerpt):
 
 ```csharp
-Console.WriteLine($"{DateTime.UtcNow:HH:mm:ss} UTC cycle done  - 3 readings, avg {sum / 3}C");
-
 await context.ResetStateAsync(ct);
 ```
 
@@ -47,7 +39,7 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## Not in the packages
 
-`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on any of the three databases. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on SQLite, PostgreSQL or SQL Server. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## Next
 
@@ -55,4 +47,4 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## More
 
-- [The whole program](/learn/214-reset-state.program.md): every file as compiled, 52 lines.
+- [The whole program](/learn/214-reset-state.program.md): every file as compiled, 53 lines.

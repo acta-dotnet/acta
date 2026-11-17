@@ -76,7 +76,7 @@
     <div class="wrap howto-body">
       <article class="howto person-face">
 <div class="step"><h2><span class="step-n">1</span>Put a schedule on the job</h2>
-<p><code>[Schedule]</code> takes a name and a cron, here one of the <code>Cron</code> constants. One permanent job fires on the cadence, and each successful fire's count replaces the last one stored; EventRecordingCode.Failures writes no event for a fire that succeeds with no failure before it.</p>
+<p><code>[Schedule]</code> takes a name and a cron, here one of the <code>Cron</code> constants, read in UTC unless <code>TimeZoneId</code> says otherwise. One permanent job fires on the cadence, and the count each firing returns replaces the result the last one stored. <code>EventRecording = Failures</code> is optional: it keeps a frequent schedule from writing an event for every firing that succeeds. Nothing enqueues a scheduled job, so its input is an empty record.</p>
 <figure class="listing"><figcaption><span class="file">recurring-job.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> PurgeStaleSessionsJob
 {
 <span class="hl">    <span class="a">[Job(<span class="s">&quot;purge-stale-sessions&quot;</span>, EventRecording = EventRecordingCode.Failures)]</span></span>
@@ -102,7 +102,7 @@
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/learn/100-scheduling/101-recurring-job"><code>learn/100-scheduling/101-recurring-job</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">recurring-job.cs</span><span class="file-size">41 lines</span></summary><figure class="listing"><figcaption><span class="file">recurring-job.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to run a job on a repeating schedule</span>
+<details class="source-file"><summary><span class="file-name">recurring-job.cs</span><span class="file-size">43 lines</span></summary><figure class="listing"><figcaption><span class="file">recurring-job.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to run a job on a repeating schedule</span>
 <span class="c">// `[Schedule]` with a cron makes one permanent job that fires on that cadence, with nothing to enqueue.</span>
 <span class="k">using</span> Acta;
 <span class="k">using</span> Acta.Learn.Recurring;
@@ -126,9 +126,11 @@ builder.Services.UseActa(j =&gt;
     <span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> PurgeStaleSessionsJob
     {
         <span class="c">// learn: Put a schedule on the job</span>
-        <span class="c">// `[Schedule]` takes a name and a cron, here one of the `Cron` constants.</span>
-        <span class="c">// One permanent job fires on the cadence, and each successful fire's count replaces the last one stored;</span>
-        <span class="c">// EventRecordingCode.Failures writes no event for a fire that succeeds with no failure before it.</span>
+        <span class="c">// `[Schedule]` takes a name and a cron, here one of the `Cron` constants, read in UTC unless `TimeZoneId`</span>
+        <span class="c">// says otherwise. One permanent job fires on the cadence, and the count each firing returns replaces the</span>
+        <span class="c">// result the last one stored. `EventRecording = Failures` is optional: it keeps a frequent schedule from</span>
+        <span class="c">// writing an event for every firing that succeeds. Nothing enqueues a scheduled job, so its input is an</span>
+        <span class="c">// empty record.</span>
 <span class="hl">        <span class="a">[Job(<span class="s">&quot;purge-stale-sessions&quot;</span>, EventRecording = EventRecordingCode.Failures)]</span></span>
 <span class="hl">        <span class="a">[Schedule(<span class="s">&quot;every-15-seconds&quot;</span>, Cron.Every15Seconds)]</span></span>
         <span class="c">// learn: end</span>

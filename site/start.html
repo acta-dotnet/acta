@@ -94,6 +94,8 @@ Detect whether the producer and worker are in the same assembly or separate asse
 
 Create one job for this description: [describe the job here]
 
+Name the namespace for the work this app owns, and tell me the name you chose: it is permanent.
+
 Restore, build, start the app, and run the job once. Show me its job ref, its jobs explain output, and the dashboard URL. Only enable automatic migrations for local development.</pre>
       </div>
     </section>
@@ -156,6 +158,7 @@ public static class ShippingHandlers
       <p class="lede">The endpoint answers <code>202 Accepted</code> with the job's ref once the row is stored. Open <code>/acta</code> on the same port: the Jobs screen lists <code>ship-order</code> as succeeded. Ctrl+C stops the app.</p>
       <p class="hint">Run a job later with <code>ScheduleAsync(input, TimeSpan.FromMinutes(10))</code>, and follow one with <code>await job.WaitAsync()</code>: its timeout, 30 seconds by default, stops the wait, never the job. A recurring schedule is <code>[Schedule]</code>.</p>
       <p class="hint"><code>ShippingJobs</code> is generated: the last segment of your project's root namespace plus <code>Jobs</code>. Name the project <code>Orders</code> and it is <code>OrdersJobs</code>.</p>
+      <p class="hint"><code>"shipping"</code> is the namespace, and it is permanent: every job row, the dashboard and the CLI carry it, and there is no rename. Choose it once, for the work the app owns, such as <code>billing</code>, not for an environment or a version.</p>
       <p class="hint">The job was a row in <code>acta-local.db</code> before it was a method call. Swap the package and the <code>using</code> for <code>Acta.Postgres</code> or <code>Acta.SqlServer</code> and <code>UseSqlite</code> for <code>UsePostgres</code> or <code>UseSqlServer</code>, point the connection string at your server, and nothing else changes.</p>
     </section>
 

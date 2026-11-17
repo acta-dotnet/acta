@@ -4,7 +4,7 @@ The how-to is [/learn/309-operator-resume.md](/learn/309-operator-resume.md). Th
 
 ## Not in the packages
 
-`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on any of the three databases. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on SQLite, PostgreSQL or SQL Server. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## The whole program
 
@@ -70,13 +70,16 @@ Console.WriteLine($"PauseAsync on terminal -> action={rejectedResult.Action} blo
 
 // learn: end
 
-// Read the event timeline to confirm the pause and resume events with their message and details.
+// learn: 4. Read the reasons on the timeline
+// Each control leaves an event that carries the reason it was given.
 var events = await queries.Ledger.ListEventsAsync(new ListEventsQuery(Job: handle));
 foreach (var ev in events.Items)
 {
     if (ev.EventCode is EventCode.JobPaused or EventCode.JobResumed)
         Console.WriteLine($"  event={ev.EventCode} message={ev.Message ?? "(none)"} details={ev.DetailsText ?? "(none)"}");
 }
+
+// learn: end
 
 await host.StopAsync();
 

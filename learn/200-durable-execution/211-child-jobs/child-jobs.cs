@@ -166,8 +166,10 @@ namespace Acta.Learn.ChildJobs
             // learn: end
 
             // learn: 2. Wait for all of them, and decide what a failed child means
-            // The parent suspends, holding no executor, until every child is terminal. A failed child does not throw
-            // here: the wait lists it, and the parent decides.
+            // The parent parks, holding no executor, and wakes as the children it waits on land, so it can run again
+            // more than once before every child is terminal. A failed child does not throw here: the wait lists it,
+            // and the parent decides. `FailAsync` ends the handler there, so the results are read only when all
+            // three succeeded.
             var joined = await context.WaitChildrenAsync([bottom, middle, head], ct);
             foreach (var outcome in joined.Failed)
             {

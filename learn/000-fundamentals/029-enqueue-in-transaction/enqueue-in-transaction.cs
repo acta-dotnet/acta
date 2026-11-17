@@ -37,6 +37,8 @@ var run = Guid.NewGuid().ToString("N")[..8];
 var (kept, dropped) = ($"order-{run}-kept", $"order-{run}-dropped");
 
 // learn: 1. Insert the record and enqueue its job on one transaction
+// `connection` is a `SqliteConnection` the program opens on Acta's own connection string, so the orders table and
+// Acta's tables are in one database.
 // The transaction is yours: Acta writes the job through it and never commits it, rolls it back, or retries it. No
 // worker sees the job before the commit.
 EnqueueJobResponse committed;

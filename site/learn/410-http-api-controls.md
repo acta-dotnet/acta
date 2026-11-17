@@ -25,10 +25,6 @@ app.MapActaApi("/acta/api", options =>
 In `http-api-controls.cs` (excerpt):
 
 ```csharp
-Console.WriteLine("knob: LocalOnly = true        (default: non-loopback or non-localhost requests get 403)");
-Console.WriteLine("knob: ConfigureEndpoints      (hook for RequireAuthorization in production)");
-Console.WriteLine();
-
 app.MapActaApi("/acta/api", options =>
 {
     options.EnableControls = true;
@@ -58,8 +54,6 @@ var appliedResponse = await client.SendAsync(withHeader);
 In `http-api-controls.cs` (excerpt):
 
 ```csharp
-Console.WriteLine($"  -> {(int)rejectedResponse.StatusCode} {rejectedResponse.StatusCode}");
-
 // With X-Acta-Control: true the bodyless call is confirmed and the verb is applied.
 Console.WriteLine();
 Console.WriteLine("POST pause WITH X-Acta-Control: true:");
@@ -71,8 +65,6 @@ Console.WriteLine($"  -> {(int)appliedResponse.StatusCode} {appliedResponse.Stat
 
 var snapshot = await jobs.GetAsync(jobRef);
 Console.WriteLine($"  job status after pause: {snapshot!.Status}");
-
-Console.WriteLine();
 ```
 
 ## 3. The job it acts on
@@ -110,7 +102,7 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## Not in the packages
 
-`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on any of the three databases. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on SQLite, PostgreSQL or SQL Server. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## Next
 

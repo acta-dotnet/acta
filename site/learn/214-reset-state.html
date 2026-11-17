@@ -4,20 +4,20 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>How to start each firing of a recurring job clean · Acta, durable execution for .NET</title>
-  <meta name="description" content="How to start each firing of a recurring job clean with Acta, durable execution for .NET. A permanent job keeps its variables from one firing to the next. ResetStateAsync at the end of a firing clears them, so the next one starts blank." />
+  <meta name="description" content="How to start each firing of a recurring job clean with Acta, durable execution for .NET. A permanent job keeps its variables and step results from one firing to the next. ResetStateAsync as the firing's last line clears them, so the next one starts blank." />
   <link rel="canonical" href="https://useacta.net/learn/214-reset-state" />
   <meta name="theme-color" content="#0B0E15" />
   <meta property="og:type" content="article" />
   <meta property="og:site_name" content="Acta for .NET" />
   <meta property="og:title" content="How to start each firing of a recurring job clean · Acta, durable execution for .NET" />
-  <meta property="og:description" content="How to start each firing of a recurring job clean with Acta, durable execution for .NET. A permanent job keeps its variables from one firing to the next. ResetStateAsync at the end of a firing clears them, so the next one starts blank." />
+  <meta property="og:description" content="How to start each firing of a recurring job clean with Acta, durable execution for .NET. A permanent job keeps its variables and step results from one firing to the next. ResetStateAsync as the firing's last line clears them, so the next one starts blank." />
   <meta property="og:url" content="https://useacta.net/learn/214-reset-state" />
   <meta property="og:image" content="https://useacta.net/assets/social-card.png" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
   <meta property="og:image:alt" content="Acta: durable execution for .NET. Postgres, SQL Server, SQLite." />
   <meta name="twitter:card" content="summary_large_image" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"How to start each firing of a recurring job clean","description":"How to start each firing of a recurring job clean with Acta, durable execution for .NET. A permanent job keeps its variables from one firing to the next. ResetStateAsync at the end of a firing clears them, so the next one starts blank.","url":"https://useacta.net/learn/214-reset-state","inLanguage":"en","articleSection":"Run work on a schedule","isPartOf":{"@type":"CollectionPage","name":"Learn Acta","url":"https://useacta.net/learn"},"about":{"@type":"SoftwareSourceCode","name":"Acta","programmingLanguage":"C#","codeRepository":"https://github.com/acta-dotnet/acta"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"How to start each firing of a recurring job clean","description":"How to start each firing of a recurring job clean with Acta, durable execution for .NET. A permanent job keeps its variables and step results from one firing to the next. ResetStateAsync as the firing's last line clears them, so the next one starts blank.","url":"https://useacta.net/learn/214-reset-state","inLanguage":"en","articleSection":"Run work on a schedule","isPartOf":{"@type":"CollectionPage","name":"Learn Acta","url":"https://useacta.net/learn"},"about":{"@type":"SoftwareSourceCode","name":"Acta","programmingLanguage":"C#","codeRepository":"https://github.com/acta-dotnet/acta"}}</script>
   <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Learn Acta","item":"https://useacta.net/learn"},{"@type":"ListItem","position":2,"name":"Run work on a schedule","item":"https://useacta.net/learn#s-schedule"},{"@type":"ListItem","position":3,"name":"How to start each firing of a recurring job clean","item":"https://useacta.net/learn/214-reset-state"}]}</script>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   <link rel="alternate" type="text/plain" href="/llms.txt" title="Acta for coding agents" />
@@ -61,7 +61,7 @@
     <header class="wrap page-head howto-head">
       <p class="record"><a href="/learn">learn acta</a><span aria-hidden="true">/</span><a href="/learn#s-schedule">run work on a schedule</a></p>
       <h1>How to start each firing of a recurring job clean</h1>
-      <p class="lede">A permanent job keeps its variables from one firing to the next. <code>ResetStateAsync</code> at the end of a firing clears them, so the next one starts blank.</p>
+      <p class="lede">A permanent job keeps its variables and step results from one firing to the next. <code>ResetStateAsync</code> as the firing's last line clears them, so the next one starts blank.</p>
       <p class="howto-context">A how-to for Acta, durable execution for .NET. <a href="/start">New to Acta? Run your first durable job in five minutes.</a></p>
       <div class="howto-meta">
         <span class="status checked">Checked every release</span>
@@ -76,10 +76,8 @@
     <div class="wrap howto-body">
       <article class="howto person-face">
 <div class="step"><h2><span class="step-n">1</span>Clear the job's durable state as the last act of the firing</h2>
-<p>Clear this cycle's durable state so the next fire starts blank.</p>
-<figure class="listing"><figcaption><span class="file">reset-state.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code>Console.WriteLine(<span class="s">$&quot;{DateTime.UtcNow:HH:mm:ss} UTC cycle done  - 3 readings, avg {sum / 3}C&quot;</span>);
-
-<span class="hl"><span class="k">await</span> context.ResetStateAsync(ct);</span></code></pre></figure>
+<p>Clear the firing's durable state as its last line, so the next firing starts blank. Never at the top: a reset there also runs on every retry and replay of the same firing and erases its progress.</p>
+<figure class="listing"><figcaption><span class="file">reset-state.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="hl"><span class="k">await</span> context.ResetStateAsync(ct);</span></code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">2</span>Run it and check the output</h2>
 <p>From a clone of <a href="https://github.com/acta-dotnet/acta">the Acta repository</a>, with the .NET 10 SDK:</p>
@@ -92,9 +90,9 @@ cycle done  - 3 readings, avg</code></pre></figure>
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/learn/200-durable-execution/214-reset-state"><code>learn/200-durable-execution/214-reset-state</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">reset-state.cs</span><span class="file-size">52 lines</span></summary><figure class="listing"><figcaption><span class="file">reset-state.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to start each firing of a recurring job clean</span>
-<span class="c">// A permanent job keeps its variables from one firing to the next. `ResetStateAsync` at the end of a firing clears</span>
-<span class="c">// them, so the next one starts blank.</span>
+<details class="source-file"><summary><span class="file-name">reset-state.cs</span><span class="file-size">53 lines</span></summary><figure class="listing"><figcaption><span class="file">reset-state.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to start each firing of a recurring job clean</span>
+<span class="c">// A permanent job keeps its variables and step results from one firing to the next. `ResetStateAsync` as the</span>
+<span class="c">// firing's last line clears them, so the next one starts blank.</span>
 <span class="k">using</span> Acta;
 <span class="k">using</span> Acta.Learn.ResetState;
 <span class="k">using</span> Microsoft.Extensions.Hosting;
@@ -138,7 +136,8 @@ builder.Services.UseActa(j =&gt;
             Console.WriteLine(<span class="s">$&quot;{DateTime.UtcNow:HH:mm:ss} UTC cycle done  - 3 readings, avg {sum / 3}C&quot;</span>);
 
             <span class="c">// learn: Clear the job's durable state as the last act of the firing</span>
-            <span class="c">// Clear this cycle's durable state so the next fire starts blank.</span>
+            <span class="c">// Clear the firing's durable state as its last line, so the next firing starts blank. Never at the top: a</span>
+            <span class="c">// reset there also runs on every retry and replay of the same firing and erases its progress.</span>
 <span class="hl">            <span class="k">await</span> context.ResetStateAsync(ct);</span>
             <span class="c">// learn: end</span>
         }

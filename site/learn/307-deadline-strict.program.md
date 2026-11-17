@@ -4,7 +4,7 @@ The how-to is [/learn/307-deadline-strict.md](/learn/307-deadline-strict.md). Th
 
 ## Not in the packages
 
-`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on any of the three databases. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on SQLite, PostgreSQL or SQL Server. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## The whole program
 
@@ -64,7 +64,9 @@ namespace Acta.Learn.DeadlineStrict
         // learn: Give the job a deadline
         // Deadline is the whole-job budget measured from creation, stable across retries (unlike 304's
         // ExecutionTimeout, which caps a single attempt). Strict is the default: an overdue job is
-        // cancelled at admission, and a retry that would land past the deadline is refused re-arm.
+        // cancelled at admission, and a retry that would land past the deadline is refused re-arm. To show an
+        // overdue job the program holds the first run past the deadline:
+        // `jobs.ScheduleAsync(new GenerateReport("q3"), TimeSpan.FromSeconds(4))`.
         [Job("generate-report", Deadline = "2s")]
         // learn: end
         public static void Handle(GenerateReport input) =>

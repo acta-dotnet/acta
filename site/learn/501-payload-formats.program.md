@@ -4,7 +4,7 @@ The how-to is [/learn/501-payload-formats.md](/learn/501-payload-formats.md). Th
 
 ## Not in the packages
 
-`UseLocalDatabase` and `LearnLab` are helpers of the Acta repository (`support/`), used so every program runs on any of the three databases and prints its rows. Do not copy them into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` and `LearnLab` are helpers of the Acta repository (`support/`), used so every program runs on SQLite, PostgreSQL or SQL Server and prints its rows. Do not copy them into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## The whole program
 
@@ -12,8 +12,8 @@ The how-to is [/learn/501-payload-formats.md](/learn/501-payload-formats.md). Th
 
 ```csharp
 // How to choose a payload format for a job
-// A job names the format its payload is stored in. This program runs custom formats side by side and compares their
-// serialization time, enqueue time, readability, and stored bytes.
+// A job names the format its payload is stored in: JSON by default, or a format of your own. This program adds two
+// custom formats, `scalar-v1` and `json-gzip`, and runs the same echo job through each.
 using Acta;
 using Acta.Labs;
 using Acta.Learn.PayloadFormats;
@@ -133,7 +133,8 @@ namespace Acta.Learn.PayloadFormats;
 public static class PayloadFormats
 {
     // learn: 1. Give each format a name and an id
-    // The name is what a job writes in its attribute, so it is a constant.
+    // The name is what a job writes in its attribute, so it is a constant. The id is stored with every payload:
+    // pick one from 128 to 255 and never change it. The ids below 128 are Acta's own.
     public const string ScalarV1 = "scalar-v1";
     public const string JsonGzip = "json-gzip";
 

@@ -77,9 +77,7 @@
       <article class="howto person-face">
 <div class="step"><h2><span class="step-n">1</span>Bound the wait and see whether it timed out</h2>
 <p>A slow handler with a short WaitTimeout: outcome.TimedOut is true. The job keeps running on the worker; the caller just stops waiting.</p>
-<figure class="listing"><figcaption><span class="file">call-outcome-timeout.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">await</span> host.StartAsync();
-
-<span class="k">var</span> jobs = host.Services.GetRequiredService&lt;IJobs&gt;();
+<figure class="listing"><figcaption><span class="file">call-outcome-timeout.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">var</span> jobs = host.Services.GetRequiredService&lt;IJobs&gt;();
 
 Console.WriteLine(<span class="s">&quot;--- (a) timeout ---&quot;</span>);
 
@@ -88,27 +86,29 @@ Console.WriteLine(<span class="s">&quot;--- (a) timeout ---&quot;</span>);
 <span class="hl">Console.WriteLine(<span class="s">$&quot;TimedOut: {timedOut.TimedOut}&quot;</span>);</span>
 Console.WriteLine(<span class="s">$&quot;Succeeded: {timedOut.Succeeded}&quot;</span>);
 
-Console.WriteLine(<span class="s">&quot;--- (b) failure ---&quot;</span>);
-
-<span class="k">var</span> failed = <span class="k">await</span> jobs.CallAsync(CallOutcomeTimeoutJobs.FailingReport());
-Console.WriteLine(<span class="s">$&quot;Status: {failed.Status}&quot;</span>);</code></pre></figure>
+Console.WriteLine(<span class="s">&quot;--- (b) failure ---&quot;</span>);</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">2</span>Read a job that failed</h2>
 <p>A failing handler: Status is Failed, ThrowIfFailed throws JobFailedException, and TryGetValue is false.</p>
-<figure class="listing"><figcaption><span class="file">call-outcome-timeout.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">var</span> timedOut = <span class="k">await</span> jobs.CallAsync(CallOutcomeTimeoutJobs.SlowReport(), opts);
-Console.WriteLine(<span class="s">$&quot;TimedOut: {timedOut.TimedOut}&quot;</span>);
-Console.WriteLine(<span class="s">$&quot;Succeeded: {timedOut.Succeeded}&quot;</span>);
-
-Console.WriteLine(<span class="s">&quot;--- (b) failure ---&quot;</span>);
+<figure class="listing"><figcaption><span class="file">call-outcome-timeout.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code>Console.WriteLine(<span class="s">&quot;--- (b) failure ---&quot;</span>);
 
 <span class="hl"><span class="k">var</span> failed = <span class="k">await</span> jobs.CallAsync(CallOutcomeTimeoutJobs.FailingReport());</span>
-<span class="hl">Console.WriteLine(<span class="s">$&quot;Status: {failed.Status}&quot;</span>);</span></code></pre></figure>
+<span class="hl">Console.WriteLine(<span class="s">$&quot;Status: {failed.Status}&quot;</span>);</span>
+<span class="hl"><span class="k">try</span></span>
+<span class="hl">{</span>
+<span class="hl">    failed.ThrowIfFailed();</span>
+<span class="hl">}</span>
+<span class="hl"><span class="k">catch</span> (JobFailedException ex)</span>
+<span class="hl">{</span>
+<span class="hl">    Console.WriteLine(<span class="s">$&quot;ThrowIfFailed threw: {ex.GetType().Name} job={ex.JobRef} status={ex.TerminalStatus}&quot;</span>);</span>
+<span class="hl">}</span>
+<span class="hl">Console.WriteLine(<span class="s">$&quot;TryGetValue: {failed.TryGetValue(out _)}&quot;</span>);</span>
+
+Console.WriteLine(<span class="s">&quot;--- (c) success ---&quot;</span>);</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">3</span>Take the value of a job that succeeded</h2>
-<p>On success, ValueOrThrow returns the handler's result.</p>
-<figure class="listing"><figcaption><span class="file">call-outcome-timeout.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code>Console.WriteLine(<span class="s">$&quot;TryGetValue: {failed.TryGetValue(out _)}&quot;</span>);
-
-Console.WriteLine(<span class="s">&quot;--- (c) success ---&quot;</span>);
+<p>On success, ValueOrThrow returns the handler's result, here the <code>ReportResult(&quot;all clear&quot;)</code> the job returns.</p>
+<figure class="listing"><figcaption><span class="file">call-outcome-timeout.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code>Console.WriteLine(<span class="s">&quot;--- (c) success ---&quot;</span>);
 
 <span class="hl"><span class="k">var</span> success = <span class="k">await</span> jobs.CallAsync(CallOutcomeTimeoutJobs.SuccessReport());</span>
 <span class="hl">Console.WriteLine(<span class="s">$&quot;Succeeded: {success.Succeeded}&quot;</span>);</span>
@@ -181,22 +181,22 @@ Console.WriteLine(<span class="s">&quot;--- (b) failure ---&quot;</span>);
 <span class="c">// A failing handler: Status is Failed, ThrowIfFailed throws JobFailedException, and TryGetValue is false.</span>
 <span class="hl"><span class="k">var</span> failed = <span class="k">await</span> jobs.CallAsync(CallOutcomeTimeoutJobs.FailingReport());</span>
 <span class="hl">Console.WriteLine(<span class="s">$&quot;Status: {failed.Status}&quot;</span>);</span>
+<span class="hl"><span class="k">try</span></span>
+<span class="hl">{</span>
+<span class="hl">    failed.ThrowIfFailed();</span>
+<span class="hl">}</span>
+<span class="hl"><span class="k">catch</span> (JobFailedException ex)</span>
+<span class="hl">{</span>
+<span class="hl">    Console.WriteLine(<span class="s">$&quot;ThrowIfFailed threw: {ex.GetType().Name} job={ex.JobRef} status={ex.TerminalStatus}&quot;</span>);</span>
+<span class="hl">}</span>
+<span class="hl">Console.WriteLine(<span class="s">$&quot;TryGetValue: {failed.TryGetValue(out _)}&quot;</span>);</span>
 
 <span class="c">// learn: end</span>
-<span class="k">try</span>
-{
-    failed.ThrowIfFailed();
-}
-<span class="k">catch</span> (JobFailedException ex)
-{
-    Console.WriteLine(<span class="s">$&quot;ThrowIfFailed threw: {ex.GetType().Name} job={ex.JobRef} status={ex.TerminalStatus}&quot;</span>);
-}
-Console.WriteLine(<span class="s">$&quot;TryGetValue: {failed.TryGetValue(out _)}&quot;</span>);
 
 Console.WriteLine(<span class="s">&quot;--- (c) success ---&quot;</span>);
 
 <span class="c">// learn: 3. Take the value of a job that succeeded</span>
-<span class="c">// On success, ValueOrThrow returns the handler's result.</span>
+<span class="c">// On success, ValueOrThrow returns the handler's result, here the `ReportResult(&quot;all clear&quot;)` the job returns.</span>
 <span class="hl"><span class="k">var</span> success = <span class="k">await</span> jobs.CallAsync(CallOutcomeTimeoutJobs.SuccessReport());</span>
 <span class="hl">Console.WriteLine(<span class="s">$&quot;Succeeded: {success.Succeeded}&quot;</span>);</span>
 <span class="hl"><span class="k">var</span> result = success.ValueOrThrow();</span>

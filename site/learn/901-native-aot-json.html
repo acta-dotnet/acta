@@ -4,20 +4,20 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>How to run jobs under Native AOT · Acta, durable execution for .NET</title>
-  <meta name="description" content="How to run jobs under Native AOT with Acta, durable execution for .NET. A source-generated JsonSerializerContext given to UseJsonPayloads serializes payloads with no runtime reflection, and JobPayload.Json(value, typeInfo) builds a raw payload the same way." />
+  <meta name="description" content="How to run jobs under Native AOT with Acta, durable execution for .NET. A source-generated JsonSerializerContext given to UseJsonPayloads serializes payloads with no runtime reflection, and JobPayload.Json(value, typeInfo) builds a raw payload the same way. The program runs on the JIT: it shows the registration an AOT publish needs, and the publish itself is proven by the repository's own gate." />
   <link rel="canonical" href="https://useacta.net/learn/901-native-aot-json" />
   <meta name="theme-color" content="#0B0E15" />
   <meta property="og:type" content="article" />
   <meta property="og:site_name" content="Acta for .NET" />
   <meta property="og:title" content="How to run jobs under Native AOT · Acta, durable execution for .NET" />
-  <meta property="og:description" content="How to run jobs under Native AOT with Acta, durable execution for .NET. A source-generated JsonSerializerContext given to UseJsonPayloads serializes payloads with no runtime reflection, and JobPayload.Json(value, typeInfo) builds a raw payload the same way." />
+  <meta property="og:description" content="How to run jobs under Native AOT with Acta, durable execution for .NET. A source-generated JsonSerializerContext given to UseJsonPayloads serializes payloads with no runtime reflection, and JobPayload.Json(value, typeInfo) builds a raw payload the same way. The program runs on the JIT: it shows the registration an AOT publish needs, and the publish itself is proven by the repository's own gate." />
   <meta property="og:url" content="https://useacta.net/learn/901-native-aot-json" />
   <meta property="og:image" content="https://useacta.net/assets/social-card.png" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
   <meta property="og:image:alt" content="Acta: durable execution for .NET. Postgres, SQL Server, SQLite." />
   <meta name="twitter:card" content="summary_large_image" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"How to run jobs under Native AOT","description":"How to run jobs under Native AOT with Acta, durable execution for .NET. A source-generated JsonSerializerContext given to UseJsonPayloads serializes payloads with no runtime reflection, and JobPayload.Json(value, typeInfo) builds a raw payload the same way.","url":"https://useacta.net/learn/901-native-aot-json","inLanguage":"en","articleSection":"Deploy and scale","isPartOf":{"@type":"CollectionPage","name":"Learn Acta","url":"https://useacta.net/learn"},"about":{"@type":"SoftwareSourceCode","name":"Acta","programmingLanguage":"C#","codeRepository":"https://github.com/acta-dotnet/acta"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"How to run jobs under Native AOT","description":"How to run jobs under Native AOT with Acta, durable execution for .NET. A source-generated JsonSerializerContext given to UseJsonPayloads serializes payloads with no runtime reflection, and JobPayload.Json(value, typeInfo) builds a raw payload the same way. The program runs on the JIT: it shows the registration an AOT publish needs, and the publish itself is proven by the repository's own gate.","url":"https://useacta.net/learn/901-native-aot-json","inLanguage":"en","articleSection":"Deploy and scale","isPartOf":{"@type":"CollectionPage","name":"Learn Acta","url":"https://useacta.net/learn"},"about":{"@type":"SoftwareSourceCode","name":"Acta","programmingLanguage":"C#","codeRepository":"https://github.com/acta-dotnet/acta"}}</script>
   <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Learn Acta","item":"https://useacta.net/learn"},{"@type":"ListItem","position":2,"name":"Deploy and scale","item":"https://useacta.net/learn#s-deploy"},{"@type":"ListItem","position":3,"name":"How to run jobs under Native AOT","item":"https://useacta.net/learn/901-native-aot-json"}]}</script>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   <link rel="alternate" type="text/plain" href="/llms.txt" title="Acta for coding agents" />
@@ -61,7 +61,7 @@
     <header class="wrap page-head howto-head">
       <p class="record"><a href="/learn">learn acta</a><span aria-hidden="true">/</span><a href="/learn#s-deploy">deploy and scale</a></p>
       <h1>How to run jobs under Native AOT</h1>
-      <p class="lede">A source-generated <code>JsonSerializerContext</code> given to <code>UseJsonPayloads</code> serializes payloads with no runtime reflection, and <code>JobPayload.Json(value, typeInfo)</code> builds a raw payload the same way.</p>
+      <p class="lede">A source-generated <code>JsonSerializerContext</code> given to <code>UseJsonPayloads</code> serializes payloads with no runtime reflection, and <code>JobPayload.Json(value, typeInfo)</code> builds a raw payload the same way. The program runs on the JIT: it shows the registration an AOT publish needs, and the publish itself is proven by the repository's own gate.</p>
       <p class="howto-context">A how-to for Acta, durable execution for .NET. <a href="/start">New to Acta? Run your first durable job in five minutes.</a></p>
       <div class="howto-meta">
         <span class="status checked">Checked every release</span>
@@ -97,9 +97,7 @@ builder.Services.UseActa(j =&gt;
 </div>
 <div class="step"><h2><span class="step-n">3</span>Build a raw payload with its type info</h2>
 <p>JobPayload.Json(value, typeInfo) is the AOT-safe path: the JsonTypeInfo comes from the source-generated context so no runtime reflection touches the payload type.</p>
-<figure class="listing"><figcaption><span class="file">native-aot-json.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">await</span> host.StartAsync();
-
-<span class="k">var</span> jobs = host.Services.GetRequiredService&lt;IJobs&gt;();
+<figure class="listing"><figcaption><span class="file">native-aot-json.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">var</span> jobs = host.Services.GetRequiredService&lt;IJobs&gt;();
 
 Console.WriteLine(<span class="s">&quot;Enqueuing with source-generated type info (no reflection)...&quot;</span>);
 
@@ -122,9 +120,10 @@ Status: Succeeded</code></pre></figure>
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/learn/900-runtime-and-tuning/901-native-aot-json"><code>learn/900-runtime-and-tuning/901-native-aot-json</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">native-aot-json.cs</span><span class="file-size">71 lines</span></summary><figure class="listing"><figcaption><span class="file">native-aot-json.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to run jobs under Native AOT</span>
+<details class="source-file"><summary><span class="file-name">native-aot-json.cs</span><span class="file-size">72 lines</span></summary><figure class="listing"><figcaption><span class="file">native-aot-json.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to run jobs under Native AOT</span>
 <span class="c">// A source-generated `JsonSerializerContext` given to `UseJsonPayloads` serializes payloads with no runtime</span>
-<span class="c">// reflection, and `JobPayload.Json(value, typeInfo)` builds a raw payload the same way.</span>
+<span class="c">// reflection, and `JobPayload.Json(value, typeInfo)` builds a raw payload the same way. The program runs on the JIT:</span>
+<span class="c">// it shows the registration an AOT publish needs, and the publish itself is proven by the repository's own gate.</span>
 
 <span class="c">// The NativeAOT publish itself is proven by the repository's own gate</span>
 <span class="c">// (tests/Acta.Tests/Architecture/NativeAotPublishTests.cs, gated by ACTA_AOT_PUBLISH_TEST), which publishes</span>

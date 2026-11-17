@@ -76,7 +76,7 @@
     <div class="wrap howto-body">
       <article class="howto person-face">
 <div class="step"><h2><span class="step-n">1</span>Cap how many jobs the worker runs at once</h2>
-<p>Cap simultaneous in-flight executions at Cap. Each claim takes only as many rows as there are free executors, so excess work stays Ready in the database until an executor frees. Fixed at startup; not autoscaled.</p>
+<p>Cap simultaneous in-flight executions at Cap. Each claim takes only as many rows as there are free executors, so excess work stays Ready in the database until an executor frees. Fixed at startup; not autoscaled. The program sets <code>Cap</code> to 3.</p>
 <figure class="listing"><figcaption><span class="file">worker-tuning.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code>builder.Services.UseActa(j =&gt;
 {
     j.UseLocalDatabase(builder.Configuration);
@@ -92,7 +92,7 @@
 });</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">2</span>Bound how long an idle worker sleeps</h2>
-<p>Upper bound on idle claim-loop sleep. Minimum allowed value is 1s (the validator rejects lower values as a DB-traffic guard). The wakeup signal fires immediately after the batch enqueue below, so the poll interval is not on the critical path for this run.</p>
+<p>Upper bound on idle claim-loop sleep. 1s is the default and the minimum (the validator rejects lower values as a DB-traffic guard). An enqueue wakes the worker at once, so the interval only matters for work nothing announced.</p>
 <figure class="listing"><figcaption><span class="file">worker-tuning.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code>builder.Services.UseActa(j =&gt;
 {
     j.UseLocalDatabase(builder.Configuration);
@@ -105,9 +105,7 @@
     });
 
     j.Run&lt;WorkerTuningJobs&gt;(<span class="s">&quot;worker-tuning&quot;</span>);
-});
-
-<span class="k">using</span> <span class="k">var</span> host = builder.Build();</code></pre></figure>
+});</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">3</span>The job it acts on</h2>
 <figure class="listing"><figcaption><span class="file">worker-tuning.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">public</span> <span class="k">static</span> <span class="k">int</span> Completed =&gt; Volatile.Read(<span class="k">ref</span> _completed);
@@ -169,14 +167,14 @@ builder.Services.UseActa(j =&gt;
         <span class="c">// learn: 1. Cap how many jobs the worker runs at once</span>
         <span class="c">// Cap simultaneous in-flight executions at Cap. Each claim takes only as many rows as there are</span>
         <span class="c">// free executors, so excess work stays Ready in the database until an executor frees. Fixed at startup;</span>
-        <span class="c">// not autoscaled.</span>
+        <span class="c">// not autoscaled. The program sets `Cap` to 3.</span>
 <span class="hl">        o.MaxConcurrentExecutors = Cap;</span>
         <span class="c">// learn: end</span>
 
         <span class="c">// learn: 2. Bound how long an idle worker sleeps</span>
-        <span class="c">// Upper bound on idle claim-loop sleep. Minimum allowed value is 1s (the validator rejects</span>
-        <span class="c">// lower values as a DB-traffic guard). The wakeup signal fires immediately after the batch</span>
-        <span class="c">// enqueue below, so the poll interval is not on the critical path for this run.</span>
+        <span class="c">// Upper bound on idle claim-loop sleep. 1s is the default and the minimum (the validator rejects</span>
+        <span class="c">// lower values as a DB-traffic guard). An enqueue wakes the worker at once, so the interval only</span>
+        <span class="c">// matters for work nothing announced.</span>
 <span class="hl">        o.SafetyPollInterval = TimeSpan.FromSeconds(1);</span>
         <span class="c">// learn: end</span>
     });

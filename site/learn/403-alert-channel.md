@@ -12,7 +12,7 @@
 
 ## 1. Declare the channel on the worker
 
-Alert channels declare process-local delivery configuration. Alert rows persist only the selected channel name; endpoints and secrets stay in app configuration. MinSeverity = Warning suppresses lower-severity alerts at delivery.
+`w` is the worker builder of `j.Run("alert-channel", w => { w.AddManifest<AlertChannelJobs>(); ... })`, the form of `Run` that takes more than a manifest. Alert channels declare process-local delivery configuration. Alert rows persist only the selected channel name; endpoints and secrets stay in app configuration. MinSeverity = Warning suppresses lower-severity alerts at delivery.
 
 The lines that matter:
 
@@ -95,7 +95,7 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## Not in the packages
 
-`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on any of the three databases. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on SQLite, PostgreSQL or SQL Server. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## Next
 
@@ -103,4 +103,4 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## More
 
-- [The whole program](/learn/403-alert-channel.program.md): every file as compiled, 85 lines.
+- [The whole program](/learn/403-alert-channel.program.md): every file as compiled, 87 lines.

@@ -12,7 +12,7 @@
 
 ## 1. Pause the job from its handler
 
-Resume replays the handler from the top with the job's current input, so the approval is recorded where the replay reads it: the operator amends the input (IJobs.UpdateInputAsync works on a Paused job) and then resumes. A signal (WaitSignalAsync, RaiseSignalAsync) is the other shape of a human-in-the-loop gate.
+`PauseAsync` ends the attempt where it stands and parks the job as `Paused` until someone resumes it. The lines after it run only after the resume, when the handler starts again from its first line.
 
 The lines that matter:
 
@@ -44,6 +44,8 @@ public sealed class ApplyMigrationJob
 ```
 
 ## 2. Record the approval in the input, then resume
+
+Resume replays the handler from the top with the job's current input, so a plain resume would park the job again. The operator records the approval first: `IJobs.UpdateInputAsync` works on a Paused job, and the resume then reads the amended input. `outcome` is the handle the enqueue answered. A signal (`WaitSignalAsync`, `RaiseSignalAsync`) is the other shape of a gate a person opens.
 
 The lines that matter:
 
@@ -88,7 +90,7 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## Not in the packages
 
-`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on any of the three databases. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on SQLite, PostgreSQL or SQL Server. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## Next
 
@@ -96,4 +98,4 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## More
 
-- [The whole program](/learn/303-pause-job.program.md): every file as compiled, 63 lines.
+- [The whole program](/learn/303-pause-job.program.md): every file as compiled, 66 lines.

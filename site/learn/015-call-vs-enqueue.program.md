@@ -4,7 +4,7 @@ The how-to is [/learn/015-call-vs-enqueue.md](/learn/015-call-vs-enqueue.md). Th
 
 ## Not in the packages
 
-`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on any of the three databases. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on SQLite, PostgreSQL or SQL Server. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## The whole program
 
@@ -12,7 +12,7 @@ The how-to is [/learn/015-call-vs-enqueue.md](/learn/015-call-vs-enqueue.md). Th
 
 ```csharp
 // How to choose between starting a job and waiting for it
-// `EnqueueAsync` returns as soon as the job is stored; `CallAsync` enqueues, waits, and returns the result.
+// `EnqueueAsync` returns as soon as the job is stored; `CallAsync` enqueues, waits, and returns the job's outcome.
 using Acta;
 using Acta.Learn.CallVsEnqueue;
 using Microsoft.Extensions.DependencyInjection;
@@ -39,7 +39,9 @@ var enqueued = await jobs.EnqueueAsync(new AddNumbers(1, 1));
 Console.WriteLine($"EnqueueAsync returned right away: job {enqueued.JobRef}, status {(await enqueued.GetStatusAsync())?.Status}");
 
 // learn: 2. Start a job and wait for its result
-// CallAsync enqueues, then waits and returns the result. (See 013-read-result for the read-back path.)
+// CallAsync enqueues, then waits for the job and returns its outcome: `ValueOrThrow()` gives the result, or throws
+// when the job failed or the wait timed out. It holds its caller that long, and a timeout stops only the wait;
+// inside a handler, call `ctx.CallChildAsync` instead (213).
 var executed = await jobs.CallAsync(CallVsEnqueueJobs.AddNumbers(new AddNumbers(2, 2)));
 
 // learn: end

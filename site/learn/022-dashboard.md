@@ -33,10 +33,6 @@ var enableControls = builder.Configuration.GetValue<bool>("Acta:Dashboard:Enable
 app.MapActa("/acta", options => options.EnableControls = enableControls);
 
 await app.StartAsync();
-
-var jobs = app.Services.GetRequiredService<IJobs>();
-var successful = await jobs.EnqueueAsync(new GreetVisitor("successful-visitor"));
-var failed = await jobs.EnqueueAsync(new BrokenImport("broken.csv"));
 ```
 
 ## 2. The job it acts on
@@ -75,7 +71,7 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## Not in the packages
 
-`UseLocalDatabase` and `LearnLab` are helpers of the Acta repository (`support/`), used so every program runs on any of the three databases and prints its rows. Do not copy them into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` and `LearnLab` are helpers of the Acta repository (`support/`), used so every program runs on SQLite, PostgreSQL or SQL Server and prints its rows. Do not copy them into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## Next
 

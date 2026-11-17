@@ -31,6 +31,8 @@ Console.WriteLine("Enqueueing twice in the same 30-minute bucket...");
 
 // learn: 1. Build the key from the time bucket
 // The key carries the bucket its instant falls in, so every enqueue inside the same half hour composes the same key.
+// `bucketSize` is thirty minutes and `instantA` a fixed instant, so the run repeats. `PerHour(job, businessKey)` and
+// `PerDay(job, businessKey)` are the fixed sizes, and every bucket is counted in UTC.
 var keyA1 = DeduplicationKey.PerTimeBucket("nightly-summary", account, instantA, bucketSize);
 var first = await jobs.EnqueueAsync(new NightlySummary("acme"), o => o.DeduplicationKey(keyA1));
 

@@ -77,9 +77,7 @@
       <article class="howto person-face">
 <div class="step"><h2><span class="step-n">1</span>Ask whether a result exists yet</h2>
 <p>Both reads are point-in-time and never wait. <code>TryGetResultAsync</code> says whether a result exists yet.</p>
-<figure class="listing"><figcaption><span class="file">read-result.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">await</span> host.StartAsync();
-
-<span class="k">var</span> jobs = host.Services.GetRequiredService&lt;IJobs&gt;();
+<figure class="listing"><figcaption><span class="file">read-result.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">var</span> jobs = host.Services.GetRequiredService&lt;IJobs&gt;();
 
 <span class="k">var</span> handle = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> AddNumbers(20, 22));
 

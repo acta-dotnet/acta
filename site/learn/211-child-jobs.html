@@ -88,7 +88,7 @@
 }</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">2</span>Wait for all of them, and decide what a failed child means</h2>
-<p>The parent suspends, holding no executor, until every child is terminal. A failed child does not throw here: the wait lists it, and the parent decides.</p>
+<p>The parent parks, holding no executor, and wakes as the children it waits on land, so it can run again more than once before every child is terminal. A failed child does not throw here: the wait lists it, and the parent decides. <code>FailAsync</code> ends the handler there, so the results are read only when all three succeeded.</p>
 <figure class="listing"><figcaption><span class="file">child-jobs.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">var</span> bottom = <span class="k">await</span> context.EnqueueChildAsync(<span class="s">&quot;bottom&quot;</span>, <span class="k">new</span> RollSnowball(<span class="s">&quot;bottom&quot;</span>, input.FailPart == <span class="s">&quot;bottom&quot;</span>), ct);
 <span class="k">var</span> middle = <span class="k">await</span> context.EnqueueChildAsync(<span class="s">&quot;middle&quot;</span>, <span class="k">new</span> RollSnowball(<span class="s">&quot;middle&quot;</span>, input.FailPart == <span class="s">&quot;middle&quot;</span>), ct);
 <span class="k">var</span> head = <span class="k">await</span> context.EnqueueChildAsync(<span class="s">&quot;head&quot;</span>, <span class="k">new</span> RollSnowball(<span class="s">&quot;head&quot;</span>, input.FailPart == <span class="s">&quot;head&quot;</span>), ct);
@@ -101,9 +101,7 @@
 
 <span class="k">var</span> b = <span class="k">await</span> context.GetChildResultAsync&lt;Snowball&gt;(bottom.JobId, ct);
 <span class="k">var</span> m = <span class="k">await</span> context.GetChildResultAsync&lt;Snowball&gt;(middle.JobId, ct);
-<span class="k">var</span> h = <span class="k">await</span> context.GetChildResultAsync&lt;Snowball&gt;(head.JobId, ct);
-
-<span class="k">var</span> height = b.Diameter + m.Diameter + h.Diameter;</code></pre></figure>
+<span class="k">var</span> h = <span class="k">await</span> context.GetChildResultAsync&lt;Snowball&gt;(head.JobId, ct);</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">3</span>Read each child's result</h2>
 <figure class="listing"><figcaption><span class="file">child-jobs.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">var</span> joined = <span class="k">await</span> context.WaitChildrenAsync([bottom, middle, head], ct);
@@ -156,7 +154,7 @@ snowman finished: FinishedSnowman { Name = Frosty, HeightCm = 120 }</code></pre>
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/learn/200-durable-execution/211-child-jobs"><code>learn/200-durable-execution/211-child-jobs</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> and <code>LearnLab</code> are helpers of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">child-jobs.cs</span><span class="file-size">207 lines</span></summary><figure class="listing"><figcaption><span class="file">child-jobs.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to start child jobs and wait for them</span>
+<details class="source-file"><summary><span class="file-name">child-jobs.cs</span><span class="file-size">209 lines</span></summary><figure class="listing"><figcaption><span class="file">child-jobs.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to start child jobs and wait for them</span>
 <span class="c">// A parent starts child jobs by name, suspends without holding a worker until every child has finished, and reads</span>
 <span class="c">// their results.</span>
 <span class="k">using</span> Acta;
@@ -324,8 +322,10 @@ builder.Services.UseActa(j =&gt;
             <span class="c">// learn: end</span>
 
             <span class="c">// learn: 2. Wait for all of them, and decide what a failed child means</span>
-            <span class="c">// The parent suspends, holding no executor, until every child is terminal. A failed child does not throw</span>
-            <span class="c">// here: the wait lists it, and the parent decides.</span>
+            <span class="c">// The parent parks, holding no executor, and wakes as the children it waits on land, so it can run again</span>
+            <span class="c">// more than once before every child is terminal. A failed child does not throw here: the wait lists it,</span>
+            <span class="c">// and the parent decides. `FailAsync` ends the handler there, so the results are read only when all</span>
+            <span class="c">// three succeeded.</span>
 <span class="hl">            <span class="k">var</span> joined = <span class="k">await</span> context.WaitChildrenAsync([bottom, middle, head], ct);</span>
 <span class="hl">            <span class="k">foreach</span> (<span class="k">var</span> outcome <span class="k">in</span> joined.Failed)</span>
 <span class="hl">            {</span>

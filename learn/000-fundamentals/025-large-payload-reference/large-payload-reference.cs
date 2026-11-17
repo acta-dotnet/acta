@@ -64,7 +64,7 @@ namespace Acta.Learn.LargePayloadReference
             var sha256 = Convert.ToHexStringLower(SHA256.HashData(bytes));
             if (bytes.LongLength != input.SizeBytes || sha256 != input.Sha256)
             {
-                // A mismatched reference will not fix itself on retry - fail loudly.
+                // A plain throw is retried under the job's budget; `ctx.FailAsync` fails a mismatch for good.
                 throw new InvalidOperationException($"Reference {input.BlobUri} failed size/checksum verification.");
             }
             // learn: end

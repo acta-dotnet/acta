@@ -76,10 +76,8 @@
     <div class="wrap howto-body">
       <article class="howto person-face">
 <div class="step"><h2><span class="step-n">1</span>Insert the record and enqueue its job on one transaction</h2>
-<p>The transaction is yours: Acta writes the job through it and never commits it, rolls it back, or retries it. No worker sees the job before the commit.</p>
-<figure class="listing"><figcaption><span class="file">enqueue-in-transaction.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">await</span> ExecuteAsync(<span class="k">null</span>, <span class="s">&quot;CREATE TABLE IF NOT EXISTS shop_orders (order_id TEXT PRIMARY KEY)&quot;</span>);
-
-<span class="c">// A run of its own, so a second run against the same file adds its own two orders.</span>
+<p><code>connection</code> is a <code>SqliteConnection</code> the program opens on Acta's own connection string, so the orders table and Acta's tables are in one database. The transaction is yours: Acta writes the job through it and never commits it, rolls it back, or retries it. No worker sees the job before the commit.</p>
+<figure class="listing"><figcaption><span class="file">enqueue-in-transaction.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// A run of its own, so a second run against the same file adds its own two orders.</span>
 <span class="k">var</span> run = Guid.NewGuid().ToString(<span class="s">&quot;N&quot;</span>)[..8];
 <span class="k">var</span> (kept, dropped) = (<span class="s">$&quot;order-{run}-kept&quot;</span>, <span class="s">$&quot;order-{run}-dropped&quot;</span>);
 
@@ -89,9 +87,7 @@
 <span class="hl">    <span class="k">await</span> ExecuteAsync(transaction, <span class="s">&quot;INSERT INTO shop_orders (order_id) VALUES (@id)&quot;</span>, kept);</span>
 <span class="hl">    committed = <span class="k">await</span> jobs.EnqueueAsync(transaction, <span class="k">new</span> FulfilOrder(kept));</span>
 <span class="hl">    <span class="k">await</span> transaction.CommitAsync();</span>
-<span class="hl">}</span>
-
-EnqueueJobResponse rolledBack;</code></pre></figure>
+<span class="hl">}</span></code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">2</span>Roll back, and neither the record nor the job exists</h2>
 <p>The answer of an enqueue is provisional until the commit. After a rollback its job ref names nothing.</p>
@@ -129,7 +125,7 @@ rolled back: order row no, job none</code></pre></figure>
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/learn/000-fundamentals/029-enqueue-in-transaction"><code>learn/000-fundamentals/029-enqueue-in-transaction</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">enqueue-in-transaction.cs</span><span class="file-size">101 lines</span></summary><figure class="listing"><figcaption><span class="file">enqueue-in-transaction.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to save a record and start its job in one transaction</span>
+<details class="source-file"><summary><span class="file-name">enqueue-in-transaction.cs</span><span class="file-size">103 lines</span></summary><figure class="listing"><figcaption><span class="file">enqueue-in-transaction.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to save a record and start its job in one transaction</span>
 <span class="c">// `EnqueueAsync` takes your open transaction, so the order row and the job that fulfils it commit together, or</span>
 <span class="c">// neither exists.</span>
 <span class="k">using</span> Acta;
@@ -168,6 +164,8 @@ builder.Services.UseActa(j =&gt;
 <span class="k">var</span> (kept, dropped) = (<span class="s">$&quot;order-{run}-kept&quot;</span>, <span class="s">$&quot;order-{run}-dropped&quot;</span>);
 
 <span class="c">// learn: 1. Insert the record and enqueue its job on one transaction</span>
+<span class="c">// `connection` is a `SqliteConnection` the program opens on Acta's own connection string, so the orders table and</span>
+<span class="c">// Acta's tables are in one database.</span>
 <span class="c">// The transaction is yours: Acta writes the job through it and never commits it, rolls it back, or retries it. No</span>
 <span class="c">// worker sees the job before the commit.</span>
 <span class="hl">EnqueueJobResponse committed;</span>

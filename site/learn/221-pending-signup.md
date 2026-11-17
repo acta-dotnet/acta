@@ -12,7 +12,7 @@ The job is the pending sign-up: Acta stores its input, a signal confirms it, and
 
 ## 1. Wait for the confirmation, with a deadline
 
-The wait is a row with its deadline stored in the database, so no process has to stay alive for it. When nobody confirms in time, the job cancels itself: no user was ever written, so there is nothing to undo.
+The wait is a row with its deadline stored in the database, so no process has to stay alive for it. When nobody confirms in time, the job cancels itself: no user was ever written, so there is nothing to undo. `CancelAsync` ends the handler there, so the lines after it run only for a confirmed sign-up.
 
 `pending-signup.cs` (excerpt):
 
@@ -29,30 +29,9 @@ if (confirmed.TimedOut)
 
 Only now does the sign-up become a real user. The insert is keyed by the email, so a repeat of the step adds nothing.
 
-The lines that matter:
+`pending-signup.cs` (excerpt):
 
 ```csharp
-await ctx.RunStepAsync(
-    "create-user",
-    _ =>
-    {
-        users.CreateIfAbsent(input.Email, input.DisplayName);
-        Console.WriteLine($"[{input.Email}] user created");
-        return Task.CompletedTask;
-    },
-    ct
-);
-```
-
-In `pending-signup.cs` (excerpt):
-
-```csharp
-if (confirmed.TimedOut)
-{
-    Console.WriteLine($"[{input.Email}] not confirmed in time");
-    await ctx.CancelAsync("not confirmed in time", ct);
-}
-
 await ctx.RunStepAsync(
     "create-user",
     _ =>
@@ -86,8 +65,6 @@ var users = host.Services.GetRequiredService<UserStore>();
 
 var ada = await jobs.EnqueueAsync(new RegisterUser("ada@example.com", "Ada", "c0ffee", TimeSpan.FromHours(24)));
 var sam = await jobs.EnqueueAsync(new RegisterUser("sam@example.com", "Sam", "decade", TimeSpan.FromSeconds(2)));
-
-using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
 ```
 
 ## 4. Confirm it from the link in the email
@@ -153,9 +130,9 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 - Nothing real exists until `create-user` runs. An unconfirmed sign-up ends as a cancelled job and leaves no half-made account behind.
 - The deadline is stored once, as database time plus the timeout. Restarts and downtime never make it longer.
-- The handler runs from the top after the confirmation. The email is not sent again, because `send-confirmation` already has a recorded outcome.
+- The handler runs from the top after the confirmation. The email is not sent again, because the step that sends it already has a recorded outcome.
 - Make `create-user` safe to repeat: insert only when the address is absent. A crash right after the insert runs the step again, and two submits of the form end as one account.
-- A finished job is kept with its input for its retention period: ninety days by default, seven here. Keep the input to what the work needs when it holds personal data.
+- A finished job is kept with its input for its retention period: ninety days by default, seven here, through `[Job("register-user", JobRetention = "7d")]`. Keep the input to what the work needs when it holds personal data.
 - In a web app the confirm link opens a page with a Confirm button that posts: mail scanners fetch the links they see, and a fetch must not confirm anything.
 
 ## Check yourself
@@ -173,7 +150,7 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## Not in the packages
 
-`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on any of the three databases. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on SQLite, PostgreSQL or SQL Server. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## Next
 
@@ -181,4 +158,4 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## More
 
-- [The whole program](/learn/221-pending-signup.program.md): every file as compiled, 122 lines.
+- [The whole program](/learn/221-pending-signup.program.md): every file as compiled, 123 lines.

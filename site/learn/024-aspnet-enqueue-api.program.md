@@ -4,7 +4,7 @@ The how-to is [/learn/024-aspnet-enqueue-api.md](/learn/024-aspnet-enqueue-api.m
 
 ## Not in the packages
 
-`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on any of the three databases. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on SQLite, PostgreSQL or SQL Server. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## The whole program
 
@@ -60,7 +60,8 @@ app.MapGet("/imports/{jobRef}", async (string jobRef, IJobs jobs, CancellationTo
 
     // learn: 2. Read the status, and the result once the job has finished
     // `GetAsync` answers null for a ref that names no job. A result exists only once the job has succeeded, so the
-    // read waits for a terminal status.
+    // endpoint reads it only when the status is terminal; neither read waits. `parsed` is the route's text turned
+    // into a `JobRef` by `JobRef.TryParse`.
     var snapshot = await jobs.GetAsync(parsed, ct);
     if (snapshot is null)
     {

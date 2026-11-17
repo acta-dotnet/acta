@@ -1,5 +1,6 @@
 // How to call another job and use its result
-// `CallChildAsync` starts another job as a child, waits for it without holding a worker, and returns its result.
+// `CallChildAsync` starts another job as a child, waits for it without holding a worker, and returns its outcome,
+// whose `ValueOrThrow()` is the result.
 using Acta;
 using Acta.Learn.CallChild;
 using Microsoft.Extensions.DependencyInjection;

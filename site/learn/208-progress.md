@@ -1,6 +1,6 @@
 # How to report how far along a job is
 
-`SetProgressAsync` stores how far the job has come, where a status page or the dashboard reads it while the job runs.
+`SetProgressAsync` stores how far the job has come as the checkpoint `sys.progress`, which the dashboard lists while the job runs.
 
 - Section: Make work survive a crash, step 7
 - Program: `learn/200-durable-execution/208-progress` in https://github.com/acta-dotnet/acta (one compiled project)
@@ -12,7 +12,7 @@
 
 ## 1. Store the progress as the work advances
 
-Writes durable state read out-of-band (the sys.progress checkpoint), not by the caller.
+Each call replaces the last value. The dashboard shows it with the job's checkpoints; a page of your own reads a variable instead (415).
 
 The lines that matter:
 
@@ -66,7 +66,7 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## Not in the packages
 
-`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on any of the three databases. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on SQLite, PostgreSQL or SQL Server. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## Next
 
@@ -74,4 +74,4 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## More
 
-- [The whole program](/learn/208-progress.program.md): every file as compiled, 56 lines.
+- [The whole program](/learn/208-progress.program.md): every file as compiled, 57 lines.

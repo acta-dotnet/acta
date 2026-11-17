@@ -4,7 +4,7 @@ The how-to is [/learn/110-per-occurrence-delivery.md](/learn/110-per-occurrence-
 
 ## Not in the packages
 
-`UseLocalDatabase` and `LearnLab` are helpers of the Acta repository (`support/`), used so every program runs on any of the three databases and prints its rows. Do not copy them into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` and `LearnLab` are helpers of the Acta repository (`support/`), used so every program runs on SQLite, PostgreSQL or SQL Server and prints its rows. Do not copy them into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## The whole program
 
@@ -128,7 +128,9 @@ namespace Acta.Learn.PerOccurrenceDelivery
         // learn: Deliver each occurrence as a job of its own
         // Each occurrence is an ordinary root job with a ref, retries, and result of its own.
         // `MaxOutstanding` bounds how many may be unfinished at once, and a full schedule set to `Drop` skips an
-        // occurrence, audited as `schedule.skipped` with the reason `capacity`.
+        // occurrence, audited as `schedule.skipped` with the reason `capacity`. Unset, `MaxOutstanding` is 1 and
+        // `FullBehavior` is `Wait`, which holds an occurrence until one finishes. The body here only counts how
+        // many run at once; a job of your own does the occurrence's work there.
         [Job("import-files", ScheduledDelivery = ScheduledDeliveryCode.PerOccurrence)]
         [Schedule("every-second", "PT1S", MaxOutstanding = 2, FullBehavior = ScheduleFullBehaviorCode.Drop)]
         // learn: end

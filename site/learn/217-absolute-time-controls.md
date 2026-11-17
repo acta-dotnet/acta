@@ -35,11 +35,6 @@ var runAt = now.AddSeconds(2);
 Console.WriteLine($"Part 1 - ScheduleAsync: enqueuing GenerateReport to run at {runAt:HH:mm:ss.fff} UTC");
 var report = await jobs.ScheduleAsync(new GenerateReport("q1", SleepUntil: now.AddSeconds(4)), runAt);
 Console.WriteLine($"  job {report.JobRef} is Ready, due later; worker will not claim it before {runAt:HH:mm:ss.fff}");
-
-// --- Part 2: RescheduleUntilAsync ---
-// The polling job starts immediately, parks itself until a specific instant on the first run,
-// then observes readiness and completes on the second run.
-var rescheduleAt = now.AddSeconds(2);
 ```
 
 ## 2. Pause a handler until an instant
@@ -73,7 +68,7 @@ public sealed class ReportJob
 
 ## 3. Run the handler again at an instant, without spending a retry
 
-RescheduleUntilAsync re-arms the job to an absolute instant without burning the retry budget; the handler restarts from the top on the next claim.
+RescheduleUntilAsync re-arms the job to an absolute instant without burning the retry budget; the handler restarts from the top on the next claim. The call ends this execution there, so the line after the `if` runs only on the run it schedules.
 
 The lines that matter:
 
@@ -127,7 +122,7 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## Not in the packages
 
-`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on any of the three databases. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on SQLite, PostgreSQL or SQL Server. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## Next
 
@@ -135,4 +130,4 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## More
 
-- [The whole program](/learn/217-absolute-time-controls.program.md): every file as compiled, 99 lines.
+- [The whole program](/learn/217-absolute-time-controls.program.md): every file as compiled, 100 lines.

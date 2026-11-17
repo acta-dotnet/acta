@@ -81,7 +81,9 @@ Console.WriteLine("=== GetOverviewAsync (system-wide) ===");
 
 // learn: 3. Read the health counters
 // GetOverviewAsync: one-shot health counters for the whole system.
-// Schedules, workers, and alert lists also exist on IJobs; event-timeline depth lives in how-to 404.
+// Schedules, workers, and alerts are listed through `operations.Schedules`, `operations.Workers` and
+// `operations.Alerts`; the event timeline is how-to 404. `queries` above and `operations` here are the same
+// `IActaOperations` from the host's services.
 var overview = await operations.Ledger.GetOverviewAsync(new GetOverviewQuery());
 
 // learn: end

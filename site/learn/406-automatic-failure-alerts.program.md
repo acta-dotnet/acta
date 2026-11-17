@@ -4,7 +4,7 @@ The how-to is [/learn/406-automatic-failure-alerts.md](/learn/406-automatic-fail
 
 ## Not in the packages
 
-`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on any of the three databases. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on SQLite, PostgreSQL or SQL Server. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## The whole program
 
@@ -104,8 +104,8 @@ namespace Acta.Learn.AutomaticFailureAlerts
         // AlertProfile = OnFailure + AlertChannelName routes automatic alerts to the "default"
         // log channel. RunbookUrl surfaces on the delivered alert log line (LogAlertTransport prints
         // runbook=...), not on list queries.
-        // Backoff = 0s skips wait between retries; the 2 s delay in the handler
-        // gives the driver a window to cancel during the third attempt.
+        // Backoff = 0s skips the wait between retries. The program cancels the job during its third
+        // attempt, so the alert stays at the FirstFailure stage.
         [Job(
             "process-report",
             AlertProfile = AlertProfileCode.OnFailure,

@@ -90,9 +90,7 @@
 </div>
 <div class="step"><h2><span class="step-n">2</span>Delete a variable, and check whether one is there</h2>
 <p>DeleteVariableAsync removes the variable; Exists is false immediately after.</p>
-<figure class="listing"><figcaption><span class="file">variable-lifecycle.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code>Console.WriteLine(<span class="s">$&quot;get-or-set: v1={v1} v2={v2} factory-calls={factoryCalls}&quot;</span>);
-
-<span class="c">// ExistsVariableAsync: the variable is present right after get-or-set.</span>
+<figure class="listing"><figcaption><span class="file">variable-lifecycle.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// ExistsVariableAsync: the variable is present right after get-or-set.</span>
 <span class="k">var</span> existsBefore = <span class="k">await</span> context.ExistsVariableAsync(<span class="s">&quot;counter&quot;</span>, ct);
 Console.WriteLine(<span class="s">$&quot;exists before delete: {existsBefore}&quot;</span>);
 
@@ -105,19 +103,12 @@ Console.WriteLine(<span class="s">$&quot;default fallback: {fallback}&quot;</spa
 </div>
 <div class="step"><h2><span class="step-n">3</span>Read a variable that may not be there</h2>
 <p>GetVariableOrDefaultAsync with a default value: absent variable returns the supplied default.</p>
-<figure class="listing"><figcaption><span class="file">variable-lifecycle.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code>Console.WriteLine(<span class="s">$&quot;exists before delete: {existsBefore}&quot;</span>);
-
-<span class="k">await</span> context.DeleteVariableAsync(<span class="s">&quot;counter&quot;</span>, ct);
+<figure class="listing"><figcaption><span class="file">variable-lifecycle.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">await</span> context.DeleteVariableAsync(<span class="s">&quot;counter&quot;</span>, ct);
 <span class="k">var</span> existsAfter = <span class="k">await</span> context.ExistsVariableAsync(<span class="s">&quot;counter&quot;</span>, ct);
 Console.WriteLine(<span class="s">$&quot;exists after delete: {existsAfter}&quot;</span>);
 
 <span class="hl"><span class="k">var</span> fallback = <span class="k">await</span> context.GetVariableOrDefaultAsync(<span class="s">&quot;counter&quot;</span>, <span class="s">&quot;missing&quot;</span>, ct);</span>
-Console.WriteLine(<span class="s">$&quot;default fallback: {fallback}&quot;</span>);
-
-<span class="c">// Raw JobPayload variable: store a pre-serialized payload; the format travels with the value.</span>
-<span class="k">var</span> raw = JobPayload.Json(<span class="s">&quot;raw-value&quot;</span>);
-<span class="k">await</span> context.SetVariableAsync(<span class="s">&quot;raw-var&quot;</span>, raw, ct);
-<span class="k">var</span> rawBack = <span class="k">await</span> context.GetVariableOrDefaultAsync&lt;<span class="k">string</span>&gt;(<span class="s">&quot;raw-var&quot;</span>, ct);</code></pre></figure>
+Console.WriteLine(<span class="s">$&quot;default fallback: {fallback}&quot;</span>);</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">4</span>Run it and check the output</h2>
 <p>From a clone of <a href="https://github.com/acta-dotnet/acta">the Acta repository</a>, with the .NET 10 SDK:</p>

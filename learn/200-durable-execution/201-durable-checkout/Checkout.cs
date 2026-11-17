@@ -18,7 +18,8 @@ public sealed class CheckoutJob
         {
             // learn: 1. Wait for the review before anything is charged
             // No thread or executor waits here. Acta stores the signal checkpoint, releases the lease,
-            // and re-enters this handler from the top after another actor raises the signal.
+            // and re-enters this handler from the top after another actor raises the signal. `CancelAsync`
+            // ends the handler there, so the lines after it run only for an approved order.
             var decision = await context.WaitSignalAsync<FraudDecision>("fraud-review", ct);
             if (decision is not { Approved: true })
             {

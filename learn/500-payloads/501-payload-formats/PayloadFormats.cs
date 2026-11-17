@@ -8,7 +8,8 @@ namespace Acta.Learn.PayloadFormats;
 public static class PayloadFormats
 {
     // learn: 1. Give each format a name and an id
-    // The name is what a job writes in its attribute, so it is a constant.
+    // The name is what a job writes in its attribute, so it is a constant. The id is stored with every payload:
+    // pick one from 128 to 255 and never change it. The ids below 128 are Acta's own.
     public const string ScalarV1 = "scalar-v1";
     public const string JsonGzip = "json-gzip";
 

@@ -1,6 +1,6 @@
 # How to test the first-job guide's app
 
-The first-job guide's test verbatim: the real runtime on a throwaway SQLite file, driven one tick at a time, with a retry made due at once.
+The test of the first-job app ([026-first-job](/learn/026-first-job.md)), as the first-job guide shows it: the real runtime on a throwaway SQLite file, driven one tick at a time, with a retry made due at once.
 
 - Section: Test without sleeps or polling, step 3
 - Program: `learn/800-testing/803-first-job-tests` in https://github.com/acta-dotnet/acta (one compiled project)
@@ -14,7 +14,7 @@ The first-job guide's test verbatim: the real runtime on a throwaway SQLite file
 
 The real runtime on a throwaway SQLite file; no claim loop runs, so nothing executes until a test drives a tick.
 
-`ShippingTests.cs` (excerpt):
+The lines that matter:
 
 ```csharp
 _host = await ActaTestHost.StartAsync(
@@ -30,6 +30,29 @@ _host = await ActaTestHost.StartAsync(
     new ActaTestHostOptions { ConfigureServices = services => services.AddSingleton(_carrier).AddSingleton(_printer) },
     Ct
 );
+```
+
+In `ShippingTests.cs` (excerpt):
+
+```csharp
+private static CancellationToken Ct => TestContext.Current.CancellationToken;
+
+public async ValueTask InitializeAsync()
+{
+    _host = await ActaTestHost.StartAsync(
+        (j, _) =>
+        {
+            j.UseSqlite(sqlite =>
+            {
+                sqlite.ConnectionString = $"Data Source={_database}";
+                sqlite.MigrateOnStartup = true;
+            });
+            j.Run<ShippingJobs>("shipping");
+        },
+        new ActaTestHostOptions { ConfigureServices = services => services.AddSingleton(_carrier).AddSingleton(_printer) },
+        Ct
+    );
+}
 ```
 
 ## 2. Drive one tick and read the typed result

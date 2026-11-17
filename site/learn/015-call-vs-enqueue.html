@@ -4,20 +4,20 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>How to choose between starting a job and waiting for it · Acta, durable execution for .NET</title>
-  <meta name="description" content="How to choose between starting a job and waiting for it with Acta, durable execution for .NET. EnqueueAsync returns as soon as the job is stored; CallAsync enqueues, waits, and returns the result." />
+  <meta name="description" content="How to choose between starting a job and waiting for it with Acta, durable execution for .NET. EnqueueAsync returns as soon as the job is stored; CallAsync enqueues, waits, and returns the job's outcome." />
   <link rel="canonical" href="https://useacta.net/learn/015-call-vs-enqueue" />
   <meta name="theme-color" content="#0B0E15" />
   <meta property="og:type" content="article" />
   <meta property="og:site_name" content="Acta for .NET" />
   <meta property="og:title" content="How to choose between starting a job and waiting for it · Acta, durable execution for .NET" />
-  <meta property="og:description" content="How to choose between starting a job and waiting for it with Acta, durable execution for .NET. EnqueueAsync returns as soon as the job is stored; CallAsync enqueues, waits, and returns the result." />
+  <meta property="og:description" content="How to choose between starting a job and waiting for it with Acta, durable execution for .NET. EnqueueAsync returns as soon as the job is stored; CallAsync enqueues, waits, and returns the job's outcome." />
   <meta property="og:url" content="https://useacta.net/learn/015-call-vs-enqueue" />
   <meta property="og:image" content="https://useacta.net/assets/social-card.png" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
   <meta property="og:image:alt" content="Acta: durable execution for .NET. Postgres, SQL Server, SQLite." />
   <meta name="twitter:card" content="summary_large_image" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"How to choose between starting a job and waiting for it","description":"How to choose between starting a job and waiting for it with Acta, durable execution for .NET. EnqueueAsync returns as soon as the job is stored; CallAsync enqueues, waits, and returns the result.","url":"https://useacta.net/learn/015-call-vs-enqueue","inLanguage":"en","articleSection":"Start jobs","isPartOf":{"@type":"CollectionPage","name":"Learn Acta","url":"https://useacta.net/learn"},"about":{"@type":"SoftwareSourceCode","name":"Acta","programmingLanguage":"C#","codeRepository":"https://github.com/acta-dotnet/acta"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"How to choose between starting a job and waiting for it","description":"How to choose between starting a job and waiting for it with Acta, durable execution for .NET. EnqueueAsync returns as soon as the job is stored; CallAsync enqueues, waits, and returns the job's outcome.","url":"https://useacta.net/learn/015-call-vs-enqueue","inLanguage":"en","articleSection":"Start jobs","isPartOf":{"@type":"CollectionPage","name":"Learn Acta","url":"https://useacta.net/learn"},"about":{"@type":"SoftwareSourceCode","name":"Acta","programmingLanguage":"C#","codeRepository":"https://github.com/acta-dotnet/acta"}}</script>
   <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Learn Acta","item":"https://useacta.net/learn"},{"@type":"ListItem","position":2,"name":"Start jobs","item":"https://useacta.net/learn#s-start"},{"@type":"ListItem","position":3,"name":"How to choose between starting a job and waiting for it","item":"https://useacta.net/learn/015-call-vs-enqueue"}]}</script>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   <link rel="alternate" type="text/plain" href="/llms.txt" title="Acta for coding agents" />
@@ -61,7 +61,7 @@
     <header class="wrap page-head howto-head">
       <p class="record"><a href="/learn">learn acta</a><span aria-hidden="true">/</span><a href="/learn#s-start">start jobs</a></p>
       <h1>How to choose between starting a job and waiting for it</h1>
-      <p class="lede"><code>EnqueueAsync</code> returns as soon as the job is stored; <code>CallAsync</code> enqueues, waits, and returns the result.</p>
+      <p class="lede"><code>EnqueueAsync</code> returns as soon as the job is stored; <code>CallAsync</code> enqueues, waits, and returns the job's outcome.</p>
       <p class="howto-context">A how-to for Acta, durable execution for .NET. <a href="/start">New to Acta? Run your first durable job in five minutes.</a></p>
       <div class="howto-meta">
         <span class="status checked">Checked every release</span>
@@ -91,7 +91,7 @@ Console.WriteLine(<span class="s">$&quot;CallAsync waited and returned: job {exe
 <span class="k">await</span> host.StopAsync();</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">2</span>Start a job and wait for its result</h2>
-<p>CallAsync enqueues, then waits and returns the result. (See 013-read-result for the read-back path.)</p>
+<p>CallAsync enqueues, then waits for the job and returns its outcome: <code>ValueOrThrow()</code> gives the result, or throws when the job failed or the wait timed out. It holds its caller that long, and a timeout stops only the wait; inside a handler, call <code>ctx.CallChildAsync</code> instead (213).</p>
 <figure class="listing"><figcaption><span class="file">call-vs-enqueue.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">var</span> jobs = host.Services.GetRequiredService&lt;IJobs&gt;();
 
 <span class="k">var</span> enqueued = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> AddNumbers(1, 1));
@@ -125,8 +125,8 @@ CallAsync waited and returned
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/learn/000-fundamentals/015-call-vs-enqueue"><code>learn/000-fundamentals/015-call-vs-enqueue</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">call-vs-enqueue.cs</span><span class="file-size">52 lines</span></summary><figure class="listing"><figcaption><span class="file">call-vs-enqueue.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to choose between starting a job and waiting for it</span>
-<span class="c">// `EnqueueAsync` returns as soon as the job is stored; `CallAsync` enqueues, waits, and returns the result.</span>
+<details class="source-file"><summary><span class="file-name">call-vs-enqueue.cs</span><span class="file-size">54 lines</span></summary><figure class="listing"><figcaption><span class="file">call-vs-enqueue.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to choose between starting a job and waiting for it</span>
+<span class="c">// `EnqueueAsync` returns as soon as the job is stored; `CallAsync` enqueues, waits, and returns the job's outcome.</span>
 <span class="k">using</span> Acta;
 <span class="k">using</span> Acta.Learn.CallVsEnqueue;
 <span class="k">using</span> Microsoft.Extensions.DependencyInjection;
@@ -153,7 +153,9 @@ builder.Services.UseActa(j =&gt;
 Console.WriteLine(<span class="s">$&quot;EnqueueAsync returned right away: job {enqueued.JobRef}, status {(await enqueued.GetStatusAsync())?.Status}&quot;</span>);
 
 <span class="c">// learn: 2. Start a job and wait for its result</span>
-<span class="c">// CallAsync enqueues, then waits and returns the result. (See 013-read-result for the read-back path.)</span>
+<span class="c">// CallAsync enqueues, then waits for the job and returns its outcome: `ValueOrThrow()` gives the result, or throws</span>
+<span class="c">// when the job failed or the wait timed out. It holds its caller that long, and a timeout stops only the wait;</span>
+<span class="c">// inside a handler, call `ctx.CallChildAsync` instead (213).</span>
 <span class="hl"><span class="k">var</span> executed = <span class="k">await</span> jobs.CallAsync(CallVsEnqueueJobs.AddNumbers(<span class="k">new</span> AddNumbers(2, 2)));</span>
 
 <span class="c">// learn: end</span>

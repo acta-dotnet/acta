@@ -186,6 +186,8 @@ curl -X POST http://localhost:5090/orders/1043/ship-now  # 200 with the label: e
 
 `acta-local.db` holds the rows. Open `/acta` on the same port: the Jobs screen lists both orders as succeeded.
 
+`"shipping"` in `Run<ShippingJobs>("shipping")` is the namespace the jobs are stored under, and it is permanent: every job row, the dashboard and the CLI carry it, and there is no rename, so choose it for the work the app owns, not for an environment or a version.
+
 `using Shipping;` is needed: the manifest `ShippingJobs` is generated into the project's root namespace, and top-level statements live in the global one. The naming rule is in [Troubleshooting](./operator-guide.md#the-generated-manifest-type-does-not-resolve).
 
 ## Two failures: one final, one retried

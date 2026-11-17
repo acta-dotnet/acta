@@ -50,8 +50,6 @@ var r1 = await schedules.PauseAsync(lookup, untilUtc: null, reasonMessage: "main
 In `schedule-control.cs` (excerpt):
 
 ```csharp
-var queries = host.Services.GetRequiredService<IActaOperations>();
-
 var lookup = new ScheduleLookup("schedule-control", "hourly-report", "every-hour");
 
 Console.WriteLine("Pausing schedule indefinitely...");
@@ -109,10 +107,6 @@ var r3 = await schedules.ResumeAsync(lookup, reasonMessage: "drain complete");
 In `schedule-control.cs` (excerpt):
 
 ```csharp
-Console.WriteLine($"Replacing with timed pause until {resumeAt:O}...");
-var r2 = await schedules.PauseAsync(lookup, untilUtc: resumeAt, reasonMessage: "drain window");
-Console.WriteLine($"After timed pause: status={r2.Status} paused-until={r2.PausedUntilUtc?.ToString("O") ?? "(none)"}");
-
 Console.WriteLine("Resuming schedule...");
 
 var r3 = await schedules.ResumeAsync(lookup, reasonMessage: "drain complete");
@@ -163,7 +157,7 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## Not in the packages
 
-`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on any of the three databases. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on SQLite, PostgreSQL or SQL Server. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## Next
 

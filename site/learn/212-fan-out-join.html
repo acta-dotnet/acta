@@ -97,7 +97,7 @@
 }</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">2</span>Stop if a child failed, then merge the results</h2>
-<p>The map does not throw for a failed child; the parent asks, and decides.</p>
+<p>The map does not throw for a failed child; the parent asks, and decides. <code>FailAsync</code> ends the handler there, so the merge runs only when every chunk succeeded.</p>
 <figure class="listing"><figcaption><span class="file">fan-out-join.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="a">[Job(<span class="s">&quot;add-numbers&quot;</span>)]</span>
 <span class="k">public</span> <span class="k">async</span> Task&lt;SumResult&gt; Handle(AddNumbers request, JobContext context, CancellationToken ct)
 {
@@ -127,7 +127,7 @@
 <div class="step plain-step"><h2>The whole program</h2>
 <p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/learn/200-durable-execution/212-fan-out-join"><code>learn/200-durable-execution/212-fan-out-join</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
-<details class="source-file"><summary><span class="file-name">fan-out-join.cs</span><span class="file-size">84 lines</span></summary><figure class="listing"><figcaption><span class="file">fan-out-join.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to fan out over a list and merge the results</span>
+<details class="source-file"><summary><span class="file-name">fan-out-join.cs</span><span class="file-size">85 lines</span></summary><figure class="listing"><figcaption><span class="file">fan-out-join.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to fan out over a list and merge the results</span>
 <span class="c">// `MapAsync` starts one child job per item of a list, waits for them all, and hands back each item's result for the</span>
 <span class="c">// parent to merge.</span>
 <span class="k">using</span> Acta;
@@ -185,7 +185,8 @@ Console.WriteLine(<span class="s">$&quot;sum 1..1000 = {outcome.Value!.Total}&qu
             <span class="c">// learn: end</span>
 
             <span class="c">// learn: 2. Stop if a child failed, then merge the results</span>
-            <span class="c">// The map does not throw for a failed child; the parent asks, and decides.</span>
+            <span class="c">// The map does not throw for a failed child; the parent asks, and decides. `FailAsync` ends the handler</span>
+            <span class="c">// there, so the merge runs only when every chunk succeeded.</span>
 <span class="hl">            <span class="k">if</span> (!chunks.Succeeded)</span>
 <span class="hl">            {</span>
 <span class="hl">                <span class="k">await</span> context.FailAsync(<span class="s">&quot;a chunk failed&quot;</span>, ct);</span>

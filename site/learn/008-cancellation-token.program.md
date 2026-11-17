@@ -4,7 +4,7 @@ The how-to is [/learn/008-cancellation-token.md](/learn/008-cancellation-token.m
 
 ## Not in the packages
 
-`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on any of the three databases. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on SQLite, PostgreSQL or SQL Server. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## The whole program
 
@@ -12,8 +12,8 @@ The how-to is [/learn/008-cancellation-token.md](/learn/008-cancellation-token.m
 
 ```csharp
 // How to stop cleanly when a job is cancelled
-// A handler takes a `CancellationToken` and passes it to everything it awaits, so a shutdown or a cancel ends it
-// promptly.
+// A handler takes a `CancellationToken` and passes it to everything it awaits, so a cancel, a timeout, or a shutdown
+// that outlasts the host's grace period ends it promptly.
 using Acta;
 using Acta.Learn.Cancellation;
 using Microsoft.Extensions.DependencyInjection;
@@ -51,7 +51,9 @@ namespace Acta.Learn.Cancellation
             for (var batch = 1; batch <= input.Batches; batch++)
             {
                 // learn: Check the token between pieces of work, and pass it to what you await
-                // A handler that ignores its token keeps running after the worker has been told to stop.
+                // The token trips on an operator's cancel, at the `ExecutionTimeout`, on a lost lease, and on a shutdown
+                // once the host's `ShutdownTimeout` has passed. A handler that ignores it keeps running after the
+                // worker has been told to stop.
                 ct.ThrowIfCancellationRequested();
                 await Task.Delay(100, ct);
                 // learn: end

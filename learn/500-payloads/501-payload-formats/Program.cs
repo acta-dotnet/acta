@@ -1,6 +1,6 @@
 // How to choose a payload format for a job
-// A job names the format its payload is stored in. This program runs custom formats side by side and compares their
-// serialization time, enqueue time, readability, and stored bytes.
+// A job names the format its payload is stored in: JSON by default, or a format of your own. This program adds two
+// custom formats, `scalar-v1` and `json-gzip`, and runs the same echo job through each.
 using Acta;
 using Acta.Labs;
 using Acta.Learn.PayloadFormats;

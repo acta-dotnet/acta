@@ -1,6 +1,6 @@
 // How to stop cleanly when a job is cancelled
-// A handler takes a `CancellationToken` and passes it to everything it awaits, so a shutdown or a cancel ends it
-// promptly.
+// A handler takes a `CancellationToken` and passes it to everything it awaits, so a cancel, a timeout, or a shutdown
+// that outlasts the host's grace period ends it promptly.
 using Acta;
 using Acta.Learn.Cancellation;
 using Microsoft.Extensions.DependencyInjection;
@@ -38,7 +38,9 @@ namespace Acta.Learn.Cancellation
             for (var batch = 1; batch <= input.Batches; batch++)
             {
                 // learn: Check the token between pieces of work, and pass it to what you await
-                // A handler that ignores its token keeps running after the worker has been told to stop.
+                // The token trips on an operator's cancel, at the `ExecutionTimeout`, on a lost lease, and on a shutdown
+                // once the host's `ShutdownTimeout` has passed. A handler that ignores it keeps running after the
+                // worker has been told to stop.
                 ct.ThrowIfCancellationRequested();
                 await Task.Delay(100, ct);
                 // learn: end

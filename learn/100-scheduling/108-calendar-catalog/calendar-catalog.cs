@@ -20,6 +20,9 @@ var officeHours = new CalendarLookup("sys", "office-hours");
 
     var calendars = seedHost.Services.GetRequiredService<IActaOperations>().Calendars;
     // learn: 1. Save the calendar as a draft and publish it
+    // A calendar is a JSON definition saved as a draft, then published. `officeHours` names the family
+    // `office-hours` in `sys`, which every namespace binds by its plain name, and `Definitions.OpenAllDay` is a
+    // definition open all day, every day.
     // A deploy step names no versions, so it runs again as it is: a definition the latest version already holds saves
     // nothing and answers AlreadyInState with that version, and publishing the current version again changes nothing.
     var draft = await calendars.SaveDraftAsync(officeHours, CalendarRoleCode.Availability, Definitions.OpenAllDay);
@@ -66,7 +69,8 @@ Console.WriteLine(
 );
 
 // learn: 3. Publish a change and let it retime the schedule
-// The publication moves the cursor of every schedule bound to the calendar, in the same transaction.
+// The publication moves the cursor of every schedule bound to the calendar, in the same transaction. `closed` is the
+// draft saved just above, whose definition has no window today.
 var result = await operations.Calendars.PublishAsync(officeHours, closed.Version.Value, reasonMessage: $"Closed on {today}");
 Console.WriteLine($"Published: {result.Action}; retimed [{string.Join(", ", result.RetimedSchedules)}]");
 
