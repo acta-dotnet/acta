@@ -21,7 +21,7 @@ public enum EventCode : byte
     [Code("alert.acknowledged", "An operator acknowledged an alert; the message carries the note.")]
     AlertAcknowledged = 1,
 
-    [Code("alert.resolved", "An operator resolved an alert by hand; the message carries the note.")]
+    [Code("alert.resolved", "An operator or a job's handler resolved an alert; the message carries the note.")]
     AlertResolved = 2,
 
     /// <summary>

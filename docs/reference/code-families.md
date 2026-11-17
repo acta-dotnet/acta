@@ -191,7 +191,7 @@ Treat the arrangement as a reading aid. Only `JobPriorityCode`, `AlertSeverityCo
 |---|---:|---|---|---|
 | `Unspecified` | 0 | `unspecified` | Event code not recognized by this build; the row was written by a newer Acta. | Active |
 | `AlertAcknowledged` | 1 | `alert.acknowledged` | An operator acknowledged an alert; the message carries the note. | Active |
-| `AlertResolved` | 2 | `alert.resolved` | An operator resolved an alert by hand; the message carries the note. | Active |
+| `AlertResolved` | 2 | `alert.resolved` | An operator or a job's handler resolved an alert; the message carries the note. | Active |
 | `CalendarArchived` | 3 | `calendar.archived` | An operator archived a catalog calendar's current version; the family has no current version until another is published. Details carry the calendar and the version. | Active |
 | `CalendarDraftSaved` | 4 | `calendar.draft-saved` | An operator saved a new draft version of a catalog calendar. The details carry the calendar, the version, and the role; the message carries the reason. | Active |
 | `CalendarPublished` | 5 | `calendar.published` | An operator published a catalog calendar version, which became the family's current one. Details carry the calendar, the version, the version it replaced, the overdue decision, and the schedules it affected. | Active |

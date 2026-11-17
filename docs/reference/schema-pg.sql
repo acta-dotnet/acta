@@ -12,7 +12,7 @@
 -- present and leaves the data in place. Over a database a newer release upgraded, the script stops
 -- before changing anything. A later 1.x release upgrades a 1.x database with
 -- its own migrations, carried in its own copy of this script. A database provisioned from an
--- init migration other than M20261117205154_init has no upgrade path: provision a new one.
+-- init migration other than M20261117211008_init has no upgrade path: provision a new one.
 --
 -- Run it with a client that stops at the first error, which is what makes the transaction below a
 -- guarantee: psql -v ON_ERROR_STOP=1. A client that runs on past a failed statement would reach the
@@ -41,14 +41,14 @@ DO $$
 BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
-        WHERE name NOT IN ('M20261117205154_init')
+        WHERE name NOT IN ('M20261117211008_init')
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
 END
 $$;
 
--- ===== BEGIN M20261117205154_init =====
+-- ===== BEGIN M20261117211008_init =====
 CREATE SCHEMA IF NOT EXISTS acta;
 
 -- alerts
@@ -4576,10 +4576,10 @@ JOIN acta.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO acta.migrations (name)
-VALUES ('M20261117205154_init')
+VALUES ('M20261117211008_init')
 ON CONFLICT (name) DO NOTHING;
 
--- ===== END M20261117205154_init =====
+-- ===== END M20261117211008_init =====
 
 COMMIT;
 

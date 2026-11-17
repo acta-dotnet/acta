@@ -160,10 +160,14 @@ BEGIN
                     '{"kind":"'
                     + CASE WHEN @p_checkpoint_kind_code = 50 /* CheckpointKindCode.Child */ THEN 'child' ELSE 'signal' END
                     + '","name":"'
-                    -- STRING_ESCAPE answers NVARCHAR, and the details are UTF-8 bytes.
+                    -- STRING_ESCAPE answers NVARCHAR, and the details are UTF-8 bytes. It also writes a slash as \/, which
+                    -- the other providers do not, and a map child's name holds one.
                     + CAST(
-                        STRING_ESCAPE(COALESCE(ch.deduplication_key COLLATE DATABASE_DEFAULT, @p_checkpoint_name), 'json')
-                        AS VARCHAR(1024)
+                        REPLACE(
+                            STRING_ESCAPE(COALESCE(ch.deduplication_key COLLATE DATABASE_DEFAULT, @p_checkpoint_name), 'json'),
+                            '\/',
+                            '/'
+                        ) AS VARCHAR(1024)
                     )
                     -- Only a child wait whose child is still stored carries its ref.
                     + COALESCE('","child":"job_' + LOWER(REPLACE(CONVERT(CHAR(36), ch.job_ref), '-', '')), '')

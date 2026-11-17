@@ -1515,7 +1515,7 @@
       "start_job_step": "986670056d896544a6b177fe9dda6aeb3ce5df63dfac6bd2920569aaccffe4f6",
       "steps_view": "08ca955c91698a21e3fbdac79d9927a53ac4f5d73ba2d75d7c29477308fd0b9f",
       "tags_view": "f0b84be965cdcb4121e2b40fef361c5c65239024215c1d524cab515723e95417",
-      "wait_job_signal": "5aab2e5407a577f3958ea36a8d22cfd1929076cbdc2da7f5e800cc645528c901",
+      "wait_job_signal": "fa54f50568e877952e0fed388b157dc1653aead4ae125d0b0fa371e25db67956",
       "workers_view": "479bc6e7fdd8a3e6948fd652689e36e7942bcfc90cb8c1cce6ef63e442ce9f08"
     },
     "pg": {

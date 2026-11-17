@@ -121,8 +121,9 @@ internal sealed class EventEntity : IEntity<long>
     public string? EventMessage { get; init; }
 
     /// <summary>
-    /// Who performed the action: the operator principal an operator verb was given, as display text, or the job id on
-    /// a handler's state reset; null on an event the engine or a worker writes, and when the operator is unknown.
+    /// Who performed the action: the operator principal an operator verb was given, as display text, or the job's ref
+    /// on what its own handler did, a state reset or an alert it resolved; null on an event the engine or a worker
+    /// writes, and when the operator is unknown.
     /// </summary>
     [DbColumn("actor", DbKind.UnicodeString, Size = 128)]
     public string? Actor { get; init; }
