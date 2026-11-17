@@ -39,7 +39,7 @@ internal sealed class AlertChannelRegistry
             "default",
             AlertTransportKinds.Log,
             Endpoint: "default",
-            AlertChannelStatusCode.Active,
+            Enabled: true,
             AlertSeverityCode.Info
         );
     }

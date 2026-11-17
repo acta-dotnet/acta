@@ -8,6 +8,6 @@ internal sealed record AlertChannelDeclaration(
     string Name,
     string TransportKind,
     string Endpoint,
-    AlertChannelStatusCode Status,
+    bool Enabled,
     AlertSeverityCode MinSeverity
 );

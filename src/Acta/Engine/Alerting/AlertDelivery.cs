@@ -208,9 +208,9 @@ internal sealed class AlertDelivery(
             return;
         }
         var alertRef = AlertsJob.RenderRef(alert.AlertRef);
-        if (reason is AlertChannelVerdictReason.DisabledChannel or AlertChannelVerdictReason.DeprecatedChannel)
+        if (reason is AlertChannelVerdictReason.DisabledChannel)
         {
-            var status = $"{channel.Name} is {channel.Status}";
+            var status = $"{channel.Name} is disabled";
             ActaLog.AlertSuppressedByChannel(_log, alertRef, ctx.JobNamespace, status);
             return;
         }

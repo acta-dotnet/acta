@@ -83,7 +83,7 @@ public sealed class AlertsProjectionSpec : ActaRuntimeTestBase<ConformanceFixtur
         var registry = Services.GetRequiredService<AlertChannelRegistry>();
         var def = registry.Resolve(TestNamespace, "default");
         Assert.NotNull(def);
-        Assert.Equal(AlertChannelStatusCode.Active, def!.Status);
+        Assert.True(def!.Enabled);
         Assert.Equal("log", def.TransportKind);
     }
 

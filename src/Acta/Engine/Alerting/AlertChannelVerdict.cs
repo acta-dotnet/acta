@@ -9,14 +9,9 @@ internal readonly record struct AlertChannelVerdict(AlertChannelVerdictKind Kind
             return new AlertChannelVerdict(AlertChannelVerdictKind.Failed, AlertChannelVerdictReason.MissingChannel);
         }
 
-        if (channel.Status == AlertChannelStatusCode.Disabled)
+        if (!channel.Enabled)
         {
             return new AlertChannelVerdict(AlertChannelVerdictKind.Suppressed, AlertChannelVerdictReason.DisabledChannel);
-        }
-
-        if (channel.Status == AlertChannelStatusCode.Deprecated)
-        {
-            return new AlertChannelVerdict(AlertChannelVerdictKind.Suppressed, AlertChannelVerdictReason.DeprecatedChannel);
         }
 
         if (alert.Severity < channel.MinSeverity)

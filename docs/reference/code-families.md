@@ -5,7 +5,7 @@
 > Generated reference for Acta code families and the payload-format registry.
 > Every persisted code is documented here exactly once; the data-model reference [`data-model.md`](./data-model.md) links into this file from every code-bearing column.
 
-This release: **33 families**, **199 values**.
+This release: **32 families**, **195 values**.
 
 > Numeric IDs are stable family-local persistence identifiers. Enum members carry programmatic meaning; textual codes carry operator-facing meaning.
 > Numeric grouping is a readability convention, not a runtime schema. Canonical failure states use `200`.
@@ -34,7 +34,6 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 
 | Family | Code kind | Backing |
 |---|---|---|
-| [`AlertChannelStatusCode`](#code-family-alertchannelstatuscode) | `alert-channel-status` | `byte` |
 | [`AlertDeliveryStatusCode`](#code-family-alertdeliverystatuscode) | `alert-delivery-status` | `byte` |
 | [`AlertKindCode`](#code-family-alertkindcode) | `alert-kind` | `byte` |
 | [`AlertProfileCode`](#code-family-alertprofilecode) | `alert-profile` | `byte` |
@@ -69,15 +68,6 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | [`WorkerStatusCode`](#code-family-workerstatuscode) | `worker-status` | `byte` |
 
 ## Codes
-
-### `AlertChannelStatusCode` · `alert-channel-status` <a id="code-family-alertchannelstatuscode"></a>
-
-| Member | Id | Code | Description | Lifecycle |
-|---|---:|---|---|---|
-| `Unspecified` | 0 | `unspecified` | Alert channel status not recognized by this build; the row was written by a newer Acta. | Active |
-| `Active` | 10 | `active` | Channel accepts deliveries. | Active |
-| `Disabled` | 30 | `disabled` | Configured but intentionally muted; matching alerts are suppressed. | Active |
-| `Deprecated` | 240 | `deprecated` | Configured but decommissioned; matching alerts are suppressed. | Active |
 
 ### `AlertDeliveryStatusCode` · `alert-delivery-status` <a id="code-family-alertdeliverystatuscode"></a>
 

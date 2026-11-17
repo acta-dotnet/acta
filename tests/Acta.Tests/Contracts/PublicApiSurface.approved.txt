@@ -137,27 +137,8 @@ static class Acta.ActaServiceCollectionExtensions
     static Microsoft.Extensions.DependencyInjection.IServiceCollection UseActa(this Microsoft.Extensions.DependencyInjection.IServiceCollection services, System.Action<Acta.IActaBuilder> configure)
 sealed class Acta.AlertChannelOptions
     .ctor()
-    Acta.AlertChannelStatusCode Status { get;set; }
     Acta.AlertSeverityCode MinSeverity { get;set; }
-enum Acta.AlertChannelStatusCode : System.Byte
-    Active = 10
-    Deprecated = 240
-    Disabled = 30
-    Unspecified = 0
-static class Acta.AlertChannelStatusCodeExtensions
-    static Acta.AlertChannelStatusCode FromCode(System.String code)
-    static Acta.AlertChannelStatusCode FromId(System.Byte id)
-    static System.Boolean IsKnownId(System.Byte id)
-    static System.Boolean IsWritableId(System.Byte id)
-    static System.Byte get_ToId(Acta.AlertChannelStatusCode value)
-    static System.Collections.Generic.IReadOnlyList<Acta.CodeManifestEntry> get_Manifest()
-    static System.String get_Code(Acta.AlertChannelStatusCode value)
-    static System.String get_CodeKind()
-    static System.String get_Description(Acta.AlertChannelStatusCode value)
-sealed class Acta.AlertChannelStatusCodeJsonConverter : System.Text.Json.Serialization.JsonConverter<Acta.AlertChannelStatusCode>
-    .ctor()
-    Acta.AlertChannelStatusCode Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
-    System.Void Write(System.Text.Json.Utf8JsonWriter writer, Acta.AlertChannelStatusCode value, System.Text.Json.JsonSerializerOptions options)
+    System.Boolean Enabled { get;set; }
 enum Acta.AlertChannelValidationMode : System.Byte
     Fail = 2
     Off = 0

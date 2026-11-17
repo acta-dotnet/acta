@@ -185,7 +185,7 @@ internal sealed class WorkerBuilder : IWorkerBuilder
 
         // Last declaration of a name wins (the builder snapshots; no throw on a re-declared channel).
         _alertChannels.RemoveAll(c => string.Equals(c.Name, name, StringComparison.Ordinal));
-        _alertChannels.Add(new AlertChannelDeclaration(name, transportKind, endpoint, options.Status, options.MinSeverity));
+        _alertChannels.Add(new AlertChannelDeclaration(name, transportKind, endpoint, options.Enabled, options.MinSeverity));
         return this;
     }
 

@@ -13,15 +13,13 @@ public sealed class AlertChannelVerdictTests
         Assert.Equal(AlertChannelVerdictReason.MissingChannel, decision.Reason);
     }
 
-    [Theory]
-    [InlineData(AlertChannelStatusCode.Disabled, (byte)AlertChannelVerdictReason.DisabledChannel)]
-    [InlineData(AlertChannelStatusCode.Deprecated, (byte)AlertChannelVerdictReason.DeprecatedChannel)]
-    public void Inactive_channel_suppresses(AlertChannelStatusCode status, byte reason)
+    [Fact]
+    public void Disabled_channel_suppresses()
     {
-        var decision = AlertChannelVerdict.Decide(Alert(), Channel(status: status), transport: null);
+        var decision = AlertChannelVerdict.Decide(Alert(), Channel(enabled: false), transport: null);
 
         Assert.Equal(AlertChannelVerdictKind.Suppressed, decision.Kind);
-        Assert.Equal((AlertChannelVerdictReason)reason, decision.Reason);
+        Assert.Equal(AlertChannelVerdictReason.DisabledChannel, decision.Reason);
     }
 
     [Fact]
@@ -73,10 +71,10 @@ public sealed class AlertChannelVerdictTests
         );
 
     private static AlertChannelDeclaration Channel(
-        AlertChannelStatusCode status = AlertChannelStatusCode.Active,
+        bool enabled = true,
         AlertSeverityCode minSeverity = AlertSeverityCode.Info,
         string transportKind = AlertTransportKinds.Log
-    ) => new("ops", transportKind, Endpoint: "ops", status, minSeverity);
+    ) => new("ops", transportKind, Endpoint: "ops", enabled, minSeverity);
 
     private sealed class StubTransport : IAlertTransport
     {

@@ -152,7 +152,6 @@
   - Missing transport marks the alert Failed immediately on the first pass
   - Missing configured channel marks the alert Failed immediately
   - Disabled channel suppresses the alert and is not reread
-  - Deprecated channel suppresses the alert and is not reread
   - Below min severity suppresses the alert and is not reread
   - Null-job-id alert is returned by ListDeliverableAlerts and delivers successfully
   - Delivering an automatic alert schedules the next reminder, which re-sends and reschedules

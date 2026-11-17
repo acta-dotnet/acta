@@ -46,7 +46,7 @@ public sealed class AlertChannelValidationSpec : ActaTestBase<ConformanceFixture
     public async Task Disabled_channel_counts_as_configured_for_validation()
     {
         await InitializeWorkerAsync("acv-disabled-" + TestId, AlertChannelValidationMode.Fail, configureOpsChannel: w =>
-            w.AddAlertChannel("ops", "log", "ops", o => o.Status = AlertChannelStatusCode.Disabled)
+            w.AddAlertChannel("ops", "log", "ops", o => o.Enabled = false)
         );
     }
 

@@ -230,23 +230,8 @@ public sealed class AlertDeliveryFailureSpec : ActaStorageTestBase<ConformanceFi
     {
         var ct = TestContext.Current.CancellationToken;
 
-        RegisterChannel("ch-disabled", "log", AlertChannelStatusCode.Disabled, AlertSeverityCode.Info);
+        RegisterChannel("ch-disabled", "log", enabled: false, AlertSeverityCode.Info);
         await RaiseAlertAsync(Db, "ch-disabled", jobId: null, ct);
-
-        await RunDeliveryAsync(maxRetries: 5, ct);
-
-        var row = Assert.Single(await ReadAlertsAsync(TestNamespaceId, ct));
-        Assert.Equal(AlertDeliveryStatusCode.Suppressed, row.DeliveryStatusCode);
-        Assert.Empty(await DueAsync(ct));
-    }
-
-    [Fact(DisplayName = "Deprecated channel suppresses the alert and is not reread")]
-    public async Task Deprecated_channel_suppresses_alert()
-    {
-        var ct = TestContext.Current.CancellationToken;
-
-        RegisterChannel("ch-deprecated", "log", AlertChannelStatusCode.Deprecated, AlertSeverityCode.Info);
-        await RaiseAlertAsync(Db, "ch-deprecated", jobId: null, ct);
 
         await RunDeliveryAsync(maxRetries: 5, ct);
 
@@ -260,7 +245,7 @@ public sealed class AlertDeliveryFailureSpec : ActaStorageTestBase<ConformanceFi
     {
         var ct = TestContext.Current.CancellationToken;
 
-        RegisterChannel("ch-floor", "log", AlertChannelStatusCode.Active, AlertSeverityCode.Error);
+        RegisterChannel("ch-floor", "log", enabled: true, AlertSeverityCode.Error);
         await AlertTestOps.RaiseAsync(
             Services,
             TestNamespace,
@@ -414,7 +399,7 @@ public sealed class AlertDeliveryFailureSpec : ActaStorageTestBase<ConformanceFi
 
         // The instant comes round with the transport now available, and the alert finally lands.
         await ScheduleAsync(failed.Id, LongPast, ct);
-        RegisterChannel("ch-manual", "log", AlertChannelStatusCode.Active, AlertSeverityCode.Info);
+        RegisterChannel("ch-manual", "log", enabled: true, AlertSeverityCode.Info);
         await RunDeliveryAsync(maxRetries: 5, ct);
 
         var landed = Assert.Single(await ReadAlertsAsync(TestNamespaceId, ct));
@@ -448,7 +433,7 @@ public sealed class AlertDeliveryFailureSpec : ActaStorageTestBase<ConformanceFi
         // Carrying the old count would have put this reminder at 5 of 5 on its first throw - terminal
         // without ever being retried. With a fresh budget it enters the curve like any first attempt.
         await ScheduleAsync(delivered.Id, LongPast, ct);
-        RegisterChannel("ch-swap", ThrowingKind, AlertChannelStatusCode.Active, AlertSeverityCode.Info);
+        RegisterChannel("ch-swap", ThrowingKind, enabled: true, AlertSeverityCode.Info);
         await RunDeliveryAsync(maxRetries: 5, ct);
 
         var reminded = Assert.Single(await ReadAlertsAsync(TestNamespaceId, ct));
@@ -507,12 +492,12 @@ public sealed class AlertDeliveryFailureSpec : ActaStorageTestBase<ConformanceFi
 
     private Task SeedChannelAsync(IDbSession db, string name, string transportKind, CancellationToken ct)
     {
-        RegisterChannel(name, transportKind, AlertChannelStatusCode.Active, AlertSeverityCode.Info);
+        RegisterChannel(name, transportKind, enabled: true, AlertSeverityCode.Info);
         return Task.CompletedTask;
     }
 
-    private void RegisterChannel(string name, string transportKind, AlertChannelStatusCode status, AlertSeverityCode minSeverity) =>
-        Channels[name] = new AlertChannelDeclaration(name, transportKind, Endpoint: "endpoint", status, minSeverity);
+    private void RegisterChannel(string name, string transportKind, bool enabled, AlertSeverityCode minSeverity) =>
+        Channels[name] = new AlertChannelDeclaration(name, transportKind, Endpoint: "endpoint", enabled, minSeverity);
 
     private async Task<IReadOnlyList<DeliverableAlert>> DueAsync(CancellationToken ct)
     {
