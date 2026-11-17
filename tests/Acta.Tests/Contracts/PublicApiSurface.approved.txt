@@ -2755,6 +2755,8 @@ sealed class Acta.WorkerStatusCodeJsonConverter : System.Text.Json.Serialization
     .ctor()
     Acta.WorkerStatusCode Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
     System.Void Write(System.Text.Json.Utf8JsonWriter writer, Acta.WorkerStatusCode value, System.Text.Json.JsonSerializerOptions options)
+static class Acta.WorkerStatusExtensions
+    static System.Boolean get_IsFinished(Acta.WorkerStatusCode value)
 record struct Acta.WorkerWakeupChannel
     Acta.WorkerWakeupChannelKind Kind { get; }
     System.Boolean AllocatesOnPublish { get; }

@@ -358,6 +358,11 @@ public sealed class PersistedCodeContractTests
         Assert.False(JobStatusCode.Ready.IsFinished);
         Assert.False(JobStatusCode.Blocked.IsFinished);
         Assert.All([JobStatusCode.Succeeded, JobStatusCode.Failed, JobStatusCode.Cancelled], status => Assert.True(status.IsFinished));
+
+        Assert.All([WorkerStatusCode.Unspecified, WorkerStatusCode.Active, WorkerStatusCode.Draining], status =>
+            Assert.False(status.IsFinished)
+        );
+        Assert.All([WorkerStatusCode.Stopped, WorkerStatusCode.Dead], status => Assert.True(status.IsFinished));
     }
 
     private static Type[] CodeFamilies() =>
