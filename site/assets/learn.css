@@ -1,4 +1,4 @@
-/* The Learn section: the question that opens the hub, the ladders of how-tos, and the how-to page.
+/* The Learn section: the question that opens the hub, the sections of how-tos, and the how-to page.
    Colours, type and panels come from site.css; nothing here names a colour of its own. */
 
 .chrome nav a[aria-current="page"] { color: var(--text); }
@@ -72,37 +72,37 @@ a.door:hover { border-top-color: var(--verdi); }
 .choice-list a { font-weight: 600; text-decoration: none; }
 .choice-list a:hover { color: var(--verdi); }
 
-/* ---- the ladders: one per section, its how-tos in the order to climb them ---- */
-.ladder > h2 { max-width: 30ch; }
-.ladder-jump { display: flex; flex-wrap: wrap; gap: 0.55rem 1.5rem; margin: 1.8rem 0 0; font-size: 0.93rem; }
-.ladder-jump a { padding-bottom: 2px; border-bottom: 1px solid var(--hair); color: var(--muted); text-decoration: none; }
-.ladder-jump a:hover { border-bottom-color: var(--verdi); color: var(--verdi); }
-.ladder-section {
+/* ---- the sections, each with its how-tos in the order to read them ---- */
+.sections > h2 { max-width: 30ch; }
+.section-jump { display: flex; flex-wrap: wrap; gap: 0.55rem 1.5rem; margin: 1.8rem 0 0; font-size: 0.93rem; }
+.section-jump a { padding-bottom: 2px; border-bottom: 1px solid var(--hair); color: var(--muted); text-decoration: none; }
+.section-jump a:hover { border-bottom-color: var(--verdi); color: var(--verdi); }
+.learn-section {
   display: grid; grid-template-columns: minmax(13rem, 19rem) minmax(0, 1fr); gap: 1rem 3.5rem;
   margin-top: 2.8rem; padding-top: 2.4rem; border-top: 1px solid var(--hair); scroll-margin-top: 6.5rem;
 }
-.ladder-head { position: sticky; top: 7rem; align-self: start; }
-.ladder-head h3 { margin: 0 0 0.5rem; font-family: var(--serif); font-weight: 500; font-size: 1.6rem; line-height: 1.15; text-wrap: balance; }
-.ladder-head p { margin: 0; color: var(--muted); font-size: 0.95rem; }
-.ladder-head .ladder-progress { margin-top: 0.8rem; font-family: var(--mono); font-size: 0.74rem; color: var(--verdi); }
-.rungs { position: relative; grid-column: 2; margin: 0; padding: 0; list-style: none; }
-.rungs::before { content: ""; position: absolute; left: 0.95rem; top: 1.4rem; bottom: 1.4rem; border-left: 1px solid var(--hair); }
-.rung { position: relative; display: grid; grid-template-columns: 1.9rem minmax(0, 1fr) auto; gap: 0 1.1rem; align-items: start; padding: 0.65rem 0; text-decoration: none; }
-.rung-step {
+.learn-section-head { position: sticky; top: 7rem; align-self: start; }
+.learn-section-head h3 { margin: 0 0 0.5rem; font-family: var(--serif); font-weight: 500; font-size: 1.6rem; line-height: 1.15; text-wrap: balance; }
+.learn-section-head p { margin: 0; color: var(--muted); font-size: 0.95rem; }
+.learn-section-head .section-progress { margin-top: 0.8rem; font-family: var(--mono); font-size: 0.74rem; color: var(--verdi); }
+.entries { position: relative; grid-column: 2; margin: 0; padding: 0; list-style: none; }
+.entries::before { content: ""; position: absolute; left: 0.95rem; top: 1.4rem; bottom: 1.4rem; border-left: 1px solid var(--hair); }
+.entry { position: relative; display: grid; grid-template-columns: 1.9rem minmax(0, 1fr) auto; gap: 0 1.1rem; align-items: start; padding: 0.65rem 0; text-decoration: none; }
+.entry-step {
   z-index: 1; display: grid; place-items: center; width: 1.9rem; height: 1.9rem; margin-top: calc((1.65rem - 1.9rem) / 2);
   border: 1px solid var(--hair); border-radius: 50%; background: var(--bg); font: 400 0.72rem var(--mono); color: var(--faint);
   transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
 }
-.rung-title { display: block; font-weight: 600; color: var(--text); }
-.rung-note { display: block; color: var(--muted); font-size: 0.92rem; line-height: 1.5; }
-.rung-note code { font-size: 0.86em; }
-.rung:hover .rung-title { color: var(--verdi); }
-.rung:hover .rung-step { border-color: var(--verdi); color: var(--verdi); }
-.rung[data-done] .rung-step { background: var(--verdi); border-color: var(--verdi); color: var(--verdi-deep); font-weight: 500; }
-.rung-marks { display: flex; gap: 0.4rem; padding-top: 0.2rem; }
+.entry-title { display: block; font-weight: 600; color: var(--text); }
+.entry-note { display: block; color: var(--muted); font-size: 0.92rem; line-height: 1.5; }
+.entry-note code { font-size: 0.86em; }
+.entry:hover .entry-title { color: var(--verdi); }
+.entry:hover .entry-step { border-color: var(--verdi); color: var(--verdi); }
+.entry[data-done] .entry-step { background: var(--verdi); border-color: var(--verdi); color: var(--verdi-deep); font-weight: 500; }
+.entry-marks { display: flex; gap: 0.4rem; padding-top: 0.2rem; }
 .mark { padding: 0.12rem 0.6rem; border-radius: var(--r-pill); background: var(--verdi-wash); font-size: 0.74rem; font-weight: 500; color: var(--verdi); white-space: nowrap; }
-.ladder-more { grid-column: 2; justify-self: start; margin: 0.6rem 0 0 3rem; white-space: normal; line-height: 1.5; }
-.ladder-ask { margin-top: 3rem; padding-top: 1.4rem; border-top: 1px solid var(--hair); max-width: none; }
+.section-more { grid-column: 2; justify-self: start; margin: 0.6rem 0 0 3rem; white-space: normal; line-height: 1.5; }
+.sections-ask { margin-top: 3rem; padding-top: 1.4rem; border-top: 1px solid var(--hair); max-width: none; }
 
 .prompts { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; margin-top: 2.2rem; }
 .prompts .listing { margin: 0; }
@@ -202,7 +202,7 @@ a.door:hover { border-top-color: var(--verdi); }
 .file-size { margin-left: auto; font-size: 0.75rem; color: var(--faint); }
 .source-file .listing { margin: 0; border: 0; border-top: 1px solid var(--hair); border-radius: 0 0 var(--r-panel) var(--r-panel); }
 
-/* the section's ladder beside the how-to */
+/* the section's list beside the how-to */
 .howto-rail { position: sticky; top: 7rem; max-height: calc(100vh - 8rem); overflow-y: auto; padding-left: 1.4rem; border-left: 1px solid var(--hair); font-size: 0.9rem; }
 .rail-head { margin: 0 0 0.8rem; font-family: var(--serif); font-size: 1.12rem; line-height: 1.25; }
 .rail-head a { text-decoration: none; }
@@ -227,16 +227,16 @@ a.door:hover { border-top-color: var(--verdi); }
 @media (max-width: 900px) {
   .doors { grid-template-columns: 1fr; gap: 1.6rem; }
   .choice-list { grid-template-columns: minmax(0, 1fr); }
-  .ladder-section { grid-template-columns: minmax(0, 1fr); }
-  .ladder-head { position: static; }
-  .rungs, .ladder-more { grid-column: 1; }
-  .ladder-more { margin-left: 0; }
+  .learn-section { grid-template-columns: minmax(0, 1fr); }
+  .learn-section-head { position: static; }
+  .entries, .section-more { grid-column: 1; }
+  .section-more { margin-left: 0; }
   .prompts { grid-template-columns: 1fr; }
   .next-links.wide li { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 640px) {
-  .rung { grid-template-columns: 1.9rem minmax(0, 1fr); }
-  .rung-marks { grid-column: 2; padding-top: 0.3rem; }
+  .entry { grid-template-columns: 1.9rem minmax(0, 1fr); }
+  .entry-marks { grid-column: 2; padding-top: 0.3rem; }
   .ask-results > a { grid-template-columns: minmax(0, 1fr); }
   .ask-results .r-sec { text-align: left; }
   .next-links li { grid-template-columns: minmax(0, 1fr); }
@@ -244,7 +244,7 @@ a.door:hover { border-top-color: var(--verdi); }
   .listing pre { font-size: 0.78rem; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .ask-field, .ask-try button, .rung-step, .check-options button { transition: none; }
+  .ask-field, .ask-try button, .entry-step, .check-options button { transition: none; }
 }
 @media print {
   .reader, .ask-try, .howto-rail, .done-toggle { display: none; }

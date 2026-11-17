@@ -10,17 +10,17 @@ Two tiers, depending on what you are doing:
 
 | Goal | You need |
 |---|---|
-| Run concepts, demos, and Anvil on SQLite | The .NET 10 SDK pinned in `global.json`. Nothing else. (Building `Acta.Dashboard`, the embedded dashboard UI, additionally needs Node.js 20.19+ or 22.12+; everything else, `Acta.AspNetCore` included, builds without it.) |
+| Run how-tos, demos, and Anvil on SQLite | The .NET 10 SDK pinned in `global.json`. Nothing else. (Building `Acta.Dashboard`, the embedded dashboard UI, additionally needs Node.js 20.19+ or 22.12+; everything else, `Acta.AspNetCore` included, builds without it.) |
 | Full contributor checks (providers, dashboard, PR-ready) | Also Docker (Postgres, SQL Server, Redis containers) and Node.js with npm: 20.19+ or 22.12+ builds `Acta.Dashboard`, and its tests need 22.13+ (CI uses 22). |
 
 Setup failures are tabled in [Local setup problems](#local-setup-problems).
 
 ## Five-minute SQLite path
 
-Concepts and demos default to embedded **SQLite**: no server, no connection string, no Docker.
+How-tos and demos default to embedded **SQLite**: no server, no connection string, no Docker.
 
 ```bash
-dotnet run --project concepts/000-fundamentals/002-job-input
+dotnet run --project learn/000-fundamentals/002-job-input
 ```
 
 SQLite creates the database file on first connection (`acta-local.db` under `%TEMP%` / `$TMPDIR` /
@@ -36,20 +36,20 @@ Bash:
 
 ```bash
 docker compose up -d --wait                # Postgres, SQL Server, Redis on 127.0.0.1
-export ACTA_LOCAL_PROVIDER=postgres        # or sqlserver; without this, concepts stay on SQLite
+export ACTA_LOCAL_PROVIDER=postgres        # or sqlserver; without this, how-tos stay on SQLite
 export ACTA_TEST_PG="Host=localhost;Port=5432;Database=acta-dev;Username=postgres;Password=AbitMOREsecure_PASSWORD"
 export ACTA_TEST_MSSQL="Server=127.0.0.1,1433;Initial Catalog=acta-dev;User=sa;Password=AbitMOREsecure_PASSWORD;TrustServerCertificate=true"
-dotnet run --project concepts/000-fundamentals/002-job-input
+dotnet run --project learn/000-fundamentals/002-job-input
 ```
 
 PowerShell:
 
 ```powershell
 docker compose up -d --wait
-$env:ACTA_LOCAL_PROVIDER = "postgres"      # or sqlserver; without this, concepts stay on SQLite
+$env:ACTA_LOCAL_PROVIDER = "postgres"      # or sqlserver; without this, how-tos stay on SQLite
 $env:ACTA_TEST_PG = "Host=localhost;Port=5432;Database=acta-dev;Username=postgres;Password=AbitMOREsecure_PASSWORD"
 $env:ACTA_TEST_MSSQL = "Server=127.0.0.1,1433;Initial Catalog=acta-dev;User=sa;Password=AbitMOREsecure_PASSWORD;TrustServerCertificate=true"
-dotnet run --project concepts/000-fundamentals/002-job-input
+dotnet run --project learn/000-fundamentals/002-job-input
 ```
 
 Postgres and SQL Server authenticate with a password locally (parity with production); connection
@@ -64,11 +64,11 @@ Docker notes (all optional):
 
 | Variable | Used by | Purpose |
 |---|---|---|
-| `ConnectionStrings:acta` / `ConnectionStrings__acta` | apps, demos, concepts | primary connection override |
+| `ConnectionStrings:acta` / `ConnectionStrings__acta` | apps, demos, how-tos | primary connection override |
 | `ACTA_TEST_PG` / `ACTA_TEST_MSSQL` | apps + conformance tests | provider connection string |
 | `ACTA_TEST_MSSQL_RCSI` | SQL Server conformance tests | `off` runs the suite with `READ_COMMITTED_SNAPSHOT` off, against the `ACTA_TEST_MSSQL` catalog name plus `-rcsioff`, which each run drops and provisions afresh |
-| `ACTA_TEST_REDIS` | Redis wakeup concept and tests | Redis endpoint |
-| `ACTA_LOCAL_PROVIDER` | concepts, demos | provider selector; SQLite default, `postgres` or `sqlserver` to opt in |
+| `ACTA_TEST_REDIS` | Redis wakeup how-to and tests | Redis endpoint |
+| `ACTA_LOCAL_PROVIDER` | how-tos, demos | provider selector; SQLite default, `postgres` or `sqlserver` to opt in |
 
 Maintainer / CI variables: `ACTA_EMIT_DOCS` (regenerate conformance contract docs), `ACTA_EMIT_API` (regenerate the public API baseline), `ACTA_EMIT_OPENAPI` (regenerate `docs/reference/openapi.json`), `ACTA_AOT_PUBLISH_TEST`, `ACTA_TEST_DOTNET_MAJOR` (the runtime major a run that rolls its test hosts forward must start on), `ASPNETCORE_ENVIRONMENT`. Compose binds SQL Server to IPv4 loopback only, so connection strings name `127.0.0.1`, not `localhost` (`.env.example` has the full set).
 
@@ -78,16 +78,16 @@ What goes wrong on a fresh machine, and the fix for each.
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| A concept/Anvil demands `ACTA_TEST_PG` though you wanted SQLite | Stale `ACTA_LOCAL_PROVIDER=postgres` in your shell or a copied `.env` | Unset `ACTA_LOCAL_PROVIDER` (SQLite is the default when it is unset) |
+| A how-to/Anvil demands `ACTA_TEST_PG` though you wanted SQLite | Stale `ACTA_LOCAL_PROVIDER=postgres` in your shell or a copied `.env` | Unset `ACTA_LOCAL_PROVIDER` (SQLite is the default when it is unset) |
 | `docker compose up` fails: cannot connect to the daemon | Docker Desktop / dockerd not running | Start it, or skip Docker entirely; the SQLite path needs none |
 | Compose fails: port 5432/1433/6379 already allocated | You already run a server on that port | Reuse yours via `ACTA_TEST_PG` / `ACTA_TEST_MSSQL` / `ACTA_TEST_REDIS`, or set `ACTA_PG_PORT` / `ACTA_MSSQL_PORT` / `ACTA_REDIS_PORT` in `.env` |
 | SQL Server container unhealthy or login fails right after start | ~20–30 s startup; password must satisfy complexity policy; memory capped at `MSSQL_MEMORY_LIMIT_MB: 8192` | Wait for `healthy` in `docker compose ps`; keep any `ACTA_MSSQL_SA_PASSWORD` override complex |
 | Postgres `28P01: password authentication failed` | Connection string password differs from the one the volume was initialized with | Match `.env.example`, or re-init: `docker compose down -v` then `up -d` (destroys the container's data) |
-| Redis unavailable | Container/service not running | Optional: rung 903 degrades to the poll floor without it. Redis is a latency accelerator, not a correctness dependency |
+| Redis unavailable | Container/service not running | Optional: how-to 903 degrades to the poll floor without it. Redis is a latency accelerator, not a correctness dependency |
 | Anvil exits at start: port 5059 taken | Another Anvil (or app) is listening on 5059 | Close it, then rerun `dotnet run --project anvil/Anvil` |
 | Reset local SQLite state | One temp-file database per machine | Delete `acta-local*.db` in `%TEMP%` (Windows) / `$TMPDIR` or `/tmp` (macOS/Linux) |
 
-Concepts, demos, and Anvil pick their database through `UseLocalDatabase(...)`, in this order: an
+How-tos, demos, and Anvil pick their database through `UseLocalDatabase(...)`, in this order: an
 explicit provider argument, `Acta:Provider`, `ACTA_LOCAL_PROVIDER`, then SQLite. For Postgres or SQL
 Server, set `ACTA_LOCAL_PROVIDER` and provide `ConnectionStrings:acta`, `ACTA_TEST_PG`, or
 `ACTA_TEST_MSSQL`.
@@ -104,7 +104,7 @@ there, in the `acta-dev` database. The conformance suite runs in the `acta-test`
 own `acta_test` schema, kept distinct so its append-only rows and its guarded reset never touch
 demo or dev data.
 
-**Reset SQLite.** Stop any running concept/demo/Anvil processes first (they hold the file), then
+**Reset SQLite.** Stop any running how-to/demo/Anvil processes first (they hold the file), then
 delete `acta-local*.db` including the `-wal` and `-shm` sidecar files from your temp directory.
 
 **Reset the test schema (Postgres / SQL Server).** The guarded helper is the explicit
@@ -157,7 +157,7 @@ Full suite, CI-equivalent (needs the containers healthy; `tests/Acta.runsettings
 ```bash
 docker compose up -d --wait --wait-timeout 300
 dotnet test Acta.slnx -c Release --settings tests/Acta.runsettings
-dotnet test concepts/Concepts.slnx -c Release --settings tests/Acta.runsettings
+dotnet test learn/Learn.slnx -c Release --settings tests/Acta.runsettings
 ```
 
 See [Testing custom jobs](./docs/developer-guide.md#testing-custom-jobs) for the test taxonomy and
@@ -293,26 +293,27 @@ Adding a value needs no table change, because no CHECK limits a column to the co
 CHECK binds only the codes it names) and an unknown id decodes as the family's id-0 member, but it does
 ship a migration: the operator views decode every code by name. A value that changes engine behaviour ships readers first and writers a release later.
 
-## Concept programs
+## How-tos
 
-Every rung under `concepts/` is also a how-to on useacta.net/learn, and the page is generated from the
-rung: nothing about a how-to is written anywhere else.
+Every program under `learn/` is a how-to, and its page on useacta.net/learn is generated from the
+program: nothing about a how-to is written anywhere else.
 
-- **Title and summary.** One source file of the rung opens with a comment whose first line starts
+- **Title and summary.** One source file of the program opens with a comment whose first line starts
   `// How to` and names the task; the comment lines under it are the summary. A file the first-job
   guide shows keeps its `// File:` line above them.
 - **Steps.** `// learn: <step title>` opens a step and `// learn: end` closes it. The comment lines
   directly under the opening line are the step's explanation, and the lines between are the ones the
   page emphasises. A number before the title, `// learn: 2. <title>`, places the step among the
-  others. Every rung marks at least one step.
-- **Rules and questions.** `## Remember` in the rung's `README.md` lists the rules the task depends
+  others. Every how-to marks at least one step. A page shows a step inside the type, or the opening
+  statements, it stands in, cut to whole statements when that is long.
+- **Rules and questions.** `## Remember` in the how-to's `README.md` lists the rules the task depends
   on. `## Check yourself` holds questions: the question in bold, its options as a list, and a
   `<details><summary>Answer</summary>` block that opens with the right option's own words and a full
   stop, then says why.
-- **Sections.** `concepts/learn.json` places every rung in one section of the library, and holds the
+- **Sections.** `learn/sections.json` places every how-to in one section, and holds the
   short tour, the look-alike pairs, and the words a search should also find a how-to by.
 
-`Acta.Emit -- check` fails for a rung with no title, no step, or no section, and for a step that is
+`Acta.Emit -- check` fails for a how-to with no title, no step, or no section, and for a step that is
 left open.
 
 ## Generated files
@@ -323,7 +324,7 @@ hand-written page goes in `docs/`. A stale contract test names its own regenerat
 | File | Regenerate |
 | --- | --- |
 | `docs/reference/data-model.md`, `code-families.md`, `schema-{pg,mssql,sqlite}.sql` | `dotnet run --project tools/Acta.Emit -- docs` |
-| `docs/reference/concept-ladder.md`, `site/learn.html`, everything under `site/learn/` but the hand-kept `first-project.html`, and the `/learn/` entries of `site/sitemap.xml` | `dotnet run --project tools/Acta.Emit -- docs` |
+| `docs/reference/how-tos.md`, `site/learn.html`, and everything under `site/learn/` but the hand-kept `first-project.html` | `dotnet run --project tools/Acta.Emit -- docs` |
 | Migrations and `src/Acta/Schema/schema-snapshot.json` | `dotnet run --project tools/Acta.Emit -- schema add --name <n>` |
 | `docs/reference/conformance-contracts.md` | `ACTA_EMIT_DOCS=1 dotnet test tests/Acta.Tests --filter DocsContractTests` |
 | `docs/reference/operations.md` | `ACTA_EMIT_DOCS=1 dotnet test tests/Acta.Tests --filter OperationsIndexTests` |
@@ -349,7 +350,7 @@ cd src/Acta.Dashboard/DashboardApp && npm ci && npm test && npm run build && npm
 dotnet build Acta.slnx -c Release -p:ActaDashboardSkipNpm=true
 docker compose up -d --wait --wait-timeout 300
 dotnet test Acta.slnx -c Release --settings tests/Acta.runsettings
-dotnet test concepts/Concepts.slnx -c Release --settings tests/Acta.runsettings
+dotnet test learn/Learn.slnx -c Release --settings tests/Acta.runsettings
 dotnet csharpier check .
 dotnet run --project tools/Acta.Emit -- check
 ```
@@ -361,12 +362,12 @@ Commit messages use imperative mood with no prefixes.
 `support/` and both `demos/` build under it: the demos chain to the root explicitly, because MSBuild
 stops at the first `Directory.Build.props` it finds walking up and would otherwise never read it. A rule
 that does not apply to a particular tree is switched off in `.editorconfig`, path-scoped, with the reason
-written beside it; see the `[concepts/**/*.cs]` and `[demos/**/*.cs]` blocks for the shape. Do not add a
+written beside it; see the `[learn/**/*.cs]` and `[demos/**/*.cs]` blocks for the shape. Do not add a
 `[SuppressMessage]` attribute to production code: the ruling belongs where the next reader will look for
 it, not at the site.
 
-Two trees are exempt on purpose. `concepts/` and `tests/PackageSmoke/` carry their own
-`Directory.Build.props` that does not chain to the root: concepts are executable documentation whose
+Two trees are exempt on purpose. `learn/` and `tests/PackageSmoke/` carry their own
+`Directory.Build.props` that does not chain to the root: how-tos are executable documentation whose
 shape is dictated by what they teach, and the package smoke exists to build the way a real external
 consumer would, untouched by this repository's build conventions. Holding either to the repo's analyzer
 tier would defeat the reason it exists.
@@ -874,7 +875,7 @@ push the packages to nuget.org through Trusted Publishing (the `publish-nuget` j
   - Over HTTP each permission passes exactly the routes that name it, a control needs its confirmation header, and a missing credential is challenged: `PermissionTests`, `ControlEndpointTests`, `DashboardAuthorizationTests`.
 - Incidents at the failures-only recording level close on the success that answers the failure, and only that one: `FailuresAuditFailureEventSpec`.
 - A build refuses a database it cannot run on, and a script-provisioned database runs and re-runs: `MigrationHistoryPreflightTests`, `MigrationHistoryPreflightSpec`, and the `*ProvisionScriptSpec` classes.
-- Every runnable concept shows its idea: `dotnet run -c Release --project tools/Acta.Verify -- concepts`. Keep its `result.md` with the release's evidence.
+- Every runnable how-to shows its task: `dotnet run -c Release --project tools/Acta.Verify -- learn`. Keep its `result.md` with the release's evidence.
 - The dashboard's manual accessibility pass is done: keyboard, focus, a screen reader, and zoom, as `src/Acta.Dashboard/DESIGN.md`, "Verification", lists them. The smoke suite's scan covers only what a machine can decide.
 - The packed packages build as an external consumer would, and their metadata is complete: `tests/PackageSmoke/run.ps1`, which CI runs on every push.
 
@@ -917,7 +918,7 @@ dotnet run -c Release --project tools/Acta.Verify -- release --db all --output a
 - Create the GitHub release from the tag (`gh release create v<version> --verify-tag`, adding `--prerelease` only for a pre-release), titled with the bare version and carrying the notes' summary, upgrade paragraph, highlights, evidence, and a link to the notes at the tag.
 - Clear the NuGet HTTP cache (`dotnet nuget locals http-cache --clear`), bump the Acta versions in `demos/Directory.Packages.props`, build both demos, and run one end to end: the demos consume the published packages.
 - Run the front page's primary prompt once, in an empty directory with a coding agent that sees only the prompt and the published site and packages, and keep the record in the release's evidence folder: client and model, date, the job ref before and after the restart, every hint given, and pass or fail. A hint makes it a fail; fix the cause, then run again.
-- Once the packages resolve from nuget.org, read useacta.net by hand before it deploys: the release lines on the front page and the start page name the released version, the benchmark strip cites the round the release notes cite, the concept count is current, and every claim still matches the guide.
+- Once the packages resolve from nuget.org, read useacta.net by hand before it deploys: the release lines on the front page and the start page name the released version, the benchmark strip cites the round the release notes cite, the how-to count is current, and every claim still matches the guide.
 
 ## Repository layout
 
@@ -925,11 +926,11 @@ dotnet run -c Release --project tools/Acta.Verify -- release --db all --output a
 docs/       hand-written guides; docs/reference/ holds only generated references (index: docs/README.md)
 src/        production packages and source generators
 tests/      unit, dashboard, conformance, and provider-specific tests
-concepts/   runnable single-concept tutorial rungs (one idea each), built by their own concepts/Concepts.slnx
+learn/      the how-tos: one small runnable program per task, built by their own learn/Learn.slnx
 demos/      larger multi-project apps (production shapes); consume the published Acta packages,
             so they are not in Acta.slnx and build independently of src/
 anvil/      Acta Anvil (interactive proof/dashboard harness)
-support/    local-hosting helpers shared by concepts, demos, and Anvil (not shipped)
+support/    local-hosting helpers shared by how-tos, demos, and Anvil (not shipped)
 tools/      Acta.Verify (headless evidence suite), Acta.Emit (generated references)
 ```
 

@@ -1,10 +1,10 @@
 # The whole program: keep another system in sync with a permanent job
 
-The how-to is [/learn/109-continuous-synchronization.md](/learn/109-continuous-synchronization.md). This file holds every source file of `concepts/100-scheduling/109-continuous-synchronization` as it is compiled, and the notes kept beside the code.
+The how-to is [/learn/109-continuous-synchronization.md](/learn/109-continuous-synchronization.md). This file holds every source file of `learn/100-scheduling/109-continuous-synchronization` as it is compiled, and the notes kept beside the code.
 
 ## Not in the packages
 
-`UseLocalDatabase` and `ConceptLab` are helpers of the Acta repository (`support/`), used so every program runs on any of the three databases and prints its rows. Do not copy them into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` and `LearnLab` are helpers of the Acta repository (`support/`), used so every program runs on any of the three databases and prints its rows. Do not copy them into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## The whole program
 
@@ -16,8 +16,8 @@ The how-to is [/learn/109-continuous-synchronization.md](/learn/109-continuous-s
 // bounded batch and returns; the watermark is the job's own durable variable, read at the top of every execution, so
 // a recovered firing continues where the lost one stopped.
 using Acta;
-using Acta.Concepts.ContinuousSynchronization;
 using Acta.Labs;
+using Acta.Learn.ContinuousSynchronization;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -80,7 +80,7 @@ if (!LocalDatabase.IsSqlite(provider))
     return;
 }
 
-// One file of its own, so reset can start the story from nothing without touching another rung's database.
+// One file of its own, so reset can start the story from nothing without touching another how-to's database.
 builder.Configuration["ConnectionStrings:acta"] ??= $"Data Source={labDatabase}";
 var connectionString = LocalDatabase.ResolveConnectionString(builder.Configuration, provider);
 var outage = new ShopOutage { IsActive = () => File.Exists(outageMarker) };
@@ -89,7 +89,7 @@ var store = new OrderStore(connectionString);
 await shop.EnsureCreatedAsync(default);
 await store.EnsureCreatedAsync(default);
 
-var lab = new ConceptLab(builder.Configuration, args);
+var lab = new LearnLab(builder.Configuration, args);
 builder.Services.AddSingleton(shop);
 builder.Services.AddSingleton(store);
 builder.Services.AddSingleton<CrashSignal>(new ProcessCrashSignal(crashMarker));
@@ -164,7 +164,7 @@ static async Task<long> SlotIdAsync(IJobs jobs, ISchedules schedules)
     return (await jobs.GetIdAsync(schedule.JobRef!.Value))!.JobId;
 }
 
-static async Task ShowStateAsync(ConceptLab lab, IJobs jobs, ISchedules schedules, OrderStore store, ShopFeed shop)
+static async Task ShowStateAsync(LearnLab lab, IJobs jobs, ISchedules schedules, OrderStore store, ShopFeed shop)
 {
     var slotId = await SlotIdAsync(jobs, schedules);
     await lab.ShowAllAsync(
@@ -244,7 +244,7 @@ static async Task ShowStateAsync(ConceptLab lab, IJobs jobs, ISchedules schedule
 
 static void PrintCommands()
 {
-    Console.WriteLine("dotnet run --project concepts/100-scheduling/109-continuous-synchronization -- <mode>");
+    Console.WriteLine("dotnet run --project learn/100-scheduling/109-continuous-synchronization -- <mode>");
     Console.WriteLine("  tour     seed the feed, watch three firings, print the rows, exit (the default)");
     Console.WriteLine("  worker   run the worker until Ctrl+C, or until an armed crash");
     Console.WriteLine("  more [n] publish n more shop changes (default 60)");
@@ -258,7 +258,7 @@ static void PrintCommands()
 ### CrashSignal.cs
 
 ```csharp
-namespace Acta.Concepts.ContinuousSynchronization;
+namespace Acta.Learn.ContinuousSynchronization;
 
 /// <summary>
 /// Where the lab injects failure: called after every batch, once the orders and the watermark are durable, so a crash
@@ -305,7 +305,7 @@ public sealed class ProcessCrashSignal(string markerPath) : CrashSignal
 ```csharp
 using Microsoft.Data.Sqlite;
 
-namespace Acta.Concepts.ContinuousSynchronization;
+namespace Acta.Learn.ContinuousSynchronization;
 
 /// <summary>
 /// The application's side of the synchronization: the local copy of the orders. A batch is applied as one upsert per
@@ -392,7 +392,7 @@ public sealed class OrderStore(string connectionString)
 ```csharp
 using Microsoft.Data.Sqlite;
 
-namespace Acta.Concepts.ContinuousSynchronization;
+namespace Acta.Learn.ContinuousSynchronization;
 
 /// <summary>One change the shop published: the order it concerns and the state the order reached.</summary>
 public sealed record OrderChange(long ChangeId, string OrderId, string Status, long AmountCents);
@@ -518,7 +518,7 @@ public sealed class ShopFeed(string connectionString, ShopOutage outage)
 ### SyncOrdersJob.cs
 
 ```csharp
-namespace Acta.Concepts.ContinuousSynchronization;
+namespace Acta.Learn.ContinuousSynchronization;
 
 /// <summary>
 /// One permanent job keeps the local orders current. The schedule fires it every five seconds; a firing applies at
@@ -654,27 +654,27 @@ attempt, and Acta's release validation kills worker processes at scale.
 
 ```bash
 # 1. Seed 120 order changes, watch three firings sync them in batches of forty, print the rows, exit.
-dotnet run --project concepts/100-scheduling/109-continuous-synchronization
+dotnet run --project learn/100-scheduling/109-continuous-synchronization
 
 # 2. Terminal one: run the worker; a firing every five seconds.
-dotnet run --project concepts/100-scheduling/109-continuous-synchronization -- worker
+dotnet run --project learn/100-scheduling/109-continuous-synchronization -- worker
 
 # 3. Terminal two: publish sixty more changes, then arm a crash after the next batch.
-dotnet run --project concepts/100-scheduling/109-continuous-synchronization -- more 60
-dotnet run --project concepts/100-scheduling/109-continuous-synchronization -- crash
+dotnet run --project learn/100-scheduling/109-continuous-synchronization -- more 60
+dotnet run --project learn/100-scheduling/109-continuous-synchronization -- crash
 #    Terminal one dies with a non-zero exit after its next batch.
 
 # 4. Inspect the durable state the dead worker left behind.
-dotnet run --project concepts/100-scheduling/109-continuous-synchronization -- inspect
+dotnet run --project learn/100-scheduling/109-continuous-synchronization -- inspect
 
 # 5. Terminal one: restart the worker. Its heartbeat finds the lease lapsed and reclaims the firing.
-dotnet run --project concepts/100-scheduling/109-continuous-synchronization -- worker
+dotnet run --project learn/100-scheduling/109-continuous-synchronization -- worker
 
 # 6. Inspect again: the same job and firing, one more execution, the watermark at the feed's head.
-dotnet run --project concepts/100-scheduling/109-continuous-synchronization -- inspect
+dotnet run --project learn/100-scheduling/109-continuous-synchronization -- inspect
 
 # 7. Start over.
-dotnet run --project concepts/100-scheduling/109-continuous-synchronization -- reset
+dotnet run --project learn/100-scheduling/109-continuous-synchronization -- reset
 ```
 
 `outage` switches the shop feed off and on again: a firing that cannot read the feed fails its
@@ -815,7 +815,7 @@ batch: an older change overwrites a newer order, which is what the clause is for
 ### Source trail
 
 - [The related Engineering Lab](https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md)
-- [`continuous-synchronization.cs`](https://github.com/acta-dotnet/acta/blob/main/concepts/100-scheduling/109-continuous-synchronization/continuous-synchronization.cs), [`SyncOrdersJob.cs`](https://github.com/acta-dotnet/acta/blob/main/concepts/100-scheduling/109-continuous-synchronization/SyncOrdersJob.cs), [`OrderStore.cs`](https://github.com/acta-dotnet/acta/blob/main/concepts/100-scheduling/109-continuous-synchronization/OrderStore.cs), [`ShopFeed.cs`](https://github.com/acta-dotnet/acta/blob/main/concepts/100-scheduling/109-continuous-synchronization/ShopFeed.cs)
+- [`continuous-synchronization.cs`](https://github.com/acta-dotnet/acta/blob/main/learn/100-scheduling/109-continuous-synchronization/continuous-synchronization.cs), [`SyncOrdersJob.cs`](https://github.com/acta-dotnet/acta/blob/main/learn/100-scheduling/109-continuous-synchronization/SyncOrdersJob.cs), [`OrderStore.cs`](https://github.com/acta-dotnet/acta/blob/main/learn/100-scheduling/109-continuous-synchronization/OrderStore.cs), [`ShopFeed.cs`](https://github.com/acta-dotnet/acta/blob/main/learn/100-scheduling/109-continuous-synchronization/ShopFeed.cs)
 - The tests that prove each claim without sleeping: [`804-continuous-synchronization-tests`](/learn/804-continuous-synchronization-tests.md)
 - [`ScheduleAdmitter.cs`](https://github.com/acta-dotnet/acta/blob/main/src/Acta/Engine/Scheduling/ScheduleAdmitter.cs), the admission pass that moves the permanent job from `Idle` to `Ready`
 - [`ReclaimStuckJobs.routine.pg.sql`](https://github.com/acta-dotnet/acta/blob/main/src/Acta/Operations/Execution/ReclaimStuckJobs/ReclaimStuckJobs.routine.pg.sql), the recovery that reclaims a lost firing

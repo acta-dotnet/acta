@@ -1,0 +1,83 @@
+namespace Acta.Learn.DurableCheckout;
+
+public sealed record Checkout(string OrderId, decimal Amount);
+
+public sealed record ChargeResult(string ChargeId);
+
+public sealed record FraudDecision(bool Approved, string Reviewer);
+
+public sealed record CheckoutResult(string OrderId, string ChargeId);
+
+public sealed class CheckoutJob
+{
+    [Job("checkout")]
+    public async Task<CheckoutResult> Handle(Checkout order, JobContext context, CancellationToken ct)
+    {
+        // The review comes first, so a rejected order has reserved and charged nothing and needs no refund.
+        if (order.Amount >= 500m)
+        {
+            // learn: 1. Wait for the review before anything is charged
+            // No thread or executor waits here. Acta stores the signal checkpoint, releases the lease,
+            // and re-enters this handler from the top after another actor raises the signal.
+            var decision = await context.WaitSignalAsync<FraudDecision>("fraud-review", ct);
+            if (decision is not { Approved: true })
+            {
+                await context.CancelAsync($"fraud review rejected by {decision?.Reviewer}", ct);
+            }
+            // learn: end
+
+            // Deliberately ordinary, repeat-safe diagnostic code: it runs after the signal replay and
+            // again after the timer replay. External side effects belong in idempotent durable steps.
+            Console.WriteLine($"[{order.OrderId}] approval observed by handler; reviewer={decision!.Reviewer}");
+        }
+
+        // learn: 2. Put each outside call in a step
+        // Normal durable steps replay completed outcomes, but an in-flight body can run again after a
+        // crash. These simulated external calls therefore carry stable deduplication keys. A real
+        // inventory, payment, or mail service must persist and honor the same contract.
+        await context.RunStepAsync(
+            "reserve-inventory",
+            async innerCt =>
+            {
+                await Task.Delay(150, innerCt);
+                Console.WriteLine($"[{order.OrderId}] inventory request: deduplication-key=reservation:{order.OrderId}");
+            },
+            ct
+        );
+        // learn: end
+
+        var charge = await context.RunStepAsync(
+            "charge-card",
+            async innerCt =>
+            {
+                await Task.Delay(150, innerCt);
+                Console.WriteLine($"[{order.OrderId}] payment request: deduplication-key=payment:{order.OrderId}");
+                return new ChargeResult($"ch_{order.OrderId}");
+            },
+            ct
+        );
+
+        // learn: 3. Keep a value in a variable
+        // Get-or-set demonstrates that the variable row is read, not rewritten, on handler re-entry.
+        var chargeId = await context.GetOrSetVariableAsync("charge-id", () => charge.ChargeId, ct);
+        // learn: end
+
+        // learn: 4. Wait out the settlement window with a named timer
+        // The named timer stores an intention in SQL. It does not preserve a process-local continuation.
+        await context.SleepAsync("settlement-delay", TimeSpan.FromSeconds(5), "simulated settlement window", ct);
+        // learn: end
+
+        await context.RunStepAsync(
+            "send-receipt",
+            async innerCt =>
+            {
+                var storedChargeId = await context.GetVariableAsync<string>("charge-id", innerCt);
+                await Task.Delay(100, innerCt);
+                Console.WriteLine($"[{order.OrderId}] receipt request for {storedChargeId}: deduplication-key=receipt:{order.OrderId}");
+            },
+            ct
+        );
+
+        return new CheckoutResult(order.OrderId, chargeId);
+    }
+}

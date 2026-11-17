@@ -1,6 +1,6 @@
 # The whole program: put the dashboard behind your sign-in
 
-The how-to is [/learn/414-dashboard-sign-in.md](/learn/414-dashboard-sign-in.md). This file holds every source file of `concepts/400-observability-and-alerts/414-dashboard-sign-in` as it is compiled, and the notes kept beside the code.
+The how-to is [/learn/414-dashboard-sign-in.md](/learn/414-dashboard-sign-in.md). This file holds every source file of `learn/400-observability-and-alerts/414-dashboard-sign-in` as it is compiled, and the notes kept beside the code.
 
 ## Not in the packages
 
@@ -20,8 +20,8 @@ using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using Acta;
 using Acta.AspNetCore;
-using Acta.Concepts.DashboardSignIn;
 using Acta.Dashboard;
+using Acta.Learn.DashboardSignIn;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -244,7 +244,7 @@ async Task<JsonNode?> CallAsync(HttpClient browser, HttpMethod method, string pa
     return json;
 }
 
-namespace Acta.Concepts.DashboardSignIn
+namespace Acta.Learn.DashboardSignIn
 {
     public sealed record SampleTask(string Id);
 
@@ -274,7 +274,7 @@ The roles are the host's. Acta reads the policies and has no users or roles of i
 `RequirePermissions = true` is what makes the pair work in a browser. With no session a dashboard page is sent
 to the sign-in page, and an API call answers 401 with no redirect, which the dashboard shows as an ended session.
 
-On start the rung signs in as each user through the real form and prints what the server answered:
+On start the program signs in as each user through the real form and prints what the server answered:
 
 - Nobody signed in: the dashboard redirects to `/sign-in`, the API answers 401, and a sign-in post without its
   antiforgery token answers 400.
@@ -291,7 +291,7 @@ A 200 alone would not show a change, since a control that finds nothing to do al
 ### Run the experiment
 
 ```bash
-dotnet run --project concepts/400-observability-and-alerts/414-dashboard-sign-in
+dotnet run --project learn/400-observability-and-alerts/414-dashboard-sign-in
 ```
 
 Then open the address it prints and sign in as `reader`, `operator` or `admin`; each one's password is its name.
@@ -321,7 +321,7 @@ open past its session shows errors until it is reloaded.
 
 ### Source trail
 
-- [`dashboard-sign-in.cs`](https://github.com/acta-dotnet/acta/blob/main/concepts/400-observability-and-alerts/414-dashboard-sign-in/dashboard-sign-in.cs)
+- [`dashboard-sign-in.cs`](https://github.com/acta-dotnet/acta/blob/main/learn/400-observability-and-alerts/414-dashboard-sign-in/dashboard-sign-in.cs)
 - [Permissions in the operator guide](https://github.com/acta-dotnet/acta/blob/main/docs/operator-guide.md#permissions)
 - [`PermissionFilter.cs`](https://github.com/acta-dotnet/acta/blob/main/src/Acta.AspNetCore/Http/PermissionFilter.cs)
 - [`PermissionTests.cs`](https://github.com/acta-dotnet/acta/blob/main/tests/Acta.Tests/AspNetCore/PermissionTests.cs)

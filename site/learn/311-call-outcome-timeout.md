@@ -3,7 +3,7 @@
 `CallAsync` answers a `JobOutcome`: whether the wait timed out, whether the job failed, and the value when it succeeded.
 
 - Section: Wait for people, events, and time, step 4
-- Program: `concepts/300-failure-and-recovery/311-call-outcome-timeout` in https://github.com/acta-dotnet/acta (one compiled project)
+- Program: `learn/300-failure-and-recovery/311-call-outcome-timeout` in https://github.com/acta-dotnet/acta (one compiled project)
 - Status: Checked every release. Before each release, Acta Verify runs this program and checks that its output contains these lines.
 - Rules: [/llms.txt](/llms.txt) is the contract every handler follows, starting with the handler running again from its first line; read it before you copy code from here.
 - Release: the one /llms.txt names at its top.
@@ -114,7 +114,7 @@ public static class SlowReportJob
 From a clone of the repository, with the .NET 10 SDK:
 
 ```bash
-dotnet run --project concepts/300-failure-and-recovery/311-call-outcome-timeout
+dotnet run --project learn/300-failure-and-recovery/311-call-outcome-timeout
 ```
 
 Its output must contain:

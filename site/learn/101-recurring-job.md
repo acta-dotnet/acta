@@ -3,7 +3,7 @@
 `[Schedule]` with a cron makes one permanent job that fires on that cadence, with nothing to enqueue.
 
 - Section: Run work on a schedule, step 1
-- Program: `concepts/100-scheduling/101-recurring-job` in https://github.com/acta-dotnet/acta (one compiled project)
+- Program: `learn/100-scheduling/101-recurring-job` in https://github.com/acta-dotnet/acta (one compiled project)
 - Status: Checked every release. Before each release, Acta Verify runs this program and checks that its output contains these lines.
 - Rules: [/llms.txt](/llms.txt) is the contract every handler follows; "Remember" below carries the rules that bite this task.
 - Release: the one /llms.txt names at its top.
@@ -45,7 +45,7 @@ public sealed class PurgeStaleSessionsJob
 From a clone of the repository, with the .NET 10 SDK:
 
 ```bash
-dotnet run --project concepts/100-scheduling/101-recurring-job
+dotnet run --project learn/100-scheduling/101-recurring-job
 ```
 
 Its output must contain:

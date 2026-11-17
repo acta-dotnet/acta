@@ -1,6 +1,6 @@
 # The whole program: save a record and start its job in one transaction
 
-The how-to is [/learn/029-enqueue-in-transaction.md](/learn/029-enqueue-in-transaction.md). This file holds every source file of `concepts/000-fundamentals/029-enqueue-in-transaction` as it is compiled.
+The how-to is [/learn/029-enqueue-in-transaction.md](/learn/029-enqueue-in-transaction.md). This file holds every source file of `learn/000-fundamentals/029-enqueue-in-transaction` as it is compiled.
 
 ## Not in the packages
 
@@ -15,7 +15,7 @@ The how-to is [/learn/029-enqueue-in-transaction.md](/learn/029-enqueue-in-trans
 // `EnqueueAsync` takes your open transaction, so the order row and the job that fulfils it commit together, or
 // neither exists.
 using Acta;
-using Acta.Concepts.EnqueueInTransaction;
+using Acta.Learn.EnqueueInTransaction;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -24,7 +24,7 @@ var builder = Host.CreateApplicationBuilder(args);
 var provider = LocalDatabase.ResolveProvider(builder.Configuration);
 if (!LocalDatabase.IsSqlite(provider))
 {
-    Console.WriteLine("This rung keeps its orders table in the same SQLite file as Acta's tables.");
+    Console.WriteLine("This how-to keeps its orders table in the same SQLite file as Acta's tables.");
     Console.WriteLine("Unset ACTA_LOCAL_PROVIDER (or set it to sqlite) and run again.");
     return;
 }
@@ -102,7 +102,7 @@ async Task ExecuteAsync(SqliteTransaction? transaction, string sql, string? orde
     await command.ExecuteNonQueryAsync();
 }
 
-namespace Acta.Concepts.EnqueueInTransaction
+namespace Acta.Learn.EnqueueInTransaction
 {
     public sealed record FulfilOrder(string OrderId);
 

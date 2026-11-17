@@ -1,6 +1,6 @@
 # The whole program: show where each job is on your own page
 
-The how-to is [/learn/415-own-status-page.md](/learn/415-own-status-page.md). This file holds every source file of `concepts/400-observability-and-alerts/415-own-status-page` as it is compiled.
+The how-to is [/learn/415-own-status-page.md](/learn/415-own-status-page.md). This file holds every source file of `learn/400-observability-and-alerts/415-own-status-page` as it is compiled.
 
 ## Not in the packages
 
@@ -15,7 +15,7 @@ The how-to is [/learn/415-own-status-page.md](/learn/415-own-status-page.md). Th
 // `IJobs` reads one job for a page of your own: its status, a value the handler keeps for the screen, and a sentence
 // that says why the job is where it is.
 using Acta;
-using Acta.Concepts.OwnStatusPage;
+using Acta.Learn.OwnStatusPage;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -84,7 +84,7 @@ async Task UntilAsync(Func<GetJobResponse, bool> reached)
     }
 }
 
-namespace Acta.Concepts.OwnStatusPage
+namespace Acta.Learn.OwnStatusPage
 {
     public sealed record PrepareOrder(string OrderId);
 

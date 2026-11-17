@@ -102,7 +102,7 @@ The dashboard at `/acta` on the same port reads the same tables. Here it is on a
 - [Developer guide](./docs/developer-guide.md): steps, signals, child jobs, schedules, lanes, limits, and testing.
 - [Operator guide](./docs/operator-guide.md): deploying with `jobs migrate` and `jobs deploy`, the dashboard and the CLI, alerts, and what happens when something fails.
 - [HTTP contract](./docs/reference/openapi.json): `Acta.AspNetCore` serves a JSON API described by this OpenAPI document, and standard OpenAPI tools generate a client from it.
-- [Engineering Labs](./docs/engineering-labs.md): each behavior as a runnable project in [`concepts/`](./concepts/), with the rows that show it.
+- [Engineering Labs](./docs/engineering-labs.md): each behavior as a runnable project in [`learn/`](./learn/), with the rows that show it.
 - [Known limitations](./docs/known-limitations.md) and [compatibility and support](./docs/compatibility-and-support.md): what Acta does not do, the supported databases and packages, and the evidence behind each release.
 - [Every page, by the question it answers](./docs/README.md), and the site at [useacta.net](https://useacta.net/).
 

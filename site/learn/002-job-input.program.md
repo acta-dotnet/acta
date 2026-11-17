@@ -1,6 +1,6 @@
 # The whole program: pass typed input to a job
 
-The how-to is [/learn/002-job-input.md](/learn/002-job-input.md). This file holds every source file of `concepts/000-fundamentals/002-job-input` as it is compiled.
+The how-to is [/learn/002-job-input.md](/learn/002-job-input.md). This file holds every source file of `learn/000-fundamentals/002-job-input` as it is compiled.
 
 ## Not in the packages
 
@@ -14,7 +14,7 @@ The how-to is [/learn/002-job-input.md](/learn/002-job-input.md). This file hold
 // How to pass typed input to a job
 // The input is a record: Acta stores it with the job and hands it to the handler as its first parameter.
 using Acta;
-using Acta.Concepts.JobInput;
+using Acta.Learn.JobInput;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -41,7 +41,7 @@ Console.WriteLine("Enqueued. Worker is running - press Ctrl+C to stop.");
 await host.WaitForShutdownAsync();
 await host.StopAsync();
 
-namespace Acta.Concepts.JobInput
+namespace Acta.Learn.JobInput
 {
     // learn: 1. Write the input as a record
     // The input is plain data. Acta serializes it, stores it with the job, and hands it to the handler.

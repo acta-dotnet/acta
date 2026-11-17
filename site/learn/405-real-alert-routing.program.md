@@ -1,6 +1,6 @@
 # The whole program: route alerts to Slack from configuration
 
-The how-to is [/learn/405-real-alert-routing.md](/learn/405-real-alert-routing.md). This file holds every source file of `concepts/400-observability-and-alerts/405-real-alert-routing` as it is compiled.
+The how-to is [/learn/405-real-alert-routing.md](/learn/405-real-alert-routing.md). This file holds every source file of `learn/400-observability-and-alerts/405-real-alert-routing` as it is compiled.
 
 ## Not in the packages
 
@@ -15,7 +15,7 @@ The how-to is [/learn/405-real-alert-routing.md](/learn/405-real-alert-routing.m
 // An alert channel posts to a Slack webhook whose URL comes from configuration, and logs when none is set. A
 // deduplication key collapses repeats of one incident into one alert.
 using Acta;
-using Acta.Concepts.RealAlertRouting;
+using Acta.Learn.RealAlertRouting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -69,7 +69,7 @@ foreach (var alert in alerts.Items)
 
 await host.StopAsync();
 
-namespace Acta.Concepts.RealAlertRouting
+namespace Acta.Learn.RealAlertRouting
 {
     public sealed record QueueDepthCheck(string Queue, int Depth);
 

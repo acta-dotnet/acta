@@ -1,6 +1,6 @@
 # The whole program: pause a job from inside its handler
 
-The how-to is [/learn/303-pause-job.md](/learn/303-pause-job.md). This file holds every source file of `concepts/300-failure-and-recovery/303-pause-job` as it is compiled.
+The how-to is [/learn/303-pause-job.md](/learn/303-pause-job.md). This file holds every source file of `learn/300-failure-and-recovery/303-pause-job` as it is compiled.
 
 ## Not in the packages
 
@@ -14,7 +14,7 @@ The how-to is [/learn/303-pause-job.md](/learn/303-pause-job.md). This file hold
 // How to pause a job from inside its handler
 // `PauseAsync` in a handler parks the job as `Paused` until someone resumes it.
 using Acta;
-using Acta.Concepts.PauseJob;
+using Acta.Learn.PauseJob;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -49,7 +49,7 @@ Console.WriteLine($"status={(await jobs.GetAsync(outcome))!.Status}");
 
 await host.StopAsync();
 
-namespace Acta.Concepts.PauseJob
+namespace Acta.Learn.PauseJob
 {
     public sealed record ApplyMigration(string Version, bool NeedsApproval);
 

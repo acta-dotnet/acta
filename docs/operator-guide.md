@@ -514,7 +514,7 @@ Use SQL Server or PostgreSQL when more than one process will claim work from the
 They are the server providers and the right default for service deployments. A PostgreSQL database
 must keep a deterministic collation, which is the default, so that keys compare exactly.
 
-Use SQLite when the database is embedded in one process. SQLite is useful for concepts, local
+Use SQLite when the database is embedded in one process. SQLite is useful for how-tos, local
 exploration, tests, and small single-process tools. Several processes can share one SQLite file on one
 machine, as the demos do, but it is discouraged: they take turns at its one write lock, and an enqueue
 wakes only its own process. On SQLite, Acta's tables
@@ -737,7 +737,7 @@ operator-visible SQL state.
 
 ### Dashboard exposure and auth
 
-The rules are in [HTTP API and dashboard](#http-api-and-dashboard), and [`414-dashboard-sign-in`](../concepts/400-observability-and-alerts/414-dashboard-sign-in/) is a runnable host with a cookie sign-in and three roles. A typical remote setup, with controls for one role:
+The rules are in [HTTP API and dashboard](#http-api-and-dashboard), and [`414-dashboard-sign-in`](../learn/400-observability-and-alerts/414-dashboard-sign-in/) is a runnable host with a cookie sign-in and three roles. A typical remote setup, with controls for one role:
 
 ```csharp
 builder.Services.AddAuthorization(options =>
@@ -895,7 +895,7 @@ w.AddAlertChannel("ops-slack", AlertTransportKinds.SlackWebhook,
 
 ### Operator surface
 
-`IActaOperations.Alerts` lists, reads, acknowledges, and resolves alerts, as do the dashboard and `POST /alerts/{alertRef}/acknowledge|resolve`. Acknowledging does not stop reminders; resolving does. Neither changes the job. An alert is deleted with its job, by retention or a purge, and otherwise ages out on `AlertRetention`. The concepts `402-alerts`, `403-alert-channel`, `405-real-alert-routing`, `406-automatic-failure-alerts`, and `411-alert-escalation` run each part.
+`IActaOperations.Alerts` lists, reads, acknowledges, and resolves alerts, as do the dashboard and `POST /alerts/{alertRef}/acknowledge|resolve`. Acknowledging does not stop reminders; resolving does. Neither changes the job. An alert is deleted with its job, by retention or a purge, and otherwise ages out on `AlertRetention`. The how-tos `402-alerts`, `403-alert-channel`, `405-real-alert-routing`, `406-automatic-failure-alerts`, and `411-alert-escalation` run each part.
 
 ## What happens if…
 

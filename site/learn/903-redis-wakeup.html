@@ -65,7 +65,7 @@
       <p class="howto-context">A how-to for Acta, durable execution for .NET. <a href="/start">New to Acta? Run your first durable job in five minutes.</a></p>
       <div class="howto-meta">
         <span class="status proven">Proven by other suites</span>
-        <a class="program" href="https://github.com/acta-dotnet/acta/tree/main/concepts/900-runtime-and-tuning/903-redis-wakeup"><code>concepts/900-runtime-and-tuning/903-redis-wakeup</code></a>
+        <a class="program" href="https://github.com/acta-dotnet/acta/tree/main/learn/900-runtime-and-tuning/903-redis-wakeup"><code>learn/900-runtime-and-tuning/903-redis-wakeup</code></a>
         <div class="reader" role="group" aria-label="Read this page as">
         <span class="reader-label">Read as</span>
         <button type="button" data-reader="person" aria-pressed="true">a person</button>
@@ -91,18 +91,18 @@
 </div>
 <div class="step"><h2><span class="step-n">3</span>Run it</h2>
 <p>From a clone of <a href="https://github.com/acta-dotnet/acta">the Acta repository</a>, with the .NET 10 SDK:</p>
-<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project concepts/900-runtime-and-tuning/903-redis-wakeup</code></pre></figure>
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project learn/900-runtime-and-tuning/903-redis-wakeup</code></pre></figure>
 <p class="proof proven"><b>Proven by other suites.</b> The release check does not run this program. Needs a Redis server and a second process that enqueues while this one waits; RedisWakeupTests and Verify's throughput-redis rate ladder prove the same behaviour.</p>
 <p class="hint">This page shows the code. The rules it relies on, starting with the handler running again from its first line, are in <a href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#handler-contract">the handler contract</a>.</p>
 </div>
 <div class="step plain-step"><h2>The whole program</h2>
-<p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/concepts/900-runtime-and-tuning/903-redis-wakeup"><code>concepts/900-runtime-and-tuning/903-redis-wakeup</code></a>, as it is compiled.</p>
+<p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/learn/900-runtime-and-tuning/903-redis-wakeup"><code>learn/900-runtime-and-tuning/903-redis-wakeup</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
 <details class="source-file"><summary><span class="file-name">redis-wakeup.cs</span><span class="file-size">73 lines</span></summary><figure class="listing"><figcaption><span class="file">redis-wakeup.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to wake workers across processes with Redis</span>
 <span class="c">// `UseRedisWakeup` announces each enqueue over Redis, so a worker in another process starts the job within</span>
 <span class="c">// milliseconds instead of at its next poll.</span>
 <span class="k">using</span> Acta;
-<span class="k">using</span> Acta.Concepts.RedisWakeup;
+<span class="k">using</span> Acta.Learn.RedisWakeup;
 <span class="k">using</span> Acta.Redis;
 <span class="k">using</span> Microsoft.Extensions.Configuration;
 <span class="k">using</span> Microsoft.Extensions.DependencyInjection;
@@ -153,14 +153,14 @@ builder.Services.UseActa(j =&gt;
 }
 
 Console.WriteLine(<span class="s">&quot;Worker running (it polls only every 60s). In another terminal, enqueue a ping:&quot;</span>);
-Console.WriteLine(<span class="s">&quot;  dotnet run --project concepts/900-runtime-and-tuning/903-redis-wakeup -- enqueue&quot;</span>);
+Console.WriteLine(<span class="s">&quot;  dotnet run --project learn/900-runtime-and-tuning/903-redis-wakeup -- enqueue&quot;</span>);
 Console.WriteLine(<span class="s">&quot;It shows up here almost instantly - that is the Redis wake, not the poll. Ctrl+C to stop.&quot;</span>);
 
 <span class="k">await</span> host.StartAsync();
 <span class="k">await</span> host.WaitForShutdownAsync();
 <span class="k">await</span> host.StopAsync();
 
-<span class="k">namespace</span> Acta.Concepts.RedisWakeup
+<span class="k">namespace</span> Acta.Learn.RedisWakeup
 {
     <span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> Ping(<span class="k">string</span> EnqueuedAt);
 
@@ -226,7 +226,7 @@ Console.WriteLine(<span class="s">&quot;It shows up here almost instantly - that
             <a href="/start">Get started</a>
             <a href="/learn">Learn Acta</a>
             <a href="https://github.com/acta-dotnet/acta/tree/main/docs">Documentation</a>
-            <a href="https://github.com/acta-dotnet/acta/tree/main/concepts">Runnable concepts</a>
+            <a href="https://github.com/acta-dotnet/acta/tree/main/learn">How-to programs</a>
             <a href="https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md">Engineering labs</a>
             <a href="/llms.txt">llms.txt for coding agents</a>
           </nav>

@@ -1,6 +1,6 @@
 # The whole program: get an alert when a job fails
 
-The how-to is [/learn/406-automatic-failure-alerts.md](/learn/406-automatic-failure-alerts.md). This file holds every source file of `concepts/400-observability-and-alerts/406-automatic-failure-alerts` as it is compiled.
+The how-to is [/learn/406-automatic-failure-alerts.md](/learn/406-automatic-failure-alerts.md). This file holds every source file of `learn/400-observability-and-alerts/406-automatic-failure-alerts` as it is compiled.
 
 ## Not in the packages
 
@@ -16,7 +16,7 @@ The how-to is [/learn/406-automatic-failure-alerts.md](/learn/406-automatic-fail
 // and repeats of the same job's failure count up on one alert rather than opening new ones.
 
 using Acta;
-using Acta.Concepts.AutomaticFailureAlerts;
+using Acta.Learn.AutomaticFailureAlerts;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -94,7 +94,7 @@ else
 
 await host.StopAsync();
 
-namespace Acta.Concepts.AutomaticFailureAlerts
+namespace Acta.Learn.AutomaticFailureAlerts
 {
     public sealed record ProcessReport(string ReportId);
 

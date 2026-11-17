@@ -3,7 +3,7 @@
 `CallChildAsync` starts another job as a child, waits for it without holding a worker, and returns its result.
 
 - Section: Split work across child jobs, step 2
-- Program: `concepts/200-durable-execution/213-call-child` in https://github.com/acta-dotnet/acta (one compiled project)
+- Program: `learn/200-durable-execution/213-call-child` in https://github.com/acta-dotnet/acta (one compiled project)
 - Status: Checked every release. Before each release, Acta Verify runs this program and checks that its output contains these lines.
 - Rules: [/llms.txt](/llms.txt) is the contract every handler follows, starting with the handler running again from its first line; read it before you copy code from here.
 - Release: the one /llms.txt names at its top.
@@ -41,7 +41,7 @@ public async Task<EpisodePublished> Handle(PublishEpisode episode, JobContext co
 From a clone of the repository, with the .NET 10 SDK:
 
 ```bash
-dotnet run --project concepts/200-durable-execution/213-call-child
+dotnet run --project learn/200-durable-execution/213-call-child
 ```
 
 Its output must contain:

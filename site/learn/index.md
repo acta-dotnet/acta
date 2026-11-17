@@ -8,7 +8,7 @@ Read /llms.txt first. It is the contract: the rules every handler follows. This 
 
 - The numbered steps are what you write. The code is lifted from the program named on the page, so it compiles as shown.
 - "Its output must contain" lists the lines the program prints when the task works. The release check reads the same lines.
-- `UseLocalDatabase` and `ConceptLab` appear in the programs' host code. They are helpers of the repository, not of the packages: in an application write `UseSqlite`, `UsePostgres` or `UseSqlServer`.
+- `UseLocalDatabase` and `LearnLab` appear in the programs' host code. They are helpers of the repository, not of the packages: in an application write `UseSqlite`, `UsePostgres` or `UseSqlServer`.
 - Rows printed by a lab come from SQL views, the operator's contract. Application code reads the same facts through `IJobs` and `IActaOperations`.
 - A how-to is short on purpose. Its whole program, and the notes kept beside it, are in a second file named at its end, `<name>.program.md`; open that only when the steps are not enough.
 - The how-tos describe the release /llms.txt names at its top.
@@ -197,8 +197,8 @@ Alerts raised by failures or by your own code, routed where your team looks.
 
 The real runtime on a throwaway database, driven one tick at a time.
 
-- [How to test a handler with the test host](/learn/801-testing-jobs.md): `Acta.Testing` runs the real runtime on a real database with no background loop: `RunOnceAsync` decides when a job executes, so a test drives one attempt at a time. Run it with `dotnet test concepts/800-testing/801-testing-jobs`
-- [How to test a job that waits for a signal](/learn/802-testing-durable-jobs.md): Each `RunOnceAsync` drives exactly one attempt, so the suspend on a signal and the resume after its raise are two explicit ticks, and the test asserts that the step before the wait ran once across the replay. Run it with `dotnet test concepts/800-testing/802-testing-durable-jobs`
+- [How to test a handler with the test host](/learn/801-testing-jobs.md): `Acta.Testing` runs the real runtime on a real database with no background loop: `RunOnceAsync` decides when a job executes, so a test drives one attempt at a time. Run it with `dotnet test learn/800-testing/801-testing-jobs`
+- [How to test a job that waits for a signal](/learn/802-testing-durable-jobs.md): Each `RunOnceAsync` drives exactly one attempt, so the suspend on a signal and the resume after its raise are two explicit ticks, and the test asserts that the step before the wait ran once across the replay. Run it with `dotnet test learn/800-testing/802-testing-durable-jobs`
 - [How to test the first-job guide's app](/learn/803-first-job-tests.md): The first-job guide's test verbatim: the real runtime on a throwaway SQLite file, driven one tick at a time, with a retry made due at once
 - [How to test a recurring synchronization job](/learn/804-continuous-synchronization-tests.md): The claims of the continuous-synchronization lab as tests: a schedule forced due and one firing driven at a time, one job identity across firings, the watermark kept on the job, a lost attempt reclaimed with the next execution continuing at the watermark, and a replayed, a failed, and a backlogged batch. Run it with `dotnet test`
 

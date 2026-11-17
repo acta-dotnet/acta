@@ -3,7 +3,7 @@
 A source-generated `JsonSerializerContext` given to `UseJsonPayloads` serializes payloads with no runtime reflection, and `JobPayload.Json(value, typeInfo)` builds a raw payload the same way.
 
 - Section: Deploy and scale, step 5
-- Program: `concepts/900-runtime-and-tuning/901-native-aot-json` in https://github.com/acta-dotnet/acta (one compiled project)
+- Program: `learn/900-runtime-and-tuning/901-native-aot-json` in https://github.com/acta-dotnet/acta (one compiled project)
 - Status: Checked every release. Before each release, Acta Verify runs this program and checks that its output contains these lines.
 - Rules: [/llms.txt](/llms.txt) is the contract every handler follows, starting with the handler running again from its first line; read it before you copy code from here.
 - Release: the one /llms.txt names at its top.
@@ -81,7 +81,7 @@ await jobs.WaitAsync(enqueued);
 From a clone of the repository, with the .NET 10 SDK:
 
 ```bash
-dotnet run --project concepts/900-runtime-and-tuning/901-native-aot-json
+dotnet run --project learn/900-runtime-and-tuning/901-native-aot-json
 ```
 
 Its output must contain:

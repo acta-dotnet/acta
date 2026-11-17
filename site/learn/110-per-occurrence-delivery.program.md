@@ -1,10 +1,10 @@
 # The whole program: make every occurrence its own job
 
-The how-to is [/learn/110-per-occurrence-delivery.md](/learn/110-per-occurrence-delivery.md). This file holds every source file of `concepts/100-scheduling/110-per-occurrence-delivery` as it is compiled.
+The how-to is [/learn/110-per-occurrence-delivery.md](/learn/110-per-occurrence-delivery.md). This file holds every source file of `learn/100-scheduling/110-per-occurrence-delivery` as it is compiled.
 
 ## Not in the packages
 
-`UseLocalDatabase` and `ConceptLab` are helpers of the Acta repository (`support/`), used so every program runs on any of the three databases and prints its rows. Do not copy them into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` and `LearnLab` are helpers of the Acta repository (`support/`), used so every program runs on any of the three databases and prints its rows. Do not copy them into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## The whole program
 
@@ -16,15 +16,15 @@ The how-to is [/learn/110-per-occurrence-delivery.md](/learn/110-per-occurrence-
 // and retention. `MaxOutstanding` bounds how many may be unfinished at once.
 using System.Collections.Concurrent;
 using Acta;
-using Acta.Concepts.PerOccurrenceDelivery;
 using Acta.Labs;
+using Acta.Learn.PerOccurrenceDelivery;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
 const string jobNamespace = "per-occurrence";
 
 var builder = Host.CreateApplicationBuilder(args);
-var lab = new ConceptLab(builder.Configuration, args);
+var lab = new LearnLab(builder.Configuration, args);
 
 builder.Services.UseActa(j =>
 {
@@ -52,7 +52,7 @@ while (ImportJob.Finished.Count < 4)
 {
     await Task.Delay(100, drainTimeout.Token);
 }
-await operations.Schedules.PauseAsync(new ScheduleLookup(jobNamespace, "import-files", "every-second"), reasonMessage: "concept done");
+await operations.Schedules.PauseAsync(new ScheduleLookup(jobNamespace, "import-files", "every-second"), reasonMessage: "how-to done");
 var dropped = await CapacitySkipsAsync();
 
 Console.WriteLine();
@@ -74,7 +74,7 @@ async Task<int> CapacitySkipsAsync()
     return skips.Items.Count(e => e.DetailsText?.Contains("\"capacity\"", StringComparison.Ordinal) == true);
 }
 
-static async Task ShowAsync(ConceptLab lab, string title)
+static async Task ShowAsync(LearnLab lab, string title)
 {
     await lab.ShowAsync(
         $"{title}: one root job per occurrence, each with its own ref",
@@ -108,7 +108,7 @@ static async Task ShowAsync(ConceptLab lab, string title)
     );
 }
 
-namespace Acta.Concepts.PerOccurrenceDelivery
+namespace Acta.Learn.PerOccurrenceDelivery
 {
     public sealed class ImportJob
     {

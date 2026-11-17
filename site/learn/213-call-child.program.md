@@ -1,6 +1,6 @@
 # The whole program: call another job and use its result
 
-The how-to is [/learn/213-call-child.md](/learn/213-call-child.md). This file holds every source file of `concepts/200-durable-execution/213-call-child` as it is compiled.
+The how-to is [/learn/213-call-child.md](/learn/213-call-child.md). This file holds every source file of `learn/200-durable-execution/213-call-child` as it is compiled.
 
 ## Not in the packages
 
@@ -14,7 +14,7 @@ The how-to is [/learn/213-call-child.md](/learn/213-call-child.md). This file ho
 // How to call another job and use its result
 // `CallChildAsync` starts another job as a child, waits for it without holding a worker, and returns its result.
 using Acta;
-using Acta.Concepts.CallChild;
+using Acta.Learn.CallChild;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -36,7 +36,7 @@ Console.WriteLine($"published: {outcome.Value}");
 
 await host.StopAsync();
 
-namespace Acta.Concepts.CallChild
+namespace Acta.Learn.CallChild
 {
     public sealed record PublishEpisode(string EpisodeId, string SourceUrl);
 

@@ -1,6 +1,6 @@
 # The whole program: start a child job in another namespace
 
-The how-to is [/learn/704-cross-namespace-child.md](/learn/704-cross-namespace-child.md). This file holds every source file of `concepts/700-topology-and-deployment/704-cross-namespace-child` as it is compiled.
+The how-to is [/learn/704-cross-namespace-child.md](/learn/704-cross-namespace-child.md). This file holds every source file of `learn/700-topology-and-deployment/704-cross-namespace-child` as it is compiled.
 
 ## Not in the packages
 
@@ -14,7 +14,7 @@ The how-to is [/learn/704-cross-namespace-child.md](/learn/704-cross-namespace-c
 // How to start a child job in another namespace
 // A parent starts a child in another worker's namespace and waits across the boundary.
 using Acta;
-using Acta.Concepts.CrossNamespaceChild;
+using Acta.Learn.CrossNamespaceChild;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -56,7 +56,7 @@ Console.WriteLine($"order finished: {await jobs.GetResultAsync<OrderConfirmation
 
 await host.StopAsync();
 
-namespace Acta.Concepts.CrossNamespaceChild
+namespace Acta.Learn.CrossNamespaceChild
 {
     public sealed record PlaceOrder(string OrderId, decimal Amount);
 

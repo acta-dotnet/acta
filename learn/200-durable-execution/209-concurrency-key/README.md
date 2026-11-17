@@ -1,0 +1,120 @@
+<!-- engineering-lab
+lab: can-hot-keys-stop-blocking-workers
+views: jobs_view, events_view
+alternatives: critical-section-lock, whole-job-admission, queue-partition, unique-constraint, external-lock
+-->
+
+# Engineering Lab: admission control without a blocked worker
+
+## The problem
+
+Two jobs for the same hot resource must not execute together. Taking a lock inside both handlers can
+serialize the work, but the loser has already consumed an executor while it waits.
+
+## Common approaches
+
+| Mechanism | Best fit |
+| --- | --- |
+| `RunWithLockAsync` | A critical section inside a handler |
+| `ConcurrencyKey` (+ `ConcurrencyLimit`) | Admission control for the whole execution, one job at a time or N |
+| `RateLimit` | Admission control on how often, not how many |
+| Lane (`.Lane(...)`, `[Job(Lane = ...)]`) | One job at a time per lane, in enqueue order |
+| Queue partitioning | High-volume, stable partition keys |
+| Database uniqueness | Preventing duplicate durable records |
+| External distributed lock | Coordination beyond Acta's database |
+
+## Why this design
+
+Acta acquires the concurrency-key lease after claim but before handler invocation. A loser is re-armed
+`ready` with a short delay and releases its worker. The event reason makes this budget-neutral bounce
+visible instead of looking like an application failure.
+
+`[Job(ConcurrencyLimit = N)]` sizes that gate. The key then owns N lock slot leases instead of one, so N
+attempts run together and the N+1th bounces the same way. The lab's second handler, `reindex-shard`,
+declares a limit of 2 and supplies no enqueue key, so the definition name is the key: a limit alone
+throttles the whole definition. The limit is an operator-overridable policy value on the definition row.
+
+`[Job(RateLimit = "N/s")]` is the third gate and meters how often attempts start, which a limit cannot
+express: five a second is not the same shape as five at once. The lab's third handler,
+`ping-endpoint`, declares "5/s". A job that arrives before its turn is booked the next free instant
+and re-arms once at exactly that instant, rather than a crowd re-racing a counter; a turn less than a
+quarter second away is waited out in process instead, with no re-arm. `RateName` puts several
+definitions of the namespace on one meter; definitions that share one must declare the same rate.
+
+`ConcurrencyKey` provides admission, not ordering. While workers hold valid leases on all of the key's
+lock slots (one, unless a limit sizes it), no other job with that namespace and key is admitted; the exclusion is as strong as the lease, which a
+heartbeat renews while the handler runs. Admission order is unspecified: under sustained arrivals that
+keep a key held, an older job can be repeatedly overtaken, and Acta does not bound its wait. Use it for
+exclusive *unordered* work.
+
+## Trade-offs
+
+Contention adds claim/re-arm traffic, and on a key that never goes idle a bounced job can starve. A
+bounce returns the job to `ready` with its next run pushed a few seconds out, so at the instant the
+key frees the bounced job is not in the claim candidate set at all: a job enqueued later can take the
+key ahead of it, and the arrival after that can do the same. Ordering the claim scan differently
+cannot repair that, because the starved job is not among the rows being ordered.
+
+The lock is scoped to Acta work in this database; it does not coordinate unrelated applications
+unless they share the same protocol.
+
+## Run the experiment
+
+```bash
+dotnet run --project learn/200-durable-execution/209-concurrency-key
+```
+
+The lab discovers which racing job acquired the key, then inspects the owner and competitor before both
+finish.
+
+## Rows to inspect
+
+Run with `--all-columns` to execute the visible `SELECT *` Explore query first. The default Notice
+queries select the fields that prove the lesson, and the text below explains their meaning.
+
+`jobs_view` shows the owner executing and the competitor ready without a worker. The lab also descends
+one level into the internal `locks` table to reveal the named holder (the key's lock slot rows are
+`<namespace id>.sem.<key>.<slot>`, and the meter's are its `.rate.ping-endpoint` bucket and
+reservations), then uses `events_view` to show the `concurrency-key-held` and `rate-limited` reasons. Base tables are implementation detail; use the curated views or `IJobs` for
+normal operations.
+
+## Break it
+
+Increase the handler delay and enqueue more jobs with the same key. Watch repeated admission bounces.
+Then give each job a different key to see concurrency return.
+
+## When not to use
+
+Not when you need order. `ConcurrencyKey` is the middle one of three, and only the third one orders
+anything:
+
+1. **Best-effort serial dispatch under restricted conditions.** One worker process for the namespace,
+   `MaxConcurrentExecutors = 1`, equal priority, and jobs that are immediately due. That gives serial
+   execution, not strict FIFO: retries, delayed eligibility, priority changes, and operator actions all
+   reorder the queue, and Acta does not enforce that only one process runs the namespace, so this is an
+   operational promise you keep, not an invariant Acta checks. The claim
+   scan orders by priority, then by next-run instant, then by `JobId`; `JobId` is a stable
+   tie-breaker within one claim, not a multi-producer FIFO guarantee, because database identities are
+   allocation order, not commit order.
+2. **Exclusive unordered work.** `ConcurrencyKey`, exactly as this lab shows it.
+3. **Strict ordered processing.** A lane: `.Lane("customer-42")` on the enqueue, or
+   `[Job(Lane = "...")]` on the definition, runs the lane's jobs one at a time in enqueue order.
+   Head-of-line blocking is the price: a failing head retries in place and holds everything behind it,
+   so the design needs a poison-item policy.
+
+Use queue partitioning when per-key ordering must scale past one job at a time per lane. Use a unique constraint when the
+real invariant is “only one record may exist.” Use an external lock when non-Acta participants must
+coordinate too.
+
+## Source trail
+
+- [The related Engineering Lab](../../../docs/engineering-labs.md)
+- [`concurrency-key.cs`](./concurrency-key.cs)
+- [`ExecutionAdmission.cs`](../../../src/Acta/Engine/Worker/ExecutionAdmission.cs)
+- [`LockEntity.cs`](../../../src/Acta/Domain/Entities/LockEntity.cs)
+
+## Remember
+
+- A key is mutual exclusion, never ordering: an older job can be overtaken while the key stays busy. For one at a time in order, use a lane.
+- A job that finds its key full is handed back and re-armed a couple of seconds out. Each such bounce is an execution of its own and adds rows to the timeline.
+- A slot is held while an attempt runs, not while the job sleeps or waits. A slot held by a worker that died stays taken until recovery reclaims that job.

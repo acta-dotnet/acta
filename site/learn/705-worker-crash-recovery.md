@@ -3,7 +3,7 @@
 A worker process is killed in the middle of a job, and another worker reclaims the job once its lease has lapsed. The program runs on PostgreSQL or SQL Server.
 
 - Section: Deploy and scale, step 4
-- Program: `concepts/700-topology-and-deployment/705-worker-crash-recovery` in https://github.com/acta-dotnet/acta (one compiled project)
+- Program: `learn/700-topology-and-deployment/705-worker-crash-recovery` in https://github.com/acta-dotnet/acta (one compiled project)
 - Status: Proven by other suites. The release check does not run this program. Needs PostgreSQL or SQL Server and two worker processes, one killed mid-job while the other reclaims its work; Verify's chaos scenario and WorkerCrashRecoveryChaosSpec prove the same behaviour.
 - Rules: [/llms.txt](/llms.txt) is the contract every handler follows; "Remember" below carries the rules that bite this task.
 - Release: the one /llms.txt names at its top.
@@ -83,7 +83,7 @@ builder.Services.UseActa(j =>
 From a clone of the repository, with the .NET 10 SDK:
 
 ```bash
-dotnet run --project concepts/700-topology-and-deployment/705-worker-crash-recovery
+dotnet run --project learn/700-topology-and-deployment/705-worker-crash-recovery
 ```
 
 Proven by other suites. The release check does not run this program. Needs PostgreSQL or SQL Server and two worker processes, one killed mid-job while the other reclaims its work; Verify's chaos scenario and WorkerCrashRecoveryChaosSpec prove the same behaviour.
@@ -97,7 +97,7 @@ Proven by other suites. The release check does not run this program. Needs Postg
 
 ## Not in the packages
 
-`UseLocalDatabase` and `ConceptLab` are helpers of the Acta repository (`support/`), used so every program runs on any of the three databases and prints its rows. Do not copy them into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` and `LearnLab` are helpers of the Acta repository (`support/`), used so every program runs on any of the three databases and prints its rows. Do not copy them into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## Next
 

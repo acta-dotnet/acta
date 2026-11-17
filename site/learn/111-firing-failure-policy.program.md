@@ -1,10 +1,10 @@
 # The whole program: decide what a failed firing does to its schedule
 
-The how-to is [/learn/111-firing-failure-policy.md](/learn/111-firing-failure-policy.md). This file holds every source file of `concepts/100-scheduling/111-firing-failure-policy` as it is compiled.
+The how-to is [/learn/111-firing-failure-policy.md](/learn/111-firing-failure-policy.md). This file holds every source file of `learn/100-scheduling/111-firing-failure-policy` as it is compiled.
 
 ## Not in the packages
 
-`UseLocalDatabase` and `ConceptLab` are helpers of the Acta repository (`support/`), used so every program runs on any of the three databases and prints its rows. Do not copy them into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` and `LearnLab` are helpers of the Acta repository (`support/`), used so every program runs on any of the three databases and prints its rows. Do not copy them into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## The whole program
 
@@ -17,8 +17,8 @@ The how-to is [/learn/111-firing-failure-policy.md](/learn/111-firing-failure-po
 // them, with the reason, until an operator resumes them.
 using System.Collections.Concurrent;
 using Acta;
-using Acta.Concepts.FiringFailurePolicy;
 using Acta.Labs;
+using Acta.Learn.FiringFailurePolicy;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -29,7 +29,7 @@ var builder = Host.CreateApplicationBuilder(args);
 
 // Every attempt here fails on purpose; keep the runtime's one warning per failed attempt out of the output.
 builder.Logging.AddFilter("Acta.WorkerRuntime", LogLevel.Error);
-var lab = new ConceptLab(builder.Configuration, args);
+var lab = new LearnLab(builder.Configuration, args);
 
 builder.Services.UseActa(j =>
 {
@@ -91,10 +91,10 @@ await lab.ShowAsync(
     new { jobNamespace }
 );
 
-await schedules.PauseAsync(new ScheduleLookup(jobNamespace, "sync-prices-continuing", "every-second"), reasonMessage: "concept done");
+await schedules.PauseAsync(new ScheduleLookup(jobNamespace, "sync-prices-continuing", "every-second"), reasonMessage: "how-to done");
 await host.StopAsync();
 
-namespace Acta.Concepts.FiringFailurePolicy
+namespace Acta.Learn.FiringFailurePolicy
 {
     public sealed class PriceFeedJobs
     {

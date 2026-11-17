@@ -3,7 +3,7 @@
 `IJobs.PauseAsync` and `ResumeAsync` pause and resume a job from outside its handler. Each answers whether it was applied or rejected, and its reason lands on the job's timeline.
 
 - Section: Watch and control running work, step 7
-- Program: `concepts/300-failure-and-recovery/309-operator-resume` in https://github.com/acta-dotnet/acta (one compiled project)
+- Program: `learn/300-failure-and-recovery/309-operator-resume` in https://github.com/acta-dotnet/acta (one compiled project)
 - Status: Checked every release. Before each release, Acta Verify runs this program and checks that its output contains these lines.
 - Rules: [/llms.txt](/llms.txt) is the contract every handler follows, starting with the handler running again from its first line; read it before you copy code from here.
 - Release: the one /llms.txt names at its top.
@@ -105,7 +105,7 @@ public sealed class ProcessReportJob
 From a clone of the repository, with the .NET 10 SDK:
 
 ```bash
-dotnet run --project concepts/300-failure-and-recovery/309-operator-resume
+dotnet run --project learn/300-failure-and-recovery/309-operator-resume
 ```
 
 Its output must contain:

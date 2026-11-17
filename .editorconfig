@@ -394,15 +394,15 @@ dotnet_naming_style.s_camelcase.capitalization = camel_case
 # Logging cost: src logs only through ActaLog and ActaAspNetCoreLog, whose [LoggerMessage] bodies check the level
 # before they format anything, so the one cost left is an argument the call site computes (an interpolation, a
 # ToString) while the level is off. CA1873 fails that in src unless the call is guarded by IsEnabled; tests, tools,
-# concepts and Anvil log directly and are not held to it.
+# how-tos and Anvil log directly and are not held to it.
 [*.cs]
 dotnet_diagnostic.CA1873.severity = none
 
 [src/**/*.cs]
 dotnet_diagnostic.CA1873.severity = warning
 
-# Concepts are executable documentation; preserve their intentionally instance-oriented handlers.
-[concepts/**/*.cs]
+# How-tos are executable documentation; preserve their intentionally instance-oriented handlers.
+[learn/**/*.cs]
 dotnet_diagnostic.CA1822.severity = none
 
 # The demos build under the root analyzer tier and TreatWarningsAsErrors, because they are the code a

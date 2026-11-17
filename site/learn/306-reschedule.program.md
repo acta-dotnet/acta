@@ -1,6 +1,6 @@
 # The whole program: check again later without spending a retry
 
-The how-to is [/learn/306-reschedule.md](/learn/306-reschedule.md). This file holds every source file of `concepts/300-failure-and-recovery/306-reschedule` as it is compiled.
+The how-to is [/learn/306-reschedule.md](/learn/306-reschedule.md). This file holds every source file of `learn/300-failure-and-recovery/306-reschedule` as it is compiled.
 
 ## Not in the packages
 
@@ -15,7 +15,7 @@ The how-to is [/learn/306-reschedule.md](/learn/306-reschedule.md). This file ho
 // `RescheduleAsync` ends the execution and runs the handler again after a delay, without counting as a failure or
 // spending a retry.
 using Acta;
-using Acta.Concepts.Reschedule;
+using Acta.Learn.Reschedule;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -38,7 +38,7 @@ Console.WriteLine("Enqueued. Worker is running - press Ctrl+C to stop.");
 await host.WaitForShutdownAsync();
 await host.StopAsync();
 
-namespace Acta.Concepts.Reschedule
+namespace Acta.Learn.Reschedule
 {
     public sealed record PollResource(string Url);
 

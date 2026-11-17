@@ -1,6 +1,6 @@
 # The whole program: handle child jobs that fail
 
-The how-to is [/learn/219-child-failure-outcomes.md](/learn/219-child-failure-outcomes.md). This file holds every source file of `concepts/200-durable-execution/219-child-failure-outcomes` as it is compiled.
+The how-to is [/learn/219-child-failure-outcomes.md](/learn/219-child-failure-outcomes.md). This file holds every source file of `learn/200-durable-execution/219-child-failure-outcomes` as it is compiled.
 
 ## Not in the packages
 
@@ -15,7 +15,7 @@ The how-to is [/learn/219-child-failure-outcomes.md](/learn/219-child-failure-ou
 // A group of children never throws by itself. A failed child shows in the `Failed` list of the wait or the map, and
 // `ThrowIfAnyFailed` is how the parent chooses to fail with it.
 using Acta;
-using Acta.Concepts.ChildFailureOutcomes;
+using Acta.Learn.ChildFailureOutcomes;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -48,7 +48,7 @@ Console.WriteLine($"parent: {joinOutcome.Status} (expected Failed)");
 
 await host.StopAsync();
 
-namespace Acta.Concepts.ChildFailureOutcomes
+namespace Acta.Learn.ChildFailureOutcomes
 {
     // ---- scenario 1 inputs and results ----
 

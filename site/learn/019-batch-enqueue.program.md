@@ -1,6 +1,6 @@
 # The whole program: enqueue many jobs in one round trip
 
-The how-to is [/learn/019-batch-enqueue.md](/learn/019-batch-enqueue.md). This file holds every source file of `concepts/000-fundamentals/019-batch-enqueue` as it is compiled.
+The how-to is [/learn/019-batch-enqueue.md](/learn/019-batch-enqueue.md). This file holds every source file of `learn/000-fundamentals/019-batch-enqueue` as it is compiled.
 
 ## Not in the packages
 
@@ -16,7 +16,7 @@ The how-to is [/learn/019-batch-enqueue.md](/learn/019-batch-enqueue.md). This f
 // request order.
 using System.Diagnostics;
 using Acta;
-using Acta.Concepts.BatchEnqueue;
+using Acta.Learn.BatchEnqueue;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -50,7 +50,7 @@ Console.WriteLine("Worker is running - press Ctrl+C to stop.");
 await host.WaitForShutdownAsync();
 await host.StopAsync();
 
-namespace Acta.Concepts.BatchEnqueue
+namespace Acta.Learn.BatchEnqueue
 {
     public static class PingJob
     {

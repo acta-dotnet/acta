@@ -1,6 +1,6 @@
 # The whole program: fail a job for good, with no retry
 
-The how-to is [/learn/301-fail-job.md](/learn/301-fail-job.md). This file holds every source file of `concepts/300-failure-and-recovery/301-fail-job` as it is compiled.
+The how-to is [/learn/301-fail-job.md](/learn/301-fail-job.md). This file holds every source file of `learn/300-failure-and-recovery/301-fail-job` as it is compiled.
 
 ## Not in the packages
 
@@ -14,7 +14,7 @@ The how-to is [/learn/301-fail-job.md](/learn/301-fail-job.md). This file holds 
 // How to fail a job for good, with no retry
 // `FailAsync` ends the job as `Failed` at once, whatever its retry budget. A thrown exception would be retried.
 using Acta;
-using Acta.Concepts.FailJob;
+using Acta.Learn.FailJob;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -43,7 +43,7 @@ Console.WriteLine($"status={snapshot!.Status}, failureCount={snapshot.FailureCou
 
 await host.StopAsync();
 
-namespace Acta.Concepts.FailJob
+namespace Acta.Learn.FailJob
 {
     public sealed record ProcessUpload(string FileName, bool Corrupt);
 

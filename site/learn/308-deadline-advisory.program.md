@@ -1,6 +1,6 @@
 # The whole program: run an overdue job in a reduced mode
 
-The how-to is [/learn/308-deadline-advisory.md](/learn/308-deadline-advisory.md). This file holds every source file of `concepts/300-failure-and-recovery/308-deadline-advisory` as it is compiled.
+The how-to is [/learn/308-deadline-advisory.md](/learn/308-deadline-advisory.md). This file holds every source file of `learn/300-failure-and-recovery/308-deadline-advisory` as it is compiled.
 
 ## Not in the packages
 
@@ -15,7 +15,7 @@ The how-to is [/learn/308-deadline-advisory.md](/learn/308-deadline-advisory.md)
 // With `DeadlineBehavior = Advisory` an overdue job still runs. The handler reads `IsOverdue` and chooses a reduced
 // path.
 using Acta;
-using Acta.Concepts.DeadlineAdvisory;
+using Acta.Learn.DeadlineAdvisory;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -49,7 +49,7 @@ Console.WriteLine($"[{DateTime.UtcNow:HH:mm:ss}] status={snapshot.Status}");
 
 await host.StopAsync();
 
-namespace Acta.Concepts.DeadlineAdvisory
+namespace Acta.Learn.DeadlineAdvisory
 {
     public sealed record GenerateReport(string Quarter);
 

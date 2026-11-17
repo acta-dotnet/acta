@@ -3,7 +3,7 @@
 A lane runs its jobs one at a time, in enqueue order. A lane per customer keeps each customer's commands in order and lets the customers run side by side.
 
 - Section: Control order and load, step 3
-- Program: `concepts/200-durable-execution/223-lane-per-customer` in https://github.com/acta-dotnet/acta (one compiled project)
+- Program: `learn/200-durable-execution/223-lane-per-customer` in https://github.com/acta-dotnet/acta (one compiled project)
 - Status: Checked every release. Before each release, Acta Verify runs this program and checks that its output contains these lines.
 - Rules: [/llms.txt](/llms.txt) is the contract every handler follows; "Remember" below carries the rules that bite this task.
 - Release: the one /llms.txt names at its top.
@@ -63,7 +63,7 @@ public static class ApplyCommandJob
 From a clone of the repository, with the .NET 10 SDK:
 
 ```bash
-dotnet run --project concepts/200-durable-execution/223-lane-per-customer
+dotnet run --project learn/200-durable-execution/223-lane-per-customer
 ```
 
 Its output must contain:

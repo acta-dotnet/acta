@@ -3,7 +3,7 @@
 A durable variable stores a value with the job the first time it is computed, and every later attempt reads the same value.
 
 - Section: Keep another system in sync, step 2
-- Program: `concepts/200-durable-execution/203-durable-variable` in https://github.com/acta-dotnet/acta (one compiled project)
+- Program: `learn/200-durable-execution/203-durable-variable` in https://github.com/acta-dotnet/acta (one compiled project)
 - Status: Checked every release. Before each release, Acta Verify runs this program and checks that its output contains these lines.
 - Rules: [/llms.txt](/llms.txt) is the contract every handler follows, starting with the handler running again from its first line; read it before you copy code from here.
 - Release: the one /llms.txt names at its top.
@@ -50,7 +50,7 @@ public sealed class SyncUsersJob
 From a clone of the repository, with the .NET 10 SDK:
 
 ```bash
-dotnet run --project concepts/200-durable-execution/203-durable-variable
+dotnet run --project learn/200-durable-execution/203-durable-variable
 ```
 
 Its output must contain:

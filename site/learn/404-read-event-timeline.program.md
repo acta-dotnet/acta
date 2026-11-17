@@ -1,6 +1,6 @@
 # The whole program: read why a job did what it did
 
-The how-to is [/learn/404-read-event-timeline.md](/learn/404-read-event-timeline.md). This file holds every source file of `concepts/400-observability-and-alerts/404-read-event-timeline` as it is compiled.
+The how-to is [/learn/404-read-event-timeline.md](/learn/404-read-event-timeline.md). This file holds every source file of `learn/400-observability-and-alerts/404-read-event-timeline` as it is compiled.
 
 ## Not in the packages
 
@@ -15,7 +15,7 @@ The how-to is [/learn/404-read-event-timeline.md](/learn/404-read-event-timeline
 // The append-only event ledger answers why a job did what it did. `ListEventsAsync` with `LineageRoot` reads the
 // timeline of a job and of every child it started.
 using Acta;
-using Acta.Concepts.ReadEventTimeline;
+using Acta.Learn.ReadEventTimeline;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -61,7 +61,7 @@ foreach (var e in events)
 
 await host.StopAsync();
 
-namespace Acta.Concepts.ReadEventTimeline
+namespace Acta.Learn.ReadEventTimeline
 {
     public sealed record RunReport(string Period);
 

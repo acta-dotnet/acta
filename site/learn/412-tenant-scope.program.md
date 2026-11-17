@@ -1,10 +1,10 @@
 # The whole program: record which tenant a job is for
 
-The how-to is [/learn/412-tenant-scope.md](/learn/412-tenant-scope.md). This file holds every source file of `concepts/400-observability-and-alerts/412-tenant-scope` as it is compiled, and the notes kept beside the code.
+The how-to is [/learn/412-tenant-scope.md](/learn/412-tenant-scope.md). This file holds every source file of `learn/400-observability-and-alerts/412-tenant-scope` as it is compiled, and the notes kept beside the code.
 
 ## Not in the packages
 
-`UseLocalDatabase` and `ConceptLab` are helpers of the Acta repository (`support/`), used so every program runs on any of the three databases and prints its rows. Do not copy them into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` and `LearnLab` are helpers of the Acta repository (`support/`), used so every program runs on any of the three databases and prints its rows. Do not copy them into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## The whole program
 
@@ -15,14 +15,14 @@ The how-to is [/learn/412-tenant-scope.md](/learn/412-tenant-scope.md). This fil
 // `TenantName` on the enqueue records which tenant a job is for. Its children inherit the tenant, the job list
 // filters by it, and an enqueue for an unknown or a suspended tenant is refused.
 using Acta;
-using Acta.Concepts.TenantScope;
 using Acta.Labs;
+using Acta.Learn.TenantScope;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
 const string jobNamespace = "tenant-scope";
 var builder = Host.CreateApplicationBuilder(args);
-var lab = new ConceptLab(builder.Configuration, args);
+var lab = new LearnLab(builder.Configuration, args);
 var suspendActive = args.Contains("--suspend-active", StringComparer.OrdinalIgnoreCase);
 
 builder.Services.UseActa(j =>
@@ -84,7 +84,7 @@ if (suspendActive)
     var preExisting = await jobs.EnqueueAsync(new TenantLifecycleProbe("acme"), options =>
         options.TenantName("acme").CorrelationKey(runId).Delayed(TimeSpan.FromSeconds(2))
     );
-    await operations.Tenants.SuspendAsync("acme", "tenant lifecycle lab", "concept-user");
+    await operations.Tenants.SuspendAsync("acme", "tenant lifecycle lab", "lab-user");
     try
     {
         try
@@ -111,7 +111,7 @@ if (suspendActive)
     }
     finally
     {
-        await operations.Tenants.ResumeAsync("acme", "restore repeatable lab state", "concept-user");
+        await operations.Tenants.ResumeAsync("acme", "restore repeatable lab state", "lab-user");
     }
 }
 
@@ -170,7 +170,7 @@ static async Task<GetJobResponse> WaitForAsync(IJobs jobs, long jobId, Func<GetJ
     }
 }
 
-namespace Acta.Concepts.TenantScope
+namespace Acta.Learn.TenantScope
 {
     public sealed record ExportAccount(string TenantName);
 
@@ -227,7 +227,7 @@ land on the shared store.
 ### Run the experiment
 
 ```bash
-dotnet run --project concepts/400-observability-and-alerts/412-tenant-scope
+dotnet run --project learn/400-observability-and-alerts/412-tenant-scope
 ```
 
 ### Rows to inspect
@@ -245,7 +245,7 @@ should use `IActaOperations.Tenants` and `IJobs`; the underlying catalog table i
 The default run rejects both an unknown and an already suspended tenant. Also run:
 
 ```bash
-dotnet run --project concepts/400-observability-and-alerts/412-tenant-scope -- --suspend-active
+dotnet run --project learn/400-observability-and-alerts/412-tenant-scope -- --suspend-active
 ```
 
 The mode accepts one delayed job while `acme` is active, suspends the tenant, proves a new enqueue is
@@ -261,6 +261,6 @@ enough when the label needs no validation or lifecycle.
 ### Source trail
 
 - [The related Engineering Lab](https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md)
-- [`tenant-scope.cs`](https://github.com/acta-dotnet/acta/blob/main/concepts/400-observability-and-alerts/412-tenant-scope/tenant-scope.cs)
+- [`tenant-scope.cs`](https://github.com/acta-dotnet/acta/blob/main/learn/400-observability-and-alerts/412-tenant-scope/tenant-scope.cs)
 - [`ITenants.cs`](https://github.com/acta-dotnet/acta/blob/main/src/Acta/Operations/Tenants/ITenants.cs)
 - [`EnqueueJobTenantSpec.cs`](https://github.com/acta-dotnet/acta/blob/main/tests/Acta.Tests.Conformance/Operations/Jobs/EnqueueJobTenantSpec.cs)

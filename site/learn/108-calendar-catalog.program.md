@@ -1,6 +1,6 @@
 # The whole program: drive a schedule from a published calendar
 
-The how-to is [/learn/108-calendar-catalog.md](/learn/108-calendar-catalog.md). This file holds every source file of `concepts/100-scheduling/108-calendar-catalog` as it is compiled.
+The how-to is [/learn/108-calendar-catalog.md](/learn/108-calendar-catalog.md). This file holds every source file of `learn/100-scheduling/108-calendar-catalog` as it is compiled.
 
 ## Not in the packages
 
@@ -16,7 +16,7 @@ The how-to is [/learn/108-calendar-catalog.md](/learn/108-calendar-catalog.md). 
 // later publication retimes every schedule bound to it in one transaction while workers run.
 using System.Globalization;
 using Acta;
-using Acta.Concepts.CalendarCatalog;
+using Acta.Learn.CalendarCatalog;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -95,7 +95,7 @@ Console.WriteLine("Watching 15s for a tick that must not come...");
 await Task.Delay(TimeSpan.FromSeconds(15));
 await host.StopAsync();
 
-namespace Acta.Concepts.CalendarCatalog
+namespace Acta.Learn.CalendarCatalog
 {
     public readonly record struct Tick;
 

@@ -3,7 +3,7 @@
 A cron with `TimeZoneId` fires at the same local hour all year: `0 8 * * *` in `Europe/Berlin` is 08:00 in Berlin, in summer and in winter.
 
 - Section: Run work on a schedule, step 2
-- Program: `concepts/100-scheduling/104-timezone-schedule` in https://github.com/acta-dotnet/acta (one compiled project)
+- Program: `learn/100-scheduling/104-timezone-schedule` in https://github.com/acta-dotnet/acta (one compiled project)
 - Status: Checked every release. Before each release, Acta Verify runs this program and checks that its output contains these lines.
 - Rules: [/llms.txt](/llms.txt) is the contract every handler follows; "Remember" below carries the rules that bite this task.
 - Release: the one /llms.txt names at its top.
@@ -44,7 +44,7 @@ public sealed class DailyDigestJob
 From a clone of the repository, with the .NET 10 SDK:
 
 ```bash
-dotnet run --project concepts/100-scheduling/104-timezone-schedule
+dotnet run --project learn/100-scheduling/104-timezone-schedule
 ```
 
 Its output must contain:

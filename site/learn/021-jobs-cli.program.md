@@ -1,10 +1,10 @@
 # The whole program: inspect a job from the command line
 
-The how-to is [/learn/021-jobs-cli.md](/learn/021-jobs-cli.md). This file holds every source file of `concepts/000-fundamentals/021-jobs-cli` as it is compiled, and the notes kept beside the code.
+The how-to is [/learn/021-jobs-cli.md](/learn/021-jobs-cli.md). This file holds every source file of `learn/000-fundamentals/021-jobs-cli` as it is compiled, and the notes kept beside the code.
 
 ## Not in the packages
 
-`UseLocalDatabase` and `ConceptLab` are helpers of the Acta repository (`support/`), used so every program runs on any of the three databases and prints its rows. Do not copy them into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` and `LearnLab` are helpers of the Acta repository (`support/`), used so every program runs on any of the three databases and prints its rows. Do not copy them into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## The whole program
 
@@ -15,13 +15,13 @@ The how-to is [/learn/021-jobs-cli.md](/learn/021-jobs-cli.md). This file holds 
 // The app's own binary answers `jobs info`, `events`, `explain`, and the control verbs for any job, read from the
 // same database.
 using Acta;
-using Acta.Concepts.JobsCli;
 using Acta.Labs;
+using Acta.Learn.JobsCli;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
 var builder = Host.CreateApplicationBuilder(args);
-var lab = new ConceptLab(builder.Configuration, args);
+var lab = new LearnLab(builder.Configuration, args);
 
 builder.Services.UseActa(j =>
 {
@@ -55,7 +55,7 @@ while (true)
 // learn: Run the app's own binary with a jobs verb
 // A first argument of `jobs` runs that verb against the app's database and exits; without it the process starts as
 // a normal worker. The program needs no line of its own for this.
-const string cli = "dotnet run --project concepts/000-fundamentals/021-jobs-cli -- jobs";
+const string cli = "dotnet run --project learn/000-fundamentals/021-jobs-cli -- jobs";
 Console.WriteLine($"Enqueued signal-waiting job {enqueued.JobRef}. From another terminal, try:");
 Console.WriteLine($"  {cli} info {enqueued.JobRef}");
 Console.WriteLine($"  {cli} events {enqueued.JobRef}");
@@ -90,7 +90,7 @@ Console.WriteLine("Worker is running - press Ctrl+C to stop.");
 await host.WaitForShutdownAsync();
 await host.StopAsync();
 
-namespace Acta.Concepts.JobsCli
+namespace Acta.Learn.JobsCli
 {
     public sealed record ReviewDocument(string DocumentId);
 
@@ -138,16 +138,16 @@ tied to that deployment, and direct mutation still needs organizational authoriz
 Terminal 1:
 
 ```bash
-dotnet run --project concepts/000-fundamentals/021-jobs-cli
+dotnet run --project learn/000-fundamentals/021-jobs-cli
 ```
 
 Use the printed job ref in terminal 2:
 
 ```bash
-dotnet run --project concepts/000-fundamentals/021-jobs-cli -- jobs info <job-ref>
-dotnet run --project concepts/000-fundamentals/021-jobs-cli -- jobs events <job-ref>
-dotnet run --project concepts/000-fundamentals/021-jobs-cli -- jobs explain <job-ref>
-dotnet run --project concepts/000-fundamentals/021-jobs-cli -- jobs debug <job-ref> --break
+dotnet run --project learn/000-fundamentals/021-jobs-cli -- jobs info <job-ref>
+dotnet run --project learn/000-fundamentals/021-jobs-cli -- jobs events <job-ref>
+dotnet run --project learn/000-fundamentals/021-jobs-cli -- jobs explain <job-ref>
+dotnet run --project learn/000-fundamentals/021-jobs-cli -- jobs debug <job-ref> --break
 ```
 
 ### Rows to inspect
@@ -176,6 +176,6 @@ artifacts. Prefer the dashboard for broad visual triage and automation APIs for 
 - [The related Engineering Lab](https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md)
 - [The explanation Engineering Lab](https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md)
 - [The persisted-debugging Engineering Lab](https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md)
-- [`jobs-cli.cs`](https://github.com/acta-dotnet/acta/blob/main/concepts/000-fundamentals/021-jobs-cli/jobs-cli.cs)
+- [`jobs-cli.cs`](https://github.com/acta-dotnet/acta/blob/main/learn/000-fundamentals/021-jobs-cli/jobs-cli.cs)
 - [`CliCommandRunner.cs`](https://github.com/acta-dotnet/acta/blob/main/src/Acta/Cli/CliCommandRunner.cs)
 - [`ExplainJobHandler.cs`](https://github.com/acta-dotnet/acta/blob/main/src/Acta/Operations/Jobs/ExplainJob/ExplainJobHandler.cs)

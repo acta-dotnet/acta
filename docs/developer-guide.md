@@ -31,7 +31,7 @@ see [architecture decisions](./architecture-decisions.md).
 | **Namespace** | The service-owned execution boundary. A worker claims only jobs in its own namespace, and only its recovery pass reclaims their expired leases. One `Run(...)` owns one namespace; a process can host several. A manifest is per assembly, so namespaces with different jobs take one project each. |
 | **Lane** | An ordered sequence of jobs within a namespace, named at enqueue or on the definition. A lane runs one job at a time, in enqueue order, and the jobs behind its head wait as `Blocked`. See [Lanes](#lanes). |
 | **Tenant** | Optional, validated scope naming the customer / business entity a job is *about*. Registered in the Acta-owned `tenants` catalog by a `TenantName`, a dotted kebab-case name such as `acme-corp` (fold or prefix an external id that is not one) and resolved to `jobs.tenant_id` at enqueue. Audit / query / runtime scope only, not an ownership, claim, or scheduling boundary. |
-| **Provider** | The durable SQL backend. SQL Server and Postgres are the distributed providers; SQLite is the embedded single-node provider used by concepts, demos, tests, and local exploration. |
+| **Provider** | The durable SQL backend. SQL Server and Postgres are the distributed providers; SQLite is the embedded single-node provider used by how-tos, demos, tests, and local exploration. |
 
 ### One durable work unit
 
@@ -50,7 +50,7 @@ workflow is a composition of these, not a second execution engine: the same clai
 and operator controls serve all of it, which is why there is no separate workflow runtime and nothing
 new to operate. Under per-occurrence delivery each scheduled occurrence is an ordinary root job of its
 own ([delivery and capacity](./scheduling.md#delivery-and-capacity)); the
-[continuous-synchronization lab](../concepts/100-scheduling/109-continuous-synchronization/) runs a
+[continuous-synchronization lab](../learn/100-scheduling/109-continuous-synchronization/) runs a
 permanent job through a real worker crash.
 
 ### Three identities
@@ -138,7 +138,7 @@ A **Worker** is a peer process loop: it starts in a namespace its build has depl
 executes handlers, and refreshes leases. There is no leader or control-plane service.
 
 A **Provider** is the durable SQL backend. SQL Server and Postgres are the distributed providers;
-SQLite is the embedded single-node provider used heavily by concepts, demos, tests, and local
+SQLite is the embedded single-node provider used heavily by how-tos, demos, tests, and local
 exploration.
 
 ## Handler contract
@@ -561,7 +561,7 @@ Task<string> Handle(Lookup request, CancellationToken ct);
 
 Durable job instructions are stored inline, capped by `JobsOptions.MaxInlinePayloadBytes` (1 MiB default). Caller-controlled inline writes that exceed the cap (enqueue input, signal values, and handler variable and progress writes) throw `PayloadTooLargeException` and never reach storage. Results are measured against the same cap after their body has run, so neither is retried: a handler result past it fails the job for good, as a null or unserializable one does, and a step result past it, or one that is null or cannot be serialized, throws `StepFailedException` from `RunStepAsync`, which fails the job for good when uncaught, because a retry would run the finished body again.
 
-For large files, exports, media, archives, reports, or model inputs, store the bytes in file/blob/object storage and enqueue a reference (URI, checksum, size, content type). The handler opens, verifies, processes, and returns a small durable result. The job input is the durable pointer and verification contract, not the file. See `concepts/000-fundamentals/025-large-payload-reference`.
+For large files, exports, media, archives, reports, or model inputs, store the bytes in file/blob/object storage and enqueue a reference (URI, checksum, size, content type). The handler opens, verifies, processes, and returns a small durable result. The job input is the durable pointer and verification contract, not the file. See `learn/000-fundamentals/025-large-payload-reference`.
 
 ### Exception semantics
 
@@ -602,7 +602,7 @@ A child is started from its input, `ctx.CallChildAsync("ship", order, ct)`, whic
 
 Each child is an ordinary job, and a group is ordinary `EnqueueChildAsync` calls plus a wait on each child, not a workflow runtime. Every child, alone or in a group, ends in a `JobOutcome`. They wait for every child and return every outcome: they never fail fast or cancel siblings, and throw only when asked (`ThrowIfAnyFailed`). A failed child stays failed on replay until restarted. Its newer outcome is recorded on the parent when it lands or is cancelled, even after the parent finished, so a parent restarted afterwards reads it; a wait that had already timed out keeps its timeout. Each also takes a `TimeSpan timeout`, one deadline for the whole group that cancels only the members still running and reports `TimedOut` in the outcome.
 
-A map's children are keyed deterministically: `{group}/{key}`, or a hash of an unsafe key. No child name holds a `/`, so a map's children never share a key with another map's or with a child you named yourself; reusing a group name with the same key lands two starts on one child. A replay starts only the children it has not started: one already started is answered from its row, without its input or `configure` built again or the start's checks run again. Groups do not limit concurrency; use concurrency keys or worker capacity. Concept `215-map-wait-children` shows both.
+A map's children are keyed deterministically: `{group}/{key}`, or a hash of an unsafe key. No child name holds a `/`, so a map's children never share a key with another map's or with a child you named yourself; reusing a group name with the same key lands two starts on one child. A replay starts only the children it has not started: one already started is answered from its row, without its input or `configure` built again or the start's checks run again. Groups do not limit concurrency; use concurrency keys or worker capacity. How-to `215-map-wait-children` shows both.
 
 ### CancellationToken semantics
 
@@ -664,13 +664,13 @@ The job name, `TIn`, `TResult`, and payload formats are durable contract fields;
 
 ### Worked examples
 
-Full examples live in `concepts/`.
+Full examples live in `learn/`.
 
 | Shape                                        | Sample                                                                   |
 | -------------------------------------------- | ------------------------------------------------------------------------ |
-| `(TIn) → void`                               | [`../concepts/000-fundamentals/001-hello-acta/`](../concepts/000-fundamentals/001-hello-acta/)             |
-| `(TIn, JobContext, ct) → Task<TResult>`      | [`../concepts/200-durable-execution/201-durable-checkout/`](../concepts/200-durable-execution/201-durable-checkout/) |
-| `(TIn, ct) → Task<TResult>`, payload formats | [`../concepts/500-payloads/501-payload-formats/`](../concepts/500-payloads/501-payload-formats/)   |
+| `(TIn) → void`                               | [`../learn/000-fundamentals/001-hello-acta/`](../learn/000-fundamentals/001-hello-acta/)             |
+| `(TIn, JobContext, ct) → Task<TResult>`      | [`../learn/200-durable-execution/201-durable-checkout/`](../learn/200-durable-execution/201-durable-checkout/) |
+| `(TIn, ct) → Task<TResult>`, payload formats | [`../learn/500-payloads/501-payload-formats/`](../learn/500-payloads/501-payload-formats/)   |
 
 ## Configuration and options
 
@@ -721,7 +721,7 @@ uses schema `main`; SQL Server and Postgres default to schema `acta`.
 | `DeadlockRetryAttempts` | 5 | Store-level retry count for database deadlock victims. Set `1` to disable retry. |
 | `MigrateOnStartup` | `false` | Development only: startup creates the database if it is missing and applies. Production runs `<app> jobs migrate` from its deploy step ([Migration ownership](operator-guide.md#migration-ownership)). Either way, startup verifies the migration history and refuses an unprovisioned or mismatched database. |
 
-Local concepts, demos, and Anvil use `UseLocalDatabase(...)`, which selects a provider from explicit
+Local how-tos, demos, and Anvil use `UseLocalDatabase(...)`, which selects a provider from explicit
 argument, `Acta:Provider`, `ACTA_LOCAL_PROVIDER`, then SQLite as the zero-setup default.
 
 ### Worker And Cluster Options
@@ -912,8 +912,8 @@ Renaming migrates nothing: a renamed step runs again, a renamed signal or timer 
 Test `[Job]` handlers end-to-end with `Acta.Testing`: a real database, the real runtime, and a
 deterministic single-step drive. No polling loops, no sleeps, no background worker racing assertions: a tick is one claim plus one handler run, so these integration tests finish in tens of milliseconds.
 
-Runnable version: [`concepts/800-testing/801-testing-jobs`](../concepts/800-testing/801-testing-jobs/)
-(`dotnet test concepts/800-testing/801-testing-jobs`).
+Runnable version: [`learn/800-testing/801-testing-jobs`](../learn/800-testing/801-testing-jobs/)
+(`dotnet test learn/800-testing/801-testing-jobs`).
 
 The package is test-framework-agnostic (xUnit, NUnit, MSTest, TUnit). Its types live in
 `Acta.Testing`:
@@ -954,8 +954,8 @@ The test project references the testing package plus the same provider the appli
 </ItemGroup>
 ```
 
-A complete runnable version of this setup is concept
-[`801-testing-jobs`](../concepts/800-testing/801-testing-jobs/).
+A complete runnable version of this setup is how-to
+[`801-testing-jobs`](../learn/800-testing/801-testing-jobs/).
 The database is whatever the test environment provides (local container, CI service, or shared dev
 server). Each host targets its own schema, so one database serves many parallel tests.
 
@@ -1234,7 +1234,7 @@ A test runner may run test classes at once, and the tests of one class share wha
   every test, so the first-test shape above pays one host (and the full baseline migration: tables,
   routines, and views) per fact: maximal isolation, slowest. To pay it once per class, move the host into an
   `IClassFixture<>` and inherit a small test base;
-  [`concepts/800-testing/801-testing-jobs`](../concepts/800-testing/801-testing-jobs/) shows that shape (`ActaHostFixture` +
+  [`learn/800-testing/801-testing-jobs`](../learn/800-testing/801-testing-jobs/) shows that shape (`ActaHostFixture` +
   `ActaTestBase`). Shared fakes then need per-test-scoped state since the class's facts share one
   instance.
 - Disposal does not drop the schema. Throwaway schemas accumulate in the test database; recycle the

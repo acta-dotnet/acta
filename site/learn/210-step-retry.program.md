@@ -1,6 +1,6 @@
 # The whole program: compensate when the last attempt fails
 
-The how-to is [/learn/210-step-retry.md](/learn/210-step-retry.md). This file holds every source file of `concepts/200-durable-execution/210-step-retry` as it is compiled.
+The how-to is [/learn/210-step-retry.md](/learn/210-step-retry.md). This file holds every source file of `learn/200-durable-execution/210-step-retry` as it is compiled.
 
 ## Not in the packages
 
@@ -14,7 +14,7 @@ The how-to is [/learn/210-step-retry.md](/learn/210-step-retry.md). This file ho
 // How to compensate when the last attempt fails
 // A failing step retries through its job, and a `catch` on `EndsJob` compensates before the failure ends the job.
 using Acta;
-using Acta.Concepts.StepRetry;
+using Acta.Learn.StepRetry;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -43,7 +43,7 @@ Console.WriteLine("Enqueued. Worker is running - press Ctrl+C to stop.");
 await host.WaitForShutdownAsync();
 await host.StopAsync();
 
-namespace Acta.Concepts.StepRetry
+namespace Acta.Learn.StepRetry
 {
     public sealed record FetchForecast(string City);
 

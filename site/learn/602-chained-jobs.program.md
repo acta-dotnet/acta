@@ -1,6 +1,6 @@
 # The whole program: chain jobs into a pipeline
 
-The how-to is [/learn/602-chained-jobs.md](/learn/602-chained-jobs.md). This file holds every source file of `concepts/600-job-composition/602-chained-jobs` as it is compiled.
+The how-to is [/learn/602-chained-jobs.md](/learn/602-chained-jobs.md). This file holds every source file of `learn/600-job-composition/602-chained-jobs` as it is compiled.
 
 ## Not in the packages
 
@@ -15,7 +15,7 @@ The how-to is [/learn/602-chained-jobs.md](/learn/602-chained-jobs.md). This fil
 // Each stage is a job of its own that enqueues the next one, with a deduplication key so a replayed handoff starts
 // no second pipeline.
 using Acta;
-using Acta.Concepts.ChainedJobs;
+using Acta.Learn.ChainedJobs;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -38,7 +38,7 @@ Console.WriteLine("Enqueued the first stage. Worker is running - press Ctrl+C to
 await host.WaitForShutdownAsync();
 await host.StopAsync();
 
-namespace Acta.Concepts.ChainedJobs
+namespace Acta.Learn.ChainedJobs
 {
     // Each stage enqueues the next. Unlike 206's in-handler step chain, every stage is its own durable
     // job, so a crash mid-pipeline re-runs only the in-flight stage; stages already finished are not

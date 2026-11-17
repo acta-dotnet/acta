@@ -1,6 +1,6 @@
 # The whole program: hold a sign-up until the email is confirmed
 
-The how-to is [/learn/221-pending-signup.md](/learn/221-pending-signup.md). This file holds every source file of `concepts/200-durable-execution/221-pending-signup` as it is compiled.
+The how-to is [/learn/221-pending-signup.md](/learn/221-pending-signup.md). This file holds every source file of `learn/200-durable-execution/221-pending-signup` as it is compiled.
 
 ## Not in the packages
 
@@ -16,7 +16,7 @@ The how-to is [/learn/221-pending-signup.md](/learn/221-pending-signup.md). This
 // to clean up.
 using System.Collections.Concurrent;
 using Acta;
-using Acta.Concepts.PendingSignup;
+using Acta.Learn.PendingSignup;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -73,7 +73,7 @@ Console.WriteLine($"sam's late click: {late.Action}");
 
 await host.StopAsync();
 
-namespace Acta.Concepts.PendingSignup
+namespace Acta.Learn.PendingSignup
 {
     public sealed record RegisterUser(string Email, string DisplayName, string Code, TimeSpan ConfirmWithin);
 

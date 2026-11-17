@@ -3,7 +3,7 @@
 The first-job guide's app verbatim: typed result, a failure that is final and one that retries, explanation, cancel, and a wait that times out without stopping the job.
 
 - Section: Take the first steps, step 8
-- Program: `concepts/000-fundamentals/026-first-job` in https://github.com/acta-dotnet/acta (one compiled project)
+- Program: `learn/000-fundamentals/026-first-job` in https://github.com/acta-dotnet/acta (one compiled project)
 - Status: Checked every release. Before each release, Acta Verify runs this program and checks that its output contains these lines.
 - Rules: [/llms.txt](/llms.txt) is the contract every handler follows, starting with the handler running again from its first line; read it before you copy code from here.
 - Release: the one /llms.txt names at its top.
@@ -220,7 +220,7 @@ app.MapPost("/carrier/flaky", (Carrier carrier) => carrier.TimeoutsLeft = 1);
 From a clone of the repository, with the .NET 10 SDK:
 
 ```bash
-dotnet run --project concepts/000-fundamentals/026-first-job
+dotnet run --project learn/000-fundamentals/026-first-job
 ```
 
 Its output must contain:

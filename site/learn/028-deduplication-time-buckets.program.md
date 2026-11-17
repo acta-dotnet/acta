@@ -1,6 +1,6 @@
 # The whole program: allow one job per hour or per day
 
-The how-to is [/learn/028-deduplication-time-buckets.md](/learn/028-deduplication-time-buckets.md). This file holds every source file of `concepts/000-fundamentals/028-deduplication-time-buckets` as it is compiled.
+The how-to is [/learn/028-deduplication-time-buckets.md](/learn/028-deduplication-time-buckets.md). This file holds every source file of `learn/000-fundamentals/028-deduplication-time-buckets` as it is compiled.
 
 ## Not in the packages
 
@@ -15,7 +15,7 @@ The how-to is [/learn/028-deduplication-time-buckets.md](/learn/028-deduplicatio
 // A deduplication key built from a time bucket lets one job in per bucket: `DeduplicationKey.PerTimeBucket` here,
 // with `PerHour` and `PerDay` as its fixed sizes.
 using Acta;
-using Acta.Concepts.DeduplicationTimeBuckets;
+using Acta.Learn.DeduplicationTimeBuckets;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -77,7 +77,7 @@ Console.WriteLine(first.JobRef != third.JobRef ? "Two distinct jobs across bucke
 
 await host.StopAsync();
 
-namespace Acta.Concepts.DeduplicationTimeBuckets
+namespace Acta.Learn.DeduplicationTimeBuckets
 {
     public sealed record NightlySummary(string Tenant);
 

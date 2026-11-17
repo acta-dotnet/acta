@@ -3,7 +3,7 @@
 One permanent job calls a service on a schedule and keeps a watermark of how far it got. Each firing syncs one bounded batch and returns; the watermark is the job's own durable variable, read at the top of every execution, so a recovered firing continues where the lost one stopped.
 
 - Section: Keep another system in sync, step 1
-- Program: `concepts/100-scheduling/109-continuous-synchronization` in https://github.com/acta-dotnet/acta (one compiled project)
+- Program: `learn/100-scheduling/109-continuous-synchronization` in https://github.com/acta-dotnet/acta (one compiled project)
 - Status: Checked every release. Before each release, Acta Verify runs this program and checks that its output contains these lines.
 - Rules: [/llms.txt](/llms.txt) is the contract every handler follows; "Remember" below carries the rules that bite this task.
 - Release: the one /llms.txt names at its top.
@@ -177,7 +177,7 @@ await upsert.ExecuteNonQueryAsync(ct);
 From a clone of the repository, with the .NET 10 SDK:
 
 ```bash
-dotnet run --project concepts/100-scheduling/109-continuous-synchronization
+dotnet run --project learn/100-scheduling/109-continuous-synchronization
 ```
 
 Its output must contain:
@@ -214,7 +214,7 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## Not in the packages
 
-`UseLocalDatabase` and `ConceptLab` are helpers of the Acta repository (`support/`), used so every program runs on any of the three databases and prints its rows. Do not copy them into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` and `LearnLab` are helpers of the Acta repository (`support/`), used so every program runs on any of the three databases and prints its rows. Do not copy them into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## Next
 

@@ -1,6 +1,6 @@
 # The whole program: drop a job that is past its deadline
 
-The how-to is [/learn/307-deadline-strict.md](/learn/307-deadline-strict.md). This file holds every source file of `concepts/300-failure-and-recovery/307-deadline-strict` as it is compiled.
+The how-to is [/learn/307-deadline-strict.md](/learn/307-deadline-strict.md). This file holds every source file of `learn/300-failure-and-recovery/307-deadline-strict` as it is compiled.
 
 ## Not in the packages
 
@@ -15,7 +15,7 @@ The how-to is [/learn/307-deadline-strict.md](/learn/307-deadline-strict.md). Th
 // A `Deadline` is the whole job's budget, measured from its creation. Under the default, strict behaviour an overdue
 // job is cancelled before its handler runs.
 using Acta;
-using Acta.Concepts.DeadlineStrict;
+using Acta.Learn.DeadlineStrict;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -55,7 +55,7 @@ Console.WriteLine($"[{DateTime.UtcNow:HH:mm:ss}] status={snapshot.Status} failur
 
 await host.StopAsync();
 
-namespace Acta.Concepts.DeadlineStrict
+namespace Acta.Learn.DeadlineStrict
 {
     public sealed record GenerateReport(string Quarter);
 

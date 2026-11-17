@@ -99,7 +99,7 @@
          subject those two sub-suites hang off. -->
     <NoWarn>$(NoWarn);CA1034</NoWarn>
     <!-- CA1848 wants LoggerMessage methods. src already logs only through them (ActaLog, held by
-         LogVocabularyTests); tests, tools, concepts and Anvil log directly and are not held to it. CA1873 is
+         LogVocabularyTests); tests, tools, how-tos and Anvil log directly and are not held to it. CA1873 is
          switched per folder in .editorconfig instead, where it is on for src. -->
     <NoWarn>$(NoWarn);CA1848</NoWarn>
     <!-- Acta ships no resource files and no localization story; operator messages, exception text and

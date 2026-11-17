@@ -1,6 +1,6 @@
 # The whole program: pause and resume a schedule
 
-The how-to is [/learn/105-schedule-control.md](/learn/105-schedule-control.md). This file holds every source file of `concepts/100-scheduling/105-schedule-control` as it is compiled.
+The how-to is [/learn/105-schedule-control.md](/learn/105-schedule-control.md). This file holds every source file of `learn/100-scheduling/105-schedule-control` as it is compiled.
 
 ## Not in the packages
 
@@ -14,7 +14,7 @@ The how-to is [/learn/105-schedule-control.md](/learn/105-schedule-control.md). 
 // How to pause and resume a schedule
 // `operations.Schedules` pauses a schedule from outside the handler, for good or until an instant, and resumes it.
 using Acta;
-using Acta.Concepts.ScheduleControl;
+using Acta.Learn.ScheduleControl;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -73,7 +73,7 @@ Console.WriteLine($"Query confirms: status={item?.Status} next-run={item?.NextOc
 
 await host.StopAsync();
 
-namespace Acta.Concepts.ScheduleControl
+namespace Acta.Learn.ScheduleControl
 {
     public readonly record struct GenerateHourlyReport;
 

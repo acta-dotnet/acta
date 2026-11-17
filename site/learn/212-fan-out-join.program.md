@@ -1,6 +1,6 @@
 # The whole program: fan out over a list and merge the results
 
-The how-to is [/learn/212-fan-out-join.md](/learn/212-fan-out-join.md). This file holds every source file of `concepts/200-durable-execution/212-fan-out-join` as it is compiled.
+The how-to is [/learn/212-fan-out-join.md](/learn/212-fan-out-join.md). This file holds every source file of `learn/200-durable-execution/212-fan-out-join` as it is compiled.
 
 ## Not in the packages
 
@@ -15,7 +15,7 @@ The how-to is [/learn/212-fan-out-join.md](/learn/212-fan-out-join.md). This fil
 // `MapAsync` starts one child job per item of a list, waits for them all, and hands back each item's result for the
 // parent to merge.
 using Acta;
-using Acta.Concepts.FanOutJoin;
+using Acta.Learn.FanOutJoin;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -40,7 +40,7 @@ Console.WriteLine($"sum 1..1000 = {outcome.Value!.Total}");
 
 await host.StopAsync();
 
-namespace Acta.Concepts.FanOutJoin
+namespace Acta.Learn.FanOutJoin
 {
     public sealed record AddNumbers(SumRange[] Chunks);
 

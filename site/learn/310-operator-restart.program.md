@@ -1,10 +1,10 @@
 # The whole program: restart a failed job and keep its history
 
-The how-to is [/learn/310-operator-restart.md](/learn/310-operator-restart.md). This file holds every source file of `concepts/300-failure-and-recovery/310-operator-restart` as it is compiled, and the notes kept beside the code.
+The how-to is [/learn/310-operator-restart.md](/learn/310-operator-restart.md). This file holds every source file of `learn/300-failure-and-recovery/310-operator-restart` as it is compiled, and the notes kept beside the code.
 
 ## Not in the packages
 
-`UseLocalDatabase` and `ConceptLab` are helpers of the Acta repository (`support/`), used so every program runs on any of the three databases and prints its rows. Do not copy them into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` and `LearnLab` are helpers of the Acta repository (`support/`), used so every program runs on any of the three databases and prints its rows. Do not copy them into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## The whole program
 
@@ -15,14 +15,14 @@ The how-to is [/learn/310-operator-restart.md](/learn/310-operator-restart.md). 
 // `RestartAsync` runs a finished job again under the same identity. The failure budget is reset, the history is
 // appended to, steps that succeeded are not run again, and the bare lines of the handler are.
 using Acta;
-using Acta.Concepts.OperatorRestart;
 using Acta.Labs;
+using Acta.Learn.OperatorRestart;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 var builder = Host.CreateApplicationBuilder(args);
-var lab = new ConceptLab(builder.Configuration, args);
+var lab = new LearnLab(builder.Configuration, args);
 
 builder.Services.UseActa(j =>
 {
@@ -102,7 +102,7 @@ await lab.ShowAsync(
 
 await host.StopAsync();
 
-static async Task ShowRestartStateAsync(ConceptLab lab, string title, long jobId)
+static async Task ShowRestartStateAsync(LearnLab lab, string title, long jobId)
 {
     await lab.ShowAllAsync(
         $"Explore the complete job record: {title}",
@@ -133,7 +133,7 @@ static async Task ShowRestartStateAsync(ConceptLab lab, string title, long jobId
     );
 }
 
-namespace Acta.Concepts.OperatorRestart
+namespace Acta.Learn.OperatorRestart
 {
     public sealed record FlakyReport(string Id);
 
@@ -198,7 +198,7 @@ step state is useful only if step names and meanings remain compatible with the 
 ### Run the experiment
 
 ```bash
-dotnet run --project concepts/300-failure-and-recovery/310-operator-restart
+dotnet run --project learn/300-failure-and-recovery/310-operator-restart
 ```
 
 The job fails three times, the lab marks its dependency repaired, and an operator restart succeeds.
@@ -228,5 +228,5 @@ explicitly instead.
 ### Source trail
 
 - [The related Engineering Lab](https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md)
-- [`operator-restart.cs`](https://github.com/acta-dotnet/acta/blob/main/concepts/300-failure-and-recovery/310-operator-restart/operator-restart.cs)
+- [`operator-restart.cs`](https://github.com/acta-dotnet/acta/blob/main/learn/300-failure-and-recovery/310-operator-restart/operator-restart.cs)
 - [`RestartJob.sqlite.sql`](https://github.com/acta-dotnet/acta/blob/main/src/Acta/Operations/Jobs/RestartJob/RestartJob.sqlite.sql)

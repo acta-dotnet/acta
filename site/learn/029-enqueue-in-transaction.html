@@ -65,7 +65,7 @@
       <p class="howto-context">A how-to for Acta, durable execution for .NET. <a href="/start">New to Acta? Run your first durable job in five minutes.</a></p>
       <div class="howto-meta">
         <span class="status checked">Checked every release</span>
-        <a class="program" href="https://github.com/acta-dotnet/acta/tree/main/concepts/000-fundamentals/029-enqueue-in-transaction"><code>concepts/000-fundamentals/029-enqueue-in-transaction</code></a>
+        <a class="program" href="https://github.com/acta-dotnet/acta/tree/main/learn/000-fundamentals/029-enqueue-in-transaction"><code>learn/000-fundamentals/029-enqueue-in-transaction</code></a>
         <div class="reader" role="group" aria-label="Read this page as">
         <span class="reader-label">Read as</span>
         <button type="button" data-reader="person" aria-pressed="true">a person</button>
@@ -118,7 +118,7 @@ Console.WriteLine(<span class="s">$&quot;rolled back: order row {await OrderExis
 </div>
 <div class="step"><h2><span class="step-n">4</span>Run it and check the output</h2>
 <p>From a clone of <a href="https://github.com/acta-dotnet/acta">the Acta repository</a>, with the .NET 10 SDK:</p>
-<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project concepts/000-fundamentals/029-enqueue-in-transaction</code></pre></figure>
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project learn/000-fundamentals/029-enqueue-in-transaction</code></pre></figure>
 <figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button">Copy</button></figcaption><pre><code>[kept] order fulfilled
 committed:   order row yes, job succeeded
 rolled back: order row no, job none</code></pre></figure>
@@ -127,13 +127,13 @@ rolled back: order row no, job none</code></pre></figure>
 <div class="step plain-step"><h2>Remember</h2><ul class="rules"><li>The transaction is yours. Acta never opens, commits, rolls back, disposes, or retries it, and any exception inside it means rolling back the whole of it.</li><li>The answer of the enqueue is provisional until the commit and dead after a rollback. Keep or show the job's ref only once the commit has returned.</li><li>No wake-up is published for an enqueue in a transaction, so a worker finds the job on its next poll after the commit.</li><li>There is no <code>CallAsync</code> in a transaction and no handle: the job is invisible until the commit, so nothing could wait for it.</li><li>The record's table has to live in the database Acta uses. Work for a separate database is handed over through an outbox.</li><li>A request that may arrive twice still needs a deduplication key on the enqueue, as in <a href="/learn/010-deduplication-key">keep a repeated request from creating a second job</a>.</li></ul></div>
 <div class="step plain-step"><h2>Check yourself</h2><div class="check" data-answer="1"><p class="check-q">The transaction rolls back after the enqueue. What happens to the job?</p><ol class="check-options"><li><button type="button">It runs, and fails when it finds no order</button></li><li><button type="button">It never existed</button></li><li><button type="button">It stays ready until someone cancels it</button></li></ol><details class="check-why"><summary>Show the answer</summary><p><b>It never existed.</b> The job's row was written through the same transaction as the order's row, so the rollback took both, and no worker ever saw the job.</p></details></div></div>
 <div class="step plain-step"><h2>The whole program</h2>
-<p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/concepts/000-fundamentals/029-enqueue-in-transaction"><code>concepts/000-fundamentals/029-enqueue-in-transaction</code></a>, as it is compiled.</p>
+<p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/learn/000-fundamentals/029-enqueue-in-transaction"><code>learn/000-fundamentals/029-enqueue-in-transaction</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
 <details class="source-file"><summary><span class="file-name">enqueue-in-transaction.cs</span><span class="file-size">101 lines</span></summary><figure class="listing"><figcaption><span class="file">enqueue-in-transaction.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to save a record and start its job in one transaction</span>
 <span class="c">// `EnqueueAsync` takes your open transaction, so the order row and the job that fulfils it commit together, or</span>
 <span class="c">// neither exists.</span>
 <span class="k">using</span> Acta;
-<span class="k">using</span> Acta.Concepts.EnqueueInTransaction;
+<span class="k">using</span> Acta.Learn.EnqueueInTransaction;
 <span class="k">using</span> Microsoft.Data.Sqlite;
 <span class="k">using</span> Microsoft.Extensions.DependencyInjection;
 <span class="k">using</span> Microsoft.Extensions.Hosting;
@@ -142,7 +142,7 @@ rolled back: order row no, job none</code></pre></figure>
 <span class="k">var</span> provider = LocalDatabase.ResolveProvider(builder.Configuration);
 <span class="k">if</span> (!LocalDatabase.IsSqlite(provider))
 {
-    Console.WriteLine(<span class="s">&quot;This rung keeps its orders table in the same SQLite file as Acta's tables.&quot;</span>);
+    Console.WriteLine(<span class="s">&quot;This how-to keeps its orders table in the same SQLite file as Acta's tables.&quot;</span>);
     Console.WriteLine(<span class="s">&quot;Unset ACTA_LOCAL_PROVIDER (or set it to sqlite) and run again.&quot;</span>);
     <span class="k">return</span>;
 }
@@ -220,7 +220,7 @@ Console.WriteLine(<span class="s">$&quot;rolled back: order row {await OrderExis
     <span class="k">await</span> command.ExecuteNonQueryAsync();
 }
 
-<span class="k">namespace</span> Acta.Concepts.EnqueueInTransaction
+<span class="k">namespace</span> Acta.Learn.EnqueueInTransaction
 {
     <span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> FulfilOrder(<span class="k">string</span> OrderId);
 
@@ -296,7 +296,7 @@ Console.WriteLine(<span class="s">$&quot;rolled back: order row {await OrderExis
             <a href="/start">Get started</a>
             <a href="/learn">Learn Acta</a>
             <a href="https://github.com/acta-dotnet/acta/tree/main/docs">Documentation</a>
-            <a href="https://github.com/acta-dotnet/acta/tree/main/concepts">Runnable concepts</a>
+            <a href="https://github.com/acta-dotnet/acta/tree/main/learn">How-to programs</a>
             <a href="https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md">Engineering labs</a>
             <a href="/llms.txt">llms.txt for coding agents</a>
           </nav>

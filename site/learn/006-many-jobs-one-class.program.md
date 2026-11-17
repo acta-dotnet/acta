@@ -1,6 +1,6 @@
 # The whole program: keep several jobs in one class
 
-The how-to is [/learn/006-many-jobs-one-class.md](/learn/006-many-jobs-one-class.md). This file holds every source file of `concepts/000-fundamentals/006-many-jobs-one-class` as it is compiled.
+The how-to is [/learn/006-many-jobs-one-class.md](/learn/006-many-jobs-one-class.md). This file holds every source file of `learn/000-fundamentals/006-many-jobs-one-class` as it is compiled.
 
 ## Not in the packages
 
@@ -14,7 +14,7 @@ The how-to is [/learn/006-many-jobs-one-class.md](/learn/006-many-jobs-one-class
 // How to keep several jobs in one class
 // A class can hold several `[Job]` methods. Each is a job of its own, with its own generated call.
 using Acta;
-using Acta.Concepts.ManyJobsOneClass;
+using Acta.Learn.ManyJobsOneClass;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -43,7 +43,7 @@ Console.WriteLine("Enqueued 3 jobs. Worker is running - press Ctrl+C to stop.");
 await host.WaitForShutdownAsync();
 await host.StopAsync();
 
-namespace Acta.Concepts.ManyJobsOneClass
+namespace Acta.Learn.ManyJobsOneClass
 {
     public static class TextAndMath
     {

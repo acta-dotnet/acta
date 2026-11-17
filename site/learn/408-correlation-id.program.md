@@ -1,6 +1,6 @@
 # The whole program: carry a correlation key from parent to child
 
-The how-to is [/learn/408-correlation-id.md](/learn/408-correlation-id.md). This file holds every source file of `concepts/400-observability-and-alerts/408-correlation-id` as it is compiled.
+The how-to is [/learn/408-correlation-id.md](/learn/408-correlation-id.md). This file holds every source file of `learn/400-observability-and-alerts/408-correlation-id` as it is compiled.
 
 ## Not in the packages
 
@@ -15,7 +15,7 @@ The how-to is [/learn/408-correlation-id.md](/learn/408-correlation-id.md). This
 // A `CorrelationKey` set on the enqueue travels with the job and with every child it starts. It is on the job row, in
 // each handler's log scope, and a filter of the job list.
 using Acta;
-using Acta.Concepts.CorrelationKey;
+using Acta.Learn.CorrelationKey;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -28,12 +28,12 @@ builder.Services.UseActa(j =>
     j.Run<CorrelationKeyJobs>("correlation-id");
 });
 
-// Log the concept's own handler output at Information so the log-scope demo is visible.
+// Log the program's own handler output at Information so the log-scope demo is visible.
 // UseLocalDatabase sets the global minimum to Warning; AddFilter narrows the override to this namespace.
 // AddJsonConsole renders structured scope properties (including ActaCorrelationKey) as key-value pairs.
 builder.Services.AddLogging(l =>
 {
-    l.AddFilter("Acta.Concepts.CorrelationKey", LogLevel.Information);
+    l.AddFilter("Acta.Learn.CorrelationKey", LogLevel.Information);
     l.AddJsonConsole(o => o.IncludeScopes = true);
 });
 
@@ -78,7 +78,7 @@ foreach (var item in trace.Items)
 
 await host.StopAsync();
 
-namespace Acta.Concepts.CorrelationKey
+namespace Acta.Learn.CorrelationKey
 {
     public sealed record RunPipeline(string RunId);
 

@@ -140,7 +140,7 @@ public static class VerifyCommand
                   acta-verify compare BEFORE_DIRECTORY AFTER_DIRECTORY
                   acta-verify publish RUN_DIRECTORY [--rerun RUN_DIRECTORY]... --to FILE
                   acta-verify cleanup [--yes]: list Verify's leftover containers, processes and databases; --yes removes them
-                  acta-verify concepts: run every concept rung, one at a time, and check each prints what concepts/concept-runs.json awaits
+                  acta-verify learn: run every how-to's program, one at a time, and check each prints what learn/runs.json awaits
                 """
             );
             return 0;
@@ -165,9 +165,9 @@ public static class VerifyCommand
             Console.WriteLine($"{result.Status}: {Path.GetFullPath(Path.Combine(directory, "report.html"))}");
             return Verdicts.ExitCode(result.Status, result.HarnessError);
         }
-        if (args is ["concepts"])
+        if (args is ["learn"])
         {
-            return await ConceptRuns.RunAsync(ct);
+            return await LearnRuns.RunAsync(ct);
         }
         if (args is ["cleanup"] or ["cleanup", "--yes"])
         {

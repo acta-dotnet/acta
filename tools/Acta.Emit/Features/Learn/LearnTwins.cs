@@ -14,7 +14,7 @@ internal sealed partial class LearnPages
 {
     private static string Fence(string text, string lang = "csharp") => $"```{lang}\n{text}\n```\n";
 
-    public const string Table = "docs/reference/concept-ladder.md";
+    public const string Table = "docs/reference/how-tos.md";
 
     private static string PlainRows(IEnumerable<ShownRow> rows) => string.Join('\n', LearnText.Dedent(rows.Select(row => row.Source)));
 
@@ -131,7 +131,7 @@ internal sealed partial class LearnPages
             "Read /llms.txt first. It is the contract: the rules every handler follows. This index answers \"show me the smallest working example of the task\".\n\n"
         );
         md.Append(
-            "## How to use a how-to\n\n- The numbered steps are what you write. The code is lifted from the program named on the page, so it compiles as shown.\n- \"Its output must contain\" lists the lines the program prints when the task works. The release check reads the same lines.\n- `UseLocalDatabase` and `ConceptLab` appear in the programs' host code. They are helpers of the repository, not of the packages: in an application write `UseSqlite`, `UsePostgres` or `UseSqlServer`.\n- Rows printed by a lab come from SQL views, the operator's contract. Application code reads the same facts through `IJobs` and `IActaOperations`.\n- A how-to is short on purpose. Its whole program, and the notes kept beside it, are in a second file named at its end, `<name>.program.md`; open that only when the steps are not enough.\n- The how-tos describe the release /llms.txt names at its top.\n- Addresses are relative to this file's site. The page for people is the same address without `.md`.\n\n"
+            "## How to use a how-to\n\n- The numbered steps are what you write. The code is lifted from the program named on the page, so it compiles as shown.\n- \"Its output must contain\" lists the lines the program prints when the task works. The release check reads the same lines.\n- `UseLocalDatabase` and `LearnLab` appear in the programs' host code. They are helpers of the repository, not of the packages: in an application write `UseSqlite`, `UsePostgres` or `UseSqlServer`.\n- Rows printed by a lab come from SQL views, the operator's contract. Application code reads the same facts through `IJobs` and `IActaOperations`.\n- A how-to is short on purpose. Its whole program, and the notes kept beside it, are in a second file named at its end, `<name>.program.md`; open that only when the steps are not enough.\n- The how-tos describe the release /llms.txt names at its top.\n- Addresses are relative to this file's site. The page for people is the same address without `.md`.\n\n"
         );
         md.Append(
             CultureInfo.InvariantCulture,
@@ -162,13 +162,13 @@ internal sealed partial class LearnPages
     public string TableDocument()
     {
         var md = new StringBuilder(
-            "# The concept ladder\n\nEvery rung is a small program in [`concepts/`](../../concepts/) that teaches one task, numbered in bands so the ladder can grow without renumbering. Each rung is also a how-to at [useacta.net/learn](https://useacta.net/learn), written from the same program: its title and its one-line summary are the program's opening comment.\n\nThis file is generated. Regenerate it with `dotnet run --project tools/Acta.Emit -- docs`.\n"
+            "# The how-tos\n\nEvery how-to is a small program in [`learn/`](../../learn/) that teaches one task, numbered in bands so the set can grow without renumbering. Each has a page at [useacta.net/learn](https://useacta.net/learn), written from the same program: its title and its one-line summary are the program's opening comment.\n\nThis file is generated. Regenerate it with `dotnet run --project tools/Acta.Emit -- docs`.\n"
         );
         foreach (var band in _library.Bands)
         {
             md.Append(
                 CultureInfo.InvariantCulture,
-                $"\n## {band}\n\n| Rung | Program | How to | What it shows |\n| --- | --- | --- | --- |\n"
+                $"\n## {band}\n\n| Number | Program | How to | What it shows |\n| --- | --- | --- | --- |\n"
             );
             foreach (var e in _library.ByFolder.Values.Where(e => e.Band == band).OrderBy(e => e.Folder, StringComparer.Ordinal))
             {

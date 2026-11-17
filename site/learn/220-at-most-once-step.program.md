@@ -1,10 +1,10 @@
 # The whole program: refuse to repeat a side effect after a crash
 
-The how-to is [/learn/220-at-most-once-step.md](/learn/220-at-most-once-step.md). This file holds every source file of `concepts/200-durable-execution/220-at-most-once-step` as it is compiled, and the notes kept beside the code.
+The how-to is [/learn/220-at-most-once-step.md](/learn/220-at-most-once-step.md). This file holds every source file of `learn/200-durable-execution/220-at-most-once-step` as it is compiled, and the notes kept beside the code.
 
 ## Not in the packages
 
-`UseLocalDatabase` and `ConceptLab` are helpers of the Acta repository (`support/`), used so every program runs on any of the three databases and prints its rows. Do not copy them into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` and `LearnLab` are helpers of the Acta repository (`support/`), used so every program runs on any of the three databases and prints its rows. Do not copy them into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## The whole program
 
@@ -15,8 +15,8 @@ The how-to is [/learn/220-at-most-once-step.md](/learn/220-at-most-once-step.md)
 // An at-most-once step refuses to run its body a second time after a crash. The handler is told that the outcome is
 // unknown, and reconciles.
 using Acta;
-using Acta.Concepts.AtMostOnceStep;
 using Acta.Labs;
+using Acta.Learn.AtMostOnceStep;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -27,8 +27,8 @@ var mode = args.FirstOrDefault(a => !a.StartsWith("--", StringComparison.Ordinal
 if (mode is not ("crash" or "recover"))
 {
     Console.WriteLine("Run this two-process experiment in order:");
-    Console.WriteLine("  dotnet run --project concepts/200-durable-execution/220-at-most-once-step -- crash");
-    Console.WriteLine("  dotnet run --project concepts/200-durable-execution/220-at-most-once-step -- recover");
+    Console.WriteLine("  dotnet run --project learn/200-durable-execution/220-at-most-once-step -- crash");
+    Console.WriteLine("  dotnet run --project learn/200-durable-execution/220-at-most-once-step -- recover");
     return;
 }
 
@@ -38,7 +38,7 @@ var hostArgs = args.Where(a =>
     )
     .ToArray();
 var builder = Host.CreateApplicationBuilder(hostArgs);
-var lab = new ConceptLab(builder.Configuration, args);
+var lab = new LearnLab(builder.Configuration, args);
 
 builder.Services.UseActa(j =>
 {
@@ -154,7 +154,7 @@ var sideEffects = File.Exists(sideEffectFile) ? File.ReadAllLines(sideEffectFile
 Console.WriteLine($"External side-effect records: {sideEffects} (the charge body was not invoked again).");
 await host.StopAsync();
 
-namespace Acta.Concepts.AtMostOnceStep
+namespace Acta.Learn.AtMostOnceStep
 {
     public sealed record ChargeCard(string OrderId, int AmountCents);
 
@@ -235,8 +235,8 @@ side effect happened. That is why external idempotency plus a readable result is
 Use the same configured database for both commands:
 
 ```bash
-dotnet run --project concepts/200-durable-execution/220-at-most-once-step -- crash
-dotnet run --project concepts/200-durable-execution/220-at-most-once-step -- recover
+dotnet run --project learn/200-durable-execution/220-at-most-once-step -- crash
+dotnet run --project learn/200-durable-execution/220-at-most-once-step -- recover
 ```
 
 The first command intentionally exits non-zero after writing a simulated external charge. It creates a
@@ -268,6 +268,6 @@ worse than missing/ambiguous work and a reconciliation path exists.
 ### Source trail
 
 - [The related Engineering Lab](https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md)
-- [`at-most-once-step.cs`](https://github.com/acta-dotnet/acta/blob/main/concepts/200-durable-execution/220-at-most-once-step/at-most-once-step.cs)
+- [`at-most-once-step.cs`](https://github.com/acta-dotnet/acta/blob/main/learn/200-durable-execution/220-at-most-once-step/at-most-once-step.cs)
 - [`RuntimeJobContext.cs`](https://github.com/acta-dotnet/acta/blob/main/src/Acta/Engine/Worker/Context/RuntimeJobContext.cs)
 - [`StepAtMostOnceSpec.cs`](https://github.com/acta-dotnet/acta/blob/main/tests/Acta.Tests.Conformance/Scenarios/StepAtMostOnceSpec.cs)

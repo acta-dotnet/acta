@@ -224,7 +224,7 @@ it to PUBLIC. Two ways to drop that grant, each a hot-path change to prototype a
 
 Marko (2026-11-06): make a killer demo. One program a .NET developer runs with a single command and
 remembers afterwards, showing what only Acta shows. The existing `demos/` are application samples pinned
-to the published packages, and the concept ladder teaches one feature per rung; neither is that.
+to the published packages, and the how-tos teach one task each; neither is that.
 
 What it would have to do, in under a minute and with nothing to install besides the SDK:
 
@@ -237,4 +237,4 @@ What it would have to do, in under a minute and with nothing to install besides 
   in your database" is seen and not only said.
 
 Open questions: SQLite alone so it runs anywhere, or PostgreSQL in a container for a fleet; a recording
-for the site as well as the runnable program; whether it replaces a rung of the ladder or stands alone.
+for the site as well as the runnable program; whether it replaces a how-to or stands alone.

@@ -1,10 +1,10 @@
 # The whole program: choose a payload format for a job
 
-The how-to is [/learn/501-payload-formats.md](/learn/501-payload-formats.md). This file holds every source file of `concepts/500-payloads/501-payload-formats` as it is compiled, and the notes kept beside the code.
+The how-to is [/learn/501-payload-formats.md](/learn/501-payload-formats.md). This file holds every source file of `learn/500-payloads/501-payload-formats` as it is compiled, and the notes kept beside the code.
 
 ## Not in the packages
 
-`UseLocalDatabase` and `ConceptLab` are helpers of the Acta repository (`support/`), used so every program runs on any of the three databases and prints its rows. Do not copy them into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` and `LearnLab` are helpers of the Acta repository (`support/`), used so every program runs on any of the three databases and prints its rows. Do not copy them into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## The whole program
 
@@ -15,11 +15,11 @@ The how-to is [/learn/501-payload-formats.md](/learn/501-payload-formats.md). Th
 // A job names the format its payload is stored in. This program runs custom formats side by side and compares their
 // serialization time, enqueue time, readability, and stored bytes.
 using Acta;
-using Acta.Concepts.PayloadFormats;
 using Acta.Labs;
+using Acta.Learn.PayloadFormats;
 
 var builder = Host.CreateApplicationBuilder(args);
-builder.Services.AddSingleton(new ConceptLab(builder.Configuration, args));
+builder.Services.AddSingleton(new LearnLab(builder.Configuration, args));
 
 // learn: 2. Register a serializer for each format
 // A custom format is an `IJobPayloadSerializer` in the application's container.
@@ -41,7 +41,7 @@ await builder.Build().RunAsync();
 ### Echo.cs
 
 ```csharp
-namespace Acta.Concepts.PayloadFormats;
+namespace Acta.Learn.PayloadFormats;
 
 /// <summary>
 /// Echo a Guid via <c>scalar-v1</c>: 16 bytes on the wire in each direction.
@@ -67,7 +67,7 @@ public sealed class EchoScalarHandler
 ### EchoGzip.cs
 
 ```csharp
-namespace Acta.Concepts.PayloadFormats;
+namespace Acta.Learn.PayloadFormats;
 
 /// <summary>
 /// Guid in a thin record, encoded with <c>json-gzip</c>; at this size gzip framing makes it the largest wire format.
@@ -97,7 +97,7 @@ public sealed class EchoGzipHandler
 ### EchoJson.cs
 
 ```csharp
-namespace Acta.Concepts.PayloadFormats;
+namespace Acta.Learn.PayloadFormats;
 
 /// <summary>A normal JSON baseline: human-readable in <c>jobs_view</c>, with no custom serializer.</summary>
 public sealed record EchoJson(Guid Value);
@@ -123,7 +123,7 @@ public sealed class EchoJsonHandler
 ### PayloadFormats.cs
 
 ```csharp
-namespace Acta.Concepts.PayloadFormats;
+namespace Acta.Learn.PayloadFormats;
 
 /// <summary>
 /// Format names and ids for the two custom serializers. The kebab-case names are <c>const string</c>
@@ -149,7 +149,7 @@ public static class PayloadFormats
 using System.Diagnostics;
 using Acta.Labs;
 
-namespace Acta.Concepts.PayloadFormats;
+namespace Acta.Learn.PayloadFormats;
 
 /// <summary>
 /// Bulk-enqueues 250 echo jobs per format (750 total) in three round-trips via
@@ -160,7 +160,7 @@ internal sealed class Primer(
     IJobs jobs,
     IActaOperations operations,
     IJobPayloadSerializerRegistry serializers,
-    ConceptLab lab,
+    LearnLab lab,
     IHostApplicationLifetime lifetime
 ) : BackgroundService
 {
@@ -274,7 +274,7 @@ using System.IO.Compression;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 
-namespace Acta.Concepts.PayloadFormats;
+namespace Acta.Learn.PayloadFormats;
 
 [JobPayloadFormatDeclaration(130, "json-gzip")]
 public sealed class JsonGzipSerializer : IJobPayloadSerializer
@@ -332,7 +332,7 @@ using System.Buffers.Binary;
 using System.Runtime.CompilerServices;
 using System.Text;
 
-namespace Acta.Concepts.PayloadFormats;
+namespace Acta.Learn.PayloadFormats;
 
 /// <summary>
 /// Serializer for the <c>scalar-v1</c> wire format. Supports primitive types only; see
@@ -513,7 +513,7 @@ formats reduce operator readability, and compression may cost more CPU than the 
 ### Run the experiment
 
 ```bash
-dotnet run --project concepts/500-payloads/501-payload-formats
+dotnet run --project learn/500-payloads/501-payload-formats
 ```
 
 The program runs a built-in JSON baseline plus two custom formats, gzip JSON and a custom scalar, times
@@ -545,7 +545,7 @@ data before choosing compression.
 ### Source trail
 
 - [The related Engineering Lab](https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md)
-- [`Primer.cs`](https://github.com/acta-dotnet/acta/blob/main/concepts/500-payloads/501-payload-formats/Primer.cs)
-- [`ScalarV1Serializer.cs`](https://github.com/acta-dotnet/acta/blob/main/concepts/500-payloads/501-payload-formats/Serializers/ScalarV1Serializer.cs)
+- [`Primer.cs`](https://github.com/acta-dotnet/acta/blob/main/learn/500-payloads/501-payload-formats/Primer.cs)
+- [`ScalarV1Serializer.cs`](https://github.com/acta-dotnet/acta/blob/main/learn/500-payloads/501-payload-formats/Serializers/ScalarV1Serializer.cs)
 - [`JobPayloadSerializerRegistry.cs`](https://github.com/acta-dotnet/acta/blob/main/src/Acta/Payloads/JobPayloadSerializerRegistry.cs)
 - [`ActaManifestGenerator.cs`](https://github.com/acta-dotnet/acta/blob/main/src/Acta.Generators/Jobs/ActaManifestGenerator.cs)

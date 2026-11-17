@@ -6,7 +6,7 @@ namespace Acta.Tests.Architecture;
 
 public sealed class CanonicalVocabularyTests
 {
-    private static readonly string[] SourceRoots = ["src", "tests", "tools", "docs", "concepts", "demos", "anvil"];
+    private static readonly string[] SourceRoots = ["src", "tests", "tools", "docs", "learn", "demos", "anvil"];
     private static readonly HashSet<string> Extensions = new(StringComparer.OrdinalIgnoreCase)
     {
         ".cs",

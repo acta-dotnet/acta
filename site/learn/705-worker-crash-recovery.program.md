@@ -1,10 +1,10 @@
 # The whole program: recover the work of a killed worker
 
-The how-to is [/learn/705-worker-crash-recovery.md](/learn/705-worker-crash-recovery.md). This file holds every source file of `concepts/700-topology-and-deployment/705-worker-crash-recovery` as it is compiled, and the notes kept beside the code.
+The how-to is [/learn/705-worker-crash-recovery.md](/learn/705-worker-crash-recovery.md). This file holds every source file of `learn/700-topology-and-deployment/705-worker-crash-recovery` as it is compiled, and the notes kept beside the code.
 
 ## Not in the packages
 
-`UseLocalDatabase` and `ConceptLab` are helpers of the Acta repository (`support/`), used so every program runs on any of the three databases and prints its rows. Do not copy them into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` and `LearnLab` are helpers of the Acta repository (`support/`), used so every program runs on any of the three databases and prints its rows. Do not copy them into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## The whole program
 
@@ -15,8 +15,8 @@ The how-to is [/learn/705-worker-crash-recovery.md](/learn/705-worker-crash-reco
 // A worker process is killed in the middle of a job, and another worker reclaims the job once its lease has lapsed.
 // The program runs on PostgreSQL or SQL Server.
 using Acta;
-using Acta.Concepts.WorkerCrashRecovery;
 using Acta.Labs;
+using Acta.Learn.WorkerCrashRecovery;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -65,7 +65,7 @@ else
     sessionId = "none";
 }
 
-var lab = new ConceptLab(builder.Configuration, args);
+var lab = new LearnLab(builder.Configuration, args);
 builder.Services.AddSingleton(new WorkerRole(mode, sessionId));
 builder.Services.UseActa(j =>
 {
@@ -144,7 +144,7 @@ while ((await jobs.GetAsync(JobLookup.ById(probe.JobId), recoveryTimeout.Token))
 await ShowStateAsync(lab, probe.JobId, sessionId);
 await host.StopAsync();
 
-static async Task ShowStateAsync(ConceptLab lab, long jobId, string sessionId)
+static async Task ShowStateAsync(LearnLab lab, long jobId, string sessionId)
 {
     await lab.ShowAllAsync(
         "Explore the complete recoverable job record",
@@ -194,13 +194,13 @@ static async Task ShowStateAsync(ConceptLab lab, long jobId, string sessionId)
 static void PrintCommands()
 {
     Console.WriteLine("Run in this order against one PostgreSQL or SQL Server database:");
-    Console.WriteLine("  dotnet run --project concepts/700-topology-and-deployment/705-worker-crash-recovery -- worker-a");
-    Console.WriteLine("  dotnet run --project concepts/700-topology-and-deployment/705-worker-crash-recovery -- enqueue");
-    Console.WriteLine("  dotnet run --project concepts/700-topology-and-deployment/705-worker-crash-recovery -- inspect");
-    Console.WriteLine("  dotnet run --project concepts/700-topology-and-deployment/705-worker-crash-recovery -- worker-b");
+    Console.WriteLine("  dotnet run --project learn/700-topology-and-deployment/705-worker-crash-recovery -- worker-a");
+    Console.WriteLine("  dotnet run --project learn/700-topology-and-deployment/705-worker-crash-recovery -- enqueue");
+    Console.WriteLine("  dotnet run --project learn/700-topology-and-deployment/705-worker-crash-recovery -- inspect");
+    Console.WriteLine("  dotnet run --project learn/700-topology-and-deployment/705-worker-crash-recovery -- worker-b");
 }
 
-namespace Acta.Concepts.WorkerCrashRecovery
+namespace Acta.Learn.WorkerCrashRecovery
 {
     public sealed record WorkerRole(string Name, string SessionId);
 
@@ -272,10 +272,10 @@ whose process has ended, marks it dead, and reclaims its job at once, as
 `sqlserver` plus `ACTA_TEST_PG`/`ACTA_TEST_MSSQL`, then use separate terminals:
 
 ```bash
-dotnet run --project concepts/700-topology-and-deployment/705-worker-crash-recovery -- worker-a
-dotnet run --project concepts/700-topology-and-deployment/705-worker-crash-recovery -- enqueue
-dotnet run --project concepts/700-topology-and-deployment/705-worker-crash-recovery -- inspect
-dotnet run --project concepts/700-topology-and-deployment/705-worker-crash-recovery -- worker-b
+dotnet run --project learn/700-topology-and-deployment/705-worker-crash-recovery -- worker-a
+dotnet run --project learn/700-topology-and-deployment/705-worker-crash-recovery -- enqueue
+dotnet run --project learn/700-topology-and-deployment/705-worker-crash-recovery -- inspect
+dotnet run --project learn/700-topology-and-deployment/705-worker-crash-recovery -- worker-b
 ```
 
 Worker A intentionally exits non-zero. Both workers run short lab-only lease timings, and worker B's
@@ -309,6 +309,6 @@ from application workers.
 
 - [The SQL-queue Engineering Lab](https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md)
 - [The leaderless-recovery Engineering Lab](https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md)
-- [`worker-crash-recovery.cs`](https://github.com/acta-dotnet/acta/blob/main/concepts/700-topology-and-deployment/705-worker-crash-recovery/worker-crash-recovery.cs)
+- [`worker-crash-recovery.cs`](https://github.com/acta-dotnet/acta/blob/main/learn/700-topology-and-deployment/705-worker-crash-recovery/worker-crash-recovery.cs)
 - [`RecoveryPass.cs`](https://github.com/acta-dotnet/acta/blob/main/src/Acta/Engine/Recovery/RecoveryPass.cs)
 - [`WorkerCrashRecoveryChaosSpec.cs`](https://github.com/acta-dotnet/acta/blob/main/tests/Acta.Tests.Conformance/Engine/Recovery/WorkerCrashRecoveryChaosSpec.cs)

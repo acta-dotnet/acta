@@ -1,6 +1,6 @@
 # The whole program: test a handler with the test host
 
-The how-to is [/learn/801-testing-jobs.md](/learn/801-testing-jobs.md). This file holds every source file of `concepts/800-testing/801-testing-jobs` as it is compiled.
+The how-to is [/learn/801-testing-jobs.md](/learn/801-testing-jobs.md). This file holds every source file of `learn/800-testing/801-testing-jobs` as it is compiled.
 
 ## Not in the packages
 
@@ -13,11 +13,11 @@ The how-to is [/learn/801-testing-jobs.md](/learn/801-testing-jobs.md). This fil
 ```csharp
 // How to test a handler with the test host
 // `Acta.Testing` runs the real runtime on a real database with no background loop: `RunOnceAsync` decides when a job
-// executes, so a test drives one attempt at a time. Run it with `dotnet test concepts/800-testing/801-testing-jobs`.
+// executes, so a test drives one attempt at a time. Run it with `dotnet test learn/800-testing/801-testing-jobs`.
 using Acta.Testing;
 using Xunit;
 
-namespace Acta.Concepts.Testing;
+namespace Acta.Learn.Testing;
 
 public sealed class EchoJobTests(ActaHostFixture acta) : ActaTestBase(acta)
 {
@@ -67,7 +67,7 @@ using Acta.Testing;
 using Microsoft.Extensions.Configuration;
 using Xunit;
 
-namespace Acta.Concepts.Testing;
+namespace Acta.Learn.Testing;
 
 public sealed class ActaHostFixture : IAsyncLifetime
 {
@@ -112,7 +112,7 @@ public abstract class ActaTestBase(ActaHostFixture acta) : IClassFixture<ActaHos
 ### EchoJob.cs
 
 ```csharp
-namespace Acta.Concepts.Testing;
+namespace Acta.Learn.Testing;
 
 public sealed record Echo(string Message);
 

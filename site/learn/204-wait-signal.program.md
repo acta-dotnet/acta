@@ -1,10 +1,10 @@
 # The whole program: wait for an approval without holding a worker
 
-The how-to is [/learn/204-wait-signal.md](/learn/204-wait-signal.md). This file holds every source file of `concepts/200-durable-execution/204-wait-signal` as it is compiled, and the notes kept beside the code.
+The how-to is [/learn/204-wait-signal.md](/learn/204-wait-signal.md). This file holds every source file of `learn/200-durable-execution/204-wait-signal` as it is compiled, and the notes kept beside the code.
 
 ## Not in the packages
 
-`UseLocalDatabase` and `ConceptLab` are helpers of the Acta repository (`support/`), used so every program runs on any of the three databases and prints its rows. Do not copy them into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` and `LearnLab` are helpers of the Acta repository (`support/`), used so every program runs on any of the three databases and prints its rows. Do not copy them into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## The whole program
 
@@ -15,8 +15,8 @@ The how-to is [/learn/204-wait-signal.md](/learn/204-wait-signal.md). This file 
 // A job parks on a named signal, holds no worker, and carries on when the signal is raised.
 using System.Globalization;
 using Acta;
-using Acta.Concepts.WaitSignal;
 using Acta.Labs;
+using Acta.Learn.WaitSignal;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -30,13 +30,13 @@ var command = commandIndex < 0 ? "run" : args[commandIndex].ToLowerInvariant();
 var jobRefIndex = command is "inspect" or "raise" ? commandIndex + 1 : -1;
 if (jobRefIndex >= args.Length || (jobRefIndex >= 0 && !JobRef.TryParse(args[jobRefIndex], out _)))
 {
-    Console.WriteLine($"Usage: dotnet run --project concepts/200-durable-execution/204-wait-signal -- {command} <job-ref>");
+    Console.WriteLine($"Usage: dotnet run --project learn/200-durable-execution/204-wait-signal -- {command} <job-ref>");
     return;
 }
 
 var hostArgs = args.Where((_, index) => index != commandIndex && index != jobRefIndex).ToArray();
 var builder = Host.CreateApplicationBuilder(hostArgs);
-var lab = new ConceptLab(builder.Configuration, args);
+var lab = new LearnLab(builder.Configuration, args);
 
 builder.Services.UseActa(j =>
 {
@@ -96,8 +96,8 @@ if (command == "start")
     Console.WriteLine();
     Console.WriteLine($"Job {suspended.JobRef} is durably suspended. This process will now stop.");
     Console.WriteLine("Inspect and resume that exact identity with:");
-    Console.WriteLine($"  dotnet run --project concepts/200-durable-execution/204-wait-signal -- inspect {suspended.JobRef}");
-    Console.WriteLine($"  dotnet run --project concepts/200-durable-execution/204-wait-signal -- raise {suspended.JobRef}");
+    Console.WriteLine($"  dotnet run --project learn/200-durable-execution/204-wait-signal -- inspect {suspended.JobRef}");
+    Console.WriteLine($"  dotnet run --project learn/200-durable-execution/204-wait-signal -- raise {suspended.JobRef}");
     await host.StopAsync();
     return;
 }
@@ -165,7 +165,7 @@ static void EnsureDone(GetJobResponse snapshot)
     }
 }
 
-static async Task ShowSignalStateAsync(ConceptLab lab, long jobId)
+static async Task ShowSignalStateAsync(LearnLab lab, long jobId)
 {
     await lab.ShowAllAsync(
         "Explore the complete signal-waiting job record",
@@ -196,7 +196,7 @@ static async Task ShowSignalStateAsync(ConceptLab lab, long jobId)
     );
 }
 
-namespace Acta.Concepts.WaitSignal
+namespace Acta.Learn.WaitSignal
 {
     public sealed record ApproveExpense(string Id, decimal Amount);
 
@@ -248,7 +248,7 @@ that never arrive.
 ### Run the experiment
 
 ```bash
-dotnet run --project concepts/200-durable-execution/204-wait-signal
+dotnet run --project learn/200-durable-execution/204-wait-signal
 ```
 
 Press `S` when prompted. Use `--brief` for an automatic non-interactive run.
@@ -267,9 +267,9 @@ and the same job finishes on execution two.
 Run a real two-process recovery against one configured database:
 
 ```bash
-dotnet run --project concepts/200-durable-execution/204-wait-signal -- start
-dotnet run --project concepts/200-durable-execution/204-wait-signal -- inspect <printed-job-ref>
-dotnet run --project concepts/200-durable-execution/204-wait-signal -- raise <printed-job-ref>
+dotnet run --project learn/200-durable-execution/204-wait-signal -- start
+dotnet run --project learn/200-durable-execution/204-wait-signal -- inspect <printed-job-ref>
+dotnet run --project learn/200-durable-execution/204-wait-signal -- raise <printed-job-ref>
 ```
 
 `start` stops after suspension. `inspect` starts no worker and proves that the exact identity remains
@@ -285,6 +285,6 @@ human-centric processes.
 ### Source trail
 
 - [The related Engineering Lab](https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md)
-- [`wait-signal.cs`](https://github.com/acta-dotnet/acta/blob/main/concepts/200-durable-execution/204-wait-signal/wait-signal.cs)
+- [`wait-signal.cs`](https://github.com/acta-dotnet/acta/blob/main/learn/200-durable-execution/204-wait-signal/wait-signal.cs)
 - [`RuntimeJobContext.cs`](https://github.com/acta-dotnet/acta/blob/main/src/Acta/Engine/Worker/Context/RuntimeJobContext.cs)
 - [`WaitJobSignal.sqlite.sql`](https://github.com/acta-dotnet/acta/blob/main/src/Acta/Operations/Signals/WaitJobSignal/WaitJobSignal.sqlite.sql)

@@ -3,7 +3,7 @@
 Tags are name and value labels set on the enqueue, for filtering and grouping jobs in queries and in the dashboard.
 
 - Section: Start jobs, step 16
-- Program: `concepts/000-fundamentals/018-tags` in https://github.com/acta-dotnet/acta (one compiled project)
+- Program: `learn/000-fundamentals/018-tags` in https://github.com/acta-dotnet/acta (one compiled project)
 - Status: Checked every release. Before each release, Acta Verify runs this program and checks that its output contains these lines.
 - Rules: [/llms.txt](/llms.txt) is the contract every handler follows, starting with the handler running again from its first line; read it before you copy code from here.
 - Release: the one /llms.txt names at its top.
@@ -57,7 +57,7 @@ public static class WelcomeJob
 From a clone of the repository, with the .NET 10 SDK:
 
 ```bash
-dotnet run --project concepts/000-fundamentals/018-tags
+dotnet run --project learn/000-fundamentals/018-tags
 ```
 
 Its output must contain:

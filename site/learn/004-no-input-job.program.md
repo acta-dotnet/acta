@@ -1,6 +1,6 @@
 # The whole program: write a job that takes no input
 
-The how-to is [/learn/004-no-input-job.md](/learn/004-no-input-job.md). This file holds every source file of `concepts/000-fundamentals/004-no-input-job` as it is compiled.
+The how-to is [/learn/004-no-input-job.md](/learn/004-no-input-job.md). This file holds every source file of `learn/000-fundamentals/004-no-input-job` as it is compiled.
 
 ## Not in the packages
 
@@ -14,7 +14,7 @@ The how-to is [/learn/004-no-input-job.md](/learn/004-no-input-job.md). This fil
 // How to write a job that takes no input
 // A job with no input: a handler with no parameters, enqueued by its generated call.
 using Acta;
-using Acta.Concepts.NoInputJob;
+using Acta.Learn.NoInputJob;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -41,7 +41,7 @@ Console.WriteLine("Enqueued. Worker is running - press Ctrl+C to stop.");
 await host.WaitForShutdownAsync();
 await host.StopAsync();
 
-namespace Acta.Concepts.NoInputJob
+namespace Acta.Learn.NoInputJob
 {
     public static class HeartbeatJob
     {

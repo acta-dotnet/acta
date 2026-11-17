@@ -3,7 +3,7 @@
 A deduplication key makes an enqueue idempotent: a second enqueue with the same key answers the job that is already there.
 
 - Section: Start jobs, step 9
-- Program: `concepts/000-fundamentals/010-deduplication-key` in https://github.com/acta-dotnet/acta (one compiled project)
+- Program: `learn/000-fundamentals/010-deduplication-key` in https://github.com/acta-dotnet/acta (one compiled project)
 - Status: Checked every release. Before each release, Acta Verify runs this program and checks that its output contains these lines.
 - Rules: [/llms.txt](/llms.txt) is the contract every handler follows; "Remember" below carries the rules that bite this task.
 - Release: the one /llms.txt names at its top.
@@ -90,7 +90,7 @@ public static class WelcomeJob
 From a clone of the repository, with the .NET 10 SDK:
 
 ```bash
-dotnet run --project concepts/000-fundamentals/010-deduplication-key
+dotnet run --project learn/000-fundamentals/010-deduplication-key
 ```
 
 Its output must contain:

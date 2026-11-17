@@ -6,8 +6,8 @@ namespace Acta.Emit.Features.Learn;
 /// <summary>The library's front page, <c>/learn</c>: the question, the doors, the look-alikes, and every section.</summary>
 internal sealed partial class LearnPages
 {
-    private string RungRow(HowTo entry) =>
-        $"<li><a class=\"rung\" href=\"{entry.Url}\" data-id=\"{entry.Id}\"><span class=\"rung-step\">{entry.Step}</span><span class=\"rung-text\"><span class=\"rung-title\">{Esc(entry.ShortTitle)}</span><span class=\"rung-note\">{Anchor().Replace(_text.Inline(entry.Summary, entry.Dir), "")}</span></span><span class=\"rung-marks\">{Marks(entry)}</span></a></li>";
+    private string HowToRow(HowTo entry) =>
+        $"<li><a class=\"entry\" href=\"{entry.Url}\" data-id=\"{entry.Id}\"><span class=\"entry-step\">{entry.Step}</span><span class=\"entry-text\"><span class=\"entry-title\">{Esc(entry.ShortTitle)}</span><span class=\"entry-note\">{Anchor().Replace(_text.Inline(entry.Summary, entry.Dir), "")}</span></span><span class=\"entry-marks\">{Marks(entry)}</span></a></li>";
 
     public string Hub()
     {
@@ -15,18 +15,18 @@ internal sealed partial class LearnPages
             '\n',
             _library.Sections.Select(section =>
             {
-                var rows = string.Join("\n          ", section.Entries.Select(RungRow));
+                var rows = string.Join("\n          ", section.Entries.Select(HowToRow));
                 var more = section.MoreHref is null
                     ? ""
-                    : $"\n        <a class=\"golink ladder-more\" href=\"{section.MoreHref}\">{Esc(section.MoreText!)}</a>";
+                    : $"\n        <a class=\"golink section-more\" href=\"{section.MoreHref}\">{Esc(section.MoreText!)}</a>";
                 return $"""
-                          <div class="ladder-section" id="s-{section.Key}" data-section="{section.Key}">
-                            <div class="ladder-head">
+                          <div class="learn-section" id="s-{section.Key}" data-section="{section.Key}">
+                            <div class="learn-section-head">
                               <h3>{Esc(section.Title)}</h3>
                               <p>{Esc(section.Blurb)}</p>
-                              <p class="ladder-progress" data-progress></p>
+                              <p class="section-progress" data-progress></p>
                             </div>
-                            <ol class="rungs">
+                            <ol class="entries">
                               {rows}
                             </ol>{more}
                           </div>
@@ -102,12 +102,12 @@ internal sealed partial class LearnPages
                   </dl>
                 </section>
 
-                <section class="wrap ladder" id="how-tos">
+                <section class="wrap sections" id="how-tos">
                   <p class="record">the how-tos, section by section</p>
-                  <h2>Each section is a ladder. Start at the top and stop when you have what you need.</h2>
-                  <nav class="ladder-jump" aria-label="Sections">{jump}</nav>
+                  <h2>Each section goes in order. Start at the top and stop when you have what you need.</h2>
+                  <nav class="section-jump" aria-label="Sections">{jump}</nav>
             {sections}
-                  <p class="hint ladder-ask">Looking for a how-to that is not here? <a href="{Repository}/issues/new">Tell us what you were trying to do</a>, and it becomes the next one.</p>
+                  <p class="hint sections-ask">Looking for a how-to that is not here? <a href="{Repository}/issues/new">Tell us what you were trying to do</a>, and it becomes the next one.</p>
                 </section>
 
                 <section class="wrap" id="agents">

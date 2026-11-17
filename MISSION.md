@@ -32,7 +32,7 @@ Install a package, point it at SQL Server, PostgreSQL, or SQLite, and jobs survi
 ### Five minutes from install to the first durable job
 
 - `llms.txt` is a first-class door, so an assistant wires Acta in correctly on the first try.
-- The concept ladder runs from a first job to chaos recovery, every rung compiled and runnable.
+- The how-tos run from a first job to chaos recovery, every one compiled and runnable.
 - A reference application built only from the published packages shows patterns worth copying.
 - useacta.net explains the guarantees, the numbers, and the limits in plain words, each claim checked against the guide.
 

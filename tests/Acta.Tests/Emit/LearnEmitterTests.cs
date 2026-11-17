@@ -4,11 +4,11 @@ using Xunit;
 
 namespace Acta.Tests.Emit;
 
-// The how-tos are written from the concept programs. These drive the emitter against a throwaway root that holds one
-// rung, so each rule of the markup is a fact of its own; the last test holds the real repository to its own pages.
+// The how-tos are written from their programs. These drive the emitter against a throwaway root that holds one
+// how-to, so each rule of the markup is a fact of its own; the last test holds the real repository to its own pages.
 public sealed class LearnEmitterTests : IDisposable
 {
-    private const string Rung = "concepts/000-basics/001-first";
+    private const string HowTo = "learn/000-basics/001-first";
     private const string Page = "site/learn/001-first.html";
 
     private static readonly string Program = Normalized(
@@ -32,8 +32,8 @@ public sealed class LearnEmitterTests : IDisposable
 
     public LearnEmitterTests()
     {
-        Write($"{Rung}/first.cs", Program);
-        Write("concepts/concept-runs.json", """{ "001-first": ["enqueued"] }""");
+        Write($"{HowTo}/first.cs", Program);
+        Write("learn/runs.json", """{ "001-first": ["enqueued"] }""");
         Write(
             LearnLibrary.SectionsFile,
             """
@@ -78,8 +78,8 @@ public sealed class LearnEmitterTests : IDisposable
         Assert.Contains("Its output must contain:\n\n```text\nenqueued\n```", twin, StringComparison.Ordinal);
         Assert.Contains("https://useacta.net/learn/001-first</loc>", emitted["site/learn/sitemap.xml"], StringComparison.Ordinal);
         Assert.Contains(
-            "| 001 | [first](../../concepts/000-basics/001-first/) |",
-            emitted["docs/reference/concept-ladder.md"],
+            "| 001 | [first](../../learn/000-basics/001-first/) |",
+            emitted["docs/reference/how-tos.md"],
             StringComparison.Ordinal
         );
     }
@@ -88,7 +88,7 @@ public sealed class LearnEmitterTests : IDisposable
     public void A_rule_and_a_question_in_the_readme_reach_the_page()
     {
         Write(
-            $"{Rung}/README.md",
+            $"{HowTo}/README.md",
             """
             # How to greet someone
 
@@ -121,7 +121,7 @@ public sealed class LearnEmitterTests : IDisposable
     [Fact]
     public void A_step_left_open_stops_the_emit()
     {
-        Write($"{Rung}/first.cs", Program.Replace("// learn: end\n", "", StringComparison.Ordinal));
+        Write($"{HowTo}/first.cs", Program.Replace("// learn: end\n", "", StringComparison.Ordinal));
 
         var stop = Assert.Throws<LearnException>(() => LearnEmitter.Emit(_root));
 
@@ -131,7 +131,7 @@ public sealed class LearnEmitterTests : IDisposable
     [Fact]
     public void A_program_that_marks_no_step_stops_the_emit()
     {
-        Write($"{Rung}/first.cs", "// How to greet someone\n// One line.\nConsole.WriteLine(\"enqueued\");\n");
+        Write($"{HowTo}/first.cs", "// How to greet someone\n// One line.\nConsole.WriteLine(\"enqueued\");\n");
 
         var stop = Assert.Throws<LearnException>(() => LearnEmitter.Emit(_root));
 
@@ -141,7 +141,7 @@ public sealed class LearnEmitterTests : IDisposable
     [Fact]
     public void A_program_that_names_no_task_stops_the_emit()
     {
-        Write($"{Rung}/first.cs", Program.Replace("// How to greet someone\n", "", StringComparison.Ordinal));
+        Write($"{HowTo}/first.cs", Program.Replace("// How to greet someone\n", "", StringComparison.Ordinal));
 
         var stop = Assert.Throws<LearnException>(() => LearnEmitter.Emit(_root));
 
@@ -149,14 +149,14 @@ public sealed class LearnEmitterTests : IDisposable
     }
 
     [Fact]
-    public void A_rung_in_no_section_stops_the_emit()
+    public void A_how_to_in_no_section_stops_the_emit()
     {
-        Write("concepts/000-basics/002-second/second.cs", Program);
-        Write("concepts/concept-runs.json", """{ "001-first": ["enqueued"], "002-second": ["enqueued"] }""");
+        Write("learn/000-basics/002-second/second.cs", Program);
+        Write("learn/runs.json", """{ "001-first": ["enqueued"], "002-second": ["enqueued"] }""");
 
         var stop = Assert.Throws<LearnException>(() => LearnEmitter.Emit(_root));
 
-        Assert.Contains("concepts/000-basics/002-second is in no section", stop.Message, StringComparison.Ordinal);
+        Assert.Contains("learn/000-basics/002-second is in no section", stop.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -164,7 +164,7 @@ public sealed class LearnEmitterTests : IDisposable
     {
         var filler = string.Join('\n', Enumerable.Range(1, 20).Select(n => $"        Console.WriteLine({n});"));
         Write(
-            $"{Rung}/first.cs",
+            $"{HowTo}/first.cs",
             $$"""
             // How to greet someone
             // One line says what the program shows.
@@ -218,7 +218,7 @@ public sealed class LearnEmitterTests : IDisposable
         var stale = LearnEmitter.Stale(root, emitted).Concat(LearnEmitter.Strays(root, emitted)).ToList();
         Assert.True(
             stale.Count == 0,
-            "The how-tos no longer match the concept programs. Regenerate them: dotnet run --project tools/Acta.Emit -- docs\n  "
+            "The how-tos no longer match their programs. Regenerate them: dotnet run --project tools/Acta.Emit -- docs\n  "
                 + string.Join("\n  ", stale.Take(12))
         );
     }

@@ -1,6 +1,6 @@
 # The whole program: cancel a running job from outside
 
-The how-to is [/learn/305-operator-cancel.md](/learn/305-operator-cancel.md). This file holds every source file of `concepts/300-failure-and-recovery/305-operator-cancel` as it is compiled.
+The how-to is [/learn/305-operator-cancel.md](/learn/305-operator-cancel.md). This file holds every source file of `learn/300-failure-and-recovery/305-operator-cancel` as it is compiled.
 
 ## Not in the packages
 
@@ -15,7 +15,7 @@ The how-to is [/learn/305-operator-cancel.md](/learn/305-operator-cancel.md). Th
 // `CancelAsync` on a job's handle cancels it from outside its handler. Any process that holds an `IJobs` can do it,
 // and a running handler's `CancellationToken` trips.
 using Acta;
-using Acta.Concepts.OperatorCancel;
+using Acta.Learn.OperatorCancel;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -49,7 +49,7 @@ Console.WriteLine($"final status: {snapshot!.Status}");
 
 await host.StopAsync();
 
-namespace Acta.Concepts.OperatorCancel
+namespace Acta.Learn.OperatorCancel
 {
     public sealed record BigExport(string Id);
 

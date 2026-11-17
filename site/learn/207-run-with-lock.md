@@ -3,7 +3,7 @@
 `RunWithLockAsync` holds a named lock around a piece of work, so jobs that name the same lock take turns.
 
 - Section: Control order and load, step 1
-- Program: `concepts/200-durable-execution/207-run-with-lock` in https://github.com/acta-dotnet/acta (one compiled project)
+- Program: `learn/200-durable-execution/207-run-with-lock` in https://github.com/acta-dotnet/acta (one compiled project)
 - Status: Checked every release. Before each release, Acta Verify runs this program and checks that its output contains these lines.
 - Rules: [/llms.txt](/llms.txt) is the contract every handler follows; "Remember" below carries the rules that bite this task.
 - Release: the one /llms.txt names at its top.
@@ -56,7 +56,7 @@ public sealed class UpdateInventoryJob
 From a clone of the repository, with the .NET 10 SDK:
 
 ```bash
-dotnet run --project concepts/200-durable-execution/207-run-with-lock
+dotnet run --project learn/200-durable-execution/207-run-with-lock
 ```
 
 Its output must contain:

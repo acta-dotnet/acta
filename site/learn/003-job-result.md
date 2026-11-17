@@ -3,7 +3,7 @@
 What the handler returns is stored with the job as its result. `WaitAsync<T>` follows the job to its end and hands the result back, typed.
 
 - Section: Take the first steps, step 3
-- Program: `concepts/000-fundamentals/003-job-result` in https://github.com/acta-dotnet/acta (one compiled project)
+- Program: `learn/000-fundamentals/003-job-result` in https://github.com/acta-dotnet/acta (one compiled project)
 - Status: Checked every release. Before each release, Acta Verify runs this program and checks that its output contains these lines.
 - Rules: [/llms.txt](/llms.txt) is the contract every handler follows, starting with the handler running again from its first line; read it before you copy code from here.
 - Release: the one /llms.txt names at its top.
@@ -71,7 +71,7 @@ await host.StopAsync();
 From a clone of the repository, with the .NET 10 SDK:
 
 ```bash
-dotnet run --project concepts/000-fundamentals/003-job-result
+dotnet run --project learn/000-fundamentals/003-job-result
 ```
 
 Its output must contain:

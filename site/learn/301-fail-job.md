@@ -3,7 +3,7 @@
 `FailAsync` ends the job as `Failed` at once, whatever its retry budget. A thrown exception would be retried.
 
 - Section: Decide what happens when work fails, step 3
-- Program: `concepts/300-failure-and-recovery/301-fail-job` in https://github.com/acta-dotnet/acta (one compiled project)
+- Program: `learn/300-failure-and-recovery/301-fail-job` in https://github.com/acta-dotnet/acta (one compiled project)
 - Status: Checked every release. Before each release, Acta Verify runs this program and checks that its output contains these lines.
 - Rules: [/llms.txt](/llms.txt) is the contract every handler follows; "Remember" below carries the rules that bite this task.
 - Release: the one /llms.txt names at its top.
@@ -44,7 +44,7 @@ public sealed class ProcessUploadJob
 From a clone of the repository, with the .NET 10 SDK:
 
 ```bash
-dotnet run --project concepts/300-failure-and-recovery/301-fail-job
+dotnet run --project learn/300-failure-and-recovery/301-fail-job
 ```
 
 Its output must contain:

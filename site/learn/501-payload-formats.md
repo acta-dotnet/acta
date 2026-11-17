@@ -3,7 +3,7 @@
 A job names the format its payload is stored in. This program runs custom formats side by side and compares their serialization time, enqueue time, readability, and stored bytes.
 
 - Section: Start jobs, step 18
-- Program: `concepts/500-payloads/501-payload-formats` in https://github.com/acta-dotnet/acta (one compiled project)
+- Program: `learn/500-payloads/501-payload-formats` in https://github.com/acta-dotnet/acta (one compiled project)
 - Status: Checked every release. Before each release, Acta Verify runs this program and checks that its output contains these lines.
 - Rules: [/llms.txt](/llms.txt) is the contract every handler follows, starting with the handler running again from its first line; read it before you copy code from here.
 - Release: the one /llms.txt names at its top.
@@ -57,7 +57,7 @@ In `Program.cs` (excerpt):
 
 ```csharp
 var builder = Host.CreateApplicationBuilder(args);
-builder.Services.AddSingleton(new ConceptLab(builder.Configuration, args));
+builder.Services.AddSingleton(new LearnLab(builder.Configuration, args));
 
 builder.Services.AddSingleton<IJobPayloadSerializer, ScalarV1Serializer>();
 builder.Services.AddSingleton<IJobPayloadSerializer, JsonGzipSerializer>();
@@ -106,7 +106,7 @@ public sealed class EchoGzipHandler
 From a clone of the repository, with the .NET 10 SDK:
 
 ```bash
-dotnet run --project concepts/500-payloads/501-payload-formats
+dotnet run --project learn/500-payloads/501-payload-formats
 ```
 
 Its output must contain:
@@ -121,7 +121,7 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## Not in the packages
 
-`UseLocalDatabase` and `ConceptLab` are helpers of the Acta repository (`support/`), used so every program runs on any of the three databases and prints its rows. Do not copy them into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` and `LearnLab` are helpers of the Acta repository (`support/`), used so every program runs on any of the three databases and prints its rows. Do not copy them into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## Next
 

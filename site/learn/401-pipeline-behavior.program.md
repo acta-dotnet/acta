@@ -1,6 +1,6 @@
 # The whole program: wrap every handler in your own middleware
 
-The how-to is [/learn/401-pipeline-behavior.md](/learn/401-pipeline-behavior.md). This file holds every source file of `concepts/400-observability-and-alerts/401-pipeline-behavior` as it is compiled.
+The how-to is [/learn/401-pipeline-behavior.md](/learn/401-pipeline-behavior.md). This file holds every source file of `learn/400-observability-and-alerts/401-pipeline-behavior` as it is compiled.
 
 ## Not in the packages
 
@@ -15,7 +15,7 @@ The how-to is [/learn/401-pipeline-behavior.md](/learn/401-pipeline-behavior.md)
 // An `IJobPipelineBehavior` wraps every handler call, the way middleware wraps a request.
 using System.Diagnostics;
 using Acta;
-using Acta.Concepts.PipelineBehavior;
+using Acta.Learn.PipelineBehavior;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -42,7 +42,7 @@ Console.WriteLine("Enqueued. Worker is running - press Ctrl+C to stop.");
 await host.WaitForShutdownAsync();
 await host.StopAsync();
 
-namespace Acta.Concepts.PipelineBehavior
+namespace Acta.Learn.PipelineBehavior
 {
     public sealed record GreetUser(string Name);
 

@@ -1,6 +1,6 @@
 # The whole program: run two namespaces in one process
 
-The how-to is [/learn/703-namespaces-in-one-process.md](/learn/703-namespaces-in-one-process.md). This file holds every source file of `concepts/700-topology-and-deployment/703-namespaces-in-one-process` as it is compiled.
+The how-to is [/learn/703-namespaces-in-one-process.md](/learn/703-namespaces-in-one-process.md). This file holds every source file of `learn/700-topology-and-deployment/703-namespaces-in-one-process` as it is compiled.
 
 ## Not in the packages
 
@@ -15,7 +15,7 @@ The how-to is [/learn/703-namespaces-in-one-process.md](/learn/703-namespaces-in
 // Each `Run` starts a worker for one namespace. Two of them in one process share the process and the database, and
 // never each other's jobs.
 using Acta;
-using Acta.Concepts.NamespacesInOneProcess;
+using Acta.Learn.NamespacesInOneProcess;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -61,7 +61,7 @@ Console.WriteLine("Enqueued 3 orders into each region. Both workers drain in par
 await host.WaitForShutdownAsync();
 await host.StopAsync();
 
-namespace Acta.Concepts.NamespacesInOneProcess
+namespace Acta.Learn.NamespacesInOneProcess
 {
     public sealed record ProcessOrder(string OrderId);
 

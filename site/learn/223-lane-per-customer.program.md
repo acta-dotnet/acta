@@ -1,6 +1,6 @@
 # The whole program: apply each customer's commands in order while other customers keep moving
 
-The how-to is [/learn/223-lane-per-customer.md](/learn/223-lane-per-customer.md). This file holds every source file of `concepts/200-durable-execution/223-lane-per-customer` as it is compiled.
+The how-to is [/learn/223-lane-per-customer.md](/learn/223-lane-per-customer.md). This file holds every source file of `learn/200-durable-execution/223-lane-per-customer` as it is compiled.
 
 ## Not in the packages
 
@@ -15,7 +15,7 @@ The how-to is [/learn/223-lane-per-customer.md](/learn/223-lane-per-customer.md)
 // A lane runs its jobs one at a time, in enqueue order. A lane per customer keeps each customer's commands in order
 // and lets the customers run side by side.
 using Acta;
-using Acta.Concepts.LanePerCustomer;
+using Acta.Learn.LanePerCustomer;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -59,7 +59,7 @@ Console.WriteLine($"customers side by side: {(Applied.MostAtOnce > 1 ? "yes" : "
 
 await host.StopAsync();
 
-namespace Acta.Concepts.LanePerCustomer
+namespace Acta.Learn.LanePerCustomer
 {
     public sealed record ApplyCommand(string Customer, int Number);
 

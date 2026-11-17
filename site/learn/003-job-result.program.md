@@ -1,6 +1,6 @@
 # The whole program: return a result and wait for it
 
-The how-to is [/learn/003-job-result.md](/learn/003-job-result.md). This file holds every source file of `concepts/000-fundamentals/003-job-result` as it is compiled.
+The how-to is [/learn/003-job-result.md](/learn/003-job-result.md). This file holds every source file of `learn/000-fundamentals/003-job-result` as it is compiled.
 
 ## Not in the packages
 
@@ -15,7 +15,7 @@ The how-to is [/learn/003-job-result.md](/learn/003-job-result.md). This file ho
 // What the handler returns is stored with the job as its result. `WaitAsync<T>` follows the job to its end and hands
 // the result back, typed.
 using Acta;
-using Acta.Concepts.JobResult;
+using Acta.Learn.JobResult;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -43,7 +43,7 @@ Console.WriteLine($"2 + 3 = {result.Sum}");
 
 await host.StopAsync();
 
-namespace Acta.Concepts.JobResult
+namespace Acta.Learn.JobResult
 {
     public sealed record AddNumbers(int Left, int Right);
 

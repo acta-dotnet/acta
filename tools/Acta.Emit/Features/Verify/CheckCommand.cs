@@ -9,7 +9,7 @@ using Acta.Emit.Shared.Sql;
 namespace Acta.Emit.Features.Verify;
 
 /// <summary>
-/// Drift gate. Verifies the generated reference docs are current, that the how-tos are the ones the concept programs
+/// Drift gate. Verifies the generated reference docs are current, that the how-tos are the ones their programs
 /// emit, and that the committed snapshot still
 /// equals the live model (i.e. no entity, routine, or view change is missing a `schema add`). Migration SQL
 /// is hand-edited history and is not compared against the model; the round-trip conformance test is what

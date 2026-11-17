@@ -1,10 +1,10 @@
 # The whole program: see your jobs in the dashboard
 
-The how-to is [/learn/022-dashboard.md](/learn/022-dashboard.md). This file holds every source file of `concepts/000-fundamentals/022-dashboard` as it is compiled, and the notes kept beside the code.
+The how-to is [/learn/022-dashboard.md](/learn/022-dashboard.md). This file holds every source file of `learn/000-fundamentals/022-dashboard` as it is compiled, and the notes kept beside the code.
 
 ## Not in the packages
 
-`UseLocalDatabase` and `ConceptLab` are helpers of the Acta repository (`support/`), used so every program runs on any of the three databases and prints its rows. Do not copy them into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` and `LearnLab` are helpers of the Acta repository (`support/`), used so every program runs on any of the three databases and prints its rows. Do not copy them into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## The whole program
 
@@ -14,12 +14,12 @@ The how-to is [/learn/022-dashboard.md](/learn/022-dashboard.md). This file hold
 // How to see your jobs in the dashboard
 // `MapActa` serves the dashboard and its JSON API from your own app. Its controls are off until you turn them on.
 using Acta;
-using Acta.Concepts.DashboardSample;
 using Acta.Dashboard;
 using Acta.Labs;
+using Acta.Learn.DashboardSample;
 
 var builder = WebApplication.CreateBuilder(args);
-var lab = new ConceptLab(builder.Configuration, args);
+var lab = new LearnLab(builder.Configuration, args);
 
 builder.Services.UseActa(j =>
 {
@@ -97,7 +97,7 @@ Console.WriteLine("Press Ctrl+C to stop.");
 
 await app.WaitForShutdownAsync();
 
-namespace Acta.Concepts.DashboardSample
+namespace Acta.Learn.DashboardSample
 {
     public sealed record GreetVisitor(string Name);
 
@@ -200,13 +200,13 @@ application's operational attack surface.
 ### Run the experiment
 
 ```bash
-dotnet run --project concepts/000-fundamentals/022-dashboard
+dotnet run --project learn/000-fundamentals/022-dashboard
 ```
 
 Then opt in locally and compare:
 
 ```bash
-Acta__Dashboard__EnableControls=true dotnet run --project concepts/000-fundamentals/022-dashboard
+Acta__Dashboard__EnableControls=true dotnet run --project learn/000-fundamentals/022-dashboard
 ```
 
 In PowerShell, set `$env:Acta__Dashboard__EnableControls='true'` first.
@@ -239,6 +239,6 @@ Build a custom UI when operators need domain-specific workflows rather than gene
 
 - [The controls Engineering Lab](https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md)
 - [The embedded-dashboard Engineering Lab](https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md)
-- [`Program.cs`](https://github.com/acta-dotnet/acta/blob/main/concepts/000-fundamentals/022-dashboard/Program.cs)
+- [`Program.cs`](https://github.com/acta-dotnet/acta/blob/main/learn/000-fundamentals/022-dashboard/Program.cs)
 - [`ActaEndpointOptions.cs`](https://github.com/acta-dotnet/acta/blob/main/src/Acta.AspNetCore/Configuration/ActaEndpointOptions.cs)
 - [`JobsEndpoints.cs`](https://github.com/acta-dotnet/acta/blob/main/src/Acta.AspNetCore/Operations/Jobs/JobsEndpoints.cs)

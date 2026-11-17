@@ -3,7 +3,7 @@
 The first-job guide's test verbatim: the real runtime on a throwaway SQLite file, driven one tick at a time, with a retry made due at once.
 
 - Section: Test without sleeps or polling, step 3
-- Program: `concepts/800-testing/803-first-job-tests` in https://github.com/acta-dotnet/acta (one compiled project)
+- Program: `learn/800-testing/803-first-job-tests` in https://github.com/acta-dotnet/acta (one compiled project)
 - Status: Runs as a test. This program is a test project: it passes or fails with the test suite.
 - Rules: [/llms.txt](/llms.txt) is the contract every handler follows, starting with the handler running again from its first line; read it before you copy code from here.
 - Release: the one /llms.txt names at its top.
@@ -92,7 +92,7 @@ public async Task A_carrier_timeout_costs_an_attempt_and_the_retry_ships()
 From a clone of the repository, with the .NET 10 SDK:
 
 ```bash
-dotnet test concepts/800-testing/803-first-job-tests
+dotnet test learn/800-testing/803-first-job-tests
 ```
 
 Runs as a test. This program is a test project: it passes or fails with the test suite.

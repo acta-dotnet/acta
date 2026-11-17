@@ -1,6 +1,6 @@
 # The whole program: raise an alert from a handler
 
-The how-to is [/learn/402-alerts.md](/learn/402-alerts.md). This file holds every source file of `concepts/400-observability-and-alerts/402-alerts` as it is compiled.
+The how-to is [/learn/402-alerts.md](/learn/402-alerts.md). This file holds every source file of `learn/400-observability-and-alerts/402-alerts` as it is compiled.
 
 ## Not in the packages
 
@@ -15,7 +15,7 @@ The how-to is [/learn/402-alerts.md](/learn/402-alerts.md). This file holds ever
 // `AlertAsync` in a handler raises an alert for the people who operate the system, and `operations.Alerts` reads it
 // back.
 using Acta;
-using Acta.Concepts.Alerts;
+using Acta.Learn.Alerts;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -50,7 +50,7 @@ foreach (var alert in alerts.Items)
 
 await host.StopAsync();
 
-namespace Acta.Concepts.Alerts
+namespace Acta.Learn.Alerts
 {
     public sealed record VerifyBackup(string FolderName, bool Healthy);
 

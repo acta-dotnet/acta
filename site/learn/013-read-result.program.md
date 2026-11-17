@@ -1,6 +1,6 @@
 # The whole program: read a job's result
 
-The how-to is [/learn/013-read-result.md](/learn/013-read-result.md). This file holds every source file of `concepts/000-fundamentals/013-read-result` as it is compiled.
+The how-to is [/learn/013-read-result.md](/learn/013-read-result.md). This file holds every source file of `learn/000-fundamentals/013-read-result` as it is compiled.
 
 ## Not in the packages
 
@@ -14,7 +14,7 @@ The how-to is [/learn/013-read-result.md](/learn/013-read-result.md). This file 
 // How to read a job's result
 // `TryGetResultAsync<T>` finds nothing before Succeeded; `GetResultAsync<T>` returns the result you expect.
 using Acta;
-using Acta.Concepts.ReadResult;
+using Acta.Learn.ReadResult;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -51,7 +51,7 @@ Console.WriteLine($"after it finishes: {done.Sum}");
 
 await host.StopAsync();
 
-namespace Acta.Concepts.ReadResult
+namespace Acta.Learn.ReadResult
 {
     public sealed record AddNumbers(int Left, int Right);
 

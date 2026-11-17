@@ -3,7 +3,7 @@
 A `Deadline` is the whole job's budget, measured from its creation. Under the default, strict behaviour an overdue job is cancelled before its handler runs.
 
 - Section: Decide what happens when work fails, step 8
-- Program: `concepts/300-failure-and-recovery/307-deadline-strict` in https://github.com/acta-dotnet/acta (one compiled project)
+- Program: `learn/300-failure-and-recovery/307-deadline-strict` in https://github.com/acta-dotnet/acta (one compiled project)
 - Status: Checked every release. Before each release, Acta Verify runs this program and checks that its output contains these lines.
 - Rules: [/llms.txt](/llms.txt) is the contract every handler follows, starting with the handler running again from its first line; read it before you copy code from here.
 - Release: the one /llms.txt names at its top.
@@ -36,7 +36,7 @@ public static class GenerateReportJob
 From a clone of the repository, with the .NET 10 SDK:
 
 ```bash
-dotnet run --project concepts/300-failure-and-recovery/307-deadline-strict
+dotnet run --project learn/300-failure-and-recovery/307-deadline-strict
 ```
 
 Its output must contain:

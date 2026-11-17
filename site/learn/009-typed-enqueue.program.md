@@ -1,6 +1,6 @@
 # The whole program: enqueue by the input's type
 
-The how-to is [/learn/009-typed-enqueue.md](/learn/009-typed-enqueue.md). This file holds every source file of `concepts/000-fundamentals/009-typed-enqueue` as it is compiled.
+The how-to is [/learn/009-typed-enqueue.md](/learn/009-typed-enqueue.md). This file holds every source file of `learn/000-fundamentals/009-typed-enqueue` as it is compiled.
 
 ## Not in the packages
 
@@ -14,7 +14,7 @@ The how-to is [/learn/009-typed-enqueue.md](/learn/009-typed-enqueue.md). This f
 // How to enqueue by the input's type
 // `EnqueueAsync` takes the input alone: its type names the job, so there is no name string to get wrong.
 using Acta;
-using Acta.Concepts.TypedEnqueue;
+using Acta.Learn.TypedEnqueue;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -42,7 +42,7 @@ Console.WriteLine($"Enqueued job {handle.JobRef} ({handle.Action}). Worker is ru
 await host.WaitForShutdownAsync();
 await host.StopAsync();
 
-namespace Acta.Concepts.TypedEnqueue
+namespace Acta.Learn.TypedEnqueue
 {
     public sealed record GreetUser(string Name);
 

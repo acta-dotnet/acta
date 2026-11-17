@@ -1,6 +1,6 @@
 # The whole program: choose between starting a job and waiting for it
 
-The how-to is [/learn/015-call-vs-enqueue.md](/learn/015-call-vs-enqueue.md). This file holds every source file of `concepts/000-fundamentals/015-call-vs-enqueue` as it is compiled.
+The how-to is [/learn/015-call-vs-enqueue.md](/learn/015-call-vs-enqueue.md). This file holds every source file of `learn/000-fundamentals/015-call-vs-enqueue` as it is compiled.
 
 ## Not in the packages
 
@@ -14,7 +14,7 @@ The how-to is [/learn/015-call-vs-enqueue.md](/learn/015-call-vs-enqueue.md). Th
 // How to choose between starting a job and waiting for it
 // `EnqueueAsync` returns as soon as the job is stored; `CallAsync` enqueues, waits, and returns the result.
 using Acta;
-using Acta.Concepts.CallVsEnqueue;
+using Acta.Learn.CallVsEnqueue;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -47,7 +47,7 @@ Console.WriteLine($"CallAsync waited and returned: job {executed.JobId}, result 
 
 await host.StopAsync();
 
-namespace Acta.Concepts.CallVsEnqueue
+namespace Acta.Learn.CallVsEnqueue
 {
     public sealed record AddNumbers(int Left, int Right);
 

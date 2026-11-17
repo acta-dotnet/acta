@@ -1,6 +1,6 @@
 # The whole program: send alerts to your own channel
 
-The how-to is [/learn/403-alert-channel.md](/learn/403-alert-channel.md). This file holds every source file of `concepts/400-observability-and-alerts/403-alert-channel` as it is compiled.
+The how-to is [/learn/403-alert-channel.md](/learn/403-alert-channel.md). This file holds every source file of `learn/400-observability-and-alerts/403-alert-channel` as it is compiled.
 
 ## Not in the packages
 
@@ -14,7 +14,7 @@ The how-to is [/learn/403-alert-channel.md](/learn/403-alert-channel.md). This f
 // How to send alerts to your own channel
 // `AddAlertChannel` declares where alerts go, under a name of your choice, and an alert names the channel it is for.
 using Acta;
-using Acta.Concepts.AlertChannel;
+using Acta.Learn.AlertChannel;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -64,7 +64,7 @@ foreach (var alert in alerts.Items)
 
 await host.StopAsync();
 
-namespace Acta.Concepts.AlertChannel
+namespace Acta.Learn.AlertChannel
 {
     public sealed record CheckDiskSpace(string Server, int FreePercent);
 

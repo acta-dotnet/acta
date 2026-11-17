@@ -1,6 +1,6 @@
 # The whole program: run urgent jobs first
 
-The how-to is [/learn/017-priority.md](/learn/017-priority.md). This file holds every source file of `concepts/000-fundamentals/017-priority` as it is compiled.
+The how-to is [/learn/017-priority.md](/learn/017-priority.md). This file holds every source file of `learn/000-fundamentals/017-priority` as it is compiled.
 
 ## Not in the packages
 
@@ -14,7 +14,7 @@ The how-to is [/learn/017-priority.md](/learn/017-priority.md). This file holds 
 // How to run urgent jobs first
 // A priority on the enqueue decides which of the jobs that are due at once a worker claims first.
 using Acta;
-using Acta.Concepts.Priority;
+using Acta.Learn.Priority;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -54,7 +54,7 @@ Console.WriteLine("Enqueued. Worker is running - press Ctrl+C to stop.");
 await host.WaitForShutdownAsync();
 await host.StopAsync();
 
-namespace Acta.Concepts.Priority
+namespace Acta.Learn.Priority
 {
     public sealed record GenerateReport(string Name);
 

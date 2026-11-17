@@ -1,9 +1,9 @@
 # How to test a job that waits for a signal
 
-Each `RunOnceAsync` drives exactly one attempt, so the suspend on a signal and the resume after its raise are two explicit ticks, and the test asserts that the step before the wait ran once across the replay. Run it with `dotnet test concepts/800-testing/802-testing-durable-jobs`.
+Each `RunOnceAsync` drives exactly one attempt, so the suspend on a signal and the resume after its raise are two explicit ticks, and the test asserts that the step before the wait ran once across the replay. Run it with `dotnet test learn/800-testing/802-testing-durable-jobs`.
 
 - Section: Test without sleeps or polling, step 2
-- Program: `concepts/800-testing/802-testing-durable-jobs` in https://github.com/acta-dotnet/acta (one compiled project)
+- Program: `learn/800-testing/802-testing-durable-jobs` in https://github.com/acta-dotnet/acta (one compiled project)
 - Status: Runs as a test. This program is a test project: it passes or fails with the test suite.
 - Rules: [/llms.txt](/llms.txt) is the contract every handler follows, starting with the handler running again from its first line; read it before you copy code from here.
 - Release: the one /llms.txt names at its top.
@@ -117,7 +117,7 @@ public async Task Order_reserves_once_waits_for_approval_then_charges()
 From a clone of the repository, with the .NET 10 SDK:
 
 ```bash
-dotnet test concepts/800-testing/802-testing-durable-jobs
+dotnet test learn/800-testing/802-testing-durable-jobs
 ```
 
 Runs as a test. This program is a test project: it passes or fails with the test suite.

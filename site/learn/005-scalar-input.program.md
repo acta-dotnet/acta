@@ -1,6 +1,6 @@
 # The whole program: pass one plain value as the input
 
-The how-to is [/learn/005-scalar-input.md](/learn/005-scalar-input.md). This file holds every source file of `concepts/000-fundamentals/005-scalar-input` as it is compiled.
+The how-to is [/learn/005-scalar-input.md](/learn/005-scalar-input.md). This file holds every source file of `learn/000-fundamentals/005-scalar-input` as it is compiled.
 
 ## Not in the packages
 
@@ -14,7 +14,7 @@ The how-to is [/learn/005-scalar-input.md](/learn/005-scalar-input.md). This fil
 // How to pass one plain value as the input
 // The input can be one plain value, such as a string or a number, with no record around it.
 using Acta;
-using Acta.Concepts.ScalarInput;
+using Acta.Learn.ScalarInput;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -41,7 +41,7 @@ Console.WriteLine("Enqueued. Worker is running - press Ctrl+C to stop.");
 await host.WaitForShutdownAsync();
 await host.StopAsync();
 
-namespace Acta.Concepts.ScalarInput
+namespace Acta.Learn.ScalarInput
 {
     public static class ShoutJob
     {

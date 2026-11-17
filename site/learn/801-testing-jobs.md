@@ -1,9 +1,9 @@
 # How to test a handler with the test host
 
-`Acta.Testing` runs the real runtime on a real database with no background loop: `RunOnceAsync` decides when a job executes, so a test drives one attempt at a time. Run it with `dotnet test concepts/800-testing/801-testing-jobs`.
+`Acta.Testing` runs the real runtime on a real database with no background loop: `RunOnceAsync` decides when a job executes, so a test drives one attempt at a time. Run it with `dotnet test learn/800-testing/801-testing-jobs`.
 
 - Section: Test without sleeps or polling, step 1
-- Program: `concepts/800-testing/801-testing-jobs` in https://github.com/acta-dotnet/acta (one compiled project)
+- Program: `learn/800-testing/801-testing-jobs` in https://github.com/acta-dotnet/acta (one compiled project)
 - Status: Runs as a test. This program is a test project: it passes or fails with the test suite.
 - Rules: [/llms.txt](/llms.txt) is the contract every handler follows, starting with the handler running again from its first line; read it before you copy code from here.
 - Release: the one /llms.txt names at its top.
@@ -113,7 +113,7 @@ public async Task Failing_echo_rearms_per_retry_then_settles_failed()
 From a clone of the repository, with the .NET 10 SDK:
 
 ```bash
-dotnet test concepts/800-testing/801-testing-jobs
+dotnet test learn/800-testing/801-testing-jobs
 ```
 
 Runs as a test. This program is a test project: it passes or fails with the test suite.

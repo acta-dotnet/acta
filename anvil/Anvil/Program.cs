@@ -228,7 +228,7 @@ static void ConfigureWorker(
 {
     j.UseLocalDatabase(configuration, schema, provider, applyMigrations: applyMigrations);
     j.UseJsonPayloads(AnvilPayloadJsonContext.Default);
-    // A lab worker runs the product's executor default, stated here because UseLocalDatabase caps the concept
+    // A lab worker runs the product's executor default, stated here because UseLocalDatabase caps the how-to
     // programs at four. The deployment version lines the process up with its worker row. Lease/heartbeat/dead-worker
     // windows stay at the framework production defaults.
     j.ConfigureOptions(o =>

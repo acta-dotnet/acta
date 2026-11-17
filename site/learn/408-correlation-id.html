@@ -65,7 +65,7 @@
       <p class="howto-context">A how-to for Acta, durable execution for .NET. <a href="/start">New to Acta? Run your first durable job in five minutes.</a></p>
       <div class="howto-meta">
         <span class="status checked">Checked every release</span>
-        <a class="program" href="https://github.com/acta-dotnet/acta/tree/main/concepts/400-observability-and-alerts/408-correlation-id"><code>concepts/400-observability-and-alerts/408-correlation-id</code></a>
+        <a class="program" href="https://github.com/acta-dotnet/acta/tree/main/learn/400-observability-and-alerts/408-correlation-id"><code>learn/400-observability-and-alerts/408-correlation-id</code></a>
         <div class="reader" role="group" aria-label="Read this page as">
         <span class="reader-label">Read as</span>
         <button type="button" data-reader="person" aria-pressed="true">a person</button>
@@ -129,7 +129,7 @@ Console.WriteLine(<span class="s">$&quot;operator read: ListJobs filtered by Cor
 </div>
 <div class="step"><h2><span class="step-n">4</span>Run it and check the output</h2>
 <p>From a clone of <a href="https://github.com/acta-dotnet/acta">the Acta repository</a>, with the .NET 10 SDK:</p>
-<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project concepts/400-observability-and-alerts/408-correlation-id</code></pre></figure>
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project learn/400-observability-and-alerts/408-correlation-id</code></pre></figure>
 <figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button">Copy</button></figcaption><pre><code>same ActaCorrelationKey in Scopes
 &quot;ActaCorrelationKey&quot;:&quot;trace-
 pipeline done
@@ -139,13 +139,13 @@ job=run-pipeline correlation_key=trace-</code></pre></figure>
 <p class="hint">This page shows the code. The rules it relies on, starting with the handler running again from its first line, are in <a href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#handler-contract">the handler contract</a>.</p>
 </div>
 <div class="step plain-step"><h2>The whole program</h2>
-<p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/concepts/400-observability-and-alerts/408-correlation-id"><code>concepts/400-observability-and-alerts/408-correlation-id</code></a>, as it is compiled.</p>
+<p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/learn/400-observability-and-alerts/408-correlation-id"><code>learn/400-observability-and-alerts/408-correlation-id</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
 <details class="source-file"><summary><span class="file-name">correlation-id.cs</span><span class="file-size">111 lines</span></summary><figure class="listing"><figcaption><span class="file">correlation-id.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to carry a correlation key from parent to child</span>
 <span class="c">// A `CorrelationKey` set on the enqueue travels with the job and with every child it starts. It is on the job row, in</span>
 <span class="c">// each handler's log scope, and a filter of the job list.</span>
 <span class="k">using</span> Acta;
-<span class="k">using</span> Acta.Concepts.CorrelationKey;
+<span class="k">using</span> Acta.Learn.CorrelationKey;
 <span class="k">using</span> Microsoft.Extensions.DependencyInjection;
 <span class="k">using</span> Microsoft.Extensions.Hosting;
 <span class="k">using</span> Microsoft.Extensions.Logging;
@@ -158,12 +158,12 @@ builder.Services.UseActa(j =&gt;
     j.Run&lt;CorrelationKeyJobs&gt;(<span class="s">&quot;correlation-id&quot;</span>);
 });
 
-<span class="c">// Log the concept's own handler output at Information so the log-scope demo is visible.</span>
+<span class="c">// Log the program's own handler output at Information so the log-scope demo is visible.</span>
 <span class="c">// UseLocalDatabase sets the global minimum to Warning; AddFilter narrows the override to this namespace.</span>
 <span class="c">// AddJsonConsole renders structured scope properties (including ActaCorrelationKey) as key-value pairs.</span>
 builder.Services.AddLogging(l =&gt;
 {
-    l.AddFilter(<span class="s">&quot;Acta.Concepts.CorrelationKey&quot;</span>, LogLevel.Information);
+    l.AddFilter(<span class="s">&quot;Acta.Learn.CorrelationKey&quot;</span>, LogLevel.Information);
     l.AddJsonConsole(o =&gt; o.IncludeScopes = <span class="k">true</span>);
 });
 
@@ -208,7 +208,7 @@ Console.WriteLine(<span class="s">$&quot;operator read: ListJobs filtered by Cor
 
 <span class="k">await</span> host.StopAsync();
 
-<span class="k">namespace</span> Acta.Concepts.CorrelationKey
+<span class="k">namespace</span> Acta.Learn.CorrelationKey
 {
     <span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> RunPipeline(<span class="k">string</span> RunId);
 
@@ -315,7 +315,7 @@ Console.WriteLine(<span class="s">$&quot;operator read: ListJobs filtered by Cor
             <a href="/start">Get started</a>
             <a href="/learn">Learn Acta</a>
             <a href="https://github.com/acta-dotnet/acta/tree/main/docs">Documentation</a>
-            <a href="https://github.com/acta-dotnet/acta/tree/main/concepts">Runnable concepts</a>
+            <a href="https://github.com/acta-dotnet/acta/tree/main/learn">How-to programs</a>
             <a href="https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md">Engineering labs</a>
             <a href="/llms.txt">llms.txt for coding agents</a>
           </nav>

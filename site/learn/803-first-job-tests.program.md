@@ -1,6 +1,6 @@
 # The whole program: test the first-job guide's app
 
-The how-to is [/learn/803-first-job-tests.md](/learn/803-first-job-tests.md). This file holds every source file of `concepts/800-testing/803-first-job-tests` as it is compiled.
+The how-to is [/learn/803-first-job-tests.md](/learn/803-first-job-tests.md). This file holds every source file of `learn/800-testing/803-first-job-tests` as it is compiled.
 
 ## The whole program
 

@@ -1,6 +1,6 @@
 # The whole program: feed one step's result into the next
 
-The how-to is [/learn/206-step-chain.md](/learn/206-step-chain.md). This file holds every source file of `concepts/200-durable-execution/206-step-chain` as it is compiled.
+The how-to is [/learn/206-step-chain.md](/learn/206-step-chain.md). This file holds every source file of `learn/200-durable-execution/206-step-chain` as it is compiled.
 
 ## Not in the packages
 
@@ -15,7 +15,7 @@ The how-to is [/learn/206-step-chain.md](/learn/206-step-chain.md). This file ho
 // A step can return a value. Each result is recorded once, so the next step takes it as its input and a replay
 // rebuilds the chain from the records.
 using Acta;
-using Acta.Concepts.StepChain;
+using Acta.Learn.StepChain;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -38,7 +38,7 @@ Console.WriteLine("Enqueued. Worker is running - press Ctrl+C to stop.");
 await host.WaitForShutdownAsync();
 await host.StopAsync();
 
-namespace Acta.Concepts.StepChain
+namespace Acta.Learn.StepChain
 {
     public sealed record IndexDocument(string DocId);
 

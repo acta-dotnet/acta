@@ -1,6 +1,6 @@
 # The whole program: limit how many times a job retries
 
-The how-to is [/learn/016-max-attempts.md](/learn/016-max-attempts.md). This file holds every source file of `concepts/000-fundamentals/016-max-attempts` as it is compiled.
+The how-to is [/learn/016-max-attempts.md](/learn/016-max-attempts.md). This file holds every source file of `learn/000-fundamentals/016-max-attempts` as it is compiled.
 
 ## Not in the packages
 
@@ -14,7 +14,7 @@ The how-to is [/learn/016-max-attempts.md](/learn/016-max-attempts.md). This fil
 // How to limit how many times a job retries
 // `MaxAttempts` on the job is its retry budget. When the last attempt fails, the job ends as `Failed`.
 using Acta;
-using Acta.Concepts.MaxAttempts;
+using Acta.Learn.MaxAttempts;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -42,7 +42,7 @@ Console.WriteLine($"status={snapshot!.Status} failureCount={snapshot.FailureCoun
 
 await host.StopAsync();
 
-namespace Acta.Concepts.MaxAttempts
+namespace Acta.Learn.MaxAttempts
 {
     public sealed record FlakyWork(string Item);
 

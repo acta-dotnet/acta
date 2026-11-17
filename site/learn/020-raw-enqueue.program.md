@@ -1,6 +1,6 @@
 # The whole program: enqueue a job by its name
 
-The how-to is [/learn/020-raw-enqueue.md](/learn/020-raw-enqueue.md). This file holds every source file of `concepts/000-fundamentals/020-raw-enqueue` as it is compiled.
+The how-to is [/learn/020-raw-enqueue.md](/learn/020-raw-enqueue.md). This file holds every source file of `learn/000-fundamentals/020-raw-enqueue` as it is compiled.
 
 ## Not in the packages
 
@@ -14,7 +14,7 @@ The how-to is [/learn/020-raw-enqueue.md](/learn/020-raw-enqueue.md). This file 
 // How to enqueue a job by its name
 // An `EnqueueJobRequest` names the namespace and the job as strings, for a caller that does not have the job's types.
 using Acta;
-using Acta.Concepts.RawEnqueue;
+using Acta.Learn.RawEnqueue;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -52,7 +52,7 @@ Console.WriteLine($"Enqueued job {enqueued.JobRef} by name. Worker is running - 
 await host.WaitForShutdownAsync();
 await host.StopAsync();
 
-namespace Acta.Concepts.RawEnqueue
+namespace Acta.Learn.RawEnqueue
 {
     public sealed record SendWelcomeEmail(string Email, string Name);
 

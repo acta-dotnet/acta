@@ -179,7 +179,7 @@
         </div>
         <p class="hint"><b>Application contract.</b> This example starts with a validated order whose stock is already reserved. Each external adapter must honor its operation key. The payment adapter must throw unless a charge is confirmed. Booking cancellation, stock release, and refunds need explicit business recovery paths when an order cannot finish; Acta does not roll back external operations.</p>
         <div class="actions">
-          <a class="button primary" href="https://github.com/acta-dotnet/acta/tree/main/concepts/200-durable-execution/201-durable-checkout">Explore the checkout lab</a>
+          <a class="button primary" href="https://github.com/acta-dotnet/acta/tree/main/learn/200-durable-execution/201-durable-checkout">Explore the checkout lab</a>
           <a class="button" href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#compensating-on-the-last-attempt">Read about compensation</a>
         </div>
       </div>
@@ -208,7 +208,7 @@
         </div>
         <p class="hint">Stop the worker mid-batch, with a deploy or a kill, and the next one picks the job up at the same watermark; a replayed batch is an upsert, so it lands once.</p>
         <div class="actions">
-          <a class="button primary" href="https://github.com/acta-dotnet/acta/tree/main/concepts/100-scheduling/109-continuous-synchronization">Run the sync lab</a>
+          <a class="button primary" href="https://github.com/acta-dotnet/acta/tree/main/learn/100-scheduling/109-continuous-synchronization">Run the sync lab</a>
         </div>
       </div>
       <div class="example" id="ex-proof" role="tabpanel" aria-labelledby="tab-proof">
@@ -261,7 +261,7 @@
         <p class="hint"><b>Application contract.</b> One job handles one immutable manuscript revision. <code>ProofApproval</code> carries <code>ProofId</code> and <code>Approved</code>. The PDF child stores a complete, immutable artifact before succeeding; the reference checker fails its child job if validation does not pass. Corrections start a new proof workflow. Review and publication adapters must deduplicate by proof ID. The 14-day timeout is an illustrative policy for each reviewer separately, not one deadline for the whole approval process.</p>
         <div class="actions">
           <a class="button primary" href="/how-it-works#steps">Explore durable workflows</a>
-          <a class="button" href="https://github.com/acta-dotnet/acta/tree/main/concepts/200-durable-execution/215-map-wait-children">Run the fan-out lab</a>
+          <a class="button" href="https://github.com/acta-dotnet/acta/tree/main/learn/200-durable-execution/215-map-wait-children">Run the fan-out lab</a>
         </div>
       </div>
     </section>
@@ -477,7 +477,7 @@
             <a href="/start">Get started</a>
             <a href="/learn">Learn Acta</a>
             <a href="https://github.com/acta-dotnet/acta/tree/main/docs">Documentation</a>
-            <a href="https://github.com/acta-dotnet/acta/tree/main/concepts">Runnable concepts</a>
+            <a href="https://github.com/acta-dotnet/acta/tree/main/learn">How-to programs</a>
             <a href="https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md">Engineering labs</a>
             <a href="/llms.txt">llms.txt for coding agents</a>
           </nav>
@@ -499,14 +499,14 @@
   </main>
   <script>
     // Two short links for the outside. useacta.net/#capabilities is the section above; useacta.net/#concepts
-    // hands off to the runnable concepts in the repository, since the site has no page of its own for them.
-    const handOffConcepts = () => {
+    // is the address the how-tos had before the site had a page for them, and goes on to /learn.
+    const goOnToLearn = () => {
       if (location.hash === '#concepts') {
-        location.replace('https://github.com/acta-dotnet/acta/tree/main/concepts');
+        location.replace('/learn');
       }
     };
-    handOffConcepts();
-    addEventListener('hashchange', handOffConcepts);
+    goOnToLearn();
+    addEventListener('hashchange', goOnToLearn);
 
     // Example handlers: one panel at a time, with arrow-key navigation between tabs.
     const tablist = document.querySelector('.tabs');

@@ -1,6 +1,6 @@
 # The whole program: schedule, sleep, and reschedule to an exact instant
 
-The how-to is [/learn/217-absolute-time-controls.md](/learn/217-absolute-time-controls.md). This file holds every source file of `concepts/200-durable-execution/217-absolute-time-controls` as it is compiled.
+The how-to is [/learn/217-absolute-time-controls.md](/learn/217-absolute-time-controls.md). This file holds every source file of `learn/200-durable-execution/217-absolute-time-controls` as it is compiled.
 
 ## Not in the packages
 
@@ -15,7 +15,7 @@ The how-to is [/learn/217-absolute-time-controls.md](/learn/217-absolute-time-co
 // Pin work to an instant instead of a delay: `ScheduleAsync(input, runAt)` starts a job then, `SleepUntilAsync`
 // pauses a handler until then, and `RescheduleUntilAsync` runs the handler again then.
 using Acta;
-using Acta.Concepts.AbsoluteTimeControls;
+using Acta.Learn.AbsoluteTimeControls;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -62,7 +62,7 @@ Console.WriteLine($"PollExternal final status:   {pollSnap!.Status}, finished at
 
 await host.StopAsync();
 
-namespace Acta.Concepts.AbsoluteTimeControls
+namespace Acta.Learn.AbsoluteTimeControls
 {
     public sealed record GenerateReport(string Period, DateTimeOffset SleepUntil);
 

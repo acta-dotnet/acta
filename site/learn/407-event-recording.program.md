@@ -1,6 +1,6 @@
 # The whole program: choose how many events a job records
 
-The how-to is [/learn/407-event-recording.md](/learn/407-event-recording.md). This file holds every source file of `concepts/400-observability-and-alerts/407-event-recording` as it is compiled.
+The how-to is [/learn/407-event-recording.md](/learn/407-event-recording.md). This file holds every source file of `learn/400-observability-and-alerts/407-event-recording` as it is compiled.
 
 ## Not in the packages
 
@@ -16,7 +16,7 @@ The how-to is [/learn/407-event-recording.md](/learn/407-event-recording.md). Th
 // records the failed and orphaned attempts, the success that recovers from a failure, what an enabled alert profile
 // reads, a caller's controls of the job, and a schedule's pauses and manual triggers.
 using Acta;
-using Acta.Concepts.EventRecording;
+using Acta.Learn.EventRecording;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -50,7 +50,7 @@ Console.WriteLine(
 
 await host.StopAsync();
 
-namespace Acta.Concepts.EventRecording
+namespace Acta.Learn.EventRecording
 {
     public sealed record AuditWork(string Id);
 

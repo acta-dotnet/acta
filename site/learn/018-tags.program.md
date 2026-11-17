@@ -1,6 +1,6 @@
 # The whole program: label jobs so you can find them
 
-The how-to is [/learn/018-tags.md](/learn/018-tags.md). This file holds every source file of `concepts/000-fundamentals/018-tags` as it is compiled.
+The how-to is [/learn/018-tags.md](/learn/018-tags.md). This file holds every source file of `learn/000-fundamentals/018-tags` as it is compiled.
 
 ## Not in the packages
 
@@ -14,7 +14,7 @@ The how-to is [/learn/018-tags.md](/learn/018-tags.md). This file holds every so
 // How to label jobs so you can find them
 // Tags are name and value labels set on the enqueue, for filtering and grouping jobs in queries and in the dashboard.
 using Acta;
-using Acta.Concepts.Tags;
+using Acta.Learn.Tags;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -44,7 +44,7 @@ Console.WriteLine("Worker is running - press Ctrl+C to stop.");
 await host.WaitForShutdownAsync();
 await host.StopAsync();
 
-namespace Acta.Concepts.Tags
+namespace Acta.Learn.Tags
 {
     public sealed record SendWelcomeEmail(string Email, string Name);
 

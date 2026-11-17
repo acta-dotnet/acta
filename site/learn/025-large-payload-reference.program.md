@@ -1,6 +1,6 @@
 # The whole program: pass a large file by reference
 
-The how-to is [/learn/025-large-payload-reference.md](/learn/025-large-payload-reference.md). This file holds every source file of `concepts/000-fundamentals/025-large-payload-reference` as it is compiled.
+The how-to is [/learn/025-large-payload-reference.md](/learn/025-large-payload-reference.md). This file holds every source file of `learn/000-fundamentals/025-large-payload-reference` as it is compiled.
 
 ## Not in the packages
 
@@ -16,7 +16,7 @@ The how-to is [/learn/025-large-payload-reference.md](/learn/025-large-payload-r
 using System.Security.Cryptography;
 using System.Text;
 using Acta;
-using Acta.Concepts.LargePayloadReference;
+using Acta.Learn.LargePayloadReference;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -55,7 +55,7 @@ Console.WriteLine("Worker is running - press Ctrl+C to stop.");
 await host.WaitForShutdownAsync();
 await host.StopAsync();
 
-namespace Acta.Concepts.LargePayloadReference
+namespace Acta.Learn.LargePayloadReference
 {
     // learn: 1. Make the input a reference to the file
     // Avoid passing the file bytes directly; large byte-array inputs exceed the inline payload limit.

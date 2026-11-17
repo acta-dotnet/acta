@@ -1,6 +1,6 @@
 # The whole program: restart a crashed app on SQLite and get its work back
 
-The how-to is [/learn/706-sqlite-restart.md](/learn/706-sqlite-restart.md). This file holds every source file of `concepts/700-topology-and-deployment/706-sqlite-restart` as it is compiled.
+The how-to is [/learn/706-sqlite-restart.md](/learn/706-sqlite-restart.md). This file holds every source file of `learn/700-topology-and-deployment/706-sqlite-restart` as it is compiled.
 
 ## Not in the packages
 
@@ -16,7 +16,7 @@ The how-to is [/learn/706-sqlite-restart.md](/learn/706-sqlite-restart.md). This
 // takes a lost job back at once. Nothing has to be written for it; the crash spends one attempt.
 using System.Diagnostics;
 using Acta;
-using Acta.Concepts.SqliteRestart;
+using Acta.Learn.SqliteRestart;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -32,7 +32,7 @@ var provider = LocalDatabase.ResolveProvider(builder.Configuration);
 if (!LocalDatabase.IsSqlite(provider))
 {
     Console.WriteLine(
-        "This rung is about SQLite. On PostgreSQL or SQL Server a lost job waits out its lease: see 705-worker-crash-recovery."
+        "This how-to is about SQLite. On PostgreSQL or SQL Server a lost job waits out its lease: see 705-worker-crash-recovery."
     );
     return;
 }
@@ -87,7 +87,7 @@ Console.WriteLine(why.Headline);
 
 await host.StopAsync();
 
-namespace Acta.Concepts.SqliteRestart
+namespace Acta.Learn.SqliteRestart
 {
     public sealed record Export(string What);
 

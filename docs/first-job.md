@@ -2,8 +2,8 @@
 
 One web app, two jobs, and a job's whole life: install, run, a typed result, the ref you keep, status and result reads, a failure that is final and one that is not, the explanation, cancellation, a wait that times out, the row in SQL, and the first test. Everything runs on the consumer packages with the .NET 10 SDK and embedded SQLite: no clone, no Node, no database server. The [README](../README.md) has the shortest program that runs one job; this page is the full first job.
 
-The four files below are the app. They are also concept
-[`026-first-job`](../concepts/000-fundamentals/026-first-job/) in the repository, verbatim, so what
+The four files below are the app. They are also how-to
+[`026-first-job`](../learn/000-fundamentals/026-first-job/) in the repository, verbatim, so what
 you read here is what compiles.
 
 ## Install
@@ -296,8 +296,8 @@ named one, and `details_text` its JSON details. The enqueue writes no event.
 
 The test runs the real runtime on a throwaway SQLite file and drives it one tick at a time, so there
 are no sleeps and no polling loops: a tick is one claim plus one handler run, and the assertions read
-the same public surface the app uses. The file is concept
-[`803-first-job-tests`](../concepts/800-testing/803-first-job-tests/), verbatim.
+the same public surface the app uses. The file is how-to
+[`803-first-job-tests`](../learn/800-testing/803-first-job-tests/), verbatim.
 
 ```bash
 cd ..

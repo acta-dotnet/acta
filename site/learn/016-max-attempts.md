@@ -3,7 +3,7 @@
 `MaxAttempts` on the job is its retry budget. When the last attempt fails, the job ends as `Failed`.
 
 - Section: Decide what happens when work fails, step 1
-- Program: `concepts/000-fundamentals/016-max-attempts` in https://github.com/acta-dotnet/acta (one compiled project)
+- Program: `learn/000-fundamentals/016-max-attempts` in https://github.com/acta-dotnet/acta (one compiled project)
 - Status: Checked every release. Before each release, Acta Verify runs this program and checks that its output contains these lines.
 - Rules: [/llms.txt](/llms.txt) is the contract every handler follows; "Remember" below carries the rules that bite this task.
 - Release: the one /llms.txt names at its top.
@@ -73,7 +73,7 @@ await host.StopAsync();
 From a clone of the repository, with the .NET 10 SDK:
 
 ```bash
-dotnet run --project concepts/000-fundamentals/016-max-attempts
+dotnet run --project learn/000-fundamentals/016-max-attempts
 ```
 
 Its output must contain:

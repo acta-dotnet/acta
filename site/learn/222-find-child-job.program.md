@@ -1,6 +1,6 @@
 # The whole program: find the child job that handles one item
 
-The how-to is [/learn/222-find-child-job.md](/learn/222-find-child-job.md). This file holds every source file of `concepts/200-durable-execution/222-find-child-job` as it is compiled.
+The how-to is [/learn/222-find-child-job.md](/learn/222-find-child-job.md). This file holds every source file of `learn/200-durable-execution/222-find-child-job` as it is compiled.
 
 ## Not in the packages
 
@@ -15,7 +15,7 @@ The how-to is [/learn/222-find-child-job.md](/learn/222-find-child-job.md). This
 // A child's name on the reads is its deduplication key, `{map}/{key}` for a child that a map started. List the
 // parent's children and pick the one that carries the item's key.
 using Acta;
-using Acta.Concepts.FindChildJob;
+using Acta.Learn.FindChildJob;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -61,7 +61,7 @@ Console.WriteLine($"invoice 7: {why.Headline} {why.Reason}");
 
 await host.StopAsync();
 
-namespace Acta.Concepts.FindChildJob
+namespace Acta.Learn.FindChildJob
 {
     public sealed record SendInvoices(int[] InvoiceIds);
 

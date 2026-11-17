@@ -1,6 +1,6 @@
 # The whole program: set how long a job waits between retries
 
-The how-to is [/learn/312-backoff-curve.md](/learn/312-backoff-curve.md). This file holds every source file of `concepts/300-failure-and-recovery/312-backoff-curve` as it is compiled.
+The how-to is [/learn/312-backoff-curve.md](/learn/312-backoff-curve.md). This file holds every source file of `learn/300-failure-and-recovery/312-backoff-curve` as it is compiled.
 
 ## Not in the packages
 
@@ -15,7 +15,7 @@ The how-to is [/learn/312-backoff-curve.md](/learn/312-backoff-curve.md). This f
 // `Backoff` on the job sets how the wait between retries grows: `1s..8s x2 exact` starts at one second, doubles with
 // each failure, and stops growing at eight.
 using Acta;
-using Acta.Concepts.BackoffCurve;
+using Acta.Learn.BackoffCurve;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -70,7 +70,7 @@ while (true)
 
 await host.StopAsync();
 
-namespace Acta.Concepts.BackoffCurve
+namespace Acta.Learn.BackoffCurve
 {
     public sealed record FlakyTransfer(string Id);
 

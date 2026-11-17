@@ -1,6 +1,6 @@
 # The whole program: run a job on a repeating schedule
 
-The how-to is [/learn/101-recurring-job.md](/learn/101-recurring-job.md). This file holds every source file of `concepts/100-scheduling/101-recurring-job` as it is compiled.
+The how-to is [/learn/101-recurring-job.md](/learn/101-recurring-job.md). This file holds every source file of `learn/100-scheduling/101-recurring-job` as it is compiled.
 
 ## Not in the packages
 
@@ -14,7 +14,7 @@ The how-to is [/learn/101-recurring-job.md](/learn/101-recurring-job.md). This f
 // How to run a job on a repeating schedule
 // `[Schedule]` with a cron makes one permanent job that fires on that cadence, with nothing to enqueue.
 using Acta;
-using Acta.Concepts.Recurring;
+using Acta.Learn.Recurring;
 using Microsoft.Extensions.Hosting;
 
 var builder = Host.CreateApplicationBuilder(args);
@@ -28,7 +28,7 @@ builder.Services.UseActa(j =>
 // No enqueue: the deploy creates one permanent job for the [Schedule] below, and it fires on its cron cadence.
 await builder.Build().RunAsync();
 
-namespace Acta.Concepts.Recurring
+namespace Acta.Learn.Recurring
 {
     public readonly record struct PurgeStaleSessions;
 

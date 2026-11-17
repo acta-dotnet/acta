@@ -3,7 +3,7 @@
 The claims of the continuous-synchronization lab as tests: a schedule forced due and one firing driven at a time, one job identity across firings, the watermark kept on the job, a lost attempt reclaimed with the next execution continuing at the watermark, and a replayed, a failed, and a backlogged batch. Run it with `dotnet test`.
 
 - Section: Test without sleeps or polling, step 4
-- Program: `concepts/800-testing/804-continuous-synchronization-tests` in https://github.com/acta-dotnet/acta (one compiled project)
+- Program: `learn/800-testing/804-continuous-synchronization-tests` in https://github.com/acta-dotnet/acta (one compiled project)
 - Status: Runs as a test. This program is a test project: it passes or fails with the test suite.
 - Rules: [/llms.txt](/llms.txt) is the contract every handler follows, starting with the handler running again from its first line; read it before you copy code from here.
 - Release: the one /llms.txt names at its top.
@@ -88,7 +88,7 @@ var outcome = await lost;
 From a clone of the repository, with the .NET 10 SDK:
 
 ```bash
-dotnet test concepts/800-testing/804-continuous-synchronization-tests
+dotnet test learn/800-testing/804-continuous-synchronization-tests
 ```
 
 Runs as a test. This program is a test project: it passes or fails with the test suite.

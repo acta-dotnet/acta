@@ -65,7 +65,7 @@
       <p class="howto-context">A how-to for Acta, durable execution for .NET. <a href="/start">New to Acta? Run your first durable job in five minutes.</a></p>
       <div class="howto-meta">
         <span class="status proven">Proven by other suites</span><span class="mark">Lab</span>
-        <a class="program" href="https://github.com/acta-dotnet/acta/tree/main/concepts/200-durable-execution/220-at-most-once-step"><code>concepts/200-durable-execution/220-at-most-once-step</code></a>
+        <a class="program" href="https://github.com/acta-dotnet/acta/tree/main/learn/200-durable-execution/220-at-most-once-step"><code>learn/200-durable-execution/220-at-most-once-step</code></a>
         <div class="reader" role="group" aria-label="Read this page as">
         <span class="reader-label">Read as</span>
         <button type="button" data-reader="person" aria-pressed="true">a person</button>
@@ -111,7 +111,7 @@ ct</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">3</span>Run it</h2>
 <p>From a clone of <a href="https://github.com/acta-dotnet/acta">the Acta repository</a>, with the .NET 10 SDK:</p>
-<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project concepts/200-durable-execution/220-at-most-once-step</code></pre></figure>
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project learn/200-durable-execution/220-at-most-once-step</code></pre></figure>
 <p class="proof proven"><b>Proven by other suites.</b> The release check does not run this program. Needs two processes in turn, one that dies inside the at-most-once step and one that recovers it; Verify's faults/at-most-once scenario and StepAtMostOnceSpec prove the same behaviour.</p>
 <p class="hint">This page shows the code. The rules it relies on, starting with the handler running again from its first line, are in <a href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#handler-contract">the handler contract</a>.</p>
 </div>
@@ -127,8 +127,8 @@ ct</code></pre></figure>
 <p>At-most-once exchanges possible duplication for possible omission/ambiguity. It does not prove that the side effect happened. That is why external idempotency plus a readable result is usually safer.</p>
 <h3>Run the experiment</h3>
 <p>Use the same configured database for both commands:</p>
-<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project concepts/200-durable-execution/220-at-most-once-step -- crash
-dotnet run --project concepts/200-durable-execution/220-at-most-once-step -- recover</code></pre></figure>
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project learn/200-durable-execution/220-at-most-once-step -- crash
+dotnet run --project learn/200-durable-execution/220-at-most-once-step -- recover</code></pre></figure>
 <p>The first command intentionally exits non-zero after writing a simulated external charge. It creates a fresh durable identity and records that ref in a local current-run marker, so the two-command experiment can be repeated against the same database. The simulated external side-effect file is named by job ref, so evidence from another lab identity cannot be erased or counted as part of this one.</p>
 <h3>Rows to inspect</h3>
 <p>Run with <code>--all-columns</code> to execute the visible <code>SELECT *</code> Explore query first. The default Notice queries select the fields that prove the lesson, and the text below explains their meaning.</p>
@@ -138,17 +138,17 @@ dotnet run --project concepts/200-durable-execution/220-at-most-once-step -- rec
 <h3>When not to use</h3>
 <p>Do not choose at-most-once merely to avoid thinking about idempotency. Use it only when duplicate work is worse than missing/ambiguous work and a reconciliation path exists.</p>
 <h3>Source trail</h3>
-<ul class="plain"><li><a href="https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md">The related Engineering Lab</a></li><li><a href="https://github.com/acta-dotnet/acta/blob/main/concepts/200-durable-execution/220-at-most-once-step/at-most-once-step.cs"><code>at-most-once-step.cs</code></a></li><li><a href="https://github.com/acta-dotnet/acta/blob/main/src/Acta/Engine/Worker/Context/RuntimeJobContext.cs"><code>RuntimeJobContext.cs</code></a></li><li><a href="https://github.com/acta-dotnet/acta/blob/main/tests/Acta.Tests.Conformance/Scenarios/StepAtMostOnceSpec.cs"><code>StepAtMostOnceSpec.cs</code></a></li></ul>
+<ul class="plain"><li><a href="https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md">The related Engineering Lab</a></li><li><a href="https://github.com/acta-dotnet/acta/blob/main/learn/200-durable-execution/220-at-most-once-step/at-most-once-step.cs"><code>at-most-once-step.cs</code></a></li><li><a href="https://github.com/acta-dotnet/acta/blob/main/src/Acta/Engine/Worker/Context/RuntimeJobContext.cs"><code>RuntimeJobContext.cs</code></a></li><li><a href="https://github.com/acta-dotnet/acta/blob/main/tests/Acta.Tests.Conformance/Scenarios/StepAtMostOnceSpec.cs"><code>StepAtMostOnceSpec.cs</code></a></li></ul>
 </details>
 <div class="step plain-step"><h2>The whole program</h2>
-<p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/concepts/200-durable-execution/220-at-most-once-step"><code>concepts/200-durable-execution/220-at-most-once-step</code></a>, as it is compiled.</p>
-<p class="hint"><code>UseLocalDatabase</code> and <code>ConceptLab</code> are helpers of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
+<p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/learn/200-durable-execution/220-at-most-once-step"><code>learn/200-durable-execution/220-at-most-once-step</code></a>, as it is compiled.</p>
+<p class="hint"><code>UseLocalDatabase</code> and <code>LearnLab</code> are helpers of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
 <details class="source-file"><summary><span class="file-name">at-most-once-step.cs</span><span class="file-size">191 lines</span></summary><figure class="listing"><figcaption><span class="file">at-most-once-step.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to refuse to repeat a side effect after a crash</span>
 <span class="c">// An at-most-once step refuses to run its body a second time after a crash. The handler is told that the outcome is</span>
 <span class="c">// unknown, and reconciles.</span>
 <span class="k">using</span> Acta;
-<span class="k">using</span> Acta.Concepts.AtMostOnceStep;
 <span class="k">using</span> Acta.Labs;
+<span class="k">using</span> Acta.Learn.AtMostOnceStep;
 <span class="k">using</span> Microsoft.Extensions.DependencyInjection;
 <span class="k">using</span> Microsoft.Extensions.Hosting;
 
@@ -159,8 +159,8 @@ dotnet run --project concepts/200-durable-execution/220-at-most-once-step -- rec
 <span class="k">if</span> (mode <span class="k">is</span> <span class="k">not</span> (<span class="s">&quot;crash&quot;</span> or <span class="s">&quot;recover&quot;</span>))
 {
     Console.WriteLine(<span class="s">&quot;Run this two-process experiment in order:&quot;</span>);
-    Console.WriteLine(<span class="s">&quot;  dotnet run --project concepts/200-durable-execution/220-at-most-once-step -- crash&quot;</span>);
-    Console.WriteLine(<span class="s">&quot;  dotnet run --project concepts/200-durable-execution/220-at-most-once-step -- recover&quot;</span>);
+    Console.WriteLine(<span class="s">&quot;  dotnet run --project learn/200-durable-execution/220-at-most-once-step -- crash&quot;</span>);
+    Console.WriteLine(<span class="s">&quot;  dotnet run --project learn/200-durable-execution/220-at-most-once-step -- recover&quot;</span>);
     <span class="k">return</span>;
 }
 
@@ -170,7 +170,7 @@ dotnet run --project concepts/200-durable-execution/220-at-most-once-step -- rec
     )
     .ToArray();
 <span class="k">var</span> builder = Host.CreateApplicationBuilder(hostArgs);
-<span class="k">var</span> lab = <span class="k">new</span> ConceptLab(builder.Configuration, args);
+<span class="k">var</span> lab = <span class="k">new</span> LearnLab(builder.Configuration, args);
 
 builder.Services.UseActa(j =&gt;
 {
@@ -286,7 +286,7 @@ Console.WriteLine(
 Console.WriteLine(<span class="s">$&quot;External side-effect records: {sideEffects} (the charge body was not invoked again).&quot;</span>);
 <span class="k">await</span> host.StopAsync();
 
-<span class="k">namespace</span> Acta.Concepts.AtMostOnceStep
+<span class="k">namespace</span> Acta.Learn.AtMostOnceStep
 {
     <span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> ChargeCard(<span class="k">string</span> OrderId, <span class="k">int</span> AmountCents);
 
@@ -389,7 +389,7 @@ Console.WriteLine(<span class="s">$&quot;External side-effect records: {sideEffe
             <a href="/start">Get started</a>
             <a href="/learn">Learn Acta</a>
             <a href="https://github.com/acta-dotnet/acta/tree/main/docs">Documentation</a>
-            <a href="https://github.com/acta-dotnet/acta/tree/main/concepts">Runnable concepts</a>
+            <a href="https://github.com/acta-dotnet/acta/tree/main/learn">How-to programs</a>
             <a href="https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md">Engineering labs</a>
             <a href="/llms.txt">llms.txt for coding agents</a>
           </nav>

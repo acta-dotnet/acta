@@ -65,7 +65,7 @@
       <p class="howto-context">A how-to for Acta, durable execution for .NET. <a href="/start">New to Acta? Run your first durable job in five minutes.</a></p>
       <div class="howto-meta">
         <span class="status checked">Checked every release</span>
-        <a class="program" href="https://github.com/acta-dotnet/acta/tree/main/concepts/100-scheduling/101-recurring-job"><code>concepts/100-scheduling/101-recurring-job</code></a>
+        <a class="program" href="https://github.com/acta-dotnet/acta/tree/main/learn/100-scheduling/101-recurring-job"><code>learn/100-scheduling/101-recurring-job</code></a>
         <div class="reader" role="group" aria-label="Read this page as">
         <span class="reader-label">Read as</span>
         <button type="button" data-reader="person" aria-pressed="true">a person</button>
@@ -94,18 +94,18 @@
 </div>
 <div class="step"><h2><span class="step-n">2</span>Run it and check the output</h2>
 <p>From a clone of <a href="https://github.com/acta-dotnet/acta">the Acta repository</a>, with the .NET 10 SDK:</p>
-<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project concepts/100-scheduling/101-recurring-job</code></pre></figure>
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project learn/100-scheduling/101-recurring-job</code></pre></figure>
 <figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button">Copy</button></figcaption><pre><code>[every-15-seconds] purged</code></pre></figure>
 <p class="proof checked"><b>Checked every release.</b> Before each release, Acta Verify runs this program and checks that its output contains these lines.</p>
 </div>
 <div class="step plain-step"><h2>Remember</h2><ul class="rules"><li>A schedule is written by a deploy: <code>jobs migrate</code> or <code>jobs deploy</code> in production, the development start on your own machine.</li><li>A permanent job keeps its step results from one firing to the next. Put the firing in a step's name, <code>$&quot;send.f{ctx.FiringId:N}&quot;</code>, or the step that ran on the last firing answers this one from its record.</li><li>The handler does its bounded work and returns. Never loop inside it: the schedule brings the next firing.</li></ul></div>
 <div class="step plain-step"><h2>The whole program</h2>
-<p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/concepts/100-scheduling/101-recurring-job"><code>concepts/100-scheduling/101-recurring-job</code></a>, as it is compiled.</p>
+<p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/learn/100-scheduling/101-recurring-job"><code>learn/100-scheduling/101-recurring-job</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
 <details class="source-file"><summary><span class="file-name">recurring-job.cs</span><span class="file-size">41 lines</span></summary><figure class="listing"><figcaption><span class="file">recurring-job.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to run a job on a repeating schedule</span>
 <span class="c">// `[Schedule]` with a cron makes one permanent job that fires on that cadence, with nothing to enqueue.</span>
 <span class="k">using</span> Acta;
-<span class="k">using</span> Acta.Concepts.Recurring;
+<span class="k">using</span> Acta.Learn.Recurring;
 <span class="k">using</span> Microsoft.Extensions.Hosting;
 
 <span class="k">var</span> builder = Host.CreateApplicationBuilder(args);
@@ -119,7 +119,7 @@ builder.Services.UseActa(j =&gt;
 <span class="c">// No enqueue: the deploy creates one permanent job for the [Schedule] below, and it fires on its cron cadence.</span>
 <span class="k">await</span> builder.Build().RunAsync();
 
-<span class="k">namespace</span> Acta.Concepts.Recurring
+<span class="k">namespace</span> Acta.Learn.Recurring
 {
     <span class="k">public</span> <span class="k">readonly</span> <span class="k">record</span> <span class="k">struct</span> PurgeStaleSessions;
 
@@ -201,7 +201,7 @@ builder.Services.UseActa(j =&gt;
             <a href="/start">Get started</a>
             <a href="/learn">Learn Acta</a>
             <a href="https://github.com/acta-dotnet/acta/tree/main/docs">Documentation</a>
-            <a href="https://github.com/acta-dotnet/acta/tree/main/concepts">Runnable concepts</a>
+            <a href="https://github.com/acta-dotnet/acta/tree/main/learn">How-to programs</a>
             <a href="https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md">Engineering labs</a>
             <a href="/llms.txt">llms.txt for coding agents</a>
           </nav>

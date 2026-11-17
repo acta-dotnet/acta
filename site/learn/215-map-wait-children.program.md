@@ -1,6 +1,6 @@
 # The whole program: fan out to child jobs with Map or WaitChildren
 
-The how-to is [/learn/215-map-wait-children.md](/learn/215-map-wait-children.md). This file holds every source file of `concepts/200-durable-execution/215-map-wait-children` as it is compiled.
+The how-to is [/learn/215-map-wait-children.md](/learn/215-map-wait-children.md). This file holds every source file of `learn/200-durable-execution/215-map-wait-children` as it is compiled.
 
 ## Not in the packages
 
@@ -15,7 +15,7 @@ The how-to is [/learn/215-map-wait-children.md](/learn/215-map-wait-children.md)
 // Two ways to fan out: `EnqueueChildAsync` with `WaitChildrenAsync` for a few named children, and `MapAsync` for one
 // child per item of a list.
 using Acta;
-using Acta.Concepts.MapWaitChildren;
+using Acta.Learn.MapWaitChildren;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -45,7 +45,7 @@ Console.WriteLine($"photo {result.AssetId}: {result.RenditionsReady} renditions 
 
 await host.StopAsync();
 
-namespace Acta.Concepts.MapWaitChildren
+namespace Acta.Learn.MapWaitChildren
 {
     public sealed record ProcessPhoto(string AssetId, string SourceUrl);
 

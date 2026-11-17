@@ -3,7 +3,7 @@
 One `[Job]` method, one enqueue, and a worker that runs it.
 
 - Section: Take the first steps, step 1
-- Program: `concepts/000-fundamentals/001-hello-acta` in https://github.com/acta-dotnet/acta (one compiled project)
+- Program: `learn/000-fundamentals/001-hello-acta` in https://github.com/acta-dotnet/acta (one compiled project)
 - Status: Checked every release. Before each release, Acta Verify runs this program and checks that its output contains these lines.
 - Rules: [/llms.txt](/llms.txt) is the contract every handler follows; "Remember" below carries the rules that bite this task.
 - Release: the one /llms.txt names at its top.
@@ -33,7 +33,7 @@ public static class HelloJob
 
 ## 2. Register Acta and start a worker
 
-`UseSqlite` says where the job rows live: one file, no server. Swap it for `UsePostgres` or `UseSqlServer`, with that server's connection string, to target a server; later rungs fold this setup into `UseLocalDatabase`. `Run<HelloActaJobs>("hello-acta")` registers every job of the project under the namespace `hello-acta` and starts a worker for it. `HelloActaJobs` is generated at build time from the `[Job]` methods.
+`UseSqlite` says where the job rows live: one file, no server. Swap it for `UsePostgres` or `UseSqlServer`, with that server's connection string, to target a server; later how-tos fold this setup into `UseLocalDatabase`. `Run<HelloActaJobs>("hello-acta")` registers every job of the project under the namespace `hello-acta` and starts a worker for it. `HelloActaJobs` is generated at build time from the `[Job]` methods.
 
 The lines that matter:
 
@@ -99,7 +99,7 @@ await host.StopAsync();
 From a clone of the repository, with the .NET 10 SDK:
 
 ```bash
-dotnet run --project concepts/000-fundamentals/001-hello-acta
+dotnet run --project learn/000-fundamentals/001-hello-acta
 ```
 
 Its output must contain:

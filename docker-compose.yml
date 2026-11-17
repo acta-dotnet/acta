@@ -1,4 +1,4 @@
-# OPTIONAL local infra for the Postgres / SQL Server / Redis paths. Concepts, demos, and Anvil
+# OPTIONAL local infra for the Postgres / SQL Server / Redis paths. How-tos, demos, and Anvil
 # default to embedded SQLite and need none of this; start containers only to run against a real
 # server (`ACTA_LOCAL_PROVIDER=postgres|sqlserver`) or the provider conformance tests.
 #   docker compose up -d                   # all three, loopback-only

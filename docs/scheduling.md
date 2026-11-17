@@ -91,7 +91,7 @@ public Task Import(ImportFiles input, JobContext ctx, CancellationToken ct) => .
 Both modes run through the same admission and execution engine, and a definition without schedules is
 an ordinary definition: no permanent job is created for it. Backfilling historical periods is application work
 under either mode ([backfill](#backfill)). The
-[continuous-synchronization lab](../concepts/100-scheduling/109-continuous-synchronization/) runs the
+[continuous-synchronization lab](../learn/100-scheduling/109-continuous-synchronization/) runs the
 permanent mode through a real worker crash and prints the rows.
 
 `[Schedule(MaxOutstanding = 1, FullBehavior = ScheduleFullBehaviorCode.Wait)]` bounds a per-occurrence
@@ -107,7 +107,7 @@ misfire policy decides the backlog; `Drop` skips the occurrence with the audited
 
 A per-occurrence schedule's decisions that make no root, a skip or an ended pause, are audited against the
 definition; an admission or a manual trigger is audited against the root. The
-[per-occurrence-delivery concept](../concepts/100-scheduling/110-per-occurrence-delivery/) runs one at a
+[per-occurrence-delivery how-to](../learn/100-scheduling/110-per-occurrence-delivery/) runs one at a
 limit of two, dropping what arrives while it is full. A `PerOccurrence` definition
 declares no lane. Its deadline counts from each root's admission, not from its occurrence, so a root admitted
 late under catch-up or `FullBehavior = Wait` starts its clock late.
@@ -337,8 +337,8 @@ What each job verb does to a permanent job from each status is in the operator g
 
 `schedules_view` joins each schedule to its cursor, and `calendars_view` lists every calendar version with its role and status; the operator guide's [recurring schedules](./operator-guide.md#recurring-schedules) and [per-occurrence capacity drift](./operator-guide.md#per-occurrence-capacity-drift) recipes read them.
 
-## Testing and concepts
+## Testing and how-tos
 
 A test fires a schedule without an admitter loop with `ForceScheduleDueAsync` and `AdmitOnceAsync` ([testing a scheduled job](./developer-guide.md#testing-a-scheduled-job)).
 
-Concepts [`103-multiple-schedules`](../concepts/100-scheduling/103-multiple-schedules/), [`105-schedule-control`](../concepts/100-scheduling/105-schedule-control/), [`106-schedule-misfire`](../concepts/100-scheduling/106-schedule-misfire/), [`108-calendar-catalog`](../concepts/100-scheduling/108-calendar-catalog/), [`110-per-occurrence-delivery`](../concepts/100-scheduling/110-per-occurrence-delivery/), and [`111-firing-failure-policy`](../concepts/100-scheduling/111-firing-failure-policy/) show each behavior.
+How-tos [`103-multiple-schedules`](../learn/100-scheduling/103-multiple-schedules/), [`105-schedule-control`](../learn/100-scheduling/105-schedule-control/), [`106-schedule-misfire`](../learn/100-scheduling/106-schedule-misfire/), [`108-calendar-catalog`](../learn/100-scheduling/108-calendar-catalog/), [`110-per-occurrence-delivery`](../learn/100-scheduling/110-per-occurrence-delivery/), and [`111-firing-failure-policy`](../learn/100-scheduling/111-firing-failure-policy/) show each behavior.

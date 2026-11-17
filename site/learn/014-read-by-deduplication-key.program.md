@@ -1,6 +1,6 @@
 # The whole program: find a job by its deduplication key
 
-The how-to is [/learn/014-read-by-deduplication-key.md](/learn/014-read-by-deduplication-key.md). This file holds every source file of `concepts/000-fundamentals/014-read-by-deduplication-key` as it is compiled.
+The how-to is [/learn/014-read-by-deduplication-key.md](/learn/014-read-by-deduplication-key.md). This file holds every source file of `learn/000-fundamentals/014-read-by-deduplication-key` as it is compiled.
 
 ## Not in the packages
 
@@ -14,7 +14,7 @@ The how-to is [/learn/014-read-by-deduplication-key.md](/learn/014-read-by-dedup
 // How to find a job by its deduplication key
 // `JobLookup.ByDeduplicationKey` finds a job by the key it was enqueued with, when you did not keep its ref.
 using Acta;
-using Acta.Concepts.ReadByDeduplicationKey;
+using Acta.Learn.ReadByDeduplicationKey;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -50,7 +50,7 @@ Console.WriteLine("Worker is running - press Ctrl+C to stop.");
 await host.WaitForShutdownAsync();
 await host.StopAsync();
 
-namespace Acta.Concepts.ReadByDeduplicationKey
+namespace Acta.Learn.ReadByDeduplicationKey
 {
     public sealed record SendWelcomeEmail(string Email, string Name);
 

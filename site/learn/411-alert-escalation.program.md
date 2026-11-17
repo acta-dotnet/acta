@@ -1,6 +1,6 @@
 # The whole program: escalate an alert as failures add up
 
-The how-to is [/learn/411-alert-escalation.md](/learn/411-alert-escalation.md). This file holds every source file of `concepts/400-observability-and-alerts/411-alert-escalation` as it is compiled.
+The how-to is [/learn/411-alert-escalation.md](/learn/411-alert-escalation.md). This file holds every source file of `learn/400-observability-and-alerts/411-alert-escalation` as it is compiled.
 
 ## Not in the packages
 
@@ -15,7 +15,7 @@ The how-to is [/learn/411-alert-escalation.md](/learn/411-alert-escalation.md). 
 // Automatic failure alerts escalate in stages: the first failure, the failure count reaching
 // `AlertFailureThreshold`, and the final failure when the retry budget is spent.
 using Acta;
-using Acta.Concepts.AlertEscalation;
+using Acta.Learn.AlertEscalation;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -82,7 +82,7 @@ foreach (var alert in alertItems.OrderBy(a => a.CreatedAtUtc))
 
 await host.StopAsync();
 
-namespace Acta.Concepts.AlertEscalation
+namespace Acta.Learn.AlertEscalation
 {
     public sealed record UnstableReport(string Name);
 

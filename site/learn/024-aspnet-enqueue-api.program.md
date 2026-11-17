@@ -1,6 +1,6 @@
 # The whole program: start a job from an HTTP endpoint and poll it
 
-The how-to is [/learn/024-aspnet-enqueue-api.md](/learn/024-aspnet-enqueue-api.md). This file holds every source file of `concepts/000-fundamentals/024-aspnet-enqueue-api` as it is compiled.
+The how-to is [/learn/024-aspnet-enqueue-api.md](/learn/024-aspnet-enqueue-api.md). This file holds every source file of `learn/000-fundamentals/024-aspnet-enqueue-api` as it is compiled.
 
 ## Not in the packages
 
@@ -15,7 +15,7 @@ The how-to is [/learn/024-aspnet-enqueue-api.md](/learn/024-aspnet-enqueue-api.m
 // A POST stores the job and answers 202 with its ref; a GET reads the status and, once the job has finished, the
 // result.
 using Acta;
-using Acta.Concepts.AspNetEnqueueApi;
+using Acta.Learn.AspNetEnqueueApi;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -91,7 +91,7 @@ Console.WriteLine("Then poll GET /imports/{jobRef}");
 
 await app.RunAsync();
 
-namespace Acta.Concepts.AspNetEnqueueApi
+namespace Acta.Learn.AspNetEnqueueApi
 {
     public sealed record StartImportRequest(string Tenant, string ImportId, string FileName);
 

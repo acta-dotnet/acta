@@ -3,7 +3,7 @@
 `GetOrSetVariableAsync` computes a value on its first call and stores it with the job; later calls return the stored value. The program also checks for a variable, deletes it, reads it with a default, and stores a raw `JobPayload`.
 
 - Section: Make work survive a crash, step 3
-- Program: `concepts/200-durable-execution/216-variable-lifecycle` in https://github.com/acta-dotnet/acta (one compiled project)
+- Program: `learn/200-durable-execution/216-variable-lifecycle` in https://github.com/acta-dotnet/acta (one compiled project)
 - Status: Checked every release. Before each release, Acta Verify runs this program and checks that its output contains these lines.
 - Rules: [/llms.txt](/llms.txt) is the contract every handler follows; "Remember" below carries the rules that bite this task.
 - Release: the one /llms.txt names at its top.
@@ -104,7 +104,7 @@ var rawBack = await context.GetVariableOrDefaultAsync<string>("raw-var", ct);
 From a clone of the repository, with the .NET 10 SDK:
 
 ```bash
-dotnet run --project concepts/200-durable-execution/216-variable-lifecycle
+dotnet run --project learn/200-durable-execution/216-variable-lifecycle
 ```
 
 Its output must contain:

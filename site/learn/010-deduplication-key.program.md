@@ -1,6 +1,6 @@
 # The whole program: keep a repeated request from creating a second job
 
-The how-to is [/learn/010-deduplication-key.md](/learn/010-deduplication-key.md). This file holds every source file of `concepts/000-fundamentals/010-deduplication-key` as it is compiled.
+The how-to is [/learn/010-deduplication-key.md](/learn/010-deduplication-key.md). This file holds every source file of `learn/000-fundamentals/010-deduplication-key` as it is compiled.
 
 ## Not in the packages
 
@@ -15,7 +15,7 @@ The how-to is [/learn/010-deduplication-key.md](/learn/010-deduplication-key.md)
 // A deduplication key makes an enqueue idempotent: a second enqueue with the same key answers the job that is
 // already there.
 using Acta;
-using Acta.Concepts.DeduplicationKey;
+using Acta.Learn.DeduplicationKey;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -64,7 +64,7 @@ Console.WriteLine("Worker is running - press Ctrl+C to stop.");
 await host.WaitForShutdownAsync();
 await host.StopAsync();
 
-namespace Acta.Concepts.DeduplicationKey
+namespace Acta.Learn.DeduplicationKey
 {
     public sealed record SendWelcomeEmail(string Email, string Name);
 

@@ -1,6 +1,6 @@
 # The whole program: replace a timer loop with an interval schedule
 
-The how-to is [/learn/102-interval-schedule.md](/learn/102-interval-schedule.md). This file holds every source file of `concepts/100-scheduling/102-interval-schedule` as it is compiled.
+The how-to is [/learn/102-interval-schedule.md](/learn/102-interval-schedule.md). This file holds every source file of `learn/100-scheduling/102-interval-schedule` as it is compiled.
 
 ## Not in the packages
 
@@ -15,7 +15,7 @@ The how-to is [/learn/102-interval-schedule.md](/learn/102-interval-schedule.md)
 // An interval schedule, such as `10s`, runs a job at a fixed gap, where a timer loop in a hosted service would
 // otherwise stand.
 using Acta;
-using Acta.Concepts.IntervalSchedule;
+using Acta.Learn.IntervalSchedule;
 using Microsoft.Extensions.Hosting;
 
 var builder = Host.CreateApplicationBuilder(args);
@@ -29,7 +29,7 @@ builder.Services.UseActa(j =>
 // The [Schedule] below recurs on a fixed interval, so there's nothing to enqueue.
 await builder.Build().RunAsync();
 
-namespace Acta.Concepts.IntervalSchedule
+namespace Acta.Learn.IntervalSchedule
 {
     public readonly record struct Heartbeat;
 

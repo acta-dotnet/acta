@@ -17,7 +17,7 @@ public sealed class SystemIdentifierLiteralGuardTests
         "framework" + "-critical",
     ];
 
-    private static readonly string[] GuardedRoots = ["src", "tests", "docs", "concepts", "tools", "demos", "support", "anvil"];
+    private static readonly string[] GuardedRoots = ["src", "tests", "docs", "learn", "tools", "demos", "support", "anvil"];
 
     [Fact]
     public void Source_docs_and_tests_do_not_reintroduce_old_system_owned_literals()

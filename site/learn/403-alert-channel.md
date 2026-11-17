@@ -3,7 +3,7 @@
 `AddAlertChannel` declares where alerts go, under a name of your choice, and an alert names the channel it is for.
 
 - Section: Get told when something breaks, step 3
-- Program: `concepts/400-observability-and-alerts/403-alert-channel` in https://github.com/acta-dotnet/acta (one compiled project)
+- Program: `learn/400-observability-and-alerts/403-alert-channel` in https://github.com/acta-dotnet/acta (one compiled project)
 - Status: Checked every release. Before each release, Acta Verify runs this program and checks that its output contains these lines.
 - Rules: [/llms.txt](/llms.txt) is the contract every handler follows, starting with the handler running again from its first line; read it before you copy code from here.
 - Release: the one /llms.txt names at its top.
@@ -81,7 +81,7 @@ return;
 From a clone of the repository, with the .NET 10 SDK:
 
 ```bash
-dotnet run --project concepts/400-observability-and-alerts/403-alert-channel
+dotnet run --project learn/400-observability-and-alerts/403-alert-channel
 ```
 
 Its output must contain:

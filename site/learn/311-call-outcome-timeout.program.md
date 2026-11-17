@@ -1,6 +1,6 @@
 # The whole program: read the outcome of a wait that can time out
 
-The how-to is [/learn/311-call-outcome-timeout.md](/learn/311-call-outcome-timeout.md). This file holds every source file of `concepts/300-failure-and-recovery/311-call-outcome-timeout` as it is compiled.
+The how-to is [/learn/311-call-outcome-timeout.md](/learn/311-call-outcome-timeout.md). This file holds every source file of `learn/300-failure-and-recovery/311-call-outcome-timeout` as it is compiled.
 
 ## Not in the packages
 
@@ -15,7 +15,7 @@ The how-to is [/learn/311-call-outcome-timeout.md](/learn/311-call-outcome-timeo
 // `CallAsync` answers a `JobOutcome`: whether the wait timed out, whether the job failed, and the value when it
 // succeeded.
 using Acta;
-using Acta.Concepts.CallOutcomeTimeout;
+using Acta.Learn.CallOutcomeTimeout;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -75,7 +75,7 @@ Console.WriteLine($"ValueOrThrow: {result.Summary}");
 
 await host.StopAsync();
 
-namespace Acta.Concepts.CallOutcomeTimeout
+namespace Acta.Learn.CallOutcomeTimeout
 {
     public readonly record struct SlowReport;
 

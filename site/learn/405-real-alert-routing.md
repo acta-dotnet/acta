@@ -3,7 +3,7 @@
 An alert channel posts to a Slack webhook whose URL comes from configuration, and logs when none is set. A deduplication key collapses repeats of one incident into one alert.
 
 - Section: Get told when something breaks, step 4
-- Program: `concepts/400-observability-and-alerts/405-real-alert-routing` in https://github.com/acta-dotnet/acta (one compiled project)
+- Program: `learn/400-observability-and-alerts/405-real-alert-routing` in https://github.com/acta-dotnet/acta (one compiled project)
 - Status: Checked every release. Before each release, Acta Verify runs this program and checks that its output contains these lines.
 - Rules: [/llms.txt](/llms.txt) is the contract every handler follows, starting with the handler running again from its first line; read it before you copy code from here.
 - Release: the one /llms.txt names at its top.
@@ -83,7 +83,7 @@ return;
 From a clone of the repository, with the .NET 10 SDK:
 
 ```bash
-dotnet run --project concepts/400-observability-and-alerts/405-real-alert-routing
+dotnet run --project learn/400-observability-and-alerts/405-real-alert-routing
 ```
 
 Its output must contain:

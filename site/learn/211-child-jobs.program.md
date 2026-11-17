@@ -1,10 +1,10 @@
 # The whole program: start child jobs and wait for them
 
-The how-to is [/learn/211-child-jobs.md](/learn/211-child-jobs.md). This file holds every source file of `concepts/200-durable-execution/211-child-jobs` as it is compiled, and the notes kept beside the code.
+The how-to is [/learn/211-child-jobs.md](/learn/211-child-jobs.md). This file holds every source file of `learn/200-durable-execution/211-child-jobs` as it is compiled, and the notes kept beside the code.
 
 ## Not in the packages
 
-`UseLocalDatabase` and `ConceptLab` are helpers of the Acta repository (`support/`), used so every program runs on any of the three databases and prints its rows. Do not copy them into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` and `LearnLab` are helpers of the Acta repository (`support/`), used so every program runs on any of the three databases and prints its rows. Do not copy them into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## The whole program
 
@@ -15,14 +15,14 @@ The how-to is [/learn/211-child-jobs.md](/learn/211-child-jobs.md). This file ho
 // A parent starts child jobs by name, suspends without holding a worker until every child has finished, and reads
 // their results.
 using Acta;
-using Acta.Concepts.ChildJobs;
 using Acta.Labs;
+using Acta.Learn.ChildJobs;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 var builder = Host.CreateApplicationBuilder(args);
-var lab = new ConceptLab(builder.Configuration, args);
+var lab = new LearnLab(builder.Configuration, args);
 var failChild = args.Contains("--fail-child", StringComparer.OrdinalIgnoreCase);
 
 builder.Services.UseActa(j =>
@@ -152,7 +152,7 @@ static async Task<GetJobResponse> WaitForAsync(IJobs jobs, long jobId, Func<GetJ
     }
 }
 
-namespace Acta.Concepts.ChildJobs
+namespace Acta.Learn.ChildJobs
 {
     public sealed record BuildSnowman(string Name, string? FailPart);
 
@@ -252,7 +252,7 @@ handler still replays, and child names/latches are durable contract keys.
 ### Run the experiment
 
 ```bash
-dotnet run --project concepts/200-durable-execution/211-child-jobs
+dotnet run --project learn/200-durable-execution/211-child-jobs
 ```
 
 ### Rows to inspect
@@ -269,7 +269,7 @@ snapshot proves the parent resumed on a later execution.
 Run the built-in child failure:
 
 ```bash
-dotnet run --project concepts/200-durable-execution/211-child-jobs -- --fail-child
+dotnet run --project learn/200-durable-execution/211-child-jobs -- --fail-child
 ```
 
 The head child exhausts two attempts, the parent resumes from its latch and ends failed, and the program
@@ -286,6 +286,6 @@ workflow engine for very large or externally authored graphs.
 ### Source trail
 
 - [The related Engineering Lab](https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md)
-- [`child-jobs.cs`](https://github.com/acta-dotnet/acta/blob/main/concepts/200-durable-execution/211-child-jobs/child-jobs.cs)
+- [`child-jobs.cs`](https://github.com/acta-dotnet/acta/blob/main/learn/200-durable-execution/211-child-jobs/child-jobs.cs)
 - [`JobContext.cs`](https://github.com/acta-dotnet/acta/blob/main/src/Acta/Handlers/JobContext.cs)
 - [`ListStaleJobChildLatches.sqlite.sql`](https://github.com/acta-dotnet/acta/blob/main/src/Acta/Operations/Execution/ListStaleJobChildLatches/ListStaleJobChildLatches.sqlite.sql)

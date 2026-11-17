@@ -1,6 +1,6 @@
 # The whole program: keep a value across retries
 
-The how-to is [/learn/203-durable-variable.md](/learn/203-durable-variable.md). This file holds every source file of `concepts/200-durable-execution/203-durable-variable` as it is compiled.
+The how-to is [/learn/203-durable-variable.md](/learn/203-durable-variable.md). This file holds every source file of `learn/200-durable-execution/203-durable-variable` as it is compiled.
 
 ## Not in the packages
 
@@ -15,7 +15,7 @@ The how-to is [/learn/203-durable-variable.md](/learn/203-durable-variable.md). 
 // A durable variable stores a value with the job the first time it is computed, and every later attempt reads the
 // same value.
 using Acta;
-using Acta.Concepts.DurableVariable;
+using Acta.Learn.DurableVariable;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -42,7 +42,7 @@ Console.WriteLine("Enqueued. Worker is running - press Ctrl+C to stop.");
 await host.WaitForShutdownAsync();
 await host.StopAsync();
 
-namespace Acta.Concepts.DurableVariable
+namespace Acta.Learn.DurableVariable
 {
     public sealed record SyncUsers(string Source);
 

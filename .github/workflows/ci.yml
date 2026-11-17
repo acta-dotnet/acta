@@ -136,12 +136,12 @@ jobs:
         env:
           ACTA_TEST_MSSQL_RCSI: 'off'
         run: dotnet test tests/Acta.Tests.Conformance.SqlServer -c Release --no-build --settings tests/Acta.runsettings --logger trx --blame-hang-timeout 5m
-      # The concept samples have their own solution so a solution build covers only the product; they still
+      # The how-tos have their own solution so a solution build covers only the product; they still
       # compile and run here, against the src projects built above.
-      - name: Build concepts
-        run: dotnet build concepts/Concepts.slnx -c Release /p:ActaDashboardSkipNpm=true
-      - name: Test concepts
-        run: dotnet test concepts/Concepts.slnx -c Release --no-build --settings tests/Acta.runsettings --logger trx --blame-hang-timeout 5m
+      - name: Build how-tos
+        run: dotnet build learn/Learn.slnx -c Release /p:ActaDashboardSkipNpm=true
+      - name: Test how-tos
+        run: dotnet test learn/Learn.slnx -c Release --no-build --settings tests/Acta.runsettings --logger trx --blame-hang-timeout 5m
       - name: Deadlock report
         if: always()
         run: bash .github/scripts/deadlock-report.sh
@@ -226,7 +226,7 @@ jobs:
 
   # Acta ships net10.0 only. This job holds the claim that those packages run on .NET 11: the suites again with every
   # test host rolled forward to the 11 runtime, then a net11.0 consumer built by the 11 SDK from the packed feed.
-  # build-test keeps the axes that do not change with the runtime: RCSI off, the concept samples.
+  # build-test keeps the axes that do not change with the runtime: RCSI off, the how-tos.
   net11:
     name: .NET 11 (suites on the runtime, consumer on the SDK)
     runs-on: ubuntu-latest

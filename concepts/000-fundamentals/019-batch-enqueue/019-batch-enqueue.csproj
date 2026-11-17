@@ -1,6 +1,0 @@
-<Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup>
-    <OutputType>Exe</OutputType>
-    <RootNamespace>Acta.Concepts.BatchEnqueue</RootNamespace>
-  </PropertyGroup>
-</Project>

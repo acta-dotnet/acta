@@ -7,7 +7,7 @@
     <RootNamespace>Acta</RootNamespace>
     <AssemblyName>Acta.LocalHost</AssemblyName>
     <IsPackable>false</IsPackable>
-    <Description>Local hosting and row-inspection helpers for Acta concepts, demos, and Anvil.</Description>
+    <Description>Local hosting and row-inspection helpers for Acta how-tos, demos, and Anvil.</Description>
   </PropertyGroup>
 
   <ItemGroup>

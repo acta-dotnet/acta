@@ -1,6 +1,6 @@
 # The whole program: read a job's status
 
-The how-to is [/learn/012-read-status.md](/learn/012-read-status.md). This file holds every source file of `concepts/000-fundamentals/012-read-status` as it is compiled.
+The how-to is [/learn/012-read-status.md](/learn/012-read-status.md). This file holds every source file of `learn/000-fundamentals/012-read-status` as it is compiled.
 
 ## Not in the packages
 
@@ -14,7 +14,7 @@ The how-to is [/learn/012-read-status.md](/learn/012-read-status.md). This file 
 // How to read a job's status
 // `GetAsync` answers a snapshot of the job: its ref, its name and namespace, its status, and when it was created.
 using Acta;
-using Acta.Concepts.ReadStatus;
+using Acta.Learn.ReadStatus;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -45,7 +45,7 @@ Console.WriteLine($"status={snapshot.Status} created={snapshot.CreatedAtUtc:O}")
 
 await host.StopAsync();
 
-namespace Acta.Concepts.ReadStatus
+namespace Acta.Learn.ReadStatus
 {
     public sealed record SendWelcomeEmail(string Email, string Name);
 

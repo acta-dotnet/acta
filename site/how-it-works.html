@@ -206,14 +206,14 @@
           <div class="who"><b>What are parents and children?</b><span>more rows</span></div>
           <div class="why">
             <p>Ordinary jobs. A parent enqueues children one by one or with Map; each child is a row with the parent's lineage, its own retries, and its own result, and the parent waits on a durable latch without holding a worker. Fan-out is more jobs, not another kind of thing.</p>
-            <div class="links"><a class="golink" href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#child-job-groups-map-and-waitchildren">Child-job groups</a><a class="golink" href="https://github.com/acta-dotnet/acta/tree/main/concepts/200-durable-execution/211-child-jobs">211-child-jobs</a></div>
+            <div class="links"><a class="golink" href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#child-job-groups-map-and-waitchildren">Child-job groups</a><a class="golink" href="https://github.com/acta-dotnet/acta/tree/main/learn/200-durable-execution/211-child-jobs">211-child-jobs</a></div>
           </div>
         </div>
         <div class="vs-row" id="permanent">
           <div class="who"><b>What is a permanent job?</b><span>one job, fired again and again</span></div>
           <div class="why">
             <p>The default for a definition with a <code>[Schedule]</code>: one permanent job the schedule fires again and again. It is <code>Idle</code> between firings and holds no thread; admission makes it <code>Ready</code> when a schedule is due, a worker claims it, and the handler does a bounded amount of work and returns. Its steps and progress persist across firings, and the handler may reset them as its final action. This is how a synchronization controller runs without a loop that must never die.</p>
-            <div class="links"><a class="golink" href="https://github.com/acta-dotnet/acta/blob/main/docs/scheduling.md#delivery-and-capacity">Delivery and capacity</a><a class="golink" href="https://github.com/acta-dotnet/acta/tree/main/concepts/100-scheduling/109-continuous-synchronization">The synchronization lab</a></div>
+            <div class="links"><a class="golink" href="https://github.com/acta-dotnet/acta/blob/main/docs/scheduling.md#delivery-and-capacity">Delivery and capacity</a><a class="golink" href="https://github.com/acta-dotnet/acta/tree/main/learn/100-scheduling/109-continuous-synchronization">The synchronization lab</a></div>
           </div>
         </div>
         <div class="vs-row" id="per-occurrence">
@@ -241,7 +241,7 @@
           <div class="who"><b>Where does at-least-once end?</b><span>at your side effects</span></div>
           <div class="why">
             <p>A step's recorded outcome is repeat-safe, but your writes and Acta's record of them commit separately, so a handler can run again for work that already landed. An idempotency key, an upsert, or a watermark written after the work makes that harmless. <code>AtMostOnce()</code> trades a possible repeat for an explicitly ambiguous outcome.</p>
-            <div class="links"><a class="golink" href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#at-most-once-steps">At-most-once steps</a><a class="golink" href="https://github.com/acta-dotnet/acta/tree/main/concepts/200-durable-execution/220-at-most-once-step">220-at-most-once-step</a></div>
+            <div class="links"><a class="golink" href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#at-most-once-steps">At-most-once steps</a><a class="golink" href="https://github.com/acta-dotnet/acta/tree/main/learn/200-durable-execution/220-at-most-once-step">220-at-most-once-step</a></div>
           </div>
         </div>
         <div class="vs-row" id="no-workflow-engine">
@@ -348,9 +348,9 @@ feed head: change 180; local orders: 40 (newest change 160)
 watermark   variable  180
 feed head: change 180; local orders: 40 (newest change 180)</code></pre>
       </div>
-      <p class="hint">No admission sits between the reclaim and execution 8, so execution 8 ran the firing execution 7 lost, not a new one: it read watermark 160 and applied the twenty changes the dead process never reached. The occurrences missed while no worker ran were skipped by the misfire policy, and event 22 admits the next firing with an id of its own. The destination holds forty orders at change 180, one row per order. <a href="https://github.com/acta-dotnet/acta/tree/main/concepts/100-scheduling/109-continuous-synchronization">The lab README</a> has every row in full, and <a href="https://github.com/acta-dotnet/acta/tree/main/concepts/800-testing/804-continuous-synchronization-tests">its tests</a> prove each claim on the real runtime without a sleep.</p>
+      <p class="hint">No admission sits between the reclaim and execution 8, so execution 8 ran the firing execution 7 lost, not a new one: it read watermark 160 and applied the twenty changes the dead process never reached. The occurrences missed while no worker ran were skipped by the misfire policy, and event 22 admits the next firing with an id of its own. The destination holds forty orders at change 180, one row per order. <a href="https://github.com/acta-dotnet/acta/tree/main/learn/100-scheduling/109-continuous-synchronization">The lab README</a> has every row in full, and <a href="https://github.com/acta-dotnet/acta/tree/main/learn/800-testing/804-continuous-synchronization-tests">its tests</a> prove each claim on the real runtime without a sleep.</p>
       <div class="actions">
-        <a class="button primary" href="https://github.com/acta-dotnet/acta/tree/main/concepts/100-scheduling/109-continuous-synchronization">Run the synchronization lab</a>
+        <a class="button primary" href="https://github.com/acta-dotnet/acta/tree/main/learn/100-scheduling/109-continuous-synchronization">Run the synchronization lab</a>
         <a class="button" href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md">The developer guide</a>
         <a class="button" href="/start">Run your first durable job</a>
       </div>
@@ -381,7 +381,7 @@ feed head: change 180; local orders: 40 (newest change 180)</code></pre>
             <a href="/start">Get started</a>
             <a href="/learn">Learn Acta</a>
             <a href="https://github.com/acta-dotnet/acta/tree/main/docs">Documentation</a>
-            <a href="https://github.com/acta-dotnet/acta/tree/main/concepts">Runnable concepts</a>
+            <a href="https://github.com/acta-dotnet/acta/tree/main/learn">How-to programs</a>
             <a href="https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md">Engineering labs</a>
             <a href="/llms.txt">llms.txt for coding agents</a>
           </nav>

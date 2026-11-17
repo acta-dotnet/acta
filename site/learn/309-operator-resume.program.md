@@ -1,6 +1,6 @@
 # The whole program: pause and resume a job from outside
 
-The how-to is [/learn/309-operator-resume.md](/learn/309-operator-resume.md). This file holds every source file of `concepts/300-failure-and-recovery/309-operator-resume` as it is compiled.
+The how-to is [/learn/309-operator-resume.md](/learn/309-operator-resume.md). This file holds every source file of `learn/300-failure-and-recovery/309-operator-resume` as it is compiled.
 
 ## Not in the packages
 
@@ -15,7 +15,7 @@ The how-to is [/learn/309-operator-resume.md](/learn/309-operator-resume.md). Th
 // `IJobs.PauseAsync` and `ResumeAsync` pause and resume a job from outside its handler. Each answers whether it was
 // applied or rejected, and its reason lands on the job's timeline.
 using Acta;
-using Acta.Concepts.OperatorResume;
+using Acta.Learn.OperatorResume;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -80,7 +80,7 @@ foreach (var ev in events.Items)
 
 await host.StopAsync();
 
-namespace Acta.Concepts.OperatorResume
+namespace Acta.Learn.OperatorResume
 {
     public sealed record ProcessReport(string Name);
 

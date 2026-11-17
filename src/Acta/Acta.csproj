@@ -81,7 +81,7 @@
     <!-- Generates the code families, the system-job manifest, the table binders, and the row projections. -->
     <ProjectReference Include="..\Acta.Generators\Acta.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
     <!-- Generated per-handler invokers call ActivatorUtilities.CreateInstance<T>(IServiceProvider).
-         Carried transitively so consuming assemblies (concepts / user manifests) compile cleanly
+         Carried transitively so consuming assemblies (how-tos / user manifests) compile cleanly
          without an explicit reference. -->
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
     <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" />

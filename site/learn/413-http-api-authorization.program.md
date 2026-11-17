@@ -1,6 +1,6 @@
 # The whole program: require permissions on the HTTP API
 
-The how-to is [/learn/413-http-api-authorization.md](/learn/413-http-api-authorization.md). This file holds every source file of `concepts/400-observability-and-alerts/413-http-api-authorization` as it is compiled, and the notes kept beside the code.
+The how-to is [/learn/413-http-api-authorization.md](/learn/413-http-api-authorization.md). This file holds every source file of `learn/400-observability-and-alerts/413-http-api-authorization` as it is compiled, and the notes kept beside the code.
 
 ## Not in the packages
 
@@ -22,14 +22,14 @@ using System.Text.Encodings.Web;
 using System.Text.Json.Nodes;
 using Acta;
 using Acta.AspNetCore;
-using Acta.Concepts.HttpApiAuthorization;
+using Acta.Learn.HttpApiAuthorization;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Suppress framework noise so concept output stays readable.
+// Suppress framework noise so the program's output stays readable.
 builder.Logging.SetMinimumLevel(LogLevel.Warning);
 
 builder.Services.UseActa(j =>
@@ -159,7 +159,7 @@ async Task<JsonNode?> CallAsync(HttpMethod method, string path, string? holding,
     return json;
 }
 
-namespace Acta.Concepts.HttpApiAuthorization
+namespace Acta.Learn.HttpApiAuthorization
 {
     public sealed record SampleTask(string Id);
 
@@ -201,7 +201,7 @@ namespace Acta.Concepts.HttpApiAuthorization
 host's policy named for the route's permission: `acta.read`, `acta.enqueue`, `acta.control`, or
 `acta.admin`, the constants of `ActaPermissions`. The host defines the four policies with
 `AddAuthorization`, each requiring a claim here. The host also owns authentication, and Acta ships none, so
-the concept defines a header scheme of its own that believes the permission a caller names, which only a
+the program defines a header scheme of its own that believes the permission a caller names, which only a
 demo may do.
 
 The run calls the API in-process as callers holding one permission each and prints what the server
@@ -218,10 +218,10 @@ Each operation names the permission it needs as `x-acta-permission` in the [Open
 ### Run the experiment
 
 ```bash
-dotnet run --project concepts/400-observability-and-alerts/413-http-api-authorization
+dotnet run --project learn/400-observability-and-alerts/413-http-api-authorization
 ```
 
-It runs on the local SQLite database, like every rung, and exits when the calls are done.
+It runs on the local SQLite database, like every how-to, and exits when the calls are done.
 
 ### Break it
 
@@ -232,7 +232,7 @@ an `AllowAnonymous` on the routes does not switch off.
 
 ### Source trail
 
-- [`http-api-authorization.cs`](https://github.com/acta-dotnet/acta/blob/main/concepts/400-observability-and-alerts/413-http-api-authorization/http-api-authorization.cs)
+- [`http-api-authorization.cs`](https://github.com/acta-dotnet/acta/blob/main/learn/400-observability-and-alerts/413-http-api-authorization/http-api-authorization.cs)
 - [Permissions in the operator guide](https://github.com/acta-dotnet/acta/blob/main/docs/operator-guide.md#permissions)
 - [`PermissionFilter.cs`](https://github.com/acta-dotnet/acta/blob/main/src/Acta.AspNetCore/Http/PermissionFilter.cs)
 - [`PermissionTests.cs`](https://github.com/acta-dotnet/acta/blob/main/tests/Acta.Tests/AspNetCore/PermissionTests.cs)

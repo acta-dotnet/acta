@@ -49,8 +49,8 @@
   function paintDone() {
     document.querySelectorAll('a[data-id]').forEach(link => link.toggleAttribute('data-done', done.has(link.dataset.id)));
     document.querySelectorAll('[data-section]').forEach(section => {
-      const count = section.querySelectorAll('.rung[data-done]').length;
-      section.querySelector('[data-progress]').textContent = count ? `${count} of ${section.querySelectorAll('.rung').length} done` : '';
+      const count = section.querySelectorAll('.entry[data-done]').length;
+      section.querySelector('[data-progress]').textContent = count ? `${count} of ${section.querySelectorAll('.entry').length} done` : '';
     });
     if (doneToggle) {
       const on = done.has(doneToggle.dataset.doneToggle);

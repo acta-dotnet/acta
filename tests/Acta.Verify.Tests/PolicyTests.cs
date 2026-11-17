@@ -240,16 +240,16 @@ public sealed class PolicyTests
     }
 
     [Fact]
-    public void Every_runnable_concept_rung_has_one_entry_awaiting_lines_or_saying_why_it_is_not_run()
+    public void Every_runnable_how_to_has_one_entry_awaiting_lines_or_saying_why_it_is_not_run()
     {
         var root = AppContext.BaseDirectory;
         while (!File.Exists(Path.Combine(root, "Acta.slnx")))
         {
             root = Path.GetDirectoryName(root) ?? throw new InvalidOperationException("No repository root above the test binaries.");
         }
-        var concepts = Path.Combine(root, "concepts");
-        var entries = ConceptRuns.Load(concepts);
-        Assert.Equal(ConceptRuns.Rungs(concepts).Keys, entries.Keys.Order(StringComparer.Ordinal));
+        var learn = Path.Combine(root, "learn");
+        var entries = LearnRuns.Load(learn);
+        Assert.Equal(LearnRuns.HowTos(learn).Keys, entries.Keys.Order(StringComparer.Ordinal));
         Assert.All(entries.Values, entry => Assert.True(entry.Lines.Length > 0 || entry.Skip is not null));
     }
 

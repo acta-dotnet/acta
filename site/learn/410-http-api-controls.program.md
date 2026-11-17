@@ -1,6 +1,6 @@
 # The whole program: control jobs over HTTP
 
-The how-to is [/learn/410-http-api-controls.md](/learn/410-http-api-controls.md). This file holds every source file of `concepts/400-observability-and-alerts/410-http-api-controls` as it is compiled.
+The how-to is [/learn/410-http-api-controls.md](/learn/410-http-api-controls.md). This file holds every source file of `learn/400-observability-and-alerts/410-http-api-controls` as it is compiled.
 
 ## Not in the packages
 
@@ -16,12 +16,12 @@ The how-to is [/learn/410-http-api-controls.md](/learn/410-http-api-controls.md)
 // answer local requests only by default, and a control request has to confirm itself.
 using Acta;
 using Acta.AspNetCore;
-using Acta.Concepts.HttpApiControls;
+using Acta.Learn.HttpApiControls;
 using Microsoft.AspNetCore.TestHost;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Suppress framework noise so concept output stays readable.
+// Suppress framework noise so the program's output stays readable.
 builder.Logging.SetMinimumLevel(LogLevel.Warning);
 
 builder.Services.UseActa(j =>
@@ -106,7 +106,7 @@ Console.WriteLine("ConfigureEndpoints: call group.RequireAuthorization(...) ther
 
 await app.StopAsync();
 
-namespace Acta.Concepts.HttpApiControls
+namespace Acta.Learn.HttpApiControls
 {
     public sealed record SampleTask(string Id);
 

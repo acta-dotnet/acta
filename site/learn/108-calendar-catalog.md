@@ -3,7 +3,7 @@
 A calendar is data that an operator publishes through `operations.Calendars`. A schedule binds it by name, and a later publication retimes every schedule bound to it in one transaction while workers run.
 
 - Section: Run work on a schedule, step 7
-- Program: `concepts/100-scheduling/108-calendar-catalog` in https://github.com/acta-dotnet/acta (one compiled project)
+- Program: `learn/100-scheduling/108-calendar-catalog` in https://github.com/acta-dotnet/acta (one compiled project)
 - Status: Checked every release. Before each release, Acta Verify runs this program and checks that its output contains these lines.
 - Rules: [/llms.txt](/llms.txt) is the contract every handler follows, starting with the handler running again from its first line; read it before you copy code from here.
 - Release: the one /llms.txt names at its top.
@@ -103,7 +103,7 @@ Console.WriteLine($"Next occurrence {schedule.NextOccurrenceAtUtc:O}.");
 From a clone of the repository, with the .NET 10 SDK:
 
 ```bash
-dotnet run --project concepts/100-scheduling/108-calendar-catalog
+dotnet run --project learn/100-scheduling/108-calendar-catalog
 ```
 
 Its output must contain:

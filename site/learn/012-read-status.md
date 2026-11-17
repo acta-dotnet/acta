@@ -3,7 +3,7 @@
 `GetAsync` answers a snapshot of the job: its ref, its name and namespace, its status, and when it was created.
 
 - Section: Take the first steps, step 5
-- Program: `concepts/000-fundamentals/012-read-status` in https://github.com/acta-dotnet/acta (one compiled project)
+- Program: `learn/000-fundamentals/012-read-status` in https://github.com/acta-dotnet/acta (one compiled project)
 - Status: Checked every release. Before each release, Acta Verify runs this program and checks that its output contains these lines.
 - Rules: [/llms.txt](/llms.txt) is the contract every handler follows; "Remember" below carries the rules that bite this task.
 - Release: the one /llms.txt names at its top.
@@ -54,7 +54,7 @@ public static class WelcomeJob
 From a clone of the repository, with the .NET 10 SDK:
 
 ```bash
-dotnet run --project concepts/000-fundamentals/012-read-status
+dotnet run --project learn/000-fundamentals/012-read-status
 ```
 
 Its output must contain:

@@ -1,6 +1,6 @@
 # The whole program: list and page through jobs
 
-The how-to is [/learn/409-operator-queries.md](/learn/409-operator-queries.md). This file holds every source file of `concepts/400-observability-and-alerts/409-operator-queries` as it is compiled.
+The how-to is [/learn/409-operator-queries.md](/learn/409-operator-queries.md). This file holds every source file of `learn/400-observability-and-alerts/409-operator-queries` as it is compiled.
 
 ## Not in the packages
 
@@ -15,7 +15,7 @@ The how-to is [/learn/409-operator-queries.md](/learn/409-operator-queries.md). 
 // `operations.Ledger` lists jobs with filters, pages through them by cursor, counts them, and answers the health
 // counters an operator's screen opens with.
 using Acta;
-using Acta.Concepts.OperatorQueries;
+using Acta.Learn.OperatorQueries;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -94,7 +94,7 @@ Console.WriteLine("=== GetOverviewAsync (system-wide) ===");
 
 // learn: 3. Read the health counters
 // GetOverviewAsync: one-shot health counters for the whole system.
-// Schedules, workers, and alert lists also exist on IJobs; event-timeline depth lives in rung 404.
+// Schedules, workers, and alert lists also exist on IJobs; event-timeline depth lives in how-to 404.
 var overview = await operations.Ledger.GetOverviewAsync(new GetOverviewQuery());
 
 // learn: end
@@ -103,7 +103,7 @@ Console.WriteLine($"UnresolvedAlerts={overview.UnresolvedAlertCount} DeadWorkers
 
 await host.StopAsync();
 
-namespace Acta.Concepts.OperatorQueries
+namespace Acta.Learn.OperatorQueries
 {
     public sealed record GenerateReport(string ReportId);
 

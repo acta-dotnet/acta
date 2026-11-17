@@ -3,7 +3,7 @@
 `MapAsync` starts one child job per item of a list, waits for them all, and hands back each item's result for the parent to merge.
 
 - Section: Split work across child jobs, step 3
-- Program: `concepts/200-durable-execution/212-fan-out-join` in https://github.com/acta-dotnet/acta (one compiled project)
+- Program: `learn/200-durable-execution/212-fan-out-join` in https://github.com/acta-dotnet/acta (one compiled project)
 - Status: Checked every release. Before each release, Acta Verify runs this program and checks that its output contains these lines.
 - Rules: [/llms.txt](/llms.txt) is the contract every handler follows; "Remember" below carries the rules that bite this task.
 - Release: the one /llms.txt names at its top.
@@ -92,7 +92,7 @@ public async Task<SumResult> Handle(AddNumbers request, JobContext context, Canc
 From a clone of the repository, with the .NET 10 SDK:
 
 ```bash
-dotnet run --project concepts/200-durable-execution/212-fan-out-join
+dotnet run --project learn/200-durable-execution/212-fan-out-join
 ```
 
 Its output must contain:

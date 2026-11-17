@@ -3,7 +3,7 @@
 `Backoff` on the job sets how the wait between retries grows: `1s..8s x2 exact` starts at one second, doubles with each failure, and stops growing at eight.
 
 - Section: Decide what happens when work fails, step 2
-- Program: `concepts/300-failure-and-recovery/312-backoff-curve` in https://github.com/acta-dotnet/acta (one compiled project)
+- Program: `learn/300-failure-and-recovery/312-backoff-curve` in https://github.com/acta-dotnet/acta (one compiled project)
 - Status: Checked every release. Before each release, Acta Verify runs this program and checks that its output contains these lines.
 - Rules: [/llms.txt](/llms.txt) is the contract every handler follows; "Remember" below carries the rules that bite this task.
 - Release: the one /llms.txt names at its top.
@@ -36,7 +36,7 @@ public static class FlakyTransferJob
 From a clone of the repository, with the .NET 10 SDK:
 
 ```bash
-dotnet run --project concepts/300-failure-and-recovery/312-backoff-curve
+dotnet run --project learn/300-failure-and-recovery/312-backoff-curve
 ```
 
 Its output must contain:

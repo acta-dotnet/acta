@@ -1,6 +1,6 @@
 # The whole program: report how far along a job is
 
-The how-to is [/learn/208-progress.md](/learn/208-progress.md). This file holds every source file of `concepts/200-durable-execution/208-progress` as it is compiled.
+The how-to is [/learn/208-progress.md](/learn/208-progress.md). This file holds every source file of `learn/200-durable-execution/208-progress` as it is compiled.
 
 ## Not in the packages
 
@@ -15,7 +15,7 @@ The how-to is [/learn/208-progress.md](/learn/208-progress.md). This file holds 
 // `SetProgressAsync` stores how far the job has come, where a status page or the dashboard reads it while the job
 // runs.
 using Acta;
-using Acta.Concepts.Progress;
+using Acta.Learn.Progress;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -38,7 +38,7 @@ Console.WriteLine("Enqueued. Worker is running - press Ctrl+C to stop.");
 await host.WaitForShutdownAsync();
 await host.StopAsync();
 
-namespace Acta.Concepts.Progress
+namespace Acta.Learn.Progress
 {
     public sealed record ImportFile(string Name, int Rows);
 

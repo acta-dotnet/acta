@@ -65,7 +65,7 @@
       <p class="howto-context">A how-to for Acta, durable execution for .NET. <a href="/start">New to Acta? Run your first durable job in five minutes.</a></p>
       <div class="howto-meta">
         <span class="status checked">Checked every release</span>
-        <a class="program" href="https://github.com/acta-dotnet/acta/tree/main/concepts/400-observability-and-alerts/415-own-status-page"><code>concepts/400-observability-and-alerts/415-own-status-page</code></a>
+        <a class="program" href="https://github.com/acta-dotnet/acta/tree/main/learn/400-observability-and-alerts/415-own-status-page"><code>learn/400-observability-and-alerts/415-own-status-page</code></a>
         <div class="reader" role="group" aria-label="Read this page as">
         <span class="reader-label">Read as</span>
         <button type="button" data-reader="person" aria-pressed="true">a person</button>
@@ -125,7 +125,7 @@
 </div>
 <div class="step"><h2><span class="step-n">4</span>Run it and check the output</h2>
 <p>From a clone of <a href="https://github.com/acta-dotnet/acta">the Acta repository</a>, with the .NET 10 SDK:</p>
-<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project concepts/400-observability-and-alerts/415-own-status-page</code></pre></figure>
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project learn/400-observability-and-alerts/415-own-status-page</code></pre></figure>
 <figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button">Copy</button></figcaption><pre><code>retrying  | stage: charging
 waiting   | stage: packing
 succeeded | stage: shipped</code></pre></figure>
@@ -134,13 +134,13 @@ succeeded | stage: shipped</code></pre></figure>
 <div class="step plain-step"><h2>Remember</h2><ul class="rules"><li><code>executing</code> means claimed, not that a process is alive: <code>LeaseLapsed</code> is true for an executing job whose worker stopped heartbeating.</li><li>A sleeping job reads <code>ready</code> with a future <code>NextRunAtUtc</code>; a job waiting for a signal or a child reads <code>suspended</code>. Both are healthy.</li><li><code>ExecutionNumber</code> counts every claim of the job, each resume after a wait and each bounce off a full concurrency key included. Show <code>FailureCount</code> as the tries.</li><li>The text of a status is <code>job.Status.Code</code>, such as <code>suspended</code>. <code>ToString()</code> gives the C# name, <code>Suspended</code>.</li><li>Write the screen's value inside a step. A bare write before a wait runs again when the handler is entered again, and the page would step back for a moment.</li><li>These calls read one job. To find many, <a href="/learn/409-operator-queries">list and page through jobs</a>.</li></ul></div>
 <div class="step plain-step"><h2>Check yourself</h2><div class="check" data-answer="1"><p class="check-q">A job reads <code>executing</code>, its worker was killed, and its lease has run out. What should the page show?</p><ol class="check-options"><li><button type="button">Running</button></li><li><button type="button">Interrupted</button></li><li><button type="button">Failed</button></li></ol><details class="check-why"><summary>Show the answer</summary><p><b>Interrupted.</b> <code>executing</code> says a worker claimed the job, not that the worker is alive. <code>LeaseLapsed</code> is true once its lease has run out, and recovery brings the job back by itself; nothing has failed.</p></details></div></div>
 <div class="step plain-step"><h2>The whole program</h2>
-<p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/concepts/400-observability-and-alerts/415-own-status-page"><code>concepts/400-observability-and-alerts/415-own-status-page</code></a>, as it is compiled.</p>
+<p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/learn/400-observability-and-alerts/415-own-status-page"><code>learn/400-observability-and-alerts/415-own-status-page</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
 <details class="source-file"><summary><span class="file-name">own-status-page.cs</span><span class="file-size">105 lines</span></summary><figure class="listing"><figcaption><span class="file">own-status-page.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to show where each job is on your own page</span>
 <span class="c">// `IJobs` reads one job for a page of your own: its status, a value the handler keeps for the screen, and a sentence</span>
 <span class="c">// that says why the job is where it is.</span>
 <span class="k">using</span> Acta;
-<span class="k">using</span> Acta.Concepts.OwnStatusPage;
+<span class="k">using</span> Acta.Learn.OwnStatusPage;
 <span class="k">using</span> Microsoft.Extensions.DependencyInjection;
 <span class="k">using</span> Microsoft.Extensions.Hosting;
 <span class="k">using</span> Microsoft.Extensions.Logging;
@@ -209,7 +209,7 @@ builder.Logging.AddFilter(<span class="s">&quot;Acta&quot;</span>, LogLevel.Erro
     }
 }
 
-<span class="k">namespace</span> Acta.Concepts.OwnStatusPage
+<span class="k">namespace</span> Acta.Learn.OwnStatusPage
 {
     <span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> PrepareOrder(<span class="k">string</span> OrderId);
 
@@ -304,7 +304,7 @@ builder.Logging.AddFilter(<span class="s">&quot;Acta&quot;</span>, LogLevel.Erro
             <a href="/start">Get started</a>
             <a href="/learn">Learn Acta</a>
             <a href="https://github.com/acta-dotnet/acta/tree/main/docs">Documentation</a>
-            <a href="https://github.com/acta-dotnet/acta/tree/main/concepts">Runnable concepts</a>
+            <a href="https://github.com/acta-dotnet/acta/tree/main/learn">How-to programs</a>
             <a href="https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md">Engineering labs</a>
             <a href="/llms.txt">llms.txt for coding agents</a>
           </nav>

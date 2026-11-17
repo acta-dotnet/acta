@@ -1,6 +1,6 @@
 # The whole program: run a job every day at a set hour in your time zone
 
-The how-to is [/learn/104-timezone-schedule.md](/learn/104-timezone-schedule.md). This file holds every source file of `concepts/100-scheduling/104-timezone-schedule` as it is compiled.
+The how-to is [/learn/104-timezone-schedule.md](/learn/104-timezone-schedule.md). This file holds every source file of `learn/100-scheduling/104-timezone-schedule` as it is compiled.
 
 ## Not in the packages
 
@@ -15,7 +15,7 @@ The how-to is [/learn/104-timezone-schedule.md](/learn/104-timezone-schedule.md)
 // A cron with `TimeZoneId` fires at the same local hour all year: `0 8 * * *` in `Europe/Berlin` is 08:00 in Berlin,
 // in summer and in winter.
 using Acta;
-using Acta.Concepts.TimezoneSchedule;
+using Acta.Learn.TimezoneSchedule;
 using Microsoft.Extensions.Hosting;
 
 var builder = Host.CreateApplicationBuilder(args);
@@ -35,7 +35,7 @@ Console.WriteLine("the zoned one fires 08:00 Ljubljana wall-clock, summer and wi
 await host.WaitForShutdownAsync();
 await host.StopAsync();
 
-namespace Acta.Concepts.TimezoneSchedule
+namespace Acta.Learn.TimezoneSchedule
 {
     public readonly record struct DailyDigest;
 

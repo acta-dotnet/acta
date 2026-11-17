@@ -1,6 +1,6 @@
 # The whole program: use your own services in a handler
 
-The how-to is [/learn/007-dependency-injection.md](/learn/007-dependency-injection.md). This file holds every source file of `concepts/000-fundamentals/007-dependency-injection` as it is compiled.
+The how-to is [/learn/007-dependency-injection.md](/learn/007-dependency-injection.md). This file holds every source file of `learn/000-fundamentals/007-dependency-injection` as it is compiled.
 
 ## Not in the packages
 
@@ -14,7 +14,7 @@ The how-to is [/learn/007-dependency-injection.md](/learn/007-dependency-injecti
 // How to use your own services in a handler
 // The class that holds the handler takes its services in its constructor, from the application's own container.
 using Acta;
-using Acta.Concepts.DependencyInjection;
+using Acta.Learn.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -42,7 +42,7 @@ Console.WriteLine("Enqueued. Worker is running - press Ctrl+C to stop.");
 await host.WaitForShutdownAsync();
 await host.StopAsync();
 
-namespace Acta.Concepts.DependencyInjection
+namespace Acta.Learn.DependencyInjection
 {
     public sealed record SendWelcomeEmail(string Email, string Name);
 

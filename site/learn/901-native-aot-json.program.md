@@ -1,6 +1,6 @@
 # The whole program: run jobs under Native AOT
 
-The how-to is [/learn/901-native-aot-json.md](/learn/901-native-aot-json.md). This file holds every source file of `concepts/900-runtime-and-tuning/901-native-aot-json` as it is compiled.
+The how-to is [/learn/901-native-aot-json.md](/learn/901-native-aot-json.md). This file holds every source file of `learn/900-runtime-and-tuning/901-native-aot-json` as it is compiled.
 
 ## Not in the packages
 
@@ -20,7 +20,7 @@ The how-to is [/learn/901-native-aot-json.md](/learn/901-native-aot-json.md). Th
 // anvil/Anvil with NativeAOT. This program shows the consumer-side API, not the publish step.
 using System.Text.Json.Serialization;
 using Acta;
-using Acta.Concepts.NativeAotJson;
+using Acta.Learn.NativeAotJson;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -61,7 +61,7 @@ Console.WriteLine($"Status: {snapshot!.Status}");
 
 await host.StopAsync();
 
-namespace Acta.Concepts.NativeAotJson
+namespace Acta.Learn.NativeAotJson
 {
     public sealed record ProcessOrder(string OrderId, int Quantity);
 

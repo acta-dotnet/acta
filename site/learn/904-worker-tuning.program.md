@@ -1,6 +1,6 @@
 # The whole program: set how many jobs a worker runs at once
 
-The how-to is [/learn/904-worker-tuning.md](/learn/904-worker-tuning.md). This file holds every source file of `concepts/900-runtime-and-tuning/904-worker-tuning` as it is compiled.
+The how-to is [/learn/904-worker-tuning.md](/learn/904-worker-tuning.md). This file holds every source file of `learn/900-runtime-and-tuning/904-worker-tuning` as it is compiled.
 
 ## Not in the packages
 
@@ -15,7 +15,7 @@ The how-to is [/learn/904-worker-tuning.md](/learn/904-worker-tuning.md). This f
 // `MaxConcurrentExecutors` caps how many jobs one worker runs at once, and `SafetyPollInterval` bounds how long an
 // idle worker sleeps between looks at the database.
 using Acta;
-using Acta.Concepts.WorkerTuning;
+using Acta.Learn.WorkerTuning;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -75,7 +75,7 @@ Console.WriteLine($"Concurrency cap respected: {SlowTaskJob.PeakConcurrency <= C
 
 await host.StopAsync();
 
-namespace Acta.Concepts.WorkerTuning
+namespace Acta.Learn.WorkerTuning
 {
     public sealed record SlowTask(int Id);
 

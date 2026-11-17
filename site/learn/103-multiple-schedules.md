@@ -3,7 +3,7 @@
 Several `[Schedule]` attributes on one job share one permanent job, and schedules that come due together fire it once.
 
 - Section: Run work on a schedule, step 4
-- Program: `concepts/100-scheduling/103-multiple-schedules` in https://github.com/acta-dotnet/acta (one compiled project)
+- Program: `learn/100-scheduling/103-multiple-schedules` in https://github.com/acta-dotnet/acta (one compiled project)
 - Status: Checked every release. Before each release, Acta Verify runs this program and checks that its output contains these lines.
 - Rules: [/llms.txt](/llms.txt) is the contract every handler follows, starting with the handler running again from its first line; read it before you copy code from here.
 - Release: the one /llms.txt names at its top.
@@ -72,7 +72,7 @@ public sealed class ReportJob
 From a clone of the repository, with the .NET 10 SDK:
 
 ```bash
-dotnet run --project concepts/100-scheduling/103-multiple-schedules
+dotnet run --project learn/100-scheduling/103-multiple-schedules
 ```
 
 Its output must contain:
@@ -86,7 +86,7 @@ Checked every release. Before each release, Acta Verify runs this program and ch
 
 ## Not in the packages
 
-`UseLocalDatabase` and `ConceptLab` are helpers of the Acta repository (`support/`), used so every program runs on any of the three databases and prints its rows. Do not copy them into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` and `LearnLab` are helpers of the Acta repository (`support/`), used so every program runs on any of the three databases and prints its rows. Do not copy them into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## Next
 

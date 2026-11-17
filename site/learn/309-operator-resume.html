@@ -65,7 +65,7 @@
       <p class="howto-context">A how-to for Acta, durable execution for .NET. <a href="/start">New to Acta? Run your first durable job in five minutes.</a></p>
       <div class="howto-meta">
         <span class="status checked">Checked every release</span>
-        <a class="program" href="https://github.com/acta-dotnet/acta/tree/main/concepts/300-failure-and-recovery/309-operator-resume"><code>concepts/300-failure-and-recovery/309-operator-resume</code></a>
+        <a class="program" href="https://github.com/acta-dotnet/acta/tree/main/learn/300-failure-and-recovery/309-operator-resume"><code>learn/300-failure-and-recovery/309-operator-resume</code></a>
         <div class="reader" role="group" aria-label="Read this page as">
         <span class="reader-label">Read as</span>
         <button type="button" data-reader="person" aria-pressed="true">a person</button>
@@ -125,7 +125,7 @@ JobStatusCode? status;</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">5</span>Run it and check the output</h2>
 <p>From a clone of <a href="https://github.com/acta-dotnet/acta">the Acta repository</a>, with the .NET 10 SDK:</p>
-<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project concepts/300-failure-and-recovery/309-operator-resume</code></pre></figure>
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project learn/300-failure-and-recovery/309-operator-resume</code></pre></figure>
 <figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button">Copy</button></figcaption><pre><code>PauseAsync -&gt; action=Applied status=Paused
 ResumeAsync -&gt; action=Applied status=Ready
 Job finished with status=Succeeded
@@ -134,13 +134,13 @@ PauseAsync on terminal -&gt; action=Rejected blocking-status=Succeeded</code></p
 <p class="hint">This page shows the code. The rules it relies on, starting with the handler running again from its first line, are in <a href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#handler-contract">the handler contract</a>.</p>
 </div>
 <div class="step plain-step"><h2>The whole program</h2>
-<p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/concepts/300-failure-and-recovery/309-operator-resume"><code>concepts/300-failure-and-recovery/309-operator-resume</code></a>, as it is compiled.</p>
+<p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/learn/300-failure-and-recovery/309-operator-resume"><code>learn/300-failure-and-recovery/309-operator-resume</code></a>, as it is compiled.</p>
 <p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
 <details class="source-file"><summary><span class="file-name">operator-resume.cs</span><span class="file-size">84 lines</span></summary><figure class="listing"><figcaption><span class="file">operator-resume.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to pause and resume a job from outside</span>
 <span class="c">// `IJobs.PauseAsync` and `ResumeAsync` pause and resume a job from outside its handler. Each answers whether it was</span>
 <span class="c">// applied or rejected, and its reason lands on the job's timeline.</span>
 <span class="k">using</span> Acta;
-<span class="k">using</span> Acta.Concepts.OperatorResume;
+<span class="k">using</span> Acta.Learn.OperatorResume;
 <span class="k">using</span> Microsoft.Extensions.DependencyInjection;
 <span class="k">using</span> Microsoft.Extensions.Hosting;
 
@@ -205,7 +205,7 @@ Console.WriteLine(<span class="s">$&quot;Job finished with status={status}&quot;
 
 <span class="k">await</span> host.StopAsync();
 
-<span class="k">namespace</span> Acta.Concepts.OperatorResume
+<span class="k">namespace</span> Acta.Learn.OperatorResume
 {
     <span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> ProcessReport(<span class="k">string</span> Name);
 
@@ -283,7 +283,7 @@ Console.WriteLine(<span class="s">$&quot;Job finished with status={status}&quot;
             <a href="/start">Get started</a>
             <a href="/learn">Learn Acta</a>
             <a href="https://github.com/acta-dotnet/acta/tree/main/docs">Documentation</a>
-            <a href="https://github.com/acta-dotnet/acta/tree/main/concepts">Runnable concepts</a>
+            <a href="https://github.com/acta-dotnet/acta/tree/main/learn">How-to programs</a>
             <a href="https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md">Engineering labs</a>
             <a href="/llms.txt">llms.txt for coding agents</a>
           </nav>

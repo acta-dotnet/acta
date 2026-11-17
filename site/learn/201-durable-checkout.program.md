@@ -1,10 +1,10 @@
 # The whole program: build a checkout that waits for a review and a timer
 
-The how-to is [/learn/201-durable-checkout.md](/learn/201-durable-checkout.md). This file holds every source file of `concepts/200-durable-execution/201-durable-checkout` as it is compiled, and the notes kept beside the code.
+The how-to is [/learn/201-durable-checkout.md](/learn/201-durable-checkout.md). This file holds every source file of `learn/200-durable-execution/201-durable-checkout` as it is compiled, and the notes kept beside the code.
 
 ## Not in the packages
 
-`UseLocalDatabase` and `ConceptLab` are helpers of the Acta repository (`support/`), used so every program runs on any of the three databases and prints its rows. Do not copy them into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` and `LearnLab` are helpers of the Acta repository (`support/`), used so every program runs on any of the three databases and prints its rows. Do not copy them into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## The whole program
 
@@ -15,8 +15,8 @@ The how-to is [/learn/201-durable-checkout.md](/learn/201-durable-checkout.md). 
 // One handler reads top to bottom as a checkout: wait for a fraud review, reserve, charge, wait out a settlement
 // window, send the receipt. Each stage is a signal, a step, a variable, or a timer that survives a restart.
 using Acta;
-using Acta.Concepts.DurableCheckout;
 using Acta.Labs;
+using Acta.Learn.DurableCheckout;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -29,7 +29,7 @@ var scenario = new CheckoutLabScenario(
 );
 
 builder.Services.AddSingleton(scenario);
-builder.Services.AddSingleton(new ConceptLab(builder.Configuration, args));
+builder.Services.AddSingleton(new LearnLab(builder.Configuration, args));
 
 builder.Services.UseActa(j =>
 {
@@ -45,7 +45,7 @@ await builder.Build().RunAsync();
 ### Checkout.cs
 
 ```csharp
-namespace Acta.Concepts.DurableCheckout;
+namespace Acta.Learn.DurableCheckout;
 
 public sealed record Checkout(string OrderId, decimal Amount);
 
@@ -136,12 +136,11 @@ public sealed class CheckoutJob
 using Acta.Labs;
 using Microsoft.Extensions.Hosting;
 
-namespace Acta.Concepts.DurableCheckout;
+namespace Acta.Learn.DurableCheckout;
 
 internal sealed record CheckoutLabScenario(string Namespace, string OrderId, bool RejectFraudReview);
 
-internal sealed class Primer(IJobs jobs, ConceptLab lab, CheckoutLabScenario scenario, IHostApplicationLifetime lifetime)
-    : BackgroundService
+internal sealed class Primer(IJobs jobs, LearnLab lab, CheckoutLabScenario scenario, IHostApplicationLifetime lifetime) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken ct)
     {
@@ -171,7 +170,7 @@ internal sealed class Primer(IJobs jobs, ConceptLab lab, CheckoutLabScenario sce
             checkout,
             DateTime.UnixEpoch,
             "release the HERO 201 enqueue snapshot",
-            "concept-201",
+            "how-to-201",
             ct: ct
         );
         if (release.Action != ControlAction.Applied)
@@ -453,7 +452,7 @@ and inspectable than a process-local continuation, but it is not free and it is 
 ### Run the experiment
 
 ```bash
-dotnet run --project concepts/200-durable-execution/201-durable-checkout
+dotnet run --project learn/200-durable-execution/201-durable-checkout
 ```
 
 The program creates one uniquely scoped checkout, holds it long enough to inspect the enqueue state,
@@ -492,7 +491,7 @@ completed step bodies are replay-skipped after their outcomes have been recorded
 Reject the fraud review:
 
 ```bash
-dotnet run --project concepts/200-durable-execution/201-durable-checkout -- --reject
+dotnet run --project learn/200-durable-execution/201-durable-checkout -- --reject
 ```
 
 The same signal mechanism now ends the checkout as `cancelled`. The review runs before inventory and
@@ -512,7 +511,7 @@ versioned processes or cross-system orchestration is itself the product.
 ### Source trail
 
 - [The Engineering Labs](https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md)
-- [`Checkout.cs`](https://github.com/acta-dotnet/acta/blob/main/concepts/200-durable-execution/201-durable-checkout/Checkout.cs)
+- [`Checkout.cs`](https://github.com/acta-dotnet/acta/blob/main/learn/200-durable-execution/201-durable-checkout/Checkout.cs)
 - [`JobContext.cs`](https://github.com/acta-dotnet/acta/blob/main/src/Acta/Handlers/JobContext.cs)
 - [`JobEntity.cs`](https://github.com/acta-dotnet/acta/blob/main/src/Acta/Domain/Entities/JobEntity.cs)
 - [`JobStateEntity.cs`](https://github.com/acta-dotnet/acta/blob/main/src/Acta/Domain/Entities/JobStateEntity.cs)

@@ -1,10 +1,10 @@
 # The whole program: wait for time to pass without a running process
 
-The how-to is [/learn/205-durable-sleep.md](/learn/205-durable-sleep.md). This file holds every source file of `concepts/200-durable-execution/205-durable-sleep` as it is compiled, and the notes kept beside the code.
+The how-to is [/learn/205-durable-sleep.md](/learn/205-durable-sleep.md). This file holds every source file of `learn/200-durable-execution/205-durable-sleep` as it is compiled, and the notes kept beside the code.
 
 ## Not in the packages
 
-`UseLocalDatabase` and `ConceptLab` are helpers of the Acta repository (`support/`), used so every program runs on any of the three databases and prints its rows. Do not copy them into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` and `LearnLab` are helpers of the Acta repository (`support/`), used so every program runs on any of the three databases and prints its rows. Do not copy them into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## The whole program
 
@@ -14,8 +14,8 @@ The how-to is [/learn/205-durable-sleep.md](/learn/205-durable-sleep.md). This f
 // How to wait for time to pass without a running process
 // A named sleep stores the due time, frees the worker, and wakes the job when the time comes.
 using Acta;
-using Acta.Concepts.DurableSleep;
 using Acta.Labs;
+using Acta.Learn.DurableSleep;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -29,13 +29,13 @@ var command = commandIndex < 0 ? "run" : args[commandIndex].ToLowerInvariant();
 var jobRefIndex = command is "inspect" or "recover" ? commandIndex + 1 : -1;
 if (jobRefIndex >= args.Length || (jobRefIndex >= 0 && !JobRef.TryParse(args[jobRefIndex], out _)))
 {
-    Console.WriteLine($"Usage: dotnet run --project concepts/200-durable-execution/205-durable-sleep -- {command} <job-ref>");
+    Console.WriteLine($"Usage: dotnet run --project learn/200-durable-execution/205-durable-sleep -- {command} <job-ref>");
     return;
 }
 
 var hostArgs = args.Where((_, index) => index != commandIndex && index != jobRefIndex).ToArray();
 var builder = Host.CreateApplicationBuilder(hostArgs);
-var lab = new ConceptLab(builder.Configuration, args);
+var lab = new LearnLab(builder.Configuration, args);
 
 builder.Services.UseActa(j =>
 {
@@ -88,8 +88,8 @@ if (command == "start")
     Console.WriteLine();
     Console.WriteLine($"Job {sleeping.JobRef} is sleeping durably. This process will now stop.");
     Console.WriteLine("Inspect and recover that exact identity with:");
-    Console.WriteLine($"  dotnet run --project concepts/200-durable-execution/205-durable-sleep -- inspect {sleeping.JobRef}");
-    Console.WriteLine($"  dotnet run --project concepts/200-durable-execution/205-durable-sleep -- recover {sleeping.JobRef}");
+    Console.WriteLine($"  dotnet run --project learn/200-durable-execution/205-durable-sleep -- inspect {sleeping.JobRef}");
+    Console.WriteLine($"  dotnet run --project learn/200-durable-execution/205-durable-sleep -- recover {sleeping.JobRef}");
     await host.StopAsync();
     return;
 }
@@ -139,7 +139,7 @@ static void EnsureDone(GetJobResponse snapshot)
     }
 }
 
-static async Task ShowTimerStateAsync(ConceptLab lab, long jobId)
+static async Task ShowTimerStateAsync(LearnLab lab, long jobId)
 {
     await lab.ShowAllAsync(
         "Explore the complete durable-sleep job record",
@@ -170,7 +170,7 @@ static async Task ShowTimerStateAsync(ConceptLab lab, long jobId)
     );
 }
 
-namespace Acta.Concepts.DurableSleep
+namespace Acta.Learn.DurableSleep
 {
     public sealed record SendFollowUp(string UserEmail, int CoolDownSeconds);
 
@@ -223,7 +223,7 @@ completion. Durable sleep preserves a due intention; it does not make later deli
 ### Run the experiment
 
 ```bash
-dotnet run --project concepts/200-durable-execution/205-durable-sleep
+dotnet run --project learn/200-durable-execution/205-durable-sleep
 ```
 
 The lab uses a three-second timer so both phases finish quickly.
@@ -242,9 +242,9 @@ application code should normally use `IJobs`.
 Run a real process boundary against one configured database:
 
 ```bash
-dotnet run --project concepts/200-durable-execution/205-durable-sleep -- start
-dotnet run --project concepts/200-durable-execution/205-durable-sleep -- inspect <printed-job-ref>
-dotnet run --project concepts/200-durable-execution/205-durable-sleep -- recover <printed-job-ref>
+dotnet run --project learn/200-durable-execution/205-durable-sleep -- start
+dotnet run --project learn/200-durable-execution/205-durable-sleep -- inspect <printed-job-ref>
+dotnet run --project learn/200-durable-execution/205-durable-sleep -- recover <printed-job-ref>
 ```
 
 `start` persists a fifteen-second timer and exits. `inspect` starts no worker and proves the same job is
@@ -261,5 +261,5 @@ condition rather than merely wait for an instant.
 ### Source trail
 
 - [The related Engineering Lab](https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md)
-- [`durable-sleep.cs`](https://github.com/acta-dotnet/acta/blob/main/concepts/200-durable-execution/205-durable-sleep/durable-sleep.cs)
+- [`durable-sleep.cs`](https://github.com/acta-dotnet/acta/blob/main/learn/200-durable-execution/205-durable-sleep/durable-sleep.cs)
 - [`ArmOrConsumeJobSleepTimer.sqlite.sql`](https://github.com/acta-dotnet/acta/blob/main/src/Acta/Operations/Execution/ArmOrConsumeJobSleepTimer/ArmOrConsumeJobSleepTimer.sqlite.sql)

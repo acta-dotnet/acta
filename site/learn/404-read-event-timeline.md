@@ -3,7 +3,7 @@
 The append-only event ledger answers why a job did what it did. `ListEventsAsync` with `LineageRoot` reads the timeline of a job and of every child it started.
 
 - Section: Watch and control running work, step 4
-- Program: `concepts/400-observability-and-alerts/404-read-event-timeline` in https://github.com/acta-dotnet/acta (one compiled project)
+- Program: `learn/400-observability-and-alerts/404-read-event-timeline` in https://github.com/acta-dotnet/acta (one compiled project)
 - Status: Checked every release. Before each release, Acta Verify runs this program and checks that its output contains these lines.
 - Rules: [/llms.txt](/llms.txt) is the contract every handler follows; "Remember" below carries the rules that bite this task.
 - Release: the one /llms.txt names at its top.
@@ -63,7 +63,7 @@ public static async Task HandleParent(RunReport input, JobContext context, Cance
 From a clone of the repository, with the .NET 10 SDK:
 
 ```bash
-dotnet run --project concepts/400-observability-and-alerts/404-read-event-timeline
+dotnet run --project learn/400-observability-and-alerts/404-read-event-timeline
 ```
 
 Its output must contain:

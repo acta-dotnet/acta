@@ -97,9 +97,9 @@ internal sealed class HowTo
 /// </summary>
 internal sealed partial class LearnLibrary
 {
-    public const string Root = "concepts";
-    public const string SectionsFile = Root + "/learn.json";
-    public const string RunsFile = Root + "/concept-runs.json";
+    public const string Root = "learn";
+    public const string SectionsFile = Root + "/sections.json";
+    public const string RunsFile = Root + "/runs.json";
 
     /// <summary>A piece that fits in this many lines is shown whole; a longer one is cut around the step's lines.</summary>
     private const int WholePiece = 20;
@@ -108,7 +108,7 @@ internal sealed partial class LearnLibrary
     private const int Context = 6;
 
     /// <summary>What the programs call that is the repository's, not the packages'; a page that shows one says so.</summary>
-    private static readonly string[] RepositoryHelpers = ["UseLocalDatabase", "ConceptLab"];
+    private static readonly string[] RepositoryHelpers = ["UseLocalDatabase", "LearnLab"];
 
     public List<string> Bands { get; } = [];
     public Dictionary<string, HowTo> ById { get; } = new(StringComparer.Ordinal);

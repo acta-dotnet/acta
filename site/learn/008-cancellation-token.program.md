@@ -1,6 +1,6 @@
 # The whole program: stop cleanly when a job is cancelled
 
-The how-to is [/learn/008-cancellation-token.md](/learn/008-cancellation-token.md). This file holds every source file of `concepts/000-fundamentals/008-cancellation-token` as it is compiled.
+The how-to is [/learn/008-cancellation-token.md](/learn/008-cancellation-token.md). This file holds every source file of `learn/000-fundamentals/008-cancellation-token` as it is compiled.
 
 ## Not in the packages
 
@@ -15,7 +15,7 @@ The how-to is [/learn/008-cancellation-token.md](/learn/008-cancellation-token.m
 // A handler takes a `CancellationToken` and passes it to everything it awaits, so a shutdown or a cancel ends it
 // promptly.
 using Acta;
-using Acta.Concepts.Cancellation;
+using Acta.Learn.Cancellation;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -38,7 +38,7 @@ Console.WriteLine("Enqueued. Worker is running - press Ctrl+C to stop.");
 await host.WaitForShutdownAsync();
 await host.StopAsync();
 
-namespace Acta.Concepts.Cancellation
+namespace Acta.Learn.Cancellation
 {
     public sealed record SlowImport(int Batches);
 

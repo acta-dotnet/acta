@@ -3,7 +3,7 @@
 `AlertAsync` in a handler raises an alert for the people who operate the system, and `operations.Alerts` reads it back.
 
 - Section: Get told when something breaks, step 2
-- Program: `concepts/400-observability-and-alerts/402-alerts` in https://github.com/acta-dotnet/acta (one compiled project)
+- Program: `learn/400-observability-and-alerts/402-alerts` in https://github.com/acta-dotnet/acta (one compiled project)
 - Status: Checked every release. Before each release, Acta Verify runs this program and checks that its output contains these lines.
 - Rules: [/llms.txt](/llms.txt) is the contract every handler follows; "Remember" below carries the rules that bite this task.
 - Release: the one /llms.txt names at its top.
@@ -84,7 +84,7 @@ await host.StopAsync();
 From a clone of the repository, with the .NET 10 SDK:
 
 ```bash
-dotnet run --project concepts/400-observability-and-alerts/402-alerts
+dotnet run --project learn/400-observability-and-alerts/402-alerts
 ```
 
 Its output must contain:

@@ -11,7 +11,7 @@ HTTP client -> API -----> Acta database <----- Worker
 
 The API references the shared contract but contains no handler and starts no worker loop. The worker
 owns the handler manifest and never exposes an HTTP endpoint. This is the deployment boundary that
-[`701-enqueue-only-reference`](../../concepts/700-topology-and-deployment/701-enqueue-only-reference/)
+[`701-enqueue-only-reference`](../../learn/700-topology-and-deployment/701-enqueue-only-reference/)
 introduces inside one process, now exercised across real processes.
 
 ## Why split the processes?

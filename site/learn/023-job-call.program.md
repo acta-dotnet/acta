@@ -1,6 +1,6 @@
 # The whole program: enqueue by the job's generated call
 
-The how-to is [/learn/023-job-call.md](/learn/023-job-call.md). This file holds every source file of `concepts/000-fundamentals/023-job-call` as it is compiled.
+The how-to is [/learn/023-job-call.md](/learn/023-job-call.md). This file holds every source file of `learn/000-fundamentals/023-job-call` as it is compiled.
 
 ## Not in the packages
 
@@ -14,7 +14,7 @@ The how-to is [/learn/023-job-call.md](/learn/023-job-call.md). This file holds 
 // How to enqueue by the job's generated call
 // The manifest's generated call names the job and takes its handler's parameters, several of them as one input.
 using Acta;
-using Acta.Concepts.JobCall;
+using Acta.Learn.JobCall;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -43,7 +43,7 @@ Console.WriteLine($"Enqueued hello as {single.JobRef} and greet as {several.JobR
 await host.WaitForShutdownAsync();
 await host.StopAsync();
 
-namespace Acta.Concepts.JobCall
+namespace Acta.Learn.JobCall
 {
     public sealed record Hello(string Name);
 

@@ -1,6 +1,6 @@
 # The whole program: run a job once, later
 
-The how-to is [/learn/011-delayed-job.md](/learn/011-delayed-job.md). This file holds every source file of `concepts/000-fundamentals/011-delayed-job` as it is compiled.
+The how-to is [/learn/011-delayed-job.md](/learn/011-delayed-job.md). This file holds every source file of `learn/000-fundamentals/011-delayed-job` as it is compiled.
 
 ## Not in the packages
 
@@ -15,7 +15,7 @@ The how-to is [/learn/011-delayed-job.md](/learn/011-delayed-job.md). This file 
 // `ScheduleAsync(input, delay)` stores the job now and makes it due after the delay. No process has to stay alive
 // until then.
 using Acta;
-using Acta.Concepts.DelayedJob;
+using Acta.Learn.DelayedJob;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -43,7 +43,7 @@ Console.WriteLine("Worker is running - press Ctrl+C to stop.");
 await host.WaitForShutdownAsync();
 await host.StopAsync();
 
-namespace Acta.Concepts.DelayedJob
+namespace Acta.Learn.DelayedJob
 {
     public sealed record SendReminder(string Name);
 

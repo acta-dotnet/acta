@@ -1,10 +1,10 @@
 # The whole program: decide what happens to runs a schedule missed
 
-The how-to is [/learn/106-schedule-misfire.md](/learn/106-schedule-misfire.md). This file holds every source file of `concepts/100-scheduling/106-schedule-misfire` as it is compiled, and the notes kept beside the code.
+The how-to is [/learn/106-schedule-misfire.md](/learn/106-schedule-misfire.md). This file holds every source file of `learn/100-scheduling/106-schedule-misfire` as it is compiled, and the notes kept beside the code.
 
 ## Not in the packages
 
-`UseLocalDatabase` and `ConceptLab` are helpers of the Acta repository (`support/`), used so every program runs on any of the three databases and prints its rows. Do not copy them into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` and `LearnLab` are helpers of the Acta repository (`support/`), used so every program runs on any of the three databases and prints its rows. Do not copy them into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## The whole program
 
@@ -17,8 +17,8 @@ The how-to is [/learn/106-schedule-misfire.md](/learn/106-schedule-misfire.md). 
 // them all, `CatchUpAll` runs every one in order.
 using System.Collections.Concurrent;
 using Acta;
-using Acta.Concepts.ScheduleMisfire;
 using Acta.Labs;
+using Acta.Learn.ScheduleMisfire;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -27,7 +27,7 @@ string[] jobNames = ["skip-report", "catch-up-once-report", "catch-up-all-report
 var lookups = jobNames.Select(name => new ScheduleLookup(jobNamespace, name, "every-second")).ToArray();
 
 var builder = Host.CreateApplicationBuilder(args);
-var lab = new ConceptLab(builder.Configuration, args);
+var lab = new LearnLab(builder.Configuration, args);
 
 builder.Services.UseActa(j =>
 {
@@ -146,7 +146,7 @@ async Task<IReadOnlyList<ListSchedulesItem>> ListAsync(CancellationToken ct) =>
 static bool Ordered(IReadOnlyList<(DateTime Occurrence, DateTime CoveredThrough)> firings) =>
     firings.Zip(firings.Skip(1)).All(pair => pair.First.Occurrence < pair.Second.Occurrence);
 
-namespace Acta.Concepts.ScheduleMisfire
+namespace Acta.Learn.ScheduleMisfire
 {
     /// <summary>The occurrences each job's firings stood for, as the handler read them from its context.</summary>
     public static class Firings
@@ -238,7 +238,7 @@ becomes a long backlog; with `ScheduledDelivery = PerOccurrence` each one is a r
 ### Run the experiment
 
 ```bash
-dotnet run --project concepts/100-scheduling/106-schedule-misfire
+dotnet run --project learn/100-scheduling/106-schedule-misfire
 ```
 
 The program pauses three schedules that fire every second, lets about three occurrences pass, resumes
@@ -272,5 +272,5 @@ financial occurrences that must never coalesce.
 ### Source trail
 
 - [The related Engineering Lab](https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md)
-- [`schedule-misfire.cs`](https://github.com/acta-dotnet/acta/blob/main/concepts/100-scheduling/106-schedule-misfire/schedule-misfire.cs)
+- [`schedule-misfire.cs`](https://github.com/acta-dotnet/acta/blob/main/learn/100-scheduling/106-schedule-misfire/schedule-misfire.cs)
 - [`ScheduleEvaluator.cs`](https://github.com/acta-dotnet/acta/blob/main/src/Acta/Domain/Schedules/ScheduleEvaluator.cs)

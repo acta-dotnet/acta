@@ -1,6 +1,6 @@
 # The whole program: test a recurring synchronization job
 
-The how-to is [/learn/804-continuous-synchronization-tests.md](/learn/804-continuous-synchronization-tests.md). This file holds every source file of `concepts/800-testing/804-continuous-synchronization-tests` as it is compiled.
+The how-to is [/learn/804-continuous-synchronization-tests.md](/learn/804-continuous-synchronization-tests.md). This file holds every source file of `learn/800-testing/804-continuous-synchronization-tests` as it is compiled.
 
 ## The whole program
 
@@ -13,7 +13,7 @@ The how-to is [/learn/804-continuous-synchronization-tests.md](/learn/804-contin
 // continuing at the watermark, and a replayed, a failed, and a backlogged batch. Run it with `dotnet test`.
 using System.Text.Json;
 using Acta;
-using Acta.Concepts.ContinuousSynchronization;
+using Acta.Learn.ContinuousSynchronization;
 using Acta.Sqlite;
 using Acta.Testing;
 using Microsoft.Data.Sqlite;

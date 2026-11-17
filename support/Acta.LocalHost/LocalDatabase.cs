@@ -8,7 +8,7 @@ using Microsoft.Extensions.Logging;
 namespace Acta;
 
 /// <summary>
-/// Quick local-dev database bootstrap shared by concepts, demos, and Anvil: selects the provider and
+/// Quick local-dev database bootstrap shared by how-tos, demos, and Anvil: selects the provider and
 /// applies migrations on startup so each program's main file stays focused on what it demonstrates.
 /// The helper project carries all durable providers, so a runnable sample can switch providers through
 /// configuration without changing its own project references.

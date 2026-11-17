@@ -1,6 +1,6 @@
 # The whole program: start each firing of a recurring job clean
 
-The how-to is [/learn/214-reset-state.md](/learn/214-reset-state.md). This file holds every source file of `concepts/200-durable-execution/214-reset-state` as it is compiled.
+The how-to is [/learn/214-reset-state.md](/learn/214-reset-state.md). This file holds every source file of `learn/200-durable-execution/214-reset-state` as it is compiled.
 
 ## Not in the packages
 
@@ -15,7 +15,7 @@ The how-to is [/learn/214-reset-state.md](/learn/214-reset-state.md). This file 
 // A permanent job keeps its variables from one firing to the next. `ResetStateAsync` at the end of a firing clears
 // them, so the next one starts blank.
 using Acta;
-using Acta.Concepts.ResetState;
+using Acta.Learn.ResetState;
 using Microsoft.Extensions.Hosting;
 
 var builder = Host.CreateApplicationBuilder(args);
@@ -29,7 +29,7 @@ builder.Services.UseActa(j =>
 // The [Schedule] recurs every 5s, so there's nothing to enqueue; just run the worker.
 await builder.Build().RunAsync();
 
-namespace Acta.Concepts.ResetState
+namespace Acta.Learn.ResetState
 {
     public readonly record struct CollectMetrics;
 

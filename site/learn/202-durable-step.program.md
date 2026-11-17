@@ -1,10 +1,10 @@
 # The whole program: keep finished work from repeating on a retry
 
-The how-to is [/learn/202-durable-step.md](/learn/202-durable-step.md). This file holds every source file of `concepts/200-durable-execution/202-durable-step` as it is compiled, and the notes kept beside the code.
+The how-to is [/learn/202-durable-step.md](/learn/202-durable-step.md). This file holds every source file of `learn/200-durable-execution/202-durable-step` as it is compiled, and the notes kept beside the code.
 
 ## Not in the packages
 
-`UseLocalDatabase` and `ConceptLab` are helpers of the Acta repository (`support/`), used so every program runs on any of the three databases and prints its rows. Do not copy them into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` and `LearnLab` are helpers of the Acta repository (`support/`), used so every program runs on any of the three databases and prints its rows. Do not copy them into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## The whole program
 
@@ -14,14 +14,14 @@ The how-to is [/learn/202-durable-step.md](/learn/202-durable-step.md). This fil
 // How to keep finished work from repeating on a retry
 // A named step records its outcome, so a retry returns it instead of doing the work again.
 using Acta;
-using Acta.Concepts.DurableStep;
 using Acta.Labs;
+using Acta.Learn.DurableStep;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 var builder = Host.CreateApplicationBuilder(args);
-var lab = new ConceptLab(builder.Configuration, args);
+var lab = new LearnLab(builder.Configuration, args);
 
 builder.Services.UseActa(j =>
 {
@@ -86,7 +86,7 @@ await lab.ShowAsync(
 
 await host.StopAsync();
 
-namespace Acta.Concepts.DurableStep
+namespace Acta.Learn.DurableStep
 {
     public sealed record FreezeBox(string BoxId);
 
@@ -160,7 +160,7 @@ external side effect and Acta's row. For the interrupted-at-most-once choice, co
 ### Run the experiment
 
 ```bash
-dotnet run --project concepts/200-durable-execution/202-durable-step
+dotnet run --project learn/200-durable-execution/202-durable-step
 ```
 
 The handler fails once after `start-freeze-cycle`; the job reaches execution two, while this controlled
@@ -190,6 +190,6 @@ determinism makes the stored result worthwhile.
 ### Source trail
 
 - [The related Engineering Lab](https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md)
-- [`durable-step.cs`](https://github.com/acta-dotnet/acta/blob/main/concepts/200-durable-execution/202-durable-step/durable-step.cs)
+- [`durable-step.cs`](https://github.com/acta-dotnet/acta/blob/main/learn/200-durable-execution/202-durable-step/durable-step.cs)
 - [`RuntimeJobContext.cs`](https://github.com/acta-dotnet/acta/blob/main/src/Acta/Engine/Worker/Context/RuntimeJobContext.cs)
 - [`StepAtMostOnceSpec.cs`](https://github.com/acta-dotnet/acta/blob/main/tests/Acta.Tests.Conformance/Scenarios/StepAtMostOnceSpec.cs)

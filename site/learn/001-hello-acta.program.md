@@ -1,6 +1,6 @@
 # The whole program: run your first job
 
-The how-to is [/learn/001-hello-acta.md](/learn/001-hello-acta.md). This file holds every source file of `concepts/000-fundamentals/001-hello-acta` as it is compiled.
+The how-to is [/learn/001-hello-acta.md](/learn/001-hello-acta.md). This file holds every source file of `learn/000-fundamentals/001-hello-acta` as it is compiled.
 
 ## The whole program
 
@@ -10,7 +10,7 @@ The how-to is [/learn/001-hello-acta.md](/learn/001-hello-acta.md). This file ho
 // How to run your first job
 // One `[Job]` method, one enqueue, and a worker that runs it.
 using Acta;
-using Acta.Concepts.HelloActa;
+using Acta.Learn.HelloActa;
 using Acta.Sqlite;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -22,7 +22,7 @@ builder.Services.UseActa(j =>
 {
     // learn: 2. Register Acta and start a worker
     // `UseSqlite` says where the job rows live: one file, no server. Swap it for `UsePostgres` or `UseSqlServer`, with
-    // that server's connection string, to target a server; later rungs fold this setup into `UseLocalDatabase`.
+    // that server's connection string, to target a server; later how-tos fold this setup into `UseLocalDatabase`.
     // `Run<HelloActaJobs>("hello-acta")` registers every job of the project under the namespace `hello-acta` and
     // starts a worker for it. `HelloActaJobs` is generated at build time from the `[Job]` methods.
     j.UseSqlite(sqlite =>
@@ -51,7 +51,7 @@ Console.WriteLine("Enqueued. The worker is running - press Ctrl+C to stop.");
 await host.WaitForShutdownAsync();
 await host.StopAsync();
 
-namespace Acta.Concepts.HelloActa
+namespace Acta.Learn.HelloActa
 {
     public sealed record Hello(string Name);
 

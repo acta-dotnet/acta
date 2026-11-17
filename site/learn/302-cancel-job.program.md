@@ -1,6 +1,6 @@
 # The whole program: cancel a job from inside its handler
 
-The how-to is [/learn/302-cancel-job.md](/learn/302-cancel-job.md). This file holds every source file of `concepts/300-failure-and-recovery/302-cancel-job` as it is compiled.
+The how-to is [/learn/302-cancel-job.md](/learn/302-cancel-job.md). This file holds every source file of `learn/300-failure-and-recovery/302-cancel-job` as it is compiled.
 
 ## Not in the packages
 
@@ -14,7 +14,7 @@ The how-to is [/learn/302-cancel-job.md](/learn/302-cancel-job.md). This file ho
 // How to cancel a job from inside its handler
 // `CancelAsync` in a handler ends the job as `Cancelled`: terminal, not a failure, so no retry and no alert follow.
 using Acta;
-using Acta.Concepts.CancelJob;
+using Acta.Learn.CancelJob;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -39,7 +39,7 @@ Console.WriteLine($"status={snapshot!.Status}");
 
 await host.StopAsync();
 
-namespace Acta.Concepts.CancelJob
+namespace Acta.Learn.CancelJob
 {
     public sealed record ImportFeed(string Url, bool SourceGone);
 

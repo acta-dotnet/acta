@@ -1,6 +1,6 @@
 # The whole program: enqueue many independent jobs from a handler
 
-The how-to is [/learn/601-fan-out.md](/learn/601-fan-out.md). This file holds every source file of `concepts/600-job-composition/601-fan-out` as it is compiled.
+The how-to is [/learn/601-fan-out.md](/learn/601-fan-out.md). This file holds every source file of `learn/600-job-composition/601-fan-out` as it is compiled.
 
 ## Not in the packages
 
@@ -15,7 +15,7 @@ The how-to is [/learn/601-fan-out.md](/learn/601-fan-out.md). This file holds ev
 // A handler takes `IJobs` and enqueues many independent jobs, each with a stable deduplication key. Nothing links
 // them to the handler's job and nothing waits for them (compare 212's `MapAsync`).
 using Acta;
-using Acta.Concepts.FanOut;
+using Acta.Learn.FanOut;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -38,7 +38,7 @@ Console.WriteLine("Enqueued. Worker is running - press Ctrl+C to stop.");
 await host.WaitForShutdownAsync();
 await host.StopAsync();
 
-namespace Acta.Concepts.FanOut
+namespace Acta.Learn.FanOut
 {
     public sealed record MakeAlbumThumbnails(string AlbumId, int PhotoCount);
 

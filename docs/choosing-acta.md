@@ -25,7 +25,7 @@ For concrete migration patterns from Hangfire, Quartz, TickerQ, platform schedul
 | A script or container the platform starts on a calendar | cron, systemd timers, Windows Task Scheduler, a Kubernetes CronJob, or a cloud timer. The platform owns the clock and the process. |
 | Messages between services | A message broker or a streaming platform, for pub/sub, fan-out, and streams you replay. Acta can run the work a message starts, with the message id as its deduplication key. |
 | Background work the application owns | Acta, when the work needs retries, durable state, a history, or an operator who can pause, restart, or signal it. |
-| A controller that keeps an external system current: durable progress, bounded batches, a worker that may die mid-batch | Acta, as one permanent job ([the lab](../concepts/100-scheduling/109-continuous-synchronization/)). |
+| A controller that keeps an external system current: durable progress, bounded batches, a worker that may die mid-batch | Acta, as one permanent job ([the lab](../learn/100-scheduling/109-continuous-synchronization/)). |
 | A long-running workflow in .NET | Acta: one C# handler with steps, child jobs, signals, and timers, and its state as rows in your database. |
 | Workflows across several languages, or drawn in a designer | A workflow platform. Acta is .NET only and has no visual designer or BPMN. |
 

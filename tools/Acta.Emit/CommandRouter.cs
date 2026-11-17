@@ -27,7 +27,7 @@ internal static class Usage
     {
         Console.WriteLine(
             """
-            Acta.Emit: emits committed repo artifacts from the IEntity source of truth and the concept programs.
+            Acta.Emit: emits committed repo artifacts from the IEntity source of truth and the how-to programs.
 
             Usage:
               dotnet run --project tools/Acta.Emit -- docs
@@ -37,8 +37,8 @@ internal static class Usage
 
             Subcommands:
               docs                         Emit docs/reference/data-model.md, code-families.md, and schema-{pg,mssql,sqlite}.sql,
-                                           and from the concept programs the how-tos under site/learn, site/learn.html,
-                                           and docs/reference/concept-ladder.md
+                                           and from the programs under learn/ the how-tos under site/learn, site/learn.html,
+                                           and docs/reference/how-tos.md
               check                        Verify docs and how-tos are current AND the snapshot equals the live model
               schema reset [--force]       Delete all migrations + the snapshot (deletes only; --force required)
               schema add [--name <n> [--force]]

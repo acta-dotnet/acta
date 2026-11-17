@@ -1,0 +1,53 @@
+// How to let one job at a time touch a resource
+// `RunWithLockAsync` holds a named lock around a piece of work, so jobs that name the same lock take turns.
+using Acta;
+using Acta.Learn.RunWithLock;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+
+var builder = Host.CreateApplicationBuilder(args);
+
+builder.Services.UseActa(j =>
+{
+    j.UseLocalDatabase(builder.Configuration);
+    j.Run<RunWithLockJobs>("run-with-lock");
+});
+
+using var host = builder.Build();
+await host.StartAsync();
+
+var jobs = host.Services.GetRequiredService<IJobs>();
+
+// Both jobs share a lock key, so they take turns.
+await jobs.EnqueueAsync(new UpdateInventory("sku-A"));
+await jobs.EnqueueAsync(new UpdateInventory("sku-B"));
+Console.WriteLine("Enqueued 2 jobs. Worker is running - press Ctrl+C to stop.");
+
+await host.WaitForShutdownAsync();
+await host.StopAsync();
+
+namespace Acta.Learn.RunWithLock
+{
+    public sealed record UpdateInventory(string Sku);
+
+    public sealed class UpdateInventoryJob
+    {
+        [Job("update-inventory")]
+        public async Task Handle(UpdateInventory input, JobContext context, CancellationToken ct)
+        {
+            // learn: Run the work under a named lock
+            // Named lock held for the action; same key serializes both concurrently-running jobs. To exclude the whole job instead, set ConcurrencyKey on enqueue (see 209-concurrency-key).
+            await context.RunWithLockAsync(
+                "inventory",
+                async token =>
+                {
+                    Console.WriteLine($"[{input.Sku}] acquired lock, updating inventory...");
+                    await Task.Delay(1000, token);
+                    Console.WriteLine($"[{input.Sku}] done, releasing lock");
+                },
+                ct: ct
+            );
+            // learn: end
+        }
+    }
+}

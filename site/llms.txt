@@ -12,7 +12,7 @@ Acta is a durable job and workflow engine for .NET backed by the application's o
 child jobs and fan out with Map and WaitChildren, and wait for signals and timers without
 holding a worker; lanes keep per-entity order, and concurrency and rate limits hold across every
 worker. Jobs, schedules, steps, waits, and alerts are ordinary rows. This file is the contract an agent needs to add Acta to a project correctly; the
-runnable proof lives in the repository's `concepts/` directory (compiled, one project per concept) and the
+runnable proof lives in the repository's `learn/` directory (compiled, one project per how-to) and the
 complete demo apps under `demos/`. Start at useacta.net or github.com/acta-dotnet/acta.
 
 ## The one rule everything follows from
@@ -338,7 +338,7 @@ until the job ends or the wait times out; a handler's wait parks the job and hol
 - `MapAsync` and `WaitChildrenAsync` take a `TimeSpan` timeout before the token: one deadline for the whole group, which cancels only the members still running and reports `TimedOut` on the outcome. `MapAsync` takes one `configure` that every child gets. A replay starts only the children not yet started, without running the `child` selector or `configure` for one already started.
 - A generated call passed where an input is expected, a map's child included, is enqueued by the job it names.
 - A group does not limit how many of its children run at once; that is `ConcurrencyLimit` on the child's definition.
-- The runnable proof is `concepts/200-durable-execution/215-map-wait-children`; a failed child's outcomes are in `219-child-failure-outcomes`.
+- The runnable proof is `learn/200-durable-execution/215-map-wait-children`; a failed child's outcomes are in `219-child-failure-outcomes`.
 
 ## Recurring work
 
@@ -356,7 +356,7 @@ batch. A definition whose occurrences are each their own job, with
 their own retries, result, and retention, declares `ScheduledDelivery = ScheduledDeliveryCode.PerOccurrence`.
 A finite schedule declares `StartAtUtc` and `EndBeforeUtc` (UTC with a `Z`): its occurrences fall in
 [start, end) and it reads `exhausted` past the end. The runnable proof, with a killed worker, is
-`concepts/100-scheduling/109-continuous-synchronization`.
+`learn/100-scheduling/109-continuous-synchronization`.
 
 ## Choosing between a lane, a key, a limit, and a rate
 
@@ -573,9 +573,9 @@ curl -X POST http://localhost:5090/acta/api/v1/jobs -H "Content-Type: applicatio
 
 ## When you are unsure
 
-Every pattern above exists as a compiled, runnable example under `concepts/` in the repository:
-numbered rungs from fundamentals to chaos recovery, each a small project for one idea, its program one
-file named after the folder: `concepts/200-durable-execution/215-map-wait-children/map-wait-children.cs`. The demo apps under
+Every pattern above exists as a compiled, runnable example under `learn/` in the repository:
+numbered how-tos from fundamentals to chaos recovery, each a small project for one task, its program one
+file named after the folder: `learn/200-durable-execution/215-map-wait-children/map-wait-children.cs`. The demo apps under
 `demos/` are complete deployable applications built only from the published packages. The one
 complete walk from enqueue to the first test, on the consumer packages, is `docs/first-job.md`; the
 rest of the `docs/` tree is indexed by task in `docs/README.md`. Start at useacta.net.

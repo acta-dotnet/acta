@@ -1,6 +1,6 @@
 # The whole program: wake workers across processes with Redis
 
-The how-to is [/learn/903-redis-wakeup.md](/learn/903-redis-wakeup.md). This file holds every source file of `concepts/900-runtime-and-tuning/903-redis-wakeup` as it is compiled.
+The how-to is [/learn/903-redis-wakeup.md](/learn/903-redis-wakeup.md). This file holds every source file of `learn/900-runtime-and-tuning/903-redis-wakeup` as it is compiled.
 
 ## Not in the packages
 
@@ -15,7 +15,7 @@ The how-to is [/learn/903-redis-wakeup.md](/learn/903-redis-wakeup.md). This fil
 // `UseRedisWakeup` announces each enqueue over Redis, so a worker in another process starts the job within
 // milliseconds instead of at its next poll.
 using Acta;
-using Acta.Concepts.RedisWakeup;
+using Acta.Learn.RedisWakeup;
 using Acta.Redis;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -66,14 +66,14 @@ if (role == "enqueue")
 }
 
 Console.WriteLine("Worker running (it polls only every 60s). In another terminal, enqueue a ping:");
-Console.WriteLine("  dotnet run --project concepts/900-runtime-and-tuning/903-redis-wakeup -- enqueue");
+Console.WriteLine("  dotnet run --project learn/900-runtime-and-tuning/903-redis-wakeup -- enqueue");
 Console.WriteLine("It shows up here almost instantly - that is the Redis wake, not the poll. Ctrl+C to stop.");
 
 await host.StartAsync();
 await host.WaitForShutdownAsync();
 await host.StopAsync();
 
-namespace Acta.Concepts.RedisWakeup
+namespace Acta.Learn.RedisWakeup
 {
     public sealed record Ping(string EnqueuedAt);
 

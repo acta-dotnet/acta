@@ -1,10 +1,10 @@
 # The whole program: give one job several schedules
 
-The how-to is [/learn/103-multiple-schedules.md](/learn/103-multiple-schedules.md). This file holds every source file of `concepts/100-scheduling/103-multiple-schedules` as it is compiled, and the notes kept beside the code.
+The how-to is [/learn/103-multiple-schedules.md](/learn/103-multiple-schedules.md). This file holds every source file of `learn/100-scheduling/103-multiple-schedules` as it is compiled, and the notes kept beside the code.
 
 ## Not in the packages
 
-`UseLocalDatabase` and `ConceptLab` are helpers of the Acta repository (`support/`), used so every program runs on any of the three databases and prints its rows. Do not copy them into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+`UseLocalDatabase` and `LearnLab` are helpers of the Acta repository (`support/`), used so every program runs on any of the three databases and prints its rows. Do not copy them into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
 
 ## The whole program
 
@@ -15,12 +15,12 @@ The how-to is [/learn/103-multiple-schedules.md](/learn/103-multiple-schedules.m
 // Several `[Schedule]` attributes on one job share one permanent job, and schedules that come due together fire it
 // once.
 using Acta;
-using Acta.Concepts.MultipleSchedules;
 using Acta.Labs;
+using Acta.Learn.MultipleSchedules;
 using Microsoft.Extensions.Hosting;
 
 var builder = Host.CreateApplicationBuilder(args);
-var lab = new ConceptLab(builder.Configuration, args);
+var lab = new LearnLab(builder.Configuration, args);
 
 builder.Services.UseActa(j =>
 {
@@ -75,7 +75,7 @@ await lab.ShowAsync(
 
 await host.StopAsync();
 
-namespace Acta.Concepts.MultipleSchedules
+namespace Acta.Learn.MultipleSchedules
 {
     public readonly record struct Report;
 
@@ -129,7 +129,7 @@ still needs its own cursor, and coalescing is intentionally not a record of ever
 ### Run the experiment
 
 ```bash
-dotnet run --project concepts/100-scheduling/103-multiple-schedules
+dotnet run --project learn/100-scheduling/103-multiple-schedules
 ```
 
 The twelve-second run lets the five- and ten-second cursors move before printing the proof.
@@ -159,6 +159,6 @@ outside the Acta database.
 ### Source trail
 
 - [The related Engineering Lab](https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md)
-- [`multiple-schedules.cs`](https://github.com/acta-dotnet/acta/blob/main/concepts/100-scheduling/103-multiple-schedules/multiple-schedules.cs)
+- [`multiple-schedules.cs`](https://github.com/acta-dotnet/acta/blob/main/learn/100-scheduling/103-multiple-schedules/multiple-schedules.cs)
 - [`ScheduleAdmitter.cs`](https://github.com/acta-dotnet/acta/blob/main/src/Acta/Engine/Scheduling/ScheduleAdmitter.cs)
 - [`SchedulesView.sqlite.sql`](https://github.com/acta-dotnet/acta/blob/main/src/Acta/Schema/Views/SchedulesView.sqlite.sql)

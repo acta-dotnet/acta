@@ -1,6 +1,6 @@
 # The whole program: compute a value once and reuse it
 
-The how-to is [/learn/216-variable-lifecycle.md](/learn/216-variable-lifecycle.md). This file holds every source file of `concepts/200-durable-execution/216-variable-lifecycle` as it is compiled.
+The how-to is [/learn/216-variable-lifecycle.md](/learn/216-variable-lifecycle.md). This file holds every source file of `learn/200-durable-execution/216-variable-lifecycle` as it is compiled.
 
 ## Not in the packages
 
@@ -15,7 +15,7 @@ The how-to is [/learn/216-variable-lifecycle.md](/learn/216-variable-lifecycle.m
 // `GetOrSetVariableAsync` computes a value on its first call and stores it with the job; later calls return the stored
 // value. The program also checks for a variable, deletes it, reads it with a default, and stores a raw `JobPayload`.
 using Acta;
-using Acta.Concepts.VariableLifecycle;
+using Acta.Learn.VariableLifecycle;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -36,7 +36,7 @@ await jobs.CallAsync(new InspectVariables());
 
 await host.StopAsync();
 
-namespace Acta.Concepts.VariableLifecycle
+namespace Acta.Learn.VariableLifecycle
 {
     public readonly record struct InspectVariables;
 

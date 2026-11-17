@@ -1,6 +1,6 @@
 # The whole program: enqueue from a process that runs no worker
 
-The how-to is [/learn/701-enqueue-only-reference.md](/learn/701-enqueue-only-reference.md). This file holds every source file of `concepts/700-topology-and-deployment/701-enqueue-only-reference` as it is compiled.
+The how-to is [/learn/701-enqueue-only-reference.md](/learn/701-enqueue-only-reference.md). This file holds every source file of `learn/700-topology-and-deployment/701-enqueue-only-reference` as it is compiled.
 
 ## Not in the packages
 
@@ -15,12 +15,12 @@ The how-to is [/learn/701-enqueue-only-reference.md](/learn/701-enqueue-only-ref
 // `Reference<TManifest>()` lets a process enqueue a namespace's jobs by type without running a worker for it.
 // `Run<TManifest>()` is the process that executes them.
 using Acta;
-using Acta.Concepts.EnqueueOnlyReference;
+using Acta.Learn.EnqueueOnlyReference;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
 // In production, these are two separate processes (see demos/ApiWorkerSplit).
-// One process here so the rung is self-contained and runnable without a second terminal.
+// One process here so the how-to is self-contained and runnable without a second terminal.
 
 // Worker host: owns the namespace - declares its jobs, runs the claim loop, executes them.
 var workerBuilder = Host.CreateApplicationBuilder(args);
@@ -71,7 +71,7 @@ Console.WriteLine($"Job status after worker drain: {snapshot!.Status}");
 await frontendHost.StopAsync();
 await workerHost.StopAsync();
 
-namespace Acta.Concepts.EnqueueOnlyReference
+namespace Acta.Learn.EnqueueOnlyReference
 {
     public sealed record WelcomeUser(string Username);
 

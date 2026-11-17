@@ -1,6 +1,6 @@
 # The whole program: test a job that waits for a signal
 
-The how-to is [/learn/802-testing-durable-jobs.md](/learn/802-testing-durable-jobs.md). This file holds every source file of `concepts/800-testing/802-testing-durable-jobs` as it is compiled.
+The how-to is [/learn/802-testing-durable-jobs.md](/learn/802-testing-durable-jobs.md). This file holds every source file of `learn/800-testing/802-testing-durable-jobs` as it is compiled.
 
 ## Not in the packages
 
@@ -14,11 +14,11 @@ The how-to is [/learn/802-testing-durable-jobs.md](/learn/802-testing-durable-jo
 // How to test a job that waits for a signal
 // Each `RunOnceAsync` drives exactly one attempt, so the suspend on a signal and the resume after its raise are two
 // explicit ticks, and the test asserts that the step before the wait ran once across the replay. Run it with
-// `dotnet test concepts/800-testing/802-testing-durable-jobs`.
+// `dotnet test learn/800-testing/802-testing-durable-jobs`.
 using Acta.Testing;
 using Xunit;
 
-namespace Acta.Concepts.TestingDurable;
+namespace Acta.Learn.TestingDurable;
 
 public sealed class OrderTests(ActaHostFixture acta) : ActaTestBase(acta)
 {
@@ -76,7 +76,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
-namespace Acta.Concepts.TestingDurable;
+namespace Acta.Learn.TestingDurable;
 
 public sealed class ActaHostFixture : IAsyncLifetime
 {
@@ -127,7 +127,7 @@ public abstract class ActaTestBase(ActaHostFixture acta) : IClassFixture<ActaHos
 
 using System.Collections.Concurrent;
 
-namespace Acta.Concepts.TestingDurable;
+namespace Acta.Learn.TestingDurable;
 
 public sealed record PlaceOrder(string OrderId, decimal Amount);
 

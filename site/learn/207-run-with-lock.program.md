@@ -1,6 +1,6 @@
 # The whole program: let one job at a time touch a resource
 
-The how-to is [/learn/207-run-with-lock.md](/learn/207-run-with-lock.md). This file holds every source file of `concepts/200-durable-execution/207-run-with-lock` as it is compiled.
+The how-to is [/learn/207-run-with-lock.md](/learn/207-run-with-lock.md). This file holds every source file of `learn/200-durable-execution/207-run-with-lock` as it is compiled.
 
 ## Not in the packages
 
@@ -14,7 +14,7 @@ The how-to is [/learn/207-run-with-lock.md](/learn/207-run-with-lock.md). This f
 // How to let one job at a time touch a resource
 // `RunWithLockAsync` holds a named lock around a piece of work, so jobs that name the same lock take turns.
 using Acta;
-using Acta.Concepts.RunWithLock;
+using Acta.Learn.RunWithLock;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -39,7 +39,7 @@ Console.WriteLine("Enqueued 2 jobs. Worker is running - press Ctrl+C to stop.");
 await host.WaitForShutdownAsync();
 await host.StopAsync();
 
-namespace Acta.Concepts.RunWithLock
+namespace Acta.Learn.RunWithLock
 {
     public sealed record UpdateInventory(string Sku);
 

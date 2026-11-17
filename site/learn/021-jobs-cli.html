@@ -65,7 +65,7 @@
       <p class="howto-context">A how-to for Acta, durable execution for .NET. <a href="/start">New to Acta? Run your first durable job in five minutes.</a></p>
       <div class="howto-meta">
         <span class="status checked">Checked every release</span><span class="mark">Lab</span>
-        <a class="program" href="https://github.com/acta-dotnet/acta/tree/main/concepts/000-fundamentals/021-jobs-cli"><code>concepts/000-fundamentals/021-jobs-cli</code></a>
+        <a class="program" href="https://github.com/acta-dotnet/acta/tree/main/learn/000-fundamentals/021-jobs-cli"><code>learn/000-fundamentals/021-jobs-cli</code></a>
         <div class="reader" role="group" aria-label="Read this page as">
         <span class="reader-label">Read as</span>
         <button type="button" data-reader="person" aria-pressed="true">a person</button>
@@ -77,7 +77,7 @@
       <article class="howto person-face">
 <div class="step"><h2><span class="step-n">1</span>Run the app's own binary with a jobs verb</h2>
 <p>A first argument of <code>jobs</code> runs that verb against the app's database and exits; without it the process starts as a normal worker. The program needs no line of its own for this.</p>
-<figure class="listing"><figcaption><span class="file">jobs-cli.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="hl"><span class="k">const</span> <span class="k">string</span> cli = <span class="s">&quot;dotnet run --project concepts/000-fundamentals/021-jobs-cli -- jobs&quot;</span>;</span>
+<figure class="listing"><figcaption><span class="file">jobs-cli.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="hl"><span class="k">const</span> <span class="k">string</span> cli = <span class="s">&quot;dotnet run --project learn/000-fundamentals/021-jobs-cli -- jobs&quot;</span>;</span>
 <span class="hl">Console.WriteLine(<span class="s">$&quot;Enqueued signal-waiting job {enqueued.JobRef}. From another terminal, try:&quot;</span>);</span>
 <span class="hl">Console.WriteLine(<span class="s">$&quot;  {cli} info {enqueued.JobRef}&quot;</span>);</span>
 <span class="hl">Console.WriteLine(<span class="s">$&quot;  {cli} events {enqueued.JobRef}&quot;</span>);</span>
@@ -102,7 +102,7 @@
 </div>
 <div class="step"><h2><span class="step-n">3</span>Run it and check the output</h2>
 <p>From a clone of <a href="https://github.com/acta-dotnet/acta">the Acta repository</a>, with the .NET 10 SDK:</p>
-<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project concepts/000-fundamentals/021-jobs-cli</code></pre></figure>
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project learn/000-fundamentals/021-jobs-cli</code></pre></figure>
 <figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button">Copy</button></figcaption><pre><code>[contract-42] indexed; waiting for legal approval
 | suspended</code></pre></figure>
 <p class="proof checked"><b>Checked every release.</b> Before each release, Acta Verify runs this program and checks that its output contains these lines.</p>
@@ -120,12 +120,12 @@
 <p>Operators need access to the application artifact and its configuration/secrets. CLI availability is tied to that deployment, and direct mutation still needs organizational authorization and audit policy.</p>
 <h3>Run the experiment</h3>
 <p>Terminal 1:</p>
-<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project concepts/000-fundamentals/021-jobs-cli</code></pre></figure>
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project learn/000-fundamentals/021-jobs-cli</code></pre></figure>
 <p>Use the printed job ref in terminal 2:</p>
-<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project concepts/000-fundamentals/021-jobs-cli -- jobs info &lt;job-ref&gt;
-dotnet run --project concepts/000-fundamentals/021-jobs-cli -- jobs events &lt;job-ref&gt;
-dotnet run --project concepts/000-fundamentals/021-jobs-cli -- jobs explain &lt;job-ref&gt;
-dotnet run --project concepts/000-fundamentals/021-jobs-cli -- jobs debug &lt;job-ref&gt; --break</code></pre></figure>
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project learn/000-fundamentals/021-jobs-cli -- jobs info &lt;job-ref&gt;
+dotnet run --project learn/000-fundamentals/021-jobs-cli -- jobs events &lt;job-ref&gt;
+dotnet run --project learn/000-fundamentals/021-jobs-cli -- jobs explain &lt;job-ref&gt;
+dotnet run --project learn/000-fundamentals/021-jobs-cli -- jobs debug &lt;job-ref&gt; --break</code></pre></figure>
 <h3>Rows to inspect</h3>
 <p>Run with <code>--all-columns</code> to execute the visible <code>SELECT *</code> Explore query first. The default Notice queries select the fields that prove the lesson, and the text below explains their meaning.</p>
 <p><code>info</code> is the current snapshot, <code>events</code> is the path to it, <code>explain</code> interprets durable state and gives operator guidance, and direct <code>jobs_view</code> SQL is the evidence below all three. The CLI and views are operator surfaces; application code should normally call <code>IJobs</code>.</p>
@@ -134,22 +134,22 @@ dotnet run --project concepts/000-fundamentals/021-jobs-cli -- jobs debug &lt;jo
 <h3>When not to use</h3>
 <p>Prefer a centrally authorized control plane when operators cannot safely receive application secrets or artifacts. Prefer the dashboard for broad visual triage and automation APIs for repeatable fleet actions.</p>
 <h3>Source trail</h3>
-<ul class="plain"><li><a href="https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md">The related Engineering Lab</a></li><li><a href="https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md">The explanation Engineering Lab</a></li><li><a href="https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md">The persisted-debugging Engineering Lab</a></li><li><a href="https://github.com/acta-dotnet/acta/blob/main/concepts/000-fundamentals/021-jobs-cli/jobs-cli.cs"><code>jobs-cli.cs</code></a></li><li><a href="https://github.com/acta-dotnet/acta/blob/main/src/Acta/Cli/CliCommandRunner.cs"><code>CliCommandRunner.cs</code></a></li><li><a href="https://github.com/acta-dotnet/acta/blob/main/src/Acta/Operations/Jobs/ExplainJob/ExplainJobHandler.cs"><code>ExplainJobHandler.cs</code></a></li></ul>
+<ul class="plain"><li><a href="https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md">The related Engineering Lab</a></li><li><a href="https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md">The explanation Engineering Lab</a></li><li><a href="https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md">The persisted-debugging Engineering Lab</a></li><li><a href="https://github.com/acta-dotnet/acta/blob/main/learn/000-fundamentals/021-jobs-cli/jobs-cli.cs"><code>jobs-cli.cs</code></a></li><li><a href="https://github.com/acta-dotnet/acta/blob/main/src/Acta/Cli/CliCommandRunner.cs"><code>CliCommandRunner.cs</code></a></li><li><a href="https://github.com/acta-dotnet/acta/blob/main/src/Acta/Operations/Jobs/ExplainJob/ExplainJobHandler.cs"><code>ExplainJobHandler.cs</code></a></li></ul>
 </details>
 <div class="step plain-step"><h2>The whole program</h2>
-<p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/concepts/000-fundamentals/021-jobs-cli"><code>concepts/000-fundamentals/021-jobs-cli</code></a>, as it is compiled.</p>
-<p class="hint"><code>UseLocalDatabase</code> and <code>ConceptLab</code> are helpers of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
+<p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/learn/000-fundamentals/021-jobs-cli"><code>learn/000-fundamentals/021-jobs-cli</code></a>, as it is compiled.</p>
+<p class="hint"><code>UseLocalDatabase</code> and <code>LearnLab</code> are helpers of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
 <details class="source-file"><summary><span class="file-name">jobs-cli.cs</span><span class="file-size">94 lines</span></summary><figure class="listing"><figcaption><span class="file">jobs-cli.cs</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="c">// How to inspect a job from the command line</span>
 <span class="c">// The app's own binary answers `jobs info`, `events`, `explain`, and the control verbs for any job, read from the</span>
 <span class="c">// same database.</span>
 <span class="k">using</span> Acta;
-<span class="k">using</span> Acta.Concepts.JobsCli;
 <span class="k">using</span> Acta.Labs;
+<span class="k">using</span> Acta.Learn.JobsCli;
 <span class="k">using</span> Microsoft.Extensions.DependencyInjection;
 <span class="k">using</span> Microsoft.Extensions.Hosting;
 
 <span class="k">var</span> builder = Host.CreateApplicationBuilder(args);
-<span class="k">var</span> lab = <span class="k">new</span> ConceptLab(builder.Configuration, args);
+<span class="k">var</span> lab = <span class="k">new</span> LearnLab(builder.Configuration, args);
 
 builder.Services.UseActa(j =&gt;
 {
@@ -183,7 +183,7 @@ builder.Services.UseActa(j =&gt;
 <span class="c">// learn: Run the app's own binary with a jobs verb</span>
 <span class="c">// A first argument of `jobs` runs that verb against the app's database and exits; without it the process starts as</span>
 <span class="c">// a normal worker. The program needs no line of its own for this.</span>
-<span class="hl"><span class="k">const</span> <span class="k">string</span> cli = <span class="s">&quot;dotnet run --project concepts/000-fundamentals/021-jobs-cli -- jobs&quot;</span>;</span>
+<span class="hl"><span class="k">const</span> <span class="k">string</span> cli = <span class="s">&quot;dotnet run --project learn/000-fundamentals/021-jobs-cli -- jobs&quot;</span>;</span>
 <span class="hl">Console.WriteLine(<span class="s">$&quot;Enqueued signal-waiting job {enqueued.JobRef}. From another terminal, try:&quot;</span>);</span>
 <span class="hl">Console.WriteLine(<span class="s">$&quot;  {cli} info {enqueued.JobRef}&quot;</span>);</span>
 <span class="hl">Console.WriteLine(<span class="s">$&quot;  {cli} events {enqueued.JobRef}&quot;</span>);</span>
@@ -218,7 +218,7 @@ Console.WriteLine(<span class="s">&quot;Worker is running - press Ctrl+C to stop
 <span class="k">await</span> host.WaitForShutdownAsync();
 <span class="k">await</span> host.StopAsync();
 
-<span class="k">namespace</span> Acta.Concepts.JobsCli
+<span class="k">namespace</span> Acta.Learn.JobsCli
 {
     <span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> ReviewDocument(<span class="k">string</span> DocumentId);
 
@@ -296,7 +296,7 @@ Console.WriteLine(<span class="s">&quot;Worker is running - press Ctrl+C to stop
             <a href="/start">Get started</a>
             <a href="/learn">Learn Acta</a>
             <a href="https://github.com/acta-dotnet/acta/tree/main/docs">Documentation</a>
-            <a href="https://github.com/acta-dotnet/acta/tree/main/concepts">Runnable concepts</a>
+            <a href="https://github.com/acta-dotnet/acta/tree/main/learn">How-to programs</a>
             <a href="https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md">Engineering labs</a>
             <a href="/llms.txt">llms.txt for coding agents</a>
           </nav>

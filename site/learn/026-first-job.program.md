@@ -1,6 +1,6 @@
 # The whole program: build the first-job guide's app
 
-The how-to is [/learn/026-first-job.md](/learn/026-first-job.md). This file holds every source file of `concepts/000-fundamentals/026-first-job` as it is compiled.
+The how-to is [/learn/026-first-job.md](/learn/026-first-job.md). This file holds every source file of `learn/000-fundamentals/026-first-job` as it is compiled.
 
 ## The whole program
 

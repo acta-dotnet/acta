@@ -1,6 +1,6 @@
 # The whole program: cut off an attempt that runs too long
 
-The how-to is [/learn/304-execution-timeout.md](/learn/304-execution-timeout.md). This file holds every source file of `concepts/300-failure-and-recovery/304-execution-timeout` as it is compiled.
+The how-to is [/learn/304-execution-timeout.md](/learn/304-execution-timeout.md). This file holds every source file of `learn/300-failure-and-recovery/304-execution-timeout` as it is compiled.
 
 ## Not in the packages
 
@@ -15,7 +15,7 @@ The how-to is [/learn/304-execution-timeout.md](/learn/304-execution-timeout.md)
 // `ExecutionTimeout` caps one attempt: when the time is up, the handler's `CancellationToken` trips and the attempt
 // ends as a timeout.
 using Acta;
-using Acta.Concepts.ExecutionTimeout;
+using Acta.Learn.ExecutionTimeout;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -44,7 +44,7 @@ Console.WriteLine($"status={snapshot!.Status}");
 
 await host.StopAsync();
 
-namespace Acta.Concepts.ExecutionTimeout
+namespace Acta.Learn.ExecutionTimeout
 {
     public sealed record SlowReport(string Name);
 
