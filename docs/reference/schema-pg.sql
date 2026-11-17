@@ -12,7 +12,7 @@
 -- present and leaves the data in place. Over a database a newer release upgraded, the script stops
 -- before changing anything. A later 1.x release upgrades a 1.x database with
 -- its own migrations, carried in its own copy of this script. A database provisioned from an
--- init migration other than M20261117170648_init has no upgrade path: provision a new one.
+-- init migration other than M20261117194324_init has no upgrade path: provision a new one.
 --
 -- Run it with a client that stops at the first error, which is what makes the transaction below a
 -- guarantee: psql -v ON_ERROR_STOP=1. A client that runs on past a failed statement would reach the
@@ -41,14 +41,14 @@ DO $$
 BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
-        WHERE name NOT IN ('M20261117170648_init')
+        WHERE name NOT IN ('M20261117194324_init')
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
 END
 $$;
 
--- ===== BEGIN M20261117170648_init =====
+-- ===== BEGIN M20261117194324_init =====
 CREATE SCHEMA IF NOT EXISTS acta;
 
 -- alerts
@@ -3224,12 +3224,12 @@ BEGIN
     END IF;
 
     IF v_event_recording = 20 /* EventRecordingCode.Audit */ THEN
-        -- A child's latch names the child by its ref and how it ended, beside the reason the raise carries.
+        -- The raise names what was raised: a signal by its name, a child's latch by the child's ref and how it ended.
+        -- That it released the job is the reason of the job.resumed beside it. A signal's name is dotted kebab ASCII.
         v_details := CASE
-            WHEN p_child_job_id IS NULL THEN p_details
+            WHEN p_child_job_id IS NULL THEN convert_to('{"signal":"' || p_checkpoint_name || '"}', 'UTF8')
             ELSE convert_to(
                 json_strip_nulls(json_build_object(
-                    'reason', convert_from(p_details, 'UTF8')::json ->> 'reason',
                     'child', (SELECT 'job_' || replace(c.job_ref::text, '-', '') FROM acta.jobs c WHERE c.job_id = p_child_job_id),
                     'status', CASE p_child_status
                         WHEN 100 /* JobStatusCode.Succeeded */ THEN 'succeeded'
@@ -4574,10 +4574,10 @@ JOIN acta.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO acta.migrations (name)
-VALUES ('M20261117170648_init')
+VALUES ('M20261117194324_init')
 ON CONFLICT (name) DO NOTHING;
 
--- ===== END M20261117170648_init =====
+-- ===== END M20261117194324_init =====
 
 COMMIT;
 

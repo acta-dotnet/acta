@@ -73,6 +73,8 @@ public sealed class SignalStepWakeChaosSpec : ActaRuntimeTestBase<ConformanceFix
         var raised = Assert.Single(events, e => e.EventCode == EventCode.JobSignalRaised);
         var resumed = Assert.Single(events, e => e.EventCode == EventCode.JobResumed);
         Assert.True(suspended.Id < raised.Id && raised.Id < resumed.Id);
+        // The raise names its signal; that it released the job is the resume's reason.
+        Assert.Equal((null, EventReason.SignalReleased), (raised.Reason, resumed.Reason));
     }
 
     [Fact(DisplayName = "A failed at-most-once step fails the parent exactly once")]

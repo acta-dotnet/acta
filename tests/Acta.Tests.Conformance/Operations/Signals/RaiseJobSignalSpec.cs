@@ -45,7 +45,8 @@ public sealed class RaiseJobSignalSpec : ActaRuntimeTestBase<ConformanceFixture,
         Assert.Equal("Jože Kovač", evt.Actor);
         Assert.Equal("Signal 'review' raised.", evt.EventMessage);
         Assert.Null(EventDetail(evt, "actor"));
-        Assert.Equal(EventReason.SignalReleased, EventDetail(evt, "reason"));
+        // The job was not parked on the signal, so nothing was released: the raise names its signal and no reason.
+        Assert.Null(EventDetail(evt, "reason"));
         Assert.Equal("review", EventDetail(evt, "signal"));
     }
 
@@ -133,7 +134,7 @@ public sealed class RaiseJobSignalSpec : ActaRuntimeTestBase<ConformanceFixture,
 
         var raised = await ReadSingleEventAsync(parent.JobId, EventCode.JobSignalRaised, ct);
         Assert.Equal(
-            (EventReason.SignalReleased, child.JobRef.ToString(), "cancelled"),
+            ((string?)null, child.JobRef.ToString(), "cancelled"),
             (EventDetail(raised, "reason"), EventDetail(raised, "child"), EventDetail(raised, "status"))
         );
     }

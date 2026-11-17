@@ -14,7 +14,7 @@
 -- present and leaves the data in place. Over a database a newer release upgraded, the script stops
 -- before changing anything. A later 1.x release upgrades a 1.x database with
 -- its own migrations, carried in its own copy of this script. A database provisioned from an
--- init migration other than M20261117170648_init has no upgrade path: provision a new one.
+-- init migration other than M20261117194324_init has no upgrade path: provision a new one.
 --
 -- Run it with a client that stops at the first error, which is what makes the transaction below a
 -- guarantee: sqlcmd -b, or SQLCMD mode with stop-on-error in SSMS. A client that runs on past a failed
@@ -57,7 +57,7 @@ GO
 -- ===== refuse a database a newer release already upgraded =====
 IF EXISTS (
     SELECT 1 FROM acta.migrations
-    WHERE name NOT IN ('M20261117170648_init')
+    WHERE name NOT IN ('M20261117194324_init')
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -65,7 +65,7 @@ BEGIN
     SET NOEXEC ON;
 END
 GO
--- ===== BEGIN M20261117170648_init =====
+-- ===== BEGIN M20261117194324_init =====
 SET QUOTED_IDENTIFIER ON;
 SET ANSI_NULLS ON;
 GO
@@ -3818,11 +3818,12 @@ BEGIN
                         job_id = @p_job_id AND checkpoint_kind_code = @p_checkpoint_kind_code AND checkpoint_name = @p_checkpoint_name;
             END
 
-        -- A child's latch names the child by its ref and how it ended, beside the reason the raise carries.
-        DECLARE @details VARBINARY(MAX) = @p_details;
+        -- The raise names what was raised: a signal by its name, a child's latch by the child's ref and how it ended.
+        -- That it released the job is the reason of the job.resumed beside it. A signal's name is dotted kebab ASCII.
+        DECLARE @details VARBINARY(MAX) = CAST('{"signal":"' + @p_checkpoint_name + '"}' AS VARBINARY(MAX));
         IF @p_child_job_id IS NOT NULL
             SET @details = CAST(
-                '{' + COALESCE('"reason":"' + CAST(JSON_VALUE(CAST(@p_details AS VARCHAR(MAX)), '$.reason') AS VARCHAR(64)) + '",', '')
+                '{'
                 + COALESCE(
                     '"child":"job_'
                     + LOWER(REPLACE(CONVERT(CHAR(36), (SELECT c.job_ref FROM acta.jobs c WHERE c.job_id = @p_child_job_id)), '-', ''))
@@ -5253,11 +5254,11 @@ JOIN acta.namespaces AS ns ON ns.namespace_id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261117170648_init')
+IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261117194324_init')
 INSERT INTO acta.migrations (name)
-VALUES ('M20261117170648_init');
+VALUES ('M20261117194324_init');
 GO
--- ===== END M20261117170648_init =====
+-- ===== END M20261117194324_init =====
 GO
 COMMIT TRANSACTION;
 GO

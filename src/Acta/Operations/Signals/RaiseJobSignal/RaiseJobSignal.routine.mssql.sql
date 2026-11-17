@@ -173,11 +173,12 @@ BEGIN
                         job_id = @p_job_id AND checkpoint_kind_code = @p_checkpoint_kind_code AND checkpoint_name = @p_checkpoint_name;
             END
 
-        -- A child's latch names the child by its ref and how it ended, beside the reason the raise carries.
-        DECLARE @details VARBINARY(MAX) = @p_details;
+        -- The raise names what was raised: a signal by its name, a child's latch by the child's ref and how it ended.
+        -- That it released the job is the reason of the job.resumed beside it. A signal's name is dotted kebab ASCII.
+        DECLARE @details VARBINARY(MAX) = CAST('{"signal":"' + @p_checkpoint_name + '"}' AS VARBINARY(MAX));
         IF @p_child_job_id IS NOT NULL
             SET @details = CAST(
-                '{' + COALESCE('"reason":"' + CAST(JSON_VALUE(CAST(@p_details AS VARCHAR(MAX)), '$.reason') AS VARCHAR(64)) + '",', '')
+                '{'
                 + COALESCE(
                     '"child":"job_'
                     + LOWER(REPLACE(CONVERT(CHAR(36), (SELECT c.job_ref FROM {{schema}}.jobs c WHERE c.job_id = @p_child_job_id)), '-', ''))
