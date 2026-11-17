@@ -108,8 +108,8 @@ internal sealed class JobRequestRouting(
         {
             throw new InvalidOperationException(
                 $"Job '{jobNamespace}/{jobName}' produces '{descriptor.ResultType?.FullName ?? "no result"}', not "
-                    + $"'{typeof(TResult).FullName}'. A deduplication key shared across definitions returns the job that "
-                    + "already holds it; wait on it with its own result type."
+                    + $"'{typeof(TResult).FullName}': wait on it with its own result type. A job an enqueue handed back "
+                    + "because another definition's job holds its deduplication key is that other job."
             );
         }
     }
@@ -129,9 +129,9 @@ internal sealed class JobRequestRouting(
         if (descriptors.Find(row.JobNamespace, row.JobName) is { } descriptor && descriptor.InputType != typeof(TInput))
         {
             throw new InvalidOperationException(
-                $"Job '{row.JobNamespace}/{row.JobName}' takes '{descriptor.InputType.FullName}', not '{typeof(TInput).FullName}'. "
-                    + "A deduplication key shared across definitions returns the job that already holds it; read its input "
-                    + "as its own input type."
+                $"Job '{row.JobNamespace}/{row.JobName}' takes '{descriptor.InputType.FullName}', not '{typeof(TInput).FullName}': "
+                    + "read its input as its own type. A job an enqueue handed back because another definition's job holds "
+                    + "its deduplication key is that other job."
             );
         }
 
