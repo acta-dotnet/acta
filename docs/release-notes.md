@@ -6,9 +6,9 @@ Not yet released. rc.14 gives every persisted code its final name and id before 
 
 ### What a consumer must change
 
-**Drop and reprovision every database an earlier candidate provisioned**: the baseline is re-cut as `M20261117170648_init`, one migration in place of rc.12's history, and nothing translates it. No table, column, index or constraint is added, dropped or renamed; what changed is the stored id of the codes below. A paging cursor an earlier candidate issued is refused, so start a list again.
+**Drop and reprovision every database an earlier candidate provisioned**: the baseline is re-cut, one migration in place of rc.12's history, and nothing translates it. No table, column, index or constraint is added, dropped or renamed; what changed is the stored id of the codes below.
 
-**Drain a producer's outbox before upgrading**: an outbox row stores the priority it was staged with, and one staged at `bulk` (0) or `critical` (85) carries an id rc.14 does not take, so the relay refuses and quarantines it. A row staged at another priority, or with none, relays as before, and the outbox table itself is unchanged.
+**Drain a producer's outbox before upgrading**: an outbox row stores the priority it was staged with, and one staged at `bulk` (0) or `critical` (85) carries an id rc.14 does not take: the relay refuses it on every attempt and quarantines it once its retries are spent. The outbox table itself is unchanged.
 
 **Rename the codes that changed**, in a request body, a query string, and any text matched against a view or a response:
 
@@ -34,7 +34,7 @@ The C# members follow: `EventCode.JobInputUpdated`, `ScheduleFullBehaviorCode.Sk
 
 **Find a durable sleep under `job.slept`**: a sleep wrote the events of a durable wait, `job.execution-yielded` with the outcome `suspended` and `job.suspended` with `"to":"ready"` in its details. It now writes the outcome `slept` and its own event, `job.slept`, both with the reason `handler-slept` where they read `handler-suspended`. `job.suspended` is a wait on a signal or on child jobs and nothing else, and neither event's details carry `to`. The `acta.executions` and `acta.executions.duration` metrics tag a sleep `outcome="slept"`, where it counted under `suspended`.
 
-**Name a priority, an alert profile and a tenant requirement where code left one to `default`**: id 0 is `unspecified` in every family, where it was `bulk`, `none` and `optional` in these three, so `default(JobPriorityCode)` is no longer `Bulk` and `default(AlertProfileCode)` no longer `None`. No door takes `Unspecified`: an enqueue or a reprioritize with it is refused, with a 400 over HTTP, a `[Job]` that declares it is a build error (ACTA0105), a hand-built `JobDescriptor` with it fails registration, and a definition override of it overrides nothing. What `[Job]` defaults to is unchanged.
+**Name a priority, an alert profile and a tenant requirement where code left one to `default`**: id 0 is `unspecified` in every family, where it was `bulk`, `none` and `optional` in these three, so `default(JobPriorityCode)` is no longer `Bulk` and `default(AlertProfileCode)` no longer `None`. `Unspecified` is never stored: an enqueue or a reprioritize with it is refused, with a 400 over HTTP, a `[Job]` that declares it is a build error (ACTA0105), a hand-built `JobDescriptor` with it fails registration, and a definition override of it overrides nothing. What `[Job]` defaults to is unchanged.
 
 **Set `Enabled = false` to switch an alert channel off**: `AlertChannelOptions.Status` and `AlertChannelStatusCode` are gone, and `o.Enabled = false` does what `o.Status = AlertChannelStatusCode.Disabled` did. `[ReservedCodeRange]` is gone too; only Acta's own event family used it.
 

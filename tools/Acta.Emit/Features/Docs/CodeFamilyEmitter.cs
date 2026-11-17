@@ -58,7 +58,7 @@ internal static class CodeFamilyEmitter
         sb.AppendLine("  - `230`, interruption;");
         sb.AppendLine("  - `240`, retirement.");
         sb.AppendLine("- The same word has the same id in every status family.");
-        sb.AppendLine("- A kind or policy family is spaced by ten from `10`.");
+        sb.AppendLine("- A kind or policy family is spaced by ten from `10`; `JobPriorityCode` alone keeps wider bands.");
         sb.AppendLine(
             "- `EventCode` and `EntityCode` are one run from `1`, sorted by code at the 1.0 freeze; a new member takes the highest id plus one."
         );

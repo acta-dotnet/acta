@@ -24,7 +24,7 @@ This release: **32 families**, **192 values**.
   - `230`, interruption;
   - `240`, retirement.
 - The same word has the same id in every status family.
-- A kind or policy family is spaced by ten from `10`.
+- A kind or policy family is spaced by ten from `10`; `JobPriorityCode` alone keeps wider bands.
 - `EventCode` and `EntityCode` are one run from `1`, sorted by code at the 1.0 freeze; a new member takes the highest id plus one.
 - `255` is reserved and rejected in closed code families.
 
