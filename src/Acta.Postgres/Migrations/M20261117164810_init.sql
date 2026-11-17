@@ -618,7 +618,7 @@ BEGIN
 
         UPDATE {{schema}}.checkpoints jt
         SET
-            checkpoint_status_code = 100 /* CheckpointStatusCode.Consumed */,
+            checkpoint_status_code = 120 /* CheckpointStatusCode.Consumed */,
             modified_at_utc = now(),
             version = jt.version + 1
         WHERE
@@ -1055,7 +1055,7 @@ BEGIN
             r.lane_id,
             j.parent_job_id,
             -- A wait with no checkpoint has nothing to wait on, so it lands Ready as one whose raise won the race does.
-            COALESCE(s.checkpoint_status_code, 20 /* CheckpointStatusCode.Set */) AS sig_state,
+            COALESCE(s.checkpoint_status_code, 110 /* CheckpointStatusCode.Set */) AS sig_state,
             s.due_at_utc AS sig_due
         FROM {{schema}}.jobs_state r
         INNER JOIN completions c ON c.job_id = r.job_id AND c.execution_number = r.execution_number
@@ -1078,7 +1078,7 @@ BEGIN
             job_status_code = t.to_status,
             next_run_at_utc = CASE
                 WHEN t.to_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) THEN NULL
-                WHEN c.wait_signal_name IS NOT NULL AND e.sig_state = 20 /* CheckpointStatusCode.Set */ THEN now()
+                WHEN c.wait_signal_name IS NOT NULL AND e.sig_state = 110 /* CheckpointStatusCode.Set */ THEN now()
                 WHEN c.wait_signal_name IS NOT NULL THEN e.sig_due
                 WHEN c.reschedule_event_code IS NOT NULL
                     THEN COALESCE(c.reschedule_resume_at_utc, now() + make_interval(secs => c.reschedule_delay_seconds))
@@ -1104,7 +1104,7 @@ BEGIN
         INNER JOIN completions c ON c.job_id = e.job_id AND c.execution_number = e.execution_number
         CROSS JOIN LATERAL (
             SELECT CASE
-                WHEN c.wait_signal_name IS NOT NULL AND e.sig_state = 20 /* CheckpointStatusCode.Set */ THEN 10 /* JobStatusCode.Ready */
+                WHEN c.wait_signal_name IS NOT NULL AND e.sig_state = 110 /* CheckpointStatusCode.Set */ THEN 10 /* JobStatusCode.Ready */
                 WHEN c.wait_signal_name IS NOT NULL THEN 20 /* JobStatusCode.Suspended */
                 WHEN c.reschedule_event_code IS NOT NULL THEN 10 /* JobStatusCode.Ready */
                 WHEN c.handler_job_status_code IS NOT NULL THEN c.handler_job_status_code
@@ -1157,9 +1157,9 @@ BEGIN
             UPDATE {{schema}}.checkpoints cp
             SET
                 checkpoint_status_code = CASE
-                    WHEN COALESCE(c.final_job_status_code, r.job_status_code) = 220 /* JobStatusCode.Cancelled */ THEN 130 /* CheckpointStatusCode.Cancelled */
-                    WHEN COALESCE(c.final_job_status_code, r.job_status_code) = 200 /* JobStatusCode.Failed */ OR NOT c.succeeded THEN 120 /* CheckpointStatusCode.Failed */
-                    ELSE 110 /* CheckpointStatusCode.Succeeded */
+                    WHEN COALESCE(c.final_job_status_code, r.job_status_code) = 220 /* JobStatusCode.Cancelled */ THEN 220 /* CheckpointStatusCode.Cancelled */
+                    WHEN COALESCE(c.final_job_status_code, r.job_status_code) = 200 /* JobStatusCode.Failed */ OR NOT c.succeeded THEN 200 /* CheckpointStatusCode.Failed */
+                    ELSE 100 /* CheckpointStatusCode.Succeeded */
                 END,
                 modified_at_utc = now(),
                 version = cp.version + 1
@@ -1410,7 +1410,7 @@ BEGIN
                     END || COALESCE(': ' || c.event_message, '.'),
                     512
                 ) AS landing,
-                COALESCE(l.checkpoint_status_code = 30 /* CheckpointStatusCode.Expired */, FALSE) AS latch_expired,
+                COALESCE(l.checkpoint_status_code = 150 /* CheckpointStatusCode.Expired */, FALSE) AS latch_expired,
                 COALESCE(l.checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */, FALSE) AS latch_pending,
                 pr.job_status_code AS parent_status,
                 pr.execution_number AS parent_execution,
@@ -1443,7 +1443,7 @@ BEGIN
                 s.parent_job_id,
                 50 /* CheckpointKindCode.Child */,
                 'sys.child.' || s.child_job_id::text,
-                20 /* CheckpointStatusCode.Set */,
+                110 /* CheckpointStatusCode.Set */,
                 1 /* JobPayloadFormat.Json */,
                 -- A failed landing carries its message, so the parent's outcome can say why without reading the child's timeline.
                 convert_to(
@@ -1463,7 +1463,7 @@ BEGIN
             FROM settled s
             WHERE NOT s.latch_expired
             ON CONFLICT ON CONSTRAINT pk_checkpoints DO UPDATE SET
-                checkpoint_status_code = 20 /* CheckpointStatusCode.Set */,
+                checkpoint_status_code = 110 /* CheckpointStatusCode.Set */,
                 value_format_id = EXCLUDED.value_format_id,
                 value = EXCLUDED.value,
                 modified_at_utc = now(),
@@ -3075,7 +3075,7 @@ BEGIN
                         js.job_id = p_job_id
                         AND js.checkpoint_kind_code = p_checkpoint_kind_code
                         AND js.checkpoint_name = p_checkpoint_name
-                        AND js.checkpoint_status_code = 20 /* CheckpointStatusCode.Set */
+                        AND js.checkpoint_status_code = 110 /* CheckpointStatusCode.Set */
                         AND js.value_format_id = p_value_format_id
                         AND js.value IS NOT DISTINCT FROM p_value
                 )
@@ -3108,11 +3108,11 @@ BEGIN
     -- since a restarted child's next landing must reach its parent.
     IF
         p_checkpoint_kind_code <> 50 /* CheckpointKindCode.Child */
-        AND v_existing IN (20 /* CheckpointStatusCode.Set */, 30 /* CheckpointStatusCode.Expired */)
+        AND v_existing IN (110 /* CheckpointStatusCode.Set */, 150 /* CheckpointStatusCode.Expired */)
     THEN
         RETURN QUERY SELECT
             CASE
-                WHEN v_existing = 20 /* CheckpointStatusCode.Set */ AND v_fmt = p_value_format_id AND v_val IS NOT DISTINCT FROM p_value
+                WHEN v_existing = 110 /* CheckpointStatusCode.Set */ AND v_fmt = p_value_format_id AND v_val IS NOT DISTINCT FROM p_value
                     THEN 6 /* ControlAction.AlreadyInState */
                 ELSE 3 /* ControlAction.Rejected */
             END::SMALLINT,
@@ -3125,7 +3125,7 @@ BEGIN
        a message saying why it changed nothing, and the verb reports the job's unchanged status. */
     -- COALESCE, not a bare comparison: a first raise has no checkpoint at all, and NULL = 30 is unknown, which
     -- would skip the upsert below rather than take it.
-    v_expired := COALESCE(v_existing = 30 /* CheckpointStatusCode.Expired */, FALSE);
+    v_expired := COALESCE(v_existing = 150 /* CheckpointStatusCode.Expired */, FALSE);
     -- A child's landing names the child as its parent named it, and how it ended; a purged child keeps its id.
     v_landing := COALESCE(
         p_event_message,
@@ -3158,14 +3158,14 @@ BEGIN
             p_job_id,
             p_checkpoint_kind_code,
             p_checkpoint_name,
-            20 /* CheckpointStatusCode.Set */,
+            110 /* CheckpointStatusCode.Set */,
             p_value_format_id,
             p_value,
             v_now,
             v_now,
             0)
         ON CONFLICT (job_id, checkpoint_kind_code, checkpoint_name) DO UPDATE SET
-            checkpoint_status_code = 20 /* CheckpointStatusCode.Set */,
+            checkpoint_status_code = 110 /* CheckpointStatusCode.Set */,
             value_format_id = EXCLUDED.value_format_id,
             value = EXCLUDED.value,
             modified_at_utc = v_now,
@@ -3492,7 +3492,7 @@ BEGIN
                 WHERE
                     c.job_id = r.job_id
                     AND c.checkpoint_kind_code IN (20 /* CheckpointKindCode.Signal */, 50 /* CheckpointKindCode.Child */)
-                    AND c.checkpoint_status_code = 30 /* CheckpointStatusCode.Expired */
+                    AND c.checkpoint_status_code = 150 /* CheckpointStatusCode.Expired */
                     AND c.due_at_utc = r.next_run_at_utc
             ) AS wait_resolved,
             -- A slot's spent budget returns it to Idle with its firing settled Failed, never to Failed itself.
@@ -3593,7 +3593,7 @@ BEGIN
     settled AS (
         UPDATE {{schema}}.checkpoints cp
         SET
-            checkpoint_status_code = 120 /* CheckpointStatusCode.Failed */,
+            checkpoint_status_code = 200 /* CheckpointStatusCode.Failed */,
             modified_at_utc = now(),
             version = cp.version + 1
         FROM reclaimed r
@@ -4021,7 +4021,7 @@ BEGIN
     /* A checkpoint this call arms at or past its due is armed Expired, so a child landing after it cannot
        revive the wait, and the wait times out now. Only an instant can be due already: a length is
        positive, so a wait armed with one suspends once before it can expire. */
-    v_arm_state := CASE WHEN v_arm_due <= v_now THEN 30 /* CheckpointStatusCode.Expired */ ELSE 10 /* CheckpointStatusCode.Pending */ END;
+    v_arm_state := CASE WHEN v_arm_due <= v_now THEN 150 /* CheckpointStatusCode.Expired */ ELSE 10 /* CheckpointStatusCode.Pending */ END;
 
     SELECT js.checkpoint_status_code, js.value_format_id, js.value, js.due_at_utc
     INTO v_state, v_fmt, v_val, v_due
@@ -4087,23 +4087,23 @@ BEGIN
     /* A wait this call armed is not resolved further, which keeps one armed with a length suspending once on all
        three providers; mssql and sqlite reach that by construction. */
     IF v_armed = 1 THEN
-        IF v_arm_state = 30 /* CheckpointStatusCode.Expired */ THEN
+        IF v_arm_state = 150 /* CheckpointStatusCode.Expired */ THEN
             v_outcome := 3 /* WaitJobSignalOutcomeCode.TimedOut */;
             v_expired_due := v_arm_due;
         END IF;
-    ELSIF v_state = 20 /* CheckpointStatusCode.Set */ THEN
+    ELSIF v_state = 110 /* CheckpointStatusCode.Set */ THEN
         RETURN QUERY SELECT
             2 /* WaitJobSignalOutcomeCode.ContinueSet */::SMALLINT,
             v_fmt,
             v_val;
         RETURN;
-    ELSIF v_state = 30 /* CheckpointStatusCode.Expired */ THEN
+    ELSIF v_state = 150 /* CheckpointStatusCode.Expired */ THEN
         v_outcome := 3 /* WaitJobSignalOutcomeCode.TimedOut */;
     ELSIF v_state = 10 /* CheckpointStatusCode.Pending */ AND v_due IS NOT NULL AND v_due <= v_now THEN
 
         UPDATE {{schema}}.checkpoints js
         SET
-            checkpoint_status_code = 30 /* CheckpointStatusCode.Expired */,
+            checkpoint_status_code = 150 /* CheckpointStatusCode.Expired */,
             modified_at_utc = v_now,
             version = js.version + 1
         WHERE js.job_id = p_job_id AND js.checkpoint_kind_code = p_checkpoint_kind_code AND js.checkpoint_name = p_checkpoint_name;
@@ -4125,7 +4125,7 @@ BEGIN
             AND js.checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */
             AND js.due_at_utc IS NULL;
 
-        IF v_arm_state = 30 /* CheckpointStatusCode.Expired */ THEN
+        IF v_arm_state = 150 /* CheckpointStatusCode.Expired */ THEN
             v_outcome := 3 /* WaitJobSignalOutcomeCode.TimedOut */;
             v_expired_due := v_arm_due;
         END IF;
@@ -4235,7 +4235,7 @@ SELECT
     c.checkpoint_name,
     CASE c.checkpoint_kind_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'variable' WHEN 20 THEN 'signal' WHEN 30 THEN 'timer' WHEN 40 THEN 'progress' WHEN 50 THEN 'child' WHEN 60 THEN 'firing' END AS checkpoint_kind,
     c.checkpoint_kind_code,
-    CASE c.checkpoint_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'pending' WHEN 20 THEN 'set' WHEN 30 THEN 'expired' WHEN 100 THEN 'consumed' WHEN 110 THEN 'succeeded' WHEN 120 THEN 'failed' WHEN 130 THEN 'cancelled' END AS checkpoint_status,
+    CASE c.checkpoint_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'pending' WHEN 100 THEN 'succeeded' WHEN 110 THEN 'set' WHEN 120 THEN 'consumed' WHEN 150 THEN 'expired' WHEN 200 THEN 'failed' WHEN 220 THEN 'cancelled' END AS checkpoint_status,
     c.checkpoint_status_code,
     c.due_at_utc,
     CASE c.value_format_id
@@ -4523,5 +4523,5 @@ JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261117164354_init')
+VALUES ('M20261117164810_init')
 ON CONFLICT (name) DO NOTHING;

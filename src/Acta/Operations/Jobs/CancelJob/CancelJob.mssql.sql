@@ -143,7 +143,7 @@ BEGIN TRY
     -- and settles nothing twice.
     UPDATE cp
     SET
-        checkpoint_status_code = 130 /* CheckpointStatusCode.Cancelled */,
+        checkpoint_status_code = 220 /* CheckpointStatusCode.Cancelled */,
         modified_at_utc = @now,
         version = cp.version + 1
     FROM {{schema}}.checkpoints cp WITH (FORCESEEK)

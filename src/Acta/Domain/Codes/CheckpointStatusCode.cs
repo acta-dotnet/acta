@@ -17,9 +17,17 @@ public enum CheckpointStatusCode : byte
     [Code("pending", "Awaited or armed; the checkpoint has not been satisfied yet.")]
     Pending = 10,
 
+    /// <summary>A firing envelope settled by a successful firing; the job's last outcome until the next admission.</summary>
+    [Code("succeeded", "The firing settled successfully; it stays the job's last outcome until the next firing replaces it.")]
+    Succeeded = 100,
+
     /// <summary>Raised: the payload is stored and a waiting job proceeds (signals, children).</summary>
     [Code("set", "Raised; the payload is stored and a waiting job proceeds.")]
-    Set = 20,
+    Set = 110,
+
+    /// <summary>Due instant reached and the replayed handler consumed the timer.</summary>
+    [Code("consumed", "The due time was reached; the handler ran again, consumed the timer, and proceeded.")]
+    Consumed = 120,
 
     /// <summary>
     /// Terminal for the checkpoint: the re-entering wait found it still Pending past its stored
@@ -28,21 +36,13 @@ public enum CheckpointStatusCode : byte
     /// reviving a wait that already resolved.
     /// </summary>
     [Code("expired", "The wait ran past its timeout and was settled as timed out; a raise after that skips it.")]
-    Expired = 30,
-
-    /// <summary>Due instant reached and the replayed handler consumed the timer.</summary>
-    [Code("consumed", "The due time was reached; the handler ran again, consumed the timer, and proceeded.")]
-    Consumed = 100,
-
-    /// <summary>A firing envelope settled by a successful firing; the job's last outcome until the next admission.</summary>
-    [Code("succeeded", "The firing settled successfully; it stays the job's last outcome until the next firing replaces it.")]
-    Succeeded = 110,
+    Expired = 150,
 
     /// <summary>A firing envelope settled by a final failure.</summary>
     [Code("failed", "The firing settled as a final failure; it stays the job's last outcome until the next firing replaces it.")]
-    Failed = 120,
+    Failed = 200,
 
     /// <summary>A firing envelope settled by a cancellation.</summary>
     [Code("cancelled", "The firing settled by cancellation; it stays the job's last outcome until the next firing replaces it.")]
-    Cancelled = 130,
+    Cancelled = 220,
 }

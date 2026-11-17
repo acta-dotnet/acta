@@ -179,7 +179,7 @@ BEGIN TRY
         -- held no lock, so only the rows the cancel above moved count; a root claimed or cancelled since is not one.
         UPDATE cp
         SET
-            checkpoint_status_code = 130 /* CheckpointStatusCode.Cancelled */,
+            checkpoint_status_code = 220 /* CheckpointStatusCode.Cancelled */,
             modified_at_utc = @now,
             version = cp.version + 1
         OUTPUT INSERTED.job_id INTO @settled (job_id)

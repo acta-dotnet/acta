@@ -74,7 +74,7 @@ BEGIN
                         js.job_id = p_job_id
                         AND js.checkpoint_kind_code = p_checkpoint_kind_code
                         AND js.checkpoint_name = p_checkpoint_name
-                        AND js.checkpoint_status_code = 20 /* CheckpointStatusCode.Set */
+                        AND js.checkpoint_status_code = 110 /* CheckpointStatusCode.Set */
                         AND js.value_format_id = p_value_format_id
                         AND js.value IS NOT DISTINCT FROM p_value
                 )
@@ -107,11 +107,11 @@ BEGIN
     -- since a restarted child's next landing must reach its parent.
     IF
         p_checkpoint_kind_code <> 50 /* CheckpointKindCode.Child */
-        AND v_existing IN (20 /* CheckpointStatusCode.Set */, 30 /* CheckpointStatusCode.Expired */)
+        AND v_existing IN (110 /* CheckpointStatusCode.Set */, 150 /* CheckpointStatusCode.Expired */)
     THEN
         RETURN QUERY SELECT
             CASE
-                WHEN v_existing = 20 /* CheckpointStatusCode.Set */ AND v_fmt = p_value_format_id AND v_val IS NOT DISTINCT FROM p_value
+                WHEN v_existing = 110 /* CheckpointStatusCode.Set */ AND v_fmt = p_value_format_id AND v_val IS NOT DISTINCT FROM p_value
                     THEN 6 /* ControlAction.AlreadyInState */
                 ELSE 3 /* ControlAction.Rejected */
             END::SMALLINT,
@@ -124,7 +124,7 @@ BEGIN
        a message saying why it changed nothing, and the verb reports the job's unchanged status. */
     -- COALESCE, not a bare comparison: a first raise has no checkpoint at all, and NULL = 30 is unknown, which
     -- would skip the upsert below rather than take it.
-    v_expired := COALESCE(v_existing = 30 /* CheckpointStatusCode.Expired */, FALSE);
+    v_expired := COALESCE(v_existing = 150 /* CheckpointStatusCode.Expired */, FALSE);
     -- A child's landing names the child as its parent named it, and how it ended; a purged child keeps its id.
     v_landing := COALESCE(
         p_event_message,
@@ -157,14 +157,14 @@ BEGIN
             p_job_id,
             p_checkpoint_kind_code,
             p_checkpoint_name,
-            20 /* CheckpointStatusCode.Set */,
+            110 /* CheckpointStatusCode.Set */,
             p_value_format_id,
             p_value,
             v_now,
             v_now,
             0)
         ON CONFLICT (job_id, checkpoint_kind_code, checkpoint_name) DO UPDATE SET
-            checkpoint_status_code = 20 /* CheckpointStatusCode.Set */,
+            checkpoint_status_code = 110 /* CheckpointStatusCode.Set */,
             value_format_id = EXCLUDED.value_format_id,
             value = EXCLUDED.value,
             modified_at_utc = v_now,

@@ -73,7 +73,7 @@ SET
                 AND s.checkpoint_kind_code IN (20 /* CheckpointKindCode.Signal */, 50 /* CheckpointKindCode.Child */)
                 AND s.checkpoint_name = temp._ces_done.wait_signal_name
         ),
-        20 /* CheckpointStatusCode.Set */
+        110 /* CheckpointStatusCode.Set */
     ),
     sig_due = (
         SELECT s.due_at_utc FROM {{schema}}.checkpoints s
@@ -86,7 +86,7 @@ WHERE wait_signal_name IS NOT NULL;
 
 UPDATE temp._ces_done
 SET to_status = 10 /* JobStatusCode.Ready */
-WHERE wait_signal_name IS NOT NULL AND sig_state = 20 /* CheckpointStatusCode.Set */;
+WHERE wait_signal_name IS NOT NULL AND sig_state = 110 /* CheckpointStatusCode.Set */;
 -- end waits
 
 -- begin shapes
@@ -94,7 +94,7 @@ WHERE wait_signal_name IS NOT NULL AND sig_state = 20 /* CheckpointStatusCode.Se
 -- ck_jobs_state_ready_due holds a Ready row to one.
 UPDATE {{schema}}.jobs_state AS r
 SET next_run_at_utc = CASE
-    WHEN d.wait_signal_name IS NOT NULL AND d.sig_state = 20 /* CheckpointStatusCode.Set */ THEN (SELECT now_utc FROM temp._ces_done LIMIT 1)
+    WHEN d.wait_signal_name IS NOT NULL AND d.sig_state = 110 /* CheckpointStatusCode.Set */ THEN (SELECT now_utc FROM temp._ces_done LIMIT 1)
     WHEN d.wait_signal_name IS NOT NULL THEN d.sig_due
     WHEN d.reschedule_event_code IS NOT NULL THEN COALESCE(d.reschedule_resume_at_utc, (SELECT now_utc FROM temp._ces_done LIMIT 1) + d.reschedule_delay_seconds * 1000)
     -- A handler's pause keeps a next run, which marks it held with its firing outstanding.
@@ -156,9 +156,9 @@ SELECT
     d.job_id,
     j.schedule_id,
     CASE
-        WHEN d.to_status = 220 /* JobStatusCode.Cancelled */ THEN 130 /* CheckpointStatusCode.Cancelled */
-        WHEN d.to_status = 200 /* JobStatusCode.Failed */ OR d.succeeded = 0 THEN 120 /* CheckpointStatusCode.Failed */
-        ELSE 110 /* CheckpointStatusCode.Succeeded */
+        WHEN d.to_status = 220 /* JobStatusCode.Cancelled */ THEN 220 /* CheckpointStatusCode.Cancelled */
+        WHEN d.to_status = 200 /* JobStatusCode.Failed */ OR d.succeeded = 0 THEN 200 /* CheckpointStatusCode.Failed */
+        ELSE 100 /* CheckpointStatusCode.Succeeded */
     END AS checkpoint_status_code
 FROM temp._ces_done d
 INNER JOIN {{schema}}.jobs j ON j.job_id = d.job_id
@@ -381,7 +381,7 @@ SELECT
     d.parent_job_id,
     50 /* CheckpointKindCode.Child */,
     'sys.child.' || d.job_id,
-    20 /* CheckpointStatusCode.Set */,
+    110 /* CheckpointStatusCode.Set */,
     1 /* JobPayloadFormat.Json */,
     -- A failed landing carries its message, so the parent's outcome can say why without reading the child's timeline.
     CAST(
@@ -399,9 +399,9 @@ SELECT
 FROM temp._ces_done d
 WHERE
     d.parent_status IS NOT NULL
-    AND (d.latch_state IS NULL OR d.latch_state <> 30 /* CheckpointStatusCode.Expired */)
+    AND (d.latch_state IS NULL OR d.latch_state <> 150 /* CheckpointStatusCode.Expired */)
 ON CONFLICT (job_id, checkpoint_kind_code, checkpoint_name) DO UPDATE SET
-    checkpoint_status_code = 20 /* CheckpointStatusCode.Set */,
+    checkpoint_status_code = 110 /* CheckpointStatusCode.Set */,
     value_format_id = excluded.value_format_id,
     value = excluded.value,
     modified_at_utc = (SELECT now_utc FROM temp._ces_done LIMIT 1),
@@ -424,7 +424,7 @@ SELECT
             WHEN 200 /* JobStatusCode.Failed */ THEN 'failed'
             ELSE 'cancelled'
         END || COALESCE(': ' || d.event_message, '.')
-        || CASE WHEN d.latch_state = 30 /* CheckpointStatusCode.Expired */ THEN ' Child outcome not applied: the wait had already expired.' ELSE '' END,
+        || CASE WHEN d.latch_state = 150 /* CheckpointStatusCode.Expired */ THEN ' Child outcome not applied: the wait had already expired.' ELSE '' END,
         1,
         512
     ),

@@ -147,12 +147,12 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 |---|---:|---|---|---|
 | `Unspecified` | 0 | `unspecified` | Checkpoint status not recognized by this build; the row was written by a newer Acta. | Active |
 | `Pending` | 10 | `pending` | Awaited or armed; the checkpoint has not been satisfied yet. | Active |
-| `Set` | 20 | `set` | Raised; the payload is stored and a waiting job proceeds. | Active |
-| `Expired` | 30 | `expired` | The wait ran past its timeout and was settled as timed out; a raise after that skips it. | Active |
-| `Consumed` | 100 | `consumed` | The due time was reached; the handler ran again, consumed the timer, and proceeded. | Active |
-| `Succeeded` | 110 | `succeeded` | The firing settled successfully; it stays the job's last outcome until the next firing replaces it. | Active |
-| `Failed` | 120 | `failed` | The firing settled as a final failure; it stays the job's last outcome until the next firing replaces it. | Active |
-| `Cancelled` | 130 | `cancelled` | The firing settled by cancellation; it stays the job's last outcome until the next firing replaces it. | Active |
+| `Succeeded` | 100 | `succeeded` | The firing settled successfully; it stays the job's last outcome until the next firing replaces it. | Active |
+| `Set` | 110 | `set` | Raised; the payload is stored and a waiting job proceeds. | Active |
+| `Consumed` | 120 | `consumed` | The due time was reached; the handler ran again, consumed the timer, and proceeded. | Active |
+| `Expired` | 150 | `expired` | The wait ran past its timeout and was settled as timed out; a raise after that skips it. | Active |
+| `Failed` | 200 | `failed` | The firing settled as a final failure; it stays the job's last outcome until the next firing replaces it. | Active |
+| `Cancelled` | 220 | `cancelled` | The firing settled by cancellation; it stays the job's last outcome until the next firing replaces it. | Active |
 
 ### `DeadlineBehaviorCode` · `deadline-behavior` <a id="code-family-deadlinebehaviorcode"></a>
 

@@ -102,7 +102,10 @@ public sealed class ExplainJobSpec : ActaRuntimeTestBase<ConformanceFixture, Job
             {
                 while (!done.IsCancellationRequested)
                 {
-                    var (step, checkpoint) = Volatile.Read(ref flips) % 2 == 0 ? (100, 20) : (10, 10);
+                    var (step, checkpoint) =
+                        Volatile.Read(ref flips) % 2 == 0
+                            ? ((byte)StepStatusCode.Succeeded, (byte)CheckpointStatusCode.Set)
+                            : ((byte)StepStatusCode.Pending, (byte)CheckpointStatusCode.Pending);
                     await WriteAsync(
                         [
                             $"UPDATE {Db.Schema}.steps SET step_status_code = {step} WHERE job_id = {job.JobId}",

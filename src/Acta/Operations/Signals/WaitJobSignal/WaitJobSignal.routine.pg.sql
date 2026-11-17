@@ -37,7 +37,7 @@ BEGIN
     /* A checkpoint this call arms at or past its due is armed Expired, so a child landing after it cannot
        revive the wait, and the wait times out now. Only an instant can be due already: a length is
        positive, so a wait armed with one suspends once before it can expire. */
-    v_arm_state := CASE WHEN v_arm_due <= v_now THEN 30 /* CheckpointStatusCode.Expired */ ELSE 10 /* CheckpointStatusCode.Pending */ END;
+    v_arm_state := CASE WHEN v_arm_due <= v_now THEN 150 /* CheckpointStatusCode.Expired */ ELSE 10 /* CheckpointStatusCode.Pending */ END;
 
     SELECT js.checkpoint_status_code, js.value_format_id, js.value, js.due_at_utc
     INTO v_state, v_fmt, v_val, v_due
@@ -103,23 +103,23 @@ BEGIN
     /* A wait this call armed is not resolved further, which keeps one armed with a length suspending once on all
        three providers; mssql and sqlite reach that by construction. */
     IF v_armed = 1 THEN
-        IF v_arm_state = 30 /* CheckpointStatusCode.Expired */ THEN
+        IF v_arm_state = 150 /* CheckpointStatusCode.Expired */ THEN
             v_outcome := 3 /* WaitJobSignalOutcomeCode.TimedOut */;
             v_expired_due := v_arm_due;
         END IF;
-    ELSIF v_state = 20 /* CheckpointStatusCode.Set */ THEN
+    ELSIF v_state = 110 /* CheckpointStatusCode.Set */ THEN
         RETURN QUERY SELECT
             2 /* WaitJobSignalOutcomeCode.ContinueSet */::SMALLINT,
             v_fmt,
             v_val;
         RETURN;
-    ELSIF v_state = 30 /* CheckpointStatusCode.Expired */ THEN
+    ELSIF v_state = 150 /* CheckpointStatusCode.Expired */ THEN
         v_outcome := 3 /* WaitJobSignalOutcomeCode.TimedOut */;
     ELSIF v_state = 10 /* CheckpointStatusCode.Pending */ AND v_due IS NOT NULL AND v_due <= v_now THEN
 
         UPDATE {{schema}}.checkpoints js
         SET
-            checkpoint_status_code = 30 /* CheckpointStatusCode.Expired */,
+            checkpoint_status_code = 150 /* CheckpointStatusCode.Expired */,
             modified_at_utc = v_now,
             version = js.version + 1
         WHERE js.job_id = p_job_id AND js.checkpoint_kind_code = p_checkpoint_kind_code AND js.checkpoint_name = p_checkpoint_name;
@@ -141,7 +141,7 @@ BEGIN
             AND js.checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */
             AND js.due_at_utc IS NULL;
 
-        IF v_arm_state = 30 /* CheckpointStatusCode.Expired */ THEN
+        IF v_arm_state = 150 /* CheckpointStatusCode.Expired */ THEN
             v_outcome := 3 /* WaitJobSignalOutcomeCode.TimedOut */;
             v_expired_due := v_arm_due;
         END IF;

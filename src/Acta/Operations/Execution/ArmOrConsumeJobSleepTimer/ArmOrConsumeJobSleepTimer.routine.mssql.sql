@@ -56,7 +56,7 @@ BEGIN
 
                 UPDATE {{schema}}.checkpoints
                 SET
-                    checkpoint_status_code = 100 /* CheckpointStatusCode.Consumed */,
+                    checkpoint_status_code = 120 /* CheckpointStatusCode.Consumed */,
                     modified_at_utc = @now,
                     version = version + 1
                 WHERE job_id = @p_job_id AND checkpoint_kind_code = 30 /* CheckpointKindCode.Timer */ AND checkpoint_name = @p_checkpoint_name;

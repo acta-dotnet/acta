@@ -141,7 +141,7 @@ BEGIN
             -- missing checkpoint, which waits for this landing, has no job left to wake.
             IF @waits = 1
                 UPDATE x
-                SET sig_state = COALESCE(s.checkpoint_status_code, 20 /* CheckpointStatusCode.Set */), sig_due = s.due_at_utc
+                SET sig_state = COALESCE(s.checkpoint_status_code, 110 /* CheckpointStatusCode.Set */), sig_due = s.due_at_utc
                 FROM @rows x
                 INNER JOIN @p_batch c ON c.job_id = x.job_id AND c.execution_number = x.execution_number AND c.wait_signal_name IS NOT NULL
                 LEFT JOIN {{schema}}.checkpoints s WITH (UPDLOCK, FORCESEEK)
@@ -184,7 +184,7 @@ BEGIN
         INNER JOIN @p_batch c ON c.job_id = x.job_id AND c.execution_number = x.execution_number
         CROSS APPLY (
             SELECT CASE
-                WHEN c.wait_signal_name IS NOT NULL AND x.sig_state = 20 /* CheckpointStatusCode.Set */ THEN 10 /* JobStatusCode.Ready */
+                WHEN c.wait_signal_name IS NOT NULL AND x.sig_state = 110 /* CheckpointStatusCode.Set */ THEN 10 /* JobStatusCode.Ready */
                 WHEN c.wait_signal_name IS NOT NULL THEN 20 /* JobStatusCode.Suspended */
                 WHEN c.reschedule_event_code IS NOT NULL THEN 10 /* JobStatusCode.Ready */
                 WHEN c.handler_job_status_code IS NOT NULL THEN c.handler_job_status_code
@@ -211,7 +211,7 @@ BEGIN
                 leased_by_worker_id = NULL,
                 lease_expires_at_utc = NULL,
                 next_run_at_utc = CASE
-                    WHEN c.wait_signal_name IS NOT NULL AND x.sig_state = 20 /* CheckpointStatusCode.Set */ THEN @now
+                    WHEN c.wait_signal_name IS NOT NULL AND x.sig_state = 110 /* CheckpointStatusCode.Set */ THEN @now
                     WHEN c.wait_signal_name IS NOT NULL THEN x.sig_due
                     WHEN c.reschedule_event_code IS NOT NULL
                         THEN COALESCE(c.reschedule_resume_at_utc, DATEADD(SECOND, c.reschedule_delay_seconds, @now))
@@ -268,9 +268,9 @@ BEGIN
                     UPDATE cp
                     SET
                         checkpoint_status_code = CASE
-                            WHEN d.job_status_code = 220 /* JobStatusCode.Cancelled */ THEN 130 /* CheckpointStatusCode.Cancelled */
-                            WHEN d.job_status_code = 200 /* JobStatusCode.Failed */ OR c.succeeded = 0 THEN 120 /* CheckpointStatusCode.Failed */
-                            ELSE 110 /* CheckpointStatusCode.Succeeded */
+                            WHEN d.job_status_code = 220 /* JobStatusCode.Cancelled */ THEN 220 /* CheckpointStatusCode.Cancelled */
+                            WHEN d.job_status_code = 200 /* JobStatusCode.Failed */ OR c.succeeded = 0 THEN 200 /* CheckpointStatusCode.Failed */
+                            ELSE 100 /* CheckpointStatusCode.Succeeded */
                         END,
                         modified_at_utc = @now,
                         version = cp.version + 1
@@ -557,7 +557,7 @@ BEGIN
                        the latch too, for a restart to read, and is not woken; a parent that is gone has no status. */
                     UPDATE s
                     SET
-                        checkpoint_status_code = 20 /* CheckpointStatusCode.Set */,
+                        checkpoint_status_code = 110 /* CheckpointStatusCode.Set */,
                         value_format_id = 1 /* JobPayloadFormat.Json */,
                         value = p.envelope,
                         modified_at_utc = @now,
@@ -565,7 +565,7 @@ BEGIN
                     FROM #parents p
                     INNER JOIN {{schema}}.checkpoints s WITH (FORCESEEK)
                         ON s.job_id = p.parent_job_id AND s.checkpoint_kind_code = 50 /* CheckpointKindCode.Child */ AND s.checkpoint_name = p.latch_name
-                    WHERE p.latch_state <> 30 /* CheckpointStatusCode.Expired */;
+                    WHERE p.latch_state <> 150 /* CheckpointStatusCode.Expired */;
 
                     INSERT INTO {{schema}}.checkpoints (
                         job_id, checkpoint_kind_code, checkpoint_name, checkpoint_status_code, value_format_id, value,
@@ -573,7 +573,7 @@ BEGIN
                     )
                     SELECT
                         p.parent_job_id, 50 /* CheckpointKindCode.Child */, p.latch_name,
-                        20 /* CheckpointStatusCode.Set */, 1 /* JobPayloadFormat.Json */, p.envelope,
+                        110 /* CheckpointStatusCode.Set */, 1 /* JobPayloadFormat.Json */, p.envelope,
                         @now, @now, 0
                     FROM #parents p
                     WHERE p.latch_state IS NULL AND p.parent_status IS NOT NULL
@@ -593,7 +593,7 @@ BEGIN
                         pj.definition_id, pj.tenant_id, COALESCE(pj.lineage_root_job_id, p.parent_job_id),
                         p.parent_execution,
                         CASE
-                            WHEN p.latch_state = 30 /* CheckpointStatusCode.Expired */
+                            WHEN p.latch_state = 150 /* CheckpointStatusCode.Expired */
                                 THEN CAST(LEFT(
                                     COALESCE(p.event_message + N' ', N'') + N'Child outcome not applied: the wait had already expired.',
                                     512

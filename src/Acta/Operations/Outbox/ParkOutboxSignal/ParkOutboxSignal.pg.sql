@@ -6,7 +6,7 @@ VALUES (
     @p_job_id,
     20 /* CheckpointKindCode.Signal */,
     @p_checkpoint_name,
-    20 /* CheckpointStatusCode.Set */,
+    110 /* CheckpointStatusCode.Set */,
     @p_value_format_id,
     @p_value,
     now(),
@@ -15,7 +15,7 @@ VALUES (
 ON CONFLICT (job_id, checkpoint_kind_code, checkpoint_name) DO UPDATE SET
     value_format_id = EXCLUDED.value_format_id,
     value = EXCLUDED.value,
-    checkpoint_status_code = 20 /* CheckpointStatusCode.Set */,
+    checkpoint_status_code = 110 /* CheckpointStatusCode.Set */,
     modified_at_utc = now(),
     version = checkpoints.version + 1
 WHERE checkpoints.modified_at_utc <= @p_stale_before_utc AND checkpoints.value = @p_replaceable_value;

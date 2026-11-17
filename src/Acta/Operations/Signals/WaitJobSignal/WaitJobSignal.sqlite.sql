@@ -30,7 +30,7 @@ WHERE c.job_id = @p_job_id AND c.checkpoint_kind_code = @p_checkpoint_kind_code 
 
 UPDATE {{schema}}.checkpoints
 SET
-    checkpoint_status_code = 30 /* CheckpointStatusCode.Expired */,
+    checkpoint_status_code = 150 /* CheckpointStatusCode.Expired */,
     modified_at_utc = {{now}},
     version = version + 1
 WHERE
@@ -46,7 +46,7 @@ INSERT INTO {{schema}}.checkpoints (
 VALUES (
     @p_job_id, @p_checkpoint_kind_code, @p_checkpoint_name,
     CASE
-        WHEN COALESCE(@p_due_at_utc, {{now}} + (@p_timeout_seconds) * 1000) <= {{now}} THEN 30 /* CheckpointStatusCode.Expired */
+        WHEN COALESCE(@p_due_at_utc, {{now}} + (@p_timeout_seconds) * 1000) <= {{now}} THEN 150 /* CheckpointStatusCode.Expired */
         ELSE 10 /* CheckpointStatusCode.Pending */
     END,
     COALESCE(@p_due_at_utc, {{now}} + (@p_timeout_seconds) * 1000),
@@ -58,7 +58,7 @@ ON CONFLICT (job_id, checkpoint_kind_code, checkpoint_name) DO NOTHING;
 UPDATE {{schema}}.checkpoints
 SET
     checkpoint_status_code = CASE
-        WHEN COALESCE(@p_due_at_utc, {{now}} + (@p_timeout_seconds) * 1000) <= {{now}} THEN 30 /* CheckpointStatusCode.Expired */
+        WHEN COALESCE(@p_due_at_utc, {{now}} + (@p_timeout_seconds) * 1000) <= {{now}} THEN 150 /* CheckpointStatusCode.Expired */
         ELSE 10 /* CheckpointStatusCode.Pending */
     END,
     due_at_utc = COALESCE(@p_due_at_utc, {{now}} + (@p_timeout_seconds) * 1000),
@@ -110,24 +110,24 @@ LEFT JOIN {{schema}}.jobs ch
         AND ch.job_id = CAST(substr(@p_checkpoint_name, 11) AS INTEGER)
 WHERE
     c.job_id = @p_job_id AND c.checkpoint_kind_code = @p_checkpoint_kind_code AND c.checkpoint_name = @p_checkpoint_name
-    AND c.checkpoint_status_code = 30 /* CheckpointStatusCode.Expired */
-    AND NOT EXISTS (SELECT 1 FROM temp._wait_before b WHERE b.status = 30 /* CheckpointStatusCode.Expired */)
+    AND c.checkpoint_status_code = 150 /* CheckpointStatusCode.Expired */
+    AND NOT EXISTS (SELECT 1 FROM temp._wait_before b WHERE b.status = 150 /* CheckpointStatusCode.Expired */)
     AND j.event_recording_code = 20 /* EventRecordingCode.Audit */;
 
 SELECT
     CASE
-        WHEN js.checkpoint_status_code = 20 /* CheckpointStatusCode.Set */
+        WHEN js.checkpoint_status_code = 110 /* CheckpointStatusCode.Set */
             THEN 2 /* WaitJobSignalOutcomeCode.ContinueSet */
-        WHEN js.checkpoint_status_code = 30 /* CheckpointStatusCode.Expired */
+        WHEN js.checkpoint_status_code = 150 /* CheckpointStatusCode.Expired */
             THEN 3 /* WaitJobSignalOutcomeCode.TimedOut */
         ELSE 1 /* WaitJobSignalOutcomeCode.SuspendPending */
     END AS outcome_code,
     CASE
-        WHEN js.checkpoint_status_code = 20 /* CheckpointStatusCode.Set */ THEN js.value_format_id
+        WHEN js.checkpoint_status_code = 110 /* CheckpointStatusCode.Set */ THEN js.value_format_id
         ELSE 0 /* JobPayloadFormat.None */
     END AS value_format_id,
     CASE
-        WHEN js.checkpoint_status_code = 20 /* CheckpointStatusCode.Set */ THEN js.value
+        WHEN js.checkpoint_status_code = 110 /* CheckpointStatusCode.Set */ THEN js.value
         ELSE NULL
     END AS value
 FROM {{schema}}.checkpoints js

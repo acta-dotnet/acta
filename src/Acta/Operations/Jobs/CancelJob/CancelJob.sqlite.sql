@@ -135,7 +135,7 @@ WHERE
 -- settles nothing twice.
 UPDATE {{schema}}.checkpoints
 SET
-    checkpoint_status_code = 130 /* CheckpointStatusCode.Cancelled */,
+    checkpoint_status_code = 220 /* CheckpointStatusCode.Cancelled */,
     modified_at_utc = {{now}},
     version = version + 1
 WHERE

@@ -5,4 +5,4 @@ WHERE
     c.job_id = @p_job_id
     AND c.checkpoint_kind_code = 20 /* CheckpointKindCode.Signal */
     AND c.checkpoint_name = @p_checkpoint_name
-    AND c.checkpoint_status_code = 20 /* CheckpointStatusCode.Set */;
+    AND c.checkpoint_status_code = 110 /* CheckpointStatusCode.Set */;

@@ -103,7 +103,7 @@ WHERE r.job_id = @p_job_id AND s.applied;
 WITH settled AS (
     UPDATE {{schema}}.checkpoints cp
     SET
-        checkpoint_status_code = 130 /* CheckpointStatusCode.Cancelled */,
+        checkpoint_status_code = 220 /* CheckpointStatusCode.Cancelled */,
         modified_at_utc = now(),
         version = cp.version + 1
     FROM _cancel_job s

@@ -366,13 +366,13 @@ sealed class Acta.CheckpointKindCodeJsonConverter : System.Text.Json.Serializati
     Acta.CheckpointKindCode Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
     System.Void Write(System.Text.Json.Utf8JsonWriter writer, Acta.CheckpointKindCode value, System.Text.Json.JsonSerializerOptions options)
 enum Acta.CheckpointStatusCode : System.Byte
-    Cancelled = 130
-    Consumed = 100
-    Expired = 30
-    Failed = 120
+    Cancelled = 220
+    Consumed = 120
+    Expired = 150
+    Failed = 200
     Pending = 10
-    Set = 20
-    Succeeded = 110
+    Set = 110
+    Succeeded = 100
     Unspecified = 0
 static class Acta.CheckpointStatusCodeExtensions
     static Acta.CheckpointStatusCode FromCode(System.String code)

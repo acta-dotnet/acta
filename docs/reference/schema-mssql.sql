@@ -14,7 +14,7 @@
 -- present and leaves the data in place. Over a database a newer release upgraded, the script stops
 -- before changing anything. A later 1.x release upgrades a 1.x database with
 -- its own migrations, carried in its own copy of this script. A database provisioned from an
--- init migration other than M20261117164354_init has no upgrade path: provision a new one.
+-- init migration other than M20261117164810_init has no upgrade path: provision a new one.
 --
 -- Run it with a client that stops at the first error, which is what makes the transaction below a
 -- guarantee: sqlcmd -b, or SQLCMD mode with stop-on-error in SSMS. A client that runs on past a failed
@@ -57,7 +57,7 @@ GO
 -- ===== refuse a database a newer release already upgraded =====
 IF EXISTS (
     SELECT 1 FROM acta.migrations
-    WHERE name NOT IN ('M20261117164354_init')
+    WHERE name NOT IN ('M20261117164810_init')
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -65,7 +65,7 @@ BEGIN
     SET NOEXEC ON;
 END
 GO
--- ===== BEGIN M20261117164354_init =====
+-- ===== BEGIN M20261117164810_init =====
 SET QUOTED_IDENTIFIER ON;
 SET ANSI_NULLS ON;
 GO
@@ -955,7 +955,7 @@ BEGIN
 
                 UPDATE acta.checkpoints
                 SET
-                    checkpoint_status_code = 100 /* CheckpointStatusCode.Consumed */,
+                    checkpoint_status_code = 120 /* CheckpointStatusCode.Consumed */,
                     modified_at_utc = @now,
                     version = version + 1
                 WHERE job_id = @p_job_id AND checkpoint_kind_code = 30 /* CheckpointKindCode.Timer */ AND checkpoint_name = @p_checkpoint_name;
@@ -1402,7 +1402,7 @@ BEGIN
             -- missing checkpoint, which waits for this landing, has no job left to wake.
             IF @waits = 1
                 UPDATE x
-                SET sig_state = COALESCE(s.checkpoint_status_code, 20 /* CheckpointStatusCode.Set */), sig_due = s.due_at_utc
+                SET sig_state = COALESCE(s.checkpoint_status_code, 110 /* CheckpointStatusCode.Set */), sig_due = s.due_at_utc
                 FROM @rows x
                 INNER JOIN @p_batch c ON c.job_id = x.job_id AND c.execution_number = x.execution_number AND c.wait_signal_name IS NOT NULL
                 LEFT JOIN acta.checkpoints s WITH (UPDLOCK, FORCESEEK)
@@ -1445,7 +1445,7 @@ BEGIN
         INNER JOIN @p_batch c ON c.job_id = x.job_id AND c.execution_number = x.execution_number
         CROSS APPLY (
             SELECT CASE
-                WHEN c.wait_signal_name IS NOT NULL AND x.sig_state = 20 /* CheckpointStatusCode.Set */ THEN 10 /* JobStatusCode.Ready */
+                WHEN c.wait_signal_name IS NOT NULL AND x.sig_state = 110 /* CheckpointStatusCode.Set */ THEN 10 /* JobStatusCode.Ready */
                 WHEN c.wait_signal_name IS NOT NULL THEN 20 /* JobStatusCode.Suspended */
                 WHEN c.reschedule_event_code IS NOT NULL THEN 10 /* JobStatusCode.Ready */
                 WHEN c.handler_job_status_code IS NOT NULL THEN c.handler_job_status_code
@@ -1472,7 +1472,7 @@ BEGIN
                 leased_by_worker_id = NULL,
                 lease_expires_at_utc = NULL,
                 next_run_at_utc = CASE
-                    WHEN c.wait_signal_name IS NOT NULL AND x.sig_state = 20 /* CheckpointStatusCode.Set */ THEN @now
+                    WHEN c.wait_signal_name IS NOT NULL AND x.sig_state = 110 /* CheckpointStatusCode.Set */ THEN @now
                     WHEN c.wait_signal_name IS NOT NULL THEN x.sig_due
                     WHEN c.reschedule_event_code IS NOT NULL
                         THEN COALESCE(c.reschedule_resume_at_utc, DATEADD(SECOND, c.reschedule_delay_seconds, @now))
@@ -1529,9 +1529,9 @@ BEGIN
                     UPDATE cp
                     SET
                         checkpoint_status_code = CASE
-                            WHEN d.job_status_code = 220 /* JobStatusCode.Cancelled */ THEN 130 /* CheckpointStatusCode.Cancelled */
-                            WHEN d.job_status_code = 200 /* JobStatusCode.Failed */ OR c.succeeded = 0 THEN 120 /* CheckpointStatusCode.Failed */
-                            ELSE 110 /* CheckpointStatusCode.Succeeded */
+                            WHEN d.job_status_code = 220 /* JobStatusCode.Cancelled */ THEN 220 /* CheckpointStatusCode.Cancelled */
+                            WHEN d.job_status_code = 200 /* JobStatusCode.Failed */ OR c.succeeded = 0 THEN 200 /* CheckpointStatusCode.Failed */
+                            ELSE 100 /* CheckpointStatusCode.Succeeded */
                         END,
                         modified_at_utc = @now,
                         version = cp.version + 1
@@ -1818,7 +1818,7 @@ BEGIN
                        the latch too, for a restart to read, and is not woken; a parent that is gone has no status. */
                     UPDATE s
                     SET
-                        checkpoint_status_code = 20 /* CheckpointStatusCode.Set */,
+                        checkpoint_status_code = 110 /* CheckpointStatusCode.Set */,
                         value_format_id = 1 /* JobPayloadFormat.Json */,
                         value = p.envelope,
                         modified_at_utc = @now,
@@ -1826,7 +1826,7 @@ BEGIN
                     FROM #parents p
                     INNER JOIN acta.checkpoints s WITH (FORCESEEK)
                         ON s.job_id = p.parent_job_id AND s.checkpoint_kind_code = 50 /* CheckpointKindCode.Child */ AND s.checkpoint_name = p.latch_name
-                    WHERE p.latch_state <> 30 /* CheckpointStatusCode.Expired */;
+                    WHERE p.latch_state <> 150 /* CheckpointStatusCode.Expired */;
 
                     INSERT INTO acta.checkpoints (
                         job_id, checkpoint_kind_code, checkpoint_name, checkpoint_status_code, value_format_id, value,
@@ -1834,7 +1834,7 @@ BEGIN
                     )
                     SELECT
                         p.parent_job_id, 50 /* CheckpointKindCode.Child */, p.latch_name,
-                        20 /* CheckpointStatusCode.Set */, 1 /* JobPayloadFormat.Json */, p.envelope,
+                        110 /* CheckpointStatusCode.Set */, 1 /* JobPayloadFormat.Json */, p.envelope,
                         @now, @now, 0
                     FROM #parents p
                     WHERE p.latch_state IS NULL AND p.parent_status IS NOT NULL
@@ -1854,7 +1854,7 @@ BEGIN
                         pj.definition_id, pj.tenant_id, COALESCE(pj.lineage_root_job_id, p.parent_job_id),
                         p.parent_execution,
                         CASE
-                            WHEN p.latch_state = 30 /* CheckpointStatusCode.Expired */
+                            WHEN p.latch_state = 150 /* CheckpointStatusCode.Expired */
                                 THEN CAST(LEFT(
                                     COALESCE(p.event_message + N' ', N'') + N'Child outcome not applied: the wait had already expired.',
                                     512
@@ -3720,7 +3720,7 @@ BEGIN
                     CAST(
                         CASE
                             WHEN
-                                @existing = 20 /* CheckpointStatusCode.Set */
+                                @existing = 110 /* CheckpointStatusCode.Set */
                                 AND @fmt = @p_value_format_id
                                 AND (
                                     (@val IS NULL AND @p_value IS NULL)
@@ -3750,13 +3750,13 @@ BEGIN
         -- compared too, so a value that differs only in trailing zero bytes is never taken for the same one.
         IF
             @p_checkpoint_kind_code <> 50 /* CheckpointKindCode.Child */
-            AND @existing IN (20 /* CheckpointStatusCode.Set */, 30 /* CheckpointStatusCode.Expired */)
+            AND @existing IN (110 /* CheckpointStatusCode.Set */, 150 /* CheckpointStatusCode.Expired */)
             BEGIN
                 SELECT
                     CAST(
                         CASE
                             WHEN
-                                @existing = 20 /* CheckpointStatusCode.Set */
+                                @existing = 110 /* CheckpointStatusCode.Set */
                                 AND @fmt = @p_value_format_id
                                 AND (
                                     (@val IS NULL AND @p_value IS NULL)
@@ -3773,7 +3773,7 @@ BEGIN
         /* No revival: an Expired latch already resolved the wait TimedOut, so a late child latch writes no
            value and releases no job. The landing still happened, so it is still recorded: the event below
            carries a message saying why it changed nothing, and the verb reports the unchanged status. */
-        SET @expired = CASE WHEN @existing = 30 /* CheckpointStatusCode.Expired */ THEN 1 ELSE 0 END;
+        SET @expired = CASE WHEN @existing = 150 /* CheckpointStatusCode.Expired */ THEN 1 ELSE 0 END;
         -- A child's landing names the child as its parent named it, and how it ended; a purged child keeps its id.
         SET @landing = COALESCE(
             @p_event_message,
@@ -3803,13 +3803,13 @@ BEGIN
                         created_at_utc, modified_at_utc, version
                     )
                     VALUES (
-                        @p_job_id, @p_checkpoint_kind_code, @p_checkpoint_name, 20 /* CheckpointStatusCode.Set */,
+                        @p_job_id, @p_checkpoint_kind_code, @p_checkpoint_name, 110 /* CheckpointStatusCode.Set */,
                         @p_value_format_id, @p_value, @now, @now, 0
                     );
                 ELSE
                     UPDATE acta.checkpoints
                     SET
-                        checkpoint_status_code = 20 /* CheckpointStatusCode.Set */,
+                        checkpoint_status_code = 110 /* CheckpointStatusCode.Set */,
                         value_format_id = @p_value_format_id,
                         value = @p_value,
                         modified_at_utc = @now,
@@ -4142,7 +4142,7 @@ BEGIN
                     WHERE
                         c.job_id = r.job_id
                         AND c.checkpoint_kind_code IN (20 /* CheckpointKindCode.Signal */, 50 /* CheckpointKindCode.Child */)
-                        AND c.checkpoint_status_code = 30 /* CheckpointStatusCode.Expired */
+                        AND c.checkpoint_status_code = 150 /* CheckpointStatusCode.Expired */
                         AND c.due_at_utc = r.next_run_at_utc
                 ) THEN 1 ELSE 0 END AS wait_resolved,
                 -- A slot's spent budget returns it to Idle with its firing settled Failed, never to Failed itself.
@@ -4261,7 +4261,7 @@ BEGIN
         -- the slot, or a charged root's, which releases its schedule's capacity.
         UPDATE cp
         SET
-            checkpoint_status_code = 120 /* CheckpointStatusCode.Failed */,
+            checkpoint_status_code = 200 /* CheckpointStatusCode.Failed */,
             modified_at_utc = @now,
             version = cp.version + 1
         OUTPUT INSERTED.job_id, r.schedule_id INTO @settled (job_id, schedule_id)
@@ -4725,7 +4725,7 @@ BEGIN
         DECLARE @expired_due DATETIME2(3) = NULL;
         DECLARE @arm_due DATETIME2(3) = COALESCE(@p_due_at_utc, DATEADD(SECOND, @p_timeout_seconds, @now));
         DECLARE @arm_state TINYINT = CASE
-            WHEN @arm_due <= @now THEN 30 /* CheckpointStatusCode.Expired */
+            WHEN @arm_due <= @now THEN 150 /* CheckpointStatusCode.Expired */
             ELSE 10 /* CheckpointStatusCode.Pending */
         END;
 
@@ -4757,11 +4757,11 @@ BEGIN
         FROM acta.checkpoints WITH (UPDLOCK)
         WHERE job_id = @p_job_id AND checkpoint_kind_code = @p_checkpoint_kind_code AND checkpoint_name = @p_checkpoint_name;
 
-        IF @state = 20 /* CheckpointStatusCode.Set */
+        IF @state = 110 /* CheckpointStatusCode.Set */
             BEGIN
                 SET @outcome = 2 /* WaitJobSignalOutcomeCode.ContinueSet */;
             END
-        ELSE IF @state = 30 /* CheckpointStatusCode.Expired */
+        ELSE IF @state = 150 /* CheckpointStatusCode.Expired */
             BEGIN
                 SET @outcome = 3 /* WaitJobSignalOutcomeCode.TimedOut */;
                 SET @fmt = 0 /* JobPayloadFormat.None */;
@@ -4771,7 +4771,7 @@ BEGIN
             BEGIN
                 UPDATE acta.checkpoints
                 SET
-                    checkpoint_status_code = 30 /* CheckpointStatusCode.Expired */,
+                    checkpoint_status_code = 150 /* CheckpointStatusCode.Expired */,
                     modified_at_utc = @now,
                     version = version + 1
                 WHERE job_id = @p_job_id AND checkpoint_kind_code = @p_checkpoint_kind_code AND checkpoint_name = @p_checkpoint_name;
@@ -4794,7 +4794,7 @@ BEGIN
                             @p_job_id, @p_checkpoint_kind_code, @p_checkpoint_name, @arm_state, @arm_due,
                             0 /* JobPayloadFormat.None */, NULL, @now, @now, 0
                         );
-                        IF @arm_state = 30 /* CheckpointStatusCode.Expired */
+                        IF @arm_state = 150 /* CheckpointStatusCode.Expired */
                             BEGIN
                                 SET @outcome = 3 /* WaitJobSignalOutcomeCode.TimedOut */;
                                 SET @expired_due = @arm_due;
@@ -4812,7 +4812,7 @@ BEGIN
                             job_id = @p_job_id AND checkpoint_kind_code = @p_checkpoint_kind_code AND checkpoint_name = @p_checkpoint_name
                             AND checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */
                             AND due_at_utc IS NULL;
-                        IF @arm_state = 30 /* CheckpointStatusCode.Expired */
+                        IF @arm_state = 150 /* CheckpointStatusCode.Expired */
                             BEGIN
                                 SET @outcome = 3 /* WaitJobSignalOutcomeCode.TimedOut */;
                                 SET @expired_due = @arm_due;
@@ -4937,7 +4937,7 @@ SELECT
     c.checkpoint_name,
     CASE c.checkpoint_kind_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'variable' WHEN 20 THEN 'signal' WHEN 30 THEN 'timer' WHEN 40 THEN 'progress' WHEN 50 THEN 'child' WHEN 60 THEN 'firing' END AS checkpoint_kind,
     c.checkpoint_kind_code,
-    CASE c.checkpoint_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'pending' WHEN 20 THEN 'set' WHEN 30 THEN 'expired' WHEN 100 THEN 'consumed' WHEN 110 THEN 'succeeded' WHEN 120 THEN 'failed' WHEN 130 THEN 'cancelled' END AS checkpoint_status,
+    CASE c.checkpoint_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'pending' WHEN 100 THEN 'succeeded' WHEN 110 THEN 'set' WHEN 120 THEN 'consumed' WHEN 150 THEN 'expired' WHEN 200 THEN 'failed' WHEN 220 THEN 'cancelled' END AS checkpoint_status,
     c.checkpoint_status_code,
     c.due_at_utc,
     CASE c.value_format_id
@@ -5253,11 +5253,11 @@ JOIN acta.namespaces AS ns ON ns.namespace_id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261117164354_init')
+IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261117164810_init')
 INSERT INTO acta.migrations (name)
-VALUES ('M20261117164354_init');
+VALUES ('M20261117164810_init');
 GO
--- ===== END M20261117164354_init =====
+-- ===== END M20261117164810_init =====
 GO
 COMMIT TRANSACTION;
 GO

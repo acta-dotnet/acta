@@ -242,7 +242,7 @@ BEGIN TRY
                 AND cp.checkpoint_kind_code = 60 /* CheckpointKindCode.Firing */
                 AND cp.checkpoint_name = 'sys.firing'
                 AND cp.checkpoint_status_code IN (
-                    110 /* CheckpointStatusCode.Succeeded */, 120 /* CheckpointStatusCode.Failed */, 130 /* CheckpointStatusCode.Cancelled */
+                    100 /* CheckpointStatusCode.Succeeded */, 200 /* CheckpointStatusCode.Failed */, 220 /* CheckpointStatusCode.Cancelled */
                 );
             SET @recharged = @@ROWCOUNT;
 
@@ -266,7 +266,7 @@ BEGIN TRY
         WHERE
             e.job_id = @p_job_id
             AND e.checkpoint_kind_code = 20 /* CheckpointKindCode.Signal */
-            AND e.checkpoint_status_code = 30 /* CheckpointStatusCode.Expired */
+            AND e.checkpoint_status_code = 150 /* CheckpointStatusCode.Expired */
             AND e.checkpoint_name = (
                 SELECT TOP (1)
                     CASE

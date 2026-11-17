@@ -173,7 +173,7 @@ DELETE FROM {{schema}}.checkpoints
 WHERE
     job_id = @p_job_id
     AND checkpoint_kind_code = 20 /* CheckpointKindCode.Signal */
-    AND checkpoint_status_code = 30 /* CheckpointStatusCode.Expired */
+    AND checkpoint_status_code = 150 /* CheckpointStatusCode.Expired */
     AND (SELECT s.from_status FROM temp._restart_job s) IN (200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
     AND (SELECT s.rejected FROM temp._restart_job s) = 0
     AND (@p_expected_version IS NULL OR (SELECT s.from_version FROM temp._restart_job s) = @p_expected_version)
@@ -236,7 +236,7 @@ WHERE
     AND checkpoint_kind_code = 60 /* CheckpointKindCode.Firing */
     AND checkpoint_name = 'sys.firing'
     AND checkpoint_status_code IN (
-        110 /* CheckpointStatusCode.Succeeded */, 120 /* CheckpointStatusCode.Failed */, 130 /* CheckpointStatusCode.Cancelled */
+        100 /* CheckpointStatusCode.Succeeded */, 200 /* CheckpointStatusCode.Failed */, 220 /* CheckpointStatusCode.Cancelled */
     )
     AND EXISTS (
         SELECT 1

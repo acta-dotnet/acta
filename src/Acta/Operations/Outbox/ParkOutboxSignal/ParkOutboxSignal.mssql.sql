@@ -29,13 +29,13 @@ BEGIN TRY
             created_at_utc, modified_at_utc, version
         )
         VALUES (
-            @p_job_id, 20 /* CheckpointKindCode.Signal */, @p_checkpoint_name, 20 /* CheckpointStatusCode.Set */,
+            @p_job_id, 20 /* CheckpointKindCode.Signal */, @p_checkpoint_name, 110 /* CheckpointStatusCode.Set */,
             @p_value_format_id, @p_value, @now, @now, 0
         );
     ELSE IF @modified <= @p_stale_before_utc AND @replaceable = 1
         UPDATE {{schema}}.checkpoints
         SET
-            checkpoint_status_code = 20 /* CheckpointStatusCode.Set */,
+            checkpoint_status_code = 110 /* CheckpointStatusCode.Set */,
             value_format_id = @p_value_format_id,
             value = @p_value,
             modified_at_utc = @now,

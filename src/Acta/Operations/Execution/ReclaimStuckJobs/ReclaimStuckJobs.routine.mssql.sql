@@ -233,7 +233,7 @@ BEGIN
                     WHERE
                         c.job_id = r.job_id
                         AND c.checkpoint_kind_code IN (20 /* CheckpointKindCode.Signal */, 50 /* CheckpointKindCode.Child */)
-                        AND c.checkpoint_status_code = 30 /* CheckpointStatusCode.Expired */
+                        AND c.checkpoint_status_code = 150 /* CheckpointStatusCode.Expired */
                         AND c.due_at_utc = r.next_run_at_utc
                 ) THEN 1 ELSE 0 END AS wait_resolved,
                 -- A slot's spent budget returns it to Idle with its firing settled Failed, never to Failed itself.
@@ -352,7 +352,7 @@ BEGIN
         -- the slot, or a charged root's, which releases its schedule's capacity.
         UPDATE cp
         SET
-            checkpoint_status_code = 120 /* CheckpointStatusCode.Failed */,
+            checkpoint_status_code = 200 /* CheckpointStatusCode.Failed */,
             modified_at_utc = @now,
             version = cp.version + 1
         OUTPUT INSERTED.job_id, r.schedule_id INTO @settled (job_id, schedule_id)

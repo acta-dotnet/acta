@@ -48,7 +48,7 @@ BEGIN
 
         UPDATE {{schema}}.checkpoints jt
         SET
-            checkpoint_status_code = 100 /* CheckpointStatusCode.Consumed */,
+            checkpoint_status_code = 120 /* CheckpointStatusCode.Consumed */,
             modified_at_utc = now(),
             version = jt.version + 1
         WHERE

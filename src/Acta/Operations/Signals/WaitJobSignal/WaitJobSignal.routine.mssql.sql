@@ -35,7 +35,7 @@ BEGIN
         DECLARE @expired_due DATETIME2(3) = NULL;
         DECLARE @arm_due DATETIME2(3) = COALESCE(@p_due_at_utc, DATEADD(SECOND, @p_timeout_seconds, @now));
         DECLARE @arm_state TINYINT = CASE
-            WHEN @arm_due <= @now THEN 30 /* CheckpointStatusCode.Expired */
+            WHEN @arm_due <= @now THEN 150 /* CheckpointStatusCode.Expired */
             ELSE 10 /* CheckpointStatusCode.Pending */
         END;
 
@@ -67,11 +67,11 @@ BEGIN
         FROM {{schema}}.checkpoints WITH (UPDLOCK)
         WHERE job_id = @p_job_id AND checkpoint_kind_code = @p_checkpoint_kind_code AND checkpoint_name = @p_checkpoint_name;
 
-        IF @state = 20 /* CheckpointStatusCode.Set */
+        IF @state = 110 /* CheckpointStatusCode.Set */
             BEGIN
                 SET @outcome = 2 /* WaitJobSignalOutcomeCode.ContinueSet */;
             END
-        ELSE IF @state = 30 /* CheckpointStatusCode.Expired */
+        ELSE IF @state = 150 /* CheckpointStatusCode.Expired */
             BEGIN
                 SET @outcome = 3 /* WaitJobSignalOutcomeCode.TimedOut */;
                 SET @fmt = 0 /* JobPayloadFormat.None */;
@@ -81,7 +81,7 @@ BEGIN
             BEGIN
                 UPDATE {{schema}}.checkpoints
                 SET
-                    checkpoint_status_code = 30 /* CheckpointStatusCode.Expired */,
+                    checkpoint_status_code = 150 /* CheckpointStatusCode.Expired */,
                     modified_at_utc = @now,
                     version = version + 1
                 WHERE job_id = @p_job_id AND checkpoint_kind_code = @p_checkpoint_kind_code AND checkpoint_name = @p_checkpoint_name;
@@ -104,7 +104,7 @@ BEGIN
                             @p_job_id, @p_checkpoint_kind_code, @p_checkpoint_name, @arm_state, @arm_due,
                             0 /* JobPayloadFormat.None */, NULL, @now, @now, 0
                         );
-                        IF @arm_state = 30 /* CheckpointStatusCode.Expired */
+                        IF @arm_state = 150 /* CheckpointStatusCode.Expired */
                             BEGIN
                                 SET @outcome = 3 /* WaitJobSignalOutcomeCode.TimedOut */;
                                 SET @expired_due = @arm_due;
@@ -122,7 +122,7 @@ BEGIN
                             job_id = @p_job_id AND checkpoint_kind_code = @p_checkpoint_kind_code AND checkpoint_name = @p_checkpoint_name
                             AND checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */
                             AND due_at_utc IS NULL;
-                        IF @arm_state = 30 /* CheckpointStatusCode.Expired */
+                        IF @arm_state = 150 /* CheckpointStatusCode.Expired */
                             BEGIN
                                 SET @outcome = 3 /* WaitJobSignalOutcomeCode.TimedOut */;
                                 SET @expired_due = @arm_due;

@@ -16457,14 +16457,14 @@
           "pending"
         ],
         "type": "string",
-        "description": "Where a checkpoint that has a status stands. A signal or a child is pending until it is set or its wait expires; a timer is pending until it is consumed; a firing is pending until it succeeds, fails, or is cancelled. Variables and progress have no status.\n\nKnown values:\n- unspecified: Checkpoint status not recognized by this build; the row was written by a newer Acta.\n- pending: Awaited or armed; the checkpoint has not been satisfied yet.\n- set: Raised; the payload is stored and a waiting job proceeds.\n- expired: The wait ran past its timeout and was settled as timed out; a raise after that skips it.\n- consumed: The due time was reached; the handler ran again, consumed the timer, and proceeded.\n- succeeded: The firing settled successfully; it stays the job's last outcome until the next firing replaces it.\n- failed: The firing settled as a final failure; it stays the job's last outcome until the next firing replaces it.\n- cancelled: The firing settled by cancellation; it stays the job's last outcome until the next firing replaces it.\n\nOther values may appear: keep a value this client does not know as it is.",
+        "description": "Where a checkpoint that has a status stands. A signal or a child is pending until it is set or its wait expires; a timer is pending until it is consumed; a firing is pending until it succeeds, fails, or is cancelled. Variables and progress have no status.\n\nKnown values:\n- unspecified: Checkpoint status not recognized by this build; the row was written by a newer Acta.\n- pending: Awaited or armed; the checkpoint has not been satisfied yet.\n- succeeded: The firing settled successfully; it stays the job's last outcome until the next firing replaces it.\n- set: Raised; the payload is stored and a waiting job proceeds.\n- consumed: The due time was reached; the handler ran again, consumed the timer, and proceeded.\n- expired: The wait ran past its timeout and was settled as timed out; a raise after that skips it.\n- failed: The firing settled as a final failure; it stays the job's last outcome until the next firing replaces it.\n- cancelled: The firing settled by cancellation; it stays the job's last outcome until the next firing replaces it.\n\nOther values may appear: keep a value this client does not know as it is.",
         "x-acta-known-values": [
           "unspecified",
           "pending",
-          "set",
-          "expired",
-          "consumed",
           "succeeded",
+          "set",
+          "consumed",
+          "expired",
           "failed",
           "cancelled"
         ]

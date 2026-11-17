@@ -200,7 +200,7 @@ BEGIN
             r.lane_id,
             j.parent_job_id,
             -- A wait with no checkpoint has nothing to wait on, so it lands Ready as one whose raise won the race does.
-            COALESCE(s.checkpoint_status_code, 20 /* CheckpointStatusCode.Set */) AS sig_state,
+            COALESCE(s.checkpoint_status_code, 110 /* CheckpointStatusCode.Set */) AS sig_state,
             s.due_at_utc AS sig_due
         FROM {{schema}}.jobs_state r
         INNER JOIN completions c ON c.job_id = r.job_id AND c.execution_number = r.execution_number
@@ -223,7 +223,7 @@ BEGIN
             job_status_code = t.to_status,
             next_run_at_utc = CASE
                 WHEN t.to_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) THEN NULL
-                WHEN c.wait_signal_name IS NOT NULL AND e.sig_state = 20 /* CheckpointStatusCode.Set */ THEN now()
+                WHEN c.wait_signal_name IS NOT NULL AND e.sig_state = 110 /* CheckpointStatusCode.Set */ THEN now()
                 WHEN c.wait_signal_name IS NOT NULL THEN e.sig_due
                 WHEN c.reschedule_event_code IS NOT NULL
                     THEN COALESCE(c.reschedule_resume_at_utc, now() + make_interval(secs => c.reschedule_delay_seconds))
@@ -249,7 +249,7 @@ BEGIN
         INNER JOIN completions c ON c.job_id = e.job_id AND c.execution_number = e.execution_number
         CROSS JOIN LATERAL (
             SELECT CASE
-                WHEN c.wait_signal_name IS NOT NULL AND e.sig_state = 20 /* CheckpointStatusCode.Set */ THEN 10 /* JobStatusCode.Ready */
+                WHEN c.wait_signal_name IS NOT NULL AND e.sig_state = 110 /* CheckpointStatusCode.Set */ THEN 10 /* JobStatusCode.Ready */
                 WHEN c.wait_signal_name IS NOT NULL THEN 20 /* JobStatusCode.Suspended */
                 WHEN c.reschedule_event_code IS NOT NULL THEN 10 /* JobStatusCode.Ready */
                 WHEN c.handler_job_status_code IS NOT NULL THEN c.handler_job_status_code
@@ -302,9 +302,9 @@ BEGIN
             UPDATE {{schema}}.checkpoints cp
             SET
                 checkpoint_status_code = CASE
-                    WHEN COALESCE(c.final_job_status_code, r.job_status_code) = 220 /* JobStatusCode.Cancelled */ THEN 130 /* CheckpointStatusCode.Cancelled */
-                    WHEN COALESCE(c.final_job_status_code, r.job_status_code) = 200 /* JobStatusCode.Failed */ OR NOT c.succeeded THEN 120 /* CheckpointStatusCode.Failed */
-                    ELSE 110 /* CheckpointStatusCode.Succeeded */
+                    WHEN COALESCE(c.final_job_status_code, r.job_status_code) = 220 /* JobStatusCode.Cancelled */ THEN 220 /* CheckpointStatusCode.Cancelled */
+                    WHEN COALESCE(c.final_job_status_code, r.job_status_code) = 200 /* JobStatusCode.Failed */ OR NOT c.succeeded THEN 200 /* CheckpointStatusCode.Failed */
+                    ELSE 100 /* CheckpointStatusCode.Succeeded */
                 END,
                 modified_at_utc = now(),
                 version = cp.version + 1
@@ -555,7 +555,7 @@ BEGIN
                     END || COALESCE(': ' || c.event_message, '.'),
                     512
                 ) AS landing,
-                COALESCE(l.checkpoint_status_code = 30 /* CheckpointStatusCode.Expired */, FALSE) AS latch_expired,
+                COALESCE(l.checkpoint_status_code = 150 /* CheckpointStatusCode.Expired */, FALSE) AS latch_expired,
                 COALESCE(l.checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */, FALSE) AS latch_pending,
                 pr.job_status_code AS parent_status,
                 pr.execution_number AS parent_execution,
@@ -588,7 +588,7 @@ BEGIN
                 s.parent_job_id,
                 50 /* CheckpointKindCode.Child */,
                 'sys.child.' || s.child_job_id::text,
-                20 /* CheckpointStatusCode.Set */,
+                110 /* CheckpointStatusCode.Set */,
                 1 /* JobPayloadFormat.Json */,
                 -- A failed landing carries its message, so the parent's outcome can say why without reading the child's timeline.
                 convert_to(
@@ -608,7 +608,7 @@ BEGIN
             FROM settled s
             WHERE NOT s.latch_expired
             ON CONFLICT ON CONSTRAINT pk_checkpoints DO UPDATE SET
-                checkpoint_status_code = 20 /* CheckpointStatusCode.Set */,
+                checkpoint_status_code = 110 /* CheckpointStatusCode.Set */,
                 value_format_id = EXCLUDED.value_format_id,
                 value = EXCLUDED.value,
                 modified_at_utc = now(),

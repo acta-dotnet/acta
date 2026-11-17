@@ -92,12 +92,12 @@ public sealed class PersistedCodeContractTests
         CheckpointKindCode.Firing=60|firing
         CheckpointStatusCode.Unspecified=0|unspecified
         CheckpointStatusCode.Pending=10|pending
-        CheckpointStatusCode.Set=20|set
-        CheckpointStatusCode.Expired=30|expired
-        CheckpointStatusCode.Consumed=100|consumed
-        CheckpointStatusCode.Succeeded=110|succeeded
-        CheckpointStatusCode.Failed=120|failed
-        CheckpointStatusCode.Cancelled=130|cancelled
+        CheckpointStatusCode.Succeeded=100|succeeded
+        CheckpointStatusCode.Set=110|set
+        CheckpointStatusCode.Consumed=120|consumed
+        CheckpointStatusCode.Expired=150|expired
+        CheckpointStatusCode.Failed=200|failed
+        CheckpointStatusCode.Cancelled=220|cancelled
         StepStatusCode.Unspecified=0|unspecified
         StepStatusCode.Pending=10|pending
         StepStatusCode.Succeeded=100|succeeded
@@ -207,7 +207,7 @@ public sealed class PersistedCodeContractTests
         WorkerStatusCode.Dead=200|dead
         """;
 
-    private const string ExpectedDescriptionHash = "C2C8700FA8EF67B81A0E6BBDD7DA8454C462453691D110F083AD919C1C8B6E85";
+    private const string ExpectedDescriptionHash = "767A7E318C40B7C1448FC92CF698721CF9C6DAAA9A353F9A569A3FA427AFFAE4";
 
     [Fact]
     public void Frozen_contract_covers_every_family_and_value()
@@ -236,6 +236,7 @@ public sealed class PersistedCodeContractTests
 
         Assert.Equal((byte)200, (byte)JobStatusCode.Failed);
         Assert.Equal((byte)200, (byte)StepStatusCode.Failed);
+        Assert.Equal((byte)200, (byte)CheckpointStatusCode.Failed);
         Assert.Equal((byte)200, (byte)AlertDeliveryStatusCode.Failed);
         Assert.Equal((byte)200, (byte)WorkerStatusCode.Dead);
 

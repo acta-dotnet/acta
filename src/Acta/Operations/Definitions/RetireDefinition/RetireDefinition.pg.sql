@@ -126,7 +126,7 @@ swept AS (
 settled AS (
     UPDATE {{schema}}.checkpoints cp
     SET
-        checkpoint_status_code = 130 /* CheckpointStatusCode.Cancelled */,
+        checkpoint_status_code = 220 /* CheckpointStatusCode.Cancelled */,
         modified_at_utc = now(),
         version = cp.version + 1
     FROM (SELECT sw.job_id FROM swept sw UNION ALL SELECT sl.job_id FROM slots sl) p

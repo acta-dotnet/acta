@@ -75,7 +75,7 @@ BEGIN
                     CAST(
                         CASE
                             WHEN
-                                @existing = 20 /* CheckpointStatusCode.Set */
+                                @existing = 110 /* CheckpointStatusCode.Set */
                                 AND @fmt = @p_value_format_id
                                 AND (
                                     (@val IS NULL AND @p_value IS NULL)
@@ -105,13 +105,13 @@ BEGIN
         -- compared too, so a value that differs only in trailing zero bytes is never taken for the same one.
         IF
             @p_checkpoint_kind_code <> 50 /* CheckpointKindCode.Child */
-            AND @existing IN (20 /* CheckpointStatusCode.Set */, 30 /* CheckpointStatusCode.Expired */)
+            AND @existing IN (110 /* CheckpointStatusCode.Set */, 150 /* CheckpointStatusCode.Expired */)
             BEGIN
                 SELECT
                     CAST(
                         CASE
                             WHEN
-                                @existing = 20 /* CheckpointStatusCode.Set */
+                                @existing = 110 /* CheckpointStatusCode.Set */
                                 AND @fmt = @p_value_format_id
                                 AND (
                                     (@val IS NULL AND @p_value IS NULL)
@@ -128,7 +128,7 @@ BEGIN
         /* No revival: an Expired latch already resolved the wait TimedOut, so a late child latch writes no
            value and releases no job. The landing still happened, so it is still recorded: the event below
            carries a message saying why it changed nothing, and the verb reports the unchanged status. */
-        SET @expired = CASE WHEN @existing = 30 /* CheckpointStatusCode.Expired */ THEN 1 ELSE 0 END;
+        SET @expired = CASE WHEN @existing = 150 /* CheckpointStatusCode.Expired */ THEN 1 ELSE 0 END;
         -- A child's landing names the child as its parent named it, and how it ended; a purged child keeps its id.
         SET @landing = COALESCE(
             @p_event_message,
@@ -158,13 +158,13 @@ BEGIN
                         created_at_utc, modified_at_utc, version
                     )
                     VALUES (
-                        @p_job_id, @p_checkpoint_kind_code, @p_checkpoint_name, 20 /* CheckpointStatusCode.Set */,
+                        @p_job_id, @p_checkpoint_kind_code, @p_checkpoint_name, 110 /* CheckpointStatusCode.Set */,
                         @p_value_format_id, @p_value, @now, @now, 0
                     );
                 ELSE
                     UPDATE {{schema}}.checkpoints
                     SET
-                        checkpoint_status_code = 20 /* CheckpointStatusCode.Set */,
+                        checkpoint_status_code = 110 /* CheckpointStatusCode.Set */,
                         value_format_id = @p_value_format_id,
                         value = @p_value,
                         modified_at_utc = @now,

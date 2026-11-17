@@ -10,7 +10,7 @@ WHERE
     c.job_id = @p_job_id
     AND c.checkpoint_kind_code = @p_checkpoint_kind_code
     AND c.checkpoint_name = @p_checkpoint_name
-    AND c.checkpoint_status_code = 30 /* CheckpointStatusCode.Expired */;
+    AND c.checkpoint_status_code = 150 /* CheckpointStatusCode.Expired */;
 
 -- Only the checkpoint the job waits on releases it, so whether it was Pending is captured before the upsert too.
 DROP TABLE IF EXISTS temp._raise_pending;
@@ -40,7 +40,7 @@ CREATE TEMP TABLE _raise_settled AS
 SELECT
     CASE
         WHEN
-            c.checkpoint_status_code = 20 /* CheckpointStatusCode.Set */
+            c.checkpoint_status_code = 110 /* CheckpointStatusCode.Set */
             AND c.value_format_id = @p_value_format_id
             AND c.value IS @p_value
             THEN 6 /* ControlAction.AlreadyInState */
@@ -52,7 +52,7 @@ WHERE
     AND c.checkpoint_kind_code = @p_checkpoint_kind_code
     AND c.checkpoint_name = @p_checkpoint_name
     AND @p_checkpoint_kind_code <> 50 /* CheckpointKindCode.Child */
-    AND c.checkpoint_status_code IN (20 /* CheckpointStatusCode.Set */, 30 /* CheckpointStatusCode.Expired */);
+    AND c.checkpoint_status_code IN (110 /* CheckpointStatusCode.Set */, 150 /* CheckpointStatusCode.Expired */);
 
 -- A child's landing names the child as its parent named it, and how it ended; a purged child keeps its id.
 DROP TABLE IF EXISTS temp._raise_landing;
@@ -76,7 +76,7 @@ SELECT
     @p_job_id,
     @p_checkpoint_kind_code,
     @p_checkpoint_name,
-    20 /* CheckpointStatusCode.Set */,
+    110 /* CheckpointStatusCode.Set */,
     @p_value_format_id,
     @p_value,
     {{now}},
@@ -98,7 +98,7 @@ WHERE
     AND NOT EXISTS (SELECT 1 FROM temp._raise_settled)
 ON CONFLICT (job_id, checkpoint_kind_code, checkpoint_name) DO UPDATE
 SET
-    checkpoint_status_code = 20 /* CheckpointStatusCode.Set */,
+    checkpoint_status_code = 110 /* CheckpointStatusCode.Set */,
     value_format_id = @p_value_format_id,
     value = @p_value,
     modified_at_utc = {{now}},
