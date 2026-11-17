@@ -23,11 +23,11 @@ internal sealed class SchedulesOperations(
 
     public ValueTask<PauseScheduleResponse> PauseAsync(
         ScheduleLookup schedule,
-        DateTime? untilUtc = null,
+        DateTimeOffset? untilUtc = null,
         string? reasonMessage = null,
         string? actor = null,
         CancellationToken ct = default
-    ) => pauseSchedule.HandleAsync(new PauseScheduleCommand(schedule, untilUtc, reasonMessage, actor), ct);
+    ) => pauseSchedule.HandleAsync(new PauseScheduleCommand(schedule, untilUtc?.UtcDateTime, reasonMessage, actor), ct);
 
     public ValueTask<ResumeScheduleResponse> ResumeAsync(
         ScheduleLookup schedule,

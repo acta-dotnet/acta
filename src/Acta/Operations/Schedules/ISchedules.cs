@@ -12,7 +12,7 @@ public interface ISchedules
     /// <summary>Pause the schedule identified by <paramref name="schedule"/>. Null <paramref name="untilUtc"/> pauses indefinitely; a timestamp auto-resumes. Records <paramref name="reasonMessage"/> on the audit event, and <paramref name="actor"/> as its actor: the operator identity (e.g. the authenticated principal name), null when unknown. A missing or orphaned schedule is NotFound; a past untilUtc is Rejected.</summary>
     ValueTask<PauseScheduleResponse> PauseAsync(
         ScheduleLookup schedule,
-        DateTime? untilUtc = null,
+        DateTimeOffset? untilUtc = null,
         string? reasonMessage = null,
         string? actor = null,
         CancellationToken ct = default

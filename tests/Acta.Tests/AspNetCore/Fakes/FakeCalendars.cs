@@ -213,11 +213,11 @@ internal sealed class FakeCalendars : ICalendars
     ValueTask<PreviewCalendarResponse?> ICalendars.PreviewAsync(
         CalendarLookup calendar,
         long version,
-        DateTime? fromUtc,
+        DateTimeOffset? fromUtc,
         int count,
         string? timeZoneId,
         CancellationToken ct
-    ) => Preview(calendar, version, fromUtc, count, timeZoneId, ct);
+    ) => Preview(calendar, version, fromUtc?.UtcDateTime, count, timeZoneId, ct);
 
     ValueTask<PublishCalendarResponse> ICalendars.PublishAsync(
         CalendarLookup calendar,

@@ -31,7 +31,9 @@ public sealed class RescheduleJobSpec : ActaRuntimeTestBase<ConformanceFixture, 
         );
         var before = await ReadJobAsync(enqueued.JobId, ct);
 
-        var result = await Jobs.RescheduleAsync(enqueued, near, "ops", "spec-actor", ct: ct);
+        // The instant goes in with an offset and is stored as that instant in UTC.
+        var withOffset = new DateTimeOffset(near).ToOffset(TimeSpan.FromHours(2));
+        var result = await Jobs.RescheduleAsync(enqueued, withOffset, "ops", "spec-actor", ct: ct);
 
         Assert.Equal(ControlAction.Applied, result.Action);
         Assert.Equal(JobStatusCode.Ready, result.Status);

@@ -54,11 +54,11 @@ internal sealed class FakeSchedules : ISchedules
 
     ValueTask<PauseScheduleResponse> ISchedules.PauseAsync(
         ScheduleLookup schedule,
-        DateTime? untilUtc,
+        DateTimeOffset? untilUtc,
         string? reasonMessage,
         string? actor,
         CancellationToken ct
-    ) => Pause(schedule, untilUtc, reasonMessage, actor, ct);
+    ) => Pause(schedule, untilUtc?.UtcDateTime, reasonMessage, actor, ct);
 
     ValueTask<ResumeScheduleResponse> ISchedules.ResumeAsync(
         ScheduleLookup schedule,

@@ -237,12 +237,12 @@ internal sealed class FakeJobs : IJobs
 
     ValueTask<RescheduleJobResponse> IJobs.RescheduleAsync(
         JobLookup job,
-        DateTime? nextRunAtUtc,
+        DateTimeOffset? nextRunAtUtc,
         string? reasonMessage,
         string? actor,
         long? expectedVersion,
         CancellationToken ct
-    ) => Reschedule(job, nextRunAtUtc, reasonMessage, actor, expectedVersion, ct);
+    ) => Reschedule(job, nextRunAtUtc?.UtcDateTime, reasonMessage, actor, expectedVersion, ct);
 
     ValueTask<ReprioritizeJobResponse> IJobs.ReprioritizeAsync(
         JobLookup job,

@@ -48,11 +48,11 @@ internal sealed class CalendarsOperations(
     public async ValueTask<PreviewCalendarResponse?> PreviewAsync(
         CalendarLookup calendar,
         long version,
-        DateTime? fromUtc = null,
+        DateTimeOffset? fromUtc = null,
         int count = 10,
         string? timeZoneId = null,
         CancellationToken ct = default
-    ) => await previewCalendar.HandleAsync(new PreviewCalendarQuery(calendar, version, fromUtc, count, timeZoneId), ct);
+    ) => await previewCalendar.HandleAsync(new PreviewCalendarQuery(calendar, version, fromUtc?.UtcDateTime, count, timeZoneId), ct);
 
     public async ValueTask<PublishCalendarResponse> PublishAsync(
         CalendarLookup calendar,

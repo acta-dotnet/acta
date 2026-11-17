@@ -174,7 +174,7 @@ internal static class JobsEndpoints
                     job,
                     call.Body?.NextRunAtUtc is { } instant
                         ? instant > DateTime.MinValue
-                            ? instant
+                            ? ControlEndpointValidation.Instant(instant)
                             : throw new InvalidControlException("Invalid request.", "nextRunAtUtc must be an instant, or omitted for now.")
                         : null,
                     call.ReasonMessage,

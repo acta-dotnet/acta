@@ -38,6 +38,8 @@ The C# members follow: `EventCode.JobInputUpdated`, `ScheduleFullBehaviorCode.Sk
 
 **Set `Enabled = false` to switch an alert channel off**: `AlertChannelOptions.Status` and `AlertChannelStatusCode` are gone, and `o.Enabled = false` does what `o.Status = AlertChannelStatusCode.Disabled` did. `[ReservedCodeRange]` is gone too; only Acta's own event family used it.
 
+**Pass an instant to `IJobs.RescheduleAsync`, `ISchedules.PauseAsync` and `ICalendars.PreviewAsync` as a `DateTimeOffset`**: the three took a `DateTime?` and take a `DateTimeOffset?`, as every other method that takes an instant does. A `DateTime` argument still compiles. One whose `Kind` is `Unspecified` now converts as local time, as C# converts it, where it was read as UTC; pass a UTC `DateTime` or a `DateTimeOffset` to say which instant is meant. The HTTP API is unchanged: a body's instant with no offset is UTC.
+
 **Take a raw id from [code-families.md](./reference/code-families.md), or read a view's decoded column**: the ids below changed, so SQL of your own that compares one needs the new value. The views decode every code by name, and their columns are unchanged.
 
 | Family | Ids |

@@ -669,7 +669,7 @@ public class CliRunnerClipboardTests
 
         public ValueTask<RescheduleJobResponse> RescheduleAsync(
             JobLookup job,
-            DateTime? nextRunAtUtc = null,
+            DateTimeOffset? nextRunAtUtc = null,
             string? reasonMessage = null,
             string? actor = null,
             long? expectedVersion = null,

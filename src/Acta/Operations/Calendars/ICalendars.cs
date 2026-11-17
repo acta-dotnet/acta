@@ -59,7 +59,7 @@ public interface ICalendars
     ValueTask<PreviewCalendarResponse?> PreviewAsync(
         CalendarLookup calendar,
         long version,
-        DateTime? fromUtc = null,
+        DateTimeOffset? fromUtc = null,
         int count = 10,
         string? timeZoneId = null,
         CancellationToken ct = default

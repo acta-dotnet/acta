@@ -208,12 +208,12 @@ internal sealed class JobsOperations(
 
     public ValueTask<RescheduleJobResponse> RescheduleAsync(
         JobLookup job,
-        DateTime? nextRunAtUtc = null,
+        DateTimeOffset? nextRunAtUtc = null,
         string? reasonMessage = null,
         string? actor = null,
         long? expectedVersion = null,
         CancellationToken ct = default
-    ) => rescheduleJob.HandleAsync(new RescheduleJobCommand(job, nextRunAtUtc, reasonMessage, actor, expectedVersion), ct);
+    ) => rescheduleJob.HandleAsync(new RescheduleJobCommand(job, nextRunAtUtc?.UtcDateTime, reasonMessage, actor, expectedVersion), ct);
 
     public ValueTask<ReprioritizeJobResponse> ReprioritizeAsync(
         JobLookup job,

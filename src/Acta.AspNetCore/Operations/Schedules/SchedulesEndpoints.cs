@@ -85,7 +85,13 @@ internal static class SchedulesEndpoints
             ),
             Key,
             static (call, schedule) =>
-                call.Operations.Schedules.PauseAsync(schedule, call.Body?.PausedUntilUtc, call.ReasonMessage, call.Actor, call.Ct)
+                call.Operations.Schedules.PauseAsync(
+                    schedule,
+                    call.Body?.PausedUntilUtc is { } until ? ControlEndpointValidation.Instant(until) : null,
+                    call.ReasonMessage,
+                    call.Actor,
+                    call.Ct
+                )
         );
         controls.MapCommand(
             "/schedules/{jobNamespace}/{jobName}/{scheduleName}/resume",

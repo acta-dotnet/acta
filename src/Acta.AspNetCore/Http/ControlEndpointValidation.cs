@@ -11,6 +11,10 @@ namespace Acta.AspNetCore;
 /// </summary>
 internal static class ControlEndpointValidation
 {
+    /// <summary>A body's instant as the API reads it: a value with no offset is UTC, as its member's name says.</summary>
+    internal static DateTimeOffset Instant(DateTime value) =>
+        new(value.Kind == DateTimeKind.Unspecified ? DateTime.SpecifyKind(value, DateTimeKind.Utc) : value);
+
     // The path names the member at fault, an unknown one included, so a caller can fix its body.
     private static IResult InvalidBody(JsonException ex, JsonTypeInfo body) =>
         Problem(
