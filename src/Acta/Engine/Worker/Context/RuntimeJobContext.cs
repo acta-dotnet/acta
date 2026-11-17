@@ -449,10 +449,10 @@ internal sealed partial class RuntimeJobContext(
             ).AlertRef
         );
 
-    // The job's own handler resolves it, so the job id is the actor, as for a reset of its state.
+    // The job's own handler resolves it, so the job's ref is the actor, as for a reset of its state.
     private protected override async Task<bool> ResolveAlertCoreAsync(string deduplicationKey, CancellationToken ct) =>
         await _alerts.GetAlertRefByDeduplicationKeyAsync(NamespaceId, deduplicationKey, ct) is { } open
-        && (await _alerts.ResolveAsync(open, actor: JobId.ToString(CultureInfo.InvariantCulture), ct: ct)).Action == ControlAction.Applied;
+        && (await _alerts.ResolveAsync(open, actor: JobRef.ToString(), ct: ct)).Action == ControlAction.Applied;
 
     /// <summary>
     /// Caller-controlled handler writes (variables, progress) HARD-THROW past the inline cap; the

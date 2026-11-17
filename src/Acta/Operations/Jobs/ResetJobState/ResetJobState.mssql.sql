@@ -9,7 +9,8 @@ BEGIN TRY
     DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
     DECLARE
         @status TINYINT, @namespace_id INT,
-        @lineage_root_job_id BIGINT, @definition_id INT, @tenant_id INT, @execution_number BIGINT, @event_recording TINYINT;
+        @lineage_root_job_id BIGINT, @definition_id INT, @tenant_id INT, @execution_number BIGINT, @event_recording TINYINT,
+        @job_ref UNIQUEIDENTIFIER;
 
     SELECT
         @status = r.job_status_code,
@@ -18,7 +19,8 @@ BEGIN TRY
         @definition_id = j.definition_id,
         @tenant_id = j.tenant_id,
         @execution_number = r.execution_number,
-        @event_recording = j.event_recording_code
+        @event_recording = j.event_recording_code,
+        @job_ref = j.job_ref
     FROM {{schema}}.jobs_state r WITH (UPDLOCK, ROWLOCK)
     INNER JOIN {{schema}}.jobs j ON j.job_id = r.job_id
     WHERE
@@ -42,7 +44,7 @@ BEGIN TRY
     DELETE FROM {{schema}}.steps
     WHERE job_id = @p_job_id;
 
-    -- The job's own handler asked for the reset, so the job id is the actor.
+    -- The job's own handler asked for the reset, so the job's ref is the actor.
     IF @event_recording = 20 /* EventRecordingCode.Audit */
         BEGIN
             INSERT INTO {{schema}}.events (
@@ -57,7 +59,7 @@ BEGIN TRY
                 4 /* EntityCode.Job */, @p_job_id,
                 @definition_id, @tenant_id, COALESCE(@lineage_root_job_id, @p_job_id),
                 @execution_number,
-                CONVERT(NVARCHAR(20), @p_job_id)
+                'job_' + LOWER(REPLACE(CONVERT(CHAR(36), @job_ref), '-', ''))
             );
         END
 

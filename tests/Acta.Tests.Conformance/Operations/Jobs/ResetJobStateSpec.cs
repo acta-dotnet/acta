@@ -59,7 +59,7 @@ public sealed class ResetJobStateSpec : ActaRuntimeTestBase<ConformanceFixture, 
         Assert.DoesNotContain(slots.Items, s => s.Kind == CheckpointKindCode.Firing);
     }
 
-    [Fact(DisplayName = "One JobStateReset event is emitted with the job as its actor and no reason")]
+    [Fact(DisplayName = "One JobStateReset event is emitted with the job's ref as its actor and no reason")]
     public async Task Reset_emits_one_state_reset_event_with_job_actor()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -70,7 +70,7 @@ public sealed class ResetJobStateSpec : ActaRuntimeTestBase<ConformanceFixture, 
         await Services.GetRequiredService<ResetJobStateHandler>().HandleAsync(new ResetJobStateCommand(job), ct);
 
         var ev = await ReadSingleEventAsync(job.JobId, EventCode.JobStateReset, ct);
-        Assert.Equal(job.JobId.ToString(CultureInfo.InvariantCulture), ev.Actor);
+        Assert.Equal(new JobRef((await ReadJobAsync(job.JobId, ct)).JobRef).ToString(), ev.Actor);
         Assert.Null(ev.Details);
         Assert.Equal(0, ev.WorkerId);
     }

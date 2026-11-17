@@ -261,7 +261,7 @@ public abstract partial class JobContext
 
     /// <summary>
     /// Resolves the open alert holding <paramref name="deduplicationKey"/> in this job's namespace, whichever job opened
-    /// that incident, and answers whether one was open; its <c>alert.resolved</c> event names this job as the actor. Once
+    /// that incident, and answers whether one was open; its <c>alert.resolved</c> event names this job's ref as the actor. Once
     /// it is resolved a replayed <see cref="AlertAsync"/> on the key opens a new incident, so raise and resolve each in a step.
     /// </summary>
     public async Task<bool> ResolveAlertAsync(string deduplicationKey, CancellationToken ct = default)

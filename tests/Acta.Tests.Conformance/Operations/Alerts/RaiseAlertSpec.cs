@@ -212,7 +212,7 @@ public sealed class RaiseAlertSpec : ActaStorageTestBase<ConformanceFixture>
         );
     }
 
-    [Fact(DisplayName = "ResolveAlertAsync resolves the open incident by its key, with the job as actor, and then finds none open")]
+    [Fact(DisplayName = "ResolveAlertAsync resolves the open incident by its key, with the job's ref as actor, and then finds none open")]
     public async Task ResolveAlertAsync_through_context_resolves_the_open_incident()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -229,7 +229,8 @@ public sealed class RaiseAlertSpec : ActaStorageTestBase<ConformanceFixture>
                 .Where(e => e.EntityCode == EntityCode.Alert && e.EntityId == row.Id && e.EventCode == EventCode.AlertResolved)
                 .ToListAsync(ct)
         );
-        Assert.Equal(JobIdValue.ToString(System.Globalization.CultureInfo.InvariantCulture), resolved.Actor);
+        Assert.Equal(ctx.JobRef.ToString(), resolved.Actor);
+        Assert.StartsWith("job_", resolved.Actor);
         Assert.False(await ctx.ResolveAlertAsync("resolve-key", ct));
     }
 

@@ -280,7 +280,7 @@
   - A raise after the incident resolved opens a fresh row with fresh delivery, leaving the resolved row resolved
   - Bounded prose truncates to column width
   - AlertAsync stamps the Manual kind and carries the caller's deduplication key
-  - ResolveAlertAsync resolves the open incident by its key, with the job as actor, and then finds none open
+  - ResolveAlertAsync resolves the open incident by its key, with the job's ref as actor, and then finds none open
   - Raising with a non-null unknown jobId throws ArgumentException, not a provider constraint error
   - Raising with a null jobId still inserts a job-less alert
 
@@ -1222,7 +1222,7 @@
 - **Guarantees:**
   - Target job substrate is cleared while sibling jobs are left untouched
   - The scheduler's firing envelope survives a reset while every handler slot is cleared
-  - One JobStateReset event is emitted with the job as its actor and no reason
+  - One JobStateReset event is emitted with the job's ref as its actor and no reason
   - Reset below Audit recording clears the rows but emits no event
   - A reset from an attempt that no longer holds the job is refused and clears nothing
   - A reset passes a checkpoint another transaction holds and clears the rest

@@ -10,7 +10,7 @@ WHERE NOT EXISTS (
         AND r.leased_by_worker_id = @p_leased_by_worker_id
 );
 
--- The job's own handler asked for the reset, so the job id is the actor.
+-- The job's own handler asked for the reset, so the job's ref is the actor.
 INSERT INTO {{schema}}.events (
     event_code, created_at_utc, namespace_id,
     entity_code, entity_id,
@@ -28,7 +28,7 @@ SELECT
     j.tenant_id,
     COALESCE(j.lineage_root_job_id, j.job_id),
     r.execution_number,
-    CAST(j.job_id AS TEXT)
+    'job_' || replace(j.job_ref, '-', '')
 FROM {{schema}}.jobs j
 JOIN {{schema}}.jobs_state r ON r.job_id = j.job_id
 WHERE
