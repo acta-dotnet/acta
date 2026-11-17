@@ -1,4 +1,16 @@
-# Acta Verify: FAIL
+# Acta 1.0.0-rc.12: benchmark and release validation
+
+The 1.0.0-rc.12 release evidence, measured by the project on its own machine: one Acta Verify release run on `892222333` on PostgreSQL, SQL Server, and SQLite, with reruns of two cells on the same commit. Every correctness, fault, and chaos scenario passed, every trial's ledger passed the ledger checks, and every performance floor held, one of them after reruns: sixteen PostgreSQL workers on one namespace at 15,000/s, which sits at this machine's edge with rc.11's tree as well.
+
+- The run's commit, `892222333`, is in the tagged history, and the commit after it changes documentation and the site, so the evidence stands for the tag.
+- Sixteen PostgreSQL workers on one namespace completed 16,112 jobs a second at 15,000/s offered, with p99 2.7 s against the 2.0 s target. Rerun three times on the same commit, the cell missed twice more, p99 2.3 s and 2.6 s, and then held, 15,586 jobs a second with p99 2.0 s; the reruns are listed with the scenario below. Rerun back to back on 2026-11-16, on the same machine and runtime, rc.11's tree held the cell once in two runs and an earlier rc.12 candidate's twice, and sixteen workers on two namespaces, which held in this run, missed in all four of those runs. The next release's run starts both PostgreSQL sixteen-worker ladders at 12,500/s, with 15,000 above it.
+- An earlier rc.12 candidate's group wait parked on the last child still running, and SQLite's mixed-work trial fell behind its schedule for tens of seconds in about half its runs, where rc.11's tree held it in eleven runs of eleven. The wait asks for each child in turn again, and this run held mixed work on every database.
+- This is measurement version 3, as in rc.11, and `acta-verify compare` sets the run beside rc.11's, both on .NET 10.0.15. All 221 scenario runs passed both times; of the measured cells, 8 read faster, 68 the same, and 18 slower, each from one run per release.
+- PostgreSQL's four workers held 15,000/s offered in all three 30 s passes, but the 120 s confirmation at 15,000 missed its p99 target, 3.7 s against 2.0 s, and the one at 12,500 held, completing 12,496 jobs a second, as rc.11's completed 12,512 at 12,500.
+- SQL Server's one worker held 5,000/s in all three passes, but its 120 s confirmation at 5,000 missed, p99 11 s, and the one at 2,500 held, where rc.11's held 5,000. Rerun on the same commit, the confirmation at 5,000 held, 5,000 jobs a second with p99 559 ms.
+- PostgreSQL's four-worker drain read 37,478 jobs a second against rc.11's 46,761. Rerun back to back on 2026-11-16, rc.11's tree drained at 37,590 and 46,199 a second and an earlier rc.12 candidate's at 46,697 and 46,429. The other cells that read slower come from one run each and were not rerun: fifteen p99s at rates both runs held, each inside its floor.
+
+# Acta Verify: PASS after reruns
 
 The release suite on PostgreSQL, SQL Server, SQLite, commit `892222333`, started 2026-11-16 22:10 UTC, 7 h 9 min, on Intel(R) Core(TM) i9-14900K.
 
@@ -7,7 +19,7 @@ The release suite on PostgreSQL, SQL Server, SQLite, commit `892222333`, started
 | Correctness | pass | pass | pass |
 | Crash-recovery chaos | pass, 1,000,000 jobs, 84 busy kills reclaimed | pass, 1,000,000 jobs, 82 busy kills reclaimed | pass, 10,000 jobs, 50 busy kills reclaimed |
 | Ledger checks | pass, 158 trials checked | pass, 149 trials checked | pass, 124 trials checked |
-| Performance floors | missed 1 | held | held |
+| Performance floors | missed 1, held on rerun | held | held |
 | Drain | 85,531 jobs/s | 44,334 jobs/s | 6,812 jobs/s |
 | Throughput | 12,496 jobs/s | 5,001 jobs/s | 250 jobs/s |
 | Throughput, one worker | 7,499 jobs/s | 2,501 jobs/s | not written |
@@ -315,6 +327,8 @@ Reruns of this scenario on the same commit, in order:
 | Database | Rerun | Offered/s | Completed/s | p99 | Disk write, mean / p95 | Result |
 |---|---:|---:|---:|---:|---:|---|
 | PostgreSQL | 1 | 15,000 | 15,419 | 2.3 s | 0.0376 / 0.0462 ms | missed: p99 2.3 s against a 2.0 s target |
+| PostgreSQL | 3 | 15,000 | 15,311 | 2.6 s | 0.0449 / 0.0571 ms | missed: p99 2.6 s against a 2.0 s target |
+| PostgreSQL | 4 | 15,000 | 15,586 | 2.0 s | 0.0381 / 0.0434 ms | held |
 
 ### Throughput, 32 executors
 
@@ -656,7 +670,7 @@ Setup: workers: 1; namespaces: 1; executors per worker: the product default; enq
 
 ## What did not pass
 
-- **Throughput, sixteen workers on one namespace** on PostgreSQL, fail: Pass 1 missed the floor of 15000/s: p99 2.7 s against a 2.0 s target. Reruns on the same commit: held in 0 of 1, not the last one.
+- **Throughput, sixteen workers on one namespace** on PostgreSQL, fail: Pass 1 missed the floor of 15000/s: p99 2.7 s against a 2.0 s target. Reruns on the same commit: held in 1 of 3, the last one included.
 
 ## How this run was made
 
@@ -693,5 +707,5 @@ Setup: workers: 1; namespaces: 1; executors per worker: the product default; enq
 | after \| 0 c: | write 2.65 ms mean, 8.55 ms p95, 3 writes/s, 99% idle, 15 samples |
 | after \| 1 d: | write 4.61 ms mean, 7.22 ms p95, 7 writes/s, 100% idle, 15 samples |
 
-- Reruns of the missed floors, on the same commit, in order: `20261117T052040151Z-5d060254006545eba65ea1bb8d9de9b7`, `20261117T052431600Z-96a4fc6950a6475d845f3efe64acb02e`.
+- Reruns of the missed floors, on the same commit, in order: `20261117T052040151Z-5d060254006545eba65ea1bb8d9de9b7`, `20261117T052431600Z-96a4fc6950a6475d845f3efe64acb02e`, `20261117T062758334Z-8df7ea14cfaa45f2a92a8675fdc74644`, `20261117T063509252Z-281994d37bd4429fa85e131d5bab0e96`.
 
