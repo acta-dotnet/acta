@@ -12,7 +12,7 @@
 -- present and leaves the data in place. Over a database a newer release upgraded, the script stops
 -- before changing anything. A later 1.x release upgrades a 1.x database with
 -- its own migrations, carried in its own copy of this script. A database provisioned from an
--- init migration other than M20261117133534_init has no upgrade path: provision a new one.
+-- init migration other than M20261117135912_init has no upgrade path: provision a new one.
 --
 -- Run it with a client that stops at the first error, which is what makes the transaction below a
 -- guarantee: psql -v ON_ERROR_STOP=1. A client that runs on past a failed statement would reach the
@@ -41,14 +41,14 @@ DO $$
 BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
-        WHERE name NOT IN ('M20261117133534_init')
+        WHERE name NOT IN ('M20261117135912_init')
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
 END
 $$;
 
--- ===== BEGIN M20261117133534_init =====
+-- ===== BEGIN M20261117135912_init =====
 CREATE SCHEMA IF NOT EXISTS acta;
 
 -- alerts
@@ -1840,7 +1840,7 @@ BEGIN
         END IF;
     END IF;
 
-    IF v_def_tenant_req = 20 /* DefinitionTenantRequirementCode.Forbidden */ AND p_tenant_name IS NOT NULL THEN
+    IF v_def_tenant_req = 20 /* TenantRequirementCode.Forbidden */ AND p_tenant_name IS NOT NULL THEN
         RAISE EXCEPTION 'ACTA:ENQ_TENANT_FORBIDDEN:Enqueue rejected: the job definition forbids a tenant and the row names one.'
             USING ERRCODE = 'P0001';
     END IF;
@@ -1912,7 +1912,7 @@ BEGIN
                 USING ERRCODE = 'P0001';
         END IF;
 
-        IF v_def_tenant_req = 10 /* DefinitionTenantRequirementCode.Required */ AND v_tenant_id IS NULL AND v_parent_tenant IS NULL THEN
+        IF v_def_tenant_req = 10 /* TenantRequirementCode.Required */ AND v_tenant_id IS NULL AND v_parent_tenant IS NULL THEN
             RAISE EXCEPTION 'ACTA:ENQ_TENANT_REQUIRED:Enqueue rejected: the job definition requires a tenant and the row carries none.'
                 USING ERRCODE = 'P0001';
         END IF;
@@ -1970,7 +1970,7 @@ BEGIN
             COALESCE(p_correlation_key, v_parent_corr),
             v_ns_id,
             v_def_id,
-            CASE WHEN v_def_tenant_req = 20 /* DefinitionTenantRequirementCode.Forbidden */ THEN NULL
+            CASE WHEN v_def_tenant_req = 20 /* TenantRequirementCode.Forbidden */ THEN NULL
                 ELSE COALESCE(v_tenant_id, v_parent_tenant) END,
             COALESCE(p_input_format_id, CASE WHEN p_input IS NULL THEN 0 /* JobPayloadFormat.None */ ELSE 1 /* JobPayloadFormat.Json */ END),
             p_input,
@@ -1982,7 +1982,7 @@ BEGIN
             DO NOTHING
         RETURNING jobs.job_id INTO v_job_id;
     ELSE
-        IF v_def_tenant_req = 10 /* DefinitionTenantRequirementCode.Required */ AND v_tenant_id IS NULL THEN
+        IF v_def_tenant_req = 10 /* TenantRequirementCode.Required */ AND v_tenant_id IS NULL THEN
             RAISE EXCEPTION 'ACTA:ENQ_TENANT_REQUIRED:Enqueue rejected: the job definition requires a tenant and the row carries none.'
                 USING ERRCODE = 'P0001';
         END IF;
@@ -2313,7 +2313,7 @@ BEGIN
         INNER JOIN acta.definitions jd ON jd.namespace_id = ns.namespace_id AND jd.definition_name = b.job_name
         LEFT JOIN acta.jobs pj ON pj.job_id = b.parent_job_id
         WHERE
-            jd.tenant_requirement_code = 10 /* DefinitionTenantRequirementCode.Required */
+            jd.tenant_requirement_code = 10 /* TenantRequirementCode.Required */
             AND b.tenant_name IS NULL
             AND pj.tenant_id IS NULL
     ) THEN
@@ -2327,7 +2327,7 @@ BEGIN
         INNER JOIN acta.namespaces ns ON ns.namespace_name = b.namespace_name
         INNER JOIN acta.definitions jd ON jd.namespace_id = ns.namespace_id AND jd.definition_name = b.job_name
         WHERE
-            jd.tenant_requirement_code = 20 /* DefinitionTenantRequirementCode.Forbidden */
+            jd.tenant_requirement_code = 20 /* TenantRequirementCode.Forbidden */
             AND b.tenant_name IS NOT NULL
     ) THEN
         RAISE EXCEPTION 'ACTA:ENQ_TENANT_FORBIDDEN:Enqueue rejected: one or more rows target a definition that forbids a tenant and name one.'
@@ -2436,7 +2436,7 @@ BEGIN
         -- A named tenant passed the Forbidden check above; a definition that turned Forbidden since must not drop it.
         CASE
             WHEN b.tenant_name IS NOT NULL THEN t.tenant_id
-            WHEN jd.tenant_requirement_code = 20 /* DefinitionTenantRequirementCode.Forbidden */ THEN NULL
+            WHEN jd.tenant_requirement_code = 20 /* TenantRequirementCode.Forbidden */ THEN NULL
             ELSE pj.tenant_id
         END,
         b.input_format_id,
@@ -4592,10 +4592,10 @@ JOIN acta.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO acta.migrations (name)
-VALUES ('M20261117133534_init')
+VALUES ('M20261117135912_init')
 ON CONFLICT (name) DO NOTHING;
 
--- ===== END M20261117133534_init =====
+-- ===== END M20261117135912_init =====
 
 COMMIT;
 

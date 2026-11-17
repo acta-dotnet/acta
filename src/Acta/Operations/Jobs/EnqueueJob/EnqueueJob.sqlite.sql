@@ -81,7 +81,7 @@ WHERE
         JOIN {{schema}}.definitions jd ON jd.namespace_id = ns.namespace_id AND jd.definition_name = @p_job_name
         WHERE
             ns.namespace_name = @p_namespace_name
-            AND jd.tenant_requirement_code = 10 /* DefinitionTenantRequirementCode.Required */
+            AND jd.tenant_requirement_code = 10 /* TenantRequirementCode.Required */
     )
     AND NOT EXISTS (
         SELECT 1 FROM {{schema}}.jobs pj
@@ -96,7 +96,7 @@ WHERE
         JOIN {{schema}}.definitions jd ON jd.namespace_id = ns.namespace_id AND jd.definition_name = @p_job_name
         WHERE
             ns.namespace_name = @p_namespace_name
-            AND jd.tenant_requirement_code = 20 /* DefinitionTenantRequirementCode.Forbidden */
+            AND jd.tenant_requirement_code = 20 /* TenantRequirementCode.Forbidden */
     );
 
 -- A key another tenant's job holds is refused, naming neither: the caller learns only that it is taken.
@@ -220,7 +220,7 @@ SELECT
     ns.namespace_id,
     jd.definition_id,
     CASE
-        WHEN jd.tenant_requirement_code = 20 /* DefinitionTenantRequirementCode.Forbidden */ THEN NULL
+        WHEN jd.tenant_requirement_code = 20 /* TenantRequirementCode.Forbidden */ THEN NULL
         ELSE COALESCE(
             (
                 SELECT t.tenant_id FROM {{schema}}.tenants t

@@ -45,7 +45,6 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | [`CheckpointStatusCode`](#code-family-checkpointstatuscode) | `job-checkpoint-status` | `byte` |
 | [`DeadlineBehaviorCode`](#code-family-deadlinebehaviorcode) | `deadline-behavior` | `byte` |
 | [`DefinitionStatusCode`](#code-family-definitionstatuscode) | `job-definition-status` | `byte` |
-| [`DefinitionTenantRequirementCode`](#code-family-definitiontenantrequirementcode) | `job-tenant-requirement` | `byte` |
 | [`EntityCode`](#code-family-entitycode) | `entity` | `byte` |
 | [`EventCode`](#code-family-eventcode) | `event` | `byte` |
 | [`EventRecordingCode`](#code-family-eventrecordingcode) | `event-recording` | `byte` |
@@ -65,6 +64,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | [`ScheduleStatusCode`](#code-family-schedulestatuscode) | `schedule-status` | `byte` |
 | [`ScheduledDeliveryCode`](#code-family-scheduleddeliverycode) | `scheduled-delivery` | `byte` |
 | [`StepStatusCode`](#code-family-stepstatuscode) | `job-step-status` | `byte` |
+| [`TenantRequirementCode`](#code-family-tenantrequirementcode) | `tenant-requirement` | `byte` |
 | [`TenantStatusCode`](#code-family-tenantstatuscode) | `tenant-status` | `byte` |
 | [`WorkerStatusCode`](#code-family-workerstatuscode) | `worker-status` | `byte` |
 
@@ -178,14 +178,6 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `Unspecified` | 0 | `unspecified` | Definition status not recognized by this build; the row was written by a newer Acta. | Active |
 | `Active` | 10 | `active` | Enqueues are accepted and workers claim the definition's jobs. | Active |
 | `Retired` | 240 | `retired` | Enqueues are rejected. Only an operator retires a definition; one that a deploy stops declaring stays active. Retiring cancels the definition's ready, blocked, paused, and suspended jobs with the event reason definition-retired, and a permanent job goes idle unless it is paused; an executing job finishes its attempt, and one that would run again is cancelled with the same reason. | Active |
-
-### `DefinitionTenantRequirementCode` · `job-tenant-requirement` <a id="code-family-definitiontenantrequirementcode"></a>
-
-| Member | Id | Code | Description | Lifecycle |
-|---|---:|---|---|---|
-| `Optional` | 0 | `optional` | Jobs may carry a tenant or not; no enqueue-time tenant rule applies. | Active |
-| `Required` | 10 | `required` | Every enqueue must carry a tenant, by explicit TenantName or parent inheritance; a tenant-less enqueue is rejected. | Active |
-| `Forbidden` | 20 | `forbidden` | An explicit TenantName is rejected and a child never inherits its parent's tenant; rows always store tenant NULL. | Active |
 
 ### `EntityCode` · `entity` <a id="code-family-entitycode"></a>
 
@@ -421,6 +413,14 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `Succeeded` | 100 | `succeeded` | Completed; its result, when it has one, is stored. | Active |
 | `Failed` | 200 | `failed` | An at-most-once step's body threw, so it does not run again; the job's handler receives the failure. | Active |
 | `Interrupted` | 230 | `interrupted` | A step that runs at most once was re-entered before it completed, so whether it ran is unknown; the job's handler receives the interruption. | Active |
+
+### `TenantRequirementCode` · `tenant-requirement` <a id="code-family-tenantrequirementcode"></a>
+
+| Member | Id | Code | Description | Lifecycle |
+|---|---:|---|---|---|
+| `Optional` | 0 | `optional` | Jobs may carry a tenant or not; no enqueue-time tenant rule applies. | Active |
+| `Required` | 10 | `required` | Every enqueue must carry a tenant, by explicit TenantName or parent inheritance; a tenant-less enqueue is rejected. | Active |
+| `Forbidden` | 20 | `forbidden` | An explicit TenantName is rejected and a child never inherits its parent's tenant; rows always store tenant NULL. | Active |
 
 ### `TenantStatusCode` · `tenant-status` <a id="code-family-tenantstatuscode"></a>
 

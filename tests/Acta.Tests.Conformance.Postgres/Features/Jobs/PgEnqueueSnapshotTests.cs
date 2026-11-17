@@ -118,7 +118,7 @@ public sealed class PgEnqueueSnapshotTests : ActaRuntimeTestBase<PgConformanceFi
             1,
             await Db.From<DefinitionEntity>()
                 .Where(d => d.NamespaceId == namespaceId && d.DefinitionName == "add-numbers")
-                .UpdateOnlyAsync(() => new DefinitionEntity { TenantRequirement = DefinitionTenantRequirementCode.Forbidden }, ct)
+                .UpdateOnlyAsync(() => new DefinitionEntity { TenantRequirement = TenantRequirementCode.Forbidden }, ct)
         );
         await hold.CommitAsync(ct);
 

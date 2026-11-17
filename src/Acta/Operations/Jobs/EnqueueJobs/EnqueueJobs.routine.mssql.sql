@@ -329,7 +329,7 @@ BEGIN
                 INNER JOIN @p_batch b ON b.ordinal = r.ordinal
                 LEFT JOIN @parents p ON p.ordinal = b.ordinal
                 WHERE
-                    r.def_tenant_req = 10 /* DefinitionTenantRequirementCode.Required */
+                    r.def_tenant_req = 10 /* TenantRequirementCode.Required */
                     AND r.tenant_id IS NULL
                     AND p.tenant_id IS NULL
             )
@@ -345,7 +345,7 @@ BEGIN
                 FROM @resolved r
                 INNER JOIN @p_batch b ON b.ordinal = r.ordinal
                 WHERE
-                    r.def_tenant_req = 20 /* DefinitionTenantRequirementCode.Forbidden */
+                    r.def_tenant_req = 20 /* TenantRequirementCode.Forbidden */
                     AND b.tenant_name IS NOT NULL
             )
             BEGIN
@@ -447,7 +447,7 @@ BEGIN
                     r.ns_id,
                     r.def_id,
                     CASE
-                        WHEN r.def_tenant_req = 20 /* DefinitionTenantRequirementCode.Forbidden */ THEN NULL
+                        WHEN r.def_tenant_req = 20 /* TenantRequirementCode.Forbidden */ THEN NULL
                         ELSE COALESCE(r.tenant_id, p.tenant_id)
                     END,
                     b.input_format_id,
@@ -503,7 +503,7 @@ BEGIN
                     r.ns_id,
                     r.def_id,
                     CASE
-                        WHEN r.def_tenant_req = 20 /* DefinitionTenantRequirementCode.Forbidden */ THEN NULL
+                        WHEN r.def_tenant_req = 20 /* TenantRequirementCode.Forbidden */ THEN NULL
                         ELSE COALESCE(r.tenant_id, p.tenant_id)
                     END,
                     b.input_format_id,

@@ -14,7 +14,7 @@
 -- present and leaves the data in place. Over a database a newer release upgraded, the script stops
 -- before changing anything. A later 1.x release upgrades a 1.x database with
 -- its own migrations, carried in its own copy of this script. A database provisioned from an
--- init migration other than M20261117133534_init has no upgrade path: provision a new one.
+-- init migration other than M20261117135912_init has no upgrade path: provision a new one.
 --
 -- Run it with a client that stops at the first error, which is what makes the transaction below a
 -- guarantee: sqlcmd -b, or SQLCMD mode with stop-on-error in SSMS. A client that runs on past a failed
@@ -57,7 +57,7 @@ GO
 -- ===== refuse a database a newer release already upgraded =====
 IF EXISTS (
     SELECT 1 FROM acta.migrations
-    WHERE name NOT IN ('M20261117133534_init')
+    WHERE name NOT IN ('M20261117135912_init')
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -65,7 +65,7 @@ BEGIN
     SET NOEXEC ON;
 END
 GO
--- ===== BEGIN M20261117133534_init =====
+-- ===== BEGIN M20261117135912_init =====
 SET QUOTED_IDENTIFIER ON;
 SET ANSI_NULLS ON;
 GO
@@ -2209,7 +2209,7 @@ BEGIN
                     END;
             END;
 
-        IF @def_tenant_req = 20 /* DefinitionTenantRequirementCode.Forbidden */ AND @p_tenant_name IS NOT NULL
+        IF @def_tenant_req = 20 /* TenantRequirementCode.Forbidden */ AND @p_tenant_name IS NOT NULL
             BEGIN
                 THROW 50008, 'ACTA:ENQ_TENANT_FORBIDDEN:Enqueue rejected: the job definition forbids a tenant and the row names one.', 1;
             END;
@@ -2368,7 +2368,7 @@ BEGIN
                     END;
             END;
 
-        IF @def_tenant_req = 10 /* DefinitionTenantRequirementCode.Required */ AND @tenant_id IS NULL AND @parent_tenant IS NULL
+        IF @def_tenant_req = 10 /* TenantRequirementCode.Required */ AND @tenant_id IS NULL AND @parent_tenant IS NULL
             BEGIN
                 THROW 50007, 'ACTA:ENQ_TENANT_REQUIRED:Enqueue rejected: the job definition requires a tenant and the row carries none.', 1;
             END;
@@ -2395,7 +2395,7 @@ BEGIN
                     @p_deduplication_key, COALESCE(@p_correlation_key, @parent_corr),
                     @ns_id, @def_id,
                     CASE
-                        WHEN @def_tenant_req = 20 /* DefinitionTenantRequirementCode.Forbidden */ THEN NULL
+                        WHEN @def_tenant_req = 20 /* TenantRequirementCode.Forbidden */ THEN NULL
                         ELSE COALESCE(@tenant_id, @parent_tenant)
                     END,
                     COALESCE(
@@ -2802,7 +2802,7 @@ BEGIN
                 INNER JOIN @p_batch b ON b.ordinal = r.ordinal
                 LEFT JOIN @parents p ON p.ordinal = b.ordinal
                 WHERE
-                    r.def_tenant_req = 10 /* DefinitionTenantRequirementCode.Required */
+                    r.def_tenant_req = 10 /* TenantRequirementCode.Required */
                     AND r.tenant_id IS NULL
                     AND p.tenant_id IS NULL
             )
@@ -2818,7 +2818,7 @@ BEGIN
                 FROM @resolved r
                 INNER JOIN @p_batch b ON b.ordinal = r.ordinal
                 WHERE
-                    r.def_tenant_req = 20 /* DefinitionTenantRequirementCode.Forbidden */
+                    r.def_tenant_req = 20 /* TenantRequirementCode.Forbidden */
                     AND b.tenant_name IS NOT NULL
             )
             BEGIN
@@ -2920,7 +2920,7 @@ BEGIN
                     r.ns_id,
                     r.def_id,
                     CASE
-                        WHEN r.def_tenant_req = 20 /* DefinitionTenantRequirementCode.Forbidden */ THEN NULL
+                        WHEN r.def_tenant_req = 20 /* TenantRequirementCode.Forbidden */ THEN NULL
                         ELSE COALESCE(r.tenant_id, p.tenant_id)
                     END,
                     b.input_format_id,
@@ -2976,7 +2976,7 @@ BEGIN
                     r.ns_id,
                     r.def_id,
                     CASE
-                        WHEN r.def_tenant_req = 20 /* DefinitionTenantRequirementCode.Forbidden */ THEN NULL
+                        WHEN r.def_tenant_req = 20 /* TenantRequirementCode.Forbidden */ THEN NULL
                         ELSE COALESCE(r.tenant_id, p.tenant_id)
                     END,
                     b.input_format_id,
@@ -5274,11 +5274,11 @@ JOIN acta.namespaces AS ns ON ns.namespace_id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261117133534_init')
+IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261117135912_init')
 INSERT INTO acta.migrations (name)
-VALUES ('M20261117133534_init');
+VALUES ('M20261117135912_init');
 GO
--- ===== END M20261117133534_init =====
+-- ===== END M20261117135912_init =====
 GO
 COMMIT TRANSACTION;
 GO

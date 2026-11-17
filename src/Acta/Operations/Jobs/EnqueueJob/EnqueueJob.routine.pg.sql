@@ -105,7 +105,7 @@ BEGIN
         END IF;
     END IF;
 
-    IF v_def_tenant_req = 20 /* DefinitionTenantRequirementCode.Forbidden */ AND p_tenant_name IS NOT NULL THEN
+    IF v_def_tenant_req = 20 /* TenantRequirementCode.Forbidden */ AND p_tenant_name IS NOT NULL THEN
         RAISE EXCEPTION 'ACTA:ENQ_TENANT_FORBIDDEN:Enqueue rejected: the job definition forbids a tenant and the row names one.'
             USING ERRCODE = 'P0001';
     END IF;
@@ -177,7 +177,7 @@ BEGIN
                 USING ERRCODE = 'P0001';
         END IF;
 
-        IF v_def_tenant_req = 10 /* DefinitionTenantRequirementCode.Required */ AND v_tenant_id IS NULL AND v_parent_tenant IS NULL THEN
+        IF v_def_tenant_req = 10 /* TenantRequirementCode.Required */ AND v_tenant_id IS NULL AND v_parent_tenant IS NULL THEN
             RAISE EXCEPTION 'ACTA:ENQ_TENANT_REQUIRED:Enqueue rejected: the job definition requires a tenant and the row carries none.'
                 USING ERRCODE = 'P0001';
         END IF;
@@ -235,7 +235,7 @@ BEGIN
             COALESCE(p_correlation_key, v_parent_corr),
             v_ns_id,
             v_def_id,
-            CASE WHEN v_def_tenant_req = 20 /* DefinitionTenantRequirementCode.Forbidden */ THEN NULL
+            CASE WHEN v_def_tenant_req = 20 /* TenantRequirementCode.Forbidden */ THEN NULL
                 ELSE COALESCE(v_tenant_id, v_parent_tenant) END,
             COALESCE(p_input_format_id, CASE WHEN p_input IS NULL THEN 0 /* JobPayloadFormat.None */ ELSE 1 /* JobPayloadFormat.Json */ END),
             p_input,
@@ -247,7 +247,7 @@ BEGIN
             DO NOTHING
         RETURNING jobs.job_id INTO v_job_id;
     ELSE
-        IF v_def_tenant_req = 10 /* DefinitionTenantRequirementCode.Required */ AND v_tenant_id IS NULL THEN
+        IF v_def_tenant_req = 10 /* TenantRequirementCode.Required */ AND v_tenant_id IS NULL THEN
             RAISE EXCEPTION 'ACTA:ENQ_TENANT_REQUIRED:Enqueue rejected: the job definition requires a tenant and the row carries none.'
                 USING ERRCODE = 'P0001';
         END IF;

@@ -220,7 +220,7 @@ internal static class JobPolicyReader
                             ManifestDiagnostics.InvalidPolicyValue(
                                 named.Key,
                                 tr.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                                "The value is not a defined `DefinitionTenantRequirementCode`.",
+                                "The value is not a defined `TenantRequirementCode`.",
                                 location
                             )
                         );

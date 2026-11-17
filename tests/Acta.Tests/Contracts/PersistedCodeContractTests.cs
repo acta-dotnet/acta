@@ -122,9 +122,9 @@ public sealed class PersistedCodeContractTests
         JobPriorityCode.High=70|high
         JobPriorityCode.Critical=85|critical
         JobPriorityCode.Realtime=100|realtime
-        DefinitionTenantRequirementCode.Optional=0|optional
-        DefinitionTenantRequirementCode.Required=10|required
-        DefinitionTenantRequirementCode.Forbidden=20|forbidden
+        TenantRequirementCode.Optional=0|optional
+        TenantRequirementCode.Required=10|required
+        TenantRequirementCode.Forbidden=20|forbidden
         JobStatusCode.Unspecified=0|unspecified
         JobStatusCode.Ready=10|ready
         JobStatusCode.Blocked=15|blocked
@@ -207,7 +207,7 @@ public sealed class PersistedCodeContractTests
         WorkerStatusCode.Dead=200|dead
         """;
 
-    private const string ExpectedDescriptionHash = "0F3DDE4435FCA39D28AF2911FBBA35C3A3CDD88F36BC550960F4932E94B5A73A";
+    private const string ExpectedDescriptionHash = "22D252907713D1AC4D1E12576F9E13CD1E831B88946C58F37B08DF8F002ECF88";
 
     [Fact]
     public void Frozen_contract_covers_all_32_families_and_196_values()

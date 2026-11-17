@@ -560,24 +560,6 @@ sealed class Acta.DefinitionStatusCodeJsonConverter : System.Text.Json.Serializa
     .ctor()
     Acta.DefinitionStatusCode Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
     System.Void Write(System.Text.Json.Utf8JsonWriter writer, Acta.DefinitionStatusCode value, System.Text.Json.JsonSerializerOptions options)
-enum Acta.DefinitionTenantRequirementCode : System.Byte
-    Forbidden = 20
-    Optional = 0
-    Required = 10
-static class Acta.DefinitionTenantRequirementCodeExtensions
-    static Acta.DefinitionTenantRequirementCode FromCode(System.String code)
-    static Acta.DefinitionTenantRequirementCode FromId(System.Byte id)
-    static System.Boolean IsKnownId(System.Byte id)
-    static System.Boolean IsWritableId(System.Byte id)
-    static System.Byte get_ToId(Acta.DefinitionTenantRequirementCode value)
-    static System.Collections.Generic.IReadOnlyList<Acta.CodeManifestEntry> get_Manifest()
-    static System.String get_Code(Acta.DefinitionTenantRequirementCode value)
-    static System.String get_CodeKind()
-    static System.String get_Description(Acta.DefinitionTenantRequirementCode value)
-sealed class Acta.DefinitionTenantRequirementCodeJsonConverter : System.Text.Json.Serialization.JsonConverter<Acta.DefinitionTenantRequirementCode>
-    .ctor()
-    Acta.DefinitionTenantRequirementCode Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
-    System.Void Write(System.Text.Json.Utf8JsonWriter writer, Acta.DefinitionTenantRequirementCode value, System.Text.Json.JsonSerializerOptions options)
 sealed record Acta.DiscardOutboxResponse : Acta.IOutboxControlResponse
     .ctor(Acta.ControlAction Action, System.Nullable<System.DateTime> PendingSinceUtc)
     Acta.ControlAction Action { get;init; }
@@ -1296,11 +1278,11 @@ sealed class Acta.JobAttribute : System.Attribute
     .ctor(System.String name)
     Acta.AlertProfileCode AlertProfile { get;init; }
     Acta.DeadlineBehaviorCode DeadlineBehavior { get;init; }
-    Acta.DefinitionTenantRequirementCode TenantRequirement { get;init; }
     Acta.EventRecordingCode EventRecording { get;init; }
     Acta.FiringFailurePolicyCode FiringFailurePolicy { get;init; }
     Acta.JobPriorityCode Priority { get;init; }
     Acta.ScheduledDeliveryCode ScheduledDelivery { get;init; }
+    Acta.TenantRequirementCode TenantRequirement { get;init; }
     System.Int32 ConcurrencyLimit { get;init; }
     System.Int32 MaxAttempts { get;init; }
     System.String Name { get; }
@@ -1432,13 +1414,13 @@ sealed record Acta.JobDescriptor
     .ctor(System.String JobName, System.Type HandlerType, System.String MethodName, System.Type InputType, System.Type? ResultType, Acta.JobPayloadFormat InputPayloadFormat, System.Nullable<Acta.JobPayloadFormat> ResultPayloadFormat, Acta.JobPriorityCode Priority, System.Int32 MaxAttempts, Acta.EventRecordingCode EventRecording, Acta.AlertProfileCode AlertProfile, Acta.FiringFailurePolicyCode FiringFailurePolicy, Acta.ScheduledDeliveryCode ScheduledDelivery, Acta.JobHandlerInvokeDelegate Invoker, System.Func<Acta.IJobPayloadSerializer, Acta.JobPayload, System.Object> DeserializeInput, System.Func<Acta.IJobPayloadSerializer, System.Object?, Acta.JobPayload>? SerializeResult)
     Acta.AlertProfileCode AlertProfile { get;init; }
     Acta.DeadlineBehaviorCode DeadlineBehavior { get;init; }
-    Acta.DefinitionTenantRequirementCode TenantRequirement { get;init; }
     Acta.EventRecordingCode EventRecording { get;init; }
     Acta.FiringFailurePolicyCode FiringFailurePolicy { get;init; }
     Acta.JobHandlerInvokeDelegate Invoker { get;init; }
     Acta.JobPayloadFormat InputPayloadFormat { get;init; }
     Acta.JobPriorityCode Priority { get;init; }
     Acta.ScheduledDeliveryCode ScheduledDelivery { get;init; }
+    Acta.TenantRequirementCode TenantRequirement { get;init; }
     System.Collections.Immutable.ImmutableArray<Acta.ScheduleDescriptor> Schedules { get;init; }
     System.Func<Acta.IJobPayloadSerializer, Acta.JobPayload, System.Object> DeserializeInput { get;init; }
     System.Func<Acta.IJobPayloadSerializer, System.Object, Acta.JobPayload>? SerializeInput { get;init; }
@@ -2691,6 +2673,24 @@ sealed class Acta.TagTarget
     static Acta.TagTarget ForJob(Acta.JobLookup job)
     static Acta.TagTarget ForNamespace(System.String jobNamespace)
     static Acta.TagTarget ForTenant(System.String tenantName)
+enum Acta.TenantRequirementCode : System.Byte
+    Forbidden = 20
+    Optional = 0
+    Required = 10
+static class Acta.TenantRequirementCodeExtensions
+    static Acta.TenantRequirementCode FromCode(System.String code)
+    static Acta.TenantRequirementCode FromId(System.Byte id)
+    static System.Boolean IsKnownId(System.Byte id)
+    static System.Boolean IsWritableId(System.Byte id)
+    static System.Byte get_ToId(Acta.TenantRequirementCode value)
+    static System.Collections.Generic.IReadOnlyList<Acta.CodeManifestEntry> get_Manifest()
+    static System.String get_Code(Acta.TenantRequirementCode value)
+    static System.String get_CodeKind()
+    static System.String get_Description(Acta.TenantRequirementCode value)
+sealed class Acta.TenantRequirementCodeJsonConverter : System.Text.Json.Serialization.JsonConverter<Acta.TenantRequirementCode>
+    .ctor()
+    Acta.TenantRequirementCode Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
+    System.Void Write(System.Text.Json.Utf8JsonWriter writer, Acta.TenantRequirementCode value, System.Text.Json.JsonSerializerOptions options)
 enum Acta.TenantStatusCode : System.Byte
     Active = 10
     Suspended = 20

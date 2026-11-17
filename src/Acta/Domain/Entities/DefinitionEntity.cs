@@ -123,7 +123,7 @@ internal sealed class DefinitionEntity : IEntity<int>
     /// contract-adjacent, and an operator flip would break handler assumptions about tenant scope.
     /// </summary>
     [DbColumn("tenant_requirement_code")]
-    public DefinitionTenantRequirementCode TenantRequirement { get; internal set; }
+    public TenantRequirementCode TenantRequirement { get; internal set; }
 
     // ---------- Policy (triples: default, operator _override, DB-computed _effective) ----------
     // Convention: each code-owned default is bare-named; its operator override is the same name +

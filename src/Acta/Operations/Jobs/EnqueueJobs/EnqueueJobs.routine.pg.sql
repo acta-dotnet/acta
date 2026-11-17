@@ -215,7 +215,7 @@ BEGIN
         INNER JOIN {{schema}}.definitions jd ON jd.namespace_id = ns.namespace_id AND jd.definition_name = b.job_name
         LEFT JOIN {{schema}}.jobs pj ON pj.job_id = b.parent_job_id
         WHERE
-            jd.tenant_requirement_code = 10 /* DefinitionTenantRequirementCode.Required */
+            jd.tenant_requirement_code = 10 /* TenantRequirementCode.Required */
             AND b.tenant_name IS NULL
             AND pj.tenant_id IS NULL
     ) THEN
@@ -229,7 +229,7 @@ BEGIN
         INNER JOIN {{schema}}.namespaces ns ON ns.namespace_name = b.namespace_name
         INNER JOIN {{schema}}.definitions jd ON jd.namespace_id = ns.namespace_id AND jd.definition_name = b.job_name
         WHERE
-            jd.tenant_requirement_code = 20 /* DefinitionTenantRequirementCode.Forbidden */
+            jd.tenant_requirement_code = 20 /* TenantRequirementCode.Forbidden */
             AND b.tenant_name IS NOT NULL
     ) THEN
         RAISE EXCEPTION 'ACTA:ENQ_TENANT_FORBIDDEN:Enqueue rejected: one or more rows target a definition that forbids a tenant and name one.'
@@ -338,7 +338,7 @@ BEGIN
         -- A named tenant passed the Forbidden check above; a definition that turned Forbidden since must not drop it.
         CASE
             WHEN b.tenant_name IS NOT NULL THEN t.tenant_id
-            WHEN jd.tenant_requirement_code = 20 /* DefinitionTenantRequirementCode.Forbidden */ THEN NULL
+            WHEN jd.tenant_requirement_code = 20 /* TenantRequirementCode.Forbidden */ THEN NULL
             ELSE pj.tenant_id
         END,
         b.input_format_id,

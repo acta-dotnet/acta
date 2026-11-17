@@ -112,7 +112,7 @@ public sealed class JobAttribute(string name) : Attribute
     /// tenant-less enqueue (explicit TenantName or parent inheritance both satisfy it), and
     /// <c>Forbidden</c> rejects an explicit TenantName and suppresses parent inheritance.
     /// </summary>
-    public DefinitionTenantRequirementCode TenantRequirement { get; init; } = DefinitionTenantRequirementCode.Optional;
+    public TenantRequirementCode TenantRequirement { get; init; } = TenantRequirementCode.Optional;
 
     /// <summary>
     /// Kebab-case payload format applied to both this Job's input and result bytes. Built-in formats

@@ -30,7 +30,7 @@ public sealed record JobDescriptor(
     /// Whether jobs of this definition must, may, or must not carry a tenant; synced from
     /// <c>[Job(TenantRequirement = ...)]</c> and enforced at the enqueue boundary in the database.
     /// </summary>
-    public DefinitionTenantRequirementCode TenantRequirement { get; init; } = DefinitionTenantRequirementCode.Optional;
+    public TenantRequirementCode TenantRequirement { get; init; } = TenantRequirementCode.Optional;
 
     /// <summary>
     /// How many attempts of this definition may execute at once. Null = unlimited unless the job row

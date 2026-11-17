@@ -444,7 +444,7 @@ again.
 - A tenant names who a job is about, a customer such as `acme-corp`; the namespace names who runs it. Register one
   with `await acta.Tenants.RegisterAsync("acme-corp", ct: ct)`, enqueue with `o => o.TenantName("acme-corp")`, and the
   handler reads `ctx.TenantName`. A child inherits its parent's tenant; naming another takes `overrideParent: true`.
-- `[Job("bill-tenant", TenantRequirement = DefinitionTenantRequirementCode.Required)]` refuses an enqueue without a tenant, and
+- `[Job("bill-tenant", TenantRequirement = TenantRequirementCode.Required)]` refuses an enqueue without a tenant, and
   `Forbidden` one with a tenant.
 - An unknown or suspended tenant's enqueue is refused (`EnqueueRejectionReason.TenantUnknown`, `TenantSuspended`).
   Suspension only stops admission: admitted jobs run on, the children they start are admitted, and restarts and

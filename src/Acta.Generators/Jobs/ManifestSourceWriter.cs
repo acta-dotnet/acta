@@ -163,7 +163,7 @@ internal static class ManifestSourceWriter
         var policyLines = new List<string>();
         if (j.TenantRequirementId != 0)
         {
-            policyLines.Add($"TenantRequirement = (global::Acta.DefinitionTenantRequirementCode){j.TenantRequirementId},");
+            policyLines.Add($"TenantRequirement = (global::Acta.TenantRequirementCode){j.TenantRequirementId},");
         }
 
         if (j.ConcurrencyLimit is { } concurrencyLimit)
