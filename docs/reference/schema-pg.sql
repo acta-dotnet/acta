@@ -12,7 +12,7 @@
 -- present and leaves the data in place. Over a database a newer release upgraded, the script stops
 -- before changing anything. A later 1.x release upgrades a 1.x database with
 -- its own migrations, carried in its own copy of this script. A database provisioned from an
--- init migration other than M20261117144345_init has no upgrade path: provision a new one.
+-- init migration other than M20261117144817_init has no upgrade path: provision a new one.
 --
 -- Run it with a client that stops at the first error, which is what makes the transaction below a
 -- guarantee: psql -v ON_ERROR_STOP=1. A client that runs on past a failed statement would reach the
@@ -41,14 +41,14 @@ DO $$
 BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
-        WHERE name NOT IN ('M20261117144345_init')
+        WHERE name NOT IN ('M20261117144817_init')
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
 END
 $$;
 
--- ===== BEGIN M20261117144345_init =====
+-- ===== BEGIN M20261117144817_init =====
 CREATE SCHEMA IF NOT EXISTS acta;
 
 -- alerts
@@ -4509,7 +4509,7 @@ SELECT
     s.misfire_strategy_code,
     st.next_occurrence_at_utc,
     st.next_evaluation_at_utc,
-    CASE st.evaluation_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'scheduled' WHEN 20 THEN 'waiting-for-capacity' WHEN 30 THEN 'exhausted' WHEN 40 THEN 'evaluation-error' WHEN 50 THEN 'job-unavailable' WHEN 60 THEN 'resumed' END AS evaluation_status,
+    CASE st.evaluation_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'scheduled' WHEN 20 THEN 'waiting-for-capacity' WHEN 30 THEN 'exhausted' WHEN 40 THEN 'failing' WHEN 50 THEN 'job-unavailable' WHEN 60 THEN 'resumed' END AS evaluation_status,
     st.evaluation_status_code,
     CASE d.scheduled_delivery_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'permanent' WHEN 20 THEN 'per-occurrence' END AS scheduled_delivery,
     d.scheduled_delivery_code,
@@ -4592,10 +4592,10 @@ JOIN acta.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO acta.migrations (name)
-VALUES ('M20261117144345_init')
+VALUES ('M20261117144817_init')
 ON CONFLICT (name) DO NOTHING;
 
--- ===== END M20261117144345_init =====
+-- ===== END M20261117144817_init =====
 
 COMMIT;
 

@@ -29,10 +29,10 @@ public enum ScheduleEvaluationStatusCode : byte
     Exhausted = 30,
 
     [Code(
-        "evaluation-error",
+        "failing",
         "The schedule's expression or calendar could not be evaluated; the schedule keeps its place and the evaluation retries after a bounded delay."
     )]
-    EvaluationError = 40,
+    Failing = 40,
 
     [Code(
         "job-unavailable",

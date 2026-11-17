@@ -84,7 +84,7 @@ internal static class ScheduleEvaluator
         {
             // A schedule in error stays in error while its source still throws, whatever the slot can take: parked, it
             // would read as waiting, and the settlement that woke it would start the same failure over.
-            if (cursor.EvaluationStatus == ScheduleEvaluationStatusCode.EvaluationError)
+            if (cursor.EvaluationStatus == ScheduleEvaluationStatusCode.Failing)
             {
                 _ = NextOccurrenceCalculator.Next(source, next);
             }
@@ -215,10 +215,7 @@ internal static class ScheduleEvaluator
         }
         catch (Exception ex) when (IsSourceFailure(ex))
         {
-            return Unchanged(cursor, ScheduleEvaluationStatusCode.EvaluationError, now + ErrorRetryDelay, pauseEnded) with
-            {
-                Error = ex.Message,
-            };
+            return Unchanged(cursor, ScheduleEvaluationStatusCode.Failing, now + ErrorRetryDelay, pauseEnded) with { Error = ex.Message };
         }
 
         return Moved(following, now, pauseEnded, pausedByExpiry, admit, skippedFrom, skippedThrough, expiredFrom, expiredThrough);

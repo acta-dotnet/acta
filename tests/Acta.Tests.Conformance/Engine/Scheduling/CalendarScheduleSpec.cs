@@ -205,7 +205,7 @@ public sealed class CalendarScheduleSpec : ActaRuntimeTestBase<ConformanceFixtur
         await Runtime.AdmitOnceAsync(TestNamespace, ct);
 
         var parked = Assert.Single(await ScheduleTestOps.ReadAsync(Db, calendarSlot, ct));
-        Assert.Equal(ScheduleEvaluationStatusCode.EvaluationError, parked.EvaluationStatus);
+        Assert.Equal(ScheduleEvaluationStatusCode.Failing, parked.EvaluationStatus);
         Assert.Equal(JobStatusCode.Idle, (await ReadJobAsync(calendarSlot, ct)).Status);
         // The pass went on past it: the other schedule's first open tick was admitted.
         Assert.Equal(JobStatusCode.Ready, (await ReadJobAsync(officeSlot, ct)).Status);

@@ -396,7 +396,7 @@ internal sealed class ScheduleAdmitter(
     /// the retries while the schedule stays in error do neither.
     /// </summary>
     private static bool StartedFailing(DueSchedule s, ScheduleEvaluation e) =>
-        e.Error is not null && s.EvaluationStatus != ScheduleEvaluationStatusCode.EvaluationError;
+        e.Error is not null && s.EvaluationStatus != ScheduleEvaluationStatusCode.Failing;
 
     private static TriggeringSchedule Contributor(DueSchedule s, AdmittedOccurrence admit) =>
         new(s.ScheduleName, admit.OccurrenceAtUtc, s.TimeZoneId ?? "UTC", admit.CoveredThroughUtc);

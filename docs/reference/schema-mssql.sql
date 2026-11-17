@@ -14,7 +14,7 @@
 -- present and leaves the data in place. Over a database a newer release upgraded, the script stops
 -- before changing anything. A later 1.x release upgrades a 1.x database with
 -- its own migrations, carried in its own copy of this script. A database provisioned from an
--- init migration other than M20261117144345_init has no upgrade path: provision a new one.
+-- init migration other than M20261117144817_init has no upgrade path: provision a new one.
 --
 -- Run it with a client that stops at the first error, which is what makes the transaction below a
 -- guarantee: sqlcmd -b, or SQLCMD mode with stop-on-error in SSMS. A client that runs on past a failed
@@ -57,7 +57,7 @@ GO
 -- ===== refuse a database a newer release already upgraded =====
 IF EXISTS (
     SELECT 1 FROM acta.migrations
-    WHERE name NOT IN ('M20261117144345_init')
+    WHERE name NOT IN ('M20261117144817_init')
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -65,7 +65,7 @@ BEGIN
     SET NOEXEC ON;
 END
 GO
--- ===== BEGIN M20261117144345_init =====
+-- ===== BEGIN M20261117144817_init =====
 SET QUOTED_IDENTIFIER ON;
 SET ANSI_NULLS ON;
 GO
@@ -5184,7 +5184,7 @@ SELECT
     s.misfire_strategy_code,
     st.next_occurrence_at_utc,
     st.next_evaluation_at_utc,
-    CASE st.evaluation_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'scheduled' WHEN 20 THEN 'waiting-for-capacity' WHEN 30 THEN 'exhausted' WHEN 40 THEN 'evaluation-error' WHEN 50 THEN 'job-unavailable' WHEN 60 THEN 'resumed' END AS evaluation_status,
+    CASE st.evaluation_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'scheduled' WHEN 20 THEN 'waiting-for-capacity' WHEN 30 THEN 'exhausted' WHEN 40 THEN 'failing' WHEN 50 THEN 'job-unavailable' WHEN 60 THEN 'resumed' END AS evaluation_status,
     st.evaluation_status_code,
     CASE d.scheduled_delivery_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'permanent' WHEN 20 THEN 'per-occurrence' END AS scheduled_delivery,
     d.scheduled_delivery_code,
@@ -5274,11 +5274,11 @@ JOIN acta.namespaces AS ns ON ns.namespace_id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261117144345_init')
+IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261117144817_init')
 INSERT INTO acta.migrations (name)
-VALUES ('M20261117144345_init');
+VALUES ('M20261117144817_init');
 GO
--- ===== END M20261117144345_init =====
+-- ===== END M20261117144817_init =====
 GO
 COMMIT TRANSACTION;
 GO

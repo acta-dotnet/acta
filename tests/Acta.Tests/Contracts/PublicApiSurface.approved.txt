@@ -2469,8 +2469,8 @@ sealed record Acta.ScheduleDescriptor
 sealed class Acta.ScheduleEvaluationException : Acta.ActaException
     .ctor(System.String message, System.Exception innerException)
 enum Acta.ScheduleEvaluationStatusCode : System.Byte
-    EvaluationError = 40
     Exhausted = 30
+    Failing = 40
     JobUnavailable = 50
     Resumed = 60
     Scheduled = 10

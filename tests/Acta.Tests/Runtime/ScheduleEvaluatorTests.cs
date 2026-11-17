@@ -335,7 +335,7 @@ public class ScheduleEvaluatorTests
 
         var d = Evaluate(broken, cursor, Utc(10, 6));
 
-        Assert.Equal(ScheduleEvaluationStatusCode.EvaluationError, d.Status);
+        Assert.Equal(ScheduleEvaluationStatusCode.Failing, d.Status);
         Assert.Equal(Utc(10, 6) + ScheduleEvaluator.ErrorRetryDelay, d.NextEvaluationAtUtc);
         Assert.Equal(cursor.NextOccurrenceAtUtc, d.NextOccurrenceAtUtc);
         Assert.Null(d.Admit);
@@ -646,11 +646,11 @@ public class ScheduleEvaluatorTests
         // A zone no host knows: the cron cannot be read. Parked as waiting it would lose the error, and the settlement
         // that woke it would find the failure all over again.
         var unknownZone = new ScheduleTiming("* * * * *", ScheduleExpressionKindCode.Cron, "Nowhere/Unknown", null);
-        var inError = new ScheduleCursor(Utc(10, 5), ScheduleStatusCode.Active, null, ScheduleEvaluationStatusCode.EvaluationError);
+        var inError = new ScheduleCursor(Utc(10, 5), ScheduleStatusCode.Active, null, ScheduleEvaluationStatusCode.Failing);
 
         var d = Evaluate(unknownZone, inError, Utc(10, 6), capacity: AdmissionCapacity.Full);
 
-        Assert.Equal(ScheduleEvaluationStatusCode.EvaluationError, d.Status);
+        Assert.Equal(ScheduleEvaluationStatusCode.Failing, d.Status);
         Assert.NotNull(d.Error);
         Assert.Equal(Utc(10, 7), d.NextEvaluationAtUtc);
     }
@@ -658,7 +658,7 @@ public class ScheduleEvaluatorTests
     [Fact]
     public void A_schedule_in_error_whose_source_reads_again_parks_on_a_busy_slot_like_any_other()
     {
-        var inError = new ScheduleCursor(Utc(10, 5), ScheduleStatusCode.Active, null, ScheduleEvaluationStatusCode.EvaluationError);
+        var inError = new ScheduleCursor(Utc(10, 5), ScheduleStatusCode.Active, null, ScheduleEvaluationStatusCode.Failing);
 
         var d = Evaluate(EveryMinute, inError, Utc(10, 6), capacity: AdmissionCapacity.Full);
 

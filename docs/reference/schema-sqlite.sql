@@ -15,7 +15,7 @@
 -- before changing anything, in a client that halts on an error (sqlite3 -bail). A later 1.x
 -- release upgrades a 1.x database with
 -- its own migrations, carried in its own copy of this script. A database provisioned from an
--- init migration other than M20261117144345_init has no upgrade path: provision a new one.
+-- init migration other than M20261117144817_init has no upgrade path: provision a new one.
 --
 -- Run it with a client that stops at the first error, which is what makes the transaction below a
 -- guarantee: sqlite3 -bail. A client that runs on past a failed statement would reach the history
@@ -53,11 +53,11 @@ CREATE TEMP TABLE release_guard (
 INSERT INTO release_guard
 SELECT EXISTS (
     SELECT 1 FROM main.migrations
-    WHERE name NOT IN ('M20261117144345_init')
+    WHERE name NOT IN ('M20261117144817_init')
 );
 DROP TABLE release_guard;
 
--- ===== BEGIN M20261117144345_init =====
+-- ===== BEGIN M20261117144817_init =====
 CREATE TABLE IF NOT EXISTS main.alerts (
     alert_id integer PRIMARY KEY AUTOINCREMENT,
     alert_ref text NOT NULL,
@@ -742,7 +742,7 @@ SELECT
     s.misfire_strategy_code,
     strftime('%Y-%m-%dT%H:%M:%fZ', st.next_occurrence_at_utc / 1000.0, 'unixepoch') AS next_occurrence_at_utc,
     strftime('%Y-%m-%dT%H:%M:%fZ', st.next_evaluation_at_utc / 1000.0, 'unixepoch') AS next_evaluation_at_utc,
-    CASE st.evaluation_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'scheduled' WHEN 20 THEN 'waiting-for-capacity' WHEN 30 THEN 'exhausted' WHEN 40 THEN 'evaluation-error' WHEN 50 THEN 'job-unavailable' WHEN 60 THEN 'resumed' END AS evaluation_status,
+    CASE st.evaluation_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'scheduled' WHEN 20 THEN 'waiting-for-capacity' WHEN 30 THEN 'exhausted' WHEN 40 THEN 'failing' WHEN 50 THEN 'job-unavailable' WHEN 60 THEN 'resumed' END AS evaluation_status,
     st.evaluation_status_code,
     CASE d.scheduled_delivery_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'permanent' WHEN 20 THEN 'per-occurrence' END AS scheduled_delivery,
     d.scheduled_delivery_code,
@@ -828,10 +828,10 @@ JOIN main.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO main.migrations (name)
-VALUES ('M20261117144345_init')
+VALUES ('M20261117144817_init')
 ON CONFLICT (name) DO NOTHING;
 
--- ===== END M20261117144345_init =====
+-- ===== END M20261117144817_init =====
 
 COMMIT;
 

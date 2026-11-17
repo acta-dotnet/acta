@@ -179,7 +179,7 @@ public sealed class PersistedCodeContractTests
         ScheduleEvaluationStatusCode.Scheduled=10|scheduled
         ScheduleEvaluationStatusCode.WaitingForCapacity=20|waiting-for-capacity
         ScheduleEvaluationStatusCode.Exhausted=30|exhausted
-        ScheduleEvaluationStatusCode.EvaluationError=40|evaluation-error
+        ScheduleEvaluationStatusCode.Failing=40|failing
         ScheduleEvaluationStatusCode.JobUnavailable=50|job-unavailable
         ScheduleEvaluationStatusCode.Resumed=60|resumed
         EntityCode.Unspecified=0|unspecified
@@ -207,7 +207,7 @@ public sealed class PersistedCodeContractTests
         WorkerStatusCode.Dead=200|dead
         """;
 
-    private const string ExpectedDescriptionHash = "51A97F5DCC2982BD1FB67192DEDCD26564B3389F13F91570A782212DFA5B460C";
+    private const string ExpectedDescriptionHash = "2E87DCB03E55D6305F9219BCE6E00B4AE8FEC12EF485FAEC004FCBC95E0B395B";
 
     [Fact]
     public void Frozen_contract_covers_all_32_families_and_196_values()

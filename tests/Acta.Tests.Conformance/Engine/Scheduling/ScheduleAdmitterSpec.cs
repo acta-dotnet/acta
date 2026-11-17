@@ -176,7 +176,7 @@ public sealed class ScheduleAdmitterSpec : ActaRuntimeTestBase<ConformanceFixtur
         await Runtime.AdmitOnceAsync(TestNamespace, ct);
 
         var schedule = await ScheduleAsync(slotId, ct);
-        Assert.Equal(ScheduleEvaluationStatusCode.EvaluationError, schedule.EvaluationStatus);
+        Assert.Equal(ScheduleEvaluationStatusCode.Failing, schedule.EvaluationStatus);
         Assert.Equal(retry.AddMinutes(1), schedule.NextEvaluationAtUtc);
         var failed = Assert.Single(
             await Db.From<EventEntity>()

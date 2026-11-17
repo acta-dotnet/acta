@@ -4,7 +4,7 @@ namespace Acta;
 /// One evaluation's outcome, the whole of what the admitter writes for a schedule: the one nominal occurrence admitted
 /// (null when none), the audited range the misfire policy skipped, the range that aged past the expiry, the new cursor
 /// fields, whether an elapsed timed pause is over, whether the schedule now pauses for an operator, under
-/// <see cref="ScheduleEvaluationStatusCode.EvaluationError"/> what the source said, and whether the skipped range is an
+/// <see cref="ScheduleEvaluationStatusCode.Failing"/> what the source said, and whether the skipped range is an
 /// occurrence the source no longer produces. Two decisions with the same cursor fields, status, and nothing decided
 /// are the same, which is how a pass tells a no-op from a write.
 /// </summary>
