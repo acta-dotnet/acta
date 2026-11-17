@@ -233,7 +233,7 @@
         <div class="vs-row" id="crash">
           <div class="who"><b>What survives a crash?</b><span>everything that committed</span></div>
           <div class="why">
-            <p>The row, its status, the lease, the firing envelope, every recorded step, every checkpoint, and every event are in your database. The dead worker's lease runs out, a heartbeat on any worker reclaims the row, and the next execution re-enters the handler from the top, where the recorded steps and your own committed progress say where to continue. The figure and the rows below are from a real kill.</p>
+            <p>The row, its status, the lease, the firing envelope, every recorded step, every checkpoint, and every event are in your database. The dead worker's lease runs out, a heartbeat on any worker reclaims the row, and the next execution re-enters the handler from the top, where the recorded steps and your own committed progress say where to continue. The figure and the rows below are from a real kill on SQLite, where a restart does not wait the lease out: the starting worker lapses it at once, and the reclaim reads <code>process-ended</code>.</p>
             <div class="links"><a class="golink" href="#recovery">The crash, in rows</a><a class="golink" href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#execution-semantics">Execution semantics</a></div>
           </div>
         </div>
@@ -341,7 +341,7 @@ watermark   variable  160
 feed head: change 180; local orders: 40 (newest change 160)
 
 <span class="c">-- after the restart: the reclaim, the same firing finished under execution 8, the next admission</span>
-19  job.execution-orphaned   7  {"reason":"lease-expired","to":"ready"}
+19  job.execution-orphaned   7  {"reason":"process-ended","to":"ready"}
 20  job.execution-succeeded  8
 21  schedule.skipped         8  {"schedule":"every-5s","from":"2026…
 22  schedule.admitted        8  {"schedule":"every-5s","occurrence"…
