@@ -34,7 +34,7 @@ internal static class DefinitionsEndpoints
                     "status",
                     QueryParameterKind.String,
                     "Exact definition status as a kebab code.",
-                    CodeKind: "job-definition-status"
+                    CodeKind: "definition-status"
                 ),
                 .. QueryParameterDocExtensions.PagingCore,
                 .. QueryParameterDocExtensions.IncludeTotal,

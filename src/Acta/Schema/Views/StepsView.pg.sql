@@ -4,7 +4,7 @@ SELECT
     ns.namespace_name,
     d.definition_name,
     s.step_name,
-    {{decode:job-step-status:s.step_status_code}} AS step_status,
+    {{decode:step-status:s.step_status_code}} AS step_status,
     s.step_status_code,
     s.failure_message,
     CASE s.result_format_id

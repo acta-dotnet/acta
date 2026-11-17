@@ -4,9 +4,9 @@ SELECT
     ns.namespace_name,
     d.definition_name,
     c.checkpoint_name,
-    {{decode:job-checkpoint-kind:c.checkpoint_kind_code}} AS checkpoint_kind,
+    {{decode:checkpoint-kind:c.checkpoint_kind_code}} AS checkpoint_kind,
     c.checkpoint_kind_code,
-    {{decode:job-checkpoint-status:c.checkpoint_status_code}} AS checkpoint_status,
+    {{decode:checkpoint-status:c.checkpoint_status_code}} AS checkpoint_status,
     c.checkpoint_status_code,
     strftime('%Y-%m-%dT%H:%M:%fZ', c.due_at_utc / 1000.0, 'unixepoch') AS due_at_utc,
     CASE c.value_format_id

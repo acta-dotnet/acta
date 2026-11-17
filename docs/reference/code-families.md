@@ -41,10 +41,10 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | [`AlertSeverityCode`](#code-family-alertseveritycode) | `alert-severity` | `byte` |
 | [`CalendarRoleCode`](#code-family-calendarrolecode) | `calendar-role` | `byte` |
 | [`CalendarStatusCode`](#code-family-calendarstatuscode) | `calendar-status` | `byte` |
-| [`CheckpointKindCode`](#code-family-checkpointkindcode) | `job-checkpoint-kind` | `byte` |
-| [`CheckpointStatusCode`](#code-family-checkpointstatuscode) | `job-checkpoint-status` | `byte` |
+| [`CheckpointKindCode`](#code-family-checkpointkindcode) | `checkpoint-kind` | `byte` |
+| [`CheckpointStatusCode`](#code-family-checkpointstatuscode) | `checkpoint-status` | `byte` |
 | [`DeadlineBehaviorCode`](#code-family-deadlinebehaviorcode) | `deadline-behavior` | `byte` |
-| [`DefinitionStatusCode`](#code-family-definitionstatuscode) | `job-definition-status` | `byte` |
+| [`DefinitionStatusCode`](#code-family-definitionstatuscode) | `definition-status` | `byte` |
 | [`EntityCode`](#code-family-entitycode) | `entity` | `byte` |
 | [`EventCode`](#code-family-eventcode) | `event` | `byte` |
 | [`EventRecordingCode`](#code-family-eventrecordingcode) | `event-recording` | `byte` |
@@ -63,7 +63,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | [`ScheduleFullBehaviorCode`](#code-family-schedulefullbehaviorcode) | `schedule-full-behavior` | `byte` |
 | [`ScheduleStatusCode`](#code-family-schedulestatuscode) | `schedule-status` | `byte` |
 | [`ScheduledDeliveryCode`](#code-family-scheduleddeliverycode) | `scheduled-delivery` | `byte` |
-| [`StepStatusCode`](#code-family-stepstatuscode) | `job-step-status` | `byte` |
+| [`StepStatusCode`](#code-family-stepstatuscode) | `step-status` | `byte` |
 | [`TenantRequirementCode`](#code-family-tenantrequirementcode) | `tenant-requirement` | `byte` |
 | [`TenantStatusCode`](#code-family-tenantstatuscode) | `tenant-status` | `byte` |
 | [`WorkerStatusCode`](#code-family-workerstatuscode) | `worker-status` | `byte` |
@@ -138,7 +138,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `Superseded` | 30 | `superseded` | A version that was current until a newer one was published; history still refers to it. | Active |
 | `Archived` | 240 | `archived` | The family's current version, retired; the family has no current version until another is published. | Active |
 
-### `CheckpointKindCode` · `job-checkpoint-kind` <a id="code-family-checkpointkindcode"></a>
+### `CheckpointKindCode` · `checkpoint-kind` <a id="code-family-checkpointkindcode"></a>
 
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
@@ -150,7 +150,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `ChildLatch` | 50 | `child-latch` | The latch a parent job holds for one child's outcome; pending while awaited, set when the child ends. | Active |
 | `Firing` | 60 | `firing` | The record of one scheduled firing of a permanent job or of a per-occurrence job; pending while outstanding, then settled with the outcome. It survives a handler's state reset. | Active |
 
-### `CheckpointStatusCode` · `job-checkpoint-status` <a id="code-family-checkpointstatuscode"></a>
+### `CheckpointStatusCode` · `checkpoint-status` <a id="code-family-checkpointstatuscode"></a>
 
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
@@ -171,7 +171,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `Strict` | 10 | `strict` | The engine cancels an overdue job when a worker would next run it, and schedules no retry past the deadline. | Active |
 | `Advisory` | 20 | `advisory` | The deadline is informational: the engine never ends the job for it, and the handler can read that it is overdue. | Active |
 
-### `DefinitionStatusCode` · `job-definition-status` <a id="code-family-definitionstatuscode"></a>
+### `DefinitionStatusCode` · `definition-status` <a id="code-family-definitionstatuscode"></a>
 
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
@@ -404,7 +404,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `Permanent` | 10 | `permanent` | Default. The definition's schedules fire one permanent job again and again. | Active |
 | `PerOccurrence` | 20 | `per-occurrence` | Each admitted occurrence enqueues a fresh ordinary root job with its own state, retries, and retention. | Active |
 
-### `StepStatusCode` · `job-step-status` <a id="code-family-stepstatuscode"></a>
+### `StepStatusCode` · `step-status` <a id="code-family-stepstatuscode"></a>
 
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|

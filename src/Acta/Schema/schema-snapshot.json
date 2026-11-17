@@ -217,7 +217,7 @@
         },
         {
           "Name": "checkpoint_kind_code",
-          "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=job-checkpoint-kind|caseExact=False"
+          "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=checkpoint-kind|caseExact=False"
         },
         {
           "Name": "checkpoint_name",
@@ -225,7 +225,7 @@
         },
         {
           "Name": "checkpoint_status_code",
-          "Signature": "Byte|0|0|0|True|None||coded=True|codeKind=job-checkpoint-status|caseExact=False"
+          "Signature": "Byte|0|0|0|True|None||coded=True|codeKind=checkpoint-status|caseExact=False"
         },
         {
           "Name": "due_at_utc",
@@ -288,7 +288,7 @@
         },
         {
           "Name": "definition_status_code",
-          "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=job-definition-status|caseExact=False"
+          "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=definition-status|caseExact=False"
         },
         {
           "Name": "definition_hash",
@@ -1273,7 +1273,7 @@
         },
         {
           "Name": "step_status_code",
-          "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=job-step-status|caseExact=False"
+          "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=step-status|caseExact=False"
         },
         {
           "Name": "failure_message",

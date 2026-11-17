@@ -7,7 +7,7 @@ namespace Acta;
 /// failed when its body threw, or interrupted when it was re-entered before it completed.
 /// </summary>
 [JsonConverter(typeof(StepStatusCodeJsonConverter))]
-[CodeKind("job-step-status")]
+[CodeKind("step-status")]
 public enum StepStatusCode : byte
 {
     [Code("unspecified", "Step status not recognized by this build; the row was written by a newer Acta.")]

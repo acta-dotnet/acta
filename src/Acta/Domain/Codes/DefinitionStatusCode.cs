@@ -4,7 +4,7 @@ namespace Acta;
 
 /// <summary>Where a job definition is in its life.</summary>
 [JsonConverter(typeof(DefinitionStatusCodeJsonConverter))]
-[CodeKind("job-definition-status")]
+[CodeKind("definition-status")]
 public enum DefinitionStatusCode : byte
 {
     [Code("unspecified", "Definition status not recognized by this build; the row was written by a newer Acta.")]

@@ -2,7 +2,7 @@ SELECT
     d.definition_id,
     ns.namespace_name,
     d.definition_name,
-    {{decode:job-definition-status:d.definition_status_code}} AS definition_status,
+    {{decode:definition-status:d.definition_status_code}} AS definition_status,
     d.definition_status_code,
     d.definition_hash,
     d.created_deployment_version,

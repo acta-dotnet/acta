@@ -7,7 +7,7 @@ namespace Acta;
 /// pending until it is consumed; a firing is pending until it succeeds, fails, or is cancelled. Variables and progress have no status.
 /// </summary>
 [JsonConverter(typeof(CheckpointStatusCodeJsonConverter))]
-[CodeKind("job-checkpoint-status")]
+[CodeKind("checkpoint-status")]
 public enum CheckpointStatusCode : byte
 {
     [Code("unspecified", "Checkpoint status not recognized by this build; the row was written by a newer Acta.")]

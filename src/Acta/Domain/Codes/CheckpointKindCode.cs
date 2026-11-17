@@ -8,7 +8,7 @@ namespace Acta;
 /// </summary>
 /// <remarks>One table, <c>checkpoints</c>, holds every kind, keyed by <c>(job_id, checkpoint_kind_code, checkpoint_name)</c>.</remarks>
 [JsonConverter(typeof(CheckpointKindCodeJsonConverter))]
-[CodeKind("job-checkpoint-kind")]
+[CodeKind("checkpoint-kind")]
 public enum CheckpointKindCode : byte
 {
     [Code("unspecified", "Checkpoint kind not recognized by this build; the row was written by a newer Acta.")]
