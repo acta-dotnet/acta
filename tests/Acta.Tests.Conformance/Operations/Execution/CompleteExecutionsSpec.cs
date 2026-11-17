@@ -255,7 +255,7 @@ public sealed class CompleteExecutionsSpec : ActaRuntimeTestBase<ConformanceFixt
     private async Task<(long Version, int Finished)> StateAsync(long jobId, CancellationToken ct) =>
         ((await ReadJobAsync(jobId, ct)).Version, (await AttemptEventsAsync(jobId, ct)).Count);
 
-    // The job's attempt events, 40 to 44.
+    // The job's attempt endings.
     private async Task<IReadOnlyList<EventEntity>> AttemptEventsAsync(long jobId, CancellationToken ct) =>
         [
             .. (await Db.From<EventEntity>().Where(e => e.EntityCode == EntityCode.Job && e.EntityId == jobId).ToListAsync(ct)).Where(e =>

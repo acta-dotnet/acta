@@ -175,7 +175,7 @@ WHERE
         WHERE
             f.entity_code = 4 /* EntityCode.Job */
             AND f.entity_id = @p_job_id
-            AND f.event_code IN (43 /* EventCode.JobExecutionYielded */, 44 /* EventCode.JobFailed */, 70 /* EventCode.JobCancelled */)
+            AND f.event_code IN (12 /* EventCode.JobExecutionYielded */, 13 /* EventCode.JobFailed */, 8 /* EventCode.JobCancelled */)
             AND f.execution_number = r.execution_number
             AND convert_from(f.details, 'UTF8')::jsonb ->> 'reason' = 'wait-timed-out'
             AND (f.event_message LIKE 'The wait for signal ''%' OR f.event_message LIKE 'Durable wait ''%')
@@ -257,7 +257,7 @@ INSERT INTO {{schema}}.events (
     event_message, actor, details_format_id, details
 )
 SELECT
-    73 /* EventCode.JobRestarted */, now(), s.namespace_id,
+    20 /* EventCode.JobRestarted */, now(), s.namespace_id,
     4 /* EntityCode.Job */, @p_job_id,
     s.definition_id, s.tenant_id, COALESCE(s.lineage_root_job_id, @p_job_id),
     s.execution_number,

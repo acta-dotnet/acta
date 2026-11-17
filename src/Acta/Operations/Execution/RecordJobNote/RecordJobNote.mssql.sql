@@ -23,7 +23,7 @@ BEGIN TRY
         details_format_id,
         details)
     SELECT
-        90 /* EventCode.JobNoteRecorded */,
+        15 /* EventCode.JobNoteRecorded */,
         SYSUTCDATETIME(),
         j.namespace_id,
         @p_worker_id,

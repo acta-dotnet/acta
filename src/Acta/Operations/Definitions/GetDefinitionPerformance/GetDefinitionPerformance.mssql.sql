@@ -34,7 +34,7 @@ FROM (
         AND e.created_at_utc >= @p_created_from_utc
         AND e.created_at_utc < @p_created_to_utc
         -- ix_events_duration's filter restated whole, so the read is one range of that index.
-        AND e.event_code IN (40 /* EventCode.JobExecutionSucceeded */, 41 /* EventCode.JobExecutionFailed */, 44 /* EventCode.JobFailed */)
+        AND e.event_code IN (11 /* EventCode.JobExecutionSucceeded */, 9 /* EventCode.JobExecutionFailed */, 13 /* EventCode.JobFailed */)
         AND e.duration_ms IS NOT NULL
     ORDER BY e.created_at_utc DESC
 ) a

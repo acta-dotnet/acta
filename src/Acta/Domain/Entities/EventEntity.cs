@@ -31,7 +31,7 @@ namespace Acta;
     Name = "ix_events_duration",
     Columns = ["namespace_id", "definition_id", "created_at_utc"],
     Include = ["event_code", "duration_ms"],
-    Filter = "event_code IN (40, 41, 44) AND duration_ms IS NOT NULL",
+    Filter = "event_code IN (9, 11, 13) AND duration_ms IS NOT NULL",
     Usage = "dashboard"
 )]
 [DbCheck(

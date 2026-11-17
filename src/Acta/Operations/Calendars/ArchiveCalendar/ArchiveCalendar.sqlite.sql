@@ -48,7 +48,7 @@ INSERT INTO {{schema}}.events (
     details_format_id,
     details)
 SELECT
-    112 /* EventCode.CalendarArchived */,
+    3 /* EventCode.CalendarArchived */,
     {{now}},
     t.namespace_id,
     2 /* EntityCode.Calendar */,

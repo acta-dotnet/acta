@@ -37,7 +37,7 @@ recorded AS (
         event_message, actor, details_format_id, details
     )
     SELECT
-        82 /* EventCode.JobSignalCleared */, now(), t.namespace_id,
+        22 /* EventCode.JobSignalCleared */, now(), t.namespace_id,
         4 /* EntityCode.Job */, t.job_id,
         t.definition_id, t.tenant_id, COALESCE(t.lineage_root_job_id, t.job_id),
         t.execution_number,

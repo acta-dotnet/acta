@@ -28,7 +28,7 @@ INSERT INTO {{schema}}.events (
     event_message, actor, details_format_id, details
 )
 SELECT
-    140 /* EventCode.AlertAcknowledged */, now(), t.namespace_id,
+    1 /* EventCode.AlertAcknowledged */, now(), t.namespace_id,
     1 /* EntityCode.Alert */, t.alert_id,
     j.definition_id, j.tenant_id, COALESCE(j.lineage_root_job_id, t.job_id),
     @p_event_message, @p_actor, @p_details_format_id, @p_details

@@ -21,7 +21,7 @@ INSERT INTO {{schema}}.events (
     details_format_id,
     details)
 SELECT
-    71 /* EventCode.JobPaused */,
+    16 /* EventCode.JobPaused */,
     {{now}},
     j.namespace_id,
     4 /* EntityCode.Job */,

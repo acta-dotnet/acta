@@ -17,7 +17,7 @@ INSERT INTO {{schema}}.events (
     entity_code,
     entity_id)
 SELECT
-    121 /* EventCode.WorkerStopped */,
+    48 /* EventCode.WorkerStopped */,
     now(),
     @p_namespace_id,
     s.worker_id,

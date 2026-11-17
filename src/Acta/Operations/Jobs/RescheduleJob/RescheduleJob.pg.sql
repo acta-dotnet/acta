@@ -147,7 +147,7 @@ INSERT INTO {{schema}}.events (
     event_message, actor, details_format_id, details
 )
 SELECT
-    61 /* EventCode.JobRescheduled */, now(), s.namespace_id,
+    19 /* EventCode.JobRescheduled */, now(), s.namespace_id,
     4 /* EntityCode.Job */, @p_job_id,
     s.definition_id, s.tenant_id, COALESCE(s.lineage_root_job_id, @p_job_id),
     s.execution_number,

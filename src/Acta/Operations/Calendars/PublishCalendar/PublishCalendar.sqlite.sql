@@ -70,7 +70,7 @@ INSERT INTO {{schema}}.events (
     details_format_id, details
 )
 SELECT
-    106 /* EventCode.ScheduleSkipped */, {{now}}, s.namespace_id,
+    41 /* EventCode.ScheduleSkipped */, {{now}}, s.namespace_id,
     CASE WHEN s.job_id IS NULL THEN 3 /* EntityCode.Definition */ ELSE 4 /* EntityCode.Job */ END,
     COALESCE(s.job_id, s.definition_id),
     s.definition_id, j.tenant_id, COALESCE(j.lineage_root_job_id, j.job_id),
@@ -95,7 +95,7 @@ INSERT INTO {{schema}}.events (
     details_format_id, details
 )
 SELECT
-    107 /* EventCode.ScheduleRetimed */, {{now}}, s.namespace_id,
+    40 /* EventCode.ScheduleRetimed */, {{now}}, s.namespace_id,
     CASE WHEN s.job_id IS NULL THEN 3 /* EntityCode.Definition */ ELSE 4 /* EntityCode.Job */ END,
     COALESCE(s.job_id, s.definition_id),
     s.definition_id, j.tenant_id, COALESCE(j.lineage_root_job_id, j.job_id),
@@ -142,7 +142,7 @@ INSERT INTO {{schema}}.events (
     event_message, actor, details_format_id, details
 )
 SELECT
-    111 /* EventCode.CalendarPublished */, {{now}}, @p_namespace_id,
+    5 /* EventCode.CalendarPublished */, {{now}}, @p_namespace_id,
     2 /* EntityCode.Calendar */, t.candidate_id,
     @p_event_message, @p_actor, @p_details_format_id, @p_details
 FROM _pub_target t

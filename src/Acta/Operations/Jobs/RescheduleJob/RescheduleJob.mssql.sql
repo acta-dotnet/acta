@@ -210,7 +210,7 @@ BEGIN TRY
         event_message, actor, details_format_id, details
     )
     VALUES (
-        61 /* EventCode.JobRescheduled */, @now, @namespace_id,
+        19 /* EventCode.JobRescheduled */, @now, @namespace_id,
         4 /* EntityCode.Job */, @p_job_id,
         @definition_id, @tenant_id, COALESCE(@lineage_root_job_id, @p_job_id),
         @execution_number,

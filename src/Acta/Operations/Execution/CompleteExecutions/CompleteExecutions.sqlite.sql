@@ -247,7 +247,7 @@ INSERT INTO {{schema}}.events (
     event_code, created_at_utc, namespace_id, entity_code, entity_id,
     definition_id, tenant_id, lineage_root_job_id, execution_number, event_message, details_format_id, details)
 SELECT
-    100 /* EventCode.SchedulePaused */, (SELECT now_utc FROM temp._ces_done LIMIT 1), p.namespace_id, 4 /* EntityCode.Job */, p.job_id,
+    38 /* EventCode.SchedulePaused */, (SELECT now_utc FROM temp._ces_done LIMIT 1), p.namespace_id, 4 /* EntityCode.Job */, p.job_id,
     p.definition_id, p.tenant_id, p.lineage_root_job_id, p.execution_number, 'Paused by the firing failure policy: the last firing failed for good.',
     1 /* JobPayloadFormat.Json */, CAST('{"schedule":"' || p.schedule_name || '","reason":"firing-failed"}' AS BLOB)
 FROM temp._ces_policy_paused p;
@@ -274,17 +274,17 @@ FROM (
             || substr(
                 COALESCE(
                     CASE
-                        WHEN d.event_code = 41 /* EventCode.JobExecutionFailed */
+                        WHEN d.event_code = 9 /* EventCode.JobExecutionFailed */
                             THEN ',"to":"' || CASE d.to_status
                                 WHEN 10 /* JobStatusCode.Ready */ THEN 'ready'
                                 WHEN 20 /* JobStatusCode.Suspended */ THEN 'suspended'
                                 WHEN 30 /* JobStatusCode.Paused */ THEN 'paused'
                                 WHEN 40 /* JobStatusCode.Idle */ THEN 'idle'
                             END || '"'
-                        WHEN d.event_code = 43 /* EventCode.JobExecutionYielded */
+                        WHEN d.event_code = 12 /* EventCode.JobExecutionYielded */
                             THEN ',"outcome":"' || CASE
-                                WHEN d.reschedule_event_code = 60 /* EventCode.JobSuspended */ THEN 'suspended'
-                                WHEN d.reschedule_event_code = 62 /* EventCode.JobSlept */ THEN 'slept'
+                                WHEN d.reschedule_event_code = 26 /* EventCode.JobSuspended */ THEN 'suspended'
+                                WHEN d.reschedule_event_code = 24 /* EventCode.JobSlept */ THEN 'slept'
                                 WHEN d.reschedule_event_code IS NOT NULL THEN 'rescheduled'
                                 WHEN d.handler_job_status_code = 30 /* JobStatusCode.Paused */ THEN 'paused'
                                 ELSE 'cancelled'
@@ -305,13 +305,13 @@ WHERE
     OR (
         x.event_recording_code = 10 /* EventRecordingCode.Failures */
         AND (
-            x.event_code IN (41 /* EventCode.JobExecutionFailed */, 44 /* EventCode.JobFailed */)
-            OR (x.event_code = 40 /* EventCode.JobExecutionSucceeded */ AND x.prior_failure_count > 0)
+            x.event_code IN (9 /* EventCode.JobExecutionFailed */, 13 /* EventCode.JobFailed */)
+            OR (x.event_code = 11 /* EventCode.JobExecutionSucceeded */ AND x.prior_failure_count > 0)
         )
     )
     OR (
         x.alert_profile_code_effective <> 10 /* AlertProfileCode.None */
-        AND x.event_code = 40 /* EventCode.JobExecutionSucceeded */
+        AND x.event_code = 11 /* EventCode.JobExecutionSucceeded */
         AND x.execution_number > 1
         AND x.final_job_status_code IS NULL
     );
@@ -335,8 +335,8 @@ FROM (
         CASE n.ord
             -- A slot held by its handler, or cancelled by it; a settled firing needs no shape event beside the attempt's.
             WHEN 1 THEN CASE d.final_job_status_code
-                WHEN 30 /* JobStatusCode.Paused */ THEN 71 /* EventCode.JobPaused */
-                WHEN 220 /* JobStatusCode.Cancelled */ THEN 70 /* EventCode.JobCancelled */
+                WHEN 30 /* JobStatusCode.Paused */ THEN 16 /* EventCode.JobPaused */
+                WHEN 220 /* JobStatusCode.Cancelled */ THEN 8 /* EventCode.JobCancelled */
             END
             -- A wait whose signal had already arrived landed Ready and re-armed nothing.
             WHEN 2 THEN CASE
@@ -344,8 +344,8 @@ FROM (
                     THEN d.reschedule_event_code
             END
             ELSE CASE
-                WHEN d.handler_job_status_code = 220 /* JobStatusCode.Cancelled */ THEN 70 /* EventCode.JobCancelled */
-                WHEN d.handler_job_status_code = 30 /* JobStatusCode.Paused */ THEN 71 /* EventCode.JobPaused */
+                WHEN d.handler_job_status_code = 220 /* JobStatusCode.Cancelled */ THEN 8 /* EventCode.JobCancelled */
+                WHEN d.handler_job_status_code = 30 /* JobStatusCode.Paused */ THEN 16 /* EventCode.JobPaused */
             END
         END AS shape_code
     FROM temp._ces_done d
@@ -414,7 +414,7 @@ INSERT INTO {{schema}}.events (
     definition_id, tenant_id, lineage_root_job_id, execution_number,
     event_message, details_format_id, details)
 SELECT
-    80 /* EventCode.JobSignalRaised */, (SELECT now_utc FROM temp._ces_done LIMIT 1), pj.namespace_id, 4 /* EntityCode.Job */, d.parent_job_id,
+    23 /* EventCode.JobSignalRaised */, (SELECT now_utc FROM temp._ces_done LIMIT 1), pj.namespace_id, 4 /* EntityCode.Job */, d.parent_job_id,
     pj.definition_id, pj.tenant_id, COALESCE(pj.lineage_root_job_id, d.parent_job_id), pr.execution_number,
     -- The landing names the child as its parent named it, how it ended, and the child's own message.
     substr(
@@ -453,7 +453,7 @@ WHERE
     AND pj.event_recording_code = 20 /* EventRecordingCode.Audit */
 UNION ALL
 SELECT DISTINCT
-    72 /* EventCode.JobResumed */, (SELECT now_utc FROM temp._ces_done LIMIT 1), pj.namespace_id, 4 /* EntityCode.Job */, d.parent_job_id,
+    21 /* EventCode.JobResumed */, (SELECT now_utc FROM temp._ces_done LIMIT 1), pj.namespace_id, 4 /* EntityCode.Job */, d.parent_job_id,
     pj.definition_id, pj.tenant_id, COALESCE(pj.lineage_root_job_id, d.parent_job_id), pr.execution_number,
     NULL, 1 /* JobPayloadFormat.Json */, CAST('{"reason":"signal-released"}' AS BLOB)
 FROM temp._ces_done d

@@ -19,7 +19,7 @@ audit AS (
         event_message, actor, details_format_id, details
     )
     SELECT
-        22 /* EventCode.NamespaceUpdated */, now(), u.namespace_id,
+        31 /* EventCode.NamespaceUpdated */, now(), u.namespace_id,
         5 /* EntityCode.Namespace */, u.namespace_id,
         @p_event_message, @p_actor, @p_details_format_id, @p_details
     FROM updated u

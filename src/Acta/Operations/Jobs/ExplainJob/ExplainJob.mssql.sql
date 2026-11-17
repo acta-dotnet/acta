@@ -66,18 +66,18 @@ FROM (
             AND (
                 (
                     r.job_status_code = 220 /* JobStatusCode.Cancelled */
-                    AND e.event_code IN (70 /* EventCode.JobCancelled */, 73 /* EventCode.JobRestarted */)
+                    AND e.event_code IN (8 /* EventCode.JobCancelled */, 20 /* EventCode.JobRestarted */)
                 )
                 OR (
                     r.job_status_code <> 220 /* JobStatusCode.Cancelled */
-                    AND e.event_code IN (41 /* EventCode.JobExecutionFailed */, 42 /* EventCode.JobExecutionOrphaned */, 44 /* EventCode.JobFailed */)
+                    AND e.event_code IN (9 /* EventCode.JobExecutionFailed */, 10 /* EventCode.JobExecutionOrphaned */, 13 /* EventCode.JobFailed */)
                 )
             )
         ORDER BY e.created_at_utc DESC, e.event_id DESC
     ) newest
     OUTER APPLY (
         SELECT newest.event_message, newest.actor, newest.details_format_id, newest.details
-        WHERE newest.event_code <> 73 /* EventCode.JobRestarted */
+        WHERE newest.event_code <> 20 /* EventCode.JobRestarted */
     ) le
     OUTER APPLY (
         SELECT TOP (1) e.worker_id
@@ -91,18 +91,18 @@ FROM (
     -- on event_id would read, and without row versioning wait on, every later event of every namespace.
     OUTER APPLY (
         SELECT
-            SUM(CASE WHEN e.event_code = 41 /* EventCode.JobExecutionFailed */ THEN 1 ELSE 0 END) AS failed_executions,
-            SUM(CASE WHEN e.event_code = 42 /* EventCode.JobExecutionOrphaned */ THEN 1 ELSE 0 END) AS orphaned_executions
+            SUM(CASE WHEN e.event_code = 9 /* EventCode.JobExecutionFailed */ THEN 1 ELSE 0 END) AS failed_executions,
+            SUM(CASE WHEN e.event_code = 10 /* EventCode.JobExecutionOrphaned */ THEN 1 ELSE 0 END) AS orphaned_executions
         FROM {{schema}}.events e WITH (FORCESEEK (ix_events_entity_timeline (entity_code, entity_id)))
         WHERE
             r.job_status_code = 100 /* JobStatusCode.Succeeded */
             AND e.entity_code = 4 /* EntityCode.Job */
             AND e.entity_id = @p_job_id
-            AND e.event_code IN (41 /* EventCode.JobExecutionFailed */, 42 /* EventCode.JobExecutionOrphaned */)
+            AND e.event_code IN (9 /* EventCode.JobExecutionFailed */, 10 /* EventCode.JobExecutionOrphaned */)
             AND e.event_id > COALESCE((
                 SELECT MAX(rs.event_id)
                 FROM {{schema}}.events rs WITH (FORCESEEK (ix_events_entity_timeline (entity_code, entity_id)))
-                WHERE rs.entity_code = 4 /* EntityCode.Job */ AND rs.entity_id = @p_job_id AND rs.event_code = 73 /* EventCode.JobRestarted */
+                WHERE rs.entity_code = 4 /* EntityCode.Job */ AND rs.entity_id = @p_job_id AND rs.event_code = 20 /* EventCode.JobRestarted */
             ), 0)
         GROUP BY e.entity_id
     ) rc

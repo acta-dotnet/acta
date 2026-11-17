@@ -41,7 +41,7 @@ recorded AS (
         actor
     )
     SELECT
-        81 /* EventCode.JobStateReset */, now(), t.namespace_id,
+        25 /* EventCode.JobStateReset */, now(), t.namespace_id,
         4 /* EntityCode.Job */, t.job_id,
         t.definition_id, t.tenant_id, COALESCE(t.lineage_root_job_id, t.job_id),
         t.execution_number,

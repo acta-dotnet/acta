@@ -17,7 +17,7 @@ INSERT INTO {{schema}}.events (
     details)
 -- namespace_id 1 is the sys namespace the baseline seeds.
 SELECT
-    11 /* EventCode.TenantResumed */,
+    43 /* EventCode.TenantResumed */,
     {{now}},
     1,
     6 /* EntityCode.Tenant */,

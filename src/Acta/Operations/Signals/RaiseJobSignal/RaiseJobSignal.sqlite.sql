@@ -120,7 +120,7 @@ INSERT INTO {{schema}}.events (
     details
 )
 SELECT
-    80 /* EventCode.JobSignalRaised */,
+    23 /* EventCode.JobSignalRaised */,
     {{now}},
     j.namespace_id,
     4 /* EntityCode.Job */,
@@ -182,7 +182,7 @@ INSERT INTO {{schema}}.events (
     details
 )
 SELECT
-    72 /* EventCode.JobResumed */,
+    21 /* EventCode.JobResumed */,
     {{now}},
     j.namespace_id,
     4 /* EntityCode.Job */,

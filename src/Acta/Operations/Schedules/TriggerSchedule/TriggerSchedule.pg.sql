@@ -96,7 +96,7 @@ INSERT INTO {{schema}}.events (
     event_message, actor, details_format_id, details
 )
 SELECT
-    104 /* EventCode.ScheduleTriggered */, now(), j.namespace_id,
+    42 /* EventCode.ScheduleTriggered */, now(), j.namespace_id,
     4 /* EntityCode.Job */, j.job_id,
     j.definition_id, COALESCE(j.lineage_root_job_id, j.job_id),
     s.execution_number,

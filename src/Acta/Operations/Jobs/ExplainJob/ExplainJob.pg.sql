@@ -66,16 +66,16 @@ FROM (
             AND (
                 (
                     r.job_status_code = 220 /* JobStatusCode.Cancelled */
-                    AND e.event_code IN (70 /* EventCode.JobCancelled */, 73 /* EventCode.JobRestarted */)
+                    AND e.event_code IN (8 /* EventCode.JobCancelled */, 20 /* EventCode.JobRestarted */)
                 )
                 OR (
                     r.job_status_code <> 220 /* JobStatusCode.Cancelled */
-                    AND e.event_code IN (41 /* EventCode.JobExecutionFailed */, 42 /* EventCode.JobExecutionOrphaned */, 44 /* EventCode.JobFailed */)
+                    AND e.event_code IN (9 /* EventCode.JobExecutionFailed */, 10 /* EventCode.JobExecutionOrphaned */, 13 /* EventCode.JobFailed */)
                 )
             )
         ORDER BY e.created_at_utc DESC, e.event_id DESC
         LIMIT 1
-    ) le ON le.event_code <> 73 /* EventCode.JobRestarted */
+    ) le ON le.event_code <> 20 /* EventCode.JobRestarted */
     LEFT JOIN LATERAL (
         SELECT e.worker_id
         FROM {{schema}}.events e
@@ -88,18 +88,18 @@ FROM (
     -- headline reads them, so any other status skips both reads and answers null.
     LEFT JOIN LATERAL (
         SELECT
-            count(*) FILTER (WHERE e.event_code = 41 /* EventCode.JobExecutionFailed */)::int AS failed_executions,
-            count(*) FILTER (WHERE e.event_code = 42 /* EventCode.JobExecutionOrphaned */)::int AS orphaned_executions
+            count(*) FILTER (WHERE e.event_code = 9 /* EventCode.JobExecutionFailed */)::int AS failed_executions,
+            count(*) FILTER (WHERE e.event_code = 10 /* EventCode.JobExecutionOrphaned */)::int AS orphaned_executions
         FROM {{schema}}.events e
         WHERE
             r.job_status_code = 100 /* JobStatusCode.Succeeded */
             AND e.entity_code = 4 /* EntityCode.Job */
             AND e.entity_id = j.job_id
-            AND e.event_code IN (41 /* EventCode.JobExecutionFailed */, 42 /* EventCode.JobExecutionOrphaned */)
+            AND e.event_code IN (9 /* EventCode.JobExecutionFailed */, 10 /* EventCode.JobExecutionOrphaned */)
             AND e.event_id > COALESCE((
                 SELECT max(rs.event_id)
                 FROM {{schema}}.events rs
-                WHERE rs.entity_code = 4 /* EntityCode.Job */ AND rs.entity_id = j.job_id AND rs.event_code = 73 /* EventCode.JobRestarted */
+                WHERE rs.entity_code = 4 /* EntityCode.Job */ AND rs.entity_id = j.job_id AND rs.event_code = 20 /* EventCode.JobRestarted */
             ), 0)
         GROUP BY e.entity_id
     ) rc ON true

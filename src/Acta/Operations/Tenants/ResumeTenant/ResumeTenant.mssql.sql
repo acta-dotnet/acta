@@ -27,7 +27,7 @@ BEGIN TRY
             event_message, actor, details_format_id, details
         )
         VALUES (
-            11 /* EventCode.TenantResumed */, @now, 1,
+            43 /* EventCode.TenantResumed */, @now, 1,
             6 /* EntityCode.Tenant */, @tenant_id,
             @p_event_message, @p_actor, @p_details_format_id, @p_details
         );

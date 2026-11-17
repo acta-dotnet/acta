@@ -17,7 +17,7 @@ INSERT INTO {{schema}}.events (
     details_format_id,
     details)
 SELECT
-    12 /* EventCode.TenantUpdated */,
+    45 /* EventCode.TenantUpdated */,
     {{now}},
     1,
     6 /* EntityCode.Tenant */,

@@ -35,7 +35,7 @@ INSERT INTO {{schema}}.events (
     details_format_id,
     details)
 SELECT
-    23 /* EventCode.NamespaceDeployed */,
+    28 /* EventCode.NamespaceDeployed */,
     {{now}},
     @p_namespace_id,
     5 /* EntityCode.Namespace */,

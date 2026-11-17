@@ -16,7 +16,7 @@ INSERT INTO {{schema}}.events (
     details_format_id,
     details)
 SELECT
-    20 /* EventCode.NamespaceSuspended */,
+    30 /* EventCode.NamespaceSuspended */,
     {{now}},
     s.namespace_id,
     5 /* EntityCode.Namespace */,

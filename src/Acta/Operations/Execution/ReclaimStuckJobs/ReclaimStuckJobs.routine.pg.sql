@@ -183,7 +183,7 @@ BEGIN
         details_format_id,
         details)
     SELECT
-        72 /* EventCode.JobResumed */,
+        21 /* EventCode.JobResumed */,
         now(),
         j.namespace_id,
         4 /* EntityCode.Job */,
@@ -291,7 +291,7 @@ BEGIN
             details_format_id,
             details)
         SELECT
-            CASE WHEN r.new_status = 200 /* JobStatusCode.Failed */ THEN 44 /* EventCode.JobFailed */ ELSE 42 /* EventCode.JobExecutionOrphaned */ END,
+            CASE WHEN r.new_status = 200 /* JobStatusCode.Failed */ THEN 13 /* EventCode.JobFailed */ ELSE 10 /* EventCode.JobExecutionOrphaned */ END,
             now(),
             r.namespace_id,
             4 /* EntityCode.Job */,
@@ -406,7 +406,7 @@ BEGIN
             event_code, created_at_utc, namespace_id, entity_code, entity_id,
             definition_id, tenant_id, lineage_root_job_id, execution_number, event_message, details_format_id, details)
         SELECT
-            100 /* EventCode.SchedulePaused */, now(), p.namespace_id, 4 /* EntityCode.Job */, p.job_id,
+            38 /* EventCode.SchedulePaused */, now(), p.namespace_id, 4 /* EntityCode.Job */, p.job_id,
             p.definition_id, p.tenant_id, p.lineage_root_job_id, p.execution_number, 'Paused by the firing failure policy: the last firing failed for good.',
             1 /* JobPayloadFormat.Json */, convert_to('{"schedule":"' || p.schedule_name || '","reason":"firing-failed"}', 'UTF8')
         FROM policy_paused p

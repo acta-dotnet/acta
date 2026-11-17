@@ -68,8 +68,8 @@ SELECT
                 AND e.created_at_utc >= @p_alert_floor_utc
                 AND (e.created_at_utc > @p_alert_floor_utc OR e.event_id > @p_alert_floor_event_id)
                 AND (
-                    e.event_code IN (41 /* EventCode.JobExecutionFailed */, 42 /* EventCode.JobExecutionOrphaned */, 44 /* EventCode.JobFailed */)
-                    OR (e.event_code = 40 /* EventCode.JobExecutionSucceeded */ AND e.execution_number > 1)
+                    e.event_code IN (9 /* EventCode.JobExecutionFailed */, 10 /* EventCode.JobExecutionOrphaned */, 13 /* EventCode.JobFailed */)
+                    OR (e.event_code = 11 /* EventCode.JobExecutionSucceeded */ AND e.execution_number > 1)
                 )
                 AND d.alert_profile_code_effective <> 10 /* AlertProfileCode.None */
         ) THEN 3 /* ControlAction.Rejected */
@@ -111,7 +111,7 @@ INSERT INTO {{schema}}.events (
     event_code, created_at_utc, namespace_id, entity_code, entity_id, definition_id, tenant_id, lineage_root_job_id,
     event_message, actor, details_format_id, details)
 SELECT
-    75 /* EventCode.JobPurged */, now(), s.namespace_id, 4 /* EntityCode.Job */, @p_job_id, s.definition_id, s.tenant_id,
+    17 /* EventCode.JobPurged */, now(), s.namespace_id, 4 /* EntityCode.Job */, @p_job_id, s.definition_id, s.tenant_id,
     COALESCE(s.lineage_root_job_id, @p_job_id), @p_event_message, @p_actor, @p_details_format_id, @p_details
 FROM _purge_job s
 WHERE EXISTS (SELECT 1 FROM _purge_job_action a WHERE a.action = 1 /* ControlAction.Applied */);

@@ -203,7 +203,7 @@ BEGIN
             details_format_id,
             details)
         VALUES (
-            80 /* EventCode.JobSignalRaised */,
+            23 /* EventCode.JobSignalRaised */,
             v_now,
             v_namespace_id,
             4 /* EntityCode.Job */,
@@ -244,7 +244,7 @@ BEGIN
                 details_format_id,
                 details)
             VALUES (
-                72 /* EventCode.JobResumed */,
+                21 /* EventCode.JobResumed */,
                 v_now,
                 v_namespace_id,
                 4 /* EntityCode.Job */,

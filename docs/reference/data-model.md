@@ -311,7 +311,7 @@ The append-only ledger: what happened to an entity, named by `EventCode` and the
 | `ix_events_namespace_timeline` | `namespace_id`, `event_code`, `created_at_utc`, `event_id` | not unique | none | `read_api` |
 | `ix_events_entity_timeline` | `entity_code`, `entity_id`, `created_at_utc`, `event_id` | not unique | none | `read_api` |
 | `ix_events_namespace_created` | `namespace_id`, `created_at_utc` DESC, `event_id` DESC | not unique | none | `dashboard_grid` |
-| `ix_events_duration` | `namespace_id`, `definition_id`, `created_at_utc` INCLUDE (`event_code`, `duration_ms`) | not unique | `event_code IN (40, 41, 44) AND duration_ms IS NOT NULL` | `dashboard` |
+| `ix_events_duration` | `namespace_id`, `definition_id`, `created_at_utc` INCLUDE (`event_code`, `duration_ms`) | not unique | `event_code IN (9, 11, 13) AND duration_ms IS NOT NULL` | `dashboard` |
 
 **Check constraints**
 

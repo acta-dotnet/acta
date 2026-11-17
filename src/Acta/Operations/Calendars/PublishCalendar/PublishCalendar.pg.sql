@@ -101,9 +101,9 @@ INNER JOIN {{schema}}.definitions d ON d.definition_id = s.definition_id
 LEFT JOIN {{schema}}.jobs j ON j.job_id = s.job_id
 LEFT JOIN {{schema}}.jobs_state jr ON jr.job_id = s.job_id
 CROSS JOIN LATERAL (
-    SELECT 106 /* EventCode.ScheduleSkipped */ AS event_code, r.skipped_details AS details, 1 AS ord
+    SELECT 41 /* EventCode.ScheduleSkipped */ AS event_code, r.skipped_details AS details, 1 AS ord
     UNION ALL
-    SELECT 107 /* EventCode.ScheduleRetimed */, r.retimed_details, 2
+    SELECT 40 /* EventCode.ScheduleRetimed */, r.retimed_details, 2
 ) e
 WHERE
     e.details IS NOT NULL
@@ -138,7 +138,7 @@ INSERT INTO {{schema}}.events (
     event_message, actor, details_format_id, details
 )
 SELECT
-    111 /* EventCode.CalendarPublished */, now(), @p_namespace_id,
+    5 /* EventCode.CalendarPublished */, now(), @p_namespace_id,
     2 /* EntityCode.Calendar */, t.candidate_id,
     @p_event_message, @p_actor, @p_details_format_id, @p_details
 FROM _pub_target t

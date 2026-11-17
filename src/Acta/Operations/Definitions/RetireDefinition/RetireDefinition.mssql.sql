@@ -245,7 +245,7 @@ BEGIN TRY
             details_format_id,
             details)
         SELECT
-            70 /* EventCode.JobCancelled */,
+            8 /* EventCode.JobCancelled */,
             @now,
             p.namespace_id,
             4 /* EntityCode.Job */,
@@ -274,7 +274,7 @@ BEGIN TRY
             details_format_id,
             details)
         VALUES (
-            31 /* EventCode.DefinitionRetired */,
+            7 /* EventCode.DefinitionRetired */,
             @now,
             @ns,
             3 /* EntityCode.Definition */,

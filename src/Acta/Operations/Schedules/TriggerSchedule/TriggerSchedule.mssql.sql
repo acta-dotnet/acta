@@ -110,7 +110,7 @@ BEGIN TRY
                 event_message, actor, details_format_id, details
             )
             VALUES (
-                104 /* EventCode.ScheduleTriggered */, @now, @ns,
+                42 /* EventCode.ScheduleTriggered */, @now, @ns,
                 4 /* EntityCode.Job */, @p_job_id,
                 @def, COALESCE(@lineage, @p_job_id),
                 @en,

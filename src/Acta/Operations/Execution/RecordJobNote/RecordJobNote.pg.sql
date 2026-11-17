@@ -27,7 +27,7 @@ INSERT INTO {{schema}}.events (
     details_format_id,
     details)
 SELECT
-    90 /* EventCode.JobNoteRecorded */,
+    15 /* EventCode.JobNoteRecorded */,
     now(),
     j.namespace_id,
     @p_worker_id,

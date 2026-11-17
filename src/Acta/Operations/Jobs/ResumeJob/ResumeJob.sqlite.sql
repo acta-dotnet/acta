@@ -58,7 +58,7 @@ INSERT INTO {{schema}}.events (
     details_format_id,
     details)
 SELECT
-    72 /* EventCode.JobResumed */,
+    21 /* EventCode.JobResumed */,
     {{now}},
     j.namespace_id,
     4 /* EntityCode.Job */,

@@ -64,7 +64,7 @@ BEGIN TRY
         event_message, actor, details_format_id, details
     )
     VALUES (
-        140 /* EventCode.AlertAcknowledged */, @now, @namespace_id,
+        1 /* EventCode.AlertAcknowledged */, @now, @namespace_id,
         1 /* EntityCode.Alert */, @alert_id,
         @definition_id, @tenant_id, COALESCE(@lineage_root_job_id, @job_id),
         @p_event_message, @p_actor, @p_details_format_id, @p_details

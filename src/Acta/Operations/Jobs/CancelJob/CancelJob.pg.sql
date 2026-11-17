@@ -188,7 +188,7 @@ INSERT INTO {{schema}}.events (
     event_message, actor, details_format_id, details
 )
 SELECT
-    43 /* EventCode.JobExecutionYielded */, now(), s.namespace_id,
+    12 /* EventCode.JobExecutionYielded */, now(), s.namespace_id,
     s.worker_id,
     4 /* EntityCode.Job */, @p_job_id,
     s.definition_id, s.tenant_id, COALESCE(s.lineage_root_job_id, @p_job_id),
@@ -213,7 +213,7 @@ INSERT INTO {{schema}}.events (
     event_message, actor, details_format_id, details
 )
 SELECT
-    70 /* EventCode.JobCancelled */, now(), s.namespace_id,
+    8 /* EventCode.JobCancelled */, now(), s.namespace_id,
     4 /* EntityCode.Job */, @p_job_id,
     s.definition_id, s.tenant_id, COALESCE(s.lineage_root_job_id, @p_job_id),
     s.execution_number,

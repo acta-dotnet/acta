@@ -14,7 +14,7 @@
 -- present and leaves the data in place. Over a database a newer release upgraded, the script stops
 -- before changing anything. A later 1.x release upgrades a 1.x database with
 -- its own migrations, carried in its own copy of this script. A database provisioned from an
--- init migration other than M20261117170100_init has no upgrade path: provision a new one.
+-- init migration other than M20261117170648_init has no upgrade path: provision a new one.
 --
 -- Run it with a client that stops at the first error, which is what makes the transaction below a
 -- guarantee: sqlcmd -b, or SQLCMD mode with stop-on-error in SSMS. A client that runs on past a failed
@@ -57,7 +57,7 @@ GO
 -- ===== refuse a database a newer release already upgraded =====
 IF EXISTS (
     SELECT 1 FROM acta.migrations
-    WHERE name NOT IN ('M20261117170100_init')
+    WHERE name NOT IN ('M20261117170648_init')
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -65,7 +65,7 @@ BEGIN
     SET NOEXEC ON;
 END
 GO
--- ===== BEGIN M20261117170100_init =====
+-- ===== BEGIN M20261117170648_init =====
 SET QUOTED_IDENTIFIER ON;
 SET ANSI_NULLS ON;
 GO
@@ -258,7 +258,7 @@ CREATE INDEX ix_events_lineage_timeline ON acta.events (lineage_root_job_id, cre
 CREATE INDEX ix_events_namespace_timeline ON acta.events (namespace_id, event_code, created_at_utc, event_id);
 CREATE INDEX ix_events_entity_timeline ON acta.events (entity_code, entity_id, created_at_utc, event_id);
 CREATE INDEX ix_events_namespace_created ON acta.events (namespace_id, created_at_utc DESC, event_id DESC);
-CREATE INDEX ix_events_duration ON acta.events (namespace_id, definition_id, created_at_utc) INCLUDE (event_code, duration_ms) WHERE event_code IN (40, 41, 44) AND duration_ms IS NOT NULL;
+CREATE INDEX ix_events_duration ON acta.events (namespace_id, definition_id, created_at_utc) INCLUDE (event_code, duration_ms) WHERE event_code IN (9, 11, 13) AND duration_ms IS NOT NULL;
 END
 GO
 
@@ -1615,7 +1615,7 @@ BEGIN
                         event_code, created_at_utc, namespace_id, entity_code, entity_id,
                         definition_id, tenant_id, lineage_root_job_id, execution_number, event_message, details_format_id, details)
                     SELECT
-                        100 /* EventCode.SchedulePaused */, @now, j.namespace_id, 4 /* EntityCode.Job */, p.job_id,
+                        38 /* EventCode.SchedulePaused */, @now, j.namespace_id, 4 /* EntityCode.Job */, p.job_id,
                         j.definition_id, j.tenant_id, COALESCE(j.lineage_root_job_id, j.job_id), r.execution_number, 'Paused by the firing failure policy: the last firing failed for good.',
                         1 /* JobPayloadFormat.Json */, CONVERT(VARBINARY(MAX), '{"schedule":"' + p.schedule_name + '","reason":"firing-failed"}')
                     FROM @policy_paused p
@@ -1648,17 +1648,17 @@ BEGIN
         INNER JOIN acta.definitions jd WITH (FORCESEEK) ON jd.definition_id = j.definition_id
         CROSS APPLY (
             SELECT CASE
-                WHEN c.event_code = 41 /* EventCode.JobExecutionFailed */
+                WHEN c.event_code = 9 /* EventCode.JobExecutionFailed */
                     THEN ',"to":"' + CASE d.job_status_code
                         WHEN 10 /* JobStatusCode.Ready */ THEN 'ready'
                         WHEN 20 /* JobStatusCode.Suspended */ THEN 'suspended'
                         WHEN 30 /* JobStatusCode.Paused */ THEN 'paused'
                         WHEN 40 /* JobStatusCode.Idle */ THEN 'idle'
                     END + '"'
-                WHEN c.event_code = 43 /* EventCode.JobExecutionYielded */
+                WHEN c.event_code = 12 /* EventCode.JobExecutionYielded */
                     THEN ',"outcome":"' + CASE
-                        WHEN c.reschedule_event_code = 60 /* EventCode.JobSuspended */ THEN 'suspended'
-                        WHEN c.reschedule_event_code = 62 /* EventCode.JobSlept */ THEN 'slept'
+                        WHEN c.reschedule_event_code = 26 /* EventCode.JobSuspended */ THEN 'suspended'
+                        WHEN c.reschedule_event_code = 24 /* EventCode.JobSlept */ THEN 'slept'
                         WHEN c.reschedule_event_code IS NOT NULL THEN 'rescheduled'
                         WHEN c.handler_job_status_code = 30 /* JobStatusCode.Paused */ THEN 'paused'
                         ELSE 'cancelled'
@@ -1673,13 +1673,13 @@ BEGIN
             OR (
                 j.event_recording_code = 10 /* EventRecordingCode.Failures */
                 AND (
-                    c.event_code IN (41 /* EventCode.JobExecutionFailed */, 44 /* EventCode.JobFailed */)
-                    OR (c.event_code = 40 /* EventCode.JobExecutionSucceeded */ AND d.prior_failure_count > 0)
+                    c.event_code IN (9 /* EventCode.JobExecutionFailed */, 13 /* EventCode.JobFailed */)
+                    OR (c.event_code = 11 /* EventCode.JobExecutionSucceeded */ AND d.prior_failure_count > 0)
                 )
             )
             OR (
                 jd.alert_profile_code_effective <> 10 /* AlertProfileCode.None */
-                AND c.event_code = 40 /* EventCode.JobExecutionSucceeded */
+                AND c.event_code = 11 /* EventCode.JobExecutionSucceeded */
                 AND d.execution_number > 1
                 AND c.final_job_status_code IS NULL
             );
@@ -1712,8 +1712,8 @@ BEGIN
                         1,
                         -- A slot held by its handler, or cancelled by it; a settled firing needs no shape event beside the attempt's.
                         CASE c.final_job_status_code
-                            WHEN 30 /* JobStatusCode.Paused */ THEN 71 /* EventCode.JobPaused */
-                            WHEN 220 /* JobStatusCode.Cancelled */ THEN 70 /* EventCode.JobCancelled */
+                            WHEN 30 /* JobStatusCode.Paused */ THEN 16 /* EventCode.JobPaused */
+                            WHEN 220 /* JobStatusCode.Cancelled */ THEN 8 /* EventCode.JobCancelled */
                         END
                     ),
                     (
@@ -1727,8 +1727,8 @@ BEGIN
                     (
                         3,
                         CASE
-                            WHEN c.handler_job_status_code = 220 /* JobStatusCode.Cancelled */ THEN 70 /* EventCode.JobCancelled */
-                            WHEN c.handler_job_status_code = 30 /* JobStatusCode.Paused */ THEN 71 /* EventCode.JobPaused */
+                            WHEN c.handler_job_status_code = 220 /* JobStatusCode.Cancelled */ THEN 8 /* EventCode.JobCancelled */
+                            WHEN c.handler_job_status_code = 30 /* JobStatusCode.Paused */ THEN 16 /* EventCode.JobPaused */
                         END
                     )
                 ) k (ord, event_code)
@@ -1849,7 +1849,7 @@ BEGIN
                         event_message, details_format_id, details
                     )
                     SELECT
-                        80 /* EventCode.JobSignalRaised */, @now, pj.namespace_id,
+                        23 /* EventCode.JobSignalRaised */, @now, pj.namespace_id,
                         4 /* EntityCode.Job */, p.parent_job_id,
                         pj.definition_id, pj.tenant_id, COALESCE(pj.lineage_root_job_id, p.parent_job_id),
                         p.parent_execution,
@@ -1904,7 +1904,7 @@ BEGIN
                         details_format_id, details
                     )
                     SELECT
-                        72 /* EventCode.JobResumed */, @now, pj.namespace_id,
+                        21 /* EventCode.JobResumed */, @now, pj.namespace_id,
                         4 /* EntityCode.Job */, w.parent_job_id,
                         pj.definition_id, pj.tenant_id, COALESCE(pj.lineage_root_job_id, w.parent_job_id),
                         w.parent_execution,
@@ -3105,7 +3105,7 @@ BEGIN
         IF EXISTS (SELECT 1 FROM @replaced WHERE worker_status_code = 200 /* WorkerStatusCode.Dead */)
             INSERT INTO acta.events (event_code, created_at_utc, namespace_id, worker_id, entity_code, entity_id)
             VALUES (
-                120 /* EventCode.WorkerStarted */, @now, @namespace_id, @p_leased_by_worker_id,
+                47 /* EventCode.WorkerStarted */, @now, @namespace_id, @p_leased_by_worker_id,
                 7 /* EntityCode.Worker */, @p_leased_by_worker_id
             );
 
@@ -3357,8 +3357,8 @@ BEGIN
                             AND e.created_at_utc >= @floor_utc
                             AND (e.created_at_utc > @floor_utc OR e.event_id > @floor_id)
                             AND (
-                                e.event_code IN (41 /* EventCode.JobExecutionFailed */, 42 /* EventCode.JobExecutionOrphaned */, 44 /* EventCode.JobFailed */)
-                                OR (e.event_code = 40 /* EventCode.JobExecutionSucceeded */ AND e.execution_number > 1)
+                                e.event_code IN (9 /* EventCode.JobExecutionFailed */, 10 /* EventCode.JobExecutionOrphaned */, 13 /* EventCode.JobFailed */)
+                                OR (e.event_code = 11 /* EventCode.JobExecutionSucceeded */ AND e.execution_number > 1)
                             )
                             AND d.alert_profile_code_effective <> 10 /* AlertProfileCode.None */
                     )
@@ -3445,8 +3445,8 @@ BEGIN
                         AND e.created_at_utc >= @floor_utc
                         AND (e.created_at_utc > @floor_utc OR e.event_id > @floor_id)
                         AND (
-                            e.event_code IN (41 /* EventCode.JobExecutionFailed */, 42 /* EventCode.JobExecutionOrphaned */, 44 /* EventCode.JobFailed */)
-                            OR (e.event_code = 40 /* EventCode.JobExecutionSucceeded */ AND e.execution_number > 1)
+                            e.event_code IN (9 /* EventCode.JobExecutionFailed */, 10 /* EventCode.JobExecutionOrphaned */, 13 /* EventCode.JobFailed */)
+                            OR (e.event_code = 11 /* EventCode.JobExecutionSucceeded */ AND e.execution_number > 1)
                         )
                         AND EXISTS (
                             SELECT 1
@@ -3848,7 +3848,7 @@ BEGIN
                 event_message, actor, details_format_id, details
             )
             VALUES (
-                80 /* EventCode.JobSignalRaised */, @now, @namespace_id,
+                23 /* EventCode.JobSignalRaised */, @now, @namespace_id,
                 4 /* EntityCode.Job */, @p_job_id,
                 @definition_id, @tenant_id, COALESCE(@lineage_root_job_id, @p_job_id),
                 @execution_number,
@@ -3877,7 +3877,7 @@ BEGIN
                         event_message, actor, details_format_id, details
                     )
                     VALUES (
-                        72 /* EventCode.JobResumed */, @now, @namespace_id,
+                        21 /* EventCode.JobResumed */, @now, @namespace_id,
                         4 /* EntityCode.Job */, @p_job_id,
                         @definition_id, @tenant_id, COALESCE(@lineage_root_job_id, @p_job_id),
                         @execution_number,
@@ -4110,7 +4110,7 @@ BEGIN
             details
         )
         SELECT
-            72 /* EventCode.JobResumed */,
+            21 /* EventCode.JobResumed */,
             @now,
             j.namespace_id,
             4 /* EntityCode.Job */,
@@ -4228,7 +4228,7 @@ BEGIN
             details
         )
         SELECT
-            CASE WHEN to_status_code = 200 /* JobStatusCode.Failed */ THEN 44 /* EventCode.JobFailed */ ELSE 42 /* EventCode.JobExecutionOrphaned */ END,
+            CASE WHEN to_status_code = 200 /* JobStatusCode.Failed */ THEN 13 /* EventCode.JobFailed */ ELSE 10 /* EventCode.JobExecutionOrphaned */ END,
             @now,
             namespace_id,
             4 /* EntityCode.Job */,
@@ -4341,7 +4341,7 @@ BEGIN
             event_code, created_at_utc, namespace_id, entity_code, entity_id,
             definition_id, tenant_id, lineage_root_job_id, execution_number, event_message, details_format_id, details)
         SELECT
-            100 /* EventCode.SchedulePaused */, @now, r.namespace_id, 4 /* EntityCode.Job */, r.job_id,
+            38 /* EventCode.SchedulePaused */, @now, r.namespace_id, 4 /* EntityCode.Job */, r.job_id,
             r.definition_id, r.tenant_id, COALESCE(r.lineage_root_job_id, r.job_id), r.execution_number, 'Paused by the firing failure policy: the last firing failed for good.',
             1 /* JobPayloadFormat.Json */, CONVERT(VARBINARY(MAX), '{"schedule":"' + p.schedule_name + '","reason":"firing-failed"}')
         FROM @policy_paused p
@@ -4832,7 +4832,7 @@ BEGIN
                 event_message, details_format_id, details
             )
             SELECT
-                83 /* EventCode.JobWaitExpired */, @now, j.namespace_id,
+                27 /* EventCode.JobWaitExpired */, @now, j.namespace_id,
                 4 /* EntityCode.Job */, j.job_id,
                 j.definition_id, j.tenant_id, COALESCE(j.lineage_root_job_id, j.job_id),
                 @p_leased_by_worker_id, @p_execution_number,
@@ -5046,7 +5046,7 @@ SELECT
     CASE e.entity_code WHEN 0 THEN 'unspecified' WHEN 1 THEN 'alert' WHEN 2 THEN 'calendar' WHEN 3 THEN 'definition' WHEN 4 THEN 'job' WHEN 5 THEN 'namespace' WHEN 6 THEN 'tenant' WHEN 7 THEN 'worker' END AS entity,
     e.entity_code,
     e.entity_id,
-    CASE e.event_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'tenant.suspended' WHEN 11 THEN 'tenant.resumed' WHEN 12 THEN 'tenant.updated' WHEN 20 THEN 'namespace.suspended' WHEN 21 THEN 'namespace.resumed' WHEN 22 THEN 'namespace.updated' WHEN 23 THEN 'namespace.deployed' WHEN 30 THEN 'definition.overrides-updated' WHEN 31 THEN 'definition.retired' WHEN 40 THEN 'job.execution-succeeded' WHEN 41 THEN 'job.execution-failed' WHEN 42 THEN 'job.execution-orphaned' WHEN 43 THEN 'job.execution-yielded' WHEN 44 THEN 'job.failed' WHEN 60 THEN 'job.suspended' WHEN 61 THEN 'job.rescheduled' WHEN 62 THEN 'job.slept' WHEN 70 THEN 'job.cancelled' WHEN 71 THEN 'job.paused' WHEN 72 THEN 'job.resumed' WHEN 73 THEN 'job.restarted' WHEN 74 THEN 'job.reprioritized' WHEN 75 THEN 'job.purged' WHEN 76 THEN 'job.input-updated' WHEN 80 THEN 'job.signal-raised' WHEN 81 THEN 'job.state-reset' WHEN 82 THEN 'job.signal-cleared' WHEN 83 THEN 'job.wait-expired' WHEN 90 THEN 'job.note-recorded' WHEN 100 THEN 'schedule.paused' WHEN 101 THEN 'schedule.resumed' WHEN 102 THEN 'schedule.pause-expired' WHEN 104 THEN 'schedule.triggered' WHEN 105 THEN 'schedule.admitted' WHEN 106 THEN 'schedule.skipped' WHEN 107 THEN 'schedule.retimed' WHEN 108 THEN 'schedule.evaluation-failed' WHEN 109 THEN 'schedule.orphaned' WHEN 110 THEN 'calendar.draft-saved' WHEN 111 THEN 'calendar.published' WHEN 112 THEN 'calendar.archived' WHEN 120 THEN 'worker.started' WHEN 121 THEN 'worker.stopped' WHEN 122 THEN 'worker.died' WHEN 140 THEN 'alert.acknowledged' WHEN 141 THEN 'alert.resolved' WHEN 180 THEN 'outbox.requeued' WHEN 181 THEN 'outbox.discarded' END AS event,
+    CASE e.event_code WHEN 0 THEN 'unspecified' WHEN 1 THEN 'alert.acknowledged' WHEN 2 THEN 'alert.resolved' WHEN 3 THEN 'calendar.archived' WHEN 4 THEN 'calendar.draft-saved' WHEN 5 THEN 'calendar.published' WHEN 6 THEN 'definition.overrides-updated' WHEN 7 THEN 'definition.retired' WHEN 8 THEN 'job.cancelled' WHEN 9 THEN 'job.execution-failed' WHEN 10 THEN 'job.execution-orphaned' WHEN 11 THEN 'job.execution-succeeded' WHEN 12 THEN 'job.execution-yielded' WHEN 13 THEN 'job.failed' WHEN 14 THEN 'job.input-updated' WHEN 15 THEN 'job.note-recorded' WHEN 16 THEN 'job.paused' WHEN 17 THEN 'job.purged' WHEN 18 THEN 'job.reprioritized' WHEN 19 THEN 'job.rescheduled' WHEN 20 THEN 'job.restarted' WHEN 21 THEN 'job.resumed' WHEN 22 THEN 'job.signal-cleared' WHEN 23 THEN 'job.signal-raised' WHEN 24 THEN 'job.slept' WHEN 25 THEN 'job.state-reset' WHEN 26 THEN 'job.suspended' WHEN 27 THEN 'job.wait-expired' WHEN 28 THEN 'namespace.deployed' WHEN 29 THEN 'namespace.resumed' WHEN 30 THEN 'namespace.suspended' WHEN 31 THEN 'namespace.updated' WHEN 32 THEN 'outbox.discarded' WHEN 33 THEN 'outbox.requeued' WHEN 34 THEN 'schedule.admitted' WHEN 35 THEN 'schedule.evaluation-failed' WHEN 36 THEN 'schedule.orphaned' WHEN 37 THEN 'schedule.pause-expired' WHEN 38 THEN 'schedule.paused' WHEN 39 THEN 'schedule.resumed' WHEN 40 THEN 'schedule.retimed' WHEN 41 THEN 'schedule.skipped' WHEN 42 THEN 'schedule.triggered' WHEN 43 THEN 'tenant.resumed' WHEN 44 THEN 'tenant.suspended' WHEN 45 THEN 'tenant.updated' WHEN 46 THEN 'worker.died' WHEN 47 THEN 'worker.started' WHEN 48 THEN 'worker.stopped' END AS event,
     e.event_code,
     e.definition_id,
     d.definition_name,
@@ -5253,11 +5253,11 @@ JOIN acta.namespaces AS ns ON ns.namespace_id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261117170100_init')
+IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261117170648_init')
 INSERT INTO acta.migrations (name)
-VALUES ('M20261117170100_init');
+VALUES ('M20261117170648_init');
 GO
--- ===== END M20261117170100_init =====
+-- ===== END M20261117170648_init =====
 GO
 COMMIT TRANSACTION;
 GO

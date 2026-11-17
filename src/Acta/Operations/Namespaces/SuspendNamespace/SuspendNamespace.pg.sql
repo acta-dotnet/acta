@@ -34,7 +34,7 @@ audit AS (
         event_message, actor, details_format_id, details
     )
     SELECT
-        20 /* EventCode.NamespaceSuspended */, now(), s.namespace_id,
+        30 /* EventCode.NamespaceSuspended */, now(), s.namespace_id,
         5 /* EntityCode.Namespace */, s.namespace_id,
         @p_event_message, @p_actor, @p_details_format_id, @p_details
     FROM suspended s

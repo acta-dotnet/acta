@@ -4,7 +4,7 @@ namespace Acta;
 /// One attempt's completion, landing Succeeded or Failed unless a shape field says otherwise, read in this order:
 /// <c>WaitSignalName</c> suspends on that signal (Ready when it already arrived), <c>RescheduleEventCode</c> re-arms
 /// Ready and names the event a re-arm records at Audit, <c>HandlerStatusCode</c> lands what the handler asked for, and
-/// <c>FinalStatus</c> is a recurring fire. <c>EventCode</c> is the attempt's own event, 40 to 44, with <c>Reason</c>
+/// <c>FinalStatus</c> is a recurring fire. <c>EventCode</c> is the attempt's own event, an attempt ending, with <c>Reason</c>
 /// its <see cref="EventReason"/>. <c>FailureCount</c> null keeps the row's; <c>RetentionSeconds</c> stamps a terminal landing.
 /// </summary>
 internal sealed record CompleteExecutionsValues(

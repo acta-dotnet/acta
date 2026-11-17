@@ -17,7 +17,7 @@ INSERT INTO {{schema}}.events (
     details_format_id,
     details)
 SELECT
-    30 /* EventCode.DefinitionOverridesUpdated */,
+    6 /* EventCode.DefinitionOverridesUpdated */,
     {{now}},
     s.namespace_id,
     3 /* EntityCode.Definition */,

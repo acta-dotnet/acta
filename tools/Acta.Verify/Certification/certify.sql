@@ -15,7 +15,7 @@
 -- `{now}` is the database clock in the dialect's instant encoding. The runner substitutes both.
 --
 -- Every code literal names its member, `4 /* EntityCode.Job */`, and CertificationTests checks each value
--- against Acta's enums. Event codes 40-44 are the attempt endings: one per ended attempt.
+-- against Acta's enums. The attempt endings are the four job.execution-* events and job.failed: one per ended attempt.
 --
 -- TIMING - the evidence MUST stamp LeaseTtlSeconds, HeartbeatInterval and WorkerDeadAfter, because
 -- every property here is timing-dependent. A shorter lease manufactures more handler overlap than
@@ -36,7 +36,7 @@
 -- 1. execution-event ownership consistency               [any time]
 -- ---------------------------------------------------------------------------------------------
 -- No two workers ever finished the same attempt. `jobs_state.execution_number` is incremented
--- atomically on each claim, and every attempt event (40-44) carries it beside `worker_id`, which
+-- atomically on each claim, and every attempt ending carries it beside `worker_id`, which
 -- recovery fills with the worker that held the lapsed lease, so a finish recorded under a second worker
 -- surfaces exactly, with no clock reasoning at all. A finish with no worker stores `worker_id` 0 and
 -- names no second worker.
@@ -46,7 +46,10 @@
 -- execution numbers. Report it by this name.
 SELECT 'exec-event-ownership' AS check_name, entity_id AS job_id, execution_number, COUNT(DISTINCT worker_id) AS workers
 FROM   {s}events
-WHERE  entity_code = 4 /* EntityCode.Job */ AND event_code BETWEEN 40 /* EventCode.JobExecutionSucceeded */ AND 44 /* EventCode.JobFailed */ AND execution_number IS NOT NULL AND worker_id <> 0
+WHERE  entity_code = 4 /* EntityCode.Job */
+  AND  event_code IN (
+           9 /* EventCode.JobExecutionFailed */, 10 /* EventCode.JobExecutionOrphaned */, 11 /* EventCode.JobExecutionSucceeded */,
+           12 /* EventCode.JobExecutionYielded */, 13 /* EventCode.JobFailed */) AND execution_number IS NOT NULL AND worker_id <> 0
 GROUP  BY entity_id, execution_number
 HAVING COUNT(DISTINCT worker_id) > 1;
 
@@ -63,7 +66,10 @@ HAVING COUNT(DISTINCT worker_id) > 1;
 -- covered where they actually matter by check 4, which asks whether any job was left mid-flight.
 SELECT 'attempt-pairing' AS check_name, entity_id AS job_id, execution_number, COUNT(*) AS finished
 FROM   {s}events
-WHERE  entity_code = 4 /* EntityCode.Job */ AND event_code BETWEEN 40 /* EventCode.JobExecutionSucceeded */ AND 44 /* EventCode.JobFailed */ AND execution_number IS NOT NULL
+WHERE  entity_code = 4 /* EntityCode.Job */
+  AND  event_code IN (
+           9 /* EventCode.JobExecutionFailed */, 10 /* EventCode.JobExecutionOrphaned */, 11 /* EventCode.JobExecutionSucceeded */,
+           12 /* EventCode.JobExecutionYielded */, 13 /* EventCode.JobFailed */) AND execution_number IS NOT NULL
 GROUP  BY entity_id, execution_number
 HAVING COUNT(*) > 1;
 
@@ -79,7 +85,10 @@ SELECT 'namespace-isolation' AS check_name, e.entity_id AS job_id, j.namespace_i
 FROM   {s}events e
 JOIN   {s}jobs j ON j.job_id = e.entity_id
 LEFT JOIN {s}workers w ON w.worker_id = e.worker_id
-WHERE  e.entity_code = 4 /* EntityCode.Job */ AND e.event_code BETWEEN 40 /* EventCode.JobExecutionSucceeded */ AND 44 /* EventCode.JobFailed */
+WHERE  e.entity_code = 4 /* EntityCode.Job */
+  AND  e.event_code IN (
+           9 /* EventCode.JobExecutionFailed */, 10 /* EventCode.JobExecutionOrphaned */, 11 /* EventCode.JobExecutionSucceeded */,
+           12 /* EventCode.JobExecutionYielded */, 13 /* EventCode.JobFailed */)
   AND  (e.namespace_id <> j.namespace_id OR w.namespace_id <> j.namespace_id);
 
 -- ---------------------------------------------------------------------------------------------
@@ -154,7 +163,7 @@ SELECT 'step-replay' AS check_name, s.job_id, n.execution_number, n.event_messag
 FROM   {s}steps s
 JOIN   (SELECT entity_id, event_message, execution_number, COUNT(*) AS notes
         FROM   {s}events
-        WHERE  entity_code = 4 /* EntityCode.Job */ AND event_code = 90 /* EventCode.JobNoteRecorded */
+        WHERE  entity_code = 4 /* EntityCode.Job */ AND event_code = 15 /* EventCode.JobNoteRecorded */
         GROUP BY entity_id, event_message, execution_number) n
   ON   n.entity_id = s.job_id
  AND   n.event_message = CONCAT('step-body ', s.step_name)   -- CONCAT: || is not SQL Server
@@ -163,17 +172,17 @@ WHERE  s.step_status_code = 100 /* StepStatusCode.Succeeded */
 UNION  ALL
 SELECT 'step-replay', entity_id, execution_number, event_message, COUNT(*)
 FROM   {s}events
-WHERE  entity_code = 4 /* EntityCode.Job */ AND event_code = 90 /* EventCode.JobNoteRecorded */ AND event_message LIKE 'step-body-after-success %'
+WHERE  entity_code = 4 /* EntityCode.Job */ AND event_code = 15 /* EventCode.JobNoteRecorded */ AND event_message LIKE 'step-body-after-success %'
 GROUP  BY entity_id, execution_number, event_message
 UNION  ALL
 SELECT 'step-replay', b.entity_id, b.execution_number, b.event_message, COUNT(*)
 FROM   {s}events b
 JOIN   {s}events d
   ON   d.entity_id = b.entity_id
- AND   d.entity_code = 4 /* EntityCode.Job */ AND d.event_code = 90 /* EventCode.JobNoteRecorded */
+ AND   d.entity_code = 4 /* EntityCode.Job */ AND d.event_code = 15 /* EventCode.JobNoteRecorded */
  AND   d.event_message = REPLACE(b.event_message, 'step-body ', 'step-done ')
  AND   d.execution_number < b.execution_number
-WHERE  b.entity_code = 4 /* EntityCode.Job */ AND b.event_code = 90 /* EventCode.JobNoteRecorded */ AND b.event_message LIKE 'step-body %'
+WHERE  b.entity_code = 4 /* EntityCode.Job */ AND b.event_code = 15 /* EventCode.JobNoteRecorded */ AND b.event_message LIKE 'step-body %'
 GROUP  BY b.entity_id, b.execution_number, b.event_message;
 
 -- ---------------------------------------------------------------------------------------------
@@ -194,10 +203,10 @@ GROUP  BY b.entity_id, b.execution_number, b.event_message;
 -- A workload that drains faster than that reports zero reclaims no matter how many workers were
 -- killed. Size a chaos run by duration against that floor, never by job count.
 SELECT 'chaos-was-real' AS check_name,
-       SUM(CASE WHEN event_code = 42 /* EventCode.JobExecutionOrphaned */ THEN 1 ELSE 0 END) AS orphaned_attempts,
-       SUM(CASE WHEN event_code = 122 /* EventCode.WorkerDied */ THEN 1 ELSE 0 END) AS workers_marked_dead
+       SUM(CASE WHEN event_code = 10 /* EventCode.JobExecutionOrphaned */ THEN 1 ELSE 0 END) AS orphaned_attempts,
+       SUM(CASE WHEN event_code = 46 /* EventCode.WorkerDied */ THEN 1 ELSE 0 END) AS workers_marked_dead
 FROM   {s}events
-HAVING SUM(CASE WHEN event_code = 42 /* EventCode.JobExecutionOrphaned */ THEN 1 ELSE 0 END) > 0;
+HAVING SUM(CASE WHEN event_code = 10 /* EventCode.JobExecutionOrphaned */ THEN 1 ELSE 0 END) > 0;
 
 -- ---------------------------------------------------------------------------------------------
 -- 9. how far the recorded clock ran backwards            [MEASURED: always reports, never fails]
@@ -231,7 +240,7 @@ HAVING COUNT(*) >= 0;
 SELECT 'at-most-once' AS check_name, n.job_id, n.bodies
 FROM   (SELECT entity_id AS job_id, COUNT(*) AS bodies
         FROM   {s}events
-        WHERE  entity_code = 4 /* EntityCode.Job */ AND event_code = 90 /* EventCode.JobNoteRecorded */ AND event_message = 'charge-body'
+        WHERE  entity_code = 4 /* EntityCode.Job */ AND event_code = 15 /* EventCode.JobNoteRecorded */ AND event_message = 'charge-body'
         GROUP  BY entity_id) n
 WHERE  n.bodies > 1;
 
@@ -278,7 +287,7 @@ SELECT 'tenant-context' AS check_name, e.entity_id AS job_id, e.event_message AS
 FROM   {s}events e
 JOIN   {s}jobs j ON j.job_id = e.entity_id
 LEFT   JOIN {s}tenants t ON t.tenant_id = j.tenant_id
-WHERE  e.entity_code = 4 /* EntityCode.Job */ AND e.event_code = 90 /* EventCode.JobNoteRecorded */
+WHERE  e.entity_code = 4 /* EntityCode.Job */ AND e.event_code = 15 /* EventCode.JobNoteRecorded */
   AND  e.event_message LIKE 'tenant %'
   AND  e.event_message <> CONCAT('tenant ', COALESCE(t.tenant_name, '-'));
 
@@ -335,11 +344,14 @@ FROM   (SELECT r.lane_id, r.job_id,
         WHERE  r.lane_id IS NOT NULL) p
 JOIN   (SELECT entity_id, MIN(event_id) AS first_start
         FROM   {s}events
-        WHERE  entity_code = 4 /* EntityCode.Job */ AND event_code = 90 /* EventCode.JobNoteRecorded */
+        WHERE  entity_code = 4 /* EntityCode.Job */ AND event_code = 15 /* EventCode.JobNoteRecorded */
         GROUP  BY entity_id) s ON s.entity_id = p.next_job_id
 LEFT   JOIN (SELECT entity_id, MAX(event_id) AS last_finish
              FROM   {s}events
-             WHERE  entity_code = 4 /* EntityCode.Job */ AND event_code BETWEEN 40 /* EventCode.JobExecutionSucceeded */ AND 44 /* EventCode.JobFailed */
+             WHERE  entity_code = 4 /* EntityCode.Job */
+               AND  event_code IN (
+                        9 /* EventCode.JobExecutionFailed */, 10 /* EventCode.JobExecutionOrphaned */, 11 /* EventCode.JobExecutionSucceeded */,
+                        12 /* EventCode.JobExecutionYielded */, 13 /* EventCode.JobFailed */)
              GROUP  BY entity_id) f ON f.entity_id = p.job_id
 WHERE  f.last_finish IS NULL
    OR  s.first_start < f.last_finish;
@@ -368,5 +380,5 @@ SELECT 'chaos-by-shape' AS check_name,
        SUM(CASE WHEN d.definition_name = 'laned' THEN 1 ELSE 0 END) AS laned_orphaned
 FROM   {s}events e
 JOIN   {s}definitions d ON d.definition_id = e.definition_id
-WHERE  e.event_code = 42 /* EventCode.JobExecutionOrphaned */
+WHERE  e.event_code = 10 /* EventCode.JobExecutionOrphaned */
 HAVING COUNT(*) >= 0;

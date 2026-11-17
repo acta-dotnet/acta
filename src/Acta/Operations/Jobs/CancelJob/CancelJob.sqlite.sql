@@ -50,7 +50,7 @@ INSERT INTO {{schema}}.events (
     details_format_id,
     details)
 SELECT
-    43 /* EventCode.JobExecutionYielded */,
+    12 /* EventCode.JobExecutionYielded */,
     {{now}},
     j.namespace_id,
     r.leased_by_worker_id,
@@ -91,7 +91,7 @@ INSERT INTO {{schema}}.events (
     details_format_id,
     details)
 SELECT
-    70 /* EventCode.JobCancelled */,
+    8 /* EventCode.JobCancelled */,
     {{now}},
     j.namespace_id,
     4 /* EntityCode.Job */,

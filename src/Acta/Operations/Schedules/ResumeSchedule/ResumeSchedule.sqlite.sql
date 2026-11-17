@@ -24,7 +24,7 @@ INSERT INTO {{schema}}.events (
     details_format_id,
     details)
 SELECT
-    101 /* EventCode.ScheduleResumed */,
+    39 /* EventCode.ScheduleResumed */,
     {{now}},
     js.namespace_id,
     CASE WHEN js.job_id IS NULL THEN 3 /* EntityCode.Definition */ ELSE 4 /* EntityCode.Job */ END,

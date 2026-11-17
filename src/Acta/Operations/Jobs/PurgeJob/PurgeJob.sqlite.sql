@@ -28,8 +28,8 @@ SELECT
                 AND e.created_at_utc >= @p_alert_floor_utc
                 AND (e.created_at_utc > @p_alert_floor_utc OR e.event_id > @p_alert_floor_event_id)
                 AND (
-                    e.event_code IN (41 /* EventCode.JobExecutionFailed */, 42 /* EventCode.JobExecutionOrphaned */, 44 /* EventCode.JobFailed */)
-                    OR (e.event_code = 40 /* EventCode.JobExecutionSucceeded */ AND e.execution_number > 1)
+                    e.event_code IN (9 /* EventCode.JobExecutionFailed */, 10 /* EventCode.JobExecutionOrphaned */, 13 /* EventCode.JobFailed */)
+                    OR (e.event_code = 11 /* EventCode.JobExecutionSucceeded */ AND e.execution_number > 1)
                 )
                 AND d.alert_profile_code_effective <> 10 /* AlertProfileCode.None */)
         THEN 1 ELSE 0 END AS alert_hold,
@@ -120,7 +120,7 @@ INSERT INTO {{schema}}.events (
     details_format_id,
     details)
 SELECT
-    75 /* EventCode.JobPurged */,
+    17 /* EventCode.JobPurged */,
     {{now}},
     s.namespace_id,
     4 /* EntityCode.Job */,

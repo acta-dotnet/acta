@@ -76,7 +76,7 @@ INSERT INTO {{schema}}.events (
     worker_id, execution_number, event_message, details_format_id, details
 )
 SELECT
-    83 /* EventCode.JobWaitExpired */,
+    27 /* EventCode.JobWaitExpired */,
     {{now}},
     j.namespace_id,
     4 /* EntityCode.Job */,

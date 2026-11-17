@@ -26,7 +26,7 @@ BEGIN TRY
             event_message, actor, details_format_id, details
         )
         VALUES (
-            21 /* EventCode.NamespaceResumed */, @now, @namespace_id,
+            29 /* EventCode.NamespaceResumed */, @now, @namespace_id,
             5 /* EntityCode.Namespace */, @namespace_id,
             @p_event_message, @p_actor, @p_details_format_id, @p_details
         );

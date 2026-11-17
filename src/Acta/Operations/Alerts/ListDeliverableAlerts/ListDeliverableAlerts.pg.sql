@@ -49,7 +49,7 @@ WHERE
             AND s.entity_id = a.job_id
             AND s.created_at_utc >= @p_cursor_utc
             AND (s.created_at_utc > @p_cursor_utc OR s.event_id > @p_cursor_event_id)
-            AND s.event_code = 40 /* EventCode.JobExecutionSucceeded */
+            AND s.event_code = 11 /* EventCode.JobExecutionSucceeded */
             AND s.execution_number > 1
             AND s.event_id > a.last_projected_event_id
     )

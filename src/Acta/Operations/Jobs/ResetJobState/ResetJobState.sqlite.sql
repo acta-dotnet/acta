@@ -19,7 +19,7 @@ INSERT INTO {{schema}}.events (
     actor
 )
 SELECT
-    81 /* EventCode.JobStateReset */,
+    25 /* EventCode.JobStateReset */,
     {{now}},
     j.namespace_id,
     4 /* EntityCode.Job */,

@@ -18,7 +18,7 @@ SELECT
         WHERE
             s.entity_code = 4 /* EntityCode.Job */
             AND s.entity_id = e.entity_id
-            AND s.event_code = 40 /* EventCode.JobExecutionSucceeded */
+            AND s.event_code = 11 /* EventCode.JobExecutionSucceeded */
             AND (s.created_at_utc > e.created_at_utc OR (s.created_at_utc = e.created_at_utc AND s.event_id > e.event_id))
     ) AS superseded
 FROM jsonb_to_recordset(@p_alert_poison_events::jsonb) AS p (event_id BIGINT, job_id BIGINT)
@@ -31,7 +31,7 @@ INNER JOIN {{schema}}.definitions jd ON jd.definition_id = e.definition_id
 WHERE
     e.namespace_id = @p_namespace_id
     AND e.event_code IN (
-        40 /* EventCode.JobExecutionSucceeded */, 41 /* EventCode.JobExecutionFailed */,
-        42 /* EventCode.JobExecutionOrphaned */, 44 /* EventCode.JobFailed */
+        11 /* EventCode.JobExecutionSucceeded */, 9 /* EventCode.JobExecutionFailed */,
+        10 /* EventCode.JobExecutionOrphaned */, 13 /* EventCode.JobFailed */
     )
 ORDER BY e.created_at_utc, e.event_id;

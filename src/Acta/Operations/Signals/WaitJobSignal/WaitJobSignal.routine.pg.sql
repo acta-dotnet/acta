@@ -157,7 +157,7 @@ BEGIN
             event_message, details_format_id, details
         )
         SELECT
-            83 /* EventCode.JobWaitExpired */, v_now, j.namespace_id,
+            27 /* EventCode.JobWaitExpired */, v_now, j.namespace_id,
             4 /* EntityCode.Job */, j.job_id,
             j.definition_id, j.tenant_id, COALESCE(j.lineage_root_job_id, j.job_id),
             p_leased_by_worker_id, p_execution_number,

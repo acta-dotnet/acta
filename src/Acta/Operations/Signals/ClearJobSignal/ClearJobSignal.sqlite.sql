@@ -16,7 +16,7 @@ INSERT INTO {{schema}}.events (
     details
 )
 SELECT
-    82 /* EventCode.JobSignalCleared */,
+    22 /* EventCode.JobSignalCleared */,
     {{now}},
     j.namespace_id,
     4 /* EntityCode.Job */,

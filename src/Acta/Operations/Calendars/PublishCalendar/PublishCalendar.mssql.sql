@@ -127,9 +127,9 @@ BEGIN TRY
         LEFT JOIN {{schema}}.jobs j WITH (FORCESEEK) ON j.job_id = s.job_id
         LEFT JOIN {{schema}}.jobs_state jr WITH (FORCESEEK) ON jr.job_id = s.job_id
         CROSS APPLY (
-            SELECT 106 /* EventCode.ScheduleSkipped */ AS event_code, r.skipped_details AS details, 1 AS ord
+            SELECT 41 /* EventCode.ScheduleSkipped */ AS event_code, r.skipped_details AS details, 1 AS ord
             UNION ALL
-            SELECT 107 /* EventCode.ScheduleRetimed */, r.retimed_details, 2
+            SELECT 40 /* EventCode.ScheduleRetimed */, r.retimed_details, 2
         ) e
         WHERE
             e.details IS NOT NULL
@@ -165,7 +165,7 @@ BEGIN TRY
             event_message, actor, details_format_id, details
         )
         VALUES (
-            111 /* EventCode.CalendarPublished */, @now, @p_namespace_id,
+            5 /* EventCode.CalendarPublished */, @now, @p_namespace_id,
             2 /* EntityCode.Calendar */, @candidate_id,
             @p_event_message, @p_actor, @p_details_format_id, @p_details
         );

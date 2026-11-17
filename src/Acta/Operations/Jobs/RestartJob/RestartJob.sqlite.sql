@@ -145,7 +145,7 @@ INSERT INTO {{schema}}.events (
     details_format_id,
     details)
 SELECT
-    73 /* EventCode.JobRestarted */,
+    20 /* EventCode.JobRestarted */,
     {{now}},
     j.namespace_id,
     4 /* EntityCode.Job */,
@@ -186,7 +186,7 @@ WHERE
             WHERE
                 f.entity_code = 4 /* EntityCode.Job */
                 AND f.entity_id = @p_job_id
-                AND f.event_code IN (43 /* EventCode.JobExecutionYielded */, 44 /* EventCode.JobFailed */, 70 /* EventCode.JobCancelled */)
+                AND f.event_code IN (12 /* EventCode.JobExecutionYielded */, 13 /* EventCode.JobFailed */, 8 /* EventCode.JobCancelled */)
                 AND f.execution_number = r.execution_number
                 AND json_extract(CAST(f.details AS TEXT), '$.reason') = 'wait-timed-out'
                 AND (f.event_message LIKE 'The wait for signal ''%' OR f.event_message LIKE 'Durable wait ''%')

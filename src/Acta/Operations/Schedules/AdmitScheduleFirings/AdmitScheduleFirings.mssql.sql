@@ -313,28 +313,28 @@ BEGIN TRY
             COALESCE(r.execution_number, 0) AS execution_number,
             COALESCE(j.event_recording_code, jd.event_recording_code_effective) AS event_recording_code
         FROM (
-            SELECT a.group_ordinal, a.schedule_id, 1 AS ord, 106 /* EventCode.ScheduleSkipped */ AS event_code, a.expired_details AS details, CAST(NULL AS NVARCHAR(512)) AS event_message
+            SELECT a.group_ordinal, a.schedule_id, 1 AS ord, 41 /* EventCode.ScheduleSkipped */ AS event_code, a.expired_details AS details, CAST(NULL AS NVARCHAR(512)) AS event_message
             FROM @rows a
             UNION ALL
-            SELECT a.group_ordinal, a.schedule_id, 2, 106 /* EventCode.ScheduleSkipped */, a.skipped_details, NULL
+            SELECT a.group_ordinal, a.schedule_id, 2, 41 /* EventCode.ScheduleSkipped */, a.skipped_details, NULL
             FROM @rows a
             UNION ALL
-            SELECT a.group_ordinal, a.schedule_id, 3, 105 /* EventCode.ScheduleAdmitted */, a.admitted_details, NULL
+            SELECT a.group_ordinal, a.schedule_id, 3, 34 /* EventCode.ScheduleAdmitted */, a.admitted_details, NULL
             FROM @rows a
             UNION ALL
-            SELECT a.group_ordinal, a.schedule_id, 4, 102 /* EventCode.SchedulePauseExpired */, N'{"schedule":"' + a.schedule_name + N'"}', NULL
+            SELECT a.group_ordinal, a.schedule_id, 4, 37 /* EventCode.SchedulePauseExpired */, N'{"schedule":"' + a.schedule_name + N'"}', NULL
             FROM @rows a
             WHERE a.pause_ended = 1
             UNION ALL
-            SELECT a.group_ordinal, a.schedule_id, 5, 100 /* EventCode.SchedulePaused */, N'{"schedule":"' + a.schedule_name + N'","reason":"expired"}', NULL
+            SELECT a.group_ordinal, a.schedule_id, 5, 38 /* EventCode.SchedulePaused */, N'{"schedule":"' + a.schedule_name + N'","reason":"expired"}', NULL
             FROM @rows a
             WHERE a.expire_paused = 1
             UNION ALL
-            SELECT g.ordinal, g.schedule_id, 6, 104 /* EventCode.ScheduleTriggered */, g.trigger_details, g.trigger_message
+            SELECT g.ordinal, g.schedule_id, 6, 42 /* EventCode.ScheduleTriggered */, g.trigger_details, g.trigger_message
             FROM @groups g
             WHERE g.job_id IS NULL AND g.admit = 1 AND g.trigger_details IS NOT NULL
             UNION ALL
-            SELECT a.group_ordinal, a.schedule_id, 7, 108 /* EventCode.ScheduleEvaluationFailed */, N'{"schedule":"' + a.schedule_name + N'"}', a.evaluation_error
+            SELECT a.group_ordinal, a.schedule_id, 7, 35 /* EventCode.ScheduleEvaluationFailed */, N'{"schedule":"' + a.schedule_name + N'"}', a.evaluation_error
             FROM @rows a
             WHERE a.evaluation_error IS NOT NULL
         ) x

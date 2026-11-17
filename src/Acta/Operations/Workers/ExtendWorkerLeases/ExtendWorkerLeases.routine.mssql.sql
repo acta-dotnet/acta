@@ -42,7 +42,7 @@ BEGIN
         IF EXISTS (SELECT 1 FROM @replaced WHERE worker_status_code = 200 /* WorkerStatusCode.Dead */)
             INSERT INTO {{schema}}.events (event_code, created_at_utc, namespace_id, worker_id, entity_code, entity_id)
             VALUES (
-                120 /* EventCode.WorkerStarted */, @now, @namespace_id, @p_leased_by_worker_id,
+                47 /* EventCode.WorkerStarted */, @now, @namespace_id, @p_leased_by_worker_id,
                 7 /* EntityCode.Worker */, @p_leased_by_worker_id
             );
 

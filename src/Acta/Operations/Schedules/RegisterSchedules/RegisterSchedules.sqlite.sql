@@ -140,7 +140,7 @@ INSERT INTO {{schema}}.events (
     event_code, created_at_utc, namespace_id, entity_code, entity_id,
     definition_id, tenant_id, lineage_root_job_id, execution_number, details_format_id, details)
 SELECT
-    107 /* EventCode.ScheduleRetimed */, {{now}}, @p_namespace_id, 4 /* EntityCode.Job */, s.job_id,
+    40 /* EventCode.ScheduleRetimed */, {{now}}, @p_namespace_id, 4 /* EntityCode.Job */, s.job_id,
     s.definition_id, j.tenant_id, COALESCE(j.lineage_root_job_id, j.job_id), r.execution_number,
     1 /* JobPayloadFormat.Json */, CAST('{"schedule":"' || s.schedule_name || '"}' AS BLOB)
 FROM temp._reg_schedules src
@@ -154,7 +154,7 @@ INSERT INTO {{schema}}.events (
     event_code, created_at_utc, namespace_id, entity_code, entity_id,
     definition_id, details_format_id, details)
 SELECT
-    107 /* EventCode.ScheduleRetimed */, {{now}}, @p_namespace_id, 3 /* EntityCode.Definition */, s.definition_id,
+    40 /* EventCode.ScheduleRetimed */, {{now}}, @p_namespace_id, 3 /* EntityCode.Definition */, s.definition_id,
     s.definition_id, 1 /* JobPayloadFormat.Json */, CAST('{"schedule":"' || s.schedule_name || '"}' AS BLOB)
 FROM temp._reg_schedules src
 JOIN {{schema}}.schedules s ON s.definition_id = src.definition_id AND s.schedule_name = src.schedule_name
@@ -354,7 +354,7 @@ INSERT INTO {{schema}}.events (
     event_code, created_at_utc, namespace_id, entity_code, entity_id,
     definition_id, tenant_id, lineage_root_job_id, execution_number, details_format_id, details)
 SELECT
-    109 /* EventCode.ScheduleOrphaned */, {{now}}, @p_namespace_id,
+    36 /* EventCode.ScheduleOrphaned */, {{now}}, @p_namespace_id,
     CASE WHEN js.job_id IS NULL THEN 3 /* EntityCode.Definition */ ELSE 4 /* EntityCode.Job */ END,
     COALESCE(js.job_id, js.definition_id),
     js.definition_id, j.tenant_id, COALESCE(j.lineage_root_job_id, j.job_id), COALESCE(r.execution_number, 0),

@@ -203,7 +203,7 @@ BEGIN
                 event_message, actor, details_format_id, details
             )
             VALUES (
-                80 /* EventCode.JobSignalRaised */, @now, @namespace_id,
+                23 /* EventCode.JobSignalRaised */, @now, @namespace_id,
                 4 /* EntityCode.Job */, @p_job_id,
                 @definition_id, @tenant_id, COALESCE(@lineage_root_job_id, @p_job_id),
                 @execution_number,
@@ -232,7 +232,7 @@ BEGIN
                         event_message, actor, details_format_id, details
                     )
                     VALUES (
-                        72 /* EventCode.JobResumed */, @now, @namespace_id,
+                        21 /* EventCode.JobResumed */, @now, @namespace_id,
                         4 /* EntityCode.Job */, @p_job_id,
                         @definition_id, @tenant_id, COALESCE(@lineage_root_job_id, @p_job_id),
                         @execution_number,

@@ -354,7 +354,7 @@ BEGIN
                         event_code, created_at_utc, namespace_id, entity_code, entity_id,
                         definition_id, tenant_id, lineage_root_job_id, execution_number, event_message, details_format_id, details)
                     SELECT
-                        100 /* EventCode.SchedulePaused */, @now, j.namespace_id, 4 /* EntityCode.Job */, p.job_id,
+                        38 /* EventCode.SchedulePaused */, @now, j.namespace_id, 4 /* EntityCode.Job */, p.job_id,
                         j.definition_id, j.tenant_id, COALESCE(j.lineage_root_job_id, j.job_id), r.execution_number, 'Paused by the firing failure policy: the last firing failed for good.',
                         1 /* JobPayloadFormat.Json */, CONVERT(VARBINARY(MAX), '{"schedule":"' + p.schedule_name + '","reason":"firing-failed"}')
                     FROM @policy_paused p
@@ -387,17 +387,17 @@ BEGIN
         INNER JOIN {{schema}}.definitions jd WITH (FORCESEEK) ON jd.definition_id = j.definition_id
         CROSS APPLY (
             SELECT CASE
-                WHEN c.event_code = 41 /* EventCode.JobExecutionFailed */
+                WHEN c.event_code = 9 /* EventCode.JobExecutionFailed */
                     THEN ',"to":"' + CASE d.job_status_code
                         WHEN 10 /* JobStatusCode.Ready */ THEN 'ready'
                         WHEN 20 /* JobStatusCode.Suspended */ THEN 'suspended'
                         WHEN 30 /* JobStatusCode.Paused */ THEN 'paused'
                         WHEN 40 /* JobStatusCode.Idle */ THEN 'idle'
                     END + '"'
-                WHEN c.event_code = 43 /* EventCode.JobExecutionYielded */
+                WHEN c.event_code = 12 /* EventCode.JobExecutionYielded */
                     THEN ',"outcome":"' + CASE
-                        WHEN c.reschedule_event_code = 60 /* EventCode.JobSuspended */ THEN 'suspended'
-                        WHEN c.reschedule_event_code = 62 /* EventCode.JobSlept */ THEN 'slept'
+                        WHEN c.reschedule_event_code = 26 /* EventCode.JobSuspended */ THEN 'suspended'
+                        WHEN c.reschedule_event_code = 24 /* EventCode.JobSlept */ THEN 'slept'
                         WHEN c.reschedule_event_code IS NOT NULL THEN 'rescheduled'
                         WHEN c.handler_job_status_code = 30 /* JobStatusCode.Paused */ THEN 'paused'
                         ELSE 'cancelled'
@@ -412,13 +412,13 @@ BEGIN
             OR (
                 j.event_recording_code = 10 /* EventRecordingCode.Failures */
                 AND (
-                    c.event_code IN (41 /* EventCode.JobExecutionFailed */, 44 /* EventCode.JobFailed */)
-                    OR (c.event_code = 40 /* EventCode.JobExecutionSucceeded */ AND d.prior_failure_count > 0)
+                    c.event_code IN (9 /* EventCode.JobExecutionFailed */, 13 /* EventCode.JobFailed */)
+                    OR (c.event_code = 11 /* EventCode.JobExecutionSucceeded */ AND d.prior_failure_count > 0)
                 )
             )
             OR (
                 jd.alert_profile_code_effective <> 10 /* AlertProfileCode.None */
-                AND c.event_code = 40 /* EventCode.JobExecutionSucceeded */
+                AND c.event_code = 11 /* EventCode.JobExecutionSucceeded */
                 AND d.execution_number > 1
                 AND c.final_job_status_code IS NULL
             );
@@ -451,8 +451,8 @@ BEGIN
                         1,
                         -- A slot held by its handler, or cancelled by it; a settled firing needs no shape event beside the attempt's.
                         CASE c.final_job_status_code
-                            WHEN 30 /* JobStatusCode.Paused */ THEN 71 /* EventCode.JobPaused */
-                            WHEN 220 /* JobStatusCode.Cancelled */ THEN 70 /* EventCode.JobCancelled */
+                            WHEN 30 /* JobStatusCode.Paused */ THEN 16 /* EventCode.JobPaused */
+                            WHEN 220 /* JobStatusCode.Cancelled */ THEN 8 /* EventCode.JobCancelled */
                         END
                     ),
                     (
@@ -466,8 +466,8 @@ BEGIN
                     (
                         3,
                         CASE
-                            WHEN c.handler_job_status_code = 220 /* JobStatusCode.Cancelled */ THEN 70 /* EventCode.JobCancelled */
-                            WHEN c.handler_job_status_code = 30 /* JobStatusCode.Paused */ THEN 71 /* EventCode.JobPaused */
+                            WHEN c.handler_job_status_code = 220 /* JobStatusCode.Cancelled */ THEN 8 /* EventCode.JobCancelled */
+                            WHEN c.handler_job_status_code = 30 /* JobStatusCode.Paused */ THEN 16 /* EventCode.JobPaused */
                         END
                     )
                 ) k (ord, event_code)
@@ -588,7 +588,7 @@ BEGIN
                         event_message, details_format_id, details
                     )
                     SELECT
-                        80 /* EventCode.JobSignalRaised */, @now, pj.namespace_id,
+                        23 /* EventCode.JobSignalRaised */, @now, pj.namespace_id,
                         4 /* EntityCode.Job */, p.parent_job_id,
                         pj.definition_id, pj.tenant_id, COALESCE(pj.lineage_root_job_id, p.parent_job_id),
                         p.parent_execution,
@@ -643,7 +643,7 @@ BEGIN
                         details_format_id, details
                     )
                     SELECT
-                        72 /* EventCode.JobResumed */, @now, pj.namespace_id,
+                        21 /* EventCode.JobResumed */, @now, pj.namespace_id,
                         4 /* EntityCode.Job */, w.parent_job_id,
                         pj.definition_id, pj.tenant_id, COALESCE(pj.lineage_root_job_id, w.parent_job_id),
                         w.parent_execution,

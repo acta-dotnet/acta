@@ -98,7 +98,7 @@ INSERT INTO {{schema}}.events (
     details_format_id,
     details)
 SELECT
-    61 /* EventCode.JobRescheduled */,
+    19 /* EventCode.JobRescheduled */,
     {{now}},
     j.namespace_id,
     4 /* EntityCode.Job */,

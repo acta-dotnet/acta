@@ -90,8 +90,8 @@ WHERE
                 OR e.event_id > COALESCE(@p_alert_floor_event_id, 9223372036854775807)
             )
             AND (
-                e.event_code IN (41 /* EventCode.JobExecutionFailed */, 42 /* EventCode.JobExecutionOrphaned */, 44 /* EventCode.JobFailed */)
-                OR (e.event_code = 40 /* EventCode.JobExecutionSucceeded */ AND e.execution_number > 1)
+                e.event_code IN (9 /* EventCode.JobExecutionFailed */, 10 /* EventCode.JobExecutionOrphaned */, 13 /* EventCode.JobFailed */)
+                OR (e.event_code = 11 /* EventCode.JobExecutionSucceeded */ AND e.execution_number > 1)
             )
             AND d.alert_profile_code_effective <> 10 /* AlertProfileCode.None */)
     -- A job stays while an alert of it is undelivered: the failure it reports has reached nobody yet.
@@ -129,8 +129,8 @@ WHERE
             OR e.event_id > COALESCE(@p_alert_floor_event_id, 9223372036854775807)
         )
         AND (
-            e.event_code IN (41 /* EventCode.JobExecutionFailed */, 42 /* EventCode.JobExecutionOrphaned */, 44 /* EventCode.JobFailed */)
-            OR (e.event_code = 40 /* EventCode.JobExecutionSucceeded */ AND e.execution_number > 1)
+            e.event_code IN (9 /* EventCode.JobExecutionFailed */, 10 /* EventCode.JobExecutionOrphaned */, 13 /* EventCode.JobFailed */)
+            OR (e.event_code = 11 /* EventCode.JobExecutionSucceeded */ AND e.execution_number > 1)
         )
         AND EXISTS (
             SELECT 1

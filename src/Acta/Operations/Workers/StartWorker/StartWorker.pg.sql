@@ -54,7 +54,7 @@ evt AS (
         entity_code,
         entity_id)
     SELECT
-        120 /* EventCode.WorkerStarted */,
+        47 /* EventCode.WorkerStarted */,
         now(),
         w.namespace_id,
         w.worker_id,

@@ -96,7 +96,7 @@ BEGIN TRY
         event_message, actor, details_format_id, details
     )
     VALUES (
-        101 /* EventCode.ScheduleResumed */, @now, @ns,
+        39 /* EventCode.ScheduleResumed */, @now, @ns,
         CASE WHEN @slot IS NULL THEN 3 /* EntityCode.Definition */ ELSE 4 /* EntityCode.Job */ END, COALESCE(@slot, @def),
         @def, COALESCE(@lineage, @slot),
         @en,

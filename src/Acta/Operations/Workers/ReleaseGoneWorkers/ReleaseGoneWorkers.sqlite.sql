@@ -7,7 +7,7 @@ INSERT INTO {{schema}}.events (
     entity_code,
     entity_id)
 SELECT
-    122 /* EventCode.WorkerDied */,
+    46 /* EventCode.WorkerDied */,
     w.namespace_id,
     w.worker_id,
     7 /* EntityCode.Worker */,

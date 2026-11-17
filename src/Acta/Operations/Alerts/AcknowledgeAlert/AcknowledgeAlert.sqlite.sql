@@ -27,7 +27,7 @@ INSERT INTO {{schema}}.events (
     details_format_id,
     details)
 SELECT
-    140 /* EventCode.AlertAcknowledged */,
+    1 /* EventCode.AlertAcknowledged */,
     t.now_utc,
     t.namespace_id,
     1 /* EntityCode.Alert */,

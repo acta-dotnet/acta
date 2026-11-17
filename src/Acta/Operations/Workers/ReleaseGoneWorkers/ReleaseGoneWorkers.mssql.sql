@@ -31,7 +31,7 @@ BEGIN TRY
         entity_code,
         entity_id)
     SELECT
-        122 /* EventCode.WorkerDied */,
+        46 /* EventCode.WorkerDied */,
         SYSUTCDATETIME(),
         d.namespace_id,
         d.worker_id,
