@@ -77,3 +77,8 @@ artifacts. Prefer the dashboard for broad visual triage and automation APIs for 
 - [`jobs-cli.cs`](./jobs-cli.cs)
 - [`CliCommandRunner.cs`](../../../src/Acta/Cli/CliCommandRunner.cs)
 - [`ExplainJobHandler.cs`](../../../src/Acta/Operations/Jobs/ExplainJob/ExplainJobHandler.cs)
+
+## Remember
+
+- The command runs against the app's own database and exits without starting a worker. Code before `app.Run` still runs, so guard host-only startup work with `if (args is not ["jobs", ..])`.
+- Start with `explain` for anything stuck, waiting, or failed.

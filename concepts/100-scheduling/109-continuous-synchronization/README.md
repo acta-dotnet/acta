@@ -184,7 +184,7 @@ twenty changes ahead of it.
 
 ```text
 job_ref                              | job_status | execution_number | failure_count | leased_by_worker_host_name | lease_expires_at_utc
-01a18cba-b966-7a5a-aaf2-83061ba0af99 | executing  | 7                | 0             | DESKTOP-MVKQH5M            | 2026-10-30 12:14:08.857Z
+01a18cba-b966-7a5a-aaf2-83061ba0af99 | executing  | 7                | 0             | worker-host-01             | 2026-10-30 12:14:08.857Z
 
 checkpoint_name | checkpoint_status | value_text
 sys.firing      | pending           | {"firingId":"01a18cbb-422e-7ac2-9e3…
@@ -259,3 +259,38 @@ batch: an older change overwrites a newer order, which is what the clause is for
 - [`ScheduleAdmitter.cs`](../../../src/Acta/Engine/Scheduling/ScheduleAdmitter.cs), the admission pass that moves the permanent job from `Idle` to `Ready`
 - [`ReclaimStuckJobs.routine.pg.sql`](../../../src/Acta/Operations/Execution/ReclaimStuckJobs/ReclaimStuckJobs.routine.pg.sql), the recovery that reclaims a lost firing
 - [Scheduling and calendars](../../../docs/scheduling.md), the page on schedules
+
+## Remember
+
+- Never loop forever inside the handler and never poll from it. A firing that finds nothing to do returns, and the next firing comes on schedule.
+- The watermark is a durable variable on the job. Acta carries it across firings, retries, and workers, so no table of your own has to remember how far the sync got.
+- The service has to hand out changes in a fixed order and keep them. For a source that fires once or forgets, capture it into a durable feed of your own first.
+- Firings that came due while no worker ran are skipped, not queued. The next firing reads the watermark and catches up by itself.
+- With the default heartbeat, a killed worker's firing comes back three to about seven minutes after its last heartbeat; on SQLite a restart brings it back at once. The lab shortens the heartbeat so you can watch.
+- A sync that writes back to the other system needs that system's idempotency key, so a repeated batch does not act twice there.
+
+## Check yourself
+
+**The worker is killed right after a batch was saved and the watermark written. What does the next execution do?**
+
+- Starts again from change 0
+- Reads the watermark the dead attempt wrote and applies the next batch
+- Nothing, until someone restarts the job by hand
+
+<details><summary>Answer</summary>
+
+Reads the watermark the dead attempt wrote and applies the next batch. The next worker, or the same one restarted, reclaims the firing, runs the handler from its first line, and reads the watermark. Same job, same firing, one more execution number.
+
+</details>
+
+**An attempt dies after the orders were saved but before the watermark moved. What happens to that batch?**
+
+- It is applied a second time, and the upsert changes nothing
+- It is skipped
+- The job fails for good
+
+<details><summary>Answer</summary>
+
+It is applied a second time, and the upsert changes nothing. The retry reads the old watermark and gets the same changes. Each order keeps only a newer change than the one it holds, so the replay leaves the data as it was.
+
+</details>

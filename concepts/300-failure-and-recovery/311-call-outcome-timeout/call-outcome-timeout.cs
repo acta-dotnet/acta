@@ -1,4 +1,6 @@
-// Concept: reading a JobOutcome from CallAsync -- timeout, failure, and success paths.
+// How to read the outcome of a wait that can time out
+// `CallAsync` answers a `JobOutcome`: whether the wait timed out, whether the job failed, and the value when it
+// succeeded.
 using Acta;
 using Acta.Concepts.CallOutcomeTimeout;
 using Microsoft.Extensions.DependencyInjection;
@@ -17,18 +19,26 @@ await host.StartAsync();
 
 var jobs = host.Services.GetRequiredService<IJobs>();
 
-// (a) Slow handler with a short WaitTimeout -> outcome.TimedOut is true.
-// The job keeps running on the worker; the caller just stops waiting.
 Console.WriteLine("--- (a) timeout ---");
+
+// learn: 1. Bound the wait and see whether it timed out
+// A slow handler with a short WaitTimeout: outcome.TimedOut is true.
+// The job keeps running on the worker; the caller just stops waiting.
 var opts = new JobExecutionOptions { WaitTimeout = TimeSpan.FromMilliseconds(200), PollInterval = TimeSpan.FromMilliseconds(50) };
 var timedOut = await jobs.CallAsync(CallOutcomeTimeoutJobs.SlowReport(), opts);
 Console.WriteLine($"TimedOut: {timedOut.TimedOut}");
+
+// learn: end
 Console.WriteLine($"Succeeded: {timedOut.Succeeded}");
 
-// (b) Failing handler -> Status is Failed; ThrowIfFailed throws JobFailedException; TryGetValue is false.
 Console.WriteLine("--- (b) failure ---");
+
+// learn: 2. Read a job that failed
+// A failing handler: Status is Failed, ThrowIfFailed throws JobFailedException, and TryGetValue is false.
 var failed = await jobs.CallAsync(CallOutcomeTimeoutJobs.FailingReport());
 Console.WriteLine($"Status: {failed.Status}");
+
+// learn: end
 try
 {
     failed.ThrowIfFailed();
@@ -39,11 +49,15 @@ catch (JobFailedException ex)
 }
 Console.WriteLine($"TryGetValue: {failed.TryGetValue(out _)}");
 
-// (c) Success -> ValueOrThrow returns the handler's result.
 Console.WriteLine("--- (c) success ---");
+
+// learn: 3. Take the value of a job that succeeded
+// On success, ValueOrThrow returns the handler's result.
 var success = await jobs.CallAsync(CallOutcomeTimeoutJobs.SuccessReport());
 Console.WriteLine($"Succeeded: {success.Succeeded}");
 var result = success.ValueOrThrow();
+
+// learn: end
 Console.WriteLine($"ValueOrThrow: {result.Summary}");
 
 await host.StopAsync();

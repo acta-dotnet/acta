@@ -1,3 +1,6 @@
+// How to limit how many jobs run at once for one key
+// A `ConcurrencyKey` on the enqueue lets one job at a time run for that key. `ConcurrencyLimit` on the job gives a
+// key several slots, and `RateLimit` meters how often jobs start.
 using Acta;
 using Acta.Concepts.ConcurrencyKey;
 using Acta.Labs;
@@ -18,9 +21,12 @@ await host.StartAsync();
 
 var jobs = host.Services.GetRequiredService<IJobs>();
 
+// learn: 1. Give jobs that must not overlap the same key
 // Shared concurrency key serializes whole jobs: the key is taken after claim, before the handler; a worker claiming the second job while it's held releases back to Ready (no executor tied up). Contrast 207-run-with-lock, which serializes only a section while the waiter holds its executor.
 var first = await jobs.EnqueueAsync(new RebuildIndex("acme"), o => o.ConcurrencyKey("rebuild:acme"));
 var second = await jobs.EnqueueAsync(new RebuildIndex("acme"), o => o.ConcurrencyKey("rebuild:acme"));
+
+// learn: end
 Console.WriteLine("Enqueued two jobs with the same concurrency key.");
 
 long ownerJobId;
@@ -206,10 +212,12 @@ namespace Acta.Concepts.ConcurrencyKey
 
     public sealed class PingEndpointJob
     {
+        // learn: 3. Limit how often jobs start
         // RateLimit is the other admission gate: five starts a second across the namespace's workers, metered
         // on the definition name because no RateName was given. Like ConcurrencyLimit it is an
         // operator-overridable policy value on the definitions row.
         [Job("ping-endpoint", RateLimit = "5/s")]
+        // learn: end
         public Task Handle(PingEndpoint input, CancellationToken ct)
         {
             Console.WriteLine($"ping {input.Sequence} at {DateTime.UtcNow:HH:mm:ss.fff}");
@@ -219,9 +227,11 @@ namespace Acta.Concepts.ConcurrencyKey
 
     public sealed class ReindexShardJob
     {
+        // learn: 2. Let several run at once, up to a limit
         // ConcurrencyLimit is a per-definition policy value, so an operator can raise or lower it on the
         // definitions row without a deploy. Two at a time, whatever the fleet size.
         [Job("reindex-shard", ConcurrencyLimit = 2)]
+        // learn: end
         public async Task Handle(ReindexShard input, CancellationToken ct)
         {
             Console.WriteLine($"shard {input.Shard} started");

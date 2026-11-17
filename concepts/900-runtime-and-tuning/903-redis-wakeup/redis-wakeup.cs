@@ -1,3 +1,6 @@
+// How to wake workers across processes with Redis
+// `UseRedisWakeup` announces each enqueue over Redis, so a worker in another process starts the job within
+// milliseconds instead of at its next poll.
 using Acta;
 using Acta.Concepts.RedisWakeup;
 using Acta.Redis;
@@ -17,9 +20,11 @@ builder.Services.UseActa(j =>
 {
     j.UseLocalDatabase(builder.Configuration);
 
+    // learn: Turn the Redis wake-up on in every process
     // Redis pub/sub wake: an enqueue in any process wakes workers in every process. Redis is a
     // latency accelerator, not a correctness dependency; if it's down, workers fall back to the poll floor.
     j.UseRedisWakeup(redis);
+    // learn: end
 
     if (role == "enqueue")
     {

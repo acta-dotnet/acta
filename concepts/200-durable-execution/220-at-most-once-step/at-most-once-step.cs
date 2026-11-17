@@ -1,3 +1,6 @@
+// How to refuse to repeat a side effect after a crash
+// An at-most-once step refuses to run its body a second time after a crash. The handler is told that the outcome is
+// unknown, and reconciles.
 using Acta;
 using Acta.Concepts.AtMostOnceStep;
 using Acta.Labs;
@@ -163,10 +166,16 @@ namespace Acta.Concepts.AtMostOnceStep
                         Environment.FailFast("Intentional at-most-once lab crash after the external side effect.");
                         return Task.CompletedTask;
                     },
+                    // learn: 1. Mark the step at-most-once
+                    // The step's start is recorded before its body runs. When the process dies inside the body, the
+                    // replay does not call it again: the step throws `StepInterruptedException` instead.
                     options => options.AtMostOnce(),
+                    // learn: end
                     ct
                 );
             }
+            // learn: 2. Catch the interruption and reconcile
+            // The side effect may or may not have happened. Ask the outside system, then decide.
             catch (StepInterruptedException interrupted)
             {
                 var sideEffectFile = SideEffectFile(context.JobRef);
@@ -176,6 +185,7 @@ namespace Acta.Concepts.AtMostOnceStep
                 Console.WriteLine($"{interrupted.StepName} is ambiguous; reconciliation found {matchingCharges} external charge(s).");
                 Console.WriteLine("The handler owns this policy: compensate, confirm, alert, or continue.");
             }
+            // learn: end
         }
     }
 }

@@ -1,3 +1,5 @@
+// How to run a job on a repeating schedule
+// `[Schedule]` with a cron makes one permanent job that fires on that cadence, with nothing to enqueue.
 using Acta;
 using Acta.Concepts.Recurring;
 using Microsoft.Extensions.Hosting;
@@ -19,16 +21,19 @@ namespace Acta.Concepts.Recurring
 
     public sealed class PurgeStaleSessionsJob
     {
+        // learn: Put a schedule on the job
+        // `[Schedule]` takes a name and a cron, here one of the `Cron` constants.
         // One permanent job fires on the cadence, and each successful fire's count replaces the last one stored;
         // EventRecordingCode.Failures writes no event for a fire that succeeds with no failure before it.
         [Job("purge-stale-sessions", EventRecording = EventRecordingCode.Failures)]
         [Schedule("every-15-seconds", Cron.Every15Seconds)]
+        // learn: end
         public async Task<int> Handle(PurgeStaleSessions input, JobContext context, CancellationToken ct)
         {
             await Task.Delay(100, ct);
             var purged = Random.Shared.Next(0, 25);
             Console.WriteLine(
-                $"{DateTime.Now:HH:mm:ss} [{string.Join(", ", context.TriggeringSchedules.Select(s => s.ScheduleName))}] purged {purged} stale sessions"
+                $"{DateTime.UtcNow:HH:mm:ss} UTC [{string.Join(", ", context.TriggeringSchedules.Select(s => s.ScheduleName))}] purged {purged} stale sessions"
             );
             return purged;
         }

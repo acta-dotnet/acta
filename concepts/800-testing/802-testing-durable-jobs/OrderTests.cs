@@ -1,8 +1,7 @@
-// Test a durable multi-step job with Acta.Testing. Each RunOnceAsync drives exactly one
-// attempt, so a signal suspend and its resume after a raise are separate explicit ticks.
-//
-//   dotnet test concepts/800-testing/802-testing-durable-jobs
-
+// How to test a job that waits for a signal
+// Each `RunOnceAsync` drives exactly one attempt, so the suspend on a signal and the resume after its raise are two
+// explicit ticks, and the test asserts that the step before the wait ran once across the replay. Run it with
+// `dotnet test concepts/800-testing/802-testing-durable-jobs`.
 using Acta.Testing;
 using Xunit;
 
@@ -15,17 +14,23 @@ public sealed class OrderTests(ActaHostFixture acta) : ActaTestBase(acta)
     {
         var enqueued = await Jobs.EnqueueAsync(new PlaceOrder("o-1", 99m), ct: Ct);
 
+        // learn: 1. Drive the job to its wait
         // First tick: reserve runs, then the job suspends waiting for approval (re-armed, not done).
         Assert.Equal(ActaRunStatus.Rearmed, await Host.RunOnceAsync(enqueued, Ct));
         Assert.Equal(JobStatusCode.Suspended, (await enqueued.GetStatusAsync(Ct))?.Status);
+        // learn: end
 
+        // learn: 2. Raise the signal from the test
         // The approval API raises a typed decision; the job moves to Ready.
         var raise = await Jobs.RaiseSignalAsync(enqueued, "approval", new ApprovalDecision(true, "alice"), Ct);
         Assert.Equal(ControlAction.Applied, raise.Action);
+        // learn: end
 
+        // learn: 3. Drive it again, and assert that it finished
         // Second tick: the job replays (reserve is NOT re-run), the signal is Set, charge runs, Done.
         Assert.Equal(ActaRunStatus.Completed, await Host.RunOnceAsync(enqueued, Ct));
         Assert.Equal(JobStatusCode.Succeeded, (await enqueued.GetStatusAsync(Ct))?.Status);
+        // learn: end
 
         var result = await enqueued.GetResultAsync<OrderResult>(Ct);
         Assert.True(result.Charged);

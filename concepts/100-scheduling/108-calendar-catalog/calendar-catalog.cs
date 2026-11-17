@@ -1,5 +1,6 @@
-// Concept: a calendar kept as data in the catalog. An operator publishes it, code binds it by name,
-// and a later publication retimes every schedule bound to it in one transaction while workers run.
+// How to drive a schedule from a published calendar
+// A calendar is data that an operator publishes through `operations.Calendars`. A schedule binds it by name, and a
+// later publication retimes every schedule bound to it in one transaction while workers run.
 using System.Globalization;
 using Acta;
 using Acta.Concepts.CalendarCatalog;
@@ -18,11 +19,13 @@ var officeHours = new CalendarLookup("sys", "office-hours");
     await seedHost.StartAsync();
 
     var calendars = seedHost.Services.GetRequiredService<IActaOperations>().Calendars;
+    // learn: 1. Save the calendar as a draft and publish it
     // A deploy step names no versions, so it runs again as it is: a definition the latest version already holds saves
     // nothing and answers AlreadyInState with that version, and publishing the current version again changes nothing.
     var draft = await calendars.SaveDraftAsync(officeHours, CalendarRoleCode.Availability, Definitions.OpenAllDay);
     Console.WriteLine($"Draft saved: {draft.Action}, version {draft.Version}");
     var published = await calendars.PublishAsync(officeHours, draft.Version!.Value, reasonMessage: "Go live");
+    // learn: end
     Console.WriteLine($"Published: {published.Action}, version {published.Version} is current");
 
     await seedHost.StopAsync();
@@ -62,8 +65,12 @@ Console.WriteLine(
         + $"{preview.SchedulesTotal} bound schedule(s), {preview.OverdueTotal} overdue"
 );
 
+// learn: 3. Publish a change and let it retime the schedule
+// The publication moves the cursor of every schedule bound to the calendar, in the same transaction.
 var result = await operations.Calendars.PublishAsync(officeHours, closed.Version.Value, reasonMessage: $"Closed on {today}");
 Console.WriteLine($"Published: {result.Action}; retimed [{string.Join(", ", result.RetimedSchedules)}]");
+
+// learn: end
 
 // The namespace also lists the system jobs' schedules (alerts, retention), so the read names the job.
 var schedule = (
@@ -98,7 +105,10 @@ namespace Acta.Concepts.CalendarCatalog
     public sealed class TickJob
     {
         [Job("tick")]
+        // learn: 2. Bind the schedule to the calendar by name
+        // `Availability` names the calendar. The schedule fires only inside the windows its current version opens.
         [Schedule("every-10s-in-hours", "PT10S", Availability = "office-hours")]
+        // learn: end
         public Task Handle(Tick input, CancellationToken ct)
         {
             Console.WriteLine($"{DateTime.UtcNow:HH:mm:ss} UTC tick");

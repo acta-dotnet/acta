@@ -1,3 +1,6 @@
+// How to route alerts to Slack from configuration
+// An alert channel posts to a Slack webhook whose URL comes from configuration, and logs when none is set. A
+// deduplication key collapses repeats of one incident into one alert.
 using Acta;
 using Acta.Concepts.RealAlertRouting;
 using Microsoft.Extensions.DependencyInjection;
@@ -13,6 +16,7 @@ builder.Services.UseActa(j =>
     {
         w.AddManifest<RealAlertRoutingJobs>();
 
+        // learn: 1. Declare a Slack channel with its URL from configuration
         // Built-in Slack incoming-webhook transport, with the webhook URL from configuration
         // (Alerts:SlackWebhookUrl). Without one the channel logs instead, so a plain run sends nothing.
         // Acta SQL stores only channel_name = "ops-slack" either way.
@@ -27,6 +31,7 @@ builder.Services.UseActa(j =>
                 o.MinSeverity = AlertSeverityCode.Warning;
             }
         );
+        // learn: end
     });
 });
 
@@ -64,6 +69,7 @@ namespace Acta.Concepts.RealAlertRouting
 
             if (input.Depth > 10_000)
             {
+                // learn: 2. Raise the alerts of one incident under one key
                 // deduplicationKey ties repeats together onto one open incident row.
                 await context.AlertAsync(
                     title: $"Queue backlog: {input.Queue}",
@@ -73,6 +79,7 @@ namespace Acta.Concepts.RealAlertRouting
                     deduplicationKey: $"queue-depth:{input.Queue}",
                     ct: ct
                 );
+                // learn: end
                 Console.WriteLine($"[{input.Queue}] depth {input.Depth} - alerted ops-slack");
                 return;
             }

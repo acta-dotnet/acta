@@ -1,3 +1,5 @@
+// How to pass a large file by reference
+// Keep a big file in blob storage and enqueue a reference to it, with its checksum and size, instead of the bytes.
 using System.Security.Cryptography;
 using System.Text;
 using Acta;
@@ -26,10 +28,13 @@ await File.WriteAllTextAsync(exportPath, "id,name\n1,Sam\n2,Alex\n");
 var bytes = await File.ReadAllBytesAsync(exportPath);
 var sha256 = Convert.ToHexStringLower(SHA256.HashData(bytes));
 
+// learn: 2. Enqueue the reference
 // The input is the durable pointer plus verification contract, not the file itself.
 var outcome = await jobs.EnqueueAsync(
     new ProcessExport(BlobUri: new Uri(exportPath).AbsoluteUri, Sha256: sha256, SizeBytes: bytes.LongLength, ContentType: "text/csv")
 );
+
+// learn: end
 
 Console.WriteLine($"Job {outcome.JobRef} enqueued with a {bytes.LongLength}-byte reference (not the bytes).");
 Console.WriteLine("Worker is running - press Ctrl+C to stop.");
@@ -39,9 +44,12 @@ await host.StopAsync();
 
 namespace Acta.Concepts.LargePayloadReference
 {
+    // learn: 1. Make the input a reference to the file
     // Avoid passing the file bytes directly; large byte-array inputs exceed the inline payload limit.
     // Use a stable reference with URI, checksum, size, and content type for the handler to verify.
     public sealed record ProcessExport(string BlobUri, string Sha256, long SizeBytes, string ContentType);
+
+    // learn: end
 
     public static class ExportJob
     {
@@ -51,6 +59,7 @@ namespace Acta.Concepts.LargePayloadReference
             var path = new Uri(input.BlobUri).LocalPath;
             var bytes = await File.ReadAllBytesAsync(path, ct);
 
+            // learn: 3. Verify the file in the handler before you trust it
             // Verify size and checksum before trusting the content.
             var sha256 = Convert.ToHexStringLower(SHA256.HashData(bytes));
             if (bytes.LongLength != input.SizeBytes || sha256 != input.Sha256)
@@ -58,6 +67,7 @@ namespace Acta.Concepts.LargePayloadReference
                 // A mismatched reference will not fix itself on retry - fail loudly.
                 throw new InvalidOperationException($"Reference {input.BlobUri} failed size/checksum verification.");
             }
+            // learn: end
 
             var rows = bytes.Length == 0 ? 0 : Encoding.UTF8.GetString(bytes).Split('\n', StringSplitOptions.RemoveEmptyEntries).Length - 1;
 

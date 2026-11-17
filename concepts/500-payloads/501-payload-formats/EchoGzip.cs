@@ -10,7 +10,9 @@ public sealed class EchoGzipHandler
     public const int TargetCount = 250;
     private static long _count;
 
+    // learn: 3. Name the format on the job
     [Job("echo-gzip", Format = PayloadFormats.JsonGzip)]
+    // learn: end
     public Task<EchoGzip> Handle(EchoGzip input, CancellationToken ct)
     {
         var n = Interlocked.Increment(ref _count);

@@ -1,3 +1,5 @@
+// How to start a child job in another namespace
+// A parent starts a child in another worker's namespace and waits across the boundary.
 using Acta;
 using Acta.Concepts.CrossNamespaceChild;
 using Microsoft.Extensions.DependencyInjection;
@@ -9,10 +11,12 @@ builder.Services.UseActa(j =>
 {
     j.UseLocalDatabase(builder.Configuration);
 
+    // learn: 1. Run a worker for each namespace
     // A child can target ANY registered namespace; the completion latch still releases the parent
     // across the boundary.
     j.Run<CrossNamespaceChildJobs>("storefront");
     j.Run<CrossNamespaceChildJobs>("billing");
+    // learn: end
 });
 
 using var host = builder.Build();
@@ -51,11 +55,12 @@ namespace Acta.Concepts.CrossNamespaceChild
 
     public sealed class OrderJobs
     {
-        // The raw EnqueueChildAsync overload names an explicit (namespace, job) route; the completion
-        // latch lands on the parent regardless of where the child ran.
         [Job("place-order")]
         public async Task<OrderConfirmation> Handle(PlaceOrder order, JobContext context, CancellationToken ct)
         {
+            // learn: 2. Name the child's namespace and job
+            // The raw EnqueueChildAsync overload names an explicit (namespace, job) route; the completion
+            // latch lands on the parent regardless of where the child ran.
             var charge = await context.EnqueueChildAsync(
                 "charge",
                 "billing",
@@ -63,7 +68,9 @@ namespace Acta.Concepts.CrossNamespaceChild
                 JobPayload.Json(new ChargePayment(order.OrderId, order.Amount)),
                 ct: ct
             );
+            // learn: end
 
+            // learn: 3. Wait for the child and read its result
             var outcome = await context.WaitChildAsync(charge, ct);
             if (!outcome.Succeeded)
             {
@@ -71,6 +78,7 @@ namespace Acta.Concepts.CrossNamespaceChild
             }
 
             var receipt = await context.GetChildResultAsync<PaymentReceipt>(charge.JobId, ct);
+            // learn: end
             return new OrderConfirmation(order.OrderId, receipt.TransactionId);
         }
 

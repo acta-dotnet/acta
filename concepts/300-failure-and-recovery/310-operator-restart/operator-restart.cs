@@ -1,6 +1,6 @@
-// Concept: restarting a terminal job from outside the handler via IJobs.RestartAsync -
-// resets the failure budget and retention, lets a failed at-most-once step run again, and re-arms the same
-// job id (Blocked instead of Ready when a laned job waits behind a running member).
+// How to restart a failed job and keep its history
+// `RestartAsync` runs a finished job again under the same identity. The failure budget is reset, the history is
+// appended to, steps that succeeded are not run again, and the bare lines of the handler are.
 using Acta;
 using Acta.Concepts.OperatorRestart;
 using Acta.Labs;
@@ -43,9 +43,13 @@ while ((snapshot = await jobs.GetAsync(outcome, failureTimeout.Token))?.Status !
 Console.WriteLine($"terminal: status={snapshot!.Status} failureCount={snapshot.FailureCount} executionNumber={snapshot.ExecutionNumber}");
 await ShowRestartStateAsync(lab, "Before restart: one stable identity exhausted its failure budget", outcome.JobId);
 
-// RestartAsync re-arms the same job id: resets failure_count, clears retention, moves to Ready.
 FlakyReportJob.DataSourceFixed = true;
+
+// learn: Restart the job under the same identity
+// RestartAsync re-arms the same job id: resets failure_count, clears retention, moves to Ready.
 var result = await jobs.RestartAsync(outcome, "operator re-ran the report after the data fix");
+
+// learn: end
 Console.WriteLine($"restart result: {result.Action} status={result.Status}");
 
 // The worker may already have claimed the row; failure_count is reset regardless of that scheduling race.

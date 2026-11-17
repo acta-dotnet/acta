@@ -1,3 +1,6 @@
+// How to run an overdue job in a reduced mode
+// With `DeadlineBehavior = Advisory` an overdue job still runs. The handler reads `IsOverdue` and chooses a reduced
+// path.
 using Acta;
 using Acta.Concepts.DeadlineAdvisory;
 using Microsoft.Extensions.DependencyInjection;
@@ -39,12 +42,15 @@ namespace Acta.Concepts.DeadlineAdvisory
 
     public static class GenerateReportJob
     {
+        // learn: 1. Make the deadline advisory
         // Advisory makes the deadline informational: unlike Strict (307), the engine never cancels an
         // overdue job. The handler reads context.IsOverdue (and context.TimeUntilDeadline) and degrades on its
         // own; here it emits a quick summary instead of the expensive full report when it is late.
         [Job("generate-report", Deadline = "2s", DeadlineBehavior = DeadlineBehaviorCode.Advisory)]
+        // learn: end
         public static async Task Handle(GenerateReport input, JobContext context, CancellationToken ct)
         {
+            // learn: 2. Ask whether the job is overdue, and do less when it is
             if (context.IsOverdue)
             {
                 Console.WriteLine(
@@ -52,6 +58,7 @@ namespace Acta.Concepts.DeadlineAdvisory
                 );
                 return;
             }
+            // learn: end
 
             Console.WriteLine($"[{context.JobRef}] on time; building the full {input.Quarter} report...");
             await Task.Delay(TimeSpan.FromSeconds(1), ct);

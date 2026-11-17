@@ -1,3 +1,5 @@
+// How to limit how many times a job retries
+// `MaxAttempts` on the job is its retry budget. When the last attempt fails, the job ends as `Failed`.
 using Acta;
 using Acta.Concepts.MaxAttempts;
 using Microsoft.Extensions.DependencyInjection;
@@ -16,11 +18,14 @@ await host.StartAsync();
 
 var jobs = host.Services.GetRequiredService<IJobs>();
 
+// learn: 2. Read how the job ended
 // The handler always throws; Acta makes up to MaxAttempts attempts, then transitions the job to Failed.
 var outcome = await jobs.EnqueueAsync(new FlakyWork("widget"));
 await Task.Delay(1500);
 var snapshot = await jobs.GetAsync(outcome);
 Console.WriteLine($"status={snapshot!.Status} failureCount={snapshot.FailureCount}");
+
+// learn: end
 
 await host.StopAsync();
 
@@ -30,8 +35,10 @@ namespace Acta.Concepts.MaxAttempts
 
     public static class FlakyWorkJob
     {
+        // learn: 1. Set the retry budget on the job
         // MaxAttempts caps attempts, the first included; "0s" skips backoff. After the last attempt the job ends Failed.
         [Job("flaky-work", MaxAttempts = 3, Backoff = "0s")]
         public static Task Handle(FlakyWork input) => throw new InvalidOperationException($"Could not process {input.Item}.");
+        // learn: end
     }
 }

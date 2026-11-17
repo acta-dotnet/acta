@@ -1,3 +1,6 @@
+// How to enqueue many independent jobs from a handler
+// A handler takes `IJobs` and enqueues many independent jobs, each with a stable deduplication key. Nothing links
+// them to the handler's job and nothing waits for them (compare 212's `MapAsync`).
 using Acta;
 using Acta.Concepts.FanOut;
 using Microsoft.Extensions.DependencyInjection;
@@ -40,11 +43,15 @@ namespace Acta.Concepts.FanOut
         public async Task Handle(MakeAlbumThumbnails input, CancellationToken ct)
         {
             Console.WriteLine($"fanning out {input.PhotoCount} thumbnail jobs");
+            // learn: Enqueue each job with a key taken from what it is
+            // The handler can be retried, and a replay runs the whole loop again. With a stable key the replay gets
+            // the existing job back instead of a second copy.
             for (var i = 1; i <= input.PhotoCount; i++)
             {
                 var photo = i;
                 await jobs.EnqueueAsync(new MakeThumbnail(photo), o => o.DeduplicationKey($"thumbnail-{input.AlbumId}-{photo}"), ct);
             }
+            // learn: end
         }
     }
 

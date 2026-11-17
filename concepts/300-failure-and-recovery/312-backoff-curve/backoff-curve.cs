@@ -1,4 +1,6 @@
-// Concept: Backoff shapes the exponential retry curve; NextRunAtUtc grows with each failure.
+// How to set how long a job waits between retries
+// `Backoff` on the job sets how the wait between retries grows: `1s..8s x2 exact` starts at one second, doubles with
+// each failure, and stops growing at eight.
 using Acta;
 using Acta.Concepts.BackoffCurve;
 using Microsoft.Extensions.DependencyInjection;
@@ -61,9 +63,11 @@ namespace Acta.Concepts.BackoffCurve
 
     public static class FlakyTransferJob
     {
+        // learn: Write the backoff on the job
         // Exponential backoff: delays double per failure (1s, 2s, 4s) up to MaxAttempts=4.
         // exact makes the curve deterministic so NextRunAtUtc gaps are observable.
         [Job("flaky-transfer", MaxAttempts = 4, Backoff = "1s..8s x2 exact")]
+        // learn: end
         public static Task Handle(FlakyTransfer input) =>
             throw new InvalidOperationException($"Transfer {input.Id} failed: upstream unavailable.");
     }

@@ -1,3 +1,5 @@
+// How to fail a job for good, with no retry
+// `FailAsync` ends the job as `Failed` at once, whatever its retry budget. A thrown exception would be retried.
 using Acta;
 using Acta.Concepts.FailJob;
 using Microsoft.Extensions.DependencyInjection;
@@ -40,8 +42,10 @@ namespace Acta.Concepts.FailJob
         {
             if (upload.Corrupt)
             {
+                // learn: End the job as failed where retrying cannot help
                 // FailAsync ends the job as Failed now (no retry); a thrown exception retries to MaxAttempts.
                 await context.FailAsync("file is corrupt and cannot be processed", ct);
+                // learn: end
             }
 
             Console.WriteLine($"[{upload.FileName}] file processed");

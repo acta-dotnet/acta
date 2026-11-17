@@ -1,3 +1,7 @@
+// How to test a recurring synchronization job
+// The claims of the continuous-synchronization lab as tests: a schedule forced due and one firing driven at a time,
+// one job identity across firings, the watermark kept on the job, a lost attempt reclaimed with the next execution
+// continuing at the watermark, and a replayed, a failed, and a backlogged batch. Run it with `dotnet test`.
 using System.Text.Json;
 using Acta;
 using Acta.Concepts.ContinuousSynchronization;
@@ -150,10 +154,12 @@ public sealed class ContinuousSynchronizationTests : IAsyncLifetime
         Assert.Equal(40, await WatermarkAsync());
         var firing = await FiringIdAsync();
 
+        // learn: 3. Lose an attempt, and let recovery reclaim it
         // The lease lapses and recovery reclaims the firing: the job is Ready again, the attempt charged.
         await _host.ExpireExecutionLeaseAsync(_slot, Ct);
         Assert.Equal(1, (await _host.RunRecoveryOnceAsync(Namespace, Ct)).ReclaimedJobs);
         Assert.Equal(JobStatusCode.Ready, (await JobAsync()).Status);
+        // learn: end
 
         // The dead attempt ends and its late outcome is fenced out. The next execution re-enters from the top, reads
         // the watermark the lost one wrote, and applies the batch it owed: in the same drive, which re-claims the
@@ -233,14 +239,19 @@ public sealed class ContinuousSynchronizationTests : IAsyncLifetime
 
     private async Task AdmitAsync()
     {
+        // learn: 1. Make the schedule due and admit one firing
+        // The test waits for no clock: it makes the schedule due, and one admission pass fires the permanent job.
         await _host.ForceScheduleDueAsync(Schedule, Ct);
         Assert.Equal(1, (await _host.AdmitOnceAsync(Namespace, Ct)).Admitted);
+        // learn: end
     }
 
     private async Task<ActaRunStatus> FireAsync()
     {
+        // learn: 2. Drive the firing as one run
         await AdmitAsync();
         return await _host.RunOnceAsync(_slot, Ct);
+        // learn: end
     }
 
     private async Task<GetJobResponse> JobAsync() => (await _host.Jobs.GetAsync(_slot, Ct))!;

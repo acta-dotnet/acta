@@ -1,4 +1,6 @@
-// Concept: durable per-job variable lifecycle - GetOrSet computes once, Exists, default fallback, Delete, raw JobPayload.
+// How to compute a value once and reuse it
+// `GetOrSetVariableAsync` computes a value on its first call and stores it with the job; later calls return the stored
+// value. The program also checks for a variable, deletes it, reads it with a default, and stores a raw `JobPayload`.
 using Acta;
 using Acta.Concepts.VariableLifecycle;
 using Microsoft.Extensions.DependencyInjection;
@@ -30,8 +32,9 @@ namespace Acta.Concepts.VariableLifecycle
         [Job("inspect-variables")]
         public async Task Handle(InspectVariables input, JobContext context, CancellationToken ct)
         {
-            // GetOrSet: factory runs on the first call; the second call returns the stored value without invoking the factory.
             var factoryCalls = 0;
+            // learn: 1. Compute a value once
+            // GetOrSet: factory runs on the first call; the second call returns the stored value without invoking the factory.
             var v1 = await context.GetOrSetVariableAsync(
                 "counter",
                 () =>
@@ -41,6 +44,7 @@ namespace Acta.Concepts.VariableLifecycle
                 },
                 ct
             );
+            // learn: end
             var v2 = await context.GetOrSetVariableAsync(
                 "counter",
                 () =>
@@ -56,13 +60,17 @@ namespace Acta.Concepts.VariableLifecycle
             var existsBefore = await context.ExistsVariableAsync("counter", ct);
             Console.WriteLine($"exists before delete: {existsBefore}");
 
+            // learn: 2. Delete a variable, and check whether one is there
             // DeleteVariableAsync removes the variable; Exists is false immediately after.
             await context.DeleteVariableAsync("counter", ct);
             var existsAfter = await context.ExistsVariableAsync("counter", ct);
+            // learn: end
             Console.WriteLine($"exists after delete: {existsAfter}");
 
+            // learn: 3. Read a variable that may not be there
             // GetVariableOrDefaultAsync with a default value: absent variable returns the supplied default.
             var fallback = await context.GetVariableOrDefaultAsync("counter", "missing", ct);
+            // learn: end
             Console.WriteLine($"default fallback: {fallback}");
 
             // Raw JobPayload variable: store a pre-serialized payload; the format travels with the value.

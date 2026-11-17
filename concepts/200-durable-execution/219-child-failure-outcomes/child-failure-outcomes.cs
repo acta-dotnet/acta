@@ -1,5 +1,6 @@
-// Concept: a child group never throws on its own; ThrowIfAnyFailed is the opt-in escalation.
-// A failed child surfaces in ChildrenWaitOutcome.Failed and MapOutcome.Failed.
+// How to handle child jobs that fail
+// A group of children never throws by itself. A failed child shows in the `Failed` list of the wait or the map, and
+// `ThrowIfAnyFailed` is how the parent chooses to fail with it.
 using Acta;
 using Acta.Concepts.ChildFailureOutcomes;
 using Microsoft.Extensions.DependencyInjection;
@@ -67,12 +68,16 @@ namespace Acta.Concepts.ChildFailureOutcomes
                 ct
             );
 
+            // learn: 1. Carry on without the items that failed
+            // The map does not throw for a failed item. `Failed` lists them, and this parent returns a partial result
+            // and lands Succeeded.
             var succeeded = result.Items.Count(i => i.Outcome.Succeeded);
 
             foreach (var f in result.Failed)
             {
                 Console.WriteLine($"  item {f.Key} failed (status={f.Outcome.Status}); continuing without it");
             }
+            // learn: end
 
             return new MapReport($"{succeeded}/{ids.Length} items succeeded");
         }
@@ -106,8 +111,10 @@ namespace Acta.Concepts.ChildFailureOutcomes
                 Console.WriteLine($"  child {child.JobRef} failed (status={child.Status})");
             }
 
+            // learn: 2. Or fail the parent with its failed child
             // ThrowIfAnyFailed throws ChildGroupException; the parent lands Failed.
             result.ThrowIfAnyFailed();
+            // learn: end
         }
 
         // FailAsync, as in process-item: the failing child ends at once and keeps its budget for crashes.

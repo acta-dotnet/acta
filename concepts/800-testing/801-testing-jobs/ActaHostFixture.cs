@@ -14,6 +14,8 @@ public sealed class ActaHostFixture : IAsyncLifetime
     {
         var configuration = new ConfigurationBuilder().AddEnvironmentVariables().Build();
 
+        // learn: 1. Start one test host for the test class
+        // The fixture starts the host, and migrates its schema, once per test class rather than once per test.
         Host = await ActaTestHost.StartAsync(
             (j, schema) =>
             {
@@ -21,6 +23,7 @@ public sealed class ActaHostFixture : IAsyncLifetime
                 j.Run<TestingJobs>("testing-jobs");
             }
         );
+        // learn: end
     }
 
     public async ValueTask DisposeAsync()

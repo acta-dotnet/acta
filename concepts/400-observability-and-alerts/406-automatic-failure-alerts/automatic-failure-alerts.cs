@@ -1,5 +1,6 @@
-// Concept: a failing job raises an automatic alert with no context.AlertAsync; same-job retries
-// deduplicate onto the same row, incrementing OccurrenceCount rather than opening new alerts.
+// How to get an alert when a job fails
+// A failing job raises an alert by itself, with no `AlertAsync` in the handler. `AlertProfile` on the job says when,
+// and repeats of the same job's failure count up on one alert rather than opening new ones.
 
 using Acta;
 using Acta.Concepts.AutomaticFailureAlerts;
@@ -86,6 +87,7 @@ namespace Acta.Concepts.AutomaticFailureAlerts
 
     public static class ProcessReportJob
     {
+        // learn: Say on the job when its failures alert, and where
         // AlertProfile = OnFailure + AlertChannelName routes automatic alerts to the "default"
         // log channel. RunbookUrl surfaces on the delivered alert log line (LogAlertTransport prints
         // runbook=...), not on list queries.
@@ -99,6 +101,7 @@ namespace Acta.Concepts.AutomaticFailureAlerts
             MaxAttempts = 10,
             Backoff = "0s"
         )]
+        // learn: end
         public static async Task Handle(ProcessReport input, CancellationToken ct)
         {
             await Task.Delay(2000, ct);

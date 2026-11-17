@@ -1,3 +1,5 @@
+// How to wait for time to pass without a running process
+// A named sleep stores the due time, frees the worker, and wakes the job when the time comes.
 using Acta;
 using Acta.Concepts.DurableSleep;
 using Acta.Labs;
@@ -166,8 +168,11 @@ namespace Acta.Concepts.DurableSleep
         {
             Console.WriteLine($"[{input.UserEmail}] handler entered; preserving the cool-down in a durable timer");
 
-            // Ends this execution and re-arms the job for the database due time. On wake, the handler re-enters here.
+            // learn: Sleep by name in the handler
+            // `SleepAsync` stores the due time as a row, frees the worker, and ends this execution. When the time comes
+            // the handler runs again from its first line, and the sleep, now over, lets it carry on.
             await context.SleepAsync("cool-down", TimeSpan.FromSeconds(input.CoolDownSeconds), ct: ct);
+            // learn: end
 
             // Durable sleep preserves when work becomes due; it does not make a later external delivery exactly once.
             Console.WriteLine($"[{input.UserEmail}] follow-up is due; delivery still needs its own idempotency policy");

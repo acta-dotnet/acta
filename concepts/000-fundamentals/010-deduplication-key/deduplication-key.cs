@@ -1,3 +1,6 @@
+// How to keep a repeated request from creating a second job
+// A deduplication key makes an enqueue idempotent: a second enqueue with the same key answers the job that is
+// already there.
 using Acta;
 using Acta.Concepts.DeduplicationKey;
 using Microsoft.Extensions.DependencyInjection;
@@ -16,10 +19,11 @@ await host.StartAsync();
 
 var jobs = host.Services.GetRequiredService<IJobs>();
 
-// The raw builder knows the definition name, so Deduplicate(businessKey) is the primary API there.
 var businessKey = $"welcome:{Guid.NewGuid():N}";
 var finalKey = DeduplicationKey.ForDefinition("send-welcome-email", businessKey);
 
+// learn: 1. Give the enqueue a key that names the request
+// The raw builder knows the definition name, so Deduplicate(businessKey) is the primary API there.
 var request = JobRequestBuilder
     .Create("deduplication-key", "send-welcome-email")
     .Json(new SendWelcomeEmail("sam@example.com", "Sam"))
@@ -28,9 +32,14 @@ var request = JobRequestBuilder
 
 var first = await jobs.EnqueueAsync(request, CancellationToken.None);
 
+// learn: end
+
+// learn: 2. Repeat the enqueue and get the same job back
 // Typed options do not know the routed definition yet, so they accept the exact final key. The
 // equivalent composed key converges on the same job, and this second enqueue is deduplicated.
 var second = await jobs.EnqueueAsync(new SendWelcomeEmail("sam@example.com", "Sam"), o => o.DeduplicationKey(finalKey));
+
+// learn: end
 
 Console.WriteLine($"first:  job {first.JobRef} ({first.Action})");
 Console.WriteLine($"second: job {second.JobRef} ({second.Action})");

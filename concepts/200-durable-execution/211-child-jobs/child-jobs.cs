@@ -1,3 +1,6 @@
+// How to start child jobs and wait for them
+// A parent starts child jobs by name, suspends without holding a worker until every child has finished, and reads
+// their results.
 using Acta;
 using Acta.Concepts.ChildJobs;
 using Acta.Labs;
@@ -154,19 +157,29 @@ namespace Acta.Concepts.ChildJobs
         [Job("build-snowman")]
         public async Task<FinishedSnowman> Handle(BuildSnowman input, JobContext context, CancellationToken ct)
         {
+            // learn: 1. Start each child under a name
+            // On a replay of the parent, the same name answers the child that is already there, so no child starts
+            // twice.
             var bottom = await context.EnqueueChildAsync("bottom", new RollSnowball("bottom", input.FailPart == "bottom"), ct);
             var middle = await context.EnqueueChildAsync("middle", new RollSnowball("middle", input.FailPart == "middle"), ct);
             var head = await context.EnqueueChildAsync("head", new RollSnowball("head", input.FailPart == "head"), ct);
+            // learn: end
 
+            // learn: 2. Wait for all of them, and decide what a failed child means
+            // The parent suspends, holding no executor, until every child is terminal. A failed child does not throw
+            // here: the wait lists it, and the parent decides.
             var joined = await context.WaitChildrenAsync([bottom, middle, head], ct);
             foreach (var outcome in joined.Failed)
             {
                 await context.FailAsync($"child {outcome.JobRef} ended {outcome.Status}; see its job events for the reason", ct);
             }
+            // learn: end
 
+            // learn: 3. Read each child's result
             var b = await context.GetChildResultAsync<Snowball>(bottom.JobId, ct);
             var m = await context.GetChildResultAsync<Snowball>(middle.JobId, ct);
             var h = await context.GetChildResultAsync<Snowball>(head.JobId, ct);
+            // learn: end
 
             var height = b.Diameter + m.Diameter + h.Diameter;
             Console.WriteLine($"[{input.Name}] stacked {b.Diameter} + {m.Diameter} + {h.Diameter} = {height}cm tall");

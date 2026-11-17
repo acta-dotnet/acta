@@ -1,3 +1,5 @@
+// How to cancel a job from inside its handler
+// `CancelAsync` in a handler ends the job as `Cancelled`: terminal, not a failure, so no retry and no alert follow.
 using Acta;
 using Acta.Concepts.CancelJob;
 using Microsoft.Extensions.DependencyInjection;
@@ -35,8 +37,10 @@ namespace Acta.Concepts.CancelJob
         {
             if (feed.SourceGone)
             {
+                // learn: Cancel the job where the work is no longer wanted
                 // CancelAsync ends the job as Cancelled: terminal, not a failure, so no retry and no alert.
                 await context.CancelAsync("source feed no longer exists", ct);
+                // learn: end
             }
 
             Console.WriteLine($"[{feed.Url}] imported");

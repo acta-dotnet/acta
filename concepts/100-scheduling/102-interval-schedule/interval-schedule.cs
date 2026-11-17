@@ -1,3 +1,6 @@
+// How to replace a timer loop with an interval schedule
+// An interval schedule, such as `10s`, runs a job at a fixed gap, where a timer loop in a hosted service would
+// otherwise stand.
 using Acta;
 using Acta.Concepts.IntervalSchedule;
 using Microsoft.Extensions.Hosting;
@@ -19,10 +22,12 @@ namespace Acta.Concepts.IntervalSchedule
 
     public sealed class HeartbeatJob
     {
+        [Job("heartbeat")]
+        // learn: Give the schedule an interval instead of a cron
         // A schedule can be cron or an interval duration - the human form ("10s") or ISO 8601 ("PT10S",
         // and calendar forms like "P1D"). An interval has no wall-clock anchor, so it ignores TimeZoneId.
-        [Job("heartbeat")]
         [Schedule("every-10-seconds", "10s")]
-        public void Handle(Heartbeat input) => Console.WriteLine($"{DateTime.Now:HH:mm:ss} heartbeat");
+        // learn: end
+        public void Handle(Heartbeat input) => Console.WriteLine($"{DateTime.UtcNow:HH:mm:ss} UTC heartbeat");
     }
 }

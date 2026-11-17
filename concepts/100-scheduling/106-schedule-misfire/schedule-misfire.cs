@@ -1,6 +1,7 @@
-// Concept: missed occurrences are a business decision. Three schedules miss the same stretch while paused; a resume
-// keeps each cursor where it was, and the next admission pass applies each schedule's misfire policy: Skip runs at
-// most the latest, CatchUpOnce runs one firing that covers them all, CatchUpAll runs every one in order.
+// How to decide what happens to runs a schedule missed
+// Missed occurrences are a business decision. Three schedules miss the same stretch while paused, and each one's
+// misfire policy decides it differently: `Skip` runs at most the latest, `CatchUpOnce` runs one firing that covers
+// them all, `CatchUpAll` runs every one in order.
 using System.Collections.Concurrent;
 using Acta;
 using Acta.Concepts.ScheduleMisfire;
@@ -141,10 +142,14 @@ namespace Acta.Concepts.ScheduleMisfire
 
         public static void Record(JobContext ctx)
         {
+            // learn: 2. Read which occurrences a firing stands for
+            // A catch-up firing can cover a stretch: each triggering schedule gives its occurrence and the instant it
+            // covers through.
             foreach (var schedule in ctx.TriggeringSchedules)
             {
                 Seen.Enqueue((ctx.JobName, schedule.OccurrenceAtUtc, schedule.CoveredThroughUtc));
             }
+            // learn: end
         }
 
         public static void Clear() => Seen.Clear();
@@ -156,6 +161,9 @@ namespace Acta.Concepts.ScheduleMisfire
 
     public sealed class MisfireJobs
     {
+        // learn: 1. Choose the misfire strategy on the schedule
+        // `MisfireStrategy` says what the next admission pass does with the occurrences that came due while the
+        // schedule could not fire.
         [Job("skip-report")]
         [Schedule("every-second", "PT1S", MisfireStrategy = MisfireStrategyCode.Skip)]
         public Task Skip(JobContext ctx, CancellationToken ct) => Run(ctx, ct);
@@ -167,6 +175,8 @@ namespace Acta.Concepts.ScheduleMisfire
         [Job("catch-up-all-report")]
         [Schedule("every-second", "PT1S", MisfireStrategy = MisfireStrategyCode.CatchUpAll)]
         public Task CatchUpAll(JobContext ctx, CancellationToken ct) => Run(ctx, ct);
+
+        // learn: end
 
         private static async Task Run(JobContext ctx, CancellationToken ct)
         {

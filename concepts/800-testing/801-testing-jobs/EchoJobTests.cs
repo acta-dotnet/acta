@@ -1,8 +1,6 @@
-// Test [Job] handlers with Acta.Testing: real database, real runtime, deterministic single-tick
-// drive. ActaTestHost runs no background loop; RunOnceAsync decides when a job executes.
-//
-//   dotnet test concepts/800-testing/801-testing-jobs
-
+// How to test a handler with the test host
+// `Acta.Testing` runs the real runtime on a real database with no background loop: `RunOnceAsync` decides when a job
+// executes, so a test drives one attempt at a time. Run it with `dotnet test concepts/800-testing/801-testing-jobs`.
 using Acta.Testing;
 using Xunit;
 
@@ -18,9 +16,12 @@ public sealed class EchoJobTests(ActaHostFixture acta) : ActaTestBase(acta)
         // Nothing executes until the test drives a tick.
         Assert.Equal(JobStatusCode.Ready, (await enqueued.GetStatusAsync(Ct))?.Status);
 
+        // learn: 2. Drive one attempt and assert what became of it
+        // `RunOnceAsync` runs one attempt of that job and answers its outcome.
         var outcome = await Host.RunOnceAsync(enqueued, Ct);
 
         Assert.Equal(ActaRunStatus.Completed, outcome);
+        // learn: end
         Assert.Equal(JobStatusCode.Succeeded, (await enqueued.GetStatusAsync(Ct))?.Status);
         var result = await enqueued.GetResultAsync<EchoResult>(Ct);
         Assert.Equal("hello", result.Message);
@@ -31,12 +32,14 @@ public sealed class EchoJobTests(ActaHostFixture acta) : ActaTestBase(acta)
     {
         var enqueued = await Jobs.EnqueueAsync(new Echo("boom"), ct: Ct);
 
+        // learn: 3. Assert each retry, then the final failure
         // Attempts 1 and 2 throw; with retries left the job re-arms to Ready (due now), not Failed.
         Assert.Equal(ActaRunStatus.Rearmed, await Host.RunOnceAsync(enqueued, Ct));
         Assert.Equal(ActaRunStatus.Rearmed, await Host.RunOnceAsync(enqueued, Ct));
 
         // Attempt 3 spends the MaxAttempts budget: terminal Failed.
         Assert.Equal(ActaRunStatus.Failed, await Host.RunOnceAsync(enqueued, Ct));
+        // learn: end
         Assert.Equal(JobStatusCode.Failed, (await enqueued.GetStatusAsync(Ct))?.Status);
     }
 }

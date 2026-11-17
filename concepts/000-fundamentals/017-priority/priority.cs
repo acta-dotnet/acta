@@ -1,3 +1,5 @@
+// How to run urgent jobs first
+// A priority on the enqueue decides which of the jobs that are due at once a worker claims first.
 using Acta;
 using Acta.Concepts.Priority;
 using Microsoft.Extensions.DependencyInjection;
@@ -27,7 +29,13 @@ foreach (var n in new[] { 2, 3, 4, 5 })
 {
     await jobs.EnqueueAsync(new GenerateReport($"bulk-{n}"), o => o.Priority(JobPriorityCode.Bulk).NextRunAt(together));
 }
+
+// learn: Set the priority when you enqueue
+// `Priority` is an option of the enqueue. When several jobs are due at once, the worker claims the one with the
+// higher priority first, whichever arrived first.
 await jobs.EnqueueAsync(new GenerateReport("URGENT"), o => o.Priority(JobPriorityCode.High).NextRunAt(together));
+
+// learn: end
 Console.WriteLine("Enqueued. Worker is running - press Ctrl+C to stop.");
 
 await host.WaitForShutdownAsync();

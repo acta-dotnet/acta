@@ -1,7 +1,7 @@
-// Concept: one permanent job keeps an external system synchronized. The schedule admits a firing every
-// five seconds onto one permanent job; each firing syncs one bounded batch and returns; the watermark is
-// the job's own durable variable, read at the top of every execution, so a recovered firing continues
-// where the lost one stopped.
+// How to keep another system in sync with a permanent job
+// One permanent job calls a service on a schedule and keeps a watermark of how far it got. Each firing syncs one
+// bounded batch and returns; the watermark is the job's own durable variable, read at the top of every execution, so
+// a recovered firing continues where the lost one stopped.
 using Acta;
 using Acta.Concepts.ContinuousSynchronization;
 using Acta.Labs;

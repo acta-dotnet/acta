@@ -53,8 +53,12 @@ public sealed class ShopFeed(string connectionString, ShopOutage outage)
         await using var connection = new SqliteConnection(connectionString);
         await connection.OpenAsync(ct);
         await using var command = connection.CreateCommand();
+        // learn: 3. Let the service hand out its changes in a fixed order
+        // The pattern needs one thing from the service: changes come in a fixed order, and a caller can ask for the
+        // ones after the last one it saw. An API with a `since` or a cursor parameter fits the same way.
         command.CommandText =
             "SELECT change_id, order_id, status, amount_cents FROM shop_changes WHERE change_id > @since ORDER BY change_id LIMIT @take";
+        // learn: end
         command.Parameters.AddWithValue("@since", sinceChangeId);
         command.Parameters.AddWithValue("@take", take);
         var changes = new List<OrderChange>(take);

@@ -66,3 +66,8 @@ explicitly instead.
 - [The related Engineering Lab](../../../docs/engineering-labs.md)
 - [`operator-restart.cs`](./operator-restart.cs)
 - [`RestartJob.sqlite.sql`](../../../src/Acta/Operations/Jobs/RestartJob/RestartJob.sqlite.sql)
+
+## Remember
+
+- A restart keeps every succeeded step: those steps return what they computed before.
+- A parent that failed on a child fails again when it is restarted alone. Restart the child, then the parent once the child has succeeded.

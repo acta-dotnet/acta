@@ -1,3 +1,5 @@
+// How to send alerts to your own channel
+// `AddAlertChannel` declares where alerts go, under a name of your choice, and an alert names the channel it is for.
 using Acta;
 using Acta.Concepts.AlertChannel;
 using Microsoft.Extensions.DependencyInjection;
@@ -15,6 +17,7 @@ builder.Services.UseActa(j =>
     {
         w.AddManifest<AlertChannelJobs>();
 
+        // learn: 1. Declare the channel on the worker
         // Alert channels declare process-local delivery configuration. Alert rows persist only
         // the selected channel name; endpoints and secrets stay in app configuration.
         // MinSeverity = Warning suppresses lower-severity alerts at delivery.
@@ -27,6 +30,7 @@ builder.Services.UseActa(j =>
                 o.MinSeverity = AlertSeverityCode.Warning;
             }
         );
+        // learn: end
     });
 });
 
@@ -60,6 +64,7 @@ namespace Acta.Concepts.AlertChannel
 
             if (input.FreePercent < 10)
             {
+                // learn: 2. Name the channel when you raise the alert
                 // Route to the "ops" channel instead of the default.
                 await context.AlertAsync(
                     title: $"Low disk space on {input.Server}",
@@ -69,6 +74,7 @@ namespace Acta.Concepts.AlertChannel
                     deduplicationKey: $"disk:{input.Server}",
                     ct: ct
                 );
+                // learn: end
                 Console.WriteLine($"[{input.Server}] low disk - alerted ops ({input.FreePercent}% free)");
                 return;
             }

@@ -68,3 +68,23 @@ determinism makes the stored result worthwhile.
 - [`durable-step.cs`](./durable-step.cs)
 - [`RuntimeJobContext.cs`](../../../src/Acta/Engine/Worker/Context/RuntimeJobContext.cs)
 - [`StepAtMostOnceSpec.cs`](../../../tests/Acta.Tests.Conformance/Scenarios/StepAtMostOnceSpec.cs)
+
+## Remember
+
+- Only work inside a step is skipped. Every bare line between steps runs again each time the handler is entered.
+- A step is recorded when it finishes. A crash after the outside call but before the record runs the body again, so give the outside system a stable key taken from the job, never from the attempt.
+- When one more attempt would be worse than not knowing, such as capturing a payment, use an at-most-once step: [Refuse to repeat a side effect after a crash](../220-at-most-once-step/).
+
+## Check yourself
+
+**The job fails once after the step and is retried. How many times does `requesting START-FREEZE` print?**
+
+- Once
+- Twice
+- Never
+
+<details><summary>Answer</summary>
+
+Once. Execution two starts at the first line, reaches `RunStepAsync`, finds the recorded outcome, and returns it without calling the body.
+
+</details>

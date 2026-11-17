@@ -1,4 +1,7 @@
 // File: Program.cs
+// How to build the first-job guide's app
+// The first-job guide's app verbatim: typed result, a failure that is final and one that retries, explanation, cancel,
+// and a wait that times out without stopping the job.
 using Acta;
 using Acta.Dashboard;
 using Acta.Sqlite;
@@ -21,6 +24,7 @@ builder.Services.UseActa(j =>
 var app = builder.Build();
 app.MapActa("/acta"); // dashboard + JSON API; local-only by default, controls disabled
 
+// learn: 2. Enqueue from an endpoint and answer with the job's ref
 // Enqueue by the input's type: nothing here reads the result, so the input is all the enqueue needs. The ref in the
 // response is the job's public identity: logs, support, and the URLs below all carry it, never the numeric id.
 app.MapPost("/orders/{orderId:int}", async (int orderId, IJobs jobs) =>
@@ -29,6 +33,9 @@ app.MapPost("/orders/{orderId:int}", async (int orderId, IJobs jobs) =>
     return Results.Accepted($"/jobs/{job.JobRef}", new { job.JobRef });
 });
 
+// learn: end
+
+// learn: 3. Enqueue and wait for the typed result
 // Enqueue through the generated call and follow: it names the job and carries the result type, so the handle is a
 // JobHandle<ShipmentLabel> and the label reads typed. The wait ends at the outcome or at the timeout, and a timeout
 // stops only the wait.
@@ -41,12 +48,15 @@ app.MapPost("/orders/{orderId:int}/ship-now", async (int orderId, IJobs jobs) =>
     return outcome.TryGetValue(out var label) ? Results.Ok(label) : Results.Problem($"Shipping failed; see /jobs/{job.JobRef}/explain");
 });
 
+// learn: end
+
 app.MapPost("/labels/{trackingNumber}", async (string trackingNumber, IJobs jobs) =>
 {
     var job = await jobs.EnqueueAsync(new PrintLabel(trackingNumber));
     return Results.Accepted($"/jobs/{job.JobRef}", new { job.JobRef });
 });
 
+// learn: 4. Read the status, the result, and the reason
 // Status by ref. A JobRef binds straight from the route, so a malformed ref answers 400 before the handler runs. A job
 // keeps its row after it finishes, so this answers for the retention period.
 app.MapGet("/jobs/{jobRef}", async (JobRef jobRef, IJobs jobs) => await jobs.GetAsync(jobRef) is { } job
@@ -71,6 +81,9 @@ app.MapGet("/jobs/{jobRef}/explain", async (JobRef jobRef, IJobs jobs) =>
     await jobs.ExplainAsync(jobRef) is { } why ? Results.Ok(why) : Results.NotFound()
 );
 
+// learn: end
+
+// learn: 5. Cancel a job by its ref
 // Cancel: applied while the job has not finished; a cancelled job answers already-in-state, and any other finished one
 // answers rejected and keeps its outcome.
 app.MapPost("/jobs/{jobRef}/cancel", async (JobRef jobRef, IJobs jobs) =>
@@ -78,6 +91,8 @@ app.MapPost("/jobs/{jobRef}/cancel", async (JobRef jobRef, IJobs jobs) =>
     var cancelled = await jobs.CancelAsync(jobRef, reasonMessage: "cancelled from the orders API");
     return Results.Ok(new { cancelled.Action, cancelled.Status });
 });
+
+// learn: end
 
 // Switches that provoke the two failures: an offline printer fails print-label for good, and a flaky carrier times
 // out the next booking once, which ship-order retries about a minute later.

@@ -1,3 +1,6 @@
+// How to check again later without spending a retry
+// `RescheduleAsync` ends the execution and runs the handler again after a delay, without counting as a failure or
+// spending a retry.
 using Acta;
 using Acta.Concepts.Reschedule;
 using Microsoft.Extensions.DependencyInjection;
@@ -36,10 +39,12 @@ namespace Acta.Concepts.Reschedule
             var ready = Interlocked.Increment(ref _tries) >= 2;
             if (!ready)
             {
+                // learn: Reschedule when the answer is not there yet
                 // RescheduleAsync re-arms the job after a delay without burning the retry budget; the
                 // handler stops here and replays on the next run (RescheduleUntilAsync takes an absolute time).
                 Console.WriteLine($"[{input.Url}] not ready, rescheduling...");
                 await context.RescheduleAsync(TimeSpan.FromSeconds(1), "resource not ready", ct);
+                // learn: end
             }
 
             Console.WriteLine($"[{input.Url}] ready - processed");

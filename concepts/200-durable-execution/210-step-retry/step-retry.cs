@@ -1,3 +1,5 @@
+// How to compensate when the last attempt fails
+// A failing step retries through its job, and a `catch` on `EndsJob` compensates before the failure ends the job.
 using Acta;
 using Acta.Concepts.StepRetry;
 using Microsoft.Extensions.DependencyInjection;
@@ -34,9 +36,11 @@ namespace Acta.Concepts.StepRetry
 
     public sealed class FetchForecastJob
     {
+        // learn: 1. Give the job its retry budget
         // A step retries through its job: a body that throws fails the attempt, MaxAttempts and Backoff retry it,
         // and the retry replays the steps that already succeeded, so the slot is reserved once.
         [Job("fetch-forecast", MaxAttempts = 3, Backoff = "1s")]
+        // learn: end
         public async Task Handle(FetchForecast input, JobContext context, CancellationToken ct)
         {
             await context.RunStepAsync(
@@ -66,6 +70,7 @@ namespace Acta.Concepts.StepRetry
                     ct
                 );
             }
+            // learn: 2. Compensate in a catch that fires only when the failure ends the job
             // EndsJob is true when this failure ends the job: on the last attempt, or on any attempt for one that is not retried.
             catch (Exception ex) when (context.EndsJob(ex))
             {
@@ -82,6 +87,7 @@ namespace Acta.Concepts.StepRetry
                 );
                 throw;
             }
+            // learn: end
 
             Console.WriteLine($"[{input.City}] forecast stored");
         }

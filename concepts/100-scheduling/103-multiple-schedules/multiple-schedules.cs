@@ -1,3 +1,6 @@
+// How to give one job several schedules
+// Several `[Schedule]` attributes on one job share one permanent job, and schedules that come due together fire it
+// once.
 using Acta;
 using Acta.Concepts.MultipleSchedules;
 using Acta.Labs;
@@ -65,16 +68,20 @@ namespace Acta.Concepts.MultipleSchedules
 
     public sealed class ReportJob
     {
+        [Job("report")]
+        // learn: 1. Put several schedules on the one job
         // Several [Schedule]s share one permanent job; schedules due at the same instant coalesce
         // into ONE execution, and context.TriggeringSchedules reports which fired.
-        [Job("report")]
         [Schedule("fast", "PT10S")]
         [Schedule("faster", "PT5S")]
+        // learn: end
         public Task Handle(Report input, JobContext context, CancellationToken ct)
         {
+            // learn: 2. Read which schedules fired this execution
             Console.WriteLine(
-                $"{DateTime.Now:HH:mm:ss} fired by [{string.Join(", ", context.TriggeringSchedules.Select(s => s.ScheduleName))}]"
+                $"{DateTime.UtcNow:HH:mm:ss} UTC fired by [{string.Join(", ", context.TriggeringSchedules.Select(s => s.ScheduleName))}]"
             );
+            // learn: end
             return Task.CompletedTask;
         }
     }

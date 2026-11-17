@@ -1,4 +1,6 @@
-// Concept: the host's own cookie sign-in in front of the dashboard and the API, its roles behind Acta's four permissions.
+// How to put the dashboard behind your sign-in
+// The dashboard and its API sit behind the host's own sign-in. The host maps its roles to Acta's four permissions;
+// with no session a page goes to the sign-in, and an API call answers 401.
 using System.Net;
 using System.Security.Claims;
 using System.Text.Json.Nodes;
@@ -37,6 +39,7 @@ builder
         cookie.SlidingExpiration = false;
     });
 
+// learn: 1. Map your roles to the four permissions
 // The roles are the host's own. Acta asks for one policy per permission, and mapping throws when one of the four is missing.
 builder.Services.AddAuthorization(options =>
 {
@@ -45,6 +48,8 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy(ActaPermissions.Control, policy => policy.RequireRole("Operator", "Admin"));
     options.AddPolicy(ActaPermissions.Admin, policy => policy.RequireRole("Admin"));
 });
+
+// learn: end
 builder.Services.AddAntiforgery();
 
 var app = builder.Build();
@@ -116,6 +121,7 @@ app.MapPost("/sign-out", async (HttpContext http, IAntiforgery antiforgery) =>
     return Results.Redirect("/sign-in");
 });
 
+// learn: 2. Require the permissions on the dashboard
 // RequirePermissions has Acta check every route, the dashboard's pages included, against the policy named for its
 // permission. With no session a page is sent to the sign-in above, and an API call answers 401 with no redirect,
 // which the dashboard shows as an ended session. LocalOnly and the control confirmation stay on.
@@ -123,6 +129,7 @@ app.MapActa("/acta", options =>
 {
     options.EnableControls = true;
     options.RequirePermissions = true;
+    // learn: end
 });
 
 await app.StartAsync();

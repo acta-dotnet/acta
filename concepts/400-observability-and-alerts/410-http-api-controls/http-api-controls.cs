@@ -1,4 +1,6 @@
-// Concept: MapActaApi + EnableControls, the X-Acta-Control confirmation header, LocalOnly, and ConfigureEndpoints.
+// How to control jobs over HTTP
+// `MapActaApi` mounts the operator API without the dashboard. Its controls are off until `EnableControls` is set,
+// answer local requests only by default, and a control request has to confirm itself.
 using Acta;
 using Acta.AspNetCore;
 using Acta.Concepts.HttpApiControls;
@@ -30,9 +32,12 @@ Console.WriteLine("knob: LocalOnly = true        (default: non-loopback or non-l
 Console.WriteLine("knob: ConfigureEndpoints      (hook for RequireAuthorization in production)");
 Console.WriteLine();
 
+// learn: 1. Mount the API and turn the controls on
+// Every route that changes a job is off until the host sets `EnableControls`.
 app.MapActaApi("/acta/api", options =>
 {
     options.EnableControls = true;
+    // learn: end
 
     // LocalOnly stays true (the default). The TestServer client is treated as local.
     // To expose the API remotely: set LocalOnly = false and add auth through ConfigureEndpoints.
@@ -68,9 +73,15 @@ Console.WriteLine($"  -> {(int)rejectedResponse.StatusCode} {rejectedResponse.St
 // With X-Acta-Control: true the bodyless call is confirmed and the verb is applied.
 Console.WriteLine();
 Console.WriteLine("POST pause WITH X-Acta-Control: true:");
+
+// learn: 2. Confirm the control request
+// A control passes with the `X-Acta-Control: true` header, a JSON content type, or a Bearer authorization header. A
+// form post from another site can send none of the three.
 var withHeader = new HttpRequestMessage(HttpMethod.Post, pauseUrl);
 withHeader.Headers.Add("X-Acta-Control", "true");
 var appliedResponse = await client.SendAsync(withHeader);
+
+// learn: end
 Console.WriteLine($"  -> {(int)appliedResponse.StatusCode} {appliedResponse.StatusCode}");
 
 var snapshot = await jobs.GetAsync(jobRef);

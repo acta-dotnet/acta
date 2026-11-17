@@ -1,3 +1,5 @@
+// How to enqueue by the job's generated call
+// The manifest's generated call names the job and takes its handler's parameters, several of them as one input.
 using Acta;
 using Acta.Concepts.JobCall;
 using Microsoft.Extensions.DependencyInjection;
@@ -16,10 +18,13 @@ await host.StartAsync();
 
 var jobs = host.Services.GetRequiredService<IJobs>();
 
+// learn: 1. Enqueue through the generated call
 // The manifest's generated call names the job and takes its handler's parameters; the namespace resolves from the
 // registered manifest, and nothing is inferred from the input's type.
 var single = await jobs.EnqueueAsync(JobCallJobs.Hello(new Hello("World")));
 var several = await jobs.EnqueueAsync(JobCallJobs.Greet("Ada", 3), o => o.DeduplicationKey("greet-ada"));
+
+// learn: end
 Console.WriteLine($"Enqueued hello as {single.JobRef} and greet as {several.JobRef}.");
 
 await host.WaitForShutdownAsync();
@@ -34,6 +39,7 @@ namespace Acta.Concepts.JobCall
         [Job("hello")]
         public static void Handle(Hello input) => Console.WriteLine($"Hello, {input.Name}!");
 
+        // learn: 2. Give a handler several parameters
         // Several input parameters travel as one generated record, JobCallJobs.GreetArgs, stored as {"name":..,"times":..}.
         [Job("greet")]
         public static void Greet(string name, int times)
@@ -43,5 +49,6 @@ namespace Acta.Concepts.JobCall
                 Console.WriteLine($"Greetings, {name}!");
             }
         }
+        // learn: end
     }
 }

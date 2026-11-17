@@ -1,3 +1,6 @@
+// How to drop a job that is past its deadline
+// A `Deadline` is the whole job's budget, measured from its creation. Under the default, strict behaviour an overdue
+// job is cancelled before its handler runs.
 using Acta;
 using Acta.Concepts.DeadlineStrict;
 using Microsoft.Extensions.DependencyInjection;
@@ -45,10 +48,12 @@ namespace Acta.Concepts.DeadlineStrict
 
     public static class GenerateReportJob
     {
+        // learn: Give the job a deadline
         // Deadline is the whole-job budget measured from creation, stable across retries (unlike 304's
         // ExecutionTimeout, which caps a single attempt). Strict is the default: an overdue job is
         // cancelled at admission, and a retry that would land past the deadline is refused re-arm.
         [Job("generate-report", Deadline = "2s")]
+        // learn: end
         public static void Handle(GenerateReport input) =>
             Console.WriteLine($"building the {input.Quarter} report (never printed; the job was overdue before it ran)");
     }

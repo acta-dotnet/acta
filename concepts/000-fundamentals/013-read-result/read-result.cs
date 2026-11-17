@@ -1,3 +1,5 @@
+// How to read a job's result
+// `TryGetResultAsync<T>` finds nothing before Succeeded; `GetResultAsync<T>` returns the result you expect.
 using Acta;
 using Acta.Concepts.ReadResult;
 using Microsoft.Extensions.DependencyInjection;
@@ -16,15 +18,23 @@ await host.StartAsync();
 
 var jobs = host.Services.GetRequiredService<IJobs>();
 
-// Both reads are point-in-time and never wait. TryGetResultAsync says whether a result exists yet;
-// GetResultAsync returns the result you expect, and throws when there is none.
 var handle = await jobs.EnqueueAsync(new AddNumbers(20, 22));
+
+// learn: 1. Ask whether a result exists yet
+// Both reads are point-in-time and never wait. `TryGetResultAsync` says whether a result exists yet.
 var early = await handle.TryGetResultAsync<AddNumbersResult>();
 Console.WriteLine($"right away:        {(early.Found ? early.Value!.Sum.ToString() : "no result yet")}");
 
+// learn: end
+
 await handle.WaitAsync();
+
+// learn: 2. Read the result you expect
+// `GetResultAsync` returns the result, and throws when there is none.
 var done = await handle.GetResultAsync<AddNumbersResult>();
 Console.WriteLine($"after it finishes: {done.Sum}");
+
+// learn: end
 
 await host.StopAsync();
 

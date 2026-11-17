@@ -1,4 +1,7 @@
-// Concept: RequirePermissions checks every route against the host's policy named for its permission.
+// How to require permissions on the HTTP API
+// `RequirePermissions` has every route of the HTTP API check the host's policy named for its permission: read,
+// enqueue, control, or admin. A caller with no credential gets 401, and one that lacks the permission gets 403
+// naming it.
 using System.Net;
 using System.Net.Http.Json;
 using System.Security.Claims;
@@ -28,6 +31,7 @@ builder
     .Services.AddAuthentication(PermissionHeaderHandler.SchemeName)
     .AddScheme<AuthenticationSchemeOptions, PermissionHeaderHandler>(PermissionHeaderHandler.SchemeName, null);
 
+// learn: 1. Add one policy per permission
 // One policy per permission, each requiring a claim. Mapping throws when one of the four is missing.
 builder.Services.AddAuthorization(options =>
 {
@@ -36,6 +40,8 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy(ActaPermissions.Control, policy => policy.RequireClaim(PermissionHeaderHandler.ClaimType, ActaPermissions.Control));
     options.AddPolicy(ActaPermissions.Admin, policy => policy.RequireClaim(PermissionHeaderHandler.ClaimType, ActaPermissions.Admin));
 });
+
+// learn: end
 
 // UseTestServer skips binding to a real port: the HttpClient talks in-process.
 builder.WebHost.UseTestServer();
@@ -49,11 +55,15 @@ Console.WriteLine("knob: EnableControls = true     (the routes that write are ma
 Console.WriteLine("knob: RequirePermissions = true (each route needs the host's policy named for its permission)");
 Console.WriteLine();
 
+// learn: 2. Require the permissions on the API
+// Every route, reads included, is then authorized against the policy named for the permission it declares.
 app.MapActaApi("/acta/api", options =>
 {
     options.EnableControls = true;
     options.RequirePermissions = true;
 });
+
+// learn: end
 
 await app.StartAsync();
 

@@ -1,3 +1,5 @@
+// How to enqueue by the input's type
+// `EnqueueAsync` takes the input alone: its type names the job, so there is no name string to get wrong.
 using Acta;
 using Acta.Concepts.TypedEnqueue;
 using Microsoft.Extensions.DependencyInjection;
@@ -16,8 +18,12 @@ await host.StartAsync();
 
 var jobs = host.Services.GetRequiredService<IJobs>();
 
-// No job-name string: Acta picks the job from the input type.
+// learn: Enqueue the input and let its type pick the job
+// No job-name string: Acta picks the job from the input type. The handle that comes back carries the job's ref and
+// says whether this call inserted the job.
 var handle = await jobs.EnqueueAsync(new GreetUser("Sam"));
+
+// learn: end
 Console.WriteLine($"Enqueued job {handle.JobRef} ({handle.Action}). Worker is running - press Ctrl+C to stop.");
 
 await host.WaitForShutdownAsync();

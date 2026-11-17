@@ -80,3 +80,10 @@ from application workers.
 - [`worker-crash-recovery.cs`](./worker-crash-recovery.cs)
 - [`RecoveryPass.cs`](../../../src/Acta/Engine/Recovery/RecoveryPass.cs)
 - [`WorkerCrashRecoveryChaosSpec.cs`](../../../tests/Acta.Tests.Conformance/Engine/Recovery/WorkerCrashRecoveryChaosSpec.cs)
+
+## Remember
+
+- On SQLite a restart brings a lost attempt back at once: a starting worker releases the work of processes on the same machine that have ended. A server database waits out the lease: three to about seven minutes with the default heartbeat.
+- The reclaim is `job.execution-orphaned` with the reason `lease-expired` on the timeline.
+- A crash counts against the retry budget, and a reclaimed job is due again at once, without the backoff.
+- A job that is waiting or sleeping holds no lease and needs no recovery.

@@ -1,3 +1,6 @@
+// How to run two namespaces in one process
+// Each `Run` starts a worker for one namespace. Two of them in one process share the process and the database, and
+// never each other's jobs.
 using Acta;
 using Acta.Concepts.NamespacesInOneProcess;
 using Microsoft.Extensions.DependencyInjection;
@@ -9,10 +12,12 @@ builder.Services.UseActa(j =>
 {
     j.UseLocalDatabase(builder.Configuration);
 
+    // learn: 1. Run a worker for each namespace
     // Each Run starts an independent worker owning a distinct namespace (own claim loop, lease
     // identity, heartbeat); they share process and database but never each other's jobs.
     j.Run<NamespacesInOneProcessJobs>("orders-eu");
     j.Run<NamespacesInOneProcessJobs>("orders-us");
+    // learn: end
 });
 
 using var host = builder.Build();
@@ -24,10 +29,14 @@ var jobs = host.Services.GetRequiredService<IJobs>();
 // share the same job.
 for (var i = 1; i <= 3; i++)
 {
+    // learn: 2. Name the namespace when you enqueue
+    // A request by name targets one namespace. An enqueue by type could not tell two namespaces with the same job
+    // apart.
     await jobs.EnqueueAsync(
         new EnqueueJobRequest("orders-eu", "process-order", JobPayload.Json(new ProcessOrder($"EU-{i}"))),
         CancellationToken.None
     );
+    // learn: end
     await jobs.EnqueueAsync(
         new EnqueueJobRequest("orders-us", "process-order", JobPayload.Json(new ProcessOrder($"US-{i}"))),
         CancellationToken.None

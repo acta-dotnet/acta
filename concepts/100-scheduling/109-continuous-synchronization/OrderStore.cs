@@ -49,11 +49,15 @@ public sealed class OrderStore(string connectionString)
 
             await using var upsert = connection.CreateCommand();
             upsert.Transaction = (SqliteTransaction)transaction;
+            // learn: 5. Make the save an upsert that keeps the newer change
+            // A batch applied twice then changes nothing. The statement is SQLite's; write the same keep-the-newer
+            // upsert in your own database's dialect.
             upsert.CommandText = """
                 INSERT INTO local_orders (order_id, status, amount_cents, last_change_id) VALUES (@order, @status, @amount, @change)
                 ON CONFLICT (order_id) DO UPDATE SET status = excluded.status, amount_cents = excluded.amount_cents, last_change_id = excluded.last_change_id
                 WHERE excluded.last_change_id > local_orders.last_change_id
                 """;
+            // learn: end
             upsert.Parameters.AddWithValue("@order", change.OrderId);
             upsert.Parameters.AddWithValue("@status", change.Status);
             upsert.Parameters.AddWithValue("@amount", change.AmountCents);

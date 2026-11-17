@@ -1,3 +1,6 @@
+// How to fan out to child jobs with Map or WaitChildren
+// Two ways to fan out: `EnqueueChildAsync` with `WaitChildrenAsync` for a few named children, and `MapAsync` for one
+// child per item of a list.
 using Acta;
 using Acta.Concepts.MapWaitChildren;
 using Microsoft.Extensions.DependencyInjection;
@@ -52,14 +55,17 @@ namespace Acta.Concepts.MapWaitChildren
         [Job("process-photo")]
         public async Task<PhotoResult> Process(ProcessPhoto photo, JobContext context, CancellationToken ct)
         {
+            // learn: 1. Enqueue a few named children and wait for them together
             // Independent analyzes, none needs another's result: enqueue each, and they run at once.
             var exif = await context.EnqueueChildAsync("exif", new ExtractExif(photo.AssetId, photo.SourceUrl), ct);
             var blurhash = await context.EnqueueChildAsync("blurhash", new ComputeBlurhash(photo.AssetId, photo.SourceUrl), ct);
             var moderation = await context.EnqueueChildAsync("moderation", new ScanModeration(photo.AssetId, photo.SourceUrl), ct);
             var analyze = await context.WaitChildrenAsync([exif, blurhash, moderation], ct);
+            // learn: end
 
             analyze.ThrowIfAnyFailed();
 
+            // learn: 2. Map a list onto children, one per item
             // Map: one resize per width, keyed by width so replay dedupes onto the same children.
             int[] widths = [256, 512, 1024, 2048];
             var resized = await context.MapAsync(
@@ -69,9 +75,12 @@ namespace Acta.Concepts.MapWaitChildren
                 child: width => new Resize(photo.AssetId, photo.SourceUrl, width),
                 ct
             );
+            // learn: end
 
+            // learn: 3. Count what landed instead of failing the parent
             // Resizes are best effort: report how many landed rather than failing the photo.
             var renditionsReady = resized.Items.Count(i => i.Outcome.Succeeded);
+            // learn: end
 
             // Two independent side effects, enqueued and waited for the same way.
             var cdn = await context.EnqueueChildAsync("publish-cdn", new PublishCdn(photo.AssetId), ct);

@@ -1,3 +1,5 @@
+// How to let one job at a time touch a resource
+// `RunWithLockAsync` holds a named lock around a piece of work, so jobs that name the same lock take turns.
 using Acta;
 using Acta.Concepts.RunWithLock;
 using Microsoft.Extensions.DependencyInjection;
@@ -33,6 +35,7 @@ namespace Acta.Concepts.RunWithLock
         [Job("update-inventory")]
         public async Task Handle(UpdateInventory input, JobContext context, CancellationToken ct)
         {
+            // learn: Run the work under a named lock
             // Named lock held for the action; same key serializes both concurrently-running jobs. To exclude the whole job instead, set ConcurrencyKey on enqueue (see 209-concurrency-key).
             await context.RunWithLockAsync(
                 "inventory",
@@ -44,6 +47,7 @@ namespace Acta.Concepts.RunWithLock
                 },
                 ct: ct
             );
+            // learn: end
         }
     }
 }

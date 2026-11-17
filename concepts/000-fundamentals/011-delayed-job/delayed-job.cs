@@ -1,3 +1,6 @@
+// How to run a job once, later
+// `ScheduleAsync(input, delay)` stores the job now and makes it due after the delay. No process has to stay alive
+// until then.
 using Acta;
 using Acta.Concepts.DelayedJob;
 using Microsoft.Extensions.DependencyInjection;
@@ -16,8 +19,11 @@ await host.StartAsync();
 
 var jobs = host.Services.GetRequiredService<IJobs>();
 
+// learn: Schedule the job instead of enqueueing it
 // ScheduleAsync counts the delay on the database clock (db_now + 5s); this host's clock does not affect timing.
 var handle = await jobs.ScheduleAsync(new SendReminder("Sam"), TimeSpan.FromSeconds(5));
+
+// learn: end
 Console.WriteLine($"Job {handle.JobRef} enqueued at {DateTime.UtcNow:HH:mm:ss}; runs in ~5s.");
 Console.WriteLine("Worker is running - press Ctrl+C to stop.");
 

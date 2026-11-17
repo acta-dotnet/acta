@@ -1,3 +1,5 @@
+// How to keep finished work from repeating on a retry
+// A named step records its outcome, so a retry returns it instead of doing the work again.
 using Acta;
 using Acta.Concepts.DurableStep;
 using Acta.Labs;
@@ -83,6 +85,9 @@ namespace Acta.Concepts.DurableStep
         [Job("freeze-box", MaxAttempts = 2, Backoff = "2s")]
         public async Task Handle(FreezeBox box, JobContext context, CancellationToken ct)
         {
+            // learn: 1. Put the work in a named step
+            // `RunStepAsync` gives the work a name and records its outcome under that name. On a later run of the
+            // handler, a step with a recorded outcome returns it instead of running its body.
             // In this controlled path the later failure happens after step success is durable, so execution two reuses that outcome.
             // A process crash after the external request but before Acta records success could invoke a normal step body again.
             await context.RunStepAsync(
@@ -94,13 +99,16 @@ namespace Acta.Concepts.DurableStep
                 },
                 ct
             );
+            // learn: end
 
+            // learn: 2. Fail once after the step, and watch the retry skip it
             // Fail the first attempt; the retry skips the already-started freeze cycle.
             if (Interlocked.Increment(ref _attempts) == 1)
             {
                 Console.WriteLine($"[{box.BoxId}] thermostat hiccup - retrying...");
                 throw new InvalidOperationException("simulated transient failure");
             }
+            // learn: end
 
             Console.WriteLine($"[{box.BoxId}] box frozen");
         }

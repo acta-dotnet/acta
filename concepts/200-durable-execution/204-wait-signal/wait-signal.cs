@@ -1,3 +1,5 @@
+// How to wait for an approval without holding a worker
+// A job parks on a named signal, holds no worker, and carries on when the signal is raised.
 using System.Globalization;
 using Acta;
 using Acta.Concepts.WaitSignal;
@@ -97,7 +99,13 @@ else
     Console.WriteLine("Brief/non-interactive run: raising the approval signal automatically.");
 }
 
+// learn: 2. Raise the signal when the answer arrives
+// Whoever learns the answer raises the signal by name on that job: an endpoint, another job, an operator. The value
+// is stored, the job becomes ready, and the handler runs again from its first line. This time the wait returns the
+// stored value.
 await jobs.RaiseSignalAsync(job, "approval", new Decision(true, "alice"));
+
+// learn: end
 Console.WriteLine("approved - the job resumes.");
 var terminal = await WaitForAsync(jobs, job.JobId, static snapshot => snapshot.Status.IsTerminal, "signal-waiting job to finish");
 EnsureDone(terminal);
@@ -186,8 +194,11 @@ namespace Acta.Concepts.WaitSignal
         [Job("approve-expense")]
         public async Task Handle(ApproveExpense expense, JobContext context, CancellationToken ct)
         {
+            // learn: 1. Wait for a named signal in the handler
+            // `WaitSignalAsync` stores the wait as a row and ends this execution. The job reads `suspended`.
             // Suspends (no executor held) until the named signal is raised, then re-enters with the latched payload.
             var decision = await context.WaitSignalAsync<Decision>("approval", ct);
+            // learn: end
             var amount = expense.Amount.ToString("0.00", CultureInfo.InvariantCulture);
             Console.WriteLine($"[{expense.Id}] expense for {amount} EUR {(decision!.Approved ? "APPROVED" : "rejected")} by {decision.By}");
         }

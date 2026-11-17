@@ -1,5 +1,6 @@
-// Concept: ConfigureOptions knobs - MaxConcurrentExecutors and SafetyPollInterval - and how the worker
-// respects the concurrency cap.
+// How to set how many jobs a worker runs at once
+// `MaxConcurrentExecutors` caps how many jobs one worker runs at once, and `SafetyPollInterval` bounds how long an
+// idle worker sleeps between looks at the database.
 using Acta;
 using Acta.Concepts.WorkerTuning;
 using Microsoft.Extensions.DependencyInjection;
@@ -15,15 +16,19 @@ builder.Services.UseActa(j =>
 
     j.ConfigureOptions(o =>
     {
+        // learn: 1. Cap how many jobs the worker runs at once
         // Cap simultaneous in-flight executions at Cap. Each claim takes only as many rows as there are
         // free executors, so excess work stays Ready in the database until an executor frees. Fixed at startup;
         // not autoscaled.
         o.MaxConcurrentExecutors = Cap;
+        // learn: end
 
+        // learn: 2. Bound how long an idle worker sleeps
         // Upper bound on idle claim-loop sleep. Minimum allowed value is 1s (the validator rejects
         // lower values as a DB-traffic guard). The wakeup signal fires immediately after the batch
         // enqueue below, so the poll interval is not on the critical path for this run.
         o.SafetyPollInterval = TimeSpan.FromSeconds(1);
+        // learn: end
     });
 
     j.Run<WorkerTuningJobs>("worker-tuning");

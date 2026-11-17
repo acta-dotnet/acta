@@ -1,5 +1,6 @@
-// Concept: enqueue, sleep, and reschedule pinned to absolute DateTimeOffset instants
-// rather than relative delays. Uses NextRunAt, context.SleepUntilAsync, and context.RescheduleUntilAsync.
+// How to schedule, sleep, and reschedule to an exact instant
+// Pin work to an instant instead of a delay: `ScheduleAsync(input, runAt)` starts a job then, `SleepUntilAsync`
+// pauses a handler until then, and `RescheduleUntilAsync` runs the handler again then.
 using Acta;
 using Acta.Concepts.AbsoluteTimeControls;
 using Microsoft.Extensions.DependencyInjection;
@@ -19,12 +20,14 @@ await host.StartAsync();
 var jobs = host.Services.GetRequiredService<IJobs>();
 var now = DateTimeOffset.UtcNow;
 
-// --- Part 1: ScheduleAsync at an instant ---
+// learn: 1. Start a job at an instant
 // Pin the earliest claim to an absolute wall-clock instant rather than a relative delay.
 // This demo uses a two-second offset so the run stays fast.
 var runAt = now.AddSeconds(2);
 Console.WriteLine($"Part 1 - ScheduleAsync: enqueuing GenerateReport to run at {runAt:HH:mm:ss.fff} UTC");
 var report = await jobs.ScheduleAsync(new GenerateReport("q1", SleepUntil: now.AddSeconds(4)), runAt);
+
+// learn: end
 Console.WriteLine($"  job {report.JobRef} is Ready, due later; worker will not claim it before {runAt:HH:mm:ss.fff}");
 
 // --- Part 2: RescheduleUntilAsync ---
@@ -59,10 +62,12 @@ namespace Acta.Concepts.AbsoluteTimeControls
         {
             Console.WriteLine($"[generate-report] claimed at {DateTime.UtcNow:HH:mm:ss.fff} UTC");
 
+            // learn: 2. Pause a handler until an instant
             // SleepUntilAsync arms a named durable timer at an absolute instant; on replay after the
             // instant passes the named timer is already consumed and the handler continues.
             Console.WriteLine($"[generate-report] sleeping until absolute instant {input.SleepUntil:HH:mm:ss.fff} UTC");
             await context.SleepUntilAsync("report-delay", input.SleepUntil, ct: ct);
+            // learn: end
 
             Console.WriteLine($"[generate-report] resumed at {DateTime.UtcNow:HH:mm:ss.fff} UTC; report for {input.Period} sent");
         }
@@ -80,10 +85,12 @@ namespace Acta.Concepts.AbsoluteTimeControls
 
             if (run == 1)
             {
+                // learn: 3. Run the handler again at an instant, without spending a retry
                 // RescheduleUntilAsync re-arms the job to an absolute instant without burning the
                 // retry budget; the handler restarts from the top on the next claim.
                 Console.WriteLine($"[poll-external] not ready; rescheduling to absolute instant {input.RescheduleUntil:HH:mm:ss.fff} UTC");
                 await context.RescheduleUntilAsync(input.RescheduleUntil, "external batch not ready", ct);
+                // learn: end
             }
 
             Console.WriteLine($"[poll-external] batch {input.BatchId} is ready; processing complete");

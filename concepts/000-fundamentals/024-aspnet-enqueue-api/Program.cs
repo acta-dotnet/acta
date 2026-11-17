@@ -1,3 +1,6 @@
+// How to start a job from an HTTP endpoint and poll it
+// A POST stores the job and answers 202 with its ref; a GET reads the status and, once the job has finished, the
+// result.
 using Acta;
 using Acta.Concepts.AspNetEnqueueApi;
 
@@ -19,6 +22,9 @@ app.MapPost("/imports", async (StartImportRequest request, HttpContext http, IJo
     var deduplicationKey = DeduplicationKey.ForDefinition("import-csv", businessKey);
     var correlationKey = http.TraceIdentifier;
 
+    // learn: 1. Enqueue in the POST and answer 202 with the job's ref
+    // The job is a durable row before the response leaves, and the worker runs it after the request has ended. The
+    // ref goes into the address the client polls.
     var job = await jobs.EnqueueAsync(
         new ImportCsv(request.Tenant, request.ImportId, request.FileName),
         o => o.DeduplicationKey(deduplicationKey).CorrelationKey(correlationKey).Tag("tenant", request.Tenant).Tag("kind", "csv"),
@@ -28,6 +34,7 @@ app.MapPost("/imports", async (StartImportRequest request, HttpContext http, IJo
     var statusUrl = $"/imports/{job.JobRef}";
 
     return Results.Accepted(statusUrl, new StartImportResponse(job.JobRef, job.Action.ToString(), statusUrl, correlationKey));
+    // learn: end
 });
 
 // GET polls the public JobRef; the result is read back only once the job is terminal.
@@ -38,6 +45,9 @@ app.MapGet("/imports/{jobRef}", async (string jobRef, IJobs jobs, CancellationTo
         return Results.BadRequest(new { error = "Invalid job ref." });
     }
 
+    // learn: 2. Read the status, and the result once the job has finished
+    // `GetAsync` answers null for a ref that names no job. A result exists only once the job has succeeded, so the
+    // read waits for a terminal status.
     var snapshot = await jobs.GetAsync(parsed, ct);
     if (snapshot is null)
     {
@@ -49,6 +59,7 @@ app.MapGet("/imports/{jobRef}", async (string jobRef, IJobs jobs, CancellationTo
     {
         (_, result) = await jobs.TryGetResultAsync<ImportResult>(parsed, ct);
     }
+    // learn: end
 
     return Results.Ok(
         new ImportStatusResponse(

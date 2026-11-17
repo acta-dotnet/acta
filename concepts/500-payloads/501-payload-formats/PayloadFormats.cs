@@ -7,9 +7,12 @@ namespace Acta.Concepts.PayloadFormats;
 /// </summary>
 public static class PayloadFormats
 {
+    // learn: 1. Give each format a name and an id
+    // The name is what a job writes in its attribute, so it is a constant.
     public const string ScalarV1 = "scalar-v1";
     public const string JsonGzip = "json-gzip";
 
     public static readonly JobPayloadFormat ScalarV1Format = JobPayloadFormat.Custom(128, ScalarV1);
     public static readonly JobPayloadFormat JsonGzipFormat = JobPayloadFormat.Custom(130, JsonGzip);
+    // learn: end
 }

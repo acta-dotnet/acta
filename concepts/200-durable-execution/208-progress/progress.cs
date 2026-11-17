@@ -1,3 +1,6 @@
+// How to report how far along a job is
+// `SetProgressAsync` stores how far the job has come, where a status page or the dashboard reads it while the job
+// runs.
 using Acta;
 using Acta.Concepts.Progress;
 using Microsoft.Extensions.DependencyInjection;
@@ -37,8 +40,10 @@ namespace Acta.Concepts.Progress
 
                 var percent = row * 100 / input.Rows;
 
+                // learn: Store the progress as the work advances
                 // Writes durable state read out-of-band (the sys.progress checkpoint), not by the caller.
                 await context.SetProgressAsync(percent, ct);
+                // learn: end
 
                 var filled = percent / 10;
                 Console.Write($"\r[{input.Name}] [{new string('#', filled)}{new string('-', 10 - filled)}] {percent, 3}%");

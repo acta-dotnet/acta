@@ -1,3 +1,6 @@
+// How to run a job every day at a set hour in your time zone
+// A cron with `TimeZoneId` fires at the same local hour all year: `0 8 * * *` in `Europe/Berlin` is 08:00 in Berlin,
+// in summer and in winter.
 using Acta;
 using Acta.Concepts.TimezoneSchedule;
 using Microsoft.Extensions.Hosting;
@@ -25,15 +28,20 @@ namespace Acta.Concepts.TimezoneSchedule
 
     public sealed class DailyDigestJob
     {
-        // TimeZoneId pins cron to wall-clock local time across DST switches (IANA or Windows ids; an
-        // unresolvable id fails the deploy, which a development start runs). Intervals are absolute gaps and take no timezone.
         [Job("daily-digest")]
+        // learn: Write the hour as a cron and pin it to your time zone
+        // The cron has five fields: minute, hour, day of month, month, day of week. `0 8 * * *` is 08:00 every day, and
+        // without a time zone that hour is read as UTC.
+        // TimeZoneId pins cron to wall-clock local time across DST switches (IANA or Windows ids; an
+        // unresolvable id fails the deploy, which a development start runs). For Berlin write `Europe/Berlin`.
         [Schedule("morning-ljubljana", "0 8 * * *", TimeZoneId = "Europe/Ljubljana")]
+        // learn: end
+        // The second schedule is here so the program prints while you watch. Intervals are absolute gaps and take no timezone.
         [Schedule("demo-tick", "PT15S")]
         public Task Handle(DailyDigest input, JobContext context, CancellationToken ct)
         {
             Console.WriteLine(
-                $"{DateTime.Now:HH:mm:ss} fired by [{string.Join(", ", context.TriggeringSchedules.Select(s => s.ScheduleName))}]"
+                $"{DateTime.UtcNow:HH:mm:ss} UTC fired by [{string.Join(", ", context.TriggeringSchedules.Select(s => s.ScheduleName))}]"
             );
             return Task.CompletedTask;
         }

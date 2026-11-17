@@ -1,3 +1,5 @@
+// How to label jobs so you can find them
+// Tags are name and value labels set on the enqueue, for filtering and grouping jobs in queries and in the dashboard.
 using Acta;
 using Acta.Concepts.Tags;
 using Microsoft.Extensions.DependencyInjection;
@@ -16,10 +18,13 @@ await host.StartAsync();
 
 var jobs = host.Services.GetRequiredService<IJobs>();
 
+// learn: Tag the job when you enqueue it
 // Tags are labels for filtering and grouping jobs in queries or a dashboard.
 var outcome = await jobs.EnqueueAsync(new SendWelcomeEmail("sam@example.com", "Sam"), o =>
     o.Tag("campaign", "spring").Tag("channel", "email")
 );
+
+// learn: end
 Console.WriteLine($"Enqueued job {outcome.JobRef} with tags campaign=spring, channel=email.");
 Console.WriteLine("Worker is running - press Ctrl+C to stop.");
 

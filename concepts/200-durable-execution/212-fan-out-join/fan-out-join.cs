@@ -1,3 +1,6 @@
+// How to fan out over a list and merge the results
+// `MapAsync` starts one child job per item of a list, waits for them all, and hands back each item's result for the
+// parent to merge.
 using Acta;
 using Acta.Concepts.FanOutJoin;
 using Microsoft.Extensions.DependencyInjection;
@@ -36,12 +39,13 @@ namespace Acta.Concepts.FanOutJoin
 
     public sealed class AddNumbersJobs
     {
-        // MapAsync starts one child per chunk and waits for all of them. Each child is keyed by its range,
-        // so a replay finds the same children by name. A child given as its generated call types the map,
-        // so each item's outcome carries the child's result and the merge reads no child by id.
         [Job("add-numbers")]
         public async Task<SumResult> Handle(AddNumbers request, JobContext context, CancellationToken ct)
         {
+            // learn: 1. Map the list onto child jobs
+            // MapAsync starts one child per chunk and waits for all of them. Each child is keyed by its range,
+            // so a replay finds the same children by name. A child given as its generated call types the map,
+            // so each item's outcome carries the child's result and the merge reads no child by id.
             var chunks = await context.MapAsync(
                 "chunk",
                 request.Chunks,
@@ -49,12 +53,17 @@ namespace Acta.Concepts.FanOutJoin
                 child: chunk => FanOutJoinJobs.SumRange(chunk),
                 ct
             );
+            // learn: end
+
+            // learn: 2. Stop if a child failed, then merge the results
+            // The map does not throw for a failed child; the parent asks, and decides.
             if (!chunks.Succeeded)
             {
                 await context.FailAsync("a chunk failed", ct);
             }
 
             return new SumResult(chunks.Items.Sum(item => item.Outcome.ValueOrThrow().Value));
+            // learn: end
         }
 
         [Job("sum-range")]

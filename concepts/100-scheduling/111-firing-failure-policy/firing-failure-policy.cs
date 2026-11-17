@@ -1,6 +1,7 @@
-// Concept: what a firing that fails for good does to its schedules. A firing retries under the job's budget like any
-// attempt; when the budget is spent the permanent job returns to Idle. Under the default Continue the next occurrence fires as
-// usual; under PauseScheduling the definition's schedules pause, with the reason, until an operator resumes them.
+// How to decide what a failed firing does to its schedule
+// A firing that spends its retry budget returns the permanent job to `Idle`. `FiringFailurePolicy` says what happens
+// to its schedules then: `Continue`, the default, fires the next occurrence as usual, and `PauseScheduling` pauses
+// them, with the reason, until an operator resumes them.
 using System.Collections.Concurrent;
 using Acta;
 using Acta.Concepts.FiringFailurePolicy;
@@ -89,7 +90,11 @@ namespace Acta.Concepts.FiringFailurePolicy
         /// <summary>Firings of <paramref name="job"/> that spent their budget here: two failed attempts each.</summary>
         public static int SpentFirings(string job) => FailedAttempts.GetValueOrDefault(job) / 2;
 
+        // learn: Pause the schedule when a firing fails for good
+        // A firing retries under the job's budget like any attempt. The policy applies once that budget is spent; the
+        // second job below keeps the default, `Continue`.
         [Job("sync-prices-pausing", MaxAttempts = 2, Backoff = "1s", FiringFailurePolicy = FiringFailurePolicyCode.PauseScheduling)]
+        // learn: end
         [Schedule("every-second", "PT1S")]
         public Task Pausing(CancellationToken ct) => FailAsync("sync-prices-pausing");
 

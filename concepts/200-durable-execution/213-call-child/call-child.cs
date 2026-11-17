@@ -1,3 +1,5 @@
+// How to call another job and use its result
+// `CallChildAsync` starts another job as a child, waits for it without holding a worker, and returns its result.
 using Acta;
 using Acta.Concepts.CallChild;
 using Microsoft.Extensions.DependencyInjection;
@@ -34,16 +36,19 @@ namespace Acta.Concepts.CallChild
     public sealed class PublishingJobs
     {
         // A child is a real job (own retry policy, queue identity, operator-visible), unlike a private
-        // idempotent step (202). CallChildAsync enqueues one child and waits for its result;
-        // ValueOrThrow() returns it or throws. A failed child stays failed, so the throw fails the
-        // parent at once, with no retry; recovering means restarting the child, then the parent once
-        // the child has succeeded.
+        // idempotent step (202).
         [Job("publish-episode")]
         public async Task<EpisodePublished> Handle(PublishEpisode episode, JobContext context, CancellationToken ct)
         {
+            // learn: Call the other job as a child and take its result
+            // CallChildAsync enqueues one child and waits for its result;
+            // ValueOrThrow() returns it or throws. A failed child stays failed, so the throw fails the
+            // parent at once, with no retry; recovering means restarting the child, then the parent once
+            // the child has succeeded.
             var transcode = CallChildJobs.TranscodeVideo(new TranscodeVideo(episode.SourceUrl));
             var transcoded = await context.CallChildAsync("transcode", transcode, ct);
             return new EpisodePublished(episode.EpisodeId, transcoded.ValueOrThrow().StreamUrl);
+            // learn: end
         }
 
         [Job("transcode-video")]

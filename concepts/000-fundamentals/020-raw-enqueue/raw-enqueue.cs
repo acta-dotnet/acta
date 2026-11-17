@@ -1,3 +1,5 @@
+// How to enqueue a job by its name
+// An `EnqueueJobRequest` names the namespace and the job as strings, for a caller that does not have the job's types.
 using Acta;
 using Acta.Concepts.RawEnqueue;
 using Microsoft.Extensions.DependencyInjection;
@@ -16,6 +18,7 @@ await host.StartAsync();
 
 var jobs = host.Services.GetRequiredService<IJobs>();
 
+// learn: 1. Name the namespace and the job in a request
 // Raw request names (namespace, job) explicitly, for a caller without the manifest, such as a gateway relaying
 // a request body. An in-process caller with an ambiguous input type uses the generated call instead (023).
 var request = new EnqueueJobRequest(
@@ -24,8 +27,13 @@ var request = new EnqueueJobRequest(
     Input: JobPayload.Json(new SendWelcomeEmail("sam@example.com", "Sam"))
 );
 
+// learn: end
+
+// learn: 2. Enqueue the request
 // The explicit CancellationToken picks the raw-request overload over the typed EnqueueAsync<T>.
 var enqueued = await jobs.EnqueueAsync(request, CancellationToken.None);
+
+// learn: end
 Console.WriteLine($"Enqueued job {enqueued.JobRef} by name. Worker is running - press Ctrl+C to stop.");
 
 await host.WaitForShutdownAsync();

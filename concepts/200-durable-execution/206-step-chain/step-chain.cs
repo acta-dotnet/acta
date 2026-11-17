@@ -1,3 +1,6 @@
+// How to feed one step's result into the next
+// A step can return a value. Each result is recorded once, so the next step takes it as its input and a replay
+// rebuilds the chain from the records.
 using Acta;
 using Acta.Concepts.StepChain;
 using Microsoft.Extensions.DependencyInjection;
@@ -37,6 +40,7 @@ namespace Acta.Concepts.StepChain
         [Job("index-document")]
         public async Task Handle(IndexDocument doc, JobContext context, CancellationToken ct)
         {
+            // learn: 1. Return a value from a step
             // Typed durable steps: each result is recorded once, so on replay the chain rebuilds from recorded outputs and no step re-runs.
             var fetched = await context.RunStepAsync(
                 "fetch",
@@ -48,7 +52,9 @@ namespace Acta.Concepts.StepChain
                 },
                 ct
             );
+            // learn: end
 
+            // learn: 2. Use it in the next step
             var extracted = await context.RunStepAsync(
                 "extract-text",
                 async inner =>
@@ -59,6 +65,7 @@ namespace Acta.Concepts.StepChain
                 },
                 ct
             );
+            // learn: end
 
             var summary = await context.RunStepAsync(
                 "summarize",

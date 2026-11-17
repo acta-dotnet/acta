@@ -1,3 +1,6 @@
+// How to cut off an attempt that runs too long
+// `ExecutionTimeout` caps one attempt: when the time is up, the handler's `CancellationToken` trips and the attempt
+// ends as a timeout.
 using Acta;
 using Acta.Concepts.ExecutionTimeout;
 using Microsoft.Extensions.DependencyInjection;
@@ -34,13 +37,17 @@ namespace Acta.Concepts.ExecutionTimeout
 
     public sealed class SlowReportJob
     {
+        // learn: 1. Set the timeout on the job
         // ExecutionTimeout caps a single attempt: after 2s the framework trips the CancellationToken
         // and the attempt ends as a timeout.
         [Job("slow-report", ExecutionTimeout = "2s", MaxAttempts = 1)]
+        // learn: end
         public async Task Handle(SlowReport input, JobContext context, CancellationToken ct)
         {
             Console.WriteLine($"[{input.Name}] generating report (this runs too long)...");
+            // learn: 2. Pass the token to the work, so the timeout can stop it
             await Task.Delay(TimeSpan.FromSeconds(10), ct); // exceeds the 2s timeout, so ct trips here
+            // learn: end
             Console.WriteLine($"[{input.Name}] report done"); // never reached
         }
     }

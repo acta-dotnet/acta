@@ -1,5 +1,6 @@
-// Concept: automatic alert escalation -- FirstFailure, ThresholdReached, and FinalFailure stages.
-
+// How to escalate an alert as failures add up
+// Automatic failure alerts escalate in stages: the first failure, the failure count reaching
+// `AlertFailureThreshold`, and the final failure when the retry budget is spent.
 using Acta;
 using Acta.Concepts.AlertEscalation;
 using Microsoft.Extensions.DependencyInjection;
@@ -11,8 +12,10 @@ builder.Services.UseActa(j =>
 {
     j.UseLocalDatabase(builder.Configuration);
 
+    // learn: 1. Set the failure count that escalates
     // AlertFailureThreshold = 2: the ThresholdReached alert fires when OccurrenceCount reaches 2.
     j.ConfigureOptions(o => o.AlertFailureThreshold = 2);
+    // learn: end
 
     j.Run<AlertEscalationJobs>("alert-escalation");
 });
@@ -54,10 +57,15 @@ while (true)
 }
 
 Console.WriteLine($"alerts ({alertItems.Count}):");
+
+// learn: 2. Read each stage as an alert of its own kind
+// The `sys.alerts` sweep writes them once a minute, so they appear after the failures, not with them.
 foreach (var alert in alertItems.OrderBy(a => a.CreatedAtUtc))
 {
     Console.WriteLine($"  [{alert.Severity}] {alert.Kind} x{alert.OccurrenceCount} channel='{alert.ChannelName}'");
 }
+
+// learn: end
 
 await host.StopAsync();
 

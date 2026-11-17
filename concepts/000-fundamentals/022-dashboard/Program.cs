@@ -1,3 +1,5 @@
+// How to see your jobs in the dashboard
+// `MapActa` serves the dashboard and its JSON API from your own app. Its controls are off until you turn them on.
 using Acta;
 using Acta.Concepts.DashboardSample;
 using Acta.Dashboard;
@@ -17,8 +19,13 @@ builder.Logging.AddFilter("Acta", LogLevel.Error);
 
 var app = builder.Build();
 
+// learn: Map the dashboard into your app
+// `MapActa` adds the dashboard and its JSON API under the path you give. By default it answers local requests only,
+// and its controls (pause, resume, cancel, restart) stay disabled until `EnableControls` is set.
 var enableControls = builder.Configuration.GetValue<bool>("Acta:Dashboard:EnableControls");
 app.MapActa("/acta", options => options.EnableControls = enableControls);
+
+// learn: end
 
 await app.StartAsync();
 

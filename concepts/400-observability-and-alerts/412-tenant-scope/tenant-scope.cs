@@ -1,3 +1,6 @@
+// How to record which tenant a job is for
+// `TenantName` on the enqueue records which tenant a job is for. Its children inherit the tenant, the job list
+// filters by it, and an enqueue for an unknown or a suspended tenant is refused.
 using Acta;
 using Acta.Concepts.TenantScope;
 using Acta.Labs;
@@ -20,21 +23,33 @@ await host.StartAsync();
 var jobs = host.Services.GetRequiredService<IJobs>();
 var operations = host.Services.GetRequiredService<IActaOperations>();
 
+// learn: 1. Register the tenant
+// A tenant is a row in the catalog. An enqueue names it, and the name must resolve to a tenant that is not suspended.
 var acmeId = (await operations.Tenants.RegisterAsync("acme", "Acme GmbH", "Active customer used by the lab")).TenantId;
+
+// learn: end
 await operations.Tenants.RegisterAsync("held-customer", "Held customer");
 await operations.Tenants.SuspendAsync("held-customer", "Held for the lab's rejection demo");
 
 var runId = $"tenant-scope-{Guid.CreateVersion7():N}";
+
+// learn: 2. Name the tenant when you enqueue
 var parent = await jobs.EnqueueAsync(new ExportAccount("acme"), options => options.TenantName("acme").CorrelationKey(runId));
+
+// learn: end
 var parentTerminal = await WaitForAsync(jobs, parent.JobId, static snapshot => snapshot.Status.IsTerminal, "tenant parent to finish");
 if (parentTerminal.Status != JobStatusCode.Succeeded)
 {
     throw new InvalidOperationException($"Tenant parent {parentTerminal.JobRef} ended {parentTerminal.Status}.");
 }
 
+// learn: 3. List the jobs of one tenant
+// The filter finds the parent and the child that inherited its tenant.
 var byTenant = await operations.Ledger.ListJobsAsync(
     new ListJobsQuery(JobNamespace: jobNamespace, TenantId: acmeId, CorrelationKey: runId, IncludeTotal: true)
 );
+
+// learn: end
 Console.WriteLine(
     $"Ledger tenant + correlation filter returned {byTenant.TotalCount} current-run Acme job(s): parent and inherited child."
 );

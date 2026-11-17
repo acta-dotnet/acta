@@ -1,3 +1,5 @@
+// How to use your own services in a handler
+// The class that holds the handler takes its services in its constructor, from the application's own container.
 using Acta;
 using Acta.Concepts.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
@@ -5,7 +7,10 @@ using Microsoft.Extensions.Hosting;
 
 var builder = Host.CreateApplicationBuilder(args);
 
+// learn: 1. Register the service as you would for any other code
 builder.Services.AddSingleton<IEmailSender, ConsoleEmailSender>();
+
+// learn: end
 
 builder.Services.UseActa(j =>
 {
@@ -42,6 +47,7 @@ namespace Acta.Concepts.DependencyInjection
         }
     }
 
+    // learn: 2. Take it in the constructor of the handler's class
     // Acta constructs a fresh handler instance per attempt, injecting constructor dependencies.
     public sealed class WelcomeJob(IEmailSender sender)
     {
@@ -49,4 +55,5 @@ namespace Acta.Concepts.DependencyInjection
         public async Task Handle(SendWelcomeEmail input, CancellationToken ct) =>
             await sender.SendAsync(input.Email, $"Welcome, {input.Name}!", ct);
     }
+    // learn: end
 }

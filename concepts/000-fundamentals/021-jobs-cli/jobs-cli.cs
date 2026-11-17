@@ -1,3 +1,6 @@
+// How to inspect a job from the command line
+// The app's own binary answers `jobs info`, `events`, `explain`, and the control verbs for any job, read from the
+// same database.
 using Acta;
 using Acta.Concepts.JobsCli;
 using Acta.Labs;
@@ -35,6 +38,10 @@ while (true)
     }
     await Task.Delay(50, suspensionTimeout.Token);
 }
+
+// learn: Run the app's own binary with a jobs verb
+// A first argument of `jobs` runs that verb against the app's database and exits; without it the process starts as
+// a normal worker. The program needs no line of its own for this.
 const string cli = "dotnet run --project concepts/000-fundamentals/021-jobs-cli -- jobs";
 Console.WriteLine($"Enqueued signal-waiting job {enqueued.JobRef}. From another terminal, try:");
 Console.WriteLine($"  {cli} info {enqueued.JobRef}");
@@ -45,6 +52,8 @@ Console.WriteLine($"  {cli} resume {enqueued.JobRef}");
 Console.WriteLine($"  {cli} restart {enqueued.JobRef}");
 Console.WriteLine($"  {cli} debug {enqueued.JobRef}");
 Console.WriteLine($"  {cli} info    (no target: a read takes the copied ref from the clipboard)");
+
+// learn: end
 await lab.ShowAllAsync(
     "Explore the complete signal-waiting job record",
     """

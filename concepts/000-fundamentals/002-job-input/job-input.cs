@@ -1,3 +1,5 @@
+// How to pass typed input to a job
+// The input is a record: Acta stores it with the job and hands it to the handler as its first parameter.
 using Acta;
 using Acta.Concepts.JobInput;
 using Microsoft.Extensions.DependencyInjection;
@@ -16,8 +18,11 @@ await host.StartAsync();
 
 var jobs = host.Services.GetRequiredService<IJobs>();
 
-// The job takes a typed record as its input.
+// learn: 2. Enqueue an instance of it
+// The type of the value picks the job: the handler whose first parameter is a `PrintNameTag`.
 await jobs.EnqueueAsync(new PrintNameTag("Ada", "workshop"));
+
+// learn: end
 Console.WriteLine("Enqueued. Worker is running - press Ctrl+C to stop.");
 
 await host.WaitForShutdownAsync();
@@ -25,7 +30,11 @@ await host.StopAsync();
 
 namespace Acta.Concepts.JobInput
 {
+    // learn: 1. Write the input as a record
+    // The input is plain data. Acta serializes it, stores it with the job, and hands it to the handler.
     public sealed record PrintNameTag(string Name, string Workshop);
+
+    // learn: end
 
     public static class PrintNameTagJob
     {

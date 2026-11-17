@@ -1,3 +1,6 @@
+// How to keep a value across retries
+// A durable variable stores a value with the job the first time it is computed, and every later attempt reads the
+// same value.
 using Acta;
 using Acta.Concepts.DurableVariable;
 using Microsoft.Extensions.DependencyInjection;
@@ -37,8 +40,10 @@ namespace Acta.Concepts.DurableVariable
         [Job("sync-users", MaxAttempts = 2, Backoff = "2s")]
         public async Task Handle(SyncUsers input, JobContext context, CancellationToken ct)
         {
+            // learn: Compute the value once and read it back on every attempt
             // Pin the sync window once: GetOrSet stores it on the first pass and replays it on the retry, so the window can't shift between attempts.
             var syncedAt = await context.GetOrSetVariableAsync("synced-at-utc", () => DateTime.UtcNow, ct);
+            // learn: end
             Console.WriteLine($"[{input.Source}] syncing changes as of {syncedAt:HH:mm:ss.fff} UTC");
 
             // Fail the first attempt; the same timestamp comes back on the retry.

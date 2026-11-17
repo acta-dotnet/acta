@@ -1,6 +1,7 @@
-// Concept: EventRecording gates which job events are written. Audit records every event; Failures records the failed,
-// orphaned, and finally failed attempts, the success that recovers from a failure (which closes the incident), what
-// an enabled alert profile reads, a caller's controls of the job, and a schedule's pauses and manual triggers.
+// How to choose how many events a job records
+// `EventRecording` on the job decides which events it writes. `Audit`, the default, records every event. `Failures`
+// records the failed and orphaned attempts, the success that recovers from a failure, what an enabled alert profile
+// reads, a caller's controls of the job, and a schedule's pauses and manual triggers.
 using Acta;
 using Acta.Concepts.EventRecording;
 using Microsoft.Extensions.DependencyInjection;
@@ -51,9 +52,11 @@ namespace Acta.Concepts.EventRecording
 
     public static class FailuresWorkJob
     {
+        // learn: Record only failures for a job that runs often
         // Failures: a failure writes an event, and so does the success that answers one; a run that
         // succeeds after no failure leaves none. Use it for high-frequency definitions to keep events lean.
         [Job("failures-work", EventRecording = EventRecordingCode.Failures)]
+        // learn: end
         public static void Handle(FailuresWork input) => Console.WriteLine($"[{input.Id}] running at Failures level");
     }
 }

@@ -1,3 +1,6 @@
+// How to recover the work of a killed worker
+// A worker process is killed in the middle of a job, and another worker reclaims the job once its lease has lapsed.
+// The program runs on PostgreSQL or SQL Server.
 using Acta;
 using Acta.Concepts.WorkerCrashRecovery;
 using Acta.Labs;
@@ -59,10 +62,12 @@ builder.Services.UseActa(j =>
         j.Run<WorkerCrashRecoveryJobs>(jobNamespace);
         j.ConfigureOptions(o =>
         {
+            // learn: 2. Shorten the heartbeat only to watch the recovery
             // One knob shortens the whole coordination triple in proportion: a 1s beat gives a 4s lease
             // and a 7s dead-worker window, which is what makes the kill below observable in seconds
             // instead of minutes.
             o.HeartbeatInterval = TimeSpan.FromSeconds(1);
+            // learn: end
             o.DeploymentVersion = $"{mode}:{sessionId[..8]}";
         });
     }
@@ -190,7 +195,11 @@ namespace Acta.Concepts.WorkerCrashRecovery
 
     public sealed class CrashRecoveryJob(WorkerRole role)
     {
+        // learn: 1. Give the job a retry budget, because a crash spends an attempt
+        // Nothing in the handler recovers the job. A worker that dies stops heartbeating, the lease on its job lapses,
+        // and another worker reclaims the job as a failed attempt and runs it again.
         [Job("crash-recovery-probe", MaxAttempts = 3, Backoff = "0s")]
+        // learn: end
         public async Task Handle(CrashRecoveryProbe input, CancellationToken ct)
         {
             Console.WriteLine($"[{role.Name}] executing {input.ProbeId}; ordinary handler code is at-least-once.");

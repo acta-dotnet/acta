@@ -1,6 +1,6 @@
-// Concept: IJobs provides a read-only surface for operator and dashboard reads -
-// filtered lists, keyset paging, total counts, and health overview counters.
-
+// How to list and page through jobs
+// `operations.Ledger` lists jobs with filters, pages through them by cursor, counts them, and answers the health
+// counters an operator's screen opens with.
 using Acta;
 using Acta.Concepts.OperatorQueries;
 using Microsoft.Extensions.DependencyInjection;
@@ -35,9 +35,13 @@ await jobs.CancelAsync(o1);
 // Allow the worker to process the others.
 await Task.Delay(800);
 
-// ListJobsAsync with a namespace filter: all jobs in this namespace.
 Console.WriteLine("=== ListJobsAsync (namespace filter, page size 3) ===");
+
+// learn: 1. List jobs with a filter
+// ListJobsAsync with a namespace filter: all jobs in this namespace, three to a page, with the total.
 var page1 = await queries.Ledger.ListJobsAsync(new ListJobsQuery(JobNamespace: "operator-queries", PageSize: 3, IncludeTotal: true));
+
+// learn: end
 Console.WriteLine($"Page 1: {page1.Items.Count} items, total={page1.TotalCount}, hasMore={page1.HasMore}");
 foreach (var item in page1.Items)
     Console.WriteLine($"  {item.JobRef} [{item.JobName}] status={item.Status}");
@@ -53,9 +57,12 @@ foreach (var item in cancelled.Items)
 Console.WriteLine("=== Keyset paging: second page via NextCursor ===");
 if (page1.HasMore && page1.NextCursor is not null)
 {
+    // learn: 2. Fetch the next page by its cursor
+    // The same query with the cursor the last page handed back.
     var page2 = await queries.Ledger.ListJobsAsync(
         new ListJobsQuery(JobNamespace: "operator-queries", PageSize: 3, Cursor: page1.NextCursor)
     );
+    // learn: end
     Console.WriteLine($"Page 2: {page2.Items.Count} items, hasMore={page2.HasMore}");
     foreach (var item in page2.Items)
         Console.WriteLine($"  {item.JobRef} [{item.JobName}] status={item.Status}");
@@ -70,10 +77,14 @@ Console.WriteLine("=== IncludeTotal: total across namespace ===");
 var withTotal = await queries.Ledger.ListJobsAsync(new ListJobsQuery(JobNamespace: "operator-queries", PageSize: 1, IncludeTotal: true));
 Console.WriteLine($"TotalCount across namespace: {withTotal.TotalCount}");
 
+Console.WriteLine("=== GetOverviewAsync (system-wide) ===");
+
+// learn: 3. Read the health counters
 // GetOverviewAsync: one-shot health counters for the whole system.
 // Schedules, workers, and alert lists also exist on IJobs; event-timeline depth lives in rung 404.
-Console.WriteLine("=== GetOverviewAsync (system-wide) ===");
 var overview = await operations.Ledger.GetOverviewAsync(new GetOverviewQuery());
+
+// learn: end
 Console.WriteLine($"Ready={overview.ReadyCount} Executing={overview.ExecutingCount} Failed={overview.FailedCount}");
 Console.WriteLine($"UnresolvedAlerts={overview.UnresolvedAlertCount} DeadWorkers={overview.DeadWorkerCount}");
 

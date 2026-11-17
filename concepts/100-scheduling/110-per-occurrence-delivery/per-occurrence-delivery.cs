@@ -1,6 +1,6 @@
-// Concept: a schedule can deliver each occurrence as a job of its own. A PerOccurrence definition's schedule admits a
-// fresh root per occurrence, with its own ref, retries, result, and retention; MaxOutstanding bounds how many may be
-// unfinished at once, and a full schedule set to Drop skips an occurrence with the reason "capacity".
+// How to make every occurrence its own job
+// `ScheduledDelivery = PerOccurrence` makes each occurrence a root job of its own, with its own ref, retries, result,
+// and retention. `MaxOutstanding` bounds how many may be unfinished at once.
 using System.Collections.Concurrent;
 using Acta;
 using Acta.Concepts.PerOccurrenceDelivery;
@@ -112,9 +112,13 @@ namespace Acta.Concepts.PerOccurrenceDelivery
 
         public static void Release() => Gate.TrySetResult();
 
+        // learn: Deliver each occurrence as a job of its own
         // Each occurrence is an ordinary root job with a ref, retries, and result of its own.
+        // `MaxOutstanding` bounds how many may be unfinished at once, and a full schedule set to `Drop` skips an
+        // occurrence, audited as `schedule.skipped` with the reason `capacity`.
         [Job("import-files", ScheduledDelivery = ScheduledDeliveryCode.PerOccurrence)]
         [Schedule("every-second", "PT1S", MaxOutstanding = 2, FullBehavior = ScheduleFullBehaviorCode.Drop)]
+        // learn: end
         public async Task Import(JobContext ctx, CancellationToken ct)
         {
             lock (Counting)

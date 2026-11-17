@@ -1,6 +1,6 @@
-// Concept: j.Reference<TManifest>() makes a manifest's jobs typed-enqueueable without
-// running a worker - the enqueue-only counterpart of j.Run<TManifest>().
-
+// How to enqueue from a process that runs no worker
+// `Reference<TManifest>()` lets a process enqueue a namespace's jobs by type without running a worker for it.
+// `Run<TManifest>()` is the process that executes them.
 using Acta;
 using Acta.Concepts.EnqueueOnlyReference;
 using Microsoft.Extensions.DependencyInjection;
@@ -28,7 +28,10 @@ var frontendBuilder = Host.CreateApplicationBuilder(args);
 frontendBuilder.Services.UseActa(j =>
 {
     j.UseLocalDatabase(frontendBuilder.Configuration);
+    // learn: 1. Reference the jobs in the process that only enqueues
+    // `Reference` makes the jobs enqueueable by type and starts no claim loop, so this process never runs a handler.
     j.Reference<EnqueueOnlyReferenceJobs>("enqueue-only-reference");
+    // learn: end
 });
 using var frontendHost = frontendBuilder.Build();
 await frontendHost.StartAsync();
@@ -37,7 +40,12 @@ Console.WriteLine("Frontend host started: Reference only - no worker, so no hand
 
 // Enqueue from the frontend host; it can reach the job type through the reference.
 var frontendJobs = frontendHost.Services.GetRequiredService<IJobs>();
+
+// learn: 2. Enqueue as usual
+// The job is a row in the shared database; the worker process claims it from there.
 var handle = await frontendJobs.EnqueueAsync(new WelcomeUser("alice"));
+
+// learn: end
 Console.WriteLine($"Frontend enqueued job {handle.JobRef} (action={handle.Action})");
 
 // WaitAsync returns as soon as the worker finishes the job; the frontend reads the same database.

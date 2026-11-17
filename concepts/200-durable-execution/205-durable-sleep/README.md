@@ -73,3 +73,36 @@ condition rather than merely wait for an instant.
 - [The related Engineering Lab](../../../docs/engineering-labs.md)
 - [`durable-sleep.cs`](./durable-sleep.cs)
 - [`ArmOrConsumeJobSleepTimer.sqlite.sql`](../../../src/Acta/Operations/Execution/ArmOrConsumeJobSleepTimer/ArmOrConsumeJobSleepTimer.sqlite.sql)
+
+## Remember
+
+- `Task.Delay` holds a worker and dies with the process. A durable sleep frees the worker and survives a deploy.
+- Bare code before the sleep runs again when the job wakes. Put work that must not repeat in a step.
+- The job wakes as precisely as the database clock and the worker's polling allow, not to the millisecond.
+- To start a whole job later, instead of pausing inside one, see [run a job once, later](../../000-fundamentals/011-delayed-job/).
+
+## Check yourself
+
+**The job sleeps once and then finishes. How many times does the line `handler entered` print?**
+
+- Once
+- Twice
+- Three times
+
+<details><summary>Answer</summary>
+
+Twice. The line stands before the sleep and outside any step, so it runs on the first execution and again when the job wakes and the handler starts from the top.
+
+</details>
+
+**The app is stopped an hour into a three-day sleep and started again the next morning. What happens to the job?**
+
+- The three days start over
+- Nothing is lost: the due time is a row, and the job wakes when it comes
+- The job fails
+
+<details><summary>Answer</summary>
+
+Nothing is lost: the due time is a row, and the job wakes when it comes. The due time is stored once, in the database. Any worker that is running when it comes picks the job up.
+
+</details>

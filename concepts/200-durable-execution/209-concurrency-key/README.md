@@ -112,3 +112,9 @@ coordinate too.
 - [`concurrency-key.cs`](./concurrency-key.cs)
 - [`ExecutionAdmission.cs`](../../../src/Acta/Engine/Worker/ExecutionAdmission.cs)
 - [`LockEntity.cs`](../../../src/Acta/Domain/Entities/LockEntity.cs)
+
+## Remember
+
+- A key is mutual exclusion, never ordering: an older job can be overtaken while the key stays busy. For one at a time in order, use a lane.
+- A job that finds its key full is handed back and re-armed a couple of seconds out. Each such bounce is an execution of its own and adds rows to the timeline.
+- A slot is held while an attempt runs, not while the job sleeps or waits. A slot held by a worker that died stays taken until recovery reclaims that job.

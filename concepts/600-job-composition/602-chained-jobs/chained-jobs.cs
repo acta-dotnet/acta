@@ -1,3 +1,6 @@
+// How to chain jobs into a pipeline
+// Each stage is a job of its own that enqueues the next one, with a deduplication key so a replayed handoff starts
+// no second pipeline.
 using Acta;
 using Acta.Concepts.ChainedJobs;
 using Microsoft.Extensions.DependencyInjection;
@@ -44,7 +47,11 @@ namespace Acta.Concepts.ChainedJobs
         public async Task Handle(IngestDocument input, CancellationToken ct)
         {
             Console.WriteLine($"ingested {input.FileName}");
+            // learn: Enqueue the next stage as the last act of this one
+            // The enqueue happens before this stage completes, so a replay repeats it. The key, taken from the
+            // document, makes the repeat answer the existing job.
             await jobs.EnqueueAsync(new RenderPdf(input.FileName), o => o.DeduplicationKey($"render-{input.FileName}"), ct);
+            // learn: end
         }
     }
 

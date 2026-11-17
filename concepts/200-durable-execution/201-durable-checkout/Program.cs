@@ -1,3 +1,6 @@
+// How to build a checkout that waits for a review and a timer
+// One handler reads top to bottom as a checkout: wait for a fraud review, reserve, charge, wait out a settlement
+// window, send the receipt. Each stage is a signal, a step, a variable, or a timer that survives a restart.
 using Acta;
 using Acta.Concepts.DurableCheckout;
 using Acta.Labs;

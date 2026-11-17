@@ -1,5 +1,6 @@
-// Concept: pausing and resuming a job from outside the handler via IJobs.PauseAsync / IJobs.ResumeAsync,
-// including a rejected transition on a terminal job and the reason recorded on the event timeline.
+// How to pause and resume a job from outside
+// `IJobs.PauseAsync` and `ResumeAsync` pause and resume a job from outside its handler. Each answers whether it was
+// applied or rejected, and its reason lands on the job's timeline.
 using Acta;
 using Acta.Concepts.OperatorResume;
 using Microsoft.Extensions.DependencyInjection;
@@ -24,13 +25,19 @@ var queries = host.Services.GetRequiredService<IActaOperations>();
 var handle = await jobs.ScheduleAsync(new ProcessReport("q3-summary"), TimeSpan.FromSeconds(5));
 Console.WriteLine($"Enqueued job {handle.JobRef} with a 5-second delay.");
 
-// Step 1: pause - job is not yet claimable (delayed), so the transition is Applied.
+// learn: 1. Pause the job
+// The job is not yet claimable (delayed), so the transition is Applied.
 var pauseResult = await jobs.PauseAsync(handle, "review window");
+
+// learn: end
 Console.WriteLine($"PauseAsync -> action={pauseResult.Action} status={pauseResult.Status}");
 
-// Step 2: resume - moves the Paused job back to Ready at the due time it kept, so the worker claims it once the
+// learn: 2. Resume it
+// A resume moves the Paused job back to Ready at the due time it kept, so the worker claims it once the
 // 5-second delay is up.
 var resumeResult = await jobs.ResumeAsync(handle, "review complete");
+
+// learn: end
 Console.WriteLine($"ResumeAsync -> action={resumeResult.Action} status={resumeResult.Status}");
 
 // Poll until the worker finishes the job (terminal status).
@@ -43,11 +50,14 @@ do
 
 Console.WriteLine($"Job finished with status={status}");
 
-// Step 3: attempt to pause a terminal (Succeeded) job - must be Rejected because terminal jobs cannot be paused.
+// learn: 3. Read the answer: a finished job refuses
+// A pause of a terminal (Succeeded) job is Rejected, because terminal jobs cannot be paused.
 var rejectedResult = await jobs.PauseAsync(handle, "too late");
 Console.WriteLine($"PauseAsync on terminal -> action={rejectedResult.Action} blocking-status={rejectedResult.Status}");
 
-// Step 4: read the event timeline to confirm the pause and resume events with their message and details.
+// learn: end
+
+// Read the event timeline to confirm the pause and resume events with their message and details.
 var events = await queries.Ledger.ListEventsAsync(new ListEventsQuery(Job: handle));
 foreach (var ev in events.Items)
 {

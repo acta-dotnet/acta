@@ -1,4 +1,6 @@
-// Concept: read the append-only JobEvent ledger to answer "why did this happen?" across a parent-child lineage.
+// How to read why a job did what it did
+// The append-only event ledger answers why a job did what it did. `ListEventsAsync` with `LineageRoot` reads the
+// timeline of a job and of every child it started.
 using Acta;
 using Acta.Concepts.ReadEventTimeline;
 using Microsoft.Extensions.DependencyInjection;
@@ -28,11 +30,15 @@ var finished = await parent.WaitAsync();
 
 Console.WriteLine($"parent finished with status: {finished.Status}");
 
+Console.WriteLine("event timeline for the lineage:");
+
+// learn: Read the timeline of the job and its children
 // Query the full lineage event timeline scoped to the lineage root (the parent job).
 // Events are returned newest-first; reverse to print in chronological order.
-Console.WriteLine("event timeline for the lineage:");
 var eventsPage = await queries.Ledger.ListEventsAsync(new ListEventsQuery(LineageRoot: parent, PageSize: 100));
 var events = eventsPage.Items.Reverse().ToList();
+
+// learn: end
 foreach (var e in events)
 {
     var details = e.DetailsText is { } d ? $" {d}" : "";

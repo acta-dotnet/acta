@@ -1,5 +1,6 @@
-// Concept: CorrelationKey threads a caller-supplied trace id through a parent job and all its
-// children; the id lives on the job row and in every handler's log scope for cross-system tracing.
+// How to carry a correlation key from parent to child
+// A `CorrelationKey` set on the enqueue travels with the job and with every child it starts. It is on the job row, in
+// each handler's log scope, and a filter of the job list.
 using Acta;
 using Acta.Concepts.CorrelationKey;
 using Microsoft.Extensions.DependencyInjection;
@@ -33,11 +34,14 @@ var jobs = host.Services.GetRequiredService<IJobs>();
 var correlationKey = $"trace-{Guid.NewGuid():N}";
 Console.WriteLine($"enqueueing parent with CorrelationKey={correlationKey}");
 
+// learn: 1. Set the correlation key when you enqueue
 // JobExecutionOptions extends JobEnqueueOptions, so CorrelationKey is an enqueue-time option here.
 var outcome = await jobs.CallAsync<RunPipeline>(
     new RunPipeline("demo"),
     new JobExecutionOptions { CorrelationKey = correlationKey, PollInterval = TimeSpan.FromMilliseconds(200) }
 );
+
+// learn: end
 outcome.ThrowIfFailed();
 Console.WriteLine("pipeline done");
 
@@ -46,9 +50,14 @@ Console.WriteLine("pipeline done");
 // (It is also on GetJobResponse via GetAsync when you want the full per-job detail.)
 Console.WriteLine($"operator read: ListJobs filtered by CorrelationKey={correlationKey}");
 var operations = host.Services.GetRequiredService<IActaOperations>();
+
+// learn: 2. Find every job of one trace
+// One list read finds the parent and the children that inherited its key.
 var trace = await operations.Ledger.ListJobsAsync(
     new ListJobsQuery(JobNamespace: "correlation-id", CorrelationKey: correlationKey, PageSize: 10)
 );
+
+// learn: end
 foreach (var item in trace.Items)
 {
     Console.WriteLine($"  id={item.JobId} job={item.JobName} correlation_key={item.CorrelationKey}");

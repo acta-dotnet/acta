@@ -73,3 +73,39 @@ human-centric processes.
 - [`wait-signal.cs`](./wait-signal.cs)
 - [`RuntimeJobContext.cs`](../../../src/Acta/Engine/Worker/Context/RuntimeJobContext.cs)
 - [`WaitJobSignal.sqlite.sql`](../../../src/Acta/Operations/Signals/WaitJobSignal/WaitJobSignal.sqlite.sql)
+
+## Remember
+
+- A `suspended` job is healthy. It is waiting, not stuck.
+- The handler starts from the top when the signal arrives. Put work that must not repeat in a step.
+- Decide what happens if nobody answers: `WaitSignalAsync<Decision>("approval", TimeSpan.FromDays(14), ct)` returns an outcome whose `TimedOut` is true when the deadline passed.
+- A raise proves nothing about who sent it. Check the caller in your endpoint before you raise.
+- A raise that comes before the handler reaches its wait is stored, and the wait reads it without parking.
+- The typed value is null when the signal was raised without one. A value binds leniently, so give an enum a first value that grants nothing.
+- A signal keeps the value of its first raise. Keep timestamps and per-attempt ids out of it, so a repeated raise answers `AlreadyInState`.
+
+## Check yourself
+
+**While the job waits for the signal, which worker holds it?**
+
+- The worker that started it
+- Whichever worker is idle
+- No worker
+
+<details><summary>Answer</summary>
+
+No worker. The wait is a row. The job reads `suspended` with no worker and no lease, so the process can stop and the wait is still there.
+
+</details>
+
+**The signal is raised. On which execution does the job finish?**
+
+- Execution 1 carries on where it stopped
+- Execution 2, from the first line of the handler
+- A new job is created
+
+<details><summary>Answer</summary>
+
+Execution 2, from the first line of the handler. Acta does not resume in the middle of a method. It runs the handler again, and the wait answers from its stored value.
+
+</details>

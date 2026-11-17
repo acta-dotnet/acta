@@ -1,4 +1,7 @@
 // File: ShippingTests.cs
+// How to test the first-job guide's app
+// The first-job guide's test verbatim: the real runtime on a throwaway SQLite file, driven one tick at a time, with a
+// retry made due at once.
 using Acta;
 using Acta.Sqlite;
 using Acta.Testing;
@@ -18,6 +21,7 @@ public sealed class ShippingTests : IAsyncLifetime
 
     public async ValueTask InitializeAsync()
     {
+        // learn: 1. Start the real runtime on a throwaway database
         // The real runtime on a throwaway SQLite file; no claim loop runs, so nothing executes until a test
         // drives a tick.
         _host = await ActaTestHost.StartAsync(
@@ -33,6 +37,7 @@ public sealed class ShippingTests : IAsyncLifetime
             new ActaTestHostOptions { ConfigureServices = services => services.AddSingleton(_carrier).AddSingleton(_printer) },
             Ct
         );
+        // learn: end
     }
 
     public async ValueTask DisposeAsync()
@@ -48,10 +53,12 @@ public sealed class ShippingTests : IAsyncLifetime
         var job = await _host.Jobs.EnqueueAsync(ShippingJobs.ShipOrder(new ShipOrder(1042)), ct: Ct);
         Assert.Equal(JobStatusCode.Ready, (await job.GetStatusAsync(Ct))?.Status);
 
+        // learn: 2. Drive one tick and read the typed result
         Assert.Equal(ActaRunStatus.Completed, await _host.RunOnceAsync(job, Ct));
 
         var label = await job.GetResultAsync(Ct);
         Assert.Equal("AP00001042", label.TrackingNumber);
+        // learn: end
     }
 
     [Fact]
@@ -62,9 +69,11 @@ public sealed class ShippingTests : IAsyncLifetime
 
         Assert.Equal(ActaRunStatus.Rearmed, await _host.RunOnceAsync(job, Ct));
 
+        // learn: 3. Make the retry due now instead of waiting for it
         // The retry is due about a minute out under the default backoff; the test makes it due now.
         await _host.ForceJobDueAsync(job, Ct);
         Assert.Equal(ActaRunStatus.Completed, await _host.RunOnceAsync(job, Ct));
+        // learn: end
         Assert.Equal("AP00001044", (await job.GetResultAsync(Ct)).TrackingNumber);
     }
 

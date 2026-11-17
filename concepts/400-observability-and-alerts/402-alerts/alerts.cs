@@ -1,3 +1,6 @@
+// How to raise an alert from a handler
+// `AlertAsync` in a handler raises an alert for the people who operate the system, and `operations.Alerts` reads it
+// back.
 using Acta;
 using Acta.Concepts.Alerts;
 using Microsoft.Extensions.DependencyInjection;
@@ -21,7 +24,12 @@ await jobs.EnqueueAsync(new VerifyBackup("photos", Healthy: false));
 await Task.Delay(800);
 
 var queries = host.Services.GetRequiredService<IActaOperations>();
+
+// learn: 2. Read the alerts back
+// An alert is a row: the list answers its severity, its channel, and whether it was delivered.
 var alerts = await queries.Alerts.ListAsync(new ListAlertsQuery(JobNamespace: "alerts"));
+
+// learn: end
 foreach (var alert in alerts.Items)
 {
     Console.WriteLine($"alert [{alert.Severity}] {alert.Title} -> channel '{alert.ChannelName}', delivery {alert.DeliveryStatus}");
@@ -42,6 +50,7 @@ namespace Acta.Concepts.Alerts
 
             if (!input.Healthy)
             {
+                // learn: 1. Raise the alert from the handler
                 // No channel name routes to the implicit "default" channel (log transport). The
                 // database stores only the channel name; delivery configuration comes from worker startup.
                 await context.AlertAsync(
@@ -51,6 +60,7 @@ namespace Acta.Concepts.Alerts
                     deduplicationKey: $"backup-failed:{input.FolderName}",
                     ct: ct
                 );
+                // learn: end
                 Console.WriteLine($"[{input.FolderName}] backup is bad - alert raised");
                 return;
             }
