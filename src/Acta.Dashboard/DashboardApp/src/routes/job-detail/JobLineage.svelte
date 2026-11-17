@@ -147,7 +147,7 @@
       {:else if selectedQuery.error}<StateView error={selectedQuery.error.message} onRetry={() => selectedQuery.refetch()} />
       {:else if selectedDetail}
         <p>{selectedDetail.explain?.reason ?? selectedDetail.explain?.headline ?? 'Open this job for its complete execution details.'}</p>
-        {#if selectedDetail.explain?.activeWait}{@const wait = activeWaitLabel(selectedDetail.explain.activeWait.kind, selectedDetail.explain.activeWait.name, selectedDetail.explain.activeWait.childName)}<p class="dim">Waiting on {wait.kind} <span class="mono">{wait.name}</span>{#if selectedDetail.explain.activeWait.dueAtUtc}{' · due '}<RelativeTime value={selectedDetail.explain.activeWait.dueAtUtc} />{/if}</p>{/if}
+        {#if selectedDetail.explain?.activeWait}{@const wait = activeWaitLabel(selectedDetail.explain.activeWait.kind, selectedDetail.explain.activeWait.name)}<p class="dim">Waiting on {wait.kind} <span class="mono">{wait.name}</span>{#if selectedDetail.explain.activeWait.dueAtUtc}{' · due '}<RelativeTime value={selectedDetail.explain.activeWait.dueAtUtc} />{/if}</p>{/if}
       {:else}<p class="dim">This job is no longer available. Its recorded lineage is shown above.</p>{/if}
       <div class="control-row">
         {#if selectedDetail?.lineage?.children.length}<button onclick={() => explore(selected!.jobRef)}>{selectedDetail.lineage.children.length}{selectedDetail.lineage.childrenHasMore ? '+' : ''} {selectedDetail.lineage.children.length === 1 && !selectedDetail.lineage.childrenHasMore ? 'child' : 'children'}<Icon name="chevron-right" /></button>{/if}

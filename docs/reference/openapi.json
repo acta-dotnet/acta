@@ -17251,7 +17251,7 @@
           },
           "name": {
             "type": "string",
-            "description": "The name of the signal, child, or timer the job waits on."
+            "description": "The name of the signal, child, or timer the job waits on, as the handler named it; for a child the parent gave no name, or one since purged, the wait's own name, sys.child.{id}."
           },
           "dueAtUtc": {
             "type": [
@@ -18319,7 +18319,7 @@
           },
           "name": {
             "type": "string",
-            "description": "The name of the signal, child, or timer the job waits on."
+            "description": "The name of the signal, child, or timer the job waits on, as the handler named it; for a child the parent gave no name, or one since purged, the wait's own name, sys.child.{id}."
           },
           "dueAtUtc": {
             "type": [

@@ -81,7 +81,7 @@ public sealed class ExplainScenarioSpec : ActaRuntimeTestBase<ConformanceFixture
         Assert.NotNull(x);
         Assert.Equal(JobStatusCode.Suspended, x!.Status);
         Assert.Equal(CheckpointKindCode.Child, x.ActiveWait!.Kind);
-        Assert.Equal($"sys.child.{child.Id}", x.ActiveWait.Name);
+        Assert.Equal(child.DeduplicationKey, x.ActiveWait.Name);
         Assert.NotNull(x.ActiveWait.DueAtUtc);
         Assert.Contains($"waiting for child '{child.DeduplicationKey}' ({new JobRef(child.JobRef)})", x.Headline, StringComparison.Ordinal);
         Assert.Contains("times out at", x.Headline, StringComparison.Ordinal);

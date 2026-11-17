@@ -85,17 +85,16 @@ const childLatchPrefix = 'sys.child.';
 /**
  * How an active durable wait reads on a job panel: the word for its kind, plus the part worth setting
  * in monospace. Mirrors the server explainer's phrasing so `jobs explain` and the dashboard describe
- * the same wait the same way. A child checkpoint's name is a framework key rather than anything a
- * handler chose, so a child reads by the name its parent gave it, and `sys.child.42` as `child job 42` without one.
+ * the same wait the same way. A child the parent gave no name arrives under the framework's key,
+ * so `sys.child.42` reads as `child job 42`.
  */
-export function activeWaitLabel(kind: string, name: string, childName?: string | null): { kind: string; name: string } {
+export function activeWaitLabel(kind: string, name: string): { kind: string; name: string } {
   switch (kind.toLowerCase()) {
     case 'signal':
       return { kind: 'signal', name };
     case 'timer':
       return { kind: 'timer', name };
     case 'child':
-      if (childName) return { kind: 'child', name: childName };
       return name.startsWith(childLatchPrefix) ? { kind: 'child job', name: name.slice(childLatchPrefix.length) } : { kind: 'child', name };
     default:
       // An unrecognized kind says its own name rather than borrowing another's. The panels previously
@@ -125,7 +124,7 @@ export function buildIncidentSummary(
   if (explanation?.headline) lines.push(`Explain: ${explanation.headline}`);
   if (explanation?.reason) lines.push(`Reason: ${explanation.reason}`);
   if (explanation?.activeWait) {
-    const wait = activeWaitLabel(explanation.activeWait.kind, explanation.activeWait.name, explanation.activeWait.childName);
+    const wait = activeWaitLabel(explanation.activeWait.kind, explanation.activeWait.name);
     lines.push(`Active wait: ${wait.kind} ${wait.name}${explanation.activeWait.childJobRef ? ` (${explanation.activeWait.childJobRef})` : ''}`);
   }
   if (explanation?.lease) {

@@ -12,7 +12,7 @@
 -- present and leaves the data in place. Over a database a newer release upgraded, the script stops
 -- before changing anything. A later 1.x release upgrades a 1.x database with
 -- its own migrations, carried in its own copy of this script. A database provisioned from an
--- init migration other than M20261117194324_init has no upgrade path: provision a new one.
+-- init migration other than M20261117205154_init has no upgrade path: provision a new one.
 --
 -- Run it with a client that stops at the first error, which is what makes the transaction below a
 -- guarantee: psql -v ON_ERROR_STOP=1. A client that runs on past a failed statement would reach the
@@ -41,14 +41,14 @@ DO $$
 BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
-        WHERE name NOT IN ('M20261117194324_init')
+        WHERE name NOT IN ('M20261117205154_init')
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
 END
 $$;
 
--- ===== BEGIN M20261117194324_init =====
+-- ===== BEGIN M20261117205154_init =====
 CREATE SCHEMA IF NOT EXISTS acta;
 
 -- alerts
@@ -4204,11 +4204,13 @@ BEGIN
             END || ' expired.',
             1 /* JobPayloadFormat.Json */,
             convert_to(
-                json_build_object(
+                -- Only a child wait whose child is still stored carries its ref.
+                json_strip_nulls(json_build_object(
                     'kind', CASE WHEN p_checkpoint_kind_code = 50 /* CheckpointKindCode.Child */ THEN 'child' ELSE 'signal' END,
-                    'name', p_checkpoint_name,
+                    'name', COALESCE(ch.deduplication_key, p_checkpoint_name),
+                    'child', 'job_' || replace(ch.job_ref::text, '-', ''),
                     'dueAtUtc', to_char(v_expired_due AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')
-                )::text,
+                ))::text,
                 'UTF8'
             )
         FROM acta.jobs j
@@ -4574,10 +4576,10 @@ JOIN acta.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO acta.migrations (name)
-VALUES ('M20261117194324_init')
+VALUES ('M20261117205154_init')
 ON CONFLICT (name) DO NOTHING;
 
--- ===== END M20261117194324_init =====
+-- ===== END M20261117205154_init =====
 
 COMMIT;
 

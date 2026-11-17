@@ -291,7 +291,13 @@ internal sealed class ExplainJobHandler(GetJobIdHandler getJobId, IDbSession ses
         {
             if (c.CheckpointKind == CheckpointKindCode.Child && c.CheckpointStatus == CheckpointStatusCode.Pending)
             {
-                return new ExplainJobWait(CheckpointKindCode.Child, c.CheckpointName, c.DueAtUtc, c.ChildJobRef, c.ChildName);
+                return new ExplainJobWait(
+                    CheckpointKindCode.Child,
+                    c.ChildName ?? c.CheckpointName,
+                    c.DueAtUtc,
+                    c.ChildJobRef,
+                    c.ChildName
+                );
             }
         }
         return FindTimer(checkpoints);

@@ -46,6 +46,20 @@ public class JobLineageMapperTests
     }
 
     [Fact]
+    public void A_child_wait_reads_by_the_name_its_parent_gave_the_child()
+    {
+        var named = new GetJobLineageMapCheckpointRow(
+            CheckpointKindCode.Child,
+            "sys.child.42",
+            CheckpointStatusCode.Pending,
+            null,
+            ChildName: "refund"
+        );
+
+        Assert.Equal("refund", Map(named).ActiveWait!.Name);
+    }
+
+    [Fact]
     public void An_unbounded_child_wait_is_the_active_wait_with_no_deadline()
     {
         var map = Map(Checkpoint(CheckpointKindCode.Child, "sys.child.42", due: null));

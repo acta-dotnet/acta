@@ -159,7 +159,15 @@ BEGIN
                 CAST(
                     '{"kind":"'
                     + CASE WHEN @p_checkpoint_kind_code = 50 /* CheckpointKindCode.Child */ THEN 'child' ELSE 'signal' END
-                    + '","name":"' + @p_checkpoint_name + '","dueAtUtc":"' + CONVERT(VARCHAR(23), @expired_due, 126) + 'Z"}'
+                    + '","name":"'
+                    -- STRING_ESCAPE answers NVARCHAR, and the details are UTF-8 bytes.
+                    + CAST(
+                        STRING_ESCAPE(COALESCE(ch.deduplication_key COLLATE DATABASE_DEFAULT, @p_checkpoint_name), 'json')
+                        AS VARCHAR(1024)
+                    )
+                    -- Only a child wait whose child is still stored carries its ref.
+                    + COALESCE('","child":"job_' + LOWER(REPLACE(CONVERT(CHAR(36), ch.job_ref), '-', '')), '')
+                    + '","dueAtUtc":"' + CONVERT(VARCHAR(23), @expired_due, 126) + 'Z"}'
                     AS VARBINARY(MAX)
                 )
             FROM {{schema}}.jobs j

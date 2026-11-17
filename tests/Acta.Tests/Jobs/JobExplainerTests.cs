@@ -127,6 +127,23 @@ public class JobExplainerTests
     }
 
     [Fact]
+    public void A_child_wait_reads_by_the_name_its_parent_gave_the_child()
+    {
+        var named = new ExplainJobCheckpointRow(
+            CheckpointKindCode.Child,
+            "sys.child.4242",
+            CheckpointStatusCode.Pending,
+            null,
+            ChildName: "refund"
+        );
+
+        Assert.Equal(
+            "refund",
+            ExplainJobHandler.Explain(Data(Header(JobStatusCode.Suspended), checkpoints: [named]), Now).ActiveWait!.Name
+        );
+    }
+
+    [Fact]
     public void Suspended_on_an_unbounded_child_wait_names_the_child_and_says_it_has_no_deadline()
     {
         var data = Data(

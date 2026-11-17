@@ -176,7 +176,7 @@
     {#if job && detail && (showControls || canEnqueueNow || canPurgeNow)}
       <DetailActions>
         {#if showControls || canPurgeNow}<div id="job-actions"><JobControls jobRef={job.jobRef} status={job.status} kind={job.kind} priority={job.priority} mode={controlsMode} onChanged={reload} /></div>{/if}
-        {#if showControls && (failedChild || !signalWait)}<div id="job-signals"><SignalDrawer jobRef={job.jobRef} suggestedName={explanation?.activeWait?.name ?? ''} onSent={reload} /></div>{/if}
+        {#if showControls && (failedChild || !signalWait)}<div id="job-signals"><SignalDrawer jobRef={job.jobRef} suggestedName={signalWait ? (explanation?.activeWait?.name ?? '') : ''} onSent={reload} /></div>{/if}
         {#if canEnqueueNow}<a class="clone-action" href={routes.enqueue({ namespace: job.jobNamespace, jobName: job.jobName, from: job.jobRef })}><Icon name="copy" />Clone job</a>{/if}
 
       </DetailActions>
@@ -203,7 +203,7 @@
         {#if explanation?.lease?.expired}<p>{explanation.lease.recoveryExpectation}</p>{/if}
         <div class="focus-facts">
           {#if explanation?.activeWait}
-            {@const wait = activeWaitLabel(explanation.activeWait.kind, explanation.activeWait.name, explanation.activeWait.childName)}
+            {@const wait = activeWaitLabel(explanation.activeWait.kind, explanation.activeWait.name)}
             <span>Waiting on <strong class="mono">{wait.name}</strong>{#if explanation.activeWait.dueAtUtc}{' · due '}<RelativeTime value={explanation.activeWait.dueAtUtc} />{/if}</span>
           {/if}
           {#if job.status === 'blocked' && job.blockedBehindJobRef}<span>Blocked behind <JobRef value={job.blockedBehindJobRef} href={routes.job(job.blockedBehindJobRef, { namespace: job.jobNamespace })} /></span>{/if}

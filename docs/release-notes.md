@@ -44,6 +44,8 @@ The C# members follow: `EventCode.JobInputUpdated`, `ScheduleFullBehaviorCode.Sk
 
 **Read a job's ref as the actor of what its own handler did**: the `alert.resolved` of `ctx.ResolveAlertAsync` and the `job.state-reset` of `ctx.ResetStateAsync` stored the job's internal number as the actor (`"34"`). They store its ref (`job_...`), the identity every other surface shows.
 
+**Read a child wait by the child's name**: for a wait on a child, `ActiveWait.Name` of `ExplainAsync` and of the lineage map, and `name` in the details of `job.wait-expired`, were the wait's internal name, `sys.child.42`. They are the name the parent gave the child, and `sys.child.{id}` only where it gave none; `job.wait-expired` also carries the child's ref as `child`. A checkpoint row keeps `sys.child.{id}` as its own name, so pair an active wait with its checkpoint by `ChildJobRef`.
+
 **Name a priority, an alert profile and a tenant requirement where code left one to `default`**: id 0 is `unspecified` in every family, where it was `bulk`, `none` and `optional` in these three, so `default(JobPriorityCode)` is no longer `Bulk` and `default(AlertProfileCode)` no longer `None`. `Unspecified` is never stored: an enqueue or a reprioritize with it is refused, with a 400 over HTTP, a `[Job]` that declares it is a build error (ACTA0105), a hand-built `JobDescriptor` with it fails registration, and a definition override of it overrides nothing. What `[Job]` defaults to is unchanged.
 
 **Set `Enabled = false` to switch an alert channel off**: `AlertChannelOptions.Status` and `AlertChannelStatusCode` are gone, and `o.Enabled = false` does what `o.Status = AlertChannelStatusCode.Disabled` did. `[ReservedCodeRange]` is gone too; only Acta's own event family used it.

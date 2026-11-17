@@ -14,7 +14,7 @@
 -- present and leaves the data in place. Over a database a newer release upgraded, the script stops
 -- before changing anything. A later 1.x release upgrades a 1.x database with
 -- its own migrations, carried in its own copy of this script. A database provisioned from an
--- init migration other than M20261117194324_init has no upgrade path: provision a new one.
+-- init migration other than M20261117205154_init has no upgrade path: provision a new one.
 --
 -- Run it with a client that stops at the first error, which is what makes the transaction below a
 -- guarantee: sqlcmd -b, or SQLCMD mode with stop-on-error in SSMS. A client that runs on past a failed
@@ -57,7 +57,7 @@ GO
 -- ===== refuse a database a newer release already upgraded =====
 IF EXISTS (
     SELECT 1 FROM acta.migrations
-    WHERE name NOT IN ('M20261117194324_init')
+    WHERE name NOT IN ('M20261117205154_init')
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -65,7 +65,7 @@ BEGIN
     SET NOEXEC ON;
 END
 GO
--- ===== BEGIN M20261117194324_init =====
+-- ===== BEGIN M20261117205154_init =====
 SET QUOTED_IDENTIFIER ON;
 SET ANSI_NULLS ON;
 GO
@@ -4850,7 +4850,15 @@ BEGIN
                 CAST(
                     '{"kind":"'
                     + CASE WHEN @p_checkpoint_kind_code = 50 /* CheckpointKindCode.Child */ THEN 'child' ELSE 'signal' END
-                    + '","name":"' + @p_checkpoint_name + '","dueAtUtc":"' + CONVERT(VARCHAR(23), @expired_due, 126) + 'Z"}'
+                    + '","name":"'
+                    -- STRING_ESCAPE answers NVARCHAR, and the details are UTF-8 bytes.
+                    + CAST(
+                        STRING_ESCAPE(COALESCE(ch.deduplication_key COLLATE DATABASE_DEFAULT, @p_checkpoint_name), 'json')
+                        AS VARCHAR(1024)
+                    )
+                    -- Only a child wait whose child is still stored carries its ref.
+                    + COALESCE('","child":"job_' + LOWER(REPLACE(CONVERT(CHAR(36), ch.job_ref), '-', '')), '')
+                    + '","dueAtUtc":"' + CONVERT(VARCHAR(23), @expired_due, 126) + 'Z"}'
                     AS VARBINARY(MAX)
                 )
             FROM acta.jobs j
@@ -5254,11 +5262,11 @@ JOIN acta.namespaces AS ns ON ns.namespace_id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261117194324_init')
+IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261117205154_init')
 INSERT INTO acta.migrations (name)
-VALUES ('M20261117194324_init');
+VALUES ('M20261117205154_init');
 GO
--- ===== END M20261117194324_init =====
+-- ===== END M20261117205154_init =====
 GO
 COMMIT TRANSACTION;
 GO

@@ -4153,11 +4153,13 @@ BEGIN
             END || ' expired.',
             1 /* JobPayloadFormat.Json */,
             convert_to(
-                json_build_object(
+                -- Only a child wait whose child is still stored carries its ref.
+                json_strip_nulls(json_build_object(
                     'kind', CASE WHEN p_checkpoint_kind_code = 50 /* CheckpointKindCode.Child */ THEN 'child' ELSE 'signal' END,
-                    'name', p_checkpoint_name,
+                    'name', COALESCE(ch.deduplication_key, p_checkpoint_name),
+                    'child', 'job_' || replace(ch.job_ref::text, '-', ''),
                     'dueAtUtc', to_char(v_expired_due AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')
-                )::text,
+                ))::text,
                 'UTF8'
             )
         FROM {{schema}}.jobs j
@@ -4523,5 +4525,5 @@ JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261117194324_init')
+VALUES ('M20261117205154_init')
 ON CONFLICT (name) DO NOTHING;

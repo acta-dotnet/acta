@@ -94,10 +94,15 @@ SELECT
     END || ' expired.',
     1 /* JobPayloadFormat.Json */,
     CAST(
-        json_object(
-            'kind', CASE WHEN @p_checkpoint_kind_code = 50 /* CheckpointKindCode.Child */ THEN 'child' ELSE 'signal' END,
-            'name', @p_checkpoint_name,
-            'dueAtUtc', strftime('%Y-%m-%dT%H:%M:%fZ', c.due_at_utc / 1000.0, 'unixepoch')
+        -- A patch drops a null member, so only a child wait whose child is still stored carries its ref.
+        json_patch(
+            '{}',
+            json_object(
+                'kind', CASE WHEN @p_checkpoint_kind_code = 50 /* CheckpointKindCode.Child */ THEN 'child' ELSE 'signal' END,
+                'name', COALESCE(ch.deduplication_key, @p_checkpoint_name),
+                'child', 'job_' || replace(ch.job_ref, '-', ''),
+                'dueAtUtc', strftime('%Y-%m-%dT%H:%M:%fZ', c.due_at_utc / 1000.0, 'unixepoch')
+            )
         ) AS BLOB
     )
 FROM {{schema}}.checkpoints c

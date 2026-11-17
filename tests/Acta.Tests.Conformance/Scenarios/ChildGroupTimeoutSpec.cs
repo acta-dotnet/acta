@@ -394,7 +394,8 @@ public sealed class ChildGroupTimeoutSpec : ActaRuntimeTestBase<ConformanceFixtu
         var boundedMap = await Jobs.GetLineageMapAsync(bounded, ct: ct);
         Assert.NotNull(boundedMap!.ActiveWait);
         Assert.Equal(CheckpointKindCode.Child, boundedMap.ActiveWait!.Kind);
-        Assert.Equal(latch.CheckpointName, boundedMap.ActiveWait.Name);
+        Assert.Equal(boundedMap.ActiveWait.ChildName, boundedMap.ActiveWait.Name);
+        Assert.NotEqual(latch.CheckpointName, boundedMap.ActiveWait.Name);
         Assert.Equal(latch.DueAtUtc, boundedMap.ActiveWait.DueAtUtc);
 
         var unbounded = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-parent-one", JobPayload.None), ct);
