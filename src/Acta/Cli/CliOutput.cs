@@ -127,6 +127,10 @@ internal static class CliOutput
                     w.WriteString("kind", wait.Kind.Code);
                     w.WriteString("name", wait.Name);
                     WriteJsonInstantOrNull(w, "dueAtUtc", wait.DueAtUtc);
+                    if (wait.ChildJobRef is { } child)
+                    {
+                        w.WriteString("childJobRef", child.ToString());
+                    }
                     w.WriteEndObject();
                 }
                 else

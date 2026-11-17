@@ -360,18 +360,18 @@ Every Acta host doubles as a control CLI: `<app> jobs <verb>` runs the verb agai
 <app> jobs result  <job-ref|deduplication-key|id:n>
 <app> jobs explain <job-ref|deduplication-key|id:n>
 <app> jobs events  <job-ref|deduplication-key|id:n> [--take <n>] [--after <cursor>]
-<app> jobs cancel  <job-ref|deduplication-key> [--reason <msg>]
-<app> jobs pause   <job-ref|deduplication-key> [--reason <msg>]
-<app> jobs resume  <job-ref|deduplication-key> [--reason <msg>]
-<app> jobs restart <job-ref|deduplication-key> [--reason <msg>]
-<app> jobs signal  <job-ref|deduplication-key> <name> [--value <json>]
-<app> jobs clear-signal <job-ref|deduplication-key> <name>
-<app> jobs debug   <job-ref|deduplication-key> [--break]
+<app> jobs cancel  <job-ref|deduplication-key> [--reason <msg>] [--actor <name>]
+<app> jobs pause   <job-ref|deduplication-key> [--reason <msg>] [--actor <name>]
+<app> jobs resume  <job-ref|deduplication-key> [--reason <msg>] [--actor <name>]
+<app> jobs restart <job-ref|deduplication-key> [--reason <msg>] [--actor <name>]
+<app> jobs signal  <job-ref|deduplication-key> <name> [--value <json>] [--actor <name>]
+<app> jobs clear-signal <job-ref|deduplication-key> <name> [--actor <name>]
+<app> jobs debug   <job-ref|deduplication-key> [--break] [--actor <name>]
 <app> jobs deploy  [--force] [--json]
 <app> jobs migrate [--force] [--json]
 ```
 
-A `job_...` target is a job ref, `id:<n>` the internal id, and any other target, a bare integer included, a deduplication key. As on the HTTP API, `id:<n>` is for reads (`info`, `status`, `result`, `explain`, `events`), and a control (`cancel`, `pause`, `resume`, `restart`, `signal`, `clear-signal`, `debug`) given one exits 64, since an internal id names a job in any namespace. A read with no target takes it from the clipboard and prints what it took to stderr; a control with no target exits 64. Add `--ns <ns>` to pick the namespace for a deduplication-key lookup and `--json` for JSON output. A control records `--actor <name>` as the actor on its event, and the operating system's user name without it; a read, `deploy` or `migrate` given `--actor` exits 64.
+A `job_...` target is a job ref, `id:<n>` the internal id, and any other target, a bare integer included, a deduplication key. As on the HTTP API, `id:<n>` is for reads (`info`, `status`, `result`, `explain`, `events`), and a control (`cancel`, `pause`, `resume`, `restart`, `signal`, `clear-signal`, `debug`) given one exits 64, since an internal id names a job in any namespace. A read with no target takes it from the clipboard and prints what it took to stderr; a control with no target exits 64. Add `--ns <ns>` to pick the namespace for a deduplication-key lookup and `--json` for JSON output. A control records `--actor <name>` as the actor on its event, and the operating system's user name without it (`debug` on the restart it makes of a finished job, its only event); a read, `deploy` or `migrate` given `--actor` exits 64.
 
 On SQLite a read opens the database file read-only, so a read of a file `migrate` has not provisioned creates nothing and prints ``not provisioned; run `<app> jobs migrate` `` to stderr, exiting 1. A file an earlier run left empty answers the same.
 

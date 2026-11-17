@@ -506,6 +506,17 @@ public class CliOutputTests
         Assert.Contains("\"kind\":\"raise-signal\"", text);
     }
 
+    [Fact]
+    public void Explanation_json_gives_a_child_wait_its_childs_ref()
+    {
+        var child = JobRef.New();
+        var waiting = Explanation() with { ActiveWait = new ExplainJobWait(CheckpointKindCode.Child, "slow", null, child, "slow") };
+        var w = new StringWriter();
+        CliOutput.WriteExplanation(w, waiting, json: true);
+
+        Assert.Contains($"\"name\":\"slow\",\"dueAtUtc\":null,\"childJobRef\":\"{child}\"", w.ToString());
+    }
+
     // The lease carries the holder's deployment version alone; a reader composes it with the ref.
     [Fact]
     public void Explanation_json_writes_the_lease_holders_version()

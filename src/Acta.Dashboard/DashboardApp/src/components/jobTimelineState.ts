@@ -8,6 +8,7 @@ interface TimelineEvent {
   detailsText?: string | null;
   entity?: string | null;
   entityId?: number | null;
+  jobRef?: string | null;
   actor?: string | null;
 }
 
@@ -88,12 +89,12 @@ export function timelinePresentation(evt: TimelineEvent): TimelinePresentation {
 }
 
 /**
- * Who the rail's "by" line names. An action the job's own handler took, such as a state reset, records the job's id
- * as its actor, and reads as the job rather than as its number.
+ * Who the rail's "by" line names. An action the job's own handler took, such as a state reset, records the job's ref
+ * as its actor, and reads as the job rather than as its ref.
  */
 export function timelineActor(evt: TimelineEvent): string | null {
   if (!evt.actor) return null;
-  return evt.entity === 'job' && evt.actor === String(evt.entityId) ? 'the job' : evt.actor;
+  return evt.entity === 'job' && evt.actor === evt.jobRef ? 'the job' : evt.actor;
 }
 
 /** A job status folded onto the shared tone classes, for the hero and lineage dots. */

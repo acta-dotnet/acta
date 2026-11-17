@@ -70,7 +70,7 @@ public enum EventCode : byte
 
     [Code(
         "job.execution-orphaned",
-        "The lease of the attempt's worker expired and crash recovery reclaimed the job without ending it. workerRef names the worker that held it; the details carry the keys reason and to."
+        "The attempt's worker lost the job, its lease expired or its process ended, and crash recovery reclaimed the job without ending it. workerRef names the worker that held it; the details carry the keys reason and to."
     )]
     JobExecutionOrphaned = 10,
 
@@ -166,7 +166,7 @@ public enum EventCode : byte
 
     [Code(
         "job.wait-expired",
-        "A signal or child wait passed its deadline, settled when the job re-entered it; the message names the signal or the child, and the details carry its kind, name and dueAtUtc."
+        "A signal or child wait passed its deadline, settled when the job re-entered it; the message names the signal or the child, and the details carry its kind, name and dueAtUtc, and a child's ref as child."
     )]
     JobWaitExpired = 27,
 

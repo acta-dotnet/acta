@@ -59,11 +59,12 @@ test('a yielded attempt is presented by the outcome in its details, and an unrea
 });
 
 test('an action the job took on itself reads as the job, and any other actor by name', () => {
-  const resetBy = (actor: string | null) => timelineActor({ eventCode: 'job.state-reset', entity: 'job', entityId: 3, actor });
-  assert.equal(resetBy('3'), 'the job');
-  assert.equal(resetBy('4'), '4');
+  const resetBy = (actor: string | null) =>
+    timelineActor({ eventCode: 'job.state-reset', entity: 'job', entityId: 3, jobRef: 'job_aa', actor });
+  assert.equal(resetBy('job_aa'), 'the job');
+  assert.equal(resetBy('job_bb'), 'job_bb');
   assert.equal(resetBy('marko'), 'marko');
   assert.equal(resetBy(null), null);
-  // Only a job's own id is the job: the same number on another kind of subject names something else.
-  assert.equal(timelineActor({ eventCode: 'namespace.suspended', entity: 'namespace', entityId: 3, actor: '3' }), '3');
+  // Only an event about the job reads so: an alert a job resolved names the job by its ref.
+  assert.equal(timelineActor({ eventCode: 'alert.resolved', entity: 'alert', entityId: 3, jobRef: null, actor: 'job_aa' }), 'job_aa');
 });
