@@ -9,8 +9,11 @@ namespace Acta;
 [CodeKind("job-priority")]
 public enum JobPriorityCode : byte
 {
+    [Code("unspecified", "Job priority not recognized by this build; the row was written by a newer Acta.")]
+    Unspecified = 0,
+
     [Code("bulk", "Lowest practical priority; bulk-class workloads.")]
-    Bulk = 0,
+    Bulk = 10,
 
     [Code("normal", "Default priority. Most jobs use this.")]
     Normal = 50,
@@ -19,7 +22,7 @@ public enum JobPriorityCode : byte
     High = 70,
 
     [Code("critical", "Critical priority; close-to-realtime operator workloads.")]
-    Critical = 85,
+    Critical = 90,
 
     [Code("realtime", "Highest priority.")]
     Realtime = 100,

@@ -5,7 +5,7 @@
 > Generated reference for Acta code families and the payload-format registry.
 > Every persisted code is documented here exactly once; the data-model reference [`data-model.md`](./data-model.md) links into this file from every code-bearing column.
 
-This release: **32 families**, **196 values**.
+This release: **32 families**, **197 values**.
 
 > Numeric IDs are stable family-local persistence identifiers. Enum members carry programmatic meaning; textual codes carry operator-facing meaning.
 > Numeric grouping is a readability convention, not a runtime schema. Canonical failure states use `200`.
@@ -279,10 +279,11 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
-| `Bulk` | 0 | `bulk` | Lowest practical priority; bulk-class workloads. | Active |
+| `Unspecified` | 0 | `unspecified` | Job priority not recognized by this build; the row was written by a newer Acta. | Active |
+| `Bulk` | 10 | `bulk` | Lowest practical priority; bulk-class workloads. | Active |
 | `Normal` | 50 | `normal` | Default priority. Most jobs use this. | Active |
 | `High` | 70 | `high` | Above normal; operator opt-in for time-sensitive work. | Active |
-| `Critical` | 85 | `critical` | Critical priority; close-to-realtime operator workloads. | Active |
+| `Critical` | 90 | `critical` | Critical priority; close-to-realtime operator workloads. | Active |
 | `Realtime` | 100 | `realtime` | Highest priority. | Active |
 
 ### `JobStatusCode` · `job-status` <a id="code-family-jobstatuscode"></a>

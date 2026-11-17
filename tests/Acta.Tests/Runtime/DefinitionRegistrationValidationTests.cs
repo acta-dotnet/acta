@@ -106,6 +106,17 @@ public sealed class DefinitionRegistrationValidationTests
     }
 
     [Theory]
+    [InlineData(JobPriorityCode.Unspecified)]
+    [InlineData((JobPriorityCode)60)]
+    public async Task A_priority_that_is_not_a_band_fails_registration(JobPriorityCode priority)
+    {
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() => RegisterAsync(Descriptor("unclaimed") with { Priority = priority }));
+
+        Assert.Contains("unclaimed", ex.Message);
+        Assert.Contains("Priority", ex.Message);
+    }
+
+    [Theory]
     [InlineData(0)]
     [InlineData(-1)]
     [InlineData(JobDefinitionRegistration.MaxConcurrencyLimit + 1)]

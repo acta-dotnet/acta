@@ -10,7 +10,8 @@ internal sealed class ReprioritizeJobHandler(
 {
     public async ValueTask<ReprioritizeJobResponse> HandleAsync(ReprioritizeJobCommand command, CancellationToken ct)
     {
-        RequireDefined(command.Priority);
+        RequireBand(command.Priority);
+
         if (await getJobId.HandleAsync(new GetJobIdQuery(command.Job), ct) is not { JobId: var jobId })
         {
             return new ReprioritizeJobResponse(0, ControlAction.NotFound, null, null);
@@ -33,11 +34,12 @@ internal sealed class ReprioritizeJobHandler(
         return new ReprioritizeJobResponse(jobId, row.Action, row.Status, row.Version);
     }
 
-    private static void RequireDefined(JobPriorityCode priority)
+    // No claim reads a priority that is not a band, so the job would be stored and never run.
+    private static void RequireBand(JobPriorityCode priority)
     {
-        if (!Enum.IsDefined(priority))
+        if (priority == JobPriorityCode.Unspecified || !Enum.IsDefined(priority))
         {
-            throw new ArgumentOutOfRangeException(nameof(priority));
+            throw new ArgumentOutOfRangeException(nameof(priority), priority, "Priority is not a priority band.");
         }
     }
 }

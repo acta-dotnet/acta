@@ -114,10 +114,11 @@ public sealed class PersistedCodeContractTests
         JobKindCode.Unspecified=0|unspecified
         JobKindCode.Ordinary=10|ordinary
         JobKindCode.Permanent=20|permanent
-        JobPriorityCode.Bulk=0|bulk
+        JobPriorityCode.Unspecified=0|unspecified
+        JobPriorityCode.Bulk=10|bulk
         JobPriorityCode.Normal=50|normal
         JobPriorityCode.High=70|high
-        JobPriorityCode.Critical=85|critical
+        JobPriorityCode.Critical=90|critical
         JobPriorityCode.Realtime=100|realtime
         TenantRequirementCode.Optional=0|optional
         TenantRequirementCode.Required=10|required
@@ -204,7 +205,7 @@ public sealed class PersistedCodeContractTests
         WorkerStatusCode.Dead=200|dead
         """;
 
-    private const string ExpectedDescriptionHash = "EC18E05FC091CE4527A7A7AAAAF7F83E8846F8D85E841ED344793D4BCB84ACE6";
+    private const string ExpectedDescriptionHash = "9BFEA03E023DE5C1001D98E9B39F0FA275E185D0A6040BF011213B4C168F0E52";
 
     [Fact]
     public void Frozen_contract_covers_every_family_and_value()
@@ -217,7 +218,7 @@ public sealed class PersistedCodeContractTests
         var actual = families.SelectMany(ReadFamily).ToDictionary(x => x.Key, StringComparer.Ordinal);
 
         Assert.Equal(31, families.Length);
-        Assert.Equal(193, expected.Count);
+        Assert.Equal(194, expected.Count);
         Assert.Equal(expected.Keys.Order(), actual.Keys.Order());
 
         foreach (var (key, contract) in expected)
@@ -228,7 +229,7 @@ public sealed class PersistedCodeContractTests
             Assert.False(string.IsNullOrWhiteSpace(value.Description));
         }
 
-        Assert.Equal(193, CodeManifests.All.Count);
+        Assert.Equal(194, CodeManifests.All.Count);
         Assert.Equal(49, Enum.GetValues<EventCode>().Length);
 
         Assert.Equal((byte)200, (byte)JobStatusCode.Failed);
@@ -237,7 +238,7 @@ public sealed class PersistedCodeContractTests
         Assert.Equal((byte)200, (byte)WorkerStatusCode.Dead);
 
         var payloads = new[] { JobPayloadFormat.None, JobPayloadFormat.Json, JobPayloadFormat.Bytes };
-        Assert.Equal(196, actual.Count + payloads.Length);
+        Assert.Equal(197, actual.Count + payloads.Length);
         Assert.Equal([0, 1, 2], payloads.Select(p => (int)p.Id));
 
         var canonical = string.Join(

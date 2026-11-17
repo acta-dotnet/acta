@@ -822,17 +822,19 @@ public class ManifestGeneratorDiagnosticTests
         Assert.Single(Of(result, "ACTA0105"));
     }
 
-    [Fact]
-    public void Undefined_enum_policy_value_errors_ACTA0105()
+    [Theory]
+    [InlineData("(JobPriorityCode)42")]
+    [InlineData("JobPriorityCode.Unspecified")]
+    public void An_undeclarable_priority_errors_ACTA0105(string priority)
     {
         var result = RunGenerator(
-            """
+            $$"""
             using Acta;
             namespace GenTests;
 
             public static class Handler
             {
-                [Job("bad-priority", Priority = (JobPriorityCode)42)]
+                [Job("bad-priority", Priority = {{priority}})]
                 public static void Run() { }
             }
             """

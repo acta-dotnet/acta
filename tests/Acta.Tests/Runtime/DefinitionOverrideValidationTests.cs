@@ -23,6 +23,10 @@ public sealed class DefinitionOverrideValidationTests
         Assert.Null(Normalize(new DefinitionPolicyOverrides(EventRecording: EventRecordingCode.Unspecified)).EventRecording);
 
     [Fact]
+    public void An_unspecified_priority_overrides_nothing() =>
+        Assert.Null(Normalize(new DefinitionPolicyOverrides(Priority: JobPriorityCode.Unspecified)).Priority);
+
+    [Fact]
     public void An_event_recording_with_no_member_is_rejected() =>
         Assert.Throws<ArgumentOutOfRangeException>(() => Normalize(new DefinitionPolicyOverrides(EventRecording: (EventRecordingCode)42)));
 

@@ -92,6 +92,21 @@ public sealed class ReprioritizeJobSpec : ActaRuntimeTestBase<ConformanceFixture
         Assert.Equal(ControlAction.NotFound, result.Action);
     }
 
+    [Theory(DisplayName = "ReprioritizeAsync refuses a priority that is not a band")]
+    [InlineData(JobPriorityCode.Unspecified)]
+    [InlineData((JobPriorityCode)60)]
+    public async Task Reprioritize_refuses_a_priority_that_is_not_a_band(JobPriorityCode priority)
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var jobId = await EnqueueAsync(ct);
+
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
+            await Jobs.ReprioritizeAsync(JobLookup.ById(jobId), priority, ct: ct)
+        );
+
+        Assert.Equal(JobPriorityCode.Normal, (await ReadJobAsync(jobId, ct)).Priority);
+    }
+
     private async Task<long> EnqueueAsync(CancellationToken ct)
     {
         var enqueued = await Jobs.EnqueueAsync(

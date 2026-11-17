@@ -507,7 +507,7 @@ SELECT
     d.input_format_name,
     d.result_type_name,
     d.result_format_name,
-    CASE d.job_priority_code_effective WHEN 0 THEN 'bulk' WHEN 50 THEN 'normal' WHEN 70 THEN 'high' WHEN 85 THEN 'critical' WHEN 100 THEN 'realtime' END AS job_priority_effective,
+    CASE d.job_priority_code_effective WHEN 0 THEN 'unspecified' WHEN 10 THEN 'bulk' WHEN 50 THEN 'normal' WHEN 70 THEN 'high' WHEN 90 THEN 'critical' WHEN 100 THEN 'realtime' END AS job_priority_effective,
     d.job_priority_code,
     d.job_priority_code_override,
     d.job_priority_code_effective,
@@ -630,7 +630,7 @@ SELECT
     root.job_ref AS lineage_root_job_ref,
     j.tenant_id,
     t.tenant_name,
-    CASE r.job_priority_code WHEN 0 THEN 'bulk' WHEN 50 THEN 'normal' WHEN 70 THEN 'high' WHEN 85 THEN 'critical' WHEN 100 THEN 'realtime' END AS job_priority,
+    CASE r.job_priority_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'bulk' WHEN 50 THEN 'normal' WHEN 70 THEN 'high' WHEN 90 THEN 'critical' WHEN 100 THEN 'realtime' END AS job_priority,
     r.job_priority_code,
     CASE j.input_format_id
         WHEN 0 /* JobPayloadFormat.None */ THEN 'none'
@@ -771,5 +771,5 @@ JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261117154941_init')
+VALUES ('M20261117161105_init')
 ON CONFLICT (name) DO NOTHING;

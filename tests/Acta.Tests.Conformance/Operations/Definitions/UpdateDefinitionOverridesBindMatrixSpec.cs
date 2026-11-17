@@ -21,7 +21,7 @@ public sealed class UpdateDefinitionOverridesBindMatrixSpec : ActaStorageTestBas
     private const string Actor = "tester";
 
     // Def() registers with well-known base values so the clear fact can assert exact effective fallbacks.
-    // Base policy: Priority=Bulk(0), MaxAttempts=3, EventRecording=Failures(10), AlertProfile=None(0).
+    // Base policy: Priority=Bulk, MaxAttempts=3, EventRecording=Failures, AlertProfile=None.
     // Framework defaults fill Backoff="1m..1d x2 ~10%", ExecutionTimeout=300, JobRetention=7776000;
     // DeadlineSeconds=0, DeadlineBehavior=Strict.
     private static JobDescriptor Def(string name) =>

@@ -74,7 +74,7 @@ public sealed class PgClaimPlanTests : ClaimSkewTestBase
             Text(n, "Index Name") == "ix_jobs_state_claim_ready"
             && Text(n, "Index Cond").Contains("job_priority_code = band.", StringComparison.Ordinal)
         );
-        Assert.Equal((double)Enum.GetValues<JobPriorityCode>().Length, heads.GetProperty("Actual Loops").GetDouble());
+        Assert.Equal((double)Bands, heads.GetProperty("Actual Loops").GetDouble());
     }
 
     private async Task<int> ClaimAsync(NpgsqlConnection conn, int ns, int workerId, CancellationToken ct)

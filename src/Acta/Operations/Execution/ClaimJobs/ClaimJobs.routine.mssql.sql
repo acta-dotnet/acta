@@ -53,15 +53,15 @@ BEGIN
                 schedule_id INT NULL
             );
 
-        /* Every JobPriorityCode, listed once: the claim seeks each band in turn and the horizon reads each band's head. */
+        /* Every priority band, listed once: the claim seeks each band in turn and the horizon reads each band's head. */
         DECLARE @bands TABLE (job_priority_code TINYINT NOT NULL PRIMARY KEY);
         INSERT INTO @bands (job_priority_code)
         VALUES
             (100 /* JobPriorityCode.Realtime */),
-            (85 /* JobPriorityCode.Critical */),
+            (90 /* JobPriorityCode.Critical */),
             (70 /* JobPriorityCode.High */),
             (50 /* JobPriorityCode.Normal */),
-            (0 /* JobPriorityCode.Bulk */);
+            (10 /* JobPriorityCode.Bulk */);
 
         DECLARE @candidates TABLE (job_id BIGINT NOT NULL PRIMARY KEY);
         DECLARE @remaining INT = @p_claim_limit;

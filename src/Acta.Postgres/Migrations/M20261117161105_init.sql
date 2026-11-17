@@ -700,14 +700,14 @@ RETURNS TABLE (
 LANGUAGE sql
 AS $$
     WITH bands AS (
-        /* Every JobPriorityCode, listed once: the claim seeks each band and the horizon reads each band's head. */
+        /* Every priority band, listed once: the claim seeks each band and the horizon reads each band's head. */
         SELECT
             ARRAY[
                 100 /* JobPriorityCode.Realtime */,
-                85 /* JobPriorityCode.Critical */,
+                90 /* JobPriorityCode.Critical */,
                 70 /* JobPriorityCode.High */,
                 50 /* JobPriorityCode.Normal */,
-                0 /* JobPriorityCode.Bulk */
+                10 /* JobPriorityCode.Bulk */
             ]::smallint[] AS job_priority_codes
     ),
     candidates AS (
@@ -1713,8 +1713,8 @@ DECLARE
     v_lane_id BIGINT;
 BEGIN
     -- The claim reads band by band, so a priority between two bands would be stored and never claimed.
-    IF p_job_priority_code_override NOT IN (0 /* JobPriorityCode.Bulk */, 50 /* JobPriorityCode.Normal */, 70 /* JobPriorityCode.High */, 85 /* JobPriorityCode.Critical */, 100 /* JobPriorityCode.Realtime */) THEN
-        RAISE EXCEPTION 'Enqueue rejected: the job priority is not a priority band (0, 50, 70, 85, 100).'
+    IF p_job_priority_code_override NOT IN (10 /* JobPriorityCode.Bulk */, 50 /* JobPriorityCode.Normal */, 70 /* JobPriorityCode.High */, 90 /* JobPriorityCode.Critical */, 100 /* JobPriorityCode.Realtime */) THEN
+        RAISE EXCEPTION 'Enqueue rejected: the job priority is not a priority band (10, 50, 70, 90, 100).'
             USING ERRCODE = 'P0001';
     END IF;
 
@@ -4266,7 +4266,7 @@ SELECT
     d.input_format_name,
     d.result_type_name,
     d.result_format_name,
-    CASE d.job_priority_code_effective WHEN 0 THEN 'bulk' WHEN 50 THEN 'normal' WHEN 70 THEN 'high' WHEN 85 THEN 'critical' WHEN 100 THEN 'realtime' END AS job_priority_effective,
+    CASE d.job_priority_code_effective WHEN 0 THEN 'unspecified' WHEN 10 THEN 'bulk' WHEN 50 THEN 'normal' WHEN 70 THEN 'high' WHEN 90 THEN 'critical' WHEN 100 THEN 'realtime' END AS job_priority_effective,
     d.job_priority_code,
     d.job_priority_code_override,
     d.job_priority_code_effective,
@@ -4386,7 +4386,7 @@ SELECT
     root.job_ref AS lineage_root_job_ref,
     j.tenant_id,
     t.tenant_name,
-    CASE r.job_priority_code WHEN 0 THEN 'bulk' WHEN 50 THEN 'normal' WHEN 70 THEN 'high' WHEN 85 THEN 'critical' WHEN 100 THEN 'realtime' END AS job_priority,
+    CASE r.job_priority_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'bulk' WHEN 50 THEN 'normal' WHEN 70 THEN 'high' WHEN 90 THEN 'critical' WHEN 100 THEN 'realtime' END AS job_priority,
     r.job_priority_code,
     CASE j.input_format_id
         WHEN 0 /* JobPayloadFormat.None */ THEN 'none'
@@ -4523,5 +4523,5 @@ JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261117154941_init')
+VALUES ('M20261117161105_init')
 ON CONFLICT (name) DO NOTHING;

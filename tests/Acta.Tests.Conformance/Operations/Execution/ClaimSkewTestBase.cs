@@ -22,6 +22,9 @@ public abstract class ClaimSkewTestBase : ActaRuntimeTestBase<ConformanceFixture
     /// <summary>Bulk rows <see cref="SeedSkewAsync"/> enqueues due now.</summary>
     protected const int DueRows = 5;
 
+    /// <summary>The priority bands a claim reads: every <see cref="JobPriorityCode"/> but <c>Unspecified</c>.</summary>
+    protected static readonly int Bands = Enum.GetValues<JobPriorityCode>().Length - 1;
+
     private const string Job = "add-numbers";
 
     /// <summary>The test namespace's id and its worker's id, for calling the claim directly.</summary>

@@ -161,13 +161,14 @@ internal static class JobPolicyValues
         }
     }
 
+    /// <summary>The declarable priorities; <c>Unspecified</c> only reads back a newer Acta's row.</summary>
     internal static string? PriorityIdToName(byte id) =>
         id switch
         {
-            0 => "Bulk",
+            10 => "Bulk",
             50 => "Normal",
             70 => "High",
-            85 => "Critical",
+            90 => "Critical",
             100 => "Realtime",
             _ => null,
         };

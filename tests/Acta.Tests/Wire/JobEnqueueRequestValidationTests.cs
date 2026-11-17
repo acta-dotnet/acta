@@ -78,5 +78,6 @@ public sealed class JobEnqueueRequestValidationTests
             new EnqueueJobRequest(Ns, Name, DelaySeconds: -1),
             new EnqueueJobRequest(Ns, Name, ParentJobId: 0),
             new EnqueueJobRequest(Ns, Name, Priority: (JobPriorityCode)255),
+            new EnqueueJobRequest(Ns, Name, Priority: JobPriorityCode.Unspecified),
         ];
 }

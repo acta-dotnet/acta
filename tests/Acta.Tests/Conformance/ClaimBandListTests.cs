@@ -6,8 +6,8 @@ namespace Acta.Tests.Conformance;
 
 /// <summary>
 /// The claim reads one priority band at a time from a list written into each provider's claim script, so
-/// a priority code missing from that list is a band no claim ever reads. Each list names every
-/// <see cref="JobPriorityCode"/> member exactly once; the SQL code-policy tests hold each literal to its
+/// a priority code missing from that list is a band no claim ever reads. Each list names every band, which is every
+/// <see cref="JobPriorityCode"/> member but <c>Unspecified</c>, exactly once; the SQL code-policy tests hold each literal to its
 /// member's value.
 /// </summary>
 public sealed partial class ClaimBandListTests
@@ -22,7 +22,7 @@ public sealed partial class ClaimBandListTests
 
         var listed = PriorityMember().Matches(sql).Select(m => m.Groups["member"].Value).Order(StringComparer.Ordinal);
 
-        Assert.Equal(Enum.GetNames<JobPriorityCode>().Order(StringComparer.Ordinal), listed);
+        Assert.Equal(Enum.GetNames<JobPriorityCode>().Except([nameof(JobPriorityCode.Unspecified)]).Order(StringComparer.Ordinal), listed);
     }
 
     [GeneratedRegex(@"/\*\s*JobPriorityCode\.(?<member>\w+)\s*\*/", RegexOptions.CultureInvariant)]

@@ -19012,8 +19012,9 @@
           "bulk"
         ],
         "type": "string",
-        "description": "A job's priority. A worker always claims the highest priority first, with no aging, so keep bulk work in a namespace of its own.\n\nKnown values:\n- bulk: Lowest practical priority; bulk-class workloads.\n- normal: Default priority. Most jobs use this.\n- high: Above normal; operator opt-in for time-sensitive work.\n- critical: Critical priority; close-to-realtime operator workloads.\n- realtime: Highest priority.\n\nOther values may appear: keep a value this client does not know as it is.",
+        "description": "A job's priority. A worker always claims the highest priority first, with no aging, so keep bulk work in a namespace of its own.\n\nKnown values:\n- unspecified: Job priority not recognized by this build; the row was written by a newer Acta.\n- bulk: Lowest practical priority; bulk-class workloads.\n- normal: Default priority. Most jobs use this.\n- high: Above normal; operator opt-in for time-sensitive work.\n- critical: Critical priority; close-to-realtime operator workloads.\n- realtime: Highest priority.\n\nOther values may appear: keep a value this client does not know as it is.",
         "x-acta-known-values": [
+          "unspecified",
           "bulk",
           "normal",
           "high",

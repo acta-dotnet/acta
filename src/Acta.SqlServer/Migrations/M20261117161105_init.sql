@@ -1008,15 +1008,15 @@ BEGIN
                 schedule_id INT NULL
             );
 
-        /* Every JobPriorityCode, listed once: the claim seeks each band in turn and the horizon reads each band's head. */
+        /* Every priority band, listed once: the claim seeks each band in turn and the horizon reads each band's head. */
         DECLARE @bands TABLE (job_priority_code TINYINT NOT NULL PRIMARY KEY);
         INSERT INTO @bands (job_priority_code)
         VALUES
             (100 /* JobPriorityCode.Realtime */),
-            (85 /* JobPriorityCode.Critical */),
+            (90 /* JobPriorityCode.Critical */),
             (70 /* JobPriorityCode.High */),
             (50 /* JobPriorityCode.Normal */),
-            (0 /* JobPriorityCode.Bulk */);
+            (10 /* JobPriorityCode.Bulk */);
 
         DECLARE @candidates TABLE (job_id BIGINT NOT NULL PRIMARY KEY);
         DECLARE @remaining INT = @p_claim_limit;
@@ -2055,8 +2055,8 @@ BEGIN
         SET @p_job_ref = COALESCE(@p_job_ref, NEWID());
 
         -- The claim reads band by band, so a priority between two bands would be stored and never claimed.
-        IF @p_job_priority_code_override NOT IN (0 /* JobPriorityCode.Bulk */, 50 /* JobPriorityCode.Normal */, 70 /* JobPriorityCode.High */, 85 /* JobPriorityCode.Critical */, 100 /* JobPriorityCode.Realtime */)
-            THROW 50014, 'Enqueue rejected: the job priority is not a priority band (0, 50, 70, 85, 100).', 1;
+        IF @p_job_priority_code_override NOT IN (10 /* JobPriorityCode.Bulk */, 50 /* JobPriorityCode.Normal */, 70 /* JobPriorityCode.High */, 90 /* JobPriorityCode.Critical */, 100 /* JobPriorityCode.Realtime */)
+            THROW 50014, 'Enqueue rejected: the job priority is not a priority band (10, 50, 70, 90, 100).', 1;
 
         -- A blank key is a key: every later enqueue with it would deduplicate onto the first job, or share its slot.
         -- Strings compare padded here, so a key of spaces is refused with the empty one, as PostgreSQL's trim does.
@@ -4905,7 +4905,7 @@ SELECT
     d.input_format_name,
     d.result_type_name,
     d.result_format_name,
-    CASE d.job_priority_code_effective WHEN 0 THEN 'bulk' WHEN 50 THEN 'normal' WHEN 70 THEN 'high' WHEN 85 THEN 'critical' WHEN 100 THEN 'realtime' END AS job_priority_effective,
+    CASE d.job_priority_code_effective WHEN 0 THEN 'unspecified' WHEN 10 THEN 'bulk' WHEN 50 THEN 'normal' WHEN 70 THEN 'high' WHEN 90 THEN 'critical' WHEN 100 THEN 'realtime' END AS job_priority_effective,
     d.job_priority_code,
     d.job_priority_code_override,
     d.job_priority_code_effective,
@@ -5032,7 +5032,7 @@ SELECT
     root.job_ref AS lineage_root_job_ref,
     j.tenant_id,
     t.tenant_name,
-    CASE r.job_priority_code WHEN 0 THEN 'bulk' WHEN 50 THEN 'normal' WHEN 70 THEN 'high' WHEN 85 THEN 'critical' WHEN 100 THEN 'realtime' END AS job_priority,
+    CASE r.job_priority_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'bulk' WHEN 50 THEN 'normal' WHEN 70 THEN 'high' WHEN 90 THEN 'critical' WHEN 100 THEN 'realtime' END AS job_priority,
     r.job_priority_code,
     CASE j.input_format_id
         WHEN 0 /* JobPayloadFormat.None */ THEN 'none'
@@ -5185,7 +5185,7 @@ JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE name = 'M20261117154941_init')
+IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE name = 'M20261117161105_init')
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261117154941_init');
+VALUES ('M20261117161105_init');
 GO

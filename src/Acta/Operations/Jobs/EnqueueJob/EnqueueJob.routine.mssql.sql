@@ -45,8 +45,8 @@ BEGIN
         SET @p_job_ref = COALESCE(@p_job_ref, NEWID());
 
         -- The claim reads band by band, so a priority between two bands would be stored and never claimed.
-        IF @p_job_priority_code_override NOT IN (0 /* JobPriorityCode.Bulk */, 50 /* JobPriorityCode.Normal */, 70 /* JobPriorityCode.High */, 85 /* JobPriorityCode.Critical */, 100 /* JobPriorityCode.Realtime */)
-            THROW 50014, 'Enqueue rejected: the job priority is not a priority band (0, 50, 70, 85, 100).', 1;
+        IF @p_job_priority_code_override NOT IN (10 /* JobPriorityCode.Bulk */, 50 /* JobPriorityCode.Normal */, 70 /* JobPriorityCode.High */, 90 /* JobPriorityCode.Critical */, 100 /* JobPriorityCode.Realtime */)
+            THROW 50014, 'Enqueue rejected: the job priority is not a priority band (10, 50, 70, 90, 100).', 1;
 
         -- A blank key is a key: every later enqueue with it would deduplicate onto the first job, or share its slot.
         -- Strings compare padded here, so a key of spaces is refused with the empty one, as PostgreSQL's trim does.

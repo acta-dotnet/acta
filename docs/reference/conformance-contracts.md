@@ -769,6 +769,7 @@
   - ReprioritizeAsync accepts an in-flight job without changing its status
   - ReprioritizeAsync rejects a terminal job without mutating it
   - ReprioritizeAsync returns NotFound for an unknown lookup
+  - ReprioritizeAsync refuses a priority that is not a band
 
 ### Operator reschedule moves a job's cursor, rejecting in-flight or terminal jobs.
 - **Contract:** RescheduleAsync moves Paused, Suspended, or Ready rows to the requested instant, re-arms Paused or Suspended Ready, and rejects in-flight or terminal rows.

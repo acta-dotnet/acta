@@ -12,7 +12,7 @@
 -- present and leaves the data in place. Over a database a newer release upgraded, the script stops
 -- before changing anything. A later 1.x release upgrades a 1.x database with
 -- its own migrations, carried in its own copy of this script. A database provisioned from an
--- init migration other than M20261117154941_init has no upgrade path: provision a new one.
+-- init migration other than M20261117161105_init has no upgrade path: provision a new one.
 --
 -- Run it with a client that stops at the first error, which is what makes the transaction below a
 -- guarantee: psql -v ON_ERROR_STOP=1. A client that runs on past a failed statement would reach the
@@ -41,14 +41,14 @@ DO $$
 BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
-        WHERE name NOT IN ('M20261117154941_init')
+        WHERE name NOT IN ('M20261117161105_init')
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
 END
 $$;
 
--- ===== BEGIN M20261117154941_init =====
+-- ===== BEGIN M20261117161105_init =====
 CREATE SCHEMA IF NOT EXISTS acta;
 
 -- alerts
@@ -751,14 +751,14 @@ RETURNS TABLE (
 LANGUAGE sql
 AS $$
     WITH bands AS (
-        /* Every JobPriorityCode, listed once: the claim seeks each band and the horizon reads each band's head. */
+        /* Every priority band, listed once: the claim seeks each band and the horizon reads each band's head. */
         SELECT
             ARRAY[
                 100 /* JobPriorityCode.Realtime */,
-                85 /* JobPriorityCode.Critical */,
+                90 /* JobPriorityCode.Critical */,
                 70 /* JobPriorityCode.High */,
                 50 /* JobPriorityCode.Normal */,
-                0 /* JobPriorityCode.Bulk */
+                10 /* JobPriorityCode.Bulk */
             ]::smallint[] AS job_priority_codes
     ),
     candidates AS (
@@ -1764,8 +1764,8 @@ DECLARE
     v_lane_id BIGINT;
 BEGIN
     -- The claim reads band by band, so a priority between two bands would be stored and never claimed.
-    IF p_job_priority_code_override NOT IN (0 /* JobPriorityCode.Bulk */, 50 /* JobPriorityCode.Normal */, 70 /* JobPriorityCode.High */, 85 /* JobPriorityCode.Critical */, 100 /* JobPriorityCode.Realtime */) THEN
-        RAISE EXCEPTION 'Enqueue rejected: the job priority is not a priority band (0, 50, 70, 85, 100).'
+    IF p_job_priority_code_override NOT IN (10 /* JobPriorityCode.Bulk */, 50 /* JobPriorityCode.Normal */, 70 /* JobPriorityCode.High */, 90 /* JobPriorityCode.Critical */, 100 /* JobPriorityCode.Realtime */) THEN
+        RAISE EXCEPTION 'Enqueue rejected: the job priority is not a priority band (10, 50, 70, 90, 100).'
             USING ERRCODE = 'P0001';
     END IF;
 
@@ -4317,7 +4317,7 @@ SELECT
     d.input_format_name,
     d.result_type_name,
     d.result_format_name,
-    CASE d.job_priority_code_effective WHEN 0 THEN 'bulk' WHEN 50 THEN 'normal' WHEN 70 THEN 'high' WHEN 85 THEN 'critical' WHEN 100 THEN 'realtime' END AS job_priority_effective,
+    CASE d.job_priority_code_effective WHEN 0 THEN 'unspecified' WHEN 10 THEN 'bulk' WHEN 50 THEN 'normal' WHEN 70 THEN 'high' WHEN 90 THEN 'critical' WHEN 100 THEN 'realtime' END AS job_priority_effective,
     d.job_priority_code,
     d.job_priority_code_override,
     d.job_priority_code_effective,
@@ -4437,7 +4437,7 @@ SELECT
     root.job_ref AS lineage_root_job_ref,
     j.tenant_id,
     t.tenant_name,
-    CASE r.job_priority_code WHEN 0 THEN 'bulk' WHEN 50 THEN 'normal' WHEN 70 THEN 'high' WHEN 85 THEN 'critical' WHEN 100 THEN 'realtime' END AS job_priority,
+    CASE r.job_priority_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'bulk' WHEN 50 THEN 'normal' WHEN 70 THEN 'high' WHEN 90 THEN 'critical' WHEN 100 THEN 'realtime' END AS job_priority,
     r.job_priority_code,
     CASE j.input_format_id
         WHEN 0 /* JobPayloadFormat.None */ THEN 'none'
@@ -4574,10 +4574,10 @@ JOIN acta.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO acta.migrations (name)
-VALUES ('M20261117154941_init')
+VALUES ('M20261117161105_init')
 ON CONFLICT (name) DO NOTHING;
 
--- ===== END M20261117154941_init =====
+-- ===== END M20261117161105_init =====
 
 COMMIT;
 

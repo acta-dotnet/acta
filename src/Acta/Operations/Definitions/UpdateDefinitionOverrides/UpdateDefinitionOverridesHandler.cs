@@ -60,6 +60,10 @@ internal sealed class UpdateDefinitionOverridesHandler(GetDefinitionIdHandler ge
         ArgumentNullException.ThrowIfNull(overrides);
 
         // Unspecified says nothing, so it overrides nothing: the definition's own value applies.
+        if (overrides.Priority == JobPriorityCode.Unspecified)
+        {
+            overrides = overrides with { Priority = null };
+        }
         if (overrides.DeadlineBehavior == DeadlineBehaviorCode.Unspecified)
         {
             overrides = overrides with { DeadlineBehavior = null };

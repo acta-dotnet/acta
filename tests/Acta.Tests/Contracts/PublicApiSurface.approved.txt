@@ -1571,11 +1571,12 @@ sealed class Acta.JobPayloadFormatDeclarationAttribute : System.Attribute
     System.Byte Id { get; }
     System.String Name { get; }
 enum Acta.JobPriorityCode : System.Byte
-    Bulk = 0
-    Critical = 85
+    Bulk = 10
+    Critical = 90
     High = 70
     Normal = 50
     Realtime = 100
+    Unspecified = 0
 static class Acta.JobPriorityCodeExtensions
     static Acta.JobPriorityCode FromCode(System.String code)
     static Acta.JobPriorityCode FromId(System.Byte id)

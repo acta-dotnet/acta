@@ -129,6 +129,16 @@ internal static class JobDefinitionRegistration
             );
         }
 
+        // A hand-authored IJobManifest descriptor bypasses the generator's priority check, and no claim reads a
+        // priority that is not a band, so the definition's jobs would be stored and never run.
+        if (descriptor.Priority == JobPriorityCode.Unspecified || !Enum.IsDefined(descriptor.Priority))
+        {
+            throw new ArgumentException(
+                $"Job definition \"{descriptor.JobName}\" (namespace {namespaceLabel}) declares Priority "
+                    + $"{descriptor.Priority}: it must be a priority band."
+            );
+        }
+
         // A hand-authored IJobManifest descriptor bypasses the generator's level check, and a row at any other level
         // would record none of the failures its alerts read.
         if (descriptor.EventRecording is not (EventRecordingCode.Failures or EventRecordingCode.Audit))

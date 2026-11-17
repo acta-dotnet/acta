@@ -1,16 +1,16 @@
 DROP TABLE IF EXISTS temp._claimed;
 DROP TABLE IF EXISTS temp._claim_bands;
 
-/* Every JobPriorityCode, listed once: the claim seeks each band and the horizon reads each band's head. */
+/* Every priority band, listed once: the claim seeks each band and the horizon reads each band's head. */
 CREATE TEMP TABLE _claim_bands AS
 SELECT column1 AS job_priority_code
 FROM (
     VALUES
         (100 /* JobPriorityCode.Realtime */),
-        (85 /* JobPriorityCode.Critical */),
+        (90 /* JobPriorityCode.Critical */),
         (70 /* JobPriorityCode.High */),
         (50 /* JobPriorityCode.Normal */),
-        (0 /* JobPriorityCode.Bulk */)
+        (10 /* JobPriorityCode.Bulk */)
 );
 
 CREATE TEMP TABLE _claimed AS

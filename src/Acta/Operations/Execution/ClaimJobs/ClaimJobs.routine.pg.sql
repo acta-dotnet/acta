@@ -30,14 +30,14 @@ RETURNS TABLE (
 LANGUAGE sql
 AS $$
     WITH bands AS (
-        /* Every JobPriorityCode, listed once: the claim seeks each band and the horizon reads each band's head. */
+        /* Every priority band, listed once: the claim seeks each band and the horizon reads each band's head. */
         SELECT
             ARRAY[
                 100 /* JobPriorityCode.Realtime */,
-                85 /* JobPriorityCode.Critical */,
+                90 /* JobPriorityCode.Critical */,
                 70 /* JobPriorityCode.High */,
                 50 /* JobPriorityCode.Normal */,
-                0 /* JobPriorityCode.Bulk */
+                10 /* JobPriorityCode.Bulk */
             ]::smallint[] AS job_priority_codes
     ),
     candidates AS (

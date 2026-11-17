@@ -17,7 +17,7 @@ public sealed partial class EnqueuePriorityBandTests
     {
         var routine = Path.Combine("src", "Acta", "Operations", "Jobs", "EnqueueJob", $"EnqueueJob.routine.{dialect}.sql");
         var sql = File.ReadAllText(Path.Combine(IntegrationConfig.FindRepoRoot(), routine));
-        int[] bands = [.. Enum.GetValues<JobPriorityCode>().Select(static band => (int)band).Order()];
+        int[] bands = [.. Enum.GetValues<JobPriorityCode>().Except([JobPriorityCode.Unspecified]).Select(static band => (int)band).Order()];
 
         var guard = Guard().Match(sql);
 

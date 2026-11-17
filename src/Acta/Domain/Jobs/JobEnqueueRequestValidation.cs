@@ -91,12 +91,12 @@ internal static class JobEnqueueRequestValidation
 
     private static void ValidatePriority(EnqueueJobRequest request, string paramName)
     {
-        if (request.Priority is { } priority && !Enum.IsDefined(priority))
+        if (request.Priority is { } priority && (priority == JobPriorityCode.Unspecified || !Enum.IsDefined(priority)))
         {
             throw new ArgumentOutOfRangeException(
                 Field(paramName, nameof(EnqueueJobRequest.Priority)),
                 priority,
-                "Priority is not a defined JobPriorityCode."
+                "Priority is not a priority band."
             );
         }
     }
