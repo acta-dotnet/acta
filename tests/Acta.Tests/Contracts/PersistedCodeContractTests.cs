@@ -162,7 +162,7 @@ public sealed class PersistedCodeContractTests
         ScheduleFullBehaviorCode.Wait=10|wait
         ScheduleFullBehaviorCode.Skip=20|skip
         ScheduleExpireActionCode.Unspecified=0|unspecified
-        ScheduleExpireActionCode.Discard=10|discard
+        ScheduleExpireActionCode.Continue=10|continue
         ScheduleExpireActionCode.Pause=20|pause
         CalendarRoleCode.Unspecified=0|unspecified
         CalendarRoleCode.Occurrence=10|occurrence
@@ -207,7 +207,7 @@ public sealed class PersistedCodeContractTests
         WorkerStatusCode.Dead=200|dead
         """;
 
-    private const string ExpectedDescriptionHash = "7B8208769A4491FA14690BFBDD60BA75F132565C4CFD9B39EC2C1CCE73E8F106";
+    private const string ExpectedDescriptionHash = "F4ACC8178800AFFFF4EB057525FF86CFB6A95DE49E122EB950B2F109082449F8";
 
     [Fact]
     public void Frozen_contract_covers_all_32_families_and_196_values()

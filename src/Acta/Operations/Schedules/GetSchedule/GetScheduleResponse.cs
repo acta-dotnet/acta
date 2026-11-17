@@ -35,7 +35,7 @@ namespace Acta;
 /// job for each occurrence.</param>
 /// <param name="ExpireAfterSeconds">How old an occurrence may get before it expires unadmitted, in seconds; null means it never
 /// expires.</param>
-/// <param name="ExpireAction">What an expired occurrence does: it is discarded, or the schedule pauses. Null when occurrences never
+/// <param name="ExpireAction">What follows an expired occurrence, skipped either way: the schedule continues or pauses. Null when occurrences never
 /// expire.</param>
 /// <param name="AvailabilityCalendarName">The availability calendar the schedule observes; null when it observes none.</param>
 /// <param name="StartAtUtc">The first instant an occurrence may fall on, in UTC; null for no lower bound.</param>

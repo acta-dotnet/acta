@@ -367,7 +367,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
 | `Unspecified` | 0 | `unspecified` | Schedule expire action not recognized by this build; the row was written by a newer Acta. | Active |
-| `Discard` | 10 | `discard` | An occurrence older than the schedule's expiry when it is evaluated is skipped, audited with the reason expired, and the schedule moves on. | Active |
+| `Continue` | 10 | `continue` | An occurrence older than the schedule's expiry when it is evaluated is skipped, audited with the reason expired, and the schedule moves on. | Active |
 | `Pause` | 20 | `pause` | An occurrence older than the schedule's expiry when it is evaluated is skipped, audited with the reason expired, and the schedule is paused with the reason until an operator resumes it. | Active |
 
 ### `ScheduleExpressionKindCode` · `schedule-expression-kind` <a id="code-family-scheduleexpressionkindcode"></a>

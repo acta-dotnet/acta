@@ -395,7 +395,7 @@ internal static class StagedFakes
         FullBehavior: ScheduleFullBehaviorCode.Wait,
         ScheduledDelivery: ScheduledDeliveryCode.Permanent,
         ExpireAfterSeconds: 3600,
-        ExpireAction: ScheduleExpireActionCode.Discard,
+        ExpireAction: ScheduleExpireActionCode.Continue,
         AvailabilityCalendarName: "office-hours",
         StartAtUtc: new DateTime(2027, 1, 1, 0, 0, 0, DateTimeKind.Utc),
         EndBeforeUtc: new DateTime(2028, 1, 1, 0, 0, 0, DateTimeKind.Utc)

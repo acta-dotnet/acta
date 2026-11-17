@@ -24,6 +24,6 @@ WHERE
     AND s.full_behavior_code IN (10 /* ScheduleFullBehaviorCode.Wait */, 20 /* ScheduleFullBehaviorCode.Skip */)
     AND (
         s.expire_action_code IS NULL
-        OR s.expire_action_code IN (10 /* ScheduleExpireActionCode.Discard */, 20 /* ScheduleExpireActionCode.Pause */)
+        OR s.expire_action_code IN (10 /* ScheduleExpireActionCode.Continue */, 20 /* ScheduleExpireActionCode.Pause */)
     )
     AND d.definition_status_code <> 240 /* DefinitionStatusCode.Retired */;

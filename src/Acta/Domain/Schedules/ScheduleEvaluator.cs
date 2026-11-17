@@ -146,7 +146,7 @@ internal static class ScheduleEvaluator
             // Parked, the schedule keeps what the expiry decided and waits for the settlement or the operator that
             // frees the slot; paused by the expiry, it waits for an operator instead. An expiry that pauses the schedule
             // also wakes it when the waiting occurrence ages past the expiry, which is decided whatever the slot can
-            // take; one that only discards is decided as a range when the slot frees.
+            // take; one that continues is decided as a range when the slot frees.
             if (capacity != AdmissionCapacity.Available)
             {
                 var parked =

@@ -234,7 +234,7 @@ internal static class JobPolicyValues
     internal static string? ScheduleExpireActionIdToName(byte id) =>
         id switch
         {
-            10 => "Discard",
+            10 => "Continue",
             20 => "Pause",
             _ => null,
         };

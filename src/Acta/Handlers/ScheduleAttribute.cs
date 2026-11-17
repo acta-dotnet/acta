@@ -115,7 +115,7 @@ public sealed class ScheduleAttribute : Attribute
     public string? ExpireAfter { get; init; }
 
     /// <summary>
-    /// What an occurrence older than <see cref="ExpireAfter"/> does when it is evaluated: <c>Discard</c> skips it,
+    /// What an occurrence older than <see cref="ExpireAfter"/> does when it is evaluated: <c>Continue</c> skips it,
     /// audited, and moves on; <c>Pause</c> skips it, audited, and pauses the schedule until an operator resumes it.
     /// Default <c>Unspecified</c>, no expiry.
     /// </summary>

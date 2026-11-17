@@ -15,7 +15,7 @@
 -- before changing anything, in a client that halts on an error (sqlite3 -bail). A later 1.x
 -- release upgrades a 1.x database with
 -- its own migrations, carried in its own copy of this script. A database provisioned from an
--- init migration other than M20261117142116_init has no upgrade path: provision a new one.
+-- init migration other than M20261117142716_init has no upgrade path: provision a new one.
 --
 -- Run it with a client that stops at the first error, which is what makes the transaction below a
 -- guarantee: sqlite3 -bail. A client that runs on past a failed statement would reach the history
@@ -53,11 +53,11 @@ CREATE TEMP TABLE release_guard (
 INSERT INTO release_guard
 SELECT EXISTS (
     SELECT 1 FROM main.migrations
-    WHERE name NOT IN ('M20261117142116_init')
+    WHERE name NOT IN ('M20261117142716_init')
 );
 DROP TABLE release_guard;
 
--- ===== BEGIN M20261117142116_init =====
+-- ===== BEGIN M20261117142716_init =====
 CREATE TABLE IF NOT EXISTS main.alerts (
     alert_id integer PRIMARY KEY AUTOINCREMENT,
     alert_ref text NOT NULL,
@@ -750,7 +750,7 @@ SELECT
     CASE s.full_behavior_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'wait' WHEN 20 THEN 'skip' END AS full_behavior,
     s.full_behavior_code,
     s.expire_after_seconds,
-    CASE s.expire_action_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'discard' WHEN 20 THEN 'pause' END AS expire_action,
+    CASE s.expire_action_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'continue' WHEN 20 THEN 'pause' END AS expire_action,
     s.expire_action_code,
     s.availability_calendar_name,
     strftime('%Y-%m-%dT%H:%M:%fZ', s.start_at_utc / 1000.0, 'unixepoch') AS start_at_utc,
@@ -828,10 +828,10 @@ JOIN main.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO main.migrations (name)
-VALUES ('M20261117142116_init')
+VALUES ('M20261117142716_init')
 ON CONFLICT (name) DO NOTHING;
 
--- ===== END M20261117142116_init =====
+-- ===== END M20261117142716_init =====
 
 COMMIT;
 

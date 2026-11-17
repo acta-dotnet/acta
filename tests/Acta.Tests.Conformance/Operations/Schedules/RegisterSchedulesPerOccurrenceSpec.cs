@@ -66,14 +66,14 @@ public sealed class RegisterSchedulesPerOccurrenceSpec : ActaStorageTestBase<Con
         {
             MisfireStrategy = MisfireStrategyCode.CatchUpAll,
             ExpireAfterSeconds = 3600,
-            ExpireAction = ScheduleExpireActionCode.Discard,
+            ExpireAction = ScheduleExpireActionCode.Continue,
         };
 
         await RegisterAsync(defId, [expiring], ct);
         var (config, _) = await ScheduleAsync(defId, "only", ct);
         Assert.Equal(MisfireStrategyCode.CatchUpAll, config.MisfireStrategy);
         Assert.Equal(3600, config.ExpireAfterSeconds);
-        Assert.Equal(ScheduleExpireActionCode.Discard, config.ExpireAction);
+        Assert.Equal(ScheduleExpireActionCode.Continue, config.ExpireAction);
 
         // Registering the same plan again writes nothing.
         await RegisterAsync(defId, [expiring], ct);

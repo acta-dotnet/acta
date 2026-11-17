@@ -5124,7 +5124,7 @@ SELECT
     CASE s.full_behavior_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'wait' WHEN 20 THEN 'skip' END AS full_behavior,
     s.full_behavior_code,
     s.expire_after_seconds,
-    CASE s.expire_action_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'discard' WHEN 20 THEN 'pause' END AS expire_action,
+    CASE s.expire_action_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'continue' WHEN 20 THEN 'pause' END AS expire_action,
     s.expire_action_code,
     s.availability_calendar_name,
     s.start_at_utc,
@@ -5206,7 +5206,7 @@ JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE name = 'M20261117142116_init')
+IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE name = 'M20261117142716_init')
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261117142116_init');
+VALUES ('M20261117142716_init');
 GO

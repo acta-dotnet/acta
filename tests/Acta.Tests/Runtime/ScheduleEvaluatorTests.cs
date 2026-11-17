@@ -73,7 +73,7 @@ public class ScheduleEvaluatorTests
     }
 
     [Fact]
-    public void Skip_discards_an_occurrence_missed_beyond_the_grace_and_waits_for_the_next()
+    public void Skip_passes_over_an_occurrence_missed_beyond_the_grace_and_waits_for_the_next()
     {
         var d = Evaluate(Daily, Active(Utc(9, 0)), Utc(11, 0));
 
@@ -210,7 +210,7 @@ public class ScheduleEvaluatorTests
             Utc(10, 5, 40),
             capacity: AdmissionCapacity.Full,
             expireAfter: TimeSpan.FromMinutes(2),
-            expireAction: ScheduleExpireActionCode.Discard
+            expireAction: ScheduleExpireActionCode.Continue
         );
 
         Assert.Null(d.Admit);
@@ -422,7 +422,7 @@ public class ScheduleEvaluatorTests
     }
 
     [Fact]
-    public void Expiration_discards_the_occurrences_older_than_the_age_and_admits_the_rest()
+    public void Expiration_skips_the_occurrences_older_than_the_age_and_admits_the_rest()
     {
         // At 10:10 with a two-minute expiry, 10:05 through 10:08 are expired and 10:09 and 10:10 are due.
         var d = Evaluate(
@@ -431,7 +431,7 @@ public class ScheduleEvaluatorTests
             Utc(10, 10),
             MisfireStrategyCode.CatchUpAll,
             expireAfter: TimeSpan.FromMinutes(2),
-            expireAction: ScheduleExpireActionCode.Discard
+            expireAction: ScheduleExpireActionCode.Continue
         );
 
         Assert.Equal(Utc(10, 5), d.ExpiredFromUtc);
@@ -473,7 +473,7 @@ public class ScheduleEvaluatorTests
             Utc(12, 0),
             MisfireStrategyCode.CatchUpAll,
             expireAfter: TimeSpan.FromHours(2),
-            expireAction: ScheduleExpireActionCode.Discard
+            expireAction: ScheduleExpireActionCode.Continue
         );
 
         Assert.Null(d.Admit);
@@ -586,7 +586,7 @@ public class ScheduleEvaluatorTests
     }
 
     [Fact]
-    public void A_parked_schedule_whose_expiry_only_discards_waits_for_the_slot()
+    public void A_parked_schedule_whose_expiry_continues_waits_for_the_slot()
     {
         // Waking for each occurrence would record one expiry per occurrence while the slot stays busy; the settlement
         // decides the aged ones as one range instead.
@@ -597,7 +597,7 @@ public class ScheduleEvaluatorTests
             MisfireStrategyCode.Skip,
             AdmissionCapacity.Full,
             TimeSpan.FromMinutes(2),
-            ScheduleExpireActionCode.Discard
+            ScheduleExpireActionCode.Continue
         );
 
         Assert.Equal(ScheduleEvaluationStatusCode.WaitingForCapacity, parked.Status);

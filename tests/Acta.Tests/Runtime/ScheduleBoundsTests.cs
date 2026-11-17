@@ -234,19 +234,19 @@ public sealed class ScheduleBoundsTests
         // expired, nothing is admitted, and nothing follows.
         var cron = Cron("* * * * *", end: Utc(10, 8));
 
-        var discarded = Evaluate(
+        var expired = Evaluate(
             cron,
             Utc(10, 5),
             Utc(10, 30),
             MisfireStrategyCode.CatchUpAll,
             TimeSpan.FromMinutes(10),
-            ScheduleExpireActionCode.Discard
+            ScheduleExpireActionCode.Continue
         );
-        Assert.Null(discarded.Admit);
-        Assert.Equal(Utc(10, 5), discarded.ExpiredFromUtc);
-        Assert.Equal(Utc(10, 7), discarded.ExpiredThroughUtc);
-        Assert.Null(discarded.NextOccurrenceAtUtc);
-        Assert.Equal(ScheduleEvaluationStatusCode.Exhausted, discarded.Status);
+        Assert.Null(expired.Admit);
+        Assert.Equal(Utc(10, 5), expired.ExpiredFromUtc);
+        Assert.Equal(Utc(10, 7), expired.ExpiredThroughUtc);
+        Assert.Null(expired.NextOccurrenceAtUtc);
+        Assert.Equal(ScheduleEvaluationStatusCode.Exhausted, expired.Status);
 
         var paused = Evaluate(
             cron,

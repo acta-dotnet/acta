@@ -152,10 +152,10 @@ new job name, since delivery is immutable once deployed.
 ## ACTA0126 <a id="acta0126"></a>
 
 **Incomplete `[Schedule]` expiration.** `ExpireAfter` and `ExpireAction` go together: an age of at
-least one second, and `Discard` or `Pause`.
+least one second, and `Continue` or `Pause`.
 
 ```csharp
-[Schedule("hourly", Cron.Hourly, ExpireAfter = "1h", ExpireAction = ScheduleExpireActionCode.Discard)]
+[Schedule("hourly", Cron.Hourly, ExpireAfter = "1h", ExpireAction = ScheduleExpireActionCode.Continue)]
 ```
 
 ## ACTA0127 <a id="acta0127"></a>

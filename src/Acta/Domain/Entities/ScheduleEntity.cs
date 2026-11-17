@@ -127,7 +127,7 @@ internal sealed class ScheduleEntity : IEntity<int>
     [DbColumn("expire_after_seconds", DbKind.Int32)]
     public int? ExpireAfterSeconds { get; init; }
 
-    /// <summary>What an occurrence older than <see cref="ExpireAfterSeconds"/> does when evaluated: discard or pause.</summary>
+    /// <summary>What an occurrence older than <see cref="ExpireAfterSeconds"/> does when evaluated: continue or pause.</summary>
     [DbColumn("expire_action_code")]
     public ScheduleExpireActionCode? ExpireAction { get; init; }
 

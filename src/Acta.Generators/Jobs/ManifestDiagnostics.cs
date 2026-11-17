@@ -534,7 +534,7 @@ internal static class ManifestDiagnostics
     public static DiagnosticRecord ScheduleExpireAfterWithoutAction(DiscoveredJob job, string scheduleName) =>
         new(
             "ACTA0126",
-            $"`[Schedule(\"{scheduleName}\")]` on `[Job(\"{job.JobName}\")]` sets `ExpireAfter` but no `ExpireAction`. Say what an expired occurrence does: `ScheduleExpireActionCode.Discard` or `ScheduleExpireActionCode.Pause`.",
+            $"`[Schedule(\"{scheduleName}\")]` on `[Job(\"{job.JobName}\")]` sets `ExpireAfter` but no `ExpireAction`. Say what an expired occurrence does: `ScheduleExpireActionCode.Continue` or `ScheduleExpireActionCode.Pause`.",
             job.Location
         );
 
@@ -555,7 +555,7 @@ internal static class ManifestDiagnostics
     public static DiagnosticRecord InvalidScheduleExpireAction(DiscoveredJob job, string scheduleName, byte expireActionId) =>
         new(
             "ACTA0126",
-            $"`[Schedule(\"{scheduleName}\")]` on `[Job(\"{job.JobName}\")]` sets `ExpireAction` to `{expireActionId}`. The action is `ScheduleExpireActionCode.Discard` or `ScheduleExpireActionCode.Pause`.",
+            $"`[Schedule(\"{scheduleName}\")]` on `[Job(\"{job.JobName}\")]` sets `ExpireAction` to `{expireActionId}`. The action is `ScheduleExpireActionCode.Continue` or `ScheduleExpireActionCode.Pause`.",
             job.Location
         );
 

@@ -12,10 +12,10 @@ public enum ScheduleExpireActionCode : byte
 
     /// <summary>The expired occurrence is skipped, audited, and the schedule moves on.</summary>
     [Code(
-        "discard",
+        "continue",
         "An occurrence older than the schedule's expiry when it is evaluated is skipped, audited with the reason expired, and the schedule moves on."
     )]
-    Discard = 10,
+    Continue = 10,
 
     /// <summary>The expired occurrence is skipped, audited, and the schedule pauses until an operator resumes it.</summary>
     [Code(

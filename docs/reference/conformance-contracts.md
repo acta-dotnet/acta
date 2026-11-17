@@ -2341,12 +2341,12 @@
   - A cancelled recurring job stays cancelled through a deploy and a worker start
   - A deploy that drops a recurring job's schedules leaves it Idle with nothing due, and their return re-arms the schedule
 
-### CatchUpAll drains a backlog in order, expiration discards or pauses stale work
+### CatchUpAll drains a backlog in order; an expiry skips stale work and may pause
 - **Contract:** CatchUpAll admits a backlog one occurrence per settlement, an expired occurrence is skipped, pausing under Pause, and no backlog is too deep to decide.
 - **Guarantees:**
   - A slot under CatchUpAll fires each missed occurrence in order, one per settlement, and then waits for the next
   - A per-occurrence schedule under CatchUpAll admits one root per pass up to its capacity, then waits for a settlement
-  - Under Discard the occurrences older than the expiry are skipped with the reason expired and the rest fire
+  - Under Continue the occurrences older than the expiry are skipped with the reason expired and the rest fire
   - Under Pause an expiry pauses the schedule with the reason, and a resume expires what is stale by then without pausing again
   - A pausing expiry deployed while a schedule is full pauses it once its waiting occurrence ages out, its roots still outstanding
   - A cron with seconds a month behind is decided in one pass: its latest occurrence fires and the rest are skipped

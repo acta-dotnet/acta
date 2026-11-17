@@ -10,7 +10,7 @@ public sealed class MisfirePolicyManifest : IJobManifest
 {
     public const string BacklogSlotJobName = "backlog-slot";
     public const string BacklogRootsJobName = "backlog-roots";
-    public const string ExpireDiscardJobName = "expire-discard";
+    public const string ExpireContinueJobName = "expire-continue";
     public const string ExpirePauseJobName = "expire-pause";
     public const string BacklogSecondsJobName = "backlog-seconds";
     public const string ScheduleName = "recurring";
@@ -19,7 +19,7 @@ public sealed class MisfirePolicyManifest : IJobManifest
         new([
             Descriptor(BacklogSlotJobName, ScheduledDeliveryCode.Permanent, 1, null, ScheduleExpireActionCode.Unspecified),
             Descriptor(BacklogRootsJobName, ScheduledDeliveryCode.PerOccurrence, 2, null, ScheduleExpireActionCode.Unspecified),
-            Descriptor(ExpireDiscardJobName, ScheduledDeliveryCode.Permanent, 1, 120, ScheduleExpireActionCode.Discard),
+            Descriptor(ExpireContinueJobName, ScheduledDeliveryCode.Permanent, 1, 120, ScheduleExpireActionCode.Continue),
             Descriptor(ExpirePauseJobName, ScheduledDeliveryCode.Permanent, 1, 120, ScheduleExpireActionCode.Pause),
             Descriptor(
                 BacklogSecondsJobName,
@@ -94,7 +94,7 @@ public sealed class MisfirePolicyManifest : IJobManifest
 /// </summary>
 [ConformanceSpec(
     "schedule.misfire-policies",
-    "CatchUpAll drains a backlog in order, expiration discards or pauses stale work",
+    "CatchUpAll drains a backlog in order; an expiry skips stale work and may pause",
     Area = "Scheduling",
     Contract = "CatchUpAll admits a backlog one occurrence per settlement, an expired occurrence is skipped, pausing under Pause, and no backlog is too deep to decide."
 )]
@@ -187,12 +187,12 @@ public sealed class MisfirePolicySpec : ActaRuntimeTestBase<ConformanceFixture, 
         Assert.Equal(first.AddMinutes(3), state.NextOccurrenceAtUtc);
     }
 
-    [Fact(DisplayName = "Under Discard the occurrences older than the expiry are skipped with the reason expired and the rest fire")]
-    public async Task Expiration_under_discard_skips_the_stale_backlog()
+    [Fact(DisplayName = "Under Continue the occurrences older than the expiry are skipped with the reason expired and the rest fire")]
+    public async Task Expiration_under_continue_skips_the_stale_backlog()
     {
         var ct = TestContext.Current.CancellationToken;
-        await IsolateAsync(MisfirePolicyManifest.ExpireDiscardJobName, ct);
-        var slotId = await ScheduleTestOps.SlotIdAsync(Db, TestNamespace, MisfirePolicyManifest.ExpireDiscardJobName, ct);
+        await IsolateAsync(MisfirePolicyManifest.ExpireContinueJobName, ct);
+        var slotId = await ScheduleTestOps.SlotIdAsync(Db, TestNamespace, MisfirePolicyManifest.ExpireContinueJobName, ct);
         var first = Assert.Single(await ScheduleTestOps.ReadAsync(Db, slotId, ct)).NextOccurrenceAtUtc!.Value;
         Clock.AdvanceTo(first.AddMinutes(5));
 
@@ -337,7 +337,7 @@ public sealed class MisfirePolicySpec : ActaRuntimeTestBase<ConformanceFixture, 
             {
                 MisfirePolicyManifest.BacklogSlotJobName,
                 MisfirePolicyManifest.BacklogRootsJobName,
-                MisfirePolicyManifest.ExpireDiscardJobName,
+                MisfirePolicyManifest.ExpireContinueJobName,
                 MisfirePolicyManifest.ExpirePauseJobName,
                 MisfirePolicyManifest.BacklogSecondsJobName,
             }

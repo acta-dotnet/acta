@@ -1336,7 +1336,7 @@ public class ManifestGeneratorDiagnosticTests
             public static class Handler
             {
                 [Job("expiring", ScheduledDelivery = ScheduledDeliveryCode.PerOccurrence)]
-                [Schedule("tick", Cron.Hourly, ExpireAfter = "1h", ExpireAction = ScheduleExpireActionCode.Discard)]
+                [Schedule("tick", Cron.Hourly, ExpireAfter = "1h", ExpireAction = ScheduleExpireActionCode.Continue)]
                 public static void Expiring() { }
 
                 [Job("lasting")]
@@ -1349,7 +1349,7 @@ public class ManifestGeneratorDiagnosticTests
         Assert.Empty(result.Diagnostics);
         var source = Assert.Single(result.GeneratedTrees).ToString();
         Assert.Contains("ExpireAfterSeconds: 3600,", source);
-        Assert.Contains("ExpireAction: global::Acta.ScheduleExpireActionCode.Discard,", source);
+        Assert.Contains("ExpireAction: global::Acta.ScheduleExpireActionCode.Continue,", source);
         Assert.Contains("ExpireAfterSeconds: null,", source);
         Assert.Contains("ExpireAction: global::Acta.ScheduleExpireActionCode.Unspecified,", source);
     }
@@ -1357,7 +1357,7 @@ public class ManifestGeneratorDiagnosticTests
     [Theory]
     [InlineData("ExpireAfter = \"1h\"")]
     [InlineData("ExpireAction = ScheduleExpireActionCode.Pause")]
-    [InlineData("ExpireAfter = \"0s\", ExpireAction = ScheduleExpireActionCode.Discard")]
+    [InlineData("ExpireAfter = \"0s\", ExpireAction = ScheduleExpireActionCode.Continue")]
     [InlineData("ExpireAfter = \"PT1H\", ExpireAction = (ScheduleExpireActionCode)42")]
     public void A_partial_or_out_of_range_expiration_errors_ACTA0126(string expiration)
     {
@@ -1389,7 +1389,7 @@ public class ManifestGeneratorDiagnosticTests
             public static class Handler
             {
                 [Job("expiring")]
-                [Schedule("tick", Cron.Hourly, ExpireAfter = "soon", ExpireAction = ScheduleExpireActionCode.Discard)]
+                [Schedule("tick", Cron.Hourly, ExpireAfter = "soon", ExpireAction = ScheduleExpireActionCode.Continue)]
                 public static void Run() { }
             }
             """

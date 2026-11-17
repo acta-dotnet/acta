@@ -9899,7 +9899,7 @@
                           "fullBehavior": "wait",
                           "scheduledDelivery": "permanent",
                           "expireAfterSeconds": 3600,
-                          "expireAction": "discard",
+                          "expireAction": "continue",
                           "availabilityCalendarName": "office-hours",
                           "startAtUtc": "2027-01-01T00:00:00Z",
                           "endBeforeUtc": "2028-01-01T00:00:00Z"
@@ -13150,7 +13150,7 @@
                           "fullBehavior": "wait",
                           "scheduledDelivery": "permanent",
                           "expireAfterSeconds": 3600,
-                          "expireAction": "discard",
+                          "expireAction": "continue",
                           "availabilityCalendarName": "office-hours",
                           "startAtUtc": "2027-01-01T00:00:00Z",
                           "endBeforeUtc": "2028-01-01T00:00:00Z"
@@ -13328,7 +13328,7 @@
                       "fullBehavior": "wait",
                       "scheduledDelivery": "permanent",
                       "expireAfterSeconds": 3600,
-                      "expireAction": "discard",
+                      "expireAction": "continue",
                       "availabilityCalendarName": "office-hours",
                       "startAtUtc": "2027-01-01T00:00:00Z",
                       "endBeforeUtc": "2028-01-01T00:00:00Z"
@@ -18804,7 +18804,7 @@
                 "$ref": "#/components/schemas/ScheduleExpireActionCode"
               }
             ],
-            "description": "What an expired occurrence does: it is discarded, or the schedule pauses. Null when occurrences never expire."
+            "description": "What follows an expired occurrence, skipped either way: the schedule continues or pauses. Null when occurrences never expire."
           },
           "availabilityCalendarName": {
             "type": [
@@ -20611,7 +20611,7 @@
                 "$ref": "#/components/schemas/ScheduleExpireActionCode"
               }
             ],
-            "description": "What an expired occurrence does: it is discarded, or the schedule pauses. Null when occurrences never expire."
+            "description": "What follows an expired occurrence, skipped either way: the schedule continues or pauses. Null when occurrences never expire."
           },
           "availabilityCalendarName": {
             "type": [
@@ -22155,13 +22155,13 @@
       },
       "ScheduleExpireActionCode": {
         "examples": [
-          "discard"
+          "continue"
         ],
         "type": "string",
-        "description": "What happens to an occurrence that reaches its schedule's expiry before it is admitted.\n\nKnown values:\n- unspecified: Schedule expire action not recognized by this build; the row was written by a newer Acta.\n- discard: An occurrence older than the schedule's expiry when it is evaluated is skipped, audited with the reason expired, and the schedule moves on.\n- pause: An occurrence older than the schedule's expiry when it is evaluated is skipped, audited with the reason expired, and the schedule is paused with the reason until an operator resumes it.\n\nOther values may appear: keep a value this client does not know as it is.",
+        "description": "What happens to an occurrence that reaches its schedule's expiry before it is admitted.\n\nKnown values:\n- unspecified: Schedule expire action not recognized by this build; the row was written by a newer Acta.\n- continue: An occurrence older than the schedule's expiry when it is evaluated is skipped, audited with the reason expired, and the schedule moves on.\n- pause: An occurrence older than the schedule's expiry when it is evaluated is skipped, audited with the reason expired, and the schedule is paused with the reason until an operator resumes it.\n\nOther values may appear: keep a value this client does not know as it is.",
         "x-acta-known-values": [
           "unspecified",
-          "discard",
+          "continue",
           "pause"
         ]
       },
