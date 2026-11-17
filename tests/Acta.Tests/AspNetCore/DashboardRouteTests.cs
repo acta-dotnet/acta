@@ -72,8 +72,8 @@ public sealed partial class DashboardRouteTests
     }
 
     /// <summary>
-    /// The version segment is the 1.0 freeze's escape hatch, so losing it must break a test rather
-    /// than quietly widen the frozen surface back to an unversioned one.
+    /// The version segment is what lets a new route shape be served beside the old one, so losing it
+    /// must break a test rather than quietly turn the surface back into an unversioned one.
     /// </summary>
     [Fact]
     public async Task Api_routes_live_under_the_version_segment_and_nowhere_else()

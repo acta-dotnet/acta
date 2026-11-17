@@ -338,8 +338,8 @@ hand-written page goes in `docs/`. A stale contract test names its own regenerat
 
 `dotnet run --project tools/Acta.Emit -- check` verifies the Emit-owned files. A regenerated baseline
 looks like a deliberate one once committed, so read each moved baseline and confirm the move was
-intended. From 1.0 the .NET and HTTP surfaces are additive-only: a diff that removes or renames a
-member is a 2.0 change.
+intended. From 1.0 the data model is frozen and the .NET and HTTP surfaces are not: a diff that
+removes or renames a member is a breaking change, kept minimal or not made.
 
 ## Before opening a PR
 
@@ -457,7 +457,8 @@ markers (TODO, "not yet", "placeholder"). Run that test class after any comment 
 
 The naming rules the public surface is held to, across every contract tier: the .NET surface,
 the HTTP surface, the SQL schema with its persisted codes, and the telemetry an operator queries.
-After 1.0.0 a rename that breaks one is a breaking change, not a cleanup.
+From 1.0.0 the schema and its persisted codes are frozen. A name on the .NET or HTTP surface can still
+change, and since a rename there breaks a caller, such a change is minimal or not made.
 
 A SQL name fits in 63 bytes, because PostgreSQL truncates a longer one without an error
 (`ProviderMigrationOwnershipTests`). A constraint or index name is used once in the schema, because SQL

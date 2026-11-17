@@ -23,8 +23,8 @@ public static class ActaEndpointRouteBuilderExtensions
     /// The segment is Acta's, not the caller's: a host that mounts at <c>/internal/acta</c> still gets
     /// <c>/internal/acta/api/v1/jobs</c>, so a client written against one deployment reads the same on
     /// the next. Acta owning it is also what makes a future <c>v2</c> Acta's decision rather than a
-    /// breaking change every host has to absorb - the 1.0 freeze locks route shapes, and a frozen
-    /// surface with no version segment has no escape hatch at all.
+    /// breaking change every host has to absorb: clients are written against the route shapes, and
+    /// without a version segment a new shape cannot be served beside the old one.
     /// </remarks>
     public const string ApiVersionSegment = "/v1";
 

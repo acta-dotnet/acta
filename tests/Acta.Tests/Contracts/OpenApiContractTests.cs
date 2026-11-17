@@ -20,7 +20,7 @@ using Mount = Acta.Tests.Contracts.ActaOpenApiDocument.Mount;
 namespace Acta.Tests.Contracts;
 
 /// <summary>
-/// Freezes the HTTP contract the way <c>PersistedCodeContractTests</c> freezes the code vocabulary: generate the document
+/// Pins the HTTP contract the way <c>PersistedCodeContractTests</c> pins the code vocabulary: generate the document
 /// from the real endpoint graph (<see cref="ActaOpenApiDocument"/>), compare it to the committed file, fail on any drift.
 /// Regenerate deliberately with <c>ACTA_EMIT_OPENAPI=1 dotnet test tests/Acta.Tests --filter OpenApiContractTests</c>, then
 /// read the diff. The other facts hold the document to what the server reads and writes.

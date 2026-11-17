@@ -76,7 +76,7 @@
          reader throws OutboxContractException and the relay catches it in the same tick.
          OutboxQuarantineTickException is the one that does leave the runtime, as the sys.outbox job's
          own failure - but it reaches an operator as alert text, never as a type on a handler's catch
-         list. Publishing the four would freeze engine internals into the supported surface. -->
+         list. Publishing the four would put engine internals on the supported surface. -->
     <NoWarn>$(NoWarn);CA1064</NoWarn>
     <!-- RaiseSignalAsync and its siblings are durable ledger operations named as verbs, not CLR
          events; CA1030's event-shaped guidance does not describe them. -->

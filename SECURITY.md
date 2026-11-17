@@ -10,7 +10,7 @@ Until 1.0.0 ships, that is the latest release candidate; from 1.0.0 on, nothing 
 | Latest published version | Yes |
 | Earlier versions | No |
 
-The schema, persisted codes, and public API are frozen from 1.0, and a
+The data model, the schema and the persisted codes, is frozen from 1.0, and a
 supported-versions window is stated properly. The support matrix, supported .NET target, and the
 patch policy that takes effect at 1.0 are stated in [docs/compatibility-and-support.md](./docs/compatibility-and-support.md).
 

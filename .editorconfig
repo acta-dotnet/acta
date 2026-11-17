@@ -445,7 +445,7 @@ dotnet_diagnostic.CA1031.severity = none
 # not a property guarding state a caller could reach past - it is the raised slot's stored bytes in
 # transit, returned by the subclass sink and handed straight to DeserializeSignalPayload(byte,
 # byte[]), which takes byte[] because the serializer registry does. Widening it to ReadOnlyMemory
-# would cost a copy at the only two members that ever touch it, and both are on the frozen 1.0.0
+# would cost a copy at the only two members that ever touch it, and both are on the public
 # surface: the record struct is protected on the public abstract class handlers receive.
 [src/Acta/Handlers/JobContext.Waits.cs]
 dotnet_diagnostic.CA1819.severity = none
@@ -504,18 +504,18 @@ dotnet_diagnostic.CA1805.severity = none
 
 # CA1716: UpdateOverridesAsync's 'overrides' parameter, which collides with VB's Overrides keyword.
 # The word is load-bearing across the three contract tiers CONTRIBUTING.md (Naming conventions)
-# freezes: the feature is operator policy overrides, the argument's own type is
+# names: the feature is operator policy overrides, the argument's own type is
 # JobDefinitionPolicyOverrides, the schema spells the modifier _override on every column it qualifies,
 # and the method is named for it. Renaming the parameter alone would leave one link in that chain
 # calling it something else, which is exactly the drift the naming rules were written to stop - and
-# the member is on the frozen 1.0.0 surface, where a rename is a break, not a cleanup.
+# the member is public, where a rename is a break, not a cleanup.
 [src/Acta/Operations/Definitions/IDefinitions.cs]
 dotnet_diagnostic.CA1716.severity = none
 
 # CA1711: JobHandlerInvokeDelegate is a delegate declaration, so the suffix reports what the type is.
 # CA1711's reserved-suffix list exists to stop a type borrowing a word it does not earn; this one
 # earns it, and the name distinguishes the dispatch delegate from the generated invoker it points at.
-# Public and frozen at 1.0.0, so a rename is a break.
+# Public, so a rename is a break.
 [src/Acta/Handlers/JobHandlerInvokeDelegate.cs]
 dotnet_diagnostic.CA1711.severity = none
 
@@ -523,14 +523,14 @@ dotnet_diagnostic.CA1711.severity = none
 # friendly alternates CA2225 asks for already exist and are what the operators call - ByRef(JobRef)
 # and ById(long) - so the rule is satisfied in substance and fails only on the spelling: it wants
 # ToJobLookup / FromJobRef. Acta names lookup factories By* as a family - ByRef, ById,
-# ByDeduplicationKey - which reads at the call site as the sentence it is, and the type is on the
-# frozen 1.0.0 surface, so a second public name for each would be added and never removed.
+# ByDeduplicationKey - which reads at the call site as the sentence it is, and the type is
+# public, so a second name for each would be one more name to keep.
 [src/Acta/Domain/Jobs/JobLookup.cs]
 dotnet_diagnostic.CA2225.severity = none
 
 # CA1711: JobBehaviorDelegate is a delegate declaration, on the same reasoning as
 # JobHandlerInvokeDelegate's - the suffix is accurate, and here it also separates the continuation
-# from the IJobPipelineBehavior that receives it. Public and frozen at 1.0.0.
+# from the IJobPipelineBehavior that receives it. Public, so a rename is a break.
 [src/Acta/Handlers/JobBehaviorDelegate.cs]
 dotnet_diagnostic.CA1711.severity = none
 
@@ -538,8 +538,8 @@ dotnet_diagnostic.CA1711.severity = none
 # It is the name every .NET pipeline gives its continuation, starting with ASP.NET Core's own
 # IMiddleware.InvokeAsync(HttpContext, RequestDelegate next) - so the rule, with CA1711 on the
 # delegate, would have Acta rename the exact shape the framework it hosts in ships, and readers would
-# meet a middleware chain whose continuation is called something else. The interface member is public
-# and frozen at 1.0.0.
+# meet a middleware chain whose continuation is called something else. The interface member is
+# public, so a rename is a break.
 [src/Acta/Handlers/IJobPipelineBehavior.cs]
 dotnet_diagnostic.CA1716.severity = none
 

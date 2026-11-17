@@ -10,7 +10,7 @@ namespace Acta.Tests.AspNetCore;
 /// <summary>
 /// The QueryBinding reads in a handler and its QueryParameterDoc declarations are two hand-written
 /// lists describing one contract, and the OpenAPI gate cannot see when they diverge: a doc with no
-/// binding freezes a phantom filter (a client sends it and is silently unfiltered), and a binding
+/// binding publishes a phantom filter (a client sends it and is silently unfiltered), and a binding
 /// with no doc never reaches the document at all. This scan holds the two lists equal per endpoint
 /// in every group's route table and endpoint file, expanding shared blocks through
 /// reflection so the pins can never lag the blocks themselves.

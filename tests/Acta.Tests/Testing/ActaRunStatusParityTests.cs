@@ -6,7 +6,7 @@ namespace Acta.Tests.Testing;
 /// <summary>
 /// <see cref="ActaTestHost"/> maps the runtime's tick outcome to the public
 /// <see cref="ActaRunStatus"/> with a bare numeric cast, which is only sound while the two enums
-/// agree member for member. Nothing else holds them together: the public enum is a frozen surface
+/// agree member for member. Nothing else holds them together: callers compile against the public enum
 /// and the internal one is free to move, so this pin is what turns a silent remap into a red test.
 /// </summary>
 public sealed class ActaRunStatusParityTests

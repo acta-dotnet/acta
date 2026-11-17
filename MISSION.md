@@ -17,7 +17,8 @@ Install a package, point it at SQL Server, PostgreSQL, or SQLite, and jobs survi
 
 ### Make the 1.0 promise and keep it
 
-- At 1.0 the public API, the schema, and every stored code freeze, and a 1.x database upgrades by migration alone.
+- At 1.0 the data model freezes, the schema and every stored code, and a 1.x database upgrades by migration alone.
+- The public API does not freeze with it; a change to it after 1.0 is minimal, or not made.
 - Every migration keeps rolling deploys working.
 - The compatibility guard lands first in 1.0.1 and checks every later release against the 1.0 contract.
 - Each release carries one certification record anyone can reproduce: the suites, the chaos run, the ledger checks, the benchmark round.
