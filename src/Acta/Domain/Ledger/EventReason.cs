@@ -40,7 +40,10 @@ internal static class EventReason
     /// <summary>The handler called ctx.RescheduleAsync.</summary>
     public const string HandlerRescheduled = "handler-rescheduled";
 
-    /// <summary>The handler called ctx.SleepAsync or a durable wait.</summary>
+    /// <summary>The handler called ctx.SleepAsync.</summary>
+    public const string HandlerSlept = "handler-slept";
+
+    /// <summary>The handler called a durable wait, for a signal or for child jobs.</summary>
     public const string HandlerSuspended = "handler-suspended";
 
     /// <summary>The handler called ctx.FailAsync: a deliberate terminal failure, budget untouched.</summary>

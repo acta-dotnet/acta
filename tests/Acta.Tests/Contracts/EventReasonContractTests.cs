@@ -23,6 +23,7 @@ public sealed partial class EventReasonContractTests
         ParentCancelled=parent-cancelled
         DefinitionRetired=definition-retired
         HandlerRescheduled=handler-rescheduled
+        HandlerSlept=handler-slept
         HandlerSuspended=handler-suspended
         HandlerFailed=handler-failed
         HandlerCancelled=handler-cancelled

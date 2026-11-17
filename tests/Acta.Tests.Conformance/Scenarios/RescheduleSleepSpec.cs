@@ -95,8 +95,10 @@ public sealed class RescheduleSleepSpec : ActaRuntimeTestBase<ConformanceFixture
         Assert.Equal(1, await CountYieldedAsync(enqueued.JobId, "slept", ct));
         Assert.Equal(1, await CountEventsAsync(enqueued.JobId, EventCode.JobSlept, ct));
 
-        // The sleep's reason is the timeline's line.
-        Assert.Equal("waiting", (await ReadLatestEventAsync(enqueued.JobId, EventCode.JobSlept, ct)).EventMessage);
+        // The sleep's reason is the timeline's line, and its details name the handler's call.
+        var slept = await ReadLatestEventAsync(enqueued.JobId, EventCode.JobSlept, ct);
+        Assert.Equal("waiting", slept.EventMessage);
+        Assert.Equal(EventReason.HandlerSlept, EventDetail(slept, "reason"));
     }
 
     [Fact(DisplayName = "A sleep given no reason names its timer and the instant it lasts until on the timeline")]

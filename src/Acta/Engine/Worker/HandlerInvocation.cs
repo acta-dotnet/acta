@@ -228,7 +228,7 @@ internal sealed class HandlerInvocation(
             case SuspendSignal suspend:
                 return new ExecutionCompletion(CompletionKind.Suspended)
                 {
-                    Reason = EventReason.HandlerSuspended,
+                    Reason = EventReason.HandlerSlept,
                     ReasonMessage = suspend.Message.Truncate(ActaTextLimits.EventMessage),
                     RescheduleResumeAtUtc = suspend.ResumeAtUtc,
                 };
