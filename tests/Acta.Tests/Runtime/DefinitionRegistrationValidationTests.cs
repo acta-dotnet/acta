@@ -117,6 +117,17 @@ public sealed class DefinitionRegistrationValidationTests
     }
 
     [Theory]
+    [InlineData(AlertProfileCode.Unspecified)]
+    [InlineData((AlertProfileCode)42)]
+    public async Task An_alert_profile_that_is_not_declarable_fails_registration(AlertProfileCode profile)
+    {
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() => RegisterAsync(Descriptor("unheard") with { AlertProfile = profile }));
+
+        Assert.Contains("unheard", ex.Message);
+        Assert.Contains("AlertProfile", ex.Message);
+    }
+
+    [Theory]
     [InlineData(0)]
     [InlineData(-1)]
     [InlineData(JobDefinitionRegistration.MaxConcurrencyLimit + 1)]

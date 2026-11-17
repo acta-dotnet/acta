@@ -972,7 +972,7 @@ BEGIN
                     AND (d.event_code = 44 /* EventCode.JobFailed */ OR (d.event_code = 40 /* EventCode.JobExecutionSucceeded */ AND d.prior_failure_count > 0))
                 )
                 OR (
-                    jd.alert_profile_code_effective <> 0 /* AlertProfileCode.None */
+                    jd.alert_profile_code_effective <> 10 /* AlertProfileCode.None */
                     AND d.event_code = 40 /* EventCode.JobExecutionSucceeded */
                     AND d.execution_number > 1
                 )
@@ -1308,7 +1308,7 @@ BEGIN
                 )
             )
             OR (
-                jd.alert_profile_code_effective <> 0 /* AlertProfileCode.None */
+                jd.alert_profile_code_effective <> 10 /* AlertProfileCode.None */
                 AND c.event_code = 40 /* EventCode.JobExecutionSucceeded */
                 AND c.execution_number > 1
                 AND c.final_job_status_code IS NULL
@@ -2844,7 +2844,7 @@ BEGIN
                             e.event_code IN (41 /* EventCode.JobExecutionFailed */, 42 /* EventCode.JobExecutionOrphaned */, 44 /* EventCode.JobFailed */)
                             OR (e.event_code = 40 /* EventCode.JobExecutionSucceeded */ AND e.execution_number > 1)
                         )
-                        AND d.alert_profile_code_effective <> 0 /* AlertProfileCode.None */)
+                        AND d.alert_profile_code_effective <> 10 /* AlertProfileCode.None */)
                 -- A job stays while an alert of it is undelivered: the failure it reports has reached nobody yet.
                 AND NOT EXISTS (
                     SELECT 1 FROM {{schema}}.alerts a
@@ -2895,7 +2895,7 @@ BEGIN
                     AND EXISTS (
                         SELECT 1
                         FROM {{schema}}.definitions d
-                        WHERE d.definition_id = e.definition_id AND d.alert_profile_code_effective <> 0 /* AlertProfileCode.None */))
+                        WHERE d.definition_id = e.definition_id AND d.alert_profile_code_effective <> 10 /* AlertProfileCode.None */))
             ORDER BY e.created_at_utc, e.event_id
             LIMIT p_batch_size
             FOR UPDATE OF e SKIP LOCKED) q;
@@ -4300,7 +4300,7 @@ SELECT
     d.event_recording_code,
     d.event_recording_code_override,
     d.event_recording_code_effective,
-    CASE d.alert_profile_code_effective WHEN 0 THEN 'none' WHEN 10 THEN 'on-failure' WHEN 20 THEN 'info' WHEN 30 THEN 'on-final-failure' WHEN 40 THEN 'sys-critical' END AS alert_profile_effective,
+    CASE d.alert_profile_code_effective WHEN 0 THEN 'unspecified' WHEN 10 THEN 'none' WHEN 20 THEN 'on-failure' WHEN 30 THEN 'info' WHEN 40 THEN 'on-final-failure' WHEN 50 THEN 'sys-critical' END AS alert_profile_effective,
     d.alert_profile_code,
     d.alert_profile_code_override,
     d.alert_profile_code_effective,
@@ -4523,5 +4523,5 @@ JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261117161105_init')
+VALUES ('M20261117163843_init')
 ON CONFLICT (name) DO NOTHING;

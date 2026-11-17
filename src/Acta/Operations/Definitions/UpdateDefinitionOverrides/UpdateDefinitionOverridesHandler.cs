@@ -64,6 +64,10 @@ internal sealed class UpdateDefinitionOverridesHandler(GetDefinitionIdHandler ge
         {
             overrides = overrides with { Priority = null };
         }
+        if (overrides.AlertProfile == AlertProfileCode.Unspecified)
+        {
+            overrides = overrides with { AlertProfile = null };
+        }
         if (overrides.DeadlineBehavior == DeadlineBehaviorCode.Unspecified)
         {
             overrides = overrides with { DeadlineBehavior = null };

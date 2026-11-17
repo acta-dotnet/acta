@@ -31,7 +31,7 @@ SELECT
                     e.event_code IN (41 /* EventCode.JobExecutionFailed */, 42 /* EventCode.JobExecutionOrphaned */, 44 /* EventCode.JobFailed */)
                     OR (e.event_code = 40 /* EventCode.JobExecutionSucceeded */ AND e.execution_number > 1)
                 )
-                AND d.alert_profile_code_effective <> 0 /* AlertProfileCode.None */)
+                AND d.alert_profile_code_effective <> 10 /* AlertProfileCode.None */)
         THEN 1 ELSE 0 END AS alert_hold,
     -- A finished job may go; a permanent slot only with no firing outstanding and no live schedule pinning it, the
     -- deliberate decommission of a slot whose schedules are all orphaned or whose definition is retired.

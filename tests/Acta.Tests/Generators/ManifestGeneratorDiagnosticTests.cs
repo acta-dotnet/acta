@@ -823,9 +823,11 @@ public class ManifestGeneratorDiagnosticTests
     }
 
     [Theory]
-    [InlineData("(JobPriorityCode)42")]
-    [InlineData("JobPriorityCode.Unspecified")]
-    public void An_undeclarable_priority_errors_ACTA0105(string priority)
+    [InlineData("Priority = (JobPriorityCode)42")]
+    [InlineData("Priority = JobPriorityCode.Unspecified")]
+    [InlineData("AlertProfile = (AlertProfileCode)42")]
+    [InlineData("AlertProfile = AlertProfileCode.Unspecified")]
+    public void An_undeclarable_priority_or_alert_profile_errors_ACTA0105(string policy)
     {
         var result = RunGenerator(
             $$"""
@@ -834,7 +836,7 @@ public class ManifestGeneratorDiagnosticTests
 
             public static class Handler
             {
-                [Job("bad-priority", Priority = {{priority}})]
+                [Job("bad-policy", {{policy}})]
                 public static void Run() { }
             }
             """

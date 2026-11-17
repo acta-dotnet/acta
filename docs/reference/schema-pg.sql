@@ -12,7 +12,7 @@
 -- present and leaves the data in place. Over a database a newer release upgraded, the script stops
 -- before changing anything. A later 1.x release upgrades a 1.x database with
 -- its own migrations, carried in its own copy of this script. A database provisioned from an
--- init migration other than M20261117161105_init has no upgrade path: provision a new one.
+-- init migration other than M20261117163843_init has no upgrade path: provision a new one.
 --
 -- Run it with a client that stops at the first error, which is what makes the transaction below a
 -- guarantee: psql -v ON_ERROR_STOP=1. A client that runs on past a failed statement would reach the
@@ -41,14 +41,14 @@ DO $$
 BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
-        WHERE name NOT IN ('M20261117161105_init')
+        WHERE name NOT IN ('M20261117163843_init')
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
 END
 $$;
 
--- ===== BEGIN M20261117161105_init =====
+-- ===== BEGIN M20261117163843_init =====
 CREATE SCHEMA IF NOT EXISTS acta;
 
 -- alerts
@@ -1023,7 +1023,7 @@ BEGIN
                     AND (d.event_code = 44 /* EventCode.JobFailed */ OR (d.event_code = 40 /* EventCode.JobExecutionSucceeded */ AND d.prior_failure_count > 0))
                 )
                 OR (
-                    jd.alert_profile_code_effective <> 0 /* AlertProfileCode.None */
+                    jd.alert_profile_code_effective <> 10 /* AlertProfileCode.None */
                     AND d.event_code = 40 /* EventCode.JobExecutionSucceeded */
                     AND d.execution_number > 1
                 )
@@ -1359,7 +1359,7 @@ BEGIN
                 )
             )
             OR (
-                jd.alert_profile_code_effective <> 0 /* AlertProfileCode.None */
+                jd.alert_profile_code_effective <> 10 /* AlertProfileCode.None */
                 AND c.event_code = 40 /* EventCode.JobExecutionSucceeded */
                 AND c.execution_number > 1
                 AND c.final_job_status_code IS NULL
@@ -2895,7 +2895,7 @@ BEGIN
                             e.event_code IN (41 /* EventCode.JobExecutionFailed */, 42 /* EventCode.JobExecutionOrphaned */, 44 /* EventCode.JobFailed */)
                             OR (e.event_code = 40 /* EventCode.JobExecutionSucceeded */ AND e.execution_number > 1)
                         )
-                        AND d.alert_profile_code_effective <> 0 /* AlertProfileCode.None */)
+                        AND d.alert_profile_code_effective <> 10 /* AlertProfileCode.None */)
                 -- A job stays while an alert of it is undelivered: the failure it reports has reached nobody yet.
                 AND NOT EXISTS (
                     SELECT 1 FROM acta.alerts a
@@ -2946,7 +2946,7 @@ BEGIN
                     AND EXISTS (
                         SELECT 1
                         FROM acta.definitions d
-                        WHERE d.definition_id = e.definition_id AND d.alert_profile_code_effective <> 0 /* AlertProfileCode.None */))
+                        WHERE d.definition_id = e.definition_id AND d.alert_profile_code_effective <> 10 /* AlertProfileCode.None */))
             ORDER BY e.created_at_utc, e.event_id
             LIMIT p_batch_size
             FOR UPDATE OF e SKIP LOCKED) q;
@@ -4351,7 +4351,7 @@ SELECT
     d.event_recording_code,
     d.event_recording_code_override,
     d.event_recording_code_effective,
-    CASE d.alert_profile_code_effective WHEN 0 THEN 'none' WHEN 10 THEN 'on-failure' WHEN 20 THEN 'info' WHEN 30 THEN 'on-final-failure' WHEN 40 THEN 'sys-critical' END AS alert_profile_effective,
+    CASE d.alert_profile_code_effective WHEN 0 THEN 'unspecified' WHEN 10 THEN 'none' WHEN 20 THEN 'on-failure' WHEN 30 THEN 'info' WHEN 40 THEN 'on-final-failure' WHEN 50 THEN 'sys-critical' END AS alert_profile_effective,
     d.alert_profile_code,
     d.alert_profile_code_override,
     d.alert_profile_code_effective,
@@ -4574,10 +4574,10 @@ JOIN acta.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO acta.migrations (name)
-VALUES ('M20261117161105_init')
+VALUES ('M20261117163843_init')
 ON CONFLICT (name) DO NOTHING;
 
--- ===== END M20261117161105_init =====
+-- ===== END M20261117163843_init =====
 
 COMMIT;
 

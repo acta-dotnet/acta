@@ -32,10 +32,13 @@ public sealed class AlertsJobReplayTests
         }
     }
 
-    [Fact]
-    public async Task Disabled_profile_disposes_of_skip_without_decoding_details()
+    // None raises nothing, and neither does a profile a newer Acta wrote, which reads back as Unspecified.
+    [Theory]
+    [InlineData(AlertProfileCode.None)]
+    [InlineData(AlertProfileCode.Unspecified)]
+    public async Task A_profile_that_raises_nothing_disposes_of_skip_without_decoding_details(AlertProfileCode profile)
     {
-        var e = Event(11, AlertProfileCode.None) with { Details = [0xff] };
+        var e = Event(11, profile) with { Details = [0xff] };
         var attempts = new List<long>();
         using var services = Session([e], attempts).Services();
         var ctx = new RecordingJobContext();

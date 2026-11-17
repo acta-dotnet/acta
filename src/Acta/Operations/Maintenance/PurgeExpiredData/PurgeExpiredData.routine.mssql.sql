@@ -126,7 +126,7 @@ BEGIN
                                 e.event_code IN (41 /* EventCode.JobExecutionFailed */, 42 /* EventCode.JobExecutionOrphaned */, 44 /* EventCode.JobFailed */)
                                 OR (e.event_code = 40 /* EventCode.JobExecutionSucceeded */ AND e.execution_number > 1)
                             )
-                            AND d.alert_profile_code_effective <> 0 /* AlertProfileCode.None */
+                            AND d.alert_profile_code_effective <> 10 /* AlertProfileCode.None */
                     )
                 ORDER BY w.created_at_utc DESC, w.job_id DESC
                 OPTION (FORCE ORDER, LOOP JOIN);
@@ -217,7 +217,7 @@ BEGIN
                         AND EXISTS (
                             SELECT 1
                             FROM {{schema}}.definitions d
-                            WHERE d.definition_id = e.definition_id AND d.alert_profile_code_effective <> 0 /* AlertProfileCode.None */
+                            WHERE d.definition_id = e.definition_id AND d.alert_profile_code_effective <> 10 /* AlertProfileCode.None */
                         )
                     )
                 ORDER BY e.created_at_utc, e.event_id;

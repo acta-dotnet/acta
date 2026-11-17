@@ -182,14 +182,15 @@ internal static class JobPolicyValues
             _ => null,
         };
 
+    /// <summary>The declarable profiles; <c>Unspecified</c> only reads back a newer Acta's row.</summary>
     internal static string? AlertProfileIdToName(byte id) =>
         id switch
         {
-            0 => "None",
-            10 => "OnFailure",
-            20 => "Info",
-            30 => "OnFinalFailure",
-            40 => "SysCritical",
+            10 => "None",
+            20 => "OnFailure",
+            30 => "Info",
+            40 => "OnFinalFailure",
+            50 => "SysCritical",
             _ => null,
         };
 

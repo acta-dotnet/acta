@@ -117,7 +117,7 @@ BEGIN
                     AND (d.event_code = 44 /* EventCode.JobFailed */ OR (d.event_code = 40 /* EventCode.JobExecutionSucceeded */ AND d.prior_failure_count > 0))
                 )
                 OR (
-                    jd.alert_profile_code_effective <> 0 /* AlertProfileCode.None */
+                    jd.alert_profile_code_effective <> 10 /* AlertProfileCode.None */
                     AND d.event_code = 40 /* EventCode.JobExecutionSucceeded */
                     AND d.execution_number > 1
                 )
@@ -453,7 +453,7 @@ BEGIN
                 )
             )
             OR (
-                jd.alert_profile_code_effective <> 0 /* AlertProfileCode.None */
+                jd.alert_profile_code_effective <> 10 /* AlertProfileCode.None */
                 AND c.event_code = 40 /* EventCode.JobExecutionSucceeded */
                 AND c.execution_number > 1
                 AND c.final_job_status_code IS NULL

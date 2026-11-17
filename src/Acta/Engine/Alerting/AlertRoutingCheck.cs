@@ -36,7 +36,7 @@ internal sealed class AlertRoutingCheck(
 
         foreach (var descriptor in effectiveDescriptors)
         {
-            if (descriptor.AlertProfile == AlertProfileCode.None)
+            if (!AlertsJob.IsEnabled(descriptor.AlertProfile))
             {
                 continue;
             }

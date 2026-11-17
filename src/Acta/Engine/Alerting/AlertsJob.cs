@@ -124,6 +124,12 @@ internal sealed class AlertsJob(
     }
 
     /// <summary>
+    /// Whether a profile raises alerts on its own. <c>None</c> raises nothing, and neither does a profile a newer
+    /// Acta wrote, which this build reads as <c>Unspecified</c> and cannot act on.
+    /// </summary>
+    internal static bool IsEnabled(AlertProfileCode profile) => profile is not (AlertProfileCode.None or AlertProfileCode.Unspecified);
+
+    /// <summary>
     /// One bounded drain per invocation, until the backlog, the batch cap, or the budget runs out. The cursor is
     /// written after every batch, so whatever ends the pass keeps every batch already projected, and re-offering the
     /// batch in flight is safe because raise and resolve refuse to move an incident an equal-or-newer event marked.
@@ -263,7 +269,7 @@ internal sealed class AlertsJob(
             }
 
             var gone = false;
-            if (!e.Superseded && e.AlertProfile != AlertProfileCode.None)
+            if (!e.Superseded && IsEnabled(e.AlertProfile))
             {
                 try
                 {
@@ -285,7 +291,7 @@ internal sealed class AlertsJob(
                 var disposition =
                     gone ? "job gone"
                     : e.Superseded ? "superseded"
-                    : e.AlertProfile == AlertProfileCode.None ? "disabled"
+                    : !IsEnabled(e.AlertProfile) ? "disabled"
                     : "projected";
                 var detail = $"{e.EventId}, {disposition}";
                 ActaLog.AlertEventReplayed(_log, detail, ctx.JobNamespace);
@@ -342,7 +348,7 @@ internal sealed class AlertsJob(
     private async Task ProjectAsync(JobContext ctx, AlertableEvent e, CancellationToken ct)
     {
         var profile = e.AlertProfile;
-        if (profile == AlertProfileCode.None)
+        if (!IsEnabled(profile))
         {
             return;
         }

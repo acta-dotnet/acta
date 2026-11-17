@@ -149,6 +149,16 @@ internal static class JobDefinitionRegistration
             );
         }
 
+        // A hand-authored IJobManifest descriptor bypasses the generator's profile check, and a row at a profile
+        // with no member would raise no alert while it records the attempts one reads.
+        if (descriptor.AlertProfile == AlertProfileCode.Unspecified || !Enum.IsDefined(descriptor.AlertProfile))
+        {
+            throw new ArgumentException(
+                $"Job definition \"{descriptor.JobName}\" (namespace {namespaceLabel}) declares AlertProfile "
+                    + $"{descriptor.AlertProfile}: it must be one of the alert profiles."
+            );
+        }
+
         // A hand-authored IJobManifest descriptor bypasses the generator's compile-time range check,
         // so this is the last gate before an unsatisfiable concurrency limit reaches the definitions row.
         if (descriptor.ConcurrencyLimit is < MinConcurrencyLimit or > MaxConcurrencyLimit)

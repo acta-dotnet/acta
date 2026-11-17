@@ -5,7 +5,7 @@
 > Generated reference for Acta code families and the payload-format registry.
 > Every persisted code is documented here exactly once; the data-model reference [`data-model.md`](./data-model.md) links into this file from every code-bearing column.
 
-This release: **32 families**, **197 values**.
+This release: **32 families**, **198 values**.
 
 > Numeric IDs are stable family-local persistence identifiers. Enum members carry programmatic meaning; textual codes carry operator-facing meaning.
 > Numeric grouping is a readability convention, not a runtime schema. Canonical failure states use `200`.
@@ -94,11 +94,12 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
-| `None` | 0 | `none` | No automatic failure alerts. An alert a handler raises is still created. | Active |
-| `OnFailure` | 10 | `on-failure` | The default. Alerts on every failed or orphaned attempt; repeats collapse onto the job's one open incident, and the final failure raises a separate alert. Every enabled profile records the attempts its alerts read, whatever the event recording level. Resolves on recovery, the job's next success. | Active |
-| `Info` | 20 | `info` | Informational alerts on a final failure only, at low severity. A permanent job rarely reaches one; see on-final-failure. Resolves on recovery, the job's next success. | Active |
-| `OnFinalFailure` | 30 | `on-final-failure` | Alerts on a final failure only: the retry budget is spent, the handler failed the job, an exception is not retryable, a step that runs at most once was interrupted, or a lost lease spent the budget. Resolves on recovery, the job's next success. A deadline cancels the job and so alerts under no profile. A permanent job never spends a budget, so use on-failure to hear about its failures. | Active |
-| `SysCritical` | 40 | `sys-critical` | Reserved for Acta's own system jobs. Alerts at critical severity to the job's channel, or to the channel named default when the job declares none. | Active |
+| `Unspecified` | 0 | `unspecified` | Alert profile not recognized by this build; the row was written by a newer Acta. | Active |
+| `None` | 10 | `none` | No automatic failure alerts. An alert a handler raises is still created. | Active |
+| `OnFailure` | 20 | `on-failure` | The default. Alerts on every failed or orphaned attempt; repeats collapse onto the job's one open incident, and the final failure raises a separate alert. Every enabled profile records the attempts its alerts read, whatever the event recording level. Resolves on recovery, the job's next success. | Active |
+| `Info` | 30 | `info` | Informational alerts on a final failure only, at low severity. A permanent job rarely reaches one; see on-final-failure. Resolves on recovery, the job's next success. | Active |
+| `OnFinalFailure` | 40 | `on-final-failure` | Alerts on a final failure only: the retry budget is spent, the handler failed the job, an exception is not retryable, a step that runs at most once was interrupted, or a lost lease spent the budget. Resolves on recovery, the job's next success. A deadline cancels the job and so alerts under no profile. A permanent job never spends a budget, so use on-failure to hear about its failures. | Active |
+| `SysCritical` | 50 | `sys-critical` | Reserved for Acta's own system jobs. Alerts at critical severity to the job's channel, or to the channel named default when the job declares none. | Active |
 
 ### `AlertSeverityCode` · `alert-severity` <a id="code-family-alertseveritycode"></a>
 

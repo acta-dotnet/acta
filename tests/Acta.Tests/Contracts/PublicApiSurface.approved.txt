@@ -197,11 +197,12 @@ sealed record Acta.AlertNotification
     System.String Title { get;init; }
     System.String? RunbookUrl { get;init; }
 enum Acta.AlertProfileCode : System.Byte
-    Info = 20
-    None = 0
-    OnFailure = 10
-    OnFinalFailure = 30
-    SysCritical = 40
+    Info = 30
+    None = 10
+    OnFailure = 20
+    OnFinalFailure = 40
+    SysCritical = 50
+    Unspecified = 0
 static class Acta.AlertProfileCodeExtensions
     static Acta.AlertProfileCode FromCode(System.String code)
     static Acta.AlertProfileCode FromId(System.Byte id)

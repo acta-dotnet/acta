@@ -14,7 +14,7 @@
 -- present and leaves the data in place. Over a database a newer release upgraded, the script stops
 -- before changing anything. A later 1.x release upgrades a 1.x database with
 -- its own migrations, carried in its own copy of this script. A database provisioned from an
--- init migration other than M20261117161105_init has no upgrade path: provision a new one.
+-- init migration other than M20261117163843_init has no upgrade path: provision a new one.
 --
 -- Run it with a client that stops at the first error, which is what makes the transaction below a
 -- guarantee: sqlcmd -b, or SQLCMD mode with stop-on-error in SSMS. A client that runs on past a failed
@@ -57,7 +57,7 @@ GO
 -- ===== refuse a database a newer release already upgraded =====
 IF EXISTS (
     SELECT 1 FROM acta.migrations
-    WHERE name NOT IN ('M20261117161105_init')
+    WHERE name NOT IN ('M20261117163843_init')
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -65,7 +65,7 @@ BEGIN
     SET NOEXEC ON;
 END
 GO
--- ===== BEGIN M20261117161105_init =====
+-- ===== BEGIN M20261117163843_init =====
 SET QUOTED_IDENTIFIER ON;
 SET ANSI_NULLS ON;
 GO
@@ -1678,7 +1678,7 @@ BEGIN
                 )
             )
             OR (
-                jd.alert_profile_code_effective <> 0 /* AlertProfileCode.None */
+                jd.alert_profile_code_effective <> 10 /* AlertProfileCode.None */
                 AND c.event_code = 40 /* EventCode.JobExecutionSucceeded */
                 AND d.execution_number > 1
                 AND c.final_job_status_code IS NULL
@@ -3360,7 +3360,7 @@ BEGIN
                                 e.event_code IN (41 /* EventCode.JobExecutionFailed */, 42 /* EventCode.JobExecutionOrphaned */, 44 /* EventCode.JobFailed */)
                                 OR (e.event_code = 40 /* EventCode.JobExecutionSucceeded */ AND e.execution_number > 1)
                             )
-                            AND d.alert_profile_code_effective <> 0 /* AlertProfileCode.None */
+                            AND d.alert_profile_code_effective <> 10 /* AlertProfileCode.None */
                     )
                 ORDER BY w.created_at_utc DESC, w.job_id DESC
                 OPTION (FORCE ORDER, LOOP JOIN);
@@ -3451,7 +3451,7 @@ BEGIN
                         AND EXISTS (
                             SELECT 1
                             FROM acta.definitions d
-                            WHERE d.definition_id = e.definition_id AND d.alert_profile_code_effective <> 0 /* AlertProfileCode.None */
+                            WHERE d.definition_id = e.definition_id AND d.alert_profile_code_effective <> 10 /* AlertProfileCode.None */
                         )
                     )
                 ORDER BY e.created_at_utc, e.event_id;
@@ -5007,7 +5007,7 @@ SELECT
     d.event_recording_code,
     d.event_recording_code_override,
     d.event_recording_code_effective,
-    CASE d.alert_profile_code_effective WHEN 0 THEN 'none' WHEN 10 THEN 'on-failure' WHEN 20 THEN 'info' WHEN 30 THEN 'on-final-failure' WHEN 40 THEN 'sys-critical' END AS alert_profile_effective,
+    CASE d.alert_profile_code_effective WHEN 0 THEN 'unspecified' WHEN 10 THEN 'none' WHEN 20 THEN 'on-failure' WHEN 30 THEN 'info' WHEN 40 THEN 'on-final-failure' WHEN 50 THEN 'sys-critical' END AS alert_profile_effective,
     d.alert_profile_code,
     d.alert_profile_code_override,
     d.alert_profile_code_effective,
@@ -5253,11 +5253,11 @@ JOIN acta.namespaces AS ns ON ns.namespace_id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261117161105_init')
+IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261117163843_init')
 INSERT INTO acta.migrations (name)
-VALUES ('M20261117161105_init');
+VALUES ('M20261117163843_init');
 GO
--- ===== END M20261117161105_init =====
+-- ===== END M20261117163843_init =====
 GO
 COMMIT TRANSACTION;
 GO
