@@ -83,6 +83,43 @@ public class CliCommandParserTests
         Assert.Contains("--value", error);
     }
 
+    [Theory]
+    [InlineData("cancel", "1")]
+    [InlineData("pause", "1")]
+    [InlineData("resume", "1")]
+    [InlineData("restart", "1")]
+    [InlineData("signal", "1", "approval")]
+    [InlineData("clear-signal", "1", "approval")]
+    [InlineData("debug", "1")]
+    public void A_verb_that_changes_a_job_takes_an_actor(params string[] args)
+    {
+        Assert.True(CliCommandParser.TryParse([.. args, "--actor", "ops-alice"], out var cmd, out var error), error);
+        Assert.Equal("ops-alice", cmd.Actor);
+    }
+
+    [Theory]
+    [InlineData("info", "1")]
+    [InlineData("status", "1")]
+    [InlineData("result", "1")]
+    [InlineData("events", "1")]
+    [InlineData("explain", "1")]
+    [InlineData("migrate")]
+    [InlineData("deploy")]
+    public void Actor_flag_is_rejected_for_a_verb_that_changes_no_job(params string[] args)
+    {
+        Assert.False(CliCommandParser.TryParse([.. args, "--actor", "ops-alice"], out _, out var error));
+        Assert.Contains("'--actor' is not valid for verb", error);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("  ")]
+    public void An_empty_actor_is_an_error(string actor)
+    {
+        Assert.False(CliCommandParser.TryParse(["cancel", "1", "--actor", actor], out _, out var error));
+        Assert.Contains("'--actor' requires a name", error);
+    }
+
     [Fact]
     public void Flags_parse_reason_ns_json()
     {
@@ -138,6 +175,7 @@ public class CliCommandParserTests
     [InlineData("signal", "1", "go", "extra")] // stray positional
     [InlineData("pause", "1", "--reason")] // flag without value
     [InlineData("pause", "1", "--ns")] // flag without value
+    [InlineData("pause", "1", "--actor")] // flag without value
     [InlineData("pause", "1", "--bogus", "x")] // unknown flag
     [InlineData("info", "1", "--reason", "x")] // reason on a read verb
     [InlineData("debug", "1", "--reason", "x")] // reason on debug (the runner stamps its own)

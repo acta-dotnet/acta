@@ -183,7 +183,8 @@ The reason for a transition lives on the `events` timeline (and per-step on `ste
 
 All per-job actions go through `IJobs` (or your own endpoint that wraps it), which records the
 actor and reason on the verb's event. Over HTTP the actor is the authenticated caller's name, never a
-request field; a C# caller passes it.
+request field; on the [CLI](#built-in-control-cli) it is `--actor <name>`, or the operating system's user name
+without it; a C# caller passes it.
 
 ```csharp
 // Address the job by its public ref (what dashboards and clients hold), by deduplication key,
@@ -370,7 +371,7 @@ Every Acta host doubles as a control CLI: `<app> jobs <verb>` runs the verb agai
 <app> jobs migrate [--force] [--json]
 ```
 
-A `job_...` target is a job ref, `id:<n>` the internal id, and any other target, a bare integer included, a deduplication key. As on the HTTP API, `id:<n>` is for reads (`info`, `status`, `result`, `explain`, `events`), and a control (`cancel`, `pause`, `resume`, `restart`, `signal`, `clear-signal`, `debug`) given one exits 64, since an internal id names a job in any namespace. A read with no target takes it from the clipboard and prints what it took to stderr; a control with no target exits 64. Add `--ns <ns>` to pick the namespace for a deduplication-key lookup and `--json` for JSON output.
+A `job_...` target is a job ref, `id:<n>` the internal id, and any other target, a bare integer included, a deduplication key. As on the HTTP API, `id:<n>` is for reads (`info`, `status`, `result`, `explain`, `events`), and a control (`cancel`, `pause`, `resume`, `restart`, `signal`, `clear-signal`, `debug`) given one exits 64, since an internal id names a job in any namespace. A read with no target takes it from the clipboard and prints what it took to stderr; a control with no target exits 64. Add `--ns <ns>` to pick the namespace for a deduplication-key lookup and `--json` for JSON output. A control records `--actor <name>` as the actor on its event, and the operating system's user name without it; a read, `deploy` or `migrate` given `--actor` exits 64.
 
 On SQLite a read opens the database file read-only, so a read of a file `migrate` has not provisioned creates nothing and prints ``not provisioned; run `<app> jobs migrate` `` to stderr, exiting 1. A file an earlier run left empty answers the same.
 

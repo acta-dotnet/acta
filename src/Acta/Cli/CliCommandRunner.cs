@@ -74,24 +74,25 @@ internal sealed class CliCommandRunner(
 
         var job = JobLookup.ById(snapshot.JobId);
         var jobRef = snapshot.JobRef;
+        var actor = command.Actor ?? Environment.UserName;
 
         return command.Verb switch
         {
             CliVerb.Info => Info(snapshot, command.Json),
             CliVerb.Status => await StatusAsync(job, jobRef, command.Json, ct),
             CliVerb.Result => await ResultAsync(job, ct),
-            CliVerb.Cancel => Control("cancel", jobRef, await jobs.CancelAsync(job, command.Reason, ct: ct), command.Json),
-            CliVerb.Pause => Control("pause", jobRef, await jobs.PauseAsync(job, command.Reason, ct: ct), command.Json),
-            CliVerb.Resume => Control("resume", jobRef, await jobs.ResumeAsync(job, command.Reason, ct: ct), command.Json),
-            CliVerb.Restart => Control("restart", jobRef, await jobs.RestartAsync(job, command.Reason, ct: ct), command.Json),
-            CliVerb.Signal => await SignalAsync(job, jobRef, command, ct),
+            CliVerb.Cancel => Control("cancel", jobRef, await jobs.CancelAsync(job, command.Reason, actor, ct: ct), command.Json),
+            CliVerb.Pause => Control("pause", jobRef, await jobs.PauseAsync(job, command.Reason, actor, ct: ct), command.Json),
+            CliVerb.Resume => Control("resume", jobRef, await jobs.ResumeAsync(job, command.Reason, actor, ct: ct), command.Json),
+            CliVerb.Restart => Control("restart", jobRef, await jobs.RestartAsync(job, command.Reason, actor, ct: ct), command.Json),
+            CliVerb.Signal => await SignalAsync(job, jobRef, command, actor, ct),
             CliVerb.ClearSignal => Control(
                 "clear-signal",
                 jobRef,
-                await jobs.ClearSignalAsync(job, command.SignalName!, ct: ct),
+                await jobs.ClearSignalAsync(job, command.SignalName!, actor, ct),
                 command.Json
             ),
-            CliVerb.Debug => await DebugAsync(snapshot, command.Json, command.Break, ct),
+            CliVerb.Debug => await DebugAsync(snapshot, command.Json, command.Break, actor, ct),
             CliVerb.Events => await EventsAsync(job, jobRef, command.Take, command.Cursor, command.Json, ct),
             CliVerb.Explain => await ExplainAsync(job, command.Json, ct),
             _ => ExitUsage,
@@ -152,7 +153,7 @@ internal sealed class CliCommandRunner(
     /// WaitSignalAsync&lt;T&gt;; omitting --value raises a presence-only signal, and a value that is not one JSON
     /// value is a usage error.
     /// </summary>
-    private async Task<int> SignalAsync(JobLookup job, JobRef jobRef, CliCommand command, CancellationToken ct)
+    private async Task<int> SignalAsync(JobLookup job, JobRef jobRef, CliCommand command, string actor, CancellationToken ct)
     {
         JobPayload payload;
         try
@@ -167,7 +168,7 @@ internal sealed class CliCommandRunner(
             return ExitUsage;
         }
 
-        return Control("signal", jobRef, await jobs.RaiseSignalAsync(job, command.SignalName!, payload, ct: ct), command.Json);
+        return Control("signal", jobRef, await jobs.RaiseSignalAsync(job, command.SignalName!, payload, actor, ct), command.Json);
     }
 
     private int Control(string verb, JobRef jobRef, IJobControlResponse result, bool json)
@@ -284,7 +285,7 @@ internal sealed class CliCommandRunner(
     /// claimable; the race is accepted. The exit code reflects the attempt: a thrown handler counts as failed even
     /// when the retry budget re-arms the job.
     /// </summary>
-    private async Task<int> DebugAsync(GetJobResponse snapshot, bool json, bool breakAtHandler, CancellationToken ct)
+    private async Task<int> DebugAsync(GetJobResponse snapshot, bool json, bool breakAtHandler, string actor, CancellationToken ct)
     {
         var jobId = snapshot.JobId;
         var jobRef = snapshot.JobRef;
@@ -309,7 +310,7 @@ internal sealed class CliCommandRunner(
             var restarted = false;
             if (snapshot.Status != JobStatusCode.Ready)
             {
-                var restart = await jobs.RestartAsync(JobLookup.ById(jobId), "cli debug", ct: ct);
+                var restart = await jobs.RestartAsync(JobLookup.ById(jobId), "cli debug", actor, ct: ct);
                 if (restart.Action != ControlAction.Applied)
                 {
                     var why = restart.Action == ControlAction.Rejected ? " Its status, lane, firing or schedule refuses a restart." : "";

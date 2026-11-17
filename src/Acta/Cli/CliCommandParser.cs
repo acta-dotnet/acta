@@ -2,7 +2,7 @@ namespace Acta;
 
 /// <summary>
 /// Hand-rolled parser for the jobs CLI: verb, positional target (and signal name), then flags.
-/// Grammar: jobs verb [target] [name] [--reason msg] [--value json] [--ns ns] [--json]. A missing
+/// Grammar: jobs verb [target] [name] [--reason msg] [--value json] [--actor name] [--ns ns] [--json]. A missing
 /// target parses as null; the runner fills a read verb's from the clipboard and refuses a control's.
 /// </summary>
 internal static class CliCommandParser
@@ -86,6 +86,7 @@ internal static class CliCommandParser
         string? signalName = null;
         string? signalValue = null;
         string? reason = null;
+        string? actor = null;
         string? ns = null;
         int? take = null;
         string? cursor = null;
@@ -107,7 +108,7 @@ internal static class CliCommandParser
                 case "--force":
                     force = true;
                     break;
-                case "--reason" or "--ns" or "--value" or "--take" or "--after":
+                case "--reason" or "--ns" or "--value" or "--take" or "--after" or "--actor":
                     if (i + 1 >= args.Count)
                     {
                         error = $"Flag '{token}' requires a value.";
@@ -134,6 +135,15 @@ internal static class CliCommandParser
                     else if (string.Equals(token, "--after", StringComparison.Ordinal))
                     {
                         cursor = flagValue;
+                    }
+                    else if (string.Equals(token, "--actor", StringComparison.Ordinal))
+                    {
+                        if (string.IsNullOrWhiteSpace(flagValue))
+                        {
+                            error = "Flag '--actor' requires a name.";
+                            return false;
+                        }
+                        actor = flagValue;
                     }
                     else
                     {
@@ -173,6 +183,23 @@ internal static class CliCommandParser
             error = $"Flag '--reason' is not valid for verb '{args[0]}'.";
             return false;
         }
+        if (
+            actor is not null
+            && verb
+                is not (
+                    CliVerb.Cancel
+                    or CliVerb.Pause
+                    or CliVerb.Resume
+                    or CliVerb.Restart
+                    or CliVerb.Signal
+                    or CliVerb.ClearSignal
+                    or CliVerb.Debug
+                )
+        )
+        {
+            error = $"Flag '--actor' is not valid for verb '{args[0]}'.";
+            return false;
+        }
         if (signalValue is not null && verb != CliVerb.Signal)
         {
             error = $"Flag '--value' is only valid for verb 'signal'.";
@@ -199,7 +226,7 @@ internal static class CliCommandParser
             return false;
         }
 
-        command = new CliCommand(verb.Value, target, signalName, signalValue, reason, ns, json, take, cursor, brk, force);
+        command = new CliCommand(verb.Value, target, signalName, signalValue, reason, ns, json, take, cursor, brk, force, actor);
         return true;
     }
 }

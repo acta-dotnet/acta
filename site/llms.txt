@@ -570,6 +570,8 @@ dotnet run --no-build -v q -- jobs events  <job-ref> --json   # the timeline, ne
   ``not provisioned; run `<app> jobs migrate` ``, and exit 1.
 - `status`, `info`, `result`, `explain`, and `events` read. `cancel`, `pause`, `resume`, `restart`,
   `signal`, `clear-signal`, `debug` (runs the handler in this process), `deploy`, and `migrate` change things.
+  All but `deploy` and `migrate` record `--actor <name>` as the actor on the job's event, and the operating
+  system's user name without it.
 - A `ready` job with a future due instant, or a `suspended` one, is healthy: it is waiting for its
   time or its signal, and `explain` names what it waits for. A caller's wait timeout stops only the
   wait; the job keeps running.

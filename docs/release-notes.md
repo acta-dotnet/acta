@@ -66,6 +66,7 @@ The C# members follow: `EventCode.JobInputUpdated`, `ScheduleFullBehaviorCode.Sk
 ### Additions
 
 - `ctx.PauseAsync`, `ctx.RescheduleAsync` and `ctx.RescheduleUntilAsync` carry `[DoesNotReturn]`, as `ctx.FailAsync` and `ctx.CancelAsync` do: each of the five ends the attempt by throwing, and a null check that ends in one narrows the value after it.
+- The control CLI's `cancel`, `pause`, `resume`, `restart`, `signal`, `clear-signal` and `debug` take `--actor <name>`, and record the operating system's user name without it, so their events carry an actor, where they carried none.
 - The teaching programs are how-tos, and their folder is `learn/`, where it was `concepts/`: each is also a page at useacta.net/learn, generated from the program. `acta-verify learn` runs them before a release, where the verb was `acta-verify concepts`, and reads the lines `learn/runs.json` awaits.
 
 ## 1.0.0-rc.12

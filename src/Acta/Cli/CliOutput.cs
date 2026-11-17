@@ -555,6 +555,7 @@ internal static class CliOutput
         writer.WriteLine("Options:");
         writer.WriteLine("  --reason <msg>   reason message for cancel/pause/resume/restart");
         writer.WriteLine("  --value <json>   JSON payload for signal (omit for a presence-only signal)");
+        writer.WriteLine("  --actor <name>   actor a control records on its event (default: the operating system's user name)");
         writer.WriteLine("  --take <n>       events page size (default 50, max 100)");
         writer.WriteLine("  --after <cursor> events continuation cursor from a previous page");
         writer.WriteLine("  --ns <ns>        namespace for deduplication-key lookups (required with several registered)");

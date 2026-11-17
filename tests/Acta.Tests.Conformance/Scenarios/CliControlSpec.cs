@@ -147,13 +147,14 @@ public sealed class CliControlSpec : ActaRuntimeTestBase<ConformanceFixture, Job
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(TestNamespace, finished.JobId, ct));
         var runner = CreateRunner(out var output);
 
-        var exit = await runner.RunAsync(Parse($"debug {finished.JobRef}"), ct);
+        var exit = await runner.RunAsync(Parse($"debug {finished.JobRef} --actor ops-alice"), ct);
 
         Assert.Equal(0, exit);
         var text = output.ToString();
         Assert.Contains("run: completed", text);
         Assert.Contains($"job: {finished.JobRef}", text);
         Assert.Equal(JobStatusCode.Succeeded, (await Jobs.GetStatusAsync(finished, ct))?.Status);
+        Assert.Equal("ops-alice", (await ReadSingleEventAsync(finished.JobId, EventCode.JobRestarted, ct)).Actor);
     }
 
     [Fact(DisplayName = "Debug on a finished laned job restarted behind a live member reports it Blocked and stops")]

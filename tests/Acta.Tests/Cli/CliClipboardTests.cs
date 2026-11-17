@@ -228,6 +228,24 @@ public class CliRunnerClipboardTests
         Assert.Empty(jobs.Lookups);
     }
 
+    [Theory]
+    [InlineData("cancel")]
+    [InlineData("pause")]
+    [InlineData("resume")]
+    [InlineData("restart")]
+    [InlineData("signal", "approval")]
+    [InlineData("clear-signal", "approval")]
+    public async Task A_control_hands_the_operation_its_actor_or_the_os_user_name(params string[] verbAndName)
+    {
+        string[] control = [verbAndName[0], NothingJobs.KnownDeduplicationKey, .. verbAndName[1..], "--ns", "shop"];
+
+        var (_, _, _, named) = await RunArgsAsync([.. control, "--actor", "ops-alice"]);
+        var (_, _, _, unnamed) = await RunArgsAsync(control);
+
+        Assert.Equal("ops-alice", Assert.Single(named.Actors));
+        Assert.Equal(Environment.UserName, Assert.Single(unnamed.Actors));
+    }
+
     // Parsed from the operator's own spelling, against a host that registers two namespaces.
     private static async Task<(int Exit, string Output, string Error, NothingJobs Jobs)> RunArgsAsync(params string[] args)
     {
@@ -416,6 +434,9 @@ public class CliRunnerClipboardTests
 
         /// <summary>The jobs a cancel was applied to.</summary>
         public List<JobLookup> Controls { get; } = [];
+
+        /// <summary>The actor each control was handed.</summary>
+        public List<string?> Actors { get; } = [];
 
         /// <summary>
         /// Simulates the purge race the read verbs have to survive: the up-front resolve still returns
@@ -640,6 +661,7 @@ public class CliRunnerClipboardTests
         )
         {
             Controls.Add(job);
+            Actors.Add(actor);
             return ValueTask.FromResult(new CancelJobResponse(KnownJobId, ControlAction.Applied, JobStatusCode.Cancelled, 4));
         }
 
@@ -649,7 +671,11 @@ public class CliRunnerClipboardTests
             string? actor = null,
             long? expectedVersion = null,
             CancellationToken ct = default
-        ) => throw new NotSupportedException();
+        )
+        {
+            Actors.Add(actor);
+            return ValueTask.FromResult(new PauseJobResponse(KnownJobId, ControlAction.Applied, JobStatusCode.Paused, 4));
+        }
 
         public ValueTask<ResumeJobResponse> ResumeAsync(
             JobLookup job,
@@ -657,7 +683,11 @@ public class CliRunnerClipboardTests
             string? actor = null,
             long? expectedVersion = null,
             CancellationToken ct = default
-        ) => throw new NotSupportedException();
+        )
+        {
+            Actors.Add(actor);
+            return ValueTask.FromResult(new ResumeJobResponse(KnownJobId, ControlAction.Applied, JobStatusCode.Ready, 4));
+        }
 
         public ValueTask<RestartJobResponse> RestartAsync(
             JobLookup job,
@@ -665,7 +695,11 @@ public class CliRunnerClipboardTests
             string? actor = null,
             long? expectedVersion = null,
             CancellationToken ct = default
-        ) => throw new NotSupportedException();
+        )
+        {
+            Actors.Add(actor);
+            return ValueTask.FromResult(new RestartJobResponse(KnownJobId, ControlAction.Applied, JobStatusCode.Ready, 4));
+        }
 
         public ValueTask<RescheduleJobResponse> RescheduleAsync(
             JobLookup job,
@@ -724,6 +758,7 @@ public class CliRunnerClipboardTests
         )
         {
             Signals.Add((name, value.Format.Id, value.IsNone ? null : value.Data.ToArray()));
+            Actors.Add(actor);
             return ValueTask.FromResult(new RaiseJobSignalResponse(1, SignalAction, JobStatusCode.Ready));
         }
 
@@ -732,6 +767,10 @@ public class CliRunnerClipboardTests
             string name,
             string? actor = null,
             CancellationToken ct = default
-        ) => throw new NotSupportedException();
+        )
+        {
+            Actors.Add(actor);
+            return ValueTask.FromResult(new ClearJobSignalResponse(KnownJobId, ControlAction.Applied, JobStatusCode.Ready));
+        }
     }
 }
