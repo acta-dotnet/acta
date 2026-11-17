@@ -103,7 +103,7 @@ Acta should feel calm, technically precise, modern, and readable. Focus is the d
 - An event the job's own handler caused, such as a state reset, records the job's id as its actor; the timeline reads it as "by the job", never as a bare number. A child's landing links to the child its details name.
 - Showing execution history puts the execution summaries in focus. Walking an execution returns to its filtered event timeline.
 - Preserve existing section and execution deep links by opening their matching disclosures.
-- Keep input amendment, signals, clone, tags, incident copying, and all existing job controls available under their permissions.
+- Keep input update, signals, clone, tags, incident copying, and all existing job controls available under their permissions.
 - A finished job's signal, or a permanent job's between firings, clears from its row in the checkpoints panel behind a confirmation; a system job's signals carry no Clear. Once the job has shown checkpoints the panel stays, so clearing the last one keeps its outcome in view.
 - Preserve permanent-job firing and attempt-budget semantics. A retrying job states its budget beside its failures: "fails permanently at N", or "each firing gets N attempts" on a permanent job.
 - When a job turns terminal, the timeline reads its newest events once more, since the last poll can precede them.

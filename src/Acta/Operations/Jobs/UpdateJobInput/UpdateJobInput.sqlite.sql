@@ -45,7 +45,7 @@ INSERT INTO {{schema}}.events (
     details_format_id,
     details)
 SELECT
-    76 /* EventCode.JobInputAmended */,
+    76 /* EventCode.JobInputUpdated */,
     {{now}},
     j.namespace_id,
     50 /* EntityCode.Job */,
@@ -78,7 +78,7 @@ WHERE
     job_id = @p_job_id
     AND EXISTS (SELECT 1 FROM temp._update_job_input s WHERE s.applies);
 
--- The input lives on jobs, the version on jobs_state: an amend moves it as every other control does.
+-- The input lives on jobs, the version on jobs_state: an update moves it as every other control does.
 UPDATE {{schema}}.jobs_state
 SET
     modified_at_utc = {{now}},

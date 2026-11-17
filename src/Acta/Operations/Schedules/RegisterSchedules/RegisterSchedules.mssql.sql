@@ -19,7 +19,7 @@ BEGIN TRY
     -- another namespace's rows (docs/sql-internals.md, "Locking reads seek").
 
     -- The permanent jobs whose input this deploy changes, read before the update below overwrites it. An input write
-    -- moves the job's version, as an amend does, so an amend checked against the version it read never lands unseen.
+    -- moves the job's version, as an update does, so an update checked against the version it read never lands unseen.
     DECLARE @input_changed TABLE (job_id BIGINT PRIMARY KEY);
     INSERT INTO @input_changed (job_id)
     SELECT j.job_id

@@ -659,7 +659,7 @@ enum Acta.EventCode : System.Byte
     JobExecutionSucceeded = 40
     JobExecutionYielded = 43
     JobFailed = 44
-    JobInputAmended = 76
+    JobInputUpdated = 76
     JobNoteRecorded = 90
     JobPaused = 71
     JobPurged = 75

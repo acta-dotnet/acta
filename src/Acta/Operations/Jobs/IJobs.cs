@@ -242,12 +242,12 @@ public interface IJobs
     /// Fetch the stored input payload the job identified by <paramref name="job"/> was enqueued with,
     /// or <c>null</c> when no row matches or the job carries no input (a no-input job). Non-blocking
     /// point-in-time read: it does not wait for completion and reflects any <see cref="UpdateInputAsync"/>
-    /// amendment already applied.
+    /// update already applied.
     /// </summary>
     ValueTask<GetJobInputResponse?> GetInputAsync(JobLookup job, CancellationToken ct = default);
 
     /// <summary>
-    /// The job's stored input, as enqueued or last amended, read as <typeparamref name="TInput"/> through the serializer
+    /// The job's stored input, as enqueued or last updated, read as <typeparamref name="TInput"/> through the serializer
     /// of its own format: <c>var order = await jobs.GetInputAsync&lt;ShipOrder&gt;(jobRef, ct)</c>. Throws
     /// <see cref="InvalidOperationException"/>, naming the job, when no job matches, when it carries no input, and when this
     /// process registers its definition with an input type other than <typeparamref name="TInput"/>; a definition it does
@@ -429,10 +429,10 @@ public interface IJobs
     );
 
     /// <summary>
-    /// Amend the stored input of the job identified by <paramref name="job"/>, in any status except <c>Executing</c>, where
+    /// Update the stored input of the job identified by <paramref name="job"/>, in any status except <c>Executing</c>, where
     /// a handler may already have read it, compare-and-set on <paramref name="expectedVersion"/> when given; the outcomes
     /// are on <see cref="UpdateJobInputResponse.Action"/>. Completed steps keep what they computed from the old input, so a
-    /// restart replays them, and a recompute is a new job. The event (<c>job.input-amended</c>) carries the previous
+    /// restart replays them, and a recompute is a new job. The event (<c>job.input-updated</c>) carries the previous
     /// payload's format and byte count, never the payload, beside <paramref name="reasonMessage"/> and <paramref name="actor"/>.
     /// </summary>
     ValueTask<UpdateJobInputResponse> UpdateInputAsync(

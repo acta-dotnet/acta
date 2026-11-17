@@ -81,8 +81,8 @@ export function timelinePresentation(evt: TimelineEvent, events: readonly Timeli
       return { icon: 'person', tone: 'held', title: 'Priority changed' };
     case 'job.purged':
       return { icon: 'x-circle', tone: 'bad', title: 'Purged' };
-    case 'job.input-amended':
-      return { icon: 'person', tone: 'held', title: 'Input amended' };
+    case 'job.input-updated':
+      return { icon: 'person', tone: 'held', title: 'Input updated' };
     case 'job.state-reset':
       return { icon: 'counter-clockwise-clock', tone: 'warn', title: 'State reset' };
     case 'job.signal-raised':

@@ -45,7 +45,7 @@ public sealed class ApplyMigrationJob
 
 ## 2. Record the approval in the input, then resume
 
-Resume replays the handler from the top with the job's current input, so a plain resume would park the job again. The operator records the approval first: `IJobs.UpdateInputAsync` works on a Paused job, and the resume then reads the amended input. `outcome` is the handle the enqueue answered. A signal (`WaitSignalAsync`, `RaiseSignalAsync`) is the other shape of a gate a person opens.
+Resume replays the handler from the top with the job's current input, so a plain resume would park the job again. The operator records the approval first: `IJobs.UpdateInputAsync` works on a Paused job, and the resume then reads the updated input. `outcome` is the handle the enqueue answered. A signal (`WaitSignalAsync`, `RaiseSignalAsync`) is the other shape of a gate a person opens.
 
 The lines that matter:
 

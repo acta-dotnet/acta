@@ -212,7 +212,7 @@ terminal (finish or cancel the tree, then purge the leaves first).
 Every verb returns Applied / Rejected / NotFound rather than throwing on an illegal transition, and a pause of a
 Paused job or a cancel of a Cancelled one returns AlreadyInState.
 
-Cancel, pause, resume, restart, reschedule, reprioritize, and an input amend also take an optional
+Cancel, pause, resume, restart, reschedule, reprioritize, and an input update also take an optional
 `expectedVersion` after `actor`. Left null, the verb writes unconditionally, which is what an operator acting on a
 moving job wants. Pass the `Version` from a `GetJobResponse` (or from a previous control result) and the
 write becomes a compare-and-set: a row that changed underneath you answers `VersionConflict` with its
@@ -243,7 +243,7 @@ client reads `action`, the resulting `status`, and the row's `version` without s
 | `purge` | 409 | 409 | 409 | 409 | A | 409 | A | A | A | Row hard-deleted, `job.purged` event kept |
 | `reschedule` | A | A | A | A | A | 409 | 409 | 409 | 409 | Ready at the new instant, or Blocked behind its lane; an Idle permanent job takes a manual firing |
 | `reprioritize` | A | A | A | A | A | A | 409 | 409 | 409 | Priority changed, status untouched |
-| `input` (amend) | A | A | A | A | A | 409 | A | A | A | Input replaced, format round-tripped |
+| `input` (update) | A | A | A | A | A | 409 | A | A | A | Input replaced, format round-tripped |
 | `signal` | A | A | A | A | A | A | 409 | 409 | 409 | Signal set; a Suspended job that waits on it goes Ready, and one that waits on something else stays Suspended. A repeat with the same value answers already in state, on a finished job too; another value, or a raise after the wait expired, is rejected |
 
 Repeating a verb is a no-op only where the table says so. **`pause` and `cancel` are idempotent**: a
@@ -266,11 +266,11 @@ Five rules the table cannot show:
   the handler still has to return. The row is terminal before the process notices.
 - **`signal` on a Paused job** records the signal and leaves the job Paused. The signal is not lost;
   it is waiting for a `resume`.
-- **`input` on a terminal job is allowed**, which looks odd until you want it: amend the input of a
+- **`input` on a terminal job is allowed**, which looks odd until you want it: update the input of a
   failed job, then `restart` it, and the restarted handler reads the new input. Only Executing rejects,
   because that is the state where a worker may already have read the payload, and a job that stored no
-  input has nothing to amend. A restart keeps every step that succeeded, so those steps return what
-  they computed from the old input. The amend takes `expectedVersion` like the other verbs and moves
+  input has nothing to update. A restart keeps every step that succeeded, so those steps return what
+  they computed from the old input. The update takes `expectedVersion` like the other verbs and moves
   the version, as a deploy that changes a permanent job's input does.
 - **`restart` has four more refusals.** A finished laned job is not restarted while an
   unfinished ancestor or descendant sits in its lane, a permanent job whose firing is still
@@ -538,7 +538,7 @@ In production a deploy step applies Acta's migrations, never application startup
 
 ```
 $ ConnectionStrings__acta="<DDL login>" dotnet MyApp.dll jobs migrate
-applied M20261117140323_init to schema acta
+applied M20261117140757_init to schema acta
 namespace billing: 1.6.1+b81d04e (Production)
   added    sys.alerts
   added    sys.retention

@@ -27,7 +27,7 @@ public sealed class JobControlEventRecordingSpec : ActaRuntimeTestBase<Conforman
     [InlineData("restart", EventCode.JobRestarted)]
     [InlineData("reschedule", EventCode.JobRescheduled)]
     [InlineData("reprioritize", EventCode.JobReprioritized)]
-    [InlineData("update-input", EventCode.JobInputAmended)]
+    [InlineData("update-input", EventCode.JobInputUpdated)]
     public async Task Control_verb_records_its_event_below_audit(string verb, EventCode recorded)
     {
         var ct = TestContext.Current.CancellationToken;

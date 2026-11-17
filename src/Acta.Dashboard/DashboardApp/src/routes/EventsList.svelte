@@ -25,7 +25,7 @@
     'definition.overrides-updated', 'definition.retired',
     'job.execution-succeeded', 'job.execution-failed', 'job.execution-orphaned', 'job.execution-yielded', 'job.failed',
     'job.suspended', 'job.rescheduled', 'job.cancelled', 'job.paused', 'job.resumed',
-    'job.restarted', 'job.reprioritized', 'job.purged', 'job.input-amended',
+    'job.restarted', 'job.reprioritized', 'job.purged', 'job.input-updated',
     'job.signal-raised', 'job.state-reset', 'job.signal-cleared', 'job.wait-expired', 'job.note-recorded',
     'schedule.paused', 'schedule.resumed', 'schedule.pause-expired', 'schedule.triggered',
     'schedule.admitted', 'schedule.skipped', 'schedule.retimed', 'schedule.evaluation-failed', 'schedule.orphaned',

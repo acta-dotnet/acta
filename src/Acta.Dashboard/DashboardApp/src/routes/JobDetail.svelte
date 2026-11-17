@@ -72,7 +72,7 @@
   let detail = $derived(detailQuery.data ?? null);
   let job = $derived(detail?.job ?? null);
 
-  // The permissions gate only the mutating affordances: Clone enqueues, and the input amend edit is a
+  // The permissions gate only the mutating affordances: Clone enqueues, and the input update edit is a
   // control. The payload panels render for everyone, since the detail read is on the read surface.
   const capabilities = createQuery(() => capabilitiesQuery());
   let canControlNow = $derived(can(capabilities.data, Permission.control));
@@ -252,7 +252,7 @@
 
       {#if hasData}
         <FocusDisclosure title={detail.checkpoints.items.length ? 'Data and checkpoints' : 'Stored data'} hint={(detail.input ? 'Input' : '') + (detail.checkpoints.items.length ? (detail.input ? ' · ' : '') + detail.checkpoints.items.length + (detail.checkpoints.items.length === 1 ? ' checkpoint' : ' checkpoints') : '')} bind:open={dataOpen} id="job-data">
-          {#if detail.input}<JobInputPanel input={detail.input} jobRef={job.jobRef} status={job.status} canControl={canControlNow} onAmended={reload} />{/if}
+          {#if detail.input}<JobInputPanel input={detail.input} jobRef={job.jobRef} status={job.status} canControl={canControlNow} onUpdated={reload} />{/if}
           {#if showCheckpoints}<JobCheckpointsPanel checkpoints={detail.checkpoints.items} total={detail.checkpoints.totalCount} jobRef={job.jobRef} jobName={job.jobName} status={job.status} kind={job.kind} canControl={canControlNow} onCleared={reload} />{/if}
         </FocusDisclosure>
       {/if}

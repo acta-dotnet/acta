@@ -38,7 +38,7 @@ WHERE
             AND (@p_expected_version IS NULL OR s.from_version = @p_expected_version)
     );
 
--- The input lives on jobs, the version on jobs_state: an amend moves it as every other control does.
+-- The input lives on jobs, the version on jobs_state: an update moves it as every other control does.
 UPDATE {{schema}}.jobs_state AS r
 SET
     modified_at_utc = now(),
@@ -61,7 +61,7 @@ INSERT INTO {{schema}}.events (
     event_message, actor, details_format_id, details
 )
 SELECT
-    76 /* EventCode.JobInputAmended */, now(), s.namespace_id,
+    76 /* EventCode.JobInputUpdated */, now(), s.namespace_id,
     50 /* EntityCode.Job */, @p_job_id,
     s.definition_id, s.tenant_id, COALESCE(s.lineage_root_job_id, @p_job_id),
     s.execution_number,

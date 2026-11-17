@@ -28,7 +28,7 @@ public sealed class JobControlActorSpec : ActaRuntimeTestBase<ConformanceFixture
     [InlineData("restart", EventCode.JobRestarted)]
     [InlineData("reschedule", EventCode.JobRescheduled)]
     [InlineData("reprioritize", EventCode.JobReprioritized)]
-    [InlineData("update-input", EventCode.JobInputAmended)]
+    [InlineData("update-input", EventCode.JobInputUpdated)]
     [InlineData("purge", EventCode.JobPurged)]
     public async Task Operator_is_the_events_actor(string verb, EventCode recorded)
     {

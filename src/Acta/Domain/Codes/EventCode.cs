@@ -128,10 +128,10 @@ public enum EventCode : byte
     JobPurged = 75,
 
     [Code(
-        "job.input-amended",
+        "job.input-updated",
         "An operator replaced a job's stored input; the operator is the event's actor, the details carry the format name and byte count of the previous input, and the message carries the reason."
     )]
-    JobInputAmended = 76,
+    JobInputUpdated = 76,
 
     [Code(
         "job.signal-raised",

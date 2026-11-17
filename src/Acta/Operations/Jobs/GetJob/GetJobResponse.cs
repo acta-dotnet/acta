@@ -41,7 +41,7 @@ namespace Acta;
 /// <param name="ModifiedAtUtc">When the row last changed, in UTC.</param>
 /// <param name="LeasedByWorkerRef">The ref of the worker that holds the job's lease; null when none does.</param>
 /// <param name="Version">The job's version, which every status change and every pause, resume, restart, cancel, reschedule,
-/// reprioritize, or input amend increments, as does a deploy that changes a permanent job's input; heartbeats, progress,
+/// reprioritize, or input update increments, as does a deploy that changes a permanent job's input; heartbeats, progress,
 /// variables, and steps leave it as it is. Those seven controls take it as expectedVersion, which makes the call a
 /// compare-and-set.</param>
 /// <param name="LeaseLapsed">Whether the job is executing past its lease on the database clock: its worker stopped heartbeating,

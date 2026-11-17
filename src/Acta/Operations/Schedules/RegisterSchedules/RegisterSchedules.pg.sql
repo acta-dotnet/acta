@@ -8,7 +8,7 @@ DROP TABLE IF EXISTS pg_temp._reg_slots;
 CREATE TEMP TABLE _reg_slots (definition_id INT PRIMARY KEY, slot_id BIGINT NOT NULL) ON COMMIT DROP;
 
 -- The permanent jobs whose input this deploy changes, read before the upsert below overwrites it. An input write
--- moves the job's version, as an amend does, so an amend checked against the version it read never lands unseen.
+-- moves the job's version, as an update does, so an update checked against the version it read never lands unseen.
 DROP TABLE IF EXISTS pg_temp._reg_input_changed;
 CREATE TEMP TABLE _reg_input_changed ON COMMIT DROP AS
 SELECT j.job_id

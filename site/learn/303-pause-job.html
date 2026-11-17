@@ -93,7 +93,7 @@
 }</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">2</span>Record the approval in the input, then resume</h2>
-<p>Resume replays the handler from the top with the job's current input, so a plain resume would park the job again. The operator records the approval first: <code>IJobs.UpdateInputAsync</code> works on a Paused job, and the resume then reads the amended input. <code>outcome</code> is the handle the enqueue answered. A signal (<code>WaitSignalAsync</code>, <code>RaiseSignalAsync</code>) is the other shape of a gate a person opens.</p>
+<p>Resume replays the handler from the top with the job's current input, so a plain resume would park the job again. The operator records the approval first: <code>IJobs.UpdateInputAsync</code> works on a Paused job, and the resume then reads the updated input. <code>outcome</code> is the handle the enqueue answered. A signal (<code>WaitSignalAsync</code>, <code>RaiseSignalAsync</code>) is the other shape of a gate a person opens.</p>
 <figure class="listing"><figcaption><span class="file">pause-job.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">var</span> snapshot = <span class="k">await</span> jobs.GetAsync(outcome);
 Console.WriteLine(<span class="s">$&quot;status={snapshot!.Status}&quot;</span>);
 Console.WriteLine(<span class="s">&quot;The job is parked. Resuming it as-is would replay the handler and park it again, so the&quot;</span>);
@@ -149,7 +149,7 @@ Console.WriteLine(<span class="s">&quot;operator records the approval in the inp
 <span class="c">// learn: 2. Record the approval in the input, then resume</span>
 <span class="c">// Resume replays the handler from the top with the job's current input, so a plain resume would park the job</span>
 <span class="c">// again. The operator records the approval first: `IJobs.UpdateInputAsync` works on a Paused job, and the resume</span>
-<span class="c">// then reads the amended input. `outcome` is the handle the enqueue answered. A signal (`WaitSignalAsync`,</span>
+<span class="c">// then reads the updated input. `outcome` is the handle the enqueue answered. A signal (`WaitSignalAsync`,</span>
 <span class="c">// `RaiseSignalAsync`) is the other shape of a gate a person opens.</span>
 <span class="hl"><span class="k">await</span> jobs.UpdateInputAsync(outcome, JobPayload.Json(<span class="k">new</span> ApplyMigration(<span class="s">&quot;v042&quot;</span>, NeedsApproval: <span class="k">false</span>)), <span class="s">&quot;approved by ops&quot;</span>);</span>
 <span class="hl"><span class="k">await</span> jobs.ResumeAsync(outcome, <span class="s">&quot;approved&quot;</span>);</span>

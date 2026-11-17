@@ -10,7 +10,7 @@ namespace Acta.Tests.Conformance.Operations.Jobs;
 /// Conformance for the operator guide's table "What each verb does from each status": a verb applies, is already in
 /// state, or is rejected by the job's status alone, and an applied verb leaves the job in the status the table names.
 /// The refusals that depend on more than the status (a job with children, a lane's other members, an outstanding
-/// firing, a live schedule) have specs of their own, as do a purge and an input amendment of an Idle permanent job. A
+/// firing, a live schedule) have specs of their own, as do a purge and an input update of an Idle permanent job. A
 /// status is staged on the row, so the matrix holds the verbs' status rules, not what a real wait or attempt adds to them.
 /// </summary>
 [ConformanceSpec(
@@ -116,7 +116,7 @@ public sealed class JobControlStatusMatrixSpec : ActaRuntimeTestBase<Conformance
             "purge" => (await Jobs.PurgeAsync(job, ct: ct)).Action,
             "reschedule" => (await Jobs.RescheduleAsync(job, DateTime.UtcNow.AddHours(1), ct: ct)).Action,
             "reprioritize" => (await Jobs.ReprioritizeAsync(job, JobPriorityCode.High, ct: ct)).Action,
-            "input" => (await Jobs.UpdateInputAsync(job, JobPayload.Json(new LaneStep("", "amended")), ct: ct)).Action,
+            "input" => (await Jobs.UpdateInputAsync(job, JobPayload.Json(new LaneStep("", "updated")), ct: ct)).Action,
             _ => (await Jobs.RaiseSignalAsync(job, "go", JobPayload.None, ct: ct)).Action,
         };
 

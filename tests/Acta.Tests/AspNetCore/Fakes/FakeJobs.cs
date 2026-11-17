@@ -74,7 +74,7 @@ internal sealed class FakeJobs : IJobs
             var (jobId, action, status, current) = ResultFor(job, version, JobStatusCode.Ready);
             return ValueTask.FromResult(new ReprioritizeJobResponse(jobId, action, status, current));
         };
-        UpdateInput = (job, input, _, _, _) => ValueTask.FromResult(Amend(job, input));
+        UpdateInput = (job, input, _, _, _) => ValueTask.FromResult(Update(job, input));
         // A purge leaves no job to report; it, an input update, and a signal carry no version.
         Purge = (job, reason, actor, _) =>
         {
@@ -101,7 +101,7 @@ internal sealed class FakeJobs : IJobs
         };
     }
 
-    /// <summary>Input the found job carries. The amend verb reads its format and writes the amended payload back; null
+    /// <summary>Input the found job carries. The update verb reads its format and writes the updated payload back; null
     /// is a no-input job.</summary>
     public JobPayload? StoredInput { get; set; }
 
@@ -132,8 +132,8 @@ internal sealed class FakeJobs : IJobs
 
     public List<(JobRef JobRef, string Name, string? Actor)> ClearSignalCalls { get; } = [];
 
-    /// <summary>The format-resolved payloads the amend endpoint built.</summary>
-    public List<JobPayload> InputAmendCalls { get; } = [];
+    /// <summary>The format-resolved payloads the update endpoint built.</summary>
+    public List<JobPayload> InputUpdateCalls { get; } = [];
 
     public List<EnqueueJobRequest> EnqueueRequests { get; } = [];
 
@@ -419,9 +419,9 @@ internal sealed class FakeJobs : IJobs
         return new EnqueueJobResponse(id, jobRef, EnqueueJobAction.Inserted);
     }
 
-    private UpdateJobInputResponse Amend(JobLookup job, JobPayload input)
+    private UpdateJobInputResponse Update(JobLookup job, JobPayload input)
     {
-        InputAmendCalls.Add(input);
+        InputUpdateCalls.Add(input);
         var (jobId, action, status, version) = ResultFor(job, applied: JobStatusCode.Ready);
         // The store refuses a job with no input, which has nothing to replace, and answers where the job stands.
         if (action == ControlAction.Applied && StoredInput is null)

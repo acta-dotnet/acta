@@ -33,7 +33,7 @@ export function cloneInputState(json: string | null | undefined): string | null 
 }
 
 // The enqueue input field: the editor's JSON text sent verbatim in the payload envelope, or nothing when
-// input is disabled. A literal null is blocked with a clear message (mirroring amendBody): the backend
+// input is disabled. A literal null is blocked with a clear message (mirroring updateBody): the backend
 // reads it as no json member, so submitting it would be refused.
 export function enqueueInputFields(include: boolean, json: string): { fields: { input?: RawJson } } | { error: string } {
   if (!include) return { fields: {} };

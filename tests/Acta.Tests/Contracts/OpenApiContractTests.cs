@@ -660,7 +660,7 @@ public sealed partial class OpenApiContractTests
         );
         Assert.Equal(
             ["acme-binary/200 010203", "json/1 7B22696E766F6963654964223A327D", "json/1 6E756C6C"],
-            fakes.Jobs.InputAmendCalls.Select(input => $"{input.Format} {Convert.ToHexString(input.Data.Span)}")
+            fakes.Jobs.InputUpdateCalls.Select(input => $"{input.Format} {Convert.ToHexString(input.Data.Span)}")
         );
 
         async Task ExpectAsync(HttpMethod method, string path, string body, HttpStatusCode expected, string named)

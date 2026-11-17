@@ -7,7 +7,7 @@
   // Dumb, format-aware payload preview with an optional validated-textarea edit mode. Fetching and
   // saving live in the parent: `onSave` receives the edited JSON text. The stored JSON text is shown,
   // copied, and edited as text, never parsed into numbers (lib/rawJson.ts). `editing` is bindable so a
-  // parent can reveal its own edit-only fields (the amend reason) exactly while the editor is open. A
+  // parent can reveal its own edit-only fields (the update reason) exactly while the editor is open. A
   // null payload is no payload.
   let {
     payload,

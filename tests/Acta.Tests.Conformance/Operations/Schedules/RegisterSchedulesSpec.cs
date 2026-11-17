@@ -325,7 +325,7 @@ public sealed class RegisterSchedulesSpec : ActaRuntimeTestBase<ConformanceFixtu
         var slot = JobLookup.ById(await SlotIdAsync(jobName, ct));
         var first = (await Jobs.GetAsync(slot, ct))!.Version;
 
-        // An amend checked against the version it read must not overwrite a deploy's input unseen.
+        // An update checked against the version it read must not overwrite a deploy's input unseen.
         await ScheduleTestOps.RegisterAsync(Services, [Deploy("""{"a":1}""")], ct);
         Assert.Equal(first, (await Jobs.GetAsync(slot, ct))!.Version);
         await ScheduleTestOps.RegisterAsync(Services, [Deploy("""{"a":2}""")], ct);

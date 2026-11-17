@@ -778,15 +778,15 @@
   - RescheduleAsync rejects executing and terminal jobs without mutating them
   - RescheduleAsync returns NotFound for an unknown lookup
 
-### Operator update-input amends stored input and audits bounded payload metadata.
-- **Contract:** UpdateJobInput replaces the input of a job that is not executing, compare-and-set on its version, and audits job.input-amended with prior-payload metadata.
+### Operator update-input updates stored input and audits bounded payload metadata.
+- **Contract:** UpdateJobInput replaces the input of a job that is not executing, compare-and-set on its version, and audits job.input-updated with prior-payload metadata.
 - **Guarantees:**
-  - UpdateJobInput amends a Ready job's input and audits the old payload's format and byte count
+  - UpdateJobInput updates a Ready job's input and audits the old payload's format and byte count
   - UpdateJobInput audit metadata outlives the purged job without leaking payload bytes
   - UpdateJobInput rejects an Executing job and leaves its input unchanged
   - UpdateJobInput on a Failed job feeds the new input to the handler after RestartAsync
-  - UpdateJobInput stores the new payload's format id, so a bytes job amends as bytes
-  - UpdateJobInput with a stale expected version is a version conflict, and an applied amend moves the version
+  - UpdateJobInput stores the new payload's format id, so a bytes job updates as bytes
+  - UpdateJobInput with a stale expected version is a version conflict, and an applied update moves the version
   - UpdateJobInput rejects a job with no input to replace and writes nothing
   - UpdateJobInput returns NotFound for an unknown lookup
 
@@ -1798,7 +1798,7 @@
 - **Guarantees:**
   - GetJobInput returns the payload the job was enqueued with
   - GetJobInput returns null when no job row matches the id
-  - The typed read answers the input as its type, as enqueued and as amended
+  - The typed read answers the input as its type, as enqueued and as updated
   - The typed read throws, naming the lookup, when no job matches
   - The typed read throws, naming the job, for a job that carries no input, which the raw read answers as null
   - The typed read refuses a registered job's input read as another type, naming both types

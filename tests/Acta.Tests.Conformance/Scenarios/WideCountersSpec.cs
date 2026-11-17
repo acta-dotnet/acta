@@ -239,7 +239,7 @@ public sealed class WideCountersSpec : ActaRuntimeTestBase<ConformanceFixture, J
     [InlineData("reschedule")]
     [InlineData("reprioritize")]
     [InlineData("cancel")]
-    [InlineData("amend-input")]
+    [InlineData("update-input")]
     [InlineData("purge")]
     [InlineData("stale")]
     public async Task Control_verb(string verb)
@@ -271,9 +271,9 @@ public sealed class WideCountersSpec : ActaRuntimeTestBase<ConformanceFixture, J
             case "cancel":
                 AssertApplied(await Jobs.CancelAsync(job, expectedVersion: PlantedVersion, ct: ct), PlantedVersion + 1);
                 break;
-            case "amend-input":
-                var amended = JobPayload.Json(new AddNumbers(4, 5));
-                AssertApplied(await Jobs.UpdateInputAsync(job, amended, expectedVersion: PlantedVersion, ct: ct), PlantedVersion + 1);
+            case "update-input":
+                var updated = JobPayload.Json(new AddNumbers(4, 5));
+                AssertApplied(await Jobs.UpdateInputAsync(job, updated, expectedVersion: PlantedVersion, ct: ct), PlantedVersion + 1);
                 break;
             case "purge":
                 AssertApplied(await Jobs.CancelAsync(job, expectedVersion: PlantedVersion, ct: ct), PlantedVersion + 1);

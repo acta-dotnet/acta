@@ -7,7 +7,7 @@ using Xunit;
 namespace Acta.Tests.Conformance.Operations.Jobs;
 
 /// <summary>
-/// Conformance for GetJobInput: the stored input reads back as enqueued or amended, raw or as its type. Where the raw read
+/// Conformance for GetJobInput: the stored input reads back as enqueued or updated, raw or as its type. Where the raw read
 /// answers null, for a missing job and a no-input job, the typed read throws, and it refuses a registered job's input read
 /// as another type.
 /// </summary>
@@ -50,7 +50,7 @@ public sealed class GetJobInputSpec : ActaRuntimeTestBase<ConformanceFixture, Jo
         Assert.Null(await Jobs.GetInputAsync(missing, ct));
     }
 
-    [Fact(DisplayName = "The typed read answers the input as its type, as enqueued and as amended")]
+    [Fact(DisplayName = "The typed read answers the input as its type, as enqueued and as updated")]
     public async Task Typed_read_answers_the_input_as_its_type()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -58,8 +58,8 @@ public sealed class GetJobInputSpec : ActaRuntimeTestBase<ConformanceFixture, Jo
 
         Assert.Equal(new AddNumbers(4, 9), await Jobs.GetInputAsync<AddNumbers>(handle.JobRef, ct));
 
-        var amended = await Jobs.UpdateInputAsync(handle.JobRef, JobPayload.Json(new AddNumbers(7, 8)), "corrected operands", ct: ct);
-        Assert.Equal(ControlAction.Applied, amended.Action);
+        var updated = await Jobs.UpdateInputAsync(handle.JobRef, JobPayload.Json(new AddNumbers(7, 8)), "corrected operands", ct: ct);
+        Assert.Equal(ControlAction.Applied, updated.Action);
         Assert.Equal(new AddNumbers(7, 8), await Jobs.GetInputAsync<AddNumbers>(handle.JobRef, ct));
     }
 

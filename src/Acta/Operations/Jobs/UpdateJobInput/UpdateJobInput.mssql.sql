@@ -66,7 +66,7 @@ BEGIN TRY
         input_format_id = @p_input_format_id
     WHERE job_id = @p_job_id;
 
-    -- The input lives on jobs, the version on jobs_state: an amend moves it as every other control does.
+    -- The input lives on jobs, the version on jobs_state: an update moves it as every other control does.
     UPDATE {{schema}}.jobs_state
     SET
         modified_at_utc = @now,
@@ -104,7 +104,7 @@ BEGIN TRY
         event_message, actor, details_format_id, details
     )
     VALUES (
-        76 /* EventCode.JobInputAmended */, @now, @namespace_id,
+        76 /* EventCode.JobInputUpdated */, @now, @namespace_id,
         50 /* EntityCode.Job */, @p_job_id,
         @definition_id, @tenant_id, COALESCE(@lineage_root_job_id, @p_job_id),
         @execution_number,

@@ -60,7 +60,7 @@ public sealed class PersistedCodeContractTests
         EventCode.JobRestarted=73|job.restarted
         EventCode.JobReprioritized=74|job.reprioritized
         EventCode.JobPurged=75|job.purged
-        EventCode.JobInputAmended=76|job.input-amended
+        EventCode.JobInputUpdated=76|job.input-updated
         EventCode.JobSignalRaised=80|job.signal-raised
         EventCode.JobStateReset=81|job.state-reset
         EventCode.JobSignalCleared=82|job.signal-cleared
@@ -207,7 +207,7 @@ public sealed class PersistedCodeContractTests
         WorkerStatusCode.Dead=200|dead
         """;
 
-    private const string ExpectedDescriptionHash = "22D252907713D1AC4D1E12576F9E13CD1E831B88946C58F37B08DF8F002ECF88";
+    private const string ExpectedDescriptionHash = "213471B3DE4D5CAA42A854A649C9A972C16F0DBF85AF93C043279210A3BB9384";
 
     [Fact]
     public void Frozen_contract_covers_all_32_families_and_196_values()

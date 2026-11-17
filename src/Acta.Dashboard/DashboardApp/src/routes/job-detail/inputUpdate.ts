@@ -1,11 +1,11 @@
-// Pure amend-input state logic, kept out of the panel component so node --test can exercise it
+// Pure update-input state logic, kept out of the panel component so node --test can exercise it
 // without the Svelte runtime (same split the rest of job-detail/*.ts uses).
 
 import { jsonError, jsonPayload, type RawJson } from '../../lib/rawJson.ts';
 
-// An executing job is in flight: the backend rejects an input amend for it with 409, so the panel
+// An executing job is in flight: the backend rejects an input update for it with 409, so the panel
 // hides the editor rather than inviting a guaranteed rejection.
-export function inputAmendable(status: string): boolean {
+export function inputUpdatable(status: string): boolean {
   return status !== 'executing';
 }
 
@@ -13,31 +13,31 @@ export function inputAmendable(status: string): boolean {
 // (lib/rawJson.ts), and a bad parse returns the message so the panel surfaces it without sending. A
 // literal null parses fine but the backend reads it as no json member, so block it here with a clear
 // message rather than let the PUT come back a misleading 400. Only json inputs are editable.
-export function amendBody(text: string): { body: { input: RawJson } } | { error: string } {
+export function updateBody(text: string): { body: { input: RawJson } } | { error: string } {
   const error = jsonError(text);
   if (error) return { error };
   if (text.trim() === 'null') return { error: 'A null input cannot be stored.' };
   return { body: { input: jsonPayload(text) } };
 }
 
-export interface AmendMessage {
+export interface UpdateMessage {
   text: string;
   kind: 'ok' | 'warn' | 'bad';
 }
 
 // Maps the JobControlResponse outcome to the operator-facing banner. A rejection with a status is the
-// in-flight 409; one without is a job with no input to amend; not-found means the job vanished between
+// in-flight 409; one without is a job with no input to update; not-found means the job vanished between
 // load and save.
-export function amendOutcomeMessage(action: string, status: string | null): AmendMessage {
+export function updateOutcomeMessage(action: string, status: string | null): UpdateMessage {
   switch (action) {
     case 'applied':
-      return { text: 'Input amended. The job runs with the new input on its next attempt.', kind: 'ok' };
+      return { text: 'Input updated. The job runs with the new input on its next attempt.', kind: 'ok' };
     case 'rejected':
       return {
         text:
           status === null
-            ? 'Input rejected: the job has no input to amend.'
-            : 'Input rejected: the job is in flight and cannot be amended right now.',
+            ? 'Input rejected: the job has no input to update.'
+            : 'Input rejected: the job is in flight and cannot be updated right now.',
         kind: 'warn'
       };
     default:

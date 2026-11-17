@@ -915,7 +915,7 @@ public sealed class ControlEndpointTests
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
-    private static HttpRequestMessage AmendInput(object body, bool confirm = true)
+    private static HttpRequestMessage UpdateInput(object body, bool confirm = true)
     {
         var request = new HttpRequestMessage(HttpMethod.Put, $"/acta/api/v1/jobs/{Found}/input") { Content = JsonContent.Create(body) };
         return Confirmed(request, confirm);
@@ -924,7 +924,7 @@ public sealed class ControlEndpointTests
     private static FakeOperations JobWithInput(JobPayload? stored) => new() { Jobs = { StoredInput = stored } };
 
     [Fact]
-    public async Task Amend_binary_job_with_base64_preserves_the_custom_format_id()
+    public async Task Update_binary_job_with_base64_preserves_the_custom_format_id()
     {
         var fakes = JobWithInput(JobPayload.FromBytes(JobPayloadFormat.Custom(200, "proto"), [9]));
         var (app, client) = await StartWithControlsAsync(fakes);
@@ -933,14 +933,14 @@ public sealed class ControlEndpointTests
 
         var bytes = new byte[] { 1, 2, 3, 4 };
         var response = await client.SendAsync(
-            AmendInput(new { input = new { base64 = Convert.ToBase64String(bytes), formatId = 200 } }),
+            UpdateInput(new { input = new { base64 = Convert.ToBase64String(bytes), formatId = 200 } }),
             ct
         );
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
-        var amended = Assert.Single(fakes.Jobs.InputAmendCalls);
-        Assert.Equal(200, amended.Format.Id);
-        Assert.Equal(bytes, amended.Data.ToArray());
+        var updated = Assert.Single(fakes.Jobs.InputUpdateCalls);
+        Assert.Equal(200, updated.Format.Id);
+        Assert.Equal(bytes, updated.Data.ToArray());
 
         var body = await (await client.GetAsync($"/acta/api/v1/jobs/{Found}/detail", ct)).Content.ReadAsStringAsync(ct);
         Assert.Contains("\"formatId\":200", body);
@@ -948,23 +948,23 @@ public sealed class ControlEndpointTests
     }
 
     [Fact]
-    public async Task Amend_json_job_with_input_still_applies_as_json()
+    public async Task Update_json_job_with_input_still_applies_as_json()
     {
         var fakes = JobWithInput(JobPayload.FromBytes(JobPayloadFormat.Json, Encoding.UTF8.GetBytes("{\"a\":1}")));
         var (app, client) = await StartWithControlsAsync(fakes);
         await using var _ = app;
         var ct = TestContext.Current.CancellationToken;
 
-        var response = await client.SendAsync(AmendInput(new { input = new { json = new { b = 2 } } }), ct);
+        var response = await client.SendAsync(UpdateInput(new { input = new { json = new { b = 2 } } }), ct);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal(JobPayloadFormat.Json.Id, Assert.Single(fakes.Jobs.InputAmendCalls).Format.Id);
+        Assert.Equal(JobPayloadFormat.Json.Id, Assert.Single(fakes.Jobs.InputUpdateCalls).Format.Id);
 
         var body = await (await client.GetAsync($"/acta/api/v1/jobs/{Found}/detail", ct)).Content.ReadAsStringAsync(ct);
         Assert.Contains("\"formatName\":\"json\"", body);
     }
 
     [Fact]
-    public async Task Amend_binary_job_with_input_falls_back_to_json()
+    public async Task Update_binary_job_with_input_falls_back_to_json()
     {
         var fakes = JobWithInput(JobPayload.Bytes([1, 2]));
 
@@ -972,23 +972,23 @@ public sealed class ControlEndpointTests
         await using var _ = app;
         var ct = TestContext.Current.CancellationToken;
 
-        var response = await client.SendAsync(AmendInput(new { input = new { json = new { b = 2 } } }), ct);
+        var response = await client.SendAsync(UpdateInput(new { input = new { json = new { b = 2 } } }), ct);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal(JobPayloadFormat.Json.Id, Assert.Single(fakes.Jobs.InputAmendCalls).Format.Id);
+        Assert.Equal(JobPayloadFormat.Json.Id, Assert.Single(fakes.Jobs.InputUpdateCalls).Format.Id);
 
         var body = await (await client.GetAsync($"/acta/api/v1/jobs/{Found}/detail", ct)).Content.ReadAsStringAsync(ct);
         Assert.Contains("\"formatName\":\"json\"", body);
     }
 
     [Fact]
-    public async Task Amend_with_two_body_fields_is_400()
+    public async Task Update_with_two_body_fields_is_400()
     {
         var fakes = JobWithInput(JobPayload.FromBytes(JobPayloadFormat.Json, Encoding.UTF8.GetBytes("{}")));
         var (app, client) = await StartWithControlsAsync(fakes);
         await using var _ = app;
 
         var response = await client.SendAsync(
-            AmendInput(
+            UpdateInput(
                 new
                 {
                     input = new
@@ -1002,40 +1002,40 @@ public sealed class ControlEndpointTests
             TestContext.Current.CancellationToken
         );
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        Assert.Empty(fakes.Jobs.InputAmendCalls);
+        Assert.Empty(fakes.Jobs.InputUpdateCalls);
     }
 
     [Fact]
-    public async Task Amend_invalid_base64_is_400()
+    public async Task Update_invalid_base64_is_400()
     {
         var fakes = JobWithInput(JobPayload.FromBytes(JobPayloadFormat.Bytes, [1]));
         var (app, client) = await StartWithControlsAsync(fakes);
         await using var _ = app;
 
         var response = await client.SendAsync(
-            AmendInput(new { input = new { base64 = "not valid base64!", formatId = 2 } }),
+            UpdateInput(new { input = new { base64 = "not valid base64!", formatId = 2 } }),
             TestContext.Current.CancellationToken
         );
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        Assert.Empty(fakes.Jobs.InputAmendCalls);
+        Assert.Empty(fakes.Jobs.InputUpdateCalls);
     }
 
     [Fact]
-    public async Task Amend_no_input_job_is_409_with_the_status_and_version_the_verb_answers()
+    public async Task Update_no_input_job_is_409_with_the_status_and_version_the_verb_answers()
     {
         var fakes = JobWithInput(null);
         var (app, client) = await StartWithControlsAsync(fakes);
         await using var _ = app;
         var ct = TestContext.Current.CancellationToken;
 
-        var response = await client.SendAsync(AmendInput(new { input = new { json = new { a = 1 } } }), ct);
+        var response = await client.SendAsync(UpdateInput(new { input = new { json = new { a = 1 } } }), ct);
         var body = await response.Content.ReadAsStringAsync(ct);
 
         // The verb refuses a job with no input, so HTTP answers what IJobs answers rather than a refusal of its own.
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
         Assert.Contains("\"action\":\"rejected\",\"status\":\"ready\"", body);
         Assert.Contains($"\"version\":{FakeJobs.CurrentJobVersion}", body);
-        Assert.Single(fakes.Jobs.InputAmendCalls);
+        Assert.Single(fakes.Jobs.InputUpdateCalls);
     }
 
     private static HttpRequestMessage PostEnqueue(object body, bool confirm = true)
