@@ -163,7 +163,7 @@ builder.Services.UseActa(j =&gt;
 <span class="k">while</span> (<span class="k">true</span>)
 {
     <span class="k">var</span> status = (<span class="k">await</span> jobs.GetStatusAsync(order))?.Status;
-    <span class="k">if</span> (status <span class="k">is</span> { } s &amp;&amp; s.IsTerminal)
+    <span class="k">if</span> (status <span class="k">is</span> { } s &amp;&amp; s.IsFinished)
     {
         <span class="k">break</span>;
     }

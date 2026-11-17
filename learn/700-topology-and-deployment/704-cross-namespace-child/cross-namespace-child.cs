@@ -32,7 +32,7 @@ var order = await jobs.EnqueueAsync(
 while (true)
 {
     var status = (await jobs.GetStatusAsync(order))?.Status;
-    if (status is { } s && s.IsTerminal)
+    if (status is { } s && s.IsFinished)
     {
         break;
     }

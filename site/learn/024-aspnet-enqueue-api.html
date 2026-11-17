@@ -110,7 +110,7 @@ app.MapPost(<span class="s">&quot;/imports&quot;</span>, <span class="k">async</
 <span class="hl">}</span>
 <span class="hl"> </span>
 <span class="hl">ImportResult? result = <span class="k">null</span>;</span>
-<span class="hl"><span class="k">if</span> (snapshot.Status.IsTerminal)</span>
+<span class="hl"><span class="k">if</span> (snapshot.Status.IsFinished)</span>
 <span class="hl">{</span>
 <span class="hl">    (_, result) = <span class="k">await</span> jobs.TryGetResultAsync&lt;ImportResult&gt;(parsed, ct);</span>
 <span class="hl">}</span></code></pre></figure>
@@ -195,7 +195,7 @@ app.MapGet(<span class="s">&quot;/imports/{jobRef}&quot;</span>, <span class="k"
 <span class="hl">    }</span>
 <span class="hl"> </span>
 <span class="hl">    ImportResult? result = <span class="k">null</span>;</span>
-<span class="hl">    <span class="k">if</span> (snapshot.Status.IsTerminal)</span>
+<span class="hl">    <span class="k">if</span> (snapshot.Status.IsFinished)</span>
 <span class="hl">    {</span>
 <span class="hl">        (_, result) = <span class="k">await</span> jobs.TryGetResultAsync&lt;ImportResult&gt;(parsed, ct);</span>
 <span class="hl">    }</span>

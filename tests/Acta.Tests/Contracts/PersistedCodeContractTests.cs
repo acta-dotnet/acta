@@ -334,15 +334,15 @@ public sealed class PersistedCodeContractTests
     public void An_unknown_status_is_inert()
     {
         // An old worker reads a newer build's status as Unspecified; it must not treat it as finished.
-        Assert.False(JobStatusCode.Unspecified.IsTerminal);
+        Assert.False(JobStatusCode.Unspecified.IsFinished);
     }
 
     [Fact]
     public void Lifecycle_classification_is_explicit_and_exhaustive()
     {
-        Assert.False(JobStatusCode.Ready.IsTerminal);
-        Assert.False(JobStatusCode.Blocked.IsTerminal);
-        Assert.All([JobStatusCode.Succeeded, JobStatusCode.Failed, JobStatusCode.Cancelled], status => Assert.True(status.IsTerminal));
+        Assert.False(JobStatusCode.Ready.IsFinished);
+        Assert.False(JobStatusCode.Blocked.IsFinished);
+        Assert.All([JobStatusCode.Succeeded, JobStatusCode.Failed, JobStatusCode.Cancelled], status => Assert.True(status.IsFinished));
     }
 
     private static Type[] CodeFamilies() =>

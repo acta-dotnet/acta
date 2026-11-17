@@ -173,7 +173,7 @@ builder.Services.UseActa(j =&gt;
     {
         <span class="k">break</span>;
     }
-    <span class="k">if</span> (snapshot?.Status.IsTerminal == <span class="k">true</span>)
+    <span class="k">if</span> (snapshot?.Status.IsFinished == <span class="k">true</span>)
     {
         <span class="k">throw</span> <span class="k">new</span> InvalidOperationException(<span class="s">$&quot;CLI fixture {snapshot.JobRef} ended {snapshot.Status} before reaching its signal wait.&quot;</span>);
     }

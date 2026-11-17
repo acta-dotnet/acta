@@ -134,7 +134,7 @@ internal static class FaultCaseRunner
                 workers.Add(replacement);
                 await replacement.ReadyAsync(ct);
                 observingRecovery = true;
-                await WaitAsync(async () => (await jobs.GetAsync(root, ct))?.Status.IsTerminal == true, bound, ct);
+                await WaitAsync(async () => (await jobs.GetAsync(root, ct))?.Status.IsFinished == true, bound, ct);
                 var timer = (await jobs.ListCheckpointsAsync(new ListJobCheckpointsQuery(root, PageSize: 100), ct)).Items.FirstOrDefault(
                     c => c.Name == "sleep"
                 );
@@ -266,7 +266,7 @@ internal static class FaultCaseRunner
                 fault = new(boundary, [input.Key], reached, true, false, RecordedAtUtc: DateTimeOffset.UtcNow);
                 observingRecovery = true;
                 await WaitAsync(
-                    async () => (await RecoveryReadAsync(() => jobs.GetAsync(root, ct).AsTask()))?.Status.IsTerminal == true,
+                    async () => (await RecoveryReadAsync(() => jobs.GetAsync(root, ct).AsTask()))?.Status.IsFinished == true,
                     bound,
                     ct
                 );

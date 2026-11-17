@@ -75,7 +75,7 @@ if (command == "raise")
 
     await jobs.RaiseSignalAsync(JobLookup.ById(waiting.JobId), "approval", new Decision(true, "alice"));
     Console.WriteLine($"Raised approval for the existing durable identity {waiting.JobRef}.");
-    var completed = await WaitForAsync(jobs, waiting.JobId, static snapshot => snapshot.Status.IsTerminal, "signal-waiting job to finish");
+    var completed = await WaitForAsync(jobs, waiting.JobId, static snapshot => snapshot.Status.IsFinished, "signal-waiting job to finish");
     EnsureDone(completed);
     await ShowSignalStateAsync(lab, waiting.JobId);
     await host.StopAsync();
@@ -120,7 +120,7 @@ await jobs.RaiseSignalAsync(job, "approval", new Decision(true, "alice"));
 
 // learn: end
 Console.WriteLine("approved - the job resumes.");
-var terminal = await WaitForAsync(jobs, job.JobId, static snapshot => snapshot.Status.IsTerminal, "signal-waiting job to finish");
+var terminal = await WaitForAsync(jobs, job.JobId, static snapshot => snapshot.Status.IsFinished, "signal-waiting job to finish");
 EnsureDone(terminal);
 await ShowSignalStateAsync(lab, job.JobId);
 await host.StopAsync();
@@ -144,7 +144,7 @@ static async Task<GetJobResponse> WaitForAsync(IJobs jobs, long jobId, Func<GetJ
             {
                 return snapshot;
             }
-            if (snapshot?.Status.IsTerminal == true)
+            if (snapshot?.Status.IsFinished == true)
             {
                 throw new InvalidOperationException($"Job {snapshot.JobRef} became {snapshot.Status} while waiting for {description}.");
             }

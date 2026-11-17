@@ -59,7 +59,7 @@ do
 {
     await Task.Delay(300);
     status = (await jobs.GetStatusAsync(handle))?.Status;
-} while (status is not null && !status.Value.IsTerminal);
+} while (status is not null && !status.Value.IsFinished);
 
 Console.WriteLine($"Job finished with status={status}");
 

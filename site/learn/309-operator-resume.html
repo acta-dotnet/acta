@@ -192,7 +192,7 @@ JobStatusCode? status;
 {
     <span class="k">await</span> Task.Delay(300);
     status = (<span class="k">await</span> jobs.GetStatusAsync(handle))?.Status;
-} <span class="k">while</span> (status <span class="k">is</span> <span class="k">not</span> <span class="k">null</span> &amp;&amp; !status.Value.IsTerminal);
+} <span class="k">while</span> (status <span class="k">is</span> <span class="k">not</span> <span class="k">null</span> &amp;&amp; !status.Value.IsFinished);
 
 Console.WriteLine(<span class="s">$&quot;Job finished with status={status}&quot;</span>);
 

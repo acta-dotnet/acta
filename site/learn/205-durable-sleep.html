@@ -185,7 +185,7 @@ builder.Services.UseActa(j =&gt;
 {
     <span class="k">var</span> existing = <span class="k">await</span> RequireJobAsync(jobs, args[jobRefIndex]);
     Console.WriteLine(<span class="s">$&quot;Recovering existing durable identity {existing.JobRef}; no new job was enqueued.&quot;</span>);
-    <span class="k">var</span> recovered = <span class="k">await</span> WaitForAsync(jobs, existing.JobId, <span class="k">static</span> snapshot =&gt; snapshot.Status.IsTerminal, <span class="s">&quot;sleeping job to finish&quot;</span>);
+    <span class="k">var</span> recovered = <span class="k">await</span> WaitForAsync(jobs, existing.JobId, <span class="k">static</span> snapshot =&gt; snapshot.Status.IsFinished, <span class="s">&quot;sleeping job to finish&quot;</span>);
     EnsureDone(recovered);
     <span class="k">await</span> ShowTimerStateAsync(lab, existing.JobId);
     <span class="k">await</span> host.StopAsync();
@@ -213,7 +213,7 @@ builder.Services.UseActa(j =&gt;
     <span class="k">return</span>;
 }
 
-<span class="k">var</span> terminal = <span class="k">await</span> WaitForAsync(jobs, job.JobId, <span class="k">static</span> snapshot =&gt; snapshot.Status.IsTerminal, <span class="s">&quot;sleeping job to finish&quot;</span>);
+<span class="k">var</span> terminal = <span class="k">await</span> WaitForAsync(jobs, job.JobId, <span class="k">static</span> snapshot =&gt; snapshot.Status.IsFinished, <span class="s">&quot;sleeping job to finish&quot;</span>);
 EnsureDone(terminal);
 <span class="k">await</span> ShowTimerStateAsync(lab, job.JobId);
 <span class="k">await</span> host.StopAsync();
@@ -237,7 +237,7 @@ EnsureDone(terminal);
             {
                 <span class="k">return</span> snapshot;
             }
-            <span class="k">if</span> (snapshot?.Status.IsTerminal == <span class="k">true</span>)
+            <span class="k">if</span> (snapshot?.Status.IsFinished == <span class="k">true</span>)
             {
                 <span class="k">throw</span> <span class="k">new</span> InvalidOperationException(<span class="s">$&quot;Job {snapshot.JobRef} became {snapshot.Status} while waiting for {description}.&quot;</span>);
             }

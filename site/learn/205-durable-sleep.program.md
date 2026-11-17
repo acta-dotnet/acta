@@ -66,7 +66,7 @@ if (command == "recover")
 {
     var existing = await RequireJobAsync(jobs, args[jobRefIndex]);
     Console.WriteLine($"Recovering existing durable identity {existing.JobRef}; no new job was enqueued.");
-    var recovered = await WaitForAsync(jobs, existing.JobId, static snapshot => snapshot.Status.IsTerminal, "sleeping job to finish");
+    var recovered = await WaitForAsync(jobs, existing.JobId, static snapshot => snapshot.Status.IsFinished, "sleeping job to finish");
     EnsureDone(recovered);
     await ShowTimerStateAsync(lab, existing.JobId);
     await host.StopAsync();
@@ -94,7 +94,7 @@ if (command == "start")
     return;
 }
 
-var terminal = await WaitForAsync(jobs, job.JobId, static snapshot => snapshot.Status.IsTerminal, "sleeping job to finish");
+var terminal = await WaitForAsync(jobs, job.JobId, static snapshot => snapshot.Status.IsFinished, "sleeping job to finish");
 EnsureDone(terminal);
 await ShowTimerStateAsync(lab, job.JobId);
 await host.StopAsync();
@@ -118,7 +118,7 @@ static async Task<GetJobResponse> WaitForAsync(IJobs jobs, long jobId, Func<GetJ
             {
                 return snapshot;
             }
-            if (snapshot?.Status.IsTerminal == true)
+            if (snapshot?.Status.IsFinished == true)
             {
                 throw new InvalidOperationException($"Job {snapshot.JobRef} became {snapshot.Status} while waiting for {description}.");
             }

@@ -48,7 +48,7 @@ while (true)
         competitorJobId = first.JobId;
         break;
     }
-    if (firstStatus?.IsTerminal == true && secondStatus?.IsTerminal == true)
+    if (firstStatus?.IsFinished == true && secondStatus?.IsFinished == true)
     {
         throw new InvalidOperationException(
             "Both jobs finished before the admission boundary was observed; increase the lab handler delay."
@@ -113,8 +113,8 @@ await lab.ShowAsync(
 
 using var completionTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
 while (
-    (await jobs.GetAsync(first, completionTimeout.Token))?.Status.IsTerminal != true
-    || (await jobs.GetAsync(second, completionTimeout.Token))?.Status.IsTerminal != true
+    (await jobs.GetAsync(first, completionTimeout.Token))?.Status.IsFinished != true
+    || (await jobs.GetAsync(second, completionTimeout.Token))?.Status.IsFinished != true
 )
 {
     await Task.Delay(100, completionTimeout.Token);
@@ -133,7 +133,7 @@ await lab.ShowAsync(
 using var shardTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
 foreach (var shard in shards)
 {
-    while ((await jobs.GetAsync(shard, shardTimeout.Token))?.Status.IsTerminal != true)
+    while ((await jobs.GetAsync(shard, shardTimeout.Token))?.Status.IsFinished != true)
     {
         await Task.Delay(100, shardTimeout.Token);
     }
@@ -160,7 +160,7 @@ Console.WriteLine("Enqueued twelve jobs against a definition limited to five a s
 using var pingTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
 foreach (var ping in pings)
 {
-    while ((await jobs.GetAsync(ping, pingTimeout.Token))?.Status.IsTerminal != true)
+    while ((await jobs.GetAsync(ping, pingTimeout.Token))?.Status.IsFinished != true)
     {
         await Task.Delay(100, pingTimeout.Token);
     }

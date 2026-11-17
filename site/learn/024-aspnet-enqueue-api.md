@@ -65,7 +65,7 @@ if (snapshot is null)
 }
 
 ImportResult? result = null;
-if (snapshot.Status.IsTerminal)
+if (snapshot.Status.IsFinished)
 {
     (_, result) = await jobs.TryGetResultAsync<ImportResult>(parsed, ct);
 }
@@ -86,7 +86,7 @@ if (snapshot is null)
 }
 
 ImportResult? result = null;
-if (snapshot.Status.IsTerminal)
+if (snapshot.Status.IsFinished)
 {
     (_, result) = await jobs.TryGetResultAsync<ImportResult>(parsed, ct);
 }

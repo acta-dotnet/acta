@@ -515,7 +515,7 @@ dotnet_diagnostic.CA1716.severity = none
 # CA1024: GetBehavior(), which CA1024 wants as a property. It is the one member of that extension
 # block that throws - its switch closes with ArgumentOutOfRangeException for a code outside the
 # family - and .NET's own property guidance is that a getter should not throw. Its neighbour,
-# IsTerminal, is total over the enum and is a property for exactly that reason; the split follows the guidance rather than ignoring it.
+# IsFinished, is total over the enum and is a property for exactly that reason; the split follows the guidance rather than ignoring it.
 [src/Acta/Domain/Codes/ExecutionStatusExtensions.cs]
 dotnet_diagnostic.CA1024.severity = none
 

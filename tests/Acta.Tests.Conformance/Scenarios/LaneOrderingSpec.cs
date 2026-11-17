@@ -273,7 +273,7 @@ public sealed class LaneOrderingSpec : ActaRuntimeTestBase<ConformanceFixture, J
             {
                 var current = await StatusesAsync(jobs, ct);
                 statuses = string.Join(", ", current);
-                return current.All(s => s.IsTerminal);
+                return current.All(s => s.IsFinished);
             },
             ct,
             () => $"the lane did not drain: [{statuses}]"

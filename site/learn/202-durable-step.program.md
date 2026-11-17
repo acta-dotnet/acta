@@ -44,7 +44,7 @@ do
 {
     await Task.Delay(100, completionTimeout.Token);
     snapshot = await jobs.GetAsync(enqueued, completionTimeout.Token);
-} while (snapshot is null or { Status.IsTerminal: false });
+} while (snapshot is null or { Status.IsFinished: false });
 
 await lab.ShowAllAsync(
     "Explore the complete replayed job record",

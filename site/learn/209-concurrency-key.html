@@ -202,7 +202,7 @@ Console.WriteLine(<span class="s">&quot;Enqueued two jobs with the same concurre
         competitorJobId = first.JobId;
         <span class="k">break</span>;
     }
-    <span class="k">if</span> (firstStatus?.IsTerminal == <span class="k">true</span> &amp;&amp; secondStatus?.IsTerminal == <span class="k">true</span>)
+    <span class="k">if</span> (firstStatus?.IsFinished == <span class="k">true</span> &amp;&amp; secondStatus?.IsFinished == <span class="k">true</span>)
     {
         <span class="k">throw</span> <span class="k">new</span> InvalidOperationException(
             <span class="s">&quot;Both jobs finished before the admission boundary was observed; increase the lab handler delay.&quot;</span>
@@ -267,8 +267,8 @@ Console.WriteLine(<span class="s">&quot;Enqueued four jobs against a definition 
 
 <span class="k">using</span> <span class="k">var</span> completionTimeout = <span class="k">new</span> CancellationTokenSource(TimeSpan.FromSeconds(30));
 <span class="k">while</span> (
-    (<span class="k">await</span> jobs.GetAsync(first, completionTimeout.Token))?.Status.IsTerminal != <span class="k">true</span>
-    || (<span class="k">await</span> jobs.GetAsync(second, completionTimeout.Token))?.Status.IsTerminal != <span class="k">true</span>
+    (<span class="k">await</span> jobs.GetAsync(first, completionTimeout.Token))?.Status.IsFinished != <span class="k">true</span>
+    || (<span class="k">await</span> jobs.GetAsync(second, completionTimeout.Token))?.Status.IsFinished != <span class="k">true</span>
 )
 {
     <span class="k">await</span> Task.Delay(100, completionTimeout.Token);
@@ -287,7 +287,7 @@ Console.WriteLine(<span class="s">&quot;Enqueued four jobs against a definition 
 <span class="k">using</span> <span class="k">var</span> shardTimeout = <span class="k">new</span> CancellationTokenSource(TimeSpan.FromSeconds(60));
 <span class="k">foreach</span> (<span class="k">var</span> shard <span class="k">in</span> shards)
 {
-    <span class="k">while</span> ((<span class="k">await</span> jobs.GetAsync(shard, shardTimeout.Token))?.Status.IsTerminal != <span class="k">true</span>)
+    <span class="k">while</span> ((<span class="k">await</span> jobs.GetAsync(shard, shardTimeout.Token))?.Status.IsFinished != <span class="k">true</span>)
     {
         <span class="k">await</span> Task.Delay(100, shardTimeout.Token);
     }
@@ -314,7 +314,7 @@ Console.WriteLine(<span class="s">&quot;Enqueued twelve jobs against a definitio
 <span class="k">using</span> <span class="k">var</span> pingTimeout = <span class="k">new</span> CancellationTokenSource(TimeSpan.FromSeconds(60));
 <span class="k">foreach</span> (<span class="k">var</span> ping <span class="k">in</span> pings)
 {
-    <span class="k">while</span> ((<span class="k">await</span> jobs.GetAsync(ping, pingTimeout.Token))?.Status.IsTerminal != <span class="k">true</span>)
+    <span class="k">while</span> ((<span class="k">await</span> jobs.GetAsync(ping, pingTimeout.Token))?.Status.IsFinished != <span class="k">true</span>)
     {
         <span class="k">await</span> Task.Delay(100, pingTimeout.Token);
     }

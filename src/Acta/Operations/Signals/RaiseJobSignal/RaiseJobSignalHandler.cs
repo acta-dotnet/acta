@@ -63,7 +63,7 @@ internal sealed class RaiseJobSignalHandler(
     /// </summary>
     private async Task<string?> RejectionReasonAsync(long jobId, string name, JobStatusCode? status, CancellationToken ct)
     {
-        if (status is { } finished && finished.IsTerminal)
+        if (status is { } finished && finished.IsFinished)
         {
             return "job-finished";
         }

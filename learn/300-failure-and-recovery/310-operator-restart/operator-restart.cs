@@ -34,7 +34,7 @@ using var failureTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(30))
 GetJobResponse? snapshot;
 while ((snapshot = await jobs.GetAsync(outcome, failureTimeout.Token))?.Status != JobStatusCode.Failed)
 {
-    if (snapshot?.Status.IsTerminal == true)
+    if (snapshot?.Status.IsFinished == true)
     {
         throw new InvalidOperationException($"Expected the fixture to fail, but it ended {snapshot.Status}.");
     }
@@ -59,7 +59,7 @@ Console.WriteLine($"immediately observed after restart: status={snapshot!.Status
 using var completionTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
 while ((snapshot = await jobs.GetAsync(outcome, completionTimeout.Token))?.Status != JobStatusCode.Succeeded)
 {
-    if (snapshot?.Status.IsTerminal == true)
+    if (snapshot?.Status.IsFinished == true)
     {
         throw new InvalidOperationException($"Restarted job ended {snapshot.Status}; inspect its events for the reason.");
     }

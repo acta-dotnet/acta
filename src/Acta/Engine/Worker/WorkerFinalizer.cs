@@ -650,7 +650,7 @@ internal sealed partial class WorkerFinalizer(
     /// </summary>
     private async Task WakeAsync(CompleteExecutionsRow complete, ClaimedJob job, string ns, CancellationToken ct)
     {
-        var terminal = complete.FinalJobStatusCode is { } finalStatus && ((JobStatusCode)finalStatus).IsTerminal;
+        var terminal = complete.FinalJobStatusCode is { } finalStatus && ((JobStatusCode)finalStatus).IsFinished;
         if (complete.FinalJobStatusCode == (byte)JobStatusCode.Ready)
         {
             var wakeReason =

@@ -171,7 +171,7 @@ GetJobResponse? snapshot;
 {
     <span class="k">await</span> Task.Delay(100, completionTimeout.Token);
     snapshot = <span class="k">await</span> jobs.GetAsync(enqueued, completionTimeout.Token);
-} <span class="k">while</span> (snapshot <span class="k">is</span> <span class="k">null</span> or { Status.IsTerminal: <span class="k">false</span> });
+} <span class="k">while</span> (snapshot <span class="k">is</span> <span class="k">null</span> or { Status.IsFinished: <span class="k">false</span> });
 
 <span class="k">await</span> lab.ShowAllAsync(
     <span class="s">&quot;Explore the complete replayed job record&quot;</span>,

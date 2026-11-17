@@ -37,7 +37,7 @@ internal static class TimeoutAndWakeupCases
             ct
         );
         await FaultCaseRunner.WaitAsync(
-            async () => (await jobs.GetAsync(root, ct))?.Status.IsTerminal == true,
+            async () => (await jobs.GetAsync(root, ct))?.Status.IsFinished == true,
             plan.Deadline(1 + input.Children, 0, state.DrainRate),
             ct
         );

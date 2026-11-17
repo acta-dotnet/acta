@@ -1667,7 +1667,7 @@ sealed class Acta.JobStatusCodeJsonConverter : System.Text.Json.Serialization.Js
     Acta.JobStatusCode Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
     System.Void Write(System.Text.Json.Utf8JsonWriter writer, Acta.JobStatusCode value, System.Text.Json.JsonSerializerOptions options)
 static class Acta.JobStatusExtensions
-    static System.Boolean get_IsTerminal(Acta.JobStatusCode value)
+    static System.Boolean get_IsFinished(Acta.JobStatusCode value)
 sealed class Acta.JobWaitTimeoutException : Acta.ActaException
     .ctor(System.Int64 jobId, Acta.JobRef jobRef)
     Acta.JobRef JobRef { get; }

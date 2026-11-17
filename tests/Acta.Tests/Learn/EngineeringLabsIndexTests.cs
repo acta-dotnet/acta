@@ -211,7 +211,7 @@ public sealed partial class EngineeringLabsIndexTests
         Assert.DoesNotContain("Durable run-once slot", durableStep, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("prints ONCE", durableStep, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("--fail-child", childJobs, StringComparison.Ordinal);
-        Assert.Contains("snapshot.Status.IsTerminal", childJobs, StringComparison.Ordinal);
+        Assert.Contains("snapshot.Status.IsFinished", childJobs, StringComparison.Ordinal);
         Assert.DoesNotContain("GetStatusAsync(outcome) != JobStatusCode.Succeeded", childJobs, StringComparison.Ordinal);
 
         Assert.DoesNotContain("DateTime.UtcNow", scheduleMisfire, StringComparison.Ordinal);

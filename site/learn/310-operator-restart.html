@@ -186,7 +186,7 @@ FlakyReportJob.DataSourceFixed = <span class="k">false</span>;
 GetJobResponse? snapshot;
 <span class="k">while</span> ((snapshot = <span class="k">await</span> jobs.GetAsync(outcome, failureTimeout.Token))?.Status != JobStatusCode.Failed)
 {
-    <span class="k">if</span> (snapshot?.Status.IsTerminal == <span class="k">true</span>)
+    <span class="k">if</span> (snapshot?.Status.IsFinished == <span class="k">true</span>)
     {
         <span class="k">throw</span> <span class="k">new</span> InvalidOperationException(<span class="s">$&quot;Expected the fixture to fail, but it ended {snapshot.Status}.&quot;</span>);
     }
@@ -211,7 +211,7 @@ Console.WriteLine(<span class="s">$&quot;immediately observed after restart: sta
 <span class="k">using</span> <span class="k">var</span> completionTimeout = <span class="k">new</span> CancellationTokenSource(TimeSpan.FromSeconds(30));
 <span class="k">while</span> ((snapshot = <span class="k">await</span> jobs.GetAsync(outcome, completionTimeout.Token))?.Status != JobStatusCode.Succeeded)
 {
-    <span class="k">if</span> (snapshot?.Status.IsTerminal == <span class="k">true</span>)
+    <span class="k">if</span> (snapshot?.Status.IsFinished == <span class="k">true</span>)
     {
         <span class="k">throw</span> <span class="k">new</span> InvalidOperationException(<span class="s">$&quot;Restarted job ended {snapshot.Status}; inspect its events for the reason.&quot;</span>);
     }

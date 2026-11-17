@@ -143,7 +143,7 @@ internal static class RaceCases
                 if (ordering == "after")
                 {
                     await FaultCaseRunner.WaitAsync(
-                        async () => (await jobs.GetAsync(root, ct))?.Status.IsTerminal == true,
+                        async () => (await jobs.GetAsync(root, ct))?.Status.IsFinished == true,
                         plan.Deadline(expected.Length, 0, state.DrainRate),
                         ct
                     );
@@ -151,7 +151,7 @@ internal static class RaceCases
                 await jobs.RaiseSignalAsync(root, "go", default(JobPayload), ct: ct);
             }
             await FaultCaseRunner.WaitAsync(
-                async () => (await jobs.GetAsync(root, ct))?.Status.IsTerminal == true,
+                async () => (await jobs.GetAsync(root, ct))?.Status.IsFinished == true,
                 plan.Deadline(expected.Length, 0, state.DrainRate),
                 ct
             );

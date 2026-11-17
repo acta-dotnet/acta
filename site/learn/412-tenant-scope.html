@@ -97,7 +97,7 @@
 <span class="k">var</span> runId = <span class="s">$&quot;tenant-scope-{Guid.CreateVersion7():N}&quot;</span>;
 
 <span class="hl"><span class="k">var</span> parent = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> ExportAccount(<span class="s">&quot;acme&quot;</span>), options =&gt; options.TenantName(<span class="s">&quot;acme&quot;</span>).CorrelationKey(runId));</span>
-<span class="k">var</span> parentTerminal = <span class="k">await</span> WaitForAsync(jobs, parent.JobId, <span class="k">static</span> snapshot =&gt; snapshot.Status.IsTerminal, <span class="s">&quot;tenant parent to finish&quot;</span>);
+<span class="k">var</span> parentTerminal = <span class="k">await</span> WaitForAsync(jobs, parent.JobId, <span class="k">static</span> snapshot =&gt; snapshot.Status.IsFinished, <span class="s">&quot;tenant parent to finish&quot;</span>);
 <span class="k">if</span> (parentTerminal.Status != JobStatusCode.Succeeded)
 {
     <span class="k">throw</span> <span class="k">new</span> InvalidOperationException(<span class="s">$&quot;Tenant parent {parentTerminal.JobRef} ended {parentTerminal.Status}.&quot;</span>);
@@ -208,7 +208,7 @@ builder.Services.UseActa(j =&gt;
 <span class="hl"><span class="k">var</span> parent = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> ExportAccount(<span class="s">&quot;acme&quot;</span>), options =&gt; options.TenantName(<span class="s">&quot;acme&quot;</span>).CorrelationKey(runId));</span>
 
 <span class="c">// learn: end</span>
-<span class="k">var</span> parentTerminal = <span class="k">await</span> WaitForAsync(jobs, parent.JobId, <span class="k">static</span> snapshot =&gt; snapshot.Status.IsTerminal, <span class="s">&quot;tenant parent to finish&quot;</span>);
+<span class="k">var</span> parentTerminal = <span class="k">await</span> WaitForAsync(jobs, parent.JobId, <span class="k">static</span> snapshot =&gt; snapshot.Status.IsFinished, <span class="s">&quot;tenant parent to finish&quot;</span>);
 <span class="k">if</span> (parentTerminal.Status != JobStatusCode.Succeeded)
 {
     <span class="k">throw</span> <span class="k">new</span> InvalidOperationException(<span class="s">$&quot;Tenant parent {parentTerminal.JobRef} ended {parentTerminal.Status}.&quot;</span>);
@@ -258,7 +258,7 @@ Console.WriteLine(
         <span class="k">var</span> preExistingTerminal = <span class="k">await</span> WaitForAsync(
             jobs,
             preExisting.JobId,
-            <span class="k">static</span> snapshot =&gt; snapshot.Status.IsTerminal,
+            <span class="k">static</span> snapshot =&gt; snapshot.Status.IsFinished,
             <span class="s">&quot;work accepted before tenant suspension to finish&quot;</span>
         );
         <span class="k">if</span> (preExistingTerminal.Status != JobStatusCode.Succeeded)

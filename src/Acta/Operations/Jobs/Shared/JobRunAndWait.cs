@@ -229,7 +229,7 @@ internal static class JobRunAndWait
             wakeup,
             jobId,
             ReadAsync,
-            static snapshot => snapshot.Status.IsTerminal,
+            static snapshot => snapshot.Status.IsFinished,
             waitTimeout,
             pollInterval,
             ct

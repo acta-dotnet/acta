@@ -80,7 +80,7 @@ await lab.ShowAsync(
     new { parentJobId = outcome.JobId }
 );
 
-var terminal = await WaitForAsync(jobs, outcome.JobId, static snapshot => snapshot.Status.IsTerminal, "parent to reach a terminal state");
+var terminal = await WaitForAsync(jobs, outcome.JobId, static snapshot => snapshot.Status.IsFinished, "parent to reach a terminal state");
 if (terminal.Status == JobStatusCode.Succeeded)
 {
     var result = await jobs.GetResultAsync<FinishedSnowman>(outcome);
@@ -139,7 +139,7 @@ static async Task<GetJobResponse> WaitForAsync(IJobs jobs, long jobId, Func<GetJ
             {
                 return snapshot;
             }
-            if (snapshot?.Status.IsTerminal == true)
+            if (snapshot?.Status.IsFinished == true)
             {
                 throw new InvalidOperationException($"Job {snapshot.JobRef} became {snapshot.Status} while waiting for {description}.");
             }

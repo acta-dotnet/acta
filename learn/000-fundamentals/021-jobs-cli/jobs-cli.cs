@@ -32,7 +32,7 @@ while (true)
     {
         break;
     }
-    if (snapshot?.Status.IsTerminal == true)
+    if (snapshot?.Status.IsFinished == true)
     {
         throw new InvalidOperationException($"CLI fixture {snapshot.JobRef} ended {snapshot.Status} before reaching its signal wait.");
     }

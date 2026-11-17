@@ -56,7 +56,7 @@ app.MapGet("/imports/{jobRef}", async (string jobRef, IJobs jobs, CancellationTo
     }
 
     ImportResult? result = null;
-    if (snapshot.Status.IsTerminal)
+    if (snapshot.Status.IsFinished)
     {
         (_, result) = await jobs.TryGetResultAsync<ImportResult>(parsed, ct);
     }
