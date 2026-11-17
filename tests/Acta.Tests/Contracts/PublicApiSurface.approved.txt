@@ -2364,12 +2364,6 @@ sealed class Acta.ReservedCodeAttribute : System.Attribute
     .ctor(System.Byte id, System.String code)
     System.Byte Id { get; }
     System.String Code { get; }
-sealed class Acta.ReservedCodeRangeAttribute : System.Attribute
-    .ctor(System.Byte start, System.Byte end, System.String reason)
-    System.Boolean PermanentlyUnavailable { get;init; }
-    System.Byte End { get; }
-    System.Byte Start { get; }
-    System.String Reason { get; }
 sealed record Acta.ResolveAlertResponse : Acta.IAlertControlResponse
     .ctor(Acta.AlertRef AlertRef, Acta.ControlAction Action, System.Nullable<System.DateTime> AcknowledgedAtUtc, System.Nullable<System.DateTime> ResolvedAtUtc)
     Acta.AlertRef AlertRef { get;init; }

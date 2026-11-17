@@ -4,7 +4,6 @@ namespace Acta;
 
 /// <summary>What an event records, as a dotted code. There is no code for an enqueue, because the job row itself records it.</summary>
 [JsonConverter(typeof(EventCodeJsonConverter))]
-[ReservedCodeRange(224, 254, "Architecture-controlled reserve")]
 [CodeKind("event")]
 public enum EventCode : byte
 {

@@ -274,27 +274,6 @@ public class CodeGeneratorDiagnosticTests
     }
 
     [Fact]
-    public void Assignment_inside_reserved_range_errors_ACTA0204()
-    {
-        var result = RunGenerator(
-            """
-            using Acta;
-            namespace GenTests;
-
-            [ReservedCodeRange(224, 254, "Architecture-controlled reserve")]
-            [CodeKind("sample")]
-            public enum SampleCode : byte
-            {
-                [Code("held", "Illegally assigned held id.")]
-                Held = 224,
-            }
-            """
-        );
-
-        Assert.Single(Of(result, "ACTA0204"));
-    }
-
-    [Fact]
     public void Generated_conversions_read_canonical_strings_only()
     {
         var result = RunGenerator(
@@ -303,7 +282,6 @@ public class CodeGeneratorDiagnosticTests
             namespace GenTests;
 
             [ReservedCode(42, "legacy")]
-            [ReservedCodeRange(224, 254, "Architecture-controlled reserve")]
             [CodeKind("sample")]
             public enum SampleCode : byte
             {

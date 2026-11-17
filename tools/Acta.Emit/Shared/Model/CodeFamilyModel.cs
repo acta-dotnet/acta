@@ -5,6 +5,5 @@ internal sealed record CodeFamilyModel(
     string Name,
     string CodeKind,
     IReadOnlyList<CodeEntryModel> Values,
-    IReadOnlyList<ReservedCodeModel> ReservedCodes,
-    IReadOnlyList<ReservedCodeRangeModel> ReservedRanges
+    IReadOnlyList<ReservedCodeModel> ReservedCodes
 );

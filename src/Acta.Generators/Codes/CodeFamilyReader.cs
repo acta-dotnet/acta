@@ -142,45 +142,10 @@ internal static class CodeFamilyReader
         return reservations.ToImmutable();
     }
 
-    internal static ImmutableArray<ReservedRangeModel> ReadReservedRanges(
-        INamedTypeSymbol enumType,
-        ImmutableArray<DiagnosticRecord>.Builder diagnostics
-    )
-    {
-        var ranges = ImmutableArray.CreateBuilder<ReservedRangeModel>();
-        foreach (var attr in enumType.GetAttributes().Where(a => a.AttributeClass?.Name == "ReservedCodeRangeAttribute"))
-        {
-            if (
-                attr.ConstructorArguments.Length < 3
-                || attr.ConstructorArguments[0].Value is null
-                || attr.ConstructorArguments[1].Value is null
-            )
-            {
-                diagnostics.Add(new DiagnosticRecord("ACTA0204", $"`{enumType.Name}` has an invalid `[ReservedCodeRange]` declaration."));
-                continue;
-            }
-
-            var start = Convert.ToInt16(attr.ConstructorArguments[0].Value, CultureInfo.InvariantCulture);
-            var end = Convert.ToInt16(attr.ConstructorArguments[1].Value, CultureInfo.InvariantCulture);
-            if (start < 0 || end > 254 || start > end)
-            {
-                diagnostics.Add(
-                    new DiagnosticRecord(
-                        "ACTA0204",
-                        $"`{enumType.Name}` reserved range `{start}..{end}` must be ordered and contained in 0..254."
-                    )
-                );
-            }
-            ranges.Add(new ReservedRangeModel(start, end));
-        }
-        return ranges.ToImmutable();
-    }
-
     internal static void ValidateReservations(
         string enumName,
         IReadOnlyList<CodeModel> codes,
         ImmutableArray<ReservationModel> reservations,
-        ImmutableArray<ReservedRangeModel> ranges,
         ImmutableArray<DiagnosticRecord>.Builder diagnostics
     )
     {
@@ -202,24 +167,6 @@ internal static class CodeFamilyReader
                         $"`{enumName}` reuses reserved id `{reservation.Id}` or textual code `{reservation.Code}`. Tombstones are immutable."
                     )
                 );
-            }
-        }
-
-        for (var i = 0; i < ranges.Length; i++)
-        {
-            var range = ranges[i];
-            if (codes.Any(c => c.Id >= range.Start && c.Id <= range.End) || reservations.Any(r => r.Id >= range.Start && r.Id <= range.End))
-            {
-                diagnostics.Add(
-                    new DiagnosticRecord(
-                        "ACTA0204",
-                        $"`{enumName}` assigns a code or tombstone inside reserved range `{range.Start}..{range.End}`."
-                    )
-                );
-            }
-            if (ranges.Take(i).Any(other => range.Start <= other.End && other.Start <= range.End))
-            {
-                diagnostics.Add(new DiagnosticRecord("ACTA0204", $"`{enumName}` declares overlapping reserved ranges."));
             }
         }
     }

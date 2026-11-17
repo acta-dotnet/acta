@@ -139,23 +139,6 @@ internal static class CodeFamilyEmitter
             }
             sb.AppendLine();
         }
-
-        if (family.ReservedRanges.Count > 0)
-        {
-            sb.AppendLine("**Reserved ranges**");
-            sb.AppendLine();
-            sb.AppendLine("| Ids | Reason | Availability |");
-            sb.AppendLine("|---:|---|---|");
-            foreach (var range in family.ReservedRanges)
-            {
-                var availability = range.PermanentlyUnavailable ? "Permanent" : "Held";
-                sb.AppendLine(
-                    CultureInfo.InvariantCulture,
-                    $"| {range.Start}–{range.End} | {MarkdownEscape.Cell(range.Reason)} | {availability} |"
-                );
-            }
-            sb.AppendLine();
-        }
     }
 
     private static void EmitPayloadFormat(StringBuilder sb, PayloadFormatFamily payload)

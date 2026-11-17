@@ -242,12 +242,6 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `OutboxRequeued` | 180 | `outbox.requeued` | An operator returned quarantined outbox rows to delivery; the message carries the reason and the row ids. | Active |
 | `OutboxDiscarded` | 181 | `outbox.discarded` | An operator deleted quarantined outbox rows; the message carries the reason and the deleted row ids. | Active |
 
-**Reserved ranges**
-
-| Ids | Reason | Availability |
-|---:|---|---|
-| 224–254 | Architecture-controlled reserve | Held |
-
 ### `EventRecordingCode` · `event-recording` <a id="code-family-eventrecordingcode"></a>
 
 | Member | Id | Code | Description | Lifecycle |

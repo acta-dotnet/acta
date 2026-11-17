@@ -48,18 +48,12 @@ internal static class CodeFamilyDiscovery
             .OrderBy(code => code.Id)
             .Select(code => new ReservedCodeModel(code.Id, code.Code))
             .ToList();
-        var reservedRanges = enumType
-            .GetCustomAttributes<Acta.ReservedCodeRangeAttribute>()
-            .OrderBy(range => range.Start)
-            .Select(range => new ReservedCodeRangeModel(range.Start, range.End, range.Reason, range.PermanentlyUnavailable))
-            .ToList();
 
         return new CodeFamilyModel(
             Name: enumType.Name,
             CodeKind: manifest[0].CodeKind,
             Values: values.OrderBy(value => value.Id).ToList(),
-            ReservedCodes: reservedCodes,
-            ReservedRanges: reservedRanges
+            ReservedCodes: reservedCodes
         );
     }
 }

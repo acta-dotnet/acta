@@ -146,11 +146,10 @@ public sealed class CodeGenerator : IIncrementalGenerator
             }
 
             var reservations = ReadReservations(enumType, diagnostics);
-            var reservedRanges = ReadReservedRanges(enumType, diagnostics);
 
             var codes = ReadCodes(enumType, familyHits, diagnostics);
 
-            ValidateReservations(enumType.Name, codes, reservations, reservedRanges, diagnostics);
+            ValidateReservations(enumType.Name, codes, reservations, diagnostics);
 
             // Every family decodes an id it does not know as its id-0 member, so a row a newer Acta wrote
             // reads back during a rolling deploy: id 0 is the family's default or Unspecified.
@@ -248,10 +247,4 @@ public sealed class CodeGenerator : IIncrementalGenerator
     internal sealed record CodeModel(string MemberName, short Id, string Code, string Description, string Lifecycle);
 
     internal sealed record ReservationModel(short Id, string Code);
-
-    /// <summary>
-    /// Start/End only: the range's whole machine effect is the ACTA0204 assignment gate, which treats
-    /// every held id alike. PermanentlyUnavailable on the attribute records intent for readers.
-    /// </summary>
-    internal sealed record ReservedRangeModel(short Start, short End);
 }

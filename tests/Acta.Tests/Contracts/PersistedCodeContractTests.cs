@@ -310,12 +310,8 @@ public sealed class PersistedCodeContractTests
     }
 
     [Fact]
-    public void Reserve_and_payload_boundaries_are_enforced()
+    public void Payload_boundaries_are_enforced()
     {
-        // The two widest families are the ones whose headroom is worth pinning: their assigned ids
-        // (the manifest is the assigned set) plus the architecture reserve held out of EventCode.
-        Assert.Equal(48, EventCode.Manifest.Count);
-        Assert.Equal(31, typeof(EventCode).GetCustomAttributes<ReservedCodeRangeAttribute>().Sum(range => range.End - range.Start + 1));
         Assert.All(CodeFamilies(), family =>
             Assert.DoesNotContain(byte.MaxValue, Enum.GetValues(family).Cast<object>().Select(Convert.ToByte))
         );
