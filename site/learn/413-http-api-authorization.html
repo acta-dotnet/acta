@@ -1,0 +1,504 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>How to require permissions on the HTTP API · Acta, durable execution for .NET</title>
+  <meta name="description" content="How to require permissions on the HTTP API with Acta, durable execution for .NET. RequirePermissions has every route of the HTTP API check the host's policy named for its permission: read, enqueue, control, or admin. A caller with no credential gets 401, and one that lacks the permission gets 403 naming it." />
+  <link rel="canonical" href="https://useacta.net/learn/413-http-api-authorization" />
+  <meta name="theme-color" content="#0B0E15" />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="Acta for .NET" />
+  <meta property="og:title" content="How to require permissions on the HTTP API · Acta, durable execution for .NET" />
+  <meta property="og:description" content="How to require permissions on the HTTP API with Acta, durable execution for .NET. RequirePermissions has every route of the HTTP API check the host's policy named for its permission: read, enqueue, control, or admin. A caller with no credential gets 401, and one that lacks the permission gets 403 naming it." />
+  <meta property="og:url" content="https://useacta.net/learn/413-http-api-authorization" />
+  <meta property="og:image" content="https://useacta.net/assets/social-card.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="Acta: durable execution for .NET. Postgres, SQL Server, SQLite." />
+  <meta name="twitter:card" content="summary_large_image" />
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"How to require permissions on the HTTP API","description":"How to require permissions on the HTTP API with Acta, durable execution for .NET. RequirePermissions has every route of the HTTP API check the host's policy named for its permission: read, enqueue, control, or admin. A caller with no credential gets 401, and one that lacks the permission gets 403 naming it.","url":"https://useacta.net/learn/413-http-api-authorization","inLanguage":"en","articleSection":"Watch and control running work","isPartOf":{"@type":"CollectionPage","name":"Learn Acta","url":"https://useacta.net/learn"},"about":{"@type":"SoftwareSourceCode","name":"Acta","programmingLanguage":"C#","codeRepository":"https://github.com/acta-dotnet/acta"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Learn Acta","item":"https://useacta.net/learn"},{"@type":"ListItem","position":2,"name":"Watch and control running work","item":"https://useacta.net/learn#s-operate"},{"@type":"ListItem","position":3,"name":"How to require permissions on the HTTP API","item":"https://useacta.net/learn/413-http-api-authorization"}]}</script>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="alternate" type="text/plain" href="/llms.txt" title="Acta for coding agents" />
+  <link rel="alternate" type="text/markdown" href="/learn/413-http-api-authorization.md" title="This page as Markdown, for coding agents" />
+  <link rel="preload" href="/assets/fonts/fraunces-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="/assets/fonts/ibm-plex-sans-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="/assets/fonts/ibm-plex-mono-400-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <style>
+    /* Self-hosted latin subsets of the three families, preloaded and served immutable (see _headers),
+       so a reload paints them from cache with no swap and a first visit swaps them in as they land.
+       Fraunces and Plex Sans are variable files. */
+    @font-face { font-family: "Fraunces"; font-style: normal; font-weight: 400 600; font-display: swap; src: url(/assets/fonts/fraunces-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "Fraunces"; font-style: italic; font-weight: 400 500; font-display: swap; src: url(/assets/fonts/fraunces-italic-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "IBM Plex Sans"; font-style: normal; font-weight: 400 600; font-display: swap; src: url(/assets/fonts/ibm-plex-sans-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "IBM Plex Mono"; font-style: normal; font-weight: 400; font-display: swap; src: url(/assets/fonts/ibm-plex-mono-400-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "IBM Plex Mono"; font-style: normal; font-weight: 500; font-display: swap; src: url(/assets/fonts/ibm-plex-mono-500-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+  </style>
+  <link rel="stylesheet" href="/assets/site.css" />
+  <link rel="stylesheet" href="/assets/learn.css" />
+  <script src="/assets/theme.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#content">Skip to content</a>
+  <div class="chrome">
+    <div class="wrap chrome-inner">
+    <a class="brand site-brand" href="/" aria-label="Acta home"><svg viewBox="3.95 4.95 30.1 30.1" fill="none" stroke="currentColor" stroke-width="4.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 33 19 7 32 33" /><circle cx="19" cy="27" r="3" fill="currentColor" stroke="none" /></svg><span class="brand-word">Acta<span>.</span></span></a>
+    <span class="meta">Durable execution for .NET</span>
+    <nav aria-label="Primary links">
+      <a href="/start">Start</a>
+      <a href="/capabilities">Capabilities</a>
+      <a href="/benchmark">Benchmark</a>
+      <a href="/learn" aria-current="page">Learn</a>
+      <a href="https://github.com/acta-dotnet/acta" class="gh" aria-label="Acta on GitHub" title="Acta on GitHub"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><path fill="currentColor" d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"></path></svg></a>
+    </nav>
+    <span class="header-appearance" data-theme-controls></span>
+    </div>
+  </div>
+
+
+  <main id="content" data-howto="413">
+    <header class="wrap page-head howto-head">
+      <p class="record"><a href="/learn">learn acta</a><span aria-hidden="true">/</span><a href="/learn#s-operate">watch and control running work</a></p>
+      <h1>How to require permissions on the HTTP API</h1>
+      <p class="lede"><code>RequirePermissions</code> has every route of the HTTP API check the host's policy named for its permission: read, enqueue, control, or admin. A caller with no credential gets 401, and one that lacks the permission gets 403 naming it.</p>
+      <p class="howto-context">A how-to for Acta, durable execution for .NET. <a href="/start">New to Acta? Run your first durable job in five minutes.</a></p>
+      <div class="howto-meta">
+        <span class="status checked">Checked every release</span>
+        <a class="program" href="https://github.com/acta-dotnet/acta/tree/main/concepts/400-observability-and-alerts/413-http-api-authorization"><code>concepts/400-observability-and-alerts/413-http-api-authorization</code></a>
+        <div class="reader" role="group" aria-label="Read this page as">
+        <span class="reader-label">Read as</span>
+        <button type="button" data-reader="person" aria-pressed="true">a person</button>
+        <button type="button" data-reader="agent" aria-pressed="false" data-md="/learn/413-http-api-authorization.md">an agent</button>
+      </div>
+      </div>
+    </header>
+    <div class="wrap howto-body">
+      <article class="howto person-face">
+<div class="step"><h2><span class="step-n">1</span>Add one policy per permission</h2>
+<p>One policy per permission, each requiring a claim. Mapping throws when one of the four is missing.</p>
+<figure class="listing"><figcaption><span class="file">http-api-authorization.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-1">Copy</button></figcaption><pre><code id="code-1"><span class="k">var</span> builder = WebApplication.CreateBuilder(args);
+
+<span class="c">// Suppress framework noise so concept output stays readable.</span>
+builder.Logging.SetMinimumLevel(LogLevel.Warning);
+
+builder.Services.UseActa(j =&gt;
+{
+    j.UseLocalDatabase(builder.Configuration);
+    j.Run&lt;HttpApiAuthorizationJobs&gt;(<span class="s">&quot;http-api-authorization&quot;</span>);
+});
+
+<span class="c">// The host owns authentication: Acta ships none. This header scheme stands in for the host's own (cookies, JWT bearer</span>
+<span class="c">// tokens, Windows) and believes the permission a caller names, which only a demo may do.</span>
+builder
+    .Services.AddAuthentication(PermissionHeaderHandler.SchemeName)
+    .AddScheme&lt;AuthenticationSchemeOptions, PermissionHeaderHandler&gt;(PermissionHeaderHandler.SchemeName, <span class="k">null</span>);
+
+<span class="hl">builder.Services.AddAuthorization(options =&gt;</span>
+<span class="hl">{</span>
+<span class="hl">    options.AddPolicy(ActaPermissions.Read, policy =&gt; policy.RequireClaim(PermissionHeaderHandler.ClaimType, ActaPermissions.Read));</span>
+<span class="hl">    options.AddPolicy(ActaPermissions.Enqueue, policy =&gt; policy.RequireClaim(PermissionHeaderHandler.ClaimType, ActaPermissions.Enqueue));</span>
+<span class="hl">    options.AddPolicy(ActaPermissions.Control, policy =&gt; policy.RequireClaim(PermissionHeaderHandler.ClaimType, ActaPermissions.Control));</span>
+<span class="hl">    options.AddPolicy(ActaPermissions.Admin, policy =&gt; policy.RequireClaim(PermissionHeaderHandler.ClaimType, ActaPermissions.Admin));</span>
+<span class="hl">});</span>
+
+<span class="c">// UseTestServer skips binding to a real port: the HttpClient talks in-process.</span>
+builder.WebHost.UseTestServer();
+
+<span class="k">var</span> app = builder.Build();
+
+<span class="c">// EnableControls maps the routes that write. RequirePermissions authorizes every route, reads included, against the</span>
+<span class="c">// policy named for the permission the route declares. LocalOnly stays on; under RequirePermissions, LocalOnly = false</span>
+<span class="c">// would let remote callers reach the API.</span>
+Console.WriteLine(<span class="s">&quot;knob: EnableControls = true     (the routes that write are mapped; off by default)&quot;</span>);
+Console.WriteLine(<span class="s">&quot;knob: RequirePermissions = true (each route needs the host's policy named for its permission)&quot;</span>);
+Console.WriteLine();
+
+<span class="c">// Every route, reads included, is then authorized against the policy named for the permission it declares.</span>
+app.MapActaApi(<span class="s">&quot;/acta/api&quot;</span>, options =&gt;
+{
+    options.EnableControls = <span class="k">true</span>;
+    options.RequirePermissions = <span class="k">true</span>;
+});
+
+<span class="k">await</span> app.StartAsync();</code></pre></figure>
+</div>
+<div class="step"><h2><span class="step-n">2</span>Require the permissions on the API</h2>
+<p>Every route, reads included, is then authorized against the policy named for the permission it declares.</p>
+<figure class="listing"><figcaption><span class="file">http-api-authorization.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-2">Copy</button></figcaption><pre><code id="code-2"><span class="k">var</span> builder = WebApplication.CreateBuilder(args);
+
+<span class="c">// Suppress framework noise so concept output stays readable.</span>
+builder.Logging.SetMinimumLevel(LogLevel.Warning);
+
+builder.Services.UseActa(j =&gt;
+{
+    j.UseLocalDatabase(builder.Configuration);
+    j.Run&lt;HttpApiAuthorizationJobs&gt;(<span class="s">&quot;http-api-authorization&quot;</span>);
+});
+
+<span class="c">// The host owns authentication: Acta ships none. This header scheme stands in for the host's own (cookies, JWT bearer</span>
+<span class="c">// tokens, Windows) and believes the permission a caller names, which only a demo may do.</span>
+builder
+    .Services.AddAuthentication(PermissionHeaderHandler.SchemeName)
+    .AddScheme&lt;AuthenticationSchemeOptions, PermissionHeaderHandler&gt;(PermissionHeaderHandler.SchemeName, <span class="k">null</span>);
+
+<span class="c">// One policy per permission, each requiring a claim. Mapping throws when one of the four is missing.</span>
+builder.Services.AddAuthorization(options =&gt;
+{
+    options.AddPolicy(ActaPermissions.Read, policy =&gt; policy.RequireClaim(PermissionHeaderHandler.ClaimType, ActaPermissions.Read));
+    options.AddPolicy(ActaPermissions.Enqueue, policy =&gt; policy.RequireClaim(PermissionHeaderHandler.ClaimType, ActaPermissions.Enqueue));
+    options.AddPolicy(ActaPermissions.Control, policy =&gt; policy.RequireClaim(PermissionHeaderHandler.ClaimType, ActaPermissions.Control));
+    options.AddPolicy(ActaPermissions.Admin, policy =&gt; policy.RequireClaim(PermissionHeaderHandler.ClaimType, ActaPermissions.Admin));
+});
+
+<span class="c">// UseTestServer skips binding to a real port: the HttpClient talks in-process.</span>
+builder.WebHost.UseTestServer();
+
+<span class="k">var</span> app = builder.Build();
+
+<span class="c">// EnableControls maps the routes that write. RequirePermissions authorizes every route, reads included, against the</span>
+<span class="c">// policy named for the permission the route declares. LocalOnly stays on; under RequirePermissions, LocalOnly = false</span>
+<span class="c">// would let remote callers reach the API.</span>
+Console.WriteLine(<span class="s">&quot;knob: EnableControls = true     (the routes that write are mapped; off by default)&quot;</span>);
+Console.WriteLine(<span class="s">&quot;knob: RequirePermissions = true (each route needs the host's policy named for its permission)&quot;</span>);
+Console.WriteLine();
+
+<span class="hl">app.MapActaApi(<span class="s">&quot;/acta/api&quot;</span>, options =&gt;</span>
+<span class="hl">{</span>
+<span class="hl">    options.EnableControls = <span class="k">true</span>;</span>
+<span class="hl">    options.RequirePermissions = <span class="k">true</span>;</span>
+<span class="hl">});</span>
+
+<span class="k">await</span> app.StartAsync();</code></pre></figure>
+</div>
+<div class="step"><h2><span class="step-n">3</span>The job it acts on</h2>
+<figure class="listing"><figcaption><span class="file">http-api-authorization.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-3">Copy</button></figcaption><pre><code id="code-3"><span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> SampleTask(<span class="k">string</span> Id);
+
+<span class="k">public</span> <span class="k">static</span> <span class="k">class</span> SampleTaskJob
+{
+    <span class="a">[Job(<span class="s">&quot;sample-task&quot;</span>)]</span>
+    <span class="k">public</span> <span class="k">static</span> <span class="k">void</span> Handle(SampleTask input) { }
+}
+
+<span class="c">// Authenticates a caller as holding the one permission its X-Demo-Permission header names. A real host</span>
+<span class="c">// authenticates its users its own way and maps their roles or claims to the four policies.</span>
+<span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> PermissionHeaderHandler(
+    IOptionsMonitor&lt;AuthenticationSchemeOptions&gt; options,
+    ILoggerFactory logger,
+    UrlEncoder encoder
+) : AuthenticationHandler&lt;AuthenticationSchemeOptions&gt;(options, logger, encoder)
+{
+    <span class="k">public</span> <span class="k">const</span> <span class="k">string</span> SchemeName = <span class="s">&quot;PermissionHeader&quot;</span>;
+    <span class="k">public</span> <span class="k">const</span> <span class="k">string</span> HeaderName = <span class="s">&quot;X-Demo-Permission&quot;</span>;
+    <span class="k">public</span> <span class="k">const</span> <span class="k">string</span> ClaimType = <span class="s">&quot;permission&quot;</span>;
+
+    <span class="k">protected</span> <span class="k">override</span> Task&lt;AuthenticateResult&gt; HandleAuthenticateAsync()
+    {
+        <span class="k">if</span> (Request.Headers[HeaderName] <span class="k">is</span> <span class="k">not</span> [{ } permission])
+        {
+            <span class="k">return</span> Task.FromResult(AuthenticateResult.NoResult());
+        }
+
+        <span class="k">var</span> identity = <span class="k">new</span> ClaimsIdentity([<span class="k">new</span> Claim(ClaimTypes.Name, <span class="s">&quot;demo-caller&quot;</span>), <span class="k">new</span> Claim(ClaimType, permission)], SchemeName);
+        <span class="k">return</span> Task.FromResult(AuthenticateResult.Success(<span class="k">new</span> AuthenticationTicket(<span class="k">new</span> ClaimsPrincipal(identity), SchemeName)));
+    }
+}</code></pre></figure>
+</div>
+<div class="step"><h2><span class="step-n">4</span>Run it and check the output</h2>
+<p>From a clone of <a href="https://github.com/acta-dotnet/acta">the Acta repository</a>, with the .NET 10 SDK:</p>
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-4">Copy</button></figcaption><pre><code id="code-4">dotnet run --project concepts/400-observability-and-alerts/413-http-api-authorization</code></pre></figure>
+<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button" data-copy-target="#code-5">Copy</button></figcaption><pre><code id="code-5">GET /acta/api/v1/jobs -&gt; 401 Unauthorized
+GET /acta/api/v1/jobs -&gt; 200 OK
+/pause -&gt; 403 Forbidden: This operation needs the acta.control permission.
+POST /acta/api/v1/jobs -&gt; 201 Created
+/pause -&gt; 200 OK
+/purge -&gt; 403 Forbidden: This operation needs the acta.admin permission.
+/suspend -&gt; 403 Forbidden: This operation needs the acta.admin permission.
+/suspend -&gt; 200 OK
+/resume -&gt; 200 OK</code></pre></figure>
+<p class="proof checked"><b>Checked every release.</b> Before each release, Acta Verify runs this program and checks that its output contains these lines.</p>
+<p class="hint">This page shows the code. The rules it relies on, starting with the handler running again from its first line, are in <a href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#handler-contract">the handler contract</a>.</p>
+</div>
+<details class="step lab-notes"><summary>Notes on the program</summary>
+<p><code>RequirePermissions = true</code> makes Acta authorize every route of its HTTP API, reads included, against the host's policy named for the route's permission: <code>acta.read</code>, <code>acta.enqueue</code>, <code>acta.control</code>, or <code>acta.admin</code>, the constants of <code>ActaPermissions</code>. The host defines the four policies with <code>AddAuthorization</code>, each requiring a claim here. The host also owns authentication, and Acta ships none, so the concept defines a header scheme of its own that believes the permission a caller names, which only a demo may do.</p>
+<p>The run calls the API in-process as callers holding one permission each and prints what the server answered:</p>
+<ul class="plain"><li>With no credential, <code>GET /acta/api/v1/jobs</code> answers 401.</li><li><code>acta.read</code> reads the jobs list (200) and is refused pausing a job (403, whose detail names <code>acta.control</code>).</li><li><code>acta.enqueue</code> enqueues a job (201) and is refused pausing it (403).</li><li><code>acta.control</code> pauses it (200) and is refused purging it and suspending the namespace (403, naming <code>acta.admin</code>).</li><li><code>acta.admin</code> suspends and resumes the namespace (200).</li></ul>
+<p>Each operation names the permission it needs as <code>x-acta-permission</code> in the <a href="https://github.com/acta-dotnet/acta/blob/main/docs/reference/openapi.json">OpenAPI document</a>.</p>
+<h3>Run the experiment</h3>
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-6">Copy</button></figcaption><pre><code id="code-6">dotnet run --project concepts/400-observability-and-alerts/413-http-api-authorization</code></pre></figure>
+<p>It runs on the local SQLite database, like every rung, and exits when the calls are done.</p>
+<h3>Break it</h3>
+<p>Delete the <code>acta.admin</code> policy and run again: mapping throws, naming the missing policy, before the host serves a request. Put it back and add <code>options.ConfigureEndpoints = group =&gt; group.AllowAnonymous();</code> to the mapping: every call answers as before, because Acta evaluates the policies in its own endpoint filter, which an <code>AllowAnonymous</code> on the routes does not switch off.</p>
+<h3>Source trail</h3>
+<ul class="plain"><li><a href="https://github.com/acta-dotnet/acta/blob/main/concepts/400-observability-and-alerts/413-http-api-authorization/http-api-authorization.cs"><code>http-api-authorization.cs</code></a></li><li><a href="https://github.com/acta-dotnet/acta/blob/main/docs/operator-guide.md#permissions">Permissions in the operator guide</a></li><li><a href="https://github.com/acta-dotnet/acta/blob/main/src/Acta.AspNetCore/Http/PermissionFilter.cs"><code>PermissionFilter.cs</code></a></li><li><a href="https://github.com/acta-dotnet/acta/blob/main/tests/Acta.Tests/AspNetCore/PermissionTests.cs"><code>PermissionTests.cs</code></a></li></ul>
+</details>
+<div class="step plain-step"><h2>The whole program</h2>
+<p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/concepts/400-observability-and-alerts/413-http-api-authorization"><code>concepts/400-observability-and-alerts/413-http-api-authorization</code></a>, as it is compiled.</p>
+<p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
+<details class="source-file"><summary><span class="file-name">http-api-authorization.cs</span><span class="file-size">182 lines</span></summary><figure class="listing"><figcaption><span class="file">http-api-authorization.cs</span><button class="copy" type="button" data-copy-target="#code-7">Copy</button></figcaption><pre><code id="code-7"><span class="c">// How to require permissions on the HTTP API</span>
+<span class="c">// `RequirePermissions` has every route of the HTTP API check the host's policy named for its permission: read,</span>
+<span class="c">// enqueue, control, or admin. A caller with no credential gets 401, and one that lacks the permission gets 403</span>
+<span class="c">// naming it.</span>
+<span class="k">using</span> System.Net;
+<span class="k">using</span> System.Net.Http.Json;
+<span class="k">using</span> System.Security.Claims;
+<span class="k">using</span> System.Text.Encodings.Web;
+<span class="k">using</span> System.Text.Json.Nodes;
+<span class="k">using</span> Acta;
+<span class="k">using</span> Acta.AspNetCore;
+<span class="k">using</span> Acta.Concepts.HttpApiAuthorization;
+<span class="k">using</span> Microsoft.AspNetCore.Authentication;
+<span class="k">using</span> Microsoft.AspNetCore.TestHost;
+<span class="k">using</span> Microsoft.Extensions.Options;
+
+<span class="k">var</span> builder = WebApplication.CreateBuilder(args);
+
+<span class="c">// Suppress framework noise so concept output stays readable.</span>
+builder.Logging.SetMinimumLevel(LogLevel.Warning);
+
+builder.Services.UseActa(j =&gt;
+{
+    j.UseLocalDatabase(builder.Configuration);
+    j.Run&lt;HttpApiAuthorizationJobs&gt;(<span class="s">&quot;http-api-authorization&quot;</span>);
+});
+
+<span class="c">// The host owns authentication: Acta ships none. This header scheme stands in for the host's own (cookies, JWT bearer</span>
+<span class="c">// tokens, Windows) and believes the permission a caller names, which only a demo may do.</span>
+builder
+    .Services.AddAuthentication(PermissionHeaderHandler.SchemeName)
+    .AddScheme&lt;AuthenticationSchemeOptions, PermissionHeaderHandler&gt;(PermissionHeaderHandler.SchemeName, <span class="k">null</span>);
+
+<span class="c">// learn: 1. Add one policy per permission</span>
+<span class="c">// One policy per permission, each requiring a claim. Mapping throws when one of the four is missing.</span>
+<span class="hl">builder.Services.AddAuthorization(options =&gt;</span>
+<span class="hl">{</span>
+<span class="hl">    options.AddPolicy(ActaPermissions.Read, policy =&gt; policy.RequireClaim(PermissionHeaderHandler.ClaimType, ActaPermissions.Read));</span>
+<span class="hl">    options.AddPolicy(ActaPermissions.Enqueue, policy =&gt; policy.RequireClaim(PermissionHeaderHandler.ClaimType, ActaPermissions.Enqueue));</span>
+<span class="hl">    options.AddPolicy(ActaPermissions.Control, policy =&gt; policy.RequireClaim(PermissionHeaderHandler.ClaimType, ActaPermissions.Control));</span>
+<span class="hl">    options.AddPolicy(ActaPermissions.Admin, policy =&gt; policy.RequireClaim(PermissionHeaderHandler.ClaimType, ActaPermissions.Admin));</span>
+<span class="hl">});</span>
+
+<span class="c">// learn: end</span>
+
+<span class="c">// UseTestServer skips binding to a real port: the HttpClient talks in-process.</span>
+builder.WebHost.UseTestServer();
+
+<span class="k">var</span> app = builder.Build();
+
+<span class="c">// EnableControls maps the routes that write. RequirePermissions authorizes every route, reads included, against the</span>
+<span class="c">// policy named for the permission the route declares. LocalOnly stays on; under RequirePermissions, LocalOnly = false</span>
+<span class="c">// would let remote callers reach the API.</span>
+Console.WriteLine(<span class="s">&quot;knob: EnableControls = true     (the routes that write are mapped; off by default)&quot;</span>);
+Console.WriteLine(<span class="s">&quot;knob: RequirePermissions = true (each route needs the host's policy named for its permission)&quot;</span>);
+Console.WriteLine();
+
+<span class="c">// learn: 2. Require the permissions on the API</span>
+<span class="c">// Every route, reads included, is then authorized against the policy named for the permission it declares.</span>
+<span class="hl">app.MapActaApi(<span class="s">&quot;/acta/api&quot;</span>, options =&gt;</span>
+<span class="hl">{</span>
+<span class="hl">    options.EnableControls = <span class="k">true</span>;</span>
+<span class="hl">    options.RequirePermissions = <span class="k">true</span>;</span>
+<span class="hl">});</span>
+
+<span class="c">// learn: end</span>
+
+<span class="k">await</span> app.StartAsync();
+
+<span class="k">var</span> jobs = app.Services.GetRequiredService&lt;IJobs&gt;();
+<span class="k">var</span> client = app.GetTestClient();
+<span class="k">const</span> <span class="k">string</span> jobNamespace = <span class="s">&quot;http-api-authorization&quot;</span>;
+
+<span class="c">// A job the host enqueues itself, delayed five minutes so the worker leaves it untouched during this demo.</span>
+<span class="k">var</span> seeded = (<span class="k">await</span> jobs.ScheduleAsync(<span class="k">new</span> SampleTask(<span class="s">&quot;seeded&quot;</span>), TimeSpan.FromMinutes(5))).JobRef;
+Console.WriteLine(<span class="s">$&quot;host enqueued delayed job: {seeded}&quot;</span>);
+
+Console.WriteLine();
+Console.WriteLine(<span class="s">&quot;No credential:&quot;</span>);
+<span class="k">await</span> CallAsync(HttpMethod.Get, <span class="s">&quot;/acta/api/v1/jobs&quot;</span>, holding: <span class="k">null</span>);
+
+Console.WriteLine();
+Console.WriteLine(<span class="s">$&quot;Holding {ActaPermissions.Read}:&quot;</span>);
+<span class="k">await</span> CallAsync(HttpMethod.Get, <span class="s">&quot;/acta/api/v1/jobs&quot;</span>, ActaPermissions.Read);
+<span class="k">await</span> CallAsync(HttpMethod.Post, <span class="s">$&quot;/acta/api/v1/jobs/{seeded}/pause&quot;</span>, ActaPermissions.Read);
+
+Console.WriteLine();
+Console.WriteLine(<span class="s">$&quot;Holding {ActaPermissions.Enqueue}:&quot;</span>);
+<span class="k">var</span> enqueued = <span class="k">await</span> CallAsync(
+    HttpMethod.Post,
+    <span class="s">&quot;/acta/api/v1/jobs&quot;</span>,
+    ActaPermissions.Enqueue,
+    <span class="k">new</span>
+    {
+        jobNamespace,
+        jobName = <span class="s">&quot;sample-task&quot;</span>,
+        input = <span class="k">new</span> { json = <span class="k">new</span> { id = <span class="s">&quot;task-1&quot;</span> } },
+        delaySeconds = 300,
+    }
+);
+<span class="k">var</span> jobRef = enqueued?[<span class="s">&quot;jobRef&quot;</span>]?.GetValue&lt;<span class="k">string</span>&gt;();
+<span class="k">await</span> CallAsync(HttpMethod.Post, <span class="s">$&quot;/acta/api/v1/jobs/{jobRef}/pause&quot;</span>, ActaPermissions.Enqueue);
+
+Console.WriteLine();
+Console.WriteLine(<span class="s">$&quot;Holding {ActaPermissions.Control}:&quot;</span>);
+<span class="k">await</span> CallAsync(HttpMethod.Post, <span class="s">$&quot;/acta/api/v1/jobs/{jobRef}/pause&quot;</span>, ActaPermissions.Control);
+<span class="k">await</span> CallAsync(HttpMethod.Post, <span class="s">$&quot;/acta/api/v1/jobs/{jobRef}/purge&quot;</span>, ActaPermissions.Control);
+<span class="k">await</span> CallAsync(HttpMethod.Post, <span class="s">$&quot;/acta/api/v1/namespaces/{jobNamespace}/suspend&quot;</span>, ActaPermissions.Control);
+
+Console.WriteLine();
+Console.WriteLine(<span class="s">$&quot;Holding {ActaPermissions.Admin}:&quot;</span>);
+<span class="k">await</span> CallAsync(HttpMethod.Post, <span class="s">$&quot;/acta/api/v1/namespaces/{jobNamespace}/suspend&quot;</span>, ActaPermissions.Admin);
+<span class="k">await</span> CallAsync(HttpMethod.Post, <span class="s">$&quot;/acta/api/v1/namespaces/{jobNamespace}/resume&quot;</span>, ActaPermissions.Admin);
+
+Console.WriteLine();
+Console.WriteLine(<span class="s">&quot;Each operation's permission is x-acta-permission in the OpenAPI document (docs/reference/openapi.json).&quot;</span>);
+
+<span class="k">await</span> app.StopAsync();
+
+<span class="c">// One call as a caller holding one permission, or none. It prints the status, and for a 403 the problem's detail,</span>
+<span class="c">// which names the permission the route needs.</span>
+<span class="k">async</span> Task&lt;JsonNode?&gt; CallAsync(HttpMethod method, <span class="k">string</span> path, <span class="k">string</span>? holding, <span class="k">object</span>? body = <span class="k">null</span>)
+{
+    <span class="k">using</span> <span class="k">var</span> request = <span class="k">new</span> HttpRequestMessage(method, path);
+    <span class="k">if</span> (holding <span class="k">is</span> <span class="k">not</span> <span class="k">null</span>)
+    {
+        request.Headers.Add(PermissionHeaderHandler.HeaderName, holding);
+    }
+
+    <span class="c">// A control is confirmed by this header or by a JSON body.</span>
+    <span class="k">if</span> (method == HttpMethod.Post)
+    {
+        request.Headers.Add(<span class="s">&quot;X-Acta-Control&quot;</span>, <span class="s">&quot;true&quot;</span>);
+    }
+
+    <span class="k">if</span> (body <span class="k">is</span> <span class="k">not</span> <span class="k">null</span>)
+    {
+        request.Content = JsonContent.Create(body);
+    }
+
+    <span class="k">using</span> <span class="k">var</span> response = <span class="k">await</span> client.SendAsync(request);
+    <span class="k">var</span> text = <span class="k">await</span> response.Content.ReadAsStringAsync();
+    <span class="k">var</span> json = text.Length &gt; 0 ? JsonNode.Parse(text) : <span class="k">null</span>;
+    <span class="k">var</span> detail = response.StatusCode == HttpStatusCode.Forbidden ? <span class="s">$&quot;: {json?[&quot;detail&quot;]?.GetValue&lt;string&gt;()}&quot;</span> : <span class="s">&quot;&quot;</span>;
+    Console.WriteLine(<span class="s">$&quot;  {method} {path} -&gt; {(int)response.StatusCode} {response.StatusCode}{detail}&quot;</span>);
+    <span class="k">return</span> json;
+}
+
+<span class="k">namespace</span> Acta.Concepts.HttpApiAuthorization
+{
+    <span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> SampleTask(<span class="k">string</span> Id);
+
+    <span class="k">public</span> <span class="k">static</span> <span class="k">class</span> SampleTaskJob
+    {
+        <span class="a">[Job(<span class="s">&quot;sample-task&quot;</span>)]</span>
+        <span class="k">public</span> <span class="k">static</span> <span class="k">void</span> Handle(SampleTask input) { }
+    }
+
+    <span class="c">// Authenticates a caller as holding the one permission its X-Demo-Permission header names. A real host</span>
+    <span class="c">// authenticates its users its own way and maps their roles or claims to the four policies.</span>
+    <span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> PermissionHeaderHandler(
+        IOptionsMonitor&lt;AuthenticationSchemeOptions&gt; options,
+        ILoggerFactory logger,
+        UrlEncoder encoder
+    ) : AuthenticationHandler&lt;AuthenticationSchemeOptions&gt;(options, logger, encoder)
+    {
+        <span class="k">public</span> <span class="k">const</span> <span class="k">string</span> SchemeName = <span class="s">&quot;PermissionHeader&quot;</span>;
+        <span class="k">public</span> <span class="k">const</span> <span class="k">string</span> HeaderName = <span class="s">&quot;X-Demo-Permission&quot;</span>;
+        <span class="k">public</span> <span class="k">const</span> <span class="k">string</span> ClaimType = <span class="s">&quot;permission&quot;</span>;
+
+        <span class="k">protected</span> <span class="k">override</span> Task&lt;AuthenticateResult&gt; HandleAuthenticateAsync()
+        {
+            <span class="k">if</span> (Request.Headers[HeaderName] <span class="k">is</span> <span class="k">not</span> [{ } permission])
+            {
+                <span class="k">return</span> Task.FromResult(AuthenticateResult.NoResult());
+            }
+
+            <span class="k">var</span> identity = <span class="k">new</span> ClaimsIdentity([<span class="k">new</span> Claim(ClaimTypes.Name, <span class="s">&quot;demo-caller&quot;</span>), <span class="k">new</span> Claim(ClaimType, permission)], SchemeName);
+            <span class="k">return</span> Task.FromResult(AuthenticateResult.Success(<span class="k">new</span> AuthenticationTicket(<span class="k">new</span> ClaimsPrincipal(identity), SchemeName)));
+        }
+    }
+}</code></pre></figure></details></div>
+<div class="step plain-step"><h2>Where to go next</h2><ul class="next-links"><li><a href="/learn/414-dashboard-sign-in">How to put the dashboard behind your sign-in</a><span>Watch and control running work</span></li></ul></div>
+      </article>
+      <article class="agent-face" hidden>
+        <figure class="listing agent"><figcaption><span class="file">/learn/413-http-api-authorization.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/413-http-api-authorization.md">Open</a><button class="copy" type="button" data-copy-target="#md-body">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
+        <p class="hint">This is the page an agent receives: the same how-to as plain Markdown, at this page's address with <code>.md</code> added.</p>
+      </article>
+      <aside class="howto-rail" aria-label="This section">
+        <p class="rail-head"><a href="/learn#s-operate">Watch and control running work</a></p>
+        <ol>
+            <li><a href="/learn/021-jobs-cli" data-id="021"><span class="rail-n">1</span>Inspect a job from the command line</a></li>
+            <li><a href="/learn/022-dashboard" data-id="022"><span class="rail-n">2</span>See your jobs in the dashboard</a></li>
+            <li><a href="/learn/404-read-event-timeline" data-id="404"><span class="rail-n">3</span>Read why a job did what it did</a></li>
+            <li><a href="/learn/409-operator-queries" data-id="409"><span class="rail-n">4</span>List and page through jobs</a></li>
+            <li><a href="/learn/305-operator-cancel" data-id="305"><span class="rail-n">5</span>Cancel a running job from outside</a></li>
+            <li><a href="/learn/309-operator-resume" data-id="309"><span class="rail-n">6</span>Pause and resume a job from outside</a></li>
+            <li><a href="/learn/310-operator-restart" data-id="310"><span class="rail-n">7</span>Restart a failed job and keep its history</a></li>
+            <li><a href="/learn/410-http-api-controls" data-id="410"><span class="rail-n">8</span>Control jobs over HTTP</a></li>
+            <li aria-current="page"><a href="/learn/413-http-api-authorization" data-id="413"><span class="rail-n">9</span>Require permissions on the HTTP API</a></li>
+            <li><a href="/learn/414-dashboard-sign-in" data-id="414"><span class="rail-n">10</span>Put the dashboard behind your sign-in</a></li>
+            <li><a href="/learn/412-tenant-scope" data-id="412"><span class="rail-n">11</span>Record which tenant a job is for</a></li>
+            <li><a href="/learn/408-correlation-id" data-id="408"><span class="rail-n">12</span>Carry a correlation key from parent to child</a></li>
+            <li><a href="/learn/401-pipeline-behavior" data-id="401"><span class="rail-n">13</span>Wrap every handler in your own middleware</a></li>
+            <li><a href="/learn/407-event-recording" data-id="407"><span class="rail-n">14</span>Choose how many events a job records</a></li>
+        </ol>
+        <button class="button done-toggle" type="button" data-done-toggle="413" aria-pressed="false">Mark as done</button>
+        <p class="rail-turn"><a href="/learn/410-http-api-controls" rel="prev">Previous</a><a href="/learn/414-dashboard-sign-in" rel="next">Next</a></p>
+      </aside>
+    </div>
+    <section class="wrap newcomer" aria-labelledby="newcomer-title">
+      <h2 id="newcomer-title">New to Acta?</h2>
+      <p class="lede">Acta is durable execution for .NET: workflows and jobs that survive restarts, as a library inside your application with its durable state in your SQL database.</p>
+      <div class="actions">
+        <a class="button primary" href="/start">Run your first durable job in five minutes</a>
+        <a class="button" href="/learn">See every how-to</a>
+        <a class="button" href="/capabilities">Everything Acta does</a>
+      </div>
+    </section>
+    <footer class="site-footer">
+      <div class="wrap">
+        <div class="footer-grid">
+          <div class="footer-about">
+            <a class="site-brand" href="/" aria-label="Acta home"><svg viewBox="3.95 4.95 30.1 30.1" fill="none" stroke="currentColor" stroke-width="4.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 33 19 7 32 33" /><circle cx="19" cy="27" r="3" fill="currentColor" stroke="none" /></svg><span class="brand-word">Acta<span>.</span></span></a>
+            <p>Durable execution for .NET.</p>
+            <p>A library inside your application.<br />Durable state in your SQL database.</p>
+            <p class="footer-license">Apache-2.0 · built in the open</p>
+          </div>
+          <nav aria-label="Explore">
+            <p class="footer-head">Explore</p>
+            <a href="/how-it-works">How Acta works</a>
+            <a href="/capabilities">Capabilities</a>
+            <a href="/engine">Inside one worker</a>
+            <a href="/fleet">Workers and recovery</a>
+            <a href="/gates">Order and limits</a>
+            <a href="/benchmark">Benchmark and evidence</a>
+            <a href="/choosing">Choosing Acta</a>
+          </nav>
+          <nav aria-label="Build">
+            <p class="footer-head">Build</p>
+            <a href="/start">Get started</a>
+            <a href="/learn">Learn Acta</a>
+            <a href="https://github.com/acta-dotnet/acta/tree/main/docs">Documentation</a>
+            <a href="https://github.com/acta-dotnet/acta/tree/main/concepts">Runnable concepts</a>
+            <a href="https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md">Engineering labs</a>
+            <a href="/llms.txt">llms.txt for coding agents</a>
+          </nav>
+          <div class="footer-release">
+            <p class="footer-head">Release</p>
+            <p class="footer-version"><span class="release-dot" aria-hidden="true"></span><a href="https://github.com/acta-dotnet/acta/releases">1.0.0-rc.12 <span aria-hidden="true">↗</span></a><span>a release candidate</span></p>
+            <a href="https://github.com/acta-dotnet/acta/blob/main/docs/compatibility-and-support.md">Compatibility and support</a>
+            <a href="/support">Support Acta</a>
+            <a href="https://github.com/acta-dotnet/acta/blob/main/docs/known-limitations.md#stability-status">Stability status</a>
+            <a href="https://github.com/acta-dotnet/acta">Source on GitHub <span aria-hidden="true">↗</span></a>
+          </div>
+        </div>
+        <div class="footer-bottom">
+          <p>Created and maintained by <a href="https://www.linkedin.com/in/marko-voncina">Marko Vončina</a></p>
+          <span data-theme-controls></span>
+        </div>
+      </div>
+    </footer>
+  </main>
+  <p class="sr-only" id="copy-status" aria-live="polite"></p>
+  <script src="/assets/learn.js"></script>
+</body>
+</html>

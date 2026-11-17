@@ -1,0 +1,974 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>How to keep another system in sync with a permanent job · Acta, durable execution for .NET</title>
+  <meta name="description" content="How to keep another system in sync with a permanent job with Acta, durable execution for .NET. One permanent job calls a service on a schedule and keeps a watermark of how far it got. Each firing syncs one bounded batch and returns; the watermark is the job's own durable variable, read at the top of every execution, so a recovered firing continues where the lost one stopped." />
+  <link rel="canonical" href="https://useacta.net/learn/109-continuous-synchronization" />
+  <meta name="theme-color" content="#0B0E15" />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="Acta for .NET" />
+  <meta property="og:title" content="How to keep another system in sync with a permanent job · Acta, durable execution for .NET" />
+  <meta property="og:description" content="How to keep another system in sync with a permanent job with Acta, durable execution for .NET. One permanent job calls a service on a schedule and keeps a watermark of how far it got. Each firing syncs one bounded batch and returns; the watermark is the job's own durable variable, read at the top of every execution, so a recovered firing continues where the lost one stopped." />
+  <meta property="og:url" content="https://useacta.net/learn/109-continuous-synchronization" />
+  <meta property="og:image" content="https://useacta.net/assets/social-card.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="Acta: durable execution for .NET. Postgres, SQL Server, SQLite." />
+  <meta name="twitter:card" content="summary_large_image" />
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"How to keep another system in sync with a permanent job","description":"How to keep another system in sync with a permanent job with Acta, durable execution for .NET. One permanent job calls a service on a schedule and keeps a watermark of how far it got. Each firing syncs one bounded batch and returns; the watermark is the job's own durable variable, read at the top of every execution, so a recovered firing continues where the lost one stopped.","url":"https://useacta.net/learn/109-continuous-synchronization","inLanguage":"en","articleSection":"Keep another system in sync","isPartOf":{"@type":"CollectionPage","name":"Learn Acta","url":"https://useacta.net/learn"},"about":{"@type":"SoftwareSourceCode","name":"Acta","programmingLanguage":"C#","codeRepository":"https://github.com/acta-dotnet/acta"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Learn Acta","item":"https://useacta.net/learn"},{"@type":"ListItem","position":2,"name":"Keep another system in sync","item":"https://useacta.net/learn#s-sync"},{"@type":"ListItem","position":3,"name":"How to keep another system in sync with a permanent job","item":"https://useacta.net/learn/109-continuous-synchronization"}]}</script>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="alternate" type="text/plain" href="/llms.txt" title="Acta for coding agents" />
+  <link rel="alternate" type="text/markdown" href="/learn/109-continuous-synchronization.md" title="This page as Markdown, for coding agents" />
+  <link rel="preload" href="/assets/fonts/fraunces-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="/assets/fonts/ibm-plex-sans-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="/assets/fonts/ibm-plex-mono-400-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <style>
+    /* Self-hosted latin subsets of the three families, preloaded and served immutable (see _headers),
+       so a reload paints them from cache with no swap and a first visit swaps them in as they land.
+       Fraunces and Plex Sans are variable files. */
+    @font-face { font-family: "Fraunces"; font-style: normal; font-weight: 400 600; font-display: swap; src: url(/assets/fonts/fraunces-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "Fraunces"; font-style: italic; font-weight: 400 500; font-display: swap; src: url(/assets/fonts/fraunces-italic-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "IBM Plex Sans"; font-style: normal; font-weight: 400 600; font-display: swap; src: url(/assets/fonts/ibm-plex-sans-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "IBM Plex Mono"; font-style: normal; font-weight: 400; font-display: swap; src: url(/assets/fonts/ibm-plex-mono-400-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "IBM Plex Mono"; font-style: normal; font-weight: 500; font-display: swap; src: url(/assets/fonts/ibm-plex-mono-500-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+  </style>
+  <link rel="stylesheet" href="/assets/site.css" />
+  <link rel="stylesheet" href="/assets/learn.css" />
+  <script src="/assets/theme.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#content">Skip to content</a>
+  <div class="chrome">
+    <div class="wrap chrome-inner">
+    <a class="brand site-brand" href="/" aria-label="Acta home"><svg viewBox="3.95 4.95 30.1 30.1" fill="none" stroke="currentColor" stroke-width="4.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 33 19 7 32 33" /><circle cx="19" cy="27" r="3" fill="currentColor" stroke="none" /></svg><span class="brand-word">Acta<span>.</span></span></a>
+    <span class="meta">Durable execution for .NET</span>
+    <nav aria-label="Primary links">
+      <a href="/start">Start</a>
+      <a href="/capabilities">Capabilities</a>
+      <a href="/benchmark">Benchmark</a>
+      <a href="/learn" aria-current="page">Learn</a>
+      <a href="https://github.com/acta-dotnet/acta" class="gh" aria-label="Acta on GitHub" title="Acta on GitHub"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><path fill="currentColor" d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"></path></svg></a>
+    </nav>
+    <span class="header-appearance" data-theme-controls></span>
+    </div>
+  </div>
+
+
+  <main id="content" data-howto="109">
+    <header class="wrap page-head howto-head">
+      <p class="record"><a href="/learn">learn acta</a><span aria-hidden="true">/</span><a href="/learn#s-sync">keep another system in sync</a></p>
+      <h1>How to keep another system in sync with a permanent job</h1>
+      <p class="lede">One permanent job calls a service on a schedule and keeps a watermark of how far it got. Each firing syncs one bounded batch and returns; the watermark is the job's own durable variable, read at the top of every execution, so a recovered firing continues where the lost one stopped.</p>
+      <p class="howto-context">A how-to for Acta, durable execution for .NET. <a href="/start">New to Acta? Run your first durable job in five minutes.</a></p>
+      <div class="howto-meta">
+        <span class="status checked">Checked every release</span><span class="mark lab">Lab</span>
+        <a class="program" href="https://github.com/acta-dotnet/acta/tree/main/concepts/100-scheduling/109-continuous-synchronization"><code>concepts/100-scheduling/109-continuous-synchronization</code></a>
+        <div class="reader" role="group" aria-label="Read this page as">
+        <span class="reader-label">Read as</span>
+        <button type="button" data-reader="person" aria-pressed="true">a person</button>
+        <button type="button" data-reader="agent" aria-pressed="false" data-md="/learn/109-continuous-synchronization.md">an agent</button>
+      </div>
+      </div>
+    </header>
+    <div class="wrap howto-body">
+      <article class="howto person-face">
+<div class="step"><h2><span class="step-n">1</span>Fire the job on a schedule</h2>
+<p>The schedule fires the one permanent job every five seconds. A firing does one bounded batch and returns, so between firings the job is <code>Idle</code> and holds no thread.</p>
+<figure class="listing"><figcaption><span class="file">SyncOrdersJob.cs</span><button class="copy" type="button" data-copy-target="#code-1">Copy</button></figcaption><pre><code id="code-1"><span class="k">namespace</span> Acta.Concepts.ContinuousSynchronization;
+
+<span class="c">/// &lt;summary&gt;</span>
+<span class="c">/// One permanent job keeps the local orders current. The schedule fires it every five seconds; a firing applies at</span>
+<span class="c">/// most one batch of &lt;see cref=&quot;BatchSize&quot;/&gt; changes and returns, so the job sits Idle between firings and no thread</span>
+<span class="c">/// loops. The watermark, the id of the last shop change applied, is the job's own durable variable: Acta carries it</span>
+<span class="c">/// across firings, retries, and workers, and the handler reads it at the top of every execution, so an attempt that</span>
+<span class="c">/// dies after a batch is continued at the next batch by whichever worker runs the job next.</span>
+<span class="c">/// &lt;/summary&gt;</span>
+<span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> SyncOrdersJob(ShopFeed shop, OrderStore store, CrashSignal crash)
+{
+    <span class="k">public</span> <span class="k">const</span> <span class="k">int</span> BatchSize = 40;
+
+<span class="hl">    <span class="a">[Job(<span class="s">&quot;sync-orders&quot;</span>, MaxAttempts = 3, Backoff = <span class="s">&quot;2s&quot;</span>)]</span></span>
+<span class="hl">    <span class="a">[Schedule(<span class="s">&quot;every-5s&quot;</span>, <span class="s">&quot;PT5S&quot;</span>)]</span></span>
+    <span class="k">public</span> <span class="k">async</span> Task Sync(JobContext ctx, CancellationToken ct)
+    {
+        <span class="c">// The call to the service is a bare line on purpose: a read is safe to repeat, and on a permanent job a step</span>
+        <span class="c">// would answer from an earlier firing's record. A firing that finds nothing returns; the next one comes on</span>
+        <span class="c">// schedule.</span>
+        <span class="k">var</span> watermark = <span class="k">await</span> ctx.GetVariableOrDefaultAsync(<span class="s">&quot;watermark&quot;</span>, 0L, ct);
+        <span class="k">var</span> changes = <span class="k">await</span> shop.ChangesAfterAsync(watermark, BatchSize, ct);
+        <span class="k">if</span> (changes.Count == 0)
+        {
+            Console.WriteLine(<span class="s">$&quot;[sync-orders] execution {ctx.ExecutionNumber}: up to date at change {watermark}&quot;</span>);
+            <span class="k">return</span>;
+        }
+
+        <span class="c">// The orders land first and the watermark after them: an attempt that dies between the two replays one batch,</span>
+        <span class="c">// which the upsert absorbs; the other order would skip one.</span>
+        <span class="k">await</span> store.ApplyAsync(changes, ct);
+        <span class="k">var</span> head = changes[^1].ChangeId;
+        <span class="k">await</span> ctx.SetVariableAsync(<span class="s">&quot;watermark&quot;</span>, head, ct);
+        Console.WriteLine(<span class="s">$&quot;[sync-orders] execution {ctx.ExecutionNumber}: {changes.Count} changes applied, watermark {head}&quot;</span>);
+        <span class="c">// The lab's switch for killing the worker after a batch; a job of your own has no such line.</span>
+        <span class="k">await</span> crash.AfterBatchAsync(head, ct);
+    }
+}</code></pre></figure>
+</div>
+<div class="step"><h2><span class="step-n">2</span>Read the watermark and ask for what changed after it</h2>
+<p>The call to the service is a bare line on purpose: a read is safe to repeat, and on a permanent job a step would answer from an earlier firing's record. A firing that finds nothing returns; the next one comes on schedule.</p>
+<figure class="listing"><figcaption><span class="file">SyncOrdersJob.cs</span><button class="copy" type="button" data-copy-target="#code-2">Copy</button></figcaption><pre><code id="code-2"><span class="k">namespace</span> Acta.Concepts.ContinuousSynchronization;
+
+<span class="c">/// &lt;summary&gt;</span>
+<span class="c">/// One permanent job keeps the local orders current. The schedule fires it every five seconds; a firing applies at</span>
+<span class="c">/// most one batch of &lt;see cref=&quot;BatchSize&quot;/&gt; changes and returns, so the job sits Idle between firings and no thread</span>
+<span class="c">/// loops. The watermark, the id of the last shop change applied, is the job's own durable variable: Acta carries it</span>
+<span class="c">/// across firings, retries, and workers, and the handler reads it at the top of every execution, so an attempt that</span>
+<span class="c">/// dies after a batch is continued at the next batch by whichever worker runs the job next.</span>
+<span class="c">/// &lt;/summary&gt;</span>
+<span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> SyncOrdersJob(ShopFeed shop, OrderStore store, CrashSignal crash)
+{
+    <span class="k">public</span> <span class="k">const</span> <span class="k">int</span> BatchSize = 40;
+
+    <span class="c">// The schedule fires the one permanent job every five seconds. A firing does one bounded batch and returns, so</span>
+    <span class="c">// between firings the job is `Idle` and holds no thread.</span>
+    <span class="a">[Job(<span class="s">&quot;sync-orders&quot;</span>, MaxAttempts = 3, Backoff = <span class="s">&quot;2s&quot;</span>)]</span>
+    <span class="a">[Schedule(<span class="s">&quot;every-5s&quot;</span>, <span class="s">&quot;PT5S&quot;</span>)]</span>
+    <span class="k">public</span> <span class="k">async</span> Task Sync(JobContext ctx, CancellationToken ct)
+    {
+<span class="hl">        <span class="k">var</span> watermark = <span class="k">await</span> ctx.GetVariableOrDefaultAsync(<span class="s">&quot;watermark&quot;</span>, 0L, ct);</span>
+<span class="hl">        <span class="k">var</span> changes = <span class="k">await</span> shop.ChangesAfterAsync(watermark, BatchSize, ct);</span>
+<span class="hl">        <span class="k">if</span> (changes.Count == 0)</span>
+<span class="hl">        {</span>
+<span class="hl">            Console.WriteLine(<span class="s">$&quot;[sync-orders] execution {ctx.ExecutionNumber}: up to date at change {watermark}&quot;</span>);</span>
+<span class="hl">            <span class="k">return</span>;</span>
+<span class="hl">        }</span>
+
+        <span class="c">// The orders land first and the watermark after them: an attempt that dies between the two replays one batch,</span>
+        <span class="c">// which the upsert absorbs; the other order would skip one.</span>
+        <span class="k">await</span> store.ApplyAsync(changes, ct);
+        <span class="k">var</span> head = changes[^1].ChangeId;
+        <span class="k">await</span> ctx.SetVariableAsync(<span class="s">&quot;watermark&quot;</span>, head, ct);
+        Console.WriteLine(<span class="s">$&quot;[sync-orders] execution {ctx.ExecutionNumber}: {changes.Count} changes applied, watermark {head}&quot;</span>);
+        <span class="c">// The lab's switch for killing the worker after a batch; a job of your own has no such line.</span>
+        <span class="k">await</span> crash.AfterBatchAsync(head, ct);
+    }
+}</code></pre></figure>
+</div>
+<div class="step"><h2><span class="step-n">3</span>Let the service hand out its changes in a fixed order</h2>
+<p>The pattern needs one thing from the service: changes come in a fixed order, and a caller can ask for the ones after the last one it saw. An API with a <code>since</code> or a cursor parameter fits the same way.</p>
+<figure class="listing"><figcaption><span class="file">ShopFeed.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-3">Copy</button></figcaption><pre><code id="code-3">    <span class="k">throw</span> <span class="k">new</span> ShopUnavailableException();
+}
+
+<span class="k">await</span> <span class="k">using</span> <span class="k">var</span> connection = <span class="k">new</span> SqliteConnection(connectionString);
+<span class="k">await</span> connection.OpenAsync(ct);
+<span class="k">await</span> <span class="k">using</span> <span class="k">var</span> command = connection.CreateCommand();
+<span class="hl">command.CommandText =</span>
+<span class="hl">    <span class="s">&quot;SELECT change_id, order_id, status, amount_cents FROM shop_changes WHERE change_id &gt; @since ORDER BY change_id LIMIT @take&quot;</span>;</span>
+command.Parameters.AddWithValue(<span class="s">&quot;@since&quot;</span>, sinceChangeId);
+command.Parameters.AddWithValue(<span class="s">&quot;@take&quot;</span>, take);
+<span class="k">var</span> changes = <span class="k">new</span> List&lt;OrderChange&gt;(take);
+<span class="k">await</span> <span class="k">using</span> <span class="k">var</span> reader = <span class="k">await</span> command.ExecuteReaderAsync(ct);
+<span class="k">while</span> (<span class="k">await</span> reader.ReadAsync(ct))
+{</code></pre></figure>
+</div>
+<div class="step"><h2><span class="step-n">4</span>Save the work first and the watermark after</h2>
+<p>The orders land first and the watermark after them: an attempt that dies between the two replays one batch, which the upsert absorbs; the other order would skip one.</p>
+<figure class="listing"><figcaption><span class="file">SyncOrdersJob.cs</span><button class="copy" type="button" data-copy-target="#code-4">Copy</button></figcaption><pre><code id="code-4"><span class="k">namespace</span> Acta.Concepts.ContinuousSynchronization;
+
+<span class="c">/// &lt;summary&gt;</span>
+<span class="c">/// One permanent job keeps the local orders current. The schedule fires it every five seconds; a firing applies at</span>
+<span class="c">/// most one batch of &lt;see cref=&quot;BatchSize&quot;/&gt; changes and returns, so the job sits Idle between firings and no thread</span>
+<span class="c">/// loops. The watermark, the id of the last shop change applied, is the job's own durable variable: Acta carries it</span>
+<span class="c">/// across firings, retries, and workers, and the handler reads it at the top of every execution, so an attempt that</span>
+<span class="c">/// dies after a batch is continued at the next batch by whichever worker runs the job next.</span>
+<span class="c">/// &lt;/summary&gt;</span>
+<span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> SyncOrdersJob(ShopFeed shop, OrderStore store, CrashSignal crash)
+{
+    <span class="k">public</span> <span class="k">const</span> <span class="k">int</span> BatchSize = 40;
+
+    <span class="c">// The schedule fires the one permanent job every five seconds. A firing does one bounded batch and returns, so</span>
+    <span class="c">// between firings the job is `Idle` and holds no thread.</span>
+    <span class="a">[Job(<span class="s">&quot;sync-orders&quot;</span>, MaxAttempts = 3, Backoff = <span class="s">&quot;2s&quot;</span>)]</span>
+    <span class="a">[Schedule(<span class="s">&quot;every-5s&quot;</span>, <span class="s">&quot;PT5S&quot;</span>)]</span>
+    <span class="k">public</span> <span class="k">async</span> Task Sync(JobContext ctx, CancellationToken ct)
+    {
+        <span class="c">// The call to the service is a bare line on purpose: a read is safe to repeat, and on a permanent job a step</span>
+        <span class="c">// would answer from an earlier firing's record. A firing that finds nothing returns; the next one comes on</span>
+        <span class="c">// schedule.</span>
+        <span class="k">var</span> watermark = <span class="k">await</span> ctx.GetVariableOrDefaultAsync(<span class="s">&quot;watermark&quot;</span>, 0L, ct);
+        <span class="k">var</span> changes = <span class="k">await</span> shop.ChangesAfterAsync(watermark, BatchSize, ct);
+        <span class="k">if</span> (changes.Count == 0)
+        {
+            Console.WriteLine(<span class="s">$&quot;[sync-orders] execution {ctx.ExecutionNumber}: up to date at change {watermark}&quot;</span>);
+            <span class="k">return</span>;
+        }
+
+<span class="hl">        <span class="k">await</span> store.ApplyAsync(changes, ct);</span>
+<span class="hl">        <span class="k">var</span> head = changes[^1].ChangeId;</span>
+<span class="hl">        <span class="k">await</span> ctx.SetVariableAsync(<span class="s">&quot;watermark&quot;</span>, head, ct);</span>
+        Console.WriteLine(<span class="s">$&quot;[sync-orders] execution {ctx.ExecutionNumber}: {changes.Count} changes applied, watermark {head}&quot;</span>);
+        <span class="c">// The lab's switch for killing the worker after a batch; a job of your own has no such line.</span>
+        <span class="k">await</span> crash.AfterBatchAsync(head, ct);
+    }
+}</code></pre></figure>
+</div>
+<div class="step"><h2><span class="step-n">5</span>Make the save an upsert that keeps the newer change</h2>
+<p>A batch applied twice then changes nothing. The statement is SQLite's; write the same keep-the-newer upsert in your own database's dialect.</p>
+<figure class="listing"><figcaption><span class="file">OrderStore.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-5">Copy</button></figcaption><pre><code id="code-5">    {
+        <span class="k">throw</span> <span class="k">new</span> InvalidOperationException(<span class="s">$&quot;Change {change.ChangeId} carries a negative amount; the batch is refused.&quot;</span>);
+    }
+
+    <span class="k">await</span> <span class="k">using</span> <span class="k">var</span> upsert = connection.CreateCommand();
+    upsert.Transaction = (SqliteTransaction)transaction;
+<span class="hl">    upsert.CommandText = <span class="s">&quot;&quot;&quot;</span></span>
+<span class="hl"><span class="s">        INSERT INTO local_orders (order_id, status, amount_cents, last_change_id) VALUES (@order, @status, @amount, @change)</span></span>
+<span class="hl"><span class="s">        ON CONFLICT (order_id) DO UPDATE SET status = excluded.status, amount_cents = excluded.amount_cents, last_change_id = excluded.last_change_id</span></span>
+<span class="hl"><span class="s">        WHERE excluded.last_change_id &gt; local_orders.last_change_id</span></span>
+<span class="hl"><span class="s">        &quot;&quot;&quot;</span>;</span>
+    upsert.Parameters.AddWithValue(<span class="s">&quot;@order&quot;</span>, change.OrderId);
+    upsert.Parameters.AddWithValue(<span class="s">&quot;@status&quot;</span>, change.Status);
+    upsert.Parameters.AddWithValue(<span class="s">&quot;@amount&quot;</span>, change.AmountCents);
+    upsert.Parameters.AddWithValue(<span class="s">&quot;@change&quot;</span>, change.ChangeId);
+    <span class="k">await</span> upsert.ExecuteNonQueryAsync(ct);
+}</code></pre></figure>
+</div>
+<div class="step"><h2><span class="step-n">6</span>Run it and check the output</h2>
+<p>From a clone of <a href="https://github.com/acta-dotnet/acta">the Acta repository</a>, with the .NET 10 SDK:</p>
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-6">Copy</button></figcaption><pre><code id="code-6">dotnet run --project concepts/100-scheduling/109-continuous-synchronization</code></pre></figure>
+<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button" data-copy-target="#code-7">Copy</button></figcaption><pre><code id="code-7">[sync-orders] execution 1: 40 changes applied, watermark 40
+[sync-orders] execution 3: 40 changes applied, watermark 120
+feed head: change 120; local orders: 40 (newest change 120)</code></pre></figure>
+<p class="proof checked"><b>Checked every release.</b> Before each release, Acta Verify runs this program and checks that its output contains these lines.</p>
+</div>
+<div class="step plain-step"><h2>Remember</h2><ul class="rules"><li>Never loop forever inside the handler and never poll from it. A firing that finds nothing to do returns, and the next firing comes on schedule.</li><li>The watermark is a durable variable on the job. Acta carries it across firings, retries, and workers, so no table of your own has to remember how far the sync got.</li><li>The service has to hand out changes in a fixed order and keep them. For a source that fires once or forgets, capture it into a durable feed of your own first.</li><li>Firings that came due while no worker ran are skipped, not queued. The next firing reads the watermark and catches up by itself.</li><li>With the default heartbeat, a killed worker's firing comes back three to about seven minutes after its last heartbeat; on SQLite a restart brings it back at once. The lab shortens the heartbeat so you can watch.</li><li>A sync that writes back to the other system needs that system's idempotency key, so a repeated batch does not act twice there.</li></ul></div>
+<div class="step plain-step"><h2>Check yourself</h2><div class="check" data-answer="1"><p class="check-q">The worker is killed right after a batch was saved and the watermark written. What does the next execution do?</p><ol class="check-options"><li><button type="button">Starts again from change 0</button></li><li><button type="button">Reads the watermark the dead attempt wrote and applies the next batch</button></li><li><button type="button">Nothing, until someone restarts the job by hand</button></li></ol><details class="check-why"><summary>Show the answer</summary><p><b>Reads the watermark the dead attempt wrote and applies the next batch.</b> The next worker, or the same one restarted, reclaims the firing, runs the handler from its first line, and reads the watermark. Same job, same firing, one more execution number.</p></details></div><div class="check" data-answer="0"><p class="check-q">An attempt dies after the orders were saved but before the watermark moved. What happens to that batch?</p><ol class="check-options"><li><button type="button">It is applied a second time, and the upsert changes nothing</button></li><li><button type="button">It is skipped</button></li><li><button type="button">The job fails for good</button></li></ol><details class="check-why"><summary>Show the answer</summary><p><b>It is applied a second time, and the upsert changes nothing.</b> The retry reads the old watermark and gets the same changes. Each order keeps only a newer change than the one it holds, so the replay leaves the data as it was.</p></details></div></div>
+<details class="step lab-notes"><summary>The lab behind it: one permanent job keeps an external system synchronized</summary>
+<p>This program is an Engineering Lab: beside the how-to it prints the rows that show what happened, and its notes weigh the design against the alternatives.</p>
+<h3>The problem</h3>
+<p>An application has to stay current with an external system, a web shop here, that publishes changes faster than anyone wants to poll by hand: orders are created, paid, and shipped all day. The usual answer is a loop in a hosted service with a timer, a retry policy, a table that remembers how far the loop got, and a prayer that the process is running. When the process dies mid-batch, the loop's in-memory position dies with it, and nothing says whether the last batch landed.</p>
+<h3>Common approaches</h3>
+<ul class="plain"><li>A <code>BackgroundService</code> with a <code>PeriodicTimer</code>: progress lives in memory or in a hand-maintained table, and nothing records what each run did.</li><li>A queue that fans out &quot;sync now&quot; messages to workers, plus a state table, plus a scheduler to enqueue them.</li><li>A platform cron that starts a process per tick, which must find its own position and never overlap the previous tick.</li><li>A workflow engine with a long-running activity that loops forever.</li></ul>
+<h3>Why this design</h3>
+<p>One permanent job, <code>sync-orders</code>, with one schedule, <code>every-5s</code>, and one durable variable, <code>watermark</code>. The handler, as <code>SyncOrdersJob.cs</code> has it without its console lines and the lab's crash switch:</p>
+<figure class="listing"><figcaption><span class="note">C#</span><button class="copy" type="button" data-copy-target="#code-8">Copy</button></figcaption><pre><code id="code-8"><span class="a">[Job(<span class="s">&quot;sync-orders&quot;</span>, MaxAttempts = 3, Backoff = <span class="s">&quot;2s&quot;</span>)]</span>
+<span class="a">[Schedule(<span class="s">&quot;every-5s&quot;</span>, <span class="s">&quot;PT5S&quot;</span>)]</span>
+<span class="k">public</span> <span class="k">async</span> Task Sync(JobContext ctx, CancellationToken ct)
+{
+    <span class="k">var</span> watermark = <span class="k">await</span> ctx.GetVariableOrDefaultAsync(<span class="s">&quot;watermark&quot;</span>, 0L, ct);
+    <span class="k">var</span> changes = <span class="k">await</span> shop.ChangesAfterAsync(watermark, 40, ct);
+    <span class="k">if</span> (changes.Count == 0) <span class="k">return</span>;                                    <span class="c">// up to date: nothing to do until the next firing</span>
+    <span class="k">await</span> store.ApplyAsync(changes, ct);                               <span class="c">// an upsert: a replayed batch lands once</span>
+    <span class="k">await</span> ctx.SetVariableAsync(<span class="s">&quot;watermark&quot;</span>, changes[^1].ChangeId, ct);
+}</code></pre></figure>
+<p>The web shop is a simulator: an append-only table of order changes in the lab's own SQLite file, beside the local orders and Acta's tables, seeded the same way on every machine. The handler reads it through <code>ShopFeed</code> as it would read a remote API, never through Acta.</p>
+<p>The schedule admits a firing onto the permanent job every five seconds; the firing applies one batch of forty changes and returns; the job then sits <code>Idle</code> until the next admission, holding no thread. The watermark, the id of the last shop change applied, is a variable on the job. Acta keeps it the way it keeps the job itself: a row in <code>checkpoints_view</code>, carried across firings, retries, and workers, and the handler reads it at the top of every execution. Nothing else remembers how far the sync has come: no table of the application's, no field, no loop.</p>
+<p>That is what makes the crash boring. When the worker dies after a batch, the next worker, or the same one restarted, reclaims the firing through the lease, re-enters the handler from the top, reads the watermark the dead attempt wrote, and applies the next batch. The same job identity, the same firing id, one more execution number.</p>
+<p>Acta's own progress is separate. The schedule cursor says when the job is next due, and the firing envelope says which schedule admitted the firing and how it settled. A firing that finds nothing to sync still moves the cursor and leaves the watermark alone; a manual trigger moves the watermark and leaves the cursor alone.</p>
+<h3>Trade-offs</h3>
+<p>Execution is at-least-once, and the handler is written for it. The orders land in the store's transaction and the watermark in Acta's, one after the other, so an attempt that dies between the two is run again and replays one batch; the upsert keeps only a newer change per order, so the replay changes nothing. Written the other way round, watermark first, a death between the two would skip a batch. A sync that writes back to the external system needs that system's idempotency key, as the agent guide's webhook sample shows.</p>
+<p>A full resync is a reset: <code>ctx.ResetStateAsync()</code> as the handler's final action clears the watermark with the rest of the job's state, and the next firing starts from change 0, where the upsert lands every change once more. The lab never needs it, so it never calls it.</p>
+<p>The feed's contract carries the correctness: change ids only grow, changes come back in id order, and none is ever deleted. A source without ordered, retained change tracking cannot be synchronized by watermark, and this lab does not pretend otherwise.</p>
+<h3>Run the experiment</h3>
+<p>Everything runs on embedded SQLite from a fresh clone; the lab keeps its own database file. The first command runs the whole story through three firings and exits; the rest reproduce the crash by hand, in two terminals, with a real process kill (<code>Environment.FailFast</code>). The tests in <a href="/learn/804-continuous-synchronization-tests"><code>804-continuous-synchronization-tests</code></a> prove the same recovery inside one process instead, by expiring the lease and fencing the late attempt, and Acta's release validation kills worker processes at scale.</p>
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-9">Copy</button></figcaption><pre><code id="code-9"># 1. Seed 120 order changes, watch three firings sync them in batches of forty, print the rows, exit.
+dotnet run --project concepts/100-scheduling/109-continuous-synchronization
+
+# 2. Terminal one: run the worker; a firing every five seconds.
+dotnet run --project concepts/100-scheduling/109-continuous-synchronization -- worker
+
+# 3. Terminal two: publish sixty more changes, then arm a crash after the next batch.
+dotnet run --project concepts/100-scheduling/109-continuous-synchronization -- more 60
+dotnet run --project concepts/100-scheduling/109-continuous-synchronization -- crash
+#    Terminal one dies with a non-zero exit after its next batch.
+
+# 4. Inspect the durable state the dead worker left behind.
+dotnet run --project concepts/100-scheduling/109-continuous-synchronization -- inspect
+
+# 5. Terminal one: restart the worker. Its heartbeat finds the lease lapsed and reclaims the firing.
+dotnet run --project concepts/100-scheduling/109-continuous-synchronization -- worker
+
+# 6. Inspect again: the same job and firing, one more execution, the watermark at the feed's head.
+dotnet run --project concepts/100-scheduling/109-continuous-synchronization -- inspect
+
+# 7. Start over.
+dotnet run --project concepts/100-scheduling/109-continuous-synchronization -- reset</code></pre></figure>
+<p><code>outage</code> switches the shop feed off and on again: a firing that cannot read the feed fails its attempt, the ledger records <code>job.execution-failed</code>, and Acta retries it under the job's budget (<code>MaxAttempts = 3</code>, two seconds apart); a spent budget settles the firing as failed and returns the job to <code>Idle</code>, and the next scheduled firing syncs as soon as the feed is back. The watermark is untouched by a failed attempt, so nothing is lost and nothing is applied twice.</p>
+<p>The lab shortens the heartbeat to one second, so the lease is four seconds and the restarted worker recovers within about ten; production keeps the default forty-five seconds.</p>
+<h3>Rows to inspect</h3>
+<p>Run with <code>--all-columns</code> to execute the visible <code>SELECT *</code> Explore query first. The default Notice queries select the fields that prove the lesson, and the text below explains their meaning. The rows below are from a run on 2026-10-30.</p>
+<p><b>After the tour (step 1).</b> Three firings synced 120 changes in three batches of forty, and the job is back to <code>Idle</code> with no lease; the cursor already names the next occurrence, the envelope records how the last firing settled, and the watermark sits on the job as a variable.</p>
+<figure class="listing"><figcaption><span class="note">Text</span><button class="copy" type="button" data-copy-target="#code-10">Copy</button></figcaption><pre><code id="code-10">job_ref                              | job_status | execution_number | failure_count | leased_by_worker_host_name | lease_expires_at_utc
+01a18cba-b966-7a5a-aaf2-83061ba0af99 | idle       | 3                | 0             | NULL                       | NULL
+
+schedule_name | schedule_status | next_occurrence_at_utc   | next_evaluation_at_utc   | evaluation_status
+every-5s      | active          | 2026-10-30 12:13:49.813Z | 2026-10-30 12:13:49.813Z | scheduled
+
+checkpoint_name | checkpoint_status | value_text
+sys.firing      | succeeded         | {&quot;firingId&quot;:&quot;01a18cba-f42b-7cd7-b4d…
+
+checkpoint_name | checkpoint_kind | value_text | modified_at_utc
+watermark       | variable        | 120        | 2026-10-30 12:13:44.882Z
+
+event_id | event                   | execution_number
+7        | job.execution-succeeded | 3
+6        | schedule.admitted       | 2
+5        | job.execution-succeeded | 2
+4        | schedule.admitted       | 1
+3        | job.execution-succeeded | 1
+2        | schedule.admitted       | 0
+
+feed head: change 120; local orders: 40 (newest change 120)</code></pre></figure>
+<p><code>jobs_view</code> is one row for the whole run: the same <code>job_ref</code>, one more <code>execution_number</code> per firing. <code>schedules_view</code> is Acta's progress, the cursor and when the engine looks again. <code>checkpoints_view</code> holds both the firing envelope under <code>sys.firing</code>, the schedule that admitted the firing, its occurrence, and the firing's settlement, and the handler's watermark under its own name, kind <code>variable</code>, written by <code>SetVariableAsync</code> and nowhere else. The ledger alternates an admission and a settlement per firing; an admission row carries the execution number the job had when it was admitted, so the one that opened execution 1 reads 0. The last line is the destination, the one table that is the application's.</p>
+<p><b>After the crash (step 4).</b> Sixty more changes were published and the worker was armed. Its next firing applied one batch, wrote watermark 160, and the process killed itself before the attempt completed. The worker's last lines:</p>
+<figure class="listing"><figcaption><span class="note">Text</span><button class="copy" type="button" data-copy-target="#code-11">Copy</button></figcaption><pre><code id="code-11">[sync-orders] execution 7: 40 changes applied, watermark 160
+[sync-orders] crash armed: the batch through change 160 is committed; the process disappears now.
+Process terminated.</code></pre></figure>
+<p>The rows the dead process left behind: the job still <code>executing</code> under a lease nobody will renew, the envelope still <code>pending</code>, the watermark at the batch the dead worker applied, and the feed twenty changes ahead of it.</p>
+<figure class="listing"><figcaption><span class="note">Text</span><button class="copy" type="button" data-copy-target="#code-12">Copy</button></figcaption><pre><code id="code-12">job_ref                              | job_status | execution_number | failure_count | leased_by_worker_host_name | lease_expires_at_utc
+01a18cba-b966-7a5a-aaf2-83061ba0af99 | executing  | 7                | 0             | worker-host-01             | 2026-10-30 12:14:08.857Z
+
+checkpoint_name | checkpoint_status | value_text
+sys.firing      | pending           | {&quot;firingId&quot;:&quot;01a18cbb-422e-7ac2-9e3…
+
+checkpoint_name | checkpoint_kind | value_text | modified_at_utc
+watermark       | variable        | 160        | 2026-10-30 12:14:04.877Z
+
+feed head: change 180; local orders: 40 (newest change 160)</code></pre></figure>
+<p><b>After the restart (step 6).</b> The restarted worker's heartbeat found the lease lapsed, reclaimed the firing, and the claim ran it as execution 8 of the same job and the same firing. The handler re-entered from the top, read watermark 160, and applied the twenty changes the dead process never reached; the firings after it found nothing to do.</p>
+<figure class="listing"><figcaption><span class="note">Text</span><button class="copy" type="button" data-copy-target="#code-13">Copy</button></figcaption><pre><code id="code-13">[sync-orders] execution 8: 20 changes applied, watermark 180
+[sync-orders] execution 9: up to date at change 180
+
+event_id | event                   | execution_number | event_message                        | details_text
+19       | job.execution-orphaned  | 7                | Worker lease expired; reclaimed by … | {&quot;reason&quot;:&quot;lease-expired&quot;,&quot;to&quot;:&quot;rea…
+20       | job.execution-succeeded | 8                | NULL                                 | NULL
+21       | schedule.skipped        | 8                | NULL                                 | {&quot;schedule&quot;:&quot;every-5s&quot;,&quot;from&quot;:&quot;2026…
+22       | schedule.admitted       | 8                | NULL                                 | {&quot;schedule&quot;:&quot;every-5s&quot;,&quot;occurrence&quot;…
+23       | job.execution-succeeded | 9                | NULL                                 | NULL
+
+checkpoint_name | checkpoint_kind | value_text | modified_at_utc
+watermark       | variable        | 180        | 2026-10-30 12:14:17.971Z
+
+job_ref                              | job_status | execution_number | failure_count | leased_by_worker_host_name | lease_expires_at_utc
+01a18cba-b966-7a5a-aaf2-83061ba0af99 | idle       | 12               | 0             | NULL                       | NULL
+
+feed head: change 180; local orders: 40 (newest change 180)</code></pre></figure>
+<p><code>job.execution-orphaned</code> is the reclaim: attempt 7 lost its lease and the job went back to <code>Ready</code> (<code>&quot;to&quot;:&quot;ready&quot;</code>). No admission sits between the reclaim and execution 8, so execution 8 ran the firing execution 7 lost, not a new one; the envelope that was <code>pending</code> under execution 7 settled under execution 8. <code>schedule.skipped</code> is the misfire policy at work: the occurrences that fell due while no worker ran were skipped, not queued, which is the default and the right one for a controller that catches up by itself. Event 22 admits the next firing, with an id of its own. Nothing was applied twice: the destination holds forty orders at change 180, one row per order, and the watermark equals the feed's head.</p>
+<h3>Break it</h3>
+<p>Move <code>crash.AfterBatchAsync</code> in <code>SyncOrdersJob.cs</code> between <code>store.ApplyAsync</code> and <code>ctx.SetVariableAsync</code> and arm a crash: the orders hold the batch, the watermark does not, and the recovered firing applies the same batch again, which the upsert absorbs. That is the replay at-least-once allows, and the reason the orders land first. Then swap the two lines so the watermark is written before the orders, and crash between them: the recovered firing starts after a batch the orders never received, forty changes short, which is the bug. Finally drop the <code>WHERE excluded.last_change_id &gt; local_orders.last_change_id</code> clause from the upsert and replay a batch: an older change overwrites a newer order, which is what the clause is for.</p>
+<h3>When not to use</h3>
+<ul class="plain"><li>A source that publishes changes without a stable order or that forgets them (a webhook that fires once, a feed that compacts). Watermarks need the contract above; capture such a source into a durable feed of your own first.</li><li>Work where each occurrence is its own business event with its own retries, result, and retention: a nightly statement run, an hourly import whose files must each be tracked. That is a <code>PerOccurrence</code> definition, one ordinary root job per occurrence, not a permanent job.</li><li>A sync that must write back to the external system: still a permanent job, but every write needs the external system's idempotency key, as in the agent guide's webhook sample.</li></ul>
+<h3>Source trail</h3>
+<ul class="plain"><li><a href="https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md">The related Engineering Lab</a></li><li><a href="https://github.com/acta-dotnet/acta/blob/main/concepts/100-scheduling/109-continuous-synchronization/continuous-synchronization.cs"><code>continuous-synchronization.cs</code></a>, <a href="https://github.com/acta-dotnet/acta/blob/main/concepts/100-scheduling/109-continuous-synchronization/SyncOrdersJob.cs"><code>SyncOrdersJob.cs</code></a>, <a href="https://github.com/acta-dotnet/acta/blob/main/concepts/100-scheduling/109-continuous-synchronization/OrderStore.cs"><code>OrderStore.cs</code></a>, <a href="https://github.com/acta-dotnet/acta/blob/main/concepts/100-scheduling/109-continuous-synchronization/ShopFeed.cs"><code>ShopFeed.cs</code></a></li><li>The tests that prove each claim without sleeping: <a href="/learn/804-continuous-synchronization-tests"><code>804-continuous-synchronization-tests</code></a></li><li><a href="https://github.com/acta-dotnet/acta/blob/main/src/Acta/Engine/Scheduling/ScheduleAdmitter.cs"><code>ScheduleAdmitter.cs</code></a>, the admission pass that moves the permanent job from <code>Idle</code> to <code>Ready</code></li><li><a href="https://github.com/acta-dotnet/acta/blob/main/src/Acta/Operations/Execution/ReclaimStuckJobs/ReclaimStuckJobs.routine.pg.sql"><code>ReclaimStuckJobs.routine.pg.sql</code></a>, the recovery that reclaims a lost firing</li><li><a href="https://github.com/acta-dotnet/acta/blob/main/docs/scheduling.md">Scheduling and calendars</a>, the page on schedules</li></ul>
+</details>
+<div class="step plain-step"><h2>The whole program</h2>
+<p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/concepts/100-scheduling/109-continuous-synchronization"><code>concepts/100-scheduling/109-continuous-synchronization</code></a>, as it is compiled.</p>
+<p class="hint"><code>UseLocalDatabase</code> and <code>ConceptLab</code> are helpers of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
+<details class="source-file"><summary><span class="file-name">continuous-synchronization.cs</span><span class="file-size">242 lines</span></summary><figure class="listing"><figcaption><span class="file">continuous-synchronization.cs</span><button class="copy" type="button" data-copy-target="#code-14">Copy</button></figcaption><pre><code id="code-14"><span class="c">// How to keep another system in sync with a permanent job</span>
+<span class="c">// One permanent job calls a service on a schedule and keeps a watermark of how far it got. Each firing syncs one</span>
+<span class="c">// bounded batch and returns; the watermark is the job's own durable variable, read at the top of every execution, so</span>
+<span class="c">// a recovered firing continues where the lost one stopped.</span>
+<span class="k">using</span> Acta;
+<span class="k">using</span> Acta.Concepts.ContinuousSynchronization;
+<span class="k">using</span> Acta.Labs;
+<span class="k">using</span> Microsoft.Extensions.DependencyInjection;
+<span class="k">using</span> Microsoft.Extensions.Hosting;
+
+<span class="k">const</span> <span class="k">string</span> jobNamespace = <span class="s">&quot;continuous-sync&quot;</span>;
+<span class="k">const</span> <span class="k">string</span> jobName = <span class="s">&quot;sync-orders&quot;</span>;
+<span class="k">const</span> <span class="k">string</span> scheduleName = <span class="s">&quot;every-5s&quot;</span>;
+<span class="k">var</span> labDatabase = Path.Combine(Path.GetTempPath(), <span class="s">&quot;acta-continuous-sync.db&quot;</span>);
+<span class="k">var</span> crashMarker = Path.Combine(Path.GetTempPath(), <span class="s">&quot;acta-continuous-sync-crash.txt&quot;</span>);
+<span class="k">var</span> outageMarker = Path.Combine(Path.GetTempPath(), <span class="s">&quot;acta-continuous-sync-outage.txt&quot;</span>);
+<span class="k">var</span> mode = args.FirstOrDefault(a =&gt; !a.StartsWith(<span class="s">&quot;--&quot;</span>, StringComparison.Ordinal))?.ToLowerInvariant() ?? <span class="s">&quot;tour&quot;</span>;
+
+<span class="k">if</span> (mode <span class="k">is</span> <span class="k">not</span> (<span class="s">&quot;tour&quot;</span> or <span class="s">&quot;worker&quot;</span> or <span class="s">&quot;more&quot;</span> or <span class="s">&quot;crash&quot;</span> or <span class="s">&quot;outage&quot;</span> or <span class="s">&quot;inspect&quot;</span> or <span class="s">&quot;reset&quot;</span>))
+{
+    PrintCommands();
+    <span class="k">return</span>;
+}
+
+<span class="k">if</span> (mode == <span class="s">&quot;reset&quot;</span>)
+{
+    <span class="k">foreach</span> (<span class="k">var</span> file <span class="k">in</span> <span class="k">new</span>[] { labDatabase, crashMarker, outageMarker })
+    {
+        File.Delete(file);
+    }
+    Console.WriteLine(<span class="s">&quot;The lab's database and markers are gone; the next run starts from nothing.&quot;</span>);
+    <span class="k">return</span>;
+}
+
+<span class="k">if</span> (mode == <span class="s">&quot;crash&quot;</span>)
+{
+    File.WriteAllText(crashMarker, DateTime.UtcNow.ToString(<span class="s">&quot;O&quot;</span>));
+    Console.WriteLine(<span class="s">&quot;Armed: the worker kills its process after the next batch it commits.&quot;</span>);
+    <span class="k">return</span>;
+}
+
+<span class="k">if</span> (mode == <span class="s">&quot;outage&quot;</span>)
+{
+    <span class="k">if</span> (File.Exists(outageMarker))
+    {
+        File.Delete(outageMarker);
+        Console.WriteLine(<span class="s">&quot;The shop feed is reachable again; the next retry succeeds.&quot;</span>);
+    }
+    <span class="k">else</span>
+    {
+        File.WriteAllText(outageMarker, DateTime.UtcNow.ToString(<span class="s">&quot;O&quot;</span>));
+        Console.WriteLine(
+            <span class="s">&quot;The shop feed is down: the next firing fails and retries under the job's budget. Run outage again to restore it.&quot;</span>
+        );
+    }
+    <span class="k">return</span>;
+}
+
+<span class="c">// The mode word and the lab switches are not configuration; everything else still reaches the host.</span>
+<span class="k">var</span> hostArgs = args.Where(a =&gt; a != mode &amp;&amp; a <span class="k">is</span> <span class="k">not</span> <span class="s">&quot;--brief&quot;</span> and <span class="k">not</span> <span class="s">&quot;--pause&quot;</span> and <span class="k">not</span> <span class="s">&quot;--all-columns&quot;</span>).ToArray();
+<span class="k">var</span> builder = Host.CreateApplicationBuilder(hostArgs);
+<span class="k">var</span> provider = builder.Configuration[<span class="s">&quot;Acta:Provider&quot;</span>] ?? Environment.GetEnvironmentVariable(<span class="s">&quot;ACTA_LOCAL_PROVIDER&quot;</span>) ?? <span class="s">&quot;sqlite&quot;</span>;
+<span class="k">if</span> (!LocalDatabase.IsSqlite(provider))
+{
+    Console.WriteLine(<span class="s">&quot;This lab runs on embedded SQLite: its shop feed and local orders live in the same file as Acta's tables.&quot;</span>);
+    Console.WriteLine(<span class="s">&quot;Unset ACTA_LOCAL_PROVIDER (or set it to sqlite) and run again.&quot;</span>);
+    <span class="k">return</span>;
+}
+
+<span class="c">// One file of its own, so reset can start the story from nothing without touching another rung's database.</span>
+builder.Configuration[<span class="s">&quot;ConnectionStrings:acta&quot;</span>] ??= <span class="s">$&quot;Data Source={labDatabase}&quot;</span>;
+<span class="k">var</span> connectionString = LocalDatabase.ResolveConnectionString(builder.Configuration, provider);
+<span class="k">var</span> outage = <span class="k">new</span> ShopOutage { IsActive = () =&gt; File.Exists(outageMarker) };
+<span class="k">var</span> shop = <span class="k">new</span> ShopFeed(connectionString, outage);
+<span class="k">var</span> store = <span class="k">new</span> OrderStore(connectionString);
+<span class="k">await</span> shop.EnsureCreatedAsync(<span class="k">default</span>);
+<span class="k">await</span> store.EnsureCreatedAsync(<span class="k">default</span>);
+
+<span class="k">var</span> lab = <span class="k">new</span> ConceptLab(builder.Configuration, args);
+builder.Services.AddSingleton(shop);
+builder.Services.AddSingleton(store);
+builder.Services.AddSingleton&lt;CrashSignal&gt;(<span class="k">new</span> ProcessCrashSignal(crashMarker));
+builder.Services.UseActa(j =&gt;
+{
+    j.UseLocalDatabase(builder.Configuration);
+    <span class="k">if</span> (mode <span class="k">is</span> <span class="s">&quot;tour&quot;</span> or <span class="s">&quot;worker&quot;</span>)
+    {
+        j.Run&lt;ContinuousSynchronizationJobs&gt;(jobNamespace);
+        <span class="c">// One knob shortens the whole coordination triple in proportion: a 1 s beat gives a 4 s lease and a 7 s</span>
+        <span class="c">// dead-worker window, so a restarted worker recovers a lost firing in seconds instead of minutes.</span>
+        j.ConfigureOptions(o =&gt; o.HeartbeatInterval = TimeSpan.FromSeconds(1));
+    }
+    <span class="k">else</span>
+    {
+        j.Reference&lt;ContinuousSynchronizationJobs&gt;(jobNamespace);
+    }
+});
+
+<span class="k">using</span> <span class="k">var</span> host = builder.Build();
+<span class="k">await</span> host.StartAsync();
+<span class="k">var</span> jobs = host.Services.GetRequiredService&lt;IJobs&gt;();
+<span class="k">var</span> schedules = host.Services.GetRequiredService&lt;IActaOperations&gt;().Schedules;
+
+<span class="k">if</span> (mode == <span class="s">&quot;more&quot;</span>)
+{
+    <span class="k">var</span> count = args.Select(a =&gt; <span class="k">int</span>.TryParse(a, <span class="k">out</span> <span class="k">var</span> n) ? n : 0).FirstOrDefault(n =&gt; n &gt; 0);
+    <span class="k">var</span> head = <span class="k">await</span> shop.AppendAsync(count == 0 ? 60 : count, <span class="k">default</span>);
+    Console.WriteLine(<span class="s">$&quot;The shop published more changes; the feed now ends at change {head}.&quot;</span>);
+    <span class="k">await</span> host.StopAsync();
+    <span class="k">return</span>;
+}
+
+<span class="k">if</span> (mode == <span class="s">&quot;inspect&quot;</span>)
+{
+    <span class="k">await</span> ShowStateAsync(lab, jobs, schedules, store, shop);
+    <span class="k">await</span> host.StopAsync();
+    <span class="k">return</span>;
+}
+
+<span class="k">if</span> (<span class="k">await</span> shop.HeadAsync(<span class="k">default</span>) == 0)
+{
+    <span class="k">var</span> seeded = <span class="k">await</span> shop.AppendAsync(120, <span class="k">default</span>);
+    Console.WriteLine(<span class="s">$&quot;Seeded the shop feed with {seeded} order changes; the local orders hold none yet.&quot;</span>);
+}
+
+<span class="k">if</span> (mode == <span class="s">&quot;worker&quot;</span>)
+{
+    Console.WriteLine(
+        <span class="s">&quot;The worker is running; the schedule fires every five seconds. In another terminal: more, crash, outage, inspect. Ctrl+C stops it.&quot;</span>
+    );
+    <span class="k">await</span> host.WaitForShutdownAsync();
+    <span class="k">return</span>;
+}
+
+Console.WriteLine(<span class="s">&quot;Watching three firings of one permanent job...&quot;</span>);
+<span class="k">var</span> slotId = <span class="k">await</span> SlotIdAsync(jobs, schedules);
+<span class="k">using</span> <span class="k">var</span> tourTimeout = <span class="k">new</span> CancellationTokenSource(TimeSpan.FromSeconds(45));
+<span class="k">while</span> ((<span class="k">await</span> jobs.GetAsync(JobLookup.ById(slotId), tourTimeout.Token))?.ExecutionNumber &lt; 3)
+{
+    <span class="k">await</span> Task.Delay(250, tourTimeout.Token);
+}
+
+<span class="k">await</span> ShowStateAsync(lab, jobs, schedules, store, shop);
+<span class="k">await</span> host.StopAsync();
+
+<span class="k">static</span> <span class="k">async</span> Task&lt;<span class="k">long</span>&gt; SlotIdAsync(IJobs jobs, ISchedules schedules)
+{
+    <span class="k">var</span> schedule = (<span class="k">await</span> schedules.ListAsync(<span class="k">new</span> ListSchedulesQuery(JobNamespace: jobNamespace, JobName: jobName))).Items.Single(s =&gt;
+        s.ScheduleName == scheduleName
+    );
+    <span class="k">return</span> (<span class="k">await</span> jobs.GetIdAsync(schedule.JobRef!.Value))!.JobId;
+}
+
+<span class="k">static</span> <span class="k">async</span> Task ShowStateAsync(ConceptLab lab, IJobs jobs, ISchedules schedules, OrderStore store, ShopFeed shop)
+{
+    <span class="k">var</span> slotId = <span class="k">await</span> SlotIdAsync(jobs, schedules);
+    <span class="k">await</span> lab.ShowAllAsync(
+        <span class="s">&quot;Explore the complete permanent job record&quot;</span>,
+        <span class="s">&quot;&quot;&quot;</span>
+<span class="s">        SELECT *</span>
+<span class="s">        FROM jobs_view</span>
+<span class="s">        WHERE job_id = @slotId</span>
+<span class="s">        &quot;&quot;&quot;</span>,
+        <span class="k">new</span> { slotId }
+    );
+    <span class="k">await</span> lab.ShowAsync(
+        <span class="s">&quot;One durable job identity, one row, Idle between firings&quot;</span>,
+        <span class="s">&quot;&quot;&quot;</span>
+<span class="s">        SELECT job_ref, job_status, execution_number, failure_count, leased_by_worker_host_name, lease_expires_at_utc</span>
+<span class="s">        FROM jobs_view</span>
+<span class="s">        WHERE job_id = @slotId</span>
+<span class="s">        &quot;&quot;&quot;</span>,
+        <span class="k">new</span> { slotId }
+    );
+    <span class="k">await</span> lab.ShowAsync(
+        <span class="s">&quot;Acta's progress: the schedule cursor and when the engine next looks&quot;</span>,
+        <span class="s">&quot;&quot;&quot;</span>
+<span class="s">        SELECT schedule_name, schedule_status, next_occurrence_at_utc, next_evaluation_at_utc, evaluation_status</span>
+<span class="s">        FROM schedules_view</span>
+<span class="s">        WHERE namespace_name = @jobNamespace AND definition_name = @jobName</span>
+<span class="s">        &quot;&quot;&quot;</span>,
+        <span class="k">new</span> { jobNamespace, jobName }
+    );
+    <span class="k">await</span> lab.ShowAsync(
+        <span class="s">&quot;The firing envelope: which schedule admitted the running or last firing, and how it settled&quot;</span>,
+        <span class="s">&quot;&quot;&quot;</span>
+<span class="s">        SELECT checkpoint_name, checkpoint_status, value_text</span>
+<span class="s">        FROM checkpoints_view</span>
+<span class="s">        WHERE job_id = @slotId AND checkpoint_kind = 'firing'</span>
+<span class="s">        &quot;&quot;&quot;</span>,
+        <span class="k">new</span> { slotId }
+    );
+    <span class="k">await</span> lab.ShowAsync(
+        <span class="s">&quot;The job's own progress: the watermark, a durable variable on the job that every execution reads first&quot;</span>,
+        <span class="s">&quot;&quot;&quot;</span>
+<span class="s">        SELECT checkpoint_name, checkpoint_kind, value_text, modified_at_utc</span>
+<span class="s">        FROM checkpoints_view</span>
+<span class="s">        WHERE job_id = @slotId AND checkpoint_kind = 'variable'</span>
+<span class="s">        &quot;&quot;&quot;</span>,
+        <span class="k">new</span> { slotId }
+    );
+    <span class="k">await</span> lab.ShowAsync(
+        <span class="s">&quot;The ledger: admissions, settlements, and a lost attempt reclaimed&quot;</span>,
+        <span class="s">&quot;&quot;&quot;</span>
+<span class="s">        SELECT event_id, event, execution_number, event_message, details_text</span>
+<span class="s">        FROM events_view</span>
+<span class="s">        WHERE entity = 'job' AND entity_id = @slotId</span>
+<span class="s">        ORDER BY event_id DESC LIMIT 8</span>
+<span class="s">        &quot;&quot;&quot;</span>,
+        <span class="k">new</span> { slotId }
+    );
+    <span class="k">await</span> lab.ShowAsync(
+        <span class="s">&quot;The lost attempt and what followed: the reclaim, the execution that finished its firing, and the next admission&quot;</span>,
+        <span class="s">&quot;&quot;&quot;</span>
+<span class="s">        SELECT event_id, event, execution_number, event_message, details_text</span>
+<span class="s">        FROM events_view</span>
+<span class="s">        WHERE entity = 'job' AND entity_id = @slotId AND event_id &gt;= (</span>
+<span class="s">            SELECT COALESCE(MIN(event_id), 0)</span>
+<span class="s">            FROM events_view</span>
+<span class="s">            WHERE entity = 'job' AND entity_id = @slotId AND event IN ('job.execution-orphaned', 'job.execution-failed')</span>
+<span class="s">        )</span>
+<span class="s">        ORDER BY event_id LIMIT 5</span>
+<span class="s">        &quot;&quot;&quot;</span>,
+        <span class="k">new</span> { slotId }
+    );
+    <span class="k">var</span> (orders, lastChangeId) = <span class="k">await</span> store.SummaryAsync(<span class="k">default</span>);
+    Console.WriteLine();
+    Console.WriteLine(<span class="s">&quot;--- The destination against the feed ---&quot;</span>);
+    Console.WriteLine(<span class="s">$&quot;feed head: change {await shop.HeadAsync(default)}; local orders: {orders} (newest change {lastChangeId})&quot;</span>);
+}
+
+<span class="k">static</span> <span class="k">void</span> PrintCommands()
+{
+    Console.WriteLine(<span class="s">&quot;dotnet run --project concepts/100-scheduling/109-continuous-synchronization -- &lt;mode&gt;&quot;</span>);
+    Console.WriteLine(<span class="s">&quot;  tour     seed the feed, watch three firings, print the rows, exit (the default)&quot;</span>);
+    Console.WriteLine(<span class="s">&quot;  worker   run the worker until Ctrl+C, or until an armed crash&quot;</span>);
+    Console.WriteLine(<span class="s">&quot;  more [n] publish n more shop changes (default 60)&quot;</span>);
+    Console.WriteLine(<span class="s">&quot;  crash    arm a process crash after the next committed batch&quot;</span>);
+    Console.WriteLine(<span class="s">&quot;  outage   switch the shop feed off, or back on&quot;</span>);
+    Console.WriteLine(<span class="s">&quot;  inspect  print the job, the cursor, the envelope, the watermark, and the ledger&quot;</span>);
+    Console.WriteLine(<span class="s">&quot;  reset    delete the lab's database and markers&quot;</span>);
+}</code></pre></figure></details>
+<details class="source-file"><summary><span class="file-name">CrashSignal.cs</span><span class="file-size">40 lines</span></summary><figure class="listing"><figcaption><span class="file">CrashSignal.cs</span><button class="copy" type="button" data-copy-target="#code-15">Copy</button></figcaption><pre><code id="code-15"><span class="k">namespace</span> Acta.Concepts.ContinuousSynchronization;
+
+<span class="c">/// &lt;summary&gt;</span>
+<span class="c">/// Where the lab injects failure: called after every batch, once the orders and the watermark are durable, so a crash</span>
+<span class="c">/// lands at the worst moment, before Acta's attempt completes. The lab's process kills itself when armed; a test</span>
+<span class="c">/// replaces this with something it can observe.</span>
+<span class="c">/// &lt;/summary&gt;</span>
+<span class="k">public</span> <span class="k">abstract</span> <span class="k">class</span> CrashSignal
+{
+    <span class="k">public</span> <span class="k">abstract</span> Task AfterBatchAsync(<span class="k">long</span> committedChangeId, CancellationToken ct);
+}
+
+<span class="c">/// &lt;summary&gt;Never fires.&lt;/summary&gt;</span>
+<span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> NoCrashSignal : CrashSignal
+{
+    <span class="k">public</span> <span class="k">override</span> Task AfterBatchAsync(<span class="k">long</span> committedChangeId, CancellationToken ct) =&gt; Task.CompletedTask;
+}
+
+<span class="c">/// &lt;summary&gt;</span>
+<span class="c">/// Armed by a marker file the lab's crash command writes. The marker goes before the process does, so the restarted</span>
+<span class="c">/// worker recovers the firing instead of crashing on the same batch again.</span>
+<span class="c">/// &lt;/summary&gt;</span>
+<span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> ProcessCrashSignal(<span class="k">string</span> markerPath) : CrashSignal
+{
+    <span class="k">public</span> <span class="k">override</span> Task AfterBatchAsync(<span class="k">long</span> committedChangeId, CancellationToken ct)
+    {
+        <span class="k">if</span> (!File.Exists(markerPath))
+        {
+            <span class="k">return</span> Task.CompletedTask;
+        }
+
+        File.Delete(markerPath);
+        Console.WriteLine(
+            <span class="s">$&quot;[sync-orders] crash armed: the batch through change {committedChangeId} is committed; the process disappears now.&quot;</span>
+        );
+        Console.Out.Flush();
+        Environment.FailFast(<span class="s">&quot;Intentional worker crash for the continuous-synchronization lab.&quot;</span>);
+        <span class="k">return</span> Task.CompletedTask;
+    }
+}</code></pre></figure></details>
+<details class="source-file"><summary><span class="file-name">OrderStore.cs</span><span class="file-size">82 lines</span></summary><figure class="listing"><figcaption><span class="file">OrderStore.cs</span><button class="copy" type="button" data-copy-target="#code-16">Copy</button></figcaption><pre><code id="code-16"><span class="k">using</span> Microsoft.Data.Sqlite;
+
+<span class="k">namespace</span> Acta.Concepts.ContinuousSynchronization;
+
+<span class="c">/// &lt;summary&gt;</span>
+<span class="c">/// The application's side of the synchronization: the local copy of the orders. A batch is applied as one upsert per</span>
+<span class="c">/// order in one transaction, and an order keeps only a newer change than the one it holds, so a batch applied twice</span>
+<span class="c">/// changes nothing. The store knows nothing about how far the sync has come; that is the job's watermark variable.</span>
+<span class="c">/// &lt;/summary&gt;</span>
+<span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> OrderStore(<span class="k">string</span> connectionString)
+{
+    <span class="k">public</span> <span class="k">async</span> Task EnsureCreatedAsync(CancellationToken ct)
+    {
+        <span class="k">await</span> <span class="k">using</span> <span class="k">var</span> connection = <span class="k">new</span> SqliteConnection(connectionString);
+        <span class="k">await</span> connection.OpenAsync(ct);
+        <span class="k">await</span> <span class="k">using</span> <span class="k">var</span> command = connection.CreateCommand();
+        command.CommandText = <span class="s">&quot;&quot;&quot;</span>
+<span class="s">            CREATE TABLE IF NOT EXISTS local_orders (</span>
+<span class="s">                order_id TEXT PRIMARY KEY,</span>
+<span class="s">                status TEXT NOT NULL,</span>
+<span class="s">                amount_cents INTEGER NOT NULL,</span>
+<span class="s">                last_change_id INTEGER NOT NULL</span>
+<span class="s">            )</span>
+<span class="s">            &quot;&quot;&quot;</span>;
+        <span class="k">await</span> command.ExecuteNonQueryAsync(ct);
+    }
+
+    <span class="c">/// &lt;summary&gt;</span>
+    <span class="c">/// Applies one batch in one transaction. A change older than what an order already holds is ignored, which is what</span>
+    <span class="c">/// makes a replayed batch harmless. A change with a negative amount is refused, and then nothing of the batch is</span>
+    <span class="c">/// kept.</span>
+    <span class="c">/// &lt;/summary&gt;</span>
+    <span class="k">public</span> <span class="k">async</span> Task ApplyAsync(IReadOnlyList&lt;OrderChange&gt; changes, CancellationToken ct)
+    {
+        <span class="k">if</span> (changes.Count == 0)
+        {
+            <span class="k">return</span>;
+        }
+
+        <span class="k">await</span> <span class="k">using</span> <span class="k">var</span> connection = <span class="k">new</span> SqliteConnection(connectionString);
+        <span class="k">await</span> connection.OpenAsync(ct);
+        <span class="k">await</span> <span class="k">using</span> <span class="k">var</span> transaction = <span class="k">await</span> connection.BeginTransactionAsync(ct);
+        <span class="k">foreach</span> (<span class="k">var</span> change <span class="k">in</span> changes)
+        {
+            <span class="k">if</span> (change.AmountCents &lt; 0)
+            {
+                <span class="k">throw</span> <span class="k">new</span> InvalidOperationException(<span class="s">$&quot;Change {change.ChangeId} carries a negative amount; the batch is refused.&quot;</span>);
+            }
+
+            <span class="k">await</span> <span class="k">using</span> <span class="k">var</span> upsert = connection.CreateCommand();
+            upsert.Transaction = (SqliteTransaction)transaction;
+            <span class="c">// learn: 5. Make the save an upsert that keeps the newer change</span>
+            <span class="c">// A batch applied twice then changes nothing. The statement is SQLite's; write the same keep-the-newer</span>
+            <span class="c">// upsert in your own database's dialect.</span>
+<span class="hl">            upsert.CommandText = <span class="s">&quot;&quot;&quot;</span></span>
+<span class="hl"><span class="s">                INSERT INTO local_orders (order_id, status, amount_cents, last_change_id) VALUES (@order, @status, @amount, @change)</span></span>
+<span class="hl"><span class="s">                ON CONFLICT (order_id) DO UPDATE SET status = excluded.status, amount_cents = excluded.amount_cents, last_change_id = excluded.last_change_id</span></span>
+<span class="hl"><span class="s">                WHERE excluded.last_change_id &gt; local_orders.last_change_id</span></span>
+<span class="hl"><span class="s">                &quot;&quot;&quot;</span>;</span>
+            <span class="c">// learn: end</span>
+            upsert.Parameters.AddWithValue(<span class="s">&quot;@order&quot;</span>, change.OrderId);
+            upsert.Parameters.AddWithValue(<span class="s">&quot;@status&quot;</span>, change.Status);
+            upsert.Parameters.AddWithValue(<span class="s">&quot;@amount&quot;</span>, change.AmountCents);
+            upsert.Parameters.AddWithValue(<span class="s">&quot;@change&quot;</span>, change.ChangeId);
+            <span class="k">await</span> upsert.ExecuteNonQueryAsync(ct);
+        }
+
+        <span class="k">await</span> transaction.CommitAsync(ct);
+    }
+
+    <span class="c">/// &lt;summary&gt;How many orders the local copy holds and the newest change any of them reflects.&lt;/summary&gt;</span>
+    <span class="k">public</span> <span class="k">async</span> Task&lt;(<span class="k">long</span> Orders, <span class="k">long</span> LastChangeId)&gt; SummaryAsync(CancellationToken ct)
+    {
+        <span class="k">await</span> <span class="k">using</span> <span class="k">var</span> connection = <span class="k">new</span> SqliteConnection(connectionString);
+        <span class="k">await</span> connection.OpenAsync(ct);
+        <span class="k">await</span> <span class="k">using</span> <span class="k">var</span> command = connection.CreateCommand();
+        command.CommandText = <span class="s">&quot;SELECT COUNT(*), COALESCE(MAX(last_change_id), 0) FROM local_orders&quot;</span>;
+        <span class="k">await</span> <span class="k">using</span> <span class="k">var</span> reader = <span class="k">await</span> command.ExecuteReaderAsync(ct);
+        <span class="k">await</span> reader.ReadAsync(ct);
+        <span class="k">return</span> (reader.GetInt64(0), reader.GetInt64(1));
+    }
+}</code></pre></figure></details>
+<details class="source-file"><summary><span class="file-name">ShopFeed.cs</span><span class="file-size">123 lines</span></summary><figure class="listing"><figcaption><span class="file">ShopFeed.cs</span><button class="copy" type="button" data-copy-target="#code-17">Copy</button></figcaption><pre><code id="code-17"><span class="k">using</span> Microsoft.Data.Sqlite;
+
+<span class="k">namespace</span> Acta.Concepts.ContinuousSynchronization;
+
+<span class="c">/// &lt;summary&gt;One change the shop published: the order it concerns and the state the order reached.&lt;/summary&gt;</span>
+<span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> OrderChange(<span class="k">long</span> ChangeId, <span class="k">string</span> OrderId, <span class="k">string</span> Status, <span class="k">long</span> AmountCents);
+
+<span class="c">/// &lt;summary&gt;Thrown by the feed while an outage is switched on; the attempt fails and Acta retries it under the job's budget.&lt;/summary&gt;</span>
+<span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> ShopUnavailableException() : Exception(<span class="s">&quot;The shop change feed is unavailable; try again later.&quot;</span>);
+
+<span class="c">/// &lt;summary&gt;A switch the lab flips to make the feed unavailable, so a transient failure and its retry can be watched.&lt;/summary&gt;</span>
+<span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> ShopOutage
+{
+    <span class="k">public</span> Func&lt;<span class="k">bool</span>&gt; IsActive { <span class="k">get</span>; <span class="k">set</span>; } = () =&gt; <span class="k">false</span>;
+}
+
+<span class="c">/// &lt;summary&gt;</span>
+<span class="c">/// The mock external system: a web shop that publishes order changes as an append-only feed. Its change-tracking contract,</span>
+<span class="c">/// the one the handler's watermark relies on, is that every change gets a change id greater than every earlier one,</span>
+<span class="c">/// changes are served in that order, and no change is ever deleted, so a reader that remembers the last id it</span>
+<span class="c">/// processed can always ask for what came after it. The feed lives in the lab's own SQLite file beside Acta's tables,</span>
+<span class="c">/// as a stand-in for a remote API; the handler reads it through this class and never through Acta.</span>
+<span class="c">/// &lt;/summary&gt;</span>
+<span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> ShopFeed(<span class="k">string</span> connectionString, ShopOutage outage)
+{
+    <span class="k">private</span> <span class="k">const</span> <span class="k">int</span> OrderCount = 40;
+    <span class="k">private</span> <span class="k">static</span> <span class="k">readonly</span> <span class="k">string</span>[] Statuses = [<span class="s">&quot;created&quot;</span>, <span class="s">&quot;paid&quot;</span>, <span class="s">&quot;shipped&quot;</span>];
+
+    <span class="k">public</span> <span class="k">async</span> Task EnsureCreatedAsync(CancellationToken ct)
+    {
+        <span class="k">await</span> <span class="k">using</span> <span class="k">var</span> connection = <span class="k">new</span> SqliteConnection(connectionString);
+        <span class="k">await</span> connection.OpenAsync(ct);
+        <span class="k">await</span> <span class="k">using</span> <span class="k">var</span> command = connection.CreateCommand();
+        command.CommandText = <span class="s">&quot;&quot;&quot;</span>
+<span class="s">            CREATE TABLE IF NOT EXISTS shop_changes (</span>
+<span class="s">                change_id INTEGER PRIMARY KEY AUTOINCREMENT,</span>
+<span class="s">                order_id TEXT NOT NULL,</span>
+<span class="s">                status TEXT NOT NULL,</span>
+<span class="s">                amount_cents INTEGER NOT NULL</span>
+<span class="s">            )</span>
+<span class="s">            &quot;&quot;&quot;</span>;
+        <span class="k">await</span> command.ExecuteNonQueryAsync(ct);
+    }
+
+    <span class="c">/// &lt;summary&gt;The next changes after &lt;paramref name=&quot;sinceChangeId&quot;/&gt;, oldest first, at most &lt;paramref name=&quot;take&quot;/&gt;.&lt;/summary&gt;</span>
+    <span class="k">public</span> <span class="k">async</span> Task&lt;IReadOnlyList&lt;OrderChange&gt;&gt; ChangesAfterAsync(<span class="k">long</span> sinceChangeId, <span class="k">int</span> take, CancellationToken ct)
+    {
+        <span class="k">if</span> (outage.IsActive())
+        {
+            <span class="k">throw</span> <span class="k">new</span> ShopUnavailableException();
+        }
+
+        <span class="k">await</span> <span class="k">using</span> <span class="k">var</span> connection = <span class="k">new</span> SqliteConnection(connectionString);
+        <span class="k">await</span> connection.OpenAsync(ct);
+        <span class="k">await</span> <span class="k">using</span> <span class="k">var</span> command = connection.CreateCommand();
+        <span class="c">// learn: 3. Let the service hand out its changes in a fixed order</span>
+        <span class="c">// The pattern needs one thing from the service: changes come in a fixed order, and a caller can ask for the</span>
+        <span class="c">// ones after the last one it saw. An API with a `since` or a cursor parameter fits the same way.</span>
+<span class="hl">        command.CommandText =</span>
+<span class="hl">            <span class="s">&quot;SELECT change_id, order_id, status, amount_cents FROM shop_changes WHERE change_id &gt; @since ORDER BY change_id LIMIT @take&quot;</span>;</span>
+        <span class="c">// learn: end</span>
+        command.Parameters.AddWithValue(<span class="s">&quot;@since&quot;</span>, sinceChangeId);
+        command.Parameters.AddWithValue(<span class="s">&quot;@take&quot;</span>, take);
+        <span class="k">var</span> changes = <span class="k">new</span> List&lt;OrderChange&gt;(take);
+        <span class="k">await</span> <span class="k">using</span> <span class="k">var</span> reader = <span class="k">await</span> command.ExecuteReaderAsync(ct);
+        <span class="k">while</span> (<span class="k">await</span> reader.ReadAsync(ct))
+        {
+            changes.Add(<span class="k">new</span> OrderChange(reader.GetInt64(0), reader.GetString(1), reader.GetString(2), reader.GetInt64(3)));
+        }
+
+        <span class="k">return</span> changes;
+    }
+
+    <span class="c">/// &lt;summary&gt;The id of the newest change, 0 when the feed is empty.&lt;/summary&gt;</span>
+    <span class="k">public</span> <span class="k">async</span> Task&lt;<span class="k">long</span>&gt; HeadAsync(CancellationToken ct)
+    {
+        <span class="k">await</span> <span class="k">using</span> <span class="k">var</span> connection = <span class="k">new</span> SqliteConnection(connectionString);
+        <span class="k">await</span> connection.OpenAsync(ct);
+        <span class="k">await</span> <span class="k">using</span> <span class="k">var</span> command = connection.CreateCommand();
+        command.CommandText = <span class="s">&quot;SELECT COALESCE(MAX(change_id), 0) FROM shop_changes&quot;</span>;
+        <span class="k">return</span> (<span class="k">long</span>)(<span class="k">await</span> command.ExecuteScalarAsync(ct))!;
+    }
+
+    <span class="c">/// &lt;summary&gt;</span>
+    <span class="c">/// Publishes &lt;paramref name=&quot;count&quot;/&gt; more changes: the forty orders move through created, paid, and shipped in</span>
+    <span class="c">/// turn, derived from the change id alone, so a feed seeded the same way reads the same on every machine.</span>
+    <span class="c">/// &lt;/summary&gt;</span>
+    <span class="k">public</span> <span class="k">async</span> Task&lt;<span class="k">long</span>&gt; AppendAsync(<span class="k">int</span> count, CancellationToken ct)
+    {
+        <span class="k">var</span> head = <span class="k">await</span> HeadAsync(ct);
+        <span class="k">var</span> changes = Enumerable
+            .Range(1, count)
+            .Select(i =&gt;
+            {
+                <span class="k">var</span> id = head + i;
+                <span class="k">var</span> order = 1000 + (id - 1) % OrderCount;
+                <span class="k">var</span> step = (<span class="k">int</span>)((id - 1) / OrderCount) % Statuses.Length;
+                <span class="k">return</span> <span class="k">new</span> OrderChange(id, <span class="s">$&quot;ORD-{order}&quot;</span>, Statuses[step], 1000 + id * 7);
+            });
+        <span class="k">return</span> <span class="k">await</span> AppendAsync(changes, ct);
+    }
+
+    <span class="c">/// &lt;summary&gt;Publishes the given changes in order; the feed assigns the ids, so the ones on the records are ignored.&lt;/summary&gt;</span>
+    <span class="k">public</span> <span class="k">async</span> Task&lt;<span class="k">long</span>&gt; AppendAsync(IEnumerable&lt;OrderChange&gt; changes, CancellationToken ct)
+    {
+        <span class="k">await</span> <span class="k">using</span> <span class="k">var</span> connection = <span class="k">new</span> SqliteConnection(connectionString);
+        <span class="k">await</span> connection.OpenAsync(ct);
+        <span class="k">await</span> <span class="k">using</span> <span class="k">var</span> transaction = <span class="k">await</span> connection.BeginTransactionAsync(ct);
+        <span class="k">foreach</span> (<span class="k">var</span> change <span class="k">in</span> changes)
+        {
+            <span class="k">await</span> <span class="k">using</span> <span class="k">var</span> insert = connection.CreateCommand();
+            insert.Transaction = (SqliteTransaction)transaction;
+            insert.CommandText = <span class="s">&quot;INSERT INTO shop_changes (order_id, status, amount_cents) VALUES (@order, @status, @amount)&quot;</span>;
+            insert.Parameters.AddWithValue(<span class="s">&quot;@order&quot;</span>, change.OrderId);
+            insert.Parameters.AddWithValue(<span class="s">&quot;@status&quot;</span>, change.Status);
+            insert.Parameters.AddWithValue(<span class="s">&quot;@amount&quot;</span>, change.AmountCents);
+            <span class="k">await</span> insert.ExecuteNonQueryAsync(ct);
+        }
+
+        <span class="k">await</span> transaction.CommitAsync(ct);
+        <span class="k">return</span> <span class="k">await</span> HeadAsync(ct);
+    }
+}</code></pre></figure></details>
+<details class="source-file"><summary><span class="file-name">SyncOrdersJob.cs</span><span class="file-size">46 lines</span></summary><figure class="listing"><figcaption><span class="file">SyncOrdersJob.cs</span><button class="copy" type="button" data-copy-target="#code-18">Copy</button></figcaption><pre><code id="code-18"><span class="k">namespace</span> Acta.Concepts.ContinuousSynchronization;
+
+<span class="c">/// &lt;summary&gt;</span>
+<span class="c">/// One permanent job keeps the local orders current. The schedule fires it every five seconds; a firing applies at</span>
+<span class="c">/// most one batch of &lt;see cref=&quot;BatchSize&quot;/&gt; changes and returns, so the job sits Idle between firings and no thread</span>
+<span class="c">/// loops. The watermark, the id of the last shop change applied, is the job's own durable variable: Acta carries it</span>
+<span class="c">/// across firings, retries, and workers, and the handler reads it at the top of every execution, so an attempt that</span>
+<span class="c">/// dies after a batch is continued at the next batch by whichever worker runs the job next.</span>
+<span class="c">/// &lt;/summary&gt;</span>
+<span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> SyncOrdersJob(ShopFeed shop, OrderStore store, CrashSignal crash)
+{
+    <span class="k">public</span> <span class="k">const</span> <span class="k">int</span> BatchSize = 40;
+
+    <span class="c">// learn: 1. Fire the job on a schedule</span>
+    <span class="c">// The schedule fires the one permanent job every five seconds. A firing does one bounded batch and returns, so</span>
+    <span class="c">// between firings the job is `Idle` and holds no thread.</span>
+<span class="hl">    <span class="a">[Job(<span class="s">&quot;sync-orders&quot;</span>, MaxAttempts = 3, Backoff = <span class="s">&quot;2s&quot;</span>)]</span></span>
+<span class="hl">    <span class="a">[Schedule(<span class="s">&quot;every-5s&quot;</span>, <span class="s">&quot;PT5S&quot;</span>)]</span></span>
+    <span class="c">// learn: end</span>
+    <span class="k">public</span> <span class="k">async</span> Task Sync(JobContext ctx, CancellationToken ct)
+    {
+        <span class="c">// learn: 2. Read the watermark and ask for what changed after it</span>
+        <span class="c">// The call to the service is a bare line on purpose: a read is safe to repeat, and on a permanent job a step</span>
+        <span class="c">// would answer from an earlier firing's record. A firing that finds nothing returns; the next one comes on</span>
+        <span class="c">// schedule.</span>
+<span class="hl">        <span class="k">var</span> watermark = <span class="k">await</span> ctx.GetVariableOrDefaultAsync(<span class="s">&quot;watermark&quot;</span>, 0L, ct);</span>
+<span class="hl">        <span class="k">var</span> changes = <span class="k">await</span> shop.ChangesAfterAsync(watermark, BatchSize, ct);</span>
+<span class="hl">        <span class="k">if</span> (changes.Count == 0)</span>
+<span class="hl">        {</span>
+<span class="hl">            Console.WriteLine(<span class="s">$&quot;[sync-orders] execution {ctx.ExecutionNumber}: up to date at change {watermark}&quot;</span>);</span>
+<span class="hl">            <span class="k">return</span>;</span>
+<span class="hl">        }</span>
+        <span class="c">// learn: end</span>
+
+        <span class="c">// learn: 4. Save the work first and the watermark after</span>
+        <span class="c">// The orders land first and the watermark after them: an attempt that dies between the two replays one batch,</span>
+        <span class="c">// which the upsert absorbs; the other order would skip one.</span>
+<span class="hl">        <span class="k">await</span> store.ApplyAsync(changes, ct);</span>
+<span class="hl">        <span class="k">var</span> head = changes[^1].ChangeId;</span>
+<span class="hl">        <span class="k">await</span> ctx.SetVariableAsync(<span class="s">&quot;watermark&quot;</span>, head, ct);</span>
+        <span class="c">// learn: end</span>
+        Console.WriteLine(<span class="s">$&quot;[sync-orders] execution {ctx.ExecutionNumber}: {changes.Count} changes applied, watermark {head}&quot;</span>);
+        <span class="c">// The lab's switch for killing the worker after a batch; a job of your own has no such line.</span>
+        <span class="k">await</span> crash.AfterBatchAsync(head, ct);
+    }
+}</code></pre></figure></details></div>
+<div class="step plain-step"><h2>Where to go next</h2><ul class="next-links"><li><a href="/learn/203-durable-variable">How to keep a value across retries</a><span>Keep another system in sync</span></li></ul></div>
+      </article>
+      <article class="agent-face" hidden>
+        <figure class="listing agent"><figcaption><span class="file">/learn/109-continuous-synchronization.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/109-continuous-synchronization.md">Open</a><button class="copy" type="button" data-copy-target="#md-body">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
+        <p class="hint">This is the page an agent receives: the same how-to as plain Markdown, at this page's address with <code>.md</code> added.</p>
+      </article>
+      <aside class="howto-rail" aria-label="This section">
+        <p class="rail-head"><a href="/learn#s-sync">Keep another system in sync</a></p>
+        <ol>
+            <li aria-current="page"><a href="/learn/109-continuous-synchronization" data-id="109"><span class="rail-n">1</span>Keep another system in sync with a permanent job</a></li>
+            <li><a href="/learn/203-durable-variable" data-id="203"><span class="rail-n">2</span>Keep a value across retries</a></li>
+            <li><a href="/learn/306-reschedule" data-id="306"><span class="rail-n">3</span>Check again later without spending a retry</a></li>
+        </ol>
+        <button class="button done-toggle" type="button" data-done-toggle="109" aria-pressed="false">Mark as done</button>
+        <p class="rail-turn"><span></span><a href="/learn/203-durable-variable" rel="next">Next</a></p>
+      </aside>
+    </div>
+    <section class="wrap newcomer" aria-labelledby="newcomer-title">
+      <h2 id="newcomer-title">New to Acta?</h2>
+      <p class="lede">Acta is durable execution for .NET: workflows and jobs that survive restarts, as a library inside your application with its durable state in your SQL database.</p>
+      <div class="actions">
+        <a class="button primary" href="/start">Run your first durable job in five minutes</a>
+        <a class="button" href="/learn">See every how-to</a>
+        <a class="button" href="/capabilities">Everything Acta does</a>
+      </div>
+    </section>
+    <footer class="site-footer">
+      <div class="wrap">
+        <div class="footer-grid">
+          <div class="footer-about">
+            <a class="site-brand" href="/" aria-label="Acta home"><svg viewBox="3.95 4.95 30.1 30.1" fill="none" stroke="currentColor" stroke-width="4.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 33 19 7 32 33" /><circle cx="19" cy="27" r="3" fill="currentColor" stroke="none" /></svg><span class="brand-word">Acta<span>.</span></span></a>
+            <p>Durable execution for .NET.</p>
+            <p>A library inside your application.<br />Durable state in your SQL database.</p>
+            <p class="footer-license">Apache-2.0 · built in the open</p>
+          </div>
+          <nav aria-label="Explore">
+            <p class="footer-head">Explore</p>
+            <a href="/how-it-works">How Acta works</a>
+            <a href="/capabilities">Capabilities</a>
+            <a href="/engine">Inside one worker</a>
+            <a href="/fleet">Workers and recovery</a>
+            <a href="/gates">Order and limits</a>
+            <a href="/benchmark">Benchmark and evidence</a>
+            <a href="/choosing">Choosing Acta</a>
+          </nav>
+          <nav aria-label="Build">
+            <p class="footer-head">Build</p>
+            <a href="/start">Get started</a>
+            <a href="/learn">Learn Acta</a>
+            <a href="https://github.com/acta-dotnet/acta/tree/main/docs">Documentation</a>
+            <a href="https://github.com/acta-dotnet/acta/tree/main/concepts">Runnable concepts</a>
+            <a href="https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md">Engineering labs</a>
+            <a href="/llms.txt">llms.txt for coding agents</a>
+          </nav>
+          <div class="footer-release">
+            <p class="footer-head">Release</p>
+            <p class="footer-version"><span class="release-dot" aria-hidden="true"></span><a href="https://github.com/acta-dotnet/acta/releases">1.0.0-rc.12 <span aria-hidden="true">↗</span></a><span>a release candidate</span></p>
+            <a href="https://github.com/acta-dotnet/acta/blob/main/docs/compatibility-and-support.md">Compatibility and support</a>
+            <a href="/support">Support Acta</a>
+            <a href="https://github.com/acta-dotnet/acta/blob/main/docs/known-limitations.md#stability-status">Stability status</a>
+            <a href="https://github.com/acta-dotnet/acta">Source on GitHub <span aria-hidden="true">↗</span></a>
+          </div>
+        </div>
+        <div class="footer-bottom">
+          <p>Created and maintained by <a href="https://www.linkedin.com/in/marko-voncina">Marko Vončina</a></p>
+          <span data-theme-controls></span>
+        </div>
+      </div>
+    </footer>
+  </main>
+  <p class="sr-only" id="copy-status" aria-live="polite"></p>
+  <script src="/assets/learn.js"></script>
+</body>
+</html>

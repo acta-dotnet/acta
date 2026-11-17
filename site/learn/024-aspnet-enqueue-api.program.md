@@ -1,0 +1,125 @@
+# The whole program: start a job from an HTTP endpoint and poll it
+
+The how-to is [/learn/024-aspnet-enqueue-api.md](/learn/024-aspnet-enqueue-api.md). This file holds every source file of `concepts/000-fundamentals/024-aspnet-enqueue-api` as it is compiled.
+
+## Not in the packages
+
+`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on any of the three databases. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+
+## The whole program
+
+### Program.cs
+
+```csharp
+// How to start a job from an HTTP endpoint and poll it
+// A POST stores the job and answers 202 with its ref; a GET reads the status and, once the job has finished, the
+// result.
+using Acta;
+using Acta.Concepts.AspNetEnqueueApi;
+
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.UseActa(j =>
+{
+    j.UseLocalDatabase(builder.Configuration);
+    j.Run<AspNetEnqueueApiJobs>("aspnet-enqueue-api");
+});
+
+var app = builder.Build();
+
+// POST writes a durable job and returns 202; the import runs on the worker after the request ends.
+// DeduplicationKey dedupes a retry with the same tenant/import id onto the same job.
+app.MapPost("/imports", async (StartImportRequest request, HttpContext http, IJobs jobs, CancellationToken ct) =>
+{
+    var businessKey = $"import:{request.Tenant}:{request.ImportId}";
+    var deduplicationKey = DeduplicationKey.ForDefinition("import-csv", businessKey);
+    var correlationKey = http.TraceIdentifier;
+
+    // learn: 1. Enqueue in the POST and answer 202 with the job's ref
+    // The job is a durable row before the response leaves, and the worker runs it after the request has ended. The
+    // ref goes into the address the client polls.
+    var job = await jobs.EnqueueAsync(
+        new ImportCsv(request.Tenant, request.ImportId, request.FileName),
+        o => o.DeduplicationKey(deduplicationKey).CorrelationKey(correlationKey).Tag("tenant", request.Tenant).Tag("kind", "csv"),
+        ct
+    );
+
+    var statusUrl = $"/imports/{job.JobRef}";
+
+    return Results.Accepted(statusUrl, new StartImportResponse(job.JobRef, job.Action.ToString(), statusUrl, correlationKey));
+    // learn: end
+});
+
+// GET polls the public JobRef; the result is read back only once the job is terminal.
+app.MapGet("/imports/{jobRef}", async (string jobRef, IJobs jobs, CancellationToken ct) =>
+{
+    if (!JobRef.TryParse(jobRef, out var parsed))
+    {
+        return Results.BadRequest(new { error = "Invalid job ref." });
+    }
+
+    // learn: 2. Read the status, and the result once the job has finished
+    // `GetAsync` answers null for a ref that names no job. A result exists only once the job has succeeded, so the
+    // read waits for a terminal status.
+    var snapshot = await jobs.GetAsync(parsed, ct);
+    if (snapshot is null)
+    {
+        return Results.NotFound();
+    }
+
+    ImportResult? result = null;
+    if (snapshot.Status.IsTerminal)
+    {
+        (_, result) = await jobs.TryGetResultAsync<ImportResult>(parsed, ct);
+    }
+    // learn: end
+
+    return Results.Ok(
+        new ImportStatusResponse(
+            snapshot.JobRef,
+            snapshot.Status.ToString(),
+            snapshot.DeduplicationKey,
+            snapshot.CreatedAtUtc,
+            snapshot.ModifiedAtUtc,
+            result
+        )
+    );
+});
+
+Console.WriteLine("POST /imports with { \"tenant\": \"acme\", \"importId\": \"2026-06\", \"fileName\": \"customers.csv\" }");
+Console.WriteLine("Then poll GET /imports/{jobRef}");
+
+await app.RunAsync();
+
+namespace Acta.Concepts.AspNetEnqueueApi
+{
+    public sealed record StartImportRequest(string Tenant, string ImportId, string FileName);
+
+    public sealed record StartImportResponse(JobRef JobRef, string Action, string StatusUrl, string CorrelationKey);
+
+    public sealed record ImportStatusResponse(
+        JobRef JobRef,
+        string Status,
+        string? DeduplicationKey,
+        DateTime CreatedAtUtc,
+        DateTime ModifiedAtUtc,
+        ImportResult? Result
+    );
+
+    public sealed record ImportCsv(string Tenant, string ImportId, string FileName);
+
+    public sealed record ImportResult(int RowsImported);
+
+    public static class ImportCsvJob
+    {
+        [Job("import-csv")]
+        public static async Task<ImportResult> Handle(ImportCsv input, CancellationToken ct)
+        {
+            Console.WriteLine($"[{input.Tenant}] importing {input.FileName} ({input.ImportId})");
+            await Task.Delay(750, ct);
+            return new ImportResult(RowsImported: 42);
+        }
+    }
+}
+```
+

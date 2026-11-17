@@ -1,0 +1,77 @@
+# How to run a job on a repeating schedule
+
+`[Schedule]` with a cron makes one permanent job that fires on that cadence, with nothing to enqueue.
+
+- Section: Run work on a schedule, step 1
+- Program: `concepts/100-scheduling/101-recurring-job` in https://github.com/acta-dotnet/acta (one compiled project)
+- Status: Checked every release. Before each release, Acta Verify runs this program and checks that its output contains these lines.
+- Rules: [/llms.txt](/llms.txt) is the contract every handler follows; "Remember" below carries the rules that bite this task.
+- Release: the one /llms.txt names at its top.
+- Page for people: /learn/101-recurring-job
+- New to Acta: it is durable execution for .NET, a library with its state in the app's SQL database; the first run is in /llms.txt.
+
+## 1. Put a schedule on the job
+
+`[Schedule]` takes a name and a cron, here one of the `Cron` constants. One permanent job fires on the cadence, and each successful fire's count replaces the last one stored; EventRecordingCode.Failures writes no event for a fire that succeeds with no failure before it.
+
+The lines that matter:
+
+```csharp
+[Job("purge-stale-sessions", EventRecording = EventRecordingCode.Failures)]
+[Schedule("every-15-seconds", Cron.Every15Seconds)]
+```
+
+In `recurring-job.cs` (excerpt):
+
+```csharp
+public readonly record struct PurgeStaleSessions;
+
+public sealed class PurgeStaleSessionsJob
+{
+    [Job("purge-stale-sessions", EventRecording = EventRecordingCode.Failures)]
+    [Schedule("every-15-seconds", Cron.Every15Seconds)]
+    public async Task<int> Handle(PurgeStaleSessions input, JobContext context, CancellationToken ct)
+    {
+        await Task.Delay(100, ct);
+        var purged = Random.Shared.Next(0, 25);
+        Console.WriteLine(
+            $"{DateTime.UtcNow:HH:mm:ss} UTC [{string.Join(", ", context.TriggeringSchedules.Select(s => s.ScheduleName))}] purged {purged} stale sessions"
+        );
+        return purged;
+    }
+}
+```
+
+## 2. Run it and check the output
+
+From a clone of the repository, with the .NET 10 SDK:
+
+```bash
+dotnet run --project concepts/100-scheduling/101-recurring-job
+```
+
+Its output must contain:
+
+```text
+[every-15-seconds] purged
+```
+
+Checked every release. Before each release, Acta Verify runs this program and checks that its output contains these lines.
+
+## Remember
+
+- A schedule is written by a deploy: `jobs migrate` or `jobs deploy` in production, the development start on your own machine.
+- A permanent job keeps its step results from one firing to the next. Put the firing in a step's name, `$"send.f{ctx.FiringId:N}"`, or the step that ran on the last firing answers this one from its record.
+- The handler does its bounded work and returns. Never loop inside it: the schedule brings the next firing.
+
+## Not in the packages
+
+`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on any of the three databases. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+
+## Next
+
+- [How to run a job every day at a set hour in your time zone](/learn/104-timezone-schedule.md)
+
+## More
+
+- [The whole program](/learn/101-recurring-job.program.md): every file as compiled, 41 lines.

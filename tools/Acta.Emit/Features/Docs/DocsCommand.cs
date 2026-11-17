@@ -1,3 +1,4 @@
+using Acta.Emit.Features.Learn;
 using Acta.Emit.Shared;
 using Acta.Emit.Shared.Model;
 
@@ -30,6 +31,12 @@ internal static class DocsCommand
             Console.WriteLine($"  wrote {schemaPath}");
         }
 
-        return 0;
+        var learn = LearnEmitter.Write(repoRoot);
+        if (learn > 0)
+        {
+            Console.WriteLine($"  wrote {learn} files of the Learn section: the how-tos under site/learn and the concept ladder");
+        }
+
+        return learn < 0 ? 1 : 0;
     }
 }

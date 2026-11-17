@@ -27,7 +27,7 @@ internal static class Usage
     {
         Console.WriteLine(
             """
-            Acta.Emit: emits committed repo artifacts from the IEntity source of truth.
+            Acta.Emit: emits committed repo artifacts from the IEntity source of truth and the concept programs.
 
             Usage:
               dotnet run --project tools/Acta.Emit -- docs
@@ -36,8 +36,10 @@ internal static class Usage
               dotnet run --project tools/Acta.Emit -- schema add --name add_tenant
 
             Subcommands:
-              docs                         Emit docs/reference/data-model.md, code-families.md, and schema-{pg,mssql,sqlite}.sql
-              check                        Verify docs are current AND the snapshot equals the live model
+              docs                         Emit docs/reference/data-model.md, code-families.md, and schema-{pg,mssql,sqlite}.sql,
+                                           and from the concept programs the how-tos under site/learn, site/learn.html,
+                                           and docs/reference/concept-ladder.md
+              check                        Verify docs and how-tos are current AND the snapshot equals the live model
               schema reset [--force]       Delete all migrations + the snapshot (deletes only; --force required)
               schema add [--name <n> [--force]]
                                            Emit M{yyyyMMddHHmmss}_{n}.sql (UTC now) for every provider; save the snapshot

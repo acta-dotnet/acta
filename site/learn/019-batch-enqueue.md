@@ -1,0 +1,81 @@
+# How to enqueue many jobs in one round trip
+
+`EnqueueJobsAsync` writes a whole list of jobs in one round trip to the database and answers their outcomes in request order.
+
+- Section: Start jobs, step 13
+- Program: `concepts/000-fundamentals/019-batch-enqueue` in https://github.com/acta-dotnet/acta (one compiled project)
+- Status: Checked every release. Before each release, Acta Verify runs this program and checks that its output contains these lines.
+- Rules: [/llms.txt](/llms.txt) is the contract every handler follows, starting with the handler running again from its first line; read it before you copy code from here.
+- Release: the one /llms.txt names at its top.
+- Page for people: /learn/019-batch-enqueue
+- New to Acta: it is durable execution for .NET, a library with its state in the app's SQL database; the first run is in /llms.txt.
+
+## 1. Build the requests and enqueue them together
+
+EnqueueJobsAsync writes the whole batch in one round-trip; outcomes return in request order.
+
+The lines that matter:
+
+```csharp
+var requests = Enumerable.Range(1, 500).Select(_ => new EnqueueJobRequest("batch-enqueue", "ping")).ToList();
+
+var sw = Stopwatch.StartNew();
+var outcomes = (await jobs.EnqueueJobsAsync(requests)).Jobs;
+```
+
+In `batch-enqueue.cs` (excerpt):
+
+```csharp
+var jobs = host.Services.GetRequiredService<IJobs>();
+
+var requests = Enumerable.Range(1, 500).Select(_ => new EnqueueJobRequest("batch-enqueue", "ping")).ToList();
+
+var sw = Stopwatch.StartNew();
+var outcomes = (await jobs.EnqueueJobsAsync(requests)).Jobs;
+
+sw.Stop();
+Console.WriteLine(
+    $"Enqueued {outcomes.Count} jobs in one round-trip in {sw.ElapsedMilliseconds} ms (ids {outcomes[0].JobId}..{outcomes[^1].JobId})."
+);
+Console.WriteLine("Worker is running - press Ctrl+C to stop.");
+```
+
+## 2. The job it acts on
+
+`batch-enqueue.cs` (excerpt):
+
+```csharp
+public static class PingJob
+{
+    [Job("ping")]
+    public static void Handle() { }
+}
+```
+
+## 3. Run it and check the output
+
+From a clone of the repository, with the .NET 10 SDK:
+
+```bash
+dotnet run --project concepts/000-fundamentals/019-batch-enqueue
+```
+
+Its output must contain:
+
+```text
+Enqueued 500 jobs in one round-trip
+```
+
+Checked every release. Before each release, Acta Verify runs this program and checks that its output contains these lines.
+
+## Not in the packages
+
+`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on any of the three databases. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+
+## Next
+
+- [How to run urgent jobs first](/learn/017-priority.md)
+
+## More
+
+- [The whole program](/learn/019-batch-enqueue.program.md): every file as compiled, 47 lines.

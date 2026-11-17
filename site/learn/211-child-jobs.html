@@ -1,0 +1,454 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>How to start child jobs and wait for them · Acta, durable execution for .NET</title>
+  <meta name="description" content="How to start child jobs and wait for them with Acta, durable execution for .NET. A parent starts child jobs by name, suspends without holding a worker until every child has finished, and reads their results." />
+  <link rel="canonical" href="https://useacta.net/learn/211-child-jobs" />
+  <meta name="theme-color" content="#0B0E15" />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="Acta for .NET" />
+  <meta property="og:title" content="How to start child jobs and wait for them · Acta, durable execution for .NET" />
+  <meta property="og:description" content="How to start child jobs and wait for them with Acta, durable execution for .NET. A parent starts child jobs by name, suspends without holding a worker until every child has finished, and reads their results." />
+  <meta property="og:url" content="https://useacta.net/learn/211-child-jobs" />
+  <meta property="og:image" content="https://useacta.net/assets/social-card.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="Acta: durable execution for .NET. Postgres, SQL Server, SQLite." />
+  <meta name="twitter:card" content="summary_large_image" />
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"How to start child jobs and wait for them","description":"How to start child jobs and wait for them with Acta, durable execution for .NET. A parent starts child jobs by name, suspends without holding a worker until every child has finished, and reads their results.","url":"https://useacta.net/learn/211-child-jobs","inLanguage":"en","articleSection":"Split work across child jobs","isPartOf":{"@type":"CollectionPage","name":"Learn Acta","url":"https://useacta.net/learn"},"about":{"@type":"SoftwareSourceCode","name":"Acta","programmingLanguage":"C#","codeRepository":"https://github.com/acta-dotnet/acta"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Learn Acta","item":"https://useacta.net/learn"},{"@type":"ListItem","position":2,"name":"Split work across child jobs","item":"https://useacta.net/learn#s-children"},{"@type":"ListItem","position":3,"name":"How to start child jobs and wait for them","item":"https://useacta.net/learn/211-child-jobs"}]}</script>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="alternate" type="text/plain" href="/llms.txt" title="Acta for coding agents" />
+  <link rel="alternate" type="text/markdown" href="/learn/211-child-jobs.md" title="This page as Markdown, for coding agents" />
+  <link rel="preload" href="/assets/fonts/fraunces-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="/assets/fonts/ibm-plex-sans-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="/assets/fonts/ibm-plex-mono-400-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <style>
+    /* Self-hosted latin subsets of the three families, preloaded and served immutable (see _headers),
+       so a reload paints them from cache with no swap and a first visit swaps them in as they land.
+       Fraunces and Plex Sans are variable files. */
+    @font-face { font-family: "Fraunces"; font-style: normal; font-weight: 400 600; font-display: swap; src: url(/assets/fonts/fraunces-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "Fraunces"; font-style: italic; font-weight: 400 500; font-display: swap; src: url(/assets/fonts/fraunces-italic-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "IBM Plex Sans"; font-style: normal; font-weight: 400 600; font-display: swap; src: url(/assets/fonts/ibm-plex-sans-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "IBM Plex Mono"; font-style: normal; font-weight: 400; font-display: swap; src: url(/assets/fonts/ibm-plex-mono-400-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "IBM Plex Mono"; font-style: normal; font-weight: 500; font-display: swap; src: url(/assets/fonts/ibm-plex-mono-500-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+  </style>
+  <link rel="stylesheet" href="/assets/site.css" />
+  <link rel="stylesheet" href="/assets/learn.css" />
+  <script src="/assets/theme.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#content">Skip to content</a>
+  <div class="chrome">
+    <div class="wrap chrome-inner">
+    <a class="brand site-brand" href="/" aria-label="Acta home"><svg viewBox="3.95 4.95 30.1 30.1" fill="none" stroke="currentColor" stroke-width="4.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 33 19 7 32 33" /><circle cx="19" cy="27" r="3" fill="currentColor" stroke="none" /></svg><span class="brand-word">Acta<span>.</span></span></a>
+    <span class="meta">Durable execution for .NET</span>
+    <nav aria-label="Primary links">
+      <a href="/start">Start</a>
+      <a href="/capabilities">Capabilities</a>
+      <a href="/benchmark">Benchmark</a>
+      <a href="/learn" aria-current="page">Learn</a>
+      <a href="https://github.com/acta-dotnet/acta" class="gh" aria-label="Acta on GitHub" title="Acta on GitHub"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><path fill="currentColor" d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"></path></svg></a>
+    </nav>
+    <span class="header-appearance" data-theme-controls></span>
+    </div>
+  </div>
+
+
+  <main id="content" data-howto="211">
+    <header class="wrap page-head howto-head">
+      <p class="record"><a href="/learn">learn acta</a><span aria-hidden="true">/</span><a href="/learn#s-children">split work across child jobs</a></p>
+      <h1>How to start child jobs and wait for them</h1>
+      <p class="lede">A parent starts child jobs by name, suspends without holding a worker until every child has finished, and reads their results.</p>
+      <p class="howto-context">A how-to for Acta, durable execution for .NET. <a href="/start">New to Acta? Run your first durable job in five minutes.</a></p>
+      <div class="howto-meta">
+        <span class="status checked">Checked every release</span><span class="mark lab">Lab</span>
+        <a class="program" href="https://github.com/acta-dotnet/acta/tree/main/concepts/200-durable-execution/211-child-jobs"><code>concepts/200-durable-execution/211-child-jobs</code></a>
+        <div class="reader" role="group" aria-label="Read this page as">
+        <span class="reader-label">Read as</span>
+        <button type="button" data-reader="person" aria-pressed="true">a person</button>
+        <button type="button" data-reader="agent" aria-pressed="false" data-md="/learn/211-child-jobs.md">an agent</button>
+      </div>
+      </div>
+    </header>
+    <div class="wrap howto-body">
+      <article class="howto person-face">
+<div class="step"><h2><span class="step-n">1</span>Start each child under a name</h2>
+<p>On a replay of the parent, the same name answers the child that is already there, so no child starts twice.</p>
+<figure class="listing"><figcaption><span class="file">child-jobs.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-1">Copy</button></figcaption><pre><code id="code-1"><span class="c">// EnqueueChildAsync enqueues name-deduped child jobs; WaitChildrenAsync suspends the parent</span>
+<span class="c">// (holding no executor) until every child is terminal; cancelling the parent cascades to children.</span>
+<span class="c">// MapAsync does the same for a list of children in one call (lab 215).</span>
+<span class="a">[Job(<span class="s">&quot;build-snowman&quot;</span>)]</span>
+<span class="k">public</span> <span class="k">async</span> Task&lt;FinishedSnowman&gt; Handle(BuildSnowman input, JobContext context, CancellationToken ct)
+{
+<span class="hl">    <span class="k">var</span> bottom = <span class="k">await</span> context.EnqueueChildAsync(<span class="s">&quot;bottom&quot;</span>, <span class="k">new</span> RollSnowball(<span class="s">&quot;bottom&quot;</span>, input.FailPart == <span class="s">&quot;bottom&quot;</span>), ct);</span>
+<span class="hl">    <span class="k">var</span> middle = <span class="k">await</span> context.EnqueueChildAsync(<span class="s">&quot;middle&quot;</span>, <span class="k">new</span> RollSnowball(<span class="s">&quot;middle&quot;</span>, input.FailPart == <span class="s">&quot;middle&quot;</span>), ct);</span>
+<span class="hl">    <span class="k">var</span> head = <span class="k">await</span> context.EnqueueChildAsync(<span class="s">&quot;head&quot;</span>, <span class="k">new</span> RollSnowball(<span class="s">&quot;head&quot;</span>, input.FailPart == <span class="s">&quot;head&quot;</span>), ct);</span>
+
+    <span class="c">// The parent suspends, holding no executor, until every child is terminal. A failed child does not throw</span>
+    <span class="c">// here: the wait lists it, and the parent decides.</span>
+    <span class="k">var</span> joined = <span class="k">await</span> context.WaitChildrenAsync([bottom, middle, head], ct);
+    <span class="k">foreach</span> (<span class="k">var</span> outcome <span class="k">in</span> joined.Failed)
+    {</code></pre></figure>
+</div>
+<div class="step"><h2><span class="step-n">2</span>Wait for all of them, and decide what a failed child means</h2>
+<p>The parent suspends, holding no executor, until every child is terminal. A failed child does not throw here: the wait lists it, and the parent decides.</p>
+<figure class="listing"><figcaption><span class="file">child-jobs.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-2">Copy</button></figcaption><pre><code id="code-2"><span class="c">// On a replay of the parent, the same name answers the child that is already there, so no child starts</span>
+<span class="c">// twice.</span>
+<span class="k">var</span> bottom = <span class="k">await</span> context.EnqueueChildAsync(<span class="s">&quot;bottom&quot;</span>, <span class="k">new</span> RollSnowball(<span class="s">&quot;bottom&quot;</span>, input.FailPart == <span class="s">&quot;bottom&quot;</span>), ct);
+<span class="k">var</span> middle = <span class="k">await</span> context.EnqueueChildAsync(<span class="s">&quot;middle&quot;</span>, <span class="k">new</span> RollSnowball(<span class="s">&quot;middle&quot;</span>, input.FailPart == <span class="s">&quot;middle&quot;</span>), ct);
+<span class="k">var</span> head = <span class="k">await</span> context.EnqueueChildAsync(<span class="s">&quot;head&quot;</span>, <span class="k">new</span> RollSnowball(<span class="s">&quot;head&quot;</span>, input.FailPart == <span class="s">&quot;head&quot;</span>), ct);
+
+<span class="hl"><span class="k">var</span> joined = <span class="k">await</span> context.WaitChildrenAsync([bottom, middle, head], ct);</span>
+<span class="hl"><span class="k">foreach</span> (<span class="k">var</span> outcome <span class="k">in</span> joined.Failed)</span>
+<span class="hl">{</span>
+<span class="hl">    <span class="k">await</span> context.FailAsync(<span class="s">$&quot;child {outcome.JobRef} ended {outcome.Status}; see its job events for the reason&quot;</span>, ct);</span>
+<span class="hl">}</span>
+
+<span class="k">var</span> b = <span class="k">await</span> context.GetChildResultAsync&lt;Snowball&gt;(bottom.JobId, ct);
+<span class="k">var</span> m = <span class="k">await</span> context.GetChildResultAsync&lt;Snowball&gt;(middle.JobId, ct);
+<span class="k">var</span> h = <span class="k">await</span> context.GetChildResultAsync&lt;Snowball&gt;(head.JobId, ct);
+
+<span class="k">var</span> height = b.Diameter + m.Diameter + h.Diameter;</code></pre></figure>
+</div>
+<div class="step"><h2><span class="step-n">3</span>Read each child's result</h2>
+<figure class="listing"><figcaption><span class="file">child-jobs.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-3">Copy</button></figcaption><pre><code id="code-3">    <span class="k">var</span> joined = <span class="k">await</span> context.WaitChildrenAsync([bottom, middle, head], ct);
+    <span class="k">foreach</span> (<span class="k">var</span> outcome <span class="k">in</span> joined.Failed)
+    {
+        <span class="k">await</span> context.FailAsync(<span class="s">$&quot;child {outcome.JobRef} ended {outcome.Status}; see its job events for the reason&quot;</span>, ct);
+    }
+
+<span class="hl">    <span class="k">var</span> b = <span class="k">await</span> context.GetChildResultAsync&lt;Snowball&gt;(bottom.JobId, ct);</span>
+<span class="hl">    <span class="k">var</span> m = <span class="k">await</span> context.GetChildResultAsync&lt;Snowball&gt;(middle.JobId, ct);</span>
+<span class="hl">    <span class="k">var</span> h = <span class="k">await</span> context.GetChildResultAsync&lt;Snowball&gt;(head.JobId, ct);</span>
+
+    <span class="k">var</span> height = b.Diameter + m.Diameter + h.Diameter;
+    Console.WriteLine(<span class="s">$&quot;[{input.Name}] stacked {b.Diameter} + {m.Diameter} + {h.Diameter} = {height}cm tall&quot;</span>);
+    <span class="k">return</span> <span class="k">new</span> FinishedSnowman(input.Name, height);
+}
+</code></pre></figure>
+</div>
+<div class="step"><h2><span class="step-n">4</span>Run it and check the output</h2>
+<p>From a clone of <a href="https://github.com/acta-dotnet/acta">the Acta repository</a>, with the .NET 10 SDK:</p>
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-4">Copy</button></figcaption><pre><code id="code-4">dotnet run --project concepts/200-durable-execution/211-child-jobs</code></pre></figure>
+<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button" data-copy-target="#code-5">Copy</button></figcaption><pre><code id="code-5">[Frosty] stacked 60 + 40 + 20 = 120cm tall
+snowman finished: FinishedSnowman { Name = Frosty, HeightCm = 120 }</code></pre></figure>
+<p class="proof checked"><b>Checked every release.</b> Before each release, Acta Verify runs this program and checks that its output contains these lines.</p>
+<p class="hint">This page shows the code. The rules it relies on, starting with the handler running again from its first line, are in <a href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#handler-contract">the handler contract</a>.</p>
+</div>
+<details class="step lab-notes"><summary>The lab behind it: child jobs are ordinary jobs; the join is a latch</summary>
+<p>This program is an Engineering Lab: beside the how-to it prints the rows that show what happened, and its notes weigh the design against the alternatives.</p>
+<h3>The problem</h3>
+<p>Parallel sub-work needs independent execution and failure evidence, while the parent must wait without holding a process or worker.</p>
+<h3>Common approaches</h3>
+<ul class="plain"><li>Run tasks in memory and join before the handler returns.</li><li>Use durable steps inside one job identity.</li><li>Create independently claimable child jobs and durable parent-owned latches.</li><li>Move the graph to an external workflow engine.</li></ul>
+<h3>Why this design</h3>
+<p>Acta children are normal jobs with their own retries, workers, results, and events. The parent suspends without a lease; child terminal outcomes set checkpoints owned by the parent, which later re-enters and joins the results.</p>
+<p>This lab enqueues each child with <code>EnqueueChildAsync</code> and waits for all of them with one <code>WaitChildrenAsync</code>, so every latch is visible. When the children come from a list, <code>MapAsync</code> does the same over the same latches in one call; lab 215 shows both, and lab 212 uses <code>MapAsync</code> for a map-reduce.</p>
+<h3>Trade-offs</h3>
+<p>Independent jobs create more rows, claims, serialization, and failure policy than steps. The parent handler still replays, and child names/latches are durable contract keys.</p>
+<h3>Run the experiment</h3>
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-6">Copy</button></figcaption><pre><code id="code-6">dotnet run --project concepts/200-durable-execution/211-child-jobs</code></pre></figure>
+<h3>Rows to inspect</h3>
+<p>Run with <code>--all-columns</code> to execute the visible <code>SELECT *</code> Explore query first. The default Notice queries select the fields that prove the lesson, and the text below explains their meaning.</p>
+<p>While children run, <code>jobs_view</code> shows a suspended, unleased parent plus independently executing children linked by <code>parent_job_id</code>/<code>lineage_root_job_id</code>. <code>checkpoints_view</code> shows pending child latches. The final snapshot proves the parent resumed on a later execution.</p>
+<h3>Break it</h3>
+<p>Run the built-in child failure:</p>
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-7">Copy</button></figcaption><pre><code id="code-7">dotnet run --project concepts/200-durable-execution/211-child-jobs -- --fail-child</code></pre></figure>
+<p>The head child exhausts two attempts, the parent resumes from its latch and ends failed, and the program prints both terminal rows instead of waiting only for success. Expected framework stack traces are suppressed; <code>events_view</code> retains the complete failure evidence. Continue with lab 219 for explicit child-failure outcome policy.</p>
+<h3>When not to use</h3>
+<p>Prefer steps when work belongs to one identity, needs no independent ownership, and row/claim overhead matters. Prefer child jobs for separate retries, parallelism, observability, or worker namespaces. Use a workflow engine for very large or externally authored graphs.</p>
+<h3>Source trail</h3>
+<ul class="plain"><li><a href="https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md">The related Engineering Lab</a></li><li><a href="https://github.com/acta-dotnet/acta/blob/main/concepts/200-durable-execution/211-child-jobs/child-jobs.cs"><code>child-jobs.cs</code></a></li><li><a href="https://github.com/acta-dotnet/acta/blob/main/src/Acta/Handlers/JobContext.cs"><code>JobContext.cs</code></a></li><li><a href="https://github.com/acta-dotnet/acta/blob/main/src/Acta/Operations/Execution/ListStaleJobChildLatches/ListStaleJobChildLatches.sqlite.sql"><code>ListStaleJobChildLatches.sqlite.sql</code></a></li></ul>
+</details>
+<div class="step plain-step"><h2>The whole program</h2>
+<p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/concepts/200-durable-execution/211-child-jobs"><code>concepts/200-durable-execution/211-child-jobs</code></a>, as it is compiled.</p>
+<p class="hint"><code>UseLocalDatabase</code> and <code>ConceptLab</code> are helpers of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
+<details class="source-file"><summary><span class="file-name">child-jobs.cs</span><span class="file-size">207 lines</span></summary><figure class="listing"><figcaption><span class="file">child-jobs.cs</span><button class="copy" type="button" data-copy-target="#code-8">Copy</button></figcaption><pre><code id="code-8"><span class="c">// How to start child jobs and wait for them</span>
+<span class="c">// A parent starts child jobs by name, suspends without holding a worker until every child has finished, and reads</span>
+<span class="c">// their results.</span>
+<span class="k">using</span> Acta;
+<span class="k">using</span> Acta.Concepts.ChildJobs;
+<span class="k">using</span> Acta.Labs;
+<span class="k">using</span> Microsoft.Extensions.DependencyInjection;
+<span class="k">using</span> Microsoft.Extensions.Hosting;
+<span class="k">using</span> Microsoft.Extensions.Logging;
+
+<span class="k">var</span> builder = Host.CreateApplicationBuilder(args);
+<span class="k">var</span> lab = <span class="k">new</span> ConceptLab(builder.Configuration, args);
+<span class="k">var</span> failChild = args.Contains(<span class="s">&quot;--fail-child&quot;</span>, StringComparer.OrdinalIgnoreCase);
+
+builder.Services.UseActa(j =&gt;
+{
+    j.UseLocalDatabase(builder.Configuration);
+    j.Run&lt;ChildJobsManifest&gt;(<span class="s">&quot;child-jobs&quot;</span>);
+});
+<span class="k">if</span> (failChild)
+{
+    <span class="c">// The two child failures are the experiment; their durable rows/events are clearer than startup stack traces.</span>
+    builder.Logging.AddFilter(<span class="s">&quot;Acta&quot;</span>, LogLevel.Error);
+}
+
+<span class="k">using</span> <span class="k">var</span> host = builder.Build();
+<span class="k">await</span> host.StartAsync();
+
+<span class="k">var</span> jobs = host.Services.GetRequiredService&lt;IJobs&gt;();
+
+<span class="c">// Children dedupe by name; WaitChildrenAsync resumes from durable latches on replay.</span>
+<span class="k">var</span> outcome = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> BuildSnowman(<span class="s">&quot;Frosty&quot;</span>, failChild ? <span class="s">&quot;head&quot;</span> : <span class="k">null</span>));
+<span class="k">await</span> WaitForAsync(
+    jobs,
+    outcome.JobId,
+    <span class="k">static</span> snapshot =&gt; snapshot.Status == JobStatusCode.Suspended,
+    <span class="s">&quot;parent to suspend on child latches&quot;</span>
+);
+<span class="k">await</span> lab.ShowAllAsync(
+    <span class="s">&quot;Explore every complete job record in the lineage&quot;</span>,
+    <span class="s">&quot;&quot;&quot;</span>
+<span class="s">    SELECT *</span>
+<span class="s">    FROM jobs_view</span>
+<span class="s">    WHERE lineage_root_job_id = @rootJobId</span>
+<span class="s">    ORDER BY job_id</span>
+<span class="s">    &quot;&quot;&quot;</span>,
+    <span class="k">new</span> { rootJobId = outcome.JobId }
+);
+<span class="k">await</span> lab.ShowAsync(
+    <span class="s">&quot;Parent and children are independent jobs in one lineage&quot;</span>,
+    <span class="s">&quot;&quot;&quot;</span>
+<span class="s">    SELECT job_id, definition_name, job_status, parent_job_id, lineage_root_job_id, leased_by_worker_id</span>
+<span class="s">    FROM jobs_view</span>
+<span class="s">    WHERE lineage_root_job_id = @rootJobId</span>
+<span class="s">    ORDER BY job_id</span>
+<span class="s">    &quot;&quot;&quot;</span>,
+    <span class="k">new</span> { rootJobId = outcome.JobId }
+);
+<span class="k">await</span> lab.ShowAsync(
+    <span class="s">&quot;The waiting parent owns child-latch checkpoints and no worker&quot;</span>,
+    <span class="s">&quot;&quot;&quot;</span>
+<span class="s">    SELECT checkpoint_name, checkpoint_kind, checkpoint_status</span>
+<span class="s">    FROM checkpoints_view</span>
+<span class="s">    WHERE job_id = @parentJobId</span>
+<span class="s">    ORDER BY checkpoint_name</span>
+<span class="s">    &quot;&quot;&quot;</span>,
+    <span class="k">new</span> { parentJobId = outcome.JobId }
+);
+
+<span class="k">var</span> terminal = <span class="k">await</span> WaitForAsync(jobs, outcome.JobId, <span class="k">static</span> snapshot =&gt; snapshot.Status.IsTerminal, <span class="s">&quot;parent to reach a terminal state&quot;</span>);
+<span class="k">if</span> (terminal.Status == JobStatusCode.Succeeded)
+{
+    <span class="k">var</span> result = <span class="k">await</span> jobs.GetResultAsync&lt;FinishedSnowman&gt;(outcome);
+    Console.WriteLine(<span class="s">$&quot;snowman finished: {result}&quot;</span>);
+}
+<span class="k">else</span> <span class="k">if</span> (failChild &amp;&amp; terminal.Status == JobStatusCode.Failed)
+{
+    Console.WriteLine(<span class="s">&quot;Expected failure mode: the child failed independently and the parent recorded the failed latch outcome.&quot;</span>);
+}
+<span class="k">else</span>
+{
+    <span class="k">throw</span> <span class="k">new</span> InvalidOperationException(<span class="s">$&quot;Parent {terminal.JobRef} ended {terminal.Status}; inspect its events for the reason.&quot;</span>);
+}
+<span class="k">await</span> lab.ShowAsync(
+    <span class="s">&quot;Closed latches release the parent for a later execution&quot;</span>,
+    <span class="s">&quot;&quot;&quot;</span>
+<span class="s">    SELECT job_id, definition_name, job_status, execution_number, parent_job_id</span>
+<span class="s">    FROM jobs_view</span>
+<span class="s">    WHERE lineage_root_job_id = @rootJobId</span>
+<span class="s">    ORDER BY job_id</span>
+<span class="s">    &quot;&quot;&quot;</span>,
+    <span class="k">new</span> { rootJobId = outcome.JobId }
+);
+<span class="k">await</span> lab.ShowAsync(
+    <span class="s">&quot;Every child outcome is now latched on the parent&quot;</span>,
+    <span class="s">&quot;&quot;&quot;</span>
+<span class="s">    SELECT checkpoint_name, checkpoint_kind, checkpoint_status</span>
+<span class="s">    FROM checkpoints_view</span>
+<span class="s">    WHERE job_id = @parentJobId</span>
+<span class="s">    ORDER BY checkpoint_name</span>
+<span class="s">    &quot;&quot;&quot;</span>,
+    <span class="k">new</span> { parentJobId = outcome.JobId }
+);
+<span class="k">await</span> lab.ShowAsync(
+    <span class="s">&quot;Parent and child events retain the independent failure history&quot;</span>,
+    <span class="s">&quot;&quot;&quot;</span>
+<span class="s">    SELECT entity_id AS job_id, definition_name, event, execution_number, details_text</span>
+<span class="s">    FROM events_view</span>
+<span class="s">    WHERE lineage_root_job_id = @rootJobId</span>
+<span class="s">    ORDER BY event_id</span>
+<span class="s">    &quot;&quot;&quot;</span>,
+    <span class="k">new</span> { rootJobId = outcome.JobId }
+);
+
+<span class="k">await</span> host.StopAsync();
+
+<span class="k">static</span> <span class="k">async</span> Task&lt;GetJobResponse&gt; WaitForAsync(IJobs jobs, <span class="k">long</span> jobId, Func&lt;GetJobResponse, <span class="k">bool</span>&gt; predicate, <span class="k">string</span> description)
+{
+    <span class="k">using</span> <span class="k">var</span> timeout = <span class="k">new</span> CancellationTokenSource(TimeSpan.FromSeconds(30));
+    <span class="k">try</span>
+    {
+        <span class="k">while</span> (<span class="k">true</span>)
+        {
+            <span class="k">var</span> snapshot = <span class="k">await</span> jobs.GetAsync(JobLookup.ById(jobId), timeout.Token);
+            <span class="k">if</span> (snapshot <span class="k">is</span> <span class="k">not</span> <span class="k">null</span> &amp;&amp; predicate(snapshot))
+            {
+                <span class="k">return</span> snapshot;
+            }
+            <span class="k">if</span> (snapshot?.Status.IsTerminal == <span class="k">true</span>)
+            {
+                <span class="k">throw</span> <span class="k">new</span> InvalidOperationException(<span class="s">$&quot;Job {snapshot.JobRef} became {snapshot.Status} while waiting for {description}.&quot;</span>);
+            }
+            <span class="k">await</span> Task.Delay(50, timeout.Token);
+        }
+    }
+    <span class="k">catch</span> (OperationCanceledException) <span class="k">when</span> (timeout.IsCancellationRequested)
+    {
+        <span class="k">throw</span> <span class="k">new</span> TimeoutException(<span class="s">$&quot;Timed out waiting for {description} on job {jobId}.&quot;</span>);
+    }
+}
+
+<span class="k">namespace</span> Acta.Concepts.ChildJobs
+{
+    <span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> BuildSnowman(<span class="k">string</span> Name, <span class="k">string</span>? FailPart);
+
+    <span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> RollSnowball(<span class="k">string</span> Part, <span class="k">bool</span> ShouldFail);
+
+    <span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> Snowball(<span class="k">string</span> Part, <span class="k">int</span> Diameter);
+
+    <span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> FinishedSnowman(<span class="k">string</span> Name, <span class="k">int</span> HeightCm);
+
+    <span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> SnowmanBuilder
+    {
+        <span class="c">// EnqueueChildAsync enqueues name-deduped child jobs; WaitChildrenAsync suspends the parent</span>
+        <span class="c">// (holding no executor) until every child is terminal; cancelling the parent cascades to children.</span>
+        <span class="c">// MapAsync does the same for a list of children in one call (lab 215).</span>
+        <span class="a">[Job(<span class="s">&quot;build-snowman&quot;</span>)]</span>
+        <span class="k">public</span> <span class="k">async</span> Task&lt;FinishedSnowman&gt; Handle(BuildSnowman input, JobContext context, CancellationToken ct)
+        {
+            <span class="c">// learn: 1. Start each child under a name</span>
+            <span class="c">// On a replay of the parent, the same name answers the child that is already there, so no child starts</span>
+            <span class="c">// twice.</span>
+<span class="hl">            <span class="k">var</span> bottom = <span class="k">await</span> context.EnqueueChildAsync(<span class="s">&quot;bottom&quot;</span>, <span class="k">new</span> RollSnowball(<span class="s">&quot;bottom&quot;</span>, input.FailPart == <span class="s">&quot;bottom&quot;</span>), ct);</span>
+<span class="hl">            <span class="k">var</span> middle = <span class="k">await</span> context.EnqueueChildAsync(<span class="s">&quot;middle&quot;</span>, <span class="k">new</span> RollSnowball(<span class="s">&quot;middle&quot;</span>, input.FailPart == <span class="s">&quot;middle&quot;</span>), ct);</span>
+<span class="hl">            <span class="k">var</span> head = <span class="k">await</span> context.EnqueueChildAsync(<span class="s">&quot;head&quot;</span>, <span class="k">new</span> RollSnowball(<span class="s">&quot;head&quot;</span>, input.FailPart == <span class="s">&quot;head&quot;</span>), ct);</span>
+            <span class="c">// learn: end</span>
+
+            <span class="c">// learn: 2. Wait for all of them, and decide what a failed child means</span>
+            <span class="c">// The parent suspends, holding no executor, until every child is terminal. A failed child does not throw</span>
+            <span class="c">// here: the wait lists it, and the parent decides.</span>
+<span class="hl">            <span class="k">var</span> joined = <span class="k">await</span> context.WaitChildrenAsync([bottom, middle, head], ct);</span>
+<span class="hl">            <span class="k">foreach</span> (<span class="k">var</span> outcome <span class="k">in</span> joined.Failed)</span>
+<span class="hl">            {</span>
+<span class="hl">                <span class="k">await</span> context.FailAsync(<span class="s">$&quot;child {outcome.JobRef} ended {outcome.Status}; see its job events for the reason&quot;</span>, ct);</span>
+<span class="hl">            }</span>
+            <span class="c">// learn: end</span>
+
+            <span class="c">// learn: 3. Read each child's result</span>
+<span class="hl">            <span class="k">var</span> b = <span class="k">await</span> context.GetChildResultAsync&lt;Snowball&gt;(bottom.JobId, ct);</span>
+<span class="hl">            <span class="k">var</span> m = <span class="k">await</span> context.GetChildResultAsync&lt;Snowball&gt;(middle.JobId, ct);</span>
+<span class="hl">            <span class="k">var</span> h = <span class="k">await</span> context.GetChildResultAsync&lt;Snowball&gt;(head.JobId, ct);</span>
+            <span class="c">// learn: end</span>
+
+            <span class="k">var</span> height = b.Diameter + m.Diameter + h.Diameter;
+            Console.WriteLine(<span class="s">$&quot;[{input.Name}] stacked {b.Diameter} + {m.Diameter} + {h.Diameter} = {height}cm tall&quot;</span>);
+            <span class="k">return</span> <span class="k">new</span> FinishedSnowman(input.Name, height);
+        }
+
+        <span class="a">[Job(<span class="s">&quot;roll-snowball&quot;</span>, MaxAttempts = 2, Backoff = <span class="s">&quot;0s&quot;</span>)]</span>
+        <span class="k">public</span> <span class="k">async</span> Task&lt;Snowball&gt; Roll(RollSnowball input, CancellationToken ct)
+        {
+            <span class="k">await</span> Task.Delay(input.Part == <span class="s">&quot;bottom&quot;</span> ? 2000 : 1500, ct);
+            <span class="k">if</span> (input.ShouldFail)
+            {
+                <span class="k">throw</span> <span class="k">new</span> InvalidOperationException(<span class="s">$&quot;simulated failure while rolling the {input.Part} snowball&quot;</span>);
+            }
+            <span class="k">var</span> diameter = input.Part <span class="k">switch</span>
+            {
+                <span class="s">&quot;bottom&quot;</span> =&gt; 60,
+                <span class="s">&quot;middle&quot;</span> =&gt; 40,
+                _ =&gt; 20,
+            };
+            Console.WriteLine(<span class="s">$&quot;  rolled {input.Part} snowball ({diameter}cm)&quot;</span>);
+            <span class="k">return</span> <span class="k">new</span> Snowball(input.Part, diameter);
+        }
+    }
+}</code></pre></figure></details></div>
+<div class="step plain-step"><h2>Where to go next</h2><ul class="next-links"><li><a href="/learn/213-call-child">How to call another job and use its result</a><span>Split work across child jobs</span></li></ul></div>
+      </article>
+      <article class="agent-face" hidden>
+        <figure class="listing agent"><figcaption><span class="file">/learn/211-child-jobs.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/211-child-jobs.md">Open</a><button class="copy" type="button" data-copy-target="#md-body">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
+        <p class="hint">This is the page an agent receives: the same how-to as plain Markdown, at this page's address with <code>.md</code> added.</p>
+      </article>
+      <aside class="howto-rail" aria-label="This section">
+        <p class="rail-head"><a href="/learn#s-children">Split work across child jobs</a></p>
+        <ol>
+            <li aria-current="page"><a href="/learn/211-child-jobs" data-id="211"><span class="rail-n">1</span>Start child jobs and wait for them</a></li>
+            <li><a href="/learn/213-call-child" data-id="213"><span class="rail-n">2</span>Call another job and use its result</a></li>
+            <li><a href="/learn/212-fan-out-join" data-id="212"><span class="rail-n">3</span>Fan out over a list and merge the results</a></li>
+            <li><a href="/learn/215-map-wait-children" data-id="215"><span class="rail-n">4</span>Fan out to child jobs with Map or WaitChildren</a></li>
+            <li><a href="/learn/219-child-failure-outcomes" data-id="219"><span class="rail-n">5</span>Handle child jobs that fail</a></li>
+            <li><a href="/learn/704-cross-namespace-child" data-id="704"><span class="rail-n">6</span>Start a child job in another namespace</a></li>
+            <li><a href="/learn/601-fan-out" data-id="601"><span class="rail-n">7</span>Enqueue many independent jobs from a handler</a></li>
+            <li><a href="/learn/602-chained-jobs" data-id="602"><span class="rail-n">8</span>Chain jobs into a pipeline</a></li>
+        </ol>
+        <button class="button done-toggle" type="button" data-done-toggle="211" aria-pressed="false">Mark as done</button>
+        <p class="rail-turn"><span></span><a href="/learn/213-call-child" rel="next">Next</a></p>
+      </aside>
+    </div>
+    <section class="wrap newcomer" aria-labelledby="newcomer-title">
+      <h2 id="newcomer-title">New to Acta?</h2>
+      <p class="lede">Acta is durable execution for .NET: workflows and jobs that survive restarts, as a library inside your application with its durable state in your SQL database.</p>
+      <div class="actions">
+        <a class="button primary" href="/start">Run your first durable job in five minutes</a>
+        <a class="button" href="/learn">See every how-to</a>
+        <a class="button" href="/capabilities">Everything Acta does</a>
+      </div>
+    </section>
+    <footer class="site-footer">
+      <div class="wrap">
+        <div class="footer-grid">
+          <div class="footer-about">
+            <a class="site-brand" href="/" aria-label="Acta home"><svg viewBox="3.95 4.95 30.1 30.1" fill="none" stroke="currentColor" stroke-width="4.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 33 19 7 32 33" /><circle cx="19" cy="27" r="3" fill="currentColor" stroke="none" /></svg><span class="brand-word">Acta<span>.</span></span></a>
+            <p>Durable execution for .NET.</p>
+            <p>A library inside your application.<br />Durable state in your SQL database.</p>
+            <p class="footer-license">Apache-2.0 · built in the open</p>
+          </div>
+          <nav aria-label="Explore">
+            <p class="footer-head">Explore</p>
+            <a href="/how-it-works">How Acta works</a>
+            <a href="/capabilities">Capabilities</a>
+            <a href="/engine">Inside one worker</a>
+            <a href="/fleet">Workers and recovery</a>
+            <a href="/gates">Order and limits</a>
+            <a href="/benchmark">Benchmark and evidence</a>
+            <a href="/choosing">Choosing Acta</a>
+          </nav>
+          <nav aria-label="Build">
+            <p class="footer-head">Build</p>
+            <a href="/start">Get started</a>
+            <a href="/learn">Learn Acta</a>
+            <a href="https://github.com/acta-dotnet/acta/tree/main/docs">Documentation</a>
+            <a href="https://github.com/acta-dotnet/acta/tree/main/concepts">Runnable concepts</a>
+            <a href="https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md">Engineering labs</a>
+            <a href="/llms.txt">llms.txt for coding agents</a>
+          </nav>
+          <div class="footer-release">
+            <p class="footer-head">Release</p>
+            <p class="footer-version"><span class="release-dot" aria-hidden="true"></span><a href="https://github.com/acta-dotnet/acta/releases">1.0.0-rc.12 <span aria-hidden="true">↗</span></a><span>a release candidate</span></p>
+            <a href="https://github.com/acta-dotnet/acta/blob/main/docs/compatibility-and-support.md">Compatibility and support</a>
+            <a href="/support">Support Acta</a>
+            <a href="https://github.com/acta-dotnet/acta/blob/main/docs/known-limitations.md#stability-status">Stability status</a>
+            <a href="https://github.com/acta-dotnet/acta">Source on GitHub <span aria-hidden="true">↗</span></a>
+          </div>
+        </div>
+        <div class="footer-bottom">
+          <p>Created and maintained by <a href="https://www.linkedin.com/in/marko-voncina">Marko Vončina</a></p>
+          <span data-theme-controls></span>
+        </div>
+      </div>
+    </footer>
+  </main>
+  <p class="sr-only" id="copy-status" aria-live="polite"></p>
+  <script src="/assets/learn.js"></script>
+</body>
+</html>

@@ -1,0 +1,698 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>How to choose a payload format for a job · Acta, durable execution for .NET</title>
+  <meta name="description" content="How to choose a payload format for a job with Acta, durable execution for .NET. A job names the format its payload is stored in. This program runs custom formats side by side and compares their serialization time, enqueue time, readability, and stored bytes." />
+  <link rel="canonical" href="https://useacta.net/learn/501-payload-formats" />
+  <meta name="theme-color" content="#0B0E15" />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="Acta for .NET" />
+  <meta property="og:title" content="How to choose a payload format for a job · Acta, durable execution for .NET" />
+  <meta property="og:description" content="How to choose a payload format for a job with Acta, durable execution for .NET. A job names the format its payload is stored in. This program runs custom formats side by side and compares their serialization time, enqueue time, readability, and stored bytes." />
+  <meta property="og:url" content="https://useacta.net/learn/501-payload-formats" />
+  <meta property="og:image" content="https://useacta.net/assets/social-card.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="Acta: durable execution for .NET. Postgres, SQL Server, SQLite." />
+  <meta name="twitter:card" content="summary_large_image" />
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"How to choose a payload format for a job","description":"How to choose a payload format for a job with Acta, durable execution for .NET. A job names the format its payload is stored in. This program runs custom formats side by side and compares their serialization time, enqueue time, readability, and stored bytes.","url":"https://useacta.net/learn/501-payload-formats","inLanguage":"en","articleSection":"Start jobs","isPartOf":{"@type":"CollectionPage","name":"Learn Acta","url":"https://useacta.net/learn"},"about":{"@type":"SoftwareSourceCode","name":"Acta","programmingLanguage":"C#","codeRepository":"https://github.com/acta-dotnet/acta"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Learn Acta","item":"https://useacta.net/learn"},{"@type":"ListItem","position":2,"name":"Start jobs","item":"https://useacta.net/learn#s-start"},{"@type":"ListItem","position":3,"name":"How to choose a payload format for a job","item":"https://useacta.net/learn/501-payload-formats"}]}</script>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="alternate" type="text/plain" href="/llms.txt" title="Acta for coding agents" />
+  <link rel="alternate" type="text/markdown" href="/learn/501-payload-formats.md" title="This page as Markdown, for coding agents" />
+  <link rel="preload" href="/assets/fonts/fraunces-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="/assets/fonts/ibm-plex-sans-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="/assets/fonts/ibm-plex-mono-400-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <style>
+    /* Self-hosted latin subsets of the three families, preloaded and served immutable (see _headers),
+       so a reload paints them from cache with no swap and a first visit swaps them in as they land.
+       Fraunces and Plex Sans are variable files. */
+    @font-face { font-family: "Fraunces"; font-style: normal; font-weight: 400 600; font-display: swap; src: url(/assets/fonts/fraunces-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "Fraunces"; font-style: italic; font-weight: 400 500; font-display: swap; src: url(/assets/fonts/fraunces-italic-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "IBM Plex Sans"; font-style: normal; font-weight: 400 600; font-display: swap; src: url(/assets/fonts/ibm-plex-sans-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "IBM Plex Mono"; font-style: normal; font-weight: 400; font-display: swap; src: url(/assets/fonts/ibm-plex-mono-400-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "IBM Plex Mono"; font-style: normal; font-weight: 500; font-display: swap; src: url(/assets/fonts/ibm-plex-mono-500-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+  </style>
+  <link rel="stylesheet" href="/assets/site.css" />
+  <link rel="stylesheet" href="/assets/learn.css" />
+  <script src="/assets/theme.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#content">Skip to content</a>
+  <div class="chrome">
+    <div class="wrap chrome-inner">
+    <a class="brand site-brand" href="/" aria-label="Acta home"><svg viewBox="3.95 4.95 30.1 30.1" fill="none" stroke="currentColor" stroke-width="4.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 33 19 7 32 33" /><circle cx="19" cy="27" r="3" fill="currentColor" stroke="none" /></svg><span class="brand-word">Acta<span>.</span></span></a>
+    <span class="meta">Durable execution for .NET</span>
+    <nav aria-label="Primary links">
+      <a href="/start">Start</a>
+      <a href="/capabilities">Capabilities</a>
+      <a href="/benchmark">Benchmark</a>
+      <a href="/learn" aria-current="page">Learn</a>
+      <a href="https://github.com/acta-dotnet/acta" class="gh" aria-label="Acta on GitHub" title="Acta on GitHub"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><path fill="currentColor" d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"></path></svg></a>
+    </nav>
+    <span class="header-appearance" data-theme-controls></span>
+    </div>
+  </div>
+
+
+  <main id="content" data-howto="501">
+    <header class="wrap page-head howto-head">
+      <p class="record"><a href="/learn">learn acta</a><span aria-hidden="true">/</span><a href="/learn#s-start">start jobs</a></p>
+      <h1>How to choose a payload format for a job</h1>
+      <p class="lede">A job names the format its payload is stored in. This program runs custom formats side by side and compares their serialization time, enqueue time, readability, and stored bytes.</p>
+      <p class="howto-context">A how-to for Acta, durable execution for .NET. <a href="/start">New to Acta? Run your first durable job in five minutes.</a></p>
+      <div class="howto-meta">
+        <span class="status checked">Checked every release</span><span class="mark lab">Lab</span>
+        <a class="program" href="https://github.com/acta-dotnet/acta/tree/main/concepts/500-payloads/501-payload-formats"><code>concepts/500-payloads/501-payload-formats</code></a>
+        <div class="reader" role="group" aria-label="Read this page as">
+        <span class="reader-label">Read as</span>
+        <button type="button" data-reader="person" aria-pressed="true">a person</button>
+        <button type="button" data-reader="agent" aria-pressed="false" data-md="/learn/501-payload-formats.md">an agent</button>
+      </div>
+      </div>
+    </header>
+    <div class="wrap howto-body">
+      <article class="howto person-face">
+<div class="step"><h2><span class="step-n">1</span>Give each format a name and an id</h2>
+<p>The name is what a job writes in its attribute, so it is a constant.</p>
+<figure class="listing"><figcaption><span class="file">PayloadFormats.cs</span><button class="copy" type="button" data-copy-target="#code-1">Copy</button></figcaption><pre><code id="code-1"><span class="k">namespace</span> Acta.Concepts.PayloadFormats;
+
+<span class="c">/// &lt;summary&gt;</span>
+<span class="c">/// Format names and ids for the two custom serializers. The kebab-case names are &lt;c&gt;const string&lt;/c&gt;</span>
+<span class="c">/// because &lt;c&gt;[Job(Format = ...)]&lt;/c&gt; needs a compile-time constant, and hand-written because the</span>
+<span class="c">/// source generator reads them as ordinary source while building descriptors.</span>
+<span class="c">/// &lt;/summary&gt;</span>
+<span class="k">public</span> <span class="k">static</span> <span class="k">class</span> PayloadFormats
+{
+<span class="hl">    <span class="k">public</span> <span class="k">const</span> <span class="k">string</span> ScalarV1 = <span class="s">&quot;scalar-v1&quot;</span>;</span>
+<span class="hl">    <span class="k">public</span> <span class="k">const</span> <span class="k">string</span> JsonGzip = <span class="s">&quot;json-gzip&quot;</span>;</span>
+<span class="hl"> </span>
+<span class="hl">    <span class="k">public</span> <span class="k">static</span> <span class="k">readonly</span> JobPayloadFormat ScalarV1Format = JobPayloadFormat.Custom(128, ScalarV1);</span>
+<span class="hl">    <span class="k">public</span> <span class="k">static</span> <span class="k">readonly</span> JobPayloadFormat JsonGzipFormat = JobPayloadFormat.Custom(130, JsonGzip);</span>
+}</code></pre></figure>
+</div>
+<div class="step"><h2><span class="step-n">2</span>Register a serializer for each format</h2>
+<p>A custom format is an <code>IJobPayloadSerializer</code> in the application's container.</p>
+<figure class="listing"><figcaption><span class="file">Program.cs</span><button class="copy" type="button" data-copy-target="#code-2">Copy</button></figcaption><pre><code id="code-2"><span class="k">using</span> Acta;
+<span class="k">using</span> Acta.Concepts.PayloadFormats;
+<span class="k">using</span> Acta.Labs;
+
+<span class="k">var</span> builder = Host.CreateApplicationBuilder(args);
+builder.Services.AddSingleton(<span class="k">new</span> ConceptLab(builder.Configuration, args));
+
+<span class="hl">builder.Services.AddSingleton&lt;IJobPayloadSerializer, ScalarV1Serializer&gt;();</span>
+<span class="hl">builder.Services.AddSingleton&lt;IJobPayloadSerializer, JsonGzipSerializer&gt;();</span>
+
+builder.Services.UseActa(j =&gt;
+{
+    j.UseLocalDatabase(builder.Configuration);
+    j.Run&lt;PayloadFormatsJobs&gt;(<span class="s">&quot;payload-formats&quot;</span>);
+});
+builder.Services.AddHostedService&lt;Primer&gt;();
+
+<span class="k">await</span> builder.Build().RunAsync();</code></pre></figure>
+</div>
+<div class="step"><h2><span class="step-n">3</span>Name the format on the job</h2>
+<figure class="listing"><figcaption><span class="file">EchoGzip.cs</span><button class="copy" type="button" data-copy-target="#code-3">Copy</button></figcaption><pre><code id="code-3"><span class="k">namespace</span> Acta.Concepts.PayloadFormats;
+
+<span class="c">/// &lt;summary&gt;</span>
+<span class="c">/// Guid in a thin record, encoded with &lt;c&gt;json-gzip&lt;/c&gt;; at this size gzip framing makes it the largest wire format.</span>
+<span class="c">/// &lt;/summary&gt;</span>
+<span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> EchoGzip(Guid Value);
+
+<span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> EchoGzipHandler
+{
+    <span class="k">public</span> <span class="k">const</span> <span class="k">int</span> TargetCount = 250;
+    <span class="k">private</span> <span class="k">static</span> <span class="k">long</span> _count;
+
+<span class="hl">    <span class="a">[Job(<span class="s">&quot;echo-gzip&quot;</span>, Format = PayloadFormats.JsonGzip)]</span></span>
+    <span class="k">public</span> Task&lt;EchoGzip&gt; Handle(EchoGzip input, CancellationToken ct)
+    {
+        <span class="k">var</span> n = Interlocked.Increment(<span class="k">ref</span> _count);
+        <span class="k">if</span> (n == TargetCount)
+        {
+            Console.WriteLine(<span class="s">$&quot;  json-gzip   echo-gzip      [{n}/{TargetCount}]&quot;</span>);
+        }
+        <span class="k">return</span> Task.FromResult(input);
+    }
+}</code></pre></figure>
+</div>
+<div class="step"><h2><span class="step-n">4</span>Run it and check the output</h2>
+<p>From a clone of <a href="https://github.com/acta-dotnet/acta">the Acta repository</a>, with the .NET 10 SDK:</p>
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-4">Copy</button></figcaption><pre><code id="code-4">dotnet run --project concepts/500-payloads/501-payload-formats</code></pre></figure>
+<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button" data-copy-target="#code-5">Copy</button></figcaption><pre><code id="code-5">echo-json      [250/250]
+echo-scalar    [250/250]
+echo-gzip      [250/250]</code></pre></figure>
+<p class="proof checked"><b>Checked every release.</b> Before each release, Acta Verify runs this program and checks that its output contains these lines.</p>
+<p class="hint">This page shows the code. The rules it relies on, starting with the handler running again from its first line, are in <a href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#handler-contract">the handler contract</a>.</p>
+</div>
+<details class="step lab-notes"><summary>The lab behind it: payload format is a durable contract choice</summary>
+<p>This program is an Engineering Lab: beside the how-to it prints the rows that show what happened, and its notes weigh the design against the alternatives.</p>
+<h3>The problem</h3>
+<p>One mandatory JSON representation is convenient, but it can waste bytes and CPU for dense or tiny payloads. Choosing only the smallest encoding, however, can make operations and contract evolution much harder.</p>
+<h3>Common approaches</h3>
+<div class="table-scroll"><table class="data-table compare"><thead><tr><th>Format</th><th>Strength</th><th>Cost</th></tr></thead><tbody><tr><th>JSON</th><td>Inspectable, interoperable, easy to evolve</td><td>Larger and often slower</td></tr><tr><th>Binary codec (MessagePack, protobuf)</th><td>Compact and fast</td><td>A package to depend on, and less SQL/operator readability</td></tr><tr><th>Gzip JSON</th><td>Preserves the JSON model with fewer bytes</td><td>CPU cost and no direct readability</td></tr><tr><th>Custom scalar</th><td>Minimal representation</td><td>Tight contract and migration burden</td></tr></tbody></table></div>
+<h3>Why this design</h3>
+<p>Acta makes the codec name/identifier part of the durable job definition. Custom serializers are registered explicitly and source-validated. The runtime can therefore round-trip several formats without pretending that opaque bytes have no contract.</p>
+<h3>Trade-offs</h3>
+<p>Every long-lived format needs compatibility, deployment-order, and migration discipline. Compact custom formats reduce operator readability, and compression may cost more CPU than the saved storage is worth.</p>
+<h3>Run the experiment</h3>
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-6">Copy</button></figcaption><pre><code id="code-6">dotnet run --project concepts/500-payloads/501-payload-formats</code></pre></figure>
+<p>The program runs a built-in JSON baseline plus two custom formats, gzip JSON and a custom scalar, times serialization separately from the batch-enqueue round trip, waits for completion, and executes the printed byte-size comparison. Both custom serializers are plain .NET with no package: a binary codec plugs into the same <code>IJobPayloadSerializer</code> seam. Every run gets a fresh correlation key, so completion waits and measurements exclude historical rows.</p>
+<h3>Rows to inspect</h3>
+<p>Run with <code>--all-columns</code> to execute the visible <code>SELECT *</code> Explore query first. The default Notice queries select the fields that prove the lesson, and the text below explains their meaning.</p>
+<p><code>jobs_view</code> shows the durable format and whether input is human-readable. The second query deliberately descends to <code>jobs</code>/<code>jobs_state</code> to measure physical bytes; <code>{{bytes:...}}</code> and <code>{{schema}}</code> are expanded by the lab for SQLite, PostgreSQL, or SQL Server. Base tables are internal, not an application query API.</p>
+<h3>Break it</h3>
+<p>Remove one serializer registration and observe startup/contract failure rather than silent decoding with the wrong codec. Change the payload shape without a compatibility plan and consider how old rows decode.</p>
+<h3>When not to use</h3>
+<p>Stay with JSON when volume is modest, inspection matters, or ecosystem interoperability dominates. Use blob/object references rather than any inline codec for genuinely large payloads. Benchmark realistic data before choosing compression.</p>
+<h3>Source trail</h3>
+<ul class="plain"><li><a href="https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md">The related Engineering Lab</a></li><li><a href="https://github.com/acta-dotnet/acta/blob/main/concepts/500-payloads/501-payload-formats/Primer.cs"><code>Primer.cs</code></a></li><li><a href="https://github.com/acta-dotnet/acta/blob/main/concepts/500-payloads/501-payload-formats/Serializers/ScalarV1Serializer.cs"><code>ScalarV1Serializer.cs</code></a></li><li><a href="https://github.com/acta-dotnet/acta/blob/main/src/Acta/Payloads/JobPayloadSerializerRegistry.cs"><code>JobPayloadSerializerRegistry.cs</code></a></li><li><a href="https://github.com/acta-dotnet/acta/blob/main/src/Acta.Generators/Jobs/ActaManifestGenerator.cs"><code>ActaManifestGenerator.cs</code></a></li></ul>
+</details>
+<div class="step plain-step"><h2>The whole program</h2>
+<p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/concepts/500-payloads/501-payload-formats"><code>concepts/500-payloads/501-payload-formats</code></a>, as it is compiled.</p>
+<p class="hint"><code>UseLocalDatabase</code> and <code>ConceptLab</code> are helpers of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
+<details class="source-file"><summary><span class="file-name">Program.cs</span><span class="file-size">25 lines</span></summary><figure class="listing"><figcaption><span class="file">Program.cs</span><button class="copy" type="button" data-copy-target="#code-7">Copy</button></figcaption><pre><code id="code-7"><span class="c">// How to choose a payload format for a job</span>
+<span class="c">// A job names the format its payload is stored in. This program runs custom formats side by side and compares their</span>
+<span class="c">// serialization time, enqueue time, readability, and stored bytes.</span>
+<span class="k">using</span> Acta;
+<span class="k">using</span> Acta.Concepts.PayloadFormats;
+<span class="k">using</span> Acta.Labs;
+
+<span class="k">var</span> builder = Host.CreateApplicationBuilder(args);
+builder.Services.AddSingleton(<span class="k">new</span> ConceptLab(builder.Configuration, args));
+
+<span class="c">// learn: 2. Register a serializer for each format</span>
+<span class="c">// A custom format is an `IJobPayloadSerializer` in the application's container.</span>
+<span class="hl">builder.Services.AddSingleton&lt;IJobPayloadSerializer, ScalarV1Serializer&gt;();</span>
+<span class="hl">builder.Services.AddSingleton&lt;IJobPayloadSerializer, JsonGzipSerializer&gt;();</span>
+
+<span class="c">// learn: end</span>
+
+builder.Services.UseActa(j =&gt;
+{
+    j.UseLocalDatabase(builder.Configuration);
+    j.Run&lt;PayloadFormatsJobs&gt;(<span class="s">&quot;payload-formats&quot;</span>);
+});
+builder.Services.AddHostedService&lt;Primer&gt;();
+
+<span class="k">await</span> builder.Build().RunAsync();</code></pre></figure></details>
+<details class="source-file"><summary><span class="file-name">Echo.cs</span><span class="file-size">21 lines</span></summary><figure class="listing"><figcaption><span class="file">Echo.cs</span><button class="copy" type="button" data-copy-target="#code-8">Copy</button></figcaption><pre><code id="code-8"><span class="k">namespace</span> Acta.Concepts.PayloadFormats;
+
+<span class="c">/// &lt;summary&gt;</span>
+<span class="c">/// Echo a Guid via &lt;c&gt;scalar-v1&lt;/c&gt;: 16 bytes on the wire in each direction.</span>
+<span class="c">/// &lt;/summary&gt;</span>
+<span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> EchoScalarHandler
+{
+    <span class="k">public</span> <span class="k">const</span> <span class="k">int</span> TargetCount = 250;
+    <span class="k">private</span> <span class="k">static</span> <span class="k">long</span> _count;
+
+    <span class="a">[Job(<span class="s">&quot;echo-scalar&quot;</span>, Format = PayloadFormats.ScalarV1)]</span>
+    <span class="k">public</span> Task&lt;Guid&gt; Handle(Guid input, CancellationToken ct)
+    {
+        <span class="k">var</span> n = Interlocked.Increment(<span class="k">ref</span> _count);
+        <span class="k">if</span> (n == TargetCount)
+        {
+            Console.WriteLine(<span class="s">$&quot;  scalar-v1   echo-scalar    [{n}/{TargetCount}]&quot;</span>);
+        }
+        <span class="k">return</span> Task.FromResult(input);
+    }
+}</code></pre></figure></details>
+<details class="source-file"><summary><span class="file-name">EchoGzip.cs</span><span class="file-size">25 lines</span></summary><figure class="listing"><figcaption><span class="file">EchoGzip.cs</span><button class="copy" type="button" data-copy-target="#code-9">Copy</button></figcaption><pre><code id="code-9"><span class="k">namespace</span> Acta.Concepts.PayloadFormats;
+
+<span class="c">/// &lt;summary&gt;</span>
+<span class="c">/// Guid in a thin record, encoded with &lt;c&gt;json-gzip&lt;/c&gt;; at this size gzip framing makes it the largest wire format.</span>
+<span class="c">/// &lt;/summary&gt;</span>
+<span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> EchoGzip(Guid Value);
+
+<span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> EchoGzipHandler
+{
+    <span class="k">public</span> <span class="k">const</span> <span class="k">int</span> TargetCount = 250;
+    <span class="k">private</span> <span class="k">static</span> <span class="k">long</span> _count;
+
+    <span class="c">// learn: 3. Name the format on the job</span>
+<span class="hl">    <span class="a">[Job(<span class="s">&quot;echo-gzip&quot;</span>, Format = PayloadFormats.JsonGzip)]</span></span>
+    <span class="c">// learn: end</span>
+    <span class="k">public</span> Task&lt;EchoGzip&gt; Handle(EchoGzip input, CancellationToken ct)
+    {
+        <span class="k">var</span> n = Interlocked.Increment(<span class="k">ref</span> _count);
+        <span class="k">if</span> (n == TargetCount)
+        {
+            Console.WriteLine(<span class="s">$&quot;  json-gzip   echo-gzip      [{n}/{TargetCount}]&quot;</span>);
+        }
+        <span class="k">return</span> Task.FromResult(input);
+    }
+}</code></pre></figure></details>
+<details class="source-file"><summary><span class="file-name">EchoJson.cs</span><span class="file-size">21 lines</span></summary><figure class="listing"><figcaption><span class="file">EchoJson.cs</span><button class="copy" type="button" data-copy-target="#code-10">Copy</button></figcaption><pre><code id="code-10"><span class="k">namespace</span> Acta.Concepts.PayloadFormats;
+
+<span class="c">/// &lt;summary&gt;A normal JSON baseline: human-readable in &lt;c&gt;jobs_view&lt;/c&gt;, with no custom serializer.&lt;/summary&gt;</span>
+<span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> EchoJson(Guid Value);
+
+<span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> EchoJsonHandler
+{
+    <span class="k">public</span> <span class="k">const</span> <span class="k">int</span> TargetCount = 250;
+    <span class="k">private</span> <span class="k">static</span> <span class="k">long</span> _count;
+
+    <span class="a">[Job(<span class="s">&quot;echo-json&quot;</span>)]</span>
+    <span class="k">public</span> Task&lt;EchoJson&gt; Handle(EchoJson input, CancellationToken ct)
+    {
+        <span class="k">var</span> n = Interlocked.Increment(<span class="k">ref</span> _count);
+        <span class="k">if</span> (n == TargetCount)
+        {
+            Console.WriteLine(<span class="s">$&quot;  json         echo-json      [{n}/{TargetCount}]&quot;</span>);
+        }
+        <span class="k">return</span> Task.FromResult(input);
+    }
+}</code></pre></figure></details>
+<details class="source-file"><summary><span class="file-name">PayloadFormats.cs</span><span class="file-size">18 lines</span></summary><figure class="listing"><figcaption><span class="file">PayloadFormats.cs</span><button class="copy" type="button" data-copy-target="#code-11">Copy</button></figcaption><pre><code id="code-11"><span class="k">namespace</span> Acta.Concepts.PayloadFormats;
+
+<span class="c">/// &lt;summary&gt;</span>
+<span class="c">/// Format names and ids for the two custom serializers. The kebab-case names are &lt;c&gt;const string&lt;/c&gt;</span>
+<span class="c">/// because &lt;c&gt;[Job(Format = ...)]&lt;/c&gt; needs a compile-time constant, and hand-written because the</span>
+<span class="c">/// source generator reads them as ordinary source while building descriptors.</span>
+<span class="c">/// &lt;/summary&gt;</span>
+<span class="k">public</span> <span class="k">static</span> <span class="k">class</span> PayloadFormats
+{
+    <span class="c">// learn: 1. Give each format a name and an id</span>
+    <span class="c">// The name is what a job writes in its attribute, so it is a constant.</span>
+<span class="hl">    <span class="k">public</span> <span class="k">const</span> <span class="k">string</span> ScalarV1 = <span class="s">&quot;scalar-v1&quot;</span>;</span>
+<span class="hl">    <span class="k">public</span> <span class="k">const</span> <span class="k">string</span> JsonGzip = <span class="s">&quot;json-gzip&quot;</span>;</span>
+<span class="hl"> </span>
+<span class="hl">    <span class="k">public</span> <span class="k">static</span> <span class="k">readonly</span> JobPayloadFormat ScalarV1Format = JobPayloadFormat.Custom(128, ScalarV1);</span>
+<span class="hl">    <span class="k">public</span> <span class="k">static</span> <span class="k">readonly</span> JobPayloadFormat JsonGzipFormat = JobPayloadFormat.Custom(130, JsonGzip);</span>
+    <span class="c">// learn: end</span>
+}</code></pre></figure></details>
+<details class="source-file"><summary><span class="file-name">Primer.cs</span><span class="file-size">119 lines</span></summary><figure class="listing"><figcaption><span class="file">Primer.cs</span><button class="copy" type="button" data-copy-target="#code-12">Copy</button></figcaption><pre><code id="code-12"><span class="k">using</span> System.Diagnostics;
+<span class="k">using</span> Acta.Labs;
+
+<span class="k">namespace</span> Acta.Concepts.PayloadFormats;
+
+<span class="c">/// &lt;summary&gt;</span>
+<span class="c">/// Bulk-enqueues 250 echo jobs per format (750 total) in three round-trips via</span>
+<span class="c">/// &lt;see cref=&quot;IJobs.EnqueueJobsAsync&quot;/&gt;. Every job round-trips a single Guid; only the wire</span>
+<span class="c">/// format differs.</span>
+<span class="c">/// &lt;/summary&gt;</span>
+<span class="k">internal</span> <span class="k">sealed</span> <span class="k">class</span> Primer(
+    IJobs jobs,
+    IActaOperations operations,
+    IJobPayloadSerializerRegistry serializers,
+    ConceptLab lab,
+    IHostApplicationLifetime lifetime
+) : BackgroundService
+{
+    <span class="k">private</span> <span class="k">const</span> <span class="k">string</span> Namespace = <span class="s">&quot;payload-formats&quot;</span>;
+    <span class="k">private</span> <span class="k">const</span> <span class="k">int</span> RowsPerFormat = 250;
+
+    <span class="k">protected</span> <span class="k">override</span> <span class="k">async</span> Task ExecuteAsync(CancellationToken ct)
+    {
+        <span class="k">var</span> runId = <span class="s">$&quot;payload-formats-{Guid.CreateVersion7():N}&quot;</span>;
+        <span class="k">var</span> json = serializers.Resolve(JobPayloadFormat.Json.Id);
+        <span class="k">var</span> scalar = serializers.Resolve(PayloadFormats.ScalarV1Format.Id);
+        <span class="k">var</span> gzip = serializers.Resolve(PayloadFormats.JsonGzipFormat.Id);
+
+        Console.WriteLine(<span class="s">$&quot;Primer: bulk-enqueueing 3 x {RowsPerFormat} echo jobs (1 round-trip per format)...&quot;</span>);
+
+        <span class="k">await</span> EnqueueJobsAsync(<span class="s">&quot;echo-json&quot;</span>, runId, _ =&gt; json.Serialize(<span class="k">new</span> EchoJson(Guid.NewGuid())), ct);
+        <span class="k">await</span> EnqueueJobsAsync(<span class="s">&quot;echo-scalar&quot;</span>, runId, _ =&gt; scalar.Serialize(Guid.NewGuid()), ct);
+        <span class="k">await</span> EnqueueJobsAsync(<span class="s">&quot;echo-gzip&quot;</span>, runId, _ =&gt; gzip.Serialize(<span class="k">new</span> EchoGzip(Guid.NewGuid())), ct);
+
+        <span class="k">using</span> <span class="k">var</span> completionTimeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        completionTimeout.CancelAfter(TimeSpan.FromMinutes(2));
+        <span class="k">while</span> (<span class="k">true</span>)
+        {
+            <span class="k">var</span> done = <span class="k">await</span> operations.Ledger.ListJobsAsync(
+                <span class="k">new</span> ListJobsQuery(
+                    JobNamespace: Namespace,
+                    Status: JobStatusCode.Succeeded,
+                    CorrelationKey: runId,
+                    PageSize: 1,
+                    IncludeTotal: <span class="k">true</span>
+                ),
+                completionTimeout.Token
+            );
+            <span class="k">if</span> (done.TotalCount == RowsPerFormat * 3)
+            {
+                <span class="k">break</span>;
+            }
+            <span class="k">await</span> Task.Delay(100, completionTimeout.Token);
+        }
+
+        <span class="k">await</span> lab.ShowAllAsync(
+            <span class="s">&quot;Explore one complete built-in JSON record before comparing formats&quot;</span>,
+            <span class="s">&quot;&quot;&quot;</span>
+<span class="s">            SELECT *</span>
+<span class="s">            FROM jobs_view</span>
+<span class="s">            WHERE job_id = (</span>
+<span class="s">                SELECT MIN(job_id)</span>
+<span class="s">                FROM jobs_view</span>
+<span class="s">                WHERE namespace_name = @jobNamespace AND correlation_key = @runId AND definition_name = 'echo-json'</span>
+<span class="s">            )</span>
+<span class="s">            &quot;&quot;&quot;</span>,
+            <span class="k">new</span> { jobNamespace = Namespace, runId },
+            ct
+        );
+        <span class="k">await</span> lab.ShowAsync(
+            <span class="s">&quot;Operator readability in the curated jobs view&quot;</span>,
+            <span class="s">&quot;&quot;&quot;</span>
+<span class="s">            SELECT definition_name, input_format, CASE WHEN input_text IS NULL THEN 'no' ELSE 'yes' END AS input_is_readable, COUNT(*) AS rows</span>
+<span class="s">            FROM jobs_view</span>
+<span class="s">            WHERE namespace_name = @jobNamespace AND correlation_key = @runId AND definition_name LIKE 'echo-%'</span>
+<span class="s">            GROUP BY definition_name, input_format,</span>
+<span class="s">                     CASE WHEN input_text IS NULL THEN 'no' ELSE 'yes' END</span>
+<span class="s">            ORDER BY definition_name</span>
+<span class="s">            &quot;&quot;&quot;</span>,
+            <span class="k">new</span> { jobNamespace = Namespace, runId },
+            ct
+        );
+        <span class="k">await</span> lab.ShowAsync(
+            <span class="s">&quot;Actual stored bytes (the lab expands the byte-length expression per provider)&quot;</span>,
+            <span class="s">&quot;&quot;&quot;</span>
+<span class="s">            SELECT d.definition_name AS job_name, COUNT(*) AS rows, AVG({{bytes:j.input}}) AS avg_input_bytes, AVG({{bytes:r.result}}) AS avg_result_bytes</span>
+<span class="s">            FROM {{schema}}.jobs AS j</span>
+<span class="s">            JOIN {{schema}}.definitions AS d ON d.definition_id = j.definition_id</span>
+<span class="s">            JOIN {{schema}}.namespaces AS n ON n.namespace_id = j.namespace_id</span>
+<span class="s">            JOIN {{schema}}.jobs_state AS r ON r.job_id = j.job_id</span>
+<span class="s">            WHERE n.namespace_name = @jobNamespace AND j.correlation_key = @runId AND d.definition_name LIKE 'echo-%'</span>
+<span class="s">            GROUP BY d.definition_name</span>
+<span class="s">            ORDER BY d.definition_name</span>
+<span class="s">            &quot;&quot;&quot;</span>,
+            <span class="k">new</span> { jobNamespace = Namespace, runId },
+            ct
+        );
+        lifetime.StopApplication();
+    }
+
+    <span class="k">private</span> <span class="k">async</span> Task EnqueueJobsAsync(<span class="k">string</span> jobName, <span class="k">string</span> runId, Func&lt;<span class="k">int</span>, JobPayload&gt; buildPayload, CancellationToken ct)
+    {
+        <span class="k">var</span> serializeTimer = Stopwatch.StartNew();
+        <span class="k">var</span> requests = <span class="k">new</span> EnqueueJobRequest[RowsPerFormat];
+        <span class="k">for</span> (<span class="k">var</span> i = 0; i &lt; RowsPerFormat; i++)
+        {
+            requests[i] = <span class="k">new</span> EnqueueJobRequest(Namespace, jobName, buildPayload(i), CorrelationKey: runId);
+        }
+        serializeTimer.Stop();
+
+        <span class="k">var</span> enqueueTimer = Stopwatch.StartNew();
+        <span class="k">var</span> outcomes = (<span class="k">await</span> jobs.EnqueueJobsAsync(requests, ct)).Jobs;
+        enqueueTimer.Stop();
+
+        Console.WriteLine(
+            <span class="s">$&quot;  {jobName, -14} serialize={serializeTimer.ElapsedMilliseconds, 4} ms  enqueue={enqueueTimer.ElapsedMilliseconds, 4} ms  rows={outcomes.Count}&quot;</span>
+        );
+    }
+}</code></pre></figure></details>
+<details class="source-file"><summary><span class="file-name">Serializers/JsonGzipSerializer.cs</span><span class="file-size">53 lines</span></summary><figure class="listing"><figcaption><span class="file">Serializers/JsonGzipSerializer.cs</span><button class="copy" type="button" data-copy-target="#code-13">Copy</button></figcaption><pre><code id="code-13"><span class="k">using</span> System.IO.Compression;
+<span class="k">using</span> System.Runtime.InteropServices;
+<span class="k">using</span> System.Text.Json;
+
+<span class="k">namespace</span> Acta.Concepts.PayloadFormats;
+
+<span class="a">[JobPayloadFormatDeclaration(130, <span class="s">&quot;json-gzip&quot;</span>)]</span>
+<span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> JsonGzipSerializer : IJobPayloadSerializer
+{
+    <span class="k">private</span> <span class="k">static</span> <span class="k">readonly</span> JsonSerializerOptions DefaultJson = <span class="k">new</span>(JsonSerializerDefaults.Web);
+
+    <span class="k">private</span> <span class="k">readonly</span> JsonSerializerOptions _json;
+
+    <span class="k">public</span> JsonGzipSerializer()
+        : <span class="k">this</span>(DefaultJson) { }
+
+    <span class="k">public</span> JsonGzipSerializer(JsonSerializerOptions json)
+    {
+        _json = json;
+    }
+
+    <span class="k">public</span> JobPayloadFormat Format =&gt; PayloadFormats.JsonGzipFormat;
+
+    <span class="k">public</span> JobPayload Serialize&lt;T&gt;(T value)
+    {
+        <span class="k">var</span> jsonBytes = JsonSerializer.SerializeToUtf8Bytes(value, _json);
+
+        <span class="k">using</span> <span class="k">var</span> output = <span class="k">new</span> MemoryStream();
+        <span class="k">using</span> (<span class="k">var</span> gzip = <span class="k">new</span> GZipStream(output, CompressionLevel.Fastest, leaveOpen: <span class="k">true</span>))
+        {
+            gzip.Write(jsonBytes);
+        }
+        <span class="k">return</span> JobPayload.FromBytes(Format, output.ToArray());
+    }
+
+    <span class="k">public</span> T Deserialize&lt;T&gt;(JobPayload payload)
+    {
+        <span class="k">if</span> (payload.Format.Id != Format.Id)
+        {
+            <span class="k">throw</span> <span class="k">new</span> InvalidOperationException(<span class="s">$&quot;Expected payload format {Format}, got {payload.Format}.&quot;</span>);
+        }
+
+        <span class="k">if</span> (!MemoryMarshal.TryGetArray(payload.Data, <span class="k">out</span> <span class="k">var</span> segment) || segment.Array <span class="k">is</span> <span class="k">null</span>)
+        {
+            <span class="k">throw</span> <span class="k">new</span> InvalidOperationException(<span class="s">&quot;json-gzip expects array-backed payload memory.&quot;</span>);
+        }
+
+        <span class="k">using</span> <span class="k">var</span> input = <span class="k">new</span> MemoryStream(segment.Array, segment.Offset, segment.Count, writable: <span class="k">false</span>, publiclyVisible: <span class="k">false</span>);
+        <span class="k">using</span> <span class="k">var</span> gzip = <span class="k">new</span> GZipStream(input, CompressionMode.Decompress);
+
+        <span class="k">return</span> JsonSerializer.Deserialize&lt;T&gt;(gzip, _json) ?? <span class="k">throw</span> <span class="k">new</span> JsonException(<span class="s">$&quot;Could not deserialize {typeof(T).FullName}.&quot;</span>);
+    }
+}</code></pre></figure></details>
+<details class="source-file"><summary><span class="file-name">Serializers/ScalarV1Serializer.cs</span><span class="file-size">152 lines</span></summary><figure class="listing"><figcaption><span class="file">Serializers/ScalarV1Serializer.cs</span><button class="copy" type="button" data-copy-target="#code-14">Copy</button></figcaption><pre><code id="code-14"><span class="k">using</span> System.Buffers.Binary;
+<span class="k">using</span> System.Runtime.CompilerServices;
+<span class="k">using</span> System.Text;
+
+<span class="k">namespace</span> Acta.Concepts.PayloadFormats;
+
+<span class="c">/// &lt;summary&gt;</span>
+<span class="c">/// Serializer for the &lt;c&gt;scalar-v1&lt;/c&gt; wire format. Supports primitive types only; see</span>
+<span class="c">/// &lt;see cref=&quot;ScalarV1Encoding&quot;/&gt; for the wire spec.</span>
+<span class="c">/// &lt;/summary&gt;</span>
+<span class="a">[JobPayloadFormatDeclaration(128, <span class="s">&quot;scalar-v1&quot;</span>)]</span>
+<span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> ScalarV1Serializer : IJobPayloadSerializer
+{
+    <span class="k">public</span> JobPayloadFormat Format =&gt; PayloadFormats.ScalarV1Format;
+
+    <span class="k">public</span> JobPayload Serialize&lt;T&gt;(T value) =&gt; JobPayload.FromBytes(Format, ScalarV1Encoding.Serialize(value));
+
+    <span class="k">public</span> T Deserialize&lt;T&gt;(JobPayload payload)
+    {
+        <span class="k">if</span> (payload.Format.Id != Format.Id)
+        {
+            <span class="k">throw</span> <span class="k">new</span> InvalidOperationException(<span class="s">$&quot;Expected payload format {Format}, got {payload.Format}.&quot;</span>);
+        }
+        <span class="k">return</span> ScalarV1Encoding.Deserialize&lt;T&gt;(payload.Data.Span);
+    }
+}
+
+<span class="c">/// &lt;summary&gt;</span>
+<span class="c">/// Wire spec for &lt;c&gt;scalar-v1&lt;/c&gt;.</span>
+<span class="c">/// int/long: big-endian, 4/8 bytes.</span>
+<span class="c">/// bool: 1 byte; 0x00 false, 0x01 true.</span>
+<span class="c">/// Guid: 16 bytes, RFC 4122 network byte order.</span>
+<span class="c">/// DateTimeOffset: int64 Unix milliseconds, big-endian.</span>
+<span class="c">/// DateOnly: int32 days since 1970-01-01, big-endian.</span>
+<span class="c">/// string: UTF-8, no BOM.</span>
+<span class="c">/// &lt;/summary&gt;</span>
+<span class="k">internal</span> <span class="k">static</span> <span class="k">class</span> ScalarV1Encoding
+{
+    <span class="k">public</span> <span class="k">static</span> <span class="k">byte</span>[] Serialize&lt;T&gt;(T value)
+    {
+        <span class="k">if</span> (value <span class="k">is</span> <span class="k">null</span>)
+        {
+            <span class="k">throw</span> <span class="k">new</span> NotSupportedException(<span class="s">&quot;scalar-v1 does not support null values.&quot;</span>);
+        }
+
+        <span class="k">if</span> (<span class="k">typeof</span>(T) == <span class="k">typeof</span>(<span class="k">bool</span>))
+        {
+            <span class="k">return</span> [Unsafe.As&lt;T, <span class="k">bool</span>&gt;(<span class="k">ref</span> value) ? (<span class="k">byte</span>)1 : (<span class="k">byte</span>)0];
+        }
+        <span class="k">if</span> (<span class="k">typeof</span>(T) == <span class="k">typeof</span>(<span class="k">int</span>))
+        {
+            <span class="k">var</span> bytes = <span class="k">new</span> <span class="k">byte</span>[4];
+            BinaryPrimitives.WriteInt32BigEndian(bytes, Unsafe.As&lt;T, <span class="k">int</span>&gt;(<span class="k">ref</span> value));
+            <span class="k">return</span> bytes;
+        }
+        <span class="k">if</span> (<span class="k">typeof</span>(T) == <span class="k">typeof</span>(<span class="k">long</span>))
+        {
+            <span class="k">var</span> bytes = <span class="k">new</span> <span class="k">byte</span>[8];
+            BinaryPrimitives.WriteInt64BigEndian(bytes, Unsafe.As&lt;T, <span class="k">long</span>&gt;(<span class="k">ref</span> value));
+            <span class="k">return</span> bytes;
+        }
+        <span class="k">if</span> (<span class="k">typeof</span>(T) == <span class="k">typeof</span>(Guid))
+        {
+            <span class="k">var</span> bytes = <span class="k">new</span> <span class="k">byte</span>[16];
+            <span class="k">if</span> (!Unsafe.As&lt;T, Guid&gt;(<span class="k">ref</span> value).TryWriteBytes(bytes, bigEndian: <span class="k">true</span>, <span class="k">out</span> _))
+            {
+                <span class="k">throw</span> <span class="k">new</span> InvalidOperationException(<span class="s">&quot;Failed to write Guid in network byte order.&quot;</span>);
+            }
+            <span class="k">return</span> bytes;
+        }
+        <span class="k">if</span> (<span class="k">typeof</span>(T) == <span class="k">typeof</span>(DateTimeOffset))
+        {
+            <span class="k">var</span> bytes = <span class="k">new</span> <span class="k">byte</span>[8];
+            BinaryPrimitives.WriteInt64BigEndian(bytes, Unsafe.As&lt;T, DateTimeOffset&gt;(<span class="k">ref</span> value).ToUnixTimeMilliseconds());
+            <span class="k">return</span> bytes;
+        }
+        <span class="k">if</span> (<span class="k">typeof</span>(T) == <span class="k">typeof</span>(DateOnly))
+        {
+            <span class="k">var</span> bytes = <span class="k">new</span> <span class="k">byte</span>[4];
+            <span class="k">var</span> epoch = <span class="k">new</span> DateOnly(1970, 1, 1);
+            BinaryPrimitives.WriteInt32BigEndian(bytes, Unsafe.As&lt;T, DateOnly&gt;(<span class="k">ref</span> value).DayNumber - epoch.DayNumber);
+            <span class="k">return</span> bytes;
+        }
+        <span class="k">if</span> (<span class="k">typeof</span>(T) == <span class="k">typeof</span>(<span class="k">string</span>))
+        {
+            <span class="k">return</span> Encoding.UTF8.GetBytes((<span class="k">string</span>)(<span class="k">object</span>)value);
+        }
+
+        <span class="k">throw</span> <span class="k">new</span> NotSupportedException(<span class="s">$&quot;scalar-v1 does not support values of type '{typeof(T).FullName}'.&quot;</span>);
+    }
+
+    <span class="k">public</span> <span class="k">static</span> T Deserialize&lt;T&gt;(ReadOnlySpan&lt;<span class="k">byte</span>&gt; bytes)
+    {
+        <span class="k">if</span> (<span class="k">typeof</span>(T) == <span class="k">typeof</span>(<span class="k">bool</span>))
+        {
+            EnsureLength(<span class="k">typeof</span>(T), bytes.Length, 1);
+            <span class="k">bool</span> result = bytes[0] <span class="k">switch</span>
+            {
+                0 =&gt; <span class="k">false</span>,
+                1 =&gt; <span class="k">true</span>,
+                _ =&gt; <span class="k">throw</span> <span class="k">new</span> FormatException(<span class="s">$&quot;Invalid scalar-v1 bool value 0x{bytes[0]:x2}.&quot;</span>),
+            };
+            <span class="k">return</span> Unsafe.As&lt;<span class="k">bool</span>, T&gt;(<span class="k">ref</span> result);
+        }
+        <span class="k">if</span> (<span class="k">typeof</span>(T) == <span class="k">typeof</span>(<span class="k">int</span>))
+        {
+            EnsureLength(<span class="k">typeof</span>(T), bytes.Length, 4);
+            <span class="k">int</span> result = BinaryPrimitives.ReadInt32BigEndian(bytes);
+            <span class="k">return</span> Unsafe.As&lt;<span class="k">int</span>, T&gt;(<span class="k">ref</span> result);
+        }
+        <span class="k">if</span> (<span class="k">typeof</span>(T) == <span class="k">typeof</span>(<span class="k">long</span>))
+        {
+            EnsureLength(<span class="k">typeof</span>(T), bytes.Length, 8);
+            <span class="k">long</span> result = BinaryPrimitives.ReadInt64BigEndian(bytes);
+            <span class="k">return</span> Unsafe.As&lt;<span class="k">long</span>, T&gt;(<span class="k">ref</span> result);
+        }
+        <span class="k">if</span> (<span class="k">typeof</span>(T) == <span class="k">typeof</span>(Guid))
+        {
+            EnsureLength(<span class="k">typeof</span>(T), bytes.Length, 16);
+            Guid result = <span class="k">new</span>(bytes[..16], bigEndian: <span class="k">true</span>);
+            <span class="k">return</span> Unsafe.As&lt;Guid, T&gt;(<span class="k">ref</span> result);
+        }
+        <span class="k">if</span> (<span class="k">typeof</span>(T) == <span class="k">typeof</span>(DateTimeOffset))
+        {
+            EnsureLength(<span class="k">typeof</span>(T), bytes.Length, 8);
+            DateTimeOffset result = DateTimeOffset.FromUnixTimeMilliseconds(BinaryPrimitives.ReadInt64BigEndian(bytes));
+            <span class="k">return</span> Unsafe.As&lt;DateTimeOffset, T&gt;(<span class="k">ref</span> result);
+        }
+        <span class="k">if</span> (<span class="k">typeof</span>(T) == <span class="k">typeof</span>(DateOnly))
+        {
+            EnsureLength(<span class="k">typeof</span>(T), bytes.Length, 4);
+            <span class="k">var</span> epoch = <span class="k">new</span> DateOnly(1970, 1, 1);
+            DateOnly result = epoch.AddDays(BinaryPrimitives.ReadInt32BigEndian(bytes));
+            <span class="k">return</span> Unsafe.As&lt;DateOnly, T&gt;(<span class="k">ref</span> result);
+        }
+        <span class="k">if</span> (<span class="k">typeof</span>(T) == <span class="k">typeof</span>(<span class="k">string</span>))
+        {
+            <span class="k">string</span> result = Encoding.UTF8.GetString(bytes);
+            <span class="k">return</span> (T)(<span class="k">object</span>)result;
+        }
+
+        <span class="k">throw</span> <span class="k">new</span> NotSupportedException(<span class="s">$&quot;scalar-v1 does not support values of type '{typeof(T).FullName}'.&quot;</span>);
+    }
+
+    <span class="k">private</span> <span class="k">static</span> <span class="k">void</span> EnsureLength(Type type, <span class="k">int</span> actual, <span class="k">int</span> expected)
+    {
+        <span class="k">if</span> (actual != expected)
+        {
+            <span class="k">throw</span> <span class="k">new</span> FormatException(<span class="s">$&quot;Invalid scalar-v1 {type.Name} length. Expected {expected} bytes, got {actual}.&quot;</span>);
+        }
+    }
+}</code></pre></figure></details></div>
+<div class="step plain-step"><h2>Where to go next</h2><ul class="next-links"><li><a href="/learn/101-recurring-job">How to run a job on a repeating schedule</a><span>Run work on a schedule</span></li></ul></div>
+      </article>
+      <article class="agent-face" hidden>
+        <figure class="listing agent"><figcaption><span class="file">/learn/501-payload-formats.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/501-payload-formats.md">Open</a><button class="copy" type="button" data-copy-target="#md-body">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
+        <p class="hint">This is the page an agent receives: the same how-to as plain Markdown, at this page's address with <code>.md</code> added.</p>
+      </article>
+      <aside class="howto-rail" aria-label="This section">
+        <p class="rail-head"><a href="/learn#s-start">Start jobs</a></p>
+        <ol>
+            <li><a href="/learn/009-typed-enqueue" data-id="009"><span class="rail-n">1</span>Enqueue by the input's type</a></li>
+            <li><a href="/learn/023-job-call" data-id="023"><span class="rail-n">2</span>Enqueue by the job's generated call</a></li>
+            <li><a href="/learn/020-raw-enqueue" data-id="020"><span class="rail-n">3</span>Enqueue a job by its name</a></li>
+            <li><a href="/learn/004-no-input-job" data-id="004"><span class="rail-n">4</span>Write a job that takes no input</a></li>
+            <li><a href="/learn/005-scalar-input" data-id="005"><span class="rail-n">5</span>Pass one plain value as the input</a></li>
+            <li><a href="/learn/006-many-jobs-one-class" data-id="006"><span class="rail-n">6</span>Keep several jobs in one class</a></li>
+            <li><a href="/learn/011-delayed-job" data-id="011"><span class="rail-n">7</span>Run a job once, later</a></li>
+            <li><a href="/learn/217-absolute-time-controls" data-id="217"><span class="rail-n">8</span>Schedule, sleep, and reschedule to an exact instant</a></li>
+            <li><a href="/learn/010-deduplication-key" data-id="010"><span class="rail-n">9</span>Keep a repeated request from creating a second job</a></li>
+            <li><a href="/learn/028-deduplication-time-buckets" data-id="028"><span class="rail-n">10</span>Allow one job per hour or per day</a></li>
+            <li><a href="/learn/014-read-by-deduplication-key" data-id="014"><span class="rail-n">11</span>Find a job by its deduplication key</a></li>
+            <li><a href="/learn/015-call-vs-enqueue" data-id="015"><span class="rail-n">12</span>Choose between starting a job and waiting for it</a></li>
+            <li><a href="/learn/019-batch-enqueue" data-id="019"><span class="rail-n">13</span>Enqueue many jobs in one round trip</a></li>
+            <li><a href="/learn/017-priority" data-id="017"><span class="rail-n">14</span>Run urgent jobs first</a></li>
+            <li><a href="/learn/018-tags" data-id="018"><span class="rail-n">15</span>Label jobs so you can find them</a></li>
+            <li><a href="/learn/025-large-payload-reference" data-id="025"><span class="rail-n">16</span>Pass a large file by reference</a></li>
+            <li aria-current="page"><a href="/learn/501-payload-formats" data-id="501"><span class="rail-n">17</span>Choose a payload format for a job</a></li>
+        </ol>
+        <button class="button done-toggle" type="button" data-done-toggle="501" aria-pressed="false">Mark as done</button>
+        <p class="rail-turn"><a href="/learn/025-large-payload-reference" rel="prev">Previous</a></p>
+      </aside>
+    </div>
+    <section class="wrap newcomer" aria-labelledby="newcomer-title">
+      <h2 id="newcomer-title">New to Acta?</h2>
+      <p class="lede">Acta is durable execution for .NET: workflows and jobs that survive restarts, as a library inside your application with its durable state in your SQL database.</p>
+      <div class="actions">
+        <a class="button primary" href="/start">Run your first durable job in five minutes</a>
+        <a class="button" href="/learn">See every how-to</a>
+        <a class="button" href="/capabilities">Everything Acta does</a>
+      </div>
+    </section>
+    <footer class="site-footer">
+      <div class="wrap">
+        <div class="footer-grid">
+          <div class="footer-about">
+            <a class="site-brand" href="/" aria-label="Acta home"><svg viewBox="3.95 4.95 30.1 30.1" fill="none" stroke="currentColor" stroke-width="4.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 33 19 7 32 33" /><circle cx="19" cy="27" r="3" fill="currentColor" stroke="none" /></svg><span class="brand-word">Acta<span>.</span></span></a>
+            <p>Durable execution for .NET.</p>
+            <p>A library inside your application.<br />Durable state in your SQL database.</p>
+            <p class="footer-license">Apache-2.0 · built in the open</p>
+          </div>
+          <nav aria-label="Explore">
+            <p class="footer-head">Explore</p>
+            <a href="/how-it-works">How Acta works</a>
+            <a href="/capabilities">Capabilities</a>
+            <a href="/engine">Inside one worker</a>
+            <a href="/fleet">Workers and recovery</a>
+            <a href="/gates">Order and limits</a>
+            <a href="/benchmark">Benchmark and evidence</a>
+            <a href="/choosing">Choosing Acta</a>
+          </nav>
+          <nav aria-label="Build">
+            <p class="footer-head">Build</p>
+            <a href="/start">Get started</a>
+            <a href="/learn">Learn Acta</a>
+            <a href="https://github.com/acta-dotnet/acta/tree/main/docs">Documentation</a>
+            <a href="https://github.com/acta-dotnet/acta/tree/main/concepts">Runnable concepts</a>
+            <a href="https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md">Engineering labs</a>
+            <a href="/llms.txt">llms.txt for coding agents</a>
+          </nav>
+          <div class="footer-release">
+            <p class="footer-head">Release</p>
+            <p class="footer-version"><span class="release-dot" aria-hidden="true"></span><a href="https://github.com/acta-dotnet/acta/releases">1.0.0-rc.12 <span aria-hidden="true">↗</span></a><span>a release candidate</span></p>
+            <a href="https://github.com/acta-dotnet/acta/blob/main/docs/compatibility-and-support.md">Compatibility and support</a>
+            <a href="/support">Support Acta</a>
+            <a href="https://github.com/acta-dotnet/acta/blob/main/docs/known-limitations.md#stability-status">Stability status</a>
+            <a href="https://github.com/acta-dotnet/acta">Source on GitHub <span aria-hidden="true">↗</span></a>
+          </div>
+        </div>
+        <div class="footer-bottom">
+          <p>Created and maintained by <a href="https://www.linkedin.com/in/marko-voncina">Marko Vončina</a></p>
+          <span data-theme-controls></span>
+        </div>
+      </div>
+    </footer>
+  </main>
+  <p class="sr-only" id="copy-status" aria-live="polite"></p>
+  <script src="/assets/learn.js"></script>
+</body>
+</html>

@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Acta.Emit.Features.Docs;
+using Acta.Emit.Features.Learn;
 using Acta.Emit.Features.Migrations;
 using Acta.Emit.Shared;
 using Acta.Emit.Shared.Model;
@@ -8,7 +9,8 @@ using Acta.Emit.Shared.Sql;
 namespace Acta.Emit.Features.Verify;
 
 /// <summary>
-/// Drift gate. Verifies the generated reference docs are current and that the committed snapshot still
+/// Drift gate. Verifies the generated reference docs are current, that the how-tos are the ones the concept programs
+/// emit, and that the committed snapshot still
 /// equals the live model (i.e. no entity, routine, or view change is missing a `schema add`). Migration SQL
 /// is hand-edited history and is not compared against the model; the round-trip conformance test is what
 /// proves the applied history reconstructs it.
@@ -46,6 +48,8 @@ internal static class CheckCommand
                 Console.WriteLine($"  ok:      {path}");
             }
         }
+
+        drifted += LearnEmitter.Check(repoRoot);
 
         var snapshotPath = SnapshotFile.Path(repoRoot);
         if (!File.Exists(snapshotPath))

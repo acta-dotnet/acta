@@ -90,105 +90,11 @@ curated-view rows.
 | `800-899` | Testing |
 | `900-999` | Runtime and tuning (AOT, Redis wakeup, worker configuration) |
 
-| # | Rung | Teaches |
-| --- | --- | --- |
-| 001 | [hello-acta](../concepts/000-fundamentals/001-hello-acta/) | One `[Job]`, fire-and-forget enqueue, a worker runs it |
-| 002 | [job-input](../concepts/000-fundamentals/002-job-input/) | Typed input record, no result |
-| 003 | [job-result](../concepts/000-fundamentals/003-job-result/) | A job returns a typed result; wait for it with `WaitAsync<T>` |
-| 004 | [no-input-job](../concepts/000-fundamentals/004-no-input-job/) | A job with no input (`NoInput`) |
-| 005 | [scalar-input](../concepts/000-fundamentals/005-scalar-input/) | A bare scalar input, no request record |
-| 006 | [many-jobs-one-class](../concepts/000-fundamentals/006-many-jobs-one-class/) | Several `[Job]` methods in one class |
-| 007 | [dependency-injection](../concepts/000-fundamentals/007-dependency-injection/) | Constructor-injected services in a handler |
-| 008 | [cancellation-token](../concepts/000-fundamentals/008-cancellation-token/) | Async handler honoring `CancellationToken` |
-| 009 | [typed-enqueue](../concepts/000-fundamentals/009-typed-enqueue/) | `EnqueueAsync` routes by the input type (no name string) |
-| 010 | [deduplication-key](../concepts/000-fundamentals/010-deduplication-key/) | Idempotent enqueue (dedupe by deduplication key) |
-| 011 | [delayed-job](../concepts/000-fundamentals/011-delayed-job/) | Run a job once, later, with `ScheduleAsync(input, delay)` |
-| 012 | [read-status](../concepts/000-fundamentals/012-read-status/) | Read a `GetJobResponse` with `GetAsync` |
-| 013 | [read-result](../concepts/000-fundamentals/013-read-result/) | `TryGetResultAsync<T>` finds nothing before Succeeded; `GetResultAsync<T>` returns the result you expect |
-| 014 | [read-by-deduplication-key](../concepts/000-fundamentals/014-read-by-deduplication-key/) | Look a job up by `JobLookup.ByDeduplicationKey` |
-| 015 | [call-vs-enqueue](../concepts/000-fundamentals/015-call-vs-enqueue/) | Fire-and-forget vs enqueue-and-wait |
-| 016 | [max-attempts](../concepts/000-fundamentals/016-max-attempts/) | Retry budget; terminal `Failed` after the cap |
-| 017 | [priority](../concepts/000-fundamentals/017-priority/) | Claim-order priority on enqueue |
-| 018 | [tags](../concepts/000-fundamentals/018-tags/) | Annotate a job with tags |
-| 019 | [batch-enqueue](../concepts/000-fundamentals/019-batch-enqueue/) | Enqueue many jobs in one round-trip |
-| 020 | [raw-enqueue](../concepts/000-fundamentals/020-raw-enqueue/) | Enqueue by explicit (namespace, job-name) + payload |
-| 021 | [jobs-cli](../concepts/000-fundamentals/021-jobs-cli/) | **Engineering Lab.** Same-binary `info`/`events`/`explain`/`debug` over one signal-waiting identity |
-| 022 | [dashboard](../concepts/000-fundamentals/022-dashboard/) | **Engineering Lab.** Embedded dashboard seeded with varied states; experience controls-disabled safety first |
-| 023 | [job-call](../concepts/000-fundamentals/023-job-call/) | Enqueue by the manifest's generated call (no input-type inference); several handler parameters as one input |
-| 024 | [aspnet-enqueue-api](../concepts/000-fundamentals/024-aspnet-enqueue-api/) | Minimal HTTP API: POST returns 202 + JobRef; GET polls status/result; deduplication key, correlation id, tags |
-| 025 | [large-payload-reference](../concepts/000-fundamentals/025-large-payload-reference/) | Store big files in blob/object storage; enqueue a verified reference (URI + checksum + size), not the bytes |
-| 026 | [first-job](../concepts/000-fundamentals/026-first-job/) | The [first-job guide](./first-job.md)'s app verbatim: typed result, a failure that is final and one that retries, explanation, cancel, and a wait that times out without stopping the job |
-| 028 | [deduplication-time-buckets](../concepts/000-fundamentals/028-deduplication-time-buckets/) | Time-bucketed deduplication keys (`PerHour`/`PerDay`/`PerTimeBucket`) dedupe within a bucket, insert across it |
-| 101 | [recurring-job](../concepts/100-scheduling/101-recurring-job/) | `[Schedule]` cron permanent job - fires itself, no enqueue |
-| 102 | [interval-schedule](../concepts/100-scheduling/102-interval-schedule/) | Replace a simple `PeriodicTimer` cleanup with an interval schedule (`10s`) |
-| 103 | [multiple-schedules](../concepts/100-scheduling/103-multiple-schedules/) | **Engineering Lab.** One permanent job row, several moving schedule cursors, event-backed occurrence history |
-| 104 | [timezone-schedule](../concepts/100-scheduling/104-timezone-schedule/) | A cron schedule pinned to a wall clock (`TimeZoneId = "Europe/Ljubljana"`), DST-safe |
-| 105 | [schedule-control](../concepts/100-scheduling/105-schedule-control/) | Pause (indefinite + timed) and resume a recurring schedule with `operations.Schedules` |
-| 106 | [schedule-misfire](../concepts/100-scheduling/106-schedule-misfire/) | **Engineering Lab.** Watch `Skip`, `CatchUpOnce`, and `CatchUpAll` decide the same missed stretch differently after a resume |
-| 108 | [calendar-catalog](../concepts/100-scheduling/108-calendar-catalog/) | A calendar published as data through `operations.Calendars`; a publication retimes the bound schedule while the worker runs |
-| 109 | [continuous-synchronization](../concepts/100-scheduling/109-continuous-synchronization/) | **Engineering Lab.** One permanent job keeps a web shop's orders synchronized in bounded batches: `Idle` between firings, the watermark a durable variable on the job, a real worker crash after a batch, and the restarted worker reclaiming the same firing |
-| 110 | [per-occurrence-delivery](../concepts/100-scheduling/110-per-occurrence-delivery/) | `ScheduledDelivery = PerOccurrence`: each occurrence a root job of its own, `MaxOutstanding` bounding how many run, a full schedule dropping occurrences with the reason `capacity` |
-| 111 | [firing-failure-policy](../concepts/100-scheduling/111-firing-failure-policy/) | `FiringFailurePolicy`: a firing that spends its budget returns the permanent job to `Idle`; `Continue` keeps the schedule firing, `PauseScheduling` pauses it with the reason |
-| 201 | [durable-checkout](../concepts/200-durable-execution/201-durable-checkout/) | **Engineering Lab flagship.** Durable orchestration as inspectable jobs, steps, checkpoints, events, and results |
-| 202 | [durable-step](../concepts/200-durable-execution/202-durable-step/) | **Engineering Lab.** Completed step outcome replays while the job advances to execution two |
-| 203 | [durable-variable](../concepts/200-durable-execution/203-durable-variable/) | A durable variable pins a value (a sync watermark) across retries |
-| 204 | [wait-signal](../concepts/200-durable-execution/204-wait-signal/) | **Engineering Lab.** Prove a signal-waiting job is suspended, durable, and holds no worker lease |
-| 205 | [durable-sleep](../concepts/200-durable-execution/205-durable-sleep/) | **Engineering Lab.** Compare process-local delay with a timer checkpoint and handler re-entry |
-| 206 | [step-chain](../concepts/200-durable-execution/206-step-chain/) | Chained typed steps: each `RunStepAsync<T>` output feeds the next |
-| 207 | [run-with-lock](../concepts/200-durable-execution/207-run-with-lock/) | A named lock serializes jobs touching the same resource |
-| 208 | [progress](../concepts/200-durable-execution/208-progress/) | Report progress to durable state (`SetProgressAsync`) + a live bar |
-| 209 | [concurrency-key](../concepts/200-durable-execution/209-concurrency-key/) | **Engineering Lab.** Whole-job admission: inspect the named lease and a budget-neutral competitor bounce |
-| 210 | [step-retry](../concepts/200-durable-execution/210-step-retry/) | A failing step retries through its job, and the last attempt compensates on `IsLastAttempt` |
-| 211 | [child-jobs](../concepts/200-durable-execution/211-child-jobs/) | **Engineering Lab.** Independent child rows plus parent-owned latches; suspended parent holds no worker |
-| 212 | [fan-out-join](../concepts/200-durable-execution/212-fan-out-join/) | Map-reduce with `MapAsync`: chunk children compute partial sums in parallel, the parent merges their results |
-| 213 | [call-child](../concepts/200-durable-execution/213-call-child/) | `CallChildAsync` delegates to an existing job and waits for its result (vs a step) |
-| 214 | [reset-state](../concepts/200-durable-execution/214-reset-state/) | A recurring monitor uses durable state, then `ctx.ResetStateAsync` so the next fire starts blank |
-| 215 | [map-wait-children](../concepts/200-durable-execution/215-map-wait-children/) | `EnqueueChildAsync` with `WaitChildrenAsync`, and `MapAsync`, fan out child jobs and wait, all over the same latches |
-| 216 | [variable-lifecycle](../concepts/200-durable-execution/216-variable-lifecycle/) | Durable-variable lifecycle: `GetOrSet` (compute-once), `Exists`, `Delete`, defaults, raw `JobPayload` |
-| 217 | [absolute-time-controls](../concepts/200-durable-execution/217-absolute-time-controls/) | Absolute-instant timing: `ScheduleAsync(input, runAt)`, `SleepUntilAsync`, `RescheduleUntilAsync` |
-| 219 | [child-failure-outcomes](../concepts/200-durable-execution/219-child-failure-outcomes/) | Child-group failure handling: `MapOutcome`/`ChildrenWaitOutcome` and `ThrowIfAnyFailed` |
-| 220 | [at-most-once-step](../concepts/200-durable-execution/220-at-most-once-step/) | **Engineering Lab.** Real process loss after a side effect: refuse body replay, surface ambiguity, reconcile |
-| 301 | [fail-job](../concepts/300-failure-and-recovery/301-fail-job/) | `ctx.FailAsync` ends the job permanently - no retries (unlike throwing) |
-| 302 | [cancel-job](../concepts/300-failure-and-recovery/302-cancel-job/) | `ctx.CancelAsync` ends the job as Cancelled |
-| 303 | [pause-job](../concepts/300-failure-and-recovery/303-pause-job/) | `ctx.PauseAsync` parks the job as Paused, awaiting resume |
-| 304 | [execution-timeout](../concepts/300-failure-and-recovery/304-execution-timeout/) | `ExecutionTimeout` trips the CancellationToken on a too-slow attempt |
-| 305 | [operator-cancel](../concepts/300-failure-and-recovery/305-operator-cancel/) | `IJobs.CancelAsync` cancels a running job from outside |
-| 306 | [reschedule](../concepts/300-failure-and-recovery/306-reschedule/) | Self-reschedule to poll-and-wait, without burning the retry budget |
-| 307 | [deadline-strict](../concepts/300-failure-and-recovery/307-deadline-strict/) | A whole-job `Deadline` (Strict) abandons an overdue job at admission; the handler never runs |
-| 308 | [deadline-advisory](../concepts/300-failure-and-recovery/308-deadline-advisory/) | An Advisory `Deadline` still runs the handler; it reads `ctx.IsOverdue` and degrades gracefully |
-| 309 | [operator-resume](../concepts/300-failure-and-recovery/309-operator-resume/) | Pause and resume a job from outside via `IJobs.PauseAsync`/`ResumeAsync` (Applied vs Rejected) |
-| 310 | [operator-restart](../concepts/300-failure-and-recovery/310-operator-restart/) | **Engineering Lab.** Same identity, reset budget, appended history, retained step, repeated bare handler code |
-| 311 | [call-outcome-timeout](../concepts/300-failure-and-recovery/311-call-outcome-timeout/) | Read a `JobOutcome`: `WaitTimeout`, `ThrowIfFailed`, `TryGetValue`, `ValueOrThrow` |
-| 312 | [backoff-curve](../concepts/300-failure-and-recovery/312-backoff-curve/) | Typed retry backoff curve via the `Backoff` DSL string (e.g. `1s..8s x2 exact`) |
-| 401 | [pipeline-behavior](../concepts/400-observability-and-alerts/401-pipeline-behavior/) | `IJobPipelineBehavior` wraps every handler, like middleware |
-| 402 | [alerts](../concepts/400-observability-and-alerts/402-alerts/) | Raise an operator alert from a handler (`ctx.AlertAsync`), then read it back via `operations.Alerts` |
-| 403 | [alert-channel](../concepts/400-observability-and-alerts/403-alert-channel/) | Declare a custom alert channel (`AddAlertChannel`) and route an alert to it by name |
-| 404 | [read-event-timeline](../concepts/400-observability-and-alerts/404-read-event-timeline/) | Read the `JobEvent` timeline ("why did this happen?") across a job lineage |
-| 405 | [real-alert-routing](../concepts/400-observability-and-alerts/405-real-alert-routing/) | A Slack-webhook channel from configuration, logging when none is set, with a severity floor; a deduplication key collapses repeats of one incident |
-| 406 | [automatic-failure-alerts](../concepts/400-observability-and-alerts/406-automatic-failure-alerts/) | An automatic failure alert via `[Job(AlertProfile=...)]`; same-job repeats dedupe and count up |
-| 407 | [event-recording](../concepts/400-observability-and-alerts/407-event-recording/) | `EventRecording` (Failures/Audit) changes how many `JobEvent`s a job emits |
-| 408 | [correlation-id](../concepts/400-observability-and-alerts/408-correlation-id/) | Propagate a `CorrelationKey` parent->child (read via log scope / raw SQL) |
-| 409 | [operator-queries](../concepts/400-observability-and-alerts/409-operator-queries/) | `ILedger` reads: filters, `NextCursor` paging, `IncludeTotal`, `GetOverviewAsync` |
-| 410 | [http-api-controls](../concepts/400-observability-and-alerts/410-http-api-controls/) | HTTP control API: `MapActaApi` + `EnableControls`, the `X-Acta-Control` header, `LocalOnly` |
-| 411 | [alert-escalation](../concepts/400-observability-and-alerts/411-alert-escalation/) | Alert escalation stages: FirstFailure -> ThresholdReached -> FinalFailure |
-| 412 | [tenant-scope](../concepts/400-observability-and-alerts/412-tenant-scope/) | **Engineering Lab.** Tenant catalog resolution, child inheritance, filtering, and unknown/suspended rejection |
-| 413 | [http-api-authorization](../concepts/400-observability-and-alerts/413-http-api-authorization/) | HTTP API permissions: `RequirePermissions` + four host policies; 401 with no credential, 403 naming the permission a caller lacks |
-| 414 | [dashboard-sign-in](../concepts/400-observability-and-alerts/414-dashboard-sign-in/) | The dashboard behind the host's cookie sign-in: three roles behind the four policies; a page goes to sign in, the API answers 401, a session ends in view |
-| 501 | [payload-formats](../concepts/500-payloads/501-payload-formats/) | **Engineering Lab.** Custom formats compared by serialization time, enqueue time, readability, and stored bytes |
-| 601 | [fan-out](../concepts/600-job-composition/601-fan-out/) | A handler injects `IJobs` and enqueues many independent jobs: no lineage and no join (compare 212's `MapAsync`) |
-| 602 | [chained-jobs](../concepts/600-job-composition/602-chained-jobs/) | A linear pipeline: each stage enqueues the next |
-| 701 | [enqueue-only-reference](../concepts/700-topology-and-deployment/701-enqueue-only-reference/) | `Reference<TManifest>()` enqueues without a worker; `Run<TManifest>()` drains (one process, two roles) |
-| 703 | [namespaces-in-one-process](../concepts/700-topology-and-deployment/703-namespaces-in-one-process/) | Two namespaces, each with its own worker, in one process |
-| 704 | [cross-namespace-child](../concepts/700-topology-and-deployment/704-cross-namespace-child/) | A parent starts a child in another worker's namespace and waits across the boundary |
-| 705 | [worker-crash-recovery](../concepts/700-topology-and-deployment/705-worker-crash-recovery/) | **Engineering Lab.** Real peer-process loss/recovery through SQL leases and leaderless crash recovery on the heartbeat (PostgreSQL/SQL Server) |
-| 706 | [API/worker split](../demos/ApiWorkerSplit/) | **Production capstone.** Open the focused solution and press F5 to run an enqueue-only API and independently scalable worker as separate processes |
-| 801 | [testing-jobs](../concepts/800-testing/801-testing-jobs/) | Test `[Job]` handlers with `Acta.Testing`: a class-fixture-shared `ActaTestHost`, deterministic `RunOnceAsync` ticks, `Rearmed`-vs-`Failed` retry semantics (`dotnet test`, not `dotnet run`) |
-| 802 | [testing-durable-jobs](../concepts/800-testing/802-testing-durable-jobs/) | Test a durable, multi-step job (step + approval signal) deterministically: drive suspend, raise the typed signal, drive resume; assert run-once across the replay |
-| 803 | [first-job-tests](../concepts/800-testing/803-first-job-tests/) | The [first-job guide](./first-job.md)'s test verbatim: the real runtime on a throwaway SQLite file, driven one tick at a time, with a retry made due at once |
-| 804 | [continuous-synchronization-tests](../concepts/800-testing/804-continuous-synchronization-tests/) | The [continuous-synchronization lab](../concepts/100-scheduling/109-continuous-synchronization/)'s claims as facts: a schedule forced due, one admission pass, one run per firing; one job identity across firings; the watermark a variable on the job; the cursor and the watermark moving apart; a lost attempt reclaimed and the next execution continuing at the watermark; a failed attempt's watermark kept for the retry; replay, a failed batch, and a backlog (`dotnet test`) |
-| 901 | [native-aot-json](../concepts/900-runtime-and-tuning/901-native-aot-json/) | AOT-safe JSON payloads: `UseJsonPayloads(JsonSerializerContext)` + `JobPayload.Json(value, typeInfo)` |
-| 903 | [redis-wakeup](../concepts/900-runtime-and-tuning/903-redis-wakeup/) | Redis pub/sub wakes workers across processes (run worker + enqueue roles) |
-| 904 | [worker-tuning](../concepts/900-runtime-and-tuning/904-worker-tuning/) | Worker tuning: `MaxConcurrentExecutors` and `SafetyPollInterval` |
+Every rung, with what it shows and the how-to written from it, is listed in
+[the concept ladder](./reference/concept-ladder.md). That file is generated from the programs: a rung's
+title and one-line summary are its program's opening comment, and the steps of its how-to are the lines
+the program marks with `// learn:` ([CONTRIBUTING.md](../CONTRIBUTING.md), "Concept programs").
 
-Multi-project apps live under [`demos/`](../demos/); the ladder links one directly as the 706
-capstone.
+The production capstone is a demo, not a rung: [`demos/ApiWorkerSplit`](../demos/ApiWorkerSplit/) runs an
+enqueue-only API and an independently scalable worker as separate processes. Open its focused solution
+and press F5. Other multi-project apps live under [`demos/`](../demos/).

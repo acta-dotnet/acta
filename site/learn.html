@@ -3,121 +3,40 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Learn Acta · build a report service that survives a crash · Acta</title>
-  <meta name="description" content="A first-time Acta tutorial for .NET developers. Build a small ASP.NET Core report service on embedded SQLite, watch a job retry, record progress with steps, kill the process, and see the same job finish after a restart." />
+  <title>Learn Acta · how-tos for durable workflows and jobs in .NET</title>
+  <meta name="description" content="How to do one thing at a time with Acta: short how-tos with the handler, the call that starts it, the command that runs it, and the output it must print. Sectioned from the first job to production, and published as Markdown for coding agents." />
   <link rel="canonical" href="https://useacta.net/learn" />
   <meta name="theme-color" content="#0B0E15" />
   <meta property="og:type" content="article" />
   <meta property="og:site_name" content="Acta for .NET" />
-  <meta property="og:title" content="Learn Acta · build a report service that survives a crash" />
-  <meta property="og:description" content="A first-time tutorial: one ASP.NET Core app, embedded SQLite, a background job that retries, records its progress, and finishes after the process is killed." />
+  <meta property="og:title" content="Learn Acta · how-tos for durable workflows and jobs in .NET" />
+  <meta property="og:description" content="How to do one thing at a time with Acta: short how-tos with the handler, the call that starts it, the command that runs it, and the output it must print. Sectioned from the first job to production, and published as Markdown for coding agents." />
   <meta property="og:url" content="https://useacta.net/learn" />
   <meta property="og:image" content="https://useacta.net/assets/social-card.png" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
   <meta property="og:image:alt" content="Acta: durable execution for .NET. Postgres, SQL Server, SQLite." />
   <meta name="twitter:card" content="summary_large_image" />
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"CollectionPage","name":"Learn Acta","url":"https://useacta.net/learn","inLanguage":"en","about":{"@type":"SoftwareSourceCode","name":"Acta","programmingLanguage":"C#","codeRepository":"https://github.com/acta-dotnet/acta"}}</script>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   <link rel="alternate" type="text/plain" href="/llms.txt" title="Acta for coding agents" />
-  <link rel="preload" href="assets/fonts/fraunces-latin.woff2" as="font" type="font/woff2" crossorigin />
-  <link rel="preload" href="assets/fonts/ibm-plex-sans-latin.woff2" as="font" type="font/woff2" crossorigin />
-  <link rel="preload" href="assets/fonts/ibm-plex-mono-400-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="alternate" type="text/markdown" href="/learn/index.md" title="This page as Markdown, for coding agents" />
+  <link rel="preload" href="/assets/fonts/fraunces-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="/assets/fonts/ibm-plex-sans-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="/assets/fonts/ibm-plex-mono-400-latin.woff2" as="font" type="font/woff2" crossorigin />
   <style>
     /* Self-hosted latin subsets of the three families, preloaded and served immutable (see _headers),
        so a reload paints them from cache with no swap and a first visit swaps them in as they land.
        Fraunces and Plex Sans are variable files. */
-    @font-face { font-family: "Fraunces"; font-style: normal; font-weight: 400 600; font-display: swap; src: url(assets/fonts/fraunces-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
-    @font-face { font-family: "Fraunces"; font-style: italic; font-weight: 400 500; font-display: swap; src: url(assets/fonts/fraunces-italic-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
-    @font-face { font-family: "IBM Plex Sans"; font-style: normal; font-weight: 400 600; font-display: swap; src: url(assets/fonts/ibm-plex-sans-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
-    @font-face { font-family: "IBM Plex Mono"; font-style: normal; font-weight: 400; font-display: swap; src: url(assets/fonts/ibm-plex-mono-400-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
-    @font-face { font-family: "IBM Plex Mono"; font-style: normal; font-weight: 500; font-display: swap; src: url(assets/fonts/ibm-plex-mono-500-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "Fraunces"; font-style: normal; font-weight: 400 600; font-display: swap; src: url(/assets/fonts/fraunces-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "Fraunces"; font-style: italic; font-weight: 400 500; font-display: swap; src: url(/assets/fonts/fraunces-italic-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "IBM Plex Sans"; font-style: normal; font-weight: 400 600; font-display: swap; src: url(/assets/fonts/ibm-plex-sans-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "IBM Plex Mono"; font-style: normal; font-weight: 400; font-display: swap; src: url(/assets/fonts/ibm-plex-mono-400-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "IBM Plex Mono"; font-style: normal; font-weight: 500; font-display: swap; src: url(/assets/fonts/ibm-plex-mono-500-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
   </style>
-  <link rel="stylesheet" href="assets/site.css" />
-  <script src="assets/theme.js"></script>
-  <style>
-    /* ---- long-form article ---- */
-    /* The same frame as every other page (.wrap), so the title and every section share one left edge: code,
-       figures, and screenshots take the full column, while prose keeps a readable measure. */
-    .article { max-width: 1328px; margin: 0 auto; padding: 0 var(--page-gutter) 2rem; }
-    .article p, .article ul.plain { max-width: 50rem; }
-    .byline { font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--faint); margin: 1.1rem 0 0; }
-
-    .contents { max-width: 50rem; margin: 2.4rem 0 1rem; padding: 1.2rem 1.4rem; background: var(--panel); border: 1px solid var(--hair); border-radius: var(--r-panel); }
-    .article .contents h2 { font-family: var(--mono); line-height: 1.4; font-size: 0.72rem; font-weight: 400; letter-spacing: 0.18em; text-transform: uppercase; color: var(--faint); margin: 0 0 0.8rem; }
-    .contents ol { margin: 0; padding-left: 1.4rem; columns: 2; column-gap: 2.2rem; font-size: 0.95rem; }
-    .contents li { margin: 0 0 0.35rem; break-inside: avoid; color: var(--faint); }
-    .contents a { color: var(--text); text-decoration: none; }
-    .contents a:hover { color: var(--verdi); text-decoration: underline; }
-    @media (max-width: 640px) { .contents ol { columns: 1; } }
-
-    /* The contents never shape the page. Where the screen has room beside the frame they become a rail in the left
-       margin that follows the reader; the article keeps the frame it has without them. */
-    @media (min-width: 1840px) {
-      .article > .contents {
-        float: left; width: 14rem; max-width: none; margin: 1.4rem 0 0 calc(-14rem - var(--page-gutter));
-        position: sticky; top: 4.2rem; max-height: calc(100vh - 5.5rem); overflow-y: auto;
-        background: none; border: 0; border-left: 1px solid var(--hair); border-radius: 0; padding: 0.2rem 0 0.2rem 1.2rem;
-      }
-      .contents ol { columns: 1; padding-left: 1.2rem; }
-    }
-
-    .article section { scroll-margin-top: 4rem; padding: 1.4rem 0 0; }
-    .article h2 {
-      font-size: clamp(1.6rem, 3vw, 2.05rem); line-height: 1.15;
-      margin: 2.2rem 0 1rem; max-width: none;
-    }
-    .article h3 { font-family: var(--serif); font-weight: 500; font-size: 1.25rem; margin: 1.8rem 0 0.6rem; }
-    .article p, .article li { font-size: 1.05rem; line-height: 1.75; }
-    .article p { margin: 0 0 1.15rem; }
-    .article p a, .article li a { color: var(--verdi); text-underline-offset: 3px; }
-    .article p a:hover, .article li a:hover { color: #6BE8C5; }
-    .article ul.plain { padding-left: 1.2rem; margin: 0 0 1.2rem; }
-    .article ul.plain li { margin: 0 0 0.5rem; }
-    .article strong { color: #fff; font-weight: 600; }
-
-    /* code listings: a panel whose tab names the file */
-    .listing { margin: 1.4rem 0 1.6rem; background: var(--panel); border: 1px solid var(--hair); border-radius: var(--r-panel); overflow: hidden; }
-    .listing figcaption {
-      display: flex; align-items: center; gap: 0.7rem; min-height: 2.6rem;
-      padding: 0.35rem 0.6rem 0.35rem 1.1rem; border-bottom: 1px solid var(--hair);
-      font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.08em; color: var(--faint);
-    }
-    .listing figcaption::before { content: ""; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--verdi); opacity: 0.8; }
-    .listing.output figcaption::before { background: var(--oxide); }
-    .listing figcaption .file { color: var(--text); letter-spacing: 0.02em; }
-    .listing figcaption .note { flex: 1; }
-    .listing .copy { margin-left: auto; min-height: 2rem; padding: 0.25rem 0.8rem; font-size: 0.68rem; }
-    .listing pre { padding: 1.1rem 1.2rem; font-size: 0.84rem; line-height: 1.65; }
-    .listing.output pre { color: #B9C4D4; }
-
-    .article .callout { max-width: 56rem; margin: 1.8rem 0; padding: 1.1rem 1.3rem; background: var(--panel-2); border-radius: 0 var(--r-panel) var(--r-panel) 0; }
-    .article .callout h3 { margin: 0 0 0.5rem; font-size: 1.1rem; }
-    .article .callout p { font-size: 0.98rem; margin: 0 0 0.7rem; }
-    .article .callout p:last-child { margin-bottom: 0; }
-
-    /* screenshots */
-    .shot { margin: 1.6rem 0 1.8rem; }
-    .shot a { display: block; border-radius: var(--r-panel); }
-    .shot img { display: block; width: 100%; height: auto; border: 1px solid var(--hair); border-radius: var(--r-panel); }
-    .shot figcaption { margin-top: 0.6rem; font-size: 0.9rem; color: var(--muted); line-height: 1.55; }
-
-    .next-links { list-style: none; padding: 0; margin: 0 0 1.2rem; border-top: 1px solid var(--hair); }
-    .next-links li { padding: 0.9rem 0; border-bottom: 1px solid var(--hair-soft); font-size: 1rem; }
-    .next-links a { font-weight: 600; }
-    .next-links span { color: var(--muted); }
-
-    @media print {
-      body { font-size: 11pt; }
-      .article { max-width: none; padding: 0; }
-      .listing figcaption .file { color: #111; }
-      .listing, .callout, .shot { break-inside: avoid; }
-      .article strong { color: #000; }
-      .article p a::after { content: " (" attr(href) ")"; font-size: 0.85em; color: #555; }
-    }
-  </style>
-  <script type="application/ld+json">
-    {"@context":"https://schema.org","@type":"TechArticle","headline":"Build a report service that survives a crash","description":"A first-time Acta tutorial: an ASP.NET Core report service on embedded SQLite with retries, durable steps, and crash recovery.","url":"https://useacta.net/learn","proficiencyLevel":"Beginner","inLanguage":"en","about":{"@type":"SoftwareSourceCode","name":"Acta","codeRepository":"https://github.com/acta-dotnet/acta"}}
-  </script>
+  <link rel="stylesheet" href="/assets/site.css" />
+  <link rel="stylesheet" href="/assets/learn.css" />
+  <script src="/assets/theme.js"></script>
 </head>
 <body>
   <a class="skip-link" href="#content">Skip to content</a>
@@ -129,568 +48,322 @@
       <a href="/start">Start</a>
       <a href="/capabilities">Capabilities</a>
       <a href="/benchmark">Benchmark</a>
-      <a href="/learn">Learn</a>
+      <a href="/learn" aria-current="page">Learn</a>
       <a href="https://github.com/acta-dotnet/acta" class="gh" aria-label="Acta on GitHub" title="Acta on GitHub"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><path fill="currentColor" d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"></path></svg></a>
     </nav>
     <span class="header-appearance" data-theme-controls></span>
     </div>
   </div>
 
-  <main id="content">
-    <header class="wrap page-head">
-      <p class="record">learn acta · a first-time tutorial</p>
-      <h1>Build a report service that survives a crash.</h1>
-      <p class="lede">In about an hour you will build a small ASP.NET Core application that generates sales reports in the background, watch a job fail and retry on its own, and then kill the process halfway through a report and see the same job finish after a restart. Along the way you will learn what Acta is, what each line of setup is for, and exactly what it does and does not promise.</p>
-      <p class="byline">.NET 10 · ASP.NET Core · embedded SQLite · no Docker</p>
+
+  <main id="content" data-hub>
+    <header class="wrap page-head ask">
+      <p class="record">learn acta</p>
+      <h1 class="ask-title"><label for="ask">How do I</label><span class="ask-field"><input id="ask" type="search" autocomplete="off" spellcheck="false" enterkeyhint="go" placeholder="wait for an approval" aria-controls="ask-results" /></span><span class="ask-tail">?</span></h1>
+      <p class="ask-try"><span>Try</span>
+        <button type="button" data-ask="run a job at 08:00 Berlin time">run a job at 08:00 Berlin time</button>
+        <button type="button" data-ask="keep a service in sync">keep a service in sync</button>
+        <button type="button" data-ask="wait for an approval">wait for an approval</button>
+        <button type="button" data-ask="stop retrying after three attempts">stop retrying after three attempts</button>
+      </p>
+      <div class="ask-results" id="ask-results" role="region" aria-live="polite" hidden></div>
+      <p class="lede">Every answer is a short how-to: the handler, the call that starts it, the command that runs it, and the lines it must print. The code is lifted from programs in the Acta repository, and each page says how its program is checked. Each page is also plain Markdown, so your coding agent learns from the page you read.</p>
+      <div class="reader" role="group" aria-label="Read this page as">
+        <span class="reader-label">Read as</span>
+        <button type="button" data-reader="person" aria-pressed="true">a person</button>
+        <button type="button" data-reader="agent" aria-pressed="false" data-md="/learn/index.md">an agent</button>
+      </div>
     </header>
-    <article class="article">
-      <nav class="contents" aria-labelledby="contents-title">
-        <h2 id="contents-title">In this article</h2>
-        <ol>
-          <li><a href="#build">What you are going to build</a></li>
-          <li><a href="#create">Create the project</a></li>
-          <li><a href="#data">Some sales to report on</a></li>
-          <li><a href="#job">Describing the work</a></li>
-          <li><a href="#wiring">Wiring Acta into the app</a></li>
-          <li><a href="#first-report">The first report</a></li>
-          <li><a href="#dashboard">The job in the dashboard</a></li>
-          <li><a href="#retries">When the data is late</a></li>
-          <li><a href="#steps">Recording progress with steps</a></li>
-          <li><a href="#shutdown">Ctrl+C is a polite request</a></li>
-          <li><a href="#crash">Pulling the plug</a></li>
-          <li><a href="#your-app">From tutorial to your application</a></li>
-          <li><a href="#next">Further reading</a></li>
+
+    <div class="person-face">
+    <section class="wrap doors" aria-label="Where to start">
+      <a class="door" href="/learn/first-project">
+        <b>Build the first project</b>
+        <span>About an hour. A report service that retries, records its progress, and finishes the same job after you kill the process.</span>
+        <i>Start the tutorial</i>
+      </a>
+      <div class="door">
+        <b>Take the short tour</b>
+        <span>The how-tos that cover the model end to end, in order.</span>
+        <ol class="tour"><li><a href="/learn/001-hello-acta" data-id="001">Run your first job</a></li><li><a href="/learn/202-durable-step" data-id="202">Keep finished work from repeating on a retry</a></li><li><a href="/learn/204-wait-signal" data-id="204">Wait for an approval without holding a worker</a></li><li><a href="/learn/109-continuous-synchronization" data-id="109">Keep another system in sync with a permanent job</a></li><li><a href="/learn/705-worker-crash-recovery" data-id="705">Recover the work of a killed worker</a></li><li><a href="/learn/022-dashboard" data-id="022">See your jobs in the dashboard</a></li><li><a href="/learn/802-testing-durable-jobs" data-id="802">Test a job that waits for a signal</a></li></ol>
+      </div>
+      <a class="door" href="#agents">
+        <b>Hand it to your coding agent</b>
+        <span>Paste one prompt. The agent reads the same how-tos as Markdown and builds from them.</span>
+        <i>See the prompts</i>
+      </a>
+    </section>
+
+    <section class="wrap choices" id="which-one">
+      <p class="record">which one when</p>
+      <h2>When two how-tos look alike, this tells them apart.</h2>
+      <dl class="choice-list">
+        <div><dt>Something has to happen later</dt><dd><ul><li><span>A whole job that starts later</span><a href="/learn/011-delayed-job" data-id="011">Run a job once, later</a></li><li><span>A pause inside a job that has already begun</span><a href="/learn/205-durable-sleep" data-id="205">Wait for time to pass without a running process</a></li><li><span>An exact instant instead of a delay</span><a href="/learn/217-absolute-time-controls" data-id="217">Schedule, sleep, and reschedule to an exact instant</a></li></ul></dd></div>
+        <div><dt>Work must not happen twice</dt><dd><ul><li><span>Work that finished must not repeat on a retry</span><a href="/learn/202-durable-step" data-id="202">Keep finished work from repeating on a retry</a></li><li><span>A side effect where a second attempt is worse than not knowing, such as capturing a payment</span><a href="/learn/220-at-most-once-step" data-id="220">Refuse to repeat a side effect after a crash</a></li><li><span>A repeated request must not create a second job</span><a href="/learn/010-deduplication-key" data-id="010">Keep a repeated request from creating a second job</a></li></ul></dd></div>
+        <div><dt>A job has to wait</dt><dd><ul><li><span>For a person or another system that tells you</span><a href="/learn/204-wait-signal" data-id="204">Wait for an approval without holding a worker</a></li><li><span>For time to pass</span><a href="/learn/205-durable-sleep" data-id="205">Wait for time to pass without a running process</a></li><li><span>For an outside system you have to ask again</span><a href="/learn/306-reschedule" data-id="306">Check again later without spending a retry</a></li></ul></dd></div>
+        <div><dt>Work repeats on a schedule</dt><dd><ul><li><span>One job the schedule fires again and again</span><a href="/learn/104-timezone-schedule" data-id="104">Run a job every day at a set hour in your time zone</a></li><li><span>Every occurrence a job of its own, with its own retries and result</span><a href="/learn/110-per-occurrence-delivery" data-id="110">Make every occurrence its own job</a></li><li><span>One job that keeps its place between firings</span><a href="/learn/109-continuous-synchronization" data-id="109">Keep another system in sync with a permanent job</a></li></ul></dd></div>
+        <div><dt>One job becomes many</dt><dd><ul><li><span>Children from a list, their results joined</span><a href="/learn/212-fan-out-join" data-id="212">Fan out over a list and merge the results</a></li><li><span>Different children, or enqueue now and wait later</span><a href="/learn/215-map-wait-children" data-id="215">Fan out to child jobs with Map or WaitChildren</a></li><li><span>Independent jobs with nothing to join</span><a href="/learn/601-fan-out" data-id="601">Enqueue many independent jobs from a handler</a></li></ul></dd></div>
+      </dl>
+    </section>
+
+    <section class="wrap ladder" id="how-tos">
+      <p class="record">the how-tos, section by section</p>
+      <h2>Each section is a ladder. Start at the top and stop when you have what you need.</h2>
+      <nav class="ladder-jump" aria-label="Sections"><a href="#s-first-steps">Take the first steps</a><a href="#s-start">Start jobs</a><a href="#s-schedule">Run work on a schedule</a><a href="#s-sync">Keep another system in sync</a><a href="#s-survive">Make work survive a crash</a><a href="#s-wait">Wait for people, events, and time</a><a href="#s-children">Split work across child jobs</a><a href="#s-failure">Decide what happens when work fails</a><a href="#s-limits">Control order and load</a><a href="#s-operate">Watch and control running work</a><a href="#s-alerts">Get told when something breaks</a><a href="#s-test">Test without sleeps or polling</a><a href="#s-deploy">Deploy and scale</a></nav>
+      <div class="ladder-section" id="s-first-steps" data-section="first-steps">
+        <div class="ladder-head">
+          <h3>Take the first steps</h3>
+          <p>Define a job, start it, and read back what it did. Start at the top.</p>
+          <p class="ladder-progress" data-progress></p>
+        </div>
+        <ol class="rungs">
+          <li><a class="rung" href="/learn/001-hello-acta" data-id="001"><span class="rung-step">1</span><span class="rung-text"><span class="rung-title">Run your first job</span><span class="rung-note">One <code>[Job]</code> method, one enqueue, and a worker that runs it</span></span><span class="rung-marks"></span></a></li>
+          <li><a class="rung" href="/learn/002-job-input" data-id="002"><span class="rung-step">2</span><span class="rung-text"><span class="rung-title">Pass typed input to a job</span><span class="rung-note">The input is a record: Acta stores it with the job and hands it to the handler as its first parameter</span></span><span class="rung-marks"></span></a></li>
+          <li><a class="rung" href="/learn/003-job-result" data-id="003"><span class="rung-step">3</span><span class="rung-text"><span class="rung-title">Return a result and wait for it</span><span class="rung-note">What the handler returns is stored with the job as its result. <code>WaitAsync&lt;T&gt;</code> follows the job to its end and hands the result back, typed</span></span><span class="rung-marks"></span></a></li>
+          <li><a class="rung" href="/learn/007-dependency-injection" data-id="007"><span class="rung-step">4</span><span class="rung-text"><span class="rung-title">Use your own services in a handler</span><span class="rung-note">The class that holds the handler takes its services in its constructor, from the application's own container</span></span><span class="rung-marks"></span></a></li>
+          <li><a class="rung" href="/learn/012-read-status" data-id="012"><span class="rung-step">5</span><span class="rung-text"><span class="rung-title">Read a job's status</span><span class="rung-note"><code>GetAsync</code> answers a snapshot of the job: its ref, its name and namespace, its status, and when it was created</span></span><span class="rung-marks"></span></a></li>
+          <li><a class="rung" href="/learn/013-read-result" data-id="013"><span class="rung-step">6</span><span class="rung-text"><span class="rung-title">Read a job's result</span><span class="rung-note"><code>TryGetResultAsync&lt;T&gt;</code> finds nothing before Succeeded; <code>GetResultAsync&lt;T&gt;</code> returns the result you expect</span></span><span class="rung-marks"></span></a></li>
+          <li><a class="rung" href="/learn/024-aspnet-enqueue-api" data-id="024"><span class="rung-step">7</span><span class="rung-text"><span class="rung-title">Start a job from an HTTP endpoint and poll it</span><span class="rung-note">A POST stores the job and answers 202 with its ref; a GET reads the status and, once the job has finished, the result</span></span><span class="rung-marks"></span></a></li>
+          <li><a class="rung" href="/learn/026-first-job" data-id="026"><span class="rung-step">8</span><span class="rung-text"><span class="rung-title">Build the first-job guide's app</span><span class="rung-note">The first-job guide's app verbatim: typed result, a failure that is final and one that retries, explanation, cancel, and a wait that times out without stopping the job</span></span><span class="rung-marks"></span></a></li>
         </ol>
-      </nav>
-
-
-      <section id="build" aria-labelledby="build-title">
-        <h2 id="build-title">What you are going to build</h2>
-        <p>The project is a tiny report service called <code>Reports</code>. It exposes two endpoints: <code>POST /reports?month=2026-08</code> asks for a monthly sales report and returns immediately, and <code>GET /reports/{id}</code> tells you how that request is doing and, when it is done, where the finished report is. The sales figures come from small CSV files in the project, and the report is a plain text file written next to them, so everything you need to see is on your own disk. There are no accounts, API keys, or cloud services involved.</p>
-        <p>You need the <a href="https://dotnet.microsoft.com/download/dotnet/10.0">.NET 10 SDK</a>, a terminal, a browser, and <code>curl</code>, which ships with Windows 10 and later, macOS, and most Linux distributions. You should be comfortable reading C# and have seen an ASP.NET Core minimal API before. You do not need to know anything about job queues, workers, or durable execution. The code uses Acta's SQLite provider, so there is no database server to install.</p>
-        <p>The app grows in three stages. First it generates a report. Then it copes with a report whose data has not arrived yet. Finally it records its progress so that a report interrupted by a crash picks up where the record says it left off. You will keep the same project and the same database the whole way through.</p>
-      </section>
-
-      <section id="create" aria-labelledby="create-title">
-        <h2 id="create-title">Create the project</h2>
-        <p>Start from the empty ASP.NET Core template and add two packages:</p>
-        <figure class="listing">
-          <figcaption><span class="note">Terminal</span><button class="copy" type="button" aria-label="Copy the project commands">Copy</button></figcaption>
-          <pre><code>dotnet new web -n Reports
-cd Reports
-dotnet add package Acta.Sqlite --prerelease
-dotnet add package Acta.Dashboard --prerelease</code></pre>
-        </figure>
-        <p><code>Acta.Sqlite</code> brings in everything that runs your jobs: the engine, the SQLite storage provider, a source generator that finds your job handlers at compile time, and analyzers that catch common mistakes as you type. <code>Acta.Dashboard</code> adds an operator dashboard and brings <code>Acta.AspNetCore</code>, the small JSON API it runs on; you will map both into your app with one call. The dashboard's web assets are embedded in the package, so there is nothing else to install or build.</p>
-      </section>
-
-      <section id="data" aria-labelledby="data-title">
-        <h2 id="data-title">Some sales to report on</h2>
-        <p>Before any Acta code, the application needs something to do. Create a folder called <code>data</code> in the project and put August's sales export in it:</p>
-        <figure class="listing">
-          <figcaption><span class="file">data/sales-2026-08.csv</span><button class="copy" type="button" aria-label="Copy data/sales-2026-08.csv">Copy</button></figcaption>
-          <pre><code>order,region,amount
-1001,North,1250.00
-1002,South,830.50
-1003,North,410.25
-1004,West,2200.00
-1005,South,95.75
-1006,West,640.00</code></pre>
-        </figure>
-        <p>Next comes the part of the program that knows about sales and knows nothing about Acta. <code>SalesFiles</code> reads a month's CSV into totals, and writes those totals out as a text report. Add it to the project root:</p>
-        <figure class="listing">
-          <figcaption><span class="file">SalesFiles.cs</span><button class="copy" type="button" aria-label="Copy SalesFiles.cs">Copy</button></figcaption>
-          <pre><code>using System.Globalization;
-using System.Text;
-
-namespace Reports;
-
-public sealed record RegionTotal(string Region, decimal Amount);
-
-public sealed record SalesFigures(string Month, int Orders, decimal Total, List&lt;RegionTotal&gt; Regions);
-
-public sealed class SalesFiles(IWebHostEnvironment env)
-{
-    private string DataFolder =&gt; Path.Combine(env.ContentRootPath, "data");
-    private string ReportFolder =&gt; Path.Combine(env.ContentRootPath, "reports");
-
-    public static bool IsValidMonth(string month) =&gt;
-        DateOnly.TryParseExact(month, "yyyy-MM", CultureInfo.InvariantCulture, DateTimeStyles.None, out _);
-
-    public async Task&lt;SalesFigures&gt; LoadAsync(string month, CancellationToken ct)
-    {
-        // Throws FileNotFoundException when this month's export has not arrived yet.
-        var lines = await File.ReadAllLinesAsync(Path.Combine(DataFolder, $"sales-{month}.csv"), ct);
-
-        var rows = lines
-            .Skip(1)
-            .Where(line =&gt; line.Length &gt; 0)
-            .Select(line =&gt; line.Split(','))
-            .Select(cells =&gt; new RegionTotal(cells[1], decimal.Parse(cells[2], CultureInfo.InvariantCulture)))
-            .ToList();
-
-        var regions = rows
-            .GroupBy(row =&gt; row.Region)
-            .OrderBy(group =&gt; group.Key)
-            .Select(group =&gt; new RegionTotal(group.Key, group.Sum(row =&gt; row.Amount)))
-            .ToList();
-
-        return new SalesFigures(month, rows.Count, rows.Sum(row =&gt; row.Amount), regions);
-    }
-
-    public async Task&lt;string&gt; WriteAsync(string fileName, SalesFigures figures, CancellationToken ct)
-    {
-        var report = new StringBuilder()
-            .AppendLine($"Sales report for {figures.Month}")
-            .AppendLine($"Orders: {figures.Orders}")
-            .AppendLine($"Total:  {figures.Total.ToString("N2", CultureInfo.InvariantCulture)}")
-            .AppendLine();
-        foreach (var region in figures.Regions)
-        {
-            report.AppendLine($"  {region.Region,-8}{region.Amount.ToString("N2", CultureInfo.InvariantCulture),12}");
-        }
-
-        // Write to a temporary file, then move it into place. Running this twice leaves the same file.
-        Directory.CreateDirectory(ReportFolder);
-        var path = Path.Combine(ReportFolder, fileName);
-        await File.WriteAllTextAsync(path + ".tmp", report.ToString(), ct);
-        File.Move(path + ".tmp", path, overwrite: true);
-        return path;
-    }
-}</code></pre>
-        </figure>
-        <p>Two details in this ordinary-looking class will matter later. <code>LoadAsync</code> throws when the CSV for a month does not exist, which is how the app will meet its first failure. And <code>WriteAsync</code> never appends or half-writes: it writes a temporary file and moves it over the final name in one operation, so writing the same report twice leaves exactly the same file behind. Keep that second property in mind; it turns out to be the most important line in the program.</p>
-      </section>
-
-      <section id="job" aria-labelledby="job-title">
-        <h2 id="job-title">Describing the work: the job</h2>
-        <p>In Acta, a unit of background work is a <strong>job</strong>. A job has an input, which is the instruction written to the database, and a handler, which is the method that carries it out. Create <code>SalesReportJobs.cs</code>:</p>
-        <figure class="listing">
-          <figcaption><span class="file">SalesReportJobs.cs</span><span class="note">first version</span><button class="copy" type="button" aria-label="Copy SalesReportJobs.cs, first version">Copy</button></figcaption>
-          <pre><code>using Acta;
-
-namespace Reports;
-
-public sealed record MonthlySalesReport(string Month);
-
-public sealed record ReportResult(string Month, int Orders, decimal Total, string File);
-
-public sealed class SalesReportJobs(SalesFiles files, ILogger&lt;SalesReportJobs&gt; log)
-{
-    [Job("monthly-sales-report")]
-    public async Task&lt;ReportResult&gt; Handle(MonthlySalesReport input, JobContext ctx, CancellationToken ct)
-    {
-        log.LogInformation("{Job} execution {Execution}: building the {Month} report", ctx.JobRef, ctx.ExecutionNumber, input.Month);
-
-        var figures = await files.LoadAsync(input.Month, ct);
-        var file = await files.WriteAsync($"sales-{input.Month}-{ctx.JobRef}.txt", figures, ct);
-
-        log.LogInformation("{Job} wrote {File}", ctx.JobRef, file);
-        return new ReportResult(input.Month, figures.Orders, figures.Total, file);
-    }
-}</code></pre>
-        </figure>
-        <p><code>MonthlySalesReport</code> is the input. It is a plain record, and Acta stores it as JSON in the job's row, so it should hold what the work needs to know and nothing else: here, just the month. Because it is stored, it is also a small contract. A job enqueued today may run after tomorrow's deploy, so change input records the way you would change a public API.</p>
-        <p>The <code>[Job("monthly-sales-report")]</code> attribute turns the method into a handler. The string is the job's <strong>durable name</strong>, the name that goes into the database, the dashboard, logs, and alerts. It must be kebab-case, and once jobs with that name exist you should treat it as permanent, because rows written under the old name will not follow a rename. The class and method names, by contrast, are yours to refactor.</p>
-        <p>The handler's parameters are the input, a <code>JobContext</code>, and a <code>CancellationToken</code>. The context tells the handler which job it is running. <code>ctx.JobRef</code> is the job's public identifier, a string like <code>job_01a0de393cc576b59b82624fd7f94c11</code> that is created when the job is enqueued and never changes. <code>ctx.ExecutionNumber</code> counts how many times this handler has been started for this job, starting at 1. We log both because they will tell the story when things go wrong.</p>
-        <p>The report file is named after the job ref, not after the time or a random value. Whatever happens to this job, every attempt at it writes to the same file name. The handler returns a <code>ReportResult</code>, which Acta also stores, so the API can later answer "where is my report?" from the database. <code>SalesReportJobs</code> itself is an ordinary class: Acta creates it through dependency injection for each run, which is why it can ask for <code>SalesFiles</code> and a logger in its constructor.</p>
-      </section>
-
-      <section id="wiring" aria-labelledby="wiring-title">
-        <h2 id="wiring-title">Wiring Acta into the application</h2>
-        <p>Now replace the template's <code>Program.cs</code> with this:</p>
-        <figure class="listing">
-          <figcaption><span class="file">Program.cs</span><span class="note">first version</span><button class="copy" type="button" aria-label="Copy Program.cs, first version">Copy</button></figcaption>
-          <pre><code>using Acta;
-using Acta.Dashboard;
-using Acta.Sqlite;
-using Reports;
-
-var builder = WebApplication.CreateBuilder(args);
-
-builder.Services.AddSingleton&lt;SalesFiles&gt;();
-
-builder.Services.UseActa(acta =&gt;
-{
-    acta.UseSqlite(sqlite =&gt;
-    {
-        sqlite.ConnectionString = "Data Source=reports.db";
-        // A local-development convenience. In production, a deploy step runs "jobs migrate".
-        sqlite.MigrateOnStartup = builder.Environment.IsDevelopment();
-    });
-    acta.Run&lt;ReportsJobs&gt;("reports");
-});
-
-var app = builder.Build();
-
-app.MapActa("/acta");
-
-app.MapPost("/reports", async (string month, IJobs jobs, CancellationToken ct) =&gt;
-{
-    if (!SalesFiles.IsValidMonth(month))
-    {
-        return Results.BadRequest("Ask for a month such as 2026-08.");
-    }
-
-    var job = await jobs.EnqueueAsync(new MonthlySalesReport(month), ct: ct);
-    return Results.Accepted($"/reports/{job.JobRef}", new { job = job.JobRef.ToString() });
-});
-
-app.MapGet("/reports/{id}", async (string id, IJobs jobs, CancellationToken ct) =&gt;
-{
-    if (!JobRef.TryParse(id, out var jobRef) || await jobs.GetAsync(jobRef, ct) is not { } job)
-    {
-        return Results.NotFound();
-    }
-
-    var (_, report) = await jobs.TryGetResultAsync&lt;ReportResult&gt;(jobRef, ct);
-    return Results.Ok(new
-    {
-        job = job.JobRef.ToString(),
-        status = job.Status.ToString(),
-        executions = job.ExecutionNumber,
-        failures = job.FailureCount,
-        report,
-    });
-});
-
-app.Run();</code></pre>
-        </figure>
-        <p>Read it from the top. <code>UseActa</code> registers Acta with the host, and inside it <code>UseSqlite</code> says where the durable record lives: a file called <code>reports.db</code> in the project folder. Acta keeps its tables in that database, the same way it would keep them in your PostgreSQL or SQL Server database in a larger system. <code>MigrateOnStartup</code> lets the app create those tables itself the first time it runs. That is handy on your machine and inappropriate in production, where schema changes should come from a deployment step, so the line only switches it on in the Development environment that <code>dotnet run</code> uses.</p>
-        <p>The next line needs the most explanation. <code>ReportsJobs</code> is a class you did not write. At build time, Acta's source generator finds every <code>[Job]</code> method in the project and generates a <strong>manifest</strong> listing them. It names the manifest after the last segment of the project's root namespace plus <code>Jobs</code>, so a project called <code>Reports</code> gets <code>ReportsJobs</code>, and it puts the class in that root namespace. That is why the file starts with <code>using Reports;</code>: <code>Program.cs</code> uses top-level statements, which live in the global namespace and would not otherwise see it.</p>
-        <p><code>Run&lt;ReportsJobs&gt;("reports")</code> then does two things. It declares every job in the manifest for an Acta <strong>namespace</strong> called <code>reports</code>, and it starts a worker in this process that claims and runs jobs from that namespace. Because <code>MigrateOnStartup</code> is on, this start also writes those jobs to the database; in production the same deploy step that applies the schema does it. That makes three different things with similar names, and it helps to keep them apart. <code>Reports</code> is the C# namespace of your code. <code>reports</code> is the Acta namespace, a label in the database that says which service owns these jobs; a second service would run its own jobs under its own namespace. <code>monthly-sales-report</code> is the durable name of one job within it.</p>
-        <p>There is no separate worker process: the application that serves HTTP requests also runs the jobs, on background threads managed by the host. You can split the two later without changing the handler.</p>
-        <p><code>MapActa("/acta")</code> serves the dashboard and its JSON API. Out of the box it only answers requests from the local machine that name it as <code>localhost</code> or an IP address, and it is read-only until you deliberately enable its controls behind authentication.</p>
-        <p>The two endpoints are the application's own. <code>POST /reports</code> calls <code>jobs.EnqueueAsync</code> with a <code>MonthlySalesReport</code>; Acta picks the job from the input's type, writes the row, and hands back a <code>JobHandle</code>: the new job's ref plus <code>WaitAsync</code>, <code>GetResultAsync</code>, <code>CancelAsync</code>, and <code>ExplainAsync</code> on that job. The endpoint returns only the ref, with <code>202 Accepted</code>, before any report exists. <code>GET /reports/{id}</code> reads the job's current status from the database and includes the stored result once the job has succeeded.</p>
-      </section>
-
-      <section id="first-report" aria-labelledby="first-report-title">
-        <h2 id="first-report-title">The first report</h2>
-        <p>Start the app. The <code>--urls</code> switch pins the address so the commands in this article work as written; without it, the app uses the random port from <code>Properties/launchSettings.json</code>.</p>
-        <figure class="listing">
-          <figcaption><span class="note">Terminal 1</span><button class="copy" type="button" aria-label="Copy the run command">Copy</button></figcaption>
-          <pre><code>dotnet run --urls http://localhost:5080</code></pre>
-        </figure>
-        <p>Among the startup lines you should see <code>Now listening on: http://localhost:5080</code>, and a few lines from <code>WorkerRuntime</code> saying the claim loop and heartbeat have started: that is the worker. A new <code>reports.db</code> file has appeared in the project folder.</p>
-        <p>In a second terminal, ask for August. On Windows PowerShell, type <code>curl.exe</code> rather than <code>curl</code>, because <code>curl</code> there is an alias for a different command.</p>
-        <figure class="listing">
-          <figcaption><span class="note">Terminal 2</span><button class="copy" type="button" aria-label="Copy the report request">Copy</button></figcaption>
-          <pre><code>curl -i -X POST "http://localhost:5080/reports?month=2026-08"</code></pre>
-        </figure>
-        <figure class="listing output">
-          <figcaption><span class="note">Output from our test run (trimmed). Your job ref will differ.</span></figcaption>
-          <pre><code>HTTP/1.1 202 Accepted
-Content-Type: application/json; charset=utf-8
-Location: /reports/job_01a0de393cc576b59b82624fd7f94c11
-
-{"job":"job_01a0de393cc576b59b82624fd7f94c11"}</code></pre>
-        </figure>
-        <p>The request came back at once with a job ref. Use your own ref to ask how it went:</p>
-        <figure class="listing">
-          <figcaption><span class="note">Terminal 2, with your job ref</span><button class="copy" type="button" aria-label="Copy the status request">Copy</button></figcaption>
-          <pre><code>curl http://localhost:5080/reports/job_01a0de393cc576b59b82624fd7f94c11</code></pre>
-        </figure>
-        <figure class="listing output">
-          <figcaption><span class="note">Output from our test run, formatted for reading</span></figcaption>
-          <pre><code>{
-  "job": "job_01a0de393cc576b59b82624fd7f94c11",
-  "status": "Succeeded",
-  "executions": 1,
-  "failures": 0,
-  "report": {
-    "month": "2026-08",
-    "orders": 6,
-    "total": 5426.50,
-    "file": "D:\\tmp\\acta-learn\\walk\\Reports\\reports\\sales-2026-08-job_01a0de393cc576b59b82624fd7f94c11.txt"
-  }
-}</code></pre>
-        </figure>
-        <p>Open the file it names, in the new <code>reports</code> folder:</p>
-        <figure class="listing output">
-          <figcaption><span class="file">reports/sales-2026-08-job_01a0de393cc576b59b82624fd7f94c11.txt</span></figcaption>
-          <pre><code>Sales report for 2026-08
-Orders: 6
-Total:  5,426.50
-
-  North       1,660.25
-  South         926.25
-  West        2,840.00</code></pre>
-        </figure>
-        <p>Terminal 1 shows the handler's two log lines, <code>execution 1: building the 2026-08 report</code> and <code>wrote ...</code>, followed by Acta noting the job as completed. It is worth pausing on the order of events, because everything later depends on it. The endpoint wrote a row describing the job and returned. The worker, polling the same database, claimed the row, which marked it as taken by this process for a limited time called a <strong>lease</strong>. It ran the handler, then wrote the outcome and the result back to the row. At every moment, the question "what happened to that report?" had an answer in <code>reports.db</code>, not just in the memory of a running process.</p>
-      </section>
-
-      <section id="dashboard" aria-labelledby="dashboard-title">
-        <h2 id="dashboard-title">The job in the dashboard</h2>
-        <p>Open <a href="http://localhost:5080/acta">http://localhost:5080/acta</a> in your browser. The Overview page summarises everything Acta knows about this database. Choose <strong>Jobs</strong> in the sidebar and you will see your report and two others:</p>
-        <figure class="shot">
-          <a href="assets/learn-jobs.webp" title="Open the full-size screenshot"><img src="assets/learn-jobs.webp" width="1600" height="520" loading="lazy" alt="The Acta dashboard Jobs page listing one monthly-sales-report job as Succeeded with 1 attempt, and two jobs named sys.retention and sys.alerts, marked System and Idle, all in the reports namespace." /></a>
-          <figcaption>The Jobs page after the first report. The two System jobs are Acta's own housekeeping.</figcaption>
-        </figure>
-        <p>The rows marked System are jobs Acta registers in every namespace. <code>sys.alerts</code> turns failures into alert records, and <code>sys.retention</code> deletes finished jobs after their retention period, 90 days by default. They are ordinary jobs, stored and scheduled the same way as yours.</p>
-        <p>Click your report's ref. The job's page leads with its name, a Succeeded badge, its namespace, a short form of its ref, and "attempt 1", with the result JSON right below. Open Activity for the timeline, which holds one event: the completion, tagged with the few milliseconds the handler took. Stored data holds the input. The page has no Actions menu, and the sidebar shows a READ-ONLY badge: that is the safe default mentioned earlier, not an error. Every screen in the dashboard is a view of rows in <code>reports.db</code>. Nothing here is kept in the browser or in a separate service.</p>
-        <aside class="callout" aria-label="Sidebar: the same facts from the terminal">
-          <h3>The same facts, from the terminal</h3>
-          <p>An application that uses Acta also answers a small set of <code>jobs</code> commands. Run the app a second time with <code>--no-build</code>, so the command does not try to rebuild files the running copy is using: <code>dotnet run --no-build -- jobs events &lt;job-ref&gt;</code> prints the timeline, and <code>jobs explain &lt;job-ref&gt;</code> describes the job's state in plain English. The command reads the database and exits without starting the web server or a worker. You will use it in a moment.</p>
-        </aside>
-      </section>
-
-      <section id="retries" aria-labelledby="retries-title">
-        <h2 id="retries-title">When the data is late</h2>
-        <p>Real report services spend a surprising amount of time waiting for their inputs. Ask for September, whose export does not exist yet, and <code>LoadAsync</code> will throw <code>FileNotFoundException</code>.</p>
-        <p>Acta treats an exception escaping the handler as a failed attempt and schedules another. How many attempts and how far apart is the job's <strong>retry policy</strong>. The defaults suit production: up to 15 attempts, starting a minute apart and doubling each time up to a day. For this tutorial they are far too patient, so give the job its own policy. Stop the app with Ctrl+C and change the attribute in <code>SalesReportJobs.cs</code>:</p>
-        <figure class="listing">
-          <figcaption><span class="file">SalesReportJobs.cs</span><span class="note">replace the [Job] line</span><button class="copy" type="button" aria-label="Copy the new Job attribute line">Copy</button></figcaption>
-          <pre><code>    [Job("monthly-sales-report", MaxAttempts = 10, Backoff = "10s")]</code></pre>
-        </figure>
-        <p><code>MaxAttempts = 10</code> allows ten consecutive failures before the job is marked Failed for good. <code>Backoff = "10s"</code> waits a fixed ten seconds between attempts. Backoff also accepts growing schedules such as <code>"1m..8h x2"</code>, one minute doubling up to eight hours, which is what you would choose for a real upstream dependency. Start the app again with the same <code>dotnet run</code> command, then request September:</p>
-        <figure class="listing">
-          <figcaption><span class="note">Terminal 2</span><button class="copy" type="button" aria-label="Copy the September request">Copy</button></figcaption>
-          <pre><code>curl -X POST "http://localhost:5080/reports?month=2026-09"</code></pre>
-        </figure>
-        <p>Terminal 1 now shows the handler starting, a warning with the <code>FileNotFoundException</code> and its stack trace, and a line saying the job was re-armed. Ten seconds later the same thing happens with <code>execution 2</code>, then <code>execution 3</code>. Open the job in the dashboard:</p>
-        <figure class="shot">
-          <a href="assets/learn-retrying.webp" title="Open the full-size screenshot"><img src="assets/learn-retrying.webp" width="1600" height="1100" loading="lazy" alt="The dashboard's page for the September job. Its status reads Ready, scheduled to run in 9s, with the message Could not find file and the path of sales-2026-09.csv, then Next run in 9s, attempt 4, and 4 consecutive failures, fails permanently at 10. The Activity timeline below lists each failed attempt and its reschedule." /></a>
-          <figcaption>The September job between attempts. Ready, with a next-run time, is how a waiting retry looks.</figcaption>
-        </figure>
-        <p>This is the page to learn to read. Ready with a next-run time means "waiting for the next attempt", not "stuck". The reason is the stored exception message, and "attempt 4" with "4 consecutive failures, fails permanently at 10" says exactly how much patience is left. Under Activity, the timeline lists every attempt. The terminal tells the same story:</p>
-        <figure class="listing">
-          <figcaption><span class="note">Terminal 2, with your September job ref</span><button class="copy" type="button" aria-label="Copy the events command">Copy</button></figcaption>
-          <pre><code>dotnet run --no-build -- jobs events job_01a0de39d88773688d0471583be99b40 --take 2</code></pre>
-        </figure>
-        <figure class="listing output">
-          <figcaption><span class="note">Output from our test run (trimmed)</span></figcaption>
-          <pre><code>Events for job job_01a0de39d88773688d0471583be99b40 (newest first)
-
-2026-09-26T14:59:28.381Z  job.rescheduled  worker wrk_01a0de39d64c7c59833aad068bd93bdc  exec 5
-  message: Could not find file 'D:\tmp\acta-learn\walk\Reports\data\sales-2026-09.csv'.
-  details: {"reason":"unhandled-exception"}
-2026-09-26T14:59:28.381Z  job.execution-failed  worker wrk_01a0de39d64c7c59833aad068bd93bdc  exec 5
-  message: Could not find file 'D:\tmp\acta-learn\walk\Reports\data\sales-2026-09.csv'.
-  details: {"to":"ready","reason":"unhandled-exception"}</code></pre>
-        </figure>
-        <p>Now play the part of the upstream system and deliver the export. Create <code>data/sales-2026-09.csv</code> while the job is still retrying:</p>
-        <figure class="listing">
-          <figcaption><span class="file">data/sales-2026-09.csv</span><button class="copy" type="button" aria-label="Copy data/sales-2026-09.csv">Copy</button></figcaption>
-          <pre><code>order,region,amount
-1101,North,980.00
-1102,West,1520.40
-1103,South,310.00
-1104,North,2045.60</code></pre>
-        </figure>
-        <p>Within ten seconds the next attempt finds the file, the log shows <code>wrote ...</code>, and the status endpoint reports the job as Succeeded, in our run with <code>"executions": 6</code> and <code>"failures": 5</code>. Nobody resubmitted anything. The request made earlier was kept as a row, the row remembered it was unfinished, and the retry policy kept offering it to the handler until the world outside had caught up. You may also notice a log line starting <code>Acta alert</code>: by default a failing job raises an alert, and without a configured channel the alert is written to the log.</p>
-        <p>Had the file never arrived, the tenth failure would have left the job in the Failed state, still in the database with its whole history, for an operator to inspect and, with controls enabled, restart.</p>
-      </section>
-
-      <section id="steps" aria-labelledby="steps-title">
-        <h2 id="steps-title">Recording progress with steps</h2>
-        <p>So far the handler is all-or-nothing. If an attempt dies halfway through, the next attempt starts from the top and does everything again. For this report that costs little, but real jobs are often a chain of expensive or externally visible operations: query a warehouse for ten minutes, render a PDF, upload it, email the finance team. Redoing the query because the upload failed is wasteful. Redoing the email is worse.</p>
-        <p>Acta's answer is the <strong>step</strong>. <code>ctx.RunStepAsync("name", ...)</code> runs a piece of the handler and records its outcome in the database under that name. When the handler runs again for the same job, a step that already succeeded does not run its code; it returns the recorded result instead. Replace <code>SalesReportJobs.cs</code> with this version, which splits the work into two steps:</p>
-        <figure class="listing">
-          <figcaption><span class="file">SalesReportJobs.cs</span><span class="note">final version</span><button class="copy" type="button" aria-label="Copy SalesReportJobs.cs, final version">Copy</button></figcaption>
-          <pre><code>using Acta;
-
-namespace Reports;
-
-public sealed record MonthlySalesReport(string Month);
-
-public sealed record ReportResult(string Month, int Orders, decimal Total, string File);
-
-public sealed class SalesReportJobs(SalesFiles files, ILogger&lt;SalesReportJobs&gt; log)
-{
-    [Job("monthly-sales-report", MaxAttempts = 10, Backoff = "10s")]
-    public async Task&lt;ReportResult&gt; Handle(MonthlySalesReport input, JobContext ctx, CancellationToken ct)
-    {
-        log.LogInformation("{Job} execution {Execution}: building the {Month} report", ctx.JobRef, ctx.ExecutionNumber, input.Month);
-
-        var figures = await ctx.RunStepAsync("load-sales", async token =&gt;
-        {
-            log.LogInformation("{Job} loading sales for {Month}", ctx.JobRef, input.Month);
-            return await files.LoadAsync(input.Month, token);
-        }, ct);
-
-        var file = await ctx.RunStepAsync("write-report", async token =&gt;
-        {
-            // Demo only: a pause long enough to stop the app halfway. Delete it when you are done.
-            await Task.Delay(TimeSpan.FromSeconds(15), token);
-            return await files.WriteAsync($"sales-{input.Month}-{ctx.JobRef}.txt", figures, token);
-        }, ct);
-
-        log.LogInformation("{Job} wrote {File}", ctx.JobRef, file);
-        return new ReportResult(input.Month, figures.Orders, figures.Total, file);
-    }
-}</code></pre>
-        </figure>
-        <p>The <code>load-sales</code> step reads the CSV and returns the totals, which Acta stores as JSON in its step record. The <code>write-report</code> step writes the file. The fifteen-second <code>Task.Delay</code> is there only to give you time to interrupt the program in the next two sections; it is marked as demo code and you should remove it afterwards. The log line inside <code>load-sales</code> is our evidence: it prints only when that step's code actually runs.</p>
-        <p>One more change makes the crash demonstration quick. A worker proves it is alive by renewing its leases on a regular heartbeat, every 45 seconds by default, and a lease lasts four heartbeats, so a live worker can miss a few without losing its work. That is sensible in production and slow for a tutorial, so shorten the heartbeat in Development. Replace <code>Program.cs</code> with this final version, whose only change is the <code>if</code> block inside <code>UseActa</code>:</p>
-        <figure class="listing">
-          <figcaption><span class="file">Program.cs</span><span class="note">final version</span><button class="copy" type="button" aria-label="Copy Program.cs, final version">Copy</button></figcaption>
-          <pre><code>using Acta;
-using Acta.Dashboard;
-using Acta.Sqlite;
-using Reports;
-
-var builder = WebApplication.CreateBuilder(args);
-
-builder.Services.AddSingleton&lt;SalesFiles&gt;();
-
-builder.Services.UseActa(acta =&gt;
-{
-    acta.UseSqlite(sqlite =&gt;
-    {
-        sqlite.ConnectionString = "Data Source=reports.db";
-        // A local-development convenience. In production, a deploy step runs "jobs migrate".
-        sqlite.MigrateOnStartup = builder.Environment.IsDevelopment();
-    });
-    acta.Run&lt;ReportsJobs&gt;("reports");
-
-    if (builder.Environment.IsDevelopment())
-    {
-        // Notice a vanished process in seconds rather than minutes, so the restart demo is quick.
-        acta.ConfigureOptions(options =&gt; options.HeartbeatInterval = TimeSpan.FromSeconds(2));
-    }
-});
-
-var app = builder.Build();
-
-app.MapActa("/acta");
-
-app.MapPost("/reports", async (string month, IJobs jobs, CancellationToken ct) =&gt;
-{
-    if (!SalesFiles.IsValidMonth(month))
-    {
-        return Results.BadRequest("Ask for a month such as 2026-08.");
-    }
-
-    var job = await jobs.EnqueueAsync(new MonthlySalesReport(month), ct: ct);
-    return Results.Accepted($"/reports/{job.JobRef}", new { job = job.JobRef.ToString() });
-});
-
-app.MapGet("/reports/{id}", async (string id, IJobs jobs, CancellationToken ct) =&gt;
-{
-    if (!JobRef.TryParse(id, out var jobRef) || await jobs.GetAsync(jobRef, ct) is not { } job)
-    {
-        return Results.NotFound();
-    }
-
-    var (_, report) = await jobs.TryGetResultAsync&lt;ReportResult&gt;(jobRef, ct);
-    return Results.Ok(new
-    {
-        job = job.JobRef.ToString(),
-        status = job.Status.ToString(),
-        executions = job.ExecutionNumber,
-        failures = job.FailureCount,
-        report,
-    });
-});
-
-app.Run();</code></pre>
-        </figure>
-        <p>With a two-second heartbeat the lease lasts eight seconds, and a dead process's jobs become reclaimable almost immediately. <code>SalesFiles.cs</code> and the CSV files stay as they are. That is the complete program.</p>
-        <aside class="callout" aria-label="Sidebar: a failing step and the job's retries">
-          <h3>A failing step retries through the job</h3>
-          <p>If September's file were missing now, the exception would happen inside <code>load-sales</code> and fail the attempt like any other: the job's failure count goes up, and the job goes back to Ready after the <code>Backoff</code> from its <code>[Job]</code> attribute. On the retry, the steps that already succeeded return their stored results and <code>load-sales</code> runs again. Once <code>MaxAttempts</code> is spent, the job fails; <code>ctx.EndsJob(ex)</code> tells a <code>catch</code> block that this failure ends the job.</p>
-        </aside>
-      </section>
-
-      <section id="shutdown" aria-labelledby="shutdown-title">
-        <h2 id="shutdown-title">Ctrl+C is a polite request</h2>
-        <p>Before crashing anything, see what a normal stop looks like. Start the app, request August again, and press Ctrl+C in Terminal 1 within a few seconds, while the report is in its fifteen-second pause:</p>
-        <figure class="listing output">
-          <figcaption><span class="note">Terminal 1 after Ctrl+C, from our test run (trimmed)</span></figcaption>
-          <pre><code>info: Reports.SalesReportJobs[0]
-      job_01a0de3b476d7e68a413552e0310dbc8 execution 1: building the 2026-08 report
-info: Reports.SalesReportJobs[0]
-      job_01a0de3b476d7e68a413552e0310dbc8 loading sales for 2026-08
-info: Microsoft.Hosting.Lifetime[0]
-      Application is shutting down...
-info: Reports.SalesReportJobs[0]
-      job_01a0de3b476d7e68a413552e0310dbc8 wrote D:\tmp\acta-learn\walk\Reports\reports\sales-2026-08-job_01a0de3b476d7e68a413552e0310dbc8.txt</code></pre>
-        </figure>
-        <p>The application did not stop at once. Ctrl+C asks the .NET host to shut down gracefully, and Acta takes part: the worker stops claiming new jobs, keeps its leases alive, and waits for handlers already running to finish before the process exits. In our run the process lingered for about eleven seconds, the rest of the demo pause, and the report was written before it went. The wait is bounded by the host's shutdown timeout, 30 seconds unless you configure otherwise. A job still running when that runs out is cancelled and later reclaimed like one from a crashed process.</p>
-        <p>This is the behaviour you want during a deploy, and it is also why Ctrl+C proves nothing about crashes. A crash does not ask.</p>
-      </section>
-
-      <section id="crash" aria-labelledby="crash-title">
-        <h2 id="crash-title">Pulling the plug</h2>
-        <p>Start the app once more and request September. Watch Terminal 1: when <code>loading sales for 2026-09</code> appears, the first step has finished and the handler is inside the fifteen-second pause in <code>write-report</code>. Within that window, kill the process from Terminal 2 without giving it any chance to clean up:</p>
-        <figure class="listing">
-          <figcaption><span class="note">Windows PowerShell</span><button class="copy" type="button" aria-label="Copy the Windows kill command">Copy</button></figcaption>
-          <pre><code>Stop-Process -Name Reports -Force</code></pre>
-        </figure>
-        <figure class="listing">
-          <figcaption><span class="note">macOS or Linux</span><button class="copy" type="button" aria-label="Copy the macOS or Linux kill command">Copy</button></figcaption>
-          <pre><code>pkill -KILL -x Reports</code></pre>
-        </figure>
-        <p>These end the <code>Reports</code> process immediately, the way a power cut or an out-of-memory kill would. <code>dotnet run</code> in Terminal 1 exits too. No shutdown code ran, no "I'm leaving" message was written anywhere, and the report file does not exist.</p>
-        <p>With the application down, ask the database what it thinks is going on. Use the job ref that <code>POST</code> returned:</p>
-        <figure class="listing">
-          <figcaption><span class="note">Terminal 2, with your job ref</span><button class="copy" type="button" aria-label="Copy the explain command">Copy</button></figcaption>
-          <pre><code>dotnet run --no-build -- jobs explain job_01a0de3ba88d7865813e4d7d4a2826fb</code></pre>
-        </figure>
-        <figure class="listing output">
-          <figcaption><span class="note">Output from our test run, a few seconds after the kill</span></figcaption>
-          <pre><code>job_01a0de3ba88d7865813e4d7d4a2826fb  reports/monthly-sales-report
-Executing, but its lease expired 1s ago.
-
-Worker:
-- Worker 1.0.0 (wrk_01a0de3ba5f575c19dfbde149086c442), lease expired at 2026-09-26T15:00:58.279Z.
-- Last heartbeat at 2026-09-26T15:00:50.279Z.
-- Recovery should return it to Ready on its next pass.
-
-Durable work:
-- Step "load-sales" succeeded and will not rerun.
-- Step "write-report" is in progress.
-
-Next actions:
-- Wait for crash recovery to reclaim the job on its next pass.
-- Cancel the job if it should not continue.</code></pre>
-        </figure>
-        <p>The job still claims to be executing, because the process running it never said otherwise, but its lease has expired and nothing has renewed it. The first step's outcome is recorded; the second step started and never finished. Run the command in the first seconds after the kill and you will see "Lease expires in 5s" instead: until the lease runs out, a dead process and a slow one look the same, and Acta waits before deciding.</p>
-        <p>Now restart the app in Terminal 1 with the same command, against the same <code>reports.db</code>. Enqueue nothing. Recovery rides the worker's heartbeat and runs once a lease, eight seconds here, so within seconds the new process finds the expired lease, marks the old attempt as orphaned, returns the job to Ready, and claims it. If you came here quickly from the earlier sections, give it up to three minutes this first time: those runs used the default heartbeat and scheduled the next recovery pass one of their own, longer leases ahead, and that pass has to come due once before the eight-second rhythm takes over.</p>
-        <figure class="listing output">
-          <figcaption><span class="note">Terminal 1 after the restart, from our test run (trimmed)</span></figcaption>
-          <pre><code>info: Reports.SalesReportJobs[0]
-      job_01a0de3ba88d7865813e4d7d4a2826fb execution 2: building the 2026-09 report
-info: Reports.SalesReportJobs[0]
-      job_01a0de3ba88d7865813e4d7d4a2826fb wrote D:\tmp\acta-learn\walk\Reports\reports\sales-2026-09-job_01a0de3ba88d7865813e4d7d4a2826fb.txt</code></pre>
-        </figure>
-        <p>Look at what is there and what is missing. It is the same job ref as before the crash. It says <code>execution 2</code>, because the handler was started again from its first line: the opening log statement ran a second time. The <code>loading sales</code> line did not appear, because <code>load-sales</code> had a recorded result, and <code>RunStepAsync</code> returned it instead of reading the CSV again. <code>write-report</code> had no recorded outcome, so it ran in full, pause included, and wrote the file. In our run the app came back a few seconds after 15:01 UTC, just missing that minute's recovery pass; the 15:02 pass reclaimed the job, and the report was written fifteen seconds later.</p>
-        <figure class="shot">
-          <a href="assets/learn-recovered.webp" title="Open the full-size screenshot"><img src="assets/learn-recovered.webp" width="1600" height="1070" loading="lazy" alt="The dashboard's page for the recovered job, with Executions open under Activity. Execution 2 succeeded in about 15 seconds on one worker. Execution 1, on a different worker, is marked Orphaned with the reason lease-expired: Worker lease expired; reclaimed by crash recovery." /></a>
-          <figcaption>One job, two executions on two different worker processes. The first was orphaned by the kill and reclaimed by crash recovery.</figcaption>
-        </figure>
-        <p>Executions, under Activity, tells the story in two rows, each with its own worker ref, because every run of the application registers as a new worker. Technical details lists both steps as "succeeded and will not rerun", and its recorded failures read 1 consecutive failure: an attempt lost to a dead process counts against the retry budget like any other failed attempt.</p>
-        <p>Now remove the <code>Task.Delay</code> line and its comment from <code>write-report</code>. Its work is done.</p>
-      </section>
-
-
-      <section id="your-app" aria-labelledby="your-app-title">
-        <h2 id="your-app-title">From tutorial to your application</h2>
-        <p>You have now used the everyday surface of Acta: an input and a <code>[Job]</code> handler, the generated manifest, <code>EnqueueAsync</code> to request work and the <code>JobHandle</code> it answers, <code>GetAsync</code> and <code>TryGetResultAsync</code> to read a job back by its ref, <code>ScheduleAsync</code> when the work should start later, a retry policy, steps, and two ways to inspect it all. An existing application uses the same pieces. Keep your host and your database, add the provider package that matches it, register with your existing connection string, and move one piece of background work behind a <code>[Job]</code> attribute; its constructor can ask for your existing services.</p>
-        <p>A few choices in this tutorial were made for a laptop and deserve a second look before real traffic arrives.</p>
-        <ul class="plain">
-          <li><strong>Schema.</strong> Leave <code>MigrateOnStartup</code> off outside Development and run <code>jobs migrate</code> from your deployment pipeline, which applies the schema and deploys your jobs, as described in <a href="https://github.com/acta-dotnet/acta/blob/main/docs/operator-guide.md#migration-ownership">the production guide</a>.</li>
-          <li><strong>Heartbeat and demo code.</strong> The two-second heartbeat is for demonstrations; with the default, a crashed process's jobs are reclaimed within about seven minutes rather than seconds. The <code>Task.Delay</code> should already be gone.</li>
-          <li><strong>The dashboard.</strong> It stays local-only and read-only until you change it. To reach it from other machines, turn off <code>LocalOnly</code> and put it behind your own authentication and authorization; enable controls only there. The guide's section on <a href="https://github.com/acta-dotnet/acta/blob/main/docs/operator-guide.md#dashboard-exposure-and-auth">dashboard exposure</a> shows how.</li>
-          <li><strong>The database.</strong> SQLite is an embedded, single-machine store. When the application runs on more than one server, switch to <code>Acta.Postgres</code> or <code>Acta.SqlServer</code> and <code>UsePostgres</code> or <code>UseSqlServer</code>; the jobs themselves do not change.</li>
-          <li><strong>Where results go.</strong> Our reports land on the local disk, which is fine for one machine. Across several servers, write them to shared storage and keep only a reference in the job's result.</li>
-          <li><strong>Duplicate requests.</strong> Two clicks on the button create two jobs. If one report per month is the rule, give the enqueue a deduplication key; the <a href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#concepts-and-glossary">concepts guide</a> explains how, and why a key prevents a second row but not a second side effect.</li>
-        </ul>
-      </section>
-
-      <section id="next" aria-labelledby="next-title">
-        <h2 id="next-title">Further reading</h2>
-        <p>Next:</p>
-        <ul class="next-links">
-          <li><a href="/how-it-works">How Acta works: one job model, in ten questions</a></li>
-          <li><a href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#handler-contract">The handler contract</a></li>
-          <li><a href="https://github.com/acta-dotnet/acta/blob/main/docs/operator-guide.md#what-happens-if">What happens if…</a></li>
-          <li><a href="https://github.com/acta-dotnet/acta/blob/main/docs/operator-guide.md#production-guide">The production guide</a></li>
-        </ul>
-        <p>If you would rather have your coding assistant add Acta to an existing project, point it at <a href="/start">useacta.net/start</a>, which has prompts written for that.</p>
-      </section>
-    </article>
-
+      </div>
+      <div class="ladder-section" id="s-start" data-section="start">
+        <div class="ladder-head">
+          <h3>Start jobs</h3>
+          <p>Every way to start work: now, later, once only, by name, or many at a time.</p>
+          <p class="ladder-progress" data-progress></p>
+        </div>
+        <ol class="rungs">
+          <li><a class="rung" href="/learn/009-typed-enqueue" data-id="009"><span class="rung-step">1</span><span class="rung-text"><span class="rung-title">Enqueue by the input's type</span><span class="rung-note"><code>EnqueueAsync</code> takes the input alone: its type names the job, so there is no name string to get wrong</span></span><span class="rung-marks"></span></a></li>
+          <li><a class="rung" href="/learn/023-job-call" data-id="023"><span class="rung-step">2</span><span class="rung-text"><span class="rung-title">Enqueue by the job's generated call</span><span class="rung-note">The manifest's generated call names the job and takes its handler's parameters, several of them as one input</span></span><span class="rung-marks"></span></a></li>
+          <li><a class="rung" href="/learn/020-raw-enqueue" data-id="020"><span class="rung-step">3</span><span class="rung-text"><span class="rung-title">Enqueue a job by its name</span><span class="rung-note">An <code>EnqueueJobRequest</code> names the namespace and the job as strings, for a caller that does not have the job's types</span></span><span class="rung-marks"></span></a></li>
+          <li><a class="rung" href="/learn/004-no-input-job" data-id="004"><span class="rung-step">4</span><span class="rung-text"><span class="rung-title">Write a job that takes no input</span><span class="rung-note">A job with no input: a handler with no parameters, enqueued by its generated call</span></span><span class="rung-marks"></span></a></li>
+          <li><a class="rung" href="/learn/005-scalar-input" data-id="005"><span class="rung-step">5</span><span class="rung-text"><span class="rung-title">Pass one plain value as the input</span><span class="rung-note">The input can be one plain value, such as a string or a number, with no record around it</span></span><span class="rung-marks"></span></a></li>
+          <li><a class="rung" href="/learn/006-many-jobs-one-class" data-id="006"><span class="rung-step">6</span><span class="rung-text"><span class="rung-title">Keep several jobs in one class</span><span class="rung-note">A class can hold several <code>[Job]</code> methods. Each is a job of its own, with its own generated call</span></span><span class="rung-marks"></span></a></li>
+          <li><a class="rung" href="/learn/011-delayed-job" data-id="011"><span class="rung-step">7</span><span class="rung-text"><span class="rung-title">Run a job once, later</span><span class="rung-note"><code>ScheduleAsync(input, delay)</code> stores the job now and makes it due after the delay. No process has to stay alive until then</span></span><span class="rung-marks"></span></a></li>
+          <li><a class="rung" href="/learn/217-absolute-time-controls" data-id="217"><span class="rung-step">8</span><span class="rung-text"><span class="rung-title">Schedule, sleep, and reschedule to an exact instant</span><span class="rung-note">Pin work to an instant instead of a delay: <code>ScheduleAsync(input, runAt)</code> starts a job then, <code>SleepUntilAsync</code> pauses a handler until then, and <code>RescheduleUntilAsync</code> runs the handler again then</span></span><span class="rung-marks"></span></a></li>
+          <li><a class="rung" href="/learn/010-deduplication-key" data-id="010"><span class="rung-step">9</span><span class="rung-text"><span class="rung-title">Keep a repeated request from creating a second job</span><span class="rung-note">A deduplication key makes an enqueue idempotent: a second enqueue with the same key answers the job that is already there</span></span><span class="rung-marks"></span></a></li>
+          <li><a class="rung" href="/learn/028-deduplication-time-buckets" data-id="028"><span class="rung-step">10</span><span class="rung-text"><span class="rung-title">Allow one job per hour or per day</span><span class="rung-note">A deduplication key built from a time bucket lets one job in per bucket: <code>DeduplicationKey.PerTimeBucket</code> here, with <code>PerHour</code> and <code>PerDay</code> as its fixed sizes</span></span><span class="rung-marks"></span></a></li>
+          <li><a class="rung" href="/learn/014-read-by-deduplication-key" data-id="014"><span class="rung-step">11</span><span class="rung-text"><span class="rung-title">Find a job by its deduplication key</span><span class="rung-note"><code>JobLookup.ByDeduplicationKey</code> finds a job by the key it was enqueued with, when you did not keep its ref</span></span><span class="rung-marks"></span></a></li>
+          <li><a class="rung" href="/learn/015-call-vs-enqueue" data-id="015"><span class="rung-step">12</span><span class="rung-text"><span class="rung-title">Choose between starting a job and waiting for it</span><span class="rung-note"><code>EnqueueAsync</code> returns as soon as the job is stored; <code>CallAsync</code> enqueues, waits, and returns the result</span></span><span class="rung-marks"></span></a></li>
+          <li><a class="rung" href="/learn/019-batch-enqueue" data-id="019"><span class="rung-step">13</span><span class="rung-text"><span class="rung-title">Enqueue many jobs in one round trip</span><span class="rung-note"><code>EnqueueJobsAsync</code> writes a whole list of jobs in one round trip to the database and answers their outcomes in request order</span></span><span class="rung-marks"></span></a></li>
+          <li><a class="rung" href="/learn/017-priority" data-id="017"><span class="rung-step">14</span><span class="rung-text"><span class="rung-title">Run urgent jobs first</span><span class="rung-note">A priority on the enqueue decides which of the jobs that are due at once a worker claims first</span></span><span class="rung-marks"></span></a></li>
+          <li><a class="rung" href="/learn/018-tags" data-id="018"><span class="rung-step">15</span><span class="rung-text"><span class="rung-title">Label jobs so you can find them</span><span class="rung-note">Tags are name and value labels set on the enqueue, for filtering and grouping jobs in queries and in the dashboard</span></span><span class="rung-marks"></span></a></li>
+          <li><a class="rung" href="/learn/025-large-payload-reference" data-id="025"><span class="rung-step">16</span><span class="rung-text"><span class="rung-title">Pass a large file by reference</span><span class="rung-note">Keep a big file in blob storage and enqueue a reference to it, with its checksum and size, instead of the bytes</span></span><span class="rung-marks"></span></a></li>
+          <li><a class="rung" href="/learn/501-payload-formats" data-id="501"><span class="rung-step">17</span><span class="rung-text"><span class="rung-title">Choose a payload format for a job</span><span class="rung-note">A job names the format its payload is stored in. This program runs custom formats side by side and compares their serialization time, enqueue time, readability, and stored bytes</span></span><span class="rung-marks"><span class="mark lab">Lab</span></span></a></li>
+        </ol>
+      </div>
+      <div class="ladder-section" id="s-schedule" data-section="schedule">
+        <div class="ladder-head">
+          <h3>Run work on a schedule</h3>
+          <p>Recurring work as one permanent job: by cron, by interval, in a time zone, or from a calendar.</p>
+          <p class="ladder-progress" data-progress></p>
+        </div>
+        <ol class="rungs">
+          <li><a class="rung" href="/learn/101-recurring-job" data-id="101"><span class="rung-step">1</span><span class="rung-text"><span class="rung-title">Run a job on a repeating schedule</span><span class="rung-note"><code>[Schedule]</code> with a cron makes one permanent job that fires on that cadence, with nothing to enqueue</span></span><span class="rung-marks"></span></a></li>
+          <li><a class="rung" href="/learn/104-timezone-schedule" data-id="104"><span class="rung-step">2</span><span class="rung-text"><span class="rung-title">Run a job every day at a set hour in your time zone</span><span class="rung-note">A cron with <code>TimeZoneId</code> fires at the same local hour all year: <code>0 8 * * *</code> in <code>Europe/Berlin</code> is 08:00 in Berlin, in summer and in winter</span></span><span class="rung-marks"></span></a></li>
+          <li><a class="rung" href="/learn/102-interval-schedule" data-id="102"><span class="rung-step">3</span><span class="rung-text"><span class="rung-title">Replace a timer loop with an interval schedule</span><span class="rung-note">An interval schedule, such as <code>10s</code>, runs a job at a fixed gap, where a timer loop in a hosted service would otherwise stand</span></span><span class="rung-marks"></span></a></li>
+          <li><a class="rung" href="/learn/103-multiple-schedules" data-id="103"><span class="rung-step">4</span><span class="rung-text"><span class="rung-title">Give one job several schedules</span><span class="rung-note">Several <code>[Schedule]</code> attributes on one job share one permanent job, and schedules that come due together fire it once</span></span><span class="rung-marks"><span class="mark lab">Lab</span></span></a></li>
+          <li><a class="rung" href="/learn/106-schedule-misfire" data-id="106"><span class="rung-step">5</span><span class="rung-text"><span class="rung-title">Decide what happens to runs a schedule missed</span><span class="rung-note">Missed occurrences are a business decision. Three schedules miss the same stretch while paused, and each one's misfire policy decides it differently: <code>Skip</code> runs at most the latest, <code>CatchUpOnce</code> runs one firing that covers them all, <code>CatchUpAll</code> runs every one in order</span></span><span class="rung-marks"><span class="mark lab">Lab</span></span></a></li>
+          <li><a class="rung" href="/learn/105-schedule-control" data-id="105"><span class="rung-step">6</span><span class="rung-text"><span class="rung-title">Pause and resume a schedule</span><span class="rung-note"><code>operations.Schedules</code> pauses a schedule from outside the handler, for good or until an instant, and resumes it</span></span><span class="rung-marks"></span></a></li>
+          <li><a class="rung" href="/learn/108-calendar-catalog" data-id="108"><span class="rung-step">7</span><span class="rung-text"><span class="rung-title">Drive a schedule from a published calendar</span><span class="rung-note">A calendar is data that an operator publishes through <code>operations.Calendars</code>. A schedule binds it by name, and a later publication retimes every schedule bound to it in one transaction while workers run</span></span><span class="rung-marks"></span></a></li>
+          <li><a class="rung" href="/learn/110-per-occurrence-delivery" data-id="110"><span class="rung-step">8</span><span class="rung-text"><span class="rung-title">Make every occurrence its own job</span><span class="rung-note"><code>ScheduledDelivery = PerOccurrence</code> makes each occurrence a root job of its own, with its own ref, retries, result, and retention. <code>MaxOutstanding</code> bounds how many may be unfinished at once</span></span><span class="rung-marks"></span></a></li>
+          <li><a class="rung" href="/learn/111-firing-failure-policy" data-id="111"><span class="rung-step">9</span><span class="rung-text"><span class="rung-title">Decide what a failed firing does to its schedule</span><span class="rung-note">A firing that spends its retry budget returns the permanent job to <code>Idle</code>. <code>FiringFailurePolicy</code> says what happens to its schedules then: <code>Continue</code>, the default, fires the next occurrence as usual, and <code>PauseScheduling</code> pauses them, with the reason, until an operator resumes them</span></span><span class="rung-marks"></span></a></li>
+          <li><a class="rung" href="/learn/214-reset-state" data-id="214"><span class="rung-step">10</span><span class="rung-text"><span class="rung-title">Start each firing of a recurring job clean</span><span class="rung-note">A permanent job keeps its variables from one firing to the next. <code>ResetStateAsync</code> at the end of a firing clears them, so the next one starts blank</span></span><span class="rung-marks"></span></a></li>
+        </ol>
+      </div>
+      <div class="ladder-section" id="s-sync" data-section="sync">
+        <div class="ladder-head">
+          <h3>Keep another system in sync</h3>
+          <p>One job that keeps calling a service and remembers how far it got.</p>
+          <p class="ladder-progress" data-progress></p>
+        </div>
+        <ol class="rungs">
+          <li><a class="rung" href="/learn/109-continuous-synchronization" data-id="109"><span class="rung-step">1</span><span class="rung-text"><span class="rung-title">Keep another system in sync with a permanent job</span><span class="rung-note">One permanent job calls a service on a schedule and keeps a watermark of how far it got. Each firing syncs one bounded batch and returns; the watermark is the job's own durable variable, read at the top of every execution, so a recovered firing continues where the lost one stopped</span></span><span class="rung-marks"><span class="mark lab">Lab</span></span></a></li>
+          <li><a class="rung" href="/learn/203-durable-variable" data-id="203"><span class="rung-step">2</span><span class="rung-text"><span class="rung-title">Keep a value across retries</span><span class="rung-note">A durable variable stores a value with the job the first time it is computed, and every later attempt reads the same value</span></span><span class="rung-marks"></span></a></li>
+          <li><a class="rung" href="/learn/306-reschedule" data-id="306"><span class="rung-step">3</span><span class="rung-text"><span class="rung-title">Check again later without spending a retry</span><span class="rung-note"><code>RescheduleAsync</code> ends the execution and runs the handler again after a delay, without counting as a failure or spending a retry</span></span><span class="rung-marks"></span></a></li>
+        </ol>
+      </div>
+      <div class="ladder-section" id="s-survive" data-section="survive">
+        <div class="ladder-head">
+          <h3>Make work survive a crash</h3>
+          <p>Steps and variables record what a handler finished, so a retry or a restart carries on instead of starting over.</p>
+          <p class="ladder-progress" data-progress></p>
+        </div>
+        <ol class="rungs">
+          <li><a class="rung" href="/learn/202-durable-step" data-id="202"><span class="rung-step">1</span><span class="rung-text"><span class="rung-title">Keep finished work from repeating on a retry</span><span class="rung-note">A named step records its outcome, so a retry returns it instead of doing the work again</span></span><span class="rung-marks"><span class="mark lab">Lab</span></span></a></li>
+          <li><a class="rung" href="/learn/206-step-chain" data-id="206"><span class="rung-step">2</span><span class="rung-text"><span class="rung-title">Feed one step's result into the next</span><span class="rung-note">A step can return a value. Each result is recorded once, so the next step takes it as its input and a replay rebuilds the chain from the records</span></span><span class="rung-marks"></span></a></li>
+          <li><a class="rung" href="/learn/216-variable-lifecycle" data-id="216"><span class="rung-step">3</span><span class="rung-text"><span class="rung-title">Compute a value once and reuse it</span><span class="rung-note"><code>GetOrSetVariableAsync</code> computes a value on its first call and stores it with the job; later calls return the stored value. The program also checks for a variable, deletes it, reads it with a default, and stores a raw <code>JobPayload</code></span></span><span class="rung-marks"></span></a></li>
+          <li><a class="rung" href="/learn/210-step-retry" data-id="210"><span class="rung-step">4</span><span class="rung-text"><span class="rung-title">Compensate when the last attempt fails</span><span class="rung-note">A failing step retries through its job, and a <code>catch</code> on <code>EndsJob</code> compensates before the failure ends the job</span></span><span class="rung-marks"></span></a></li>
+          <li><a class="rung" href="/learn/220-at-most-once-step" data-id="220"><span class="rung-step">5</span><span class="rung-text"><span class="rung-title">Refuse to repeat a side effect after a crash</span><span class="rung-note">An at-most-once step refuses to run its body a second time after a crash. The handler is told that the outcome is unknown, and reconciles</span></span><span class="rung-marks"><span class="mark lab">Lab</span></span></a></li>
+          <li><a class="rung" href="/learn/201-durable-checkout" data-id="201"><span class="rung-step">6</span><span class="rung-text"><span class="rung-title">Build a checkout that waits for a review and a timer</span><span class="rung-note">One handler reads top to bottom as a checkout: wait for a fraud review, reserve, charge, wait out a settlement window, send the receipt. Each stage is a signal, a step, a variable, or a timer that survives a restart</span></span><span class="rung-marks"><span class="mark lab">Lab</span></span></a></li>
+          <li><a class="rung" href="/learn/208-progress" data-id="208"><span class="rung-step">7</span><span class="rung-text"><span class="rung-title">Report how far along a job is</span><span class="rung-note"><code>SetProgressAsync</code> stores how far the job has come, where a status page or the dashboard reads it while the job runs</span></span><span class="rung-marks"></span></a></li>
+        </ol>
+      </div>
+      <div class="ladder-section" id="s-wait" data-section="wait">
+        <div class="ladder-head">
+          <h3>Wait for people, events, and time</h3>
+          <p>A waiting job is a row. No worker and no process stays busy while it waits.</p>
+          <p class="ladder-progress" data-progress></p>
+        </div>
+        <ol class="rungs">
+          <li><a class="rung" href="/learn/204-wait-signal" data-id="204"><span class="rung-step">1</span><span class="rung-text"><span class="rung-title">Wait for an approval without holding a worker</span><span class="rung-note">A job parks on a named signal, holds no worker, and carries on when the signal is raised</span></span><span class="rung-marks"><span class="mark lab">Lab</span></span></a></li>
+          <li><a class="rung" href="/learn/205-durable-sleep" data-id="205"><span class="rung-step">2</span><span class="rung-text"><span class="rung-title">Wait for time to pass without a running process</span><span class="rung-note">A named sleep stores the due time, frees the worker, and wakes the job when the time comes</span></span><span class="rung-marks"><span class="mark lab">Lab</span></span></a></li>
+          <li><a class="rung" href="/learn/311-call-outcome-timeout" data-id="311"><span class="rung-step">3</span><span class="rung-text"><span class="rung-title">Read the outcome of a wait that can time out</span><span class="rung-note"><code>CallAsync</code> answers a <code>JobOutcome</code>: whether the wait timed out, whether the job failed, and the value when it succeeded</span></span><span class="rung-marks"></span></a></li>
+        </ol>
+      </div>
+      <div class="ladder-section" id="s-children" data-section="children">
+        <div class="ladder-head">
+          <h3>Split work across child jobs</h3>
+          <p>Fan out, join the results, and decide what a failed child means.</p>
+          <p class="ladder-progress" data-progress></p>
+        </div>
+        <ol class="rungs">
+          <li><a class="rung" href="/learn/211-child-jobs" data-id="211"><span class="rung-step">1</span><span class="rung-text"><span class="rung-title">Start child jobs and wait for them</span><span class="rung-note">A parent starts child jobs by name, suspends without holding a worker until every child has finished, and reads their results</span></span><span class="rung-marks"><span class="mark lab">Lab</span></span></a></li>
+          <li><a class="rung" href="/learn/213-call-child" data-id="213"><span class="rung-step">2</span><span class="rung-text"><span class="rung-title">Call another job and use its result</span><span class="rung-note"><code>CallChildAsync</code> starts another job as a child, waits for it without holding a worker, and returns its result</span></span><span class="rung-marks"></span></a></li>
+          <li><a class="rung" href="/learn/212-fan-out-join" data-id="212"><span class="rung-step">3</span><span class="rung-text"><span class="rung-title">Fan out over a list and merge the results</span><span class="rung-note"><code>MapAsync</code> starts one child job per item of a list, waits for them all, and hands back each item's result for the parent to merge</span></span><span class="rung-marks"></span></a></li>
+          <li><a class="rung" href="/learn/215-map-wait-children" data-id="215"><span class="rung-step">4</span><span class="rung-text"><span class="rung-title">Fan out to child jobs with Map or WaitChildren</span><span class="rung-note">Two ways to fan out: <code>EnqueueChildAsync</code> with <code>WaitChildrenAsync</code> for a few named children, and <code>MapAsync</code> for one child per item of a list</span></span><span class="rung-marks"></span></a></li>
+          <li><a class="rung" href="/learn/219-child-failure-outcomes" data-id="219"><span class="rung-step">5</span><span class="rung-text"><span class="rung-title">Handle child jobs that fail</span><span class="rung-note">A group of children never throws by itself. A failed child shows in the <code>Failed</code> list of the wait or the map, and <code>ThrowIfAnyFailed</code> is how the parent chooses to fail with it</span></span><span class="rung-marks"></span></a></li>
+          <li><a class="rung" href="/learn/704-cross-namespace-child" data-id="704"><span class="rung-step">6</span><span class="rung-text"><span class="rung-title">Start a child job in another namespace</span><span class="rung-note">A parent starts a child in another worker's namespace and waits across the boundary</span></span><span class="rung-marks"></span></a></li>
+          <li><a class="rung" href="/learn/601-fan-out" data-id="601"><span class="rung-step">7</span><span class="rung-text"><span class="rung-title">Enqueue many independent jobs from a handler</span><span class="rung-note">A handler takes <code>IJobs</code> and enqueues many independent jobs, each with a stable deduplication key. Nothing links them to the handler's job and nothing waits for them (compare 212's <code>MapAsync</code>)</span></span><span class="rung-marks"></span></a></li>
+          <li><a class="rung" href="/learn/602-chained-jobs" data-id="602"><span class="rung-step">8</span><span class="rung-text"><span class="rung-title">Chain jobs into a pipeline</span><span class="rung-note">Each stage is a job of its own that enqueues the next one, with a deduplication key so a replayed handoff starts no second pipeline</span></span><span class="rung-marks"></span></a></li>
+        </ol>
+      </div>
+      <div class="ladder-section" id="s-failure" data-section="failure">
+        <div class="ladder-head">
+          <h3>Decide what happens when work fails</h3>
+          <p>Retries, backoff, timeouts, deadlines, and ending a job on purpose.</p>
+          <p class="ladder-progress" data-progress></p>
+        </div>
+        <ol class="rungs">
+          <li><a class="rung" href="/learn/016-max-attempts" data-id="016"><span class="rung-step">1</span><span class="rung-text"><span class="rung-title">Limit how many times a job retries</span><span class="rung-note"><code>MaxAttempts</code> on the job is its retry budget. When the last attempt fails, the job ends as <code>Failed</code></span></span><span class="rung-marks"></span></a></li>
+          <li><a class="rung" href="/learn/312-backoff-curve" data-id="312"><span class="rung-step">2</span><span class="rung-text"><span class="rung-title">Set how long a job waits between retries</span><span class="rung-note"><code>Backoff</code> on the job sets how the wait between retries grows: <code>1s..8s x2 exact</code> starts at one second, doubles with each failure, and stops growing at eight</span></span><span class="rung-marks"></span></a></li>
+          <li><a class="rung" href="/learn/301-fail-job" data-id="301"><span class="rung-step">3</span><span class="rung-text"><span class="rung-title">Fail a job for good, with no retry</span><span class="rung-note"><code>FailAsync</code> ends the job as <code>Failed</code> at once, whatever its retry budget. A thrown exception would be retried</span></span><span class="rung-marks"></span></a></li>
+          <li><a class="rung" href="/learn/302-cancel-job" data-id="302"><span class="rung-step">4</span><span class="rung-text"><span class="rung-title">Cancel a job from inside its handler</span><span class="rung-note"><code>CancelAsync</code> in a handler ends the job as <code>Cancelled</code>: terminal, not a failure, so no retry and no alert follow</span></span><span class="rung-marks"></span></a></li>
+          <li><a class="rung" href="/learn/303-pause-job" data-id="303"><span class="rung-step">5</span><span class="rung-text"><span class="rung-title">Pause a job from inside its handler</span><span class="rung-note"><code>PauseAsync</code> in a handler parks the job as <code>Paused</code> until someone resumes it</span></span><span class="rung-marks"></span></a></li>
+          <li><a class="rung" href="/learn/304-execution-timeout" data-id="304"><span class="rung-step">6</span><span class="rung-text"><span class="rung-title">Cut off an attempt that runs too long</span><span class="rung-note"><code>ExecutionTimeout</code> caps one attempt: when the time is up, the handler's <code>CancellationToken</code> trips and the attempt ends as a timeout</span></span><span class="rung-marks"></span></a></li>
+          <li><a class="rung" href="/learn/008-cancellation-token" data-id="008"><span class="rung-step">7</span><span class="rung-text"><span class="rung-title">Stop cleanly when a job is cancelled</span><span class="rung-note">A handler takes a <code>CancellationToken</code> and passes it to everything it awaits, so a shutdown or a cancel ends it promptly</span></span><span class="rung-marks"></span></a></li>
+          <li><a class="rung" href="/learn/307-deadline-strict" data-id="307"><span class="rung-step">8</span><span class="rung-text"><span class="rung-title">Drop a job that is past its deadline</span><span class="rung-note">A <code>Deadline</code> is the whole job's budget, measured from its creation. Under the default, strict behaviour an overdue job is cancelled before its handler runs</span></span><span class="rung-marks"></span></a></li>
+          <li><a class="rung" href="/learn/308-deadline-advisory" data-id="308"><span class="rung-step">9</span><span class="rung-text"><span class="rung-title">Run an overdue job in a reduced mode</span><span class="rung-note">With <code>DeadlineBehavior = Advisory</code> an overdue job still runs. The handler reads <code>IsOverdue</code> and chooses a reduced path</span></span><span class="rung-marks"></span></a></li>
+        </ol>
+      </div>
+      <div class="ladder-section" id="s-limits" data-section="limits">
+        <div class="ladder-head">
+          <h3>Control order and load</h3>
+          <p>Keep jobs that touch the same thing from running over each other.</p>
+          <p class="ladder-progress" data-progress></p>
+        </div>
+        <ol class="rungs">
+          <li><a class="rung" href="/learn/207-run-with-lock" data-id="207"><span class="rung-step">1</span><span class="rung-text"><span class="rung-title">Let one job at a time touch a resource</span><span class="rung-note"><code>RunWithLockAsync</code> holds a named lock around a piece of work, so jobs that name the same lock take turns</span></span><span class="rung-marks"></span></a></li>
+          <li><a class="rung" href="/learn/209-concurrency-key" data-id="209"><span class="rung-step">2</span><span class="rung-text"><span class="rung-title">Limit how many jobs run at once for one key</span><span class="rung-note">A <code>ConcurrencyKey</code> on the enqueue lets one job at a time run for that key. <code>ConcurrencyLimit</code> on the job gives a key several slots, and <code>RateLimit</code> meters how often jobs start</span></span><span class="rung-marks"><span class="mark lab">Lab</span></span></a></li>
+        </ol>
+        <a class="golink ladder-more" href="/gates">See order, limits, and pacing move in the interactive explainer</a>
+      </div>
+      <div class="ladder-section" id="s-operate" data-section="operate">
+        <div class="ladder-head">
+          <h3>Watch and control running work</h3>
+          <p>Read what happened, find jobs, and cancel, pause, resume, or restart them.</p>
+          <p class="ladder-progress" data-progress></p>
+        </div>
+        <ol class="rungs">
+          <li><a class="rung" href="/learn/021-jobs-cli" data-id="021"><span class="rung-step">1</span><span class="rung-text"><span class="rung-title">Inspect a job from the command line</span><span class="rung-note">The app's own binary answers <code>jobs info</code>, <code>events</code>, <code>explain</code>, and the control verbs for any job, read from the same database</span></span><span class="rung-marks"><span class="mark lab">Lab</span></span></a></li>
+          <li><a class="rung" href="/learn/022-dashboard" data-id="022"><span class="rung-step">2</span><span class="rung-text"><span class="rung-title">See your jobs in the dashboard</span><span class="rung-note"><code>MapActa</code> serves the dashboard and its JSON API from your own app. Its controls are off until you turn them on</span></span><span class="rung-marks"><span class="mark lab">Lab</span></span></a></li>
+          <li><a class="rung" href="/learn/404-read-event-timeline" data-id="404"><span class="rung-step">3</span><span class="rung-text"><span class="rung-title">Read why a job did what it did</span><span class="rung-note">The append-only event ledger answers why a job did what it did. <code>ListEventsAsync</code> with <code>LineageRoot</code> reads the timeline of a job and of every child it started</span></span><span class="rung-marks"></span></a></li>
+          <li><a class="rung" href="/learn/409-operator-queries" data-id="409"><span class="rung-step">4</span><span class="rung-text"><span class="rung-title">List and page through jobs</span><span class="rung-note"><code>operations.Ledger</code> lists jobs with filters, pages through them by cursor, counts them, and answers the health counters an operator's screen opens with</span></span><span class="rung-marks"></span></a></li>
+          <li><a class="rung" href="/learn/305-operator-cancel" data-id="305"><span class="rung-step">5</span><span class="rung-text"><span class="rung-title">Cancel a running job from outside</span><span class="rung-note"><code>CancelAsync</code> on a job's handle cancels it from outside its handler. Any process that holds an <code>IJobs</code> can do it, and a running handler's <code>CancellationToken</code> trips</span></span><span class="rung-marks"></span></a></li>
+          <li><a class="rung" href="/learn/309-operator-resume" data-id="309"><span class="rung-step">6</span><span class="rung-text"><span class="rung-title">Pause and resume a job from outside</span><span class="rung-note"><code>IJobs.PauseAsync</code> and <code>ResumeAsync</code> pause and resume a job from outside its handler. Each answers whether it was applied or rejected, and its reason lands on the job's timeline</span></span><span class="rung-marks"></span></a></li>
+          <li><a class="rung" href="/learn/310-operator-restart" data-id="310"><span class="rung-step">7</span><span class="rung-text"><span class="rung-title">Restart a failed job and keep its history</span><span class="rung-note"><code>RestartAsync</code> runs a finished job again under the same identity. The failure budget is reset, the history is appended to, steps that succeeded are not run again, and the bare lines of the handler are</span></span><span class="rung-marks"><span class="mark lab">Lab</span></span></a></li>
+          <li><a class="rung" href="/learn/410-http-api-controls" data-id="410"><span class="rung-step">8</span><span class="rung-text"><span class="rung-title">Control jobs over HTTP</span><span class="rung-note"><code>MapActaApi</code> mounts the operator API without the dashboard. Its controls are off until <code>EnableControls</code> is set, answer local requests only by default, and a control request has to confirm itself</span></span><span class="rung-marks"></span></a></li>
+          <li><a class="rung" href="/learn/413-http-api-authorization" data-id="413"><span class="rung-step">9</span><span class="rung-text"><span class="rung-title">Require permissions on the HTTP API</span><span class="rung-note"><code>RequirePermissions</code> has every route of the HTTP API check the host's policy named for its permission: read, enqueue, control, or admin. A caller with no credential gets 401, and one that lacks the permission gets 403 naming it</span></span><span class="rung-marks"></span></a></li>
+          <li><a class="rung" href="/learn/414-dashboard-sign-in" data-id="414"><span class="rung-step">10</span><span class="rung-text"><span class="rung-title">Put the dashboard behind your sign-in</span><span class="rung-note">The dashboard and its API sit behind the host's own sign-in. The host maps its roles to Acta's four permissions; with no session a page goes to the sign-in, and an API call answers 401</span></span><span class="rung-marks"></span></a></li>
+          <li><a class="rung" href="/learn/412-tenant-scope" data-id="412"><span class="rung-step">11</span><span class="rung-text"><span class="rung-title">Record which tenant a job is for</span><span class="rung-note"><code>TenantName</code> on the enqueue records which tenant a job is for. Its children inherit the tenant, the job list filters by it, and an enqueue for an unknown or a suspended tenant is refused</span></span><span class="rung-marks"><span class="mark lab">Lab</span></span></a></li>
+          <li><a class="rung" href="/learn/408-correlation-id" data-id="408"><span class="rung-step">12</span><span class="rung-text"><span class="rung-title">Carry a correlation key from parent to child</span><span class="rung-note">A <code>CorrelationKey</code> set on the enqueue travels with the job and with every child it starts. It is on the job row, in each handler's log scope, and a filter of the job list</span></span><span class="rung-marks"></span></a></li>
+          <li><a class="rung" href="/learn/401-pipeline-behavior" data-id="401"><span class="rung-step">13</span><span class="rung-text"><span class="rung-title">Wrap every handler in your own middleware</span><span class="rung-note">An <code>IJobPipelineBehavior</code> wraps every handler call, the way middleware wraps a request</span></span><span class="rung-marks"></span></a></li>
+          <li><a class="rung" href="/learn/407-event-recording" data-id="407"><span class="rung-step">14</span><span class="rung-text"><span class="rung-title">Choose how many events a job records</span><span class="rung-note"><code>EventRecording</code> on the job decides which events it writes. <code>Audit</code>, the default, records every event. <code>Failures</code> records the failed and orphaned attempts, the success that recovers from a failure, what an enabled alert profile reads, a caller's controls of the job, and a schedule's pauses and manual triggers</span></span><span class="rung-marks"></span></a></li>
+        </ol>
+      </div>
+      <div class="ladder-section" id="s-alerts" data-section="alerts">
+        <div class="ladder-head">
+          <h3>Get told when something breaks</h3>
+          <p>Alerts raised by failures or by your own code, routed where your team looks.</p>
+          <p class="ladder-progress" data-progress></p>
+        </div>
+        <ol class="rungs">
+          <li><a class="rung" href="/learn/406-automatic-failure-alerts" data-id="406"><span class="rung-step">1</span><span class="rung-text"><span class="rung-title">Get an alert when a job fails</span><span class="rung-note">A failing job raises an alert by itself, with no <code>AlertAsync</code> in the handler. <code>AlertProfile</code> on the job says when, and repeats of the same job's failure count up on one alert rather than opening new ones</span></span><span class="rung-marks"></span></a></li>
+          <li><a class="rung" href="/learn/402-alerts" data-id="402"><span class="rung-step">2</span><span class="rung-text"><span class="rung-title">Raise an alert from a handler</span><span class="rung-note"><code>AlertAsync</code> in a handler raises an alert for the people who operate the system, and <code>operations.Alerts</code> reads it back</span></span><span class="rung-marks"></span></a></li>
+          <li><a class="rung" href="/learn/403-alert-channel" data-id="403"><span class="rung-step">3</span><span class="rung-text"><span class="rung-title">Send alerts to your own channel</span><span class="rung-note"><code>AddAlertChannel</code> declares where alerts go, under a name of your choice, and an alert names the channel it is for</span></span><span class="rung-marks"></span></a></li>
+          <li><a class="rung" href="/learn/405-real-alert-routing" data-id="405"><span class="rung-step">4</span><span class="rung-text"><span class="rung-title">Route alerts to Slack from configuration</span><span class="rung-note">An alert channel posts to a Slack webhook whose URL comes from configuration, and logs when none is set. A deduplication key collapses repeats of one incident into one alert</span></span><span class="rung-marks"></span></a></li>
+          <li><a class="rung" href="/learn/411-alert-escalation" data-id="411"><span class="rung-step">5</span><span class="rung-text"><span class="rung-title">Escalate an alert as failures add up</span><span class="rung-note">Automatic failure alerts escalate in stages: the first failure, the failure count reaching <code>AlertFailureThreshold</code>, and the final failure when the retry budget is spent</span></span><span class="rung-marks"></span></a></li>
+        </ol>
+      </div>
+      <div class="ladder-section" id="s-test" data-section="test">
+        <div class="ladder-head">
+          <h3>Test without sleeps or polling</h3>
+          <p>The real runtime on a throwaway database, driven one tick at a time.</p>
+          <p class="ladder-progress" data-progress></p>
+        </div>
+        <ol class="rungs">
+          <li><a class="rung" href="/learn/801-testing-jobs" data-id="801"><span class="rung-step">1</span><span class="rung-text"><span class="rung-title">Test a handler with the test host</span><span class="rung-note"><code>Acta.Testing</code> runs the real runtime on a real database with no background loop: <code>RunOnceAsync</code> decides when a job executes, so a test drives one attempt at a time. Run it with <code>dotnet test concepts/800-testing/801-testing-jobs</code></span></span><span class="rung-marks"></span></a></li>
+          <li><a class="rung" href="/learn/802-testing-durable-jobs" data-id="802"><span class="rung-step">2</span><span class="rung-text"><span class="rung-title">Test a job that waits for a signal</span><span class="rung-note">Each <code>RunOnceAsync</code> drives exactly one attempt, so the suspend on a signal and the resume after its raise are two explicit ticks, and the test asserts that the step before the wait ran once across the replay. Run it with <code>dotnet test concepts/800-testing/802-testing-durable-jobs</code></span></span><span class="rung-marks"></span></a></li>
+          <li><a class="rung" href="/learn/803-first-job-tests" data-id="803"><span class="rung-step">3</span><span class="rung-text"><span class="rung-title">Test the first-job guide's app</span><span class="rung-note">The first-job guide's test verbatim: the real runtime on a throwaway SQLite file, driven one tick at a time, with a retry made due at once</span></span><span class="rung-marks"></span></a></li>
+          <li><a class="rung" href="/learn/804-continuous-synchronization-tests" data-id="804"><span class="rung-step">4</span><span class="rung-text"><span class="rung-title">Test a recurring synchronization job</span><span class="rung-note">The claims of the continuous-synchronization lab as tests: a schedule forced due and one firing driven at a time, one job identity across firings, the watermark kept on the job, a lost attempt reclaimed with the next execution continuing at the watermark, and a replayed, a failed, and a backlogged batch. Run it with <code>dotnet test</code></span></span><span class="rung-marks"></span></a></li>
+        </ol>
+      </div>
+      <div class="ladder-section" id="s-deploy" data-section="deploy">
+        <div class="ladder-head">
+          <h3>Deploy and scale</h3>
+          <p>Split the API from the worker, add workers, and tune them.</p>
+          <p class="ladder-progress" data-progress></p>
+        </div>
+        <ol class="rungs">
+          <li><a class="rung" href="/learn/701-enqueue-only-reference" data-id="701"><span class="rung-step">1</span><span class="rung-text"><span class="rung-title">Enqueue from a process that runs no worker</span><span class="rung-note"><code>Reference&lt;TManifest&gt;()</code> lets a process enqueue a namespace's jobs by type without running a worker for it. <code>Run&lt;TManifest&gt;()</code> is the process that executes them</span></span><span class="rung-marks"></span></a></li>
+          <li><a class="rung" href="/learn/703-namespaces-in-one-process" data-id="703"><span class="rung-step">2</span><span class="rung-text"><span class="rung-title">Run two namespaces in one process</span><span class="rung-note">Each <code>Run</code> starts a worker for one namespace. Two of them in one process share the process and the database, and never each other's jobs</span></span><span class="rung-marks"></span></a></li>
+          <li><a class="rung" href="/learn/705-worker-crash-recovery" data-id="705"><span class="rung-step">3</span><span class="rung-text"><span class="rung-title">Recover the work of a killed worker</span><span class="rung-note">A worker process is killed in the middle of a job, and another worker reclaims the job once its lease has lapsed. The program runs on PostgreSQL or SQL Server</span></span><span class="rung-marks"><span class="mark lab">Lab</span></span></a></li>
+          <li><a class="rung" href="/learn/901-native-aot-json" data-id="901"><span class="rung-step">4</span><span class="rung-text"><span class="rung-title">Run jobs under Native AOT</span><span class="rung-note">A source-generated <code>JsonSerializerContext</code> given to <code>UseJsonPayloads</code> serializes payloads with no runtime reflection, and <code>JobPayload.Json(value, typeInfo)</code> builds a raw payload the same way</span></span><span class="rung-marks"></span></a></li>
+          <li><a class="rung" href="/learn/903-redis-wakeup" data-id="903"><span class="rung-step">5</span><span class="rung-text"><span class="rung-title">Wake workers across processes with Redis</span><span class="rung-note"><code>UseRedisWakeup</code> announces each enqueue over Redis, so a worker in another process starts the job within milliseconds instead of at its next poll</span></span><span class="rung-marks"></span></a></li>
+          <li><a class="rung" href="/learn/904-worker-tuning" data-id="904"><span class="rung-step">6</span><span class="rung-text"><span class="rung-title">Set how many jobs a worker runs at once</span><span class="rung-note"><code>MaxConcurrentExecutors</code> caps how many jobs one worker runs at once, and <code>SafetyPollInterval</code> bounds how long an idle worker sleeps between looks at the database</span></span><span class="rung-marks"></span></a></li>
+        </ol>
+        <a class="golink ladder-more" href="/fleet">See workers share work and recover it in the interactive explainer</a>
+      </div>
+      <p class="hint ladder-ask">Looking for a how-to that is not here? <a href="https://github.com/acta-dotnet/acta/issues/new">Tell us what you were trying to do</a>, and it becomes the next one.</p>
+    </section>
+
+    <section class="wrap" id="agents">
+      <p class="record">for coding agents</p>
+      <h2>Your coding agent reads the same how-tos.</h2>
+      <p class="lede">An agent does not need this page's design. It needs the smallest working example of the task, the rules that go with it, and a way to tell that it worked.</p>
+      <div class="facts">
+        <div><b>Every how-to is also Markdown</b><p>Add <code>.md</code> to a how-to's address and it answers as plain text: the same steps, code, rules and checks. Switch any page to "an agent" to see it.</p></div>
+        <div><b>One index lists them all</b><p><a href="/learn/index.md"><code>/learn/index.md</code></a> names every how-to by task, section by section, each with one line on what it teaches.</p></div>
+        <div><b>The output is the answer key</b><p>A how-to names the lines its program must print. The release check reads the same lines, so the page and the code cannot drift apart.</p></div>
+      </div>
+      <div class="prompts">
+        <figure class="listing"><figcaption><span class="note">Prompt: build from the how-tos</span><button class="copy" type="button" data-copy-target="#prompt-build">Copy</button></figcaption><pre><code id="prompt-build">Read https://useacta.net/llms.txt, then https://useacta.net/learn/index.md. Pick the how-tos that match this task and read each one as Markdown: [describe the task]. Build it, run it once, and show me its job ref and its jobs explain output.</code></pre></figure>
+        <figure class="listing"><figcaption><span class="note">Prompt: teach me</span><button class="copy" type="button" data-copy-target="#prompt-teach">Copy</button></figcaption><pre><code id="prompt-teach">Read https://useacta.net/learn/index.md and take me through the short tour, one how-to at a time. After each one that has a check question, ask me the question before you show the answer.</code></pre></figure>
+      </div>
+    </section>
+
+    <section class="wrap" id="more">
+      <p class="record">keep going</p>
+      <h2>Explainers you can play with, and the guides behind the how-tos.</h2>
+      <ul class="next-links wide">
+        <li><a href="/how-it-works">How Acta works</a><span>One job model for everything that outlives the request, in ten questions.</span></li>
+        <li><a href="/engine">Inside one worker</a><span>How one worker claims, runs, and finalizes a job.</span></li>
+        <li><a href="/fleet">Workers and recovery</a><span>Add as many workers as you like. They share the work through your database.</span></li>
+        <li><a href="/gates">Order and limits</a><span>Choose which jobs run in order, how many run at once, and how often they start.</span></li>
+        <li><a href="https://github.com/acta-dotnet/acta/blob/main/docs/first-job.md">Your first job, end to end</a><span>Install Acta and run a durable job in your own app, then read, explain, cancel, and test it.</span></li>
+        <li><a href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md">Developer guide</a><span>How to understand, write, configure, and test jobs.</span></li>
+        <li><a href="https://github.com/acta-dotnet/acta/blob/main/docs/scheduling.md">Scheduling and calendars</a><span>How a schedule becomes work, and what happens to the occurrences it missed.</span></li>
+        <li><a href="https://github.com/acta-dotnet/acta/blob/main/docs/operator-guide.md">Operator guide</a><span>How to deploy, monitor, control, and troubleshoot Acta.</span></li>
+      </ul>
+    </section>
+    </div>
+
+    <div class="wrap"><article class="agent-face" hidden>
+        <figure class="listing agent"><figcaption><span class="file">/learn/index.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/index.md">Open</a><button class="copy" type="button" data-copy-target="#md-body">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
+        <p class="hint">This is the page an agent receives: the same how-to as plain Markdown, at this page's address with <code>.md</code> added.</p>
+      </article></div>
+    <script type="application/json" id="how-to-index">[{"id":"001","u":"/learn/001-hello-acta","t":"Run your first job","s":"Take the first steps","k":"hello world getting started begin install setup hello-acta","x":"Write the job Register Acta and start a worker Enqueue it","d":"One [Job] method, one enqueue, and a worker that runs it","m":""},{"id":"002","u":"/learn/002-job-input","t":"Pass typed input to a job","s":"Take the first steps","k":"job-input","x":"Write the input as a record Enqueue an instance of it","d":"The input is a record: Acta stores it with the job and hands it to the handler as its first parameter","m":""},{"id":"003","u":"/learn/003-job-result","t":"Return a result and wait for it","s":"Take the first steps","k":"return value output answer await job-result","x":"Return the result from the handler Wait for the job and read its result","d":"What the handler returns is stored with the job as its result. WaitAsync\u003cT> follows the job to its end and hands the result back, typed","m":""},{"id":"007","u":"/learn/007-dependency-injection","t":"Use your own services in a handler","s":"Take the first steps","k":"dependency injection di constructor services dependency-injection","x":"Register the service as you would for any other code Take it in the constructor of the handler's class","d":"The class that holds the handler takes its services in its constructor, from the application's own container","m":""},{"id":"012","u":"/learn/012-read-status","t":"Read a job's status","s":"Take the first steps","k":"read-status","x":"Read the job with GetAsync The job it acts on","d":"GetAsync answers a snapshot of the job: its ref, its name and namespace, its status, and when it was created","m":""},{"id":"013","u":"/learn/013-read-result","t":"Read a job's result","s":"Take the first steps","k":"read-result","x":"Ask whether a result exists yet Read the result you expect The job it acts on","d":"TryGetResultAsync\u003cT> finds nothing before Succeeded; GetResultAsync\u003cT> returns the result you expect","m":""},{"id":"024","u":"/learn/024-aspnet-enqueue-api","t":"Start a job from an HTTP endpoint and poll it","s":"Take the first steps","k":"http api endpoint post 202 poll rest web aspnet-enqueue-api","x":"Enqueue in the POST and answer 202 with the job's ref Read the status, and the result once the job has finished The job it acts on","d":"A POST stores the job and answers 202 with its ref; a GET reads the status and, once the job has finished, the result","m":""},{"id":"026","u":"/learn/026-first-job","t":"Build the first-job guide's app","s":"Take the first steps","k":"first-job","x":"Write the jobs: one that retries and returns a result, one that fails for good Enqueue from an endpoint and answer with the job's ref Enqueue and wait for the typed result Read the status, the result, and the reason Cancel a job by its ref","d":"The first-job guide's app verbatim: typed result, a failure that is final and one that retries, explanation, cancel, and a wait that times out without stopping the job","m":""},{"id":"009","u":"/learn/009-typed-enqueue","t":"Enqueue by the input's type","s":"Start jobs","k":"typed-enqueue","x":"Enqueue the input and let its type pick the job The job it acts on","d":"EnqueueAsync takes the input alone: its type names the job, so there is no name string to get wrong","m":""},{"id":"023","u":"/learn/023-job-call","t":"Enqueue by the job's generated call","s":"Start jobs","k":"job-call","x":"Enqueue through the generated call Give a handler several parameters","d":"The manifest's generated call names the job and takes its handler's parameters, several of them as one input","m":""},{"id":"020","u":"/learn/020-raw-enqueue","t":"Enqueue a job by its name","s":"Start jobs","k":"raw name string namespace producer raw-enqueue","x":"Name the namespace and the job in a request Enqueue the request The job it acts on","d":"An EnqueueJobRequest names the namespace and the job as strings, for a caller that does not have the job's types","m":""},{"id":"004","u":"/learn/004-no-input-job","t":"Write a job that takes no input","s":"Start jobs","k":"no-input-job","x":"Write a handler with no parameters Enqueue it by its generated call","d":"A job with no input: a handler with no parameters, enqueued by its generated call","m":""},{"id":"005","u":"/learn/005-scalar-input","t":"Pass one plain value as the input","s":"Start jobs","k":"scalar-input","x":"Take the plain value as the handler's parameter Enqueue it by its generated call","d":"The input can be one plain value, such as a string or a number, with no record around it","m":""},{"id":"006","u":"/learn/006-many-jobs-one-class","t":"Keep several jobs in one class","s":"Start jobs","k":"many-jobs-one-class","x":"Put the jobs in one class Enqueue each job by its own call","d":"A class can hold several [Job] methods. Each is a job of its own, with its own generated call","m":""},{"id":"011","u":"/learn/011-delayed-job","t":"Run a job once, later","s":"Start jobs","k":"delay later reminder send in five minutes hours timer delayed-job","x":"Schedule the job instead of enqueueing it The job it acts on","d":"ScheduleAsync(input, delay) stores the job now and makes it due after the delay. No process has to stay alive until then","m":""},{"id":"217","u":"/learn/217-absolute-time-controls","t":"Schedule, sleep, and reschedule to an exact instant","s":"Start jobs","k":"at a time datetime run at absolute instant date absolute-time-controls","x":"Start a job at an instant Pause a handler until an instant Run the handler again at an instant, without spending a retry","d":"Pin work to an instant instead of a delay: ScheduleAsync(input, runAt) starts a job then, SleepUntilAsync pauses a handler until then, and RescheduleUntilAsync runs the handler again then","m":""},{"id":"010","u":"/learn/010-deduplication-key","t":"Keep a repeated request from creating a second job","s":"Start jobs","k":"idempotent duplicate double click twice dedupe once only deduplication-key","x":"Give the enqueue a key that names the request Repeat the enqueue and get the same job back The job it acts on","d":"A deduplication key makes an enqueue idempotent: a second enqueue with the same key answers the job that is already there","m":""},{"id":"028","u":"/learn/028-deduplication-time-buckets","t":"Allow one job per hour or per day","s":"Start jobs","k":"throttle once per hour per day bucket deduplication-time-buckets","x":"Build the key from the time bucket Enqueue again inside the bucket and get the first job back Enqueue in the next bucket and get a new job The job it acts on","d":"A deduplication key built from a time bucket lets one job in per bucket: DeduplicationKey.PerTimeBucket here, with PerHour and PerDay as its fixed sizes","m":""},{"id":"014","u":"/learn/014-read-by-deduplication-key","t":"Find a job by its deduplication key","s":"Start jobs","k":"read-by-deduplication-key","x":"Enqueue with a key you can build again later Look the job up by that key The job it acts on","d":"JobLookup.ByDeduplicationKey finds a job by the key it was enqueued with, when you did not keep its ref","m":""},{"id":"015","u":"/learn/015-call-vs-enqueue","t":"Choose between starting a job and waiting for it","s":"Start jobs","k":"call wait synchronous fire and forget call-vs-enqueue","x":"Start a job and carry on Start a job and wait for its result The job it acts on","d":"EnqueueAsync returns as soon as the job is stored; CallAsync enqueues, waits, and returns the result","m":""},{"id":"019","u":"/learn/019-batch-enqueue","t":"Enqueue many jobs in one round trip","s":"Start jobs","k":"bulk batch many thousands import batch-enqueue","x":"Build the requests and enqueue them together The job it acts on","d":"EnqueueJobsAsync writes a whole list of jobs in one round trip to the database and answers their outcomes in request order","m":""},{"id":"017","u":"/learn/017-priority","t":"Run urgent jobs first","s":"Start jobs","k":"priority urgent first queue order priority","x":"Set the priority when you enqueue The job it acts on","d":"A priority on the enqueue decides which of the jobs that are due at once a worker claims first","m":""},{"id":"018","u":"/learn/018-tags","t":"Label jobs so you can find them","s":"Start jobs","k":"tags","x":"Tag the job when you enqueue it The job it acts on","d":"Tags are name and value labels set on the enqueue, for filtering and grouping jobs in queries and in the dashboard","m":""},{"id":"025","u":"/learn/025-large-payload-reference","t":"Pass a large file by reference","s":"Start jobs","k":"blob file upload big payload s3 storage large-payload-reference","x":"Make the input a reference to the file Enqueue the reference Verify the file in the handler before you trust it","d":"Keep a big file in blob storage and enqueue a reference to it, with its checksum and size, instead of the bytes","m":""},{"id":"501","u":"/learn/501-payload-formats","t":"Choose a payload format for a job","s":"Start jobs","k":"json gzip serialization codec format payload-formats","x":"Give each format a name and an id Register a serializer for each format Name the format on the job","d":"A job names the format its payload is stored in. This program runs custom formats side by side and compares their serialization time, enqueue time, readability, and stored bytes","m":"Lab"},{"id":"101","u":"/learn/101-recurring-job","t":"Run a job on a repeating schedule","s":"Run work on a schedule","k":"cron recurring repeat every nightly periodic recurring-job","x":"Put a schedule on the job","d":"[Schedule] with a cron makes one permanent job that fires on that cadence, with nothing to enqueue","m":""},{"id":"104","u":"/learn/104-timezone-schedule","t":"Run a job every day at a set hour in your time zone","s":"Run work on a schedule","k":"berlin timezone time zone hour daily 8am morning night dst summer winter wall clock cron local time timezone-schedule","x":"Write the hour as a cron and pin it to your time zone","d":"A cron with TimeZoneId fires at the same local hour all year: 0 8 * * * in Europe/Berlin is 08:00 in Berlin, in summer and in winter","m":""},{"id":"102","u":"/learn/102-interval-schedule","t":"Replace a timer loop with an interval schedule","s":"Run work on a schedule","k":"interval every 10 seconds periodic timer backgroundservice hosted service loop interval-schedule","x":"Give the schedule an interval instead of a cron","d":"An interval schedule, such as 10s, runs a job at a fixed gap, where a timer loop in a hosted service would otherwise stand","m":""},{"id":"103","u":"/learn/103-multiple-schedules","t":"Give one job several schedules","s":"Run work on a schedule","k":"multiple-schedules","x":"Put several schedules on the one job Read which schedules fired this execution","d":"Several [Schedule] attributes on one job share one permanent job, and schedules that come due together fire it once","m":"Lab"},{"id":"106","u":"/learn/106-schedule-misfire","t":"Decide what happens to runs a schedule missed","s":"Run work on a schedule","k":"misfire missed catch up downtime outage skip schedule-misfire","x":"Choose the misfire strategy on the schedule Read which occurrences a firing stands for","d":"Missed occurrences are a business decision. Three schedules miss the same stretch while paused, and each one's misfire policy decides it differently: Skip runs at most the latest, CatchUpOnce runs one firing that covers them all, CatchUpAll runs every one in order","m":"Lab"},{"id":"105","u":"/learn/105-schedule-control","t":"Pause and resume a schedule","s":"Run work on a schedule","k":"pause resume schedule stop holiday schedule-control","x":"Name the schedule Pause it until someone resumes it Or pause it until an instant Resume it The job it acts on","d":"operations.Schedules pauses a schedule from outside the handler, for good or until an instant, and resumes it","m":""},{"id":"108","u":"/learn/108-calendar-catalog","t":"Drive a schedule from a published calendar","s":"Run work on a schedule","k":"calendar business days holidays pay days month end calendar-catalog","x":"Save the calendar as a draft and publish it Bind the schedule to the calendar by name Publish a change and let it retime the schedule","d":"A calendar is data that an operator publishes through operations.Calendars. A schedule binds it by name, and a later publication retimes every schedule bound to it in one transaction while workers run","m":""},{"id":"110","u":"/learn/110-per-occurrence-delivery","t":"Make every occurrence its own job","s":"Run work on a schedule","k":"per-occurrence-delivery","x":"Deliver each occurrence as a job of its own","d":"ScheduledDelivery = PerOccurrence makes each occurrence a root job of its own, with its own ref, retries, result, and retention. MaxOutstanding bounds how many may be unfinished at once","m":""},{"id":"111","u":"/learn/111-firing-failure-policy","t":"Decide what a failed firing does to its schedule","s":"Run work on a schedule","k":"firing-failure-policy","x":"Pause the schedule when a firing fails for good","d":"A firing that spends its retry budget returns the permanent job to Idle. FiringFailurePolicy says what happens to its schedules then: Continue, the default, fires the next occurrence as usual, and PauseScheduling pauses them, with the reason, until an operator resumes them","m":""},{"id":"214","u":"/learn/214-reset-state","t":"Start each firing of a recurring job clean","s":"Run work on a schedule","k":"reset-state","x":"Clear the job's durable state as the last act of the firing","d":"A permanent job keeps its variables from one firing to the next. ResetStateAsync at the end of a firing clears them, so the next one starts blank","m":""},{"id":"109","u":"/learn/109-continuous-synchronization","t":"Keep another system in sync with a permanent job","s":"Keep another system in sync","k":"sync synchronize synchronization service api poll watermark cursor integration import external system permanent recurring continuous-synchronization","x":"Fire the job on a schedule Read the watermark and ask for what changed after it Let the service hand out its changes in a fixed order Save the work first and the watermark after Make the save an upsert that keeps the newer change","d":"One permanent job calls a service on a schedule and keeps a watermark of how far it got. Each firing syncs one bounded batch and returns; the watermark is the job's own durable variable, read at the top of every execution, so a recovered firing continues where the lost one stopped","m":"Lab"},{"id":"203","u":"/learn/203-durable-variable","t":"Keep a value across retries","s":"Keep another system in sync","k":"variable state watermark remember durable-variable","x":"Compute the value once and read it back on every attempt","d":"A durable variable stores a value with the job the first time it is computed, and every later attempt reads the same value","m":""},{"id":"306","u":"/learn/306-reschedule","t":"Check again later without spending a retry","s":"Keep another system in sync","k":"poll reschedule not ready yet check again service reschedule","x":"Reschedule when the answer is not there yet","d":"RescheduleAsync ends the execution and runs the handler again after a delay, without counting as a failure or spending a retry","m":""},{"id":"202","u":"/learn/202-durable-step","t":"Keep finished work from repeating on a retry","s":"Make work survive a crash","k":"step checkpoint idempotent replay record once durable-step","x":"Put the work in a named step Fail once after the step, and watch the retry skip it","d":"A named step records its outcome, so a retry returns it instead of doing the work again","m":"Lab"},{"id":"206","u":"/learn/206-step-chain","t":"Feed one step's result into the next","s":"Make work survive a crash","k":"step-chain","x":"Return a value from a step Use it in the next step","d":"A step can return a value. Each result is recorded once, so the next step takes it as its input and a replay rebuilds the chain from the records","m":""},{"id":"216","u":"/learn/216-variable-lifecycle","t":"Compute a value once and reuse it","s":"Make work survive a crash","k":"get or set compute once cache snapshot quote variable-lifecycle","x":"Compute a value once Delete a variable, and check whether one is there Read a variable that may not be there","d":"GetOrSetVariableAsync computes a value on its first call and stores it with the job; later calls return the stored value. The program also checks for a variable, deletes it, reads it with a default, and stores a raw JobPayload","m":""},{"id":"210","u":"/learn/210-step-retry","t":"Compensate when the last attempt fails","s":"Make work survive a crash","k":"compensate rollback undo saga last attempt step-retry","x":"Give the job its retry budget Compensate in a catch that fires only when the failure ends the job","d":"A failing step retries through its job, and a catch on EndsJob compensates before the failure ends the job","m":""},{"id":"220","u":"/learn/220-at-most-once-step","t":"Refuse to repeat a side effect after a crash","s":"Make work survive a crash","k":"exactly once at most once payment charge card twice double side effect duplicate at-most-once-step","x":"Mark the step at-most-once Catch the interruption and reconcile","d":"An at-most-once step refuses to run its body a second time after a crash. The handler is told that the outcome is unknown, and reconciles","m":"Lab"},{"id":"201","u":"/learn/201-durable-checkout","t":"Build a checkout that waits for a review and a timer","s":"Make work survive a crash","k":"workflow order checkout saga orchestration durable-checkout","x":"Wait for the review before anything is charged Put each outside call in a step Keep a value in a variable Wait out the settlement window with a named timer","d":"One handler reads top to bottom as a checkout: wait for a fraud review, reserve, charge, wait out a settlement window, send the receipt. Each stage is a signal, a step, a variable, or a timer that survives a restart","m":"Lab"},{"id":"208","u":"/learn/208-progress","t":"Report how far along a job is","s":"Make work survive a crash","k":"progress","x":"Store the progress as the work advances","d":"SetProgressAsync stores how far the job has come, where a status page or the dashboard reads it while the job runs","m":""},{"id":"204","u":"/learn/204-wait-signal","t":"Wait for an approval without holding a worker","s":"Wait for people, events, and time","k":"approval human signal event webhook wait manager review callback registration sign up signup register confirm email verification pending temporary state wait-signal","x":"Wait for a named signal in the handler Raise the signal when the answer arrives","d":"A job parks on a named signal, holds no worker, and carries on when the signal is raised","m":"Lab"},{"id":"205","u":"/learn/205-durable-sleep","t":"Wait for time to pass without a running process","s":"Wait for people, events, and time","k":"sleep delay wait days weeks three later timer cool down send reminder follow up durable-sleep","x":"Sleep by name in the handler","d":"A named sleep stores the due time, frees the worker, and wakes the job when the time comes","m":"Lab"},{"id":"311","u":"/learn/311-call-outcome-timeout","t":"Read the outcome of a wait that can time out","s":"Wait for people, events, and time","k":"call-outcome-timeout","x":"Bound the wait and see whether it timed out Read a job that failed Take the value of a job that succeeded The job it acts on","d":"CallAsync answers a JobOutcome: whether the wait timed out, whether the job failed, and the value when it succeeded","m":""},{"id":"211","u":"/learn/211-child-jobs","t":"Start child jobs and wait for them","s":"Split work across child jobs","k":"child jobs sub jobs parent workflow child-jobs","x":"Start each child under a name Wait for all of them, and decide what a failed child means Read each child's result","d":"A parent starts child jobs by name, suspends without holding a worker until every child has finished, and reads their results","m":"Lab"},{"id":"213","u":"/learn/213-call-child","t":"Call another job and use its result","s":"Split work across child jobs","k":"call child sub workflow result call-child","x":"Call the other job as a child and take its result","d":"CallChildAsync starts another job as a child, waits for it without holding a worker, and returns its result","m":""},{"id":"212","u":"/learn/212-fan-out-join","t":"Fan out over a list and merge the results","s":"Split work across child jobs","k":"map reduce parallel fan out join aggregate chunks invoices items batch total sum combine fan-out-join","x":"Map the list onto child jobs Stop if a child failed, then merge the results","d":"MapAsync starts one child job per item of a list, waits for them all, and hands back each item's result for the parent to merge","m":""},{"id":"215","u":"/learn/215-map-wait-children","t":"Fan out to child jobs with Map or WaitChildren","s":"Split work across child jobs","k":"map wait children parallel fan out map-wait-children","x":"Enqueue a few named children and wait for them together Map a list onto children, one per item Count what landed instead of failing the parent","d":"Two ways to fan out: EnqueueChildAsync with WaitChildrenAsync for a few named children, and MapAsync for one child per item of a list","m":""},{"id":"219","u":"/learn/219-child-failure-outcomes","t":"Handle child jobs that fail","s":"Split work across child jobs","k":"child-failure-outcomes","x":"Carry on without the items that failed Or fail the parent with its failed child","d":"A group of children never throws by itself. A failed child shows in the Failed list of the wait or the map, and ThrowIfAnyFailed is how the parent chooses to fail with it","m":""},{"id":"704","u":"/learn/704-cross-namespace-child","t":"Start a child job in another namespace","s":"Split work across child jobs","k":"cross-namespace-child","x":"Run a worker for each namespace Name the child's namespace and job Wait for the child and read its result","d":"A parent starts a child in another worker's namespace and waits across the boundary","m":""},{"id":"601","u":"/learn/601-fan-out","t":"Enqueue many independent jobs from a handler","s":"Split work across child jobs","k":"fan-out","x":"Enqueue each job with a key taken from what it is","d":"A handler takes IJobs and enqueues many independent jobs, each with a stable deduplication key. Nothing links them to the handler's job and nothing waits for them (compare 212's MapAsync)","m":""},{"id":"602","u":"/learn/602-chained-jobs","t":"Chain jobs into a pipeline","s":"Split work across child jobs","k":"pipeline stages sequence chained-jobs","x":"Enqueue the next stage as the last act of this one","d":"Each stage is a job of its own that enqueues the next one, with a deduplication key so a replayed handoff starts no second pipeline","m":""},{"id":"016","u":"/learn/016-max-attempts","t":"Limit how many times a job retries","s":"Decide what happens when work fails","k":"max attempts retry budget give up max-attempts","x":"Set the retry budget on the job Read how the job ended","d":"MaxAttempts on the job is its retry budget. When the last attempt fails, the job ends as Failed","m":""},{"id":"312","u":"/learn/312-backoff-curve","t":"Set how long a job waits between retries","s":"Decide what happens when work fails","k":"backoff exponential delay between retries backoff-curve","x":"Write the backoff on the job","d":"Backoff on the job sets how the wait between retries grows: 1s..8s x2 exact starts at one second, doubles with each failure, and stops growing at eight","m":""},{"id":"301","u":"/learn/301-fail-job","t":"Fail a job for good, with no retry","s":"Decide what happens when work fails","k":"fail permanent no retry reject fail-job","x":"End the job as failed where retrying cannot help","d":"FailAsync ends the job as Failed at once, whatever its retry budget. A thrown exception would be retried","m":""},{"id":"302","u":"/learn/302-cancel-job","t":"Cancel a job from inside its handler","s":"Decide what happens when work fails","k":"cancel-job","x":"Cancel the job where the work is no longer wanted","d":"CancelAsync in a handler ends the job as Cancelled: terminal, not a failure, so no retry and no alert follow","m":""},{"id":"303","u":"/learn/303-pause-job","t":"Pause a job from inside its handler","s":"Decide what happens when work fails","k":"pause-job","x":"Pause the job from its handler Record the approval in the input, then resume","d":"PauseAsync in a handler parks the job as Paused until someone resumes it","m":""},{"id":"304","u":"/learn/304-execution-timeout","t":"Cut off an attempt that runs too long","s":"Decide what happens when work fails","k":"timeout too slow hang stuck execution-timeout","x":"Set the timeout on the job Pass the token to the work, so the timeout can stop it","d":"ExecutionTimeout caps one attempt: when the time is up, the handler's CancellationToken trips and the attempt ends as a timeout","m":""},{"id":"008","u":"/learn/008-cancellation-token","t":"Stop cleanly when a job is cancelled","s":"Decide what happens when work fails","k":"cancellation token shutdown graceful cancellation-token","x":"Check the token between pieces of work, and pass it to what you await","d":"A handler takes a CancellationToken and passes it to everything it awaits, so a shutdown or a cancel ends it promptly","m":""},{"id":"307","u":"/learn/307-deadline-strict","t":"Drop a job that is past its deadline","s":"Decide what happens when work fails","k":"deadline expire too late drop deadline-strict","x":"Give the job a deadline","d":"A Deadline is the whole job's budget, measured from its creation. Under the default, strict behaviour an overdue job is cancelled before its handler runs","m":""},{"id":"308","u":"/learn/308-deadline-advisory","t":"Run an overdue job in a reduced mode","s":"Decide what happens when work fails","k":"deadline-advisory","x":"Make the deadline advisory Ask whether the job is overdue, and do less when it is","d":"With DeadlineBehavior = Advisory an overdue job still runs. The handler reads IsOverdue and chooses a reduced path","m":""},{"id":"207","u":"/learn/207-run-with-lock","t":"Let one job at a time touch a resource","s":"Control order and load","k":"lock mutex serialize exclusive run-with-lock","x":"Run the work under a named lock","d":"RunWithLockAsync holds a named lock around a piece of work, so jobs that name the same lock take turns","m":""},{"id":"209","u":"/learn/209-concurrency-key","t":"Limit how many jobs run at once for one key","s":"Control order and load","k":"concurrency limit throttle per customer per tenant key at once concurrency-key","x":"Give jobs that must not overlap the same key Let several run at once, up to a limit Limit how often jobs start","d":"A ConcurrencyKey on the enqueue lets one job at a time run for that key. ConcurrencyLimit on the job gives a key several slots, and RateLimit meters how often jobs start","m":"Lab"},{"id":"021","u":"/learn/021-jobs-cli","t":"Inspect a job from the command line","s":"Watch and control running work","k":"cli terminal explain events status debug jobs-cli","x":"Run the app's own binary with a jobs verb The job it acts on","d":"The app's own binary answers jobs info, events, explain, and the control verbs for any job, read from the same database","m":"Lab"},{"id":"022","u":"/learn/022-dashboard","t":"See your jobs in the dashboard","s":"Watch and control running work","k":"dashboard ui screen browser dashboard","x":"Map the dashboard into your app The job it acts on","d":"MapActa serves the dashboard and its JSON API from your own app. Its controls are off until you turn them on","m":"Lab"},{"id":"404","u":"/learn/404-read-event-timeline","t":"Read why a job did what it did","s":"Watch and control running work","k":"read-event-timeline","x":"Read the timeline of the job and its children The job it acts on","d":"The append-only event ledger answers why a job did what it did. ListEventsAsync with LineageRoot reads the timeline of a job and of every child it started","m":""},{"id":"409","u":"/learn/409-operator-queries","t":"List and page through jobs","s":"Watch and control running work","k":"list query search page filter ledger operator-queries","x":"List jobs with a filter Fetch the next page by its cursor Read the health counters The job it acts on","d":"operations.Ledger lists jobs with filters, pages through them by cursor, counts them, and answers the health counters an operator's screen opens with","m":""},{"id":"305","u":"/learn/305-operator-cancel","t":"Cancel a running job from outside","s":"Watch and control running work","k":"operator-cancel","x":"Cancel the job from outside Pass the token to the work, so the cancel can stop it","d":"CancelAsync on a job's handle cancels it from outside its handler. Any process that holds an IJobs can do it, and a running handler's CancellationToken trips","m":""},{"id":"309","u":"/learn/309-operator-resume","t":"Pause and resume a job from outside","s":"Watch and control running work","k":"operator-resume","x":"Pause the job Resume it Read the answer: a finished job refuses The job it acts on","d":"IJobs.PauseAsync and ResumeAsync pause and resume a job from outside its handler. Each answers whether it was applied or rejected, and its reason lands on the job's timeline","m":""},{"id":"310","u":"/learn/310-operator-restart","t":"Restart a failed job and keep its history","s":"Watch and control running work","k":"restart rerun failed again operator operator-restart","x":"Restart the job under the same identity The job it acts on","d":"RestartAsync runs a finished job again under the same identity. The failure budget is reset, the history is appended to, steps that succeeded are not run again, and the bare lines of the handler are","m":"Lab"},{"id":"410","u":"/learn/410-http-api-controls","t":"Control jobs over HTTP","s":"Watch and control running work","k":"http-api-controls","x":"Mount the API and turn the controls on Confirm the control request The job it acts on","d":"MapActaApi mounts the operator API without the dashboard. Its controls are off until EnableControls is set, answer local requests only by default, and a control request has to confirm itself","m":""},{"id":"413","u":"/learn/413-http-api-authorization","t":"Require permissions on the HTTP API","s":"Watch and control running work","k":"auth authorization permissions security policy http-api-authorization","x":"Add one policy per permission Require the permissions on the API The job it acts on","d":"RequirePermissions has every route of the HTTP API check the host's policy named for its permission: read, enqueue, control, or admin. A caller with no credential gets 401, and one that lacks the permission gets 403 naming it","m":""},{"id":"414","u":"/learn/414-dashboard-sign-in","t":"Put the dashboard behind your sign-in","s":"Watch and control running work","k":"login sign in cookie auth roles dashboard-sign-in","x":"Map your roles to the four permissions Require the permissions on the dashboard The job it acts on","d":"The dashboard and its API sit behind the host's own sign-in. The host maps its roles to Acta's four permissions; with no session a page goes to the sign-in, and an API call answers 401","m":""},{"id":"412","u":"/learn/412-tenant-scope","t":"Record which tenant a job is for","s":"Watch and control running work","k":"tenant multi tenant customer tenant-scope","x":"Register the tenant Name the tenant when you enqueue List the jobs of one tenant The job it acts on","d":"TenantName on the enqueue records which tenant a job is for. Its children inherit the tenant, the job list filters by it, and an enqueue for an unknown or a suspended tenant is refused","m":"Lab"},{"id":"408","u":"/learn/408-correlation-id","t":"Carry a correlation key from parent to child","s":"Watch and control running work","k":"correlation-id","x":"Set the correlation key when you enqueue Find every job of one trace The job it acts on","d":"A CorrelationKey set on the enqueue travels with the job and with every child it starts. It is on the job row, in each handler's log scope, and a filter of the job list","m":""},{"id":"401","u":"/learn/401-pipeline-behavior","t":"Wrap every handler in your own middleware","s":"Watch and control running work","k":"middleware pipeline behavior logging decorator pipeline-behavior","x":"Write the behavior around the call to the handler Register the behavior","d":"An IJobPipelineBehavior wraps every handler call, the way middleware wraps a request","m":""},{"id":"407","u":"/learn/407-event-recording","t":"Choose how many events a job records","s":"Watch and control running work","k":"event-recording","x":"Record only failures for a job that runs often","d":"EventRecording on the job decides which events it writes. Audit, the default, records every event. Failures records the failed and orphaned attempts, the success that recovers from a failure, what an enabled alert profile reads, a caller's controls of the job, and a schedule's pauses and manual triggers","m":""},{"id":"406","u":"/learn/406-automatic-failure-alerts","t":"Get an alert when a job fails","s":"Get told when something breaks","k":"alert failure notify email page automatic-failure-alerts","x":"Say on the job when its failures alert, and where","d":"A failing job raises an alert by itself, with no AlertAsync in the handler. AlertProfile on the job says when, and repeats of the same job's failure count up on one alert rather than opening new ones","m":""},{"id":"402","u":"/learn/402-alerts","t":"Raise an alert from a handler","s":"Get told when something breaks","k":"alert notify operator warning alerts","x":"Raise the alert from the handler Read the alerts back","d":"AlertAsync in a handler raises an alert for the people who operate the system, and operations.Alerts reads it back","m":""},{"id":"403","u":"/learn/403-alert-channel","t":"Send alerts to your own channel","s":"Get told when something breaks","k":"alert-channel","x":"Declare the channel on the worker Name the channel when you raise the alert","d":"AddAlertChannel declares where alerts go, under a name of your choice, and an alert names the channel it is for","m":""},{"id":"405","u":"/learn/405-real-alert-routing","t":"Route alerts to Slack from configuration","s":"Get told when something breaks","k":"slack webhook notification channel real-alert-routing","x":"Declare a Slack channel with its URL from configuration Raise the alerts of one incident under one key","d":"An alert channel posts to a Slack webhook whose URL comes from configuration, and logs when none is set. A deduplication key collapses repeats of one incident into one alert","m":""},{"id":"411","u":"/learn/411-alert-escalation","t":"Escalate an alert as failures add up","s":"Get told when something breaks","k":"alert-escalation","x":"Set the failure count that escalates Read each stage as an alert of its own kind The job it acts on","d":"Automatic failure alerts escalate in stages: the first failure, the failure count reaching AlertFailureThreshold, and the final failure when the retry budget is spent","m":""},{"id":"801","u":"/learn/801-testing-jobs","t":"Test a handler with the test host","s":"Test without sleeps or polling","k":"unit test xunit integration test testing-jobs","x":"Start one test host for the test class Drive one attempt and assert what became of it Assert each retry, then the final failure","d":"Acta.Testing runs the real runtime on a real database with no background loop: RunOnceAsync decides when a job executes, so a test drives one attempt at a time. Run it with dotnet test concepts/800-testing/801-testing-jobs","m":""},{"id":"802","u":"/learn/802-testing-durable-jobs","t":"Test a job that waits for a signal","s":"Test without sleeps or polling","k":"test signal approval deterministic testing-durable-jobs","x":"Drive the job to its wait Raise the signal from the test Drive it again, and assert that it finished","d":"Each RunOnceAsync drives exactly one attempt, so the suspend on a signal and the resume after its raise are two explicit ticks, and the test asserts that the step before the wait ran once across the replay. Run it with dotnet test concepts/800-testing/802-testing-durable-jobs","m":""},{"id":"803","u":"/learn/803-first-job-tests","t":"Test the first-job guide's app","s":"Test without sleeps or polling","k":"first-job-tests","x":"Start the real runtime on a throwaway database Drive one tick and read the typed result Make the retry due now instead of waiting for it","d":"The first-job guide's test verbatim: the real runtime on a throwaway SQLite file, driven one tick at a time, with a retry made due at once","m":""},{"id":"804","u":"/learn/804-continuous-synchronization-tests","t":"Test a recurring synchronization job","s":"Test without sleeps or polling","k":"continuous-synchronization-tests","x":"Make the schedule due and admit one firing Drive the firing as one run Lose an attempt, and let recovery reclaim it","d":"The claims of the continuous-synchronization lab as tests: a schedule forced due and one firing driven at a time, one job identity across firings, the watermark kept on the job, a lost attempt reclaimed with the next execution continuing at the watermark, and a replayed, a failed, and a backlogged batch. Run it with dotnet test","m":""},{"id":"701","u":"/learn/701-enqueue-only-reference","t":"Enqueue from a process that runs no worker","s":"Deploy and scale","k":"producer only api enqueue reference enqueue-only-reference","x":"Reference the jobs in the process that only enqueues Enqueue as usual The job it acts on","d":"Reference\u003cTManifest>() lets a process enqueue a namespace's jobs by type without running a worker for it. Run\u003cTManifest>() is the process that executes them","m":""},{"id":"703","u":"/learn/703-namespaces-in-one-process","t":"Run two namespaces in one process","s":"Deploy and scale","k":"namespaces-in-one-process","x":"Run a worker for each namespace Name the namespace when you enqueue The job it acts on","d":"Each Run starts a worker for one namespace. Two of them in one process share the process and the database, and never each other's jobs","m":""},{"id":"705","u":"/learn/705-worker-crash-recovery","t":"Recover the work of a killed worker","s":"Deploy and scale","k":"crash kill recovery lease failover high availability worker-crash-recovery","x":"Give the job a retry budget, because a crash spends an attempt Shorten the heartbeat only to watch the recovery","d":"A worker process is killed in the middle of a job, and another worker reclaims the job once its lease has lapsed. The program runs on PostgreSQL or SQL Server","m":"Lab"},{"id":"901","u":"/learn/901-native-aot-json","t":"Run jobs under Native AOT","s":"Deploy and scale","k":"aot native trimming source generated json native-aot-json","x":"Declare a source-generated context for the payload types Hand the context to Acta Build a raw payload with its type info","d":"A source-generated JsonSerializerContext given to UseJsonPayloads serializes payloads with no runtime reflection, and JobPayload.Json(value, typeInfo) builds a raw payload the same way","m":""},{"id":"903","u":"/learn/903-redis-wakeup","t":"Wake workers across processes with Redis","s":"Deploy and scale","k":"redis pub sub wake latency redis-wakeup","x":"Turn the Redis wake-up on in every process The job it acts on","d":"UseRedisWakeup announces each enqueue over Redis, so a worker in another process starts the job within milliseconds instead of at its next poll","m":""},{"id":"904","u":"/learn/904-worker-tuning","t":"Set how many jobs a worker runs at once","s":"Deploy and scale","k":"concurrency threads executors poll interval tuning performance worker-tuning","x":"Cap how many jobs the worker runs at once Bound how long an idle worker sleeps The job it acts on","d":"MaxConcurrentExecutors caps how many jobs one worker runs at once, and SafetyPollInterval bounds how long an idle worker sleeps between looks at the database","m":""}]</script>
     <footer class="site-footer">
       <div class="wrap">
         <div class="footer-grid">
@@ -736,21 +409,6 @@ info: Reports.SalesReportJobs[0]
     </footer>
   </main>
   <p class="sr-only" id="copy-status" aria-live="polite"></p>
-  <script>
-    const status = document.getElementById("copy-status");
-    for (const button of document.querySelectorAll(".listing .copy")) {
-      button.addEventListener("click", async () => {
-        const code = button.closest(".listing").querySelector("pre code");
-        try {
-          await navigator.clipboard.writeText(code.textContent);
-          button.textContent = "Copied";
-          status.textContent = "Copied to the clipboard.";
-        } catch {
-          button.textContent = "Select and copy";
-        }
-        setTimeout(() => { button.textContent = "Copy"; status.textContent = ""; }, 1600);
-      });
-    }
-  </script>
+  <script src="/assets/learn.js"></script>
 </body>
 </html>

@@ -1,0 +1,253 @@
+/* The Learn section: the question that opens the hub, the ladders of how-tos, and the how-to page.
+   Colours, type and panels come from site.css; nothing here names a colour of its own. */
+
+.chrome nav a[aria-current="page"] { color: var(--text); }
+.record a { text-decoration: none; }
+.record a:hover { color: var(--verdi); }
+.record span[aria-hidden] { opacity: 0.5; }
+
+/* ---- the hub opens with the question itself ---- */
+.ask { padding-bottom: 0; }
+.ask-title {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.1em 0.38em;
+  max-width: none; margin-bottom: 1.3rem; font-size: clamp(2.3rem, 5vw, 4.1rem);
+}
+.ask-title label { cursor: text; }
+.ask-field { flex: 1 1 9ch; min-width: 0; display: flex; border-bottom: 2px solid var(--verdi); transition: border-color 0.15s ease; }
+.ask-field:focus-within { border-bottom-color: var(--verdi-hover); box-shadow: 0 2px 0 0 var(--verdi); }
+.ask-field input {
+  width: 100%; min-width: 0; padding: 0 0.08em 0.04em; border: 0; outline: 0; background: transparent;
+  color: var(--verdi); font: italic 400 0.9em/1.2 var(--serif); letter-spacing: -0.01em;
+}
+.ask-field input::placeholder { color: var(--faint); opacity: 0.7; }
+.ask-field input::-webkit-search-cancel-button { -webkit-appearance: none; }
+.ask-try { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.55rem; margin: 0 0 1.8rem; color: var(--faint); font-size: 0.92rem; }
+.ask-try button {
+  padding: 0.28rem 0.85rem; border: 1px solid var(--hair); border-radius: var(--r-pill); background: transparent;
+  color: var(--muted); font: italic 400 1rem/1.4 var(--serif); cursor: pointer; transition: border-color 0.15s ease, color 0.15s ease;
+}
+.ask-try button:hover { border-color: var(--verdi); color: var(--verdi); }
+.ask-results { margin: 0 0 2rem; border-top: 1px solid var(--hair); }
+.ask-results > a { display: grid; grid-template-columns: 1fr auto; gap: 0.15rem 1.5rem; padding: 0.8rem 0.2rem; border-bottom: 1px solid var(--hair-soft); text-decoration: none; }
+.ask-results .r-title { font-weight: 600; font-size: 1.05rem; }
+.ask-results .r-sec { align-self: center; font-size: 0.82rem; color: var(--faint); text-align: right; }
+.ask-results .r-note { grid-column: 1 / -1; color: var(--muted); font-size: 0.93rem; }
+.ask-results a:hover .r-title, .ask-results a.active .r-title { color: var(--verdi); }
+.ask-results > a.active { background: var(--verdi-tint); }
+.ask-none { margin: 0; padding: 1rem 0.2rem; border-bottom: 1px solid var(--hair-soft); color: var(--muted); }
+.ask-none a { color: var(--verdi); text-underline-offset: 3px; }
+
+/* ---- the reader switch: the same page for a person or for an agent ---- */
+.reader { display: inline-flex; align-items: center; gap: 3px; margin-top: 1.5rem; padding: 3px; border: 1px solid var(--hair); border-radius: var(--r-pill); background: var(--panel); }
+.reader-label { padding: 0 0.45rem 0 0.8rem; font-size: 0.8rem; color: var(--faint); }
+.reader button { padding: 0.36rem 0.9rem; border: 0; border-radius: var(--r-pill); background: transparent; color: var(--muted); font: 500 0.84rem var(--sans); cursor: pointer; }
+.reader button:hover { color: var(--text); }
+.reader button[aria-pressed="true"] { background: var(--verdi-wash); color: var(--verdi); }
+.reader button[data-reader="agent"][aria-pressed="true"] { background: var(--sky-wash); color: var(--sky); }
+.agent-face { min-width: 0; padding-bottom: 3rem; }
+.agent-face .listing pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+.agent-face .hint { margin-top: 0.4rem; }
+
+/* ---- three ways in: titled paragraphs on a rule, as the site's facts are ---- */
+.doors { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem 3rem; padding-top: 3rem; padding-bottom: 0; }
+.door { display: flex; flex-direction: column; gap: 0.45rem; padding-top: 1.1rem; border-top: 1px solid var(--hair); color: var(--muted); font-size: 0.97rem; text-decoration: none; }
+.door b { font-family: var(--serif); font-weight: 500; font-size: 1.4rem; line-height: 1.2; color: var(--text); }
+.door i { margin-top: 0.3rem; font-style: normal; font-weight: 500; font-size: 0.9rem; color: var(--verdi); }
+a.door:hover b { color: var(--verdi); }
+a.door:hover { border-top-color: var(--verdi); }
+.tour { margin: 0.2rem 0 0; padding-left: 1.3rem; font-size: 0.93rem; line-height: 1.75; }
+.tour a { color: var(--text); text-decoration: none; }
+.tour a:hover, .tour a[data-done] { color: var(--verdi); }
+.tour a:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+/* ---- which one when: the how-tos that look alike, side by side with what tells them apart ---- */
+.choices { padding-bottom: 0; }
+.choice-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 3.5rem; margin: 2.2rem 0 0; }
+.choice-list > div { padding: 1.1rem 0 1.3rem; border-top: 1px solid var(--hair); }
+.choice-list dt { margin-bottom: 0.5rem; font-family: var(--serif); font-weight: 500; font-size: 1.3rem; line-height: 1.25; }
+.choice-list dd, .choice-list ul { margin: 0; padding: 0; list-style: none; }
+.choice-list li { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0.1rem 1.5rem; padding: 0.4rem 0; border-top: 1px solid var(--hair-soft); font-size: 0.95rem; }
+.choice-list li:first-child { border-top: 0; }
+.choice-list span { color: var(--muted); }
+.choice-list a { font-weight: 600; text-decoration: none; }
+.choice-list a:hover { color: var(--verdi); }
+
+/* ---- the ladders: one per section, its how-tos in the order to climb them ---- */
+.ladder > h2 { max-width: 30ch; }
+.ladder-jump { display: flex; flex-wrap: wrap; gap: 0.55rem 1.5rem; margin: 1.8rem 0 0; font-size: 0.93rem; }
+.ladder-jump a { padding-bottom: 2px; border-bottom: 1px solid var(--hair); color: var(--muted); text-decoration: none; }
+.ladder-jump a:hover { border-bottom-color: var(--verdi); color: var(--verdi); }
+.ladder-section {
+  display: grid; grid-template-columns: minmax(13rem, 19rem) minmax(0, 1fr); gap: 1rem 3.5rem;
+  margin-top: 2.8rem; padding-top: 2.4rem; border-top: 1px solid var(--hair); scroll-margin-top: 6.5rem;
+}
+.ladder-head { position: sticky; top: 7rem; align-self: start; }
+.ladder-head h3 { margin: 0 0 0.5rem; font-family: var(--serif); font-weight: 500; font-size: 1.6rem; line-height: 1.15; text-wrap: balance; }
+.ladder-head p { margin: 0; color: var(--muted); font-size: 0.95rem; }
+.ladder-head .ladder-progress { margin-top: 0.8rem; font-family: var(--mono); font-size: 0.74rem; color: var(--verdi); }
+.rungs { position: relative; grid-column: 2; margin: 0; padding: 0; list-style: none; }
+.rungs::before { content: ""; position: absolute; left: 0.95rem; top: 1.4rem; bottom: 1.4rem; border-left: 1px solid var(--hair); }
+.rung { position: relative; display: grid; grid-template-columns: 1.9rem minmax(0, 1fr) auto; gap: 0 1.1rem; align-items: start; padding: 0.65rem 0; text-decoration: none; }
+.rung-step {
+  z-index: 1; display: grid; place-items: center; width: 1.9rem; height: 1.9rem; margin-top: calc((1.65rem - 1.9rem) / 2);
+  border: 1px solid var(--hair); border-radius: 50%; background: var(--bg); font: 400 0.72rem var(--mono); color: var(--faint);
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+.rung-title { display: block; font-weight: 600; color: var(--text); }
+.rung-note { display: block; color: var(--muted); font-size: 0.92rem; line-height: 1.5; }
+.rung-note code { font-size: 0.86em; }
+.rung:hover .rung-title { color: var(--verdi); }
+.rung:hover .rung-step { border-color: var(--verdi); color: var(--verdi); }
+.rung[data-done] .rung-step { background: var(--verdi); border-color: var(--verdi); color: var(--verdi-deep); font-weight: 500; }
+.rung-marks { display: flex; gap: 0.4rem; padding-top: 0.2rem; }
+.mark { padding: 0.12rem 0.6rem; border-radius: var(--r-pill); background: var(--panel); font-size: 0.74rem; font-weight: 500; color: var(--faint); white-space: nowrap; }
+.mark.lab { background: var(--verdi-wash); color: var(--verdi); }
+.ladder-more { grid-column: 2; justify-self: start; margin: 0.6rem 0 0 3rem; white-space: normal; line-height: 1.5; }
+.ladder-ask { margin-top: 3rem; padding-top: 1.4rem; border-top: 1px solid var(--hair); max-width: none; }
+
+.prompts { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; margin-top: 2.2rem; }
+.prompts .listing { margin: 0; }
+.prompts pre { white-space: pre-wrap; }
+
+/* ---- lists of links on a rule ---- */
+.next-links { max-width: 46rem; margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--hair); }
+.next-links.wide { max-width: none; margin-top: 2.2rem; }
+.next-links li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.2rem 2rem; padding: 0.85rem 0; border-bottom: 1px solid var(--hair-soft); }
+.next-links.wide li { grid-template-columns: minmax(12rem, 20rem) minmax(0, 1fr); gap: 0.2rem 3rem; }
+.next-links a, .howto .next-links a { font-weight: 600; color: var(--text); text-decoration: none; }
+.next-links a:hover, .howto .next-links a:hover { color: var(--verdi); }
+.next-links span { color: var(--muted); font-size: 0.95rem; }
+
+/* ---- a how-to ---- */
+.howto-head h1 { max-width: 22em; font-size: clamp(2rem, 3.6vw, 3.05rem); line-height: 1.1; }
+.howto-head .lede { max-width: 62ch; font-size: 1.12rem; }
+/* a reader who lands here from a search learns what Acta is, and where to start, in one line */
+.howto-context { margin: 0.9rem 0 0; font-size: 0.92rem; color: var(--faint); }
+.howto-context a { color: var(--verdi); text-underline-offset: 3px; }
+.newcomer { padding-top: 0; padding-bottom: 4.5rem; }
+.newcomer h2 { padding-top: 2.4rem; border-top: 1px solid var(--hair); font-size: clamp(1.6rem, 2.4vw, 2.1rem); }
+.howto-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem 0.8rem; margin-top: 1.5rem; }
+.howto-meta .reader { margin: 0 0 0 auto; }
+.status { display: inline-flex; align-items: center; gap: 0.45rem; padding: 0.22rem 0.75rem; border-radius: var(--r-pill); font-size: 0.82rem; font-weight: 500; }
+.status::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.status.checked { background: var(--verdi-wash); color: var(--verdi); }
+.status.proven { background: var(--sky-wash); color: var(--sky); }
+.program { text-decoration: none; }
+.program code { font-size: 0.8rem; color: var(--faint); }
+.program:hover code { color: var(--verdi); }
+
+.howto-body { display: grid; grid-template-columns: minmax(0, 1fr) 16.5rem; gap: 3.5rem; align-items: start; padding-top: 2.6rem; padding-bottom: 4rem; }
+.howto { min-width: 0; }
+.howto p, .howto li { font-size: 1.03rem; line-height: 1.7; }
+.howto p { max-width: 46rem; margin: 0 0 1rem; }
+.howto p a, .howto li a { color: var(--verdi); text-underline-offset: 3px; }
+.howto b { color: var(--text); font-weight: 600; }
+.howto ul.plain, .howto ol.plain { max-width: 46rem; margin: 0 0 1.1rem; padding-left: 1.2rem; }
+.howto .plain li { margin: 0 0 0.4rem; }
+.step { margin: 0 0 2.8rem; }
+.step h2 { display: flex; align-items: baseline; gap: 0.8rem; max-width: none; margin: 0 0 0.8rem; font-size: clamp(1.4rem, 2.2vw, 1.75rem); line-height: 1.2; }
+/* The number sits on the heading's baseline and is half its size, so lifting it by half the difference of the two
+   cap heights puts the circle's centre on the centre of the heading's capitals, on the first line of any heading. */
+.step-n { flex: none; display: inline-grid; place-items: center; width: 2.3em; height: 2.3em; border: 1px solid var(--verdi); border-radius: 50%; font: 500 0.5em/1 var(--mono); color: var(--verdi); transform: translateY(-0.35em); }
+.plain-step h2 { padding-top: 1.7rem; border-top: 1px solid var(--hair); }
+/* a lab's notes: one line that opens in place */
+.lab-notes { padding-top: 1.2rem; border-top: 1px solid var(--hair); }
+.lab-notes summary { width: fit-content; cursor: pointer; font-family: var(--serif); font-weight: 500; font-size: clamp(1.25rem, 1.9vw, 1.5rem); line-height: 1.25; }
+.lab-notes summary:hover { color: var(--verdi); }
+.lab-notes[open] summary { margin-bottom: 1rem; }
+.howto h3 { margin: 1.9rem 0 0.5rem; font-family: var(--serif); font-weight: 500; font-size: 1.22rem; }
+.howto .table-scroll { margin: 0.6rem 0 1.4rem; }
+.howto .data-table { min-width: 30rem; }
+.howto .data-table td { font-size: 0.95rem; }
+
+/* code listings: a panel whose tab names the file */
+.listing { margin: 1.2rem 0 1.5rem; background: var(--panel); border: 1px solid var(--hair); border-radius: var(--r-panel); overflow: hidden; }
+.listing figcaption {
+  display: flex; align-items: center; gap: 0.7rem; min-height: 2.6rem; padding: 0.35rem 0.6rem 0.35rem 1.1rem;
+  border-bottom: 1px solid var(--hair); font-family: var(--mono); font-size: 0.74rem; color: var(--faint);
+}
+.listing figcaption::before { content: ""; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--verdi); opacity: 0.8; }
+.listing.output figcaption::before { background: var(--oxide); }
+.listing.agent figcaption::before { background: var(--sky); }
+.listing figcaption .file { color: var(--text); }
+.listing figcaption .note { flex: 1; }
+.listing .copy { display: inline-flex; align-items: center; min-height: 2rem; margin-left: auto; padding: 0.25rem 0.8rem; font-size: 0.68rem; text-decoration: none; }
+.listing .copy + .copy { margin-left: 0; }
+.listing pre { padding: 1.1rem 1.2rem; font-size: 0.84rem; line-height: 1.65; }
+.listing.output pre { color: var(--muted); }
+/* the lines a how-to is about: a band across the listing, with a bar at its left edge */
+.listing .hl { display: inline-block; min-width: calc(100% + 2.4rem); margin: 0 -1.2rem; padding: 0 1.2rem; background: var(--verdi-wash); box-shadow: inset 3px 0 0 var(--verdi); }
+
+.howto .proof { padding: 0.75rem 1rem; border-left: 2px solid var(--verdi); background: var(--verdi-tint); color: var(--muted); font-size: 0.95rem; }
+.howto .proof.proven { border-left-color: var(--sky); background: var(--sky-wash); }
+
+.rules { max-width: 46rem; margin: 0; padding: 0; list-style: none; }
+.rules li { position: relative; padding: 0.6rem 0 0.6rem 1.4rem; border-bottom: 1px solid var(--hair-soft); }
+.rules li::before { content: ""; position: absolute; left: 0.1rem; top: 1.3rem; width: 7px; height: 7px; border-radius: 50%; background: var(--verdi); }
+
+.check { max-width: 46rem; margin: 0 0 1.4rem; padding: 1.1rem 1.3rem 1.1rem; border: 1px solid var(--hair); border-radius: var(--r-panel); background: var(--panel); }
+.howto .check-q { margin: 0 0 0.85rem; font-family: var(--serif); font-size: 1.2rem; line-height: 1.4; color: var(--text); }
+.check-options { display: grid; gap: 0.5rem; margin: 0 0 0.7rem; padding: 0; list-style: none; }
+.check-options button { width: 100%; padding: 0.6rem 0.9rem; border: 1px solid var(--hair); border-radius: var(--r-card); background: transparent; color: var(--text); font: 400 0.98rem/1.45 var(--sans); text-align: left; cursor: pointer; transition: border-color 0.15s ease, background 0.15s ease; }
+.check-options button:hover { border-color: var(--verdi); }
+.check-options button[data-result="right"] { border-color: var(--verdi); background: var(--verdi-wash); }
+.check-options button[data-result="wrong"] { border-color: var(--bad); background: var(--bad-wash); }
+.check-why summary { width: fit-content; cursor: pointer; font-size: 0.9rem; color: var(--verdi); }
+.howto .check-why p { margin: 0.6rem 0 0; font-size: 0.97rem; color: var(--muted); }
+
+.source-file { margin: 0.6rem 0; border: 1px solid var(--hair); border-radius: var(--r-panel); background: var(--panel-2); }
+.source-file summary { display: flex; align-items: center; gap: 0.8rem; padding: 0.7rem 1.1rem; cursor: pointer; font: 0.84rem var(--mono); color: var(--text); list-style: none; }
+.source-file summary::-webkit-details-marker { display: none; }
+.source-file summary::before { content: "+"; width: 1ch; color: var(--verdi); }
+.source-file[open] summary::before { content: "-"; }
+.file-size { margin-left: auto; font-size: 0.75rem; color: var(--faint); }
+.source-file .listing { margin: 0; border: 0; border-top: 1px solid var(--hair); border-radius: 0 0 var(--r-panel) var(--r-panel); }
+
+/* the section's ladder beside the how-to */
+.howto-rail { position: sticky; top: 7rem; max-height: calc(100vh - 8rem); overflow-y: auto; padding-left: 1.4rem; border-left: 1px solid var(--hair); font-size: 0.9rem; }
+.rail-head { margin: 0 0 0.8rem; font-family: var(--serif); font-size: 1.12rem; line-height: 1.25; }
+.rail-head a { text-decoration: none; }
+.rail-head a:hover { color: var(--verdi); }
+.howto-rail ol { margin: 0 0 1.3rem; padding: 0; list-style: none; }
+.howto-rail li a { display: grid; grid-template-columns: 1.5rem minmax(0, 1fr); gap: 0.3rem; padding: 0.3rem 0; color: var(--muted); line-height: 1.4; text-decoration: none; }
+.rail-n { padding-top: 0.12rem; font: 0.72rem var(--mono); color: var(--faint); }
+.howto-rail li a:hover { color: var(--verdi); }
+.howto-rail li[aria-current] a { color: var(--text); font-weight: 600; }
+.howto-rail li[aria-current] .rail-n, .howto-rail a[data-done] .rail-n { color: var(--verdi); font-weight: 500; }
+.done-toggle { width: 100%; justify-content: center; }
+.done-toggle[aria-pressed="true"] { border-color: var(--verdi); background: var(--verdi-wash); color: var(--verdi); }
+.rail-turn { display: flex; justify-content: space-between; margin: 1rem 0 0; font-weight: 500; }
+.rail-turn a { color: var(--verdi); text-decoration: none; }
+.rail-turn a:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+@media (max-width: 1040px) {
+  .howto-body { grid-template-columns: minmax(0, 1fr); gap: 2rem; }
+  .howto-rail { position: static; max-height: none; padding: 1.4rem 0 0; border-left: 0; border-top: 1px solid var(--hair); }
+  .howto-meta .reader { margin-left: 0; }
+}
+@media (max-width: 900px) {
+  .doors { grid-template-columns: 1fr; gap: 1.6rem; }
+  .choice-list { grid-template-columns: minmax(0, 1fr); }
+  .ladder-section { grid-template-columns: minmax(0, 1fr); }
+  .ladder-head { position: static; }
+  .rungs, .ladder-more { grid-column: 1; }
+  .ladder-more { margin-left: 0; }
+  .prompts { grid-template-columns: 1fr; }
+  .next-links.wide li { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 640px) {
+  .rung { grid-template-columns: 1.9rem minmax(0, 1fr); }
+  .rung-marks { grid-column: 2; padding-top: 0.3rem; }
+  .ask-results > a { grid-template-columns: minmax(0, 1fr); }
+  .ask-results .r-sec { text-align: left; }
+  .next-links li { grid-template-columns: minmax(0, 1fr); }
+  .choice-list li { grid-template-columns: minmax(0, 1fr); }
+  .listing pre { font-size: 0.78rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ask-field, .ask-try button, .rung-step, .check-options button { transition: none; }
+}
+@media print {
+  .reader, .ask-try, .howto-rail, .done-toggle { display: none; }
+  .howto-body { grid-template-columns: 1fr; }
+}

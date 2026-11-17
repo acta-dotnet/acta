@@ -1,0 +1,73 @@
+# The whole program: run your first job
+
+The how-to is [/learn/001-hello-acta.md](/learn/001-hello-acta.md). This file holds every source file of `concepts/000-fundamentals/001-hello-acta` as it is compiled.
+
+## Not in the packages
+
+`UseLocalDatabase` is a helper of the Acta repository (`support/`), used so every program runs on any of the three databases. Do not copy it into an application: register the database with `UseSqlite`, `UsePostgres` or `UseSqlServer`, as in [how to run your first job](/learn/001-hello-acta.md). The rows a lab prints come from SQL views, which are the operator's contract; application code reads the same facts through `IJobs` and `IActaOperations`.
+
+## The whole program
+
+### hello-acta.cs
+
+```csharp
+// How to run your first job
+// One `[Job]` method, one enqueue, and a worker that runs it.
+using Acta;
+using Acta.Concepts.HelloActa;
+using Acta.Sqlite;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+
+var builder = Host.CreateApplicationBuilder(args);
+
+builder.Services.UseActa(j =>
+{
+    // learn: 2. Register Acta and start a worker
+    // `UseSqlite` says where the job rows live: one file, no server. Swap it for `UsePostgres` or `UseSqlServer`, with
+    // that server's connection string, to target a server; later rungs fold this setup into `UseLocalDatabase`.
+    // `Run<HelloActaJobs>("hello-acta")` registers every job of the project under the namespace `hello-acta` and
+    // starts a worker for it. `HelloActaJobs` is generated at build time from the `[Job]` methods.
+    j.UseSqlite(sqlite =>
+    {
+        sqlite.ConnectionString = builder.Configuration.GetConnectionString("acta")
+            ?? $"Data Source={Path.Combine(Path.GetTempPath(), "acta-local.db")}";
+        sqlite.MigrateOnStartup = true;
+    });
+    j.Run<HelloActaJobs>("hello-acta");
+    // learn: end
+});
+
+using var host = builder.Build();
+await host.StartAsync();
+
+var jobs = host.Services.GetRequiredService<IJobs>();
+
+// learn: 3. Enqueue it
+// `EnqueueAsync` writes the job as a row and returns. The type of the input picks the job, so there is no name
+// string to get wrong.
+await jobs.EnqueueAsync(new Hello("World"));
+
+// learn: end
+Console.WriteLine("Enqueued. The worker is running - press Ctrl+C to stop.");
+
+await host.WaitForShutdownAsync();
+await host.StopAsync();
+
+namespace Acta.Concepts.HelloActa
+{
+    public sealed record Hello(string Name);
+
+    public static class HelloJob
+    {
+        // learn: 1. Write the job
+        // A job is a method with `[Job("name")]` on it, and the record is its input. Acta stores the input as a row
+        // and calls the method with it.
+        [Job("hello")]
+        public static void Handle(Hello input) => Console.WriteLine($"Hello, {input.Name}!");
+        // learn: end
+    }
+}
+```
+

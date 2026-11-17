@@ -1,0 +1,531 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>How to test a recurring synchronization job · Acta, durable execution for .NET</title>
+  <meta name="description" content="How to test a recurring synchronization job with Acta, durable execution for .NET. The claims of the continuous-synchronization lab as tests: a schedule forced due and one firing driven at a time, one job identity across firings, the watermark kept on the job, a lost attempt reclaimed with the next execution continuing at the watermark, and a replayed, a failed, and a backlogged batch. Run it with dotnet test." />
+  <link rel="canonical" href="https://useacta.net/learn/804-continuous-synchronization-tests" />
+  <meta name="theme-color" content="#0B0E15" />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="Acta for .NET" />
+  <meta property="og:title" content="How to test a recurring synchronization job · Acta, durable execution for .NET" />
+  <meta property="og:description" content="How to test a recurring synchronization job with Acta, durable execution for .NET. The claims of the continuous-synchronization lab as tests: a schedule forced due and one firing driven at a time, one job identity across firings, the watermark kept on the job, a lost attempt reclaimed with the next execution continuing at the watermark, and a replayed, a failed, and a backlogged batch. Run it with dotnet test." />
+  <meta property="og:url" content="https://useacta.net/learn/804-continuous-synchronization-tests" />
+  <meta property="og:image" content="https://useacta.net/assets/social-card.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="Acta: durable execution for .NET. Postgres, SQL Server, SQLite." />
+  <meta name="twitter:card" content="summary_large_image" />
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"How to test a recurring synchronization job","description":"How to test a recurring synchronization job with Acta, durable execution for .NET. The claims of the continuous-synchronization lab as tests: a schedule forced due and one firing driven at a time, one job identity across firings, the watermark kept on the job, a lost attempt reclaimed with the next execution continuing at the watermark, and a replayed, a failed, and a backlogged batch. Run it with dotnet test.","url":"https://useacta.net/learn/804-continuous-synchronization-tests","inLanguage":"en","articleSection":"Test without sleeps or polling","isPartOf":{"@type":"CollectionPage","name":"Learn Acta","url":"https://useacta.net/learn"},"about":{"@type":"SoftwareSourceCode","name":"Acta","programmingLanguage":"C#","codeRepository":"https://github.com/acta-dotnet/acta"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Learn Acta","item":"https://useacta.net/learn"},{"@type":"ListItem","position":2,"name":"Test without sleeps or polling","item":"https://useacta.net/learn#s-test"},{"@type":"ListItem","position":3,"name":"How to test a recurring synchronization job","item":"https://useacta.net/learn/804-continuous-synchronization-tests"}]}</script>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="alternate" type="text/plain" href="/llms.txt" title="Acta for coding agents" />
+  <link rel="alternate" type="text/markdown" href="/learn/804-continuous-synchronization-tests.md" title="This page as Markdown, for coding agents" />
+  <link rel="preload" href="/assets/fonts/fraunces-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="/assets/fonts/ibm-plex-sans-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="/assets/fonts/ibm-plex-mono-400-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <style>
+    /* Self-hosted latin subsets of the three families, preloaded and served immutable (see _headers),
+       so a reload paints them from cache with no swap and a first visit swaps them in as they land.
+       Fraunces and Plex Sans are variable files. */
+    @font-face { font-family: "Fraunces"; font-style: normal; font-weight: 400 600; font-display: swap; src: url(/assets/fonts/fraunces-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "Fraunces"; font-style: italic; font-weight: 400 500; font-display: swap; src: url(/assets/fonts/fraunces-italic-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "IBM Plex Sans"; font-style: normal; font-weight: 400 600; font-display: swap; src: url(/assets/fonts/ibm-plex-sans-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "IBM Plex Mono"; font-style: normal; font-weight: 400; font-display: swap; src: url(/assets/fonts/ibm-plex-mono-400-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "IBM Plex Mono"; font-style: normal; font-weight: 500; font-display: swap; src: url(/assets/fonts/ibm-plex-mono-500-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+  </style>
+  <link rel="stylesheet" href="/assets/site.css" />
+  <link rel="stylesheet" href="/assets/learn.css" />
+  <script src="/assets/theme.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#content">Skip to content</a>
+  <div class="chrome">
+    <div class="wrap chrome-inner">
+    <a class="brand site-brand" href="/" aria-label="Acta home"><svg viewBox="3.95 4.95 30.1 30.1" fill="none" stroke="currentColor" stroke-width="4.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 33 19 7 32 33" /><circle cx="19" cy="27" r="3" fill="currentColor" stroke="none" /></svg><span class="brand-word">Acta<span>.</span></span></a>
+    <span class="meta">Durable execution for .NET</span>
+    <nav aria-label="Primary links">
+      <a href="/start">Start</a>
+      <a href="/capabilities">Capabilities</a>
+      <a href="/benchmark">Benchmark</a>
+      <a href="/learn" aria-current="page">Learn</a>
+      <a href="https://github.com/acta-dotnet/acta" class="gh" aria-label="Acta on GitHub" title="Acta on GitHub"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><path fill="currentColor" d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"></path></svg></a>
+    </nav>
+    <span class="header-appearance" data-theme-controls></span>
+    </div>
+  </div>
+
+
+  <main id="content" data-howto="804">
+    <header class="wrap page-head howto-head">
+      <p class="record"><a href="/learn">learn acta</a><span aria-hidden="true">/</span><a href="/learn#s-test">test without sleeps or polling</a></p>
+      <h1>How to test a recurring synchronization job</h1>
+      <p class="lede">The claims of the continuous-synchronization lab as tests: a schedule forced due and one firing driven at a time, one job identity across firings, the watermark kept on the job, a lost attempt reclaimed with the next execution continuing at the watermark, and a replayed, a failed, and a backlogged batch. Run it with <code>dotnet test</code>.</p>
+      <p class="howto-context">A how-to for Acta, durable execution for .NET. <a href="/start">New to Acta? Run your first durable job in five minutes.</a></p>
+      <div class="howto-meta">
+        <span class="status checked">Runs as a test</span>
+        <a class="program" href="https://github.com/acta-dotnet/acta/tree/main/concepts/800-testing/804-continuous-synchronization-tests"><code>concepts/800-testing/804-continuous-synchronization-tests</code></a>
+        <div class="reader" role="group" aria-label="Read this page as">
+        <span class="reader-label">Read as</span>
+        <button type="button" data-reader="person" aria-pressed="true">a person</button>
+        <button type="button" data-reader="agent" aria-pressed="false" data-md="/learn/804-continuous-synchronization-tests.md">an agent</button>
+      </div>
+      </div>
+    </header>
+    <div class="wrap howto-body">
+      <article class="howto person-face">
+<div class="step"><h2><span class="step-n">1</span>Make the schedule due and admit one firing</h2>
+<p>The test waits for no clock: it makes the schedule due, and one admission pass fires the permanent job.</p>
+<figure class="listing"><figcaption><span class="file">ContinuousSynchronizationTests.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-1">Copy</button></figcaption><pre><code id="code-1">    Assert.Equal(ActaRunStatus.Completed, <span class="k">await</span> FireAsync());
+    Assert.Equal(100, <span class="k">await</span> WatermarkAsync());
+}
+
+<span class="k">private</span> <span class="k">async</span> Task AdmitAsync()
+{
+<span class="hl">    <span class="k">await</span> _host.ForceScheduleDueAsync(Schedule, Ct);</span>
+<span class="hl">    Assert.Equal(1, (<span class="k">await</span> _host.AdmitOnceAsync(Namespace, Ct)).Admitted);</span>
+}
+
+<span class="k">private</span> <span class="k">async</span> Task&lt;ActaRunStatus&gt; FireAsync()
+{
+    <span class="k">await</span> AdmitAsync();
+    <span class="k">return</span> <span class="k">await</span> _host.RunOnceAsync(_slot, Ct);</code></pre></figure>
+</div>
+<div class="step"><h2><span class="step-n">2</span>Drive the firing as one run</h2>
+<figure class="listing"><figcaption><span class="file">ContinuousSynchronizationTests.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-2">Copy</button></figcaption><pre><code id="code-2">    <span class="k">await</span> _host.ForceScheduleDueAsync(Schedule, Ct);
+    Assert.Equal(1, (<span class="k">await</span> _host.AdmitOnceAsync(Namespace, Ct)).Admitted);
+}
+
+<span class="k">private</span> <span class="k">async</span> Task&lt;ActaRunStatus&gt; FireAsync()
+{
+<span class="hl">    <span class="k">await</span> AdmitAsync();</span>
+<span class="hl">    <span class="k">return</span> <span class="k">await</span> _host.RunOnceAsync(_slot, Ct);</span>
+}
+
+<span class="k">private</span> <span class="k">async</span> Task&lt;GetJobResponse&gt; JobAsync() =&gt; (<span class="k">await</span> _host.Jobs.GetAsync(_slot, Ct))!;
+
+<span class="c">/// &lt;summary&gt;The watermark as the operator sees it, 0 before the first batch: the job's one variable.&lt;/summary&gt;</span>
+<span class="k">private</span> <span class="k">async</span> Task&lt;<span class="k">long</span>&gt; WatermarkAsync()</code></pre></figure>
+</div>
+<div class="step"><h2><span class="step-n">3</span>Lose an attempt, and let recovery reclaim it</h2>
+<p>The lease lapses and recovery reclaims the firing: the job is Ready again, the attempt charged.</p>
+<figure class="listing"><figcaption><span class="file">ContinuousSynchronizationTests.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-3">Copy</button></figcaption><pre><code id="code-3"><span class="k">await</span> AdmitAsync();
+<span class="k">var</span> lost = _host.RunOnceAsync(_slot, Ct);
+<span class="k">await</span> _crash.Reached.Task.WaitAsync(TimeSpan.FromSeconds(30), Ct);
+Assert.Equal(40, <span class="k">await</span> WatermarkAsync());
+<span class="k">var</span> firing = <span class="k">await</span> FiringIdAsync();
+
+<span class="hl"><span class="k">await</span> _host.ExpireExecutionLeaseAsync(_slot, Ct);</span>
+<span class="hl">Assert.Equal(1, (<span class="k">await</span> _host.RunRecoveryOnceAsync(Namespace, Ct)).ReclaimedJobs);</span>
+<span class="hl">Assert.Equal(JobStatusCode.Ready, (<span class="k">await</span> JobAsync()).Status);</span>
+
+<span class="c">// The dead attempt ends and its late outcome is fenced out. The next execution re-enters from the top, reads</span>
+<span class="c">// the watermark the lost one wrote, and applies the batch it owed: in the same drive, which re-claims the</span>
+<span class="c">// reclaimed row, or in a fresh one when that drive claimed nothing more.</span>
+_crash.Release.TrySetResult();
+<span class="k">var</span> outcome = <span class="k">await</span> lost;</code></pre></figure>
+</div>
+<div class="step"><h2><span class="step-n">4</span>Run it</h2>
+<p>From a clone of <a href="https://github.com/acta-dotnet/acta">the Acta repository</a>, with the .NET 10 SDK:</p>
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-4">Copy</button></figcaption><pre><code id="code-4">dotnet test concepts/800-testing/804-continuous-synchronization-tests</code></pre></figure>
+<p class="proof checked"><b>Runs as a test.</b> This program is a test project: it passes or fails with the test suite.</p>
+<p class="hint">This page shows the code. The rules it relies on, starting with the handler running again from its first line, are in <a href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#handler-contract">the handler contract</a>.</p>
+</div>
+<div class="step plain-step"><h2>The whole program</h2>
+<p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/concepts/800-testing/804-continuous-synchronization-tests"><code>concepts/800-testing/804-continuous-synchronization-tests</code></a>, as it is compiled.</p>
+<details class="source-file"><summary><span class="file-name">ContinuousSynchronizationTests.cs</span><span class="file-size">320 lines</span></summary><figure class="listing"><figcaption><span class="file">ContinuousSynchronizationTests.cs</span><button class="copy" type="button" data-copy-target="#code-5">Copy</button></figcaption><pre><code id="code-5"><span class="c">// How to test a recurring synchronization job</span>
+<span class="c">// The claims of the continuous-synchronization lab as tests: a schedule forced due and one firing driven at a time,</span>
+<span class="c">// one job identity across firings, the watermark kept on the job, a lost attempt reclaimed with the next execution</span>
+<span class="c">// continuing at the watermark, and a replayed, a failed, and a backlogged batch. Run it with `dotnet test`.</span>
+<span class="k">using</span> System.Text.Json;
+<span class="k">using</span> Acta;
+<span class="k">using</span> Acta.Concepts.ContinuousSynchronization;
+<span class="k">using</span> Acta.Sqlite;
+<span class="k">using</span> Acta.Testing;
+<span class="k">using</span> Microsoft.Data.Sqlite;
+<span class="k">using</span> Microsoft.Extensions.DependencyInjection;
+<span class="k">using</span> Xunit;
+
+<span class="c">/// &lt;summary&gt;</span>
+<span class="c">/// The lab's claims, each driven through the real runtime on a throwaway SQLite file: the schedule is forced due, one</span>
+<span class="c">/// admission pass admits the firing, one run executes it. No loop runs and nothing sleeps, so a firing is a line of</span>
+<span class="c">/// the test rather than five seconds of wall clock.</span>
+<span class="c">/// &lt;/summary&gt;</span>
+<span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> ContinuousSynchronizationTests : IAsyncLifetime
+{
+    <span class="k">private</span> <span class="k">const</span> <span class="k">string</span> Namespace = <span class="s">&quot;continuous-sync&quot;</span>;
+    <span class="k">private</span> <span class="k">static</span> <span class="k">readonly</span> ScheduleLookup Schedule = <span class="k">new</span>(Namespace, <span class="s">&quot;sync-orders&quot;</span>, <span class="s">&quot;every-5s&quot;</span>);
+
+    <span class="k">private</span> <span class="k">readonly</span> <span class="k">string</span> _schema = <span class="s">&quot;acta_test_&quot;</span> + Guid.NewGuid().ToString(<span class="s">&quot;N&quot;</span>)[..12];
+    <span class="k">private</span> <span class="k">readonly</span> TestCrashSignal _crash = <span class="k">new</span>();
+    <span class="k">private</span> <span class="k">readonly</span> ShopOutage _outage = <span class="k">new</span>();
+    <span class="k">private</span> IActaTestHost _host = <span class="k">null</span>!;
+    <span class="k">private</span> ShopFeed _shop = <span class="k">null</span>!;
+    <span class="k">private</span> OrderStore _store = <span class="k">null</span>!;
+    <span class="k">private</span> <span class="k">string</span> _connectionString = <span class="k">null</span>!;
+    <span class="k">private</span> JobRef _slot;
+
+    <span class="k">private</span> <span class="k">static</span> CancellationToken Ct =&gt; TestContext.Current.CancellationToken;
+
+    <span class="k">public</span> <span class="k">async</span> ValueTask InitializeAsync()
+    {
+        <span class="c">// The feed and the orders live in the same file as Acta's tables, as they do in the lab.</span>
+        _connectionString = <span class="s">$&quot;Data Source={_schema}.db&quot;</span>;
+        _shop = <span class="k">new</span> ShopFeed(_connectionString, _outage);
+        _store = <span class="k">new</span> OrderStore(_connectionString);
+        _host = <span class="k">await</span> ActaTestHost.StartAsync(
+            (j, schema) =&gt;
+            {
+                j.UseSqlite(sqlite =&gt;
+                {
+                    sqlite.ConnectionString = _connectionString;
+                    sqlite.MigrateOnStartup = <span class="k">true</span>;
+                });
+                j.Run&lt;ContinuousSynchronizationJobs&gt;(Namespace);
+            },
+            <span class="k">new</span> ActaTestHostOptions
+            {
+                Schema = _schema,
+                ConfigureServices = services =&gt;
+                {
+                    services.AddSingleton(_shop);
+                    services.AddSingleton(_store);
+                    services.AddSingleton&lt;CrashSignal&gt;(_crash);
+                    <span class="c">// Only the lab's schedule is in the namespace, so an admission pass admits that one or nothing.</span>
+                    services.Configure&lt;JobsOptions&gt;(o =&gt; o.RunSystemJobs = <span class="k">false</span>);
+                },
+            },
+            Ct
+        );
+        <span class="k">await</span> _shop.EnsureCreatedAsync(Ct);
+        <span class="k">await</span> _store.EnsureCreatedAsync(Ct);
+        _slot = (<span class="k">await</span> _host.Operations.Schedules.GetAsync(Schedule, Ct))!.JobRef!.Value;
+    }
+
+    <span class="k">public</span> <span class="k">async</span> ValueTask DisposeAsync()
+    {
+        <span class="k">await</span> _host.DisposeAsync();
+        SqliteConnection.ClearAllPools();
+        File.Delete(<span class="s">$&quot;{_schema}.db&quot;</span>);
+    }
+
+    <span class="a">[Fact]</span>
+    <span class="k">public</span> <span class="k">async</span> Task A_firing_syncs_one_bounded_batch_and_moves_the_watermark_to_its_last_change()
+    {
+        <span class="k">await</span> _shop.AppendAsync(50, Ct);
+
+        Assert.Equal(ActaRunStatus.Completed, <span class="k">await</span> FireAsync());
+        Assert.Equal(40, <span class="k">await</span> WatermarkAsync()); <span class="c">// one batch of forty, then the firing returns</span>
+        Assert.Equal(ActaRunStatus.Completed, <span class="k">await</span> FireAsync());
+        Assert.Equal(50, <span class="k">await</span> WatermarkAsync());
+        Assert.Equal(ActaRunStatus.Completed, <span class="k">await</span> FireAsync());
+        Assert.Equal(50, <span class="k">await</span> WatermarkAsync()); <span class="c">// up to date: nothing to apply, nothing moved</span>
+        Assert.Equal((40, 50), <span class="k">await</span> _store.SummaryAsync(Ct));
+    }
+
+    <span class="a">[Fact]</span>
+    <span class="k">public</span> <span class="k">async</span> Task The_watermark_is_a_variable_on_the_job_and_outlives_the_firing_that_wrote_it()
+    {
+        <span class="k">await</span> _shop.AppendAsync(20, Ct);
+        Assert.Equal(ActaRunStatus.Completed, <span class="k">await</span> FireAsync());
+
+        <span class="c">// Idle, no attempt running, and the watermark is still there: a row of the job's, not of the attempt's.</span>
+        Assert.Equal(JobStatusCode.Idle, (<span class="k">await</span> JobAsync()).Status);
+        <span class="k">var</span> checkpoints = (<span class="k">await</span> _host.Jobs.ListCheckpointsAsync(<span class="k">new</span> ListJobCheckpointsQuery(_slot), Ct)).Items;
+        <span class="k">var</span> watermark = Assert.Single(checkpoints, c =&gt; c.Kind == CheckpointKindCode.Variable);
+        Assert.Equal(<span class="s">&quot;watermark&quot;</span>, watermark.Name);
+        Assert.Equal(20, JsonSerializer.Deserialize&lt;<span class="k">long</span>&gt;(watermark.Value!.Value.Data.Span));
+    }
+
+    <span class="a">[Fact]</span>
+    <span class="k">public</span> <span class="k">async</span> Task Repeated_firings_use_one_permanent_job_identity()
+    {
+        <span class="k">await</span> _shop.AppendAsync(100, Ct);
+        <span class="k">var</span> before = (<span class="k">await</span> JobAsync()).JobRef;
+        <span class="k">var</span> firings = <span class="k">new</span> List&lt;Guid&gt;();
+
+        <span class="k">for</span> (<span class="k">var</span> firing = 1; firing &lt;= 3; firing++)
+        {
+            Assert.Equal(JobStatusCode.Idle, (<span class="k">await</span> JobAsync()).Status);
+            Assert.Equal(ActaRunStatus.Completed, <span class="k">await</span> FireAsync());
+            <span class="k">var</span> job = <span class="k">await</span> JobAsync();
+            Assert.Equal((before, JobStatusCode.Idle, firing), (job.JobRef, job.Status, job.ExecutionNumber));
+            firings.Add(<span class="k">await</span> FiringIdAsync());
+        }
+
+        <span class="c">// Every firing was admitted by the schedule and left an envelope with a firing id of its own.</span>
+        Assert.Equal(3, (<span class="k">await</span> EventsAsync(EventCode.ScheduleAdmitted)).Count);
+        Assert.Equal(3, firings.Distinct().Count());
+    }
+
+    <span class="a">[Fact]</span>
+    <span class="k">public</span> <span class="k">async</span> Task The_schedule_cursor_and_the_watermark_move_apart()
+    {
+        <span class="c">// A firing with nothing to sync still moves Acta's cursor; the job's watermark stays.</span>
+        <span class="k">var</span> forcedAt = DateTime.UtcNow;
+        Assert.Equal(ActaRunStatus.Completed, <span class="k">await</span> FireAsync());
+        <span class="k">var</span> afterFiring = <span class="k">await</span> NextOccurrenceAsync();
+        Assert.True(afterFiring &gt; forcedAt, <span class="s">&quot;the cursor moved past the forced occurrence&quot;</span>);
+        Assert.Equal(0, <span class="k">await</span> WatermarkAsync());
+
+        <span class="c">// A manual trigger syncs the backlog and moves the watermark; the cursor stays where the firing left it.</span>
+        <span class="k">await</span> _shop.AppendAsync(10, Ct);
+        Assert.Equal(ControlAction.Applied, (<span class="k">await</span> _host.Operations.Schedules.TriggerAsync(Schedule, ct: Ct)).Action);
+        Assert.Equal(ActaRunStatus.Completed, <span class="k">await</span> _host.RunOnceAsync(_slot, Ct));
+        Assert.Equal(10, <span class="k">await</span> WatermarkAsync());
+        Assert.Equal(afterFiring, <span class="k">await</span> NextOccurrenceAsync());
+    }
+
+    <span class="a">[Fact]</span>
+    <span class="k">public</span> <span class="k">async</span> Task A_lost_attempt_is_reclaimed_and_the_next_execution_continues_at_the_watermark()
+    {
+        <span class="k">await</span> _shop.AppendAsync(60, Ct);
+        _crash.CrashAfter = 40;
+
+        <span class="c">// The attempt applies its batch, writes the watermark, and then stalls at the crash point, holding its lease.</span>
+        <span class="k">await</span> AdmitAsync();
+        <span class="k">var</span> lost = _host.RunOnceAsync(_slot, Ct);
+        <span class="k">await</span> _crash.Reached.Task.WaitAsync(TimeSpan.FromSeconds(30), Ct);
+        Assert.Equal(40, <span class="k">await</span> WatermarkAsync());
+        <span class="k">var</span> firing = <span class="k">await</span> FiringIdAsync();
+
+        <span class="c">// learn: 3. Lose an attempt, and let recovery reclaim it</span>
+        <span class="c">// The lease lapses and recovery reclaims the firing: the job is Ready again, the attempt charged.</span>
+<span class="hl">        <span class="k">await</span> _host.ExpireExecutionLeaseAsync(_slot, Ct);</span>
+<span class="hl">        Assert.Equal(1, (<span class="k">await</span> _host.RunRecoveryOnceAsync(Namespace, Ct)).ReclaimedJobs);</span>
+<span class="hl">        Assert.Equal(JobStatusCode.Ready, (<span class="k">await</span> JobAsync()).Status);</span>
+        <span class="c">// learn: end</span>
+
+        <span class="c">// The dead attempt ends and its late outcome is fenced out. The next execution re-enters from the top, reads</span>
+        <span class="c">// the watermark the lost one wrote, and applies the batch it owed: in the same drive, which re-claims the</span>
+        <span class="c">// reclaimed row, or in a fresh one when that drive claimed nothing more.</span>
+        _crash.Release.TrySetResult();
+        <span class="k">var</span> outcome = <span class="k">await</span> lost;
+        <span class="k">if</span> (outcome != ActaRunStatus.Completed)
+        {
+            Assert.Equal(ActaRunStatus.Completed, <span class="k">await</span> _host.RunOnceAsync(_slot, Ct));
+        }
+        <span class="k">var</span> job = <span class="k">await</span> JobAsync();
+        Assert.Equal((JobStatusCode.Idle, 2), (job.Status, job.ExecutionNumber));
+        Assert.Equal(60, <span class="k">await</span> WatermarkAsync());
+        Assert.Equal((40, 60), <span class="k">await</span> _store.SummaryAsync(Ct));
+
+        <span class="k">var</span> orphaned = <span class="k">await</span> EventsAsync(EventCode.JobExecutionOrphaned);
+        Assert.Equal(1, Assert.Single(orphaned).ExecutionNumber);
+        Assert.Single(<span class="k">await</span> EventsAsync(EventCode.ScheduleAdmitted)); <span class="c">// one firing, two executions</span>
+        Assert.Equal(firing, <span class="k">await</span> FiringIdAsync()); <span class="c">// the same firing id in both executions</span>
+    }
+
+    <span class="a">[Fact]</span>
+    <span class="k">public</span> <span class="k">async</span> Task A_failed_attempt_keeps_the_watermark_it_wrote_for_the_retry()
+    {
+        <span class="k">await</span> _shop.AppendAsync(60, Ct);
+        _crash.CrashAfter = 40;
+        _crash.Release.TrySetResult(); <span class="c">// the crash point throws at once: the attempt fails with budget left</span>
+
+        Assert.Equal(ActaRunStatus.Rearmed, <span class="k">await</span> FireAsync());
+        Assert.Equal(40, <span class="k">await</span> WatermarkAsync());
+
+        <span class="c">// The retry is the same firing, one execution later; it reads 40 and applies the twenty changes after it.</span>
+        <span class="k">await</span> _host.ForceJobDueAsync(_slot, Ct);
+        Assert.Equal(ActaRunStatus.Completed, <span class="k">await</span> _host.RunOnceAsync(_slot, Ct));
+        <span class="k">var</span> job = <span class="k">await</span> JobAsync();
+        Assert.Equal((JobStatusCode.Idle, 2), (job.Status, job.ExecutionNumber));
+        Assert.Equal(60, <span class="k">await</span> WatermarkAsync());
+        Assert.Equal((40, 60), <span class="k">await</span> _store.SummaryAsync(Ct));
+        Assert.Single(<span class="k">await</span> EventsAsync(EventCode.ScheduleAdmitted));
+    }
+
+    <span class="a">[Fact]</span>
+    <span class="k">public</span> <span class="k">async</span> Task A_replayed_batch_changes_nothing()
+    {
+        <span class="k">await</span> _shop.AppendAsync(20, Ct);
+        Assert.Equal(ActaRunStatus.Completed, <span class="k">await</span> FireAsync());
+        <span class="k">var</span> synced = <span class="k">await</span> _store.SummaryAsync(Ct);
+
+        <span class="k">await</span> _store.ApplyAsync(<span class="k">await</span> _shop.ChangesAfterAsync(0, 20, Ct), Ct);
+
+        Assert.Equal(synced, <span class="k">await</span> _store.SummaryAsync(Ct));
+    }
+
+    <span class="a">[Fact]</span>
+    <span class="k">public</span> <span class="k">async</span> Task A_batch_that_fails_mid_apply_advances_nothing()
+    {
+        <span class="k">await</span> _shop.AppendAsync(5, Ct);
+        <span class="k">await</span> _shop.AppendAsync([<span class="k">new</span> OrderChange(0, <span class="s">&quot;ORD-1005&quot;</span>, <span class="s">&quot;paid&quot;</span>, -1)], Ct);
+
+        Assert.Equal(ActaRunStatus.Rearmed, <span class="k">await</span> FireAsync()); <span class="c">// the attempt failed with budget left</span>
+        Assert.Equal(0, <span class="k">await</span> WatermarkAsync());
+        Assert.Equal((0, 0), <span class="k">await</span> _store.SummaryAsync(Ct));
+    }
+
+    <span class="a">[Fact]</span>
+    <span class="k">public</span> <span class="k">async</span> Task Changes_that_accumulated_while_nothing_fired_are_drained_by_the_following_firings()
+    {
+        <span class="k">await</span> _shop.AppendAsync(100, Ct);
+
+        Assert.Equal(ActaRunStatus.Completed, <span class="k">await</span> FireAsync());
+        Assert.Equal(40, <span class="k">await</span> WatermarkAsync());
+        Assert.Equal(ActaRunStatus.Completed, <span class="k">await</span> FireAsync());
+        Assert.Equal(80, <span class="k">await</span> WatermarkAsync());
+        Assert.Equal(ActaRunStatus.Completed, <span class="k">await</span> FireAsync());
+        Assert.Equal(100, <span class="k">await</span> WatermarkAsync());
+    }
+
+    <span class="k">private</span> <span class="k">async</span> Task AdmitAsync()
+    {
+        <span class="c">// learn: 1. Make the schedule due and admit one firing</span>
+        <span class="c">// The test waits for no clock: it makes the schedule due, and one admission pass fires the permanent job.</span>
+<span class="hl">        <span class="k">await</span> _host.ForceScheduleDueAsync(Schedule, Ct);</span>
+<span class="hl">        Assert.Equal(1, (<span class="k">await</span> _host.AdmitOnceAsync(Namespace, Ct)).Admitted);</span>
+        <span class="c">// learn: end</span>
+    }
+
+    <span class="k">private</span> <span class="k">async</span> Task&lt;ActaRunStatus&gt; FireAsync()
+    {
+        <span class="c">// learn: 2. Drive the firing as one run</span>
+<span class="hl">        <span class="k">await</span> AdmitAsync();</span>
+<span class="hl">        <span class="k">return</span> <span class="k">await</span> _host.RunOnceAsync(_slot, Ct);</span>
+        <span class="c">// learn: end</span>
+    }
+
+    <span class="k">private</span> <span class="k">async</span> Task&lt;GetJobResponse&gt; JobAsync() =&gt; (<span class="k">await</span> _host.Jobs.GetAsync(_slot, Ct))!;
+
+    <span class="c">/// &lt;summary&gt;The watermark as the operator sees it, 0 before the first batch: the job's one variable.&lt;/summary&gt;</span>
+    <span class="k">private</span> <span class="k">async</span> Task&lt;<span class="k">long</span>&gt; WatermarkAsync()
+    {
+        <span class="k">var</span> checkpoints = (<span class="k">await</span> _host.Jobs.ListCheckpointsAsync(<span class="k">new</span> ListJobCheckpointsQuery(_slot), Ct)).Items;
+        <span class="k">var</span> watermark = checkpoints.SingleOrDefault(c =&gt; c.Kind == CheckpointKindCode.Variable &amp;&amp; c.Name == <span class="s">&quot;watermark&quot;</span>);
+        <span class="k">return</span> watermark <span class="k">is</span> <span class="k">null</span> ? 0 : JsonSerializer.Deserialize&lt;<span class="k">long</span>&gt;(watermark.Value!.Value.Data.Span);
+    }
+
+    <span class="c">/// &lt;summary&gt;</span>
+    <span class="c">/// The firing id from the envelope the admitter wrote, read from &lt;c&gt;checkpoints_view&lt;/c&gt; as the lab prints it: the</span>
+    <span class="c">/// envelope is the scheduler's, so the handler-state read leaves it out.</span>
+    <span class="c">/// &lt;/summary&gt;</span>
+    <span class="k">private</span> <span class="k">async</span> Task&lt;Guid&gt; FiringIdAsync()
+    {
+        <span class="k">await</span> <span class="k">using</span> <span class="k">var</span> connection = <span class="k">new</span> SqliteConnection(_connectionString);
+        <span class="k">await</span> connection.OpenAsync(Ct);
+        <span class="k">await</span> <span class="k">using</span> <span class="k">var</span> command = connection.CreateCommand();
+        command.CommandText = <span class="s">&quot;SELECT value_text FROM checkpoints_view WHERE job_id = @job AND checkpoint_kind = 'firing'&quot;</span>;
+        command.Parameters.AddWithValue(<span class="s">&quot;@job&quot;</span>, (<span class="k">await</span> JobAsync()).JobId);
+        <span class="k">var</span> envelope = JsonDocument.Parse((<span class="k">string</span>)(<span class="k">await</span> command.ExecuteScalarAsync(Ct))!);
+        <span class="k">return</span> envelope.RootElement.GetProperty(<span class="s">&quot;firingId&quot;</span>).GetGuid();
+    }
+
+    <span class="k">private</span> <span class="k">async</span> Task&lt;DateTime?&gt; NextOccurrenceAsync() =&gt;
+        Assert
+            .Single(
+                (
+                    <span class="k">await</span> _host.Operations.Schedules.ListAsync(<span class="k">new</span> ListSchedulesQuery(JobNamespace: Namespace, JobName: <span class="s">&quot;sync-orders&quot;</span>), Ct)
+                ).Items
+            )
+            .NextOccurrenceAtUtc;
+
+    <span class="k">private</span> <span class="k">async</span> Task&lt;IReadOnlyList&lt;ListEventsItem&gt;&gt; EventsAsync(EventCode code) =&gt;
+        (<span class="k">await</span> _host.Operations.Ledger.ListEventsAsync(<span class="k">new</span> ListEventsQuery(Job: _slot, EventCode: code, PageSize: 100), Ct)).Items;
+
+    <span class="c">/// &lt;summary&gt;</span>
+    <span class="c">/// The lab's crash point, as a test can hold it: the attempt that wrote the watermark at CrashAfter stalls there</span>
+    <span class="c">/// until the test releases it, then dies like a lost process, with no completion of its own. Released in advance,</span>
+    <span class="c">/// it dies at once, which is an ordinary failed attempt.</span>
+    <span class="c">/// &lt;/summary&gt;</span>
+    <span class="k">private</span> <span class="k">sealed</span> <span class="k">class</span> TestCrashSignal : CrashSignal
+    {
+        <span class="k">public</span> <span class="k">long</span>? CrashAfter { <span class="k">get</span>; <span class="k">set</span>; }
+
+        <span class="k">public</span> TaskCompletionSource Reached { <span class="k">get</span>; } = <span class="k">new</span>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        <span class="k">public</span> TaskCompletionSource Release { <span class="k">get</span>; } = <span class="k">new</span>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        <span class="k">public</span> <span class="k">override</span> <span class="k">async</span> Task AfterBatchAsync(<span class="k">long</span> committedChangeId, CancellationToken ct)
+        {
+            <span class="k">if</span> (committedChangeId != CrashAfter)
+            {
+                <span class="k">return</span>;
+            }
+
+            CrashAfter = <span class="k">null</span>;
+            Reached.TrySetResult();
+            <span class="k">await</span> Release.Task;
+            <span class="k">throw</span> <span class="k">new</span> InvalidOperationException(<span class="s">&quot;The worker is gone.&quot;</span>);
+        }
+    }
+}</code></pre></figure></details></div>
+<div class="step plain-step"><h2>Where to go next</h2><ul class="next-links"><li><a href="/learn/701-enqueue-only-reference">How to enqueue from a process that runs no worker</a><span>Deploy and scale</span></li></ul></div>
+      </article>
+      <article class="agent-face" hidden>
+        <figure class="listing agent"><figcaption><span class="file">/learn/804-continuous-synchronization-tests.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/804-continuous-synchronization-tests.md">Open</a><button class="copy" type="button" data-copy-target="#md-body">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
+        <p class="hint">This is the page an agent receives: the same how-to as plain Markdown, at this page's address with <code>.md</code> added.</p>
+      </article>
+      <aside class="howto-rail" aria-label="This section">
+        <p class="rail-head"><a href="/learn#s-test">Test without sleeps or polling</a></p>
+        <ol>
+            <li><a href="/learn/801-testing-jobs" data-id="801"><span class="rail-n">1</span>Test a handler with the test host</a></li>
+            <li><a href="/learn/802-testing-durable-jobs" data-id="802"><span class="rail-n">2</span>Test a job that waits for a signal</a></li>
+            <li><a href="/learn/803-first-job-tests" data-id="803"><span class="rail-n">3</span>Test the first-job guide's app</a></li>
+            <li aria-current="page"><a href="/learn/804-continuous-synchronization-tests" data-id="804"><span class="rail-n">4</span>Test a recurring synchronization job</a></li>
+        </ol>
+        <button class="button done-toggle" type="button" data-done-toggle="804" aria-pressed="false">Mark as done</button>
+        <p class="rail-turn"><a href="/learn/803-first-job-tests" rel="prev">Previous</a></p>
+      </aside>
+    </div>
+    <section class="wrap newcomer" aria-labelledby="newcomer-title">
+      <h2 id="newcomer-title">New to Acta?</h2>
+      <p class="lede">Acta is durable execution for .NET: workflows and jobs that survive restarts, as a library inside your application with its durable state in your SQL database.</p>
+      <div class="actions">
+        <a class="button primary" href="/start">Run your first durable job in five minutes</a>
+        <a class="button" href="/learn">See every how-to</a>
+        <a class="button" href="/capabilities">Everything Acta does</a>
+      </div>
+    </section>
+    <footer class="site-footer">
+      <div class="wrap">
+        <div class="footer-grid">
+          <div class="footer-about">
+            <a class="site-brand" href="/" aria-label="Acta home"><svg viewBox="3.95 4.95 30.1 30.1" fill="none" stroke="currentColor" stroke-width="4.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 33 19 7 32 33" /><circle cx="19" cy="27" r="3" fill="currentColor" stroke="none" /></svg><span class="brand-word">Acta<span>.</span></span></a>
+            <p>Durable execution for .NET.</p>
+            <p>A library inside your application.<br />Durable state in your SQL database.</p>
+            <p class="footer-license">Apache-2.0 · built in the open</p>
+          </div>
+          <nav aria-label="Explore">
+            <p class="footer-head">Explore</p>
+            <a href="/how-it-works">How Acta works</a>
+            <a href="/capabilities">Capabilities</a>
+            <a href="/engine">Inside one worker</a>
+            <a href="/fleet">Workers and recovery</a>
+            <a href="/gates">Order and limits</a>
+            <a href="/benchmark">Benchmark and evidence</a>
+            <a href="/choosing">Choosing Acta</a>
+          </nav>
+          <nav aria-label="Build">
+            <p class="footer-head">Build</p>
+            <a href="/start">Get started</a>
+            <a href="/learn">Learn Acta</a>
+            <a href="https://github.com/acta-dotnet/acta/tree/main/docs">Documentation</a>
+            <a href="https://github.com/acta-dotnet/acta/tree/main/concepts">Runnable concepts</a>
+            <a href="https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md">Engineering labs</a>
+            <a href="/llms.txt">llms.txt for coding agents</a>
+          </nav>
+          <div class="footer-release">
+            <p class="footer-head">Release</p>
+            <p class="footer-version"><span class="release-dot" aria-hidden="true"></span><a href="https://github.com/acta-dotnet/acta/releases">1.0.0-rc.12 <span aria-hidden="true">↗</span></a><span>a release candidate</span></p>
+            <a href="https://github.com/acta-dotnet/acta/blob/main/docs/compatibility-and-support.md">Compatibility and support</a>
+            <a href="/support">Support Acta</a>
+            <a href="https://github.com/acta-dotnet/acta/blob/main/docs/known-limitations.md#stability-status">Stability status</a>
+            <a href="https://github.com/acta-dotnet/acta">Source on GitHub <span aria-hidden="true">↗</span></a>
+          </div>
+        </div>
+        <div class="footer-bottom">
+          <p>Created and maintained by <a href="https://www.linkedin.com/in/marko-voncina">Marko Vončina</a></p>
+          <span data-theme-controls></span>
+        </div>
+      </div>
+    </footer>
+  </main>
+  <p class="sr-only" id="copy-status" aria-live="polite"></p>
+  <script src="/assets/learn.js"></script>
+</body>
+</html>

@@ -1,0 +1,551 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>How to limit how many jobs run at once for one key · Acta, durable execution for .NET</title>
+  <meta name="description" content="How to limit how many jobs run at once for one key with Acta, durable execution for .NET. A ConcurrencyKey on the enqueue lets one job at a time run for that key. ConcurrencyLimit on the job gives a key several slots, and RateLimit meters how often jobs start." />
+  <link rel="canonical" href="https://useacta.net/learn/209-concurrency-key" />
+  <meta name="theme-color" content="#0B0E15" />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="Acta for .NET" />
+  <meta property="og:title" content="How to limit how many jobs run at once for one key · Acta, durable execution for .NET" />
+  <meta property="og:description" content="How to limit how many jobs run at once for one key with Acta, durable execution for .NET. A ConcurrencyKey on the enqueue lets one job at a time run for that key. ConcurrencyLimit on the job gives a key several slots, and RateLimit meters how often jobs start." />
+  <meta property="og:url" content="https://useacta.net/learn/209-concurrency-key" />
+  <meta property="og:image" content="https://useacta.net/assets/social-card.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="Acta: durable execution for .NET. Postgres, SQL Server, SQLite." />
+  <meta name="twitter:card" content="summary_large_image" />
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"How to limit how many jobs run at once for one key","description":"How to limit how many jobs run at once for one key with Acta, durable execution for .NET. A ConcurrencyKey on the enqueue lets one job at a time run for that key. ConcurrencyLimit on the job gives a key several slots, and RateLimit meters how often jobs start.","url":"https://useacta.net/learn/209-concurrency-key","inLanguage":"en","articleSection":"Control order and load","isPartOf":{"@type":"CollectionPage","name":"Learn Acta","url":"https://useacta.net/learn"},"about":{"@type":"SoftwareSourceCode","name":"Acta","programmingLanguage":"C#","codeRepository":"https://github.com/acta-dotnet/acta"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Learn Acta","item":"https://useacta.net/learn"},{"@type":"ListItem","position":2,"name":"Control order and load","item":"https://useacta.net/learn#s-limits"},{"@type":"ListItem","position":3,"name":"How to limit how many jobs run at once for one key","item":"https://useacta.net/learn/209-concurrency-key"}]}</script>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="alternate" type="text/plain" href="/llms.txt" title="Acta for coding agents" />
+  <link rel="alternate" type="text/markdown" href="/learn/209-concurrency-key.md" title="This page as Markdown, for coding agents" />
+  <link rel="preload" href="/assets/fonts/fraunces-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="/assets/fonts/ibm-plex-sans-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="/assets/fonts/ibm-plex-mono-400-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <style>
+    /* Self-hosted latin subsets of the three families, preloaded and served immutable (see _headers),
+       so a reload paints them from cache with no swap and a first visit swaps them in as they land.
+       Fraunces and Plex Sans are variable files. */
+    @font-face { font-family: "Fraunces"; font-style: normal; font-weight: 400 600; font-display: swap; src: url(/assets/fonts/fraunces-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "Fraunces"; font-style: italic; font-weight: 400 500; font-display: swap; src: url(/assets/fonts/fraunces-italic-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "IBM Plex Sans"; font-style: normal; font-weight: 400 600; font-display: swap; src: url(/assets/fonts/ibm-plex-sans-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "IBM Plex Mono"; font-style: normal; font-weight: 400; font-display: swap; src: url(/assets/fonts/ibm-plex-mono-400-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "IBM Plex Mono"; font-style: normal; font-weight: 500; font-display: swap; src: url(/assets/fonts/ibm-plex-mono-500-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+  </style>
+  <link rel="stylesheet" href="/assets/site.css" />
+  <link rel="stylesheet" href="/assets/learn.css" />
+  <script src="/assets/theme.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#content">Skip to content</a>
+  <div class="chrome">
+    <div class="wrap chrome-inner">
+    <a class="brand site-brand" href="/" aria-label="Acta home"><svg viewBox="3.95 4.95 30.1 30.1" fill="none" stroke="currentColor" stroke-width="4.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 33 19 7 32 33" /><circle cx="19" cy="27" r="3" fill="currentColor" stroke="none" /></svg><span class="brand-word">Acta<span>.</span></span></a>
+    <span class="meta">Durable execution for .NET</span>
+    <nav aria-label="Primary links">
+      <a href="/start">Start</a>
+      <a href="/capabilities">Capabilities</a>
+      <a href="/benchmark">Benchmark</a>
+      <a href="/learn" aria-current="page">Learn</a>
+      <a href="https://github.com/acta-dotnet/acta" class="gh" aria-label="Acta on GitHub" title="Acta on GitHub"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><path fill="currentColor" d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"></path></svg></a>
+    </nav>
+    <span class="header-appearance" data-theme-controls></span>
+    </div>
+  </div>
+
+
+  <main id="content" data-howto="209">
+    <header class="wrap page-head howto-head">
+      <p class="record"><a href="/learn">learn acta</a><span aria-hidden="true">/</span><a href="/learn#s-limits">control order and load</a></p>
+      <h1>How to limit how many jobs run at once for one key</h1>
+      <p class="lede">A <code>ConcurrencyKey</code> on the enqueue lets one job at a time run for that key. <code>ConcurrencyLimit</code> on the job gives a key several slots, and <code>RateLimit</code> meters how often jobs start.</p>
+      <p class="howto-context">A how-to for Acta, durable execution for .NET. <a href="/start">New to Acta? Run your first durable job in five minutes.</a></p>
+      <div class="howto-meta">
+        <span class="status checked">Checked every release</span><span class="mark lab">Lab</span>
+        <a class="program" href="https://github.com/acta-dotnet/acta/tree/main/concepts/200-durable-execution/209-concurrency-key"><code>concepts/200-durable-execution/209-concurrency-key</code></a>
+        <div class="reader" role="group" aria-label="Read this page as">
+        <span class="reader-label">Read as</span>
+        <button type="button" data-reader="person" aria-pressed="true">a person</button>
+        <button type="button" data-reader="agent" aria-pressed="false" data-md="/learn/209-concurrency-key.md">an agent</button>
+      </div>
+      </div>
+    </header>
+    <div class="wrap howto-body">
+      <article class="howto person-face">
+<div class="step"><h2><span class="step-n">1</span>Give jobs that must not overlap the same key</h2>
+<p>Shared concurrency key serializes whole jobs: the key is taken after claim, before the handler; a worker claiming the second job while it's held releases back to Ready (no executor tied up). Contrast 207-run-with-lock, which serializes only a section while the waiter holds its executor.</p>
+<figure class="listing"><figcaption><span class="file">concurrency-key.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-1">Copy</button></figcaption><pre><code id="code-1"><span class="k">var</span> jobs = host.Services.GetRequiredService&lt;IJobs&gt;();
+
+<span class="hl"><span class="k">var</span> first = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> RebuildIndex(<span class="s">&quot;acme&quot;</span>), o =&gt; o.ConcurrencyKey(<span class="s">&quot;rebuild:acme&quot;</span>));</span>
+<span class="hl"><span class="k">var</span> second = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> RebuildIndex(<span class="s">&quot;acme&quot;</span>), o =&gt; o.ConcurrencyKey(<span class="s">&quot;rebuild:acme&quot;</span>));</span>
+
+Console.WriteLine(<span class="s">&quot;Enqueued two jobs with the same concurrency key.&quot;</span>);
+
+<span class="k">long</span> ownerJobId;
+<span class="k">long</span> competitorJobId;
+<span class="k">using</span> <span class="k">var</span> admissionTimeout = <span class="k">new</span> CancellationTokenSource(TimeSpan.FromSeconds(30));</code></pre></figure>
+</div>
+<div class="step"><h2><span class="step-n">2</span>Let several run at once, up to a limit</h2>
+<p>ConcurrencyLimit is a per-definition policy value, so an operator can raise or lower it on the definitions row without a deploy. Two at a time, whatever the fleet size.</p>
+<figure class="listing"><figcaption><span class="file">concurrency-key.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-2">Copy</button></figcaption><pre><code id="code-2"><span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> RebuildIndex(<span class="k">string</span> Tenant);
+
+<span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> ReindexShard(<span class="k">int</span> Shard);
+
+<span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> PingEndpoint(<span class="k">int</span> Sequence);
+
+<span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> PingEndpointJob
+{
+    <span class="c">// RateLimit is the other admission gate: five starts a second across the namespace's workers, metered</span>
+    <span class="c">// on the definition name because no RateName was given. Like ConcurrencyLimit it is an</span>
+    <span class="c">// operator-overridable policy value on the definitions row.</span>
+    <span class="a">[Job(<span class="s">&quot;ping-endpoint&quot;</span>, RateLimit = <span class="s">&quot;5/s&quot;</span>)]</span>
+    <span class="k">public</span> Task Handle(PingEndpoint input, CancellationToken ct)
+    {
+        Console.WriteLine(<span class="s">$&quot;ping {input.Sequence} at {DateTime.UtcNow:HH:mm:ss.fff}&quot;</span>);
+        <span class="k">return</span> Task.CompletedTask;
+    }
+}
+
+<span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> ReindexShardJob
+{
+<span class="hl">    <span class="a">[Job(<span class="s">&quot;reindex-shard&quot;</span>, ConcurrencyLimit = 2)]</span></span>
+    <span class="k">public</span> <span class="k">async</span> Task Handle(ReindexShard input, CancellationToken ct)
+    {
+        Console.WriteLine(<span class="s">$&quot;shard {input.Shard} started&quot;</span>);
+        <span class="k">await</span> Task.Delay(1000, ct);
+        Console.WriteLine(<span class="s">$&quot;shard {input.Shard} finished&quot;</span>);
+    }
+}
+
+<span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> RebuildIndexJob
+{
+    <span class="k">private</span> <span class="k">static</span> <span class="k">int</span> _n;
+
+    <span class="a">[Job(<span class="s">&quot;rebuild-index&quot;</span>)]</span>
+    <span class="k">public</span> <span class="k">async</span> Task Handle(RebuildIndex input, CancellationToken ct)
+    {
+        <span class="k">var</span> n = Interlocked.Increment(<span class="k">ref</span> _n);
+        Console.WriteLine(<span class="s">$&quot;[{input.Tenant}] rebuild #{n} started&quot;</span>);
+        <span class="k">await</span> Task.Delay(3000, ct);
+        Console.WriteLine(<span class="s">$&quot;[{input.Tenant}] rebuild #{n} finished&quot;</span>);
+    }
+}</code></pre></figure>
+</div>
+<div class="step"><h2><span class="step-n">3</span>Limit how often jobs start</h2>
+<p>RateLimit is the other admission gate: five starts a second across the namespace's workers, metered on the definition name because no RateName was given. Like ConcurrencyLimit it is an operator-overridable policy value on the definitions row.</p>
+<figure class="listing"><figcaption><span class="file">concurrency-key.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-3">Copy</button></figcaption><pre><code id="code-3"><span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> RebuildIndex(<span class="k">string</span> Tenant);
+
+<span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> ReindexShard(<span class="k">int</span> Shard);
+
+<span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> PingEndpoint(<span class="k">int</span> Sequence);
+
+<span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> PingEndpointJob
+{
+<span class="hl">    <span class="a">[Job(<span class="s">&quot;ping-endpoint&quot;</span>, RateLimit = <span class="s">&quot;5/s&quot;</span>)]</span></span>
+    <span class="k">public</span> Task Handle(PingEndpoint input, CancellationToken ct)
+    {
+        Console.WriteLine(<span class="s">$&quot;ping {input.Sequence} at {DateTime.UtcNow:HH:mm:ss.fff}&quot;</span>);
+        <span class="k">return</span> Task.CompletedTask;
+    }
+}
+
+<span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> ReindexShardJob
+{
+    <span class="c">// ConcurrencyLimit is a per-definition policy value, so an operator can raise or lower it on the</span>
+    <span class="c">// definitions row without a deploy. Two at a time, whatever the fleet size.</span>
+    <span class="a">[Job(<span class="s">&quot;reindex-shard&quot;</span>, ConcurrencyLimit = 2)]</span>
+    <span class="k">public</span> <span class="k">async</span> Task Handle(ReindexShard input, CancellationToken ct)
+    {
+        Console.WriteLine(<span class="s">$&quot;shard {input.Shard} started&quot;</span>);
+        <span class="k">await</span> Task.Delay(1000, ct);
+        Console.WriteLine(<span class="s">$&quot;shard {input.Shard} finished&quot;</span>);
+    }
+}
+
+<span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> RebuildIndexJob
+{
+    <span class="k">private</span> <span class="k">static</span> <span class="k">int</span> _n;
+
+    <span class="a">[Job(<span class="s">&quot;rebuild-index&quot;</span>)]</span>
+    <span class="k">public</span> <span class="k">async</span> Task Handle(RebuildIndex input, CancellationToken ct)
+    {
+        <span class="k">var</span> n = Interlocked.Increment(<span class="k">ref</span> _n);
+        Console.WriteLine(<span class="s">$&quot;[{input.Tenant}] rebuild #{n} started&quot;</span>);
+        <span class="k">await</span> Task.Delay(3000, ct);
+        Console.WriteLine(<span class="s">$&quot;[{input.Tenant}] rebuild #{n} finished&quot;</span>);
+    }
+}</code></pre></figure>
+</div>
+<div class="step"><h2><span class="step-n">4</span>Run it and check the output</h2>
+<p>From a clone of <a href="https://github.com/acta-dotnet/acta">the Acta repository</a>, with the .NET 10 SDK:</p>
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-4">Copy</button></figcaption><pre><code id="code-4">dotnet run --project concepts/200-durable-execution/209-concurrency-key</code></pre></figure>
+<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button" data-copy-target="#code-5">Copy</button></figcaption><pre><code id="code-5">[acme] rebuild #2 finished
+shard 2 finished
+shard 3 finished</code></pre></figure>
+<p class="proof checked"><b>Checked every release.</b> Before each release, Acta Verify runs this program and checks that its output contains these lines.</p>
+</div>
+<div class="step plain-step"><h2>Remember</h2><ul class="rules"><li>A key is mutual exclusion, never ordering: an older job can be overtaken while the key stays busy. For one at a time in order, use a lane.</li><li>A job that finds its key full is handed back and re-armed a couple of seconds out. Each such bounce is an execution of its own and adds rows to the timeline.</li><li>A slot is held while an attempt runs, not while the job sleeps or waits. A slot held by a worker that died stays taken until recovery reclaims that job.</li></ul></div>
+<details class="step lab-notes"><summary>The lab behind it: admission control without a blocked worker</summary>
+<p>This program is an Engineering Lab: beside the how-to it prints the rows that show what happened, and its notes weigh the design against the alternatives.</p>
+<h3>The problem</h3>
+<p>Two jobs for the same hot resource must not execute together. Taking a lock inside both handlers can serialize the work, but the loser has already consumed an executor while it waits.</p>
+<h3>Common approaches</h3>
+<div class="table-scroll"><table class="data-table compare"><thead><tr><th>Mechanism</th><th>Best fit</th></tr></thead><tbody><tr><th><code>RunWithLockAsync</code></th><td>A critical section inside a handler</td></tr><tr><th><code>ConcurrencyKey</code> (+ <code>ConcurrencyLimit</code>)</th><td>Admission control for the whole execution, one job at a time or N</td></tr><tr><th><code>RateLimit</code></th><td>Admission control on how often, not how many</td></tr><tr><th>Lane (<code>.Lane(...)</code>, <code>[Job(Lane = ...)]</code>)</th><td>One job at a time per lane, in enqueue order</td></tr><tr><th>Queue partitioning</th><td>High-volume, stable partition keys</td></tr><tr><th>Database uniqueness</th><td>Preventing duplicate durable records</td></tr><tr><th>External distributed lock</th><td>Coordination beyond Acta's database</td></tr></tbody></table></div>
+<h3>Why this design</h3>
+<p>Acta acquires the concurrency-key lease after claim but before handler invocation. A loser is re-armed <code>ready</code> with a short delay and releases its worker. The event reason makes this budget-neutral bounce visible instead of looking like an application failure.</p>
+<p><code>[Job(ConcurrencyLimit = N)]</code> sizes that gate. The key then owns N lock slot leases instead of one, so N attempts run together and the N+1th bounces the same way. The lab's second handler, <code>reindex-shard</code>, declares a limit of 2 and supplies no enqueue key, so the definition name is the key: a limit alone throttles the whole definition. The limit is an operator-overridable policy value on the definition row.</p>
+<p><code>[Job(RateLimit = &quot;N/s&quot;)]</code> is the third gate and meters how often attempts start, which a limit cannot express: five a second is not the same shape as five at once. The lab's third handler, <code>ping-endpoint</code>, declares &quot;5/s&quot;. A job that arrives before its turn is booked the next free instant and re-arms once at exactly that instant, rather than a crowd re-racing a counter; a turn less than a quarter second away is waited out in process instead, with no re-arm. <code>RateName</code> puts several definitions of the namespace on one meter; definitions that share one must declare the same rate.</p>
+<p><code>ConcurrencyKey</code> provides admission, not ordering. While workers hold valid leases on all of the key's lock slots (one, unless a limit sizes it), no other job with that namespace and key is admitted; the exclusion is as strong as the lease, which a heartbeat renews while the handler runs. Admission order is unspecified: under sustained arrivals that keep a key held, an older job can be repeatedly overtaken, and Acta does not bound its wait. Use it for exclusive *unordered* work.</p>
+<h3>Trade-offs</h3>
+<p>Contention adds claim/re-arm traffic, and on a key that never goes idle a bounced job can starve. A bounce returns the job to <code>ready</code> with its next run pushed a few seconds out, so at the instant the key frees the bounced job is not in the claim candidate set at all: a job enqueued later can take the key ahead of it, and the arrival after that can do the same. Ordering the claim scan differently cannot repair that, because the starved job is not among the rows being ordered.</p>
+<p>The lock is scoped to Acta work in this database; it does not coordinate unrelated applications unless they share the same protocol.</p>
+<h3>Run the experiment</h3>
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-6">Copy</button></figcaption><pre><code id="code-6">dotnet run --project concepts/200-durable-execution/209-concurrency-key</code></pre></figure>
+<p>The lab discovers which racing job acquired the key, then inspects the owner and competitor before both finish.</p>
+<h3>Rows to inspect</h3>
+<p>Run with <code>--all-columns</code> to execute the visible <code>SELECT *</code> Explore query first. The default Notice queries select the fields that prove the lesson, and the text below explains their meaning.</p>
+<p><code>jobs_view</code> shows the owner executing and the competitor ready without a worker. The lab also descends one level into the internal <code>locks</code> table to reveal the named holder (the key's lock slot rows are <code>&lt;namespace id&gt;.sem.&lt;key&gt;.&lt;slot&gt;</code>, and the meter's are its <code>.rate.ping-endpoint</code> bucket and reservations), then uses <code>events_view</code> to show the <code>concurrency-key-held</code> and <code>rate-limited</code> reasons. Base tables are implementation detail; use the curated views or <code>IJobs</code> for normal operations.</p>
+<h3>Break it</h3>
+<p>Increase the handler delay and enqueue more jobs with the same key. Watch repeated admission bounces. Then give each job a different key to see concurrency return.</p>
+<h3>When not to use</h3>
+<p>Not when you need order. <code>ConcurrencyKey</code> is the middle rung of three, and only the third one orders anything:</p>
+<ol class="plain"><li><b>Best-effort serial dispatch under restricted conditions.</b> One worker process for the namespace, <code>MaxConcurrentExecutors = 1</code>, equal priority, and jobs that are immediately due. That gives serial execution, not strict FIFO: retries, delayed eligibility, priority changes, and operator actions all reorder the queue, and Acta does not enforce that only one process runs the namespace, so this is an operational promise you keep, not an invariant Acta checks. The claim scan orders by priority, then by next-run instant, then by <code>JobId</code>; <code>JobId</code> is a stable tie-breaker within one claim, not a multi-producer FIFO guarantee, because database identities are allocation order, not commit order.</li><li><b>Exclusive unordered work.</b> <code>ConcurrencyKey</code>, exactly as this lab shows it.</li><li><b>Strict ordered processing.</b> A lane: <code>.Lane(&quot;customer-42&quot;)</code> on the enqueue, or <code>[Job(Lane = &quot;...&quot;)]</code> on the definition, runs the lane's jobs one at a time in enqueue order. Head-of-line blocking is the price: a failing head retries in place and holds everything behind it, so the design needs a poison-item policy.</li></ol>
+<p>Use queue partitioning when per-key ordering must scale past one job at a time per lane. Use a unique constraint when the real invariant is “only one record may exist.” Use an external lock when non-Acta participants must coordinate too.</p>
+<h3>Source trail</h3>
+<ul class="plain"><li><a href="https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md">The related Engineering Lab</a></li><li><a href="https://github.com/acta-dotnet/acta/blob/main/concepts/200-durable-execution/209-concurrency-key/concurrency-key.cs"><code>concurrency-key.cs</code></a></li><li><a href="https://github.com/acta-dotnet/acta/blob/main/src/Acta/Engine/Worker/ExecutionAdmission.cs"><code>ExecutionAdmission.cs</code></a></li><li><a href="https://github.com/acta-dotnet/acta/blob/main/src/Acta/Domain/Entities/LockEntity.cs"><code>LockEntity.cs</code></a></li></ul>
+</details>
+<div class="step plain-step"><h2>The whole program</h2>
+<p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/concepts/200-durable-execution/209-concurrency-key"><code>concepts/200-durable-execution/209-concurrency-key</code></a>, as it is compiled.</p>
+<p class="hint"><code>UseLocalDatabase</code> and <code>ConceptLab</code> are helpers of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
+<details class="source-file"><summary><span class="file-name">concurrency-key.cs</span><span class="file-size">256 lines</span></summary><figure class="listing"><figcaption><span class="file">concurrency-key.cs</span><button class="copy" type="button" data-copy-target="#code-7">Copy</button></figcaption><pre><code id="code-7"><span class="c">// How to limit how many jobs run at once for one key</span>
+<span class="c">// A `ConcurrencyKey` on the enqueue lets one job at a time run for that key. `ConcurrencyLimit` on the job gives a</span>
+<span class="c">// key several slots, and `RateLimit` meters how often jobs start.</span>
+<span class="k">using</span> Acta;
+<span class="k">using</span> Acta.Concepts.ConcurrencyKey;
+<span class="k">using</span> Acta.Labs;
+<span class="k">using</span> Microsoft.Extensions.DependencyInjection;
+<span class="k">using</span> Microsoft.Extensions.Hosting;
+
+<span class="k">var</span> builder = Host.CreateApplicationBuilder(args);
+<span class="k">var</span> lab = <span class="k">new</span> ConceptLab(builder.Configuration, args);
+
+builder.Services.UseActa(j =&gt;
+{
+    j.UseLocalDatabase(builder.Configuration);
+    j.Run&lt;ConcurrencyKeyJobs&gt;(<span class="s">&quot;concurrency-key&quot;</span>);
+});
+
+<span class="k">using</span> <span class="k">var</span> host = builder.Build();
+<span class="k">await</span> host.StartAsync();
+
+<span class="k">var</span> jobs = host.Services.GetRequiredService&lt;IJobs&gt;();
+
+<span class="c">// learn: 1. Give jobs that must not overlap the same key</span>
+<span class="c">// Shared concurrency key serializes whole jobs: the key is taken after claim, before the handler; a worker claiming the second job while it's held releases back to Ready (no executor tied up). Contrast 207-run-with-lock, which serializes only a section while the waiter holds its executor.</span>
+<span class="hl"><span class="k">var</span> first = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> RebuildIndex(<span class="s">&quot;acme&quot;</span>), o =&gt; o.ConcurrencyKey(<span class="s">&quot;rebuild:acme&quot;</span>));</span>
+<span class="hl"><span class="k">var</span> second = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> RebuildIndex(<span class="s">&quot;acme&quot;</span>), o =&gt; o.ConcurrencyKey(<span class="s">&quot;rebuild:acme&quot;</span>));</span>
+
+<span class="c">// learn: end</span>
+Console.WriteLine(<span class="s">&quot;Enqueued two jobs with the same concurrency key.&quot;</span>);
+
+<span class="k">long</span> ownerJobId;
+<span class="k">long</span> competitorJobId;
+<span class="k">using</span> <span class="k">var</span> admissionTimeout = <span class="k">new</span> CancellationTokenSource(TimeSpan.FromSeconds(30));
+<span class="k">while</span> (<span class="k">true</span>)
+{
+    <span class="k">var</span> firstStatus = (<span class="k">await</span> jobs.GetAsync(first, admissionTimeout.Token))?.Status;
+    <span class="k">var</span> secondStatus = (<span class="k">await</span> jobs.GetAsync(second, admissionTimeout.Token))?.Status;
+    <span class="k">if</span> (firstStatus == JobStatusCode.Executing &amp;&amp; secondStatus == JobStatusCode.Ready)
+    {
+        ownerJobId = first.JobId;
+        competitorJobId = second.JobId;
+        <span class="k">break</span>;
+    }
+    <span class="k">if</span> (secondStatus == JobStatusCode.Executing &amp;&amp; firstStatus == JobStatusCode.Ready)
+    {
+        ownerJobId = second.JobId;
+        competitorJobId = first.JobId;
+        <span class="k">break</span>;
+    }
+    <span class="k">if</span> (firstStatus?.IsTerminal == <span class="k">true</span> &amp;&amp; secondStatus?.IsTerminal == <span class="k">true</span>)
+    {
+        <span class="k">throw</span> <span class="k">new</span> InvalidOperationException(
+            <span class="s">&quot;Both jobs finished before the admission boundary was observed; increase the lab handler delay.&quot;</span>
+        );
+    }
+    <span class="k">await</span> Task.Delay(50, admissionTimeout.Token);
+}
+<span class="k">await</span> lab.ShowAllAsync(
+    <span class="s">&quot;Explore both complete job records at the admission boundary&quot;</span>,
+    <span class="s">&quot;&quot;&quot;</span>
+<span class="s">    SELECT *</span>
+<span class="s">    FROM jobs_view</span>
+<span class="s">    WHERE job_id IN (@ownerJobId, @competitorJobId)</span>
+<span class="s">    ORDER BY CASE WHEN job_id = @ownerJobId THEN 0 ELSE 1 END</span>
+<span class="s">    &quot;&quot;&quot;</span>,
+    <span class="k">new</span> { ownerJobId, competitorJobId }
+);
+<span class="k">await</span> lab.ShowAsync(
+    <span class="s">&quot;One job executes; its competitor returns to Ready without holding a worker&quot;</span>,
+    <span class="s">&quot;&quot;&quot;</span>
+<span class="s">    SELECT job_id, job_ref, job_status, concurrency_key, leased_by_worker_id, next_run_at_utc</span>
+<span class="s">    FROM jobs_view</span>
+<span class="s">    WHERE job_id IN (@ownerJobId, @competitorJobId)</span>
+<span class="s">    ORDER BY CASE WHEN job_id = @ownerJobId THEN 0 ELSE 1 END</span>
+<span class="s">    &quot;&quot;&quot;</span>,
+    <span class="k">new</span> { ownerJobId, competitorJobId }
+);
+<span class="k">await</span> lab.ShowAsync(
+    <span class="s">&quot;The concurrency key is a named lock owned by the running job&quot;</span>,
+    <span class="s">&quot;&quot;&quot;</span>
+<span class="s">    SELECT lock_key, job_id, expires_at_utc, hold_token</span>
+<span class="s">    FROM {{schema}}.locks</span>
+<span class="s">    WHERE job_id = @ownerJobId</span>
+<span class="s">    &quot;&quot;&quot;</span>,
+    <span class="k">new</span> { ownerJobId }
+);
+
+<span class="c">// The same gate with a size: [Job(ConcurrencyLimit = 2)] gives the key two concurrency slots, so two of these</span>
+<span class="c">// four run together and the rest bounce. No enqueue key here, so the definition name is the key.</span>
+<span class="k">var</span> shards = <span class="k">new</span> List&lt;EnqueueJobResponse&gt;();
+<span class="k">for</span> (<span class="k">var</span> i = 0; i &lt; 4; i++)
+{
+    shards.Add(<span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> ReindexShard(i)));
+}
+Console.WriteLine(<span class="s">&quot;Enqueued four jobs against a definition limited to two at a time.&quot;</span>);
+
+<span class="c">// Wait for the slots to be taken; the rows below only exist while handlers hold them.</span>
+<span class="k">using</span> <span class="k">var</span> slotTimeout = <span class="k">new</span> CancellationTokenSource(TimeSpan.FromSeconds(30));
+<span class="k">while</span> (<span class="k">await</span> ExecutingShardCountAsync(jobs, shards, slotTimeout.Token) &lt; 2)
+{
+    <span class="k">await</span> Task.Delay(50, slotTimeout.Token);
+}
+<span class="k">await</span> lab.ShowAsync(
+    <span class="s">&quot;A sized key is two lock rows, one per slot&quot;</span>,
+    <span class="s">&quot;&quot;&quot;</span>
+<span class="s">    SELECT lock_key, job_id, expires_at_utc</span>
+<span class="s">    FROM {{schema}}.locks</span>
+<span class="s">    WHERE lock_key LIKE '%.sem.reindex-shard.%'</span>
+<span class="s">    ORDER BY lock_key</span>
+<span class="s">    &quot;&quot;&quot;</span>
+);
+
+<span class="k">using</span> <span class="k">var</span> completionTimeout = <span class="k">new</span> CancellationTokenSource(TimeSpan.FromSeconds(30));
+<span class="k">while</span> (
+    (<span class="k">await</span> jobs.GetAsync(first, completionTimeout.Token))?.Status.IsTerminal != <span class="k">true</span>
+    || (<span class="k">await</span> jobs.GetAsync(second, completionTimeout.Token))?.Status.IsTerminal != <span class="k">true</span>
+)
+{
+    <span class="k">await</span> Task.Delay(100, completionTimeout.Token);
+}
+<span class="k">await</span> lab.ShowAsync(
+    <span class="s">&quot;The event ledger explains the budget-neutral admission bounce&quot;</span>,
+    <span class="s">&quot;&quot;&quot;</span>
+<span class="s">    SELECT entity_id AS job_id, event, details_text, execution_number</span>
+<span class="s">    FROM events_view</span>
+<span class="s">    WHERE entity = 'job' AND entity_id IN (@firstJobId, @secondJobId)</span>
+<span class="s">    ORDER BY event_id</span>
+<span class="s">    &quot;&quot;&quot;</span>,
+    <span class="k">new</span> { firstJobId = first.JobId, secondJobId = second.JobId }
+);
+
+<span class="k">using</span> <span class="k">var</span> shardTimeout = <span class="k">new</span> CancellationTokenSource(TimeSpan.FromSeconds(60));
+<span class="k">foreach</span> (<span class="k">var</span> shard <span class="k">in</span> shards)
+{
+    <span class="k">while</span> ((<span class="k">await</span> jobs.GetAsync(shard, shardTimeout.Token))?.Status.IsTerminal != <span class="k">true</span>)
+    {
+        <span class="k">await</span> Task.Delay(100, shardTimeout.Token);
+    }
+}
+<span class="k">await</span> lab.ShowAsync(
+    <span class="s">&quot;All four shards finish, two at a time&quot;</span>,
+    <span class="s">&quot;&quot;&quot;</span>
+<span class="s">    SELECT job_id, definition_name, job_status, concurrency_key</span>
+<span class="s">    FROM jobs_view</span>
+<span class="s">    WHERE definition_name = 'reindex-shard'</span>
+<span class="s">    ORDER BY job_id</span>
+<span class="s">    &quot;&quot;&quot;</span>
+);
+
+<span class="c">// The third gate: how OFTEN, not how many. [Job(RateLimit = &quot;5/s&quot;)] meters starts against the</span>
+<span class="c">// database clock, and a job that arrives early is booked the next free instant rather than retried.</span>
+<span class="k">var</span> pings = <span class="k">new</span> List&lt;EnqueueJobResponse&gt;();
+<span class="k">for</span> (<span class="k">var</span> i = 0; i &lt; 12; i++)
+{
+    pings.Add(<span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> PingEndpoint(i)));
+}
+Console.WriteLine(<span class="s">&quot;Enqueued twelve jobs against a definition limited to five a second.&quot;</span>);
+
+<span class="k">using</span> <span class="k">var</span> pingTimeout = <span class="k">new</span> CancellationTokenSource(TimeSpan.FromSeconds(60));
+<span class="k">foreach</span> (<span class="k">var</span> ping <span class="k">in</span> pings)
+{
+    <span class="k">while</span> ((<span class="k">await</span> jobs.GetAsync(ping, pingTimeout.Token))?.Status.IsTerminal != <span class="k">true</span>)
+    {
+        <span class="k">await</span> Task.Delay(100, pingTimeout.Token);
+    }
+}
+
+<span class="c">// The meter is two row shapes in `locks`, never a counter table: one bucket row holding the next</span>
+<span class="c">// arrival time, plus one reservation row per job still waiting for its turn. Both are usually gone by</span>
+<span class="c">// the time the backlog has drained, which is itself the point.</span>
+<span class="k">await</span> lab.ShowAsync(
+    <span class="s">&quot;The rate meter is a bucket row plus one reservation per waiting job&quot;</span>,
+    <span class="s">&quot;&quot;&quot;</span>
+<span class="s">    SELECT lock_key, job_id, expires_at_utc</span>
+<span class="s">    FROM {{schema}}.locks</span>
+<span class="s">    WHERE lock_key LIKE '%.rate.ping-endpoint%'</span>
+<span class="s">    ORDER BY lock_key</span>
+<span class="s">    &quot;&quot;&quot;</span>
+);
+<span class="k">await</span> lab.ShowAsync(
+    <span class="s">&quot;An early job a quarter second or more from its turn re-arms once, budget-neutral, at its reserved instant&quot;</span>,
+    <span class="s">&quot;&quot;&quot;</span>
+<span class="s">    SELECT entity_id AS job_id, event, details_text, execution_number</span>
+<span class="s">    FROM events_view</span>
+<span class="s">    WHERE definition_name = 'ping-endpoint' AND event = 'job.rescheduled' AND details_text LIKE '%&quot;reason&quot;:&quot;rate-limited&quot;%'</span>
+<span class="s">    ORDER BY event_id</span>
+<span class="s">    &quot;&quot;&quot;</span>
+);
+<span class="k">await</span> host.StopAsync();
+
+<span class="k">static</span> <span class="k">async</span> Task&lt;<span class="k">int</span>&gt; ExecutingShardCountAsync(IJobs jobs, List&lt;EnqueueJobResponse&gt; shards, CancellationToken ct)
+{
+    <span class="k">var</span> executing = 0;
+    <span class="k">foreach</span> (<span class="k">var</span> shard <span class="k">in</span> shards)
+    {
+        <span class="k">if</span> ((<span class="k">await</span> jobs.GetAsync(shard, ct))?.Status == JobStatusCode.Executing)
+        {
+            executing++;
+        }
+    }
+    <span class="k">return</span> executing;
+}
+
+<span class="k">namespace</span> Acta.Concepts.ConcurrencyKey
+{
+    <span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> RebuildIndex(<span class="k">string</span> Tenant);
+
+    <span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> ReindexShard(<span class="k">int</span> Shard);
+
+    <span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> PingEndpoint(<span class="k">int</span> Sequence);
+
+    <span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> PingEndpointJob
+    {
+        <span class="c">// learn: 3. Limit how often jobs start</span>
+        <span class="c">// RateLimit is the other admission gate: five starts a second across the namespace's workers, metered</span>
+        <span class="c">// on the definition name because no RateName was given. Like ConcurrencyLimit it is an</span>
+        <span class="c">// operator-overridable policy value on the definitions row.</span>
+<span class="hl">        <span class="a">[Job(<span class="s">&quot;ping-endpoint&quot;</span>, RateLimit = <span class="s">&quot;5/s&quot;</span>)]</span></span>
+        <span class="c">// learn: end</span>
+        <span class="k">public</span> Task Handle(PingEndpoint input, CancellationToken ct)
+        {
+            Console.WriteLine(<span class="s">$&quot;ping {input.Sequence} at {DateTime.UtcNow:HH:mm:ss.fff}&quot;</span>);
+            <span class="k">return</span> Task.CompletedTask;
+        }
+    }
+
+    <span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> ReindexShardJob
+    {
+        <span class="c">// learn: 2. Let several run at once, up to a limit</span>
+        <span class="c">// ConcurrencyLimit is a per-definition policy value, so an operator can raise or lower it on the</span>
+        <span class="c">// definitions row without a deploy. Two at a time, whatever the fleet size.</span>
+<span class="hl">        <span class="a">[Job(<span class="s">&quot;reindex-shard&quot;</span>, ConcurrencyLimit = 2)]</span></span>
+        <span class="c">// learn: end</span>
+        <span class="k">public</span> <span class="k">async</span> Task Handle(ReindexShard input, CancellationToken ct)
+        {
+            Console.WriteLine(<span class="s">$&quot;shard {input.Shard} started&quot;</span>);
+            <span class="k">await</span> Task.Delay(1000, ct);
+            Console.WriteLine(<span class="s">$&quot;shard {input.Shard} finished&quot;</span>);
+        }
+    }
+
+    <span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> RebuildIndexJob
+    {
+        <span class="k">private</span> <span class="k">static</span> <span class="k">int</span> _n;
+
+        <span class="a">[Job(<span class="s">&quot;rebuild-index&quot;</span>)]</span>
+        <span class="k">public</span> <span class="k">async</span> Task Handle(RebuildIndex input, CancellationToken ct)
+        {
+            <span class="k">var</span> n = Interlocked.Increment(<span class="k">ref</span> _n);
+            Console.WriteLine(<span class="s">$&quot;[{input.Tenant}] rebuild #{n} started&quot;</span>);
+            <span class="k">await</span> Task.Delay(3000, ct);
+            Console.WriteLine(<span class="s">$&quot;[{input.Tenant}] rebuild #{n} finished&quot;</span>);
+        }
+    }
+}</code></pre></figure></details></div>
+<div class="step plain-step"><h2>Where to go next</h2><ul class="next-links"><li><a href="/learn/021-jobs-cli">How to inspect a job from the command line</a><span>Watch and control running work</span></li></ul></div>
+      </article>
+      <article class="agent-face" hidden>
+        <figure class="listing agent"><figcaption><span class="file">/learn/209-concurrency-key.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/209-concurrency-key.md">Open</a><button class="copy" type="button" data-copy-target="#md-body">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
+        <p class="hint">This is the page an agent receives: the same how-to as plain Markdown, at this page's address with <code>.md</code> added.</p>
+      </article>
+      <aside class="howto-rail" aria-label="This section">
+        <p class="rail-head"><a href="/learn#s-limits">Control order and load</a></p>
+        <ol>
+            <li><a href="/learn/207-run-with-lock" data-id="207"><span class="rail-n">1</span>Let one job at a time touch a resource</a></li>
+            <li aria-current="page"><a href="/learn/209-concurrency-key" data-id="209"><span class="rail-n">2</span>Limit how many jobs run at once for one key</a></li>
+        </ol>
+        <button class="button done-toggle" type="button" data-done-toggle="209" aria-pressed="false">Mark as done</button>
+        <p class="rail-turn"><a href="/learn/207-run-with-lock" rel="prev">Previous</a></p>
+      </aside>
+    </div>
+    <section class="wrap newcomer" aria-labelledby="newcomer-title">
+      <h2 id="newcomer-title">New to Acta?</h2>
+      <p class="lede">Acta is durable execution for .NET: workflows and jobs that survive restarts, as a library inside your application with its durable state in your SQL database.</p>
+      <div class="actions">
+        <a class="button primary" href="/start">Run your first durable job in five minutes</a>
+        <a class="button" href="/learn">See every how-to</a>
+        <a class="button" href="/capabilities">Everything Acta does</a>
+      </div>
+    </section>
+    <footer class="site-footer">
+      <div class="wrap">
+        <div class="footer-grid">
+          <div class="footer-about">
+            <a class="site-brand" href="/" aria-label="Acta home"><svg viewBox="3.95 4.95 30.1 30.1" fill="none" stroke="currentColor" stroke-width="4.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 33 19 7 32 33" /><circle cx="19" cy="27" r="3" fill="currentColor" stroke="none" /></svg><span class="brand-word">Acta<span>.</span></span></a>
+            <p>Durable execution for .NET.</p>
+            <p>A library inside your application.<br />Durable state in your SQL database.</p>
+            <p class="footer-license">Apache-2.0 · built in the open</p>
+          </div>
+          <nav aria-label="Explore">
+            <p class="footer-head">Explore</p>
+            <a href="/how-it-works">How Acta works</a>
+            <a href="/capabilities">Capabilities</a>
+            <a href="/engine">Inside one worker</a>
+            <a href="/fleet">Workers and recovery</a>
+            <a href="/gates">Order and limits</a>
+            <a href="/benchmark">Benchmark and evidence</a>
+            <a href="/choosing">Choosing Acta</a>
+          </nav>
+          <nav aria-label="Build">
+            <p class="footer-head">Build</p>
+            <a href="/start">Get started</a>
+            <a href="/learn">Learn Acta</a>
+            <a href="https://github.com/acta-dotnet/acta/tree/main/docs">Documentation</a>
+            <a href="https://github.com/acta-dotnet/acta/tree/main/concepts">Runnable concepts</a>
+            <a href="https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md">Engineering labs</a>
+            <a href="/llms.txt">llms.txt for coding agents</a>
+          </nav>
+          <div class="footer-release">
+            <p class="footer-head">Release</p>
+            <p class="footer-version"><span class="release-dot" aria-hidden="true"></span><a href="https://github.com/acta-dotnet/acta/releases">1.0.0-rc.12 <span aria-hidden="true">↗</span></a><span>a release candidate</span></p>
+            <a href="https://github.com/acta-dotnet/acta/blob/main/docs/compatibility-and-support.md">Compatibility and support</a>
+            <a href="/support">Support Acta</a>
+            <a href="https://github.com/acta-dotnet/acta/blob/main/docs/known-limitations.md#stability-status">Stability status</a>
+            <a href="https://github.com/acta-dotnet/acta">Source on GitHub <span aria-hidden="true">↗</span></a>
+          </div>
+        </div>
+        <div class="footer-bottom">
+          <p>Created and maintained by <a href="https://www.linkedin.com/in/marko-voncina">Marko Vončina</a></p>
+          <span data-theme-controls></span>
+        </div>
+      </div>
+    </footer>
+  </main>
+  <p class="sr-only" id="copy-status" aria-live="polite"></p>
+  <script src="/assets/learn.js"></script>
+</body>
+</html>

@@ -90,7 +90,7 @@ public sealed partial class EngineeringLabsIndexTests
             {
                 failures.Add($"{relative}: missing from the Engineering Labs index");
             }
-            if (!ladder.Contains($"(../{conceptPath}/)", StringComparison.Ordinal))
+            if (!ladder.Contains($"/{conceptPath}/)", StringComparison.Ordinal))
             {
                 failures.Add($"{relative}: missing from the concept ladder");
             }

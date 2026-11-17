@@ -579,3 +579,7 @@ file named after the folder: `concepts/200-durable-execution/215-map-wait-childr
 `demos/` are complete deployable applications built only from the published packages. The one
 complete walk from enqueue to the first test, on the consumer packages, is `docs/first-job.md`; the
 rest of the `docs/` tree is indexed by task in `docs/README.md`. Start at useacta.net.
+
+The how-tos at useacta.net/learn teach one task each from those programs: the handler, the call that
+starts it, the command that runs it, and the lines it must print. Every one is plain Markdown; the
+list, by task, is useacta.net/learn/index.md.

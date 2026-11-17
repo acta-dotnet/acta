@@ -1,0 +1,307 @@
+{
+  "sections": [
+    {
+      "key": "first-steps",
+      "title": "Take the first steps",
+      "blurb": "Define a job, start it, and read back what it did. Start at the top.",
+      "howTos": [
+        "001-hello-acta",
+        "002-job-input",
+        "003-job-result",
+        "007-dependency-injection",
+        "012-read-status",
+        "013-read-result",
+        "024-aspnet-enqueue-api",
+        "026-first-job"
+      ]
+    },
+    {
+      "key": "start",
+      "title": "Start jobs",
+      "blurb": "Every way to start work: now, later, once only, by name, or many at a time.",
+      "howTos": [
+        "009-typed-enqueue",
+        "023-job-call",
+        "020-raw-enqueue",
+        "004-no-input-job",
+        "005-scalar-input",
+        "006-many-jobs-one-class",
+        "011-delayed-job",
+        "217-absolute-time-controls",
+        "010-deduplication-key",
+        "028-deduplication-time-buckets",
+        "014-read-by-deduplication-key",
+        "015-call-vs-enqueue",
+        "019-batch-enqueue",
+        "017-priority",
+        "018-tags",
+        "025-large-payload-reference",
+        "501-payload-formats"
+      ]
+    },
+    {
+      "key": "schedule",
+      "title": "Run work on a schedule",
+      "blurb": "Recurring work as one permanent job: by cron, by interval, in a time zone, or from a calendar.",
+      "howTos": [
+        "101-recurring-job",
+        "104-timezone-schedule",
+        "102-interval-schedule",
+        "103-multiple-schedules",
+        "106-schedule-misfire",
+        "105-schedule-control",
+        "108-calendar-catalog",
+        "110-per-occurrence-delivery",
+        "111-firing-failure-policy",
+        "214-reset-state"
+      ]
+    },
+    {
+      "key": "sync",
+      "title": "Keep another system in sync",
+      "blurb": "One job that keeps calling a service and remembers how far it got.",
+      "howTos": [
+        "109-continuous-synchronization",
+        "203-durable-variable",
+        "306-reschedule"
+      ]
+    },
+    {
+      "key": "survive",
+      "title": "Make work survive a crash",
+      "blurb": "Steps and variables record what a handler finished, so a retry or a restart carries on instead of starting over.",
+      "howTos": [
+        "202-durable-step",
+        "206-step-chain",
+        "216-variable-lifecycle",
+        "210-step-retry",
+        "220-at-most-once-step",
+        "201-durable-checkout",
+        "208-progress"
+      ]
+    },
+    {
+      "key": "wait",
+      "title": "Wait for people, events, and time",
+      "blurb": "A waiting job is a row. No worker and no process stays busy while it waits.",
+      "howTos": [
+        "204-wait-signal",
+        "205-durable-sleep",
+        "311-call-outcome-timeout"
+      ]
+    },
+    {
+      "key": "children",
+      "title": "Split work across child jobs",
+      "blurb": "Fan out, join the results, and decide what a failed child means.",
+      "howTos": [
+        "211-child-jobs",
+        "213-call-child",
+        "212-fan-out-join",
+        "215-map-wait-children",
+        "219-child-failure-outcomes",
+        "704-cross-namespace-child",
+        "601-fan-out",
+        "602-chained-jobs"
+      ]
+    },
+    {
+      "key": "failure",
+      "title": "Decide what happens when work fails",
+      "blurb": "Retries, backoff, timeouts, deadlines, and ending a job on purpose.",
+      "howTos": [
+        "016-max-attempts",
+        "312-backoff-curve",
+        "301-fail-job",
+        "302-cancel-job",
+        "303-pause-job",
+        "304-execution-timeout",
+        "008-cancellation-token",
+        "307-deadline-strict",
+        "308-deadline-advisory"
+      ]
+    },
+    {
+      "key": "limits",
+      "title": "Control order and load",
+      "blurb": "Keep jobs that touch the same thing from running over each other.",
+      "howTos": [
+        "207-run-with-lock",
+        "209-concurrency-key"
+      ],
+      "more": { "href": "/gates", "text": "See order, limits, and pacing move in the interactive explainer" }
+    },
+    {
+      "key": "operate",
+      "title": "Watch and control running work",
+      "blurb": "Read what happened, find jobs, and cancel, pause, resume, or restart them.",
+      "howTos": [
+        "021-jobs-cli",
+        "022-dashboard",
+        "404-read-event-timeline",
+        "409-operator-queries",
+        "305-operator-cancel",
+        "309-operator-resume",
+        "310-operator-restart",
+        "410-http-api-controls",
+        "413-http-api-authorization",
+        "414-dashboard-sign-in",
+        "412-tenant-scope",
+        "408-correlation-id",
+        "401-pipeline-behavior",
+        "407-event-recording"
+      ]
+    },
+    {
+      "key": "alerts",
+      "title": "Get told when something breaks",
+      "blurb": "Alerts raised by failures or by your own code, routed where your team looks.",
+      "howTos": [
+        "406-automatic-failure-alerts",
+        "402-alerts",
+        "403-alert-channel",
+        "405-real-alert-routing",
+        "411-alert-escalation"
+      ]
+    },
+    {
+      "key": "test",
+      "title": "Test without sleeps or polling",
+      "blurb": "The real runtime on a throwaway database, driven one tick at a time.",
+      "howTos": [
+        "801-testing-jobs",
+        "802-testing-durable-jobs",
+        "803-first-job-tests",
+        "804-continuous-synchronization-tests"
+      ]
+    },
+    {
+      "key": "deploy",
+      "title": "Deploy and scale",
+      "blurb": "Split the API from the worker, add workers, and tune them.",
+      "howTos": [
+        "701-enqueue-only-reference",
+        "703-namespaces-in-one-process",
+        "705-worker-crash-recovery",
+        "901-native-aot-json",
+        "903-redis-wakeup",
+        "904-worker-tuning"
+      ],
+      "more": { "href": "/fleet", "text": "See workers share work and recover it in the interactive explainer" }
+    }
+  ],
+  "tour": [
+    "001-hello-acta",
+    "202-durable-step",
+    "204-wait-signal",
+    "109-continuous-synchronization",
+    "705-worker-crash-recovery",
+    "022-dashboard",
+    "802-testing-durable-jobs"
+  ],
+  "lookAlikes": [
+    {
+      "ask": "Something has to happen later",
+      "pick": [
+        { "howTo": "011-delayed-job", "when": "a whole job that starts later" },
+        { "howTo": "205-durable-sleep", "when": "a pause inside a job that has already begun" },
+        { "howTo": "217-absolute-time-controls", "when": "an exact instant instead of a delay" }
+      ]
+    },
+    {
+      "ask": "Work must not happen twice",
+      "pick": [
+        { "howTo": "202-durable-step", "when": "work that finished must not repeat on a retry" },
+        { "howTo": "220-at-most-once-step", "when": "a side effect where a second attempt is worse than not knowing, such as capturing a payment" },
+        { "howTo": "010-deduplication-key", "when": "a repeated request must not create a second job" }
+      ]
+    },
+    {
+      "ask": "A job has to wait",
+      "pick": [
+        { "howTo": "204-wait-signal", "when": "for a person or another system that tells you" },
+        { "howTo": "205-durable-sleep", "when": "for time to pass" },
+        { "howTo": "306-reschedule", "when": "for an outside system you have to ask again" }
+      ]
+    },
+    {
+      "ask": "Work repeats on a schedule",
+      "pick": [
+        { "howTo": "104-timezone-schedule", "when": "one job the schedule fires again and again" },
+        { "howTo": "110-per-occurrence-delivery", "when": "every occurrence a job of its own, with its own retries and result" },
+        { "howTo": "109-continuous-synchronization", "when": "one job that keeps its place between firings" }
+      ]
+    },
+    {
+      "ask": "One job becomes many",
+      "pick": [
+        { "howTo": "212-fan-out-join", "when": "children from a list, their results joined" },
+        { "howTo": "215-map-wait-children", "when": "different children, or enqueue now and wait later" },
+        { "howTo": "601-fan-out", "when": "independent jobs with nothing to join" }
+      ]
+    }
+  ],
+  "searchWords": {
+    "101-recurring-job": "cron recurring repeat every nightly periodic",
+    "102-interval-schedule": "interval every 10 seconds periodic timer backgroundservice hosted service loop",
+    "104-timezone-schedule": "berlin timezone time zone hour daily 8am morning night dst summer winter wall clock cron local time",
+    "105-schedule-control": "pause resume schedule stop holiday",
+    "106-schedule-misfire": "misfire missed catch up downtime outage skip",
+    "108-calendar-catalog": "calendar business days holidays pay days month end",
+    "109-continuous-synchronization": "sync synchronize synchronization service api poll watermark cursor integration import external system permanent recurring",
+    "201-durable-checkout": "workflow order checkout saga orchestration",
+    "202-durable-step": "step checkpoint idempotent replay record once",
+    "203-durable-variable": "variable state watermark remember",
+    "204-wait-signal": "approval human signal event webhook wait manager review callback registration sign up signup register confirm email verification pending temporary state",
+    "205-durable-sleep": "sleep delay wait days weeks three later timer cool down send reminder follow up",
+    "207-run-with-lock": "lock mutex serialize exclusive",
+    "209-concurrency-key": "concurrency limit throttle per customer per tenant key at once",
+    "210-step-retry": "compensate rollback undo saga last attempt",
+    "211-child-jobs": "child jobs sub jobs parent workflow",
+    "212-fan-out-join": "map reduce parallel fan out join aggregate chunks invoices items batch total sum combine",
+    "213-call-child": "call child sub workflow result",
+    "215-map-wait-children": "map wait children parallel fan out",
+    "216-variable-lifecycle": "get or set compute once cache snapshot quote",
+    "217-absolute-time-controls": "at a time datetime run at absolute instant date",
+    "220-at-most-once-step": "exactly once at most once payment charge card twice double side effect duplicate",
+    "301-fail-job": "fail permanent no retry reject",
+    "304-execution-timeout": "timeout too slow hang stuck",
+    "306-reschedule": "poll reschedule not ready yet check again service",
+    "307-deadline-strict": "deadline expire too late drop",
+    "310-operator-restart": "restart rerun failed again operator",
+    "312-backoff-curve": "backoff exponential delay between retries",
+    "401-pipeline-behavior": "middleware pipeline behavior logging decorator",
+    "402-alerts": "alert notify operator warning",
+    "405-real-alert-routing": "slack webhook notification channel",
+    "406-automatic-failure-alerts": "alert failure notify email page",
+    "409-operator-queries": "list query search page filter ledger",
+    "412-tenant-scope": "tenant multi tenant customer",
+    "413-http-api-authorization": "auth authorization permissions security policy",
+    "414-dashboard-sign-in": "login sign in cookie auth roles",
+    "501-payload-formats": "json gzip serialization codec format",
+    "602-chained-jobs": "pipeline stages sequence",
+    "701-enqueue-only-reference": "producer only api enqueue reference",
+    "705-worker-crash-recovery": "crash kill recovery lease failover high availability",
+    "801-testing-jobs": "unit test xunit integration test",
+    "802-testing-durable-jobs": "test signal approval deterministic",
+    "901-native-aot-json": "aot native trimming source generated json",
+    "903-redis-wakeup": "redis pub sub wake latency",
+    "904-worker-tuning": "concurrency threads executors poll interval tuning performance",
+    "001-hello-acta": "hello world getting started begin install setup",
+    "003-job-result": "return value output answer await",
+    "007-dependency-injection": "dependency injection di constructor services",
+    "008-cancellation-token": "cancellation token shutdown graceful",
+    "010-deduplication-key": "idempotent duplicate double click twice dedupe once only",
+    "011-delayed-job": "delay later reminder send in five minutes hours timer",
+    "015-call-vs-enqueue": "call wait synchronous fire and forget",
+    "016-max-attempts": "max attempts retry budget give up",
+    "017-priority": "priority urgent first queue order",
+    "019-batch-enqueue": "bulk batch many thousands import",
+    "020-raw-enqueue": "raw name string namespace producer",
+    "021-jobs-cli": "cli terminal explain events status debug",
+    "022-dashboard": "dashboard ui screen browser",
+    "024-aspnet-enqueue-api": "http api endpoint post 202 poll rest web",
+    "025-large-payload-reference": "blob file upload big payload s3 storage",
+    "028-deduplication-time-buckets": "throttle once per hour per day bucket"
+  }
+}

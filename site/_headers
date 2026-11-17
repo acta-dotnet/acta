@@ -1,2 +1,5 @@
 /assets/fonts/*
   Cache-Control: public, max-age=31536000, immutable
+/learn/*.md
+  Content-Type: text/markdown; charset=utf-8
+  X-Robots-Tag: noindex

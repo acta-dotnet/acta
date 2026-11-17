@@ -6,8 +6,8 @@ namespace Acta.Tests.Concepts;
 /// <summary>
 /// Keeps the concept ladder, the solution, and the tutorial index in sync. Every concept project on
 /// disk must be listed in <c>concepts/Concepts.slnx</c> (or solution builds silently skip it) and every
-/// numbered rung must have a row in the ladder of <c>docs/engineering-labs.md</c> (or it is undiscoverable). The reverse
-/// direction is checked too: a solution path with no project on disk is a stale entry.
+/// numbered rung must have a row in the generated <c>docs/reference/concept-ladder.md</c> (or it is undiscoverable).
+/// The reverse direction is checked too: a solution path with no project on disk is a stale entry.
 /// </summary>
 public sealed partial class ConceptIndexTests
 {
@@ -63,18 +63,12 @@ public sealed partial class ConceptIndexTests
 
         Assert.True(
             missing.Count == 0,
-            "Concept rungs missing a row in the docs/engineering-labs.md ladder (undiscoverable):\n  " + string.Join("\n  ", missing)
+            "Concept rungs missing a row in docs/reference/concept-ladder.md (run `Acta.Emit docs`):\n  " + string.Join("\n  ", missing)
         );
     }
 
-    /// <summary>The concept ladder section of <c>docs/engineering-labs.md</c>, the one index of every rung.</summary>
-    internal static string Ladder(string repoRoot)
-    {
-        var labs = File.ReadAllText(Path.Combine(repoRoot, "docs", "engineering-labs.md"));
-        var start = labs.IndexOf("## The concept ladder", StringComparison.Ordinal);
-        Assert.True(start >= 0, "docs/engineering-labs.md has no '## The concept ladder' section.");
-        return labs[start..];
-    }
+    /// <summary>The generated <c>docs/reference/concept-ladder.md</c>, the one index of every rung.</summary>
+    internal static string Ladder(string repoRoot) => File.ReadAllText(Path.Combine(repoRoot, "docs", "reference", "concept-ladder.md"));
 
     [Fact]
     public void EverySolutionConceptPathExistsOnDisk()

@@ -1,0 +1,497 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>How to put the dashboard behind your sign-in · Acta, durable execution for .NET</title>
+  <meta name="description" content="How to put the dashboard behind your sign-in with Acta, durable execution for .NET. The dashboard and its API sit behind the host's own sign-in. The host maps its roles to Acta's four permissions; with no session a page goes to the sign-in, and an API call answers 401." />
+  <link rel="canonical" href="https://useacta.net/learn/414-dashboard-sign-in" />
+  <meta name="theme-color" content="#0B0E15" />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="Acta for .NET" />
+  <meta property="og:title" content="How to put the dashboard behind your sign-in · Acta, durable execution for .NET" />
+  <meta property="og:description" content="How to put the dashboard behind your sign-in with Acta, durable execution for .NET. The dashboard and its API sit behind the host's own sign-in. The host maps its roles to Acta's four permissions; with no session a page goes to the sign-in, and an API call answers 401." />
+  <meta property="og:url" content="https://useacta.net/learn/414-dashboard-sign-in" />
+  <meta property="og:image" content="https://useacta.net/assets/social-card.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="Acta: durable execution for .NET. Postgres, SQL Server, SQLite." />
+  <meta name="twitter:card" content="summary_large_image" />
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"How to put the dashboard behind your sign-in","description":"How to put the dashboard behind your sign-in with Acta, durable execution for .NET. The dashboard and its API sit behind the host's own sign-in. The host maps its roles to Acta's four permissions; with no session a page goes to the sign-in, and an API call answers 401.","url":"https://useacta.net/learn/414-dashboard-sign-in","inLanguage":"en","articleSection":"Watch and control running work","isPartOf":{"@type":"CollectionPage","name":"Learn Acta","url":"https://useacta.net/learn"},"about":{"@type":"SoftwareSourceCode","name":"Acta","programmingLanguage":"C#","codeRepository":"https://github.com/acta-dotnet/acta"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Learn Acta","item":"https://useacta.net/learn"},{"@type":"ListItem","position":2,"name":"Watch and control running work","item":"https://useacta.net/learn#s-operate"},{"@type":"ListItem","position":3,"name":"How to put the dashboard behind your sign-in","item":"https://useacta.net/learn/414-dashboard-sign-in"}]}</script>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="alternate" type="text/plain" href="/llms.txt" title="Acta for coding agents" />
+  <link rel="alternate" type="text/markdown" href="/learn/414-dashboard-sign-in.md" title="This page as Markdown, for coding agents" />
+  <link rel="preload" href="/assets/fonts/fraunces-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="/assets/fonts/ibm-plex-sans-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="/assets/fonts/ibm-plex-mono-400-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <style>
+    /* Self-hosted latin subsets of the three families, preloaded and served immutable (see _headers),
+       so a reload paints them from cache with no swap and a first visit swaps them in as they land.
+       Fraunces and Plex Sans are variable files. */
+    @font-face { font-family: "Fraunces"; font-style: normal; font-weight: 400 600; font-display: swap; src: url(/assets/fonts/fraunces-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "Fraunces"; font-style: italic; font-weight: 400 500; font-display: swap; src: url(/assets/fonts/fraunces-italic-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "IBM Plex Sans"; font-style: normal; font-weight: 400 600; font-display: swap; src: url(/assets/fonts/ibm-plex-sans-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "IBM Plex Mono"; font-style: normal; font-weight: 400; font-display: swap; src: url(/assets/fonts/ibm-plex-mono-400-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "IBM Plex Mono"; font-style: normal; font-weight: 500; font-display: swap; src: url(/assets/fonts/ibm-plex-mono-500-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+  </style>
+  <link rel="stylesheet" href="/assets/site.css" />
+  <link rel="stylesheet" href="/assets/learn.css" />
+  <script src="/assets/theme.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#content">Skip to content</a>
+  <div class="chrome">
+    <div class="wrap chrome-inner">
+    <a class="brand site-brand" href="/" aria-label="Acta home"><svg viewBox="3.95 4.95 30.1 30.1" fill="none" stroke="currentColor" stroke-width="4.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 33 19 7 32 33" /><circle cx="19" cy="27" r="3" fill="currentColor" stroke="none" /></svg><span class="brand-word">Acta<span>.</span></span></a>
+    <span class="meta">Durable execution for .NET</span>
+    <nav aria-label="Primary links">
+      <a href="/start">Start</a>
+      <a href="/capabilities">Capabilities</a>
+      <a href="/benchmark">Benchmark</a>
+      <a href="/learn" aria-current="page">Learn</a>
+      <a href="https://github.com/acta-dotnet/acta" class="gh" aria-label="Acta on GitHub" title="Acta on GitHub"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><path fill="currentColor" d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"></path></svg></a>
+    </nav>
+    <span class="header-appearance" data-theme-controls></span>
+    </div>
+  </div>
+
+
+  <main id="content" data-howto="414">
+    <header class="wrap page-head howto-head">
+      <p class="record"><a href="/learn">learn acta</a><span aria-hidden="true">/</span><a href="/learn#s-operate">watch and control running work</a></p>
+      <h1>How to put the dashboard behind your sign-in</h1>
+      <p class="lede">The dashboard and its API sit behind the host's own sign-in. The host maps its roles to Acta's four permissions; with no session a page goes to the sign-in, and an API call answers 401.</p>
+      <p class="howto-context">A how-to for Acta, durable execution for .NET. <a href="/start">New to Acta? Run your first durable job in five minutes.</a></p>
+      <div class="howto-meta">
+        <span class="status checked">Checked every release</span>
+        <a class="program" href="https://github.com/acta-dotnet/acta/tree/main/concepts/400-observability-and-alerts/414-dashboard-sign-in"><code>concepts/400-observability-and-alerts/414-dashboard-sign-in</code></a>
+        <div class="reader" role="group" aria-label="Read this page as">
+        <span class="reader-label">Read as</span>
+        <button type="button" data-reader="person" aria-pressed="true">a person</button>
+        <button type="button" data-reader="agent" aria-pressed="false" data-md="/learn/414-dashboard-sign-in.md">an agent</button>
+      </div>
+      </div>
+    </header>
+    <div class="wrap howto-body">
+      <article class="howto person-face">
+<div class="step"><h2><span class="step-n">1</span>Map your roles to the four permissions</h2>
+<p>The roles are the host's own. Acta asks for one policy per permission, and mapping throws when one of the four is missing.</p>
+<figure class="listing"><figcaption><span class="file">dashboard-sign-in.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-1">Copy</button></figcaption><pre><code id="code-1">    {
+        cookie.LoginPath = <span class="s">&quot;/sign-in&quot;</span>;
+        cookie.ExpireTimeSpan = TimeSpan.FromMinutes(2);
+        cookie.SlidingExpiration = <span class="k">false</span>;
+    });
+
+<span class="hl">builder.Services.AddAuthorization(options =&gt;</span>
+<span class="hl">{</span>
+<span class="hl">    options.AddPolicy(ActaPermissions.Read, policy =&gt; policy.RequireRole(<span class="s">&quot;Reader&quot;</span>, <span class="s">&quot;Operator&quot;</span>, <span class="s">&quot;Admin&quot;</span>));</span>
+<span class="hl">    options.AddPolicy(ActaPermissions.Enqueue, policy =&gt; policy.RequireRole(<span class="s">&quot;Operator&quot;</span>, <span class="s">&quot;Admin&quot;</span>));</span>
+<span class="hl">    options.AddPolicy(ActaPermissions.Control, policy =&gt; policy.RequireRole(<span class="s">&quot;Operator&quot;</span>, <span class="s">&quot;Admin&quot;</span>));</span>
+<span class="hl">    options.AddPolicy(ActaPermissions.Admin, policy =&gt; policy.RequireRole(<span class="s">&quot;Admin&quot;</span>));</span>
+<span class="hl">});</span>
+
+builder.Services.AddAntiforgery();
+
+<span class="k">var</span> app = builder.Build();
+app.UseAuthentication();
+app.UseAuthorization();</code></pre></figure>
+</div>
+<div class="step"><h2><span class="step-n">2</span>Require the permissions on the dashboard</h2>
+<p>RequirePermissions has Acta check every route, the dashboard's pages included, against the policy named for its permission. With no session a page is sent to the sign-in above, and an API call answers 401 with no redirect, which the dashboard shows as an ended session. LocalOnly and the control confirmation stay on.</p>
+<figure class="listing"><figcaption><span class="file">dashboard-sign-in.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-2">Copy</button></figcaption><pre><code id="code-2">    }
+
+    <span class="k">await</span> http.SignOutAsync();
+    <span class="k">return</span> Results.Redirect(<span class="s">&quot;/sign-in&quot;</span>);
+});
+
+<span class="hl">app.MapActa(<span class="s">&quot;/acta&quot;</span>, options =&gt;</span>
+<span class="hl">{</span>
+<span class="hl">    options.EnableControls = <span class="k">true</span>;</span>
+<span class="hl">    options.RequirePermissions = <span class="k">true</span>;</span>
+});
+
+<span class="k">await</span> app.StartAsync();</code></pre></figure>
+</div>
+<div class="step"><h2><span class="step-n">3</span>The job it acts on</h2>
+<figure class="listing"><figcaption><span class="file">dashboard-sign-in.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-3">Copy</button></figcaption><pre><code id="code-3"><span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> SampleTask(<span class="k">string</span> Id);
+
+<span class="k">public</span> <span class="k">static</span> <span class="k">class</span> SampleTaskJob
+{
+    <span class="a">[Job(<span class="s">&quot;sample-task&quot;</span>)]</span>
+    <span class="k">public</span> <span class="k">static</span> <span class="k">void</span> Handle(SampleTask input) { }
+}</code></pre></figure>
+</div>
+<div class="step"><h2><span class="step-n">4</span>Run it and check the output</h2>
+<p>From a clone of <a href="https://github.com/acta-dotnet/acta">the Acta repository</a>, with the .NET 10 SDK:</p>
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-4">Copy</button></figcaption><pre><code id="code-4">dotnet run --project concepts/400-observability-and-alerts/414-dashboard-sign-in</code></pre></figure>
+<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button" data-copy-target="#code-5">Copy</button></figcaption><pre><code id="code-5">GET /acta/ -&gt; 302 http://
+/sign-in?ReturnUrl=%2Facta%2F
+GET /acta/api/v1/jobs -&gt; 401
+POST /sign-in -&gt; 400
+POST /sign-in -&gt; 302 /acta/
+holds acta.read
+/pause -&gt; 403 This operation needs the acta.control permission.
+the job is Ready
+/pause -&gt; 200 applied
+the job is Paused
+/suspend -&gt; 403 This operation needs the acta.admin permission.
+/suspend -&gt; 200 applied
+the namespace is Suspended
+/resume -&gt; 200 applied
+the namespace is Active
+POST /sign-out -&gt; 302 /sign-in
+GET /acta/api/v1/capabilities -&gt; 401</code></pre></figure>
+<p class="proof checked"><b>Checked every release.</b> Before each release, Acta Verify runs this program and checks that its output contains these lines.</p>
+<p class="hint">This page shows the code. The rules it relies on, starting with the handler running again from its first line, are in <a href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#handler-contract">the handler contract</a>.</p>
+</div>
+<details class="step lab-notes"><summary>Notes on the program</summary>
+<p>The dashboard and the API behind the host's own sign-in. Acta ships no authentication: the host signs people in its own way and tells Acta what each may do through four policies, <code>acta.read</code>, <code>acta.enqueue</code>, <code>acta.control</code> and <code>acta.admin</code>, the constants of <code>ActaPermissions</code>. Here the host uses ASP.NET Core's cookie handler with no Identity behind it and three development-only users, and its roles sit behind the policies:</p>
+<div class="table-scroll"><table class="data-table compare"><thead><tr><th>Role</th><th><code>acta.read</code></th><th><code>acta.enqueue</code></th><th><code>acta.control</code></th><th><code>acta.admin</code></th></tr></thead><tbody><tr><th>Reader</th><td>yes</td><td></td><td></td><td></td></tr><tr><th>Operator</th><td>yes</td><td>yes</td><td>yes</td><td></td></tr><tr><th>Admin</th><td>yes</td><td>yes</td><td>yes</td><td>yes</td></tr></tbody></table></div>
+<p>The roles are the host's. Acta reads the policies and has no users or roles of its own.</p>
+<p><code>RequirePermissions = true</code> is what makes the pair work in a browser. With no session a dashboard page is sent to the sign-in page, and an API call answers 401 with no redirect, which the dashboard shows as an ended session.</p>
+<p>On start the rung signs in as each user through the real form and prints what the server answered:</p>
+<ul class="plain"><li>Nobody signed in: the dashboard redirects to <code>/sign-in</code>, the API answers 401, and a sign-in post without its antiforgery token answers 400.</li><li>Reader reads the jobs list (200), holds <code>acta.read</code> alone, and is refused a pause sent by hand (403, naming <code>acta.control</code>); the job stays as it was.</li><li>Operator pauses the job (200 <code>applied</code>, and the job reads back Paused) and is refused suspending the namespace (403, naming <code>acta.admin</code>).</li><li>Admin suspends and resumes the namespace (200 <code>applied</code> each, read back).</li><li>After sign-out the API answers 401 again.</li></ul>
+<p>A 200 alone would not show a change, since a control that finds nothing to do also answers 200, with <code>already-in-state</code>: the run prints each answer's action and reads the state back.</p>
+<h3>Run the experiment</h3>
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-6">Copy</button></figcaption><pre><code id="code-6">dotnet run --project concepts/400-observability-and-alerts/414-dashboard-sign-in</code></pre></figure>
+<p>Then open the address it prints and sign in as <code>reader</code>, <code>operator</code> or <code>admin</code>; each one's password is its name.</p>
+<ul class="plain"><li>As reader the dashboard is marked read-only and shows no controls. As operator the paused job can be resumed.</li><li>A session lasts two minutes and is never renewed. Leave the dashboard open: it says the session has ended, and a reload goes through the sign-in page and comes back.</li><li>Sign out, or change user, at <code>/sign-in</code>.</li></ul>
+<h3>What a real host changes</h3>
+<ul class="plain"><li>The users: its own store and password check, or an external provider. The role comes from the host, never from the request.</li><li>The session: its own lifetime. Signing out clears the browser's cookie; a copy of the cookie still answers until its ticket ends, so keep tickets short or keep sessions on the server.</li><li>Reach: <code>LocalOnly</code> stays on here. Off the local machine, set it to false, serve HTTPS only with <code>CookieSecurePolicy.Always</code>, and set <code>AllowedHosts</code>.</li><li>What stays: the antiforgery token on both forms, the local-only return address, the control confirmation, and no other origin allowed. A cookie alone does not show that the person meant a request.</li></ul>
+<h3>Break it</h3>
+<p>Replace <code>options.RequirePermissions = true;</code> with <code>options.ConfigureEndpoints = group =&gt; group.RequireAuthorization();</code> and run again. The anonymous API call now answers 302 to the sign-in page instead of 401, every signed-in user may do everything, and a dashboard left open past its session shows errors until it is reloaded.</p>
+<h3>Source trail</h3>
+<ul class="plain"><li><a href="https://github.com/acta-dotnet/acta/blob/main/concepts/400-observability-and-alerts/414-dashboard-sign-in/dashboard-sign-in.cs"><code>dashboard-sign-in.cs</code></a></li><li><a href="https://github.com/acta-dotnet/acta/blob/main/docs/operator-guide.md#permissions">Permissions in the operator guide</a></li><li><a href="https://github.com/acta-dotnet/acta/blob/main/src/Acta.AspNetCore/Http/PermissionFilter.cs"><code>PermissionFilter.cs</code></a></li><li><a href="https://github.com/acta-dotnet/acta/blob/main/tests/Acta.Tests/AspNetCore/PermissionTests.cs"><code>PermissionTests.cs</code></a></li></ul>
+</details>
+<div class="step plain-step"><h2>The whole program</h2>
+<p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/concepts/400-observability-and-alerts/414-dashboard-sign-in"><code>concepts/400-observability-and-alerts/414-dashboard-sign-in</code></a>, as it is compiled.</p>
+<p class="hint"><code>UseLocalDatabase</code> is a helper of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
+<details class="source-file"><summary><span class="file-name">dashboard-sign-in.cs</span><span class="file-size">243 lines</span></summary><figure class="listing"><figcaption><span class="file">dashboard-sign-in.cs</span><button class="copy" type="button" data-copy-target="#code-7">Copy</button></figcaption><pre><code id="code-7"><span class="c">// How to put the dashboard behind your sign-in</span>
+<span class="c">// The dashboard and its API sit behind the host's own sign-in. The host maps its roles to Acta's four permissions;</span>
+<span class="c">// with no session a page goes to the sign-in, and an API call answers 401.</span>
+<span class="k">using</span> System.Net;
+<span class="k">using</span> System.Security.Claims;
+<span class="k">using</span> System.Text.Json.Nodes;
+<span class="k">using</span> System.Text.RegularExpressions;
+<span class="k">using</span> Acta;
+<span class="k">using</span> Acta.AspNetCore;
+<span class="k">using</span> Acta.Concepts.DashboardSignIn;
+<span class="k">using</span> Acta.Dashboard;
+<span class="k">using</span> Microsoft.AspNetCore.Antiforgery;
+<span class="k">using</span> Microsoft.AspNetCore.Authentication;
+<span class="k">using</span> Microsoft.AspNetCore.Authentication.Cookies;
+<span class="k">using</span> Microsoft.AspNetCore.Mvc;
+
+<span class="k">const</span> <span class="k">string</span> jobNamespace = <span class="s">&quot;dashboard-sign-in&quot;</span>;
+<span class="k">const</span> <span class="k">string</span> tokenField = <span class="s">&quot;__RequestVerificationToken&quot;</span>;
+
+<span class="k">var</span> builder = WebApplication.CreateBuilder(args);
+
+<span class="c">// The post with no token below is refused on purpose: keep the developer exception page's trace out of the output.</span>
+builder.Logging.AddFilter(<span class="s">&quot;Microsoft.AspNetCore.Diagnostics&quot;</span>, LogLevel.None);
+
+builder.Services.UseActa(j =&gt;
+{
+    j.UseLocalDatabase(builder.Configuration);
+    j.Run&lt;DashboardSignInJobs&gt;(jobNamespace);
+});
+
+<span class="c">// The host owns sign-in: Acta ships none. This is ASP.NET Core's cookie handler with no Identity behind it. The ticket is</span>
+<span class="c">// short and never renewed, so a session ends while the dashboard is open; a real host chooses its own lifetime.</span>
+builder
+    .Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie(cookie =&gt;
+    {
+        cookie.LoginPath = <span class="s">&quot;/sign-in&quot;</span>;
+        cookie.ExpireTimeSpan = TimeSpan.FromMinutes(2);
+        cookie.SlidingExpiration = <span class="k">false</span>;
+    });
+
+<span class="c">// learn: 1. Map your roles to the four permissions</span>
+<span class="c">// The roles are the host's own. Acta asks for one policy per permission, and mapping throws when one of the four is missing.</span>
+<span class="hl">builder.Services.AddAuthorization(options =&gt;</span>
+<span class="hl">{</span>
+<span class="hl">    options.AddPolicy(ActaPermissions.Read, policy =&gt; policy.RequireRole(<span class="s">&quot;Reader&quot;</span>, <span class="s">&quot;Operator&quot;</span>, <span class="s">&quot;Admin&quot;</span>));</span>
+<span class="hl">    options.AddPolicy(ActaPermissions.Enqueue, policy =&gt; policy.RequireRole(<span class="s">&quot;Operator&quot;</span>, <span class="s">&quot;Admin&quot;</span>));</span>
+<span class="hl">    options.AddPolicy(ActaPermissions.Control, policy =&gt; policy.RequireRole(<span class="s">&quot;Operator&quot;</span>, <span class="s">&quot;Admin&quot;</span>));</span>
+<span class="hl">    options.AddPolicy(ActaPermissions.Admin, policy =&gt; policy.RequireRole(<span class="s">&quot;Admin&quot;</span>));</span>
+<span class="hl">});</span>
+
+<span class="c">// learn: end</span>
+builder.Services.AddAntiforgery();
+
+<span class="k">var</span> app = builder.Build();
+app.UseAuthentication();
+app.UseAuthorization();
+app.UseAntiforgery();
+
+<span class="c">// Three development-only users, each one's password its name. A real host checks its own store. The role comes from</span>
+<span class="c">// here, never from anything the caller sends.</span>
+<span class="k">var</span> roles = <span class="k">new</span> Dictionary&lt;<span class="k">string</span>, <span class="k">string</span>&gt;
+{
+    [<span class="s">&quot;reader&quot;</span>] = <span class="s">&quot;Reader&quot;</span>,
+    [<span class="s">&quot;operator&quot;</span>] = <span class="s">&quot;Operator&quot;</span>,
+    [<span class="s">&quot;admin&quot;</span>] = <span class="s">&quot;Admin&quot;</span>,
+};
+
+<span class="c">// One page signs in and out. Both forms carry an antiforgery token: a cookie alone does not show the person meant the post.</span>
+app.MapGet(<span class="s">&quot;/sign-in&quot;</span>, (HttpContext http, IAntiforgery antiforgery, <span class="k">string</span>? returnUrl) =&gt;
+{
+    <span class="k">var</span> token = antiforgery.GetAndStoreTokens(http).RequestToken;
+    <span class="k">var</span> who = http.User.Identity?.Name <span class="k">is</span> { } name ? <span class="s">$&quot;Signed in as {name}.&quot;</span> : <span class="s">&quot;Nobody is signed in.&quot;</span>;
+    <span class="k">return</span> Results.Content(
+        <span class="s">$&quot;&quot;&quot;</span>
+<span class="s">        &lt;!doctype html&gt;&lt;title&gt;Sign in&lt;/title&gt;</span>
+<span class="s">        &lt;p&gt;{who} Sign in as reader, operator or admin; the password is the name. &lt;a href=&quot;/acta/&quot;&gt;Dashboard&lt;/a&gt;&lt;/p&gt;</span>
+<span class="s">        &lt;form method=&quot;post&quot; action=&quot;/sign-in&quot;&gt;</span>
+<span class="s">          &lt;input type=&quot;hidden&quot; name=&quot;{tokenField}&quot; value=&quot;{token}&quot;&gt;</span>
+<span class="s">          &lt;input type=&quot;hidden&quot; name=&quot;returnUrl&quot; value=&quot;{WebUtility.HtmlEncode(returnUrl)}&quot;&gt;</span>
+<span class="s">          &lt;input name=&quot;name&quot; placeholder=&quot;name&quot; autofocus&gt; &lt;input name=&quot;password&quot; type=&quot;password&quot; placeholder=&quot;password&quot;&gt;</span>
+<span class="s">          &lt;button&gt;Sign in&lt;/button&gt;</span>
+<span class="s">        &lt;/form&gt;</span>
+<span class="s">        &lt;form method=&quot;post&quot; action=&quot;/sign-out&quot;&gt;</span>
+<span class="s">          &lt;input type=&quot;hidden&quot; name=&quot;{tokenField}&quot; value=&quot;{token}&quot;&gt;&lt;button&gt;Sign out&lt;/button&gt;</span>
+<span class="s">        &lt;/form&gt;</span>
+<span class="s">        &quot;&quot;&quot;</span>,
+        <span class="s">&quot;text/html&quot;</span>
+    );
+});
+
+<span class="c">// A route that binds a form is refused with 400 before it runs when the token is missing or wrong.</span>
+app.MapPost(<span class="s">&quot;/sign-in&quot;</span>, <span class="k">async</span> (HttpContext http, [FromForm] <span class="k">string</span> name, [FromForm] <span class="k">string</span> password, [FromForm] <span class="k">string</span>? returnUrl) =&gt;
+{
+    <span class="k">if</span> (!roles.TryGetValue(name, <span class="k">out</span> <span class="k">var</span> role) || password != name)
+    {
+        <span class="k">return</span> Results.Redirect(<span class="s">&quot;/sign-in&quot;</span>);
+    }
+
+    <span class="k">var</span> identity = <span class="k">new</span> ClaimsIdentity(
+        [<span class="k">new</span> Claim(ClaimTypes.Name, name), <span class="k">new</span> Claim(ClaimTypes.Role, role)],
+        CookieAuthenticationDefaults.AuthenticationScheme
+    );
+    <span class="k">await</span> http.SignInAsync(<span class="k">new</span> ClaimsPrincipal(identity));
+
+    <span class="c">// Back to where the browser was headed, when that is a path on this site: a link must not send a signed-in</span>
+    <span class="c">// browser away. LocalRedirect refuses whatever else is not local.</span>
+    <span class="k">return</span> Results.LocalRedirect(returnUrl <span class="k">is</span> [<span class="s">'/'</span>, <span class="k">not</span> (<span class="s">'/'</span> or <span class="s">'\\'</span>), ..] ? returnUrl : <span class="s">&quot;/acta/&quot;</span>);
+});
+
+<span class="c">// Signing out clears this browser's cookie. A copy of the cookie still answers until its ticket ends, which is why</span>
+<span class="c">// the ticket is short.</span>
+app.MapPost(<span class="s">&quot;/sign-out&quot;</span>, <span class="k">async</span> (HttpContext http, IAntiforgery antiforgery) =&gt;
+{
+    <span class="k">if</span> (!<span class="k">await</span> antiforgery.IsRequestValidAsync(http))
+    {
+        <span class="k">return</span> Results.BadRequest();
+    }
+
+    <span class="k">await</span> http.SignOutAsync();
+    <span class="k">return</span> Results.Redirect(<span class="s">&quot;/sign-in&quot;</span>);
+});
+
+<span class="c">// learn: 2. Require the permissions on the dashboard</span>
+<span class="c">// RequirePermissions has Acta check every route, the dashboard's pages included, against the policy named for its</span>
+<span class="c">// permission. With no session a page is sent to the sign-in above, and an API call answers 401 with no redirect,</span>
+<span class="c">// which the dashboard shows as an ended session. LocalOnly and the control confirmation stay on.</span>
+<span class="hl">app.MapActa(<span class="s">&quot;/acta&quot;</span>, options =&gt;</span>
+<span class="hl">{</span>
+<span class="hl">    options.EnableControls = <span class="k">true</span>;</span>
+<span class="hl">    options.RequirePermissions = <span class="k">true</span>;</span>
+    <span class="c">// learn: end</span>
+});
+
+<span class="k">await</span> app.StartAsync();
+
+<span class="k">var</span> jobs = app.Services.GetRequiredService&lt;IJobs&gt;();
+<span class="k">var</span> namespaces = app.Services.GetRequiredService&lt;INamespaces&gt;();
+<span class="k">var</span> site = <span class="k">new</span> Uri(app.Urls.First(url =&gt; url.StartsWith(<span class="s">&quot;http://&quot;</span>, StringComparison.Ordinal)));
+
+<span class="c">// An earlier run may have left the namespace suspended, from the dashboard or by stopping midway; it would refuse the job.</span>
+<span class="k">await</span> namespaces.ResumeAsync(jobNamespace);
+
+<span class="c">// A job delayed five minutes, so the worker leaves it alone while the calls below pause it.</span>
+<span class="k">var</span> job = <span class="k">await</span> jobs.ScheduleAsync(<span class="k">new</span> SampleTask(<span class="s">&quot;seeded&quot;</span>), TimeSpan.FromMinutes(5));
+<span class="k">var</span> pause = <span class="s">$&quot;/acta/api/v1/jobs/{job.JobRef}/pause&quot;</span>;
+<span class="k">var</span> suspend = <span class="s">$&quot;/acta/api/v1/namespaces/{jobNamespace}/suspend&quot;</span>;
+
+Console.WriteLine(<span class="s">&quot;Nobody signed in:&quot;</span>);
+<span class="k">using</span> <span class="k">var</span> nobody = Browser();
+<span class="k">await</span> CallAsync(nobody, HttpMethod.Get, <span class="s">&quot;/acta/&quot;</span>);
+<span class="k">await</span> CallAsync(nobody, HttpMethod.Get, <span class="s">&quot;/acta/api/v1/jobs&quot;</span>);
+<span class="k">await</span> CallAsync(nobody, HttpMethod.Post, <span class="s">&quot;/sign-in&quot;</span>, <span class="k">new</span>() { [<span class="s">&quot;name&quot;</span>] = <span class="s">&quot;admin&quot;</span>, [<span class="s">&quot;password&quot;</span>] = <span class="s">&quot;admin&quot;</span> });
+
+Console.WriteLine(<span class="s">&quot;Reader:&quot;</span>);
+<span class="k">using</span> <span class="k">var</span> reader = <span class="k">await</span> SignedInAsync(<span class="s">&quot;reader&quot;</span>);
+<span class="k">await</span> CallAsync(reader, HttpMethod.Get, <span class="s">&quot;/acta/api/v1/jobs&quot;</span>);
+<span class="k">var</span> held = <span class="k">await</span> CallAsync(reader, HttpMethod.Get, <span class="s">&quot;/acta/api/v1/capabilities&quot;</span>);
+Console.WriteLine(<span class="s">$&quot;  holds {string.Join(&quot;, &quot;, held![&quot;permissions&quot;]!.AsArray().Select(p =&gt; p!.GetValue&lt;string&gt;()))}&quot;</span>);
+<span class="k">await</span> CallAsync(reader, HttpMethod.Post, pause);
+Console.WriteLine(<span class="s">$&quot;  the job is {(await jobs.GetAsync(job))!.Status}&quot;</span>);
+
+Console.WriteLine(<span class="s">&quot;Operator:&quot;</span>);
+<span class="k">using</span> <span class="k">var</span> @operator = <span class="k">await</span> SignedInAsync(<span class="s">&quot;operator&quot;</span>);
+<span class="k">await</span> CallAsync(@operator, HttpMethod.Post, pause);
+Console.WriteLine(<span class="s">$&quot;  the job is {(await jobs.GetAsync(job))!.Status}&quot;</span>);
+<span class="k">await</span> CallAsync(@operator, HttpMethod.Post, suspend);
+
+Console.WriteLine(<span class="s">&quot;Admin:&quot;</span>);
+<span class="k">using</span> <span class="k">var</span> admin = <span class="k">await</span> SignedInAsync(<span class="s">&quot;admin&quot;</span>);
+<span class="k">await</span> CallAsync(admin, HttpMethod.Post, suspend);
+Console.WriteLine(<span class="s">$&quot;  the namespace is {(await namespaces.GetAsync(jobNamespace))!.Status}&quot;</span>);
+<span class="k">await</span> CallAsync(admin, HttpMethod.Post, <span class="s">$&quot;/acta/api/v1/namespaces/{jobNamespace}/resume&quot;</span>);
+Console.WriteLine(<span class="s">$&quot;  the namespace is {(await namespaces.GetAsync(jobNamespace))!.Status}&quot;</span>);
+<span class="k">await</span> CallAsync(admin, HttpMethod.Post, <span class="s">&quot;/sign-out&quot;</span>, <span class="k">new</span>() { [tokenField] = <span class="k">await</span> TokenAsync(admin) });
+<span class="k">await</span> CallAsync(admin, HttpMethod.Get, <span class="s">&quot;/acta/api/v1/capabilities&quot;</span>);
+
+Console.WriteLine();
+Console.WriteLine(<span class="s">$&quot;Open {app.Urls.First()}/acta/ and sign in as reader, operator or admin; the password is the name.&quot;</span>);
+Console.WriteLine(<span class="s">&quot;A session lasts two minutes: leave the dashboard open and it says the session has ended.&quot;</span>);
+Console.WriteLine(<span class="s">&quot;Sign out, or change user, at /sign-in. Press Ctrl+C to stop.&quot;</span>);
+
+<span class="k">await</span> app.WaitForShutdownAsync();
+
+<span class="c">// A browser of its own: its cookies, and no redirect followed, so each answer prints as the server gave it.</span>
+HttpClient Browser() =&gt; <span class="k">new</span>(<span class="k">new</span> HttpClientHandler { AllowAutoRedirect = <span class="k">false</span> }) { BaseAddress = site };
+
+<span class="c">// The token the sign-in page hands this browser, with the cookie that pairs with it.</span>
+<span class="k">async</span> Task&lt;<span class="k">string</span>&gt; TokenAsync(HttpClient browser) =&gt;
+    Regex.Match(<span class="k">await</span> browser.GetStringAsync(<span class="s">&quot;/sign-in&quot;</span>), <span class="s">$&quot;name=\&quot;{tokenField}\&quot; value=\&quot;([^\&quot;]+)\&quot;&quot;</span>).Groups[1].Value;
+
+<span class="c">// Signs a new browser in through the form, as a person would.</span>
+<span class="k">async</span> Task&lt;HttpClient&gt; SignedInAsync(<span class="k">string</span> name)
+{
+    <span class="k">var</span> browser = Browser();
+    <span class="k">await</span> CallAsync(
+        browser,
+        HttpMethod.Post,
+        <span class="s">&quot;/sign-in&quot;</span>,
+        <span class="k">new</span>()
+        {
+            [tokenField] = <span class="k">await</span> TokenAsync(browser),
+            [<span class="s">&quot;name&quot;</span>] = name,
+            [<span class="s">&quot;password&quot;</span>] = name,
+        }
+    );
+    <span class="k">return</span> browser;
+}
+
+<span class="c">// One call. It prints the status and what the answer carried: where a redirect leads, the permission a 403 names,</span>
+<span class="c">// the action a control answered.</span>
+<span class="k">async</span> Task&lt;JsonNode?&gt; CallAsync(HttpClient browser, HttpMethod method, <span class="k">string</span> path, Dictionary&lt;<span class="k">string</span>, <span class="k">string</span>&gt;? form = <span class="k">null</span>)
+{
+    <span class="k">using</span> <span class="k">var</span> request = <span class="k">new</span> HttpRequestMessage(method, path);
+    <span class="k">if</span> (form <span class="k">is</span> <span class="k">not</span> <span class="k">null</span>)
+    {
+        request.Content = <span class="k">new</span> FormUrlEncodedContent(form);
+    }
+    <span class="k">else</span> <span class="k">if</span> (method == HttpMethod.Post)
+    {
+        <span class="c">// A control is confirmed by this header or by a JSON body.</span>
+        request.Headers.Add(<span class="s">&quot;X-Acta-Control&quot;</span>, <span class="s">&quot;true&quot;</span>);
+    }
+
+    <span class="k">using</span> <span class="k">var</span> response = <span class="k">await</span> browser.SendAsync(request);
+    <span class="k">var</span> text = <span class="k">await</span> response.Content.ReadAsStringAsync();
+    <span class="k">var</span> json =
+        response.Content.Headers.ContentType?.MediaType?.EndsWith(<span class="s">&quot;json&quot;</span>, StringComparison.Ordinal) == <span class="k">true</span> ? JsonNode.Parse(text) : <span class="k">null</span>;
+    <span class="k">var</span> carried = response.Headers.Location?.OriginalString ?? (json?[<span class="s">&quot;detail&quot;</span>] ?? json?[<span class="s">&quot;action&quot;</span>])?.GetValue&lt;<span class="k">string</span>&gt;();
+    Console.WriteLine(<span class="s">$&quot;  {method} {path} -&gt; {(int)response.StatusCode} {carried}&quot;</span>.TrimEnd());
+    <span class="k">return</span> json;
+}
+
+<span class="k">namespace</span> Acta.Concepts.DashboardSignIn
+{
+    <span class="k">public</span> <span class="k">sealed</span> <span class="k">record</span> SampleTask(<span class="k">string</span> Id);
+
+    <span class="k">public</span> <span class="k">static</span> <span class="k">class</span> SampleTaskJob
+    {
+        <span class="a">[Job(<span class="s">&quot;sample-task&quot;</span>)]</span>
+        <span class="k">public</span> <span class="k">static</span> <span class="k">void</span> Handle(SampleTask input) { }
+    }
+}</code></pre></figure></details></div>
+<div class="step plain-step"><h2>Where to go next</h2><ul class="next-links"><li><a href="/learn/412-tenant-scope">How to record which tenant a job is for</a><span>Watch and control running work</span></li></ul></div>
+      </article>
+      <article class="agent-face" hidden>
+        <figure class="listing agent"><figcaption><span class="file">/learn/414-dashboard-sign-in.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/414-dashboard-sign-in.md">Open</a><button class="copy" type="button" data-copy-target="#md-body">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
+        <p class="hint">This is the page an agent receives: the same how-to as plain Markdown, at this page's address with <code>.md</code> added.</p>
+      </article>
+      <aside class="howto-rail" aria-label="This section">
+        <p class="rail-head"><a href="/learn#s-operate">Watch and control running work</a></p>
+        <ol>
+            <li><a href="/learn/021-jobs-cli" data-id="021"><span class="rail-n">1</span>Inspect a job from the command line</a></li>
+            <li><a href="/learn/022-dashboard" data-id="022"><span class="rail-n">2</span>See your jobs in the dashboard</a></li>
+            <li><a href="/learn/404-read-event-timeline" data-id="404"><span class="rail-n">3</span>Read why a job did what it did</a></li>
+            <li><a href="/learn/409-operator-queries" data-id="409"><span class="rail-n">4</span>List and page through jobs</a></li>
+            <li><a href="/learn/305-operator-cancel" data-id="305"><span class="rail-n">5</span>Cancel a running job from outside</a></li>
+            <li><a href="/learn/309-operator-resume" data-id="309"><span class="rail-n">6</span>Pause and resume a job from outside</a></li>
+            <li><a href="/learn/310-operator-restart" data-id="310"><span class="rail-n">7</span>Restart a failed job and keep its history</a></li>
+            <li><a href="/learn/410-http-api-controls" data-id="410"><span class="rail-n">8</span>Control jobs over HTTP</a></li>
+            <li><a href="/learn/413-http-api-authorization" data-id="413"><span class="rail-n">9</span>Require permissions on the HTTP API</a></li>
+            <li aria-current="page"><a href="/learn/414-dashboard-sign-in" data-id="414"><span class="rail-n">10</span>Put the dashboard behind your sign-in</a></li>
+            <li><a href="/learn/412-tenant-scope" data-id="412"><span class="rail-n">11</span>Record which tenant a job is for</a></li>
+            <li><a href="/learn/408-correlation-id" data-id="408"><span class="rail-n">12</span>Carry a correlation key from parent to child</a></li>
+            <li><a href="/learn/401-pipeline-behavior" data-id="401"><span class="rail-n">13</span>Wrap every handler in your own middleware</a></li>
+            <li><a href="/learn/407-event-recording" data-id="407"><span class="rail-n">14</span>Choose how many events a job records</a></li>
+        </ol>
+        <button class="button done-toggle" type="button" data-done-toggle="414" aria-pressed="false">Mark as done</button>
+        <p class="rail-turn"><a href="/learn/413-http-api-authorization" rel="prev">Previous</a><a href="/learn/412-tenant-scope" rel="next">Next</a></p>
+      </aside>
+    </div>
+    <section class="wrap newcomer" aria-labelledby="newcomer-title">
+      <h2 id="newcomer-title">New to Acta?</h2>
+      <p class="lede">Acta is durable execution for .NET: workflows and jobs that survive restarts, as a library inside your application with its durable state in your SQL database.</p>
+      <div class="actions">
+        <a class="button primary" href="/start">Run your first durable job in five minutes</a>
+        <a class="button" href="/learn">See every how-to</a>
+        <a class="button" href="/capabilities">Everything Acta does</a>
+      </div>
+    </section>
+    <footer class="site-footer">
+      <div class="wrap">
+        <div class="footer-grid">
+          <div class="footer-about">
+            <a class="site-brand" href="/" aria-label="Acta home"><svg viewBox="3.95 4.95 30.1 30.1" fill="none" stroke="currentColor" stroke-width="4.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 33 19 7 32 33" /><circle cx="19" cy="27" r="3" fill="currentColor" stroke="none" /></svg><span class="brand-word">Acta<span>.</span></span></a>
+            <p>Durable execution for .NET.</p>
+            <p>A library inside your application.<br />Durable state in your SQL database.</p>
+            <p class="footer-license">Apache-2.0 · built in the open</p>
+          </div>
+          <nav aria-label="Explore">
+            <p class="footer-head">Explore</p>
+            <a href="/how-it-works">How Acta works</a>
+            <a href="/capabilities">Capabilities</a>
+            <a href="/engine">Inside one worker</a>
+            <a href="/fleet">Workers and recovery</a>
+            <a href="/gates">Order and limits</a>
+            <a href="/benchmark">Benchmark and evidence</a>
+            <a href="/choosing">Choosing Acta</a>
+          </nav>
+          <nav aria-label="Build">
+            <p class="footer-head">Build</p>
+            <a href="/start">Get started</a>
+            <a href="/learn">Learn Acta</a>
+            <a href="https://github.com/acta-dotnet/acta/tree/main/docs">Documentation</a>
+            <a href="https://github.com/acta-dotnet/acta/tree/main/concepts">Runnable concepts</a>
+            <a href="https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md">Engineering labs</a>
+            <a href="/llms.txt">llms.txt for coding agents</a>
+          </nav>
+          <div class="footer-release">
+            <p class="footer-head">Release</p>
+            <p class="footer-version"><span class="release-dot" aria-hidden="true"></span><a href="https://github.com/acta-dotnet/acta/releases">1.0.0-rc.12 <span aria-hidden="true">↗</span></a><span>a release candidate</span></p>
+            <a href="https://github.com/acta-dotnet/acta/blob/main/docs/compatibility-and-support.md">Compatibility and support</a>
+            <a href="/support">Support Acta</a>
+            <a href="https://github.com/acta-dotnet/acta/blob/main/docs/known-limitations.md#stability-status">Stability status</a>
+            <a href="https://github.com/acta-dotnet/acta">Source on GitHub <span aria-hidden="true">↗</span></a>
+          </div>
+        </div>
+        <div class="footer-bottom">
+          <p>Created and maintained by <a href="https://www.linkedin.com/in/marko-voncina">Marko Vončina</a></p>
+          <span data-theme-controls></span>
+        </div>
+      </div>
+    </footer>
+  </main>
+  <p class="sr-only" id="copy-status" aria-live="polite"></p>
+  <script src="/assets/learn.js"></script>
+</body>
+</html>

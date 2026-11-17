@@ -293,6 +293,28 @@ Adding a value needs no table change, because no CHECK limits a column to the co
 CHECK binds only the codes it names) and an unknown id decodes as the family's id-0 member, but it does
 ship a migration: the operator views decode every code by name. A value that changes engine behaviour ships readers first and writers a release later.
 
+## Concept programs
+
+Every rung under `concepts/` is also a how-to on useacta.net/learn, and the page is generated from the
+rung: nothing about a how-to is written anywhere else.
+
+- **Title and summary.** One source file of the rung opens with a comment whose first line starts
+  `// How to` and names the task; the comment lines under it are the summary. A file the first-job
+  guide shows keeps its `// File:` line above them.
+- **Steps.** `// learn: <step title>` opens a step and `// learn: end` closes it. The comment lines
+  directly under the opening line are the step's explanation, and the lines between are the ones the
+  page emphasises. A number before the title, `// learn: 2. <title>`, places the step among the
+  others. Every rung marks at least one step.
+- **Rules and questions.** `## Remember` in the rung's `README.md` lists the rules the task depends
+  on. `## Check yourself` holds questions: the question in bold, its options as a list, and a
+  `<details><summary>Answer</summary>` block that opens with the right option's own words and a full
+  stop, then says why.
+- **Sections.** `concepts/learn.json` places every rung in one section of the library, and holds the
+  short tour, the look-alike pairs, and the words a search should also find a how-to by.
+
+`Acta.Emit -- check` fails for a rung with no title, no step, or no section, and for a step that is
+left open.
+
 ## Generated files
 
 Generated files are drift-checked and never hand-edited, and `docs/reference/` holds nothing else: a
@@ -301,6 +323,7 @@ hand-written page goes in `docs/`. A stale contract test names its own regenerat
 | File | Regenerate |
 | --- | --- |
 | `docs/reference/data-model.md`, `code-families.md`, `schema-{pg,mssql,sqlite}.sql` | `dotnet run --project tools/Acta.Emit -- docs` |
+| `docs/reference/concept-ladder.md`, `site/learn.html`, everything under `site/learn/` but the hand-kept `first-project.html`, and the `/learn/` entries of `site/sitemap.xml` | `dotnet run --project tools/Acta.Emit -- docs` |
 | Migrations and `src/Acta/Schema/schema-snapshot.json` | `dotnet run --project tools/Acta.Emit -- schema add --name <n>` |
 | `docs/reference/conformance-contracts.md` | `ACTA_EMIT_DOCS=1 dotnet test tests/Acta.Tests --filter DocsContractTests` |
 | `docs/reference/operations.md` | `ACTA_EMIT_DOCS=1 dotnet test tests/Acta.Tests --filter OperationsIndexTests` |

@@ -1,0 +1,473 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>How to decide what happens to runs a schedule missed · Acta, durable execution for .NET</title>
+  <meta name="description" content="How to decide what happens to runs a schedule missed with Acta, durable execution for .NET. Missed occurrences are a business decision. Three schedules miss the same stretch while paused, and each one's misfire policy decides it differently: Skip runs at most the latest, CatchUpOnce runs one firing that covers them all, CatchUpAll runs every one in order." />
+  <link rel="canonical" href="https://useacta.net/learn/106-schedule-misfire" />
+  <meta name="theme-color" content="#0B0E15" />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="Acta for .NET" />
+  <meta property="og:title" content="How to decide what happens to runs a schedule missed · Acta, durable execution for .NET" />
+  <meta property="og:description" content="How to decide what happens to runs a schedule missed with Acta, durable execution for .NET. Missed occurrences are a business decision. Three schedules miss the same stretch while paused, and each one's misfire policy decides it differently: Skip runs at most the latest, CatchUpOnce runs one firing that covers them all, CatchUpAll runs every one in order." />
+  <meta property="og:url" content="https://useacta.net/learn/106-schedule-misfire" />
+  <meta property="og:image" content="https://useacta.net/assets/social-card.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="Acta: durable execution for .NET. Postgres, SQL Server, SQLite." />
+  <meta name="twitter:card" content="summary_large_image" />
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"How to decide what happens to runs a schedule missed","description":"How to decide what happens to runs a schedule missed with Acta, durable execution for .NET. Missed occurrences are a business decision. Three schedules miss the same stretch while paused, and each one's misfire policy decides it differently: Skip runs at most the latest, CatchUpOnce runs one firing that covers them all, CatchUpAll runs every one in order.","url":"https://useacta.net/learn/106-schedule-misfire","inLanguage":"en","articleSection":"Run work on a schedule","isPartOf":{"@type":"CollectionPage","name":"Learn Acta","url":"https://useacta.net/learn"},"about":{"@type":"SoftwareSourceCode","name":"Acta","programmingLanguage":"C#","codeRepository":"https://github.com/acta-dotnet/acta"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Learn Acta","item":"https://useacta.net/learn"},{"@type":"ListItem","position":2,"name":"Run work on a schedule","item":"https://useacta.net/learn#s-schedule"},{"@type":"ListItem","position":3,"name":"How to decide what happens to runs a schedule missed","item":"https://useacta.net/learn/106-schedule-misfire"}]}</script>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="alternate" type="text/plain" href="/llms.txt" title="Acta for coding agents" />
+  <link rel="alternate" type="text/markdown" href="/learn/106-schedule-misfire.md" title="This page as Markdown, for coding agents" />
+  <link rel="preload" href="/assets/fonts/fraunces-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="/assets/fonts/ibm-plex-sans-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="/assets/fonts/ibm-plex-mono-400-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <style>
+    /* Self-hosted latin subsets of the three families, preloaded and served immutable (see _headers),
+       so a reload paints them from cache with no swap and a first visit swaps them in as they land.
+       Fraunces and Plex Sans are variable files. */
+    @font-face { font-family: "Fraunces"; font-style: normal; font-weight: 400 600; font-display: swap; src: url(/assets/fonts/fraunces-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "Fraunces"; font-style: italic; font-weight: 400 500; font-display: swap; src: url(/assets/fonts/fraunces-italic-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "IBM Plex Sans"; font-style: normal; font-weight: 400 600; font-display: swap; src: url(/assets/fonts/ibm-plex-sans-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "IBM Plex Mono"; font-style: normal; font-weight: 400; font-display: swap; src: url(/assets/fonts/ibm-plex-mono-400-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "IBM Plex Mono"; font-style: normal; font-weight: 500; font-display: swap; src: url(/assets/fonts/ibm-plex-mono-500-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+  </style>
+  <link rel="stylesheet" href="/assets/site.css" />
+  <link rel="stylesheet" href="/assets/learn.css" />
+  <script src="/assets/theme.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#content">Skip to content</a>
+  <div class="chrome">
+    <div class="wrap chrome-inner">
+    <a class="brand site-brand" href="/" aria-label="Acta home"><svg viewBox="3.95 4.95 30.1 30.1" fill="none" stroke="currentColor" stroke-width="4.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 33 19 7 32 33" /><circle cx="19" cy="27" r="3" fill="currentColor" stroke="none" /></svg><span class="brand-word">Acta<span>.</span></span></a>
+    <span class="meta">Durable execution for .NET</span>
+    <nav aria-label="Primary links">
+      <a href="/start">Start</a>
+      <a href="/capabilities">Capabilities</a>
+      <a href="/benchmark">Benchmark</a>
+      <a href="/learn" aria-current="page">Learn</a>
+      <a href="https://github.com/acta-dotnet/acta" class="gh" aria-label="Acta on GitHub" title="Acta on GitHub"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><path fill="currentColor" d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"></path></svg></a>
+    </nav>
+    <span class="header-appearance" data-theme-controls></span>
+    </div>
+  </div>
+
+
+  <main id="content" data-howto="106">
+    <header class="wrap page-head howto-head">
+      <p class="record"><a href="/learn">learn acta</a><span aria-hidden="true">/</span><a href="/learn#s-schedule">run work on a schedule</a></p>
+      <h1>How to decide what happens to runs a schedule missed</h1>
+      <p class="lede">Missed occurrences are a business decision. Three schedules miss the same stretch while paused, and each one's misfire policy decides it differently: <code>Skip</code> runs at most the latest, <code>CatchUpOnce</code> runs one firing that covers them all, <code>CatchUpAll</code> runs every one in order.</p>
+      <p class="howto-context">A how-to for Acta, durable execution for .NET. <a href="/start">New to Acta? Run your first durable job in five minutes.</a></p>
+      <div class="howto-meta">
+        <span class="status checked">Checked every release</span><span class="mark lab">Lab</span>
+        <a class="program" href="https://github.com/acta-dotnet/acta/tree/main/concepts/100-scheduling/106-schedule-misfire"><code>concepts/100-scheduling/106-schedule-misfire</code></a>
+        <div class="reader" role="group" aria-label="Read this page as">
+        <span class="reader-label">Read as</span>
+        <button type="button" data-reader="person" aria-pressed="true">a person</button>
+        <button type="button" data-reader="agent" aria-pressed="false" data-md="/learn/106-schedule-misfire.md">an agent</button>
+      </div>
+      </div>
+    </header>
+    <div class="wrap howto-body">
+      <article class="howto person-face">
+<div class="step"><h2><span class="step-n">1</span>Choose the misfire strategy on the schedule</h2>
+<p><code>MisfireStrategy</code> says what the next admission pass does with the occurrences that came due while the schedule could not fire.</p>
+<figure class="listing"><figcaption><span class="file">schedule-misfire.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-1">Copy</button></figcaption><pre><code id="code-1"><span class="c">/// &lt;summary&gt;The occurrences each job's firings stood for, as the handler read them from its context.&lt;/summary&gt;</span>
+<span class="k">public</span> <span class="k">static</span> <span class="k">class</span> Firings
+{
+    <span class="k">private</span> <span class="k">static</span> <span class="k">readonly</span> ConcurrentQueue&lt;(<span class="k">string</span> Job, DateTime Occurrence, DateTime CoveredThrough)&gt; Seen = <span class="k">new</span>();
+
+    <span class="k">public</span> <span class="k">static</span> <span class="k">void</span> Record(JobContext ctx)
+    {
+        <span class="c">// A catch-up firing can cover a stretch: each triggering schedule gives its occurrence and the instant it</span>
+        <span class="c">// covers through.</span>
+        <span class="k">foreach</span> (<span class="k">var</span> schedule <span class="k">in</span> ctx.TriggeringSchedules)
+        {
+            Seen.Enqueue((ctx.JobName, schedule.OccurrenceAtUtc, schedule.CoveredThroughUtc));
+        }
+    }
+
+    <span class="k">public</span> <span class="k">static</span> <span class="k">void</span> Clear() =&gt; Seen.Clear();
+
+    <span class="c">/// &lt;summary&gt;The job's firings for occurrences at or before &lt;paramref name=&quot;through&quot;/&gt;, in the order they ran.&lt;/summary&gt;</span>
+    <span class="k">public</span> <span class="k">static</span> IReadOnlyList&lt;(DateTime Occurrence, DateTime CoveredThrough)&gt; Of(<span class="k">string</span> job, DateTime through) =&gt;
+        Seen.Where(f =&gt; f.Job == job &amp;&amp; f.Occurrence &lt;= through).Select(f =&gt; (f.Occurrence, f.CoveredThrough)).ToList();
+}
+
+<span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> MisfireJobs
+{
+<span class="hl">    <span class="a">[Job(<span class="s">&quot;skip-report&quot;</span>)]</span></span>
+<span class="hl">    <span class="a">[Schedule(<span class="s">&quot;every-second&quot;</span>, <span class="s">&quot;PT1S&quot;</span>, MisfireStrategy = MisfireStrategyCode.Skip)]</span></span>
+<span class="hl">    <span class="k">public</span> Task Skip(JobContext ctx, CancellationToken ct) =&gt; Run(ctx, ct);</span>
+<span class="hl"> </span>
+<span class="hl">    <span class="a">[Job(<span class="s">&quot;catch-up-once-report&quot;</span>)]</span></span>
+<span class="hl">    <span class="a">[Schedule(<span class="s">&quot;every-second&quot;</span>, <span class="s">&quot;PT1S&quot;</span>, MisfireStrategy = MisfireStrategyCode.CatchUpOnce)]</span></span>
+<span class="hl">    <span class="k">public</span> Task CatchUpOnce(JobContext ctx, CancellationToken ct) =&gt; Run(ctx, ct);</span>
+<span class="hl"> </span>
+<span class="hl">    <span class="a">[Job(<span class="s">&quot;catch-up-all-report&quot;</span>)]</span></span>
+<span class="hl">    <span class="a">[Schedule(<span class="s">&quot;every-second&quot;</span>, <span class="s">&quot;PT1S&quot;</span>, MisfireStrategy = MisfireStrategyCode.CatchUpAll)]</span></span>
+<span class="hl">    <span class="k">public</span> Task CatchUpAll(JobContext ctx, CancellationToken ct) =&gt; Run(ctx, ct);</span>
+
+    <span class="k">private</span> <span class="k">static</span> <span class="k">async</span> Task Run(JobContext ctx, CancellationToken ct)
+    {
+        Firings.Record(ctx);
+        <span class="k">await</span> Task.Delay(50, ct);
+    }
+}</code></pre></figure>
+</div>
+<div class="step"><h2><span class="step-n">2</span>Read which occurrences a firing stands for</h2>
+<p>A catch-up firing can cover a stretch: each triggering schedule gives its occurrence and the instant it covers through.</p>
+<figure class="listing"><figcaption><span class="file">schedule-misfire.cs</span><span class="note">excerpt</span><button class="copy" type="button" data-copy-target="#code-2">Copy</button></figcaption><pre><code id="code-2"><span class="c">/// &lt;summary&gt;The occurrences each job's firings stood for, as the handler read them from its context.&lt;/summary&gt;</span>
+<span class="k">public</span> <span class="k">static</span> <span class="k">class</span> Firings
+{
+    <span class="k">private</span> <span class="k">static</span> <span class="k">readonly</span> ConcurrentQueue&lt;(<span class="k">string</span> Job, DateTime Occurrence, DateTime CoveredThrough)&gt; Seen = <span class="k">new</span>();
+
+    <span class="k">public</span> <span class="k">static</span> <span class="k">void</span> Record(JobContext ctx)
+    {
+<span class="hl">        <span class="k">foreach</span> (<span class="k">var</span> schedule <span class="k">in</span> ctx.TriggeringSchedules)</span>
+<span class="hl">        {</span>
+<span class="hl">            Seen.Enqueue((ctx.JobName, schedule.OccurrenceAtUtc, schedule.CoveredThroughUtc));</span>
+<span class="hl">        }</span>
+    }
+
+    <span class="k">public</span> <span class="k">static</span> <span class="k">void</span> Clear() =&gt; Seen.Clear();
+
+    <span class="c">/// &lt;summary&gt;The job's firings for occurrences at or before &lt;paramref name=&quot;through&quot;/&gt;, in the order they ran.&lt;/summary&gt;</span>
+    <span class="k">public</span> <span class="k">static</span> IReadOnlyList&lt;(DateTime Occurrence, DateTime CoveredThrough)&gt; Of(<span class="k">string</span> job, DateTime through) =&gt;
+        Seen.Where(f =&gt; f.Job == job &amp;&amp; f.Occurrence &lt;= through).Select(f =&gt; (f.Occurrence, f.CoveredThrough)).ToList();
+}
+
+<span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> MisfireJobs
+{
+    <span class="c">// `MisfireStrategy` says what the next admission pass does with the occurrences that came due while the</span>
+    <span class="c">// schedule could not fire.</span>
+    <span class="a">[Job(<span class="s">&quot;skip-report&quot;</span>)]</span>
+    <span class="a">[Schedule(<span class="s">&quot;every-second&quot;</span>, <span class="s">&quot;PT1S&quot;</span>, MisfireStrategy = MisfireStrategyCode.Skip)]</span>
+    <span class="k">public</span> Task Skip(JobContext ctx, CancellationToken ct) =&gt; Run(ctx, ct);
+
+    <span class="a">[Job(<span class="s">&quot;catch-up-once-report&quot;</span>)]</span>
+    <span class="a">[Schedule(<span class="s">&quot;every-second&quot;</span>, <span class="s">&quot;PT1S&quot;</span>, MisfireStrategy = MisfireStrategyCode.CatchUpOnce)]</span>
+    <span class="k">public</span> Task CatchUpOnce(JobContext ctx, CancellationToken ct) =&gt; Run(ctx, ct);
+
+    <span class="a">[Job(<span class="s">&quot;catch-up-all-report&quot;</span>)]</span>
+    <span class="a">[Schedule(<span class="s">&quot;every-second&quot;</span>, <span class="s">&quot;PT1S&quot;</span>, MisfireStrategy = MisfireStrategyCode.CatchUpAll)]</span>
+    <span class="k">public</span> Task CatchUpAll(JobContext ctx, CancellationToken ct) =&gt; Run(ctx, ct);
+
+    <span class="k">private</span> <span class="k">static</span> <span class="k">async</span> Task Run(JobContext ctx, CancellationToken ct)
+    {
+        Firings.Record(ctx);
+        <span class="k">await</span> Task.Delay(50, ct);
+    }
+}</code></pre></figure>
+</div>
+<div class="step"><h2><span class="step-n">3</span>Run it and check the output</h2>
+<p>From a clone of <a href="https://github.com/acta-dotnet/acta">the Acta repository</a>, with the .NET 10 SDK:</p>
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-3">Copy</button></figcaption><pre><code id="code-3">dotnet run --project concepts/100-scheduling/106-schedule-misfire</code></pre></figure>
+<figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button" data-copy-target="#code-4">Copy</button></figcaption><pre><code id="code-4">cursor kept: True
+of them (at most the latest); the rest were skipped
+catch-up-once-report   ran 1 firing, covering
+one per missed occurrence, in order: True</code></pre></figure>
+<p class="proof checked"><b>Checked every release.</b> Before each release, Acta Verify runs this program and checks that its output contains these lines.</p>
+<p class="hint">This page shows the code. The rules it relies on, starting with the handler running again from its first line, are in <a href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#handler-contract">the handler contract</a>.</p>
+</div>
+<details class="step lab-notes"><summary>The lab behind it: a missed schedule is a business decision</summary>
+<p>This program is an Engineering Lab: beside the how-to it prints the rows that show what happened, and its notes weigh the design against the alternatives.</p>
+<h3>The problem</h3>
+<p>After downtime or a pause, a schedule cursor points into the past. &quot;Run everything missed,&quot; &quot;run once now,&quot; and &quot;skip ahead&quot; have different business meanings and operational costs.</p>
+<h3>Common approaches</h3>
+<ul class="plain"><li>Skip missed instants and move to the next future occurrence.</li><li>Catch up once, coalescing the outage into one recovery execution.</li><li>Run every missed occurrence, in order, as its own execution.</li><li>Materialize every occurrence as independently tracked work.</li></ul>
+<h3>Why this design</h3>
+<p>Each schedule names its policy, and <code>Skip</code> is the default when it names none. A resume, like a deploy or a worker start, decides nothing: it keeps the cursor where it was, and the next admission pass applies the policy to the occurrences it finds already past. An occurrence less than a minute late still counts as on time.</p>
+<ul class="plain"><li><code>Skip</code> skips the missed occurrences, except the latest when it is within that minute.</li><li><code>CatchUpOnce</code> runs one firing whose occurrence is the earliest missed and whose covered-through is the latest, so the handler knows the stretch it stands for.</li><li><code>CatchUpLatest</code> runs the latest however late it is and skips the earlier ones.</li><li><code>CatchUpAll</code> runs every missed occurrence in order, one firing per settlement.</li></ul>
+<p><code>[Schedule(ExpireAfter = &quot;1h&quot;, ExpireAction = ...)]</code> bounds how old an occurrence may be before any of these apply: older ones are skipped with the reason <code>expired</code>, and <code>Pause</code> also pauses the schedule.</p>
+<h3>Trade-offs</h3>
+<p><code>Skip</code> loses missed work. <code>CatchUpOnce</code> keeps the stretch but not one execution per occurrence. <code>CatchUpAll</code> keeps every occurrence but runs them one after another on one permanent job, so a long outage becomes a long backlog; with <code>ScheduledDelivery = PerOccurrence</code> each one is a root job of its own.</p>
+<h3>Run the experiment</h3>
+<figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button" data-copy-target="#code-5">Copy</button></figcaption><pre><code id="code-5">dotnet run --project concepts/100-scheduling/106-schedule-misfire</code></pre></figure>
+<p>The program pauses three schedules that fire every second, lets about three occurrences pass, resumes them, and waits until each policy has decided the stretch. It prints how many firings each ran for the missed occurrences: <code>skip-report</code> at most one, <code>catch-up-once-report</code> one covering the stretch, and <code>catch-up-all-report</code> one per missed occurrence, in order.</p>
+<h3>Rows to inspect</h3>
+<p>Run with <code>--all-columns</code> to execute the visible <code>SELECT *</code> Explore query first. The default Notice queries select the fields that prove the lesson, and the text below explains their meaning.</p>
+<p><code>schedules_view</code> shows the three cursors in the past while the schedules are paused. After the resume, <code>events_view</code> shows each policy's first decision: a <code>schedule.skipped</code> range for <code>skip-report</code> beside its admission of the latest, one <code>schedule.admitted</code> for <code>catch-up-once-report</code> whose details carry the covered-through instant, and the first of <code>catch-up-all-report</code>'s admissions.</p>
+<h3>Break it</h3>
+<p>Pause these one-second schedules for as long as you like: <code>Skip</code> still runs the latest occurrence, since one fell due less than a second before the resume and the grace is a minute. Give a schedule occurrences more than a minute apart and resume it more than a minute after the one it missed, and <code>Skip</code> runs none of them, while <code>CatchUpLatest</code> would still run that latest one.</p>
+<h3>When not to use</h3>
+<p>Use <code>Skip</code> for cache refresh, telemetry, and cleanup. Use <code>CatchUpOnce</code> for reconciliation or summary work where one recovery pass matters. Use <code>CatchUpAll</code>, or a per-occurrence definition, for accounting or financial occurrences that must never coalesce.</p>
+<h3>Source trail</h3>
+<ul class="plain"><li><a href="https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md">The related Engineering Lab</a></li><li><a href="https://github.com/acta-dotnet/acta/blob/main/concepts/100-scheduling/106-schedule-misfire/schedule-misfire.cs"><code>schedule-misfire.cs</code></a></li><li><a href="https://github.com/acta-dotnet/acta/blob/main/src/Acta/Domain/Schedules/ScheduleEvaluator.cs"><code>ScheduleEvaluator.cs</code></a></li></ul>
+</details>
+<div class="step plain-step"><h2>The whole program</h2>
+<p>Every file of <a href="https://github.com/acta-dotnet/acta/tree/main/concepts/100-scheduling/106-schedule-misfire"><code>concepts/100-scheduling/106-schedule-misfire</code></a>, as it is compiled.</p>
+<p class="hint"><code>UseLocalDatabase</code> and <code>ConceptLab</code> are helpers of the Acta repository, not of the packages. In your own app, register the database with <code>UseSqlite</code>, <code>UsePostgres</code> or <code>UseSqlServer</code>, as in <a href="/learn/001-hello-acta">how to run your first job</a>.</p>
+<details class="source-file"><summary><span class="file-name">schedule-misfire.cs</span><span class="file-size">187 lines</span></summary><figure class="listing"><figcaption><span class="file">schedule-misfire.cs</span><button class="copy" type="button" data-copy-target="#code-6">Copy</button></figcaption><pre><code id="code-6"><span class="c">// How to decide what happens to runs a schedule missed</span>
+<span class="c">// Missed occurrences are a business decision. Three schedules miss the same stretch while paused, and each one's</span>
+<span class="c">// misfire policy decides it differently: `Skip` runs at most the latest, `CatchUpOnce` runs one firing that covers</span>
+<span class="c">// them all, `CatchUpAll` runs every one in order.</span>
+<span class="k">using</span> System.Collections.Concurrent;
+<span class="k">using</span> Acta;
+<span class="k">using</span> Acta.Concepts.ScheduleMisfire;
+<span class="k">using</span> Acta.Labs;
+<span class="k">using</span> Microsoft.Extensions.DependencyInjection;
+<span class="k">using</span> Microsoft.Extensions.Hosting;
+
+<span class="k">const</span> <span class="k">string</span> jobNamespace = <span class="s">&quot;schedule-misfire&quot;</span>;
+<span class="k">string</span>[] jobNames = [<span class="s">&quot;skip-report&quot;</span>, <span class="s">&quot;catch-up-once-report&quot;</span>, <span class="s">&quot;catch-up-all-report&quot;</span>];
+<span class="k">var</span> lookups = jobNames.Select(name =&gt; <span class="k">new</span> ScheduleLookup(jobNamespace, name, <span class="s">&quot;every-second&quot;</span>)).ToArray();
+
+<span class="k">var</span> builder = Host.CreateApplicationBuilder(args);
+<span class="k">var</span> lab = <span class="k">new</span> ConceptLab(builder.Configuration, args);
+
+builder.Services.UseActa(j =&gt;
+{
+    j.UseLocalDatabase(builder.Configuration);
+    j.Run&lt;ScheduleMisfireJobs&gt;(jobNamespace);
+});
+
+<span class="k">using</span> <span class="k">var</span> host = builder.Build();
+<span class="k">await</span> host.StartAsync();
+
+<span class="k">var</span> operations = host.Services.GetRequiredService&lt;IActaOperations&gt;();
+<span class="k">var</span> schedules = operations.Schedules;
+
+<span class="c">// The development start deploys the three schedules before the worker starts, so their rows exist once StartAsync returns.</span>
+Console.WriteLine(<span class="s">&quot;Pausing all three schedules, then letting about three occurrences pass...&quot;</span>);
+<span class="k">foreach</span> (<span class="k">var</span> lookup <span class="k">in</span> lookups)
+{
+    <span class="k">await</span> schedules.PauseAsync(lookup, untilUtc: <span class="k">null</span>, reasonMessage: <span class="s">&quot;misfire demo&quot;</span>);
+}
+Firings.Clear();
+<span class="k">await</span> Task.Delay(3500);
+<span class="k">var</span> overdue = (<span class="k">await</span> ListAsync(<span class="k">default</span>)).ToDictionary(s =&gt; s.JobName, s =&gt; s.NextOccurrenceAtUtc!.Value);
+<span class="k">await</span> lab.ShowAllAsync(
+    <span class="s">&quot;Explore the complete schedule records: paused, with every cursor in the past&quot;</span>,
+    <span class="s">&quot;&quot;&quot;</span>
+<span class="s">    SELECT *</span>
+<span class="s">    FROM schedules_view</span>
+<span class="s">    WHERE namespace_name = @jobNamespace</span>
+<span class="s">    ORDER BY definition_name</span>
+<span class="s">    &quot;&quot;&quot;</span>,
+    <span class="k">new</span> { jobNamespace }
+);
+<span class="k">await</span> lab.ShowAsync(
+    <span class="s">&quot;Paused, with every cursor in the past&quot;</span>,
+    <span class="s">&quot;&quot;&quot;</span>
+<span class="s">    SELECT definition_name, schedule_status, misfire_strategy, next_occurrence_at_utc</span>
+<span class="s">    FROM schedules_view</span>
+<span class="s">    WHERE namespace_name = @jobNamespace</span>
+<span class="s">      AND definition_name IN ('skip-report', 'catch-up-once-report', 'catch-up-all-report')</span>
+<span class="s">    ORDER BY definition_name</span>
+<span class="s">    &quot;&quot;&quot;</span>,
+    <span class="k">new</span> { jobNamespace }
+);
+
+<span class="c">// A resume keeps the cursor: the decision about the missed stretch belongs to the next admission pass.</span>
+<span class="k">var</span> since = (<span class="k">await</span> operations.Ledger.ListEventsAsync(<span class="k">new</span> ListEventsQuery(JobNamespace: jobNamespace, PageSize: 1))).Items[0].EventId;
+Console.WriteLine(<span class="s">&quot;Resuming all three: each cursor stays where it was, and the misfire policy decides at the next pass...&quot;</span>);
+<span class="k">foreach</span> (<span class="k">var</span> lookup <span class="k">in</span> lookups)
+{
+    <span class="k">var</span> resumed = <span class="k">await</span> schedules.ResumeAsync(lookup, reasonMessage: <span class="s">&quot;misfire demo&quot;</span>);
+    Console.WriteLine(<span class="s">$&quot;  {lookup.JobName, -22} cursor kept: {resumed.NextOccurrenceAtUtc == overdue[lookup.JobName]}&quot;</span>);
+}
+
+<span class="c">// The resume instant by the database's clock, which decides every occurrence; the host's clock decides none.</span>
+<span class="k">var</span> resumedAt = (
+    <span class="k">await</span> operations.Ledger.ListEventsAsync(
+        <span class="k">new</span> ListEventsQuery(JobNamespace: jobNamespace, EventCode: EventCode.ScheduleResumed, PageSize: 1)
+    )
+)
+    .Items[0]
+    .CreatedAtUtc;
+<span class="k">var</span> missed = (<span class="k">int</span>)((resumedAt - overdue[<span class="s">&quot;catch-up-all-report&quot;</span>]).TotalSeconds) + 1;
+
+<span class="c">// Wait until every policy has decided the stretch: Skip's cursor has moved past it, CatchUpOnce has run its one</span>
+<span class="c">// firing, and CatchUpAll has run one firing per missed occurrence.</span>
+<span class="k">using</span> <span class="k">var</span> catchUpTimeout = <span class="k">new</span> CancellationTokenSource(TimeSpan.FromSeconds(30));
+<span class="k">while</span> (
+    (<span class="k">await</span> ListAsync(catchUpTimeout.Token)).Single(s =&gt; s.JobName == <span class="s">&quot;skip-report&quot;</span>).NextOccurrenceAtUtc &lt;= resumedAt
+    || Firings.Of(<span class="s">&quot;catch-up-once-report&quot;</span>, resumedAt).Count == 0
+    || Firings.Of(<span class="s">&quot;catch-up-all-report&quot;</span>, resumedAt).Count &lt; missed
+)
+{
+    <span class="k">await</span> Task.Delay(100, catchUpTimeout.Token);
+}
+<span class="k">foreach</span> (<span class="k">var</span> lookup <span class="k">in</span> lookups)
+{
+    <span class="k">await</span> schedules.PauseAsync(lookup, untilUtc: <span class="k">null</span>, reasonMessage: <span class="s">&quot;misfire demo done&quot;</span>);
+}
+
+Console.WriteLine();
+Console.WriteLine(<span class="s">$&quot;--- About {missed} occurrences were missed while paused ---&quot;</span>);
+<span class="k">var</span> skipped = Firings.Of(<span class="s">&quot;skip-report&quot;</span>, resumedAt);
+<span class="k">var</span> once = Firings.Of(<span class="s">&quot;catch-up-once-report&quot;</span>, resumedAt);
+<span class="k">var</span> all = Firings.Of(<span class="s">&quot;catch-up-all-report&quot;</span>, resumedAt);
+Console.WriteLine(<span class="s">$&quot;skip-report            ran {skipped.Count} of them (at most the latest); the rest were skipped&quot;</span>);
+Console.WriteLine(
+    <span class="s">$&quot;catch-up-once-report   ran {once.Count} firing, covering {once[0].Occurrence:HH:mm:ss.fff} through {once[0].CoveredThrough:HH:mm:ss.fff}&quot;</span>
+);
+Console.WriteLine(<span class="s">$&quot;catch-up-all-report    ran {all.Count} firings, one per missed occurrence, in order: {Ordered(all)}&quot;</span>);
+
+<span class="k">await</span> lab.ShowAsync(
+    <span class="s">&quot;Each policy's first decision after the resume: Skip's discarded range, CatchUpOnce's covering firing, CatchUpAll's first&quot;</span>,
+    <span class="s">&quot;&quot;&quot;</span>
+<span class="s">    SELECT definition_name, event, details_text</span>
+<span class="s">    FROM events_view</span>
+<span class="s">    WHERE event_id IN (</span>
+<span class="s">        SELECT MIN(event_id)</span>
+<span class="s">        FROM events_view</span>
+<span class="s">        WHERE namespace_name = @jobNamespace</span>
+<span class="s">          AND event_id &gt; @since</span>
+<span class="s">          AND event IN ('schedule.admitted', 'schedule.skipped')</span>
+<span class="s">        GROUP BY definition_name, event</span>
+<span class="s">    )</span>
+<span class="s">    ORDER BY definition_name, event_id</span>
+<span class="s">    &quot;&quot;&quot;</span>,
+    <span class="k">new</span> { jobNamespace, since }
+);
+
+<span class="k">await</span> host.StopAsync();
+
+<span class="k">async</span> Task&lt;IReadOnlyList&lt;ListSchedulesItem&gt;&gt; ListAsync(CancellationToken ct) =&gt;
+    (<span class="k">await</span> schedules.ListAsync(<span class="k">new</span> ListSchedulesQuery(JobNamespace: jobNamespace, PageSize: 10), ct))
+        .Items.Where(s =&gt; jobNames.Contains(s.JobName))
+        .ToList();
+
+<span class="k">static</span> <span class="k">bool</span> Ordered(IReadOnlyList&lt;(DateTime Occurrence, DateTime CoveredThrough)&gt; firings) =&gt;
+    firings.Zip(firings.Skip(1)).All(pair =&gt; pair.First.Occurrence &lt; pair.Second.Occurrence);
+
+<span class="k">namespace</span> Acta.Concepts.ScheduleMisfire
+{
+    <span class="c">/// &lt;summary&gt;The occurrences each job's firings stood for, as the handler read them from its context.&lt;/summary&gt;</span>
+    <span class="k">public</span> <span class="k">static</span> <span class="k">class</span> Firings
+    {
+        <span class="k">private</span> <span class="k">static</span> <span class="k">readonly</span> ConcurrentQueue&lt;(<span class="k">string</span> Job, DateTime Occurrence, DateTime CoveredThrough)&gt; Seen = <span class="k">new</span>();
+
+        <span class="k">public</span> <span class="k">static</span> <span class="k">void</span> Record(JobContext ctx)
+        {
+            <span class="c">// learn: 2. Read which occurrences a firing stands for</span>
+            <span class="c">// A catch-up firing can cover a stretch: each triggering schedule gives its occurrence and the instant it</span>
+            <span class="c">// covers through.</span>
+<span class="hl">            <span class="k">foreach</span> (<span class="k">var</span> schedule <span class="k">in</span> ctx.TriggeringSchedules)</span>
+<span class="hl">            {</span>
+<span class="hl">                Seen.Enqueue((ctx.JobName, schedule.OccurrenceAtUtc, schedule.CoveredThroughUtc));</span>
+<span class="hl">            }</span>
+            <span class="c">// learn: end</span>
+        }
+
+        <span class="k">public</span> <span class="k">static</span> <span class="k">void</span> Clear() =&gt; Seen.Clear();
+
+        <span class="c">/// &lt;summary&gt;The job's firings for occurrences at or before &lt;paramref name=&quot;through&quot;/&gt;, in the order they ran.&lt;/summary&gt;</span>
+        <span class="k">public</span> <span class="k">static</span> IReadOnlyList&lt;(DateTime Occurrence, DateTime CoveredThrough)&gt; Of(<span class="k">string</span> job, DateTime through) =&gt;
+            Seen.Where(f =&gt; f.Job == job &amp;&amp; f.Occurrence &lt;= through).Select(f =&gt; (f.Occurrence, f.CoveredThrough)).ToList();
+    }
+
+    <span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> MisfireJobs
+    {
+        <span class="c">// learn: 1. Choose the misfire strategy on the schedule</span>
+        <span class="c">// `MisfireStrategy` says what the next admission pass does with the occurrences that came due while the</span>
+        <span class="c">// schedule could not fire.</span>
+<span class="hl">        <span class="a">[Job(<span class="s">&quot;skip-report&quot;</span>)]</span></span>
+<span class="hl">        <span class="a">[Schedule(<span class="s">&quot;every-second&quot;</span>, <span class="s">&quot;PT1S&quot;</span>, MisfireStrategy = MisfireStrategyCode.Skip)]</span></span>
+<span class="hl">        <span class="k">public</span> Task Skip(JobContext ctx, CancellationToken ct) =&gt; Run(ctx, ct);</span>
+<span class="hl"> </span>
+<span class="hl">        <span class="a">[Job(<span class="s">&quot;catch-up-once-report&quot;</span>)]</span></span>
+<span class="hl">        <span class="a">[Schedule(<span class="s">&quot;every-second&quot;</span>, <span class="s">&quot;PT1S&quot;</span>, MisfireStrategy = MisfireStrategyCode.CatchUpOnce)]</span></span>
+<span class="hl">        <span class="k">public</span> Task CatchUpOnce(JobContext ctx, CancellationToken ct) =&gt; Run(ctx, ct);</span>
+<span class="hl"> </span>
+<span class="hl">        <span class="a">[Job(<span class="s">&quot;catch-up-all-report&quot;</span>)]</span></span>
+<span class="hl">        <span class="a">[Schedule(<span class="s">&quot;every-second&quot;</span>, <span class="s">&quot;PT1S&quot;</span>, MisfireStrategy = MisfireStrategyCode.CatchUpAll)]</span></span>
+<span class="hl">        <span class="k">public</span> Task CatchUpAll(JobContext ctx, CancellationToken ct) =&gt; Run(ctx, ct);</span>
+
+        <span class="c">// learn: end</span>
+
+        <span class="k">private</span> <span class="k">static</span> <span class="k">async</span> Task Run(JobContext ctx, CancellationToken ct)
+        {
+            Firings.Record(ctx);
+            <span class="k">await</span> Task.Delay(50, ct);
+        }
+    }
+}</code></pre></figure></details></div>
+<div class="step plain-step"><h2>Where to go next</h2><ul class="next-links"><li><a href="/learn/105-schedule-control">How to pause and resume a schedule</a><span>Run work on a schedule</span></li></ul></div>
+      </article>
+      <article class="agent-face" hidden>
+        <figure class="listing agent"><figcaption><span class="file">/learn/106-schedule-misfire.md</span><span class="note" data-md-size></span><a class="copy" href="/learn/106-schedule-misfire.md">Open</a><button class="copy" type="button" data-copy-target="#md-body">Copy</button></figcaption><pre><code id="md-body">Loading the Markdown.</code></pre></figure>
+        <p class="hint">This is the page an agent receives: the same how-to as plain Markdown, at this page's address with <code>.md</code> added.</p>
+      </article>
+      <aside class="howto-rail" aria-label="This section">
+        <p class="rail-head"><a href="/learn#s-schedule">Run work on a schedule</a></p>
+        <ol>
+            <li><a href="/learn/101-recurring-job" data-id="101"><span class="rail-n">1</span>Run a job on a repeating schedule</a></li>
+            <li><a href="/learn/104-timezone-schedule" data-id="104"><span class="rail-n">2</span>Run a job every day at a set hour in your time zone</a></li>
+            <li><a href="/learn/102-interval-schedule" data-id="102"><span class="rail-n">3</span>Replace a timer loop with an interval schedule</a></li>
+            <li><a href="/learn/103-multiple-schedules" data-id="103"><span class="rail-n">4</span>Give one job several schedules</a></li>
+            <li aria-current="page"><a href="/learn/106-schedule-misfire" data-id="106"><span class="rail-n">5</span>Decide what happens to runs a schedule missed</a></li>
+            <li><a href="/learn/105-schedule-control" data-id="105"><span class="rail-n">6</span>Pause and resume a schedule</a></li>
+            <li><a href="/learn/108-calendar-catalog" data-id="108"><span class="rail-n">7</span>Drive a schedule from a published calendar</a></li>
+            <li><a href="/learn/110-per-occurrence-delivery" data-id="110"><span class="rail-n">8</span>Make every occurrence its own job</a></li>
+            <li><a href="/learn/111-firing-failure-policy" data-id="111"><span class="rail-n">9</span>Decide what a failed firing does to its schedule</a></li>
+            <li><a href="/learn/214-reset-state" data-id="214"><span class="rail-n">10</span>Start each firing of a recurring job clean</a></li>
+        </ol>
+        <button class="button done-toggle" type="button" data-done-toggle="106" aria-pressed="false">Mark as done</button>
+        <p class="rail-turn"><a href="/learn/103-multiple-schedules" rel="prev">Previous</a><a href="/learn/105-schedule-control" rel="next">Next</a></p>
+      </aside>
+    </div>
+    <section class="wrap newcomer" aria-labelledby="newcomer-title">
+      <h2 id="newcomer-title">New to Acta?</h2>
+      <p class="lede">Acta is durable execution for .NET: workflows and jobs that survive restarts, as a library inside your application with its durable state in your SQL database.</p>
+      <div class="actions">
+        <a class="button primary" href="/start">Run your first durable job in five minutes</a>
+        <a class="button" href="/learn">See every how-to</a>
+        <a class="button" href="/capabilities">Everything Acta does</a>
+      </div>
+    </section>
+    <footer class="site-footer">
+      <div class="wrap">
+        <div class="footer-grid">
+          <div class="footer-about">
+            <a class="site-brand" href="/" aria-label="Acta home"><svg viewBox="3.95 4.95 30.1 30.1" fill="none" stroke="currentColor" stroke-width="4.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 33 19 7 32 33" /><circle cx="19" cy="27" r="3" fill="currentColor" stroke="none" /></svg><span class="brand-word">Acta<span>.</span></span></a>
+            <p>Durable execution for .NET.</p>
+            <p>A library inside your application.<br />Durable state in your SQL database.</p>
+            <p class="footer-license">Apache-2.0 · built in the open</p>
+          </div>
+          <nav aria-label="Explore">
+            <p class="footer-head">Explore</p>
+            <a href="/how-it-works">How Acta works</a>
+            <a href="/capabilities">Capabilities</a>
+            <a href="/engine">Inside one worker</a>
+            <a href="/fleet">Workers and recovery</a>
+            <a href="/gates">Order and limits</a>
+            <a href="/benchmark">Benchmark and evidence</a>
+            <a href="/choosing">Choosing Acta</a>
+          </nav>
+          <nav aria-label="Build">
+            <p class="footer-head">Build</p>
+            <a href="/start">Get started</a>
+            <a href="/learn">Learn Acta</a>
+            <a href="https://github.com/acta-dotnet/acta/tree/main/docs">Documentation</a>
+            <a href="https://github.com/acta-dotnet/acta/tree/main/concepts">Runnable concepts</a>
+            <a href="https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md">Engineering labs</a>
+            <a href="/llms.txt">llms.txt for coding agents</a>
+          </nav>
+          <div class="footer-release">
+            <p class="footer-head">Release</p>
+            <p class="footer-version"><span class="release-dot" aria-hidden="true"></span><a href="https://github.com/acta-dotnet/acta/releases">1.0.0-rc.12 <span aria-hidden="true">↗</span></a><span>a release candidate</span></p>
+            <a href="https://github.com/acta-dotnet/acta/blob/main/docs/compatibility-and-support.md">Compatibility and support</a>
+            <a href="/support">Support Acta</a>
+            <a href="https://github.com/acta-dotnet/acta/blob/main/docs/known-limitations.md#stability-status">Stability status</a>
+            <a href="https://github.com/acta-dotnet/acta">Source on GitHub <span aria-hidden="true">↗</span></a>
+          </div>
+        </div>
+        <div class="footer-bottom">
+          <p>Created and maintained by <a href="https://www.linkedin.com/in/marko-voncina">Marko Vončina</a></p>
+          <span data-theme-controls></span>
+        </div>
+      </div>
+    </footer>
+  </main>
+  <p class="sr-only" id="copy-status" aria-live="polite"></p>
+  <script src="/assets/learn.js"></script>
+</body>
+</html>
