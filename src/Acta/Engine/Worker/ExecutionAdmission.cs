@@ -91,16 +91,16 @@ internal sealed class ExecutionAdmission(ILogger log, int concurrencyKeyBounceDe
     }
 
     /// <summary>
-    /// Concurrency bounce: complete the attempt as a budget-neutral re-arm with the fixed delay. A provider
-    /// error says nothing about the key, which a rate-only definition does not even have.
+    /// Concurrency bounce: complete the attempt as a budget-neutral re-arm with the fixed delay. A null key is a
+    /// provider error, which says nothing about the key, and a rate-only definition does not even have one.
     /// </summary>
-    private ExecutionCompletion Bounced(bool admissionFailed) =>
+    private ExecutionCompletion Bounced(string? heldKey) =>
         new(CompletionKind.Rescheduled)
         {
-            Reason = admissionFailed ? null : EventReason.ConcurrencyKeyHeld,
-            ReasonMessage = admissionFailed
+            Reason = heldKey is null ? null : EventReason.ConcurrencyKeyHeld,
+            ReasonMessage = heldKey is null
                 ? "Admission failed on a provider error; the attempt re-armed instead of running."
-                : "Every concurrency slot for this key is held by another execution.",
+                : $"Every concurrency slot for the key '{heldKey}' is held by another execution.".Truncate(ActaTextLimits.EventMessage),
             RescheduleDelaySeconds = concurrencyKeyBounceDelaySeconds,
         };
 
@@ -127,10 +127,10 @@ internal sealed class ExecutionAdmission(ILogger log, int concurrencyKeyBounceDe
             // never ran. The attempt bounces instead. A lock slot the acquire may have committed without
             // answering is untracked and expires with its lease TTL.
             ActaLog.ConcurrencyAdmissionFailed(log, ex, job.JobId, concurrencyKey, concurrencyKeyBounceDelaySeconds * 1000);
-            return Bounced(admissionFailed: true);
+            return Bounced(heldKey: null);
         }
 
-        return Bounced(admissionFailed: false);
+        return Bounced(concurrencyKey);
     }
 
     /// <summary>Reserves the job's turn on its rate meter; the re-arm completion when the turn lies ahead or the reservation failed.</summary>
@@ -158,7 +158,7 @@ internal sealed class ExecutionAdmission(ILogger log, int concurrencyKeyBounceDe
             // meter may have booked without answering is honoured when the job returns, so nothing is
             // double-counted.
             ActaLog.RateAdmissionFailed(log, ex, job.JobId, rateName, concurrencyKeyBounceDelaySeconds * 1000);
-            return Bounced(admissionFailed: true);
+            return Bounced(heldKey: null);
         }
 
         if (reservation.Admitted)
@@ -170,7 +170,7 @@ internal sealed class ExecutionAdmission(ILogger log, int concurrencyKeyBounceDe
         return new ExecutionCompletion(CompletionKind.Rescheduled)
         {
             Reason = EventReason.RateLimited,
-            ReasonMessage = "The rate limit for this key reserved this job its next turn.",
+            ReasonMessage = $"The rate limit '{rateName}' reserved this job its next turn.".Truncate(ActaTextLimits.EventMessage),
             RescheduleResumeAtUtc = reservation.ResumeAtUtc,
         };
     }

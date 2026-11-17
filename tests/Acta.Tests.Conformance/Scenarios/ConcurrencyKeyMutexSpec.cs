@@ -178,6 +178,7 @@ public sealed class ConcurrencyKeyMutexSpec : ActaRuntimeTestBase<ConformanceFix
 
         var bounce = await ReadLatestEventAsync(enqueued.JobId, EventCode.JobRescheduled, ct);
         Assert.Equal(EventReason.ConcurrencyKeyHeld, EventDetail(bounce, "reason"));
+        Assert.Contains($"'{key}'", bounce.EventMessage ?? "", StringComparison.Ordinal);
 
         await locks.ReleaseLockAsync(held.Value, ct);
     }

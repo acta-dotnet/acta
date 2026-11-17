@@ -507,6 +507,7 @@ public sealed class RateLimitSpec : ActaRuntimeTestBase<ConformanceFixture, Jobs
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
         var bounce = await ReadLatestEventAsync(enqueued.JobId, EventCode.JobRescheduled, ct);
         Assert.Equal(EventReason.RateLimited, EventDetail(bounce, "reason"));
+        Assert.Contains("'rate-and-slot-probe'", bounce.EventMessage ?? "", StringComparison.Ordinal);
         Assert.Equal(0, (await ReadJobAsync(enqueued.JobId, ct)).FailureCount);
         Assert.NotNull(await ReadLockAsync($"{bucket}.{enqueued.JobId}", ct));
 
