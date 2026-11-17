@@ -207,7 +207,7 @@ public enum EventCode : byte
     /// </summary>
     [Code(
         "schedule.admitted",
-        "The scheduler chose one of the schedule's occurrences to fire; the details carry the schedule, the occurrence, the time through which the schedule is decided, and the firing id."
+        "The scheduler chose one of the schedule's occurrences to fire; the details carry the schedule, the occurrence, the time through which the schedule is decided, and the firing id. The event carries the job's execution number as it stood, the one before the firing it starts."
     )]
     ScheduleAdmitted = 34,
 

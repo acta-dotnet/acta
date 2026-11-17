@@ -70,9 +70,10 @@ public abstract partial class JobContext
     public virtual Guid? FiringId => null;
 
     /// <summary>
-    /// Which attempt this is: <c>1</c> on the first execution, incrementing on every retry, every resume after a wait,
-    /// every firing of a permanent job, and every reclaim. The same number the ledger records as <c>execution_number</c>, so
-    /// <c>(JobId, ExecutionNumber)</c> identifies this attempt in the timeline. It changes on every retry, so an external
+    /// Which execution this is: <c>1</c> on the first, incrementing on every retry, every resume after a wait, every
+    /// firing of a permanent job, and every reclaim. It is not the retry count, which a job read answers as
+    /// <c>FailureCount</c>. The same number the ledger records as <c>execution_number</c>, so
+    /// <c>(JobId, ExecutionNumber)</c> identifies this execution in the timeline. It changes on every retry, so an external
     /// call's idempotency key comes from the business operation instead. Defaults to <c>1</c> for test contexts that
     /// do not set it.
     /// </summary>

@@ -216,7 +216,7 @@ The step runs again as it is: a file nobody changed saves nothing, and its versi
 
 | Kind | Role | Members |
 | --- | --- | --- |
-| `weekly-availability` | Availability | `weekly` rules of `days` and local `windows`, an overnight window ending on the next date; `dateOverrides` replacing one date's windows, or closing it with `[]`; `excludedRanges` subtracted last, each a pair of dates `from` and `to` or a pair of instants `fromUtc` and `toUtc` in UTC with a `Z` |
+| `weekly-availability` | Availability | `weekly` rules of `days` and local `windows`, each bound `HH:mm` or `HH:mm:ss`, an overnight window ending on the next date; `dateOverrides` replacing one date's windows, or closing it with `[]`; `excludedRanges` subtracted last, each a pair of dates `from` and `to` or a pair of instants `fromUtc` and `toUtc` in UTC with a `Z` |
 | `intersection` | Availability | `of`: inline availability definitions |
 | `subtraction` | Availability | `from` and `minus`: inline availability definitions |
 | `explicit-instants` | Occurrence | `instants`: UTC instants (`2027-01-15T16:00:00Z`) or local date-times (`2027-01-15T16:00`) |

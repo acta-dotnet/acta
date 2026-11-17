@@ -477,7 +477,8 @@ public interface IJobs
     /// <summary>
     /// Raises the signal with a pre-formed payload: stores
     /// <paramref name="value"/> on the signal verbatim under its <c>Format</c>, read by
-    /// <c>ctx.WaitSignalAsync&lt;T&gt;(name)</c>; <see cref="JobPayload.None"/> raises a presence-only signal. The HTTP
+    /// <c>ctx.WaitSignalAsync&lt;T&gt;(name)</c>; <see cref="JobPayload.None"/> raises a presence-only signal. A raise that
+    /// comes before the handler reaches its wait is stored, and the wait takes it when it comes. The HTTP
     /// signal endpoint uses it to pass a request body through as JSON without binding the handler's type.
     /// <paramref name="actor"/> is recorded on the audit event as the operator identity; null when unknown.
     /// </summary>

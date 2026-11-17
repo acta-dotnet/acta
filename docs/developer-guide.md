@@ -600,9 +600,18 @@ A child is started from its input, `ctx.CallChildAsync("ship", order, ct)`, whic
 | `ctx.WaitChildrenAsync(children)` | Wait for children you enqueued; outcomes in caller order. |
 | `ctx.MapAsync(group, items)` | Fan-out keyed by a stable item key; outcomes per item, typed when each child is a generated call, and one `configure` for every child. |
 
+```csharp
+// One child per order; each outcome carries that child's typed result.
+var labels = await ctx.MapAsync("label", orders, o => o.Id, o => ShippingJobs.PrintLabel(new PrintLabel(o.Id)), ct);
+labels.ThrowIfAnyFailed();
+var printed = labels.Items.Select(item => item.Outcome.ValueOrThrow()).ToList();
+```
+
+The [map and wait how-to](../learn/200-durable-execution/215-map-wait-children/) runs both forms.
+
 Each child is an ordinary job, and a group is ordinary `EnqueueChildAsync` calls plus a wait on each child, not a workflow runtime. Every child, alone or in a group, ends in a `JobOutcome`. They wait for every child and return every outcome: they never fail fast or cancel siblings, and throw only when asked (`ThrowIfAnyFailed`). A failed child stays failed on replay until restarted. Its newer outcome is recorded on the parent when it lands or is cancelled, even after the parent finished, so a parent restarted afterwards reads it; a wait that had already timed out keeps its timeout. Each also takes a `TimeSpan timeout`, one deadline for the whole group that cancels only the members still running and reports `TimedOut` in the outcome.
 
-A map's children are keyed deterministically: `{group}/{key}`, or a hash of an unsafe key. No child name holds a `/`, so a map's children never share a key with another map's or with a child you named yourself; reusing a group name with the same key lands two starts on one child. A replay starts only the children it has not started: one already started is answered from its row, without its input or `configure` built again or the start's checks run again. Groups do not limit concurrency; use concurrency keys or worker capacity. How-to `215-map-wait-children` shows both.
+A map's children are keyed deterministically: `{group}/{key}` when the key is lowercase letters, digits and single dashes, and a hash of any other key, so lowercase a key you want to read in the name. No child name holds a `/`, so a map's children never share a key with another map's or with a child you named yourself; reusing a group name with the same key lands two starts on one child. A replay starts only the children it has not started: one already started is answered from its row, without its input or `configure` built again or the start's checks run again. Groups do not limit concurrency; use concurrency keys or worker capacity. How-to `215-map-wait-children` shows both.
 
 ### CancellationToken semantics
 
@@ -764,7 +773,7 @@ The default retry policy (`MaxAttempts = 15`, backoff `"1m..1d x2 ~10%"`) keeps 
 
 #### Concurrency limit
 
-`ConcurrencyLimit = N` (1 to 1024) caps the attempts running at once per concurrency key, cluster-wide. The key is the enqueue's `ConcurrencyKey`, else the definition name, and a key with no limit admits one at a time. A job that finds every concurrency slot held re-arms Ready after a short bounce without spending a retry; one that loses the race for a free slot tries again, up to the limit, before it re-arms. Definitions sharing a key share its slots, and its capacity is the largest limit among them. After a decrease, admissions may use the old limit until every worker's next heartbeat, and a job already holding a slot above the new limit runs on until it finishes or its lease lapses, beside new admissions below it. To lower the cap at once, let that work drain first.
+`ConcurrencyLimit = N` (1 to 1024) caps the attempts running at once per concurrency key, cluster-wide. The key is the enqueue's `ConcurrencyKey`, else the definition name, and a key with no limit admits one at a time. A slot is held while an attempt runs, not while the job sleeps or waits. A job that finds every concurrency slot held re-arms Ready after a short bounce without spending a retry; one that loses the race for a free slot tries again, up to the limit, before it re-arms. Definitions sharing a key share its slots, and its capacity is the largest limit among them. After a decrease, admissions may use the old limit until every worker's next heartbeat, and a job already holding a slot above the new limit runs on until it finishes or its lease lapses, beside new admissions below it. To lower the cap at once, let that work drain first.
 
 #### Rate limit
 
@@ -1050,7 +1059,7 @@ SQLite has no schema to hand out, so each host takes a database file of its own,
 parallel tests apart:
 
 ```csharp
-private readonly string _file = Path.Combine(Path.GetTempPath(), $"acta-test-{Guid.NewGuid():N}.db");
+private readonly string _file = $"acta-test-{Guid.NewGuid():N}.db";   // in the test's output folder
 
 public async ValueTask InitializeAsync()
 {
