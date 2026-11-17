@@ -76,10 +76,10 @@ public sealed class JobsOptions
     /// <summary>
     /// Coordination invariant, and the only one you set: cadence of the background loop that refreshes every
     /// in-flight lease this process holds and stamps <c>workers.last_seen_at_utc</c>. Runs on its own timer, so a
-    /// flood of long-running handlers cannot starve it. <see cref="LeaseTtlSeconds"/> and
+    /// flood of long-running handlers cannot starve it. <see cref="LeaseTtl"/> and
     /// <see cref="WorkerDeadAfter"/> derive from it, since all three must agree across every worker and nothing can
     /// verify that at runtime: shorten this for a watchable crash-recovery demo and the whole triple shortens with
-    /// it, still proportioned. Default 45s.
+    /// it, still proportioned. At least 250 ms and at most 6 hours. Default 45s.
     /// </summary>
     public TimeSpan HeartbeatInterval { get; set; } = TimeSpan.FromSeconds(45);
 

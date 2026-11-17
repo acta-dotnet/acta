@@ -139,7 +139,9 @@ internal sealed class JobsOptionsValidator : IValidateOptions<JobsOptions>
 
         if (!leaseValid)
         {
-            failures.Add("JobsOptions.LeaseTtlSeconds must be > 0: it is the worker-wide lease window.");
+            failures.Add(
+                "JobsOptions.HeartbeatInterval must be at least 250 ms: the lease window, LeaseTtl, is four heartbeats in whole seconds and must be at least one."
+            );
         }
 
         if (!heartbeatValid)
@@ -155,7 +157,7 @@ internal sealed class JobsOptionsValidator : IValidateOptions<JobsOptions>
         if (leaseValid && heartbeatValid && leaseTtl < heartbeat * 2)
         {
             failures.Add(
-                "JobsOptions.LeaseTtlSeconds must be >= 2x HeartbeatInterval: a lease at or below twice the heartbeat reclaims a live worker's own jobs mid-run (double execution); 4x is the recommended margin."
+                "JobsOptions.LeaseTtl must be >= 2x HeartbeatInterval: a lease at or below twice the heartbeat reclaims a live worker's own jobs mid-run (double execution); 4x is the recommended margin."
             );
         }
 
@@ -169,7 +171,7 @@ internal sealed class JobsOptionsValidator : IValidateOptions<JobsOptions>
         if (leaseValid && options.WorkerDeadAfter > TimeSpan.Zero && options.WorkerDeadAfter <= leaseTtl)
         {
             failures.Add(
-                "JobsOptions.WorkerDeadAfter must be > LeaseTtlSeconds: a worker whose leases just lapsed must not be retired while it might still recover."
+                "JobsOptions.WorkerDeadAfter must be > LeaseTtl: a worker whose leases just lapsed must not be retired while it might still recover."
             );
         }
     }
@@ -227,7 +229,7 @@ internal sealed class JobsOptionsValidator : IValidateOptions<JobsOptions>
         if (options.LeaseTtlSeconds > 86_400)
         {
             failures.Add(
-                "JobsOptions.LeaseTtlSeconds must be <= 86400 (1 day): long-running handlers stay alive through heartbeating, not a giant lease."
+                "JobsOptions.LeaseTtl must be <= 86400 seconds (1 day): long-running handlers stay alive through heartbeating, not a giant lease."
             );
         }
 

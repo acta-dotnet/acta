@@ -91,7 +91,7 @@ public sealed class JobsOptionsValidatorTests
     {
         var result = Validate(o => o.LeaseTtlSeconds = -5);
         Assert.True(result.Failed);
-        Assert.Contains("LeaseTtlSeconds", result.FailureMessage);
+        Assert.Contains("LeaseTtl, is four heartbeats", result.FailureMessage);
     }
 
     [Fact]
@@ -111,6 +111,16 @@ public sealed class JobsOptionsValidatorTests
     }
 
     [Fact]
+    public void A_heartbeat_under_a_quarter_second_fails_under_its_own_name()
+    {
+        // The lease is four heartbeats in whole seconds, so under 250 ms it would be zero.
+        var result = Validate(o => o.HeartbeatInterval = TimeSpan.FromMilliseconds(200));
+        Assert.True(result.Failed);
+        Assert.Contains("HeartbeatInterval must be at least 250 ms", result.FailureMessage);
+        Assert.DoesNotContain("LeaseTtlSeconds", result.FailureMessage);
+    }
+
+    [Fact]
     public void Lease_below_twice_heartbeat_fails()
     {
         // Lease 60s, heartbeat 45s: 60 < 90, so a live worker's own jobs would reclaim mid-run.
@@ -121,7 +131,7 @@ public sealed class JobsOptionsValidatorTests
             o.WorkerDeadAfter = TimeSpan.FromMinutes(5);
         });
         Assert.True(result.Failed);
-        Assert.Contains("LeaseTtlSeconds must be >= 2x HeartbeatInterval", result.FailureMessage);
+        Assert.Contains("LeaseTtl must be >= 2x HeartbeatInterval", result.FailureMessage);
     }
 
     [Fact]
@@ -149,7 +159,7 @@ public sealed class JobsOptionsValidatorTests
             o.WorkerDeadAfter = TimeSpan.FromSeconds(180);
         });
         Assert.True(result.Failed);
-        Assert.Contains("WorkerDeadAfter must be > LeaseTtlSeconds", result.FailureMessage);
+        Assert.Contains("WorkerDeadAfter must be > LeaseTtl:", result.FailureMessage);
     }
 
     [Fact]
@@ -174,7 +184,7 @@ public sealed class JobsOptionsValidatorTests
     {
         var result = Validate(o => o.LeaseTtlSeconds = 90_000);
         Assert.True(result.Failed);
-        Assert.Contains("LeaseTtlSeconds must be <=", result.FailureMessage);
+        Assert.Contains("LeaseTtl must be <=", result.FailureMessage);
     }
 
     [Fact]
