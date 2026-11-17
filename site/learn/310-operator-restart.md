@@ -30,7 +30,7 @@ Console.WriteLine($"restart result: {result.Action} status={result.Status}");
 
 // The worker may already have claimed the row; failure_count is reset regardless of that scheduling race.
 snapshot = await jobs.GetAsync(outcome);
-Console.WriteLine($"immediately observed after restart: status={snapshot!.Status} failureCount={snapshot.FailureCount}");
+Console.WriteLine($"immediately observed after restart: failureCount={snapshot!.FailureCount} status={snapshot.Status}");
 ```
 
 ## 2. The job it acts on
@@ -78,7 +78,7 @@ Its output must contain:
 ```text
 terminal: status=Failed failureCount=3 executionNumber=3
 restart result: Applied status=Ready
-immediately observed after restart: status=Ready failureCount=0
+immediately observed after restart: failureCount=0
 [report-1] report generated after operator restart
 re-run complete: status=Succeeded executionNumber=4
 ```

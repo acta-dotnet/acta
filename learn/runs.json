@@ -155,7 +155,7 @@
   "310-operator-restart": [
     "terminal: status=Failed failureCount=3 executionNumber=3",
     "restart result: Applied status=Ready",
-    "immediately observed after restart: status=Ready failureCount=0",
+    "immediately observed after restart: failureCount=0",
     "[report-1] report generated after operator restart",
     "re-run complete: status=Succeeded executionNumber=4"
   ],

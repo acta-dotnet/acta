@@ -84,7 +84,7 @@ Console.WriteLine(<span class="s">$&quot;restart result: {result.Action} status=
 
 <span class="c">// The worker may already have claimed the row; failure_count is reset regardless of that scheduling race.</span>
 snapshot = <span class="k">await</span> jobs.GetAsync(outcome);
-Console.WriteLine(<span class="s">$&quot;immediately observed after restart: status={snapshot!.Status} failureCount={snapshot.FailureCount}&quot;</span>);</code></pre></figure>
+Console.WriteLine(<span class="s">$&quot;immediately observed after restart: failureCount={snapshot!.FailureCount} status={snapshot.Status}&quot;</span>);</code></pre></figure>
 </div>
 <div class="step"><h2><span class="step-n">2</span>The job it acts on</h2>
 <figure class="listing"><figcaption><span class="file">operator-restart.cs</span><span class="note">excerpt</span><button class="copy" type="button">Copy</button></figcaption><pre><code><span class="k">private</span> <span class="k">static</span> <span class="k">int</span> _handlerEntries;
@@ -118,7 +118,7 @@ Console.WriteLine(<span class="s">$&quot;immediately observed after restart: sta
 <figure class="listing"><figcaption><span class="note">Terminal</span><button class="copy" type="button">Copy</button></figcaption><pre><code>dotnet run --project learn/300-failure-and-recovery/310-operator-restart</code></pre></figure>
 <figure class="listing output"><figcaption><span class="note">Its output must contain</span><button class="copy" type="button">Copy</button></figcaption><pre><code>terminal: status=Failed failureCount=3 executionNumber=3
 restart result: Applied status=Ready
-immediately observed after restart: status=Ready failureCount=0
+immediately observed after restart: failureCount=0
 [report-1] report generated after operator restart
 re-run complete: status=Succeeded executionNumber=4</code></pre></figure>
 <p class="proof checked"><b>Checked every release.</b> Before each release, Acta Verify runs this program and checks that its output contains these lines.</p>
@@ -206,7 +206,7 @@ Console.WriteLine(<span class="s">$&quot;restart result: {result.Action} status=
 
 <span class="c">// The worker may already have claimed the row; failure_count is reset regardless of that scheduling race.</span>
 snapshot = <span class="k">await</span> jobs.GetAsync(outcome);
-Console.WriteLine(<span class="s">$&quot;immediately observed after restart: status={snapshot!.Status} failureCount={snapshot.FailureCount}&quot;</span>);
+Console.WriteLine(<span class="s">$&quot;immediately observed after restart: failureCount={snapshot!.FailureCount} status={snapshot.Status}&quot;</span>);
 
 <span class="k">using</span> <span class="k">var</span> completionTimeout = <span class="k">new</span> CancellationTokenSource(TimeSpan.FromSeconds(30));
 <span class="k">while</span> ((snapshot = <span class="k">await</span> jobs.GetAsync(outcome, completionTimeout.Token))?.Status != JobStatusCode.Succeeded)

@@ -54,7 +54,7 @@ Console.WriteLine($"restart result: {result.Action} status={result.Status}");
 
 // The worker may already have claimed the row; failure_count is reset regardless of that scheduling race.
 snapshot = await jobs.GetAsync(outcome);
-Console.WriteLine($"immediately observed after restart: status={snapshot!.Status} failureCount={snapshot.FailureCount}");
+Console.WriteLine($"immediately observed after restart: failureCount={snapshot!.FailureCount} status={snapshot.Status}");
 
 using var completionTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
 while ((snapshot = await jobs.GetAsync(outcome, completionTimeout.Token))?.Status != JobStatusCode.Succeeded)
