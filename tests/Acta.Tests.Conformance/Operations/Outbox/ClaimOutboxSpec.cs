@@ -23,9 +23,9 @@ public sealed class ClaimOutboxSpec : OutboxSpecBase
         var ct = TestContext.Current.CancellationToken;
         // One due instant for all three, so only the staging order separates them.
         var due = DateTime.UtcNow.AddMinutes(-5);
-        var low = DueRow(Unique("low"), priority: 0) with { CreatedAtUtc = due, NextAttemptAtUtc = due };
-        var normal = DueRow(Unique("normal"), priority: 50) with { CreatedAtUtc = due, NextAttemptAtUtc = due };
-        var high = DueRow(Unique("high"), priority: 100) with { CreatedAtUtc = due, NextAttemptAtUtc = due };
+        var low = DueRow(Unique("low"), priority: (byte)JobPriorityCode.Bulk) with { CreatedAtUtc = due, NextAttemptAtUtc = due };
+        var normal = DueRow(Unique("normal"), priority: (byte)JobPriorityCode.Normal) with { CreatedAtUtc = due, NextAttemptAtUtc = due };
+        var high = DueRow(Unique("high"), priority: (byte)JobPriorityCode.Realtime) with { CreatedAtUtc = due, NextAttemptAtUtc = due };
         await Fixture.SeedOutboxRowAsync(TableName, low);
         await Fixture.SeedOutboxRowAsync(TableName, normal);
         await Fixture.SeedOutboxRowAsync(TableName, high);

@@ -33,10 +33,10 @@ public sealed class UpdateDefinitionOverridesBindMatrixSpec : ActaStorageTestBas
             ResultType: null,
             InputPayloadFormat: JobPayloadFormat.Json,
             ResultPayloadFormat: null,
-            Priority: default, // Bulk = 0
+            Priority: JobPriorityCode.Bulk, // Bulk = 0
             MaxAttempts: 3,
             EventRecording: EventRecordingCode.Failures,
-            AlertProfile: default, // None = 0
+            AlertProfile: AlertProfileCode.None, // None = 0
             FiringFailurePolicy: FiringFailurePolicyCode.Continue,
             ScheduledDelivery: ScheduledDeliveryCode.Permanent,
             Invoker: null!,

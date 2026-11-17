@@ -67,6 +67,7 @@ internal sealed class ActaTestSeeder(IDbSession db)
                     JobRetentionSeconds = 3600,
                     EventRecording = EventRecordingCode.Failures,
                     AlertProfile = alertProfile,
+                    TenantRequirement = DefinitionTenantRequirementCode.Optional,
                     CreatedAtUtc = now,
                     ModifiedAtUtc = now,
                 },
