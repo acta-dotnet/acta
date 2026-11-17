@@ -2120,7 +2120,7 @@ BEGIN
                     END;
             END;
 
-        IF @def_tenant_req = 20 /* TenantRequirementCode.Forbidden */ AND @p_tenant_name IS NOT NULL
+        IF @def_tenant_req = 30 /* TenantRequirementCode.Forbidden */ AND @p_tenant_name IS NOT NULL
             BEGIN
                 THROW 50008, 'ACTA:ENQ_TENANT_FORBIDDEN:Enqueue rejected: the job definition forbids a tenant and the row names one.', 1;
             END;
@@ -2279,7 +2279,7 @@ BEGIN
                     END;
             END;
 
-        IF @def_tenant_req = 10 /* TenantRequirementCode.Required */ AND @tenant_id IS NULL AND @parent_tenant IS NULL
+        IF @def_tenant_req = 20 /* TenantRequirementCode.Required */ AND @tenant_id IS NULL AND @parent_tenant IS NULL
             BEGIN
                 THROW 50007, 'ACTA:ENQ_TENANT_REQUIRED:Enqueue rejected: the job definition requires a tenant and the row carries none.', 1;
             END;
@@ -2306,7 +2306,7 @@ BEGIN
                     @p_deduplication_key, COALESCE(@p_correlation_key, @parent_corr),
                     @ns_id, @def_id,
                     CASE
-                        WHEN @def_tenant_req = 20 /* TenantRequirementCode.Forbidden */ THEN NULL
+                        WHEN @def_tenant_req = 30 /* TenantRequirementCode.Forbidden */ THEN NULL
                         ELSE COALESCE(@tenant_id, @parent_tenant)
                     END,
                     COALESCE(
@@ -2713,7 +2713,7 @@ BEGIN
                 INNER JOIN @p_batch b ON b.ordinal = r.ordinal
                 LEFT JOIN @parents p ON p.ordinal = b.ordinal
                 WHERE
-                    r.def_tenant_req = 10 /* TenantRequirementCode.Required */
+                    r.def_tenant_req = 20 /* TenantRequirementCode.Required */
                     AND r.tenant_id IS NULL
                     AND p.tenant_id IS NULL
             )
@@ -2729,7 +2729,7 @@ BEGIN
                 FROM @resolved r
                 INNER JOIN @p_batch b ON b.ordinal = r.ordinal
                 WHERE
-                    r.def_tenant_req = 20 /* TenantRequirementCode.Forbidden */
+                    r.def_tenant_req = 30 /* TenantRequirementCode.Forbidden */
                     AND b.tenant_name IS NOT NULL
             )
             BEGIN
@@ -2831,7 +2831,7 @@ BEGIN
                     r.ns_id,
                     r.def_id,
                     CASE
-                        WHEN r.def_tenant_req = 20 /* TenantRequirementCode.Forbidden */ THEN NULL
+                        WHEN r.def_tenant_req = 30 /* TenantRequirementCode.Forbidden */ THEN NULL
                         ELSE COALESCE(r.tenant_id, p.tenant_id)
                     END,
                     b.input_format_id,
@@ -2887,7 +2887,7 @@ BEGIN
                     r.ns_id,
                     r.def_id,
                     CASE
-                        WHEN r.def_tenant_req = 20 /* TenantRequirementCode.Forbidden */ THEN NULL
+                        WHEN r.def_tenant_req = 30 /* TenantRequirementCode.Forbidden */ THEN NULL
                         ELSE COALESCE(r.tenant_id, p.tenant_id)
                     END,
                     b.input_format_id,
@@ -5185,7 +5185,7 @@ JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE name = 'M20261117163843_init')
+IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE name = 'M20261117164354_init')
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261117163843_init');
+VALUES ('M20261117164354_init');
 GO

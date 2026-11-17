@@ -97,7 +97,7 @@ internal static class JobPolicyReader
         public string AlertProfileName { get; set; } = DefaultAlertProfileName;
         public string FiringFailurePolicyName { get; set; } = DefaultFiringFailurePolicyName;
         public string ScheduledDeliveryName { get; set; } = DefaultScheduledDeliveryName;
-        public byte TenantRequirementId { get; set; }
+        public byte TenantRequirementId { get; set; } = 10;
         public string? BackoffExpression { get; set; }
         public int? ExecutionTimeoutSeconds { get; set; }
         public int? DeadlineSeconds { get; set; }

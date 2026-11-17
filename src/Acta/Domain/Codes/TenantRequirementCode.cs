@@ -11,9 +11,12 @@ namespace Acta;
 [CodeKind("tenant-requirement")]
 public enum TenantRequirementCode : byte
 {
+    [Code("unspecified", "Tenant requirement not recognized by this build; the row was written by a newer Acta.")]
+    Unspecified = 0,
+
     /// <summary>The definition accepts tenant-scoped and tenant-less jobs alike.</summary>
     [Code("optional", "Jobs may carry a tenant or not; no enqueue-time tenant rule applies.")]
-    Optional = 0,
+    Optional = 10,
 
     /// <summary>
     /// Every job of this definition must be tenant-scoped: a root enqueue must name a TenantName, and
@@ -23,12 +26,12 @@ public enum TenantRequirementCode : byte
         "required",
         "Every enqueue must carry a tenant, by explicit TenantName or parent inheritance; a tenant-less enqueue is rejected."
     )]
-    Required = 10,
+    Required = 20,
 
     /// <summary>
     /// Jobs of this definition are never about a tenant: an explicit TenantName is rejected, and a
     /// child of a tenant-scoped parent is admitted with its inherited tenant suppressed to NULL.
     /// </summary>
     [Code("forbidden", "An explicit TenantName is rejected and a child never inherits its parent's tenant; rows always store tenant NULL.")]
-    Forbidden = 20,
+    Forbidden = 30,
 }

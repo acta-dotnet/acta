@@ -128,6 +128,19 @@ public sealed class DefinitionRegistrationValidationTests
     }
 
     [Theory]
+    [InlineData(TenantRequirementCode.Unspecified)]
+    [InlineData((TenantRequirementCode)42)]
+    public async Task A_tenant_requirement_that_is_not_declarable_fails_registration(TenantRequirementCode requirement)
+    {
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() =>
+            RegisterAsync(Descriptor("unruled") with { TenantRequirement = requirement })
+        );
+
+        Assert.Contains("unruled", ex.Message);
+        Assert.Contains("TenantRequirement", ex.Message);
+    }
+
+    [Theory]
     [InlineData(0)]
     [InlineData(-1)]
     [InlineData(JobDefinitionRegistration.MaxConcurrencyLimit + 1)]

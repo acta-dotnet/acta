@@ -110,7 +110,7 @@ BEGIN
                     END;
             END;
 
-        IF @def_tenant_req = 20 /* TenantRequirementCode.Forbidden */ AND @p_tenant_name IS NOT NULL
+        IF @def_tenant_req = 30 /* TenantRequirementCode.Forbidden */ AND @p_tenant_name IS NOT NULL
             BEGIN
                 THROW 50008, 'ACTA:ENQ_TENANT_FORBIDDEN:Enqueue rejected: the job definition forbids a tenant and the row names one.', 1;
             END;
@@ -269,7 +269,7 @@ BEGIN
                     END;
             END;
 
-        IF @def_tenant_req = 10 /* TenantRequirementCode.Required */ AND @tenant_id IS NULL AND @parent_tenant IS NULL
+        IF @def_tenant_req = 20 /* TenantRequirementCode.Required */ AND @tenant_id IS NULL AND @parent_tenant IS NULL
             BEGIN
                 THROW 50007, 'ACTA:ENQ_TENANT_REQUIRED:Enqueue rejected: the job definition requires a tenant and the row carries none.', 1;
             END;
@@ -296,7 +296,7 @@ BEGIN
                     @p_deduplication_key, COALESCE(@p_correlation_key, @parent_corr),
                     @ns_id, @def_id,
                     CASE
-                        WHEN @def_tenant_req = 20 /* TenantRequirementCode.Forbidden */ THEN NULL
+                        WHEN @def_tenant_req = 30 /* TenantRequirementCode.Forbidden */ THEN NULL
                         ELSE COALESCE(@tenant_id, @parent_tenant)
                     END,
                     COALESCE(

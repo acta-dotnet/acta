@@ -244,9 +244,9 @@ internal static class JobPolicyValues
     internal static string? TenantRequirementIdToName(byte id) =>
         id switch
         {
-            0 => "Optional",
-            10 => "Required",
-            20 => "Forbidden",
+            10 => "Optional",
+            20 => "Required",
+            30 => "Forbidden",
             _ => null,
         };
 }

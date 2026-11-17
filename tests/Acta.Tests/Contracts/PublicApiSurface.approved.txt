@@ -2652,9 +2652,10 @@ sealed class Acta.TagTarget
     static Acta.TagTarget ForNamespace(System.String jobNamespace)
     static Acta.TagTarget ForTenant(System.String tenantName)
 enum Acta.TenantRequirementCode : System.Byte
-    Forbidden = 20
-    Optional = 0
-    Required = 10
+    Forbidden = 30
+    Optional = 10
+    Required = 20
+    Unspecified = 0
 static class Acta.TenantRequirementCodeExtensions
     static Acta.TenantRequirementCode FromCode(System.String code)
     static Acta.TenantRequirementCode FromId(System.Byte id)

@@ -70,7 +70,7 @@ WHERE EXISTS (
     JOIN {{schema}}.namespaces ns ON ns.namespace_name = JSON_EXTRACT(r.value, '$.namespace_name')
     JOIN {{schema}}.definitions jd ON jd.namespace_id = ns.namespace_id AND jd.definition_name = JSON_EXTRACT(r.value, '$.job_name')
     WHERE
-        jd.tenant_requirement_code = 10 /* TenantRequirementCode.Required */
+        jd.tenant_requirement_code = 20 /* TenantRequirementCode.Required */
         AND JSON_EXTRACT(r.value, '$.tenant_name') IS NULL
         AND NOT EXISTS (
             SELECT 1 FROM {{schema}}.jobs pj
@@ -84,7 +84,7 @@ WHERE EXISTS (
     JOIN {{schema}}.namespaces ns ON ns.namespace_name = JSON_EXTRACT(r.value, '$.namespace_name')
     JOIN {{schema}}.definitions jd ON jd.namespace_id = ns.namespace_id AND jd.definition_name = JSON_EXTRACT(r.value, '$.job_name')
     WHERE
-        jd.tenant_requirement_code = 20 /* TenantRequirementCode.Forbidden */
+        jd.tenant_requirement_code = 30 /* TenantRequirementCode.Forbidden */
         AND JSON_EXTRACT(r.value, '$.tenant_name') IS NOT NULL
 );
 
@@ -183,7 +183,7 @@ SELECT
     ns.namespace_id,
     jd.definition_id,
     CASE
-        WHEN jd.tenant_requirement_code = 20 /* TenantRequirementCode.Forbidden */ THEN NULL
+        WHEN jd.tenant_requirement_code = 30 /* TenantRequirementCode.Forbidden */ THEN NULL
         ELSE COALESCE(
             (
                 SELECT t.tenant_id FROM {{schema}}.tenants t

@@ -5,7 +5,7 @@
 > Generated reference for Acta code families and the payload-format registry.
 > Every persisted code is documented here exactly once; the data-model reference [`data-model.md`](./data-model.md) links into this file from every code-bearing column.
 
-This release: **32 families**, **198 values**.
+This release: **32 families**, **199 values**.
 
 > Numeric IDs are stable family-local persistence identifiers. Enum members carry programmatic meaning; textual codes carry operator-facing meaning.
 > Numeric grouping is a readability convention, not a runtime schema. Canonical failure states use `200`.
@@ -405,9 +405,10 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
-| `Optional` | 0 | `optional` | Jobs may carry a tenant or not; no enqueue-time tenant rule applies. | Active |
-| `Required` | 10 | `required` | Every enqueue must carry a tenant, by explicit TenantName or parent inheritance; a tenant-less enqueue is rejected. | Active |
-| `Forbidden` | 20 | `forbidden` | An explicit TenantName is rejected and a child never inherits its parent's tenant; rows always store tenant NULL. | Active |
+| `Unspecified` | 0 | `unspecified` | Tenant requirement not recognized by this build; the row was written by a newer Acta. | Active |
+| `Optional` | 10 | `optional` | Jobs may carry a tenant or not; no enqueue-time tenant rule applies. | Active |
+| `Required` | 20 | `required` | Every enqueue must carry a tenant, by explicit TenantName or parent inheritance; a tenant-less enqueue is rejected. | Active |
+| `Forbidden` | 30 | `forbidden` | An explicit TenantName is rejected and a child never inherits its parent's tenant; rows always store tenant NULL. | Active |
 
 ### `TenantStatusCode` · `tenant-status` <a id="code-family-tenantstatuscode"></a>
 

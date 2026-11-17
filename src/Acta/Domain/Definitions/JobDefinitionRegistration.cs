@@ -159,6 +159,16 @@ internal static class JobDefinitionRegistration
             );
         }
 
+        // A hand-authored IJobManifest descriptor bypasses the generator's requirement check, and the enqueue
+        // routines read a requirement with no member as optional, without saying so.
+        if (descriptor.TenantRequirement == TenantRequirementCode.Unspecified || !Enum.IsDefined(descriptor.TenantRequirement))
+        {
+            throw new ArgumentException(
+                $"Job definition \"{descriptor.JobName}\" (namespace {namespaceLabel}) declares TenantRequirement "
+                    + $"{descriptor.TenantRequirement}: it must be Optional, Required or Forbidden."
+            );
+        }
+
         // A hand-authored IJobManifest descriptor bypasses the generator's compile-time range check,
         // so this is the last gate before an unsatisfiable concurrency limit reaches the definitions row.
         if (descriptor.ConcurrencyLimit is < MinConcurrencyLimit or > MaxConcurrencyLimit)

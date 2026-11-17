@@ -161,7 +161,7 @@ internal static class ManifestSourceWriter
     private static List<string> PolicyLines(DiscoveredJob j)
     {
         var policyLines = new List<string>();
-        if (j.TenantRequirementId != 0)
+        if (j.TenantRequirementId != 10)
         {
             policyLines.Add($"TenantRequirement = (global::Acta.TenantRequirementCode){j.TenantRequirementId},");
         }

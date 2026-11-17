@@ -827,7 +827,9 @@ public class ManifestGeneratorDiagnosticTests
     [InlineData("Priority = JobPriorityCode.Unspecified")]
     [InlineData("AlertProfile = (AlertProfileCode)42")]
     [InlineData("AlertProfile = AlertProfileCode.Unspecified")]
-    public void An_undeclarable_priority_or_alert_profile_errors_ACTA0105(string policy)
+    [InlineData("TenantRequirement = (TenantRequirementCode)42")]
+    [InlineData("TenantRequirement = TenantRequirementCode.Unspecified")]
+    public void An_undeclarable_policy_value_errors_ACTA0105(string policy)
     {
         var result = RunGenerator(
             $$"""
