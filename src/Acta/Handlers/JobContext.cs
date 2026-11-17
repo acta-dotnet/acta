@@ -154,6 +154,7 @@ public abstract partial class JobContext
     /// <see cref="RescheduleJobException"/> synchronously, so code after the call is unreachable and a forgotten
     /// <c>await</c> still stops the handler; the <see cref="Task"/> return mirrors <see cref="SleepAsync"/>.
     /// </summary>
+    [DoesNotReturn]
     public Task RescheduleAsync(TimeSpan delay, string? reasonMessage = null, CancellationToken ct = default)
     {
         ThrowIfInAtMostOnceStep(nameof(RescheduleAsync));
@@ -166,6 +167,7 @@ public abstract partial class JobContext
     /// <paramref name="resumeAtUtc"/>. A past instant re-arms as immediately claimable; throw and
     /// budget semantics match <see cref="RescheduleAsync"/>.
     /// </summary>
+    [DoesNotReturn]
     public Task RescheduleUntilAsync(DateTimeOffset resumeAtUtc, string? reasonMessage = null, CancellationToken ct = default)
     {
         ThrowIfInAtMostOnceStep(nameof(RescheduleUntilAsync));
@@ -207,6 +209,7 @@ public abstract partial class JobContext
     /// failure budget is untouched. Resumes only through <c>IJobs.ResumeAsync</c>. This is an operator-driven hold, not
     /// the framework-managed <c>Suspended</c> a <see cref="WaitSignalAsync(string, CancellationToken)"/> produces.
     /// </summary>
+    [DoesNotReturn]
     public Task PauseAsync(string? reasonMessage = null, CancellationToken ct = default)
     {
         ThrowIfInAtMostOnceStep(nameof(PauseAsync));
